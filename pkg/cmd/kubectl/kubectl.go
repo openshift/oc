@@ -52,5 +52,6 @@ https://github.com/openshift/origin.`,
 	}
 
 	factory.AddCommands(cmds, os.Stdout)
+
 	return cmds
 }
