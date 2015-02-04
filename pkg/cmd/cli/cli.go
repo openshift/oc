@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/openshift/origin/pkg/cmd/cli/cmd"
+	"github.com/openshift/origin/pkg/cmd/templates"
 )
 
 const longDesc = `
@@ -49,6 +50,10 @@ func NewCommandCLI(name, fullName string) *cobra.Command {
 	f := cmd.NewFactory(clientConfig)
 	f.BindFlags(cmds.PersistentFlags())
 	out := os.Stdout
+
+	cmds.SetUsageTemplate(templates.CliUsageTemplate)
+	cmds.SetHelpTemplate(templates.CliHelpTemplate)
+
 	// Kubernetes CRUD commands
 	cmds.AddCommand(f.NewCmdGet(out))
 	cmds.AddCommand(f.NewCmdDescribe(out))
