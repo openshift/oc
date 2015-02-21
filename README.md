@@ -97,7 +97,6 @@ There are two veth-pairs, a linux bridge, and then the OpenVSwitch, that cause a
 Hand-crafted solutions that eliminate the long-path to just a single veth-pair bring the performance close to the wire. The performance has been measured using sockperf.
 
     $ docker exec -it openshift-origin bash
-    $ export KUBECONFIG=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig
     $ osc --help
 
 #### TODO
