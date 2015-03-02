@@ -11,6 +11,7 @@ import (
 	"github.com/openshift/origin/pkg/cmd/cli/cmd"
 	"github.com/openshift/origin/pkg/cmd/templates"
 	"github.com/openshift/origin/pkg/cmd/util/clientcmd"
+	"github.com/openshift/origin/pkg/version"
 )
 
 const longDesc = `
@@ -64,7 +65,6 @@ func NewCommandCLI(name, fullName string) *cobra.Command {
 	cmds.AddCommand(cmd.NewCmdCancelBuild(f, out))
 	cmds.AddCommand(cmd.NewCmdBuildLogs(f, out))
 	cmds.AddCommand(cmd.NewCmdRollback(name, "rollback", f, out))
-
 	cmds.AddCommand(cmd.NewCmdGet(fullName, f, out))
 	cmds.AddCommand(f.NewCmdDescribe(out))
 	// Deprecate 'osc apply' with 'osc create' command.
@@ -72,15 +72,11 @@ func NewCommandCLI(name, fullName string) *cobra.Command {
 	cmds.AddCommand(cmd.NewCmdProcess(f, out))
 	cmds.AddCommand(cmd.NewCmdUpdate(fullName, f, out))
 	cmds.AddCommand(cmd.NewCmdDelete(fullName, f, out))
-
 	cmds.AddCommand(cmd.NewCmdLog(fullName, f, out))
 	cmds.AddCommand(f.NewCmdProxy(out))
-
 	cmds.AddCommand(kubecmd.NewCmdNamespace(out))
-
-	// Origin build commands
-
 	cmds.AddCommand(cmd.NewCmdOptions(f, out))
+	cmds.AddCommand(version.NewVersionCommand(name))
 
 	return cmds
 }
