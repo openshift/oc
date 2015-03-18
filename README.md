@@ -2,7 +2,10 @@
 
 Software to get an overlay network up and running for a docker cluster. This is still a work in progress. Do not use it in production.
 
-#### Build and Install
+This is the source repository for [OpenShift 3](https://openshift.github.io), based on top of [Docker](https://www.docker.io) containers and the
+[Kubernetes](https://github.com/GoogleCloudPlatform/kubernetes) container cluster manager.
+OpenShift adds developer and operational centric tools on top of Kubernetes to enable rapid application development,
+easy deployment and scaling, and long-term lifecycle maintenance for small and large teams and applications.
 
 	$ git clone https://github.com/openshift/openshift-sdn
 	$ cd openshift-sdn
