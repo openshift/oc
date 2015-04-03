@@ -104,7 +104,7 @@ Hand-crafted solutions that eliminate the long-path to just a single veth-pair b
 
 If you just want to experiment with the API without worrying about security privileges, you can disable authorization checks by running this from the host system.  This command grants full access to anyone.
 
-    $ docker exec -it openshift-origin bash -c "openshift admin --config=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig policy add-role-to-group cluster-admin system:authenticated system:unauthenticated"
+    $ docker exec -it openshift-origin bash -c "openshift admin policy add-role-to-group cluster-admin system:authenticated system:unauthenticated --config=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig"
 
 
  - Add more options, so that users can choose the subnet to give to the cluster. The default is hardcoded today to "10.1.0.0/16"
