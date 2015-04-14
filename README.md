@@ -66,7 +66,64 @@ Back on the master, to finally register the node:
 
 ##### OpenShift? PaaS? Can I have a 'plain setup' just for Docker?
 
-Someone needs to register that new nodes have joined the cluster. And instead of using OpenShift/Kubernetes to do that, we can use 'openshift-sdn' itself. Use '-sync' flag for that.
+    $ docker exec -it openshift-origin bash
+    $ osc --help
+
+If you just want to experiment with the API without worrying about security privileges, you can disable authorization checks by running this from the host system.  This command grants full access to anyone.
+
+    $ docker exec -it openshift-origin bash -c "openshift admin policy add-role-to-group cluster-admin system:authenticated system:unauthenticated --config=/var/lib/openshift/openshift.local.config/master/admin.kubeconfig"
+
+
+### Start Developing
+
+You can develop [locally on your host](CONTRIBUTING.adoc#develop-locally-on-your-host) or with a [virtual machine](CONTRIBUTING.adoc#develop-on-virtual-machine-using-vagrant), or if you want to just try out OpenShift [download the latest Linux server, or Windows and Mac OS X client pre-built binaries](CONTRIBUTING.adoc#download-from-github).
+
+First, **get up and running with the** [**Contributing Guide**](CONTRIBUTING.adoc).
+
+Once setup with a Go development environment and Docker, you can:
+
+1.  Build the source code
+
+        $ make clean build
+
+2.  Start the OpenShift server
+
+        $ make run
+
+3.  In another terminal window, switch to the directory and start an app:
+
+        $ cd $GOPATH/src/github.com/openshift/origin
+        $ export OPENSHIFTCONFIG=`pwd`/openshift.local.config/master/admin.kubeconfig 
+        $ _output/local/go/bin/osc create -f examples/hello-openshift/hello-pod.json
+
+In your browser, go to [http://localhost:6061](http://localhost:6061) and you should see 'Welcome to OpenShift'.
+
+
+### What's Just Happened?
+
+The example above starts the ['openshift/hello-openshift' Docker image](https://github.com/openshift/origin/blob/266ce4cfc8785b0633c24a46cd0aff927b8e90b2/examples/hello-openshift/hello-pod.json#L7) inside a Docker container, but managed by OpenShift and Kubernetes.
+
+* At the Docker level, that image [listens on port 8080](https://github.com/openshift/origin/blob/266ce4cfc8785b0633c24a46cd0aff927b8e90b2/examples/hello-openshift/hello_openshift.go#L16) within a container and [prints out a simple 'Hello OpenShift' message on access](https://github.com/openshift/origin/blob/266ce4cfc8785b0633c24a46cd0aff927b8e90b2/examples/hello-openshift/hello_openshift.go#L9).
+* At the Kubernetes level, we [map that bound port in the container](https://github.com/openshift/origin/blob/266ce4cfc8785b0633c24a46cd0aff927b8e90b2/examples/hello-openshift/hello-pod.json#L11) [to port 6061 on the host](https://github.com/openshift/origin/blob/266ce4cfc8785b0633c24a46cd0aff927b8e90b2/examples/hello-openshift/hello-pod.json#L12) so that we can access it via the host browser.
+* When you created the container, Kubernetes decided which host to place the container on by looking at the available hosts and selecting one with available space.  The agent that runs on each node (part of the OpenShift all-in-one binary, called the Kubelet) saw that it was now supposed to run the container and instructed Docker to start the container.
+
+OpenShift brings all of these pieces (and the client) together in a single, easy to use binary.  The following examples show the other OpenShift specific features that live above the Kubernetes runtime like image building and deployment flows.
+
+
+### Next Steps
+
+We highly recommend trying out the [OpenShift walkthrough](https://github.com/openshift/origin/blob/master/examples/sample-app/README.md), which shows some of the lower level pieces of of OpenShift that will be the foundation for user applications.  The walkthrough is accompanied by a blog series on [blog.openshift.com](https://blog.openshift.com/openshift-v3-deep-dive-docker-kubernetes/) that goes into more detail.  It's a great place to start, albeit at a lower level than OpenShift 2.
+
+Both OpenShift and Kubernetes have a strong focus on documentation - see the following for more information about them:
+
+* [OpenShift Documentation](http://docs.openshift.org/latest/welcome/index.html)
+* [Kubernetes Getting Started](https://github.com/GoogleCloudPlatform/kubernetes/blob/master/README.md)
+* [Kubernetes Documentation](https://github.com/GoogleCloudPlatform/kubernetes/blob/master/docs/README.md)
+
+You can see some other examples of using Kubernetes at a lower level - stay tuned for more high level OpenShift examples as well:
+
+* [Kubernetes walkthrough](https://github.com/GoogleCloudPlatform/kubernetes/tree/master/examples/walkthrough)
+* [Kubernetes guestbook](https://github.com/GoogleCloudPlatform/kubernetes/tree/master/examples/guestbook)
 
 Steps:
 
