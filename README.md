@@ -48,16 +48,33 @@ To add a node to the cluster, do the following on the node:
 
 Back on the master, to finally register the node:
 
-	Create a json file for the new minion resource
-        $ cat <<EOF > mininon-1.json
-	{
-		"kind":"Minion", 
-		"id":"openshift-minion-1",
-	 	"apiVersion":"v1beta1"
-	}
-	EOF
-	where, openshift-minion-1 is a hostname that is resolvable from the master (or, create an entry in /etc/hosts and point it to the public-ip of the minion).
-	$ openshift cli create -f minion-1.json
+Docker 1.6
+----------
+OpenShift now requires at least Docker 1.6. Here's how to get it:
+
+### Fedora 21
+RPMs for Docker 1.6 are available for Fedora 21 in the updates-testing yum repository. This is disabled by default, so you'll need to run the following command to install Docker 1.6:
+
+    sudo yum --enablerepo=updates-testing install docker-io
+
+If you're updating, replace `install` with `update` above.
+
+### CentOS 7
+Docker 1.6 is not yet available in the CentOS 7 Extras yum repository yet. In the meantime, you will need to install it from https://mirror.openshift.com/pub/openshift-v3/dependencies/centos7/x86_64/. Create `/etc/yum.repos.d/openshift-v3-dependencies.repo` with these contents
+
+    [openshift-v3-dependencies]
+    name=OpenShift V3 Dependencies
+    baseurl=https://mirror.openshift.com/pub/openshift-v3/dependencies/centos7/x86_64/
+    enabled=1
+    metadata_expire=7d
+    gpgcheck=0
+
+You will now be able to `yum install` or `yum update` Docker to 1.6.
+
+
+Getting Started
+---------------
+The simplest way to run OpenShift Origin is in a Docker container:
 
     $ docker run -d --name "openshift-origin" --net=host --privileged \
         -v /var/run/docker.sock:/var/run/docker.sock \
