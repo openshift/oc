@@ -59,7 +59,9 @@ Back on the master, to finally register the node:
 	where, openshift-minion-1 is a hostname that is resolvable from the master (or, create an entry in /etc/hosts and point it to the public-ip of the minion).
 	$ openshift cli create -f minion-1.json
 
-Done. Repeat last two pieces to add more nodes. Create new pods from the master (or just docker containers on the minions), and see that the pods are indeed reachable from each other. 
+    $ docker run -d --name "openshift-origin" --net=host --privileged \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        openshift/origin start
 
 
 ##### OpenShift? PaaS? Can I have a 'plain setup' just for Docker?
