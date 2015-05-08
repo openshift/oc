@@ -86,7 +86,7 @@ The simplest way to run OpenShift Origin is in a Docker container:
 
 If you just want to experiment with the API without worrying about security privileges, you can disable authorization checks by running this from the host system.  This command grants full access to anyone.
 
-    $ sudo docker exec -it openshift-origin bash -c "openshift admin policy add-role-to-group cluster-admin system:authenticated system:unauthenticated --config=/var/lib/openshift/openshift.local.config/master/admin.kubeconfig"
+    $ sudo docker exec -it openshift-origin bash -c "osadm policy add-cluster-role-to-group cluster-admin system:authenticated system:unauthenticated --config=/var/lib/openshift/openshift.local.config/master/admin.kubeconfig"
 
 
 ### Start Developing
