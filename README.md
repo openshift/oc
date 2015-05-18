@@ -173,8 +173,62 @@ There are two veth-pairs, a linux bridge, and then the OpenVSwitch, that cause a
 
 An optimzed solution that eliminates the long-path to just a single veth-pair bring the performance close to the wire. The performance has been measured using sockperf.
 
-    $ docker exec -it openshift-origin bash
-    $ osc --help
+The OpenShift API server also hosts the web-based management console. You can try out the management console at [http://localhost:8443/console](http://localhost:8443/console).
+
+For more information on the console [checkout the README](assets/README.md) and the [docs](http://docs.openshift.org/latest/dev_guide/console.html).
+
+![Management console overview](docs/screenshots/console_overview.png?raw=true)
+
+FAQ
+---
+
+1. How does OpenShift relate to Kubernetes?
+
+    OpenShift embeds Kubernetes and adds additional functionality to offer a simple, powerful, and
+    easy-to-approach developer and operator experience for building applications in containers.
+    Kubernetes today is focused around composing containerized applications - OpenShift adds
+    building images, managing them, and integrating them into deployment flows.  Our goal is to do
+    most of that work upstream, with integration and final packaging occurring in OpenShift.  As we
+    iterate through the next few months, you'll see this repository focus more on integration and
+    plugins, with more and more features becoming part of Kubernetes.
+
+2. What can I run on OpenShift?
+
+    OpenShift is designed to run any existing Docker images.  In addition you can define builds that will produce new Docker images from a Dockerfile.  However the real magic of OpenShift can be seen when using [Source-To-Image](https://github.com/openshift/source-to-image)(STI) builds which allow you to simply supply an application source repository which will be combined with an existing STI-enabled Docker image to produce a new runnable image that runs your application.  We are continuing to grow the ecosystem of STI-enabled images and documenting them [here](https://ci.openshift.redhat.com/openshift-docs-master-testing/latest/openshift_sti_images/overview.html).  We also have a few more experimental images available:
+
+    * [Wildfly](https://github.com/openshift/wildfly-8-centos)
+
+Contributing
+------------
+
+All contributions are welcome - OpenShift uses the Apache 2 license and does not require any contributor agreement to submit patches.  Please open issues for any bugs or problems you encounter, ask questions on the OpenShift IRC channel (#openshift-dev on freenode), or get involved in the [Kubernetes project](https://github.com/GoogleCloudPlatform/kubernetes) at the container runtime layer.
+
+See [HACKING.md](https://github.com/openshift/origin/blob/master/HACKING.md) for more details on developing on OpenShift including how different tests are setup.
+
+If you want to run the test suite, make sure you have your environment from above set up, and from the origin directory run:
+
+```
+# run the unit tests
+$ make check
+
+# run a simple server integration test
+$ hack/test-cmd.sh
+
+# run the integration server test suite
+$ hack/test-integration.sh
+
+# run the end-to-end test suite
+$ hack/test-end-to-end.sh
+
+# run all of the tests above
+$ make test
+```
+
+You'll need [etcd](https://github.com/coreos/etcd) installed and on your path for the integration and end-to-end tests to run, and Docker must be installed to run the end-to-end tests.  To install etcd you should be able to run:
+
+```
+$ hack/install-etcd.sh
+```
 
 If you just want to experiment with the API without worrying about security privileges, you can disable authorization checks by running this from the host system.  This command grants full access to anyone.
 
