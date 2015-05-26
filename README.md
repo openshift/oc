@@ -166,18 +166,56 @@ Some requirements, some silly errors.
  - openshift-sdn is up, I think I got the subnet, but my pings do not work
 	It may take a while for the ping to work (blame the docker linux bridge, optimizations coming). Check that all nodes' hostnames on master are resolvable and to the correct IP addresses. Last, but not the least - firewalld (switch it off and check, and then punch a hole for vxlan please).
 
-#### Performance Note
+The OpenShift APIs are exposed at `https://localhost:8443/osapi/v1beta1/*`.
 
-The current design has a long path for packets directed for the overlay network.
-There are two veth-pairs, a linux bridge, and then the OpenVSwitch, that cause a drop in performance of about 40%
+* Builds
+ * `https://localhost:8443/osapi/v1beta1/builds`
+ * `https://localhost:8443/osapi/v1beta1/buildConfigs`
+ * `https://localhost:8443/osapi/v1beta1/buildLogs`
+ * `https://localhost:8443/osapi/v1beta1/buildConfigHooks`
+* Deployments
+ * `https://localhost:8443/osapi/v1beta1/deployments`
+ * `https://localhost:8443/osapi/v1beta1/deploymentConfigs`
+* Images
+ * `https://localhost:8443/osapi/v1beta1/images`
+ * `https://localhost:8443/osapi/v1beta1/imageRepositories`
+ * `https://localhost:8443/osapi/v1beta1/imageRepositoryMappings`
+* Templates
+ * `https://localhost:8443/osapi/v1beta1/templateConfigs`
+* Routes
+ * `https://localhost:8443/osapi/v1beta1/routes`
+* Projects
+ * `https://localhost:8443/osapi/v1beta1/projects`
+* Users
+ * `https://localhost:8443/osapi/v1beta1/users`
+ * `https://localhost:8443/osapi/v1beta1/userIdentityMappings`
+* OAuth
+ * `https://localhost:8443/osapi/v1beta1/accessTokens`
+ * `https://localhost:8443/osapi/v1beta1/authorizeTokens`
+ * `https://localhost:8443/osapi/v1beta1/clients`
+ * `https://localhost:8443/osapi/v1beta1/clientAuthorizations`
 
-An optimzed solution that eliminates the long-path to just a single veth-pair bring the performance close to the wire. The performance has been measured using sockperf.
+The Kubernetes APIs are exposed at `https://localhost:8443/api/v1beta1/*`:
 
-The OpenShift API server also hosts the web-based management console. You can try out the management console at [http://localhost:8443/console](http://localhost:8443/console).
+* `https://localhost:8443/api/v1beta1/pods`
+* `https://localhost:8443/api/v1beta1/services`
+* `https://localhost:8443/api/v1beta1/replicationControllers`
+* `https://localhost:8443/api/v1beta1/operations`
+
+OpenShift and Kubernetes integrate with the [Swagger 2.0 API framework](http://swagger.io) which aims to make it easier to document and write clients for RESTful APIs.  When you start OpenShift, the Swagger API endpoint is exposed at `https://localhost:8443/swaggerapi`. The Swagger UI makes it easy to view your documentation - to view the docs for your local version of OpenShift start the server with CORS enabled:
+
+    $ openshift start --cors-allowed-origins=.*
+
+and then browse to http://openshift3swagger-claytondev.rhcloud.com (which runs a copy of the Swagger UI that points to localhost:8080 by default).  Expand the operations available on v1beta1 to see the schemas (and to try the API directly).
+
+Web Console
+-----------
+
+The OpenShift API server also hosts a web console. You can try it out at [http://localhost:8443/console](http://localhost:8443/console).
 
 For more information on the console [checkout the README](assets/README.md) and the [docs](http://docs.openshift.org/latest/dev_guide/console.html).
 
-![Management console overview](docs/screenshots/console_overview.png?raw=true)
+![Web console overview](docs/screenshots/console_overview.png?raw=true)
 
 FAQ
 ---
