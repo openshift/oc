@@ -50,9 +50,16 @@ To add a node to the cluster, do the following on the node:
 
 Back on the master, to finally register the node:
 
-Docker 1.6
-----------
-OpenShift now requires at least Docker 1.6. Here's how to get it:
+	Create a json file for the new minion resource
+        $ cat <<EOF > minion-1.json
+	{
+		"kind":"Minion", 
+		"id":"openshift-minion-1",
+	 	"apiVersion":"v1beta1"
+	}
+	EOF
+	where, openshift-minion-1 is a hostname that is resolvable from the master (or, create an entry in /etc/hosts and point it to the public-ip of the minion).
+	$ openshift cli create -f minion-1.json
 
 ### Fedora 21
 RPMs for Docker 1.6 are available for Fedora 21 in the updates yum repository.
