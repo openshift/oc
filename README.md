@@ -13,11 +13,22 @@ easy deployment and scaling, and long-term lifecycle maintenance for small and l
 	$ make              # build
 	$ make install      # installs in /usr/bin
 
-#### Try it out
+* Build web-scale applications with integrated service discovery, DNS, load balancing, failover, health checking, persistent storage, and fast scaling
+* Push source code to your Git repository and have image builds and deployments automatically occur
+* Easy to use client tools for building web applications from source code
+  * Templatize the components of your system, reuse them, and iteratively deploy them over time
+* Centralized administration and management of application component libraries
+  * Roll out changes to software stacks to your entire organization in a controlled fashion
+* Team and user isolation of containers, builds, and network communication in an easy multi-tenancy system
+  * Allow developers to run containers securely by preventing root access and isolating containers with SELinux
+  * Limit, track, and manage the resources teams are using
 
 ##### Use vagrant, pre-define a cluster, and bring it up
 
-Create an openshift cluster on your desktop using vagrant:
+* **[OpenShift Public Documentation](http://docs.openshift.org/latest/welcome/index.html)**
+* The **[Trello Roadmap](https://ci.openshift.redhat.com/roadmap_overview.html)** covers the epics and stories being worked on (click through to individual items)
+* **[Technical Architecture Presentation](https://docs.google.com/presentation/d/1Isp5UeQZTo3gh6e59FMYmMs_V9QIQeBelmbyHIJ1H_g/pub?start=false&loop=false&delayms=3000)**
+* **[System Architecture](https://github.com/openshift/openshift-pep/blob/master/openshift-pep-013-openshift-3.md)** design document
 
 	$ git clone https://github.com/openshift/origin
 	$ cd origin
@@ -31,54 +42,33 @@ NOTE: OpenShift release candidate 1 is available on the [releases page](https://
 
 Steps to create manually create an OpenShift cluster with openshift-sdn. This requires that each machine (master, minions) have compiled `openshift` and `openshift-sdn` already. Check [here](https://github.com/openshift/origin) for OpenShift instructions. Ensure 'openvswitch' is installed and running (`yum install -y openvswitch && systemctl enable openvswitch && systemctl start openvswitch`). Also verify that the `DOCKER_OPTIONS` variable is unset in your environment, or set to a known-working value (e.g. `DOCKER_OPTIONS='-b=lbr0 --mtu=1450 --selinux-enabled'`). If you don't know what to put there, it's probably best to leave it unset. :)
 
-Security Warning!!!
+Security!!!
 -------------------
-OpenShift is a system that runs Docker containers on your machine.  In some cases (build operations and the registry service) it does so using privileged containers.  Those containers access your host's Docker daemon and perform `docker build` and `docker push` operations.  As such, you should be aware of the inherent security risks associated with performing `docker run` operations on arbitrary images as they have effective root access.  This is particularly relevant when running the OpenShift as a node directly on your laptop or primary workstation.  Only run code you trust.
+OpenShift is a system that runs Docker containers on your machine.  In some cases (build operations) it does so using privileged containers. Those containers access your host's Docker daemon and perform `docker build` and `docker push` operations.  As such, you should be aware of the inherent security risks associated with performing `docker build` operations on arbitrary images as they have effective root access.  This is particularly relevant when running the OpenShift as a node directly on your laptop or primary workstation.  Only build and run code you trust.
 
 	$ openshift start master [--nodes=node1]  # start the master openshift server (also starts the etcd server by default) with an optional list of nodes
 	$ openshift-sdn           # assumes etcd is running at localhost:4001
 
 To add a node to the cluster, do the following on the node:
 
-	$ openshift-sdn -etcd-endpoints=http://openshift-master:4001 -minion -public-ip=<10.10....> -hostname <hostname>
-	where, 
-		-etcd-endpoints	: reach the etcd db here
-		-minion 	: run it in minion mode (will watch etcd servers for new minion subnets)
-		-public-ip	: use this field for suggesting the publicly reachable IP address of this minion
-		-hostname	: the name that will be used to register the minion with openshift-master
-	$ openshift start node --master=https://openshift-master:8443
-
-Back on the master, to finally register the node:
-
-	Create a json file for the new minion resource
-        $ cat <<EOF > minion-1.json
-	{
-		"kind":"Minion", 
-		"id":"openshift-minion-1",
-	 	"apiVersion":"v1beta1"
-	}
-	EOF
-	where, openshift-minion-1 is a hostname that is resolvable from the master (or, create an entry in /etc/hosts and point it to the public-ip of the minion).
-	$ openshift cli create -f minion-1.json
-
-### Fedora 21
-RPMs for Docker 1.6 are available for Fedora 21 in the updates yum repository.
-
-### CentOS 7
-RPMs for Docker 1.6 are available for CentOS 7 in the extras yum repository.
+Consider using images from trusted parties, building them yourself on OpenShift, or only running containers that run as non-root users.
 
 
 Getting Started
 ---------------
-The simplest way to run OpenShift Origin is in a Docker container:
+The easiest way to run OpenShift Origin is in a Docker container (OpenShift requires Docker 1.6 or higher or 1.6.2 on CentOS/RHEL):
 
-    $ sudo docker run -d --name "openshift-origin" --net=host --privileged \
-        -v /var/run/docker.sock:/var/run/docker.sock \
+    $ sudo docker run -d -name "origin" \
+        --privileged --net=host \
+        -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys:ro -v /var/lib/docker:/var/lib/docker:rw \
         openshift/origin start
+
+*Security!* Why do we need to mount your host, run privileged, and get access to your Docker directory? OpenShift runs as a host agent (like Docker)
+and starts and stops Docker containers, mounts remote volumes, and monitors the system (/sys) to report performance and health info. You can strip all of these options off and OpenShift will still start, but you won't be able to run pods (which is kind of the point).
 
 Once the container is started, you can jump into a console inside the container and run the CLI.
 
-    $ sudo docker exec -it openshift-origin bash
+    $ sudo docker exec -it origin bash
     $ oc --help
     $ oc login
     Username: test
@@ -89,6 +79,8 @@ Once the container is started, you can jump into a console inside the container 
 Any username and password are accepted by default (with no credential system configured).  You can view the webconsole at https://localhost:8443/ in your browser - login with the same credentials you used above and you'll see the application you just created.
 
 ![Web console overview](docs/screenshots/console_overview.png?raw=true)
+
+You can also use the Docker container to run our CLI (`sudo docker exec -it origin cli --help`) or download the `oc` command-line client from the [releases](https://github.com/openshift/origin/releases) page for Mac, Windows, or Linux and login from your host with `oc login`.
 
 
 ### Next Steps
