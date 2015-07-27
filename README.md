@@ -38,9 +38,9 @@ easy deployment and scaling, and long-term lifecycle maintenance for small and l
 	$ export OPENSHIFT_SDN=ovs-simple
 	$ vagrant up
 
-NOTE: OpenShift Origin 1.0 has been released [releases page](https://github.com/openshift/origin/releases). Feedback, suggestions, and testing are all welcome!
+##### Manually add nodes to a master
 
-Steps to create manually create an OpenShift cluster with openshift-sdn. This requires that each machine (master, minions) have compiled `openshift` and `openshift-sdn` already. Check [here](https://github.com/openshift/origin) for OpenShift instructions. Ensure 'openvswitch' is installed and running (`yum install -y openvswitch && systemctl enable openvswitch && systemctl start openvswitch`). Also verify that the `DOCKER_OPTIONS` variable is unset in your environment, or set to a known-working value (e.g. `DOCKER_OPTIONS='-b=lbr0 --mtu=1450 --selinux-enabled'`). If you don't know what to put there, it's probably best to leave it unset. :)
+Steps to create manually create an OpenShift cluster with openshift-sdn. This requires that each machine (master, nodes) have compiled `openshift` and `openshift-sdn` already. Check [here](https://github.com/openshift/origin) for OpenShift instructions. Ensure 'openvswitch' is installed and running (`yum install -y openvswitch && systemctl enable openvswitch && systemctl start openvswitch`). Also verify that the `DOCKER_OPTIONS` variable is unset in your environment, or set to a known-working value (e.g. `DOCKER_OPTIONS='-b=lbr0 --mtu=1450 --selinux-enabled'`). If you don't know what to put there, it's probably best to leave it unset. :)
 
 Security!!!
 -------------------
@@ -57,20 +57,28 @@ OpenShift runs with the following security policy by default:
 
 See the [security documentation](https://docs.openshift.org/latest/admin_guide/manage_scc.html) for more on managing these restrictions.
 
-Getting Started
----------------
-The easiest way to run OpenShift Origin is in a Docker container (OpenShift requires Docker 1.6.2 or higher):
+	$ openshift-sdn -etcd-endpoints=http://openshift-master:4001 -node -public-ip=<10.10....> -hostname <hostname>
+	where, 
+		-etcd-endpoints	: reach the etcd db here
+		-node 	        : run it in node mode (will watch etcd servers for new node subnets)
+		-public-ip	: use this field for suggesting the publicly reachable IP address of this node
+		-hostname	: the name that will be used to register the node with openshift-master
+	$ openshift start node --master=https://openshift-master:8443
 
 **Important!**: Docker on non-RedHat distributions (Ubuntu, Debian, boot2docker) has mount propagation PRIVATE, which [breaks](https://github.com/openshift/origin/issues/3072) running OpenShift inside a container. Please use the [Vagrant](CONTRIBUTING.adoc#develop-on-virtual-machine-using-vagrant) or binary installation paths on those distributions.
 
-    $ sudo docker run -d --name "origin" \
-        --privileged --net=host \
-        -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys:ro -v /var/lib/docker:/var/lib/docker:rw \
-        -v /var/lib/openshift/openshift.local.volumes:/var/lib/openshift/openshift.local.volumes \
-        openshift/origin start
+	Create a json file for the new node resource
+        $ cat <<EOF > node-1.json
+	{
+		"kind":"Node",
+		"id":"openshift-minion-1",
+		"apiVersion":"v1"
+	}
+	EOF
+	where, openshift-minion-1 is a hostname that is resolvable from the master (or, create an entry in /etc/hosts and point it to the public-ip of the node).
+	$ openshift cli create -f node-1.json
 
-**Security!** Why do we need to mount your host, run privileged, and get access to your Docker directory? OpenShift runs as a host agent (like Docker)
-and starts and stops Docker containers, mounts remote volumes, and monitors the system (/sys) to report performance and health info. You can strip all of these options off and OpenShift will still start, but you won't be able to run pods (which is kind of the point).
+Done. Repeat last two pieces to add more nodes. Create new pods from the master (or just docker containers on the nodes), and see that the pods are indeed reachable from each other.
 
 Once the container is started, you can jump into a console inside the container and run the CLI.
 
@@ -112,14 +120,14 @@ Both OpenShift and Kubernetes have a strong focus on documentation - see the fol
 
 Steps:
 
-1. Run etcd somewhere, and run the openshift-sdn master to watch it in sync mode. 
+1. Run etcd somewhere, and run the openshift-sdn master to watch it in sync mode.
 
 		$ systemctl start etcd
 		$ openshift-sdn -master -sync  # use -etcd-endpoints=http://target:4001 if etcd is not running locally
 
-2. To add a node, make sure the 'hostname/dns' is reachable from the machine that is running 'openshift-sdn master'. Then start the openshift-sdn in minion mode with sync flag.
+2. To add a node, make sure the 'hostname/dns' is reachable from the machine that is running 'openshift-sdn master'. Then start the openshift-sdn in node mode with sync flag.
 
-		$ openshift-sdn -minion -sync -etcd-endpoints=http://master-host:4001 -hostname=minion-1-dns -public-ip=<public ip that the hostname resolves to>
+		$ openshift-sdn -node -sync -etcd-endpoints=http://master-host:4001 -hostname=node-1-dns -public-ip=<public ip that the hostname resolves to>
 
 Done. Add more nodes by repeating step 2. All nodes should have a docker bridge (lbr0) that is part of the overlay network.
 
