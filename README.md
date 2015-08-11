@@ -2,9 +2,12 @@
 
 Software to get an overlay network up and running for a docker cluster. This is still a work in progress. Do not use it in production.
 
-This is the source repository for [OpenShift 3](https://openshift.github.io), based on top of [Docker](https://www.docker.io) containers and the
+This is the source repository for [OpenShift Origin](https://openshift.github.io), based on top of 
+[Docker](https://www.docker.io) containers and the
 [Kubernetes](https://github.com/kubernetes/kubernetes) container cluster manager.
-OpenShift adds developer and operational centric tools on top of Kubernetes to enable rapid application development,
+Origin is a distribution of Kubernetes optimized for enterprise application development and deployment, 
+used by OpenShift 3 and Atomic Enterprise.  OpenShift adds developer and operational centric tools 
+on top of Kubernetes to enable rapid application development,
 easy deployment and scaling, and long-term lifecycle maintenance for small and large teams and applications.
 
 	$ git clone https://github.com/openshift/openshift-sdn
@@ -25,7 +28,7 @@ easy deployment and scaling, and long-term lifecycle maintenance for small and l
 
 ##### Use vagrant, pre-define a cluster, and bring it up
 
-* **[OpenShift Public Documentation](http://docs.openshift.org/latest/welcome/index.html)**
+* **[Public Documentation](http://docs.openshift.org/latest/welcome/index.html)**
 * The **[Trello Roadmap](https://ci.openshift.redhat.com/roadmap_overview.html)** covers the epics and stories being worked on (click through to individual items)
 * **[Technical Architecture Presentation](https://docs.google.com/presentation/d/1Isp5UeQZTo3gh6e59FMYmMs_V9QIQeBelmbyHIJ1H_g/pub?start=false&loop=false&delayms=3000)**
 * **[System Architecture](https://github.com/openshift/openshift-pep/blob/master/openshift-pep-013-openshift-3.md)** design document
@@ -38,13 +41,13 @@ easy deployment and scaling, and long-term lifecycle maintenance for small and l
 	$ export OPENSHIFT_SDN=ovs-simple
 	$ vagrant up
 
-##### Manually add nodes to a master
+NOTE: Origin 1.0 has been released [releases page](https://github.com/openshift/origin/releases). Feedback, suggestions, and testing are all welcome!
 
 Steps to create manually create an OpenShift cluster with openshift-sdn. This requires that each machine (master, nodes) have compiled `openshift` and `openshift-sdn` already. Check [here](https://github.com/openshift/origin) for OpenShift instructions. Ensure 'openvswitch' is installed and running (`yum install -y openvswitch && systemctl enable openvswitch && systemctl start openvswitch`). Also verify that the `DOCKER_OPTIONS` variable is unset in your environment, or set to a known-working value (e.g. `DOCKER_OPTIONS='-b=lbr0 --mtu=1450 --selinux-enabled'`). If you don't know what to put there, it's probably best to leave it unset. :)
 
 Security!!!
 -------------------
-OpenShift runs with the following security policy by default:
+Origin runs with the following security policy by default:
 
 * Containers run as a non-root unique user that is separate from other system users
   * They cannot access host resources, run privileged, or become root
@@ -57,13 +60,10 @@ OpenShift runs with the following security policy by default:
 
 See the [security documentation](https://docs.openshift.org/latest/admin_guide/manage_scc.html) for more on managing these restrictions.
 
-	$ openshift-sdn -etcd-endpoints=http://openshift-master:4001 -node -public-ip=<10.10....> -hostname <hostname>
-	where, 
-		-etcd-endpoints	: reach the etcd db here
-		-node 	        : run it in node mode (will watch etcd servers for new node subnets)
-		-public-ip	: use this field for suggesting the publicly reachable IP address of this node
-		-hostname	: the name that will be used to register the node with openshift-master
-	$ openshift start node --master=https://openshift-master:8443
+Getting Started
+---------------
+The easiest way to run Origin is in a Docker container (Origin requires Docker 1.6.2 or higher).
+If you'd like to get started with Atomic Enterprise please refer to the [quickstart guide](docs/atomic-quick-start-tutorial.adoc).
 
 You'll need to configure the Docker daemon on your host to trust the Docker registry service you'll be starting.
 
@@ -76,7 +76,7 @@ If you are running Docker as a service via `systemd`, you can add this argument 
 This will instruct the Docker daemon to trust any Docker registry on the 172.30.0.0/16 subnet,
 rather than requiring the registry to have a verifiable certificate.
 
-**Important!**: Docker on non-RedHat distributions (Ubuntu, Debian, boot2docker) has mount propagation PRIVATE, which [breaks](https://github.com/openshift/origin/issues/3072) running OpenShift inside a container. Please use the [Vagrant](CONTRIBUTING.adoc#develop-on-virtual-machine-using-vagrant) or binary installation paths on those distributions.
+**Important!**: Docker on non-RedHat distributions (Ubuntu, Debian, boot2docker) has mount propagation PRIVATE, which [breaks](https://github.com/openshift/origin/issues/3072) running Origin inside a container. Please use the [Vagrant](CONTRIBUTING.adoc#develop-on-virtual-machine-using-vagrant) or binary installation paths on those distributions.
 
 	Create a json file for the new node resource
         $ cat <<EOF > node-1.json
@@ -89,13 +89,14 @@ rather than requiring the registry to have a verifiable certificate.
 	where, openshift-minion-1 is a hostname that is resolvable from the master (or, create an entry in /etc/hosts and point it to the public-ip of the node).
 	$ openshift cli create -f node-1.json
 
-Done. Repeat last two pieces to add more nodes. Create new pods from the master (or just docker containers on the nodes), and see that the pods are indeed reachable from each other.
+**Security!** Why do we need to mount your host, run privileged, and get access to your Docker directory? Origin runs as a host agent (like Docker)
+and starts and stops Docker containers, mounts remote volumes, and monitors the system (/sys) to report performance and health info. You can strip all of these options off and Origin will still start, but you won't be able to run pods (which is kind of the point).
 
 Once the container is started, you can jump into a console inside the container and run the CLI.
 
     $ sudo docker exec -it origin bash
 
-    # Start the OpenShift integrated registry in a container
+    # Start the integrated registry in a container
     $ oadm registry --credentials=./openshift.local.config/master/openshift-registry.kubeconfig
 
     # Use the CLI to login, create a project, and then create your app.
@@ -120,18 +121,18 @@ You can reset your server by stopping the `origin` container and then removing i
 
 ### Next Steps
 
-We highly recommend trying out the [OpenShift walkthrough](https://github.com/openshift/origin/blob/master/examples/sample-app/README.md), which shows some of the lower level pieces of of OpenShift that will be the foundation for user applications.  The walkthrough is accompanied by a blog series on [blog.openshift.com](https://blog.openshift.com/openshift-v3-deep-dive-docker-kubernetes/) that goes into more detail.  It's a great place to start, albeit at a lower level than OpenShift 2.
+We highly recommend trying out the [Origin walkthrough](https://github.com/openshift/origin/blob/master/examples/sample-app/README.md), which shows some of the lower level pieces of Origin that will be the foundation for user applications.  The walkthrough is accompanied by a blog series on [blog.openshift.com](https://blog.openshift.com/openshift-v3-deep-dive-docker-kubernetes/) that goes into more detail.  It's a great place to start, albeit at a lower level than OpenShift 2.
 
-Both OpenShift and Kubernetes have a strong focus on documentation - see the following for more information about them:
+Both Origin and Kubernetes have a strong focus on documentation - see the following for more information about them:
 
-* [OpenShift Documentation](http://docs.openshift.org/latest/welcome/index.html)
+* [Origin Documentation](http://docs.openshift.org/latest/welcome/index.html)
 * [Kubernetes Getting Started](https://github.com/kubernetes/kubernetes/blob/master/README.md)
 * [Kubernetes Documentation](https://github.com/kubernetes/kubernetes/blob/master/docs/README.md)
 
 
 Steps:
 
-1. Run etcd somewhere, and run the openshift-sdn master to watch it in sync mode.
+If you run into difficulties running Origin, start by reading through the [troubleshooting guide](https://github.com/openshift/origin/blob/master/docs/debugging-openshift.md).
 
 		$ systemctl start etcd
 		$ openshift-sdn -master -sync  # use -etcd-endpoints=http://target:4001 if etcd is not running locally
@@ -155,7 +156,7 @@ Some requirements, some silly errors.
  - openshift-sdn is up, I think I got the subnet, but my pings do not work
 	It may take a while for the ping to work (blame the docker linux bridge, optimizations coming). Check that all nodes' hostnames on master are resolvable and to the correct IP addresses. Last, but not the least - firewalld (switch it off and check, and then punch a hole for vxlan please).
 
-The OpenShift APIs are exposed at `https://localhost:8443/oapi/v1/*`.
+The Origin APIs are exposed at `https://localhost:8443/oapi/v1/*`.
 
 To experiment with the API, you can get a token to act as a user:
 
@@ -178,19 +179,26 @@ The API documentation can be found [here](http://docs.openshift.org/latest/rest_
 FAQ
 ---
 
-1. How does OpenShift relate to Kubernetes?
+1. How does Origin relate to Kubernetes?
 
-    OpenShift embeds Kubernetes and adds additional functionality to offer a simple, powerful, and
-    easy-to-approach developer and operator experience for building applications in containers.
-    Kubernetes today is focused around composing containerized applications - OpenShift adds
-    building images, managing them, and integrating them into deployment flows.  Our goal is to do
-    most of that work upstream, with integration and final packaging occurring in OpenShift.  As we
-    iterate through the next few months, you'll see this repository focus more on integration and
-    plugins, with more and more features becoming part of Kubernetes.
+    Origin is a distribution of Kubernetes optimized for enterprise application development and deployment, 
+    used by OpenShift 3 and Atomic Enterprise.  Origin embeds Kubernetes and adds additional 
+    functionality to offer a simple, powerful, and easy-to-approach developer and operator experience 
+    for building applications in containers.  Our goal is to do most of that work upstream, with 
+    integration and final packaging occurring in Origin.
 
-2. What can I run on OpenShift?
 
-    OpenShift is designed to run any existing Docker images.  In addition you can define builds that will produce new Docker images from a Dockerfile.  However the real magic of OpenShift can be seen when using [Source-To-Image](https://github.com/openshift/source-to-image) builds which allow you to simply supply an application source repository which will be combined with an existing Source-To-Image enabled Docker image to produce a new runnable image that runs your application.  We are continuing to grow the ecosystem of Source-To-Image enabled images and documenting them [here](http://docs.openshift.org/latest/using_images/s2i_images/overview.html). Our available images are:
+2. How does Atomic Enterprise relate to Origin and OpenShift?
+         
+    Two products are built from Origin, Atomic Enterprise and OpenShift. Atomic Enterprise adds 
+    operational centric tools to enable easy deployment and scaling and long-term lifecycle 
+    maintenance for small and large teams and applications. OpenShift provides a number of 
+    developer-focused tools on top of Atomic Enterprise such as image building, management, and 
+    enhanced deployment flows.  
+    
+3. What can I run on Origin?
+
+    Origin is designed to run any existing Docker images.  In addition you can define builds that will produce new Docker images from a Dockerfile.  However the real magic of Origin can be seen when using [Source-To-Image](https://github.com/openshift/source-to-image) builds which allow you to simply supply an application source repository which will be combined with an existing Source-To-Image enabled Docker image to produce a new runnable image that runs your application.  We are continuing to grow the ecosystem of Source-To-Image enabled images and documenting them [here](http://docs.openshift.org/latest/using_images/s2i_images/overview.html). Our available images are:
 
     * [Ruby](https://github.com/openshift/sti-ruby)
     * [Python](https://github.com/openshift/sti-python)
@@ -208,13 +216,13 @@ FAQ
 Contributing
 ------------
 
-You can develop [locally on your host](CONTRIBUTING.adoc#develop-locally-on-your-host) or with a [virtual machine](CONTRIBUTING.adoc#develop-on-virtual-machine-using-vagrant), or if you want to just try out OpenShift [download the latest Linux server, or Windows and Mac OS X client pre-built binaries](CONTRIBUTING.adoc#download-from-github).
+You can develop [locally on your host](CONTRIBUTING.adoc#develop-locally-on-your-host) or with a [virtual machine](CONTRIBUTING.adoc#develop-on-virtual-machine-using-vagrant), or if you want to just try out Origin [download the latest Linux server, or Windows and Mac OS X client pre-built binaries](CONTRIBUTING.adoc#download-from-github).
 
 First, **get up and running with the** [**Contributing Guide**](CONTRIBUTING.adoc).
 
-All contributions are welcome - OpenShift uses the Apache 2 license and does not require any contributor agreement to submit patches.  Please open issues for any bugs or problems you encounter, ask questions on the OpenShift IRC channel (#openshift-dev on freenode), or get involved in the [Kubernetes project](https://github.com/kubernetes/kubernetes) at the container runtime layer.
+All contributions are welcome - Origin uses the Apache 2 license and does not require any contributor agreement to submit patches.  Please open issues for any bugs or problems you encounter, ask questions on the OpenShift IRC channel (#openshift-dev on freenode), or get involved in the [Kubernetes project](https://github.com/kubernetes/kubernetes) at the container runtime layer.
 
-See [HACKING.md](https://github.com/openshift/origin/blob/master/HACKING.md) for more details on developing on OpenShift including how different tests are setup.
+See [HACKING.md](https://github.com/openshift/origin/blob/master/HACKING.md) for more details on developing on Origin including how different tests are setup.
 
 If you want to run the test suite, make sure you have your environment set up, and from the `origin` directory run:
 
@@ -241,7 +249,7 @@ You'll need [etcd](https://github.com/coreos/etcd) installed and on your path fo
 $ hack/install-etcd.sh
 ```
 
-If you just want to experiment with the API without worrying about security privileges, you can disable authorization checks by running this from the host system.  This command grants full access to anyone.
+Some of the components of Origin run as Docker images, including the builders and deployment tools in `images/builder/docker/*` and 'images/deploy/*`.  To build them locally run
 
     $ docker exec -it openshift-origin bash -c "openshift admin policy add-role-to-group cluster-admin system:authenticated system:unauthenticated --config=/var/lib/openshift/openshift.local.certificates/admin/.kubeconfig"
 
@@ -250,4 +258,4 @@ To hack on the web console, check out the [assets/README.md](assets/README.md) f
 
 #### TODO
 
- - Network isolation between groups of containers
+Origin is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/).
