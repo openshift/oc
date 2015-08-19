@@ -65,6 +65,17 @@ See the [security documentation](https://docs.openshift.org/latest/admin_guide/m
 		-hostname	: the name that will be used to register the node with openshift-master
 	$ openshift start node --master=https://openshift-master:8443
 
+You'll need to configure the Docker daemon on your host to trust the Docker registry service you'll be starting.
+
+To do this, you need to add "--insecure-registry 172.30.0.0/16" to the Docker daemon invocation, eg:
+
+    $ docker -d --insecure-registry 172.30.0.0/16
+
+If you are running Docker as a service via `systemd`, you can add this argument to the options value in `/etc/sysconfig/docker`
+
+This will instruct the Docker daemon to trust any Docker registry on the 172.30.0.0/16 subnet,
+rather than requiring the registry to have a verifiable certificate.
+
 **Important!**: Docker on non-RedHat distributions (Ubuntu, Debian, boot2docker) has mount propagation PRIVATE, which [breaks](https://github.com/openshift/origin/issues/3072) running OpenShift inside a container. Please use the [Vagrant](CONTRIBUTING.adoc#develop-on-virtual-machine-using-vagrant) or binary installation paths on those distributions.
 
 	Create a json file for the new node resource
