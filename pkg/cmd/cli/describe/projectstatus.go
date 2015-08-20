@@ -41,8 +41,9 @@ const ForbiddenListWarning = "Forbidden"
 
 // ProjectStatusDescriber generates extended information about a Project
 type ProjectStatusDescriber struct {
-	K kclient.Interface
-	C client.Interface
+	K      kclient.Interface
+	C      client.Interface
+	Server string
 }
 
 func (d *ProjectStatusDescriber) MakeGraph(namespace string) (osgraph.Graph, util.StringSet, error) {
@@ -132,7 +133,7 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 
 	return tabbedString(func(out *tabwriter.Writer) error {
 		indent := "  "
-		fmt.Fprintf(out, "In project %s\n", projectapi.DisplayNameAndNameForProject(project))
+		fmt.Fprintf(out, describeProjectAndServer(project, d.Server))
 
 		for _, service := range services {
 			fmt.Fprintln(out)
@@ -259,6 +260,14 @@ func indentLines(indent string, lines ...string) []string {
 	}
 
 	return ret
+}
+
+func describeProjectAndServer(project *projectapi.Project, server string) string {
+	if server != "" {
+		return fmt.Sprintf("In project %s on server %s\n", projectapi.DisplayNameAndNameForProject(project), server)
+	} else {
+		return fmt.Sprintf("In project %s\n", projectapi.DisplayNameAndNameForProject(project))
+	}
 }
 
 func describeDeploymentInServiceGroup(deploy graphview.DeploymentConfigPipeline) []string {
