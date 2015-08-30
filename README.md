@@ -1,6 +1,6 @@
 ## SDN solutions for Openshift
 
-Software to get an overlay network up and running for a docker cluster. This is still a work in progress. Do not use it in production.
+Software to get an overlay network up and running for a Docker cluster.
 
 This is the source repository for [OpenShift Origin](https://openshift.github.io), based on top of 
 [Docker](https://www.docker.io) containers and the
