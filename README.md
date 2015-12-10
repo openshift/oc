@@ -34,11 +34,10 @@ Synchronize your changes to origin repository:
 
 Create openshift cluster with your sdn changes:
 
-	$ cd origin
-	$ make clean
-	$ make
-	$ export OPENSHIFT_DEV_CLUSTER=1
-	$ export OPENSHIFT_NUM_MINIONS=2
-	$ vagrant up
+If you have downloaded the client tools, place the included binaries in your PATH.
+
+* For a quick install of Origin, see the [Getting Started Install guide](https://docs.openshift.org/latest/getting_started/administrators.html).
+* For an advanced installation using [Ansible](https://github.com/openshift/openshift-ansible), follow the [Advanced Installation guide](https://docs.openshift.org/latest/install_config/install/advanced_install.html)
+* To build and run from source, see [CONTRIBUTING.adoc](CONTRIBUTING.adoc)
 
 Validate your changes and test cases on the openshift cluster and submit corresponding pull requests to [openshift/openshift-sdn](https://github.com/openshift/openshift-sdn) and/or [openshift/origin](https://github.com/openshift/origin) repositories.
