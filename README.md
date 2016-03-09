@@ -4,7 +4,7 @@
 [![Travis](https://travis-ci.org/openshift/origin.svg?branch=master)](https://travis-ci.org/openshift/origin)
 [![Jenkins](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=devenv_ami)](https://ci.openshift.redhat.com/jenkins/job/devenv_ami/)
 
-OpenShift Origin is a distribution of [Kubernetes](https://kubernetes.io) optimized for multi-tenant application development and deployment.  Origin adds developer and operational centric tools on top of Kubernetes to enable rapid application development, easy deployment and scaling, and long-term lifecycle maintenance for small and large teams and applications.
+OpenShift Origin is a distribution of [Kubernetes](https://kubernetes.io) optimized for continuous application development and multi-tenant deployment.  Origin adds developer and operations-centric tools on top of Kubernetes to enable rapid application development, easy deployment and scaling, and long-term lifecycle maintenance for small and large teams.
 
 #### Network Architecture
 High level OpenShift SDN architecture can be found [here](https://docs.openshift.org/latest/architecture/additional_concepts/sdn.html).
@@ -15,7 +15,7 @@ High level OpenShift SDN architecture can be found [here](https://docs.openshift
 * Centralized administration and management of an entire stack, team, or organization
   * Templatize the components of your system, reuse them, and iteratively deploy them over time
   * Roll out changes to software stacks to your entire organization in a controlled fashion
-* Team and user isolation of containers, builds, and network communication in an easy multi-tenancy system
+* Team and user isolation of containers, builds, and network communication in an easy multi-tenant system
   * Allow developers to run containers securely with fine-grained controls in production
   * Limit, track, and manage the developers and teams on the platform
 * Integrated Docker registry, automatic edge load balancing, cluster logging, and integrated metrics
