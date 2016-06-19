@@ -8,8 +8,9 @@
 
 OpenShift Origin is a distribution of [Kubernetes](https://kubernetes.io) optimized for continuous application development and multi-tenant deployment.  Origin adds developer and operations-centric tools on top of Kubernetes to enable rapid application development, easy deployment and scaling, and long-term lifecycle maintenance for small and large teams.
 
-#### Network Architecture
-High level OpenShift SDN architecture can be found [here](https://docs.openshift.org/latest/architecture/additional_concepts/sdn.html).
+[![asciicast](https://asciinema.org/a/49402.png)](https://asciinema.org/a/49402)
+
+**Features:**
 
 * Easily build applications with integrated service discovery, DNS, load balancing, failover, health checking, persistent storage, and fast scaling
 * Push source code to your Git repository and automatically roll out containerized applications (micro or macro)
