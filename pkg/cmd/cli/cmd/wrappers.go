@@ -59,8 +59,8 @@ detailed view, use '%[1]s describe'.`
 )
 
 // NewCmdGet is a wrapper for the Kubernetes cli get command
-func NewCmdGet(fullName string, f *clientcmd.Factory, out io.Writer) *cobra.Command {
-	cmd := kcmd.NewCmdGet(f.Factory, out)
+func NewCmdGet(fullName string, f *clientcmd.Factory, out, errOut io.Writer) *cobra.Command {
+	cmd := kcmd.NewCmdGet(f.Factory, out, errOut)
 	cmd.Long = fmt.Sprintf(getLong, fullName)
 	cmd.Example = fmt.Sprintf(getExample, fullName)
 	cmd.SuggestFor = []string{"list"}
@@ -278,8 +278,8 @@ given resource.`
 )
 
 // NewCmdDescribe is a wrapper for the Kubernetes cli describe command
-func NewCmdDescribe(fullName string, f *clientcmd.Factory, out io.Writer) *cobra.Command {
-	cmd := kcmd.NewCmdDescribe(f.Factory, out)
+func NewCmdDescribe(fullName string, f *clientcmd.Factory, out, errOut io.Writer) *cobra.Command {
+	cmd := kcmd.NewCmdDescribe(f.Factory, out, errOut)
 	cmd.Long = describeLong
 	cmd.Example = fmt.Sprintf(describeExample, fullName)
 	cmd.ValidArgs = describe.DescribableResources()
@@ -546,8 +546,8 @@ resourcequotas (quota), namespaces (ns) or endpoints (ep).`
 )
 
 // NewCmdExplain is a wrapper for the Kubernetes cli explain command
-func NewCmdExplain(fullName string, f *clientcmd.Factory, out io.Writer) *cobra.Command {
-	cmd := kcmd.NewCmdExplain(f.Factory, out)
+func NewCmdExplain(fullName string, f *clientcmd.Factory, out, errOut io.Writer) *cobra.Command {
+	cmd := kcmd.NewCmdExplain(f.Factory, out, errOut)
 	cmd.Long = explainLong
 	cmd.Example = fmt.Sprintf(explainExample, fullName)
 	return cmd

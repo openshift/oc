@@ -6,8 +6,8 @@ import (
 
 	kapi "k8s.io/kubernetes/pkg/api"
 	kapierrors "k8s.io/kubernetes/pkg/api/errors"
-	"k8s.io/kubernetes/pkg/util"
 	"k8s.io/kubernetes/pkg/util/sets"
+	"k8s.io/kubernetes/pkg/util/uuid"
 
 	"github.com/spf13/cobra"
 
@@ -109,7 +109,7 @@ func getUniqueName(basename string, existingNames *sets.String) string {
 		}
 	}
 
-	return string(util.NewUUID())
+	return string(uuid.NewUUID())
 }
 
 // RoleBindingAccessor is used by role modification commands to access and modify roles
