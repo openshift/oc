@@ -73,6 +73,7 @@ func NewCmdRolloutHistory(fullName string, f *clientcmd.Factory, out io.Writer) 
 	cmd := rollout.NewCmdRolloutHistory(f.Factory, out)
 	cmd.Long = rolloutHistoryLong
 	cmd.Example = fmt.Sprintf(rolloutHistoryExample, fullName)
+	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
 	return cmd
 }
 
@@ -94,6 +95,7 @@ func NewCmdRolloutPause(fullName string, f *clientcmd.Factory, out io.Writer) *c
 	cmd := rollout.NewCmdRolloutPause(f.Factory, out)
 	cmd.Long = rolloutPauseLong
 	cmd.Example = fmt.Sprintf(rolloutPauseExample, fullName)
+	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
 	return cmd
 }
 
@@ -113,6 +115,7 @@ func NewCmdRolloutResume(fullName string, f *clientcmd.Factory, out io.Writer) *
 	cmd := rollout.NewCmdRolloutResume(f.Factory, out)
 	cmd.Long = rolloutResumeLong
 	cmd.Example = fmt.Sprintf(rolloutResumeExample, fullName)
+	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
 	return cmd
 }
 
@@ -149,6 +152,7 @@ func NewCmdRolloutUndo(fullName string, f *clientcmd.Factory, out io.Writer) *co
 	cmd := rollout.NewCmdRolloutUndo(f.Factory, out)
 	cmd.Long = rolloutUndoLong
 	cmd.Example = fmt.Sprintf(rolloutUndoExample, fullName)
+	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
 	return cmd
 }
 
