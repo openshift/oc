@@ -1,75 +1,43 @@
+/*
+Copyright 2017 The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package version
 
 import (
-	"strings"
+	"fmt"
+	"runtime"
 
-	"github.com/prometheus/client_golang/prometheus"
+	apimachineryversion "k8s.io/apimachinery/pkg/version"
 )
-
-var (
-	// commitFromGit is a constant representing the source version that
-	// generated this build. It should be set during build via -ldflags.
-	commitFromGit string
-	// versionFromGit is a constant representing the version tag that
-	// generated this build. It should be set during build via -ldflags.
-	versionFromGit string
-	// major version
-	majorFromGit string
-	// minor version
-	minorFromGit string
-	// build date in ISO8601 format, output of $(date -u +'%Y-%m-%dT%H:%M:%SZ')
-	buildDate string
-)
-
-// Info contains versioning information.
-// TODO: Add []string of api versions supported? It's still unclear
-// how we'll want to distribute that information.
-type Info struct {
-	Major      string `json:"major"`
-	Minor      string `json:"minor"`
-	GitCommit  string `json:"gitCommit"`
-	GitVersion string `json:"gitVersion"`
-	BuildDate  string `json:"buildDate"`
-}
 
 // Get returns the overall codebase version. It's for detecting
 // what code a binary was built from.
-func Get() Info {
-	return Info{
-		Major:      majorFromGit,
-		Minor:      minorFromGit,
-		GitCommit:  commitFromGit,
-		GitVersion: versionFromGit,
-		BuildDate:  buildDate,
+func Get() apimachineryversion.Info {
+	// These variables typically come from -ldflags settings and in
+	// their absence fallback to the settings in pkg/version/base.go
+	return apimachineryversion.Info{
+		Major: "", // deprecated
+		Minor: "", // deprecated
+		// TODO: we need to update these values when building a release.
+		// GitVersion:   "",
+		// GitCommit:    "",
+		// GitTreeState: "",
+		// BuildDate:    "1970-01-01T00:00:00Z",
+		GoVersion: runtime.Version(),
+		Compiler:  runtime.Compiler,
+		Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 	}
-}
-
-// String returns info as a human-friendly version string.
-func (info Info) String() string {
-	version := info.GitVersion
-	if version == "" {
-		version = "unknown"
-	}
-	return version
-}
-
-// LastSemanticVersion attempts to return a semantic version from the GitVersion - which
-// is either <semver>+<commit> or <semver> on release boundaries.
-func (info Info) LastSemanticVersion() string {
-	version := info.GitVersion
-	parts := strings.Split(version, "+")
-	return parts[0]
-}
-
-func init() {
-	buildInfo := prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "openshift_build_info",
-			Help: "A metric with a constant '1' value labeled by major, minor, git commit & git version from which OpenShift was built.",
-		},
-		[]string{"major", "minor", "gitCommit", "gitVersion"},
-	)
-	buildInfo.WithLabelValues(majorFromGit, minorFromGit, commitFromGit, versionFromGit).Set(1)
-
-	prometheus.MustRegister(buildInfo)
 }
