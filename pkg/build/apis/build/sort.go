@@ -1,4 +1,4 @@
-package api
+package build
 
 // BuildSliceByCreationTimestamp implements sort.Interface for []Build
 // based on the CreationTimestamp field.
