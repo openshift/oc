@@ -376,7 +376,7 @@ func (o *NewAppOptions) RunNewApp() error {
 	return nil
 }
 
-type LogsForObjectFunc func(object, options runtime.Object) (*restclient.Request, error)
+type LogsForObjectFunc func(object, options runtime.Object, timeout time.Duration) (*restclient.Request, error)
 
 func followInstallation(config *newcmd.AppConfig, input string, pod *kapi.Pod, logsForObjectFn LogsForObjectFunc) error {
 	fmt.Fprintf(config.Out, "--> Installing ...\n")
@@ -397,7 +397,6 @@ func followInstallation(config *newcmd.AppConfig, input string, pod *kapi.Pod, l
 		},
 		Mapper:        config.Mapper,
 		Typer:         config.Typer,
-		ClientMapper:  config.ClientMapper,
 		LogsForObject: logsForObjectFn,
 		Out:           config.Out,
 	}
