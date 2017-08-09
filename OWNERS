@@ -1,17 +1,9 @@
 reviewers:
-  - smarterclayton
+  - jpeeler
   - deads2k
-  - liggitt
-  - bparees
-  - stevekuznetsov
-  - soltysh
+  - smarterclayton
+  - aveshagarwal
 approvers:
-  - smarterclayton
   - deads2k
-  - liggitt
-  - bparees
-  - mfojtik
-  - eparis
-  - derekwaynecarr
-  - stevekuznetsov # for build and tooling changes
-  - pweil-
+  - pmorie
+  - smarterclayton
