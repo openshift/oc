@@ -59,8 +59,7 @@ Kubernetes 1.8. See the
 [milestones list](https://github.com/kubernetes-incubator/service-catalog/milestones?direction=desc&sort=due_date&state=open) 
 for information about the issues and PRs in current and future milestones.
 
-The project [roadmap](https://github.com/kubernetes-incubator/service-catalog/wiki/Roadmap)
-contains information about our high-level goals for future milestones.
+The OpenShift API is located on each server at `https://<host>:8443/oapi/v1`. These APIs are described via [Swagger v1.2](https://www.swagger.io) at `https://<host>:8443/swaggerapi/oapi/v1`. For more, [see the API documentation](https://docs.openshift.org/latest/rest_api).
 
 We are currently making weekly releases; see the
 [release process](https://github.com/kubernetes-incubator/service-catalog/wiki/Release-Process)
@@ -70,7 +69,9 @@ for more information.
 
 Our goal is to have extensive use-case and functional documentation.
 
-See [here](./docs/v1) for detailed documentation.
+* [Kubernetes Getting Started](https://kubernetes.io/docs/tutorials/kubernetes-basics/)
+* [Kubernetes Documentation](https://kubernetes.io/docs/)
+* [Kubernetes API](https://docs.openshift.org/latest/rest_api)
 
 See [here](https://github.com/kubernetes-incubator/service-catalog/wiki/Examples) for examples and
 [here](https://github.com/openservicebrokerapi/servicebroker/blob/master/gettingStarted.md) for
