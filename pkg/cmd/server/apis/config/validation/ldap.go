@@ -8,15 +8,15 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
-	"github.com/openshift/origin/pkg/cmd/server/api"
+	configapi "github.com/openshift/origin/pkg/cmd/server/apis/config"
 	"github.com/openshift/origin/pkg/oauthserver/ldaputil"
 )
 
-func ValidateLDAPSyncConfig(config *api.LDAPSyncConfig) ValidationResults {
+func ValidateLDAPSyncConfig(config *configapi.LDAPSyncConfig) ValidationResults {
 	validationResults := ValidationResults{}
 
 	validationResults.Append(ValidateStringSource(config.BindPassword, field.NewPath("bindPassword")))
-	bindPassword, _ := api.ResolveStringValue(config.BindPassword)
+	bindPassword, _ := configapi.ResolveStringValue(config.BindPassword)
 	validationResults.Append(ValidateLDAPClientConfig(config.URL, config.BindDN, bindPassword, config.CA, config.Insecure, nil))
 
 	for ldapGroupUID, openShiftGroupName := range config.LDAPGroupUIDToOpenShiftGroupNameMapping {
@@ -104,7 +104,7 @@ func ValidateLDAPClientConfig(url, bindDN, bindPassword, CA string, insecure boo
 	return validationResults
 }
 
-func ValidateRFC2307Config(config *api.RFC2307Config) ValidationResults {
+func ValidateRFC2307Config(config *configapi.RFC2307Config) ValidationResults {
 	validationResults := ValidationResults{}
 
 	validationResults.Append(ValidateLDAPQuery(config.AllGroupsQuery, field.NewPath("groupsQuery")))
@@ -130,7 +130,7 @@ func ValidateRFC2307Config(config *api.RFC2307Config) ValidationResults {
 	return validationResults
 }
 
-func ValidateActiveDirectoryConfig(config *api.ActiveDirectoryConfig) ValidationResults {
+func ValidateActiveDirectoryConfig(config *configapi.ActiveDirectoryConfig) ValidationResults {
 	validationResults := ValidationResults{}
 
 	validationResults.Append(ValidateLDAPQuery(config.AllUsersQuery, field.NewPath("usersQuery")))
@@ -144,7 +144,7 @@ func ValidateActiveDirectoryConfig(config *api.ActiveDirectoryConfig) Validation
 	return validationResults
 }
 
-func ValidateAugmentedActiveDirectoryConfig(config *api.AugmentedActiveDirectoryConfig) ValidationResults {
+func ValidateAugmentedActiveDirectoryConfig(config *configapi.AugmentedActiveDirectoryConfig) ValidationResults {
 	validationResults := ValidationResults{}
 
 	validationResults.Append(ValidateLDAPQuery(config.AllUsersQuery, field.NewPath("usersQuery")))
@@ -167,10 +167,10 @@ func ValidateAugmentedActiveDirectoryConfig(config *api.AugmentedActiveDirectory
 	return validationResults
 }
 
-func ValidateLDAPQuery(query api.LDAPQuery, fldPath *field.Path) ValidationResults {
+func ValidateLDAPQuery(query configapi.LDAPQuery, fldPath *field.Path) ValidationResults {
 	return validateLDAPQuery(query, fldPath, false)
 }
-func validateLDAPQuery(query api.LDAPQuery, fldPath *field.Path, isDNOnly bool) ValidationResults {
+func validateLDAPQuery(query configapi.LDAPQuery, fldPath *field.Path, isDNOnly bool) ValidationResults {
 	validationResults := ValidationResults{}
 
 	if _, err := ldap.ParseDN(query.BaseDN); err != nil {
