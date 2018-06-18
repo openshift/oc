@@ -17,10 +17,10 @@ import (
 	"github.com/golang/glog"
 	digest "github.com/opencontainers/go-digest"
 
-	imageapi "github.com/openshift/origin/pkg/image/apis/image"
+	imagereference "github.com/openshift/origin/pkg/image/apis/image/reference"
 )
 
-func processManifestList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imageapi.DockerImageReference, filterFn func(*manifestlist.ManifestDescriptor, bool) bool) ([]distribution.Manifest, distribution.Manifest, digest.Digest, error) {
+func processManifestList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imagereference.DockerImageReference, filterFn func(*manifestlist.ManifestDescriptor, bool) bool) ([]distribution.Manifest, distribution.Manifest, digest.Digest, error) {
 	var srcManifests []distribution.Manifest
 	switch t := srcManifest.(type) {
 	case *manifestlist.DeserializedManifestList:
