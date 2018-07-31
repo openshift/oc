@@ -7,15 +7,14 @@ import (
 
 	"github.com/spf13/cobra"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 
-	authorizationapi "github.com/openshift/origin/pkg/authorization/apis/authorization"
-	securityclientinternal "github.com/openshift/origin/pkg/security/generated/internalclientset"
-	securitytypedclient "github.com/openshift/origin/pkg/security/generated/internalclientset/typed/security/internalversion"
+	securityclient "github.com/openshift/client-go/security/clientset/versioned"
+	securitytypedclient "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 )
 
 const (
@@ -43,7 +42,7 @@ type SCCModificationOptions struct {
 	SCCInterface securitytypedclient.SecurityContextConstraintsInterface
 
 	DefaultSubjectNamespace string
-	Subjects                []kapi.ObjectReference
+	Subjects                []corev1.ObjectReference
 
 	IsGroup bool
 	DryRun  bool
@@ -160,7 +159,7 @@ func (o *SCCModificationOptions) CompleteUsers(f kcmdutil.Factory, cmd *cobra.Co
 
 	o.Out = out
 	o.SCCName = args[0]
-	o.Subjects = authorizationapi.BuildSubjects(args[1:], []string{})
+	o.Subjects = buildSubjects(args[1:], []string{})
 
 	if (len(o.Subjects) == 0) && (len(saNames) == 0) {
 		return errors.New("you must specify at least one user or service account")
@@ -177,7 +176,7 @@ func (o *SCCModificationOptions) CompleteUsers(f kcmdutil.Factory, cmd *cobra.Co
 	if err != nil {
 		return err
 	}
-	securityClient, err := securityclientinternal.NewForConfig(clientConfig)
+	securityClient, err := securityclient.NewForConfig(clientConfig)
 	if err != nil {
 		return err
 	}
@@ -189,7 +188,7 @@ func (o *SCCModificationOptions) CompleteUsers(f kcmdutil.Factory, cmd *cobra.Co
 	}
 
 	for _, sa := range saNames {
-		o.Subjects = append(o.Subjects, kapi.ObjectReference{Namespace: o.DefaultSubjectNamespace, Name: sa, Kind: "ServiceAccount"})
+		o.Subjects = append(o.Subjects, corev1.ObjectReference{Namespace: o.DefaultSubjectNamespace, Name: sa, Kind: "ServiceAccount"})
 	}
 
 	return nil
@@ -209,7 +208,7 @@ func (o *SCCModificationOptions) CompleteGroups(f kcmdutil.Factory, cmd *cobra.C
 
 	o.IsGroup = true
 	o.SCCName = args[0]
-	o.Subjects = authorizationapi.BuildSubjects([]string{}, args[1:])
+	o.Subjects = buildSubjects([]string{}, args[1:])
 
 	o.DryRun = kcmdutil.GetFlagBool(cmd, "dry-run")
 
@@ -217,7 +216,7 @@ func (o *SCCModificationOptions) CompleteGroups(f kcmdutil.Factory, cmd *cobra.C
 	if err != nil {
 		return err
 	}
-	securityClient, err := securityclientinternal.NewForConfig(clientConfig)
+	securityClient, err := securityclient.NewForConfig(clientConfig)
 	if err != nil {
 		return err
 	}
@@ -237,7 +236,7 @@ func (o *SCCModificationOptions) AddSCC() error {
 		return err
 	}
 
-	users, groups := authorizationapi.StringSubjectsFor(o.DefaultSubjectNamespace, o.Subjects)
+	users, groups := stringSubjectsFor(o.DefaultSubjectNamespace, o.Subjects)
 	usersToAdd, _ := diff(users, scc.Users)
 	groupsToAdd, _ := diff(groups, scc.Groups)
 
@@ -268,7 +267,7 @@ func (o *SCCModificationOptions) RemoveSCC() error {
 		return err
 	}
 
-	users, groups := authorizationapi.StringSubjectsFor(o.DefaultSubjectNamespace, o.Subjects)
+	users, groups := stringSubjectsFor(o.DefaultSubjectNamespace, o.Subjects)
 	_, remainingUsers := diff(users, scc.Users)
 	_, remainingGroups := diff(groups, scc.Groups)
 
