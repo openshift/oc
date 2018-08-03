@@ -1,10 +1,11 @@
-## `service-catalog`
+OKD: The Origin Community Distribution of Kubernetes
+=======================================================
 
 [![Build Status](https://travis-ci.org/kubernetes-incubator/service-catalog.svg?branch=master)](https://travis-ci.org/kubernetes-incubator/service-catalog "Travis")
 [![Build Status](https://service-catalog-jenkins.appspot.com/buildStatus/icon?job=service-catalog-master-testing)](https://service-catalog-jenkins.appspot.com/job/service-catalog-master-testing/ "Jenkins")
 [![Go Report Card](https://goreportcard.com/badge/github.com/kubernetes-incubator/service-catalog)](https://goreportcard.com/report/github.com/kubernetes-incubator/service-catalog)
 
-### Introduction
+***OKD*** is the Origin community distribution of [Kubernetes](https://kubernetes.io) optimized for continuous application development and multi-tenant deployment.  OKD adds developer and operations-centric tools on top of Kubernetes to enable rapid application development, easy deployment and scaling, and long-term lifecycle maintenance for small and large teams. ***OKD*** is also referred to as ***Origin*** in github and in the documentation.
 
 The service-catalog project is in incubation to bring integration with service
 brokers to the Kubernetes ecosystem via the [Open Service Broker API](https://github.com/openservicebrokerapi/servicebroker).
@@ -46,28 +47,25 @@ For more details about the design and features of this project see the
 
 #### Video links
 
-The latest OpenShift Origin images are published to the Docker Hub under the `openshift` account at https://hub.docker.com/u/openshift/. We use a rolling tag system as of v3.9, where the `:latest` tag always points to the most recent alpha release on `master`, the `v3.X` tag points to the most recent build for that release (pre-release and post-release), and `v3.X.Y` is a stable tag for patches to a release.
+The latest OKD Origin images are published to the Docker Hub under the `openshift` account at https://hub.docker.com/u/openshift/. We use a rolling tag system as of v3.9, where the `:latest` tag always points to the most recent alpha release on `master`, the `v3.X` tag points to the most recent build for that release (pre-release and post-release), and `v3.X.Y` is a stable tag for patches to a release.
 
 ### Concepts
 
-OpenShift builds a developer-centric workflow around Docker containers and Kubernetes runtime concepts.  An **Image Stream** lets you easily tag, import, and publish Docker images from the integrated registry.  A **Build Config** allows you to launch Docker builds, build directly from source code, or trigger Jenkins Pipeline jobs whenever an image stream tag is updated.  A **Deployment Config** allows you to use custom deployment logic to rollout your application, and Kubernetes workflow objects like **DaemonSets**, **Deployments**, or **StatefulSets** are upgraded to automatically trigger when new images are available.  **Routes** make it trivial to expose your Kubernetes services via a public DNS name. As an administrator, you can enable your developers to request new **Projects** which come with predefined roles, quotas, and security controls to fairly divide access.
+OKD builds a developer-centric workflow around Docker containers and Kubernetes runtime concepts.  An **Image Stream** lets you easily tag, import, and publish Docker images from the integrated registry.  A **Build Config** allows you to launch Docker builds, build directly from source code, or trigger Jenkins Pipeline jobs whenever an image stream tag is updated.  A **Deployment Config** allows you to use custom deployment logic to rollout your application, and Kubernetes workflow objects like **DaemonSets**, **Deployments**, or **StatefulSets** are upgraded to automatically trigger when new images are available.  **Routes** make it trivial to expose your Kubernetes services via a public DNS name. As an administrator, you can enable your developers to request new **Projects** which come with predefined roles, quotas, and security controls to fairly divide access.
 
-### Project Status
+For more on the underlying concepts of OKD, please see the [documentation site](https://docs.openshift.org/latest/welcome/index.html).
 
-We are currently working toward a beta-quality release to be used in conjunction with
-Kubernetes 1.8. See the
-[milestones list](https://github.com/kubernetes-incubator/service-catalog/milestones?direction=desc&sort=due_date&state=open)
-for information about the issues and PRs in current and future milestones.
+### OKD API
 
-The OpenShift API is located on each server at `https://<host>:8443/apis`. OpenShift adds its own API groups alongside the Kubernetes APIs. For more, [see the API documentation](https://docs.openshift.org/latest/rest_api).
+The OKD API is located on each server at `https://<host>:8443/apis`. OKD adds its own API groups alongside the Kubernetes APIs. For more, [see the API documentation](https://docs.openshift.org/latest/rest_api).
 
 We are currently making weekly releases; see the
 [release process](https://github.com/kubernetes-incubator/service-catalog/wiki/Release-Process)
 for more information.
 
-OpenShift extends Kubernetes with security and other developer centric concepts.  Each OpenShift Origin release ships slightly after the Kubernetes release has stabilized. Version numbers are aligned - OpenShift v3.9 is Kubernetes v1.9.
+OKD extends Kubernetes with security and other developer centric concepts.  Each OKD release ships slightly after the Kubernetes release has stabilized. Version numbers are aligned - OKD v3.9 is Kubernetes v1.9.
 
-Our goal is to have extensive use-case and functional documentation.
+If you're looking for more information about using Kubernetes or the lower level concepts that OKD depends on, see the following:
 
 See the [Service Catalog documentation](https://kubernetes.io/docs/concepts/service-catalog/)
 on the main Kubernetes site, and the [project documentation](./docs/README.md) here on GitHub.
@@ -75,11 +73,9 @@ on the main Kubernetes site, and the [project documentation](./docs/README.md) h
 For details on broker servers that are compatible with this software, see the
 Open Service Broker API project's [Getting Started guide](https://github.com/openservicebrokerapi/servicebroker/blob/master/gettingStarted.md).
 
-### Terminology
+### What can I run on OKD?
 
-This project's problem domain contains a few inconvenient but unavoidable
-overloads with other Kubernetes terms. Check out our [terminology page](./terminology.md)
-for definitions of terms as they are used in this project.
+OKD is designed to run any existing Docker images.  Additionally, you can define builds that will produce new Docker images using a `Dockerfile`.
 
 ### Contributing
 
@@ -98,8 +94,7 @@ Previous meeting notes are also available:
 
 ### Kubernetes Incubator
 
-This is a [Kubernetes Incubator project](https://github.com/kubernetes/community/blob/master/incubator.md).
-The project was established 2016-Sept-12. The incubator team for the project is:
+OKD runs with the following security policy by default:
 
 - Sponsor: Brian Grant ([@bgrant0607](https://github.com/bgrant0607))
 - Champion: Paul Morie ([@pmorie](https://github.com/pmorie))
@@ -114,7 +109,7 @@ Participation in the Kubernetes community is governed by the
 [Kubernetes Code of Conduct](./code-of-conduct.md).
 
     # Gives the default service account in the current project access to run as UID 0 (root)
-    oc adm add-scc-to-user anyuid -z default 
+    oc adm add-scc-to-user anyuid -z default
 
 See the [security documentation](https://docs.openshift.org/latest/admin_guide/manage_scc.html) more on confining applications.
 
@@ -122,7 +117,7 @@ See the [security documentation](https://docs.openshift.org/latest/admin_guide/m
 Support for Kubernetes Alpha Features
 -----------------------------------------
 
-Some features from upstream Kubernetes are not yet enabled in OpenShift, for reasons including supportability, security, or limitations in the upstream feature.
+Some features from upstream Kubernetes are not yet enabled in OKD, for reasons including supportability, security, or limitations in the upstream feature.
 
 Kubernetes Definitions:
 
@@ -136,7 +131,7 @@ Kubernetes Definitions:
   * The feature is potentially suitable for limited production use under constrained circumstances.
   * The feature is unlikely to be replaced or removed, although it is still possible for feature changes that require migration.
 
-OpenShift uses these terms in the same fashion as Kubernetes, and adds four more:
+OKD uses these terms in the same fashion as Kubernetes, and adds four more:
 
 * Not Yet Secure
   * Features which are not yet enabled because they have significant security or stability risks to the cluster
@@ -149,23 +144,23 @@ OpenShift uses these terms in the same fashion as Kubernetes, and adds four more
 * Tech Preview
   * Features that are considered unsupported for various reasons are known as 'tech preview' in our documentation
   * Kubernetes Alpha and Beta features are considered tech preview, although occasionally some features will be graduated early
-  * Any tech preview feature is not supported in OpenShift Container Platform except through exemption
+  * Any tech preview feature is not supported in OKD except through exemption
 * Disabled Pending Migration
-  * These are features that are new in Kubernetes but which originated in OpenShift, and thus need migrations for existing users
-  * We generally try to minimize the impact of features introduced upstream to Kubernetes on OpenShift users by providing seamless
+  * These are features that are new in Kubernetes but which originated in OKD, and thus need migrations for existing users
+  * We generally try to minimize the impact of features introduced upstream to Kubernetes on OKD users by providing seamless
     migration for existing clusters.
   * Generally these are addressed within 1 Kubernetes release
 
 The list of features that qualify under these labels is described below, along with additional context for why.
 
-Feature | Kubernetes | OpenShift | Justification
+Feature | Kubernetes | OKD       | Justification
 ------- | ---------- | --------- | -------------
-Custom Resource Definitions | GA (1.9) | GA (3.9) | 
+Custom Resource Definitions | GA (1.9) | GA (3.9) |
 Stateful Sets | GA (1.9) | GA (3.9) |
 Deployment | GA (1.9) | GA (1.9) |
-Replica Sets | GA (1.9) | GA (3.9) | Replica Sets perform the same function as Replication Controllers, but have a more powerful label syntax. Both ReplicationControllers and ReplicaSets can be used.  
-Ingress | Beta (1.9) | Tech Preview (3.9) | OpenShift launched with Routes, a more full featured Ingress object. Ingress rules can be read by the router (disabled by default), but because Ingress objects reference secrets you must grant the routers access to your secrets manually.  Ingress is still beta in upstream Kubernetes.
-PodSecurityPolicy | Beta (1.9) | Tech Preview (3.9) | OpenShift launched with SecurityContextConstraints, and then upstreamed them as PodSecurityPolicy. We plan to enable upstream PodSecurityPolicy so as to automatically migrate existing SecurityContextConstraints. PodSecurityPolicy has not yet completed a full security review, which will be part of the criteria for tech preview. <br>SecurityContextConstraints are a superset of PodSecurityPolicy features.
+Replica Sets | GA (1.9) | GA (3.9) | Replica Sets perform the same function as Replication Controllers, but have a more powerful label syntax. Both ReplicationControllers and ReplicaSets can be used.
+Ingress | Beta (1.9) | Tech Preview (3.9) | OKD launched with Routes, a more full featured Ingress object. Ingress rules can be read by the router (disabled by default), but because Ingress objects reference secrets you must grant the routers access to your secrets manually.  Ingress is still beta in upstream Kubernetes.
+PodSecurityPolicy | Beta (1.9) | Tech Preview (3.9) | OKD launched with SecurityContextConstraints, and then upstreamed them as PodSecurityPolicy. We plan to enable upstream PodSecurityPolicy so as to automatically migrate existing SecurityContextConstraints. PodSecurityPolicy has not yet completed a full security review, which will be part of the criteria for tech preview. <br>SecurityContextConstraints are a superset of PodSecurityPolicy features.
 NetworkPolicy | GA (1.6) | GA (3.7) |
 
 Please contact us if this list omits a feature supported in Kubernetes which does not run in Origin.
@@ -178,7 +173,7 @@ You can develop [locally on your host](CONTRIBUTING.adoc#develop-locally-on-your
 
 First, **get up and running with the** [**Contributing Guide**](CONTRIBUTING.adoc).
 
-All contributions are welcome - Origin uses the Apache 2 license and does not require any contributor agreement to submit patches.  Please open issues for any bugs or problems you encounter, ask questions on the OpenShift IRC channel (#openshift-dev on freenode), or get involved in the [Kubernetes project](https://github.com/kubernetes/kubernetes) at the container runtime layer.
+All contributions are welcome - OKD uses the Apache 2 license and does not require any contributor agreement to submit patches.  Please open issues for any bugs or problems you encounter, ask questions on the OpenShift IRC channel (#openshift-dev on freenode), or get involved in the [Kubernetes project](https://github.com/kubernetes/kubernetes) at the container runtime layer.
 
 See [HACKING.md](https://github.com/openshift/origin/blob/master/HACKING.md) for more details on developing on Origin including how different tests are setup.
 
@@ -225,4 +220,4 @@ https://access.redhat.com/security/team/contact
 License
 -------
 
-OpenShift is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/).
+OKD is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/).
