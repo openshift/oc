@@ -1,7 +1,6 @@
 reviewers:
   - jpeeler
   - deads2k
-  - liggitt
   - bparees
   - stevekuznetsov
   - soltysh
@@ -11,7 +10,6 @@ approvers:
   - aveshagarwal
 approvers:
   - deads2k
-  - liggitt
   - bparees
   - mfojtik
   - eparis
