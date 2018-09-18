@@ -22,9 +22,9 @@ Most applications need a datastore of some kind. The service-catalog allows
 Kubernetes applications to consume services like databases that exist
 _somewhere_ in a simple way:
 
-1. A user wanting to consume a database in their application browses a list of
-    available services in the catalog
-2. The user asks for a new instance of that service to be _provisioned_
+* **[Public Documentation](https://docs.okd.io/latest/welcome/)**
+  * **[API Documentation](https://docs.okd.io/latest/rest_api/openshift_v1.html)**
+* Our **[Trello Roadmap](https://ci.openshift.redhat.com/roadmap_overview.html)** covers the epics and stories being worked on (click through to individual items)
 
     _Provisioning_ means that the broker somehow creates a new instance of a
    service. This could mean basically anything that results in a new instance
@@ -45,7 +45,9 @@ instructions, please see the [introduction](./docs/introduction.md) doc.
 For more details about the design and features of this project see the
 [design](docs/design.md) doc.
 
-#### Video links
+* On any system with a Docker engine installed, you can run `oc cluster up` to get started immediately.  Try it out now!
+* For a full cluster installation using [Ansible](https://github.com/openshift/openshift-ansible), follow the [Advanced Installation guide](https://docs.okd.io/latest/install_config/install/advanced_install.html)
+* To build and run from source, see [CONTRIBUTING.adoc](CONTRIBUTING.adoc)
 
 The latest OKD Origin images are published to the Docker Hub under the `openshift` account at https://hub.docker.com/u/openshift/. We use a rolling tag system as of v3.9, where the `:latest` tag always points to the most recent alpha release on `master`, the `v3.X` tag points to the most recent build for that release (pre-release and post-release), and `v3.X.Y` is a stable tag for patches to a release.
 
@@ -53,11 +55,11 @@ The latest OKD Origin images are published to the Docker Hub under the `openshif
 
 OKD builds a developer-centric workflow around Docker containers and Kubernetes runtime concepts.  An **Image Stream** lets you easily tag, import, and publish Docker images from the integrated registry.  A **Build Config** allows you to launch Docker builds, build directly from source code, or trigger Jenkins Pipeline jobs whenever an image stream tag is updated.  A **Deployment Config** allows you to use custom deployment logic to rollout your application, and Kubernetes workflow objects like **DaemonSets**, **Deployments**, or **StatefulSets** are upgraded to automatically trigger when new images are available.  **Routes** make it trivial to expose your Kubernetes services via a public DNS name. As an administrator, you can enable your developers to request new **Projects** which come with predefined roles, quotas, and security controls to fairly divide access.
 
-For more on the underlying concepts of OKD, please see the [documentation site](https://docs.openshift.org/latest/welcome/index.html).
+For more on the underlying concepts of OKD, please see the [documentation site](https://docs.okd.io/latest/welcome/index.html).
 
 ### OKD API
 
-The OKD API is located on each server at `https://<host>:8443/apis`. OKD adds its own API groups alongside the Kubernetes APIs. For more, [see the API documentation](https://docs.openshift.org/latest/rest_api).
+The OKD API is located on each server at `https://<host>:8443/apis`. OKD adds its own API groups alongside the Kubernetes APIs. For more, [see the API documentation](https://docs.okd.io/latest/rest_api).
 
 We are currently making weekly releases; see the
 [release process](https://github.com/kubernetes-incubator/service-catalog/wiki/Release-Process)
@@ -67,8 +69,9 @@ OKD extends Kubernetes with security and other developer centric concepts.  Each
 
 If you're looking for more information about using Kubernetes or the lower level concepts that OKD depends on, see the following:
 
-See the [Service Catalog documentation](https://kubernetes.io/docs/concepts/service-catalog/)
-on the main Kubernetes site, and the [project documentation](./docs/README.md) here on GitHub.
+* [Kubernetes Getting Started](https://kubernetes.io/docs/tutorials/kubernetes-basics/)
+* [Kubernetes Documentation](https://kubernetes.io/docs/)
+* [Kubernetes API](https://docs.okd.io/latest/rest_api)
 
 For details on broker servers that are compatible with this software, see the
 Open Service Broker API project's [Getting Started guide](https://github.com/openservicebrokerapi/servicebroker/blob/master/gettingStarted.md).
@@ -79,15 +82,12 @@ OKD is designed to run any existing Docker images.  Additionally, you can define
 
 ### Contributing
 
-Interested in contributing? Check out the [contribution guidelines](./CONTRIBUTING.md).
+You can see the [full list of Source-to-Image builder images](https://docs.okd.io/latest/using_images/s2i_images/overview.html) and it's straightforward to [create your own](https://blog.openshift.com/create-s2i-builder-image/).  Some of our available images include:
 
 Also see the [developer's guide](./docs/devguide.md) for information on how to
 build and test the code.
 
-We have weekly meetings - see
-[Kubernetes SIGs](https://github.com/kubernetes/community/blob/master/sig-list.md)
-(search for "Service Catalog") for the exact date and time. For meeting agendas
-and notes, see [Kubernetes SIG Service Catalog Agenda](https://docs.google.com/document/d/17xlpkoEbPR5M6P5VDzNx17q6-IPFxKyebEekCGYiIKM/edit).
+Your application image can be easily extended with a database service with our [database images](https://docs.okd.io/latest/using_images/db_images/overview.html):
 
 Previous meeting notes are also available:
 [2016-08-29 through 2017-09-17](https://docs.google.com/document/d/10VsJjstYfnqeQKCgXGgI43kQWnWFSx8JTH7wFh8CmPA/edit).
@@ -100,8 +100,7 @@ OKD runs with the following security policy by default:
 - Champion: Paul Morie ([@pmorie](https://github.com/pmorie))
 - SIG: [sig-service-catalog](https://github.com/kubernetes/community/tree/master/sig-service-catalog)
 
-For more information about sig-service-catalog, such as meeting times and agenda,
-check out the [community site](https://github.com/kubernetes/community/tree/master/sig-service-catalog).
+Many Docker containers expect to run as root (and therefore edit all the contents of the filesystem). The [Image Author's guide](https://docs.okd.io/latest/creating_images/guidelines.html#openshift-specific-guidelines) gives recommendations on making your image more secure by default:
 
 ### Code of Conduct
 
@@ -111,7 +110,7 @@ Participation in the Kubernetes community is governed by the
     # Gives the default service account in the current project access to run as UID 0 (root)
     oc adm add-scc-to-user anyuid -z default
 
-See the [security documentation](https://docs.openshift.org/latest/admin_guide/manage_scc.html) more on confining applications.
+See the [security documentation](https://docs.okd.io/latest/admin_guide/manage_scc.html) more on confining applications.
 
 
 Support for Kubernetes Alpha Features
