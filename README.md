@@ -23,7 +23,7 @@ Kubernetes applications to consume services like databases that exist
 _somewhere_ in a simple way:
 
 * **[Public Documentation](https://docs.okd.io/latest/welcome/)**
-  * **[API Documentation](https://docs.okd.io/latest/rest_api/openshift_v1.html)**
+  * **[API Documentation](https://docs.okd.io/latest/rest_api/index.html)**
 * Our **[Trello Roadmap](https://ci.openshift.redhat.com/roadmap_overview.html)** covers the epics and stories being worked on (click through to individual items)
 
     _Provisioning_ means that the broker somehow creates a new instance of a
