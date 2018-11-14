@@ -45,7 +45,6 @@ instructions, please see the [introduction](./docs/introduction.md) doc.
 For more details about the design and features of this project see the
 [design](docs/design.md) doc.
 
-* On any system with a Docker engine installed, you can run `oc cluster up` to get started immediately.  Try it out now!
 * For a full cluster installation using [Ansible](https://github.com/openshift/openshift-ansible), follow the [Advanced Installation guide](https://docs.okd.io/latest/install_config/install/advanced_install.html)
 * To build and run from source, see [CONTRIBUTING.adoc](CONTRIBUTING.adoc)
 
