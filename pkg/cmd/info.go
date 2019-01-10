@@ -2,23 +2,28 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 
 	"github.com/spf13/cobra"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericclioptions/printers"
 	"k8s.io/cli-runtime/pkg/genericclioptions/resource"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
-
-	"io/ioutil"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/openshift/api/route"
+	routev1 "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 )
 
 var (
@@ -35,6 +40,9 @@ type InfoOptions struct {
 	printFlags  *genericclioptions.PrintFlags
 	configFlags *genericclioptions.ConfigFlags
 
+	restConfig      *rest.Config
+	routesClient    routev1.RouteV1Interface
+	kubeClient      kubernetes.Interface
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
 
@@ -91,12 +99,23 @@ func NewCmdInfo(parentName string, streams genericclioptions.IOStreams) *cobra.C
 func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 
-	config, err := o.configFlags.ToRESTConfig()
+	var err error
+	o.restConfig, err = o.configFlags.ToRESTConfig()
 	if err != nil {
 		return err
 	}
 
-	o.dynamicClient, err = dynamic.NewForConfig(config)
+	o.kubeClient, err = kubernetes.NewForConfig(o.restConfig)
+	if err != nil {
+		return err
+	}
+
+	o.routesClient, err = routev1.NewForConfig(o.restConfig)
+	if err != nil {
+		return err
+	}
+
+	o.dynamicClient, err = dynamic.NewForConfig(o.restConfig)
 	if err != nil {
 		return err
 	}
@@ -161,7 +180,13 @@ func (o *InfoOptions) Run() error {
 			return err
 		}
 
+		// save operator data for each clusteroperator
+		if err := o.gatherClusterOperatorNamespaceData(path.Join(o.baseDir, "/"+info.Name), info.Name); err != nil {
+			return err
+		}
 	}
+
+	// TODO: store all pod-specific data for a given namespace
 
 	return nil
 }
@@ -284,4 +309,120 @@ func retrieveConfigResourceNames(discoveryClient discovery.CachedDiscoveryInterf
 	}
 
 	return resources, nil
+}
+
+func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace string) error {
+	// ensure destination path exists
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	ns, err := o.kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	ns.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Namespace"))
+
+	// write namespace.yaml file
+	filename := fmt.Sprintf("%s.yaml", namespace)
+	dest, err := os.OpenFile(path.Join(destDir, "/"+filename), os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		return err
+	}
+	defer dest.Close()
+
+	if err := o.printer.PrintObj(ns, dest); err != nil {
+		return err
+	}
+
+	resourcesToStore := map[string]runtime.Object{}
+
+	// collect resource information for namespace
+	pods, err := o.kubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	pods.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("PodList"))
+	resourcesToStore["pods.yaml"] = pods
+
+	configmaps, err := o.kubeClient.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	configmaps.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMapList"))
+	resourcesToStore["configmaps.yaml"] = configmaps
+
+	services, err := o.kubeClient.CoreV1().Services(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	services.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ServiceList"))
+	resourcesToStore["services.yaml"] = services
+
+	deployments, err := o.kubeClient.AppsV1().Deployments(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	deployments.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("DeploymentList"))
+	resourcesToStore["deployments.yaml"] = deployments
+
+	daemonsets, err := o.kubeClient.AppsV1().DaemonSets(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	daemonsets.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("DaemonSetList"))
+	resourcesToStore["daemonsets.yaml"] = daemonsets
+
+	statefulsets, err := o.kubeClient.AppsV1().StatefulSets(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	statefulsets.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("StatefulSetList"))
+	resourcesToStore["statefulsets.yaml"] = statefulsets
+
+	routes, err := o.routesClient.Routes(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	routes.SetGroupVersionKind(schema.GroupVersionKind{Group: route.GroupName, Kind: "RouteList"})
+	resourcesToStore["routes.yaml"] = routes
+
+	// store redacted secrets
+	secrets, err := o.kubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	secrets.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("SecretList"))
+	resourcesToStore["secrets.yaml"] = secrets
+
+	secretsToStore := []corev1.Secret{}
+	for _, secret := range secrets.Items {
+		secret.Data = nil
+		secretsToStore = append(secretsToStore, secret)
+	}
+	secrets.Items = secretsToStore
+
+	errs := []error{}
+	for filename, obj := range resourcesToStore {
+		err := func() error {
+			dest, err := os.OpenFile(path.Join(destDir, "/"+filename), os.O_RDWR|os.O_CREATE, 0755)
+			if err != nil {
+				return err
+			}
+			defer dest.Close()
+			if err := o.printer.PrintObj(obj, dest); err != nil {
+				return err
+			}
+
+			return nil
+		}()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("errors ocurred storing resource information for namespace %q:\n\n%v", namespace, errors.NewAggregate(errs))
+	}
+
+	return nil
 }
