@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -15,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/cli-runtime/pkg/genericclioptions/printers"
 	"k8s.io/cli-runtime/pkg/genericclioptions/resource"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -25,6 +23,8 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/api/route"
 	routev1 "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
+
+	"github.com/openshift/must-gather/pkg/util"
 )
 
 var (
@@ -47,10 +47,9 @@ type InfoOptions struct {
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
 
-	fileWriter   *resourceFileWriter
-	streamWriter *streamFileWriter
-	builder      *resource.Builder
-	args         []string
+	fileWriter *util.MultiSourceFileWriter
+	builder    *resource.Builder
+	args       []string
 
 	// directory where all gathered data will be stored
 	baseDir string
@@ -98,43 +97,6 @@ func NewCmdInfo(parentName string, streams genericclioptions.IOStreams) *cobra.C
 	return cmd
 }
 
-type resourceFileWriter struct {
-	printer printers.ResourcePrinter
-}
-
-func (f *resourceFileWriter) Write(filepath string, src runtime.Object) error {
-	dest, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0755)
-	if err != nil {
-		return err
-	}
-	defer dest.Close()
-
-	return f.printer.PrintObj(src, dest)
-}
-
-type streamFileWriterSource interface {
-	Stream() (io.ReadCloser, error)
-}
-
-type streamFileWriter struct{}
-
-func (s *streamFileWriter) Write(filepath string, src streamFileWriterSource) error {
-	dest, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0755)
-	if err != nil {
-		return err
-	}
-	defer dest.Close()
-
-	readCloser, err := src.Stream()
-	if err != nil {
-		return err
-	}
-	defer readCloser.Close()
-
-	_, err = io.Copy(dest, readCloser)
-	return err
-}
-
 func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 
@@ -168,8 +130,7 @@ func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	o.fileWriter = &resourceFileWriter{printer: printer}
-	o.streamWriter = &streamFileWriter{}
+	o.fileWriter = util.NewMultiSourceWriter(printer)
 
 	o.builder = resource.NewBuilder(o.configFlags)
 	return nil
@@ -266,7 +227,7 @@ func (o *InfoOptions) gatherClusterOperatorResource(destDir string, info *resour
 	}
 
 	filename := fmt.Sprintf("%s.yaml", info.Name)
-	return o.fileWriter.Write(path.Join(destDir, "/"+filename), info.Object)
+	return o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), info.Object)
 }
 
 func (o *InfoOptions) gatherConfigResourceData(destDir string) error {
@@ -289,7 +250,7 @@ func (o *InfoOptions) gatherConfigResourceData(destDir string) error {
 
 		objToPrint := runtime.Object(resourceList)
 		filename := fmt.Sprintf("%s.yaml", resource.Resource)
-		if err := o.fileWriter.Write(path.Join(destDir, "/"+filename), objToPrint); err != nil {
+		if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), objToPrint); err != nil {
 			// TODO: aggregate this error
 			return err
 		}
@@ -342,7 +303,7 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 
 	// write namespace.yaml file
 	filename := fmt.Sprintf("%s.yaml", namespace)
-	if err := o.fileWriter.Write(path.Join(destDir, "/"+filename), ns); err != nil {
+	if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), ns); err != nil {
 		return err
 	}
 
@@ -415,7 +376,7 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 
 	errs := []error{}
 	for filename, obj := range resourcesToStore {
-		if err := o.fileWriter.Write(path.Join(destDir, "/"+filename), obj); err != nil {
+		if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), obj); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -442,7 +403,7 @@ func (o *InfoOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) 
 	}
 
 	filename := fmt.Sprintf("%s.yaml", pod.Name)
-	if err := o.fileWriter.Write(path.Join(destDir, "/"+filename), pod); err != nil {
+	if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), pod); err != nil {
 		return err
 	}
 
@@ -487,7 +448,7 @@ func (o *InfoOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, conta
 
 	filename := fmt.Sprintf("%s.log", "current")
 
-	if err := o.streamWriter.Write(path.Join(destDir, "/"+filename), logsReq); err != nil {
+	if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
 		return err
 	}
 
@@ -496,5 +457,5 @@ func (o *InfoOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, conta
 	logsReqPrevious := o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
 
 	filename = fmt.Sprintf("%s.log", "previous")
-	return o.streamWriter.Write(path.Join(destDir, "/"+filename), logsReqPrevious)
+	return o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReqPrevious)
 }
