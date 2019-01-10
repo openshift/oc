@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -46,9 +47,10 @@ type InfoOptions struct {
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
 
-	printer printers.ResourcePrinter
-	builder *resource.Builder
-	args    []string
+	fileWriter   *resourceFileWriter
+	streamWriter *streamFileWriter
+	builder      *resource.Builder
+	args         []string
 
 	// directory where all gathered data will be stored
 	baseDir string
@@ -96,6 +98,43 @@ func NewCmdInfo(parentName string, streams genericclioptions.IOStreams) *cobra.C
 	return cmd
 }
 
+type resourceFileWriter struct {
+	printer printers.ResourcePrinter
+}
+
+func (f *resourceFileWriter) Write(filepath string, src runtime.Object) error {
+	dest, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		return err
+	}
+	defer dest.Close()
+
+	return f.printer.PrintObj(src, dest)
+}
+
+type streamFileWriterSource interface {
+	Stream() (io.ReadCloser, error)
+}
+
+type streamFileWriter struct{}
+
+func (s *streamFileWriter) Write(filepath string, src streamFileWriterSource) error {
+	dest, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		return err
+	}
+	defer dest.Close()
+
+	readCloser, err := src.Stream()
+	if err != nil {
+		return err
+	}
+	defer readCloser.Close()
+
+	_, err = io.Copy(dest, readCloser)
+	return err
+}
+
 func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 
@@ -125,10 +164,12 @@ func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	o.printer, err = o.printFlags.ToPrinter()
+	printer, err := o.printFlags.ToPrinter()
 	if err != nil {
 		return err
 	}
+	o.fileWriter = &resourceFileWriter{printer: printer}
+	o.streamWriter = &streamFileWriter{}
 
 	o.builder = resource.NewBuilder(o.configFlags)
 	return nil
@@ -212,7 +253,7 @@ func (o *InfoOptions) ensureDirectoryViable(dirPath string, allowDataOverride bo
 	if err != nil {
 		return err
 	}
-	if len(files) > 0 && !o.overwrite {
+	if len(files) > 0 && !allowDataOverride {
 		return fmt.Errorf("%q exists and is not empty. Pass --overwrite to allow data overwrites", dirPath)
 	}
 	return nil
@@ -225,17 +266,7 @@ func (o *InfoOptions) gatherClusterOperatorResource(destDir string, info *resour
 	}
 
 	filename := fmt.Sprintf("%s.yaml", info.Name)
-	dest, err := os.OpenFile(path.Join(destDir, "/"+filename), os.O_RDWR|os.O_CREATE, 0755)
-	if err != nil {
-		return err
-	}
-	defer dest.Close()
-
-	if err := o.printer.PrintObj(info.Object, dest); err != nil {
-		return err
-	}
-
-	return nil
+	return o.fileWriter.Write(path.Join(destDir, "/"+filename), info.Object)
 }
 
 func (o *InfoOptions) gatherConfigResourceData(destDir string) error {
@@ -257,22 +288,8 @@ func (o *InfoOptions) gatherConfigResourceData(destDir string) error {
 		}
 
 		objToPrint := runtime.Object(resourceList)
-
-		err = func() error {
-			filename := fmt.Sprintf("%s.yaml", resource.Resource)
-			dest, err := os.OpenFile(path.Join(destDir, "/"+filename), os.O_RDWR|os.O_CREATE, 0755)
-			if err != nil {
-				return err
-			}
-			defer dest.Close()
-
-			if err := o.printer.PrintObj(objToPrint, dest); err != nil {
-				return err
-			}
-
-			return nil
-		}()
-		if err != nil {
+		filename := fmt.Sprintf("%s.yaml", resource.Resource)
+		if err := o.fileWriter.Write(path.Join(destDir, "/"+filename), objToPrint); err != nil {
 			// TODO: aggregate this error
 			return err
 		}
@@ -325,13 +342,7 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 
 	// write namespace.yaml file
 	filename := fmt.Sprintf("%s.yaml", namespace)
-	dest, err := os.OpenFile(path.Join(destDir, "/"+filename), os.O_RDWR|os.O_CREATE, 0755)
-	if err != nil {
-		return err
-	}
-	defer dest.Close()
-
-	if err := o.printer.PrintObj(ns, dest); err != nil {
+	if err := o.fileWriter.Write(path.Join(destDir, "/"+filename), ns); err != nil {
 		return err
 	}
 
@@ -404,19 +415,7 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 
 	errs := []error{}
 	for filename, obj := range resourcesToStore {
-		err := func() error {
-			dest, err := os.OpenFile(path.Join(destDir, "/"+filename), os.O_RDWR|os.O_CREATE, 0755)
-			if err != nil {
-				return err
-			}
-			defer dest.Close()
-			if err := o.printer.PrintObj(obj, dest); err != nil {
-				return err
-			}
-
-			return nil
-		}()
-		if err != nil {
+		if err := o.fileWriter.Write(path.Join(destDir, "/"+filename), obj); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -424,5 +423,78 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 		return fmt.Errorf("errors ocurred storing resource information for namespace %q:\n\n%v", namespace, errors.NewAggregate(errs))
 	}
 
+	// gather specific pod data
+	for _, pod := range pods.Items {
+		pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
+		if err := o.gatherPodData(path.Join(destDir, "/pods/"+pod.Name), namespace, &pod); err != nil {
+			// TODO: aggregate this error
+			return err
+		}
+	}
+
 	return nil
+}
+
+func (o *InfoOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) error {
+	// ensure destination path exists
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	filename := fmt.Sprintf("%s.yaml", pod.Name)
+	if err := o.fileWriter.Write(path.Join(destDir, "/"+filename), pod); err != nil {
+		return err
+	}
+
+	// gather data for each container in the given pod
+	for _, container := range pod.Spec.Containers {
+		if err := o.gatherContainerData(path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
+			// TODO: aggregate error
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *InfoOptions) gatherContainerData(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+	// ensure destination path exists
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	// gather logs
+	if err := o.gatherContainerLogs(path.Join(destDir, "/logs"), pod, container); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (o *InfoOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+	// ensure destination path exists
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	logOptions := &corev1.PodLogOptions{
+		Container:  container.Name,
+		Follow:     false,
+		Previous:   false,
+		Timestamps: true,
+	}
+	// first, retrieve current logs
+	logsReq := o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
+
+	filename := fmt.Sprintf("%s.log", "current")
+
+	if err := o.streamWriter.Write(path.Join(destDir, "/"+filename), logsReq); err != nil {
+		return err
+	}
+
+	// then, retrieve previous logs
+	logOptions.Previous = true
+	logsReqPrevious := o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
+
+	filename = fmt.Sprintf("%s.log", "previous")
+	return o.streamWriter.Write(path.Join(destDir, "/"+filename), logsReqPrevious)
 }
