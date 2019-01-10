@@ -158,38 +158,44 @@ func (o *InfoOptions) Run() error {
 		return err
 	}
 
-	if err := o.ensureDirectoryViable(o.baseDir, o.overwrite); err != nil {
-		return err
-	}
-
-	// first, gather config.openshift.io resource data
-	if err := o.gatherConfigResourceData(path.Join(o.baseDir, "/resources/config.openshift.io")); err != nil {
-		// TODO: aggregate error
-		return err
-	}
-
+	// first, ensure we're dealing with correct resource types
 	for _, info := range infos {
-		// TODO: aggregate errors
 		if configv1.GroupName != info.Mapping.GroupVersionKind.Group {
 			return fmt.Errorf("unexpected resource API group %q. Expected %q", info.Mapping.GroupVersionKind.Group, configv1.GroupName)
 		}
 		if info.Mapping.Resource.Resource != "clusteroperators" {
 			return fmt.Errorf("unsupported resource type, must be %q", "clusteroperators")
 		}
+	}
 
+	// next, ensure we're able to proceed writing data to specified destination
+	if err := o.ensureDirectoryViable(o.baseDir, o.overwrite); err != nil {
+		return err
+	}
+
+	// gather config.openshift.io resource data
+	errs := []error{}
+	if err := o.gatherConfigResourceData(path.Join(o.baseDir, "/resources/config.openshift.io")); err != nil {
+		errs = append(errs, err)
+	}
+
+	for _, info := range infos {
 		// save clusteroperator resources
 		if err := o.gatherClusterOperatorResource(path.Join(o.baseDir, "/resources"), info); err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 
 		// save operator data for each clusteroperator
 		if err := o.gatherClusterOperatorNamespaceData(path.Join(o.baseDir, "/"+info.Name), info.Name); err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 	}
 
-	// TODO: store all pod-specific data for a given namespace
-
+	if len(errs) > 0 {
+		return fmt.Errorf("One or more errors ocurred gathering cluster data:\n\n%v", errors.NewAggregate(errs))
+	}
 	return nil
 }
 
@@ -241,21 +247,25 @@ func (o *InfoOptions) gatherConfigResourceData(destDir string) error {
 		return err
 	}
 
+	errs := []error{}
 	for _, resource := range resources {
 		resourceList, err := o.dynamicClient.Resource(resource).List(metav1.ListOptions{})
 		if err != nil {
-			// TODO: aggregate errors, do not fail on a single one in order to collect some metrics despite failures
-			return err
+			errs = append(errs, err)
+			continue
 		}
 
 		objToPrint := runtime.Object(resourceList)
 		filename := fmt.Sprintf("%s.yaml", resource.Resource)
 		if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), objToPrint); err != nil {
-			// TODO: aggregate this error
-			return err
+			errs = append(errs, err)
+			continue
 		}
 	}
 
+	if len(errs) > 0 {
+		return fmt.Errorf("one or more errors ocurred while gathering config.openshift.io resource data:\n\n%v", errors.NewAggregate(errs))
+	}
 	return nil
 }
 
@@ -388,11 +398,14 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 	for _, pod := range pods.Items {
 		pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
 		if err := o.gatherPodData(path.Join(destDir, "/pods/"+pod.Name), namespace, &pod); err != nil {
-			// TODO: aggregate this error
-			return err
+			errs = append(errs, err)
+			continue
 		}
 	}
 
+	if len(errs) > 0 {
+		return fmt.Errorf("one or more errors ocurred while gathering pod-specific data for namespace: %s\n\n%v", namespace, errors.NewAggregate(errs))
+	}
 	return nil
 }
 
@@ -407,14 +420,19 @@ func (o *InfoOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) 
 		return err
 	}
 
+	errs := []error{}
+
 	// gather data for each container in the given pod
 	for _, container := range pod.Spec.Containers {
 		if err := o.gatherContainerData(path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
-			// TODO: aggregate error
-			return err
+			errs = append(errs, err)
+			continue
 		}
 	}
 
+	if len(errs) > 0 {
+		return fmt.Errorf("one or more errors ocurred while gathering container data for pod %s:\n\n%v", pod.Name, errors.NewAggregate(errs))
+	}
 	return nil
 }
 
