@@ -13,16 +13,12 @@ type fileWriterSource interface {
 	Stream() (io.ReadCloser, error)
 }
 
-type resourceWriterReadCloser struct {
-	buffer *bytes.Buffer
+type TextWriterSource struct {
+	Text string
 }
 
-func (r *resourceWriterReadCloser) Read(p []byte) (n int, err error) {
-	return r.buffer.Read(p)
-}
-
-func (r *resourceWriterReadCloser) Close() error {
-	return nil
+func (t *TextWriterSource) Stream() (io.ReadCloser, error) {
+	return &resourceWriterReadCloser{buffer: bytes.NewBuffer([]byte(t.Text))}, nil
 }
 
 type resourceWriterSource struct {
@@ -37,6 +33,18 @@ func (r *resourceWriterSource) Stream() (io.ReadCloser, error) {
 	}
 
 	return &resourceWriterReadCloser{buffer: buf}, nil
+}
+
+type resourceWriterReadCloser struct {
+	buffer *bytes.Buffer
+}
+
+func (r *resourceWriterReadCloser) Read(p []byte) (n int, err error) {
+	return r.buffer.Read(p)
+}
+
+func (r *resourceWriterReadCloser) Close() error {
+	return nil
 }
 
 type simpleFileWriter struct {

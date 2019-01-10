@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -18,6 +20,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -47,6 +50,8 @@ type InfoOptions struct {
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
 
+	podUrlGetter *util.RemotePodURLGetter
+
 	fileWriter *util.MultiSourceFileWriter
 	builder    *resource.Builder
 	args       []string
@@ -61,7 +66,7 @@ type InfoOptions struct {
 
 func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
 	return &InfoOptions{
-		printFlags:  genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml"),
+		printFlags:  genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme),
 		configFlags: genericclioptions.NewConfigFlags(),
 		IOStreams:   streams,
 	}
@@ -131,6 +136,11 @@ func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	o.fileWriter = util.NewMultiSourceWriter(printer)
+	o.podUrlGetter = &util.RemotePodURLGetter{
+		Protocol: "https",
+		Host:     "localhost",
+		Port:     "8443",
+	}
 
 	o.builder = resource.NewBuilder(o.configFlags)
 	return nil
@@ -319,6 +329,10 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 
 	resourcesToStore := map[string]runtime.Object{}
 
+	// TODO: the following resource need to be able to serialize properly.
+	// Currently each list prints with each of its items missing their
+	// APIVersion and Kind fields (i.o.w. only the top-level ResourceList has these fields).
+
 	// collect resource information for namespace
 	pods, err := o.kubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
 	if err != nil {
@@ -442,9 +456,70 @@ func (o *InfoOptions) gatherContainerData(destDir string, pod *corev1.Pod, conta
 		return err
 	}
 
-	// gather logs
 	if err := o.gatherContainerLogs(path.Join(destDir, "/logs"), pod, container); err != nil {
 		return err
+	}
+	if err := o.gatherContainerHealthz(path.Join(destDir, "/healthz"), pod, container); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *InfoOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+	// ensure destination path exists
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	result, err := o.podUrlGetter.Get("/", pod, o.restConfig)
+	if err != nil {
+		return err
+	}
+
+	pathInfo := map[string][]string{}
+
+	// first, unmarshal result into json object and obtain all available /healthz endpoints
+	if err := json.Unmarshal([]byte(result), &pathInfo); err != nil {
+		return err
+	}
+	paths, ok := pathInfo["paths"]
+	if !ok {
+		return fmt.Errorf("unable to extract healthz path information for pod %q", pod.Name)
+	}
+
+	healthzSeparator := "/healthz"
+	healthzPaths := []string{}
+	for _, p := range paths {
+		if !strings.HasPrefix(p, healthzSeparator) {
+			continue
+		}
+		healthzPaths = append(healthzPaths, p)
+	}
+	if len(healthzPaths) == 0 {
+		return fmt.Errorf("unable to find any available /healthz paths hosted in pod %q", pod.Name)
+	}
+
+	for _, healthzPath := range healthzPaths {
+		result, err := o.podUrlGetter.Get(path.Join("/", healthzPath), pod, o.restConfig)
+		if err != nil {
+			// TODO: aggregate errors
+			return err
+		}
+
+		if len(healthzSeparator) > len(healthzPath) {
+			continue
+		}
+		filename := healthzPath[len(healthzSeparator):]
+		if len(filename) == 0 {
+			filename = "index"
+		} else {
+			filename = strings.TrimPrefix(filename, "/")
+		}
+
+		if err := o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result}); err != nil {
+			return err
+		}
 	}
 	return nil
 }
