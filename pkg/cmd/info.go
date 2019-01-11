@@ -13,6 +13,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kapierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,7 +29,6 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/api/route"
-	routev1 "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 
 	"github.com/openshift/must-gather/pkg/util"
 )
@@ -48,7 +48,6 @@ type InfoOptions struct {
 	configFlags *genericclioptions.ConfigFlags
 
 	restConfig      *rest.Config
-	routesClient    routev1.RouteV1Interface
 	kubeClient      kubernetes.Interface
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
@@ -115,11 +114,6 @@ func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 	}
 
 	o.kubeClient, err = kubernetes.NewForConfig(o.restConfig)
-	if err != nil {
-		return err
-	}
-
-	o.routesClient, err = routev1.NewForConfig(o.restConfig)
 	if err != nil {
 		return err
 	}
@@ -204,8 +198,14 @@ func (o *InfoOptions) Run() error {
 			continue
 		}
 
+		namespace, err := obtainClusterOperatorNamespace(info.Object)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
 		// save operator data for each clusteroperator
-		if err := o.gatherClusterOperatorNamespaceData(path.Join(o.baseDir, "/"+info.Name), info.Name); err != nil {
+		if err := o.gatherClusterOperatorNamespaceData(path.Join(o.baseDir, "/"+info.Name), namespace); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -217,6 +217,31 @@ func (o *InfoOptions) Run() error {
 
 	log.Printf("Finished successfully with no errors.\n")
 	return nil
+}
+
+func obtainClusterOperatorNamespace(obj runtime.Object) (string, error) {
+	// obtain related namespace info for the current clusteroperator
+	unstructuredCO, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return "", fmt.Errorf("invalid resource type, expecting clusteroperators but got %T", obj)
+	}
+	log.Printf("    Gathering namespace information for ClusterOperator %q...\n", unstructuredCO.GetName())
+
+	structuredCO := &configv1.ClusterOperator{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredCO.Object, structuredCO); err != nil {
+		return "", err
+	}
+
+	for _, related := range structuredCO.Status.RelatedObjects {
+		if related.Resource != "namespaces" {
+			continue
+		}
+		log.Printf("    Found related namespace %q for ClusterOperator %q...\n", related.Name, structuredCO.Name)
+		return related.Name, nil
+	}
+
+	log.Printf("    Falling back to namespace %q for ClusterOperator %q. Unable to find any related namespaces in object status...\n", structuredCO.Name, structuredCO.Name)
+	return structuredCO.Name, nil
 }
 
 // ensureDirectoryViable returns an error if the given path:
@@ -333,6 +358,11 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 
 	ns, err := o.kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
 	if err != nil {
+		if kapierrs.IsNotFound(err) {
+			log.Printf("Unable to find namespace %q. Skipping data collection for that namespace...\n", namespace)
+			return nil
+		}
+
 		return err
 	}
 	ns.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Namespace"))
@@ -488,7 +518,7 @@ func (o *InfoOptions) gatherContainerData(destDir string, pod *corev1.Pod, conta
 	doneChan := make(chan error, 1)
 
 	if err := o.gatherContainerLogs(path.Join(destDir, "/logs"), pod, container); err != nil {
-		return err
+		return filterContainerLogsErrors(err)
 	}
 	if err := o.gatherContainerHealthz(path.Join(destDir, "/healthz"), pod, container); err != nil {
 		return err
@@ -499,6 +529,14 @@ func (o *InfoOptions) gatherContainerData(destDir string, pod *corev1.Pod, conta
 
 	<-doneChan
 	return nil
+}
+
+func filterContainerLogsErrors(err error) error {
+	if strings.Contains(err.Error(), "previous terminated container") && strings.HasSuffix(err.Error(), "not found") {
+		log.Printf("        Unable to gather previous container logs: %v\n", err)
+		return nil
+	}
+	return err
 }
 
 // gatherContainerMetrics invokes an asynchronous network call
