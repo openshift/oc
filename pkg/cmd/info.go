@@ -4,14 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -211,6 +214,8 @@ func (o *InfoOptions) Run() error {
 	if len(errs) > 0 {
 		return fmt.Errorf("One or more errors ocurred gathering cluster data:\n\n    %v", errors.NewAggregate(errs))
 	}
+
+	log.Printf("Finished successfully with no errors.\n")
 	return nil
 }
 
@@ -242,6 +247,8 @@ func (o *InfoOptions) ensureDirectoryViable(dirPath string, allowDataOverride bo
 }
 
 func (o *InfoOptions) gatherClusterOperatorResource(destDir string, info *resource.Info) error {
+	log.Printf("Gathering cluster operator resource data...\n")
+
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -252,6 +259,8 @@ func (o *InfoOptions) gatherClusterOperatorResource(destDir string, info *resour
 }
 
 func (o *InfoOptions) gatherConfigResourceData(destDir string) error {
+	log.Printf("Gathering config.openshift.io resource data...\n")
+
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -315,6 +324,8 @@ func retrieveConfigResourceNames(discoveryClient discovery.CachedDiscoveryInterf
 }
 
 func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace string) error {
+	log.Printf("Gathering cluster operator data for namespace %q...\n", namespace)
+
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -332,73 +343,66 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 		return err
 	}
 
+	log.Printf("    Collecting resources for namespace %q...\n", namespace)
+
 	resourcesToStore := map[string]runtime.Object{}
 
-	// TODO: the following resource need to be able to serialize properly.
-	// Currently each list prints with each of its items missing their
-	// APIVersion and Kind fields (i.o.w. only the top-level ResourceList has these fields).
-
 	// collect resource information for namespace
-	pods, err := o.kubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	pods, err := o.dynamicClient.Resource(corev1.SchemeGroupVersion.WithResource("pods")).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	pods.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("PodList"))
 	resourcesToStore["pods.yaml"] = pods
 
-	configmaps, err := o.kubeClient.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{})
+	configmaps, err := o.dynamicClient.Resource(corev1.SchemeGroupVersion.WithResource("configmaps")).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	configmaps.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMapList"))
 	resourcesToStore["configmaps.yaml"] = configmaps
 
-	services, err := o.kubeClient.CoreV1().Services(namespace).List(metav1.ListOptions{})
+	services, err := o.dynamicClient.Resource(corev1.SchemeGroupVersion.WithResource("services")).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	services.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ServiceList"))
 	resourcesToStore["services.yaml"] = services
 
-	deployments, err := o.kubeClient.AppsV1().Deployments(namespace).List(metav1.ListOptions{})
+	deployments, err := o.dynamicClient.Resource(appsv1.SchemeGroupVersion.WithResource("deployments")).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	deployments.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("DeploymentList"))
 	resourcesToStore["deployments.yaml"] = deployments
 
-	daemonsets, err := o.kubeClient.AppsV1().DaemonSets(namespace).List(metav1.ListOptions{})
+	daemonsets, err := o.dynamicClient.Resource(appsv1.SchemeGroupVersion.WithResource("daemonsets")).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	daemonsets.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("DaemonSetList"))
 	resourcesToStore["daemonsets.yaml"] = daemonsets
 
-	statefulsets, err := o.kubeClient.AppsV1().StatefulSets(namespace).List(metav1.ListOptions{})
+	statefulsets, err := o.dynamicClient.Resource(appsv1.SchemeGroupVersion.WithResource("statefulsets")).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	statefulsets.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("StatefulSetList"))
 	resourcesToStore["statefulsets.yaml"] = statefulsets
 
-	routes, err := o.routesClient.Routes(namespace).List(metav1.ListOptions{})
+	routes, err := o.dynamicClient.Resource(schema.GroupVersionResource{Group: route.GroupName, Version: "v1", Resource: "routes"}).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	routes.SetGroupVersionKind(schema.GroupVersionKind{Group: route.GroupName, Kind: "RouteList"})
 	resourcesToStore["routes.yaml"] = routes
 
 	// store redacted secrets
-	secrets, err := o.kubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
+	secrets, err := o.dynamicClient.Resource(corev1.SchemeGroupVersion.WithResource("secrets")).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	secrets.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("SecretList"))
 	resourcesToStore["secrets.yaml"] = secrets
 
-	secretsToStore := []corev1.Secret{}
+	secretsToStore := []unstructured.Unstructured{}
 	for _, secret := range secrets.Items {
-		secret.Data = nil
+		if _, ok := secret.Object["data"]; ok {
+			secret.Object["data"] = nil
+		}
+
 		secretsToStore = append(secretsToStore, secret)
 	}
 	secrets.Items = secretsToStore
@@ -413,10 +417,14 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 		return fmt.Errorf("errors ocurred storing resource information for namespace %q:\n\n    %v", namespace, errors.NewAggregate(errs))
 	}
 
+	log.Printf("    Gathering pod data for namespace %q...\n", namespace)
+
 	// gather specific pod data
 	for _, pod := range pods.Items {
-		pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
-		if err := o.gatherPodData(path.Join(destDir, "/pods/"+pod.Name), namespace, &pod); err != nil {
+		log.Printf("        Gathering data for pod %q\n", pod.GetName())
+		structuredPod := &corev1.Pod{}
+		runtime.DefaultUnstructuredConverter.FromUnstructured(pod.Object, structuredPod)
+		if err := o.gatherPodData(path.Join(destDir, "/pods/"+pod.GetName()), namespace, structuredPod); err != nil {
 			errs = append(errs, err)
 			continue
 		}
