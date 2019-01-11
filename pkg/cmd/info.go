@@ -385,6 +385,12 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 	resourcesToStore := map[string]runtime.Object{}
 
 	// collect resource information for namespace
+	events, err := o.dynamicClient.Resource(corev1.SchemeGroupVersion.WithResource("events")).Namespace(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	resourcesToStore["events.yaml"] = events
+
 	pods, err := o.dynamicClient.Resource(corev1.SchemeGroupVersion.WithResource("pods")).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
