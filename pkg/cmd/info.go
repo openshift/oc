@@ -142,6 +142,11 @@ func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 		Port:     "8443",
 	}
 
+	// pre-fetch token while we perform other tasks
+	if err := o.podUrlGetter.FetchToken(o.restConfig); err != nil {
+		return err
+	}
+
 	o.builder = resource.NewBuilder(o.configFlags)
 	return nil
 }
@@ -204,7 +209,7 @@ func (o *InfoOptions) Run() error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("One or more errors ocurred gathering cluster data:\n\n%v", errors.NewAggregate(errs))
+		return fmt.Errorf("One or more errors ocurred gathering cluster data:\n\n    %v", errors.NewAggregate(errs))
 	}
 	return nil
 }
@@ -274,7 +279,7 @@ func (o *InfoOptions) gatherConfigResourceData(destDir string) error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("one or more errors ocurred while gathering config.openshift.io resource data:\n\n%v", errors.NewAggregate(errs))
+		return fmt.Errorf("one or more errors ocurred while gathering config.openshift.io resource data:\n\n    %v", errors.NewAggregate(errs))
 	}
 	return nil
 }
@@ -405,7 +410,7 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("errors ocurred storing resource information for namespace %q:\n\n%v", namespace, errors.NewAggregate(errs))
+		return fmt.Errorf("errors ocurred storing resource information for namespace %q:\n\n    %v", namespace, errors.NewAggregate(errs))
 	}
 
 	// gather specific pod data
@@ -418,7 +423,7 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("one or more errors ocurred while gathering pod-specific data for namespace: %s\n\n%v", namespace, errors.NewAggregate(errs))
+		return fmt.Errorf("one or more errors ocurred while gathering pod-specific data for namespace: %s\n\n    %v", namespace, errors.NewAggregate(errs))
 	}
 	return nil
 }
@@ -436,6 +441,16 @@ func (o *InfoOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) 
 
 	errs := []error{}
 
+	// skip gathering container data if containers are no longer running
+	running, err := util.PodRunningReady(pod)
+	if err != nil {
+		return err
+	}
+	if !running {
+		log.Printf("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
+		return nil
+	}
+
 	// gather data for each container in the given pod
 	for _, container := range pod.Spec.Containers {
 		if err := o.gatherContainerData(path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
@@ -443,9 +458,15 @@ func (o *InfoOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) 
 			continue
 		}
 	}
+	for _, container := range pod.Spec.InitContainers {
+		if err := o.gatherContainerData(path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("one or more errors ocurred while gathering container data for pod %s:\n\n%v", pod.Name, errors.NewAggregate(errs))
+		return fmt.Errorf("one or more errors ocurred while gathering container data for pod %s:\n\n    %v", pod.Name, errors.NewAggregate(errs))
 	}
 	return nil
 }
@@ -456,14 +477,39 @@ func (o *InfoOptions) gatherContainerData(destDir string, pod *corev1.Pod, conta
 		return err
 	}
 
+	doneChan := make(chan error, 1)
+
 	if err := o.gatherContainerLogs(path.Join(destDir, "/logs"), pod, container); err != nil {
 		return err
 	}
 	if err := o.gatherContainerHealthz(path.Join(destDir, "/healthz"), pod, container); err != nil {
 		return err
 	}
+	if err := o.gatherContainerMetrics(destDir, pod, container, doneChan); err != nil {
+		return err
+	}
 
+	<-doneChan
 	return nil
+}
+
+// gatherContainerMetrics invokes an asynchronous network call
+func (o *InfoOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod, container *corev1.Container, doneChan chan error) error {
+	// ensure destination path exists
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	// we need a token in order to access the /metrics endpoint
+	return o.podUrlGetter.EnsureGetWithTokenAsync("/metrics", pod, o.restConfig, func(result string, err error) {
+		if err != nil {
+			doneChan <- err
+			return
+		}
+
+		filename := fmt.Sprintf("%s.json", "metrics")
+		doneChan <- o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result})
+	})
 }
 
 func (o *InfoOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, container *corev1.Container) error {
