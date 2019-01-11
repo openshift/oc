@@ -90,3 +90,14 @@ func (f *MultiSourceFileWriter) WriteFromResource(filepath string, obj runtime.O
 func NewMultiSourceWriter(printer printers.ResourcePrinter) *MultiSourceFileWriter {
 	return &MultiSourceFileWriter{printer: printer}
 }
+
+func SourceToBuffer(src fileWriterSource, dest io.Writer) error {
+	readCloser, err := src.Stream()
+	if err != nil {
+		return err
+	}
+	defer readCloser.Close()
+
+	_, err = io.Copy(dest, readCloser)
+	return err
+}

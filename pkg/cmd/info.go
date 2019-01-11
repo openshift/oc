@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,7 +9,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -53,7 +53,7 @@ type InfoOptions struct {
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
 
-	podUrlGetter *util.RemotePodURLGetter
+	podUrlGetter *util.PortForwardURLGetter
 
 	fileWriter *util.MultiSourceFileWriter
 	builder    *resource.Builder
@@ -134,15 +134,11 @@ func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	o.fileWriter = util.NewMultiSourceWriter(printer)
-	o.podUrlGetter = &util.RemotePodURLGetter{
-		Protocol: "https",
-		Host:     "localhost",
-		Port:     "8443",
-	}
-
-	// pre-fetch token while we perform other tasks
-	if err := o.podUrlGetter.FetchToken(o.restConfig); err != nil {
-		return err
+	o.podUrlGetter = &util.PortForwardURLGetter{
+		Protocol:   "https",
+		Host:       "localhost",
+		RemotePort: "8443",
+		LocalPort:  "37587",
 	}
 
 	o.builder = resource.NewBuilder(o.configFlags)
@@ -584,38 +580,19 @@ func (o *InfoOptions) gatherContainerData(destDir string, pod *corev1.Pod, conta
 		return err
 	}
 
-	errChan := make(chan error, 10)
-	wg := &sync.WaitGroup{}
-
 	if err := o.gatherContainerLogs(path.Join(destDir, "/logs"), pod, container); err != nil {
 		return filterContainerLogsErrors(err)
 	}
 	if err := o.gatherContainerHealthz(path.Join(destDir, "/healthz"), pod, container); err != nil {
 		return err
 	}
-	if err := o.gatherContainerVersion(destDir, pod, container, errChan, wg); err != nil {
+	if err := o.gatherContainerVersion(destDir, pod, container); err != nil {
 		return err
 	}
-	if err := o.gatherContainerMetrics(destDir, pod, container, errChan, wg); err != nil {
+	if err := o.gatherContainerMetrics(destDir, pod, container); err != nil {
 		return err
 	}
 
-	wg.Wait()
-	errs := []error{}
-	done := false
-	for !done {
-		select {
-		case e := <-errChan:
-			errs = append(errs, e)
-		default:
-			done = true
-			break
-		}
-	}
-
-	if len(errs) > 0 {
-		return errors.NewAggregate(errs)
-	}
 	return nil
 }
 
@@ -627,7 +604,7 @@ func filterContainerLogsErrors(err error) error {
 	return err
 }
 
-func (o *InfoOptions) gatherContainerVersion(destDir string, pod *corev1.Pod, container *corev1.Container, errChan chan error, wg *sync.WaitGroup) error {
+func (o *InfoOptions) gatherContainerVersion(destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -652,38 +629,27 @@ func (o *InfoOptions) gatherContainerVersion(destDir string, pod *corev1.Pod, co
 		return nil
 	}
 
-	wg.Add(1)
-	return o.podUrlGetter.EnsureGetWithTokenAsync("/version", pod, o.restConfig, func(result string, err error) {
-		defer wg.Done()
-		if err != nil {
-			errChan <- err
-			return
-		}
+	result, err := o.podUrlGetter.Get("/version", pod, o.restConfig)
 
-		filename := fmt.Sprintf("%s.json", "metrics")
-		errChan <- o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result})
-	})
+	filename := fmt.Sprintf("%s.json", "metrics")
+	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), result)
 }
 
 // gatherContainerMetrics invokes an asynchronous network call
-func (o *InfoOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod, container *corev1.Container, errChan chan error, wg *sync.WaitGroup) error {
+func (o *InfoOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
 	}
 
-	wg.Add(1)
 	// we need a token in order to access the /metrics endpoint
-	return o.podUrlGetter.EnsureGetWithTokenAsync("/metrics", pod, o.restConfig, func(result string, err error) {
-		defer wg.Done()
-		if err != nil {
-			errChan <- err
-			return
-		}
+	result, err := o.podUrlGetter.Get("/metrics", pod, o.restConfig)
+	if err != nil {
+		return err
+	}
 
-		filename := fmt.Sprintf("%s.json", "metrics")
-		errChan <- o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result})
-	})
+	filename := fmt.Sprintf("%s.json", "metrics")
+	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), result)
 }
 
 func (o *InfoOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, container *corev1.Container) error {
@@ -726,23 +692,37 @@ func (o *InfoOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, co
 			filename = strings.TrimPrefix(filename, "/")
 		}
 
-		if err := o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result}); err != nil {
+		filenameSegs := strings.Split(filename, "/")
+		if len(filenameSegs) > 1 {
+			// ensure directory structure for nested paths exists
+			filenameSegs = filenameSegs[:len(filenameSegs)-1]
+			if err := os.MkdirAll(path.Join(destDir, "/"+strings.Join(filenameSegs, "/")), os.ModePerm); err != nil {
+				return err
+			}
+		}
+
+		if err := o.fileWriter.WriteFromSource(path.Join(destDir, filename), result); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func getAvailablePodEndpoints(urlGetter *util.RemotePodURLGetter, pod *corev1.Pod, config *rest.Config) ([]string, error) {
+func getAvailablePodEndpoints(urlGetter *util.PortForwardURLGetter, pod *corev1.Pod, config *rest.Config) ([]string, error) {
 	result, err := urlGetter.Get("/", pod, config)
 	if err != nil {
+		return nil, err
+	}
+
+	resultBuffer := bytes.NewBuffer(nil)
+	if err := util.SourceToBuffer(result, resultBuffer); err != nil {
 		return nil, err
 	}
 
 	pathInfo := map[string][]string{}
 
 	// first, unmarshal result into json object and obtain all available /healthz endpoints
-	if err := json.Unmarshal([]byte(result), &pathInfo); err != nil {
+	if err := json.Unmarshal(resultBuffer.Bytes(), &pathInfo); err != nil {
 		return nil, err
 	}
 	paths, ok := pathInfo["paths"]
