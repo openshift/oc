@@ -186,6 +186,7 @@ func (o *InfoOptions) Run() error {
 	}
 
 	// gather config.openshift.io resource data
+	skippedNamespaces := []string{}
 	errs := []error{}
 	if err := o.gatherConfigResourceData(path.Join(o.baseDir, "/resources/config.openshift.io")); err != nil {
 		errs = append(errs, err)
@@ -206,6 +207,11 @@ func (o *InfoOptions) Run() error {
 
 		// save operator data for each clusteroperator
 		if err := o.gatherClusterOperatorNamespaceData(path.Join(o.baseDir, "/"+info.Name), namespace); err != nil {
+			if kapierrs.IsNotFound(err) {
+				skippedNamespaces = append(skippedNamespaces, namespace)
+				continue
+			}
+
 			errs = append(errs, err)
 			continue
 		}
@@ -213,6 +219,12 @@ func (o *InfoOptions) Run() error {
 
 	if len(errs) > 0 {
 		return fmt.Errorf("One or more errors ocurred gathering cluster data:\n\n    %v", errors.NewAggregate(errs))
+	}
+
+	if len(skippedNamespaces) > 0 {
+		for _, namespace := range skippedNamespaces {
+			log.Printf("Data collection skipped namespace %q. Unable to find namespace...\n", namespace)
+		}
 	}
 
 	log.Printf("Finished successfully with no errors.\n")
@@ -358,11 +370,6 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 
 	ns, err := o.kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
 	if err != nil {
-		if kapierrs.IsNotFound(err) {
-			log.Printf("Unable to find namespace %q. Skipping data collection for that namespace...\n", namespace)
-			return nil
-		}
-
 		return err
 	}
 	ns.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Namespace"))
