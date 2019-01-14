@@ -3,12 +3,14 @@ package util
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
@@ -34,7 +36,7 @@ func (f *defaultPortForwarder) ForwardPortsAndExecute(pod *corev1.Pod, ports []s
 		return fmt.Errorf("at least 1 PORT is required for port-forward")
 	}
 
-	restClient, err := corev1client.NewForConfig(f.restConfig)
+	restClient, err := rest.RESTClientFor(setRESTConfigDefaults(*f.restConfig))
 	if err != nil {
 		return err
 	}
@@ -44,7 +46,7 @@ func (f *defaultPortForwarder) ForwardPortsAndExecute(pod *corev1.Pod, ports []s
 	}
 
 	stdout := bytes.NewBuffer(nil)
-	req := restClient.RESTClient().Post().
+	req := restClient.Post().
 		Resource("pods").
 		Namespace(pod.Namespace).
 		Name(pod.Name).
@@ -72,6 +74,35 @@ func (f *defaultPortForwarder) ForwardPortsAndExecute(pod *corev1.Pod, ports []s
 	return fw.ForwardPorts()
 }
 
+func setRESTConfigDefaults(config rest.Config) *rest.Config {
+	if config.GroupVersion == nil {
+		config.GroupVersion = &schema.GroupVersion{Group: "", Version: "v1"}
+	}
+	if config.NegotiatedSerializer == nil {
+		config.NegotiatedSerializer = scheme.Codecs
+	}
+	if len(config.UserAgent) == 0 {
+		config.UserAgent = rest.DefaultKubernetesUserAgent()
+	}
+	config.APIPath = "/api"
+	return &config
+}
+
+func newInsecureRESTClientForHost(host string) (rest.Interface, error) {
+	insecure := true
+
+	configFlags := &genericclioptions.ConfigFlags{}
+	configFlags.Insecure = &insecure
+	configFlags.APIServer = &host
+
+	newConfig, err := configFlags.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return rest.RESTClientFor(setRESTConfigDefaults(*newConfig))
+}
+
 type PortForwardURLGetter struct {
 	Protocol   string
 	Host       string
@@ -79,21 +110,30 @@ type PortForwardURLGetter struct {
 	LocalPort  string
 }
 
-func (c *PortForwardURLGetter) Get(urlPath string, pod *corev1.Pod, config *rest.Config) (*rest.Request, error) {
-	var result *rest.Request
+func (c *PortForwardURLGetter) Get(urlPath string, pod *corev1.Pod, config *rest.Config) (string, error) {
+	var result string
 	var lastErr error
 	forwarder := NewDefaultPortForwarder(config)
 
 	if err := forwarder.ForwardPortsAndExecute(pod, []string{c.LocalPort + ":" + c.RemotePort}, func() {
-		restClient, err := kubernetes.NewForConfig(config)
+		restClient, err := newInsecureRESTClientForHost(fmt.Sprintf("https://localhost:%s/", c.LocalPort))
 		if err != nil {
 			lastErr = err
 			return
 		}
 
-		result = restClient.RESTClient().Get().RequestURI(urlPath)
+		ioCloser, err := restClient.Get().RequestURI(urlPath).Stream()
+		if err != nil {
+			lastErr = err
+			return
+		}
+		defer ioCloser.Close()
+
+		data := bytes.NewBuffer(nil)
+		_, lastErr = io.Copy(data, ioCloser)
+		result = data.String()
 	}); err != nil {
-		return nil, err
+		return "", err
 	}
 	return result, lastErr
 }

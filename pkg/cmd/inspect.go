@@ -632,7 +632,7 @@ func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod,
 	result, err := o.podUrlGetter.Get("/version", pod, o.restConfig)
 
 	filename := fmt.Sprintf("%s.json", "metrics")
-	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), result)
+	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result})
 }
 
 // gatherContainerMetrics invokes an asynchronous network call
@@ -649,7 +649,7 @@ func (o *InspectOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod,
 	}
 
 	filename := fmt.Sprintf("%s.json", "metrics")
-	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), result)
+	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result})
 }
 
 func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, container *corev1.Container) error {
@@ -701,7 +701,7 @@ func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod,
 			}
 		}
 
-		if err := o.fileWriter.WriteFromSource(path.Join(destDir, filename), result); err != nil {
+		if err := o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result}); err != nil {
 			return err
 		}
 	}
@@ -714,11 +714,7 @@ func getAvailablePodEndpoints(urlGetter *util.PortForwardURLGetter, pod *corev1.
 		return nil, err
 	}
 
-	resultBuffer := bytes.NewBuffer(nil)
-	if err := util.SourceToBuffer(result, resultBuffer); err != nil {
-		return nil, err
-	}
-
+	resultBuffer := bytes.NewBuffer([]byte(result))
 	pathInfo := map[string][]string{}
 
 	// first, unmarshal result into json object and obtain all available /healthz endpoints

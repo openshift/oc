@@ -47,9 +47,7 @@ func (r *resourceWriterReadCloser) Close() error {
 	return nil
 }
 
-type simpleFileWriter struct {
-	printer printers.ResourcePrinter
-}
+type simpleFileWriter struct{}
 
 func (f *simpleFileWriter) Write(filepath string, src fileWriterSource) error {
 	dest, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0755)
@@ -73,7 +71,7 @@ type MultiSourceFileWriter struct {
 }
 
 func (f *MultiSourceFileWriter) WriteFromSource(filepath string, source fileWriterSource) error {
-	writer := &simpleFileWriter{printer: f.printer}
+	writer := &simpleFileWriter{}
 	return writer.Write(filepath, source)
 }
 
@@ -83,21 +81,10 @@ func (f *MultiSourceFileWriter) WriteFromResource(filepath string, obj runtime.O
 		printer: f.printer,
 	}
 
-	writer := &simpleFileWriter{printer: f.printer}
+	writer := &simpleFileWriter{}
 	return writer.Write(filepath, source)
 }
 
 func NewMultiSourceWriter(printer printers.ResourcePrinter) *MultiSourceFileWriter {
 	return &MultiSourceFileWriter{printer: printer}
-}
-
-func SourceToBuffer(src fileWriterSource, dest io.Writer) error {
-	readCloser, err := src.Stream()
-	if err != nil {
-		return err
-	}
-	defer readCloser.Close()
-
-	_, err = io.Copy(dest, readCloser)
-	return err
 }
