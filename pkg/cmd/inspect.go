@@ -37,14 +37,14 @@ import (
 var (
 	infoExample = `
 	# Collect debugging data for the "openshift-apiserver-operator"
-	%[1]s info clusteroperator/openshift-apiserver-operator
+	%[1]s inspect clusteroperator/openshift-apiserver-operator
 
 	# Collect debugging data for all clusteroperators
-	%[1]s info clusteroperator
+	%[1]s inspect clusteroperator
 `
 )
 
-type InfoOptions struct {
+type InspectOptions struct {
 	printFlags  *genericclioptions.PrintFlags
 	configFlags *genericclioptions.ConfigFlags
 
@@ -67,20 +67,20 @@ type InfoOptions struct {
 	genericclioptions.IOStreams
 }
 
-func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
-	return &InfoOptions{
+func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
+	return &InspectOptions{
 		printFlags:  genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme),
 		configFlags: genericclioptions.NewConfigFlags(),
 		IOStreams:   streams,
 	}
 }
 
-func NewCmdInfo(parentName string, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewInfoOptions(streams)
+func NewCmdInspect(parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewInspectOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:          "info <operator> [flags]",
-		Short:        "Gather debugging data for a given cluster operator",
+		Use:          "inspect <operator> [flags]",
+		Short:        "Collect debugging data for a given cluster operator",
 		Example:      fmt.Sprintf(infoExample, parentName),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -105,7 +105,7 @@ func NewCmdInfo(parentName string, streams genericclioptions.IOStreams) *cobra.C
 	return cmd
 }
 
-func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 
 	var err error
@@ -145,7 +145,7 @@ func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (o *InfoOptions) Validate() error {
+func (o *InspectOptions) Validate() error {
 	if len(o.args) != 1 {
 		return fmt.Errorf("exactly 1 argument (operator name) is supported")
 	}
@@ -155,7 +155,7 @@ func (o *InfoOptions) Validate() error {
 	return nil
 }
 
-func (o *InfoOptions) Run() error {
+func (o *InspectOptions) Run() error {
 	r := o.builder.
 		Unstructured().
 		ResourceTypeOrNameArgs(true, o.args...).
@@ -270,7 +270,7 @@ func obtainClusterOperatorNamespaces(obj runtime.Object) ([]string, error) {
 // 1. already exists AND is a file (not a directory)
 // 2. already exists AND is NOT empty
 // 3. an IO error occurs
-func (o *InfoOptions) ensureDirectoryViable(dirPath string, allowDataOverride bool) error {
+func (o *InspectOptions) ensureDirectoryViable(dirPath string, allowDataOverride bool) error {
 	baseDirInfo, err := os.Stat(dirPath)
 	if err != nil && os.IsNotExist(err) {
 		// no error, directory simply does not exist yet
@@ -293,7 +293,7 @@ func (o *InfoOptions) ensureDirectoryViable(dirPath string, allowDataOverride bo
 	return nil
 }
 
-func (o *InfoOptions) gatherClusterOperatorResource(destDir string, info *resource.Info) error {
+func (o *InspectOptions) gatherClusterOperatorResource(destDir string, info *resource.Info) error {
 	log.Printf("Gathering cluster operator resource data...\n")
 
 	// ensure destination path exists
@@ -306,7 +306,7 @@ func (o *InfoOptions) gatherClusterOperatorResource(destDir string, info *resour
 }
 
 // gatherConfigResourceData gathers all config.openshift.io resources
-func (o *InfoOptions) gatherConfigResourceData(destDir string) error {
+func (o *InspectOptions) gatherConfigResourceData(destDir string) error {
 	log.Printf("Gathering config.openshift.io resource data...\n")
 
 	// ensure destination path exists
@@ -342,7 +342,7 @@ func (o *InfoOptions) gatherConfigResourceData(destDir string) error {
 }
 
 // gatherOperatorResourceData gathers all kubeapiserver.operator.openshift.io resources
-func (o *InfoOptions) gatherOperatorResourceData(destDir string) error {
+func (o *InspectOptions) gatherOperatorResourceData(destDir string) error {
 	log.Printf("Gathering kubeapiserver.operator.openshift.io resource data...\n")
 
 	// ensure destination path exists
@@ -407,7 +407,7 @@ func retrieveAPIGroupResourceNames(discoveryClient discovery.CachedDiscoveryInte
 	return resources, nil
 }
 
-func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace string) error {
+func (o *InspectOptions) gatherClusterOperatorNamespaceData(destDir, namespace string) error {
 	log.Printf("Gathering cluster operator data for namespace %q...\n", namespace)
 
 	// ensure destination path exists
@@ -526,7 +526,7 @@ func (o *InfoOptions) gatherClusterOperatorNamespaceData(destDir, namespace stri
 	return nil
 }
 
-func (o *InfoOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) error {
+func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) error {
 	if pod.Status.Phase != corev1.PodRunning {
 		log.Printf("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
 		return nil
@@ -574,7 +574,7 @@ func (o *InfoOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) 
 	return nil
 }
 
-func (o *InfoOptions) gatherContainerData(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerData(destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -604,7 +604,7 @@ func filterContainerLogsErrors(err error) error {
 	return err
 }
 
-func (o *InfoOptions) gatherContainerVersion(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -636,7 +636,7 @@ func (o *InfoOptions) gatherContainerVersion(destDir string, pod *corev1.Pod, co
 }
 
 // gatherContainerMetrics invokes an asynchronous network call
-func (o *InfoOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -652,7 +652,7 @@ func (o *InfoOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod, co
 	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), result)
 }
 
-func (o *InfoOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -733,7 +733,7 @@ func getAvailablePodEndpoints(urlGetter *util.PortForwardURLGetter, pod *corev1.
 	return paths, nil
 }
 
-func (o *InfoOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
