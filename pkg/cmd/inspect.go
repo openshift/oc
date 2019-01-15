@@ -35,7 +35,7 @@ import (
 )
 
 var (
-	infoExample = `
+	inspectExample = `
 	# Collect debugging data for the "openshift-apiserver-operator"
 	%[1]s inspect clusteroperator/openshift-apiserver-operator
 
@@ -81,7 +81,7 @@ func NewCmdInspect(parentName string, streams genericclioptions.IOStreams) *cobr
 	cmd := &cobra.Command{
 		Use:          "inspect <operator> [flags]",
 		Short:        "Collect debugging data for a given cluster operator",
-		Example:      fmt.Sprintf(infoExample, parentName),
+		Example:      fmt.Sprintf(inspectExample, parentName),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := o.Complete(c, args); err != nil {
