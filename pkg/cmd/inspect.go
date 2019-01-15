@@ -402,8 +402,10 @@ func retrieveAPIGroupVersionResourceNames(discoveryClient discovery.CachedDiscov
 			}
 			// if we've already seen this resource in another version, don't add it again
 			if foundResources.Has(resource.Name) {
-				foundResources.Insert(resource.Name)
+				continue
 			}
+
+			foundResources.Insert(resource.Name)
 			resources = append(resources, schema.GroupVersionResource{Group: gv.Group, Version: gv.Version, Resource: resource.Name})
 		}
 	}
