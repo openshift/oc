@@ -71,6 +71,7 @@ func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
 	return &InspectOptions{
 		printFlags:  genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme),
 		configFlags: genericclioptions.NewConfigFlags(),
+		overwrite:   true,
 		IOStreams:   streams,
 	}
 }
@@ -99,7 +100,6 @@ func NewCmdInspect(parentName string, streams genericclioptions.IOStreams) *cobr
 	}
 
 	cmd.Flags().StringVar(&o.baseDir, "base-dir", "must-gather", "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/must-gather")
-	cmd.Flags().BoolVar(&o.overwrite, "overwrite", false, "If true, allow this command to write to an existing location with previous data present")
 
 	o.printFlags.AddFlags(cmd)
 	return cmd
@@ -555,39 +555,13 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 
 	// gather data for each container in the given pod
 	for _, container := range pod.Spec.Containers {
-		port := &util.RemoteContainerPort{
-			Protocol: "https",
-			Port:     int32(8443),
-		}
-		for _, p := range container.Ports {
-			if p.Name != "metrics" {
-				continue
-			}
-			port.Port = p.ContainerPort
-			port.Protocol = "http"
-			break
-		}
-
-		if err := o.gatherContainerData(path.Join(destDir, "/"+container.Name), pod, &container, port); err != nil {
+		if err := o.gatherContainerInfo(path.Join(destDir, "/"+container.Name), pod, container); err != nil {
 			errs = append(errs, err)
 			continue
 		}
 	}
 	for _, container := range pod.Spec.InitContainers {
-		port := &util.RemoteContainerPort{
-			Protocol: "https",
-			Port:     int32(8443),
-		}
-		for _, p := range container.Ports {
-			if p.Name != "metrics" {
-				continue
-			}
-			port.Port = p.ContainerPort
-			port.Protocol = "http"
-			break
-		}
-
-		if err := o.gatherContainerData(path.Join(destDir, "/"+container.Name), pod, &container, port); err != nil {
+		if err := o.gatherContainerInfo(path.Join(destDir, "/"+container.Name), pod, container); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -599,7 +573,28 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 	return nil
 }
 
-func (o *InspectOptions) gatherContainerData(destDir string, pod *corev1.Pod, container *corev1.Container, metricsPort *util.RemoteContainerPort) error {
+func (o *InspectOptions) gatherContainerInfo(destDir string, pod *corev1.Pod, container corev1.Container) error {
+	if err := o.gatherContainerAllLogs(path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
+		return err
+	}
+
+	if len(container.Ports) == 0 {
+		log.Printf("        Skipping container endpoint collection for pod %q container %q: No ports\n", pod.Name, container.Name)
+		return nil
+	}
+	port := &util.RemoteContainerPort{
+		Protocol: "https",
+		Port:     container.Ports[0].ContainerPort,
+	}
+
+	if err := o.gatherContainerEndpoints(path.Join(destDir, "/"+container.Name), pod, &container, port); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *InspectOptions) gatherContainerAllLogs(destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -609,6 +604,20 @@ func (o *InspectOptions) gatherContainerData(destDir string, pod *corev1.Pod, co
 	if err := o.gatherContainerLogs(path.Join(destDir, "/logs"), pod, container); err != nil {
 		errs = append(errs, filterContainerLogsErrors(err))
 	}
+
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	}
+	return nil
+}
+
+func (o *InspectOptions) gatherContainerEndpoints(destDir string, pod *corev1.Pod, container *corev1.Container, metricsPort *util.RemoteContainerPort) error {
+	// ensure destination path exists
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	errs := []error{}
 	if err := o.gatherContainerHealthz(path.Join(destDir, "/healthz"), pod, metricsPort); err != nil {
 		errs = append(errs, err)
 	}
