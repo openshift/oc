@@ -9,6 +9,10 @@ import (
 // PodRunningReady checks whether pod p's phase is running and it has a ready
 // condition of status true.
 func PodRunningReady(p *v1.Pod) (bool, error) {
+	if !hasReadyCondition(p) {
+		return false, nil
+	}
+
 	// Check the phase is running.
 	if p.Status.Phase != v1.PodRunning {
 		return false, fmt.Errorf("want pod '%s' on '%s' to be '%v' but was '%v'",
@@ -20,6 +24,18 @@ func PodRunningReady(p *v1.Pod) (bool, error) {
 			p.ObjectMeta.Name, p.Spec.NodeName, v1.PodReady, v1.ConditionTrue, p.Status.Conditions)
 	}
 	return true, nil
+}
+
+func hasReadyCondition(pod *v1.Pod) bool {
+	conditionReady := true
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type != v1.PodReady {
+			continue
+		}
+		conditionReady = cond.Status == v1.ConditionTrue
+		break
+	}
+	return conditionReady
 }
 
 // IsPodReady returns true if a pod is ready; false otherwise.

@@ -541,11 +541,9 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 	errs := []error{}
 
 	// skip gathering container data if containers are no longer running
-	running, err := util.PodRunningReady(pod)
-	if err != nil {
+	if running, err := util.PodRunningReady(pod); err != nil {
 		return err
-	}
-	if !running {
+	} else if !running {
 		log.Printf("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
 		return nil
 	}
