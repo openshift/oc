@@ -135,10 +135,9 @@ func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 	}
 	o.fileWriter = util.NewMultiSourceWriter(printer)
 	o.podUrlGetter = &util.PortForwardURLGetter{
-		Protocol:   "https",
-		Host:       "localhost",
-		RemotePort: "8443",
-		LocalPort:  "37587",
+		Protocol:  "https",
+		Host:      "localhost",
+		LocalPort: "37587",
 	}
 
 	o.builder = resource.NewBuilder(o.configFlags)
@@ -556,13 +555,39 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 
 	// gather data for each container in the given pod
 	for _, container := range pod.Spec.Containers {
-		if err := o.gatherContainerData(path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
+		port := &util.RemoteContainerPort{
+			Protocol: "https",
+			Port:     int32(8443),
+		}
+		for _, p := range container.Ports {
+			if p.Name != "metrics" {
+				continue
+			}
+			port.Port = p.ContainerPort
+			port.Protocol = "http"
+			break
+		}
+
+		if err := o.gatherContainerData(path.Join(destDir, "/"+container.Name), pod, &container, port); err != nil {
 			errs = append(errs, err)
 			continue
 		}
 	}
 	for _, container := range pod.Spec.InitContainers {
-		if err := o.gatherContainerData(path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
+		port := &util.RemoteContainerPort{
+			Protocol: "https",
+			Port:     int32(8443),
+		}
+		for _, p := range container.Ports {
+			if p.Name != "metrics" {
+				continue
+			}
+			port.Port = p.ContainerPort
+			port.Protocol = "http"
+			break
+		}
+
+		if err := o.gatherContainerData(path.Join(destDir, "/"+container.Name), pod, &container, port); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -574,25 +599,29 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 	return nil
 }
 
-func (o *InspectOptions) gatherContainerData(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerData(destDir string, pod *corev1.Pod, container *corev1.Container, metricsPort *util.RemoteContainerPort) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
 	}
 
+	errs := []error{}
 	if err := o.gatherContainerLogs(path.Join(destDir, "/logs"), pod, container); err != nil {
-		return filterContainerLogsErrors(err)
+		errs = append(errs, filterContainerLogsErrors(err))
 	}
-	if err := o.gatherContainerHealthz(path.Join(destDir, "/healthz"), pod, container); err != nil {
-		return err
+	if err := o.gatherContainerHealthz(path.Join(destDir, "/healthz"), pod, metricsPort); err != nil {
+		errs = append(errs, err)
 	}
-	if err := o.gatherContainerVersion(destDir, pod, container); err != nil {
-		return err
+	if err := o.gatherContainerVersion(destDir, pod, metricsPort); err != nil {
+		errs = append(errs, err)
 	}
-	if err := o.gatherContainerMetrics(destDir, pod, container); err != nil {
-		return err
+	if err := o.gatherContainerMetrics(destDir, pod, metricsPort); err != nil {
+		errs = append(errs, err)
 	}
 
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	}
 	return nil
 }
 
@@ -604,7 +633,7 @@ func filterContainerLogsErrors(err error) error {
 	return err
 }
 
-func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod, metricsPort *util.RemoteContainerPort) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -613,7 +642,7 @@ func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod,
 	hasVersionPath := false
 
 	// determine if a /version endpoint exists
-	paths, err := getAvailablePodEndpoints(o.podUrlGetter, pod, o.restConfig)
+	paths, err := getAvailablePodEndpoints(o.podUrlGetter, pod, o.restConfig, metricsPort)
 	if err != nil {
 		return err
 	}
@@ -629,21 +658,21 @@ func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod,
 		return nil
 	}
 
-	result, err := o.podUrlGetter.Get("/version", pod, o.restConfig)
+	result, err := o.podUrlGetter.Get("/version", pod, o.restConfig, metricsPort)
 
 	filename := fmt.Sprintf("%s.json", "metrics")
 	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result})
 }
 
 // gatherContainerMetrics invokes an asynchronous network call
-func (o *InspectOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod, metricsPort *util.RemoteContainerPort) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
 	}
 
 	// we need a token in order to access the /metrics endpoint
-	result, err := o.podUrlGetter.Get("/metrics", pod, o.restConfig)
+	result, err := o.podUrlGetter.Get("/metrics", pod, o.restConfig, metricsPort)
 	if err != nil {
 		return err
 	}
@@ -652,13 +681,13 @@ func (o *InspectOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod,
 	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result})
 }
 
-func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, metricsPort *util.RemoteContainerPort) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
 	}
 
-	paths, err := getAvailablePodEndpoints(o.podUrlGetter, pod, o.restConfig)
+	paths, err := getAvailablePodEndpoints(o.podUrlGetter, pod, o.restConfig, metricsPort)
 	if err != nil {
 		return err
 	}
@@ -676,7 +705,7 @@ func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod,
 	}
 
 	for _, healthzPath := range healthzPaths {
-		result, err := o.podUrlGetter.Get(path.Join("/", healthzPath), pod, o.restConfig)
+		result, err := o.podUrlGetter.Get(path.Join("/", healthzPath), pod, o.restConfig, metricsPort)
 		if err != nil {
 			// TODO: aggregate errors
 			return err
@@ -708,8 +737,8 @@ func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod,
 	return nil
 }
 
-func getAvailablePodEndpoints(urlGetter *util.PortForwardURLGetter, pod *corev1.Pod, config *rest.Config) ([]string, error) {
-	result, err := urlGetter.Get("/", pod, config)
+func getAvailablePodEndpoints(urlGetter *util.PortForwardURLGetter, pod *corev1.Pod, config *rest.Config, port *util.RemoteContainerPort) ([]string, error) {
+	result, err := urlGetter.Get("/", pod, config, port)
 	if err != nil {
 		return nil, err
 	}

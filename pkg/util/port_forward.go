@@ -103,20 +103,25 @@ func newInsecureRESTClientForHost(host string) (rest.Interface, error) {
 	return rest.RESTClientFor(setRESTConfigDefaults(*newConfig))
 }
 
-type PortForwardURLGetter struct {
-	Protocol   string
-	Host       string
-	RemotePort string
-	LocalPort  string
+type RemoteContainerPort struct {
+	Port     int32
+	Protocol string
 }
 
-func (c *PortForwardURLGetter) Get(urlPath string, pod *corev1.Pod, config *rest.Config) (string, error) {
+type PortForwardURLGetter struct {
+	Protocol  string
+	Host      string
+	LocalPort string
+}
+
+func (c *PortForwardURLGetter) Get(urlPath string, pod *corev1.Pod, config *rest.Config, containerPort *RemoteContainerPort) (string, error) {
 	var result string
 	var lastErr error
 	forwarder := NewDefaultPortForwarder(config)
 
-	if err := forwarder.ForwardPortsAndExecute(pod, []string{c.LocalPort + ":" + c.RemotePort}, func() {
-		restClient, err := newInsecureRESTClientForHost(fmt.Sprintf("https://localhost:%s/", c.LocalPort))
+	if err := forwarder.ForwardPortsAndExecute(pod, []string{fmt.Sprintf("%v:%v", c.LocalPort, containerPort.Port)}, func() {
+		url := fmt.Sprintf("%s://%s:%s", containerPort.Protocol, c.Host, c.LocalPort)
+		restClient, err := newInsecureRESTClientForHost(url)
 		if err != nil {
 			lastErr = err
 			return
