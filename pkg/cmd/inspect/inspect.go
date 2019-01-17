@@ -1,4 +1,4 @@
-package cmd
+package inspect
 
 import (
 	"bytes"
@@ -167,102 +167,138 @@ func (o *InspectOptions) Run() error {
 		return err
 	}
 
-	// first, ensure we're dealing with correct resource types
-	for _, info := range infos {
-		if configv1.GroupName != info.Mapping.GroupVersionKind.Group {
-			return fmt.Errorf("unexpected resource API group %q. Expected %q", info.Mapping.GroupVersionKind.Group, configv1.GroupName)
-		}
-		if info.Mapping.Resource.Resource != "clusteroperators" {
-			return fmt.Errorf("unsupported resource type, must be %q", "clusteroperators")
-		}
-	}
-
-	// next, ensure we're able to proceed writing data to specified destination
+	// ensure we're able to proceed writing data to specified destination
 	if err := o.ensureDirectoryViable(o.baseDir, o.overwrite); err != nil {
 		return err
 	}
 
-	// gather config.openshift.io resource data
-	skippedNamespaces := []string{}
+	// first, gather config.openshift.io resource data
 	errs := []error{}
 	if err := o.gatherConfigResourceData(path.Join(o.baseDir, "/cluster-scoped-resources/config.openshift.io")); err != nil {
 		errs = append(errs, err)
 	}
 
-	// gather operator.openshift.io resource data
+	// then, gather operator.openshift.io resource data
 	if err := o.gatherOperatorResourceData(path.Join(o.baseDir, "/cluster-scoped-resources/operator.openshift.io")); err != nil {
 		errs = append(errs, err)
 	}
 
+	// finally, gather polymorphic resources specified by the user
+	allErrs := []error{}
+	notFoundNamespaces := []string{}
 	for _, info := range infos {
-		// save clusteroperator resources
-		if err := o.gatherClusterOperatorResource(path.Join(o.baseDir, "/clusteroperator"), info); err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		namespaces, err := obtainClusterOperatorNamespaces(info.Object)
+		skippedNs, err := InspectResource(info, NewResourceContext(), o)
+		notFoundNamespaces = append(notFoundNamespaces, skippedNs...)
 		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		// save operator data for each clusteroperator namespace
-		if len(namespaces) == 0 {
-			log.Printf("unable to find any namespaces related to clusteroperator/%s. Skipping namespaced data collection...\n", info.Name)
-		}
-
-		for _, namespace := range namespaces {
-			if err := o.gatherNamespaceData(path.Join(o.baseDir, "namespaces", namespace), namespace); err != nil {
-				if kapierrs.IsNotFound(err) {
-					skippedNamespaces = append(skippedNamespaces, namespace)
-					continue
-				}
-
-				errs = append(errs, err)
-				continue
-			}
+			allErrs = append(allErrs, err)
 		}
 	}
 
-	if len(skippedNamespaces) > 0 {
-		for _, namespace := range skippedNamespaces {
+	if len(notFoundNamespaces) > 0 {
+		for _, namespace := range notFoundNamespaces {
 			log.Printf("Data collection skipped namespace %q. Unable to find namespace...\n", namespace)
 		}
 	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("One or more errors ocurred gathering cluster data:\n\n    %v", errors.NewAggregate(errs))
+	if len(allErrs) > 0 {
+		return errors.NewAggregate(allErrs)
 	}
 
 	log.Printf("Finished successfully with no errors.\n")
 	return nil
 }
 
-func obtainClusterOperatorNamespaces(obj runtime.Object) ([]string, error) {
-	// obtain related namespace info for the current clusteroperator
-	unstructuredCO, ok := obj.(*unstructured.Unstructured)
-	if !ok {
-		return nil, fmt.Errorf("invalid resource type, expecting clusteroperators but got %T", obj)
+// InspectResource receives an object to gather debugging data for, and a context to keep track of
+// already-seen objects when following related-object reference chains.
+func InspectResource(info *resource.Info, context *resourceContext, o *InspectOptions) ([]string, error) {
+	if context.visited.Has(infoToContextKey(info)) {
+		return nil, nil
 	}
-	log.Printf("    Gathering namespace information for ClusterOperator %q...\n", unstructuredCO.GetName())
+	context.visited.Insert(infoToContextKey(info))
+
+	unstr, ok := info.Object.(*unstructured.Unstructured)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type. Expecting %q but got %T", "*unstructured.Unstructured", info.Object)
+	}
+
+	notFoundNamespaces := []string{}
+
+	switch info.ResourceMapping().Resource.GroupResource() {
+	case configv1.GroupVersion.WithResource("clusteroperators").GroupResource():
+		// save clusteroperator resources to disk
+		if err := o.gatherClusterOperatorResource(path.Join(o.baseDir, "/cluster-scoped-resources", "/"+unstr.GroupVersionKind().Group, "/clusteroperators"), unstr); err != nil {
+			return nil, err
+		}
+
+		// obtain associated objects for the current clusteroperator resources
+		relatedObjReferences, err := obtainClusterOperatorRelatedObjects(unstr)
+		if err != nil {
+			return nil, err
+		}
+
+		errs := []error{}
+		for _, relatedRef := range relatedObjReferences {
+			if context.visited.Has(objectRefToContextKey(relatedRef)) {
+				continue
+			}
+
+			relatedInfo, err := objectReferenceToResourceInfo(o.configFlags, relatedRef)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+
+			skippedNs, err := InspectResource(relatedInfo, context, o)
+			notFoundNamespaces = append(notFoundNamespaces, skippedNs...)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+		}
+
+		if len(errs) > 0 {
+			return notFoundNamespaces, errors.NewAggregate(errs)
+		}
+	case corev1.SchemeGroupVersion.WithResource("namespaces").GroupResource():
+		if err := o.gatherNamespaceData(path.Join(o.baseDir, "namespaces", info.Name), info.Name); err != nil {
+			if kapierrs.IsNotFound(err) {
+				notFoundNamespaces = append(notFoundNamespaces, info.Name)
+				return notFoundNamespaces, err
+			}
+		}
+	default:
+		// save the current object to disk
+		filename := fmt.Sprintf("%s.yaml", unstr.GetName())
+		objPath := path.Join(o.baseDir, "/namespaces", "/"+unstr.GetNamespace(), "/"+info.ResourceMapping().Resource.Resource)
+		if len(unstr.GetNamespace()) == 0 {
+			objPath = path.Join(o.baseDir, "/cluster-scoped-resources", "/"+unstr.GroupVersionKind().Group, "/"+info.ResourceMapping().Resource.Resource)
+		}
+		// ensure destination path exists
+		if err := os.MkdirAll(objPath, os.ModePerm); err != nil {
+			return nil, err
+		}
+
+		return nil, o.fileWriter.WriteFromResource(path.Join(objPath, "/"+filename), info.Object)
+	}
+
+	return notFoundNamespaces, nil
+}
+
+func obtainClusterOperatorRelatedObjects(obj *unstructured.Unstructured) ([]*configv1.ObjectReference, error) {
+	// obtain related namespace info for the current clusteroperator
+	log.Printf("    Gathering related object reference information for ClusterOperator %q...\n", obj.GetName())
 
 	structuredCO := &configv1.ClusterOperator{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredCO.Object, structuredCO); err != nil {
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, structuredCO); err != nil {
 		return nil, err
 	}
 
-	namespaces := []string{}
-	for _, related := range structuredCO.Status.RelatedObjects {
-		if related.Resource != "namespaces" {
-			continue
-		}
-
-		namespaces = append(namespaces, related.Name)
-		log.Printf("    Found related namespace %q for ClusterOperator %q...\n", related.Name, structuredCO.Name)
+	relatedObjs := []*configv1.ObjectReference{}
+	for idx, relatedObj := range structuredCO.Status.RelatedObjects {
+		relatedObjs = append(relatedObjs, &structuredCO.Status.RelatedObjects[idx])
+		log.Printf("    Found related object %q for ClusterOperator %q...\n", relatedObj.Name, structuredCO.Name)
 	}
 
-	return namespaces, nil
+	return relatedObjs, nil
 }
 
 // ensureDirectoryViable returns an error if the given path:
@@ -292,7 +328,7 @@ func (o *InspectOptions) ensureDirectoryViable(dirPath string, allowDataOverride
 	return nil
 }
 
-func (o *InspectOptions) gatherClusterOperatorResource(destDir string, info *resource.Info) error {
+func (o *InspectOptions) gatherClusterOperatorResource(destDir string, obj *unstructured.Unstructured) error {
 	log.Printf("Gathering cluster operator resource data...\n")
 
 	// ensure destination path exists
@@ -300,8 +336,8 @@ func (o *InspectOptions) gatherClusterOperatorResource(destDir string, info *res
 		return err
 	}
 
-	filename := fmt.Sprintf("%s.yaml", info.Name)
-	return o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), info.Object)
+	filename := fmt.Sprintf("%s.yaml", obj.GetName())
+	return o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), obj)
 }
 
 // gatherConfigResourceData gathers all config.openshift.io resources
@@ -495,7 +531,7 @@ func (o *InspectOptions) gatherNamespaceData(destDir, namespace string) error {
 	for gvr, obj := range resourcesToStore {
 		filename := gvr.Resource
 		if len(gvr.Group) > 0 {
-			filename += "."+gvr.Group
+			filename += "." + gvr.Group
 		}
 		filename += ".yaml"
 		if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), obj); err != nil {
