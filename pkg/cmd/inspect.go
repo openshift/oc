@@ -493,7 +493,11 @@ func (o *InspectOptions) gatherNamespaceData(destDir, namespace string) error {
 
 	errs := []error{}
 	for gvr, obj := range resourcesToStore {
-		filename := fmt.Sprintf("%s.%s.yaml", gvr.Resource, gvr.Group)
+		filename := gvr.Resource
+		if len(gvr.Group) > 0 {
+			filename += "."+gvr.Group
+		}
+		filename += ".yaml"
 		if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), obj); err != nil {
 			errs = append(errs, err)
 		}
