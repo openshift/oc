@@ -83,16 +83,13 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 	default:
 		// save the current object to disk
 		filename := fmt.Sprintf("%s.yaml", unstr.GetName())
-		objPath := path.Join(o.baseDir, "/namespaces", "/"+unstr.GetNamespace(), "/"+info.ResourceMapping().Resource.Resource)
-		if len(unstr.GetNamespace()) == 0 {
-			objPath = path.Join(o.baseDir, "/cluster-scoped-resources", "/"+unstr.GroupVersionKind().Group, "/"+info.ResourceMapping().Resource.Resource)
-		}
+		dirPath := dirPathForInfo(o.baseDir, info)
 		// ensure destination path exists
-		if err := os.MkdirAll(objPath, os.ModePerm); err != nil {
+		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
 			return err
 		}
 
-		return o.fileWriter.WriteFromResource(path.Join(objPath, "/"+filename), info.Object)
+		return o.fileWriter.WriteFromResource(path.Join(dirPath, "/"+filename), info.Object)
 	}
 
 	return nil

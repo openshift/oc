@@ -2,6 +2,7 @@ package inspect
 
 import (
 	"fmt"
+	"path"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -45,4 +46,20 @@ func infoToContextKey(info *resource.Info) string {
 // objectRefToContextKey is a variant of infoToContextKey that receives a configv1.ObjectReference and returns a unique string for use in keeping track of object references previously seen
 func objectRefToContextKey(objRef *configv1.ObjectReference) string {
 	return fmt.Sprintf("%s/%s/%s/%s", objRef.Namespace, objRef.Group, objRef.Resource, objRef.Name)
+}
+
+// dirPathForInfo receives a *resource.Info and returns a relative path
+// corresponding to the directory location of that object on disk
+func dirPathForInfo(baseDir string, info *resource.Info) string {
+	groupName := "core"
+	if len(info.Mapping.GroupVersionKind.Group) > 0 {
+		groupName = info.Mapping.GroupVersionKind.Group
+	}
+
+	objPath := path.Join(namespaceResourcesDirname, "/"+info.Namespace, groupName, "/"+info.ResourceMapping().Resource.Resource)
+	if len(info.Namespace) == 0 {
+		objPath = path.Join(clusterScopedResourcesDirname, "/"+groupName, "/"+info.ResourceMapping().Resource.Resource)
+	}
+
+	return path.Join(baseDir, "/"+objPath)
 }
