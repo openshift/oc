@@ -33,6 +33,7 @@ const (
 // already-seen objects when following related-object reference chains.
 func InspectResource(info *resource.Info, context *resourceContext, o *InspectOptions) error {
 	if context.visited.Has(infoToContextKey(info)) {
+		log.Printf("Skipping previously-inspected resource: %q ...", infoToContextKey(info))
 		return nil
 	}
 	context.visited.Insert(infoToContextKey(info))

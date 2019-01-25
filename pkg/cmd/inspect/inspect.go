@@ -49,9 +49,11 @@ type InspectOptions struct {
 
 	podUrlGetter *util.PortForwardURLGetter
 
-	fileWriter *util.MultiSourceFileWriter
-	builder    *resource.Builder
-	args       []string
+	fileWriter    *util.MultiSourceFileWriter
+	builder       *resource.Builder
+	args          []string
+	namespace     string
+	allNamespaces bool
 
 	// directory where all gathered data will be stored
 	baseDir string
@@ -94,6 +96,7 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&o.baseDir, "base-dir", "must-gather", "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/must-gather")
+	cmd.Flags().BoolVar(&o.allNamespaces, "all-namespaces", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 
 	o.printFlags.AddFlags(cmd)
 	return cmd
@@ -123,6 +126,11 @@ func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	o.namespace, _, err = o.configFlags.ToRawKubeConfigLoader().Namespace()
+	if err != nil {
+		return err
+	}
+
 	printer, err := o.printFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -139,9 +147,6 @@ func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 }
 
 func (o *InspectOptions) Validate() error {
-	if len(o.args) != 1 {
-		return fmt.Errorf("exactly 1 argument (operator name) is supported")
-	}
 	if len(o.baseDir) == 0 {
 		return fmt.Errorf("--base-dir must not be empty")
 	}
@@ -151,6 +156,7 @@ func (o *InspectOptions) Validate() error {
 func (o *InspectOptions) Run() error {
 	r := o.builder.
 		Unstructured().
+		NamespaceParam(o.namespace).DefaultNamespace().AllNamespaces(o.allNamespaces).
 		ResourceTypeOrNameArgs(true, o.args...).
 		Flatten().
 		Latest().Do()
@@ -178,8 +184,9 @@ func (o *InspectOptions) Run() error {
 
 	// finally, gather polymorphic resources specified by the user
 	allErrs := []error{}
+	ctx := NewResourceContext()
 	for _, info := range infos {
-		err := InspectResource(info, NewResourceContext(), o)
+		err := InspectResource(info, ctx, o)
 		if err != nil {
 			allErrs = append(allErrs, err)
 		}
