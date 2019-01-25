@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -59,6 +60,8 @@ type InspectOptions struct {
 	baseDir string
 	// whether or not to allow writes to an existing and populated base directory
 	overwrite bool
+	// flag to indicate GSS defaults should be used in deciding what to gather
+	gssdefaults bool
 
 	genericclioptions.IOStreams
 }
@@ -68,6 +71,7 @@ func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
 		printFlags:  genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme),
 		configFlags: genericclioptions.NewConfigFlags(),
 		overwrite:   true,
+		gssdefaults: false,
 		IOStreams:   streams,
 	}
 }
@@ -97,6 +101,7 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 
 	cmd.Flags().StringVar(&o.baseDir, "base-dir", "must-gather", "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/must-gather")
 	cmd.Flags().BoolVar(&o.allNamespaces, "all-namespaces", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
+	cmd.Flags().BoolVar(&o.gssdefaults, "default", false, "If true, use Red Hat Support suggested default options for data filtering.  This can save space.")
 
 	o.printFlags.AddFlags(cmd)
 	return cmd
