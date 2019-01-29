@@ -171,17 +171,6 @@ func (o *InspectOptions) Run() error {
 		return err
 	}
 
-	// first, gather config.openshift.io resource data
-	errs := []error{}
-	if err := o.gatherConfigResourceData(path.Join(o.baseDir, "/cluster-scoped-resources/config.openshift.io")); err != nil {
-		errs = append(errs, err)
-	}
-
-	// then, gather operator.openshift.io resource data
-	if err := o.gatherOperatorResourceData(path.Join(o.baseDir, "/cluster-scoped-resources/operator.openshift.io")); err != nil {
-		errs = append(errs, err)
-	}
-
 	// finally, gather polymorphic resources specified by the user
 	allErrs := []error{}
 	ctx := NewResourceContext()
@@ -201,7 +190,14 @@ func (o *InspectOptions) Run() error {
 }
 
 // gatherConfigResourceData gathers all config.openshift.io resources
-func (o *InspectOptions) gatherConfigResourceData(destDir string) error {
+func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceContext) error {
+	// determine if we've already collected configResourceData
+	if ctx.visited.Has(configResourceDataKey) {
+		log.Printf("Skipping previously-collected config.openshift.io resource data")
+		return nil
+	}
+	ctx.visited.Insert(configResourceDataKey)
+
 	log.Printf("Gathering config.openshift.io resource data...\n")
 
 	// ensure destination path exists
@@ -264,7 +260,14 @@ func (o *InspectOptions) ensureDirectoryViable(dirPath string, allowDataOverride
 }
 
 // gatherOperatorResourceData gathers all kubeapiserver.operator.openshift.io resources
-func (o *InspectOptions) gatherOperatorResourceData(destDir string) error {
+func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourceContext) error {
+	// determine if we've already collected operatorResourceData
+	if ctx.visited.Has(operatorResourceDataKey) {
+		log.Printf("Skipping previously-collected operator.openshift.io resource data")
+		return nil
+	}
+	ctx.visited.Insert(operatorResourceDataKey)
+
 	log.Printf("Gathering kubeapiserver.operator.openshift.io resource data...\n")
 
 	// ensure destination path exists

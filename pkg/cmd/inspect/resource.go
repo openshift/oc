@@ -27,6 +27,9 @@ import (
 const (
 	clusterScopedResourcesDirname = "cluster-scoped-resources"
 	namespaceResourcesDirname     = "namespaces"
+
+	configResourceDataKey   = "/cluster-scoped-resources/config.openshift.io"
+	operatorResourceDataKey = "/cluster-scoped-resources/operator.openshift.io"
 )
 
 // InspectResource receives an object to gather debugging data for, and a context to keep track of
@@ -45,6 +48,17 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 	switch info.ResourceMapping().Resource.GroupResource() {
 	case configv1.GroupVersion.WithResource("clusteroperators").GroupResource():
+		// first, gather config.openshift.io resource data
+		errs := []error{}
+		if err := o.gatherConfigResourceData(path.Join(o.baseDir, "/cluster-scoped-resources/config.openshift.io"), context); err != nil {
+			errs = append(errs, err)
+		}
+
+		// then, gather operator.openshift.io resource data
+		if err := o.gatherOperatorResourceData(path.Join(o.baseDir, "/cluster-scoped-resources/operator.openshift.io"), context); err != nil {
+			errs = append(errs, err)
+		}
+
 		// save clusteroperator resources to disk
 		if err := gatherClusterOperatorResource(o.baseDir, unstr, o.fileWriter); err != nil {
 			return err
@@ -56,7 +70,6 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 			return err
 		}
 
-		errs := []error{}
 		for _, relatedRef := range relatedObjReferences {
 			if context.visited.Has(objectRefToContextKey(relatedRef)) {
 				continue
