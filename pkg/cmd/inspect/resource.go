@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	configv1 "github.com/openshift/api/config/v1"
+	ocpappsv1 "github.com/openshift/api/apps/v1"
 	"github.com/openshift/api/route"
 	"github.com/openshift/must-gather/pkg/util"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -151,28 +152,30 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 	}
 
 	ns, err := o.kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
-	if err != nil {
+	if err != nil {              // If we can't get the namespace we need to exit out
 		return err
 	}
 	ns.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Namespace"))
 
+	errs := []error{}
 	// write namespace.yaml file
 	filename := fmt.Sprintf("%s.yaml", namespace)
 	if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), ns); err != nil {
-		return err
+		errs = append(errs, err)
 	}
 
 	log.Printf("    Collecting resources for namespace %q...\n", namespace)
 
 	resourcesTypesToStore := map[schema.GroupVersionResource]bool{
-		corev1.SchemeGroupVersion.WithResource("events"):            true,
-		corev1.SchemeGroupVersion.WithResource("pods"):              true,
-		corev1.SchemeGroupVersion.WithResource("configmaps"):        true,
-		corev1.SchemeGroupVersion.WithResource("services"):          true,
-		appsv1.SchemeGroupVersion.WithResource("deployments"):       true,
-		appsv1.SchemeGroupVersion.WithResource("daemonsets"):        true,
-		appsv1.SchemeGroupVersion.WithResource("statefulsets"):      true,
-		{Group: route.GroupName, Version: "v1", Resource: "routes"}: true,
+		corev1.SchemeGroupVersion.WithResource("events"):               true,
+		corev1.SchemeGroupVersion.WithResource("pods"):                 true,
+		corev1.SchemeGroupVersion.WithResource("configmaps"):           true,
+		corev1.SchemeGroupVersion.WithResource("services"):             true,
+		appsv1.SchemeGroupVersion.WithResource("deployments"):          true,
+		ocpappsv1.SchemeGroupVersion.WithResource("deploymentconfigs"): true,
+		appsv1.SchemeGroupVersion.WithResource("daemonsets"):           true,
+		appsv1.SchemeGroupVersion.WithResource("statefulsets"):         true,
+		{Group: route.GroupName, Version: "v1", Resource: "routes"}:    true,
 	}
 	resourcesToStore := map[schema.GroupVersionResource]runtime.Object{}
 
@@ -180,7 +183,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 	for gvr := range resourcesTypesToStore {
 		list, err := o.dynamicClient.Resource(gvr).Namespace(namespace).List(metav1.ListOptions{})
 		if err != nil {
-			return err
+		        errs = append(errs, err)
 		}
 		resourcesToStore[gvr] = list
 
@@ -189,7 +192,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 	// store redacted secrets
 	secrets, err := o.dynamicClient.Resource(corev1.SchemeGroupVersion.WithResource("secrets")).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
-		return err
+		errs = append(errs, err)
 	}
 	secretsToStore := []unstructured.Unstructured{}
 	for _, secret := range secrets.Items {
@@ -204,7 +207,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 	// store redacted routes
 	routes, err := o.dynamicClient.Resource(schema.GroupVersionResource{Group: route.GroupName, Version: "v1", Resource: "routes"}).Namespace(namespace).List(metav1.ListOptions{})
 	if err != nil {
-		return err
+		errs = append(errs, err)
 	}
 	routesToStore := []unstructured.Unstructured{}
 	for _, route := range routes.Items {
@@ -217,7 +220,6 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 	routes.Items = routesToStore
 	resourcesToStore[schema.GroupVersionResource{Group: route.GroupName, Version: "v1", Resource: "routes"}] = routes
 
-	errs := []error{}
 	for gvr, obj := range resourcesToStore {
 		filename := gvr.Resource
 		if len(gvr.Group) > 0 {
