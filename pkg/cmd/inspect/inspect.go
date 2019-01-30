@@ -76,7 +76,7 @@ func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
 		printFlags:  genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme),
 		configFlags: genericclioptions.NewConfigFlags(),
 		overwrite:   true,
-		defaults: false,
+		defaults:    false,
 		IOStreams:   streams,
 	}
 }
@@ -108,6 +108,7 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.Flags().BoolVar(&o.allNamespaces, "all-namespaces", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 	cmd.Flags().BoolVar(&o.defaults, "defaults", false, "If true, use Red Hat Support suggested default options for data collection.")
 
+	o.configFlags.AddFlags(cmd.Flags())
 	o.printFlags.AddFlags(cmd)
 	return cmd
 }
