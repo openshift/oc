@@ -18,8 +18,8 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions/resource"
 	"k8s.io/client-go/rest"
 
-	configv1 "github.com/openshift/api/config/v1"
 	ocpappsv1 "github.com/openshift/api/apps/v1"
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/api/route"
 	"github.com/openshift/must-gather/pkg/util"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -152,7 +152,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 	}
 
 	ns, err := o.kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
-	if err != nil {              // If we can't get the namespace we need to exit out
+	if err != nil { // If we can't get the namespace we need to exit out
 		return err
 	}
 	ns.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Namespace"))
@@ -183,7 +183,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 	for gvr := range resourcesTypesToStore {
 		list, err := o.dynamicClient.Resource(gvr).Namespace(namespace).List(metav1.ListOptions{})
 		if err != nil {
-		        errs = append(errs, err)
+			errs = append(errs, err)
 		}
 		resourcesToStore[gvr] = list
 
