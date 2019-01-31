@@ -9,7 +9,6 @@ import (
 	"path"
 	"strings"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -18,7 +17,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions/resource"
 	"k8s.io/client-go/rest"
 
-	ocpappsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/api/route"
 	"github.com/openshift/must-gather/pkg/util"
@@ -166,27 +164,43 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 
 	log.Printf("    Collecting resources for namespace %q...\n", namespace)
 
+	// "all" maps to every resource we wish to collect for the given namespace,
+	// except for "events", "configmaps" and "secrets" so we'll gather those manually.
+	b := resource.NewBuilder(o.configFlags).
+		Unstructured().
+		ResourceTypeOrNameArgs(false, "all").
+		NamespaceParam(namespace).
+		SelectAllParam(true).
+		Latest()
+
+	infos, err := b.Do().Infos()
+	if err != nil {
+		return err
+	}
+
 	resourcesTypesToStore := map[schema.GroupVersionResource]bool{
-		corev1.SchemeGroupVersion.WithResource("events"):               true,
-		corev1.SchemeGroupVersion.WithResource("pods"):                 true,
-		corev1.SchemeGroupVersion.WithResource("configmaps"):           true,
-		corev1.SchemeGroupVersion.WithResource("services"):             true,
-		appsv1.SchemeGroupVersion.WithResource("deployments"):          true,
-		ocpappsv1.SchemeGroupVersion.WithResource("deploymentconfigs"): true,
-		appsv1.SchemeGroupVersion.WithResource("daemonsets"):           true,
-		appsv1.SchemeGroupVersion.WithResource("statefulsets"):         true,
-		{Group: route.GroupName, Version: "v1", Resource: "routes"}:    true,
+		corev1.SchemeGroupVersion.WithResource("events"):     true,
+		corev1.SchemeGroupVersion.WithResource("configmaps"): true,
 	}
 	resourcesToStore := map[schema.GroupVersionResource]runtime.Object{}
 
-	// collect resource information for namespace
+	// collect specific resource information for namespace
 	for gvr := range resourcesTypesToStore {
 		list, err := o.dynamicClient.Resource(gvr).Namespace(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			errs = append(errs, err)
 		}
 		resourcesToStore[gvr] = list
+	}
 
+	// iterate over resource builder infos and add resource lists to our store
+	for _, info := range infos {
+		// skip routes, we'll collect those manually below and redact their secret info
+		if info.ResourceMapping().Resource.Resource == "routes" {
+			continue
+		}
+
+		resourcesToStore[info.Mapping.Resource] = info.Object
 	}
 
 	// store redacted secrets
@@ -229,9 +243,6 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 		if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), obj); err != nil {
 			errs = append(errs, err)
 		}
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("errors ocurred storing resource information for namespace %q:\n\n    %v", namespace, errors.NewAggregate(errs))
 	}
 
 	log.Printf("    Gathering pod data for namespace %q...\n", namespace)
