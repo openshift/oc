@@ -182,7 +182,7 @@ func (o *InspectOptions) Run() error {
 	}
 
 	// ensure we're able to proceed writing data to specified destination
-	if err := o.ensureDirectoryViable(o.baseDir, o.overwrite); err != nil {
+	if err := ensureDirectoryViable(o.baseDir, o.overwrite); err != nil {
 		return err
 	}
 
@@ -247,33 +247,6 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 	return nil
 }
 
-// ensureDirectoryViable returns an error if the given path:
-// 1. already exists AND is a file (not a directory)
-// 2. already exists AND is NOT empty
-// 3. an IO error occurs
-func (o *InspectOptions) ensureDirectoryViable(dirPath string, allowDataOverride bool) error {
-	baseDirInfo, err := os.Stat(dirPath)
-	if err != nil && os.IsNotExist(err) {
-		// no error, directory simply does not exist yet
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	if !baseDirInfo.IsDir() {
-		return fmt.Errorf("%q exists and is a file", dirPath)
-	}
-	files, err := ioutil.ReadDir(dirPath)
-	if err != nil {
-		return err
-	}
-	if len(files) > 0 && !allowDataOverride {
-		return fmt.Errorf("%q exists and is not empty. Pass --overwrite to allow data overwrites", dirPath)
-	}
-	return nil
-}
-
 // gatherOperatorResourceData gathers all kubeapiserver.operator.openshift.io resources
 func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourceContext) error {
 	// determine if we've already collected operatorResourceData
@@ -317,7 +290,40 @@ func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourc
 	return nil
 }
 
-func retrieveAPIGroupVersionResourceNames(discoveryClient discovery.CachedDiscoveryInterface, apiGroup string) ([]schema.GroupVersionResource, error) {
+// ensureDirectoryViable returns an error if the given path:
+// 1. already exists AND is a file (not a directory)
+// 2. already exists AND is NOT empty
+// 3. an IO error occurs
+func ensureDirectoryViable(dirPath string, allowDataOverride bool) error {
+	baseDirInfo, err := os.Stat(dirPath)
+	if err != nil && os.IsNotExist(err) {
+		// no error, directory simply does not exist yet
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	if !baseDirInfo.IsDir() {
+		return fmt.Errorf("%q exists and is a file", dirPath)
+	}
+	files, err := ioutil.ReadDir(dirPath)
+	if err != nil {
+		return err
+	}
+	if len(files) > 0 && !allowDataOverride {
+		return fmt.Errorf("%q exists and is not empty. Pass --overwrite to allow data overwrites", dirPath)
+	}
+	return nil
+}
+
+// supportedResourceFinder provides a way to discover supported resources by the server.
+// it exists to allow for easier testability.
+type supportedResourceFinder interface {
+	ServerPreferredResources() ([]*metav1.APIResourceList, error)
+}
+
+func retrieveAPIGroupVersionResourceNames(discoveryClient supportedResourceFinder, apiGroup string) ([]schema.GroupVersionResource, error) {
 	lists, discoveryErr := discoveryClient.ServerPreferredResources()
 
 	foundResources := sets.String{}
