@@ -107,13 +107,13 @@ func (o *InspectOptions) gatherContainerEndpoints(destDir string, pod *corev1.Po
 
 	errs := []error{}
 	if err := o.gatherContainerHealthz(path.Join(destDir, "/healthz"), pod, metricsPort); err != nil {
-		errs = append(errs, err)
+		errs = append(errs, fmt.Errorf("unable to gather container /healthz: %v", err))
 	}
 	if err := o.gatherContainerVersion(destDir, pod, metricsPort); err != nil {
-		errs = append(errs, err)
+		errs = append(errs, fmt.Errorf("unable to gather container /version: %v", err))
 	}
 	if err := o.gatherContainerMetrics(destDir, pod, metricsPort); err != nil {
-		errs = append(errs, err)
+		errs = append(errs, fmt.Errorf("unable to gather container /metrics: %v", err))
 	}
 
 	if len(errs) > 0 {
