@@ -38,12 +38,6 @@ var (
 `
 )
 
-var (
-	defaults = []string{
-		"clusteroperator",
-	}
-)
-
 type InspectOptions struct {
 	printFlags  *genericclioptions.PrintFlags
 	configFlags *genericclioptions.ConfigFlags
@@ -65,8 +59,6 @@ type InspectOptions struct {
 	baseDir string
 	// whether or not to allow writes to an existing and populated base directory
 	overwrite bool
-	// flag to indicate defaults should be used in deciding what to gather
-	defaults bool
 
 	genericclioptions.IOStreams
 }
@@ -76,7 +68,6 @@ func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
 		printFlags:  genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme),
 		configFlags: genericclioptions.NewConfigFlags(),
 		overwrite:   true,
-		defaults:    false,
 		IOStreams:   streams,
 	}
 }
@@ -106,7 +97,6 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 
 	cmd.Flags().StringVar(&o.baseDir, "base-dir", "must-gather", "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/must-gather")
 	cmd.Flags().BoolVar(&o.allNamespaces, "all-namespaces", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
-	cmd.Flags().BoolVar(&o.defaults, "defaults", false, "If true, use Red Hat Support suggested default options for data collection.")
 
 	o.configFlags.AddFlags(cmd.Flags())
 	o.printFlags.AddFlags(cmd)
@@ -115,10 +105,6 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 
 func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 	o.args = args
-
-	if o.defaults == true {
-		o.args = append(o.args, defaults...)
-	}
 
 	var err error
 	o.restConfig, err = o.configFlags.ToRESTConfig()
