@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericclioptions/resource"
@@ -38,14 +40,37 @@ func objectReferenceToResourceInfo(clientGetter genericclioptions.RESTClientGett
 	return infos[0], nil
 }
 
+func groupResourceToInfos(clientGetter genericclioptions.RESTClientGetter, ref schema.GroupResource, namespace string) ([]*resource.Info, error) {
+	resourceString := ref.Resource
+	if len(ref.Group) > 0 {
+		resourceString = resourceString + "." + ref.Group
+	}
+	b := resource.NewBuilder(clientGetter).
+		Unstructured().
+		ResourceTypeOrNameArgs(false, resourceString).
+		SelectAllParam(true).
+		NamespaceParam(namespace).
+		Latest()
+
+	return b.Do().Infos()
+}
+
 // infoToContextKey receives a resource.Info and returns a unique string for use in keeping track of objects previously seen
 func infoToContextKey(info *resource.Info) string {
-	return fmt.Sprintf("%s/%s/%s/%s", info.Namespace, info.ResourceMapping().GroupVersionKind.Group, info.ResourceMapping().Resource.Resource, info.Name)
+	name := info.Name
+	if meta.IsListType(info.Object) {
+		name = "*"
+	}
+	return fmt.Sprintf("%s/%s/%s/%s", info.Namespace, info.ResourceMapping().GroupVersionKind.Group, info.ResourceMapping().Resource.Resource, name)
 }
 
 // objectRefToContextKey is a variant of infoToContextKey that receives a configv1.ObjectReference and returns a unique string for use in keeping track of object references previously seen
 func objectRefToContextKey(objRef *configv1.ObjectReference) string {
 	return fmt.Sprintf("%s/%s/%s/%s", objRef.Namespace, objRef.Group, objRef.Resource, objRef.Name)
+}
+
+func resourceToContextKey(resource schema.GroupResource, namespace string) string {
+	return fmt.Sprintf("%s/%s/%s/%s", namespace, resource.Group, resource.Resource, "*")
 }
 
 // dirPathForInfo receives a *resource.Info and returns a relative path
@@ -56,10 +81,26 @@ func dirPathForInfo(baseDir string, info *resource.Info) string {
 		groupName = info.Mapping.GroupVersionKind.Group
 	}
 
-	objPath := path.Join(namespaceResourcesDirname, "/"+info.Namespace, groupName, "/"+info.ResourceMapping().Resource.Resource)
+	groupPath := path.Join(baseDir, namespaceResourcesDirname, info.Namespace, groupName)
 	if len(info.Namespace) == 0 {
-		objPath = path.Join(clusterScopedResourcesDirname, "/"+groupName, "/"+info.ResourceMapping().Resource.Resource)
+		groupPath = path.Join(baseDir, clusterScopedResourcesDirname, "/"+groupName)
+	}
+	if meta.IsListType(info.Object) {
+		return groupPath
 	}
 
-	return path.Join(baseDir, "/"+objPath)
+	objPath := path.Join(groupPath, info.ResourceMapping().Resource.Resource)
+	if len(info.Namespace) == 0 {
+		objPath = path.Join(groupPath, info.ResourceMapping().Resource.Resource)
+	}
+	return objPath
+}
+
+// filenameForInfo receives a *resource.Info and returns the basename
+func filenameForInfo(info *resource.Info) string {
+	if meta.IsListType(info.Object) {
+		return info.ResourceMapping().Resource.Resource + ".yaml"
+	}
+
+	return info.Name + ".yaml"
 }
