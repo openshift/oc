@@ -30,8 +30,8 @@ import (
 
 var (
 	inspectExample = `
-	# Collect debugging data for the "openshift-apiserver-operator"
-	%[1]s inspect clusteroperator/openshift-apiserver-operator
+	# Collect debugging data for the "openshift-apiserver"
+	%[1]s inspect clusteroperator/openshift-apiserver
 
 	# Collect debugging data for all clusteroperators
 	%[1]s inspect clusteroperator
