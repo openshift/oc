@@ -108,11 +108,17 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 		return errors.NewAggregate(errs)
 
-	case corev1.SchemeGroupVersion.WithResource("secrets").GroupResource(),
-		schema.GroupResource{Group: "route.openshift.io", Resource: "routes"}:
-		// TODO, re-secure these
-		fallthrough
+	case corev1.SchemeGroupVersion.WithResource("secrets").GroupResource():
+		if err := inspectSecretInfo(info, o); err != nil {
+			return err
+		}
+		return nil
 
+	case schema.GroupResource{Group: "route.openshift.io", Resource: "routes"}:
+		if err := inspectRouteInfo(info, o); err != nil {
+			return err
+		}
+		return nil
 	default:
 		// save the current object to disk
 		dirPath := dirPathForInfo(o.baseDir, info)
