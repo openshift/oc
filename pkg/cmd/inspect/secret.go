@@ -4,10 +4,10 @@ import (
 	"os"
 	"path"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions/resource"
 )
 
@@ -63,8 +63,21 @@ func inspectSecretInfo(info *resource.Info, o *InspectOptions) error {
 	return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), obj)
 }
 
+var publicSecretKeys = sets.NewString(
+	// we know that tls.crt contains certificate (public) data, not private data.  This allows inspection of signing names for signers.
+	"tls.crt",
+	// we know that ca.crt contains certificate (public) data, not private data.  This allows inspection of sa token ca.crt trust.
+	"ca.crt",
+	// we know that service-ca.crt contains certificate (public) data, not private data.  This allows inspection of sa token service-ca.crt trust.
+	"service-ca.crt",
+)
+
 func elideSecret(secret *corev1.Secret) {
 	for k := range secret.Data {
+		// some secrets keys are safe to include because know their content.
+		if publicSecretKeys.Has(k) {
+			continue
+		}
 		secret.Data[k] = []byte{}
 	}
 
