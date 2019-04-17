@@ -25,9 +25,13 @@ func NewResourceContext() *resourceContext {
 }
 
 func objectReferenceToResourceInfo(clientGetter genericclioptions.RESTClientGetter, ref *configv1.ObjectReference) (*resource.Info, error) {
+	resourceString := fmt.Sprintf("%s/%s", ref.Resource, ref.Name)
+	if len(ref.Group) > 0 {
+		resourceString = fmt.Sprintf("%s.%s/%s", ref.Resource, ref.Group, ref.Name)
+	}
 	b := resource.NewBuilder(clientGetter).
 		Unstructured().
-		ResourceTypeOrNameArgs(false, fmt.Sprintf("%s/%s", ref.Resource, ref.Name)).
+		ResourceTypeOrNameArgs(false, resourceString).
 		NamespaceParam(ref.Namespace).
 		Flatten().
 		Latest()
@@ -43,7 +47,7 @@ func objectReferenceToResourceInfo(clientGetter genericclioptions.RESTClientGett
 func groupResourceToInfos(clientGetter genericclioptions.RESTClientGetter, ref schema.GroupResource, namespace string) ([]*resource.Info, error) {
 	resourceString := ref.Resource
 	if len(ref.Group) > 0 {
-		resourceString = resourceString + "." + ref.Group
+		resourceString = fmt.Sprintf("%s.%s", resourceString, ref.Group)
 	}
 	b := resource.NewBuilder(clientGetter).
 		Unstructured().
