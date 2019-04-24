@@ -157,7 +157,7 @@ func obtainClusterOperatorRelatedObjects(obj *unstructured.Unstructured) ([]*con
 	relatedObjs := []*configv1.ObjectReference{}
 	for idx, relatedObj := range structuredCO.Status.RelatedObjects {
 		relatedObjs = append(relatedObjs, &structuredCO.Status.RelatedObjects[idx])
-		log.Printf("    Found related object %q for ClusterOperator %q...\n", relatedObj.Name, structuredCO.Name)
+		log.Printf("    Found related object %q for ClusterOperator %q...\n", objectReferenceToString(&relatedObj), structuredCO.Name)
 	}
 
 	return relatedObjs, nil

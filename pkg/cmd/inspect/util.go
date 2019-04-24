@@ -24,14 +24,18 @@ func NewResourceContext() *resourceContext {
 	}
 }
 
-func objectReferenceToResourceInfo(clientGetter genericclioptions.RESTClientGetter, ref *configv1.ObjectReference) (*resource.Info, error) {
+func objectReferenceToString(ref *configv1.ObjectReference) string {
 	resourceString := fmt.Sprintf("%s/%s", ref.Resource, ref.Name)
 	if len(ref.Group) > 0 {
 		resourceString = fmt.Sprintf("%s.%s/%s", ref.Resource, ref.Group, ref.Name)
 	}
+	return resourceString
+}
+
+func objectReferenceToResourceInfo(clientGetter genericclioptions.RESTClientGetter, ref *configv1.ObjectReference) (*resource.Info, error) {
 	b := resource.NewBuilder(clientGetter).
 		Unstructured().
-		ResourceTypeOrNameArgs(false, resourceString).
+		ResourceTypeOrNameArgs(false, objectReferenceToString(ref)).
 		NamespaceParam(ref.Namespace).
 		Flatten().
 		Latest()
