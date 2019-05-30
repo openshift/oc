@@ -12,7 +12,7 @@ func AcceptString(allowedValues sets.String, currValue string) bool {
 		return false
 	}
 	for _, allowedValue := range allowedValues.UnsortedList() {
-		if !strings.HasSuffix(allowedValue, "*") {
+		if !strings.HasSuffix(allowedValue, "*") || !strings.HasPrefix(allowedValue, "-") {
 			continue
 		}
 		if strings.HasPrefix("-"+currValue, allowedValue[:len(allowedValue)-1]) {
@@ -20,11 +20,23 @@ func AcceptString(allowedValues sets.String, currValue string) bool {
 		}
 	}
 
+	// if all values are negation, assume * by default
+	allValuesNegative := true
+	for _, allowedValue := range allowedValues.UnsortedList() {
+		if !strings.HasPrefix(allowedValue, "-") {
+			allValuesNegative = false
+			break
+		}
+	}
+	if allValuesNegative {
+		return true
+	}
+
 	if allowedValues.Has(currValue) {
 		return true
 	}
 	for _, allowedValue := range allowedValues.UnsortedList() {
-		if !strings.HasSuffix(allowedValue, "*") {
+		if !strings.HasSuffix(allowedValue, "*") || strings.HasPrefix(allowedValue, "-") {
 			continue
 		}
 		if strings.HasPrefix(currValue, allowedValue[:len(allowedValue)-1]) {
