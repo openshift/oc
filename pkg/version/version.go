@@ -68,5 +68,6 @@ func init() {
 	)
 	buildInfo.WithLabelValues(majorFromGit, minorFromGit, commitFromGit, versionFromGit).Set(1)
 
-	prometheus.MustRegister(buildInfo)
+	// we're ok with an error here for now because test-integration illegally runs the same process
+	prometheus.Register(buildInfo)
 }
