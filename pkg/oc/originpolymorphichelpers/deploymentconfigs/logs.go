@@ -1,4 +1,4 @@
-package v1
+package deploymentconfigs
 
 import (
 	"k8s.io/client-go/rest"
