@@ -25,18 +25,23 @@ func NewResourceContext() *resourceContext {
 }
 
 func objectReferenceToString(ref *configv1.ObjectReference) string {
-	resourceString := fmt.Sprintf("%s/%s", ref.Resource, ref.Name)
-	if len(ref.Group) > 0 {
-		resourceString = fmt.Sprintf("%s.%s/%s", ref.Resource, ref.Group, ref.Name)
+	resource := ref.Resource
+	group := ref.Group
+	name := ref.Name
+	if len(name) > 0 {
+		name = "/" + name
 	}
-	return resourceString
+	if len(group) > 0 {
+		group = "." + group
+	}
+	return resource + group + name
 }
 
-func objectReferenceToResourceInfo(clientGetter genericclioptions.RESTClientGetter, ref *configv1.ObjectReference) (*resource.Info, error) {
+func objectReferenceToResourceInfos(clientGetter genericclioptions.RESTClientGetter, ref *configv1.ObjectReference) ([]*resource.Info, error) {
 	b := resource.NewBuilder(clientGetter).
 		Unstructured().
-		ResourceTypeOrNameArgs(false, objectReferenceToString(ref)).
-		NamespaceParam(ref.Namespace).
+		ResourceTypeOrNameArgs(true, objectReferenceToString(ref)).
+		NamespaceParam(ref.Namespace).DefaultNamespace().AllNamespaces(len(ref.Namespace) == 0).
 		Flatten().
 		Latest()
 
@@ -45,7 +50,7 @@ func objectReferenceToResourceInfo(clientGetter genericclioptions.RESTClientGett
 		return nil, err
 	}
 
-	return infos[0], nil
+	return infos, nil
 }
 
 func groupResourceToInfos(clientGetter genericclioptions.RESTClientGetter, ref schema.GroupResource, namespace string) ([]*resource.Info, error) {

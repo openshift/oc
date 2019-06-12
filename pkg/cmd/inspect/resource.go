@@ -69,15 +69,17 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 				continue
 			}
 
-			relatedInfo, err := objectReferenceToResourceInfo(o.configFlags, relatedRef)
+			relatedInfos, err := objectReferenceToResourceInfos(o.configFlags, relatedRef)
 			if err != nil {
 				errs = append(errs, err)
 				continue
 			}
 
-			if err := InspectResource(relatedInfo, context, o); err != nil {
-				errs = append(errs, err)
-				continue
+			for _, relatedInfo := range relatedInfos {
+				if err := InspectResource(relatedInfo, context, o); err != nil {
+					errs = append(errs, err)
+					continue
+				}
 			}
 		}
 
