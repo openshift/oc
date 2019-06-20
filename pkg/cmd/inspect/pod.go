@@ -157,8 +157,7 @@ func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod,
 
 	result, err := o.podUrlGetter.Get("/version", pod, o.restConfig, metricsPort)
 
-	filename := fmt.Sprintf("%s.json", "metrics")
-	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result})
+	return o.fileWriter.WriteFromSource(path.Join(destDir, "version.json"), &util.TextWriterSource{Text: result})
 }
 
 // gatherContainerMetrics invokes an asynchronous network call
@@ -174,8 +173,7 @@ func (o *InspectOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod,
 		return err
 	}
 
-	filename := fmt.Sprintf("%s.json", "metrics")
-	return o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result})
+	return o.fileWriter.WriteFromSource(path.Join(destDir, "metrics.json"), &util.TextWriterSource{Text: result})
 }
 
 func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, metricsPort *util.RemoteContainerPort) error {
