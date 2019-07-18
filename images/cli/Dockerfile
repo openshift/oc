@@ -1,7 +1,7 @@
 FROM registry.svc.ci.openshift.org/openshift/builder:golang-1.12 AS builder
 WORKDIR /go/src/github.com/openshift/oc
 RUN yum install -y gpgme-devel libassuan-devel
-COPY .. .
+COPY . .
 RUN make build --warn-undefined-variables
 
 FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
