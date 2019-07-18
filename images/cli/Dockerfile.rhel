@@ -1,6 +1,6 @@
 FROM registry.svc.ci.openshift.org/ocp/builder:golang-1.12 AS builder
 WORKDIR /go/src/github.com/openshift/oc
-COPY .. .
+COPY . .
 RUN make build --warn-undefined-variables
 
 FROM registry.svc.ci.openshift.org/ocp/4.2:base
