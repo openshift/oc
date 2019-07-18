@@ -14,6 +14,7 @@ import (
 	ktemplates "k8s.io/kubernetes/pkg/kubectl/util/templates"
 
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
+	"github.com/openshift/oc/pkg/cli/admin/catalog"
 	"github.com/openshift/oc/pkg/cli/admin/cert"
 	"github.com/openshift/oc/pkg/cli/admin/createbootstrapprojecttemplate"
 	"github.com/openshift/oc/pkg/cli/admin/createerrortemplate"
@@ -130,6 +131,10 @@ func NewCommandAdmin(name, fullName string, f kcmdutil.Factory, streams genericc
 
 		// hidden
 		options.NewCmdOptions(streams),
+	)
+
+	cmds.AddCommand(
+		catalog.NewCmd(f, fullName, streams),
 	)
 
 	return cmds
