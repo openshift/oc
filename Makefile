@@ -12,7 +12,6 @@ GO_BUILD_PACKAGES :=$(strip \
 	./cmd/... \
 )
 
-
 # This will call a macro called "build-image" which will generate image specific targets based on the parameters:
 # $0 - macro name
 # $1 - target suffix
