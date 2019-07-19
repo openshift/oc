@@ -11,6 +11,8 @@ include $(addprefix ./vendor/github.com/openshift/library-go/alpha-build-machine
 GO_BUILD_PACKAGES :=$(strip \
 	./cmd/... \
 )
+# These tags make sure we can statically link and avoid shared dependencies
+GO_BUILD_FLAGS :=-tags 'include_gcs include_oss containers_image_openpgp no_openssl gssapi'
 
 # This will call a macro called "build-image" which will generate image specific targets based on the parameters:
 # $0 - macro name
