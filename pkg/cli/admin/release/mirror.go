@@ -444,16 +444,3 @@ func (o *MirrorOptions) Run() error {
 	}
 	return nil
 }
-
-func sourceImageRef(is *imagev1.ImageStream, name string) (string, bool) {
-	for _, tag := range is.Spec.Tags {
-		if tag.Name != name {
-			continue
-		}
-		if tag.From == nil || tag.From.Kind != "DockerImage" {
-			return "", false
-		}
-		return tag.From.Name, true
-	}
-	return "", false
-}
