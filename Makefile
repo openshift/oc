@@ -19,4 +19,5 @@ GO_BUILD_PACKAGES :=$(strip \
 # $2 - Dockerfile path
 # $3 - context directory for image build
 # It will generate target "image-$(1)" for builing the image an binding it as a prerequisite to target "images".
-$(call build-image,origin-$(notdir $(GO_PACKAGE)),./images/Dockerfile,.)
+# There is no OKD and this one is based on RHEL - needs mount to get repos for yum install
+#$(call build-image,origin-$(notdir $(GO_PACKAGE)),./images/Dockerfile,.)
