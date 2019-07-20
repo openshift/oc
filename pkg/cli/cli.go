@@ -109,7 +109,9 @@ func NewDefaultOcCommand(name, fullName string, in io.Reader, out, errout io.Wri
 	}
 
 	cmdPathPieces := os.Args[1:]
-	pluginHandler := kubecmd.NewDefaultPluginHandler(plugin.ValidPluginFilenamePrefixes)
+
+	// support both upstream "kubectl" and "oc" as plugin prefixes
+	pluginHandler := kubecmd.NewDefaultPluginHandler(append(plugin.ValidPluginFilenamePrefixes, name))
 
 	// only look for suitable extension executables if
 	// the specified command does not already exist
