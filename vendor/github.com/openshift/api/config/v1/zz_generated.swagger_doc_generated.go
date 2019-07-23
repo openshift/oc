@@ -1208,6 +1208,7 @@ var map_ProxySpec = map[string]string{
 	"httpsProxy":         "httpsProxy is the URL of the proxy for HTTPS requests.  Empty means unset and will not result in an env var.",
 	"noProxy":            "noProxy is a comma-separated list of hostnames and/or CIDRs for which the proxy should not be used. Empty means unset and will not result in an env var.",
 	"readinessEndpoints": "readinessEndpoints is a list of endpoints used to verify readiness of the proxy.",
+	"trustedCA":          "trustedCA is a reference to a ConfigMap containing a CA certificate bundle used for client egress HTTPS connections. The certificate bundle must be from the CA that signed the proxy's certificate and be signed for everything. trustedCA should only be consumed by a proxy validator. The validator is responsible for reading ConfigMapNameReference, validating the certificate and copying \"ca-bundle.crt\" from data to a ConfigMap in the namespace of an operator configured for proxy. The namespace for this ConfigMap is \"openshift-config-managed\". Here is an example ConfigMap (in yaml):\n\napiVersion: v1 kind: ConfigMap metadata:\n name: proxy-ca\n namespace: openshift-config-managed\n data:\n   ca-bundle.crt: |",
 }
 
 func (ProxySpec) SwaggerDoc() map[string]string {
