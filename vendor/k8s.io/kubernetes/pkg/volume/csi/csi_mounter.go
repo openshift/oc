@@ -69,7 +69,7 @@ type csiMountMgr struct {
 	podUID         types.UID
 	options        volume.VolumeOptions
 	publishContext map[string]string
-	volume.MetricsProvider
+	volume.MetricsNil
 }
 
 // volume.Volume methods

@@ -11,7 +11,6 @@ go_test(
     srcs = [
         "apply_test.go",
         "basic_test.go",
-        "change_test.go",
         "finalization_test.go",
         "objectmeta_test.go",
         "registration_test.go",

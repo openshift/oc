@@ -48,17 +48,17 @@ func (_m *MockManager) CreateMirrorPod(_a0 *v1.Pod) error {
 }
 
 // DeleteMirrorPod provides a mock function with given fields: podFullName
-func (_m *MockManager) DeleteMirrorPod(podFullName string, _ *types.UID) (bool, error) {
+func (_m *MockManager) DeleteMirrorPod(podFullName string) error {
 	ret := _m.Called(podFullName)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
-		return true, rf(podFullName)
+		r0 = rf(podFullName)
 	} else {
 		r0 = ret.Error(0)
 	}
 
-	return false, r0
+	return r0
 }
 
 // DeleteOrphanedMirrorPods provides a mock function with given fields:

@@ -24,7 +24,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net"
-	"os"
 	"reflect"
 	"sync"
 	"testing"
@@ -32,6 +31,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"k8s.io/apimachinery/pkg/util/uuid"
 	kmsapi "k8s.io/apiserver/pkg/storage/value/encrypt/envelope/v1beta1"
 )
 
@@ -39,8 +39,6 @@ import (
 // Since the Dial to kms-plugin is non-blocking we expect the construction of gRPC service to succeed even when
 // kms-plugin is not yet up - dialing happens in the background.
 func TestKMSPluginLateStart(t *testing.T) {
-	t.Skip("Test is unsuitable for running in a CPU contended environment")
-
 	t.Parallel()
 	callTimeout := 3 * time.Second
 	endpoint := getSocketName()
@@ -67,8 +65,6 @@ func TestKMSPluginLateStart(t *testing.T) {
 
 // TestTimeout tests behaviour of the kube-apiserver based on the supplied timeout and delayed start of kms-plugin.
 func TestTimeouts(t *testing.T) {
-	t.Skip("Test is unsuitable for running in a CPU contended environment")
-
 	t.Parallel()
 	var testCases = []struct {
 		desc               string
@@ -169,8 +165,6 @@ func TestTimeouts(t *testing.T) {
 
 // TestIntermittentConnectionLoss tests the scenario where the connection with kms-plugin is intermittently lost.
 func TestIntermittentConnectionLoss(t *testing.T) {
-	t.Skip("Test is unsuitable for running in a CPU contended environment")
-
 	t.Parallel()
 	var (
 		wg1      sync.WaitGroup
@@ -243,7 +237,7 @@ func TestUnsupportedVersion(t *testing.T) {
 	}
 	defer f.server.Stop()
 
-	s, err := NewGRPCService(endpoint, 20*time.Second)
+	s, err := NewGRPCService(endpoint, 1*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +251,7 @@ func TestUnsupportedVersion(t *testing.T) {
 
 	destroyService(s)
 
-	s, err = NewGRPCService(endpoint, 20*time.Second)
+	s, err = NewGRPCService(endpoint, 1*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +276,7 @@ func TestGRPCService(t *testing.T) {
 	defer f.server.Stop()
 
 	// Create the gRPC client service.
-	service, err := NewGRPCService(endpoint, 15*time.Second)
+	service, err := NewGRPCService(endpoint, 1*time.Second)
 	if err != nil {
 		t.Fatalf("failed to create envelope service, error: %v", err)
 	}
@@ -359,21 +353,8 @@ func destroyService(service Service) {
 	}
 }
 
-var (
-	uniqueSocketLock sync.Mutex
-	uniqueSocket     int
-)
-
-// getSocketName returns a unique UNIX socket filename each time
 func getSocketName() string {
-	uniqueSocketLock.Lock()
-	defer uniqueSocketLock.Unlock()
-	uniqueSocket++
-	// ensure the socket is removed before running
-	if err := os.Remove(fmt.Sprintf("@%d.sock", uniqueSocket)); err != nil && !os.IsNotExist(err) {
-		panic(fmt.Sprintf("unable to remove socket from previous test run: %v", err))
-	}
-	return fmt.Sprintf("unix:///@%d.sock", uniqueSocket)
+	return fmt.Sprintf("unix:///@%s.sock", uuid.NewUUID())
 }
 
 // Test all those invalid configuration for KMS provider.
@@ -398,7 +379,7 @@ func TestInvalidConfiguration(t *testing.T) {
 	for _, testCase := range invalidConfigs {
 		t.Run(testCase.name, func(t *testing.T) {
 			f.apiVersion = testCase.apiVersion
-			_, err := NewGRPCService(testCase.endpoint, 20*time.Second)
+			_, err := NewGRPCService(testCase.endpoint, 1*time.Second)
 			if err == nil {
 				t.Fatalf("should fail to create envelope service for %s.", testCase.name)
 			}

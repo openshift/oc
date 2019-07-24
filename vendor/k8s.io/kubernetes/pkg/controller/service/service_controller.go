@@ -24,7 +24,7 @@ import (
 
 	"reflect"
 
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -282,11 +282,6 @@ func (s *ServiceController) createLoadBalancerIfNeeded(key string, service *v1.S
 	var err error
 
 	if !wantsLoadBalancer(service) {
-		if v1helper.LoadBalancerStatusEqual(previousState, &v1.LoadBalancerStatus{}) {
-			return nil
-		}
-
-		klog.V(3).Infof("Getting load balancer for service %s", key)
 		_, exists, err := s.balancer.GetLoadBalancer(context.TODO(), s.clusterName, service)
 		if err != nil {
 			return fmt.Errorf("error getting LB for service %s: %v", key, err)

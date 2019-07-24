@@ -1732,8 +1732,6 @@ func (c *Cloud) getMountDevice(
 		}
 		deviceMappings[mountDevice(name)] = EBSVolumeID(aws.StringValue(blockDevice.Ebs.VolumeId))
 	}
-	// De-flaking https://bugzilla.redhat.com/show_bug.cgi?id=1698829
-	klog.V(2).Infof("volume ID: %s: device mappings from EC2 Instance: %+v", volumeID, deviceMappings)
 
 	// We lock to prevent concurrent mounts from conflicting
 	// We may still conflict if someone calls the API concurrently,
@@ -1744,8 +1742,6 @@ func (c *Cloud) getMountDevice(
 	for mountDevice, volume := range c.attaching[i.nodeName] {
 		deviceMappings[mountDevice] = volume
 	}
-	// De-flaking https://bugzilla.redhat.com/show_bug.cgi?id=1698829
-	klog.V(2).Infof("volume ID: %s: Full device mappings: %+v", volumeID, deviceMappings)
 
 	// Check to see if this volume is already assigned a device on this machine
 	for mountDevice, mappingVolumeID := range deviceMappings {
@@ -2107,8 +2103,6 @@ func (c *Cloud) AttachDisk(diskName KubernetesVolumeID, nodeName types.NodeName)
 	if err != nil {
 		return "", fmt.Errorf("error finding instance %s: %q", nodeName, err)
 	}
-	// De-flaking https://bugzilla.redhat.com/show_bug.cgi?id=1698829
-	klog.V(2).Infof("volumeID: %s, AttachDisk got AWS instance %+v", disk.awsID, info.BlockDeviceMappings)
 
 	// mountDevice will hold the device where we should try to attach the disk
 	var mountDevice mountDevice
@@ -2259,13 +2253,6 @@ func (c *Cloud) DetachDisk(diskName KubernetesVolumeID, nodeName types.NodeName)
 		// We don't check the return value - we don't really expect the attachment to have been
 		// in progress, though it might have been
 	}
-
-	// De-flaking https://bugzilla.redhat.com/show_bug.cgi?id=1698829
-	_, info, err2 := c.getFullInstance(nodeName)
-	if err2 != nil {
-		klog.V(2).Infof("volume ID: %s: error finding instance %s: %q", diskInfo.disk.awsID, nodeName, err2)
-	}
-	klog.V(2).Infof("volume ID: %s: DetachDisk: instance after detach: %+v", diskInfo.disk.awsID, info.BlockDeviceMappings)
 
 	hostDevicePath := "/dev/xvd" + string(mountDevice)
 	return hostDevicePath, err

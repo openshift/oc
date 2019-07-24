@@ -348,10 +348,12 @@ func (og *operationGenerator) GenerateAttachVolumeFunc(
 
 		if attachErr != nil {
 			if derr, ok := attachErr.(*volerr.DanglingAttachError); ok {
-				addErr := actualStateOfWorld.MarkVolumeAsUncertain(
+				addErr := actualStateOfWorld.MarkVolumeAsAttached(
 					v1.UniqueVolumeName(""),
 					originalSpec,
-					derr.CurrentNode)
+					derr.CurrentNode,
+					derr.DevicePath)
+
 				if addErr != nil {
 					klog.Errorf("AttachVolume.MarkVolumeAsAttached failed to fix dangling volume error for volume %q with %s", volumeToAttach.VolumeName, addErr)
 				}
@@ -705,7 +707,6 @@ func (og *operationGenerator) GenerateMountVolumeFunc(
 	}
 
 	return volumetypes.GeneratedOperations{
-		OperationName:     "volume_mount",
 		OperationFunc:     mountVolumeFunc,
 		EventRecorderFunc: eventRecorderFunc,
 		CompleteFunc:      util.OperationCompleteHook(util.GetFullQualifiedPluginNameForVolume(volumePluginName, volumeToMount.VolumeSpec), "volume_mount"),
@@ -833,7 +834,6 @@ func (og *operationGenerator) GenerateUnmountVolumeFunc(
 	}
 
 	return volumetypes.GeneratedOperations{
-		OperationName:     "volume_unmount",
 		OperationFunc:     unmountVolumeFunc,
 		CompleteFunc:      util.OperationCompleteHook(util.GetFullQualifiedPluginNameForVolume(volumePlugin.GetPluginName(), volumeToUnmount.VolumeSpec), "volume_unmount"),
 		EventRecorderFunc: nil, // nil because we do not want to generate event on error
@@ -925,7 +925,6 @@ func (og *operationGenerator) GenerateUnmountDeviceFunc(
 	}
 
 	return volumetypes.GeneratedOperations{
-		OperationName:     "unmount_device",
 		OperationFunc:     unmountDeviceFunc,
 		CompleteFunc:      util.OperationCompleteHook(util.GetFullQualifiedPluginNameForVolume(deviceMountableVolumePlugin.GetPluginName(), deviceToDetach.VolumeSpec), "unmount_device"),
 		EventRecorderFunc: nil, // nil because we do not want to generate event on error

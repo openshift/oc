@@ -31,20 +31,11 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/kubernetes/openshift-kube-apiserver/configdefault"
-	"k8s.io/kubernetes/openshift-kube-apiserver/enablement"
-	"k8s.io/kubernetes/openshift-kube-apiserver/openshiftkubeapiserver"
-
 	"github.com/go-openapi/spec"
 	"github.com/spf13/cobra"
-	cloudprovider "k8s.io/cloud-provider"
-	cliflag "k8s.io/component-base/cli/flag"
-	"k8s.io/component-base/cli/globalflag"
-	"k8s.io/klog"
 
-	corev1 "k8s.io/api/core/v1"
 	extensionsapiserver "k8s.io/apiextensions-apiserver/pkg/apiserver"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -53,7 +44,6 @@ import (
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
-	"k8s.io/apiserver/pkg/endpoints/request"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/server/filters"
 	serveroptions "k8s.io/apiserver/pkg/server/options"
@@ -64,12 +54,14 @@ import (
 	clientgoinformers "k8s.io/client-go/informers"
 	clientgoclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/keyutil"
+	cloudprovider "k8s.io/cloud-provider"
+	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/component-base/cli/globalflag"
+	"k8s.io/klog"
 	aggregatorapiserver "k8s.io/kube-aggregator/pkg/apiserver"
 	aggregatorscheme "k8s.io/kube-aggregator/pkg/apiserver/scheme"
 	"k8s.io/kubernetes/cmd/kube-apiserver/app/options"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
-	"k8s.io/kubernetes/pkg/apis/core"
-	v1 "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/capabilities"
 	serviceaccountcontroller "k8s.io/kubernetes/pkg/controller/serviceaccount"
 	generatedopenapi "k8s.io/kubernetes/pkg/generated/openapi"
@@ -83,7 +75,6 @@ import (
 	"k8s.io/kubernetes/pkg/master/reconcilers"
 	"k8s.io/kubernetes/pkg/master/tunneler"
 	"k8s.io/kubernetes/pkg/registry/cachesize"
-	eventstorage "k8s.io/kubernetes/pkg/registry/core/event/storage"
 	rbacrest "k8s.io/kubernetes/pkg/registry/rbac/rest"
 	"k8s.io/kubernetes/pkg/serviceaccount"
 	utilflag "k8s.io/kubernetes/pkg/util/flag"
@@ -109,31 +100,6 @@ cluster's shared state through which all other components interact.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verflag.PrintAndExitIfRequested()
 			utilflag.PrintFlags(cmd.Flags())
-
-			if len(s.OpenShiftConfig) > 0 {
-				enablement.ForceOpenShift()
-				openshiftConfig, err := enablement.GetOpenshiftConfig(s.OpenShiftConfig)
-				if err != nil {
-					klog.Fatal(err)
-				}
-
-				// this forces a patch to be called
-				// TODO we're going to try to remove bits of the patching.
-				configPatchFn, serverPatchContext := openshiftkubeapiserver.NewOpenShiftKubeAPIServerConfigPatch(genericapiserver.NewEmptyDelegate(), openshiftConfig)
-				OpenShiftKubeAPIServerConfigPatch = configPatchFn
-				OpenShiftKubeAPIServerServerPatch = serverPatchContext.PatchServer
-
-				args, err := openshiftkubeapiserver.ConfigToFlags(openshiftConfig)
-				if err != nil {
-					return err
-				}
-				// hopefully this resets the flags?
-				if err := cmd.ParseFlags(args); err != nil {
-					return err
-				}
-
-				enablement.ForceGlobalInitializationForOpenShift(s)
-			}
 
 			// set default options
 			completedOptions, err := Complete(s)
@@ -205,17 +171,13 @@ func CreateServerChain(completedOptions completedServerRunOptions, stopCh <-chan
 	if err != nil {
 		return nil, err
 	}
-	apiExtensionsServer, err := createAPIExtensionsServer(apiExtensionsConfig, StartingDelegate)
+	apiExtensionsServer, err := createAPIExtensionsServer(apiExtensionsConfig, genericapiserver.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
 	}
 
 	kubeAPIServer, err := CreateKubeAPIServer(kubeAPIServerConfig, apiExtensionsServer.GenericAPIServer, admissionPostStartHook)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := PatchKubeAPIServerServer(kubeAPIServer); err != nil {
 		return nil, err
 	}
 
@@ -357,9 +319,6 @@ func CreateKubeAPIServerConfig(
 		return
 	}
 
-	eventStorage := eventstorage.NewREST(genericConfig.RESTOptionsGetter, uint64(s.EventTTL.Seconds()))
-	genericConfig.EventSink = eventRegistrySink{eventStorage}
-
 	config = &master.Config{
 		GenericConfig: genericConfig,
 		ExtraConfig: master.ExtraConfig{
@@ -410,7 +369,6 @@ func CreateKubeAPIServerConfig(
 func buildGenericConfig(
 	s *options.ServerRunOptions,
 	proxyTransport *http.Transport,
-
 ) (
 	genericConfig *genericapiserver.Config,
 	versionedInformers clientgoinformers.SharedInformerFactory,
@@ -483,7 +441,7 @@ func buildGenericConfig(
 	}
 	versionedInformers = clientgoinformers.NewSharedInformerFactory(clientgoExternalClient, 10*time.Minute)
 
-	genericConfig.Authentication.Authenticator, genericConfig.OpenAPIConfig.SecurityDefinitions, genericConfig.Authentication.DynamicReloadFns, err = BuildAuthenticator(s, clientgoExternalClient, versionedInformers)
+	genericConfig.Authentication.Authenticator, genericConfig.OpenAPIConfig.SecurityDefinitions, err = BuildAuthenticator(s, clientgoExternalClient, versionedInformers)
 	if err != nil {
 		lastErr = fmt.Errorf("invalid authentication config: %v", err)
 		return
@@ -527,15 +485,6 @@ func buildGenericConfig(
 		return
 	}
 
-	StartingDelegate, err = PatchKubeAPIServerConfig(genericConfig, versionedInformers, &pluginInitializers)
-	if err != nil {
-		lastErr = fmt.Errorf("failed to patch: %v", err)
-		return
-	}
-
-	if enablement.IsOpenShift() {
-		configdefault.SetAdmissionDefaults(s, versionedInformers, clientgoExternalClient)
-	}
 	err = s.Admission.ApplyTo(
 		genericConfig,
 		versionedInformers,
@@ -549,7 +498,7 @@ func buildGenericConfig(
 }
 
 // BuildAuthenticator constructs the authenticator
-func BuildAuthenticator(s *options.ServerRunOptions, extclient clientgoclientset.Interface, versionedInformer clientgoinformers.SharedInformerFactory) (authenticator.Request, *spec.SecurityDefinitions, map[string]genericapiserver.PostStartHookFunc, error) {
+func BuildAuthenticator(s *options.ServerRunOptions, extclient clientgoclientset.Interface, versionedInformer clientgoinformers.SharedInformerFactory) (authenticator.Request, *spec.SecurityDefinitions, error) {
 	authenticatorConfig := s.Authentication.ToAuthenticationConfig()
 	if s.Authentication.ServiceAccounts.Lookup {
 		authenticatorConfig.ServiceAccountTokenGetter = serviceaccountcontroller.NewGetterFromClient(
@@ -560,7 +509,7 @@ func BuildAuthenticator(s *options.ServerRunOptions, extclient clientgoclientset
 		)
 	}
 	authenticatorConfig.BootstrapTokenAuthenticator = bootstrap.NewTokenAuthenticator(
-		versionedInformer.Core().V1().Secrets().Lister().Secrets(metav1.NamespaceSystem),
+		versionedInformer.Core().V1().Secrets().Lister().Secrets(v1.NamespaceSystem),
 	)
 
 	return authenticatorConfig.New()
@@ -704,36 +653,4 @@ func readCAorNil(file string) ([]byte, error) {
 		return nil, nil
 	}
 	return ioutil.ReadFile(file)
-}
-
-// eventRegistrySink wraps an event registry in order to be used as direct event sync, without going through the API.
-type eventRegistrySink struct {
-	*eventstorage.REST
-}
-
-var _ genericapiserver.EventSink = eventRegistrySink{}
-
-func (s eventRegistrySink) Create(v1event *corev1.Event) (*corev1.Event, error) {
-	ctx := request.WithNamespace(request.NewContext(), v1event.Namespace)
-
-	var event core.Event
-	if err := v1.Convert_v1_Event_To_core_Event(v1event, &event, nil); err != nil {
-		return nil, err
-	}
-
-	obj, err := s.REST.Create(ctx, &event, nil, &metav1.CreateOptions{})
-	if err != nil {
-		return nil, err
-	}
-	ret, ok := obj.(*core.Event)
-	if !ok {
-		return nil, fmt.Errorf("expected corev1.Event, got %T", obj)
-	}
-
-	var v1ret corev1.Event
-	if err := v1.Convert_core_Event_To_v1_Event(ret, &v1ret, nil); err != nil {
-		return nil, err
-	}
-
-	return &v1ret, nil
 }

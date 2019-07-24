@@ -187,10 +187,5 @@ func (s *DelegatingAuthorizationOptions) getClient() (kubernetes.Interface, erro
 	clientConfig.QPS = 200
 	clientConfig.Burst = 400
 
-	// make the client use protobuf
-	protoConfig := rest.CopyConfig(clientConfig)
-	protoConfig.AcceptContentTypes = "application/vnd.kubernetes.protobuf,application/json"
-	protoConfig.ContentType = "application/vnd.kubernetes.protobuf"
-
-	return kubernetes.NewForConfig(protoConfig)
+	return kubernetes.NewForConfig(clientConfig)
 }

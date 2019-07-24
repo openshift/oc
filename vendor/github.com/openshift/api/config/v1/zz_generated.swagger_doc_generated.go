@@ -244,7 +244,7 @@ func (StringSourceSpec) SwaggerDoc() map[string]string {
 }
 
 var map_APIServer = map[string]string{
-	"": "APIServer holds cluster-wide information about api-servers.  The canonical name is `cluster`",
+	"": "APIServer holds configuration (like serving certificates, client CA and CORS domains) shared by all API servers in the system, among them especially kube-apiserver and openshift-apiserver. The canonical name of an instance is 'cluster'.",
 }
 
 func (APIServer) SwaggerDoc() map[string]string {
@@ -280,7 +280,7 @@ func (APIServerSpec) SwaggerDoc() map[string]string {
 }
 
 var map_Authentication = map[string]string{
-	"":         "Authentication holds cluster-wide information about Authentication.  The canonical name is `cluster`",
+	"":         "Authentication specifies cluster-wide settings for authentication (like OAuth and webhook token authenticators). The canonical name of an instance is `cluster`.",
 	"metadata": "Standard object's metadata.",
 	"spec":     "spec holds user settable values for configuration",
 	"status":   "status holds observed values from the cluster. They may not be overridden.",
@@ -539,7 +539,7 @@ func (UpdateHistory) SwaggerDoc() map[string]string {
 }
 
 var map_Console = map[string]string{
-	"":         "Console holds cluster-wide information about Console.  The canonical name is `cluster`.",
+	"":         "Console holds cluster-wide configuration for the web console, including the logout URL, and reports the public URL of the console. The canonical name is `cluster`.",
 	"metadata": "Standard object's metadata.",
 	"spec":     "spec holds user settable values for configuration",
 	"status":   "status holds observed values from the cluster. They may not be overridden.",

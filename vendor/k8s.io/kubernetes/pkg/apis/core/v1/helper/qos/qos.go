@@ -17,7 +17,7 @@ limitations under the License.
 package qos
 
 import (
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/apis/core"
@@ -41,8 +41,7 @@ func GetPodQOS(pod *v1.Pod) v1.PodQOSClass {
 	limits := v1.ResourceList{}
 	zeroQuantity := resource.MustParse("0")
 	isGuaranteed := true
-	allContainers := append(pod.Spec.Containers, pod.Spec.InitContainers...)
-	for _, container := range allContainers {
+	for _, container := range pod.Spec.Containers {
 		// process requests
 		for name, quantity := range container.Resources.Requests {
 			if !isSupportedQoSComputeResource(name) {

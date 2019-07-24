@@ -76,8 +76,7 @@ func BuildAuthn(client authenticationclient.TokenReviewInterface, authn kubeletc
 		authenticatorConfig.TokenAccessReviewClient = client
 	}
 
-	// ignore dynamic reload.  We may want this in the future
-	authenticator, _, _, err := authenticatorConfig.New()
+	authenticator, _, err := authenticatorConfig.New()
 	return authenticator, err
 }
 

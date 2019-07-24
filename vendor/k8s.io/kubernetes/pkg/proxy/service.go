@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	apiservice "k8s.io/kubernetes/pkg/api/v1/service"
-	"k8s.io/kubernetes/pkg/proxy/metrics"
 	utilproxy "k8s.io/kubernetes/pkg/proxy/util"
 	utilnet "k8s.io/utils/net"
 )
@@ -199,7 +198,6 @@ func (sct *ServiceChangeTracker) Update(previous, current *v1.Service) bool {
 	if svc == nil {
 		return false
 	}
-	metrics.ServiceChangesTotal.Inc()
 	namespacedName := types.NamespacedName{Namespace: svc.Namespace, Name: svc.Name}
 
 	sct.lock.Lock()
@@ -216,7 +214,6 @@ func (sct *ServiceChangeTracker) Update(previous, current *v1.Service) bool {
 	if reflect.DeepEqual(change.previous, change.current) {
 		delete(sct.items, namespacedName)
 	}
-	metrics.ServiceChangesPending.Set(float64(len(sct.items)))
 	return len(sct.items) > 0
 }
 
@@ -299,7 +296,6 @@ func (serviceMap *ServiceMap) apply(changes *ServiceChangeTracker, UDPStaleClust
 	}
 	// clear changes after applying them to ServiceMap.
 	changes.items = make(map[types.NamespacedName]*serviceChange)
-	metrics.ServiceChangesPending.Set(0)
 	return
 }
 
