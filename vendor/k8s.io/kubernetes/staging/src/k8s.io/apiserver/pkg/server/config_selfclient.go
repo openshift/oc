@@ -20,13 +20,15 @@ import (
 	"fmt"
 	"net"
 
-	"k8s.io/apiserver/pkg/server/certs"
-
 	restclient "k8s.io/client-go/rest"
 )
 
+// LoopbackClientServerNameOverride is passed to the apiserver from the loopback client in order to
+// select the loopback certificate via SNI if TLS is used.
+const LoopbackClientServerNameOverride = "apiserver-loopback-client"
+
 func (s *SecureServingInfo) NewClientConfig(caCert []byte) (*restclient.Config, error) {
-	if s == nil {
+	if s == nil || (s.Cert == nil && len(s.SNICerts) == 0) {
 		return nil, nil
 	}
 
@@ -57,7 +59,7 @@ func (s *SecureServingInfo) NewLoopbackClientConfig(token string, loopbackCert [
 	}
 
 	c.BearerToken = token
-	c.TLSClientConfig.ServerName = certs.LoopbackClientServerNameOverride
+	c.TLSClientConfig.ServerName = LoopbackClientServerNameOverride
 
 	return c, nil
 }

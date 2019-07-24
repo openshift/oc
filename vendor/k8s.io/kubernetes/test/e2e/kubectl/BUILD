@@ -37,7 +37,6 @@ go_library(
         "//test/utils/crd:go_default_library",
         "//test/utils/image:go_default_library",
         "//vendor/github.com/elazarl/goproxy:go_default_library",
-        "//vendor/github.com/googleapis/gnostic/OpenAPIv2:go_default_library",
         "//vendor/github.com/onsi/ginkgo:go_default_library",
         "//vendor/github.com/onsi/gomega:go_default_library",
         "//vendor/golang.org/x/net/websocket:go_default_library",

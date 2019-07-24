@@ -60,6 +60,7 @@ import (
 	serviceaccountcontroller "k8s.io/kubernetes/pkg/controller/serviceaccount"
 	"k8s.io/kubernetes/pkg/serviceaccount"
 	"k8s.io/kubernetes/pkg/util/configz"
+	utilflag "k8s.io/kubernetes/pkg/util/flag"
 	"k8s.io/kubernetes/pkg/version"
 	"k8s.io/kubernetes/pkg/version/verflag"
 )
@@ -79,7 +80,7 @@ const (
 )
 
 // NewControllerManagerCommand creates a *cobra.Command object with default parameters
-func NewControllerManagerCommand(stopCh <-chan struct{}) *cobra.Command {
+func NewControllerManagerCommand() *cobra.Command {
 	s, err := options.NewKubeControllerManagerOptions()
 	if err != nil {
 		klog.Fatalf("unable to initialize command options: %v", err)
@@ -97,11 +98,7 @@ Kubernetes today are the replication controller, endpoints controller, namespace
 controller, and serviceaccounts controller.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			verflag.PrintAndExitIfRequested()
-
-			if err := ShimFlagsForOpenShift(s); err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err)
-				os.Exit(1)
-			}
+			utilflag.PrintFlags(cmd.Flags())
 
 			c, err := s.Config(KnownControllers(), ControllersDisabledByDefault.List())
 			if err != nil {
@@ -109,12 +106,7 @@ controller, and serviceaccounts controller.`,
 				os.Exit(1)
 			}
 
-			if err := ShimForOpenShift(s, c); err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err)
-				os.Exit(1)
-			}
-
-			if err := Run(c.Complete(), stopCh); err != nil {
+			if err := Run(c.Complete(), wait.NeverStop); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
@@ -159,16 +151,6 @@ func ResyncPeriod(c *config.CompletedConfig) func() time.Duration {
 
 // Run runs the KubeControllerManagerOptions.  This should never exit.
 func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
-	ctx, cancel := context.WithCancel(context.TODO())
-	defer cancel()
-	go func() {
-		select {
-		case <-stopCh:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-
 	// To help debugging, immediately log version
 	klog.Infof("Version: %+v", version.Get())
 
@@ -192,20 +174,16 @@ func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
 	if c.SecureServing != nil {
 		unsecuredMux = genericcontrollermanager.NewBaseHandler(&c.ComponentConfig.Generic.Debugging, checks...)
 		handler := genericcontrollermanager.BuildHandlerChain(unsecuredMux, &c.Authorization, &c.Authentication)
-		if serverStoppedCh, err := c.SecureServing.Serve(handler, 0, ctx.Done()); err != nil {
+		// TODO: handle stoppedCh returned by c.SecureServing.Serve
+		if _, err := c.SecureServing.Serve(handler, 0, stopCh); err != nil {
 			return err
-		} else {
-			defer func() {
-				cancel()
-				<-serverStoppedCh
-			}()
 		}
 	}
 	if c.InsecureServing != nil {
 		unsecuredMux = genericcontrollermanager.NewBaseHandler(&c.ComponentConfig.Generic.Debugging, checks...)
 		insecureSuperuserAuthn := server.AuthenticationInfo{Authenticator: &server.InsecureSuperuser{}}
 		handler := genericcontrollermanager.BuildHandlerChain(unsecuredMux, nil, &insecureSuperuserAuthn)
-		if err := c.InsecureServing.Serve(handler, 0, ctx.Done()); err != nil {
+		if err := c.InsecureServing.Serve(handler, 0, stopCh); err != nil {
 			return err
 		}
 	}
@@ -235,10 +213,6 @@ func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
 			klog.Fatalf("error building controller context: %v", err)
 		}
 		saTokenControllerInitFunc := serviceAccountTokenControllerStarter{rootClientBuilder: rootClientBuilder}.startServiceAccountTokenController
-
-		if err := createPVRecyclerSA(c.OpenShiftContext.OpenShiftConfig, rootClientBuilder); err != nil {
-			klog.Fatalf("error creating recycler serviceaccount: %v", err)
-		}
 
 		if err := StartControllers(controllerContext, saTokenControllerInitFunc, NewControllerInitializers(controllerContext.LoopMode), unsecuredMux); err != nil {
 			klog.Fatalf("error starting controllers: %v", err)
@@ -275,7 +249,7 @@ func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
 		klog.Fatalf("error creating lock: %v", err)
 	}
 
-	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
+	leaderelection.RunOrDie(context.TODO(), leaderelection.LeaderElectionConfig{
 		Lock:          rl,
 		LeaseDuration: c.ComponentConfig.Generic.LeaderElection.LeaseDuration.Duration,
 		RenewDeadline: c.ComponentConfig.Generic.LeaderElection.RenewDeadline.Duration,
@@ -283,20 +257,16 @@ func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: run,
 			OnStoppedLeading: func() {
-				cancel()
-				utilruntime.HandleError(fmt.Errorf("leaderelection lost"))
+				klog.Fatalf("leaderelection lost")
 			},
 		},
 		WatchDog: electionChecker,
 		Name:     "kube-controller-manager",
 	})
-
-	return nil
+	panic("unreachable")
 }
 
 type ControllerContext struct {
-	OpenShiftContext config.OpenShiftContext
-
 	// ClientBuilder will provide a client for this controller to use
 	ClientBuilder controller.ControllerClientBuilder
 
@@ -446,12 +416,7 @@ func GetAvailableResources(clientBuilder controller.ControllerClientBuilder) (ma
 // the shared-informers client and token controller.
 func CreateControllerContext(s *config.CompletedConfig, rootClientBuilder, clientBuilder controller.ControllerClientBuilder, stop <-chan struct{}) (ControllerContext, error) {
 	versionedClient := rootClientBuilder.ClientOrDie("shared-informers")
-	var sharedInformers informers.SharedInformerFactory
-	if InformerFactoryOverride == nil {
-		sharedInformers = informers.NewSharedInformerFactory(versionedClient, ResyncPeriod(s)())
-	} else {
-		sharedInformers = InformerFactoryOverride
-	}
+	sharedInformers := informers.NewSharedInformerFactory(versionedClient, ResyncPeriod(s)())
 
 	// If apiserver is not running we should wait for some time and fail only then. This is particularly
 	// important when we start apiserver and controller manager at the same time.
@@ -479,7 +444,6 @@ func CreateControllerContext(s *config.CompletedConfig, rootClientBuilder, clien
 	}
 
 	ctx := ControllerContext{
-		OpenShiftContext:   s.OpenShiftContext,
 		ClientBuilder:      clientBuilder,
 		InformerFactory:    sharedInformers,
 		ComponentConfig:    s.ComponentConfig,
@@ -575,10 +539,10 @@ func (c serviceAccountTokenControllerStarter) startServiceAccountTokenController
 		ctx.InformerFactory.Core().V1().ServiceAccounts(),
 		ctx.InformerFactory.Core().V1().Secrets(),
 		c.rootClientBuilder.ClientOrDie("tokens-controller"),
-		applyOpenShiftServiceServingCertCA(serviceaccountcontroller.TokensControllerOptions{
+		serviceaccountcontroller.TokensControllerOptions{
 			TokenGenerator: tokenGenerator,
 			RootCA:         rootCA,
-		}),
+		},
 	)
 	if err != nil {
 		return nil, true, fmt.Errorf("error creating Tokens controller: %v", err)

@@ -18,7 +18,6 @@ package server
 
 import (
 	"fmt"
-	"net/http"
 
 	"k8s.io/apiserver/pkg/server/healthz"
 )
@@ -28,7 +27,7 @@ func (s *GenericAPIServer) AddHealthzChecks(checks ...healthz.HealthzChecker) er
 	s.healthzLock.Lock()
 	defer s.healthzLock.Unlock()
 
-	if s.healthChecksLocked {
+	if s.healthzCreated {
 		return fmt.Errorf("unable to add because the healthz endpoint has already been created")
 	}
 
@@ -40,35 +39,7 @@ func (s *GenericAPIServer) AddHealthzChecks(checks ...healthz.HealthzChecker) er
 func (s *GenericAPIServer) installHealthz() {
 	s.healthzLock.Lock()
 	defer s.healthzLock.Unlock()
-	s.healthChecksLocked = true
+	s.healthzCreated = true
 
 	healthz.InstallHandler(s.Handler.NonGoRestfulMux, s.healthzChecks...)
-}
-
-// installReadyz creates the readyz endpoint for this server, using the defined healthz check plus a termination check
-// that fails when the process is terminating.
-func (s *GenericAPIServer) installReadyz(stopCh <-chan struct{}) {
-	s.healthzLock.Lock()
-	defer s.healthzLock.Unlock()
-	s.healthChecksLocked = true
-
-	healthz.InstallPathHandler(s.Handler.NonGoRestfulMux, "/readyz", append([]healthz.HealthzChecker{terminationCheck{stopCh}}, s.healthzChecks...)...)
-}
-
-// terminationCheck fails if the embedded channel is closed during termination of the process.
-type terminationCheck struct {
-	StopCh <-chan struct{}
-}
-
-func (terminationCheck) Name() string {
-	return "terminating"
-}
-
-func (c terminationCheck) Check(req *http.Request) error {
-	select {
-	case <-c.StopCh:
-		return fmt.Errorf("process is terminating")
-	default:
-	}
-	return nil
 }

@@ -932,8 +932,6 @@ func testSaveInto(t *testing.T, protocol Protocol) {
 COMMIT
 # Completed on Thu Jan 19 11:38:09 2017`, iptablesSaveCmd+version)
 
-	stderrOutput := "#STDERR OUTPUT" // SaveInto() should should NOT capture stderr into the buffer
-
 	fcmd := fakeexec.FakeCmd{
 		CombinedOutputScript: []fakeexec.FakeCombinedOutputAction{
 			// iptables version check
@@ -942,8 +940,8 @@ COMMIT
 			func() ([]byte, error) { return []byte(iptablesRestoreCmd + version), nil },
 		},
 		RunScript: []fakeexec.FakeRunAction{
-			func() ([]byte, []byte, error) { return []byte(output), []byte(stderrOutput), nil },
-			func() ([]byte, []byte, error) { return nil, []byte(stderrOutput), &fakeexec.FakeExitError{Status: 1} },
+			func() ([]byte, []byte, error) { return []byte(output), nil, nil },
+			func() ([]byte, []byte, error) { return nil, nil, &fakeexec.FakeExitError{Status: 1} },
 		},
 	}
 	fexec := fakeexec.FakeExec{
@@ -964,8 +962,8 @@ COMMIT
 		t.Fatalf("%s: Expected success, got %v", protoStr, err)
 	}
 
-	if string(buffer.Bytes()) != output {
-		t.Errorf("%s: Expected output '%s', got '%v'", protoStr, output, string(buffer.Bytes()))
+	if string(buffer.Bytes()[:len(output)]) != output {
+		t.Errorf("%s: Expected output '%s', got '%v'", protoStr, output, buffer.Bytes())
 	}
 
 	if fcmd.CombinedOutputCalls != 2 {
@@ -983,9 +981,6 @@ COMMIT
 	err = runner.SaveInto(TableNAT, buffer)
 	if err == nil {
 		t.Errorf("%s: Expected failure", protoStr)
-	}
-	if string(buffer.Bytes()) != stderrOutput {
-		t.Errorf("%s: Expected output '%s', got '%v'", protoStr, stderrOutput, string(buffer.Bytes()))
 	}
 }
 

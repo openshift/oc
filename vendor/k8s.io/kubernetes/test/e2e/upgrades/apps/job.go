@@ -56,11 +56,6 @@ func (t *JobUpgradeTest) Test(f *framework.Framework, done <-chan struct{}, upgr
 	ginkgo.By("Ensuring active pods == parallelism")
 	running, err := framework.CheckForAllJobPodsRunning(f.ClientSet, t.namespace, t.job.Name, 2)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if !running {
-		framework.DumpAllNamespaceInfo(f.ClientSet, t.namespace)
-	}
-
 	gomega.Expect(running).To(gomega.BeTrue())
 }
 

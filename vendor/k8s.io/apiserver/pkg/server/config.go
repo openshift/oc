@@ -18,11 +18,10 @@ package server
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
-	"os"
 	goruntime "runtime"
 	"sort"
 	"strconv"
@@ -33,8 +32,8 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-openapi/spec"
 	"github.com/pborman/uuid"
+	"k8s.io/klog"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -56,18 +55,15 @@ import (
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/features"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
-	"k8s.io/apiserver/pkg/server/certs"
 	genericfilters "k8s.io/apiserver/pkg/server/filters"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/apiserver/pkg/server/routes"
 	serverstore "k8s.io/apiserver/pkg/server/storage"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
+	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/component-base/logs"
-	"k8s.io/klog"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
 
 	// install apis
@@ -159,9 +155,6 @@ type Config struct {
 	// If specified, long running requests such as watch will be allocated a random timeout between this value, and
 	// twice this value.  Note that it is up to the request handlers to ignore or honor this timeout. In seconds.
 	MinRequestTimeout int
-	// MinimalShutdownDuration allows to block shutdown for some time, e.g. until endpoints pointing to this API server
-	// have converged on all node. During this time, the API server keeps serving.
-	MinimalShutdownDuration time.Duration
 	// The limit on the total size increase all "copy" operations in a json
 	// patch may cause.
 	// This affects all places that applies json patch in the binary.
@@ -187,9 +180,6 @@ type Config struct {
 	// If not specify any in flags, then genericapiserver will only enable defaultAPIResourceConfig.
 	MergedResourceConfig *serverstore.ResourceConfig
 
-	// EventSink receives events about the life cycle of the API server, e.g. readiness, serving, signals and termination.
-	EventSink EventSink
-
 	//===========================================================================
 	// values below here are targets for removal
 	//===========================================================================
@@ -198,11 +188,6 @@ type Config struct {
 	// kube-proxy, services, etc.) can reach the GenericAPIServer.
 	// If nil or 0.0.0.0, the host's default interface will be used.
 	PublicAddress net.IP
-}
-
-// EventSink allows to create events.
-type EventSink interface {
-	Create(event *corev1.Event) (*corev1.Event, error)
 }
 
 type RecommendedConfig struct {
@@ -223,14 +208,15 @@ type SecureServingInfo struct {
 	// Listener is the secure server network listener.
 	Listener net.Listener
 
+	// Cert is the main server cert which is used if SNI does not match. Cert must be non-nil and is
+	// allowed to be in SNICerts.
+	Cert *tls.Certificate
+
+	// SNICerts are the TLS certificates by name used for SNI.
+	SNICerts map[string]*tls.Certificate
+
 	// ClientCA is the certificate bundle for all the signers that you'll recognize for incoming client certificates
-	ClientCA certs.CABundleFileReferences
-
-	DefaultCertificate certs.CertKeyFileReference
-	NameToCertificate  map[string]*certs.CertKeyFileReference
-
-	// LoopbackCert holds the special certificate that we create for loopback connections
-	LoopbackCert *tls.Certificate
+	ClientCA *x509.CertPool
 
 	// MinTLSVersion optionally overrides the minimum TLS version supported.
 	// Values are from tls package constants (https://golang.org/pkg/crypto/tls/#pkg-constants).
@@ -243,9 +229,6 @@ type SecureServingInfo struct {
 	// HTTP2MaxStreamsPerConnection is the limit that the api server imposes on each client.
 	// A value of zero means to use the default provided by golang's HTTP/2 support.
 	HTTP2MaxStreamsPerConnection int
-
-	// HTTP1Only indicates that http2 should not be enabled.
-	HTTP1Only bool
 }
 
 type AuthenticationInfo struct {
@@ -258,10 +241,6 @@ type AuthenticationInfo struct {
 	// If this is true, a basic auth challenge is returned on authentication failure
 	// TODO(roberthbailey): Remove once the server no longer supports http basic auth.
 	SupportsBasicAuth bool
-
-	// DynamicReloadFns are post-start hooks used to dynamically refresh authentication information.
-	// Only the authencation builder knows how to wire them and only this level of code knows how apply them.
-	DynamicReloadFns map[string]PostStartHookFunc
 }
 
 type AuthorizationInfo struct {
@@ -287,7 +266,6 @@ func NewConfig(codecs serializer.CodecFactory) *Config {
 		MaxMutatingRequestsInFlight: 200,
 		RequestTimeout:              time.Duration(60) * time.Second,
 		MinRequestTimeout:           1800,
-		MinimalShutdownDuration:     0,
 		// 10MB is the recommended maximum client request size in bytes
 		// the etcd server should accept. See
 		// https://github.com/etcd-io/etcd/blob/release-3.3/etcdserver/server.go#L90.
@@ -342,7 +320,16 @@ func DefaultOpenAPIConfig(getDefinitions openapicommon.GetOpenAPIDefinitions, de
 func (c *AuthenticationInfo) ApplyClientCert(clientCAFile string, servingInfo *SecureServingInfo) error {
 	if servingInfo != nil {
 		if len(clientCAFile) > 0 {
-			servingInfo.ClientCA.CABundles = append(servingInfo.ClientCA.CABundles, clientCAFile)
+			clientCAs, err := certutil.CertsFromFile(clientCAFile)
+			if err != nil {
+				return fmt.Errorf("unable to load client CA file: %v", err)
+			}
+			if servingInfo.ClientCA == nil {
+				servingInfo.ClientCA = x509.NewCertPool()
+			}
+			for _, cert := range clientCAs {
+				servingInfo.ClientCA.AddCert(cert)
+			}
 		}
 	}
 
@@ -424,10 +411,6 @@ func (c *Config) Complete(informers informers.SharedInformerFactory) CompletedCo
 		c.DiscoveryAddresses = discovery.DefaultAddresses{DefaultAddress: c.ExternalAddress}
 	}
 
-	if c.EventSink == nil {
-		c.EventSink = nullEventSink{}
-	}
-
 	AuthorizeClientBearerToken(c.LoopbackClientConfig, &c.Authentication, &c.Authorization)
 
 	if c.RequestInfoResolver == nil {
@@ -440,56 +423,7 @@ func (c *Config) Complete(informers informers.SharedInformerFactory) CompletedCo
 // Complete fills in any fields not set that are required to have valid data and can be derived
 // from other fields. If you're going to `ApplyOptions`, do that first. It's mutating the receiver.
 func (c *RecommendedConfig) Complete() CompletedConfig {
-	if c.ClientConfig != nil {
-		ref, err := eventReference()
-		if err != nil {
-			klog.Warningf("Failed to derive event reference, won't create events: %v", err)
-			c.EventSink = nullEventSink{}
-		} else {
-			ns := ref.Namespace
-			if len(ns) == 0 {
-				ns = "default"
-			}
-			c.EventSink = &v1.EventSinkImpl{
-				Interface: kubernetes.NewForConfigOrDie(c.ClientConfig).CoreV1().Events(ns),
-			}
-		}
-	}
-
 	return c.Config.Complete(c.SharedInformerFactory)
-}
-
-func eventReference() (*corev1.ObjectReference, error) {
-	ns := os.Getenv("POD_NAMESPACE")
-	pod := os.Getenv("POD_NAME")
-	if len(ns) == 0 && len(pod) > 0 {
-		serviceAccountNamespaceFile := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
-		if _, err := os.Stat(serviceAccountNamespaceFile); err == nil {
-			bs, err := ioutil.ReadFile(serviceAccountNamespaceFile)
-			if err != nil {
-				return nil, err
-			}
-			ns = string(bs)
-		}
-	}
-	if len(ns) == 0 {
-		pod = ""
-		ns = "kube-system"
-	}
-	if len(pod) == 0 {
-		return &corev1.ObjectReference{
-			Kind:       "Namespace",
-			Name:       ns,
-			APIVersion: "v1",
-		}, nil
-	}
-
-	return &corev1.ObjectReference{
-		Kind:       "Pod",
-		Namespace:  ns,
-		Name:       pod,
-		APIVersion: "v1",
-	}, nil
 }
 
 // New creates a new server which logically combines the handling chain with the passed server.
@@ -519,9 +453,8 @@ func (c completedConfig) New(name string, delegationTarget DelegationTarget) (*G
 		delegationTarget:       delegationTarget,
 		HandlerChainWaitGroup:  c.HandlerChainWaitGroup,
 
-		minRequestTimeout:       time.Duration(c.MinRequestTimeout) * time.Second,
-		MinimalShutdownDuration: c.MinimalShutdownDuration,
-		ShutdownTimeout:         c.RequestTimeout,
+		minRequestTimeout: time.Duration(c.MinRequestTimeout) * time.Second,
+		ShutdownTimeout:   c.RequestTimeout,
 
 		SecureServingInfo: c.SecureServing,
 		ExternalAddress:   c.ExternalAddress,
@@ -542,16 +475,7 @@ func (c completedConfig) New(name string, delegationTarget DelegationTarget) (*G
 
 		enableAPIResponseCompression: c.EnableAPIResponseCompression,
 		maxRequestBodyBytes:          c.MaxRequestBodyBytes,
-
-		eventSink: c.EventSink,
 	}
-
-	ref, err := eventReference()
-	if err != nil {
-		klog.Warningf("Failed to derive event reference, won't create events: %v", err)
-		c.EventSink = nullEventSink{}
-	}
-	s.eventRef = ref
 
 	for {
 		if c.JSONPatchMaxCopyBytes <= 0 {
@@ -582,16 +506,6 @@ func (c completedConfig) New(name string, delegationTarget DelegationTarget) (*G
 		})
 		if err != nil {
 			return nil, err
-		}
-	}
-
-	// often, authentication config is passed through multiple delegated apiservers.  If the authentication
-	// dynamic reloads themselves conflict, we only need to register the first one because there is only one authentication
-	// chain.  In any case where you may need more than one, you should always deconflict the names as we have
-	// in kube-apiserver's authentication chain versus the generic delegated one
-	for name, dynamicReloadFn := range c.Authentication.DynamicReloadFns {
-		if !s.isPostStartHookRegistered(name) {
-			s.AddPostStartHookOrDie(name, dynamicReloadFn)
 		}
 	}
 
@@ -720,10 +634,4 @@ func AuthorizeClientBearerToken(loopback *restclient.Config, authn *Authenticati
 
 	tokenAuthorizer := authorizerfactory.NewPrivilegedGroups(user.SystemPrivilegedGroup)
 	authz.Authorizer = authorizerunion.New(tokenAuthorizer, authz.Authorizer)
-}
-
-type nullEventSink struct{}
-
-func (nullEventSink) Create(event *corev1.Event) (*corev1.Event, error) {
-	return nil, nil
 }

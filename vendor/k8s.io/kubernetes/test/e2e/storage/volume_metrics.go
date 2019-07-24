@@ -49,13 +49,9 @@ var _ = utils.SIGDescribe("[Serial] Volume metrics", func() {
 	BeforeEach(func() {
 		c = f.ClientSet
 		ns = f.Namespace.Name
-		var err error
-
 		framework.SkipUnlessProviderIs("gce", "gke", "aws")
-		_, err = framework.GetDefaultStorageClassName(c)
-		if err != nil {
-			framework.Failf(err.Error())
-		}
+		defaultScName := getDefaultStorageClassName(c)
+		verifyDefaultStorageClass(c, defaultScName, true)
 
 		test := testsuites.StorageClassTest{
 			Name:      "default",
@@ -63,6 +59,7 @@ var _ = utils.SIGDescribe("[Serial] Volume metrics", func() {
 		}
 
 		pvc = newClaim(test, ns, "default")
+		var err error
 		metricsGrabber, err = metrics.NewMetricsGrabber(c, nil, true, false, true, false, false)
 
 		if err != nil {

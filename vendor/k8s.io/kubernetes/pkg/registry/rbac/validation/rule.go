@@ -286,8 +286,7 @@ func appliesToUser(user user.Info, subject rbacv1.Subject, namespace string) boo
 		if len(saNamespace) == 0 {
 			return false
 		}
-		// use a more efficient comparison for RBAC checking
-		return serviceaccount.MatchesUsername(saNamespace, subject.Name, user.GetName())
+		return serviceaccount.MakeUsername(saNamespace, subject.Name) == user.GetName()
 	default:
 		return false
 	}

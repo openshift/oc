@@ -17,8 +17,6 @@ limitations under the License.
 package upgrades
 
 import (
-	"time"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubernetes/test/e2e/framework"
@@ -39,7 +37,7 @@ type ServiceUpgradeTest struct {
 // Name returns the tracking name of the test.
 func (ServiceUpgradeTest) Name() string { return "service-upgrade" }
 
-func shouldTestPDBs() bool { return true }
+func shouldTestPDBs() bool { return framework.ProviderIs("gce", "gke") }
 
 // Setup creates a service with a load balancer and makes sure it's reachable.
 func (t *ServiceUpgradeTest) Setup(f *framework.Framework) {
@@ -69,8 +67,7 @@ func (t *ServiceUpgradeTest) Setup(f *framework.Framework) {
 
 	// Hit it once before considering ourselves ready
 	ginkgo.By("hitting the pod through the service's LoadBalancer")
-	// Load balancers can take more than 2 minutes in heavily contended AWS accounts
-	jig.TestReachableHTTP(tcpIngressIP, svcPort, 3*time.Minute)
+	jig.TestReachableHTTP(tcpIngressIP, svcPort, framework.LoadBalancerLagTimeoutDefault)
 
 	t.jig = jig
 	t.tcpService = tcpService

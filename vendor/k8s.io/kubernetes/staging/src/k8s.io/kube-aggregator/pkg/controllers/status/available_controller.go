@@ -17,12 +17,15 @@ limitations under the License.
 package apiserver
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/url"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/klog"
+
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -33,19 +36,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	v1informers "k8s.io/client-go/informers/core/v1"
 	v1listers "k8s.io/client-go/listers/core/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/transport"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
+
 	"k8s.io/kube-aggregator/pkg/apis/apiregistration"
 	apiregistrationclient "k8s.io/kube-aggregator/pkg/client/clientset_generated/internalclientset/typed/apiregistration/internalversion"
 	informers "k8s.io/kube-aggregator/pkg/client/informers/internalversion/apiregistration/internalversion"
 	listers "k8s.io/kube-aggregator/pkg/client/listers/apiregistration/internalversion"
 	"k8s.io/kube-aggregator/pkg/controllers"
 )
-
-type certFunc func() []byte
 
 // ServiceResolver knows how to convert a service reference into an actual location.
 type ServiceResolver interface {
@@ -66,9 +65,7 @@ type AvailableConditionController struct {
 	endpointsLister v1listers.EndpointsLister
 	endpointsSynced cache.InformerSynced
 
-	proxyTransport  *http.Transport
-	proxyClientCert certFunc
-	proxyClientKey  certFunc
+	discoveryClient *http.Client
 	serviceResolver ServiceResolver
 
 	// To allow injection for testing.
@@ -84,10 +81,8 @@ func NewAvailableConditionController(
 	endpointsInformer v1informers.EndpointsInformer,
 	apiServiceClient apiregistrationclient.APIServicesGetter,
 	proxyTransport *http.Transport,
-	proxyClientCert certFunc,
-	proxyClientKey certFunc,
 	serviceResolver ServiceResolver,
-) (*AvailableConditionController, error) {
+) *AvailableConditionController {
 	c := &AvailableConditionController{
 		apiServiceClient: apiServiceClient,
 		apiServiceLister: apiServiceInformer.Lister(),
@@ -103,10 +98,21 @@ func NewAvailableConditionController(
 			// the maximum disruption time to a minimum, but it does prevent hot loops.
 			workqueue.NewItemExponentialFailureRateLimiter(5*time.Millisecond, 30*time.Second),
 			"AvailableConditionController"),
-		proxyTransport:  proxyTransport,
-		proxyClientCert: proxyClientCert,
-		proxyClientKey:  proxyClientKey,
 	}
+
+	// construct an http client that will ignore TLS verification (if someone owns the network and messes with your status
+	// that's not so bad) and sets a very short timeout.
+	discoveryClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+		// the request should happen quickly.
+		Timeout: 5 * time.Second,
+	}
+	if proxyTransport != nil {
+		discoveryClient.Transport = proxyTransport
+	}
+	c.discoveryClient = discoveryClient
 
 	// resync on this one because it is low cardinality and rechecking the actual discovery
 	// allows us to detect health in a more timely fashion when network connectivity to
@@ -134,7 +140,7 @@ func NewAvailableConditionController(
 
 	c.syncFn = c.sync
 
-	return c, nil
+	return c
 }
 
 func (c *AvailableConditionController) sync(key string) error {
@@ -144,29 +150,6 @@ func (c *AvailableConditionController) sync(key string) error {
 	}
 	if err != nil {
 		return err
-	}
-
-	// if a particular transport was specified, use that otherwise build one
-	// construct an http client that will ignore TLS verification (if someone owns the network and messes with your status
-	// that's not so bad) and sets a very short timeout.  This is a best effort GET that provides no additional information
-	restConfig := &rest.Config{
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
-			CertData: c.proxyClientCert(),
-			KeyData:  c.proxyClientKey(),
-		},
-	}
-	if c.proxyTransport != nil && c.proxyTransport.DialContext != nil {
-		restConfig.Dial = c.proxyTransport.DialContext
-	}
-	restTransport, err := rest.TransportFor(restConfig)
-	if err != nil {
-		panic(err)
-	}
-	discoveryClient := &http.Client{
-		Transport: restTransport,
-		// the request should happen quickly.
-		Timeout: 5 * time.Second,
 	}
 
 	apiService := originalAPIService.DeepCopy()
@@ -252,70 +235,33 @@ func (c *AvailableConditionController) sync(key string) error {
 	}
 	// actually try to hit the discovery endpoint when it isn't local and when we're routing as a service.
 	if apiService.Spec.Service != nil && c.serviceResolver != nil {
-		attempts := 5
-		results := make(chan error, attempts)
-		for i := 0; i < attempts; i++ {
-			go func() {
-				discoveryURL, err := c.serviceResolver.ResolveEndpoint(apiService.Spec.Service.Namespace, apiService.Spec.Service.Name)
-				if err != nil {
-					results <- err
-					return
-				}
-
-				errCh := make(chan error)
-				go func() {
-					newReq, err := http.NewRequest("GET", discoveryURL.String(), nil)
-					if err != nil {
-						errCh <- err
-						return
-					}
-
-					// setting the system-masters identity ensures that we will always have access rights
-					transport.SetAuthProxyHeaders(newReq, "system:kube-aggregator", []string{"system:masters"}, nil)
-					resp, err := discoveryClient.Do(newReq)
-					if resp != nil {
-						resp.Body.Close()
-						// we should always been in the 200s or 300s
-						if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-							errCh <- fmt.Errorf("bad status from %v: %v", discoveryURL, resp.StatusCode)
-							return
-						}
-					}
-
-					errCh <- err
-				}()
-
-				select {
-				case err = <-errCh:
-					if err != nil {
-						results <- fmt.Errorf("failing or missing response from %v: %v", discoveryURL, err)
-						return
-					}
-
-					// we had trouble with slow dial and DNS responses causing us to wait too long.
-					// we added this as insurance
-				case <-time.After(6 * time.Second):
-					results <- fmt.Errorf("timed out waiting for %v", discoveryURL)
-					return
-				}
-
-				results <- nil
-			}()
+		discoveryURL, err := c.serviceResolver.ResolveEndpoint(apiService.Spec.Service.Namespace, apiService.Spec.Service.Name)
+		if err != nil {
+			return err
 		}
 
-		var lastError error
-		for i := 0; i < attempts; i++ {
-			lastError = <-results
-			// if we had at least one success, we are successful overall and we can return now
-			if lastError == nil {
-				break
+		errCh := make(chan error)
+		go func() {
+			resp, err := c.discoveryClient.Get(discoveryURL.String())
+			if resp != nil {
+				resp.Body.Close()
 			}
+			errCh <- err
+		}()
+
+		select {
+		case err = <-errCh:
+
+		// we had trouble with slow dial and DNS responses causing us to wait too long.
+		// we added this as insurance
+		case <-time.After(6 * time.Second):
+			err = fmt.Errorf("timed out waiting for %v", discoveryURL)
 		}
 
-		if lastError != nil {
+		if err != nil {
 			availableCondition.Status = apiregistration.ConditionFalse
 			availableCondition.Reason = "FailedDiscoveryCheck"
-			availableCondition.Message = lastError.Error()
+			availableCondition.Message = fmt.Sprintf("no response from %v: %v", discoveryURL, err)
 			apiregistration.SetAPIServiceCondition(apiService, availableCondition)
 			_, updateErr := updateAPIServiceStatus(c.apiServiceClient, originalAPIService, apiService)
 			if updateErr != nil {
@@ -323,7 +269,7 @@ func (c *AvailableConditionController) sync(key string) error {
 			}
 			// force a requeue to make it very obvious that this will be retried at some point in the future
 			// along with other requeues done via service change, endpoint change, and resync
-			return lastError
+			return err
 		}
 	}
 

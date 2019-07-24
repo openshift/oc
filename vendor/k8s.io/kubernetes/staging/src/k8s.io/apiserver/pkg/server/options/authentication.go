@@ -217,7 +217,7 @@ func (s *DelegatingAuthenticationOptions) ApplyTo(c *server.AuthenticationInfo, 
 	}
 
 	// create authenticator
-	authenticator, securityDefinitions, dynamicReloadFuncs, err := cfg.New()
+	authenticator, securityDefinitions, err := cfg.New()
 	if err != nil {
 		return err
 	}
@@ -226,16 +226,6 @@ func (s *DelegatingAuthenticationOptions) ApplyTo(c *server.AuthenticationInfo, 
 		openAPIConfig.SecurityDefinitions = securityDefinitions
 	}
 	c.SupportsBasicAuth = false
-	if c.DynamicReloadFns == nil {
-		c.DynamicReloadFns = map[string]server.PostStartHookFunc{}
-	}
-	for k, dynamicReloadFn := range dynamicReloadFuncs {
-		fnCopy := dynamicReloadFn
-		c.DynamicReloadFns[k] = func(context server.PostStartHookContext) error {
-			go fnCopy(context.StopCh)
-			return nil
-		}
-	}
 
 	return nil
 }

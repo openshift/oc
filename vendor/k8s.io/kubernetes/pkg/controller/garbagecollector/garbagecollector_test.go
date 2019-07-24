@@ -873,6 +873,7 @@ func TestGarbageCollectorSync(t *testing.T) {
 	go gc.Sync(fakeDiscoveryClient, 200*time.Millisecond, stopCh)
 
 	// Wait until the sync discovers the initial resources
+	fmt.Printf("Test output")
 	time.Sleep(1 * time.Second)
 
 	err = expectSyncNotBlocked(fakeDiscoveryClient, &gc.workerLock)

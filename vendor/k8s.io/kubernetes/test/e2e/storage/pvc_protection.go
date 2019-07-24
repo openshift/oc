@@ -48,11 +48,12 @@ var _ = utils.SIGDescribe("PVC Protection", func() {
 
 		By("Creating a PVC")
 		suffix := "pvc-protection"
-		framework.SkipIfNoDefaultStorageClass(client)
+		defaultSC := getDefaultStorageClassName(client)
 		testStorageClass := testsuites.StorageClassTest{
 			ClaimSize: "1Gi",
 		}
 		pvc = newClaim(testStorageClass, nameSpace, suffix)
+		pvc.Spec.StorageClassName = &defaultSC
 		pvc, err = client.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(pvc)
 		Expect(err).NotTo(HaveOccurred(), "Error creating PVC")
 		pvcCreatedAndNotDeleted = true

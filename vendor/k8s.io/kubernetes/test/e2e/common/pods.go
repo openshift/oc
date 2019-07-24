@@ -53,7 +53,7 @@ var (
 	// maxReadyStatusUpdateTolerance specifies the latency that allows kubelet to update pod status.
 	// When kubelet is under heavy load (tests may be parallelized), the delay may be longer, hence
 	// causing tests to be flaky.
-	maxReadyStatusUpdateTolerance = time.Minute
+	maxReadyStatusUpdateTolerance = 10 * time.Second
 )
 
 // testHostIP tests that a pod gets a host IP

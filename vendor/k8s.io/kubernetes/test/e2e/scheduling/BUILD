@@ -20,7 +20,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/apis/core:go_default_library",
-        "//pkg/apis/core/v1/helper/qos:go_default_library",
         "//pkg/apis/extensions:go_default_library",
         "//pkg/apis/scheduling:go_default_library",
         "//pkg/scheduler/algorithm/priorities/util:go_default_library",

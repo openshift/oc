@@ -59,7 +59,7 @@ import (
 )
 
 // NewSchedulerCommand creates a *cobra.Command object with default parameters
-func NewSchedulerCommand(stopCh <-chan struct{}) *cobra.Command {
+func NewSchedulerCommand() *cobra.Command {
 	opts, err := options.NewOptions()
 	if err != nil {
 		klog.Fatalf("unable to initialize command options: %v", err)
@@ -75,7 +75,7 @@ constraints, affinity and anti-affinity specifications, data locality, inter-wor
 interference, deadlines, and so on. Workload-specific requirements will be exposed
 through the API as necessary.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := runCommand(cmd, args, opts, stopCh); err != nil {
+			if err := runCommand(cmd, args, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
@@ -106,7 +106,7 @@ through the API as necessary.`,
 }
 
 // runCommand runs the scheduler.
-func runCommand(cmd *cobra.Command, args []string, opts *options.Options, stopCh <-chan struct{}) error {
+func runCommand(cmd *cobra.Command, args []string, opts *options.Options) error {
 	verflag.PrintAndExitIfRequested()
 	utilflag.PrintFlags(cmd.Flags())
 
@@ -133,6 +133,8 @@ func runCommand(cmd *cobra.Command, args []string, opts *options.Options, stopCh
 		os.Exit(1)
 	}
 
+	stopCh := make(chan struct{})
+
 	// Get the completed config
 	cc := c.Complete()
 
@@ -157,15 +159,6 @@ func runCommand(cmd *cobra.Command, args []string, opts *options.Options, stopCh
 func Run(cc schedulerserverconfig.CompletedConfig, stopCh <-chan struct{}) error {
 	// To help debugging, immediately log version
 	klog.V(1).Infof("Starting Kubernetes Scheduler version %+v", version.Get())
-	ctx, cancel := context.WithCancel(context.TODO())
-	defer cancel()
-	go func() {
-		select {
-		case <-stopCh:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
 
 	// Create the scheduler.
 	sched, err := scheduler.New(cc.Client,
@@ -219,14 +212,10 @@ func Run(cc schedulerserverconfig.CompletedConfig, stopCh <-chan struct{}) error
 	}
 	if cc.SecureServing != nil {
 		handler := buildHandlerChain(newHealthzHandler(&cc.ComponentConfig, false, checks...), cc.Authentication.Authenticator, cc.Authorization.Authorizer)
-		if serverStoppedCh, err := cc.SecureServing.Serve(handler, 0, stopCh); err != nil {
+		// TODO: handle stoppedCh returned by c.SecureServing.Serve
+		if _, err := cc.SecureServing.Serve(handler, 0, stopCh); err != nil {
 			// fail early for secure handlers, removing the old error loop from above
 			return fmt.Errorf("failed to start secure server: %v", err)
-		} else {
-			defer func() {
-				cancel()
-				<-serverStoppedCh
-			}()
 		}
 	}
 
@@ -238,12 +227,27 @@ func Run(cc schedulerserverconfig.CompletedConfig, stopCh <-chan struct{}) error
 	cc.InformerFactory.WaitForCacheSync(stopCh)
 	controller.WaitForCacheSync("scheduler", stopCh, cc.PodInformer.Informer().HasSynced)
 
+	// Prepare a reusable runCommand function.
+	run := func(ctx context.Context) {
+		sched.Run()
+		<-ctx.Done()
+	}
+
+	ctx, cancel := context.WithCancel(context.TODO()) // TODO once Run() accepts a context, it should be used here
+	defer cancel()
+
+	go func() {
+		select {
+		case <-stopCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
 	// If leader election is enabled, runCommand via LeaderElector until done and exit.
 	if cc.LeaderElection != nil {
 		cc.LeaderElection.Callbacks = leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(context.Context) {
-				sched.Run()
-			},
+			OnStartedLeading: run,
 			OnStoppedLeading: func() {
 				utilruntime.HandleError(fmt.Errorf("lost master"))
 			},
@@ -254,12 +258,13 @@ func Run(cc schedulerserverconfig.CompletedConfig, stopCh <-chan struct{}) error
 		}
 
 		leaderElector.Run(ctx)
-	} else {
-		// Leader election is disabled, so runCommand inline until done.
-		sched.Run()
+
+		return fmt.Errorf("lost lease")
 	}
 
-	return nil
+	// Leader election is disabled, so runCommand inline until done.
+	run(ctx)
+	return fmt.Errorf("finished without leader elect")
 }
 
 // buildHandlerChain wraps the given handler with the standard filters.

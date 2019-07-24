@@ -33,7 +33,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kube-aggregator/pkg/apis/apiregistration"
-	"k8s.io/kube-aggregator/pkg/apiserver"
 	"k8s.io/kubernetes/pkg/controller"
 )
 
@@ -194,14 +193,6 @@ func (c *crdRegistrationController) enqueueCRD(crd *apiextensions.CustomResource
 
 func (c *crdRegistrationController) handleVersionUpdate(groupVersion schema.GroupVersion) error {
 	apiServiceName := groupVersion.Version + "." + groupVersion.Group
-	
-	if apiserver.APIServiceAlreadyExists(groupVersion) {
-		// Removing APIService from sync means the CRD registration controller won't sync this APIService
-		// anymore. If the APIService is managed externally, this will mean the external component can
-		// update this APIService without CRD controller stomping the changes on it.
-		c.apiServiceRegistration.RemoveAPIServiceToSync(apiServiceName)
-		return nil
-	}
 
 	// check all CRDs.  There shouldn't that many, but if we have problems later we can index them
 	crds, err := c.crdLister.List(labels.Everything())
@@ -222,8 +213,8 @@ func (c *crdRegistrationController) handleVersionUpdate(groupVersion schema.Grou
 				Spec: apiregistration.APIServiceSpec{
 					Group:                groupVersion.Group,
 					Version:              groupVersion.Version,
-					GroupPriorityMinimum: getGroupPriorityMin(groupVersion.Group), // CRDs should have relatively low priority
-					VersionPriority:      100,                                     // CRDs will be sorted by kube-like versions like any other APIService with the same VersionPriority
+					GroupPriorityMinimum: 1000, // CRDs should have relatively low priority
+					VersionPriority:      100,  // CRDs will be sorted by kube-like versions like any other APIService with the same VersionPriority
 				},
 			})
 			return nil

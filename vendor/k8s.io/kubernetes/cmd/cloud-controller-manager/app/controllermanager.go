@@ -25,7 +25,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -110,16 +109,6 @@ the cloud specific control loops shipped with Kubernetes.`,
 
 // Run runs the ExternalCMServer.  This should never exit.
 func Run(c *cloudcontrollerconfig.CompletedConfig, stopCh <-chan struct{}) error {
-	ctx, cancel := context.WithCancel(context.TODO())
-	defer cancel()
-	go func() {
-		select {
-		case <-stopCh:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-
 	// To help debugging, immediately log version
 	klog.Infof("Version: %+v", version.Get())
 
@@ -158,13 +147,9 @@ func Run(c *cloudcontrollerconfig.CompletedConfig, stopCh <-chan struct{}) error
 	if c.SecureServing != nil {
 		unsecuredMux := genericcontrollermanager.NewBaseHandler(&c.ComponentConfig.Generic.Debugging, checks...)
 		handler := genericcontrollermanager.BuildHandlerChain(unsecuredMux, &c.Authorization, &c.Authentication)
-		if serverStoppedCh, err := c.SecureServing.Serve(handler, 0, stopCh); err != nil {
+		// TODO: handle stoppedCh returned by c.SecureServing.Serve
+		if _, err := c.SecureServing.Serve(handler, 0, stopCh); err != nil {
 			return err
-		} else {
-			defer func() {
-				cancel()
-				<-serverStoppedCh
-			}()
 		}
 	}
 	if c.InsecureServing != nil {
@@ -218,15 +203,13 @@ func Run(c *cloudcontrollerconfig.CompletedConfig, stopCh <-chan struct{}) error
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: run,
 			OnStoppedLeading: func() {
-				cancel()
-				utilruntime.HandleError(fmt.Errorf("leaderelection lost"))
+				klog.Fatalf("leaderelection lost")
 			},
 		},
 		WatchDog: electionChecker,
 		Name:     "cloud-controller-manager",
 	})
-
-	return nil
+	panic("unreachable")
 }
 
 // startControllers starts the cloud specific controller loops.

@@ -132,9 +132,7 @@ func (p *podTolerationsPlugin) Admit(a admission.Attributes, o admission.ObjectI
 			},
 		})
 	}
-	// Final merge of tolerations irrespective of pod type, if the user while creating pods gives
-	// conflicting tolerations(with same key+effect), the existing ones should be overwritten by latest one
-	pod.Spec.Tolerations = tolerations.MergeTolerations(finalTolerations, []api.Toleration{})
+	pod.Spec.Tolerations = finalTolerations
 
 	return p.Validate(a, o)
 }
