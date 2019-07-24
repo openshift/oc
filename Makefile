@@ -18,6 +18,7 @@ include $(addprefix ./vendor/github.com/openshift/library-go/alpha-build-machine
 
 GO_BUILD_PACKAGES :=$(strip \
 	./cmd/... \
+	./tools/... \
 )
 # These tags make sure we can statically link and avoid shared dependencies
 GO_BUILD_FLAGS :=-tags 'include_gcs include_oss containers_image_openpgp no_openssl gssapi'
@@ -35,3 +36,20 @@ image-ose-deployer: image-ose-cli
 $(call build-image,ose-recycler,./images/recycler/Dockerfile.rhel,.)
 image-ose-recycler: image-ose-cli
 
+update: update-generated-completions
+.PHONY: update
+
+verify: verify-cli-conventions verify-generated-completions
+.PHONY: verify
+
+verify-cli-conventions:
+	go run ./tools/clicheck
+.PHONY: verify-cli-conventions
+
+update-generated-completions: build
+	hack/update-generated-completions.sh
+.PHONY: update-generated-completions
+
+verify-generated-completions: build
+	hack/verify-generated-completions.sh
+.PHONY: verify-generated-completions
