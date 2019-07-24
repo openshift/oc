@@ -27,6 +27,11 @@ GO_BUILD_FLAGS :=-tags 'include_gcs include_oss containers_image_openpgp no_open
 # $1 - target suffix
 # $2 - Dockerfile path
 # $3 - context directory for image build
-# It will generate target "image-$(1)" for builing the image an binding it as a prerequisite to target "images".
-# There is no OKD and this one is based on RHEL - needs mount to get repos for yum install
-#$(call build-image,origin-$(notdir $(GO_PACKAGE)),./images/Dockerfile,.)
+$(call build-image,ose-cli,./images/cli/Dockerfile.rhel,.)
+
+$(call build-image,ose-deployer,./images/deployer/Dockerfile.rhel,.)
+image-ose-deployer: image-ose-cli
+
+$(call build-image,ose-recycler,./images/recycler/Dockerfile.rhel,.)
+image-ose-recycler: image-ose-cli
+
