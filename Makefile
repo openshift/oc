@@ -53,3 +53,10 @@ update-generated-completions: build
 verify-generated-completions: build
 	hack/verify-generated-completions.sh
 .PHONY: verify-generated-completions
+
+build-cross:
+	hack/build-cross.sh
+
+build-rpms:
+	hack/build-rpms.sh
+.PHONY: build-rpms
