@@ -19,7 +19,12 @@ Summary:        OpenShift client binaries
 License:        ASL 2.0
 URL:            https://%{import_path}
 
+# If go_arches not defined fall through to implicit golang archs
+%if 0%{?go_arches:1}
 ExclusiveArch:  %{go_arches}
+%else
+ExclusiveArch:  x86_64 aarch64 ppc64le s390x
+%endif
 
 #BuildRequires:  bsdtar
 BuildRequires:  golang >= %{golang_version}
