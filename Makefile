@@ -18,7 +18,7 @@ include $(addprefix ./vendor/github.com/openshift/library-go/alpha-build-machine
 
 GO_BUILD_PACKAGES :=$(strip \
 	./cmd/... \
-	./tools/... \
+	$(wildcard ./tools/*) \
 )
 # These tags make sure we can statically link and avoid shared dependencies
 GO_BUILD_FLAGS :=-tags 'include_gcs include_oss containers_image_openpgp gssapi'
