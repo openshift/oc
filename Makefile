@@ -22,6 +22,10 @@ GO_BUILD_PACKAGES :=$(strip \
 )
 # These tags make sure we can statically link and avoid shared dependencies
 GO_BUILD_FLAGS :=-tags 'include_gcs include_oss containers_image_openpgp gssapi'
+GO_BUILD_FLAGS_DARWIN :=-tags 'include_gcs include_oss containers_image_openpgp'
+GO_BUILD_FLAGS_WINDOWS :=-tags 'include_gcs include_oss containers_image_openpgp'
+OUTPUT_DIR :=_output
+CROSS_BUILD_BINDIR :=$(OUTPUT_DIR)/bin
 
 # This will call a macro called "build-image" which will generate image specific targets based on the parameters:
 # $0 - macro name
@@ -53,3 +57,22 @@ update-generated-completions: build
 verify-generated-completions: build
 	hack/verify-generated-completions.sh
 .PHONY: verify-generated-completions
+
+
+cross-build-darwin-amd64:
+	+@GOOS=darwin GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_DARWIN)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/darwin_amd64
+.PHONY: cross-build-darwin-amd64
+
+cross-build-windows-amd64:
+	+@GOOS=windows GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_WINDOWS)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/windows_amd64
+.PHONY: cross-build-windows-amd64
+
+cross-build: cross-build-darwin-amd64 cross-build-windows-amd64
+.PHONY: cross-build
+
+clean-cross-build:
+	$(RM) -r '$(CROSS_BUILD_BINDIR)'
+	if [ -d '$(OUTPUT_DIR)' ]; then rmdir --ignore-fail-on-non-empty '$(OUTPUT_DIR)'; fi
+.PHONY: clean-cross-build
+
+clean: clean-cross-build
