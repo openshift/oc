@@ -1,5 +1,5 @@
 hash: 133600678bfced8f947d0b7797aa19e87a4b7cb279eab1c96799fd17aac36ec3
-updated: 2019-07-24T07:36:55.22422713-04:00
+updated: 2019-07-30T16:26:54.886091866-04:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 2ae31c8b6b30d2f4c8100c20d527b571e9c433bb
@@ -93,7 +93,7 @@ imports:
   - types
   - version
 - name: github.com/containers/storage
-  version: 2bbc3ae6cb3749c625baa080621115b68139d860
+  version: 8614409664f16766e511c3890e51bd48688f635d
   subpackages:
   - pkg/fileutils
   - pkg/homedir
@@ -392,7 +392,7 @@ imports:
   - libcontainer/user
   - libcontainer/utils
 - name: github.com/openshift/api
-  version: d75a161a0f4ded1815ec24321fc1f8609c255cdb
+  version: 0922aa5a655be314e20a3e0e94f4f2b105100154
   subpackages:
   - annotations
   - apps
@@ -504,7 +504,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 2ccf23323324d7fd30f5c684e8aeed4ddb323107
+  version: 06fca5b7f9cc44922a00a9850755a79e3060213e
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -1068,6 +1068,7 @@ imports:
   version: 473b2830919bc04a8044a290df4be2c83b525b93
   repo: https://github.com/openshift/kubernetes.git
   subpackages:
+  - cmd/genutils
   - pkg/api/legacyscheme
   - pkg/api/service
   - pkg/api/v1/pod
