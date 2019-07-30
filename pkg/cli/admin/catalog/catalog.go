@@ -24,5 +24,6 @@ func NewCmd(f kcmdutil.Factory, parentName string, streams genericclioptions.IOS
 		},
 	}
 	cmd.AddCommand(NewBuildImage(f, parentName+" catalog", streams))
+	cmd.AddCommand(NewMirror(f, parentName+" mirror", streams))
 	return cmd
 }
