@@ -1,5 +1,5 @@
 hash: 133600678bfced8f947d0b7797aa19e87a4b7cb279eab1c96799fd17aac36ec3
-updated: 2019-07-24T07:36:55.22422713-04:00
+updated: 2019-07-31T14:11:30.280580035-04:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 2ae31c8b6b30d2f4c8100c20d527b571e9c433bb
@@ -93,7 +93,7 @@ imports:
   - types
   - version
 - name: github.com/containers/storage
-  version: 2bbc3ae6cb3749c625baa080621115b68139d860
+  version: 912de200380ac2fd1e90f91b78c1495ed8d5beea
   subpackages:
   - pkg/fileutils
   - pkg/homedir
@@ -188,7 +188,7 @@ imports:
   - ipamutils
   - ipvs
 - name: github.com/docker/libtrust
-  version: aabc10ec26b754e797f9028f4589c5b7bd90dc20
+  version: 9cbd2a1374f46905c68a4eb3694a130610adc62a
 - name: github.com/docker/spdystream
   version: 449fdfce4d962303d702fec724ef0ad181c92528
   subpackages:
@@ -290,7 +290,7 @@ imports:
 - name: github.com/google/gofuzz
   version: 24818f796faf91cd76ec7bddd72458fbced7a6c1
 - name: github.com/google/uuid
-  version: c2e93f3ae59f2904160ceaab466009f965df46d6
+  version: 8c31c18f31ede9fc8eae72290a7e7a8064e9b3e3
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -298,7 +298,7 @@ imports:
   - compiler
   - extensions
 - name: github.com/gorilla/mux
-  version: e67b3c02c7195c052acff13261f0c9fd1ba53011
+  version: 08e7f807d38d6a870193019bb439056118661505
 - name: github.com/gregjones/httpcache
   version: 787624de3eb7bd915c329cba748687a3b22666a6
   subpackages:
@@ -366,7 +366,7 @@ imports:
   version: 53ca7dc85f609e8aa3af7902f189ed5dca96dbb5
   repo: https://github.com/openshift/onsi-ginkgo.git
 - name: github.com/opencontainers/go-digest
-  version: ac19fd6e7483ff933754af248d80be865e543d22
+  version: a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
 - name: github.com/opencontainers/image-spec
   version: 372ad780f63454fbbbbcc7cf80e5b90245c13e13
   subpackages:
@@ -392,7 +392,7 @@ imports:
   - libcontainer/user
   - libcontainer/utils
 - name: github.com/openshift/api
-  version: d75a161a0f4ded1815ec24321fc1f8609c255cdb
+  version: 0922aa5a655be314e20a3e0e94f4f2b105100154
   subpackages:
   - annotations
   - apps
@@ -504,7 +504,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 2ccf23323324d7fd30f5c684e8aeed4ddb323107
+  version: 950af653b51af28697df79f1406fc9d21f722db8
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -682,7 +682,7 @@ imports:
   - unicode/norm
   - width
 - name: golang.org/x/time
-  version: 9d24e82272b4f38b78bc8cff74fa936d31ccd8ef
+  version: f51c12702a4d776e4c1fa9b0fabab841babae631
   subpackages:
   - rate
 - name: golang.org/x/tools
@@ -1068,6 +1068,7 @@ imports:
   version: 473b2830919bc04a8044a290df4be2c83b525b93
   repo: https://github.com/openshift/kubernetes.git
   subpackages:
+  - cmd/genutils
   - pkg/api/legacyscheme
   - pkg/api/service
   - pkg/api/v1/pod
@@ -1290,7 +1291,7 @@ imports:
   - pkg/transformers/config/defaultconfig
   - pkg/types
 - name: sigs.k8s.io/yaml
-  version: 4cd0c284b15f1735b8cc247df097d262b8903f9f
+  version: fd68e9863619f6ec2fdd8625fe1f02e7c877e480
 - name: vbom.ml/util
   version: db5cfe13f5cc80a4990d98e2e1b0707a4d1a5394
   subpackages:
