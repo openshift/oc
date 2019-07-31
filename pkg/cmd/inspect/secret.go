@@ -84,4 +84,7 @@ func elideSecret(secret *corev1.Secret) {
 	if _, ok := secret.Annotations["openshift.io/token-secret.value"]; ok {
 		secret.Annotations["openshift.io/token-secret.value"] = ""
 	}
+	if _, ok := secret.Annotations["kubectl.kubernetes.io/last-applied-configuration"]; ok {
+		secret.Annotations["kubectl.kubernetes.io/last-applied-configuration"] = ""
+	}
 }
