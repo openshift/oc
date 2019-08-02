@@ -1,5 +1,5 @@
 hash: 133600678bfced8f947d0b7797aa19e87a4b7cb279eab1c96799fd17aac36ec3
-updated: 2019-07-31T14:11:30.280580035-04:00
+updated: 2019-08-01T17:39:30.516109233+02:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 2ae31c8b6b30d2f4c8100c20d527b571e9c433bb
@@ -93,7 +93,7 @@ imports:
   - types
   - version
 - name: github.com/containers/storage
-  version: 912de200380ac2fd1e90f91b78c1495ed8d5beea
+  version: 1b2a0dcaf4e74170644c851ff75b8637dbd2af68
   subpackages:
   - pkg/fileutils
   - pkg/homedir
@@ -188,7 +188,7 @@ imports:
   - ipamutils
   - ipvs
 - name: github.com/docker/libtrust
-  version: 9cbd2a1374f46905c68a4eb3694a130610adc62a
+  version: aabc10ec26b754e797f9028f4589c5b7bd90dc20
 - name: github.com/docker/spdystream
   version: 449fdfce4d962303d702fec724ef0ad181c92528
   subpackages:
@@ -290,7 +290,7 @@ imports:
 - name: github.com/google/gofuzz
   version: 24818f796faf91cd76ec7bddd72458fbced7a6c1
 - name: github.com/google/uuid
-  version: 8c31c18f31ede9fc8eae72290a7e7a8064e9b3e3
+  version: c2e93f3ae59f2904160ceaab466009f965df46d6
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -298,7 +298,7 @@ imports:
   - compiler
   - extensions
 - name: github.com/gorilla/mux
-  version: 08e7f807d38d6a870193019bb439056118661505
+  version: e67b3c02c7195c052acff13261f0c9fd1ba53011
 - name: github.com/gregjones/httpcache
   version: 787624de3eb7bd915c329cba748687a3b22666a6
   subpackages:
@@ -366,7 +366,7 @@ imports:
   version: 53ca7dc85f609e8aa3af7902f189ed5dca96dbb5
   repo: https://github.com/openshift/onsi-ginkgo.git
 - name: github.com/opencontainers/go-digest
-  version: a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
+  version: ac19fd6e7483ff933754af248d80be865e543d22
 - name: github.com/opencontainers/image-spec
   version: 372ad780f63454fbbbbcc7cf80e5b90245c13e13
   subpackages:
@@ -504,7 +504,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 950af653b51af28697df79f1406fc9d21f722db8
+  version: 1810ce5f54ff4a1a4fea05e06024896a4885eb05
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
