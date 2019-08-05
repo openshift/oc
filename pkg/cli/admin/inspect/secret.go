@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions/resource"
+	"k8s.io/cli-runtime/pkg/resource"
 )
 
 func inspectSecretInfo(info *resource.Info, o *InspectOptions) error {
@@ -54,7 +54,7 @@ func inspectSecretInfo(info *resource.Info, o *InspectOptions) error {
 	}
 
 	// save the current object to disk
-	dirPath := dirPathForInfo(o.baseDir, info)
+	dirPath := dirPathForInfo(o.destDir, info)
 	filename := filenameForInfo(info)
 	// ensure destination path exists
 	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {

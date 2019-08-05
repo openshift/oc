@@ -12,10 +12,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions/resource"
+	"k8s.io/cli-runtime/pkg/resource"
 
 	configv1 "github.com/openshift/api/config/v1"
-	"github.com/openshift/must-gather/pkg/util"
 )
 
 const (
@@ -44,17 +43,17 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 		// first, gather config.openshift.io resource data
 		errs := []error{}
-		if err := o.gatherConfigResourceData(path.Join(o.baseDir, "/cluster-scoped-resources/config.openshift.io"), context); err != nil {
+		if err := o.gatherConfigResourceData(path.Join(o.destDir, "/cluster-scoped-resources/config.openshift.io"), context); err != nil {
 			errs = append(errs, err)
 		}
 
 		// then, gather operator.openshift.io resource data
-		if err := o.gatherOperatorResourceData(path.Join(o.baseDir, "/cluster-scoped-resources/operator.openshift.io"), context); err != nil {
+		if err := o.gatherOperatorResourceData(path.Join(o.destDir, "/cluster-scoped-resources/operator.openshift.io"), context); err != nil {
 			errs = append(errs, err)
 		}
 
 		// save clusteroperator resources to disk
-		if err := gatherClusterOperatorResource(o.baseDir, unstr, o.fileWriter); err != nil {
+		if err := gatherClusterOperatorResource(o.destDir, unstr, o.fileWriter); err != nil {
 			return err
 		}
 
@@ -87,7 +86,7 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 	case corev1.SchemeGroupVersion.WithResource("namespaces").GroupResource():
 		errs := []error{}
-		if err := o.gatherNamespaceData(o.baseDir, info.Name); err != nil {
+		if err := o.gatherNamespaceData(o.destDir, info.Name); err != nil {
 			errs = append(errs, err)
 		}
 		resourcesToCollect := namespaceResourcesToCollect()
@@ -123,7 +122,7 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 		return nil
 	default:
 		// save the current object to disk
-		dirPath := dirPathForInfo(o.baseDir, info)
+		dirPath := dirPathForInfo(o.destDir, info)
 		filename := filenameForInfo(info)
 		// ensure destination path exists
 		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
@@ -134,7 +133,7 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 	}
 }
 
-func gatherClusterOperatorResource(baseDir string, obj *unstructured.Unstructured, fileWriter *util.MultiSourceFileWriter) error {
+func gatherClusterOperatorResource(baseDir string, obj *unstructured.Unstructured, fileWriter *MultiSourceFileWriter) error {
 	log.Printf("Gathering cluster operator resource data...\n")
 
 	// ensure destination path exists

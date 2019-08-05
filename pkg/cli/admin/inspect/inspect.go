@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"path"
 	"strings"
@@ -16,26 +17,34 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/cli-runtime/pkg/genericclioptions/resource"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	configv1 "github.com/openshift/api/config/v1"
-
-	"github.com/openshift/must-gather/pkg/util"
 )
 
 var (
-	inspectExample = `
-	# Collect debugging data for the "openshift-apiserver"
-	%[1]s inspect clusteroperator/openshift-apiserver
+	inspectLong = templates.LongDesc(`
+		Gather debugging information for a resource.
 
-	# Collect debugging data for all clusteroperators
-	%[1]s inspect clusteroperator
-`
+		This command downloads the specified resource and any related 
+		resources for the purpose of gathering debugging information.
+
+		Experimental: This command is under active development and may change without notice.
+	`)
+
+	inspectExample = templates.Examples(`
+		# Collect debugging data for the "openshift-apiserver" clusteroperator
+		%[1]s clusteroperator/openshift-apiserver
+		
+		# Collect debugging data for all clusteroperators
+		%[1]s clusteroperator
+	`)
 )
 
 type InspectOptions struct {
@@ -47,16 +56,16 @@ type InspectOptions struct {
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
 
-	podUrlGetter *util.PortForwardURLGetter
+	podUrlGetter *PortForwardURLGetter
 
-	fileWriter    *util.MultiSourceFileWriter
+	fileWriter    *MultiSourceFileWriter
 	builder       *resource.Builder
 	args          []string
 	namespace     string
 	allNamespaces bool
 
 	// directory where all gathered data will be stored
-	baseDir string
+	destDir string
 	// whether or not to allow writes to an existing and populated base directory
 	overwrite bool
 
@@ -66,20 +75,21 @@ type InspectOptions struct {
 func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
 	return &InspectOptions{
 		printFlags:  genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme),
-		configFlags: genericclioptions.NewConfigFlags(),
+		configFlags: genericclioptions.NewConfigFlags(true),
 		overwrite:   true,
 		IOStreams:   streams,
 	}
 }
 
-func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdInspect(streams genericclioptions.IOStreams, parentCommandPath string) *cobra.Command {
 	o := NewInspectOptions(streams)
-
+	commandPath := strings.TrimSpace(parentCommandPath + " inspect")
 	cmd := &cobra.Command{
-		Use:          "inspect <operator> [flags]",
-		Short:        "Collect debugging data for a given cluster operator",
-		Example:      fmt.Sprintf(inspectExample, os.Args[0]),
-		SilenceUsage: true,
+		Use:     "inspect (TYPE[.VERSION][.GROUP] [NAME] | TYPE[.VERSION][.GROUP]/NAME ...)  [flags]",
+		Short:   "Collect debugging data for a given resource",
+		Long:    inspectLong,
+		Example: fmt.Sprintf(inspectExample, commandPath),
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := o.Complete(c, args); err != nil {
 				return err
@@ -95,7 +105,7 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&o.baseDir, "base-dir", "must-gather", "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/must-gather")
+	cmd.Flags().StringVar(&o.destDir, "dest-dir", o.destDir, "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/inspect.local.<rand>")
 	cmd.Flags().BoolVar(&o.allNamespaces, "all-namespaces", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 
 	o.configFlags.AddFlags(cmd.Flags())
@@ -136,19 +146,23 @@ func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	o.fileWriter = util.NewMultiSourceWriter(printer)
-	o.podUrlGetter = &util.PortForwardURLGetter{
+	o.fileWriter = NewMultiSourceWriter(printer)
+	o.podUrlGetter = &PortForwardURLGetter{
 		Protocol:  "https",
 		Host:      "localhost",
 		LocalPort: "37587",
 	}
 
 	o.builder = resource.NewBuilder(o.configFlags)
+
+	if len(o.destDir) == 0 {
+		o.destDir = fmt.Sprintf("inspect.local.%06d", rand.Int63())
+	}
 	return nil
 }
 
 func (o *InspectOptions) Validate() error {
-	if len(o.baseDir) == 0 {
+	if len(o.destDir) == 0 {
 		return fmt.Errorf("--base-dir must not be empty")
 	}
 	return nil
@@ -168,7 +182,7 @@ func (o *InspectOptions) Run() error {
 	}
 
 	// ensure we're able to proceed writing data to specified destination
-	if err := ensureDirectoryViable(o.baseDir, o.overwrite); err != nil {
+	if err := ensureDirectoryViable(o.destDir, o.overwrite); err != nil {
 		return err
 	}
 

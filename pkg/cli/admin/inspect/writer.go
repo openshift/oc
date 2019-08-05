@@ -1,4 +1,4 @@
-package util
+package inspect
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions/printers"
+	"k8s.io/cli-runtime/pkg/printers"
 )
 
 type fileWriterSource interface {
