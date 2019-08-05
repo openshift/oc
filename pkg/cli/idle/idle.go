@@ -405,10 +405,10 @@ func findScalableResourcesForEndpoints(endpoints *corev1.Endpoints, getPod func(
 	immediateControllerRefs := make(map[namespacedOwnerReference]struct{})
 	for _, pod := range podRefs {
 		controllerRef := metav1.GetControllerOf(pod)
-		ref := normalizedNSOwnerRef(pod.Namespace, controllerRef)
 		if controllerRef == nil {
 			return nil, fmt.Errorf("unable to find controller for pod %s/%s: no creator reference listed", pod.Namespace, pod.Name)
 		}
+		ref := normalizedNSOwnerRef(pod.Namespace, controllerRef)
 		immediateControllerRefs[ref] = struct{}{}
 	}
 
