@@ -9,7 +9,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/openshift/must-gather/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/rest"
@@ -34,7 +33,7 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 	errs := []error{}
 
 	// skip gathering container data if containers are no longer running
-	if running, err := util.PodRunningReady(pod); err != nil {
+	if running, err := PodRunningReady(pod); err != nil {
 		return err
 	} else if !running {
 		log.Printf("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
@@ -70,7 +69,7 @@ func (o *InspectOptions) gatherContainerInfo(destDir string, pod *corev1.Pod, co
 		log.Printf("        Skipping container endpoint collection for pod %q container %q: No ports\n", pod.Name, container.Name)
 		return nil
 	}
-	port := &util.RemoteContainerPort{
+	port := &RemoteContainerPort{
 		Protocol: "https",
 		Port:     container.Ports[0].ContainerPort,
 	}
@@ -99,7 +98,7 @@ func (o *InspectOptions) gatherContainerAllLogs(destDir string, pod *corev1.Pod,
 	return nil
 }
 
-func (o *InspectOptions) gatherContainerEndpoints(destDir string, pod *corev1.Pod, container *corev1.Container, metricsPort *util.RemoteContainerPort) error {
+func (o *InspectOptions) gatherContainerEndpoints(destDir string, pod *corev1.Pod, container *corev1.Container, metricsPort *RemoteContainerPort) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -130,7 +129,7 @@ func filterContainerLogsErrors(err error) error {
 	return err
 }
 
-func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod, metricsPort *util.RemoteContainerPort) error {
+func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod, metricsPort *RemoteContainerPort) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -157,11 +156,11 @@ func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod,
 
 	result, err := o.podUrlGetter.Get("/version", pod, o.restConfig, metricsPort)
 
-	return o.fileWriter.WriteFromSource(path.Join(destDir, "version.json"), &util.TextWriterSource{Text: result})
+	return o.fileWriter.WriteFromSource(path.Join(destDir, "version.json"), &TextWriterSource{Text: result})
 }
 
 // gatherContainerMetrics invokes an asynchronous network call
-func (o *InspectOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod, metricsPort *util.RemoteContainerPort) error {
+func (o *InspectOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod, metricsPort *RemoteContainerPort) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -173,10 +172,10 @@ func (o *InspectOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod,
 		return err
 	}
 
-	return o.fileWriter.WriteFromSource(path.Join(destDir, "metrics.json"), &util.TextWriterSource{Text: result})
+	return o.fileWriter.WriteFromSource(path.Join(destDir, "metrics.json"), &TextWriterSource{Text: result})
 }
 
-func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, metricsPort *util.RemoteContainerPort) error {
+func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod, metricsPort *RemoteContainerPort) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -225,14 +224,14 @@ func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod,
 			}
 		}
 
-		if err := o.fileWriter.WriteFromSource(path.Join(destDir, filename), &util.TextWriterSource{Text: result}); err != nil {
+		if err := o.fileWriter.WriteFromSource(path.Join(destDir, filename), &TextWriterSource{Text: result}); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func getAvailablePodEndpoints(urlGetter *util.PortForwardURLGetter, pod *corev1.Pod, config *rest.Config, port *util.RemoteContainerPort) ([]string, error) {
+func getAvailablePodEndpoints(urlGetter *PortForwardURLGetter, pod *corev1.Pod, config *rest.Config, port *RemoteContainerPort) ([]string, error) {
 	result, err := urlGetter.Get("/", pod, config, port)
 	if err != nil {
 		return nil, err
