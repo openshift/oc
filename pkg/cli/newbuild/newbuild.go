@@ -153,7 +153,7 @@ func NewCmdNewBuild(name, baseName string, f kcmdutil.Factory, streams genericcl
 	cmd.Flags().StringVar(&o.Config.SourceImage, "source-image", o.Config.SourceImage, "Specify an image to use as source for the build.  You must also specify --source-image-path.")
 	cmd.Flags().StringVar(&o.Config.SourceImagePath, "source-image-path", o.Config.SourceImagePath, "Specify the file or directory to copy from the source image and its destination in the build directory. Format: [source]:[destination-dir].")
 
-	o.Action.BindForOutput(cmd.Flags(), "output", "template")
+	o.Action.BindForOutput(cmd.Flags(), "output", "template", "sort-by")
 	cmd.Flags().String("output-version", "", "The preferred API versions of the output objects")
 
 	o.PrintFlags.AddFlags(cmd)
