@@ -2354,6 +2354,8 @@ _oc_adm_node-logs()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--boot=")
+    local_nonpersistent_flags+=("--boot=")
     flags+=("--case-sensitive")
     local_nonpersistent_flags+=("--case-sensitive")
     flags+=("--grep=")
