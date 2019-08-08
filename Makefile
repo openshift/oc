@@ -35,6 +35,11 @@ RPM_EXTRAFLAGS := \
 
 IMAGE_REGISTRY :=registry.svc.ci.openshift.org
 
+oc: GO_BUILD_PACKAGES:=./cmd/oc
+oc: build
+
+.PHONY: oc
+
 # This will call a macro called "build-image" which will generate image specific targets based on the parameters:
 # $1 - target name
 # $2 - image ref
