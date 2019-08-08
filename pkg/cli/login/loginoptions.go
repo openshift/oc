@@ -142,6 +142,11 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 				clientConfig.Insecure = true
 				clientConfig.CAFile = ""
 				clientConfig.CAData = nil
+				// dialToServer was called above but in case of user choosing insecure,
+				// need to call again for invalidServerURL check
+				if err := dialToServer(*clientConfig); err != nil {
+					return nil, err
+				}
 			} else {
 				return nil, getPrettyErrorForServer(err, o.Server)
 			}
@@ -155,6 +160,7 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 			}
 			return nil, err
 		}
+
 	}
 
 	o.Config = clientConfig
@@ -229,6 +235,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	clientConfig.KeyData = []byte{}
 	clientConfig.CertFile = o.CertFile
 	clientConfig.KeyFile = o.KeyFile
+
 	token, err := tokencmd.RequestToken(o.Config, o.In, o.Username, o.Password)
 	if err != nil {
 		return err

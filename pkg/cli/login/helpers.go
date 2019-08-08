@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	restclient "k8s.io/client-go/rest"
@@ -72,6 +73,13 @@ func dialToServer(clientConfig restclient.Config) error {
 	res, err := rt.RoundTrip(req)
 	if err != nil {
 		return err
+	}
+
+	// This is to guide a user who passes the console URL instead of server URL
+	// See https://bugzilla.redhat.com/show_bug.cgi?id=1704827
+	contentType := res.Header.Get("Content-Type")
+	if strings.Contains(contentType, "text/html") {
+		return &errInvalidServerURL{}
 	}
 
 	defer res.Body.Close()
