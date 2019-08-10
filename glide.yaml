@@ -191,3 +191,7 @@ import:
 # https://github.com/kubernetes/kubernetes/pull/72138
 - package: bitbucket.org/ww/goautoneg
   repo: https://github.com/munnerz/goautoneg.git
+
+# for operator catalog builds
+- package: github.com/operator-framework/operator-registry
+  version: v1.2.0

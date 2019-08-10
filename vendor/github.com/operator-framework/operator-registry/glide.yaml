@@ -1,0 +1,70 @@
+package: .
+import:
+- package: github.com/antihax/optional
+- package: github.com/ghodss/yaml
+- package: github.com/golang/mock
+  subpackages:
+  - gomock
+- package: github.com/golang/protobuf
+  subpackages:
+  - proto
+  - protoc-gen-go
+- package: github.com/grpc-ecosystem/grpc-health-probe
+- package: github.com/mattn/go-sqlite3
+- package: github.com/operator-framework/operator-lifecycle-manager
+  subpackages:
+  - pkg/api/apis/operators/v1alpha1
+  - pkg/controller/registry
+- package: github.com/operator-framework/operator-registry
+  subpackages:
+  - pkg/api
+  - pkg/api/grpc_health_v1
+  - pkg/apprclient
+  - pkg/apprclient/openapi
+  - pkg/appregistry
+  - pkg/lib/log
+  - pkg/registry
+  - pkg/server
+  - pkg/sqlite
+- package: github.com/sirupsen/logrus
+- package: github.com/spf13/cobra
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: golang.org/x/oauth2
+- package: google.golang.org/grpc
+  subpackages:
+  - connectivity
+  - reflection
+- package: k8s.io/api
+  subpackages:
+  - core/v1
+- package: k8s.io/apiextensions-apiserver
+  subpackages:
+  - pkg/apis/apiextensions
+  - pkg/apis/apiextensions/v1beta1
+  - pkg/apis/apiextensions/validation
+  - pkg/apiserver/validation
+- package: k8s.io/apimachinery
+  subpackages:
+  - pkg/api/validation
+  - pkg/apis/meta/v1
+  - pkg/apis/meta/v1/unstructured
+  - pkg/conversion
+  - pkg/runtime
+  - pkg/runtime/schema
+  - pkg/runtime/serializer
+  - pkg/types
+  - pkg/util/errors
+  - pkg/util/validation/field
+  - pkg/util/yaml
+- package: k8s.io/client-go
+  subpackages:
+  - kubernetes
+  - rest
+  - tools/clientcmd
+testImport:
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert
+  - require
