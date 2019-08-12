@@ -170,23 +170,15 @@ func (o *SCCSubjectReviewOptions) Run(args []string) error {
 			return err
 		}
 		if len(userOrSA) > 0 || len(o.Groups) > 0 {
-			unversionedObj, err := o.pspSubjectReview(userOrSA, podTemplateSpec)
+			versionedObj, err := o.pspSubjectReview(userOrSA, podTemplateSpec)
 			if err != nil {
 				return fmt.Errorf("unable to compute Pod Security Policy Subject Review for %q: %v", objectName, err)
-			}
-			versionedObj := &securityv1.PodSecurityPolicySubjectReview{}
-			if err := scheme.Scheme.Convert(unversionedObj, versionedObj, nil); err != nil {
-				return err
 			}
 			response = versionedObj
 		} else {
-			unversionedObj, err := o.pspSelfSubjectReview(podTemplateSpec)
+			versionedObj, err := o.pspSelfSubjectReview(podTemplateSpec)
 			if err != nil {
 				return fmt.Errorf("unable to compute Pod Security Policy Subject Review for %q: %v", objectName, err)
-			}
-			versionedObj := &securityv1.PodSecurityPolicySelfSubjectReview{}
-			if err := scheme.Scheme.Convert(unversionedObj, versionedObj, nil); err != nil {
-				return err
 			}
 			response = versionedObj
 		}

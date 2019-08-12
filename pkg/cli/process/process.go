@@ -420,16 +420,10 @@ func (o *ProcessOptions) RunProcess() error {
 		return o.Printer.PrintObj(resultObj, o.Out)
 	}
 
-	// attempt to convert our resulting object to external
-	var externalResultObj templatev1.Template
-	if err := scheme.Scheme.Convert(resultObj, &externalResultObj, nil); err != nil {
-		return fmt.Errorf("unable to convert template to external template object: %v", err)
-	}
-
 	// the name printer does not accept object lists, so re-use
 	// the print loop used for --raw printing instead.
 	if o.outputFormat == "name" || o.raw {
-		for _, obj := range externalResultObj.Objects {
+		for _, obj := range resultObj.Objects {
 			objToPrint := obj.Object
 
 			if objToPrint == nil {
@@ -451,7 +445,7 @@ func (o *ProcessOptions) RunProcess() error {
 
 	return o.Printer.PrintObj(&corev1.List{
 		ListMeta: metav1.ListMeta{},
-		Items:    externalResultObj.Objects,
+		Items:    resultObj.Objects,
 	}, o.Out)
 }
 
