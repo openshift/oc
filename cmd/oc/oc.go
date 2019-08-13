@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/pflag"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/openshift/api/apps"
 	"github.com/openshift/api/authorization"
+	authv1 "github.com/openshift/api/authorization/v1"
 	"github.com/openshift/api/build"
 	"github.com/openshift/api/image"
 	"github.com/openshift/api/network"
@@ -78,6 +80,7 @@ func main() {
 	utilruntime.Must(quota.Install(scheme.Scheme))
 	utilruntime.Must(route.Install(scheme.Scheme))
 	utilruntime.Must(installNonCRDSecurity(scheme.Scheme))
+	utilruntime.Must(installNonCRDAuthorization(scheme.Scheme))
 	utilruntime.Must(template.Install(scheme.Scheme))
 	utilruntime.Must(user.Install(scheme.Scheme))
 	legacy.InstallExternalLegacyAll(scheme.Scheme)
@@ -94,6 +97,7 @@ func main() {
 	utilruntime.Must(quota.Install(legacyscheme.Scheme))
 	utilruntime.Must(route.Install(legacyscheme.Scheme))
 	utilruntime.Must(installNonCRDSecurity(legacyscheme.Scheme))
+	utilruntime.Must(installNonCRDAuthorization(legacyscheme.Scheme))
 	utilruntime.Must(template.Install(legacyscheme.Scheme))
 	utilruntime.Must(user.Install(legacyscheme.Scheme))
 	legacy.InstallExternalLegacyAll(legacyscheme.Scheme)
@@ -103,6 +107,44 @@ func main() {
 	if err := command.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func installNonCRDAuthorization(scheme *apimachineryruntime.Scheme) error {
+	scheme.AddKnownTypes(authv1.GroupVersion,
+		&authv1.Role{},
+		&authv1.RoleBinding{},
+		&authv1.RoleBindingList{},
+		&authv1.RoleList{},
+
+		&authv1.SelfSubjectRulesReview{},
+		&authv1.SubjectRulesReview{},
+		&authv1.ResourceAccessReview{},
+		&authv1.SubjectAccessReview{},
+		&authv1.LocalResourceAccessReview{},
+		&authv1.LocalSubjectAccessReview{},
+		&authv1.ResourceAccessReviewResponse{},
+		&authv1.SubjectAccessReviewResponse{},
+		&authv1.IsPersonalSubjectAccessReview{},
+
+		&authv1.ClusterRole{},
+		&authv1.ClusterRoleBinding{},
+		&authv1.ClusterRoleBindingList{},
+		&authv1.ClusterRoleList{},
+
+		&authv1.RoleBindingRestriction{},
+		&authv1.RoleBindingRestrictionList{},
+	)
+
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	if err := rbacv1.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	metav1.AddToGroupVersion(scheme, authv1.GroupVersion)
+	return nil
 }
 
 func installNonCRDSecurity(scheme *apimachineryruntime.Scheme) error {

@@ -9,6 +9,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	"github.com/openshift/api/authorization"
 	"github.com/openshift/api/security"
 )
 
@@ -25,6 +26,20 @@ func TestInstallNonCRDSecurity(t *testing.T) {
 
 	if !reflect.DeepEqual(expected, nonCRDTypes) {
 		t.Errorf("unexpected security/v1 scheme without CRD types\nunexpected: %v\nmissing: %v", nonCRDTypes.Difference(expected).List(), expected.Difference(nonCRDTypes).List())
+	}
+}
+
+func TestInstallNonCRDAuthorization(t *testing.T) {
+	withoutCRDs := runtime.NewScheme()
+	utilruntime.Must(installNonCRDAuthorization(withoutCRDs))
+	nonCRDTypes := gvks(withoutCRDs.AllKnownTypes())
+
+	complete := runtime.NewScheme()
+	utilruntime.Must(authorization.Install(complete))
+	expected := gvks(complete.AllKnownTypes())
+
+	if !reflect.DeepEqual(expected, nonCRDTypes) {
+		t.Errorf("unexpected authorization/v1 scheme without CRD types\nunexpected: %v\nmissing: %v", nonCRDTypes.Difference(expected).List(), expected.Difference(nonCRDTypes).List())
 	}
 }
 
