@@ -199,33 +199,40 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		currentOS = "darwin"
 	}
 
-	// select the subset of targets based on command line input
+	// Select the subset of targets based on command line input
 	var willArchive bool
 	var targets []extractTarget
+
+	// Filter by command, or gather all non-optional targets
 	if len(command) > 0 {
-		hasCommand := false
 		for _, target := range availableTargets {
-			if target.Command != command {
-				continue
+			if target.Command == command {
+				targets = append(targets, target)
 			}
-			hasCommand = true
-			if target.OS == currentOS || currentOS == "*" {
-				targets = []extractTarget{target}
-				break
-			}
-		}
-		if len(targets) == 0 {
-			if hasCommand {
-				return fmt.Errorf("command %q does not support the operating system %q", o.Command, currentOS)
-			}
-			return fmt.Errorf("the supported commands are 'oc' and 'openshift-install'")
 		}
 	} else {
-		willArchive = true
-		targets = availableTargets
+		for _, target := range availableTargets {
+			targets = availableTargets
+		}
+	}
+
+	// If the user didn't specify a command, or the operating system is set
+	// to '*', we'll produce an archive
+	if len(command) == 0 || o.CommandOperatingSystem == "*" {
 		for i := range targets {
 			targets[i].AsArchive = true
 			targets[i].AsZip = targets[i].OS == "windows"
+		}
+	}
+
+	if len(targets) == 0 {
+		switch {
+		case len(command) > 0 && currentOS != "*":
+			return fmt.Errorf("command %q does not support the operating system %q", o.Command, currentOS)
+		case len(command) > 0:
+			return fmt.Errorf("the supported commands are 'oc' and 'openshift-install'")
+		default:
+			return fmt.Errorf("no available commands")
 		}
 	}
 
