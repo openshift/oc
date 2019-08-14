@@ -36,8 +36,9 @@ import (
 
 // extractTarget describes how a file in the release image can be extracted to disk.
 type extractTarget struct {
-	OS      string
-	Command string
+	OS       string
+	Command  string
+	Optional bool
 
 	TargetName string
 
@@ -189,6 +190,16 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			InjectReleaseImage: true,
 			ArchiveFormat:      "openshift-install-linux-%s.tar.gz",
 		},
+		{
+			OS:       "linux",
+			Command:  "openshift-baremetal-install",
+			Optional: true,
+			Mapping:  extract.Mapping{Image: "baremetal-installer", From: "usr/bin/openshift-install"},
+
+			Readme:             readmeInstallUnix,
+			InjectReleaseImage: true,
+			ArchiveFormat:      "openshift-baremetal-install-linux-%s.tar.gz",
+		},
 	}
 
 	currentOS := runtime.GOOS
@@ -212,7 +223,9 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		}
 	} else {
 		for _, target := range availableTargets {
-			targets = availableTargets
+			if !target.Optional {
+				targets = append(targets, target)
+			}
 		}
 	}
 
