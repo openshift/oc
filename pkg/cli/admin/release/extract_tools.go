@@ -305,7 +305,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			target.Mapping.Name = fmt.Sprintf(target.ArchiveFormat, releaseName)
 			target.Mapping.To = filepath.Join(dir, target.Mapping.Name)
 		} else {
-			target.Mapping.To = filepath.Join(dir, filepath.Base(target.Mapping.From))
+			target.Mapping.To = filepath.Join(dir, target.Command)
 			target.Mapping.Name = fmt.Sprintf("%s-%s", target.OS, target.Command)
 		}
 		validTargets = append(validTargets, target)
@@ -398,7 +398,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 				zh := &zip.FileHeader{
 					Method:             zip.Deflate,
-					Name:               hdr.Name,
+					Name:               target.Command + ".exe",
 					UncompressedSize64: uint64(hdr.Size),
 					Modified:           hdr.ModTime,
 				}
@@ -436,7 +436,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 				}
 
 				if err := tw.WriteHeader(&tar.Header{
-					Name:     hdr.Name,
+					Name:     target.Command,
 					Mode:     int64(os.FileMode(0755).Perm()),
 					Size:     hdr.Size,
 					Typeflag: tar.TypeReg,
@@ -454,7 +454,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 							Size:     0,
 							Typeflag: tar.TypeLink,
 							ModTime:  hdr.ModTime,
-							Linkname: hdr.Name,
+							Linkname: target.Command,
 						}); err != nil {
 							return err
 						}
