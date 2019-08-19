@@ -124,9 +124,6 @@ func NewCmdRsync(name, parent string, f kcmdutil.Factory, streams genericcliopti
 		},
 	}
 
-	// NOTE: When adding new flags to the command, please update the rshExcludeFlags in copy_rsync.go
-	// if those flags should not be passed to the rsh command.
-
 	cmd.Flags().StringVarP(&o.ContainerName, "container", "c", "", "Container within the pod")
 	cmd.Flags().StringVar(&o.StrategyName, "strategy", "", "Specify which strategy to use for copy: rsync, rsync-daemon, or tar")
 

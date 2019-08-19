@@ -5,26 +5,20 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
 )
 
-// SiblingCommand returns a sibling command to the given command
-func SiblingCommand(cmd *cobra.Command, name string) []string {
-	c := cmd.Parent()
-	command := []string{}
-	for c != nil {
-		klog.V(5).Infof("Found parent command: %s", c.Name())
-		command = append([]string{c.Name()}, command...)
-		c = c.Parent()
+// SiblingOrNiblingCommand returns the closest command with the specified name
+// that is also a sub-command of a direct ancestor of the specified command.
+// If the command is not found, just return the name of the command.
+func SiblingOrNiblingCommand(cmd *cobra.Command, name string) []string {
+	parentCmd := cmd.Parent()
+	for parentCmd != nil {
+		for _, command := range parentCmd.Commands() {
+			if command.Name() == name {
+				return append([]string{os.Args[0]}, strings.Split(command.CommandPath(), " ")[1:]...)
+			}
+		}
+		parentCmd = parentCmd.Parent()
 	}
-	// Replace the root command with what was actually used
-	// in the command line
-	klog.V(4).Infof("Setting root command to: %s", os.Args[0])
-	command[0] = os.Args[0]
-
-	// Append the sibling command
-	command = append(command, name)
-	klog.V(4).Infof("The sibling command is: %s", strings.Join(command, " "))
-
-	return command
+	return []string{name}
 }

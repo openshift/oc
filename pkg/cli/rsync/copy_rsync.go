@@ -29,14 +29,18 @@ type rsyncStrategy struct {
 	podChecker     podChecker
 }
 
-// rshExcludeFlags are flags that are passed to oc rsync, and should not be passed on to the underlying command being invoked via oc rsh.
-var rshExcludeFlags = sets.NewString("delete", "strategy", "quiet", "include", "exclude", "progress", "no-perms", "watch", "compress")
-
+// DefaultRsyncRemoteShellToUse generates an command to create a remote shell.
 func DefaultRsyncRemoteShellToUse(cmd *cobra.Command) string {
-	rshCmd := cmdutil.SiblingCommand(cmd, "rsh")
-	// Append all original flags to rsh command
+	// find the rsh command in the direct command path
+	rshCmd := cmdutil.SiblingOrNiblingCommand(cmd, "rsh")
+	// do not add local flags, unless also rsh flags to the command
+	localFlags := sets.NewString()
+	cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {
+		localFlags.Insert(flag.Name)
+	})
+	excludeFlags := localFlags.Difference(sets.NewString("container", "no-tty", "shell", "timeout", "tty"))
 	cmd.Flags().Visit(func(flag *pflag.Flag) {
-		if rshExcludeFlags.Has(flag.Name) {
+		if excludeFlags.Has(flag.Name) {
 			return
 		}
 		rshCmd = append(rshCmd, fmt.Sprintf("--%s=%s", flag.Name, flag.Value.String()))
