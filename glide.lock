@@ -1,5 +1,5 @@
 hash: 99380f2882f9a03bb8d0cf8d814e527f9cd08aa49de1b96ed02740147cf9f11a
-updated: 2019-08-13T17:54:51.328602295-04:00
+updated: 2019-08-19T19:46:42.193740369+02:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 2ae31c8b6b30d2f4c8100c20d527b571e9c433bb
@@ -79,7 +79,7 @@ imports:
   - gettext/plural
   - gettext/po
 - name: github.com/containerd/continuity
-  version: aaeac12a7ffcd198ae25440a9dff125c2e2703a7
+  version: f2a389ac0a02ce21c09edd7344677a601970f41c
   subpackages:
   - pathdriver
 - name: github.com/containers/image
@@ -189,7 +189,7 @@ imports:
   - ipamutils
   - ipvs
 - name: github.com/docker/libtrust
-  version: 9cbd2a1374f46905c68a4eb3694a130610adc62a
+  version: aabc10ec26b754e797f9028f4589c5b7bd90dc20
 - name: github.com/docker/spdystream
   version: 449fdfce4d962303d702fec724ef0ad181c92528
   subpackages:
@@ -299,7 +299,7 @@ imports:
   - compiler
   - extensions
 - name: github.com/gorilla/mux
-  version: 08e7f807d38d6a870193019bb439056118661505
+  version: e67b3c02c7195c052acff13261f0c9fd1ba53011
 - name: github.com/gregjones/httpcache
   version: 787624de3eb7bd915c329cba748687a3b22666a6
   subpackages:
@@ -393,7 +393,7 @@ imports:
   - libcontainer/user
   - libcontainer/utils
 - name: github.com/openshift/api
-  version: b5570061b31fed3b06c24077c534b1a1bf7ecf8b
+  version: a94e914914f4228d0bcba6fc8a22614c5f5e2dad
   subpackages:
   - annotations
   - apps
@@ -505,7 +505,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 1eb1131507bff6d494f05b23c8ecf850836d7328
+  version: 97bb8b699c927fbdb7a80d48865d89acc3980d94
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -683,7 +683,7 @@ imports:
   - unicode/norm
   - width
 - name: golang.org/x/time
-  version: f51c12702a4d776e4c1fa9b0fabab841babae631
+  version: 9d24e82272b4f38b78bc8cff74fa936d31ccd8ef
   subpackages:
   - rate
 - name: golang.org/x/tools
@@ -1066,7 +1066,7 @@ imports:
 - name: k8s.io/kubelet
   version: f6da02f583256d1a15cc44a101c80bfa2080a46f
 - name: k8s.io/kubernetes
-  version: 473b2830919bc04a8044a290df4be2c83b525b93
+  version: a8c606872520d4ee1465953eee7906b9d74147f2
   repo: https://github.com/openshift/kubernetes.git
   subpackages:
   - cmd/genutils
@@ -1260,7 +1260,9 @@ imports:
   version: c2654d5206da6b7b6ace12841e8f359bb89b443c
   subpackages:
   - buffer
+  - diff
   - exec
+  - field
   - integer
   - net
   - path
