@@ -39,7 +39,7 @@ var (
 	mustGatherLong = templates.LongDesc(`
 		Launch a pod to gather debugging information
 
-		This command will launch a pod in a temporary namespace on your cluster that gathers 
+		This command will launch a pod in a temporary namespace on your cluster that gathers
 		debugging information and then downloads the gathered information.
 
 		Experimental: This command is under active development and may change without notice.
@@ -52,10 +52,10 @@ var (
 		# gather information with a specific local folder to copy to
 		  oc adm must-gather --dest-dir=/local/directory
 
-		# gather information using multiple plug-in images 
+		# gather information using multiple plug-in images
 		  oc adm must-gather --image=quay.io/kubevirt/must-gather --image=quay.io/openshift/origin-must-gather
 
-		# gather information using a specific image stream plug-in 
+		# gather information using a specific image stream plug-in
 		  oc adm must-gather --image-stream=openshift/must-gather:latest
 
 		# gather information using a specific image, command, and pod-dir
@@ -218,6 +218,10 @@ func (o *MustGatherOptions) Validate() error {
 // Run creates and runs a must-gather pod.d
 func (o *MustGatherOptions) Run() error {
 	var err error
+
+	if true {
+		return fmt.Errorf("It was very nice to meet you... %s", time.Now())
+	}
 
 	// create namespace
 	ns, err := o.Client.CoreV1().Namespaces().Create(&corev1.Namespace{
