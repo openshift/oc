@@ -36,8 +36,9 @@ import (
 
 // extractTarget describes how a file in the release image can be extracted to disk.
 type extractTarget struct {
-	OS      string
-	Command string
+	OS       string
+	Command  string
+	Optional bool
 
 	TargetName string
 
@@ -189,6 +190,16 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			InjectReleaseImage: true,
 			ArchiveFormat:      "openshift-install-linux-%s.tar.gz",
 		},
+		{
+			OS:       "linux",
+			Command:  "openshift-baremetal-install",
+			Optional: true,
+			Mapping:  extract.Mapping{Image: "baremetal-installer", From: "usr/bin/openshift-install"},
+
+			Readme:             readmeInstallUnix,
+			InjectReleaseImage: true,
+			ArchiveFormat:      "openshift-baremetal-install-linux-%s.tar.gz",
+		},
 	}
 
 	currentOS := runtime.GOOS
@@ -199,33 +210,42 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		currentOS = "darwin"
 	}
 
-	// select the subset of targets based on command line input
+	// Select the subset of targets based on command line input
 	var willArchive bool
 	var targets []extractTarget
+
+	// Filter by command, or gather all non-optional targets
 	if len(command) > 0 {
-		hasCommand := false
 		for _, target := range availableTargets {
-			if target.Command != command {
-				continue
+			if target.Command == command {
+				targets = append(targets, target)
 			}
-			hasCommand = true
-			if target.OS == currentOS || currentOS == "*" {
-				targets = []extractTarget{target}
-				break
-			}
-		}
-		if len(targets) == 0 {
-			if hasCommand {
-				return fmt.Errorf("command %q does not support the operating system %q", o.Command, currentOS)
-			}
-			return fmt.Errorf("the supported commands are 'oc' and 'openshift-install'")
 		}
 	} else {
-		willArchive = true
-		targets = availableTargets
+		for _, target := range availableTargets {
+			if !target.Optional {
+				targets = append(targets, target)
+			}
+		}
+	}
+
+	// If the user didn't specify a command, or the operating system is set
+	// to '*', we'll produce an archive
+	if len(command) == 0 || o.CommandOperatingSystem == "*" {
 		for i := range targets {
 			targets[i].AsArchive = true
 			targets[i].AsZip = targets[i].OS == "windows"
+		}
+	}
+
+	if len(targets) == 0 {
+		switch {
+		case len(command) > 0 && currentOS != "*":
+			return fmt.Errorf("command %q does not support the operating system %q", o.Command, currentOS)
+		case len(command) > 0:
+			return fmt.Errorf("the supported commands are 'oc' and 'openshift-install'")
+		default:
+			return fmt.Errorf("no available commands")
 		}
 	}
 
@@ -305,7 +325,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			target.Mapping.Name = fmt.Sprintf(target.ArchiveFormat, releaseName)
 			target.Mapping.To = filepath.Join(dir, target.Mapping.Name)
 		} else {
-			target.Mapping.To = filepath.Join(dir, filepath.Base(target.Mapping.From))
+			target.Mapping.To = filepath.Join(dir, target.Command)
 			target.Mapping.Name = fmt.Sprintf("%s-%s", target.OS, target.Command)
 		}
 		validTargets = append(validTargets, target)
@@ -398,7 +418,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 				zh := &zip.FileHeader{
 					Method:             zip.Deflate,
-					Name:               hdr.Name,
+					Name:               target.Command + ".exe",
 					UncompressedSize64: uint64(hdr.Size),
 					Modified:           hdr.ModTime,
 				}
@@ -436,7 +456,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 				}
 
 				if err := tw.WriteHeader(&tar.Header{
-					Name:     hdr.Name,
+					Name:     target.Command,
 					Mode:     int64(os.FileMode(0755).Perm()),
 					Size:     hdr.Size,
 					Typeflag: tar.TypeReg,
@@ -454,7 +474,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 							Size:     0,
 							Typeflag: tar.TypeLink,
 							ModTime:  hdr.ModTime,
-							Linkname: hdr.Name,
+							Linkname: target.Command,
 						}); err != nil {
 							return err
 						}
