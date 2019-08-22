@@ -126,7 +126,7 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	if err != nil {
 		return err
 	}
-	o.RsyncRshCmd = rsync.DefaultRsyncRemoteShellToUse(cmd.Parent())
+	o.RsyncRshCmd = rsync.DefaultRsyncRemoteShellToUse(cmd)
 	return nil
 }
 
