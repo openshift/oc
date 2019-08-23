@@ -307,17 +307,10 @@ func (o *MustGatherOptions) Run() error {
 		}(pod)
 	}
 	wg.Wait()
-	return aggregateErrorOrNil(errs)
-}
-
-func aggregateErrorOrNil(errs <-chan error) error {
-	c := len(errs)
-	if c == 0 {
-		return nil
-	}
+	close(errs)
 	var arr []error
-	for i := 0; i < c; i++ {
-		arr = append(arr, <-errs)
+	for i := range errs {
+		arr = append(arr, i)
 	}
 	return errors.NewAggregate(arr)
 }
