@@ -19,9 +19,6 @@ func NewCmd(f kcmdutil.Factory, parentName string, streams genericclioptions.IOS
 			actions inspect the content of the release, and mirror release content across image
 			registries.
 			`),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help()
-		},
 	}
 	cmd.AddCommand(NewInfo(f, parentName+" release", streams))
 	cmd.AddCommand(NewRelease(f, parentName+" release", streams))
