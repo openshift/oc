@@ -267,6 +267,7 @@ func (o *Options) Run() error {
 			w := tabwriter.NewWriter(o.Out, 0, 2, 1, ' ', 0)
 			fmt.Fprintf(w, "VERSION\tIMAGE\n")
 			// TODO: add metadata about version
+			sortSemanticVersions(cv.Status.AvailableUpdates)
 			for _, update := range cv.Status.AvailableUpdates {
 				fmt.Fprintf(w, "%s\t%s\n", update.Version, update.Image)
 			}
