@@ -18,6 +18,10 @@
 %{!?commit:
 %global commit 1f14ed7363468094301bbe495bcbed5f087f9823
 }
+# os_git_vars needed to run hack scripts during rpm builds
+%{!?os_git_vars:
+%global os_git_vars OS_GIT_VERSION='' OS_GIT_COMMIT='' OS_GIT_MAJOR='' OS_GIT_MINOR='' OS_GIT_TREE_STATE=''
+}
 # source_git_vars needed to run hack scripts during rpm builds
 %{!?source_git_vars:
 %global source_git_vars SOURCE_GIT_VERSION='' SOURCE_GIT_COMMIT=''
@@ -65,7 +69,7 @@ Obsoletes:      atomic-openshift-clients-redistributable
 %build
 %ifarch x86_64
   # Create Binaries for all supported arches
-  make build cross-build
+  %{os_git_vars} make build cross-build
 %else
   %ifarch %{ix86}
     GOOS=linux
