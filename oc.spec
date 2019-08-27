@@ -8,9 +8,20 @@
 
 %global golang_version 1.12
 %global product_name OpenShift
+%global package_name openshift-clients
 
 %{!?version: %global version 0.0.1}
 %{!?release: %global release 1}
+
+# %commit and %source_git_vars are intended to be set by tito custom builders provided
+# in downstream builds. The values in this spec file will not be kept up to date.
+%{!?commit:
+%global commit 1f14ed7363468094301bbe495bcbed5f087f9823
+}
+# source_git_vars needed to run hack scripts during rpm builds
+%{!?source_git_vars:
+%global source_git_vars SOURCE_GIT_VERSION='' SOURCE_GIT_COMMIT=''
+}
 
 Name:           openshift-clients
 Version:        %{version}
@@ -26,6 +37,7 @@ ExclusiveArch:  %{go_arches}
 ExclusiveArch:  x86_64 aarch64 ppc64le s390x
 %endif
 
+Source0:        https://%{import_path}/archive/%{commit}/%{name}-%{version}.tar.gz
 #BuildRequires:  bsdtar
 BuildRequires:  golang >= %{golang_version}
 BuildRequires:  krb5-devel
@@ -47,6 +59,8 @@ Obsoletes:      atomic-openshift-clients-redistributable
 %{summary}
 
 %prep
+
+%setup -q
 
 %build
 %ifarch x86_64
