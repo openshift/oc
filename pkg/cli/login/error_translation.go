@@ -22,7 +22,15 @@ You can also run this command again providing the path to a config file directly
 `
 	tlsOversizedRecordMsg = `Unable to connect to %[2]s using TLS: %[1]s.
 Ensure the specified server supports HTTPS.`
+	invalidServerURLMsg = `Seems you passed an HTML page (console?) instead of server URL.
+Verify provided address and try again.`
 )
+
+type errInvalidServerURL struct{}
+
+func (e *errInvalidServerURL) Error() string {
+	return invalidServerURLMsg
+}
 
 // GetPrettyMessageForServer prettifys the message of the provided error
 func getPrettyMessageForServer(err error, serverName string) string {
@@ -50,6 +58,7 @@ func getPrettyMessageForServer(err error, serverName string) string {
 
 	case certificateInvalidReason:
 		return fmt.Sprintf("The server is using an invalid certificate: %s", err)
+
 	}
 
 	return err.Error()
