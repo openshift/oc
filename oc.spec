@@ -12,6 +12,25 @@
 %{!?version: %global version 0.0.1}
 %{!?release: %global release 1}
 
+%{!?commit:
+# DO NOT MODIFY: the value on the line below is sed-like replaced by openshift/doozer
+%global commit e0a5699f2049372633b18c43a98a522999b1f297
+}
+
+%if ! 0%{?os_git_vars:1}
+# DO NOT MODIFY: the value on the line below is sed-like replaced by openshift/doozer
+%global os_git_vars OS_GIT_VERSION='' OS_GIT_COMMIT='' OS_GIT_MAJOR='' OS_GIT_MINOR='' OS_GIT_TREE_STATE=''
+%endif
+
+%if "%{os_git_vars}" == "ignore"
+%global make make
+%else
+%global make %{os_git_vars} && make SOURCE_GIT_TAG:="${OS_GIT_VERSION}" SOURCE_GIT_COMMIT:="${OS_GIT_COMMIT}" SOURCE_GIT_MAJOR:="${OS_GIT_MAJOR}" SOURCE_GIT_MINOR:="${OS_GIT_MINOR}" SOURCE_GIT_TREE_STATE:="${OS_GIT_TREE_STATE}"
+%endif
+
+%if ! 0%{?local_build:1}
+Source0:        https://%{import_path}/archive/%{commit}/%{name}-%{version}.tar.gz
+%endif
 Name:           openshift-clients
 Version:        %{version}
 Release:        %{release}%{dist}
@@ -48,10 +67,22 @@ Obsoletes:      atomic-openshift-clients-redistributable
 
 %prep
 
+%if ! 0%{?local_build:1}
+%setup -q
+%endif
+
 %build
+%if ! 0%{?local_build:1}
+mkdir -p "$(dirname __gopath/src/%{import_path})"
+mkdir -p "$(dirname __gopath/src/%{import_path})"
+ln -s "$(pwd)" "__gopath/src/%{import_path}"
+export GOPATH=$(pwd)/__gopath:%{gopath}
+cd "__gopath/src/%{import_path}"
+%endif
+
 %ifarch x86_64
   # Create Binaries for all supported arches
-  make build cross-build
+  %{make} build cross-build
 %else
   %ifarch %{ix86}
     GOOS=linux
@@ -69,14 +100,14 @@ Obsoletes:      atomic-openshift-clients-redistributable
     GOOS=linux
     GOARCH=s390x
   %endif
-  %{source_git_vars} make build
+  %{make} build
 %endif
 
 %install
 install -d %{buildroot}%{_bindir}
 
- # Install for the local platform
-install -p -m 755 oc %{buildroot}%{_bindir}/oc
+# Install for the local platform
+install -p -m 755 ./oc %{buildroot}%{_bindir}/oc
 
 %ifarch x86_64
 # Install client executable for windows and mac
