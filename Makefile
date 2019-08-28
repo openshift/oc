@@ -29,6 +29,8 @@ OUTPUT_DIR :=_output
 CROSS_BUILD_BINDIR :=$(OUTPUT_DIR)/bin
 RPM_VERSION :=$(shell set -o pipefail && echo '$(SOURCE_GIT_TAG)' | sed -E 's/v([0-9]+\.[0-9]+\.[0-9]+)-.*/\1/')
 RPM_EXTRAFLAGS := \
+	--define 'local_build true' \
+	--define 'os_git_vars ignore' \
 	--define 'version $(RPM_VERSION)' \
 	--define 'dist .el7' \
 	--define 'release 1'
