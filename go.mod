@@ -142,3 +142,16 @@ require (
 	sigs.k8s.io/yaml v1.1.0
 	vbom.ml/util v0.0.0-20160121211510-db5cfe13f5cc
 )
+
+replace (
+	bitbucket.org/ww/goautoneg => github.com/munnerz/goautoneg 2ae31c8b6b30d2f4c8100c20d527b571e9c433bb
+	github.com/apcera/gssapi => github.com/openshift/gssapi 5fb4217df13b8e6878046fe1e5c10e560e1b86dc
+	github.com/containers/image => github.com/openshift/containers-image 4bc6d24282b115f8b61a6d08470ed42ac7c91392
+	github.com/docker/distribution => github.com/openshift/docker-distribution d4c35485a70df4dce2179bc227b1393a69edb809
+	github.com/golang/glog => github.com/openshift/golang-glog 3c92600d7533018d216b534fe894ad60a1e6d5bf
+	github.com/onsi/ginkgo => github.com/openshift/onsi-ginkgo 53ca7dc85f609e8aa3af7902f189ed5dca96dbb5
+	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery b11b32a81c68aa4961651c3cefd1ff715af93ef5
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime 2fdfcf685c9c00ee1a5243da4a47339f0b16fe45
+	k8s.io/client-go => github.com/openshift/kubernetes-client-go 07e29e5eae48c8279cce3dc0f544e5e7a8ee9bb7
+	k8s.io/kubernetes => github.com/openshift/kubernetes a8c606872520d4ee1465953eee7906b9d74147f2
+)
