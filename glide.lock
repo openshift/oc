@@ -1,5 +1,5 @@
 hash: 99380f2882f9a03bb8d0cf8d814e527f9cd08aa49de1b96ed02740147cf9f11a
-updated: 2019-08-19T19:46:42.193740369+02:00
+updated: 2019-08-28T12:05:23.721712259+02:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 2ae31c8b6b30d2f4c8100c20d527b571e9c433bb
@@ -79,7 +79,7 @@ imports:
   - gettext/plural
   - gettext/po
 - name: github.com/containerd/continuity
-  version: f2a389ac0a02ce21c09edd7344677a601970f41c
+  version: 75bee3e2ccb6402e3a986ab8bd3b17003fc0fdec
   subpackages:
   - pathdriver
 - name: github.com/containers/image
@@ -299,7 +299,7 @@ imports:
   - compiler
   - extensions
 - name: github.com/gorilla/mux
-  version: e67b3c02c7195c052acff13261f0c9fd1ba53011
+  version: e1863a64f3c620ef604fb7905a0351e69f6a51e4
 - name: github.com/gregjones/httpcache
   version: 787624de3eb7bd915c329cba748687a3b22666a6
   subpackages:
@@ -393,7 +393,7 @@ imports:
   - libcontainer/user
   - libcontainer/utils
 - name: github.com/openshift/api
-  version: a94e914914f4228d0bcba6fc8a22614c5f5e2dad
+  version: 58aab2885e38fd7f4fd57f2615f5f9fe38039e22
   subpackages:
   - annotations
   - apps
@@ -505,7 +505,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 97bb8b699c927fbdb7a80d48865d89acc3980d94
+  version: 561033d0c33228687e7d942a7e03e0da3456c7af
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -683,7 +683,7 @@ imports:
   - unicode/norm
   - width
 - name: golang.org/x/time
-  version: 9d24e82272b4f38b78bc8cff74fa936d31ccd8ef
+  version: f51c12702a4d776e4c1fa9b0fabab841babae631
   subpackages:
   - rate
 - name: golang.org/x/tools
@@ -808,7 +808,7 @@ imports:
   subpackages:
   - pkg/features
 - name: k8s.io/apimachinery
-  version: b11b32a81c68aa4961651c3cefd1ff715af93ef5
+  version: 26f88640163ea91a407249714c7e4a7a3b2ab3bb
   repo: https://github.com/openshift/kubernetes-apimachinery.git
   subpackages:
   - pkg/api/apitesting
@@ -1066,7 +1066,7 @@ imports:
 - name: k8s.io/kubelet
   version: f6da02f583256d1a15cc44a101c80bfa2080a46f
 - name: k8s.io/kubernetes
-  version: a8c606872520d4ee1465953eee7906b9d74147f2
+  version: b35159fd4c0b3cd03144c884f80d5a12c7fc2a5a
   repo: https://github.com/openshift/kubernetes.git
   subpackages:
   - cmd/genutils
@@ -1294,7 +1294,7 @@ imports:
   - pkg/transformers/config/defaultconfig
   - pkg/types
 - name: sigs.k8s.io/yaml
-  version: 4cd0c284b15f1735b8cc247df097d262b8903f9f
+  version: fd68e9863619f6ec2fdd8625fe1f02e7c877e480
 - name: vbom.ml/util
   version: db5cfe13f5cc80a4990d98e2e1b0707a4d1a5394
   subpackages:
