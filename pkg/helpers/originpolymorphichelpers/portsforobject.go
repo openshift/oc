@@ -5,7 +5,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/kubernetes/pkg/kubectl/polymorphichelpers"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 )

@@ -2,8 +2,8 @@ package originpolymorphichelpers
 
 import (
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubernetes/pkg/kubectl"
-	"k8s.io/kubernetes/pkg/kubectl/polymorphichelpers"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	deploymentcmd "github.com/openshift/oc/pkg/helpers/originpolymorphichelpers/deploymentconfigs"

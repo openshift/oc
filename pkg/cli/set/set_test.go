@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	kcmdtesting "k8s.io/kubernetes/pkg/kubectl/cmd/testing"
+	kcmdtesting "k8s.io/kubectl/pkg/cmd/testing"
 )
 
 func TestLocalAndDryRunFlags(t *testing.T) {

@@ -2,11 +2,11 @@ package top
 
 import (
 	"github.com/spf13/cobra"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/top"
+	"k8s.io/kubectl/pkg/cmd/top"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/util/templates"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )

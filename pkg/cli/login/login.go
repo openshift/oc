@@ -12,9 +12,9 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/util/templates"
-	"k8s.io/kubernetes/pkg/kubectl/util/term"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/templates"
+	"k8s.io/kubectl/pkg/util/term"
 
 	"github.com/openshift/oc/pkg/helpers/flagtypes"
 	kubeconfiglib "github.com/openshift/oc/pkg/helpers/kubeconfig"

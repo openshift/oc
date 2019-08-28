@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	clientgotesting "k8s.io/client-go/testing"
-	"k8s.io/kubernetes/pkg/kubectl/describe"
+	"k8s.io/kubectl/pkg/describe"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	appsfake "github.com/openshift/client-go/apps/clientset/versioned/fake"

@@ -18,7 +18,7 @@ import (
 	fakekubernetes "k8s.io/client-go/kubernetes/fake"
 	kubernetesscheme "k8s.io/client-go/kubernetes/scheme"
 	clientgotesting "k8s.io/client-go/testing"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
+	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api"
 	"github.com/openshift/api/annotations"

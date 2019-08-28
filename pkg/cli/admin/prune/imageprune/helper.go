@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	ref "k8s.io/client-go/tools/reference"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
+	"k8s.io/kubectl/pkg/scheme"
 
 	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/openshift/library-go/pkg/image/reference"

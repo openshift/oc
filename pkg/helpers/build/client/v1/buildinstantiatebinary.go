@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"k8s.io/client-go/rest"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
+	"k8s.io/kubectl/pkg/scheme"
 
 	buildv1 "github.com/openshift/api/build/v1"
 )

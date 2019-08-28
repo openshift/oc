@@ -2,7 +2,7 @@ package originpolymorphichelpers
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/kubernetes/pkg/kubectl/polymorphichelpers"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 )

@@ -12,12 +12,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	kubecmd "k8s.io/kubernetes/pkg/kubectl/cmd"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/diff"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/kustomize"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/plugin"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	ktemplates "k8s.io/kubernetes/pkg/kubectl/util/templates"
+	kubecmd "k8s.io/kubectl/pkg/cmd"
+	"k8s.io/kubectl/pkg/cmd/diff"
+	"k8s.io/kubectl/pkg/cmd/kustomize"
+	"k8s.io/kubectl/pkg/cmd/plugin"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	ktemplates "k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/oc/pkg/cli/admin"
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"

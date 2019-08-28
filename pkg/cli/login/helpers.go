@@ -14,7 +14,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	kterm "k8s.io/kubernetes/pkg/kubectl/util/term"
+	kterm "k8s.io/kubectl/pkg/util/term"
 
 	"github.com/openshift/oc/pkg/helpers/term"
 )

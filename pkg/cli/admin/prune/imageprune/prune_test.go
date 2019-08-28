@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/rest/fake"
 	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
+	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api"
 	appsv1 "github.com/openshift/api/apps/v1"

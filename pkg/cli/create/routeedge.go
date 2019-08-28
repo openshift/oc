@@ -7,9 +7,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/templates"
 	kapi "k8s.io/kubernetes/pkg/apis/core"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/util/templates"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openshift/oc/pkg/cli/create/route"

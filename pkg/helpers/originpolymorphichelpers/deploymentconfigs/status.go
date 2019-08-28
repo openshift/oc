@@ -5,14 +5,14 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/kubernetes/pkg/kubectl"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
+	"k8s.io/kubectl/pkg/scheme"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
 )
 
-func NewDeploymentConfigStatusViewer() kubectl.StatusViewer {
+func NewDeploymentConfigStatusViewer() polymorphichelpers.StatusViewer {
 	return &DeploymentConfigStatusViewer{}
 }
 
@@ -21,7 +21,7 @@ func NewDeploymentConfigStatusViewer() kubectl.StatusViewer {
 type DeploymentConfigStatusViewer struct {
 }
 
-var _ kubectl.StatusViewer = &DeploymentConfigStatusViewer{}
+var _ polymorphichelpers.StatusViewer = &DeploymentConfigStatusViewer{}
 
 // Status returns a message describing deployment status, and a bool value indicating if the status is considered done
 func (s *DeploymentConfigStatusViewer) Status(obj runtime.Unstructured, desiredRevision int64) (string, bool, error) {

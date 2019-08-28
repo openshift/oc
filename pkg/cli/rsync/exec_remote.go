@@ -9,7 +9,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
-	kexec "k8s.io/kubernetes/pkg/kubectl/cmd/exec"
+	kexec "k8s.io/kubectl/pkg/cmd/exec"
 )
 
 // remoteExecutor will execute commands on a given pod/container by using the kube Exec command

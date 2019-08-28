@@ -6,19 +6,18 @@ import (
 	"sort"
 	"text/tabwriter"
 
-	"k8s.io/kubernetes/pkg/kubectl/describe/versioned"
-
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/kubernetes/pkg/kubectl"
+	"k8s.io/kubectl/pkg/describe/versioned"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
 )
 
-func NewDeploymentConfigHistoryViewer(kc kubernetes.Interface) kubectl.HistoryViewer {
+func NewDeploymentConfigHistoryViewer(kc kubernetes.Interface) polymorphichelpers.HistoryViewer {
 	return &DeploymentConfigHistoryViewer{rn: kc.CoreV1()}
 }
 
@@ -28,7 +27,7 @@ type DeploymentConfigHistoryViewer struct {
 	rn corev1client.ReplicationControllersGetter
 }
 
-var _ kubectl.HistoryViewer = &DeploymentConfigHistoryViewer{}
+var _ polymorphichelpers.HistoryViewer = &DeploymentConfigHistoryViewer{}
 
 // ViewHistory returns a description of all the history it can find for a deployment config.
 func (h *DeploymentConfigHistoryViewer) ViewHistory(namespace, name string, revision int64) (string, error) {
