@@ -16,7 +16,7 @@ limitations under the License.
 
 package rolling
 
-// This file is a copy of k8s.io/kubernetes/pkg/kubectl/cmd/rollingupdate.go.
+// This file is a copy of k8s.io/kubectl/pkg/cmd/rollingupdate.go.
 // It has been inlined as that location is effectively unmaintained and this
 // package must maintain backwards compatibility with older openshift versions.
 
@@ -36,9 +36,9 @@ import (
 	coreclient "k8s.io/client-go/kubernetes/typed/core/v1"
 	scaleclient "k8s.io/client-go/scale"
 	"k8s.io/client-go/util/retry"
+	kscale "k8s.io/kubectl/pkg/scale"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
-	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/utils/integer"
 )
 
@@ -142,7 +142,7 @@ type RollingUpdater struct {
 	// Namespace for resources
 	ns string
 	// scaleAndWait scales a controller and returns its updated state.
-	scaleAndWait func(rc *api.ReplicationController, retry *kubectl.RetryParams, wait *kubectl.RetryParams) (*api.ReplicationController, error)
+	scaleAndWait func(rc *api.ReplicationController, retry *kscale.RetryParams, wait *kscale.RetryParams) (*api.ReplicationController, error)
 	// getOrCreateTargetController gets and validates an existing controller or
 	// makes a new one.
 	getOrCreateTargetController func(controller *api.ReplicationController, sourceId string) (*api.ReplicationController, bool, error)
@@ -198,7 +198,7 @@ func (r *RollingUpdater) Update(config *RollingUpdaterConfig) error {
 		one := int32(1)
 		oldRc.Spec.Replicas = &one
 	}
-	scaleRetryParams := kubectl.NewRetryParams(config.Interval, config.Timeout)
+	scaleRetryParams := kscale.NewRetryParams(config.Interval, config.Timeout)
 
 	// Find an existing controller (for continuing an interrupted update) or
 	// create a new one if necessary.
@@ -345,7 +345,7 @@ func (r *RollingUpdater) Update(config *RollingUpdaterConfig) error {
 // scaleUp scales up newRc to desired by whatever increment is possible given
 // the configured surge threshold. scaleUp will safely no-op as necessary when
 // it detects redundancy or other relevant conditions.
-func (r *RollingUpdater) scaleUp(newRc, oldRc *api.ReplicationController, desired, maxSurge, maxUnavailable int32, scaleRetryParams *kubectl.RetryParams, config *RollingUpdaterConfig) (*api.ReplicationController, error) {
+func (r *RollingUpdater) scaleUp(newRc, oldRc *api.ReplicationController, desired, maxSurge, maxUnavailable int32, scaleRetryParams *kscale.RetryParams, config *RollingUpdaterConfig) (*api.ReplicationController, error) {
 	// If we're already at the desired, do nothing.
 	if *newRc.Spec.Replicas == desired {
 		return newRc, nil
@@ -420,7 +420,7 @@ func (r *RollingUpdater) scaleDown(newRc, oldRc *api.ReplicationController, desi
 	}
 	// Perform the scale-down.
 	fmt.Fprintf(config.Out, "Scaling %s down to %d\n", oldRc.Name, *oldRc.Spec.Replicas)
-	retryWait := &kubectl.RetryParams{Interval: config.Interval, Timeout: config.Timeout}
+	retryWait := &kscale.RetryParams{Interval: config.Interval, Timeout: config.Timeout}
 	scaledRc, err := r.scaleAndWait(oldRc, retryWait, retryWait)
 	if err != nil {
 		return nil, err
@@ -429,9 +429,9 @@ func (r *RollingUpdater) scaleDown(newRc, oldRc *api.ReplicationController, desi
 }
 
 // scalerScaleAndWait scales a controller using a Scaler and a real client.
-func (r *RollingUpdater) scaleAndWaitWithScaler(rc *api.ReplicationController, retry, wait *kubectl.RetryParams) (*api.ReplicationController, error) {
-	scaler := kubectl.NewScaler(r.scaleClient)
-	if err := scaler.Scale(rc.Namespace, rc.Name, uint(*rc.Spec.Replicas), &kubectl.ScalePrecondition{Size: -1}, retry, wait, schema.GroupResource{Resource: "replicationcontrollers"}); err != nil {
+func (r *RollingUpdater) scaleAndWaitWithScaler(rc *api.ReplicationController, retry, wait *kscale.RetryParams) (*api.ReplicationController, error) {
+	scaler := kscale.NewScaler(r.scaleClient)
+	if err := scaler.Scale(rc.Namespace, rc.Name, uint(*rc.Spec.Replicas), &kscale.ScalePrecondition{Size: -1}, retry, wait, schema.GroupResource{Resource: "replicationcontrollers"}); err != nil {
 		return nil, err
 	}
 	return r.rcClient.ReplicationControllers(rc.Namespace).Get(rc.Name, metav1.GetOptions{})

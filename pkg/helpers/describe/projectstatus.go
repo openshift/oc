@@ -24,8 +24,8 @@ import (
 	autoscalingv1client "k8s.io/client-go/kubernetes/typed/autoscaling/v1"
 	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/kubectl/pkg/scheme"
 	deployutil "k8s.io/kubernetes/pkg/controller/deployment/util"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
 
 	"github.com/openshift/api/annotations"
 	appsv1 "github.com/openshift/api/apps/v1"

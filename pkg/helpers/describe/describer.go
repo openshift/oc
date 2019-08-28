@@ -22,9 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/kubernetes/pkg/kubectl/describe"
-	"k8s.io/kubernetes/pkg/kubectl/describe/versioned"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
+	"k8s.io/kubectl/pkg/describe"
+	"k8s.io/kubectl/pkg/describe/versioned"
+	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api/annotations"
 	oapps "github.com/openshift/api/apps"

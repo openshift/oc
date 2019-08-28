@@ -17,9 +17,9 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kuval "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog"
+	"k8s.io/kubectl/pkg/scheme"
 	kapi "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/apis/core/validation"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
 
 	"github.com/openshift/api/apps"
 	appsv1 "github.com/openshift/api/apps/v1"

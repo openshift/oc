@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
 // ErrNoMatch is the error returned by new-app when no match is found for a

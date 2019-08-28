@@ -12,9 +12,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	ktemplates "k8s.io/kubectl/pkg/util/templates"
 	rbacv1helpers "k8s.io/kubernetes/pkg/apis/rbac/v1"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	ktemplates "k8s.io/kubernetes/pkg/kubectl/util/templates"
 
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )

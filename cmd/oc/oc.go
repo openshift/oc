@@ -17,8 +17,8 @@ import (
 	utilflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog"
+	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
 
 	"github.com/openshift/api/apps"
 	"github.com/openshift/api/authorization"

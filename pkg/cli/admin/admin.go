@@ -3,15 +3,15 @@ package admin
 import (
 	"fmt"
 
-	"k8s.io/kubernetes/pkg/kubectl/cmd/certificates"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/taint"
+	"k8s.io/kubectl/pkg/cmd/certificates"
+	"k8s.io/kubectl/pkg/cmd/taint"
 
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/drain"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	ktemplates "k8s.io/kubernetes/pkg/kubectl/util/templates"
+	"k8s.io/kubectl/pkg/cmd/drain"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	ktemplates "k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
 	"github.com/openshift/oc/pkg/cli/admin/cert"

@@ -15,10 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/kubectl/pkg/describe"
+	"k8s.io/kubectl/pkg/describe/versioned"
+	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubernetes/pkg/apis/autoscaling"
-	"k8s.io/kubernetes/pkg/kubectl/describe"
-	"k8s.io/kubernetes/pkg/kubectl/describe/versioned"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
 
 	"github.com/openshift/api/apps"
 	appsv1 "github.com/openshift/api/apps/v1"

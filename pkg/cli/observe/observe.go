@@ -36,10 +36,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/jsonpath"
 	"k8s.io/klog"
-	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
-	"k8s.io/kubernetes/pkg/kubectl/util/templates"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/oc/pkg/helpers/proc"
 )

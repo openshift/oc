@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
 	kvalidation "k8s.io/kubernetes/pkg/apis/core/validation"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
 )
 
 // PathSpec represents a path (remote or local) given as a source or destination
