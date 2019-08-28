@@ -441,8 +441,13 @@ func (o *NewOptions) Run() error {
 		}
 
 		is = inputIS.DeepCopy()
-
-		for _, tag := range is.Spec.Tags {
+		is.Spec.Tags = nil
+		for _, tag := range inputIS.Spec.Tags {
+			if exclude.Has(tag.Name) {
+				klog.V(2).Infof("Excluded tag %s", tag.Name)
+				continue
+			}
+			is.Spec.Tags = append(is.Spec.Tags, tag)
 			ordered = append(ordered, tag.Name)
 		}
 
