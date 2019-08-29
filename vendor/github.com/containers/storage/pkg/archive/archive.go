@@ -36,15 +36,14 @@ type (
 
 	// TarOptions wraps the tar options.
 	TarOptions struct {
-		IncludeFiles      []string
-		ExcludePatterns   []string
-		Compression       Compression
-		NoLchown          bool
-		UIDMaps           []idtools.IDMap
-		GIDMaps           []idtools.IDMap
-		IgnoreChownErrors bool
-		ChownOpts         *idtools.IDPair
-		IncludeSourceDir  bool
+		IncludeFiles     []string
+		ExcludePatterns  []string
+		Compression      Compression
+		NoLchown         bool
+		UIDMaps          []idtools.IDMap
+		GIDMaps          []idtools.IDMap
+		ChownOpts        *idtools.IDPair
+		IncludeSourceDir bool
 		// WhiteoutFormat is the expected on disk format for whiteout files.
 		// This format will be converted to the standard format on pack
 		// and from the standard format on unpack.
@@ -564,7 +563,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.IDPair, inUserns, ignoreChownErrors bool) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.IDPair, inUserns bool) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -646,13 +645,8 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		if chownOpts == nil {
 			chownOpts = &idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
 		}
-		err := idtools.SafeLchown(path, chownOpts.UID, chownOpts.GID)
-		if err != nil {
-			if ignoreChownErrors {
-				fmt.Fprintf(os.Stderr, "Chown error detected. Ignoring due to ignoreChownErrors flag: %v\n", err)
-			} else {
-				return err
-			}
+		if err := idtools.SafeLchown(path, chownOpts.UID, chownOpts.GID); err != nil {
+			return err
 		}
 	}
 
@@ -999,7 +993,7 @@ loop:
 			chownOpts = &idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
 		}
 
-		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, chownOpts, options.InUserNS, options.IgnoreChownErrors); err != nil {
+		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, chownOpts, options.InUserNS); err != nil {
 			return err
 		}
 

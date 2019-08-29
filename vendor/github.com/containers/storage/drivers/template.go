@@ -35,14 +35,7 @@ func NaiveCreateFromTemplate(d TemplateDriver, id, template string, templateIDMa
 		}
 		return err
 	}
-
-	applyOptions := ApplyDiffOpts{
-		Diff:              diff,
-		Mappings:          templateIDMappings,
-		MountLabel:        opts.MountLabel,
-		IgnoreChownErrors: opts.ignoreChownErrors,
-	}
-	if _, err = d.ApplyDiff(id, parent, applyOptions); err != nil {
+	if _, err = d.ApplyDiff(id, templateIDMappings, parent, opts.MountLabel, diff); err != nil {
 		if err2 := d.Remove(id); err2 != nil {
 			logrus.Errorf("error removing layer %q: %v", id, err2)
 		}
