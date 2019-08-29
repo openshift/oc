@@ -108,16 +108,22 @@ install -d %{buildroot}%{_bindir}
 
 # Install for the local platform
 install -p -m 755 ./oc %{buildroot}%{_bindir}/oc
+ln -s ./oc %{buildroot}%{_bindir}/kubectl
+[[ -e %{buildroot}%{_bindir}/kubectl ]]
 
 %ifarch x86_64
 # Install client executable for windows and mac
 install -d %{buildroot}%{_datadir}/%{name}/{linux,macosx,windows}
 install -p -m 755 ./oc %{buildroot}%{_datadir}/%{name}/linux/oc
+ln -s ./oc %{buildroot}%{_datadir}/%{name}/linux/kubectl
+[[ -e %{buildroot}%{_datadir}/%{name}/linux/kubectl ]]
 install -p -m 755 ./_output/bin/darwin_amd64/oc %{buildroot}/%{_datadir}/%{name}/macosx/oc
+ln -s ./oc %{buildroot}/%{_datadir}/%{name}/macosx/kubectl
+[[ -e %{buildroot}/%{_datadir}/%{name}/macosx/kubectl ]]
 install -p -m 755 ./_output/bin/windows_amd64/oc.exe %{buildroot}/%{_datadir}/%{name}/windows/oc.exe
+ln -s ./oc.exe %{buildroot}/%{_datadir}/%{name}/windows/kubectl.exe
+[[ -e %{buildroot}/%{_datadir}/%{name}/windows/kubectl.exe ]]
 %endif
-
-ln -s ./oc %{buildroot}%{_bindir}/kubectl
 
 # Install man1 man pages
 install -d -m 0755 %{buildroot}%{_mandir}/man1
@@ -125,7 +131,7 @@ install -d -m 0755 %{buildroot}%{_mandir}/man1
 
  # Install bash completions
 install -d -m 755 %{buildroot}%{_sysconfdir}/bash_completion.d/
-for bin in oc #kubectl
+for bin in oc kubectl
 do
   echo "+++ INSTALLING BASH COMPLETIONS FOR ${bin} "
   %{buildroot}%{_bindir}/${bin} completion bash > %{buildroot}%{_sysconfdir}/bash_completion.d/${bin}
@@ -137,7 +143,7 @@ done
 %{_bindir}/oc
 %{_bindir}/kubectl
 %{_sysconfdir}/bash_completion.d/oc
-#%{_sysconfdir}/bash_completion.d/kubectl
+%{_sysconfdir}/bash_completion.d/kubectl
 %{_mandir}/man1/oc*
 
 %ifarch x86_64
@@ -147,11 +153,11 @@ done
 %dir %{_datadir}/%{name}/macosx/
 %dir %{_datadir}/%{name}/windows/
 %{_datadir}/%{name}/linux/oc
-#%{_datadir}/%{name}/linux/kubectl
+%{_datadir}/%{name}/linux/kubectl
 %{_datadir}/%{name}/macosx/oc
-#%{_datadir}/%{name}/macosx/kubectl
+%{_datadir}/%{name}/macosx/kubectl
 %{_datadir}/%{name}/windows/oc.exe
-#%{_datadir}/%{name}/windows/kubectl.exe
+%{_datadir}/%{name}/windows/kubectl.exe
 %endif
 
 %changelog
