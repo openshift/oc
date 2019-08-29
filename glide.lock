@@ -1,5 +1,5 @@
 hash: 99380f2882f9a03bb8d0cf8d814e527f9cd08aa49de1b96ed02740147cf9f11a
-updated: 2019-08-28T12:05:23.721712259+02:00
+updated: 2019-08-29T12:47:53.269838697+02:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 2ae31c8b6b30d2f4c8100c20d527b571e9c433bb
@@ -94,7 +94,7 @@ imports:
   - types
   - version
 - name: github.com/containers/storage
-  version: 69bcd96b85fe4fdda4a491cc279ff888522d9122
+  version: 912de200380ac2fd1e90f91b78c1495ed8d5beea
   subpackages:
   - pkg/fileutils
   - pkg/homedir
@@ -180,7 +180,7 @@ imports:
   - sockets
   - tlsconfig
 - name: github.com/docker/go-metrics
-  version: b84716841b82eab644a0c64fc8b42d480e49add5
+  version: b619b3592b65de4f087d9f16863a7e6ff905973c
 - name: github.com/docker/go-units
   version: 9e638d38cf6977a37a8ea0078f3ee75a7cdb2dd1
 - name: github.com/docker/libnetwork
@@ -291,7 +291,7 @@ imports:
 - name: github.com/google/gofuzz
   version: 24818f796faf91cd76ec7bddd72458fbced7a6c1
 - name: github.com/google/uuid
-  version: c2e93f3ae59f2904160ceaab466009f965df46d6
+  version: 8c31c18f31ede9fc8eae72290a7e7a8064e9b3e3
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -367,7 +367,7 @@ imports:
   version: 53ca7dc85f609e8aa3af7902f189ed5dca96dbb5
   repo: https://github.com/openshift/onsi-ginkgo.git
 - name: github.com/opencontainers/go-digest
-  version: ac19fd6e7483ff933754af248d80be865e543d22
+  version: a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
 - name: github.com/opencontainers/image-spec
   version: 372ad780f63454fbbbbcc7cf80e5b90245c13e13
   subpackages:
@@ -505,7 +505,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 561033d0c33228687e7d942a7e03e0da3456c7af
+  version: 2cb04072d0f5b4bffd33d30cab9ed4e7cf73a779
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -883,7 +883,7 @@ imports:
   - pkg/storage/names
   - pkg/util/feature
 - name: k8s.io/cli-runtime
-  version: 2fdfcf685c9c00ee1a5243da4a47339f0b16fe45
+  version: 200dde6b923a881f85d5310356ce3b3ecfecdf04
   repo: https://github.com/openshift/kubernetes-cli-runtime.git
   subpackages:
   - pkg/genericclioptions
