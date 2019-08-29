@@ -80,27 +80,27 @@ export GOPATH=$(pwd)/__gopath:%{gopath}
 cd "__gopath/src/%{import_path}"
 %endif
 
+%ifarch %{ix86}
+GOOS=linux
+GOARCH=386
+%endif
+%ifarch ppc64le
+GOOS=linux
+GOARCH=ppc64le
+%endif
+%ifarch %{arm} aarch64
+GOOS=linux
+GOARCH=arm64
+%endif
+%ifarch s390x
+GOOS=linux
+GOARCH=s390x
+%endif
+%{make} build GO_BUILD_PACKAGES:='./cmd/oc ./tools/genman'
+
 %ifarch x86_64
   # Create Binaries for all supported arches
-  %{make} build cross-build
-%else
-  %ifarch %{ix86}
-    GOOS=linux
-    GOARCH=386
-  %endif
-  %ifarch ppc64le
-    GOOS=linux
-    GOARCH=ppc64le
-  %endif
-  %ifarch %{arm} aarch64
-    GOOS=linux
-    GOARCH=arm64
-  %endif
-  %ifarch s390x
-    GOOS=linux
-    GOARCH=s390x
-  %endif
-  %{make} build
+  %{make} cross-build GO_BUILD_PACKAGES:='./cmd/oc'
 %endif
 
 %install
@@ -144,6 +144,7 @@ done
 %{_bindir}/kubectl
 %{_sysconfdir}/bash_completion.d/oc
 %{_sysconfdir}/bash_completion.d/kubectl
+%dir %{_mandir}/man1/
 %{_mandir}/man1/oc*
 
 %ifarch x86_64
