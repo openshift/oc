@@ -1,4 +1,4 @@
-// +build !linux exclude_disk_quota !cgo
+// +build linux,exclude_disk_quota
 
 package quota
 

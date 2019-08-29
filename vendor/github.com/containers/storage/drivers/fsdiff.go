@@ -33,7 +33,7 @@ type NaiveDiffDriver struct {
 // it may or may not support on its own:
 //     Diff(id string, idMappings *idtools.IDMappings, parent string, parentMappings *idtools.IDMappings, mountLabel string) (io.ReadCloser, error)
 //     Changes(id string, idMappings *idtools.IDMappings, parent string, parentMappings *idtools.IDMappings, mountLabel string) ([]archive.Change, error)
-//     ApplyDiff(id, parent string, options ApplyDiffOpts) (size int64, err error)
+//     ApplyDiff(id string, idMappings *idtools.IDMappings, parent, mountLabel string, diff io.Reader) (size int64, err error)
 //     DiffSize(id string, idMappings *idtools.IDMappings, parent, parentMappings *idtools.IDMappings, mountLabel string) (size int64, err error)
 func NewNaiveDiffDriver(driver ProtoDriver, updater LayerIDMapUpdater) Driver {
 	return &NaiveDiffDriver{ProtoDriver: driver, LayerIDMapUpdater: updater}
@@ -82,7 +82,6 @@ func (gdw *NaiveDiffDriver) Diff(id string, idMappings *idtools.IDMappings, pare
 		}), nil
 	}
 
-	options.Options = append(options.Options, "ro")
 	parentFs, err := driver.Get(parent, options)
 	if err != nil {
 		return nil, err
@@ -152,16 +151,16 @@ func (gdw *NaiveDiffDriver) Changes(id string, idMappings *idtools.IDMappings, p
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, options ApplyDiffOpts) (size int64, err error) {
+func (gdw *NaiveDiffDriver) ApplyDiff(id string, applyMappings *idtools.IDMappings, parent, mountLabel string, diff io.Reader) (size int64, err error) {
 	driver := gdw.ProtoDriver
 
-	if options.Mappings == nil {
-		options.Mappings = &idtools.IDMappings{}
+	if applyMappings == nil {
+		applyMappings = &idtools.IDMappings{}
 	}
 
 	// Mount the root filesystem so we can apply the diff/layer.
 	mountOpts := MountOpts{
-		MountLabel: options.MountLabel,
+		MountLabel: mountLabel,
 	}
 	layerFs, err := driver.Get(id, mountOpts)
 	if err != nil {
@@ -169,17 +168,16 @@ func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, options ApplyDiffOpts) 
 	}
 	defer driver.Put(id)
 
-	tarOptions := &archive.TarOptions{
-		InUserNS:          rsystem.RunningInUserNS(),
-		IgnoreChownErrors: options.IgnoreChownErrors,
+	options := &archive.TarOptions{
+		InUserNS: rsystem.RunningInUserNS(),
 	}
-	if options.Mappings != nil {
-		tarOptions.UIDMaps = options.Mappings.UIDs()
-		tarOptions.GIDMaps = options.Mappings.GIDs()
+	if applyMappings != nil {
+		options.UIDMaps = applyMappings.UIDs()
+		options.GIDMaps = applyMappings.GIDs()
 	}
 	start := time.Now().UTC()
 	logrus.Debug("Start untar layer")
-	if size, err = ApplyUncompressedLayer(layerFs, options.Diff, tarOptions); err != nil {
+	if size, err = ApplyUncompressedLayer(layerFs, diff, options); err != nil {
 		logrus.Errorf("Error while applying layer: %s", err)
 		return
 	}

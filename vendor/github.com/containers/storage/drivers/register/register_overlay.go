@@ -1,4 +1,4 @@
-// +build !exclude_graphdriver_overlay,linux,cgo
+// +build !exclude_graphdriver_overlay,linux
 
 package register
 
