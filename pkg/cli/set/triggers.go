@@ -60,14 +60,14 @@ var (
 		trigger for a build config will only trigger the first build.`)
 
 	triggersExample = templates.Examples(`
-		# Print the triggers on the registry
-	  %[1]s triggers dc/registry
+	  # Print the triggers on the deployment config 'myapp'
+	  %[1]s triggers dc/myapp
 
 	  # Set all triggers to manual
-	  %[1]s triggers dc/registry --manual
+	  %[1]s triggers dc/myapp --manual
 
 	  # Enable all automatic triggers
-	  %[1]s triggers dc/registry --auto
+	  %[1]s triggers dc/myapp --auto
 
 	  # Reset the GitHub webhook on a build to a new, generated secret
 	  %[1]s triggers bc/webapp --from-github
@@ -77,7 +77,7 @@ var (
 	  %[1]s triggers bc/webapp --remove-all
 
 	  # Stop triggering on config change
-	  %[1]s triggers dc/registry --from-config --remove
+	  %[1]s triggers dc/myapp --from-config --remove
 
 	  # Add an image trigger to a build config
 	  %[1]s triggers bc/webapp --from-image=namespace1/image:latest

@@ -50,11 +50,11 @@ var (
 		to fail.`)
 
 	probeExample = templates.Examples(`
-		# Clear both readiness and liveness probes off all containers
-	  %[1]s probe dc/registry --remove --readiness --liveness
+	  # Clear both readiness and liveness probes off all containers
+	  %[1]s probe dc/myapp --remove --readiness --liveness
 
 	  # Set an exec action as a liveness probe to run 'echo ok'
-	  %[1]s probe dc/registry --liveness -- echo ok
+	  %[1]s probe dc/myapp --liveness -- echo ok
 
 	  # Set a readiness probe to try to open a TCP socket on 3306
 	  %[1]s probe rc/mysql --readiness --open-tcp=3306
