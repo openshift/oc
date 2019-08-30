@@ -189,10 +189,11 @@ func NewMigrateAPIStorageOptions(streams genericclioptions.IOStreams) *MigrateAP
 func NewCmdMigrateAPIStorage(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateAPIStorageOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name, // TODO do something useful here
-		Short:   "Update the stored version of API objects",
-		Long:    internalMigrateStorageLong,
-		Example: fmt.Sprintf(internalMigrateStorageExample, fullName),
+		Use:        name, // TODO do something useful here
+		Short:      "Update the stored version of API objects",
+		Long:       internalMigrateStorageLong,
+		Example:    fmt.Sprintf(internalMigrateStorageExample, fullName),
+		Deprecated: "it is not usable in self-managed 4.x cluster",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

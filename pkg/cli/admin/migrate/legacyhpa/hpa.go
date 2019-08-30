@@ -82,10 +82,11 @@ func NewMigrateLegacyHPAOptions(streams genericclioptions.IOStreams) *MigrateLeg
 func NewCmdMigrateLegacyHPA(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateLegacyHPAOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
-		Short:   "Update HPAs to point to the latest group-version-kinds",
-		Long:    internalMigrateLegacyHPALong,
-		Example: fmt.Sprintf(internalMigrateLegacyHPAExample, fullName),
+		Use:        name,
+		Short:      "Update HPAs to point to the latest group-version-kinds",
+		Long:       internalMigrateLegacyHPALong,
+		Example:    fmt.Sprintf(internalMigrateLegacyHPAExample, fullName),
+		Deprecated: "it is not usable in self-managed 4.x cluster",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(name, f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

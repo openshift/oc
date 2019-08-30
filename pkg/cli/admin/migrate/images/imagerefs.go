@@ -89,10 +89,11 @@ func NewMigrateImageReferenceOptions(streams genericclioptions.IOStreams) *Migra
 func NewCmdMigrateImageReferences(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateImageReferenceOptions(streams)
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s REGISTRY/NAME=REGISTRY/NAME [...]", name),
-		Short:   "Update embedded Docker image references",
-		Long:    internalMigrateImagesLong,
-		Example: fmt.Sprintf(internalMigrateImagesExample, fullName),
+		Use:        fmt.Sprintf("%s REGISTRY/NAME=REGISTRY/NAME [...]", name),
+		Short:      "Update embedded Docker image references",
+		Long:       internalMigrateImagesLong,
+		Example:    fmt.Sprintf(internalMigrateImagesExample, fullName),
+		Deprecated: "it is not usable in self-managed 4.x cluster",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
