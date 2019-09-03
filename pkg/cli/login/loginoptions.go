@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -23,6 +24,7 @@ import (
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	"github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
+	"github.com/openshift/oc/pkg/helpers/motd"
 	"github.com/openshift/oc/pkg/helpers/originkubeconfignames"
 	"github.com/openshift/oc/pkg/helpers/project"
 	loginutil "github.com/openshift/oc/pkg/helpers/project"
@@ -78,12 +80,17 @@ func NewLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
 // Gather all required information in a comprehensive order.
 func (o *LoginOptions) GatherInfo() error {
 	if err := o.gatherAuthInfo(); err != nil {
+		// Display MOTD even if authentication failed
+		o.prepareAndDisplayMOTD()
 		return err
 	}
 	if err := o.gatherProjectInfo(); err != nil {
+		// Display MOTD even project info gathering failed
+		o.prepareAndDisplayMOTD()
 		return err
 	}
-	return nil
+
+	return o.prepareAndDisplayMOTD()
 }
 
 // getClientConfig returns back the current clientConfig as we know it.  If there is no clientConfig, it builds one with enough information
@@ -347,6 +354,22 @@ func (o *LoginOptions) gatherProjectInfo() error {
 	}
 
 	return nil
+}
+
+// Prepare the kubernetes clientset in order to get the MOTD and
+// potentially display it.
+func (o *LoginOptions) prepareAndDisplayMOTD() error {
+	// At this point, the client was unable to create a config, which is a
+	// pre-requisite. So Lets skip this, since we can't even reach the
+	// apiserver.
+	if o.Config == nil {
+		return nil
+	}
+	clientset, err := kubernetes.NewForConfig(o.Config)
+	if err != nil {
+		return err
+	}
+	return motd.DisplayMOTD(clientset.CoreV1(), o.Out)
 }
 
 // Save all the information present in this helper to a config file. An explicit config
