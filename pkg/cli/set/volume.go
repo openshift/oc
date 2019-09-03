@@ -68,32 +68,32 @@ var (
 		For descriptions on other volume types, see https://docs.openshift.com`)
 
 	volumeExample = templates.Examples(`
-		# List volumes defined on all deployment configs in the current project
+	  # List volumes defined on all deployment configs in the current project
 	  %[1]s volume dc --all
 
-	  # Add a new empty dir volume to deployment config (dc) 'registry' mounted under
-	  # /var/lib/registry
-	  %[1]s volume dc/registry --add --mount-path=/var/lib/registry
+	  # Add a new empty dir volume to deployment config (dc) 'myapp' mounted under
+	  # /var/lib/myapp
+	  %[1]s volume dc/myapp --add --mount-path=/var/lib/myapp
 
 	  # Use an existing persistent volume claim (pvc) to overwrite an existing volume 'v1'
-	  %[1]s volume dc/registry --add --name=v1 -t pvc --claim-name=pvc1 --overwrite
+	  %[1]s volume dc/myapp --add --name=v1 -t pvc --claim-name=pvc1 --overwrite
 
-	  # Remove volume 'v1' from deployment config 'registry'
-	  %[1]s volume dc/registry --remove --name=v1
+	  # Remove volume 'v1' from deployment config 'myapp'
+	  %[1]s volume dc/myapp --remove --name=v1
 
 	  # Create a new persistent volume claim that overwrites an existing volume 'v1'
-	  %[1]s volume dc/registry --add --name=v1 -t pvc --claim-size=1G --overwrite
+	  %[1]s volume dc/myapp --add --name=v1 -t pvc --claim-size=1G --overwrite
 
 	  # Change the mount point for volume 'v1' to /data
-	  %[1]s volume dc/registry --add --name=v1 -m /data --overwrite
+	  %[1]s volume dc/myapp --add --name=v1 -m /data --overwrite
 
 	  # Modify the deployment config by removing volume mount "v1" from container "c1"
 	  # (and by removing the volume "v1" if no other containers have volume mounts that reference it)
-	  %[1]s volume dc/registry --remove --name=v1 --containers=c1
+	  %[1]s volume dc/myapp --remove --name=v1 --containers=c1
 
-	  # Add new volume based on a more complex volume source (Git repo, AWS EBS, GCE PD,
+	  # Add new volume based on a more complex volume source (AWS EBS, GCE PD,
 	  # Ceph, Gluster, NFS, ISCSI, ...)
-	  %[1]s volume dc/registry --add -m /repo --source=<json-string>`)
+	  %[1]s volume dc/myapp --add -m /data --source=<json-string>`)
 )
 
 type VolumeOptions struct {
@@ -204,7 +204,7 @@ func NewCmdVolume(fullName string, f kcmdutil.Factory, streams genericclioptions
 	cmd.Flags().StringVar(&o.AddOpts.ClaimClass, "claim-class", o.AddOpts.ClaimClass, "StorageClass to use for the persistent volume claim")
 	cmd.Flags().StringVar(&o.AddOpts.ClaimSize, "claim-size", o.AddOpts.ClaimSize, "If specified along with a persistent volume type, create a new claim with the given size in bytes. Accepts SI notation: 10, 10G, 10Gi")
 	cmd.Flags().StringVar(&o.AddOpts.ClaimMode, "claim-mode", o.AddOpts.ClaimMode, "Set the access mode of the claim to be created. Valid values are ReadWriteOnce (rwo), ReadWriteMany (rwm), or ReadOnlyMany (rom)")
-	cmd.Flags().StringVar(&o.AddOpts.Source, "source", o.AddOpts.Source, "Details of volume source as json string. This can be used if the required volume type is not supported by --type option. (e.g.: '{\"gitRepo\": {\"repository\": <git-url>, \"revision\": <commit-hash>}}')")
+	cmd.Flags().StringVar(&o.AddOpts.Source, "source", o.AddOpts.Source, "Details of volume source as json string. This can be used if the required volume type is not supported by --type option. (e.g.: '{\"nfs\": {\"path\": \"/tmp\",\"server\":\"172.17.0.2\"}}')")
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
@@ -895,11 +895,6 @@ func describeVolumeSource(source *corev1.VolumeSource) string {
 		return "empty directory"
 	case source.GCEPersistentDisk != nil:
 		return fmt.Sprintf("GCE PD %s type=%s partition=%d%s", source.GCEPersistentDisk.PDName, source.GCEPersistentDisk.FSType, source.GCEPersistentDisk.Partition, sourceAccessMode(source.GCEPersistentDisk.ReadOnly))
-	case source.GitRepo != nil:
-		if len(source.GitRepo.Revision) == 0 {
-			return fmt.Sprintf("Git repository %s", source.GitRepo.Repository)
-		}
-		return fmt.Sprintf("Git repository %s @ %s", source.GitRepo.Repository, source.GitRepo.Revision)
 	case source.Glusterfs != nil:
 		return fmt.Sprintf("GlusterFS %s:%s%s", source.Glusterfs.EndpointsName, source.Glusterfs.Path, sourceAccessMode(source.Glusterfs.ReadOnly))
 	case source.HostPath != nil:

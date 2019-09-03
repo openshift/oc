@@ -49,8 +49,8 @@ var (
 		syntax.`)
 
 	envExample = templates.Examples(`
-		# Update deployment 'registry' with a new environment variable
-	  %[1]s env dc/registry STORAGE_DIR=/local
+	  # Update deployment config 'myapp' with a new environment variable
+	  %[1]s env dc/myapp STORAGE_DIR=/local
 
 	  # List the environment variables defined on a build config 'sample-build'
 	  %[1]s env bc/sample-build --list
@@ -78,7 +78,7 @@ var (
 	  %[1]s env -f dc.json ENV-
 
 	  # Set some of the local shell environment into a deployment config on the server
-	  env | grep RAILS_ | %[1]s env -e - dc/registry`)
+	  env | grep RAILS_ | %[1]s env -e - dc/myapp`)
 )
 
 type EnvOptions struct {
