@@ -72,6 +72,7 @@ func TestImagesAndImageStreams(t *testing.T) {
 				ImageClient:  imageclient.NewSimpleClientset(tc.objects...).ImageV1(),
 				Images:       tc.images,
 				ImageStreams: tc.imageStreams,
+				LogOut:       genericclioptions.NewTestIOStreamsDiscard().Out,
 			}
 			err := options.completeImages()
 			if err != nil {
