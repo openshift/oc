@@ -8,7 +8,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/kubernetes/pkg/kubectl"
+	kscale "k8s.io/kubectl/pkg/scale"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 
@@ -234,11 +234,11 @@ type ScaleEvent struct {
 	Size uint
 }
 
-func (t *FakeScaler) Scale(namespace, name string, newSize uint, preconditions *kubectl.ScalePrecondition, retry, wait *kubectl.RetryParams, resource schema.GroupResource) error {
+func (t *FakeScaler) Scale(namespace, name string, newSize uint, preconditions *kscale.ScalePrecondition, retry, wait *kscale.RetryParams, resource schema.GroupResource) error {
 	t.Events = append(t.Events, ScaleEvent{name, newSize})
 	return nil
 }
 
-func (t *FakeScaler) ScaleSimple(namespace, name string, preconditions *kubectl.ScalePrecondition, newSize uint, resource schema.GroupResource) (string, error) {
+func (t *FakeScaler) ScaleSimple(namespace, name string, preconditions *kscale.ScalePrecondition, newSize uint, resource schema.GroupResource) (string, error) {
 	return "", fmt.Errorf("unexpected call to ScaleSimple")
 }

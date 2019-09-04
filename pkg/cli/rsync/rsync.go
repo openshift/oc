@@ -79,17 +79,17 @@ type podChecker interface {
 
 // RsyncOptions holds the options to execute the sync command
 type RsyncOptions struct {
-	Namespace         string
-	ContainerName     string
-	Source            *PathSpec
-	Destination       *PathSpec
-	Strategy          CopyStrategy
-	StrategyName      string
-	Quiet             bool
-	Delete            bool
-	Watch             bool
-	Compress          bool
-	SuggestedCmdUsage string
+	Namespace               string
+	ContainerName           string
+	Source                  *PathSpec
+	Destination             *PathSpec
+	Strategy                CopyStrategy
+	StrategyName            string
+	Quiet                   bool
+	Delete                  bool
+	Watch                   bool
+	Compress                bool
+	EnableSuggestedCmdUsage bool
 
 	RshCmd        string
 	RsyncInclude  []string
@@ -217,10 +217,7 @@ func (o *RsyncOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 		fullCmdName = cmdParent.CommandPath()
 	}
 
-	if len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe") {
-		o.SuggestedCmdUsage = fmt.Sprintf("Use '%s describe pod/%s -n %s' to see all of the containers in this pod.", fullCmdName, o.PodName(), o.Namespace)
-	}
-
+	o.EnableSuggestedCmdUsage = len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe")
 	o.RshCmd = DefaultRsyncRemoteShellToUse(cmd)
 
 	o.Strategy, err = o.GetCopyStrategy(o.StrategyName)

@@ -94,8 +94,8 @@ func NewRshOptions(parent string, streams genericclioptions.IOStreams) *RshOptio
 				Stdin:     true,
 			},
 
-			FullCmdName: parent,
-			Executor:    &exec.DefaultRemoteExecutor{},
+			ParentCommandName: parent,
+			Executor:          &exec.DefaultRemoteExecutor{},
 		},
 	}
 }
@@ -172,9 +172,8 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 	if cmdParent != nil {
 		fullCmdName = cmdParent.CommandPath()
 	}
-	if len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe") {
-		o.ExecOptions.SuggestedCmdUsage = fmt.Sprintf("Use '%s describe pod/%s -n %s' to see all of the containers in this pod.", fullCmdName, o.PodName, o.Namespace)
-	}
+	o.ExecOptions.EnableSuggestedCmdUsage = len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe")
+
 	return err
 }
 
