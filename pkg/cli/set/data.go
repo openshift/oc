@@ -20,10 +20,10 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
-	"k8s.io/kubernetes/pkg/kubectl/util"
-	"k8s.io/kubernetes/pkg/kubectl/util/templates"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
+	"k8s.io/kubectl/pkg/util/templates"
 )
 
 var (
@@ -35,7 +35,7 @@ var (
 		from those objects from arguments or files. Use the --from-file flag when you want to
 		load the contents of a file or directory, or pass command line arguments that contain
 		either a KEY=VALUE pair (to set a value) or KEY- (to remove that key).
-		
+
 		You may also use this command as part of a chain to modify an object before submitting
 		to the server with the --local and --dry-run flags. This allows you to update local
 		resources to contain additional keys.
