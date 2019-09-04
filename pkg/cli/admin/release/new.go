@@ -47,11 +47,7 @@ func NewNewOptions(streams genericclioptions.IOStreams) *NewOptions {
 	return &NewOptions{
 		IOStreams:       streams,
 		ParallelOptions: imagemanifest.ParallelOptions{MaxPerRegistry: 4},
-		// TODO: only cluster-version-operator and maybe CLI should be in this list,
-		//   the others should always be referenced by the cluster-bootstrap or
-		//   another operator.
-		AlwaysInclude:  []string{"cluster-version-operator", "cli", "installer"},
-		ToImageBaseTag: "cluster-version-operator",
+		ToImageBaseTag:  "cluster-version-operator",
 		// We strongly control the set of allowed component versions to prevent confusion
 		// about what component versions may be used for. Changing this list requires
 		// approval from the release architects.
@@ -356,7 +352,15 @@ func (o *NewOptions) Run() error {
 		len(o.ReleaseMetadata) > 0 ||
 		len(o.PreviousVersions) > 0 ||
 		len(o.ToImageBase) > 0 ||
-		len(o.ExtraComponentVersions) > 0
+		len(o.ExtraComponentVersions) > 0 ||
+		len(o.Mappings) > 0 ||
+		len(o.Exclude) > 0 ||
+		len(o.AlwaysInclude) > 0
+
+	// the base tag should always be included in a release payload
+	if len(o.ToImageBaseTag) > 0 {
+		o.AlwaysInclude = append(o.AlwaysInclude, o.ToImageBaseTag)
+	}
 
 	exclude := sets.NewString()
 	for _, s := range o.Exclude {
