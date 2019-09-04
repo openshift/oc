@@ -65,32 +65,41 @@ var (
 		started and not accessible to 'rsh' or 'exec', the 'debug' command makes it easy to
 		create a carbon copy of that setup.
 
-		The default mode is to start a shell inside of the first container of the referenced pod,
-		replication controller, or deployment config. The started pod will be a copy of your
-		source pod, with labels stripped, the command changed to '/bin/sh', and readiness and
-		liveness checks disabled. If you just want to run a command, add '--' and a command to
-		run. Passing a command will not create a TTY or send STDIN by default. Other flags are
-		supported for altering the container or pod in common ways.
+		The default mode is to start a shell inside of the first container of the referenced pod.
+		The started pod will be a copy of your source pod, with labels stripped, the command
+		changed to '/bin/sh', and readiness and liveness checks disabled. If you just want to run
+		a command, add '--' and a command to run. Passing a command will not create a TTY or send
+		STDIN by default. Other flags are supported for altering the container or pod in common ways.
 
 		A common problem running containers is a security policy that prohibits you from running
 		as a root user on the cluster. You can use this command to test running a pod as
 		non-root (with --as-user) or to run a non-root pod as root (with --as-root).
 
+		You may invoke other types of objects besides pods - any controller resource that creates
+		a pod (like a deployment, build, or job), objects that can host pods (like nodes), or
+		resources that can be used to create pods (such as image stream tags).
+
 		The debug pod is deleted when the the remote command completes or the user interrupts
 		the shell.`)
 
 	debugExample = templates.Examples(`
-	  # Debug a currently running deployment
-	  %[1]s dc/test
+	  # Debug a currently running deployment by creating a new pod
+		%[1]s deploy/test
 
-	  # Test running a deployment as a non-root user
-	  %[1]s dc/test --as-user=1000000
+		# Debug a node as an administrator
+		%[1]s node/master-1
+
+		# Launch a shell in a pod using the provided image stream tag
+		%[1]s istag/mysql:latest -n openshift
+
+	  # Test running a job as a non-root user
+	  %[1]s job/test --as-user=1000000
 
 	  # Debug a specific failing container by running the env command in the 'second' container
-	  %[1]s dc/test -c second -- /bin/env
+	  %[1]s daemonset/test -c second -- /bin/env
 
 	  # See the pod that would be created to debug
-	  %[1]s dc/test -o yaml`)
+	  %[1]s mypod-9xbc -o yaml`)
 )
 
 type DebugOptions struct {
