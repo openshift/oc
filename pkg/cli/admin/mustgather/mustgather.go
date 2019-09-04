@@ -92,6 +92,7 @@ func NewMustGatherOptions(streams genericclioptions.IOStreams) *MustGatherOption
 	return &MustGatherOptions{
 		SourceDir: "/must-gather/",
 		IOStreams: streams,
+		LogOut:    newPrefixWriter(streams.Out, "[must-gather      ] OUT"),
 	}
 }
 
@@ -206,6 +207,7 @@ type MustGatherOptions struct {
 
 	PrinterCreated printers.ResourcePrinter
 	PrinterDeleted printers.ResourcePrinter
+	LogOut         io.Writer
 }
 
 func (o *MustGatherOptions) Validate() error {
@@ -234,14 +236,14 @@ func (o *MustGatherOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	o.PrinterCreated.PrintObj(ns, o.Out)
+	o.PrinterCreated.PrintObj(ns, o.LogOut)
 	if !o.Keep {
 		defer func() {
 			if err := o.Client.CoreV1().Namespaces().Delete(ns.Name, nil); err != nil {
 				fmt.Printf("%v", err)
 				return
 			}
-			o.PrinterDeleted.PrintObj(ns, o.Out)
+			o.PrinterDeleted.PrintObj(ns, o.LogOut)
 		}()
 	}
 
@@ -249,14 +251,14 @@ func (o *MustGatherOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	o.PrinterCreated.PrintObj(clusterRoleBinding, o.Out)
+	o.PrinterCreated.PrintObj(clusterRoleBinding, o.LogOut)
 	if !o.Keep {
 		defer func() {
 			if err := o.Client.RbacV1().ClusterRoleBindings().Delete(clusterRoleBinding.Name, &metav1.DeleteOptions{}); err != nil {
 				fmt.Printf("%v", err)
 				return
 			}
-			o.PrinterDeleted.PrintObj(clusterRoleBinding, o.Out)
+			o.PrinterDeleted.PrintObj(clusterRoleBinding, o.LogOut)
 		}()
 	}
 
@@ -267,7 +269,7 @@ func (o *MustGatherOptions) Run() error {
 		if err != nil {
 			return err
 		}
-		o.log("[%s] pod for plug-in image %s created", pod.Name, image)
+		o.log("pod for plug-in image %s created", image)
 		pods = append(pods, pod)
 	}
 
@@ -278,29 +280,31 @@ func (o *MustGatherOptions) Run() error {
 		go func(pod *corev1.Pod) {
 			defer wg.Done()
 
+			log := newPodOutLogger(o.Out, pod.Name)
+
 			// wait for gather container to be running (gather is running)
 			if err := o.waitForGatherContainerRunning(pod); err != nil {
-				o.log("[%s] gather did not start: %s", pod.Name, err)
+				log("gather did not start: %s", err)
 				errs <- fmt.Errorf("gather did not start for pod %s: %s", pod.Name, err)
 				return
 			}
 			// stream gather container logs
 			if err := o.getGatherContainerLogs(pod); err != nil {
-				o.log("[%s] gather logs unavailable: %v", pod.Name, err)
+				log("gather logs unavailable: %v", err)
 			}
 
 			// wait for pod to be running (gather has completed)
-			o.log("[%s] waiting for gather to complete ", pod.Name)
+			log("waiting for gather to complete")
 			if err := o.waitForPodRunning(pod); err != nil {
-				o.log("[%s] gather never finished: %v", pod.Name, err)
+				log("gather never finished: %v", err)
 				errs <- fmt.Errorf("gather never finished for pod %s: %s", pod.Name, err)
 				return
 			}
 
 			// copy the gathered files into the local destination dir
-			o.log("[%s] downloading gather output", pod.Name)
+			log("downloading gather output")
 			if err := o.copyFilesFromPod(pod, len(pods) > 1); err != nil {
-				o.log("[%s] gather output not downloaded: %v\n", pod.Name, err)
+				log("gather output not downloaded: %v\n", err)
 				errs <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
 				return
 			}
@@ -315,13 +319,20 @@ func (o *MustGatherOptions) Run() error {
 	return errors.NewAggregate(arr)
 }
 
+func newPodOutLogger(out io.Writer, podName string) func(string, ...interface{}) {
+	writer := newPrefixWriter(out, fmt.Sprintf("[%s] OUT", podName))
+	return func(format string, a ...interface{}) {
+		fmt.Fprintf(writer, format+"\n", a...)
+	}
+}
+
 func (o *MustGatherOptions) log(format string, a ...interface{}) {
-	fmt.Fprintf(o.Out, format+"\n", a...)
+	fmt.Fprintf(o.LogOut, format+"\n", a...)
 }
 
 func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod, createSubDir bool) error {
 	streams := o.IOStreams
-	streams.Out = newPrefixWriter(streams.Out, pod.Name)
+	streams.Out = newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name))
 	destDir := o.DestDir
 	if createSubDir {
 		destDir = path.Join(o.DestDir, pod.Name)
@@ -353,16 +364,10 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 		},
 		RESTClientGetter: o.RESTClientGetter,
 		Object:           pod,
-		ConsumeRequestFn: consumeRequestFn(pod.Name),
+		ConsumeRequestFn: logs.DefaultConsumeRequest,
 		LogsForObject:    polymorphichelpers.LogsForObjectFn,
-		IOStreams:        genericclioptions.IOStreams{Out: o.Out},
+		IOStreams:        genericclioptions.IOStreams{Out: newPrefixWriter(o.Out, fmt.Sprintf("[%s] POD", pod.Name))},
 	}).RunLogs()
-}
-
-func consumeRequestFn(prefix string) func(rest.ResponseWrapper, io.Writer) error {
-	return func(response rest.ResponseWrapper, out io.Writer) error {
-		return logs.DefaultConsumeRequest(response, newPrefixWriter(out, prefix))
-	}
 }
 
 func newPrefixWriter(out io.Writer, prefix string) io.Writer {
@@ -370,7 +375,7 @@ func newPrefixWriter(out io.Writer, prefix string) io.Writer {
 	scanner := bufio.NewScanner(reader)
 	go func() {
 		for scanner.Scan() {
-			fmt.Fprintf(out, "[%s] %s\n", prefix, scanner.Text())
+			fmt.Fprintf(out, "%s %s\n", prefix, scanner.Text())
 		}
 	}()
 	return writer
