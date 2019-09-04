@@ -1179,7 +1179,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 				}
 			}
 			if len(toImageBase) == 0 {
-				return fmt.Errorf("--to-image-base-tag did not point to a tag in the input")
+				return fmt.Errorf("the base image tag %q could not be found in the input, cannot build a release image", o.ToImageBaseTag)
 			}
 		}
 
