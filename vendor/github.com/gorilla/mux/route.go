@@ -74,7 +74,7 @@ func (r *Route) Match(req *http.Request, match *RouteMatch) bool {
 		return false
 	}
 
-	if match.MatchErr == ErrMethodMismatch && r.handler != nil {
+	if match.MatchErr == ErrMethodMismatch {
 		// We found a route which matches request method, clear MatchErr
 		match.MatchErr = nil
 		// Then override the mis-matched handler
@@ -383,7 +383,7 @@ func (r *Route) PathPrefix(tpl string) *Route {
 // The above route will only match if the URL contains the defined queries
 // values, e.g.: ?foo=bar&id=42.
 //
-// If the value is an empty string, it will match any value if the key is set.
+// It the value is an empty string, it will match any value if the key is set.
 //
 // Variables can define an optional regexp pattern to be matched:
 //
