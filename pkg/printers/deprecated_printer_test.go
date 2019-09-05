@@ -1,5 +1,7 @@
 package printers
 
+/*
+
 import (
 	"bytes"
 	"io/ioutil"
@@ -8,28 +10,33 @@ import (
 	"testing"
 	"time"
 
-	kapi "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	kapi "k8s.io/kubernetes/pkg/apis/core"
 	kprinters "k8s.io/kubernetes/pkg/printers"
 
-	appsapi "github.com/openshift/api/apps/v1"
-	authorizationapi "github.com/openshift/api/authorization/v1"
-	buildapi "github.com/openshift/api/build/v1"
-	imageapi "github.com/openshift/api/image/v1"
-	oauthapi "github.com/openshift/api/oauth/v1"
-	projectapi "github.com/openshift/api/project/v1"
-	securityapi "github.com/openshift/api/security/v1"
-	templateapi "github.com/openshift/api/template/v1"
+	"github.com/openshift/openshift-apiserver/pkg/api/install"
+	appsapi "github.com/openshift/openshift-apiserver/pkg/apps/apis/apps"
+	authorizationapi "github.com/openshift/openshift-apiserver/pkg/authorization/apis/authorization"
+	buildapi "github.com/openshift/openshift-apiserver/pkg/build/apis/build"
+	imageapi "github.com/openshift/openshift-apiserver/pkg/image/apis/image"
+	oauthapi "github.com/openshift/openshift-apiserver/pkg/oauth/apis/oauth"
+	projectapi "github.com/openshift/openshift-apiserver/pkg/project/apis/project"
+	securityapi "github.com/openshift/openshift-apiserver/pkg/security/apis/security"
+	templateapi "github.com/openshift/openshift-apiserver/pkg/template/apis/template"
 )
+
+func init() {
+	install.InstallInternalOpenShift(legacyscheme.Scheme)
+}
 
 // PrinterCoverageExceptions is the list of API types that do NOT have corresponding printers
 // If you add something to this list, explain why it doesn't need printing.  waaaa is not a valid
 // reason.
 var PrinterCoverageExceptions = []reflect.Type{
-	// reflect.TypeOf(&imageapi.DockerImage{}),         // not a top level resource
+	reflect.TypeOf(&imageapi.DockerImage{}),         // not a top level resource
 	reflect.TypeOf(&imageapi.ImageStreamImport{}),   // normal users don't ever look at these
 	reflect.TypeOf(&buildapi.BuildLog{}),            // just a marker type
 	reflect.TypeOf(&buildapi.BuildLogOptions{}),     // just a marker type
@@ -68,11 +75,11 @@ var MissingPrinterCoverageExceptions = []reflect.Type{
 }
 
 func TestPrinterCoverage(t *testing.T) {
-	printer := kprinters.NewHumanReadablePrinter(nil, kprinters.PrintOptions{})
+	printer := kprinters.NewTablePrinter(kprinters.PrintOptions{})
 	AddHandlers(printer)
 
 main:
-	for gvk, apiType := range scheme.Scheme.AllKnownTypes() {
+	for gvk, apiType := range legacyscheme.Scheme.AllKnownTypes() {
 		if gvk.Version != runtime.APIVersionInternal {
 			continue
 		}
@@ -213,9 +220,8 @@ func mockStreams() []*imageapi.ImageStream {
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: "less-than-three-tags"},
 			Status: imageapi.ImageStreamStatus{
-				Tags: []imageapi.NamedTagEventList{
-					{
-						Tag: "other",
+				Tags: map[string]imageapi.TagEventList{
+					"other": {
 						Items: []imageapi.TagEvent{
 							{
 								DockerImageReference: "other-ref",
@@ -224,8 +230,7 @@ func mockStreams() []*imageapi.ImageStream {
 							},
 						},
 					},
-					{
-						Tag: "latest",
+					"latest": {
 						Items: []imageapi.TagEvent{
 							{
 								DockerImageReference: "latest-ref",
@@ -240,9 +245,8 @@ func mockStreams() []*imageapi.ImageStream {
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: "three-tags"},
 			Status: imageapi.ImageStreamStatus{
-				Tags: []imageapi.NamedTagEventList{
-					{
-						Tag: "other",
+				Tags: map[string]imageapi.TagEventList{
+					"other": {
 						Items: []imageapi.TagEvent{
 							{
 								DockerImageReference: "other-ref",
@@ -251,8 +255,7 @@ func mockStreams() []*imageapi.ImageStream {
 							},
 						},
 					},
-					{
-						Tag: "latest",
+					"latest": {
 						Items: []imageapi.TagEvent{
 							{
 								DockerImageReference: "latest-ref",
@@ -261,8 +264,7 @@ func mockStreams() []*imageapi.ImageStream {
 							},
 						},
 					},
-					{
-						Tag: "third",
+					"third": {
 						Items: []imageapi.TagEvent{
 							{
 								DockerImageReference: "third-ref",
@@ -277,9 +279,8 @@ func mockStreams() []*imageapi.ImageStream {
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: "more-than-three-tags"},
 			Status: imageapi.ImageStreamStatus{
-				Tags: []imageapi.NamedTagEventList{
-					{
-						Tag: "other",
+				Tags: map[string]imageapi.TagEventList{
+					"other": {
 						Items: []imageapi.TagEvent{
 							{
 								DockerImageReference: "other-ref",
@@ -288,8 +289,7 @@ func mockStreams() []*imageapi.ImageStream {
 							},
 						},
 					},
-					{
-						Tag: "latest",
+					"latest": {
 						Items: []imageapi.TagEvent{
 							{
 								DockerImageReference: "latest-ref",
@@ -298,8 +298,7 @@ func mockStreams() []*imageapi.ImageStream {
 							},
 						},
 					},
-					{
-						Tag: "third",
+					"third": {
 						Items: []imageapi.TagEvent{
 							{
 								DockerImageReference: "third-ref",
@@ -308,8 +307,7 @@ func mockStreams() []*imageapi.ImageStream {
 							},
 						},
 					},
-					{
-						Tag: "another",
+					"another": {
 						Items: []imageapi.TagEvent{
 							{
 								DockerImageReference: "another-ref",
@@ -338,7 +336,7 @@ func TestPrintTemplate(t *testing.T) {
 					},
 				},
 				Parameters: []templateapi.Parameter{{}},
-				Objects:    []runtime.RawExtension{{Object: &kapi.Pod{}}},
+				Objects:    []runtime.Object{&kapi.Pod{}},
 			},
 			"name\tdescription\t1 (1 blank)\t1\n",
 		},
@@ -351,7 +349,7 @@ func TestPrintTemplate(t *testing.T) {
 					},
 				},
 				Parameters: []templateapi.Parameter{},
-				Objects:    []runtime.RawExtension{},
+				Objects:    []runtime.Object{},
 			},
 			"long\tthe long description of this template is way way way way way way way way way...\t0 (all set)\t0\n",
 		},
@@ -364,7 +362,7 @@ func TestPrintTemplate(t *testing.T) {
 					},
 				},
 				Parameters: []templateapi.Parameter{},
-				Objects:    []runtime.RawExtension{},
+				Objects:    []runtime.Object{},
 			},
 			"multiline\tOnce upon a time...\t0 (all set)\t0\n",
 		},
@@ -377,7 +375,7 @@ func TestPrintTemplate(t *testing.T) {
 					},
 				},
 				Parameters: []templateapi.Parameter{},
-				Objects:    []runtime.RawExtension{},
+				Objects:    []runtime.Object{},
 			},
 			"trailingnewline\tNext line please...\t0 (all set)\t0\n",
 		},
@@ -390,7 +388,7 @@ func TestPrintTemplate(t *testing.T) {
 					},
 				},
 				Parameters: []templateapi.Parameter{},
-				Objects:    []runtime.RawExtension{},
+				Objects:    []runtime.Object{},
 			},
 			"longmultiline\t12345678901234567890123456789012345678901234567890123456789012345678901234567...\t0 (all set)\t0\n",
 		},
@@ -413,7 +411,7 @@ func TestPrintTemplate(t *testing.T) {
 
 func Test_printTagsUpToWidth(t *testing.T) {
 	type args struct {
-		statusTags     []imageapi.NamedTagEventList
+		statusTags     map[string]imageapi.TagEventList
 		preferredWidth int
 	}
 	tests := []struct {
@@ -422,14 +420,14 @@ func Test_printTagsUpToWidth(t *testing.T) {
 		want string
 	}{
 		{name: "empty"},
-		{name: "1", want: "very-long-name", args: args{statusTags: []imageapi.NamedTagEventList{{Tag: "very-long-name", Items: []imageapi.TagEvent{}}}}},
-		{name: "2", want: "1234567890", args: args{preferredWidth: 10, statusTags: []imageapi.NamedTagEventList{{Tag: "1234567890", Items: []imageapi.TagEvent{}}}}},
-		{name: "3", want: "123456789012", args: args{preferredWidth: 10, statusTags: []imageapi.NamedTagEventList{{Tag: "123456789012", Items: []imageapi.TagEvent{}}}}},
-		{name: "4", want: "1234567890 + 1 more...", args: args{preferredWidth: 10, statusTags: []imageapi.NamedTagEventList{{Tag: "2", Items: []imageapi.TagEvent{}}, {Tag: "1234567890", Items: []imageapi.TagEvent{}}}}},
-		{name: "if more than 75% full, don't add a tag", want: "1234567890 + 1 more...", args: args{preferredWidth: 12, statusTags: []imageapi.NamedTagEventList{{Tag: "2", Items: []imageapi.TagEvent{}}, {Tag: "1234567890", Items: []imageapi.TagEvent{}}}}},
-		{name: "if less than 75% full, add a tag that fits", want: "123456789,2", args: args{preferredWidth: 12, statusTags: []imageapi.NamedTagEventList{{Tag: "2", Items: []imageapi.TagEvent{}}, {Tag: "123456789", Items: []imageapi.TagEvent{}}}}},
-		{name: "if less than 75% full, include a large tag", want: "2,3,4234567890", args: args{preferredWidth: 12, statusTags: []imageapi.NamedTagEventList{{Tag: "2", Items: []imageapi.TagEvent{}}, {Tag: "3", Items: []imageapi.TagEvent{}}, {Tag: "4234567890", Items: []imageapi.TagEvent{}}}}},
-		{name: "if less than 75% full, don't include a very large tag", want: "2,3 + 1 more...", args: args{preferredWidth: 12, statusTags: []imageapi.NamedTagEventList{{Tag: "2", Items: []imageapi.TagEvent{}}, {Tag: "3", Items: []imageapi.TagEvent{}}, {Tag: "42345678901", Items: []imageapi.TagEvent{}}}}},
+		{name: "1", want: "very-long-name", args: args{statusTags: map[string]imageapi.TagEventList{"very-long-name": {}}}},
+		{name: "2", want: "1234567890", args: args{preferredWidth: 10, statusTags: map[string]imageapi.TagEventList{"1234567890": {}}}},
+		{name: "3", want: "123456789012", args: args{preferredWidth: 10, statusTags: map[string]imageapi.TagEventList{"123456789012": {}}}},
+		{name: "4", want: "1234567890 + 1 more...", args: args{preferredWidth: 10, statusTags: map[string]imageapi.TagEventList{"2": {}, "1234567890": {}}}},
+		{name: "if more than 75% full, don't add a tag", want: "1234567890 + 1 more...", args: args{preferredWidth: 12, statusTags: map[string]imageapi.TagEventList{"2": {}, "1234567890": {}}}},
+		{name: "if less than 75% full, add a tag that fits", want: "123456789,2", args: args{preferredWidth: 12, statusTags: map[string]imageapi.TagEventList{"2": {}, "123456789": {}}}},
+		{name: "if less than 75% full, include a large tag", want: "2,3,4234567890", args: args{preferredWidth: 12, statusTags: map[string]imageapi.TagEventList{"2": {}, "3": {}, "4234567890": {}}}},
+		{name: "if less than 75% full, don't include a very large tag", want: "2,3 + 1 more...", args: args{preferredWidth: 12, statusTags: map[string]imageapi.TagEventList{"2": {}, "3": {}, "42345678901": {}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -439,3 +437,5 @@ func Test_printTagsUpToWidth(t *testing.T) {
 		})
 	}
 }
+
+*/
