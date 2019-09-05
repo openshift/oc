@@ -72,7 +72,8 @@ func NewCmdVersion(fullName string, f cmdutil.Factory, ioStreams genericclioptio
 		},
 	}
 	cmd.Flags().BoolVar(&o.ClientOnly, "client", o.ClientOnly, "Client version only (no server required).")
-	cmd.Flags().BoolVar(&o.Short, "short", o.Short, "Print just the version number.")
+	cmd.Flags().BoolVar(&o.Short, "short", o.Short, "Print just the version number. (default)")
+	cmd.Flags().MarkDeprecated("short", "This flag is deprecated and will be removed in future. Use 'oc version' instead.")
 	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "One of 'yaml' or 'json'.")
 	return cmd
 }
@@ -143,26 +144,14 @@ func (o *VersionOptions) Run() error {
 	}
 	switch o.Output {
 	case "":
-		if o.Short {
-			if versionInfo.ClientVersion != nil {
-				fmt.Fprintf(o.Out, "Client Version: %s\n", clientVersion.GitVersion)
-			}
-			if versionInfo.ServerVersion != nil {
-				fmt.Fprintf(o.Out, "Server Version: %s\n", serverVersion.GitVersion)
-			}
-			if len(versionInfo.OpenShiftVersion) != 0 {
-				fmt.Fprintf(o.Out, "OpenShift Version: %s\n", fmt.Sprintf("%s", versionInfo.OpenShiftVersion))
-			}
-		} else {
-			if versionInfo.ClientVersion != nil {
-				fmt.Fprintf(o.Out, "Client Version: %s\n", fmt.Sprintf("%#v", clientVersion))
-			}
-			if versionInfo.ServerVersion != nil {
-				fmt.Fprintf(o.Out, "Server Version: %s\n", fmt.Sprintf("%#v", *serverVersion))
-			}
-			if len(versionInfo.OpenShiftVersion) != 0 {
-				fmt.Fprintf(o.Out, "OpenShift Version: %s\n", fmt.Sprintf("%s", versionInfo.OpenShiftVersion))
-			}
+		if versionInfo.ClientVersion != nil {
+			fmt.Fprintf(o.Out, "Client Version: %s\n", clientVersion.GitVersion)
+		}
+		if len(versionInfo.OpenShiftVersion) != 0 {
+			fmt.Fprintf(o.Out, "Server Version: %s\n", fmt.Sprintf("%s", versionInfo.OpenShiftVersion))
+		}
+		if versionInfo.ServerVersion != nil {
+			fmt.Fprintf(o.Out, "Kubernetes Version: %s\n", serverVersion.GitVersion)
 		}
 	case "yaml":
 		marshalled, err := yaml.Marshal(&versionInfo)
