@@ -22,6 +22,7 @@ func namespaceResourcesToCollect() []schema.GroupResource {
 		{Resource: "events"},
 		{Resource: "configmaps"},
 		{Resource: "secrets"},
+		{Resource: "persistentvolumeclaims"},
 	}
 }
 
