@@ -9,7 +9,7 @@ import (
 )
 
 func Test_copyAndReplaceReleaseImage(t *testing.T) {
-	baseLen := len(installerReplacement)
+	baseLen := len(binaryReplacement)
 	tests := []struct {
 		name         string
 		r            *bytes.Buffer
@@ -61,7 +61,7 @@ func Test_copyAndReplaceReleaseImage(t *testing.T) {
 			original := make([]byte, len(src))
 			copy(original, src)
 
-			got, err := copyAndReplaceReleaseImage(w, tt.r, tt.buffer, tt.releaseImage)
+			got, err := copyAndReplaceReleaseInfo(w, tt.r, tt.buffer, tt.releaseImage)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("copyAndReplaceReleaseImage() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -89,7 +89,7 @@ func fakeInput(lengths ...int) *bytes.Buffer {
 	buf := &bytes.Buffer{}
 	for _, l := range lengths {
 		if l == 0 {
-			buf.WriteString(installerReplacement)
+			buf.WriteString(binaryReplacement)
 		} else {
 			b := byte(rand.Intn(256))
 			buf.Write(bytes.Repeat([]byte{b}, l))

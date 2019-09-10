@@ -150,27 +150,30 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Command: "oc",
 			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/mac/oc"},
 
-			LinkTo:        []string{"kubectl"},
-			Readme:        readmeCLIUnix,
-			ArchiveFormat: "openshift-client-mac-%s.tar.gz",
+			LinkTo:             []string{"kubectl"},
+			Readme:             readmeCLIUnix,
+			InjectReleaseImage: true,
+			ArchiveFormat:      "openshift-client-mac-%s.tar.gz",
 		},
 		{
 			OS:      "linux",
 			Command: "oc",
 			Mapping: extract.Mapping{Image: "cli", From: "usr/bin/oc"},
 
-			LinkTo:        []string{"kubectl"},
-			Readme:        readmeCLIUnix,
-			ArchiveFormat: "openshift-client-linux-%s.tar.gz",
+			LinkTo:             []string{"kubectl"},
+			Readme:             readmeCLIUnix,
+			InjectReleaseImage: true,
+			ArchiveFormat:      "openshift-client-linux-%s.tar.gz",
 		},
 		{
 			OS:      "windows",
 			Command: "oc",
 			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/windows/oc.exe"},
 
-			Readme:        readmeCLIWindows,
-			ArchiveFormat: "openshift-client-windows-%s.zip",
-			AsZip:         true,
+			Readme:             readmeCLIWindows,
+			InjectReleaseImage: true,
+			ArchiveFormat:      "openshift-client-windows-%s.zip",
+			AsZip:              true,
 		},
 		{
 			OS:      "darwin",
@@ -489,10 +492,19 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 		// copy the input to disk
 		if target.InjectReleaseImage {
+			releaseInfo := exactReleaseImage
 			var matched bool
-			matched, err = copyAndReplaceReleaseImage(w, r, 4*1024, exactReleaseImage)
+			errmsg := ""
+			switch target.Command {
+			case "oc":
+				releaseInfo = releaseName
+				errmsg = fmt.Sprintf("warning: Unable to inject release image info into %s, could not determine version", target.Command)
+			default:
+				errmsg = fmt.Sprintf("warning: Unable to inject release image info into %s, installer will not be locked to the correct image", target.Command)
+			}
+			matched, err = copyAndReplaceReleaseInfo(w, r, 4*1024, releaseInfo)
 			if !matched {
-				fmt.Fprintf(o.ErrOut, "warning: Unable to replace release image location into %s, installer will not be locked to the correct image\n", target.TargetName)
+				fmt.Fprintf(o.ErrOut, "%s\n", errmsg)
 			}
 		} else {
 			_, err = io.Copy(w, r)
@@ -612,23 +624,23 @@ func (o *ExtractOptions) extractCommand(command string) error {
 }
 
 const (
-	// installerReplacement is the location within the installer binary that we can insert our
-	// release payload string
-	installerReplacement = "\x00_RELEASE_IMAGE_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00"
+	// binaryReplacement is the location within the installer binary that we can insert our
+	// release image info string
+	binaryReplacement = "\x00_RELEASE_IMAGE_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00"
 )
 
-// copyAndReplaceReleaseImage performs a targeted replacement for binaries that contain a special marker string
-// as a constant, replacing the marker with releaseImage and a NUL terminating byte. It returns true if the
+// copyAndReplaceReleaseInfo performs a targeted replacement for binaries that contain a special marker string
+// as a constant, replacing the marker with releaseInfo and a NUL terminating byte. It returns true if the
 // replacement was performed.
-func copyAndReplaceReleaseImage(w io.Writer, r io.Reader, bufferSize int, releaseImage string) (bool, error) {
-	if len(releaseImage)+1 > len(installerReplacement) {
-		return false, fmt.Errorf("the release image pull spec is longer than the maximum replacement length for the installer binary")
+func copyAndReplaceReleaseInfo(w io.Writer, r io.Reader, bufferSize int, releaseInfo string) (bool, error) {
+	if len(releaseInfo)+1 > len(binaryReplacement) {
+		return false, fmt.Errorf("the release image pull spec is longer than the maximum replacement length for the binary")
 	}
-	if bufferSize < len(installerReplacement) {
-		return false, fmt.Errorf("the buffer size must be greater than %d bytes", len(installerReplacement))
+	if bufferSize < len(binaryReplacement) {
+		return false, fmt.Errorf("the buffer size must be greater than %d bytes", len(binaryReplacement))
 	}
 
-	match := []byte(installerReplacement[:len(releaseImage)+1])
+	match := []byte(binaryReplacement[:len(releaseInfo)+1])
 	offset := 0
 	max := bufferSize
 	buf := make([]byte, max+offset)
@@ -644,15 +656,15 @@ func copyAndReplaceReleaseImage(w io.Writer, r io.Reader, bufferSize int, releas
 			if index != -1 {
 				klog.V(2).Infof("Found match at %d (len=%d, offset=%d, n=%d)", index, len(buf), offset, n)
 				// the replacement starts at the beginning of the match, contains the release string and a terminating NUL byte
-				copy(buf[index:index+len(releaseImage)], []byte(releaseImage))
-				buf[index+len(releaseImage)] = 0x00
+				copy(buf[index:index+len(releaseInfo)], []byte(releaseInfo))
+				buf[index+len(releaseInfo)] = 0x00
 				matched = true
 			}
 		}
 
 		// write everything that we have already searched (excluding the end of the buffer that will
 		// be checked next pass)
-		nextOffset := end - len(installerReplacement)
+		nextOffset := end - len(binaryReplacement)
 		if nextOffset < 0 || matched {
 			nextOffset = 0
 		}

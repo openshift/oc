@@ -26,7 +26,8 @@ import (
 
 type Version struct {
 	kversion.Version
-	OpenShiftVersion string `json:"openshiftVersion,omitempty"`
+	ReleaseClientVersion string `json:"releaseClientVersion,omitempty"`
+	OpenShiftVersion     string `json:"openshiftVersion,omitempty"`
 }
 
 var (
@@ -108,7 +109,13 @@ func (o *VersionOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 // Run is copied from upstream version command, with added OpenShift server version logic
 func (o *VersionOptions) Run() error {
 	var versionInfo Version
-	clientVersion := version.Get()
+	clientVersion, reportedVersion, err := version.ExtractVersion()
+	if err != nil {
+		return err
+	}
+	if len(reportedVersion) != 0 {
+		versionInfo.ReleaseClientVersion = reportedVersion
+	}
 	versionInfo.ClientVersion = &clientVersion
 
 	var serverErr error
@@ -145,7 +152,11 @@ func (o *VersionOptions) Run() error {
 	switch o.Output {
 	case "":
 		if versionInfo.ClientVersion != nil {
-			fmt.Fprintf(o.Out, "Client Version: %s\n", clientVersion.GitVersion)
+			if len(versionInfo.ReleaseClientVersion) != 0 {
+				fmt.Fprintf(o.Out, "Client Version: %s\n", reportedVersion)
+			} else {
+				fmt.Fprintf(o.Out, "Client Version: %s\n", clientVersion.GitVersion)
+			}
 		}
 		if len(versionInfo.OpenShiftVersion) != 0 {
 			fmt.Fprintf(o.Out, "Server Version: %s\n", fmt.Sprintf("%s", versionInfo.OpenShiftVersion))
