@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -303,7 +304,8 @@ func (o *MustGatherOptions) Run() error {
 
 			// copy the gathered files into the local destination dir
 			log("downloading gather output")
-			if err := o.copyFilesFromPod(pod, len(pods) > 1); err != nil {
+			pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+			if err := o.copyFilesFromPod(pod); err != nil {
 				log("gather output not downloaded: %v\n", err)
 				errs <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
 				return
@@ -330,15 +332,12 @@ func (o *MustGatherOptions) log(format string, a ...interface{}) {
 	fmt.Fprintf(o.LogOut, format+"\n", a...)
 }
 
-func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod, createSubDir bool) error {
+func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	streams := o.IOStreams
 	streams.Out = newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name))
-	destDir := o.DestDir
-	if createSubDir {
-		destDir = path.Join(o.DestDir, pod.Name)
-		if err := os.MkdirAll(destDir, 0775); err != nil {
-			return err
-		}
+	destDir := path.Join(o.DestDir, regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.InitContainerStatuses[0].ImageID, "-"))
+	if err := os.MkdirAll(destDir, 0775); err != nil {
+		return err
 	}
 	rsyncOptions := &rsync.RsyncOptions{
 		Namespace:     pod.Namespace,
