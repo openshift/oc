@@ -117,12 +117,12 @@ func NewCmdLogs(baseName string, f kcmdutil.Factory, streams genericclioptions.I
 	cmd.Flags().StringVar(&o.UntilTime, "until", o.UntilTime, "Return logs before a specific ISO timestamp or relative date. Only applies to node journal logs.")
 	cmd.Flags().IntVar(&o.Boot, "boot", o.Boot, " Show messages from a specific boot. Use negative numbers, allowed [-100, 0], passing invalid boot offset will fail retrieving logs. Only applies to node journal logs.")
 	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "Display journal logs in an alternate format (short, cat, json, short-unix). Only applies to node journal logs.")
-	cmd.Flags().IntVar(&o.Tail, "tail", o.Tail, "Return up to this many lines from the end of the log. Only applies to node journal logs.")
+	cmd.Flags().IntVar(&o.Tail, "tail", o.Tail, "Return up to this many lines (not more than 100k) from the end of the log. Only applies to node journal logs.")
 
 	cmd.Flags().StringVar(&o.Role, "role", o.Role, "Set a label selector by node role.")
 	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "Selector (label query) to filter on.")
 	cmd.Flags().BoolVar(&o.Raw, "raw", o.Raw, "Perform no transformation of the returned data.")
-	cmd.Flags().BoolVar(&o.Unify, "unify", o.Unify, "Interleave logs by sorting the output. Defaults on when viewing node journal logs")
+	cmd.Flags().BoolVar(&o.Unify, "unify", o.Unify, "Interleave logs by sorting the output. Defaults on when viewing node journal logs.")
 
 	return cmd
 }
