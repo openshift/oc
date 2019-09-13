@@ -47,8 +47,9 @@ func NewCmdSet(fullName string, f kcmdutil.Factory, streams genericclioptions.IO
 			},
 		},
 		{
-			Message: "Manage secrets:",
+			Message: "Manage secrets and config:",
 			Commands: []*cobra.Command{
+				NewCmdData(name, f, streams),
 				NewCmdBuildSecret(name, f, streams),
 			},
 		},

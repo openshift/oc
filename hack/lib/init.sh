@@ -16,4 +16,7 @@ OS_ROOT="$(dirname "${BASH_SOURCE}")/../.."
 function os::build::host_platform() {
   echo "$(go env GOHOSTOS)/$(go env GOHOSTARCH)"
 }
+function os::log::warning() {
+  echo "warning: ${1}" 1>&2
+}
 readonly -f os::build::host_platform

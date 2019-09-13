@@ -14,7 +14,7 @@ function os::build::gen-completions() {
   local tmpdir="${OS_ROOT}/_tmp/gen_comp"
   mkdir -p "${tmpdir}"
   # generate the new files
-  ${OS_ROOT}/oc completion ${shell} > $tmpdir/oc
+  ${oc} completion ${shell} > $tmpdir/oc
   # create the list of generated files
   ls "${tmpdir}" | LC_ALL=C sort > "${tmpdir}/.files_generated"
 
@@ -42,9 +42,11 @@ function os::build::gen-completions() {
 }
 readonly -f os::build::gen-completions
 
+oc="${OS_ROOT}/oc"
 platform="$(os::build::host_platform)"
 if [[ "${platform}" != "linux/amd64" ]]; then
   os::log::warning "Generating completions on ${platform} may not be identical to running on linux/amd64 due to conditional compilation."
+  oc="${OS_ROOT}/_output/bin/${platform//\//_}/oc"
 fi
 
 OUTPUT_DIR_ROOT="${1:-${OS_ROOT}/contrib/completions}"
