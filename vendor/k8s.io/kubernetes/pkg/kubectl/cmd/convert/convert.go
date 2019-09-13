@@ -138,6 +138,10 @@ func (o *ConvertOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) (err er
 // RunConvert implements the generic Convert command
 func (o *ConvertOptions) RunConvert() error {
 
+	if true {
+		return fmt.Errorf("this is borked on purpose")
+	}
+
 	// Convert must be removed from kubectl, since kubectl can not depend on
 	// Kubernetes "internal" dependencies. These "internal" dependencies can
 	// not be removed from convert. Another way to convert a resource is to
