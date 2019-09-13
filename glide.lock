@@ -1,5 +1,5 @@
 hash: 99380f2882f9a03bb8d0cf8d814e527f9cd08aa49de1b96ed02740147cf9f11a
-updated: 2019-08-29T14:39:46.864554783+02:00
+updated: 2019-09-13T15:59:56.037834768+02:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 2ae31c8b6b30d2f4c8100c20d527b571e9c433bb
@@ -285,7 +285,7 @@ imports:
   subpackages:
   - mat64
 - name: github.com/google/btree
-  version: 20236160a414454a9c64b6c8829381c6f4bddcaa
+  version: be84af90a1f71c9eeac820a4cdacb863122396d6
 - name: github.com/google/cadvisor
   version: 8949c822ea91fa6b4996614a5ad6ade840be24ee
 - name: github.com/google/gofuzz
@@ -299,7 +299,7 @@ imports:
   - compiler
   - extensions
 - name: github.com/gorilla/mux
-  version: e1863a64f3c620ef604fb7905a0351e69f6a51e4
+  version: 884b5ffcbd3a11b730f0b75f5c86ac408753c34d
 - name: github.com/gregjones/httpcache
   version: 787624de3eb7bd915c329cba748687a3b22666a6
   subpackages:
@@ -393,7 +393,7 @@ imports:
   - libcontainer/user
   - libcontainer/utils
 - name: github.com/openshift/api
-  version: 58aab2885e38fd7f4fd57f2615f5f9fe38039e22
+  version: 9f80b7806f586aca652fc85eada9f99c0b3dde8c
   subpackages:
   - annotations
   - apps
@@ -505,7 +505,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 2cb04072d0f5b4bffd33d30cab9ed4e7cf73a779
+  version: 7d4acc018c610623ee1413b1e7aebe2ac675d35f
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -1066,7 +1066,7 @@ imports:
 - name: k8s.io/kubelet
   version: f6da02f583256d1a15cc44a101c80bfa2080a46f
 - name: k8s.io/kubernetes
-  version: 72b04b9b6c882ea7de37160c465a1befafdf25f7
+  version: 4547c3bba84481326db714c47129539d908924d6
   repo: https://github.com/openshift/kubernetes.git
   subpackages:
   - cmd/genutils
