@@ -4,7 +4,6 @@ all: build
 # Include the library makefile
 include $(addprefix ./vendor/github.com/openshift/library-go/alpha-build-machinery/make/, \
 	golang.mk \
-	targets/openshift/deps.mk \
 	targets/openshift/images.mk \
 	targets/openshift/rpm.mk \
 )
