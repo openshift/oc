@@ -86,7 +86,7 @@ func NewCmdMigrateLegacyHPA(name, fullName string, f kcmdutil.Factory, streams g
 		Short:      "Update HPAs to point to the latest group-version-kinds",
 		Long:       internalMigrateLegacyHPALong,
 		Example:    fmt.Sprintf(internalMigrateLegacyHPAExample, fullName),
-		Deprecated: "it is not usable in self-managed 4.x cluster",
+		Deprecated: "migration of content is managed automatically in OpenShift 4.x",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(name, f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

@@ -193,7 +193,7 @@ func NewCmdMigrateAPIStorage(name, fullName string, f kcmdutil.Factory, streams 
 		Short:      "Update the stored version of API objects",
 		Long:       internalMigrateStorageLong,
 		Example:    fmt.Sprintf(internalMigrateStorageExample, fullName),
-		Deprecated: "it is not usable in self-managed 4.x cluster",
+		Deprecated: "migration of content is managed automatically in OpenShift 4.x",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
