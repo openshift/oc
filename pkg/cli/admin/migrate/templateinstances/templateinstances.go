@@ -86,11 +86,10 @@ func NewMigrateTemplateInstancesOptions(streams genericclioptions.IOStreams) *Mi
 func NewCmdMigrateTemplateInstances(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateTemplateInstancesOptions(streams)
 	cmd := &cobra.Command{
-		Use:        name,
-		Short:      "Update TemplateInstances to point to the latest group-version-kinds",
-		Long:       internalMigrateTemplateInstancesLong,
-		Example:    fmt.Sprintf(internalMigrateTemplateInstancesExample, fullName),
-		Deprecated: "it is not usable in self-managed 4.x cluster",
+		Use:     name,
+		Short:   "Update TemplateInstances to point to the latest group-version-kinds",
+		Long:    internalMigrateTemplateInstancesLong,
+		Example: fmt.Sprintf(internalMigrateTemplateInstancesExample, fullName),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(name, f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

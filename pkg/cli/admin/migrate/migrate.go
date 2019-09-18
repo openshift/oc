@@ -18,11 +18,10 @@ var migrateLong = templates.LongDesc(`
 func NewCommandMigrate(name, fullName string, f cmdutil.Factory, streams genericclioptions.IOStreams, cmds ...*cobra.Command) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmd := &cobra.Command{
-		Use:        name,
-		Short:      "Migrate data in the cluster",
-		Long:       migrateLong,
-		Deprecated: "it is not usable in self-managed 4.x cluster",
-		Run:        cmdutil.DefaultSubCommandRun(streams.ErrOut),
+		Use:   name,
+		Short: "Migrate data in the cluster",
+		Long:  migrateLong,
+		Run:   cmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 	cmd.AddCommand(cmds...)
 	return cmd
