@@ -104,7 +104,8 @@ type MirrorOptions struct {
 	ToRelease   string
 	SkipRelease bool
 
-	DryRun bool
+	DryRun                        bool
+	PrintImageContentInstructions bool
 
 	ClientFn func() (imageclient.Interface, string, error)
 
@@ -138,6 +139,7 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 		}
 		return client, ns, nil
 	}
+	o.PrintImageContentInstructions = true
 	return nil
 }
 
@@ -453,8 +455,10 @@ func (o *MirrorOptions) Run() error {
 		fmt.Fprintf(o.Out, "\nSuccess\nUpdate image:  %s\nMirrored to: %s\n", to, o.To)
 	}
 
-	if err := printImageContentInstructions(o.Out, o.From, o.To, repositories); err != nil {
-		return fmt.Errorf("Error creating mirror usage instructions: %v", err)
+	if o.PrintImageContentInstructions {
+		if err := printImageContentInstructions(o.Out, o.From, o.To, repositories); err != nil {
+			return fmt.Errorf("Error creating mirror usage instructions: %v", err)
+		}
 	}
 	return nil
 }
@@ -474,12 +478,18 @@ func printImageContentInstructions(out io.Writer, from, to string, repositories 
 	}
 	mirrorRepo := mirrorRef.AsRepository().String()
 
-	sourceRef, err := imagereference.Parse(from)
-	if err != nil {
-		return fmt.Errorf("Unable to parse image reference '%s': %v", from, err)
+	if len(from) != 0 {
+		sourceRef, err := imagereference.Parse(from)
+		if err != nil {
+			return fmt.Errorf("Unable to parse image reference '%s': %v", from, err)
+		}
+		sourceRepo := sourceRef.AsRepository().String()
+		repositories[sourceRepo] = struct{}{}
 	}
-	sourceRepo := sourceRef.AsRepository().String()
-	repositories[sourceRepo] = struct{}{}
+
+	if len(repositories) == 0 {
+		return nil
+	}
 
 	for repository := range repositories {
 		sources = append(sources, operatorv1alpha1.RepositoryDigestMirrors{
