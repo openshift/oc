@@ -100,6 +100,7 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 
 	flags.BoolVar(&o.ShowContents, "contents", o.ShowContents, "Display the contents of a release.")
 	flags.BoolVar(&o.ShowCommit, "commits", o.ShowCommit, "Display information about the source an image was created with.")
+	flags.BoolVar(&o.ShowCommitURL, "commit-urls", o.ShowCommitURL, "Display a link (if possible) to the source code.")
 	flags.BoolVar(&o.ShowPullSpec, "pullspecs", o.ShowPullSpec, "Display the pull spec of each image instead of the digest.")
 	flags.BoolVar(&o.ShowSize, "size", o.ShowSize, "Display the size of each image including overlap.")
 	flags.StringVar(&o.ImageFor, "image-for", o.ImageFor, "Print the pull spec of the specified image or an error if it does not exist.")
@@ -121,6 +122,7 @@ type InfoOptions struct {
 	IncludeImages bool
 	ShowContents  bool
 	ShowCommit    bool
+	ShowCommitURL bool
 	ShowPullSpec  bool
 	ShowSize      bool
 	Verify        bool
@@ -177,6 +179,9 @@ func (o *InfoOptions) Validate() error {
 	if o.ShowCommit {
 		count++
 	}
+	if o.ShowCommitURL {
+		count++
+	}
 	if o.ShowPullSpec {
 		count++
 	}
@@ -190,7 +195,7 @@ func (o *InfoOptions) Validate() error {
 		count++
 	}
 	if count > 1 {
-		return fmt.Errorf("only one of --commits, --pullspecs, --contents, --size, --verify may be specified")
+		return fmt.Errorf("only one of --commits, --commit-urls, --pullspecs, --contents, --size, --verify may be specified")
 	}
 	if len(o.ImageFor) > 0 && len(o.Output) > 0 {
 		return fmt.Errorf("--output and --image-for may not both be specified")
@@ -353,7 +358,7 @@ func (o *InfoOptions) describeImage(release *ReleaseInfo) error {
 		fmt.Fprintln(o.Out, spec)
 		return nil
 	}
-	return describeReleaseInfo(o.Out, release, o.ShowCommit, o.ShowPullSpec, o.ShowSize)
+	return describeReleaseInfo(o.Out, release, o.ShowCommit, o.ShowCommitURL, o.ShowPullSpec, o.ShowSize)
 }
 
 func findImageSpec(image *imageapi.ImageStream, tagName, imageName string) (string, error) {
@@ -904,7 +909,7 @@ func codeChanged(from, to *imageapi.TagReference) bool {
 	return len(oldCommit) > 0 && len(newCommit) > 0 && oldCommit != newCommit
 }
 
-func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, pullSpec, showSize bool) error {
+func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCommitURL, pullSpec, showSize bool) error {
 	w := tabwriter.NewWriter(out, 0, 4, 1, ' ', 0)
 	defer w.Flush()
 	now := time.Now()
@@ -1042,6 +1047,22 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, pullSp
 				fmt.Fprintf(w, "  %s across %d layers, %d different base images\n", units.HumanSize(float64(totalSize)), len(layerCount), len(baseLayer))
 			} else {
 				fmt.Fprintf(w, "  %s across %d layers\n", units.HumanSize(float64(totalSize)), len(layerCount))
+			}
+
+		case showCommitURL:
+			fmt.Fprintf(w, "  NAME\tURL\t\n")
+			for _, tag := range release.References.Spec.Tags {
+				if tag.From == nil || tag.From.Kind != "DockerImage" {
+					continue
+				}
+				var url string
+				u, err := sourceLocationAsURL(tag.Annotations[annotationBuildSourceLocation])
+				if err == nil && u.Host == "github.com" {
+					url = fmt.Sprintf("https://github.com%s/commit/%s", u.Path, tag.Annotations[annotationBuildSourceCommit])
+				} else {
+					url = fmt.Sprintf("%s %s", tag.Annotations[annotationBuildSourceLocation], tag.Annotations[annotationBuildSourceCommit])
+				}
+				fmt.Fprintf(w, "  %s\t%s\n", tag.Name, url)
 			}
 
 		case showCommit:
