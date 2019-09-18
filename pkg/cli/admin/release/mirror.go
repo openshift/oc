@@ -459,7 +459,7 @@ func (o *MirrorOptions) Run() error {
 	return nil
 }
 
-// printImageContentInstructions provides exapmles to the user for using the new repository mirror
+// printImageContentInstructions provides examples to the user for using the new repository mirror
 // https://github.com/openshift/installer/blob/master/docs/dev/alternative_release_image_sources.md
 func printImageContentInstructions(out io.Writer, from, to string, repositories map[string]struct{}) error {
 	type installConfigSubsection struct {
