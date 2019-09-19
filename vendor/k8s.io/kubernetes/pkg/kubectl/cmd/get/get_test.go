@@ -317,6 +317,7 @@ func TestGetMultipleResourceTypesShowKinds(t *testing.T) {
 	expected := `NAME      READY   STATUS   RESTARTS   AGE
 pod/foo   0/0              0          <unknown>
 pod/bar   0/0              0          <unknown>
+
 NAME          TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
 service/baz   ClusterIP   <none>       <none>        <none>    <unknown>
 `
@@ -371,6 +372,7 @@ func TestNoBlankLinesForGetMultipleTableResource(t *testing.T) {
 	expected := `NAME      READY   STATUS   RESTARTS   AGE
 pod/foo   0/0              0          <unknown>
 pod/bar   0/0              0          <unknown>
+
 NAME          TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
 service/baz   ClusterIP   <none>       <none>        <none>    <unknown>
 `
@@ -937,12 +939,12 @@ func TestGetListComponentStatus(t *testing.T) {
 	cmd.Run(cmd, []string{"componentstatuses"})
 
 	expected := `NAME            STATUS      MESSAGE   ERROR
-servergood      Healthy     ok
+servergood      Healthy     ok        
 serverbad       Unhealthy             bad status: 500
 serverunknown   Unhealthy             fizzbuzz error
 `
 	if e, a := expected, buf.String(); e != a {
-		t.Errorf("expected\n%v\ngot\n%v", e, a)
+		t.Errorf("expected\n%q\ngot\n%q", e, a)
 	}
 }
 
@@ -1038,6 +1040,7 @@ func TestGetMultipleTypeObjects(t *testing.T) {
 	expected := `NAME      READY   STATUS   RESTARTS   AGE
 pod/foo   0/0              0          <unknown>
 pod/bar   0/0              0          <unknown>
+
 NAME          TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
 service/baz   ClusterIP   <none>       <none>        <none>    <unknown>
 `
@@ -1182,6 +1185,7 @@ func TestGetMultipleTypeObjectsWithLabelSelector(t *testing.T) {
 	expected := `NAME      READY   STATUS   RESTARTS   AGE
 pod/foo   0/0              0          <unknown>
 pod/bar   0/0              0          <unknown>
+
 NAME          TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
 service/baz   ClusterIP   <none>       <none>        <none>    <unknown>
 `
@@ -1225,6 +1229,7 @@ func TestGetMultipleTypeObjectsWithFieldSelector(t *testing.T) {
 	expected := `NAME      READY   STATUS   RESTARTS   AGE
 pod/foo   0/0              0          <unknown>
 pod/bar   0/0              0          <unknown>
+
 NAME          TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
 service/baz   ClusterIP   <none>       <none>        <none>    <unknown>
 `
@@ -1268,8 +1273,9 @@ func TestGetMultipleTypeObjectsWithDirectReference(t *testing.T) {
 
 	expected := `NAME          TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
 service/baz   ClusterIP   <none>       <none>        <none>    <unknown>
+
 NAME       STATUS    ROLES    AGE         VERSION
-node/foo   Unknown   <none>   <unknown>
+node/foo   Unknown   <none>   <unknown>   
 `
 	if e, a := expected, buf.String(); e != a {
 		t.Errorf("expected\n%v\ngot\n%v", e, a)
@@ -1774,4 +1780,63 @@ func watchBody(codec runtime.Codec, events []watch.Event) io.ReadCloser {
 		}
 	}
 	return json.Framer.NewFrameReader(ioutil.NopCloser(buf))
+}
+
+var podColumns = []metav1beta1.TableColumnDefinition{
+	{Name: "Name", Type: "string", Format: "name"},
+	{Name: "Ready", Type: "string", Format: ""},
+	{Name: "Status", Type: "string", Format: ""},
+	{Name: "Restarts", Type: "integer", Format: ""},
+	{Name: "Age", Type: "string", Format: ""},
+	{Name: "IP", Type: "string", Format: "", Priority: 1},
+	{Name: "Node", Type: "string", Format: "", Priority: 1},
+	{Name: "Nominated Node", Type: "string", Format: "", Priority: 1},
+	{Name: "Readiness Gates", Type: "string", Format: "", Priority: 1},
+}
+
+// build a meta table response from a pod list
+func podTableObjBody(codec runtime.Codec, pods ...corev1.Pod) io.ReadCloser {
+	table := &metav1beta1.Table{
+		ColumnDefinitions: podColumns,
+	}
+	for i := range pods {
+		b := bytes.NewBuffer(nil)
+		codec.Encode(&pods[i], b)
+		table.Rows = append(table.Rows, metav1beta1.TableRow{
+			Object: runtime.RawExtension{Raw: b.Bytes()},
+			Cells:  []interface{}{pods[i].Name, "0/0", "", int64(0), "<unknown>", "<none>", "<none>", "<none>", "<none>"},
+		})
+	}
+	return cmdtesting.ObjBody(codec, table)
+}
+
+// build a meta table response from a service list
+func serviceTableObjBody(codec runtime.Codec, services ...corev1.Service) io.ReadCloser {
+	table := &metav1beta1.Table{
+		ColumnDefinitions: []metav1beta1.TableColumnDefinition{
+			{Name: "Name", Type: "string", Format: "name"},
+			{Name: "Type", Type: "string", Format: ""},
+			{Name: "Cluster-IP", Type: "string", Format: ""},
+			{Name: "External-IP", Type: "string", Format: ""},
+			{Name: "Port(s)", Type: "string", Format: ""},
+			{Name: "Age", Type: "string", Format: ""},
+		},
+	}
+	for i := range services {
+		b := bytes.NewBuffer(nil)
+		codec.Encode(&services[i], b)
+		table.Rows = append(table.Rows, metav1beta1.TableRow{
+			Object: runtime.RawExtension{Raw: b.Bytes()},
+			Cells:  []interface{}{services[i].Name, "ClusterIP", "<none>", "<none>", "<none>", "<unknown>"},
+		})
+	}
+	return cmdtesting.ObjBody(codec, table)
+}
+
+// build an empty table response
+func emptyTableObjBody(codec runtime.Codec) io.ReadCloser {
+	table := &metav1beta1.Table{
+		ColumnDefinitions: podColumns,
+	}
+	return cmdtesting.ObjBody(codec, table)
 }

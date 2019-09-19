@@ -28,6 +28,8 @@ if [[ ! -f "${KUBE_ROOT}/vendor/BUILD" ]]; then
   exit 1
 fi
 
+exit 0
+
 # Remove generated files prior to running kazel.
 # TODO(spxtr): Remove this line once Bazel is the only way to build.
 rm -f "${KUBE_ROOT}/pkg/generated/openapi/zz_generated.openapi.go"

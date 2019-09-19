@@ -30,6 +30,8 @@ if ! [[ ${KUBE_FORCE_VERIFY_CHECKS:-} =~ ^[yY]$ ]] && \
   exit 0
 fi
 
+exit 0
+
 # Ensure we have the right godep version available
 kube::util::ensure_godep_version
 
