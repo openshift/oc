@@ -49,7 +49,7 @@ import:
   version: kubernetes-1.14.0
 - package: k8s.io/sample-controller
   version: kubernetes-1.14.0
- # this matches the 1.14 branch from kube
+# this matches the 1.14 branch from kube
 - package: k8s.io/gengo
   version: 51747d6e00da1fc578d5a333a93bb2abcbce7a95
 - package: k8s.io/utils
@@ -68,6 +68,13 @@ import:
   version: v1.3.1-coreos.6
 - package: github.com/google/cadvisor
   version: v0.32.0
+# these are to be able to run units from k8s
+- package: github.com/onsi/gomega
+  version: 5533ce8a0da374da682cd53d70ddcc54adf1a710
+- package: github.com/pmezard/go-difflib
+  version: 5d4384ee4fb2527b0a1256a821ebfc92f91efefc
+- package: github.com/stretchr/testify
+  version: c679ae2cc0cb27ec3293fea7e254e47386f05d69
 
 # openshift second
 - package: github.com/openshift/api
