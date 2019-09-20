@@ -549,7 +549,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			---
 			
 		`))
-		if err := describeReleaseInfo(buf, release, false, true, false); err != nil {
+		if err := describeReleaseInfo(buf, release, false, false, true, false); err != nil {
 			return err
 		}
 		filename := "release.txt"
