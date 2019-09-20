@@ -369,7 +369,18 @@ func (o *AppOptions) RunNewApp() error {
 	if len(result.Name) > 0 {
 		// only set the computed implicit "app" label on objects if no object we've produced
 		// already has the "app" label.
-		appLabel := map[string]string{"app": result.Name}
+		appLabel := map[string]string{
+			"app":                         result.Name,
+			"app.kubernetes.io/instance":  result.Name,
+			"app.kubernetes.io/component": result.Name,
+		}
+
+		for _, name := range o.Config.ImageStreams {
+			if name != "" {
+				appLabel["app.kubernetes.io/name"] = name
+			}
+		}
+
 		hasAppLabel, err := hasLabel(appLabel, result)
 		if err != nil {
 			return err
@@ -791,13 +802,6 @@ func addObjectLabels(obj runtime.Object, labels labels.Set) error {
 		metaLabels[k] = v
 	}
 	accessor.SetLabels(metaLabels)
-
-	switch objType := obj.(type) {
-	case *appsv1.DeploymentConfig:
-		if err := addDeploymentConfigNestedLabels(objType, labels); err != nil {
-			return fmt.Errorf("unable to add nested labels to %s/%s: %v", obj.GetObjectKind().GroupVersionKind(), accessor.GetName(), err)
-		}
-	}
 
 	return nil
 }
