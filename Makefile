@@ -21,6 +21,7 @@ GO_BUILD_PACKAGES :=$(strip \
 )
 GO_TEST_PACKAGES :=$(strip \
 	./... \
+	./vendor/k8s.io/kubectl/... \
 	./vendor/k8s.io/kubernetes/pkg/kubectl/... \
 )
 # These tags make sure we can statically link and avoid shared dependencies
