@@ -74,7 +74,7 @@ func (r *Route) Match(req *http.Request, match *RouteMatch) bool {
 		return false
 	}
 
-	if match.MatchErr == ErrMethodMismatch && r.handler != nil {
+	if match.MatchErr == ErrMethodMismatch {
 		// We found a route which matches request method, clear MatchErr
 		match.MatchErr = nil
 		// Then override the mis-matched handler
@@ -383,7 +383,7 @@ func (r *Route) PathPrefix(tpl string) *Route {
 // The above route will only match if the URL contains the defined queries
 // values, e.g.: ?foo=bar&id=42.
 //
-// If the value is an empty string, it will match any value if the key is set.
+// It the value is an empty string, it will match any value if the key is set.
 //
 // Variables can define an optional regexp pattern to be matched:
 //
@@ -635,7 +635,7 @@ func (r *Route) GetQueriesRegexp() ([]string, error) {
 	if r.regexp.queries == nil {
 		return nil, errors.New("mux: route doesn't have queries")
 	}
-	queries := make([]string, 0, len(r.regexp.queries))
+	var queries []string
 	for _, query := range r.regexp.queries {
 		queries = append(queries, query.regexp.String())
 	}
@@ -654,7 +654,7 @@ func (r *Route) GetQueriesTemplates() ([]string, error) {
 	if r.regexp.queries == nil {
 		return nil, errors.New("mux: route doesn't have queries")
 	}
-	queries := make([]string, 0, len(r.regexp.queries))
+	var queries []string
 	for _, query := range r.regexp.queries {
 		queries = append(queries, query.template)
 	}
