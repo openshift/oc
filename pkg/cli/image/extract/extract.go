@@ -483,6 +483,10 @@ func (o *Options) Run() error {
 }
 
 func layerByEntry(r io.Reader, options *archive.TarOptions, layerInfo LayerInfo, fn TarEntryFunc, allLayers bool, alreadySeen map[string]struct{}) (bool, error) {
+	// Prevents race condition present in vendored version of docker
+	// https://github.com/moby/moby/issues/39859
+	os.Setenv("MOBY_DISABLE_PIGZ", "true")
+
 	rc, err := dockerarchive.DecompressStream(r)
 	if err != nil {
 		return false, err
