@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,10 @@ import (
 // calls. Consider improving pkg/git in the future.
 type git struct {
 	path string
+}
+
+type gitInterface interface {
+	exec(command ...string) (string, error)
 }
 
 var noSuchRepo = errors.New("location is not a git repo")
@@ -127,7 +132,7 @@ type MergeCommit struct {
 	ParentCommits []string
 
 	PullRequest int
-	Bug         int
+	Bugs        []int
 
 	Subject string
 }
@@ -143,18 +148,15 @@ func gitOutputToError(err error, out string) error {
 	return fmt.Errorf(out)
 }
 
-func mergeLogForRepo(g *git, repo string, from, to string) ([]MergeCommit, error) {
+var (
+	rePR     = regexp.MustCompile(`^Merge pull request #(\d+) from`)
+	reBug    = regexp.MustCompile(`^[B|b]ug(?:s)?\s([\d\s,]+)(?:-|:)\s*`)
+	rePrefix = regexp.MustCompile(`^(\[[\w\.\-]+\]\s*)+`)
+)
+
+func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommit, error) {
 	if from == to {
 		return nil, nil
-	}
-
-	rePR, err := regexp.Compile(`^Merge pull request #(\d+) from`)
-	if err != nil {
-		return nil, err
-	}
-	reBug, err := regexp.Compile(`^Bug (\d+)\s*(-|:)\s*`)
-	if err != nil {
-		return nil, err
 	}
 
 	args := []string{"log", "--merges", "--topo-order", "-z", "--pretty=format:%H %P%x1E%ct%x1E%s%x1E%b", fmt.Sprintf("%s..%s", from, to)}
@@ -205,15 +207,27 @@ func mergeLogForRepo(g *git, repo string, from, to string) ([]MergeCommit, error
 		}
 
 		msg := records[3]
+		msg = rePrefix.ReplaceAllString(strings.TrimSpace(msg), "")
 		if m := reBug.FindStringSubmatch(msg); m != nil {
 			mergeCommit.Subject = msg[len(m[0]):]
-			mergeCommit.Bug, err = strconv.Atoi(m[1])
-			if err != nil {
-				return nil, fmt.Errorf("could not extract bug number from %q: %v", msg, err)
+			for _, part := range strings.Split(m[1], ",") {
+				for _, subpart := range strings.Split(part, " ") {
+					subpart = strings.TrimSpace(subpart)
+					if len(subpart) == 0 {
+						continue
+					}
+					bug, err := strconv.Atoi(subpart)
+					if err != nil {
+						klog.V(5).Infof("unable to parse numbers from %q: %v", part, err)
+						continue
+					}
+					mergeCommit.Bugs = append(mergeCommit.Bugs, bug)
+				}
 			}
 		} else {
 			mergeCommit.Subject = msg
 		}
+		sort.Ints(mergeCommit.Bugs)
 		mergeCommit.Subject = strings.TrimSpace(mergeCommit.Subject)
 		mergeCommit.Subject = strings.SplitN(mergeCommit.Subject, "\n", 2)[0]
 
