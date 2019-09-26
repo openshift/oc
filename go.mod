@@ -57,12 +57,10 @@ require (
 	github.com/prometheus/client_golang v1.1.0
 	github.com/prometheus/common v0.2.0 // indirect
 	github.com/russross/blackfriday v1.5.2
-	github.com/shurcooL/sanitized_anchor_name v0.0.0-20151028001915-10ef21a441db // indirect
 	github.com/soheilhy/cmux v0.1.4 // indirect
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.3
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
-	github.com/ugorji/go v1.1.7 // indirect
 	github.com/vishvananda/netlink v1.0.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20190625233234-7109fa855b0f // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
@@ -117,7 +115,7 @@ replace (
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.0.0-20190913203215-88ce8cca4f54
 	k8s.io/kubectl => github.com/soltysh/kubectl v0.0.0-20190916192604-b1edf147d402
 	k8s.io/kubelet => k8s.io/kubelet v0.0.0-20190913203039-8a485d6b870b
-	k8s.io/kubernetes => github.com/soltysh/kubernetes v1.16.0-rc.2.0.20190917113353-2df7ade7fe1f
+	k8s.io/kubernetes => github.com/soltysh/kubernetes v1.16.0-rc.2
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.0.0-20190913204022-a09231045882
 	k8s.io/metrics => k8s.io/metrics v0.0.0-20190913202417-f6bee5ba35c7
 	k8s.io/node-api => k8s.io/node-api v0.0.0-20190913204202-bf5c096842a8
