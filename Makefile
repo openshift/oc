@@ -4,7 +4,6 @@ all: build
 # Include the library makefile
 include $(addprefix ./vendor/github.com/openshift/library-go/alpha-build-machinery/make/, \
 	golang.mk \
-	targets/openshift/deps.mk \
 	targets/openshift/images.mk \
 	targets/openshift/rpm.mk \
 )
@@ -22,6 +21,7 @@ GO_BUILD_PACKAGES :=$(strip \
 )
 GO_TEST_PACKAGES :=$(strip \
 	./... \
+	./vendor/k8s.io/kubectl/... \
 	./vendor/k8s.io/kubernetes/pkg/kubectl/... \
 )
 # These tags make sure we can statically link and avoid shared dependencies

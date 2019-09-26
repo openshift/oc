@@ -4,17 +4,16 @@ import (
 	"bytes"
 	"fmt"
 
-	"k8s.io/kubernetes/pkg/kubectl/describe/versioned"
-
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/kubernetes/pkg/kubectl"
+	"k8s.io/kubectl/pkg/describe/versioned"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	appsclient "github.com/openshift/client-go/apps/clientset/versioned"
 	appstypedclient "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 )
 
-func NewDeploymentConfigRollbacker(appsClient appsclient.Interface) kubectl.Rollbacker {
+func NewDeploymentConfigRollbacker(appsClient appsclient.Interface) polymorphichelpers.Rollbacker {
 	return &DeploymentConfigRollbacker{dn: appsClient.AppsV1()}
 }
 
@@ -24,7 +23,7 @@ type DeploymentConfigRollbacker struct {
 	dn appstypedclient.DeploymentConfigsGetter
 }
 
-var _ kubectl.Rollbacker = &DeploymentConfigRollbacker{}
+var _ polymorphichelpers.Rollbacker = &DeploymentConfigRollbacker{}
 
 // Rollback the provided deployment config to a specific revision. If revision is zero, we will
 // rollback to the previous deployment.

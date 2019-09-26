@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	watchtools "k8s.io/client-go/tools/watch"
-	"k8s.io/kubernetes/pkg/kubectl"
+	krun "k8s.io/kubectl/pkg/cmd/run"
 )
 
 // ErrContainerTerminated is returned by PodContainerRunning in the intermediate
@@ -28,7 +28,7 @@ func PodContainerRunning(containerName string) watchtools.ConditionFunc {
 			switch t.Status.Phase {
 			case corev1.PodRunning, corev1.PodPending:
 			case corev1.PodFailed, corev1.PodSucceeded:
-				return false, kubectl.ErrPodCompleted
+				return false, krun.ErrPodCompleted
 			default:
 				return false, nil
 			}

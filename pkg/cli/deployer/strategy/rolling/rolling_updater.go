@@ -16,7 +16,7 @@ limitations under the License.
 
 package rolling
 
-// This file is a copy of k8s.io/kubernetes/pkg/kubectl/cmd/rollingupdate.go.
+// This file is a copy of k8s.io/kubectl/pkg/cmd/rollingupdate.go.
 // It has been inlined as that location is effectively unmaintained and this
 // package must maintain backwards compatibility with older openshift versions.
 
@@ -26,25 +26,24 @@ import (
 	"strconv"
 	"time"
 
-	api "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	coreclient "k8s.io/client-go/kubernetes/typed/core/v1"
 	scaleclient "k8s.io/client-go/scale"
 	"k8s.io/client-go/util/retry"
+	kscale "k8s.io/kubectl/pkg/scale"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
-	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/utils/integer"
 )
 
 // ControllerHasDesiredReplicas returns a condition that will be true if and only if
 // the desired replica count for a controller's ReplicaSelector equals the Replicas count.
-func ControllerHasDesiredReplicas(rcClient coreclient.ReplicationControllersGetter, controller *api.ReplicationController) wait.ConditionFunc {
+func ControllerHasDesiredReplicas(rcClient coreclient.ReplicationControllersGetter, controller *corev1.ReplicationController) wait.ConditionFunc {
 
 	// If we're given a controller where the status lags the spec, it either means that the controller is stale,
 	// or that the rc manager hasn't noticed the update yet. Polling status.Replicas is not safe in the latter case.
@@ -75,10 +74,10 @@ type RollingUpdaterConfig struct {
 	// Out is a writer for progress output.
 	Out io.Writer
 	// OldRC is an existing controller to be replaced.
-	OldRc *api.ReplicationController
+	OldRc *corev1.ReplicationController
 	// NewRc is a controller that will take ownership of updated pods (will be
 	// created if needed).
-	NewRc *api.ReplicationController
+	NewRc *corev1.ReplicationController
 	// UpdatePeriod is the time to wait between individual pod updates.
 	UpdatePeriod time.Duration
 	// Interval is the time to wait between polling controller status after
@@ -116,7 +115,7 @@ type RollingUpdaterConfig struct {
 	// OnProgress is invoked if set during each scale cycle, to allow the caller to perform additional logic or
 	// abort the scale. If an error is returned the cleanup method will not be invoked. The percentage value
 	// is a synthetic "progress" calculation that represents the approximate percentage completion.
-	OnProgress func(oldRc, newRc *api.ReplicationController, percentage int) error
+	OnProgress func(oldRc, newRc *corev1.ReplicationController, percentage int) error
 }
 
 // RollingUpdaterCleanupPolicy is a cleanup action to take after the
@@ -142,14 +141,14 @@ type RollingUpdater struct {
 	// Namespace for resources
 	ns string
 	// scaleAndWait scales a controller and returns its updated state.
-	scaleAndWait func(rc *api.ReplicationController, retry *kubectl.RetryParams, wait *kubectl.RetryParams) (*api.ReplicationController, error)
+	scaleAndWait func(rc *corev1.ReplicationController, retry *kscale.RetryParams, wait *kscale.RetryParams) (*corev1.ReplicationController, error)
 	// getOrCreateTargetController gets and validates an existing controller or
 	// makes a new one.
-	getOrCreateTargetController func(controller *api.ReplicationController, sourceId string) (*api.ReplicationController, bool, error)
+	getOrCreateTargetController func(controller *corev1.ReplicationController, sourceId string) (*corev1.ReplicationController, bool, error)
 	// cleanup performs post deployment cleanup tasks for newRc and oldRc.
-	cleanup func(oldRc, newRc *api.ReplicationController, config *RollingUpdaterConfig) error
+	cleanup func(oldRc, newRc *corev1.ReplicationController, config *RollingUpdaterConfig) error
 	// getReadyPods returns the amount of old and new ready pods.
-	getReadyPods func(oldRc, newRc *api.ReplicationController, minReadySeconds int32) (int32, int32, error)
+	getReadyPods func(oldRc, newRc *corev1.ReplicationController, minReadySeconds int32) (int32, int32, error)
 	// nowFn returns the current time used to calculate the minReadySeconds
 	nowFn func() metav1.Time
 }
@@ -198,7 +197,7 @@ func (r *RollingUpdater) Update(config *RollingUpdaterConfig) error {
 		one := int32(1)
 		oldRc.Spec.Replicas = &one
 	}
-	scaleRetryParams := kubectl.NewRetryParams(config.Interval, config.Timeout)
+	scaleRetryParams := kscale.NewRetryParams(config.Interval, config.Timeout)
 
 	// Find an existing controller (for continuing an interrupted update) or
 	// create a new one if necessary.
@@ -233,7 +232,7 @@ func (r *RollingUpdater) Update(config *RollingUpdaterConfig) error {
 		}
 		if existing.Spec.Replicas != nil {
 			originReplicas := strconv.Itoa(int(*existing.Spec.Replicas))
-			applyUpdate := func(rc *api.ReplicationController) {
+			applyUpdate := func(rc *corev1.ReplicationController) {
 				if rc.Annotations == nil {
 					rc.Annotations = map[string]string{}
 				}
@@ -345,7 +344,7 @@ func (r *RollingUpdater) Update(config *RollingUpdaterConfig) error {
 // scaleUp scales up newRc to desired by whatever increment is possible given
 // the configured surge threshold. scaleUp will safely no-op as necessary when
 // it detects redundancy or other relevant conditions.
-func (r *RollingUpdater) scaleUp(newRc, oldRc *api.ReplicationController, desired, maxSurge, maxUnavailable int32, scaleRetryParams *kubectl.RetryParams, config *RollingUpdaterConfig) (*api.ReplicationController, error) {
+func (r *RollingUpdater) scaleUp(newRc, oldRc *corev1.ReplicationController, desired, maxSurge, maxUnavailable int32, scaleRetryParams *kscale.RetryParams, config *RollingUpdaterConfig) (*corev1.ReplicationController, error) {
 	// If we're already at the desired, do nothing.
 	if *newRc.Spec.Replicas == desired {
 		return newRc, nil
@@ -378,7 +377,7 @@ func (r *RollingUpdater) scaleUp(newRc, oldRc *api.ReplicationController, desire
 // scaleDown scales down oldRc to 0 at whatever decrement possible given the
 // thresholds defined on the config. scaleDown will safely no-op as necessary
 // when it detects redundancy or other relevant conditions.
-func (r *RollingUpdater) scaleDown(newRc, oldRc *api.ReplicationController, desired, minAvailable, maxUnavailable, maxSurge int32, config *RollingUpdaterConfig) (*api.ReplicationController, error) {
+func (r *RollingUpdater) scaleDown(newRc, oldRc *corev1.ReplicationController, desired, minAvailable, maxUnavailable, maxSurge int32, config *RollingUpdaterConfig) (*corev1.ReplicationController, error) {
 	// Already scaled down; do nothing.
 	if *oldRc.Spec.Replicas == 0 {
 		return oldRc, nil
@@ -420,7 +419,7 @@ func (r *RollingUpdater) scaleDown(newRc, oldRc *api.ReplicationController, desi
 	}
 	// Perform the scale-down.
 	fmt.Fprintf(config.Out, "Scaling %s down to %d\n", oldRc.Name, *oldRc.Spec.Replicas)
-	retryWait := &kubectl.RetryParams{Interval: config.Interval, Timeout: config.Timeout}
+	retryWait := &kscale.RetryParams{Interval: config.Interval, Timeout: config.Timeout}
 	scaledRc, err := r.scaleAndWait(oldRc, retryWait, retryWait)
 	if err != nil {
 		return nil, err
@@ -429,9 +428,9 @@ func (r *RollingUpdater) scaleDown(newRc, oldRc *api.ReplicationController, desi
 }
 
 // scalerScaleAndWait scales a controller using a Scaler and a real client.
-func (r *RollingUpdater) scaleAndWaitWithScaler(rc *api.ReplicationController, retry, wait *kubectl.RetryParams) (*api.ReplicationController, error) {
-	scaler := kubectl.NewScaler(r.scaleClient)
-	if err := scaler.Scale(rc.Namespace, rc.Name, uint(*rc.Spec.Replicas), &kubectl.ScalePrecondition{Size: -1}, retry, wait, schema.GroupResource{Resource: "replicationcontrollers"}); err != nil {
+func (r *RollingUpdater) scaleAndWaitWithScaler(rc *corev1.ReplicationController, retry, wait *kscale.RetryParams) (*corev1.ReplicationController, error) {
+	scaler := kscale.NewScaler(r.scaleClient)
+	if err := scaler.Scale(rc.Namespace, rc.Name, uint(*rc.Spec.Replicas), &kscale.ScalePrecondition{Size: -1}, retry, wait, corev1.SchemeGroupVersion.WithResource("replicationcontrollers")); err != nil {
 		return nil, err
 	}
 	return r.rcClient.ReplicationControllers(rc.Namespace).Get(rc.Name, metav1.GetOptions{})
@@ -440,8 +439,8 @@ func (r *RollingUpdater) scaleAndWaitWithScaler(rc *api.ReplicationController, r
 // readyPods returns the old and new ready counts for their pods.
 // If a pod is observed as being ready, it's considered ready even
 // if it later becomes notReady.
-func (r *RollingUpdater) readyPods(oldRc, newRc *api.ReplicationController, minReadySeconds int32) (int32, int32, error) {
-	controllers := []*api.ReplicationController{oldRc, newRc}
+func (r *RollingUpdater) readyPods(oldRc, newRc *corev1.ReplicationController, minReadySeconds int32) (int32, int32, error) {
+	controllers := []*corev1.ReplicationController{oldRc, newRc}
 	oldReady := int32(0)
 	newReady := int32(0)
 	if r.nowFn == nil {
@@ -483,7 +482,7 @@ func (r *RollingUpdater) readyPods(oldRc, newRc *api.ReplicationController, minR
 //
 // Existing controllers are validated to ensure their sourceIdAnnotation
 // matches sourceId; if there's a mismatch, an error is returned.
-func (r *RollingUpdater) getOrCreateTargetControllerWithClient(controller *api.ReplicationController, sourceId string) (*api.ReplicationController, bool, error) {
+func (r *RollingUpdater) getOrCreateTargetControllerWithClient(controller *corev1.ReplicationController, sourceId string) (*corev1.ReplicationController, bool, error) {
 	existingRc, err := r.existingController(controller)
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -516,10 +515,10 @@ func (r *RollingUpdater) getOrCreateTargetControllerWithClient(controller *api.R
 }
 
 // existingController verifies if the controller already exists
-func (r *RollingUpdater) existingController(controller *api.ReplicationController) (*api.ReplicationController, error) {
+func (r *RollingUpdater) existingController(controller *corev1.ReplicationController) (*corev1.ReplicationController, error) {
 	// without rc name but generate name, there's no existing rc
 	if len(controller.Name) == 0 && len(controller.GenerateName) > 0 {
-		return nil, errors.NewNotFound(api.Resource("replicationcontrollers"), controller.Name)
+		return nil, errors.NewNotFound(corev1.Resource("replicationcontrollers"), controller.Name)
 	}
 	// controller name is required to get rc back
 	return r.rcClient.ReplicationControllers(controller.Namespace).Get(controller.Name, metav1.GetOptions{})
@@ -528,14 +527,14 @@ func (r *RollingUpdater) existingController(controller *api.ReplicationControlle
 // cleanupWithClients performs cleanup tasks after the rolling update. Update
 // process related annotations are removed from oldRc and newRc. The
 // CleanupPolicy on config is executed.
-func (r *RollingUpdater) cleanupWithClients(oldRc, newRc *api.ReplicationController, config *RollingUpdaterConfig) error {
+func (r *RollingUpdater) cleanupWithClients(oldRc, newRc *corev1.ReplicationController, config *RollingUpdaterConfig) error {
 	// Clean up annotations
 	var err error
 	newRc, err = r.rcClient.ReplicationControllers(r.ns).Get(newRc.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-	applyUpdate := func(rc *api.ReplicationController) {
+	applyUpdate := func(rc *corev1.ReplicationController) {
 		delete(rc.Annotations, sourceIdAnnotation)
 		delete(rc.Annotations, desiredReplicasAnnotation)
 	}
@@ -571,7 +570,7 @@ func (r *RollingUpdater) cleanupWithClients(oldRc, newRc *api.ReplicationControl
 	}
 }
 
-func Rename(c coreclient.ReplicationControllersGetter, rc *api.ReplicationController, newName string) error {
+func Rename(c coreclient.ReplicationControllersGetter, rc *corev1.ReplicationController, newName string) error {
 	oldName := rc.Name
 	rc.Name = newName
 	rc.ResourceVersion = ""
@@ -605,16 +604,16 @@ type NewControllerConfig struct {
 	Image            string
 	Container        string
 	DeploymentKey    string
-	PullPolicy       api.PullPolicy
+	PullPolicy       corev1.PullPolicy
 }
 
-type updateRcFunc func(controller *api.ReplicationController)
+type updateRcFunc func(controller *corev1.ReplicationController)
 
 // updateRcWithRetries retries updating the given rc on conflict with the following steps:
 // 1. Get latest resource
 // 2. applyUpdate
 // 3. Update the resource
-func updateRcWithRetries(rcClient coreclient.ReplicationControllersGetter, namespace string, rc *api.ReplicationController, applyUpdate updateRcFunc) (*api.ReplicationController, error) {
+func updateRcWithRetries(rcClient coreclient.ReplicationControllersGetter, namespace string, rc *corev1.ReplicationController, applyUpdate updateRcFunc) (*corev1.ReplicationController, error) {
 	// Deep copy the rc in case we failed on Get during retry loop
 	oldRc := rc.DeepCopy()
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() (e error) {

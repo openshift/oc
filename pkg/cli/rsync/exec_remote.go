@@ -9,17 +9,17 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
-	kexec "k8s.io/kubernetes/pkg/kubectl/cmd/exec"
+	kexec "k8s.io/kubectl/pkg/cmd/exec"
 )
 
 // remoteExecutor will execute commands on a given pod/container by using the kube Exec command
 type remoteExecutor struct {
-	Namespace         string
-	PodName           string
-	ContainerName     string
-	SuggestedCmdUsage string
-	Client            kubernetes.Interface
-	Config            *restclient.Config
+	Namespace               string
+	PodName                 string
+	ContainerName           string
+	EnableSuggestedCmdUsage bool
+	Client                  kubernetes.Interface
+	Config                  *restclient.Config
 }
 
 // Ensure it implements the executor interface
@@ -40,11 +40,11 @@ func (e *remoteExecutor) Execute(command []string, in io.Reader, out, errOut io.
 			},
 			Stdin: in != nil,
 		},
-		SuggestedCmdUsage: e.SuggestedCmdUsage,
-		Executor:          &kexec.DefaultRemoteExecutor{},
-		PodClient:         e.Client.CoreV1(),
-		Config:            e.Config,
-		Command:           command,
+		EnableSuggestedCmdUsage: e.EnableSuggestedCmdUsage,
+		Executor:                &kexec.DefaultRemoteExecutor{},
+		PodClient:               e.Client.CoreV1(),
+		Config:                  e.Config,
+		Command:                 command,
 	}
 	err := execOptions.Validate()
 	if err != nil {
@@ -60,11 +60,11 @@ func (e *remoteExecutor) Execute(command []string, in io.Reader, out, errOut io.
 
 func newRemoteExecutor(o *RsyncOptions) executor {
 	return &remoteExecutor{
-		Namespace:         o.Namespace,
-		PodName:           o.PodName(),
-		ContainerName:     o.ContainerName,
-		SuggestedCmdUsage: o.SuggestedCmdUsage,
-		Config:            o.Config,
-		Client:            o.Client,
+		Namespace:               o.Namespace,
+		PodName:                 o.PodName(),
+		ContainerName:           o.ContainerName,
+		EnableSuggestedCmdUsage: o.EnableSuggestedCmdUsage,
+		Config:                  o.Config,
+		Client:                  o.Client,
 	}
 }

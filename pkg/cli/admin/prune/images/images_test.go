@@ -25,7 +25,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	restfake "k8s.io/client-go/rest/fake"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
+	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api"
 	fakeappsclient "github.com/openshift/client-go/apps/clientset/versioned/fake"

@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/kubernetes/pkg/kubectl/generate"
+	"k8s.io/kubectl/pkg/generate"
 
 	routev1 "github.com/openshift/api/route/v1"
 )

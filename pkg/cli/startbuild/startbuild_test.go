@@ -22,7 +22,7 @@ import (
 	restfake "k8s.io/client-go/rest/fake"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
+	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api"
 	buildv1 "github.com/openshift/api/build/v1"

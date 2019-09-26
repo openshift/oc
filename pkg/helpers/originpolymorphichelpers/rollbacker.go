@@ -3,8 +3,7 @@ package originpolymorphichelpers
 import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/kubernetes/pkg/kubectl"
-	"k8s.io/kubernetes/pkg/kubectl/polymorphichelpers"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	appsclient "github.com/openshift/client-go/apps/clientset/versioned"
@@ -12,7 +11,7 @@ import (
 )
 
 func NewRollbackerFn(delegate polymorphichelpers.RollbackerFunc) polymorphichelpers.RollbackerFunc {
-	return func(restClientGetter genericclioptions.RESTClientGetter, mapping *meta.RESTMapping) (kubectl.Rollbacker, error) {
+	return func(restClientGetter genericclioptions.RESTClientGetter, mapping *meta.RESTMapping) (polymorphichelpers.Rollbacker, error) {
 		if appsv1.SchemeGroupVersion.WithKind("DeploymentConfig").GroupKind() == mapping.GroupVersionKind.GroupKind() {
 			config, err := restClientGetter.ToRESTConfig()
 			if err != nil {

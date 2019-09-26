@@ -5,7 +5,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
 func NewPathOptions(cmd *cobra.Command) *kclientcmd.PathOptions {

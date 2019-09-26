@@ -65,7 +65,7 @@ func (proxy *ProxyHttpServer) connectDial(network, addr string) (c net.Conn, err
 }
 
 func (proxy *ProxyHttpServer) handleHttps(w http.ResponseWriter, r *http.Request) {
-	ctx := &ProxyCtx{Req: r, Session: atomic.AddInt64(&proxy.sess, 1), proxy: proxy}
+	ctx := &ProxyCtx{Req: r, Session: atomic.AddInt64(&proxy.sess, 1), proxy: proxy, certStore: proxy.CertStore}
 
 	hij, ok := w.(http.Hijacker)
 	if !ok {
@@ -188,7 +188,7 @@ func (proxy *ProxyHttpServer) handleHttps(w http.ResponseWriter, r *http.Request
 			clientTlsReader := bufio.NewReader(rawClientTls)
 			for !isEof(clientTlsReader) {
 				req, err := http.ReadRequest(clientTlsReader)
-				var ctx = &ProxyCtx{Req: req, Session: atomic.AddInt64(&proxy.sess, 1), proxy: proxy}
+				var ctx = &ProxyCtx{Req: req, Session: atomic.AddInt64(&proxy.sess, 1), proxy: proxy, UserData: ctx.UserData}
 				if err != nil && err != io.EOF {
 					return
 				}
@@ -238,6 +238,8 @@ func (proxy *ProxyHttpServer) handleHttps(w http.ResponseWriter, r *http.Request
 				// TODO: use a more reasonable scheme
 				resp.Header.Del("Content-Length")
 				resp.Header.Set("Transfer-Encoding", "chunked")
+				// Force connection close otherwise chrome will keep CONNECT tunnel open forever
+				resp.Header.Set("Connection", "close")
 				if err := resp.Header.Write(rawClientTls); err != nil {
 					ctx.Warnf("Cannot write TLS response header from mitm'd client: %v", err)
 					return
@@ -312,6 +314,10 @@ func dialerFromEnv(proxy *ProxyHttpServer) func(network, addr string) (net.Conn,
 }
 
 func (proxy *ProxyHttpServer) NewConnectDialToProxy(https_proxy string) func(network, addr string) (net.Conn, error) {
+	return proxy.NewConnectDialToProxyWithHandler(https_proxy, nil)
+}
+
+func (proxy *ProxyHttpServer) NewConnectDialToProxyWithHandler(https_proxy string, connectReqHandler func(req *http.Request)) func(network, addr string) (net.Conn, error) {
 	u, err := url.Parse(https_proxy)
 	if err != nil {
 		return nil
@@ -326,6 +332,9 @@ func (proxy *ProxyHttpServer) NewConnectDialToProxy(https_proxy string) func(net
 				URL:    &url.URL{Opaque: addr},
 				Host:   addr,
 				Header: make(http.Header),
+			}
+			if connectReqHandler != nil {
+				connectReqHandler(connectReq)
 			}
 			c, err := proxy.dial(network, u.Host)
 			if err != nil {
@@ -369,6 +378,9 @@ func (proxy *ProxyHttpServer) NewConnectDialToProxy(https_proxy string) func(net
 				Host:   addr,
 				Header: make(http.Header),
 			}
+			if connectReqHandler != nil {
+				connectReqHandler(connectReq)
+			}
 			connectReq.Write(c)
 			// Read response.
 			// Okay to use and discard buffered reader here, because
@@ -396,14 +408,28 @@ func (proxy *ProxyHttpServer) NewConnectDialToProxy(https_proxy string) func(net
 
 func TLSConfigFromCA(ca *tls.Certificate) func(host string, ctx *ProxyCtx) (*tls.Config, error) {
 	return func(host string, ctx *ProxyCtx) (*tls.Config, error) {
+		var err error
+		var cert *tls.Certificate
+
+		hostname := stripPort(host)
 		config := *defaultTLSConfig
 		ctx.Logf("signing for %s", stripPort(host))
-		cert, err := signHost(*ca, []string{stripPort(host)})
+
+		genCert := func() (*tls.Certificate, error) {
+			return signHost(*ca, []string{hostname})
+		}
+		if ctx.certStore != nil {
+			cert, err = ctx.certStore.Fetch(hostname, genCert)
+		} else {
+			cert, err = genCert()
+		}
+
 		if err != nil {
 			ctx.Warnf("Cannot sign host certificate with provided CA: %s", err)
 			return nil, err
 		}
-		config.Certificates = append(config.Certificates, cert)
+
+		config.Certificates = append(config.Certificates, *cert)
 		return &config, nil
 	}
 }

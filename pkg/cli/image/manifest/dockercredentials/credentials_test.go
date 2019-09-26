@@ -12,7 +12,7 @@ type mockKeyring struct {
 	calls []string
 }
 
-func (k *mockKeyring) Lookup(image string) ([]credentialprovider.LazyAuthConfiguration, bool) {
+func (k *mockKeyring) Lookup(image string) ([]credentialprovider.AuthConfig, bool) {
 	k.calls = append(k.calls, image)
 	return nil, false
 }

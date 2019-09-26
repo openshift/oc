@@ -6,8 +6,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/kubernetes/pkg/kubectl/generate"
-	"k8s.io/kubernetes/pkg/kubectl/generate/versioned"
+	"k8s.io/kubectl/pkg/generate"
+	"k8s.io/kubectl/pkg/generate/versioned"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 )

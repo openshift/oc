@@ -15,15 +15,15 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/kubectl/pkg/cmd/exec"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
+	"k8s.io/kubectl/pkg/util/templates"
+	"k8s.io/kubectl/pkg/util/term"
 	"k8s.io/kubernetes/pkg/apis/apps"
 	"k8s.io/kubernetes/pkg/apis/batch"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/exec"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/polymorphichelpers"
-	"k8s.io/kubernetes/pkg/kubectl/util/templates"
-	"k8s.io/kubernetes/pkg/kubectl/util/term"
 
 	oapps "github.com/openshift/api/apps"
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
@@ -94,8 +94,8 @@ func NewRshOptions(parent string, streams genericclioptions.IOStreams) *RshOptio
 				Stdin:     true,
 			},
 
-			FullCmdName: parent,
-			Executor:    &exec.DefaultRemoteExecutor{},
+			ParentCommandName: parent,
+			Executor:          &exec.DefaultRemoteExecutor{},
 		},
 	}
 }
@@ -172,9 +172,8 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 	if cmdParent != nil {
 		fullCmdName = cmdParent.CommandPath()
 	}
-	if len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe") {
-		o.ExecOptions.SuggestedCmdUsage = fmt.Sprintf("Use '%s describe pod/%s -n %s' to see all of the containers in this pod.", fullCmdName, o.PodName, o.Namespace)
-	}
+	o.ExecOptions.EnableSuggestedCmdUsage = len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe")
+
 	return err
 }
 

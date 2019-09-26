@@ -14,10 +14,10 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
-	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	kversion "k8s.io/kubernetes/pkg/kubectl/cmd/version"
-	"k8s.io/kubernetes/pkg/kubectl/util/i18n"
-	"k8s.io/kubernetes/pkg/kubectl/util/templates"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	kversion "k8s.io/kubectl/pkg/cmd/version"
+	"k8s.io/kubectl/pkg/util/i18n"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	configv1 "github.com/openshift/api/config/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
@@ -43,7 +43,7 @@ var (
 )
 
 type VersionOptions struct {
-	kversion.VersionOptions
+	kversion.Options
 	oClient         configv1client.ClusterOperatorsGetter
 	discoveryClient discovery.CachedDiscoveryInterface
 

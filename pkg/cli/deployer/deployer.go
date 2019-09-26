@@ -16,10 +16,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kv1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/kubectl"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/util/templates"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	kscale "k8s.io/kubectl/pkg/scale"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	imageclientv1 "github.com/openshift/client-go/image/clientset/versioned"
@@ -134,7 +133,7 @@ func NewDeployer(kubeClient kubernetes.Interface, images imageclientv1.Interface
 			return kubeClient.CoreV1().ReplicationControllers(namespace).List(metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(configName).
 				String()})
 		},
-		scaler: kubectl.NewScaler(appsutil.NewReplicationControllerScaleClient(kubeClient)),
+		scaler: kscale.NewScaler(appsutil.NewReplicationControllerScaleClient(kubeClient)),
 		strategyFor: func(config *appsv1.DeploymentConfig) (strategy.DeploymentStrategy, error) {
 			switch config.Spec.Strategy.Type {
 			case appsv1.DeploymentStrategyTypeRecreate:
@@ -172,7 +171,7 @@ type Deployer struct {
 	// getDeployments finds all deployments associated with a config.
 	getDeployments func(namespace, configName string) (*corev1.ReplicationControllerList, error)
 	// scaler is used to scale replication controllers.
-	scaler kubectl.Scaler
+	scaler kscale.Scaler
 }
 
 // Deploy starts the deployment process for rcName.
@@ -245,8 +244,8 @@ func (d *Deployer) Deploy(namespace, rcName string) error {
 			continue
 		}
 		// Scale the deployment down to zero.
-		retryWaitParams := kubectl.NewRetryParams(1*time.Second, 120*time.Second)
-		if err := d.scaler.Scale(candidate.Namespace, candidate.Name, uint(0), &kubectl.ScalePrecondition{Size: -1, ResourceVersion: ""}, retryWaitParams, retryWaitParams, kapi.Resource("replicationcontrollers")); err != nil {
+		retryWaitParams := kscale.NewRetryParams(1*time.Second, 120*time.Second)
+		if err := d.scaler.Scale(candidate.Namespace, candidate.Name, uint(0), &kscale.ScalePrecondition{Size: -1, ResourceVersion: ""}, retryWaitParams, retryWaitParams, corev1.SchemeGroupVersion.WithResource("replicationcontrollers")); err != nil {
 			fmt.Fprintf(d.errOut, "error: Couldn't scale down prior deployment %s: %v\n", appsutil.LabelForDeployment(candidate), err)
 		} else {
 			fmt.Fprintf(d.out, "--> Scaled older deployment %s down\n", candidate.Name)

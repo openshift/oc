@@ -28,15 +28,15 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	watchtools "k8s.io/client-go/tools/watch"
-	"k8s.io/kubernetes/pkg/kubectl"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/attach"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/logs"
-	kcmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/polymorphichelpers"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
-	"k8s.io/kubernetes/pkg/kubectl/util/templates"
-	"k8s.io/kubernetes/pkg/kubectl/util/term"
-	"k8s.io/kubernetes/pkg/util/interrupt"
+	"k8s.io/kubectl/pkg/cmd/attach"
+	"k8s.io/kubectl/pkg/cmd/logs"
+	krun "k8s.io/kubectl/pkg/cmd/run"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util/interrupt"
+	"k8s.io/kubectl/pkg/util/templates"
+	"k8s.io/kubectl/pkg/util/term"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
@@ -452,7 +452,7 @@ func (o *DebugOptions) RunDebug() error {
 			}
 			return fmt.Errorf(msg)
 			// switch to logging output
-		case err == kubectl.ErrPodCompleted, err == conditions.ErrContainerTerminated, !o.Attach.Stdin:
+		case err == krun.ErrPodCompleted, err == conditions.ErrContainerTerminated, !o.Attach.Stdin:
 			return logs.LogsOptions{
 				Object: pod,
 				Options: &corev1.PodLogOptions{

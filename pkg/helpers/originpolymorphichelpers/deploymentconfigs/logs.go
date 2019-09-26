@@ -2,7 +2,7 @@ package deploymentconfigs
 
 import (
 	"k8s.io/client-go/rest"
-	"k8s.io/kubernetes/pkg/kubectl/scheme"
+	"k8s.io/kubectl/pkg/scheme"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 )
