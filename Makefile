@@ -9,8 +9,8 @@ include $(addprefix ./vendor/github.com/openshift/library-go/alpha-build-machine
 )
 
 GO_LD_EXTRAFLAGS :=-X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitMajor="1" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitMinor="14" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitVersion="v1.14.0+724e12f93f" \
+                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitMinor="16" \
+                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitVersion="v1.16.0-7-gab72ed5" \
                    -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
                    -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
                    -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitTreeState="clean"
@@ -18,11 +18,6 @@ GO_LD_EXTRAFLAGS :=-X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/versi
 GO_BUILD_PACKAGES :=$(strip \
 	./cmd/... \
 	$(wildcard ./tools/*) \
-)
-GO_TEST_PACKAGES :=$(strip \
-	./... \
-	./vendor/k8s.io/kubectl/... \
-	./vendor/k8s.io/kubernetes/pkg/kubectl/... \
 )
 # These tags make sure we can statically link and avoid shared dependencies
 GO_BUILD_FLAGS :=-tags 'include_gcs include_oss containers_image_openpgp gssapi'
