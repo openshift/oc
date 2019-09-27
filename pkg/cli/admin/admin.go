@@ -21,6 +21,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/createlogintemplate"
 	"github.com/openshift/oc/pkg/cli/admin/createproviderselectiontemplate"
 	"github.com/openshift/oc/pkg/cli/admin/groups"
+	"github.com/openshift/oc/pkg/cli/admin/inspect"
 	"github.com/openshift/oc/pkg/cli/admin/migrate"
 	migrateetcd "github.com/openshift/oc/pkg/cli/admin/migrate/etcd"
 	migrateimages "github.com/openshift/oc/pkg/cli/admin/migrate/images"
@@ -63,6 +64,7 @@ func NewCommandAdmin(name, fullName string, f kcmdutil.Factory, streams genericc
 				upgrade.New(f, fullName, streams),
 				top.NewCommandTop(top.TopRecommendedName, fullName+" "+top.TopRecommendedName, f, streams),
 				mustgather.NewMustGatherCommand(f, streams),
+				inspect.NewCmdInspect(streams, fullName),
 			},
 		},
 		{
