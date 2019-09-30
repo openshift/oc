@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/rest"
 )
@@ -114,6 +115,9 @@ func (o *InspectOptions) gatherContainerEndpoints(destDir string, pod *corev1.Po
 	if err := o.gatherContainerMetrics(destDir, pod, metricsPort); err != nil {
 		errs = append(errs, fmt.Errorf("unable to gather container /metrics: %v", err))
 	}
+	if err := o.gatherContainerDebug(destDir, pod, metricsPort); err != nil && !apierrors.IsNotFound(err) {
+		errs = append(errs, fmt.Errorf("unable to gather container /debug : %v", err))
+	}
 
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
@@ -157,6 +161,28 @@ func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod,
 	result, err := o.podUrlGetter.Get("/version", pod, o.restConfig, metricsPort)
 
 	return o.fileWriter.WriteFromSource(path.Join(destDir, "version.json"), &TextWriterSource{Text: result})
+}
+
+// gatherContainerDebug invokes an asynchronous network call to gather pprof profile and heap
+func (o *InspectOptions) gatherContainerDebug(destDir string, pod *corev1.Pod, debugPort *RemoteContainerPort) error {
+	// ensure destination path exists
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+	endpoints := []string{"heap", "profile", "trace"}
+
+	for _, endpoint := range endpoints {
+		// we need a token in order to access the /debug endpoint
+		result, err := o.podUrlGetter.Get("/debug/pprof/"+endpoint, pod, o.restConfig, debugPort)
+		if err != nil {
+			return err
+		}
+		if err := o.fileWriter.WriteFromSource(path.Join(destDir, endpoint), &TextWriterSource{Text: result}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // gatherContainerMetrics invokes an asynchronous network call
