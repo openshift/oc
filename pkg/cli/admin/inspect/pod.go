@@ -75,7 +75,7 @@ func (o *InspectOptions) gatherContainerInfo(destDir string, pod *corev1.Pod, co
 	}
 
 	if err := o.gatherContainerEndpoints(path.Join(destDir, "/"+container.Name), pod, &container, port); err != nil {
-		return err
+		log.Printf("        Skipping one or more container endpoint collection for pod %q container %q: %v\n", pod.Name, container.Name, err)
 	}
 
 	return nil
