@@ -65,6 +65,12 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 		resourcesToStore[gvr] = list
 	}
 
+	// collect all events reported for this namespace
+	log.Printf("    Collecting events for namespace %q...\n", namespace)
+	if err := o.gatherNamespaceEvents(path.Join(destDir, "/events"), namespace); err != nil {
+		return err
+	}
+
 	log.Printf("    Gathering pod data for namespace %q...\n", namespace)
 	// gather specific pod data
 	for _, pod := range resourcesToStore[corev1.SchemeGroupVersion.WithResource("pods")].(*unstructured.UnstructuredList).Items {
