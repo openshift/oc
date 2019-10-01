@@ -89,6 +89,11 @@ func FindMissingLivenessProbes(g osgraph.Graph, f osgraph.Namer, setProbeCommand
 
 		topLevelNode := osgraph.GetTopLevelContainerNode(g, podSpecNode)
 
+		// skip any pods since you can't modify its liveness
+		if _, ok := topLevelNode.(*kubegraph.PodNode); ok {
+			continue
+		}
+
 		// skip any podSpec nodes that are managed by other nodes.
 		// Liveness probes should only be applied to a controlling
 		// podSpec node, and not to any of its children.
