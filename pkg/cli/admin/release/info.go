@@ -1249,14 +1249,19 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 					suffix = commit.Commit[:8]
 				}
 				switch {
-				case commit.Bug > 0:
-					fmt.Fprintf(out,
-						"* [Bug %d](%s): %s %s\n",
-						commit.Bug,
-						fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", commit.Bug),
-						commit.Subject,
-						suffix,
-					)
+				case len(commit.Bugs) > 0:
+					for i, bug := range commit.Bugs {
+						if i == 0 {
+							fmt.Fprintf(out, "* [Bug %d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
+						} else {
+							fmt.Fprintf(out, ", [%d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
+						}
+						fmt.Fprintf(out,
+							": %s %s\n",
+							commit.Subject,
+							suffix,
+						)
+					}
 				default:
 					fmt.Fprintf(out,
 						"* %s %s\n",
@@ -1296,10 +1301,10 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 			continue
 		}
 		for _, commit := range commits {
-			if commit.Bug == 0 {
+			if len(commit.Bugs) == 0 {
 				continue
 			}
-			bugIDs.Insert(commit.Bug)
+			bugIDs.Insert(commit.Bugs...)
 		}
 	}
 
