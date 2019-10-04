@@ -464,6 +464,8 @@ github.com/openshift/kubernetes-kubectl v0.0.0-20190926190201-54079662af88 h1:QV
 github.com/openshift/kubernetes-kubectl v0.0.0-20190926190201-54079662af88/go.mod h1:AjffgL1ZYSrbpRJHER9vC+/INYwTSdmoZD0DXhMKzxQ=
 github.com/openshift/library-go v0.0.0-20190918130704-afb7c1698137 h1:uc0ixmmtXFhy6fEpMgHQjwDHXa9wZK3ZqA8Hln33Fe4=
 github.com/openshift/library-go v0.0.0-20190918130704-afb7c1698137/go.mod h1:NBttNjZpWwup/nthuLbPAPSYC8Qyo+BBK5bCtFoyYjo=
+github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901 h1:UQkY3zDJG4MMVzS7VFsyACxs/haMJ2aHNR/jXzWhScs=
+github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901/go.mod h1:NBttNjZpWwup/nthuLbPAPSYC8Qyo+BBK5bCtFoyYjo=
 github.com/openshift/onsi-ginkgo v1.2.1-0.20190125161613-53ca7dc85f60 h1:46MgjsyEHOqDlDCP0MD/pfnpRHCoIMybwJ5HWITY2SE=
 github.com/openshift/onsi-ginkgo v1.2.1-0.20190125161613-53ca7dc85f60/go.mod h1:azqkkH4Vpp9A579CC26hicol/wViXag9rOwElif6v9E=
 github.com/openshift/source-to-image v0.0.0-20190716154012-2a579ecd66df h1:0+rXcmKNjj77JrC7eS0V8+nPcBI8oMyYmDcMracNOwA=

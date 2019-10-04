@@ -87,6 +87,7 @@ func (o *SecurityOptions) Context() (*registryclient.Context, error) {
 	}
 	context, err := o.NewContext()
 	o.CachedContext = context
+	o.CachedContext.Retries = 3
 	return context, err
 }
 

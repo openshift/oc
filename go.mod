@@ -50,7 +50,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/openshift/api v0.0.0-20190916204813-cdbe64fb0c91
 	github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
-	github.com/openshift/library-go v0.0.0-20190918130704-afb7c1698137
+	github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901
 	github.com/openshift/source-to-image v0.0.0-20190716154012-2a579ecd66df
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/profile v1.3.0 // indirect

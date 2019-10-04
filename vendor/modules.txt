@@ -428,7 +428,7 @@ github.com/openshift/client-go/template/clientset/versioned
 github.com/openshift/client-go/template/clientset/versioned/typed/template/v1/fake
 github.com/openshift/client-go/project/clientset/versioned
 github.com/openshift/client-go/route/clientset/versioned
-# github.com/openshift/library-go v0.0.0-20190918130704-afb7c1698137
+# github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901
 github.com/openshift/library-go/pkg/serviceability
 github.com/openshift/library-go/pkg/legacyapi/legacygroupification
 github.com/openshift/library-go/pkg/image/imageutil
@@ -681,8 +681,8 @@ k8s.io/apimachinery/pkg/runtime/serializer
 k8s.io/apimachinery/pkg/apis/meta/v1/unstructured
 k8s.io/apimachinery/pkg/util/errors
 k8s.io/apimachinery/pkg/util/validation/field
-k8s.io/apimachinery/pkg/api/meta
 k8s.io/apimachinery/pkg/api/errors
+k8s.io/apimachinery/pkg/api/meta
 k8s.io/apimachinery/pkg/util/wait
 k8s.io/apimachinery/pkg/labels
 k8s.io/apimachinery/pkg/selection
