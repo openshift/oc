@@ -163,7 +163,7 @@ func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 
 func (o *InspectOptions) Validate() error {
 	if len(o.destDir) == 0 {
-		return fmt.Errorf("--base-dir must not be empty")
+		return fmt.Errorf("--dest-dir must not be empty")
 	}
 	return nil
 }
