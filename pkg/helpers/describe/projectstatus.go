@@ -365,6 +365,21 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 						continue pod
 					}
 				}
+				for _, covered := range service.FulfillingDCs {
+					if g.Edge(node, covered) != nil {
+						continue pod
+					}
+				}
+				for _, covered := range service.FulfillingDeployments {
+					if g.Edge(node, covered) != nil {
+						continue pod
+					}
+				}
+				for _, covered := range service.FulfillingDSs {
+					if g.Edge(node, covered) != nil {
+						continue pod
+					}
+				}
 				printLines(out, indent, 1, describePodInServiceGroup(local, node)...)
 			}
 		}
