@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"sync"
@@ -83,6 +84,7 @@ func NewMirror(f kcmdutil.Factory, parentName string, streams genericclioptions.
 	flags.StringVar(&o.From, "from", o.From, "Image containing the release payload.")
 	flags.StringVar(&o.To, "to", o.To, "An image repository to push to.")
 	flags.StringVar(&o.ToImageStream, "to-image-stream", o.ToImageStream, "An image stream to tag images into.")
+	flags.StringVar(&o.ToDir, "to-dir", o.ToDir, "A directory to export images to. Requires the 'skopeo' command.")
 	flags.BoolVar(&o.ToMirror, "to-mirror", o.ToMirror, "Output the mirror mappings instead of mirroring.")
 	flags.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Display information about the mirror without actually executing it.")
 
@@ -101,10 +103,13 @@ type MirrorOptions struct {
 
 	To            string
 	ToImageStream string
-	ToMirror      bool
 
+	// modifies the targets
 	ToRelease   string
 	SkipRelease bool
+
+	ToMirror bool
+	ToDir    string
 
 	DryRun                        bool
 	PrintImageContentInstructions bool
@@ -153,8 +158,28 @@ func (o *MirrorOptions) Run() error {
 		return fmt.Errorf("must specify a release image with --from")
 	}
 
-	if (len(o.To) == 0) == (len(o.ToImageStream) == 0) {
+	targets := 0
+	outputs := 0
+	if len(o.To) > 0 {
+		outputs++
+	}
+	if len(o.ToImageStream) > 0 {
+		outputs++
+	}
+	if len(o.ToDir) > 0 {
+		if outputs == 0 {
+			outputs++
+		}
+		targets++
+	}
+	if o.ToMirror {
+		targets++
+	}
+	if outputs != 1 {
 		return fmt.Errorf("must specify an image repository or image stream to mirror the release to")
+	}
+	if targets > 1 {
+		return fmt.Errorf("must specify either --to-mirror or --to-dir")
 	}
 
 	if o.SkipRelease && len(o.ToRelease) > 0 {
@@ -173,6 +198,9 @@ func (o *MirrorOptions) Run() error {
 		}.Exact()
 	} else {
 		dst = o.To
+	}
+	if len(dst) == 0 {
+		dst = "local/image"
 	}
 
 	var version string
@@ -326,6 +354,35 @@ func (o *MirrorOptions) Run() error {
 
 	if len(mappings) == 0 {
 		fmt.Fprintf(o.ErrOut, "warning: Release image contains no image references - is this a valid release?\n")
+	}
+
+	if len(o.ToDir) > 0 {
+		if err := os.MkdirAll(o.ToDir, 0755); err != nil {
+			return err
+		}
+		path := "skopeo"
+		if !o.DryRun {
+			binary, err := exec.LookPath(path)
+			if err != nil {
+				return fmt.Errorf("unable to find the 'skopeo' executable on your path, --to-dir is not available")
+			}
+			path = binary
+		}
+
+		for _, mapping := range mappings {
+			args := []string{"--insecure-policy", "copy", fmt.Sprintf("docker://%s", mapping.Source.Exact()), fmt.Sprintf("docker-archive:%s/%s", o.ToDir, mapping.Destination.Tag)}
+			if o.DryRun {
+				fmt.Fprintln(o.Out, strings.Join(append([]string{path}, args...), " "))
+				continue
+			}
+			cmd := exec.Command(path, args...)
+			cmd.Stdout = o.Out
+			cmd.Stderr = o.ErrOut
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("failed to copy %s to disk", mapping.Name)
+			}
+		}
+		return nil
 	}
 
 	if o.ToMirror {
