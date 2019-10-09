@@ -5,9 +5,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/openshift/oc/pkg/helpers/motd"
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	coreclient "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -66,6 +68,7 @@ type RshOptions struct {
 	DisableTTY bool
 	Executable string
 	Timeout    int
+	coreClient coreclient.CoreV1Interface
 	*exec.ExecOptions
 }
 
@@ -155,6 +158,17 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 		o.Command = []string{o.Executable}
 	}
 
+	config, err := f.ToRESTConfig()
+	if err != nil {
+		return err
+	}
+	o.Config = config
+
+	o.coreClient, err = coreclient.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	fullCmdName := ""
 	cmdParent := cmd.Parent()
 	if cmdParent != nil {
@@ -180,6 +194,13 @@ func (o *RshOptions) Run() error {
 		}
 		termsh := fmt.Sprintf("TERM=%q %s", term, DefaultShell)
 		o.Command = append(o.Command, "-c", termsh)
+	}
+
+	if o.TTY {
+		if err := motd.DisplayMOTD(o.coreClient, o.ErrOut); err != nil {
+			fmt.Fprintf(o.ErrOut, "Unable to display the MOTD: %v", err)
+			return err
+		}
 	}
 	return o.ExecOptions.Run()
 }

@@ -3,6 +3,7 @@ package kubectlwrappers
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -42,6 +43,7 @@ import (
 
 	"github.com/openshift/oc/pkg/cli/create"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
+	"github.com/openshift/oc/pkg/helpers/motd"
 )
 
 func adjustCmdExamples(cmd *cobra.Command, fullName string, name string) {
@@ -143,9 +145,27 @@ func hideGlobalFlags(c *cobra.Command, fs *flag.FlagSet) {
 	}
 }
 
+func isInteractiveSession(c *cobra.Command) bool {
+	ttyEnabled := c.Flag("tty").Value.String()
+	stdinEnabled := c.Flag("stdin").Value.String()
+	return ttyEnabled == "true" && stdinEnabled == "true"
+}
+
 // NewCmdExec is a wrapper for the Kubernetes cli exec command
 func NewCmdExec(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(exec.NewCmdExec(f, streams)))
+	cmd := cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(exec.NewCmdExec(f, streams)))
+	cmd.PreRun = func(c *cobra.Command, args []string) {
+		clientset, err := f.KubernetesClientSet()
+		if err != nil {
+			return
+		}
+		if isInteractiveSession(c) {
+			if err = motd.DisplayMOTD(clientset.CoreV1(), streams.ErrOut); err != nil {
+				fmt.Fprintf(streams.ErrOut, "Unable to display the MOTD: %v", err)
+			}
+		}
+	}
+	return cmd
 }
 
 // NewCmdPortForward is a wrapper for the Kubernetes cli port-forward command
@@ -185,12 +205,35 @@ func NewCmdRun(fullName string, f kcmdutil.Factory, streams genericclioptions.IO
 	cmd.Flag("generator").Usage = "The name of the API generator to use.  Default is 'deploymentconfig/v1' if --restart=Always, otherwise the default is 'run-pod/v1'."
 	cmd.Flag("generator").DefValue = ""
 	cmd.Flag("generator").Changed = false
+	cmd.PreRun = func(c *cobra.Command, args []string) {
+		clientset, err := f.KubernetesClientSet()
+		if err != nil {
+			return
+		}
+		if isInteractiveSession(c) {
+			if err = motd.DisplayMOTD(clientset.CoreV1(), streams.ErrOut); err != nil {
+				fmt.Fprintf(streams.ErrOut, "Unable to display the MOTD: %v", err)
+			}
+		}
+	}
 	return cmd
 }
 
 // NewCmdAttach is a wrapper for the Kubernetes cli attach command
 func NewCmdAttach(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(attach.NewCmdAttach(f, streams)))
+	cmd := cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(attach.NewCmdAttach(f, streams)))
+	cmd.PreRun = func(c *cobra.Command, args []string) {
+		clientset, err := f.KubernetesClientSet()
+		if err != nil {
+			return
+		}
+		if isInteractiveSession(c) {
+			if err = motd.DisplayMOTD(clientset.CoreV1(), streams.ErrOut); err != nil {
+				fmt.Fprintf(streams.ErrOut, "Unable to display the MOTD: %v", err)
+			}
+		}
+	}
+	return cmd
 }
 
 // NewCmdAnnotate is a wrapper for the Kubernetes cli annotate command

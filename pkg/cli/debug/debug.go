@@ -52,6 +52,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/helpers/conditions"
 	utilenv "github.com/openshift/oc/pkg/helpers/env"
+	"github.com/openshift/oc/pkg/helpers/motd"
 	generateapp "github.com/openshift/oc/pkg/helpers/newapp/app"
 )
 
@@ -499,6 +500,11 @@ func (o *DebugOptions) RunDebug() error {
 			}
 
 			return false, nil
+		}
+
+		if err = motd.DisplayMOTD(o.CoreClient, o.ErrOut); err != nil {
+			fmt.Fprintf(o.ErrOut, "Unable to display the MOTD: %v", err)
+			return err
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
