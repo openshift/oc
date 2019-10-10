@@ -1,8 +1,8 @@
-hash: 6d979e063a3e0dca402bde85c96a8701c7f8327a459a5bf18412c375ab135dde
-updated: 2019-09-19T15:35:43.76767506+02:00
+hash: a302476885fc3355a498c603a8b9405aafc916ef5eadb7c21067c6329874a8d1
+updated: 2019-10-10T12:18:01.241282461+02:00
 imports:
 - name: bitbucket.org/ww/goautoneg
-  version: 2ae31c8b6b30d2f4c8100c20d527b571e9c433bb
+  version: a7dc8b61c822528f973a5e4e7b272055c6fdb43e
   repo: https://github.com/munnerz/goautoneg.git
 - name: github.com/alexbrainman/sspi
   version: e580b900e9f5657daa5473021296289be6da2661
@@ -291,7 +291,7 @@ imports:
 - name: github.com/google/gofuzz
   version: 24818f796faf91cd76ec7bddd72458fbced7a6c1
 - name: github.com/google/uuid
-  version: 8c31c18f31ede9fc8eae72290a7e7a8064e9b3e3
+  version: 0cd6bf5da1e1c83f8b45653022c74f71af0538a4
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -395,7 +395,7 @@ imports:
   - libcontainer/user
   - libcontainer/utils
 - name: github.com/openshift/api
-  version: cdbe64fb0c9184ffe47d24d0ea490705a92d9fd8
+  version: d4a64ec2cbd86f11ea74dfdcf6520d5833d0c6cd
   subpackages:
   - annotations
   - apps
@@ -507,7 +507,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: afb7c16981377033aae5b758c925dcf4f0c897d0
+  version: 27b03247913b2f6a0abcea95cb9b6c896adc2531
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -543,7 +543,7 @@ imports:
   - pkg/template/templateprocessing
   - pkg/unidling/unidlingclient
 - name: github.com/openshift/source-to-image
-  version: 2a579ecd66dfaf9ee21bbc860fcde8e4d1d12301
+  version: 0b950e4c21af8838c0f523e77114a19b061deaba
   subpackages:
   - pkg/api
   - pkg/api/constants
@@ -603,7 +603,7 @@ imports:
 - name: github.com/spf13/cobra
   version: c439c4fa093711d42e1b01acb1235b52004753c1
 - name: github.com/spf13/pflag
-  version: 583c0c0531f06d5278b7d917446061adc344b5cd
+  version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/stretchr/testify
   version: c679ae2cc0cb27ec3293fea7e254e47386f05d69
 - name: github.com/vjeantet/ldapserver
@@ -906,7 +906,7 @@ imports:
   - pkg/printers
   - pkg/resource
 - name: k8s.io/client-go
-  version: 07e29e5eae48c8279cce3dc0f544e5e7a8ee9bb7
+  version: 1ed02dd0530405cbc1937b26767e537fe56f1f14
   repo: https://github.com/openshift/kubernetes-client-go.git
   subpackages:
   - discovery
