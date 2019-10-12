@@ -19,7 +19,7 @@ import (
 )
 
 type retrieverError struct {
-	src, dst reference.DockerImageReference
+	src, dst TypedImageReference
 	err      error
 }
 
@@ -149,22 +149,23 @@ func (p *plan) AddError(errs ...error) {
 	p.errs = append(p.errs, errs...)
 }
 
-func (p *plan) RegistryPlan(name string) *registryPlan {
+func (p *plan) RegistryPlan(ref TypedImageReference) *registryPlan {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	plan, ok := p.registries[name]
+	plan, ok := p.registries[ref.Ref.Registry]
 	if ok {
 		return plan
 	}
 	plan = &registryPlan{
 		parent:      p,
-		name:        name,
+		t:           ref.Type,
+		name:        ref.Ref.Registry,
 		blobsByRepo: make(map[godigest.Digest]string),
 
 		manifestConversions: make(map[godigest.Digest]godigest.Digest),
 	}
-	p.registries[name] = plan
+	p.registries[ref.Ref.Registry] = plan
 	return plan
 }
 
@@ -242,7 +243,14 @@ func (p *plan) BlobDescriptors(blobs sets.String) []distribution.Descriptor {
 func (p *plan) Print(w io.Writer) {
 	for _, name := range p.RegistryNames().List() {
 		r := p.registries[name]
-		fmt.Fprintf(w, "%s/\n", name)
+		switch r.t {
+		case DestinationFile:
+			fmt.Fprintf(w, "<dir>\n")
+		case DestinationS3:
+			fmt.Fprintf(w, "s3://\n")
+		default:
+			fmt.Fprintf(w, "%s/\n", name)
+		}
 		for _, repoName := range r.RepositoryNames().List() {
 			repo := r.repositories[repoName]
 			fmt.Fprintf(w, "  %s\n", repoName)
@@ -302,6 +310,7 @@ func (p *plan) calculateStats() {
 
 type registryPlan struct {
 	parent *plan
+	t      DestinationType
 	name   string
 
 	lock         sync.Mutex
@@ -430,7 +439,7 @@ func (p *repositoryPlan) AddError(errs ...error) {
 	p.errs = append(p.errs, errs...)
 }
 
-func (p *repositoryPlan) Blobs(from reference.DockerImageReference, t DestinationType, location string) *repositoryBlobCopy {
+func (p *repositoryPlan) Blobs(from TypedImageReference, location string) *repositoryBlobCopy {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -442,10 +451,9 @@ func (p *repositoryPlan) Blobs(from reference.DockerImageReference, t Destinatio
 	p.blobs = append(p.blobs, &repositoryBlobCopy{
 		parent: p,
 
-		fromRef:         from,
-		toRef:           reference.DockerImageReference{Registry: p.parent.name, Name: p.name},
-		destinationType: t,
-		location:        location,
+		fromRef:  from,
+		toRef:    TypedImageReference{Type: p.parent.t, Ref: reference.DockerImageReference{Registry: p.parent.name, Name: p.name}},
+		location: location,
 
 		blobs: sets.NewString(),
 	})
@@ -460,18 +468,17 @@ func (p *repositoryPlan) ExpectBlob(digest godigest.Digest) {
 	p.existingBlobs.Insert(digest.String())
 }
 
-func (p *repositoryPlan) Manifests(destinationType DestinationType) *repositoryManifestPlan {
+func (p *repositoryPlan) Manifests() *repositoryManifestPlan {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	if p.manifests == nil {
 		p.manifests = &repositoryManifestPlan{
-			parent:          p,
-			toRef:           reference.DockerImageReference{Registry: p.parent.name, Name: p.name},
-			destinationType: destinationType,
-			digestsToTags:   make(map[godigest.Digest]sets.String),
-			digestCopies:    sets.NewString(),
-			prerequisites:   make(map[godigest.Digest]godigest.Digest),
+			parent:        p,
+			toRef:         TypedImageReference{Type: p.parent.t, Ref: reference.DockerImageReference{Registry: p.parent.name, Name: p.name}},
+			digestsToTags: make(map[godigest.Digest]sets.String),
+			digestCopies:  sets.NewString(),
+			prerequisites: make(map[godigest.Digest]godigest.Digest),
 		}
 	}
 	return p.manifests
@@ -525,11 +532,10 @@ func (p *repositoryPlan) calculateStats(registryCounts map[string]int) {
 }
 
 type repositoryBlobCopy struct {
-	parent          *repositoryPlan
-	fromRef         reference.DockerImageReference
-	toRef           reference.DockerImageReference
-	destinationType DestinationType
-	location        string
+	parent   *repositoryPlan
+	fromRef  TypedImageReference
+	toRef    TypedImageReference
+	location string
 
 	lock  sync.Mutex
 	from  distribution.BlobService
@@ -582,9 +588,8 @@ func (p *repositoryBlobCopy) calculateStats() {
 }
 
 type repositoryManifestPlan struct {
-	parent          *repositoryPlan
-	toRef           reference.DockerImageReference
-	destinationType DestinationType
+	parent *repositoryPlan
+	toRef  TypedImageReference
 
 	lock    sync.Mutex
 	to      distribution.ManifestService
