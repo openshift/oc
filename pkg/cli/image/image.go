@@ -13,6 +13,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/info"
 	"github.com/openshift/oc/pkg/cli/image/mirror"
+	"github.com/openshift/oc/pkg/cli/image/serve"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
@@ -36,12 +37,18 @@ func NewCmdImage(fullName string, f kcmdutil.Factory, streams genericclioptions.
 
 	groups := ktemplates.CommandGroups{
 		{
+			Message: "View or copy images:",
+			Commands: []*cobra.Command{
+				info.NewInfo(name, streams),
+				mirror.NewCmdMirrorImage(name, streams),
+			},
+		},
+		{
 			Message: "Advanced commands:",
 			Commands: []*cobra.Command{
+				serve.New(name, streams),
 				append.NewCmdAppendImage(name, streams),
-				info.NewInfo(name, streams),
 				extract.New(name, streams),
-				mirror.NewCmdMirrorImage(name, streams),
 			},
 		},
 	}
