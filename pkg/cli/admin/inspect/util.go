@@ -11,6 +11,7 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 
 	configv1 "github.com/openshift/api/config/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // resourceContext is used to keep track of previously seen objects
@@ -35,6 +36,23 @@ func objectReferenceToString(ref *configv1.ObjectReference) string {
 		group = "." + group
 	}
 	return resource + group + name
+}
+
+func unstructuredToString(obj *unstructured.Unstructured) string {
+	resource := obj.GetKind()
+	var group string
+	if gv, err := schema.ParseGroupVersion(obj.GetAPIVersion()); err != nil {
+		group = gv.Group
+	}
+	name := obj.GetName()
+	if len(name) > 0 {
+		name = "/" + name
+	}
+	if len(group) > 0 {
+		group = "." + group
+	}
+	return resource + group + name
+
 }
 
 func objectReferenceToResourceInfos(clientGetter genericclioptions.RESTClientGetter, ref *configv1.ObjectReference) ([]*resource.Info, error) {

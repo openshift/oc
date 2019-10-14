@@ -54,32 +54,12 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 		// save clusteroperator resources to disk
 		if err := gatherClusterOperatorResource(o.destDir, unstr, o.fileWriter); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 
-		// obtain associated objects for the current clusteroperator resources
-		relatedObjReferences, err := obtainClusterOperatorRelatedObjects(unstr)
-		if err != nil {
-			return err
-		}
-
-		for _, relatedRef := range relatedObjReferences {
-			if context.visited.Has(objectRefToContextKey(relatedRef)) {
-				continue
-			}
-
-			relatedInfos, err := objectReferenceToResourceInfos(o.configFlags, relatedRef)
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-
-			for _, relatedInfo := range relatedInfos {
-				if err := InspectResource(relatedInfo, context, o); err != nil {
-					errs = append(errs, err)
-					continue
-				}
-			}
+		// obtain associated objects for the current resource
+		if err := gatherRelatedObjects(context, unstr, o); err != nil {
+			errs = append(errs, err)
 		}
 
 		return errors.NewAggregate(errs)
@@ -121,6 +101,14 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 		}
 		return nil
 	default:
+		unstr, ok := info.Object.(*unstructured.Unstructured)
+		if ok {
+			// obtain associated objects for the current resource
+			if err := gatherRelatedObjects(context, unstr, o); err != nil {
+				return err
+			}
+		}
+
 		// save the current object to disk
 		dirPath := dirPathForInfo(o.destDir, info)
 		filename := filenameForInfo(info)
@@ -131,6 +119,35 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 		return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), info.Object)
 	}
+}
+
+func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstructured, o *InspectOptions) error {
+	relatedObjReferences, err := obtainRelatedObjects(unstr)
+	if err != nil {
+		return err
+	}
+
+	errs := []error{}
+	for _, relatedRef := range relatedObjReferences {
+		if context.visited.Has(objectRefToContextKey(relatedRef)) {
+			continue
+		}
+
+		relatedInfos, err := objectReferenceToResourceInfos(o.configFlags, relatedRef)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		for _, relatedInfo := range relatedInfos {
+			if err := InspectResource(relatedInfo, context, o); err != nil {
+				errs = append(errs, err)
+				continue
+			}
+		}
+	}
+
+	return errors.NewAggregate(errs)
 }
 
 func gatherClusterOperatorResource(baseDir string, obj *unstructured.Unstructured, fileWriter *MultiSourceFileWriter) error {
@@ -146,19 +163,24 @@ func gatherClusterOperatorResource(baseDir string, obj *unstructured.Unstructure
 	return fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), obj)
 }
 
-func obtainClusterOperatorRelatedObjects(obj *unstructured.Unstructured) ([]*configv1.ObjectReference, error) {
-	// obtain related namespace info for the current clusteroperator
-	log.Printf("    Gathering related object reference information for ClusterOperator %q...\n", obj.GetName())
+func obtainRelatedObjects(obj *unstructured.Unstructured) ([]*configv1.ObjectReference, error) {
+	// obtain related namespace info for the current resource
+	log.Printf("Gathering related object reference information for %q...\n", unstructuredToString(obj))
 
-	structuredCO := &configv1.ClusterOperator{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, structuredCO); err != nil {
-		return nil, err
+	val, found, err := unstructured.NestedSlice(obj.Object, "status", "relatedObjects")
+	if !found || err != nil {
+		log.Printf("%q does not contain .status.relatedObjects", unstructuredToString(obj))
+		return nil, nil
 	}
 
 	relatedObjs := []*configv1.ObjectReference{}
-	for idx, relatedObj := range structuredCO.Status.RelatedObjects {
-		relatedObjs = append(relatedObjs, &structuredCO.Status.RelatedObjects[idx])
-		log.Printf("    Found related object %q for ClusterOperator %q...\n", objectReferenceToString(&relatedObj), structuredCO.Name)
+	for _, relatedObj := range val {
+		ref := &configv1.ObjectReference{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(relatedObj.(map[string]interface{}), ref); err != nil {
+			return nil, err
+		}
+		relatedObjs = append(relatedObjs, ref)
+		log.Printf("    Found related object %q...\n", objectReferenceToString(ref))
 	}
 
 	return relatedObjs, nil
