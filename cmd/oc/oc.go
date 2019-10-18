@@ -62,6 +62,10 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
+	// Prevents race condition present in vendored version of Docker.
+	// See: https://github.com/moby/moby/issues/39859
+	os.Setenv("MOBY_DISABLE_PIGZ", "true")
+
 	pflag.CommandLine.SetNormalizeFunc(utilflag.WordSepNormalizeFunc)
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 	injectLoglevelFlag(pflag.CommandLine)
