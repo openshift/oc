@@ -3,7 +3,6 @@ package inspect
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"path"
@@ -23,6 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -41,7 +41,7 @@ var (
 	inspectExample = templates.Examples(`
 		# Collect debugging data for the "openshift-apiserver" clusteroperator
 		%[1]s clusteroperator/openshift-apiserver
-		
+
 		# Collect debugging data for all clusteroperators
 		%[1]s clusteroperator
 	`)
@@ -85,7 +85,7 @@ func NewCmdInspect(streams genericclioptions.IOStreams, parentCommandPath string
 	o := NewInspectOptions(streams)
 	commandPath := strings.TrimSpace(parentCommandPath + " inspect")
 	cmd := &cobra.Command{
-		Use:     "inspect (TYPE[.VERSION][.GROUP] [NAME] | TYPE[.VERSION][.GROUP]/NAME ...)  [flags]",
+		Use:     "inspect (TYPE[.VERSION][.GROUP] [NAME] | TYPE[.VERSION][.GROUP]/NAME ...) [flags]",
 		Short:   "Collect debugging data for a given resource",
 		Long:    inspectLong,
 		Example: fmt.Sprintf(inspectExample, commandPath),
@@ -199,7 +199,7 @@ func (o *InspectOptions) Run() error {
 		return errors.NewAggregate(allErrs)
 	}
 
-	log.Printf("Finished successfully with no errors.\n")
+	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.destDir)
 	return nil
 }
 
@@ -207,12 +207,12 @@ func (o *InspectOptions) Run() error {
 func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceContext) error {
 	// determine if we've already collected configResourceData
 	if ctx.visited.Has(configResourceDataKey) {
-		log.Printf("Skipping previously-collected config.openshift.io resource data")
+		klog.V(1).Infof("Skipping previously-collected config.openshift.io resource data")
 		return nil
 	}
 	ctx.visited.Insert(configResourceDataKey)
 
-	log.Printf("Gathering config.openshift.io resource data...\n")
+	klog.V(1).Infof("Gathering config.openshift.io resource data...\n")
 
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
@@ -250,12 +250,10 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourceContext) error {
 	// determine if we've already collected operatorResourceData
 	if ctx.visited.Has(operatorResourceDataKey) {
-		log.Printf("Skipping previously-collected operator.openshift.io resource data")
+		klog.V(1).Infof("Skipping previously-collected operator.openshift.io resource data")
 		return nil
 	}
 	ctx.visited.Insert(operatorResourceDataKey)
-
-	log.Printf("Gathering kubeapiserver.operator.openshift.io resource data...\n")
 
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {

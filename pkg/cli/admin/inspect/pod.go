@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -13,11 +12,12 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 )
 
 func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) error {
 	if pod.Status.Phase != corev1.PodRunning {
-		log.Printf("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
+		klog.V(1).Infof("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
 		return nil
 	}
 
@@ -37,7 +37,7 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 	if running, err := PodRunningReady(pod); err != nil {
 		return err
 	} else if !running {
-		log.Printf("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
+		klog.V(1).Infof("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
 		return nil
 	}
 
@@ -67,7 +67,7 @@ func (o *InspectOptions) gatherContainerInfo(destDir string, pod *corev1.Pod, co
 	}
 
 	if len(container.Ports) == 0 {
-		log.Printf("        Skipping container endpoint collection for pod %q container %q: No ports\n", pod.Name, container.Name)
+		klog.V(1).Infof("        Skipping container endpoint collection for pod %q container %q: No ports\n", pod.Name, container.Name)
 		return nil
 	}
 	port := &RemoteContainerPort{
@@ -76,7 +76,7 @@ func (o *InspectOptions) gatherContainerInfo(destDir string, pod *corev1.Pod, co
 	}
 
 	if err := o.gatherContainerEndpoints(path.Join(destDir, "/"+container.Name), pod, &container, port); err != nil {
-		log.Printf("        Skipping one or more container endpoint collection for pod %q container %q: %v\n", pod.Name, container.Name, err)
+		klog.V(1).Infof("        Skipping one or more container endpoint collection for pod %q container %q: %v\n", pod.Name, container.Name, err)
 	}
 
 	return nil
@@ -127,7 +127,7 @@ func (o *InspectOptions) gatherContainerEndpoints(destDir string, pod *corev1.Po
 
 func filterContainerLogsErrors(err error) error {
 	if strings.Contains(err.Error(), "previous terminated container") && strings.HasSuffix(err.Error(), "not found") {
-		log.Printf("        Unable to gather previous container logs: %v\n", err)
+		klog.V(1).Infof("        Unable to gather previous container logs: %v\n", err)
 		return nil
 	}
 	return err
@@ -154,7 +154,7 @@ func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod,
 		break
 	}
 	if !hasVersionPath {
-		log.Printf("        Skipping /version info gathering for pod %q. Endpoint not found...\n", pod.Name)
+		klog.V(1).Infof("        Skipping /version info gathering for pod %q. Endpoint not found...\n", pod.Name)
 		return nil
 	}
 

@@ -2,17 +2,16 @@ package inspect
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/klog"
 
 	configv1 "github.com/openshift/api/config/v1"
 )
@@ -29,7 +28,7 @@ const (
 // already-seen objects when following related-object reference chains.
 func InspectResource(info *resource.Info, context *resourceContext, o *InspectOptions) error {
 	if context.visited.Has(infoToContextKey(info)) {
-		log.Printf("Skipping previously-inspected resource: %q ...", infoToContextKey(info))
+		klog.V(1).Infof("Skipping previously-inspected resource: %q ...", infoToContextKey(info))
 		return nil
 	}
 	context.visited.Insert(infoToContextKey(info))
@@ -151,7 +150,7 @@ func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstruct
 }
 
 func gatherClusterOperatorResource(baseDir string, obj *unstructured.Unstructured, fileWriter *MultiSourceFileWriter) error {
-	log.Printf("Gathering cluster operator resource data...\n")
+	klog.V(1).Infof("Gathering cluster operator resource data...\n")
 
 	// ensure destination path exists
 	destDir := path.Join(baseDir, "/"+clusterScopedResourcesDirname, "/"+obj.GroupVersionKind().Group, "/clusteroperators")
@@ -165,11 +164,11 @@ func gatherClusterOperatorResource(baseDir string, obj *unstructured.Unstructure
 
 func obtainRelatedObjects(obj *unstructured.Unstructured) ([]*configv1.ObjectReference, error) {
 	// obtain related namespace info for the current resource
-	log.Printf("Gathering related object reference information for %q...\n", unstructuredToString(obj))
+	klog.V(1).Infof("Gathering related object reference information for %q...\n", unstructuredToString(obj))
 
 	val, found, err := unstructured.NestedSlice(obj.Object, "status", "relatedObjects")
 	if !found || err != nil {
-		log.Printf("%q does not contain .status.relatedObjects", unstructuredToString(obj))
+		klog.V(1).Infof("%q does not contain .status.relatedObjects", unstructuredToString(obj))
 		return nil, nil
 	}
 
@@ -180,7 +179,7 @@ func obtainRelatedObjects(obj *unstructured.Unstructured) ([]*configv1.ObjectRef
 			return nil, err
 		}
 		relatedObjs = append(relatedObjs, ref)
-		log.Printf("    Found related object %q...\n", objectReferenceToString(ref))
+		klog.V(1).Infof("    Found related object %q...\n", objectReferenceToString(ref))
 	}
 
 	return relatedObjs, nil
