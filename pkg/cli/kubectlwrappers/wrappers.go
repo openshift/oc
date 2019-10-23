@@ -3,7 +3,6 @@ package kubectlwrappers
 import (
 	"bufio"
 	"flag"
-	"fmt"
 	"path"
 	"strings"
 
@@ -106,39 +105,17 @@ func NewCmdCreate(fullName string, f kcmdutil.Factory, streams genericclioptions
 
 var (
 	completionLong = templates.LongDesc(`
-		This command prints shell code which must be evaluated to provide interactive
-		completion of %s commands.`)
+		Output shell completion code for the specified shell (bash or zsh).
+		The shell code must be evaluated to provide interactive
+		completion of oc commands.  This can be done by sourcing it from
+		the .bash_profile.
 
-	completionExample = templates.Examples(`
-		# Generate the %s completion code for bash
-	  %s completion bash > bash_completion.sh
-	  source bash_completion.sh
-
-	  # The above example depends on the bash-completion framework.
-	  # It must be sourced before sourcing the openshift cli completion,
-		# i.e. on the Mac:
-
-	  brew install bash-completion
-	  source $(brew --prefix)/etc/bash_completion
-	  %s completion bash > bash_completion.sh
-	  source bash_completion.sh
-
-	  # In zsh*, the following will load openshift cli zsh completion:
-	  source <(%s completion zsh)
-
-	  * zsh completions are only supported in versions of zsh >= 5.2`)
+		Note for zsh users: [1] zsh completions are only supported in versions of zsh >= 5.2`)
 )
 
 func NewCmdCompletion(fullName string, streams genericclioptions.IOStreams) *cobra.Command {
-	cmdHelpName := fullName
-
-	if strings.HasSuffix(fullName, "completion") {
-		cmdHelpName = "openshift"
-	}
-
-	cmd := completion.NewCmdCompletion(streams.Out, "\n")
-	cmd.Long = fmt.Sprintf(completionLong, cmdHelpName)
-	cmd.Example = fmt.Sprintf(completionExample, cmdHelpName, cmdHelpName, cmdHelpName, cmdHelpName)
+	cmd := cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(completion.NewCmdCompletion(streams.Out, "\n")))
+	cmd.Long = completionLong
 	// mark all statically included flags as hidden to prevent them appearing in completions
 	cmd.PreRun = func(c *cobra.Command, _ []string) {
 		pflag.CommandLine.VisitAll(func(flag *pflag.Flag) {
@@ -169,9 +146,7 @@ func hideGlobalFlags(c *cobra.Command, fs *flag.FlagSet) {
 
 // NewCmdExec is a wrapper for the Kubernetes cli exec command
 func NewCmdExec(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	cmd := cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(exec.NewCmdExec(f, streams)))
-	cmd.Use = "exec [flags] POD [-c CONTAINER] -- COMMAND [args...]"
-	return cmd
+	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(exec.NewCmdExec(f, streams)))
 }
 
 // NewCmdPortForward is a wrapper for the Kubernetes cli port-forward command
@@ -179,27 +154,9 @@ func NewCmdPortForward(fullName string, f kcmdutil.Factory, streams genericcliop
 	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(portforward.NewCmdPortForward(f, streams)))
 }
 
-var (
-	describeLong = templates.LongDesc(`
-		Show details of a specific resource
-
-		This command joins many API calls together to form a detailed description of a
-		given resource.`)
-
-	describeExample = templates.Examples(`
-		# Provide details about the ruby-25-centos7 image repository
-	  %[1]s describe imageRepository ruby-25-centos7
-
-	  # Provide details about the ruby-sample-build build configuration
-	  %[1]s describe bc ruby-sample-build`)
-)
-
 // NewCmdDescribe is a wrapper for the Kubernetes cli describe command
 func NewCmdDescribe(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	cmd := describe.NewCmdDescribe(fullName, f, streams)
-	cmd.Long = describeLong
-	cmd.Example = fmt.Sprintf(describeExample, fullName)
-	return cmd
+	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(describe.NewCmdDescribe(fullName, f, streams)))
 }
 
 // NewCmdProxy is a wrapper for the Kubernetes cli proxy command
@@ -207,122 +164,24 @@ func NewCmdProxy(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(proxy.NewCmdProxy(f, streams)))
 }
 
-var (
-	scaleLong = templates.LongDesc(`
-		Set a new size for a deployment or replication controller
-
-		Scale also allows users to specify one or more preconditions for the scale action.
-		If --current-replicas or --resource-version is specified, it is validated before the
-		scale is attempted, and it is guaranteed that the precondition holds true when the
-		scale is sent to the server.
-
-		Note that scaling a deployment configuration with no deployments will update the
-		desired replicas in the configuration template.
-
-		Supported resources:
-		%q`)
-
-	scaleExample = templates.Examples(`
-		# Scale replication controller named 'foo' to 3.
-	  %[1]s scale --replicas=3 replicationcontrollers foo
-
-	  # If the replication controller named foo's current size is 2, scale foo to 3.
-	  %[1]s scale --current-replicas=2 --replicas=3 replicationcontrollers foo
-
-	  # Scale the latest deployment of 'bar'. In case of no deployment, bar's template
-	  # will be scaled instead.
-	  %[1]s scale --replicas=10 dc bar`)
-)
-
 // NewCmdScale is a wrapper for the Kubernetes cli scale command
 func NewCmdScale(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	cmd := scale.NewCmdScale(f, streams)
+	cmd := cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(scale.NewCmdScale(f, streams)))
 	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
-	cmd.Short = "Change the number of pods in a deployment"
-	cmd.Long = fmt.Sprintf(scaleLong, cmd.ValidArgs)
-	cmd.Example = fmt.Sprintf(scaleExample, fullName)
 	return cmd
 }
-
-var (
-	autoScaleLong = templates.LongDesc(`
-		Autoscale a deployment config or replication controller.
-
-		Looks up a deployment config or replication controller by name and creates an autoscaler that uses
-		this deployment config or replication controller as a reference. An autoscaler can automatically
-		increase or decrease number of pods deployed within the system as needed.`)
-
-	autoScaleExample = templates.Examples(`
-		# Auto scale a deployment config "foo", with the number of pods between 2 to
-		# 10, target CPU utilization at a default value that server applies:
-	  %[1]s autoscale dc/foo --min=2 --max=10
-
-	  # Auto scale a replication controller "foo", with the number of pods between
-		# 1 to 5, target CPU utilization at 80%%
-	  %[1]s autoscale rc/foo --max=5 --cpu-percent=80`)
-)
 
 // NewCmdAutoscale is a wrapper for the Kubernetes cli autoscale command
 func NewCmdAutoscale(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	cmd := autoscale.NewCmdAutoscale(f, streams)
-	cmd.Short = "Autoscale a deployment config, deployment, replication controller, or replica set"
-	cmd.Long = autoScaleLong
-	cmd.Example = fmt.Sprintf(autoScaleExample, fullName)
+	cmd := cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(autoscale.NewCmdAutoscale(f, streams)))
+	cmd.Short = "Autoscale a deployment config, deployment, replica set, stateful set, or replication controller"
 	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
 	return cmd
 }
 
-var (
-	runLong = templates.LongDesc(`
-		Create and run a particular image, possibly replicated
-
-		Creates a deployment config to manage the created container(s). You can choose to run in the
-		foreground for an interactive container execution.  You may pass 'run/v1' to
-		--generator to create a replication controller instead of a deployment config.`)
-
-	runExample = templates.Examples(`
-		# Start a single instance of nginx.
-		%[1]s run nginx --image=nginx
-
-		# Start a single instance of hazelcast and let the container expose port 5701 .
-		%[1]s run hazelcast --image=hazelcast --port=5701
-
-		# Start a single instance of hazelcast and set environment variables "DNS_DOMAIN=cluster"
-		# and "POD_NAMESPACE=default" in the container.
-		%[1]s run hazelcast --image=hazelcast --env="DNS_DOMAIN=cluster" --env="POD_NAMESPACE=default"
-
-		# Start a replicated instance of nginx.
-		%[1]s run nginx --image=nginx --replicas=5
-
-		# Dry run. Print the corresponding API objects without creating them.
-		%[1]s run nginx --image=nginx --dry-run
-
-		# Start a single instance of nginx, but overload the spec of the deployment config with
-		# a partial set of values parsed from JSON.
-		%[1]s run nginx --image=nginx --overrides='{ "apiVersion": "v1", "spec": { ... } }'
-
-		# Start a pod of busybox and keep it in the foreground, don't restart it if it exits.
-		%[1]s run -i -t busybox --image=busybox --restart=Never
-
-		# Start the nginx container using the default command, but use custom arguments (arg1 .. argN)
-		# for that command.
-		%[1]s run nginx --image=nginx -- <arg1> <arg2> ... <argN>
-
-		# Start the nginx container using a different command and custom arguments.
-		%[1]s run nginx --image=nginx --command -- <cmd> <arg1> ... <argN>
-
-		# Start the job to compute π to 2000 places and print it out.
-		%[1]s run pi --image=perl --restart=OnFailure -- perl -Mbignum=bpi -wle 'print bpi(2000)'
-
-		# Start the cron job to compute π to 2000 places and print it out every 5 minutes.
-		%[1]s run pi --schedule="0/5 * * * ?" --image=perl --restart=OnFailure -- perl -Mbignum=bpi -wle 'print bpi(2000)'`)
-)
-
 // NewCmdRun is a wrapper for the Kubernetes cli run command
 func NewCmdRun(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	cmd := run.NewCmdRun(f, streams)
-	cmd.Long = runLong
-	cmd.Example = fmt.Sprintf(runExample, fullName)
+	cmd := cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(run.NewCmdRun(f, streams)))
 	cmd.Flags().Set("generator", "")
 	cmd.Flag("generator").Usage = "The name of the API generator to use.  Default is 'deploymentconfig/v1' if --restart=Always, otherwise the default is 'run-pod/v1'."
 	cmd.Flag("generator").DefValue = ""
@@ -360,67 +219,10 @@ func NewCmdConvert(fullName string, f kcmdutil.Factory, streams genericclioption
 	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(convert.NewCmdConvert(f, streams)))
 }
 
-var (
-	editLong = templates.LongDesc(`
-		Edit a resource from the default editor
-
-		The edit command allows you to directly edit any API resource you can retrieve via the
-		command line tools. It will open the editor defined by your OC_EDITOR, or EDITOR environment
-		variables, or fall back to 'vi' for Linux or 'notepad' for Windows. You can edit multiple
-		objects, although changes are applied one at a time. The command accepts filenames as well
-		as command line arguments, although the files you point to must be previously saved versions
-		of resources.
-
-		The files to edit will be output in the default API version, or a version specified
-		by --output-version. The default format is YAML - if you would like to edit in JSON
-		pass -o json. The flag --windows-line-endings can be used to force Windows line endings,
-		otherwise the default for your operating system will be used.
-
-		In the event an error occurs while updating, a temporary file will be created on disk
-		that contains your unapplied changes. The most common error when updating a resource
-		is another editor changing the resource on the server. When this occurs, you will have
-		to apply your changes to the newer version of the resource, or update your temporary
-		saved copy to include the latest resource version.`)
-
-	editExample = templates.Examples(`
-		# Edit the service named 'docker-registry':
-	  %[1]s edit svc/docker-registry
-
-	  # Edit the DeploymentConfig named 'my-deployment':
-	  %[1]s edit dc/my-deployment
-
-	  # Use an alternative editor
-	  OC_EDITOR="nano" %[1]s edit dc/my-deployment
-
-	  # Edit the service 'docker-registry' in JSON using the v1 API format:
-	  %[1]s edit svc/docker-registry --output-version=v1 -o json`)
-)
-
 // NewCmdEdit is a wrapper for the Kubernetes cli edit command
 func NewCmdEdit(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	cmd := edit.NewCmdEdit(f, streams)
-	cmd.Long = editLong
-	cmd.Example = fmt.Sprintf(editExample, fullName)
-	return cmd
+	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(edit.NewCmdEdit(f, streams)))
 }
-
-var (
-	configLong = templates.LongDesc(`
-		Manage the client config files
-
-		The client stores configuration in the current user's home directory (under the .kube directory as
-		config). When you login the first time, a new config file is created, and subsequent project changes with the
-		'project' command will set the current context. These subcommands allow you to manage the config directly.
-
-		Reference: https://github.com/kubernetes/kubernetes/blob/master/docs/user-guide/kubeconfig-file.md`)
-
-	configExample = templates.Examples(`
-		# Change the config context to use
-	  %[1]s %[2]s use-context my-context
-
-	  # Set the value of a config preference
-	  %[1]s %[2]s set preferences.some true`)
-)
 
 // NewCmdConfig is a wrapper for the Kubernetes cli config command
 func NewCmdConfig(fullName, name string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
@@ -435,15 +237,7 @@ func NewCmdConfig(fullName, name string, f kcmdutil.Factory, streams genericclio
 	}
 	pathOptions.LoadingRules.DoNotResolvePaths = true
 
-	cmd := config.NewCmdConfig(f, pathOptions, streams)
-	cmd.Short = "Change configuration files for the client"
-	cmd.Long = configLong
-	cmd.Example = fmt.Sprintf(configExample, fullName, name)
-	// normalize long descs and examples
-	// TODO remove when normalization is moved upstream
-	templates.NormalizeAll(cmd)
-	adjustCmdExamples(cmd, fullName, name)
-	return cmd
+	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(config.NewCmdConfig(f, pathOptions, streams)))
 }
 
 // NewCmdCp is a wrapper for the Kubernetes cli cp command
