@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
@@ -39,6 +40,9 @@ var (
 		using a service account if you have access to its credentials. If you are logged in
 		to the server using a client certificate the command will report an error because
 		Docker commands do not generally allow client certificates.
+
+		As an advanced option you may specify the credentials to login with using --auth-basic
+		with USER:PASSWORD. This may not be used with the -z flag.
 		
 		You may specify an alternate file to write credentials to with --to instead of 
 		.docker/config.json in your home directory. If you pass --to=- the file will be 
@@ -87,6 +91,7 @@ type LoginOptions struct {
 	Insecure        bool
 	CreateDirectory bool
 
+	AuthBasic      string
 	ServiceAccount string
 
 	genericclioptions.IOStreams
@@ -115,6 +120,7 @@ func NewRegistryLoginCmd(name string, f kcmdutil.Factory, streams genericcliopti
 	}
 
 	flag := cmd.Flags()
+	flag.StringVar(&o.AuthBasic, "auth-basic", o.AuthBasic, "Provide credentials in the form 'user:password' to authenticate (advanced)")
 	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the Docker config.json your credentials will be stored in.")
 	flag.StringVar(&o.ConfigFile, "to", o.ConfigFile, "The location of the Docker config.json your credentials will be stored in.")
 	flag.StringVarP(&o.ServiceAccount, "service-account", "z", o.ServiceAccount, "Log in as the specified service account name in the specified namespace.")
@@ -126,6 +132,17 @@ func NewRegistryLoginCmd(name string, f kcmdutil.Factory, streams genericcliopti
 }
 
 func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
+	credentials := 0
+	if len(o.ServiceAccount) > 0 {
+		credentials++
+	}
+	if len(o.AuthBasic) > 0 {
+		credentials++
+	}
+	if credentials > 1 {
+		return fmt.Errorf("You may only specify a single authentication input as -z or --auth-basic")
+	}
+
 	cfg, err := f.ToRESTConfig()
 	if err != nil {
 		return err
@@ -174,6 +191,12 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 			}
 			return fmt.Errorf("the service account %s had no valid secrets associated with it", o.ServiceAccount)
 		}
+	case len(o.AuthBasic) > 0:
+		parts := strings.SplitN(o.AuthBasic, ":", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("--auth-basic must be in the form user:password")
+		}
+		o.Credentials = newCredentials(parts[0], parts[1])
 	default:
 		if len(cfg.BearerToken) == 0 {
 			return fmt.Errorf("no token is currently in use for this session")
@@ -321,5 +344,6 @@ func (o *LoginOptions) Run() error {
 	if err := f.Close(); err != nil {
 		return err
 	}
+	fmt.Fprintf(o.Out, "Saved credentials for %s\n", o.HostPort)
 	return nil
 }
