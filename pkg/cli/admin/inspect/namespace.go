@@ -2,7 +2,6 @@ package inspect
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 
@@ -12,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/klog"
 )
 
 // TODO someone may later choose to use discovery information to determine what to collect
@@ -27,7 +27,7 @@ func namespaceResourcesToCollect() []schema.GroupResource {
 }
 
 func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
-	log.Printf("Gathering data for ns/%s...\n", namespace)
+	fmt.Fprintf(o.Out, "Gathering data for ns/%s...\n", namespace)
 
 	destDir := path.Join(baseDir, namespaceResourcesDirname, namespace)
 
@@ -49,7 +49,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 		errs = append(errs, err)
 	}
 
-	log.Printf("    Collecting resources for namespace %q...\n", namespace)
+	klog.V(1).Infof("    Collecting resources for namespace %q...\n", namespace)
 
 	resourcesTypesToStore := map[schema.GroupVersionResource]bool{
 		corev1.SchemeGroupVersion.WithResource("pods"): true,
@@ -65,10 +65,10 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 		resourcesToStore[gvr] = list
 	}
 
-	log.Printf("    Gathering pod data for namespace %q...\n", namespace)
+	klog.V(1).Infof("    Gathering pod data for namespace %q...\n", namespace)
 	// gather specific pod data
 	for _, pod := range resourcesToStore[corev1.SchemeGroupVersion.WithResource("pods")].(*unstructured.UnstructuredList).Items {
-		log.Printf("        Gathering data for pod %q\n", pod.GetName())
+		klog.V(1).Infof("        Gathering data for pod %q\n", pod.GetName())
 		structuredPod := &corev1.Pod{}
 		runtime.DefaultUnstructuredConverter.FromUnstructured(pod.Object, structuredPod)
 		if err := o.gatherPodData(path.Join(destDir, "/pods/"+pod.GetName()), namespace, structuredPod); err != nil {
