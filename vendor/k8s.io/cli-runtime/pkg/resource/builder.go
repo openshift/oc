@@ -103,6 +103,7 @@ type Builder struct {
 	export bool
 
 	schema ContentValidator
+	fatalSchema bool
 
 	// fakeClientFn is used for testing
 	fakeClientFn FakeClientFunc
@@ -194,8 +195,9 @@ func NewBuilder(restClientGetter RESTClientGetter) *Builder {
 	)
 }
 
-func (b *Builder) Schema(schema ContentValidator) *Builder {
+func (b *Builder) Schema(schema ContentValidator, fatal bool) *Builder {
 	b.schema = schema
+	b.fatalSchema = fatal
 	return b
 }
 
@@ -240,7 +242,7 @@ func (b *Builder) FilenameParam(enforceNamespace bool, filenameOptions *Filename
 	}
 	if filenameOptions.Kustomize != "" {
 		b.paths = append(b.paths, &KustomizeVisitor{filenameOptions.Kustomize,
-			NewStreamVisitor(nil, b.mapper, filenameOptions.Kustomize, b.schema)})
+			NewStreamVisitor(nil, b.mapper, filenameOptions.Kustomize, b.schema, b.fatalSchema)})
 	}
 
 	if enforceNamespace {
@@ -327,7 +329,7 @@ func (b *Builder) URL(httpAttemptCount int, urls ...*url.URL) *Builder {
 	for _, u := range urls {
 		b.paths = append(b.paths, &URLVisitor{
 			URL:              u,
-			StreamVisitor:    NewStreamVisitor(nil, b.mapper, u.String(), b.schema),
+			StreamVisitor:    NewStreamVisitor(nil, b.mapper, u.String(), b.schema, b.fatalSchema),
 			HttpAttemptCount: httpAttemptCount,
 		})
 	}
@@ -339,7 +341,7 @@ func (b *Builder) URL(httpAttemptCount int, urls ...*url.URL) *Builder {
 // will be ignored (but logged at V(2)).
 func (b *Builder) Stdin() *Builder {
 	b.stream = true
-	b.paths = append(b.paths, FileVisitorForSTDIN(b.mapper, b.schema))
+	b.paths = append(b.paths, FileVisitorForSTDIN(b.mapper, b.schema, b.fatalSchema))
 	return b
 }
 
@@ -349,7 +351,7 @@ func (b *Builder) Stdin() *Builder {
 // will be ignored (but logged at V(2)).
 func (b *Builder) Stream(r io.Reader, name string) *Builder {
 	b.stream = true
-	b.paths = append(b.paths, NewStreamVisitor(r, b.mapper, name, b.schema))
+	b.paths = append(b.paths, NewStreamVisitor(r, b.mapper, name, b.schema, b.fatalSchema))
 	return b
 }
 
@@ -370,7 +372,7 @@ func (b *Builder) Path(recursive bool, paths ...string) *Builder {
 			continue
 		}
 
-		visitors, err := ExpandPathsToFileVisitors(b.mapper, p, recursive, FileExtensions, b.schema)
+		visitors, err := ExpandPathsToFileVisitors(b.mapper, p, recursive, FileExtensions, b.schema, b.fatalSchema)
 		if err != nil {
 			b.errs = append(b.errs, fmt.Errorf("error reading %q: %v", p, err))
 		}

@@ -235,7 +235,7 @@ func (o *CreateOptions) RunCreate(f cmdutil.Factory, cmd *cobra.Command) error {
 
 	r := f.NewBuilder().
 		Unstructured().
-		Schema(schema).
+		Schema(schema, cmdutil.IsSchemaFatal(cmd)).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().
 		FilenameParam(enforceNamespace, &o.FilenameOptions).

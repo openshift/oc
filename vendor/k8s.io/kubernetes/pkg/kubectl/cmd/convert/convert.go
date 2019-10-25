@@ -71,6 +71,7 @@ type ConvertOptions struct {
 	builder   func() *resource.Builder
 	local     bool
 	validator func() (validation.Schema, error)
+	fatalSchema bool
 
 	resource.FilenameOptions
 	genericclioptions.IOStreams
@@ -126,6 +127,7 @@ func (o *ConvertOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) (err er
 	o.validator = func() (validation.Schema, error) {
 		return f.Validator(cmdutil.GetFlagBool(cmd, "validate"))
 	}
+	o.fatalSchema = cmdutil.IsSchemaFatal(cmd)
 
 	// build the printer
 	o.Printer, err = o.PrintFlags.ToPrinter()
@@ -153,7 +155,7 @@ func (o *ConvertOptions) RunConvert() error {
 		if err != nil {
 			return err
 		}
-		b.Schema(schema)
+		b.Schema(schema, o.fatalSchema)
 	}
 
 	r := b.NamespaceParam(o.Namespace).

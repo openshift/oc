@@ -29,7 +29,6 @@ import (
 
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,8 +38,9 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/cli-runtime/pkg/kustomize"
 	"sigs.k8s.io/kustomize/pkg/fs"
+
+	"k8s.io/cli-runtime/pkg/kustomize"
 )
 
 const (
@@ -226,12 +226,15 @@ func (l EagerVisitorList) Visit(fn VisitorFunc) error {
 	return utilerrors.NewAggregate(errs)
 }
 
-func ValidateSchema(data []byte, schema ContentValidator) error {
+func ValidateSchema(data []byte, schema ContentValidator, fatal bool) error {
 	if schema == nil {
 		return nil
 	}
 	if err := schema.ValidateBytes(data); err != nil {
-		return fmt.Errorf("error validating data: %v; %s", err, stopValidateMessage)
+		if fatal {
+			return fmt.Errorf("error validating data: %v; %s", err, stopValidateMessage)
+		}
+		os.Stderr.WriteString(fmt.Sprintf("%v\n", err))
 	}
 	return nil
 }
@@ -457,17 +460,17 @@ func ignoreFile(path string, extensions []string) bool {
 }
 
 // FileVisitorForSTDIN return a special FileVisitor just for STDIN
-func FileVisitorForSTDIN(mapper *mapper, schema ContentValidator) Visitor {
+func FileVisitorForSTDIN(mapper *mapper, schema ContentValidator, fatalSchema bool) Visitor {
 	return &FileVisitor{
 		Path:          constSTDINstr,
-		StreamVisitor: NewStreamVisitor(nil, mapper, constSTDINstr, schema),
+		StreamVisitor: NewStreamVisitor(nil, mapper, constSTDINstr, schema, fatalSchema),
 	}
 }
 
 // ExpandPathsToFileVisitors will return a slice of FileVisitors that will handle files from the provided path.
 // After FileVisitors open the files, they will pass an io.Reader to a StreamVisitor to do the reading. (stdin
 // is also taken care of). Paths argument also accepts a single file, and will return a single visitor
-func ExpandPathsToFileVisitors(mapper *mapper, paths string, recursive bool, extensions []string, schema ContentValidator) ([]Visitor, error) {
+func ExpandPathsToFileVisitors(mapper *mapper, paths string, recursive bool, extensions []string, schema ContentValidator, fatalSchema bool) ([]Visitor, error) {
 	var visitors []Visitor
 	err := filepath.Walk(paths, func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -487,7 +490,7 @@ func ExpandPathsToFileVisitors(mapper *mapper, paths string, recursive bool, ext
 
 		visitor := &FileVisitor{
 			Path:          path,
-			StreamVisitor: NewStreamVisitor(nil, mapper, path, schema),
+			StreamVisitor: NewStreamVisitor(nil, mapper, path, schema, fatalSchema),
 		}
 
 		visitors = append(visitors, visitor)
@@ -554,17 +557,19 @@ type StreamVisitor struct {
 	io.Reader
 	*mapper
 
-	Source string
-	Schema ContentValidator
+	Source      string
+	Schema      ContentValidator
+	FatalSchema bool
 }
 
 // NewStreamVisitor is a helper function that is useful when we want to change the fields of the struct but keep calls the same.
-func NewStreamVisitor(r io.Reader, mapper *mapper, source string, schema ContentValidator) *StreamVisitor {
+func NewStreamVisitor(r io.Reader, mapper *mapper, source string, schema ContentValidator, fatalSchema bool) *StreamVisitor {
 	return &StreamVisitor{
-		Reader: r,
-		mapper: mapper,
-		Source: source,
-		Schema: schema,
+		Reader:      r,
+		mapper:      mapper,
+		Source:      source,
+		Schema:      schema,
+		FatalSchema: fatalSchema,
 	}
 }
 
@@ -584,7 +589,7 @@ func (v *StreamVisitor) Visit(fn VisitorFunc) error {
 		if len(ext.Raw) == 0 || bytes.Equal(ext.Raw, []byte("null")) {
 			continue
 		}
-		if err := ValidateSchema(ext.Raw, v.Schema); err != nil {
+		if err := ValidateSchema(ext.Raw, v.Schema, v.FatalSchema); err != nil {
 			return fmt.Errorf("error validating %q: %v", v.Source, err)
 		}
 		info, err := v.infoForData(ext.Raw, v.Source)

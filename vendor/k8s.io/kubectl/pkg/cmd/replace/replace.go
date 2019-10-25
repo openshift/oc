@@ -80,6 +80,7 @@ type ReplaceOptions struct {
 	validate         bool
 
 	Schema      validation.Schema
+	FatalSchema bool
 	Builder     func() *resource.Builder
 	BuilderArgs []string
 
@@ -179,6 +180,7 @@ func (o *ReplaceOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 	}
 
 	o.Schema = schema
+	o.FatalSchema = cmdutil.IsSchemaFatal(cmd)
 	o.Builder = f.NewBuilder
 	o.BuilderArgs = args
 
@@ -241,7 +243,7 @@ func (o *ReplaceOptions) Run(f cmdutil.Factory) error {
 
 	r := o.Builder().
 		Unstructured().
-		Schema(o.Schema).
+		Schema(o.Schema, o.FatalSchema).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
 		FilenameParam(o.EnforceNamespace, &o.DeleteOptions.FilenameOptions).
@@ -330,7 +332,7 @@ func (o *ReplaceOptions) forceReplace() error {
 
 	r = o.Builder().
 		Unstructured().
-		Schema(o.Schema).
+		Schema(o.Schema, o.FatalSchema).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
 		FilenameParam(o.EnforceNamespace, &o.DeleteOptions.FilenameOptions).

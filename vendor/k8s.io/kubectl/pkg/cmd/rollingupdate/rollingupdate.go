@@ -100,6 +100,7 @@ type RollingUpdateOptions struct {
 	Builder     *resource.Builder
 
 	ShouldValidate bool
+	FatalSchema    bool
 	Validator      func(bool) (validation.Schema, error)
 
 	FindNewName func(*corev1.ReplicationController) string
@@ -199,6 +200,7 @@ func (o *RollingUpdateOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, a
 	o.OutputFormat = cmdutil.GetFlagString(cmd, "output")
 	o.KeepOldName = len(args) == 1
 	o.ShouldValidate = cmdutil.GetFlagBool(cmd, "validate")
+	o.FatalSchema = cmdutil.IsSchemaFatal(cmd)
 
 	o.Validator = f.Validator
 	o.FindNewName = func(obj *corev1.ReplicationController) string {
@@ -271,7 +273,7 @@ func (o *RollingUpdateOptions) Run() error {
 
 		request := o.Builder.
 			Unstructured().
-			Schema(schema).
+			Schema(schema, o.FatalSchema).
 			NamespaceParam(o.Namespace).DefaultNamespace().
 			FilenameParam(o.EnforceNamespace, &resource.FilenameOptions{Recursive: false, Filenames: []string{filename}}).
 			Flatten().

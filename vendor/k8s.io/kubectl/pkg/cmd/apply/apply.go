@@ -82,6 +82,7 @@ type ApplyOptions struct {
 	PruneWhitelist  []string
 
 	Validator       validation.Schema
+	FatalSchema     bool
 	Builder         *resource.Builder
 	Mapper          meta.RESTMapper
 	DynamicClient   dynamic.Interface
@@ -251,6 +252,7 @@ func (o *ApplyOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 
 	o.OpenAPISchema, _ = f.OpenAPISchema()
 	o.Validator, err = f.Validator(cmdutil.GetFlagBool(cmd, "validate"))
+	o.FatalSchema = cmdutil.IsSchemaFatal(cmd)
 	o.Builder = f.NewBuilder()
 	o.Mapper, err = f.ToRESTMapper()
 	if err != nil {
@@ -344,7 +346,7 @@ func (o *ApplyOptions) Run() error {
 	// unless explicitly set --include-uninitialized=false
 	r := o.Builder.
 		Unstructured().
-		Schema(o.Validator).
+		Schema(o.Validator, o.FatalSchema).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
 		FilenameParam(o.EnforceNamespace, &o.DeleteOptions.FilenameOptions).

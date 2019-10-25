@@ -332,6 +332,20 @@ func GetFlagBool(cmd *cobra.Command, flag string) bool {
 	return b
 }
 
+func IsInteractive(cmd *cobra.Command) bool {
+	out := cmd.OutOrStdout()
+	if out != os.Stdout {
+		return false
+	}
+	outStat, _ := os.Stdout.Stat()
+	ret := (outStat.Mode() & os.ModeCharDevice) != 0
+	return ret
+}
+
+func IsSchemaFatal(cmd *cobra.Command) bool {
+	return cmd.Flag("validate").Changed || IsInteractive(cmd)
+}
+
 // Assumes the flag has a default value.
 func GetFlagInt(cmd *cobra.Command, flag string) int {
 	i, err := cmd.Flags().GetInt(flag)
@@ -376,11 +390,11 @@ func GetPodRunningTimeoutFlag(cmd *cobra.Command) (time.Duration, error) {
 }
 
 func AddValidateFlags(cmd *cobra.Command) {
-	cmd.Flags().Bool("validate", true, "If true, use a schema to validate the input before sending it")
+	cmd.Flags().Bool("validate", true, "If true, use a schema to validate the input before sending it. On a terminal and when explicitly given as flag errors are fatal, otherwise only warnings.")
 }
 
 func AddValidateOptionFlags(cmd *cobra.Command, options *ValidateOptions) {
-	cmd.Flags().BoolVar(&options.EnableValidation, "validate", options.EnableValidation, "If true, use a schema to validate the input before sending it")
+	cmd.Flags().BoolVar(&options.EnableValidation, "validate", options.EnableValidation, "If true, use a schema to validate the input before sending it. On a terminal and when explicitly given as flag errors are fatal, otherwise only warnings.")
 }
 
 func AddFilenameOptionFlags(cmd *cobra.Command, options *resource.FilenameOptions, usage string) {
