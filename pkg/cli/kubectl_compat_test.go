@@ -63,7 +63,7 @@ kubectlLoop:
 // this only checks one level deep for nested commands, but it does ensure that we've gotten several
 // --validate flags.  Based on that we can reasonably assume we got them in the kube commands since they
 // all share the same registration.
-func TestValidateDisabled(t *testing.T) {
+func TestValidateEnabledByDefaultButUnchanged(t *testing.T) {
 	oc := NewOcCommand("oc", "oc", &bytes.Buffer{}, ioutil.Discard, ioutil.Discard)
 	kubectl := kcmd.NewKubectlCommand(nil, ioutil.Discard, ioutil.Discard)
 
@@ -75,11 +75,13 @@ func TestValidateDisabled(t *testing.T) {
 					continue
 				}
 
-				if ocValidateFlag.Value.String() != "false" {
-					t.Errorf("%s --validate is not defaulting to false", occmd.Name())
+				if ocValidateFlag.Value.String() != "true" {
+					t.Errorf("%s --validate is not defaulting to true", occmd.Name())
+				}
+				if ocValidateFlag.Changed {
+					t.Errorf("%s --validate is not changed, but shouldn't", occmd.Name())
 				}
 			}
 		}
 	}
-
 }
