@@ -30,11 +30,11 @@ var (
 			Mirrors the contents of a catalog into a registry.
 
 			This command will pull down an image containing a catalog database, extract it to disk, query it to find
-            all of the images used in the manifests, mirrors them to a target registry.
+      all of the images used in the manifests, and then mirror them to a target registry.
 
 			By default, the database is extracted to a temporary directory, but can be saved locally via flags.
 
-			An ImageContentSourcePolicy is written to a file for application to a cluster with access to the target 
+			An ImageContentSourcePolicy is written to a file that can be adedd to a cluster with access to the target 
 			registry. This will configure the cluster to pull from the mirrors instead of the locations referenced in
 			the operator manifests.
 
@@ -78,9 +78,9 @@ func NewMirrorCatalog(streams genericclioptions.IOStreams) *cobra.Command {
 	flags := cmd.Flags()
 
 	flags.StringVar(&o.ManifestDir, "to-manifests", "", "Local path to store manifests.")
-	flags.StringVar(&o.DatabasePath, "path", "", "In-container to local path mapping for database.")
+	flags.StringVar(&o.DatabasePath, "path", "", "Specify an in-container to local path mapping for the database.")
 	flags.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Print the actions that would be taken and exit without writing to the destinations.")
-	flags.BoolVar(&o.ManifestOnly, "manifests-only", o.ManifestOnly, "Calculate the manifests required for mirroring, but don not actually mirror image content.")
+	flags.BoolVar(&o.ManifestOnly, "manifests-only", o.ManifestOnly, "Calculate the manifests required for mirroring, but do not actually mirror image content.")
 	return cmd
 }
 
@@ -127,12 +127,12 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		mirrorMapping := []imgmirror.Mapping{}
 
 		for from, to := range mapping {
-			fromRef, err := reference.Parse(from)
+			fromRef, err := imgmirror.ParseReference(from)
 			if err != nil {
 				klog.Warningf("couldn't parse %s, skipping mirror", from)
 				continue
 			}
-			toRef, err := reference.Parse(to)
+			toRef, err := imgmirror.ParseReference(to)
 			if err != nil {
 				klog.Warningf("couldn't parse %s, skipping mirror", to)
 				continue
@@ -140,7 +140,6 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			mirrorMapping = append(mirrorMapping, imgmirror.Mapping{
 				Source:      fromRef,
 				Destination: toRef,
-				Type:        imgmirror.DestinationRegistry,
 			})
 		}
 
