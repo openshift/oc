@@ -14,6 +14,7 @@ import (
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
+	"github.com/openshift/oc/pkg/cli/admin/catalog"
 	"github.com/openshift/oc/pkg/cli/admin/cert"
 	"github.com/openshift/oc/pkg/cli/admin/createbootstrapprojecttemplate"
 	"github.com/openshift/oc/pkg/cli/admin/createerrortemplate"
@@ -125,6 +126,7 @@ func NewCommandAdmin(name, fullName string, f kcmdutil.Factory, streams genericc
 		release.NewCmd(f, fullName, streams),
 		buildchain.NewCmdBuildChain(name, fullName+" "+buildchain.BuildChainRecommendedCommandName, f, streams),
 		verifyimagesignature.NewCmdVerifyImageSignature(name, fullName+" "+verifyimagesignature.VerifyRecommendedName, f, streams),
+		catalog.NewCmd(streams),
 
 		// part of every root command
 		kubectlwrappers.NewCmdConfig(fullName, "config", f, streams),
