@@ -19,10 +19,12 @@ import (
 	"sigs.k8s.io/yaml"
 
 	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
-	"github.com/openshift/library-go/pkg/image/reference"
-	imgextract "github.com/openshift/oc/pkg/cli/image/extract"
-	imgmirror "github.com/openshift/oc/pkg/cli/image/mirror"
+
 	"github.com/operator-framework/operator-registry/pkg/mirror"
+
+	imgextract "github.com/openshift/oc/pkg/cli/image/extract"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
+	imgmirror "github.com/openshift/oc/pkg/cli/image/mirror"
 )
 
 var (
@@ -51,7 +53,10 @@ type MirrorCatalogOptions struct {
 	ManifestOnly bool
 	DatabasePath string
 
-	SourceRef reference.DockerImageReference
+	FromFileDir string
+	FileDir     string
+
+	SourceRef imagesource.TypedImageReference
 	Dest      string
 }
 
@@ -81,6 +86,8 @@ func NewMirrorCatalog(streams genericclioptions.IOStreams) *cobra.Command {
 	flags.StringVar(&o.DatabasePath, "path", "", "Specify an in-container to local path mapping for the database.")
 	flags.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Print the actions that would be taken and exit without writing to the destinations.")
 	flags.BoolVar(&o.ManifestOnly, "manifests-only", o.ManifestOnly, "Calculate the manifests required for mirroring, but do not actually mirror image content.")
+	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
+	flags.StringVar(&o.FromFileDir, "from-dir", o.FromFileDir, "The directory on disk that file:// images will be read from. Overrides --dir")
 	return cmd
 }
 
@@ -91,7 +98,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	src := args[0]
 	dest := args[1]
 
-	srcRef, err := reference.Parse(src)
+	srcRef, err := imagesource.ParseReference(src)
 	if err != nil {
 		return err
 	}
@@ -99,7 +106,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	o.Dest = dest
 
 	if o.ManifestDir == "" {
-		o.ManifestDir = o.SourceRef.Name + "-manifests"
+		o.ManifestDir = o.SourceRef.Ref.Name + "-manifests"
 	}
 
 	if err := os.MkdirAll(o.ManifestDir, os.ModePerm); err != nil {
@@ -127,18 +134,18 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		mirrorMapping := []imgmirror.Mapping{}
 
 		for from, to := range mapping {
-			fromRef, err := imgmirror.ParseReference(from)
+			fromRef, err := imagesource.ParseSourceReference(from, nil)
 			if err != nil {
 				klog.Warningf("couldn't parse %s, skipping mirror", from)
 				continue
 			}
-			toRef, err := imgmirror.ParseReference(to)
+			toRef, err := imagesource.ParseDestinationReference(to)
 			if err != nil {
 				klog.Warningf("couldn't parse %s, skipping mirror", to)
 				continue
 			}
 			mirrorMapping = append(mirrorMapping, imgmirror.Mapping{
-				Source:      fromRef,
+				Source:      fromRef[0],
 				Destination: toRef,
 			})
 		}
@@ -162,6 +169,10 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 
 	var extractor mirror.DatabaseExtractorFunc = func(from string) (string, error) {
 		e := imgextract.NewOptions(o.IOStreams)
+		e.FileDir = o.FileDir
+		if len(o.FromFileDir) > 0 {
+			e.FileDir = o.FromFileDir
+		}
 		e.Paths = []string{o.DatabasePath}
 		e.Confirm = true
 		if err := e.Complete(cmd, []string{o.SourceRef.String()}); err != nil {
@@ -206,7 +217,7 @@ func (o *MirrorCatalogOptions) Run() error {
 		klog.Warningf("errors during mirroring. the full contents of the catalog may not have been mirrored: %s", err.Error())
 	}
 
-	return WriteManifests(o.SourceRef.Name, o.ManifestDir, mapping)
+	return WriteManifests(o.SourceRef.Ref.Name, o.ManifestDir, mapping)
 }
 
 func WriteManifests(name, dir string, mapping map[string]string) error {
@@ -233,25 +244,25 @@ func WriteManifests(name, dir string, mapping map[string]string) error {
 	}
 
 	for k, v := range mapping {
-		fromRef, err := reference.Parse(k)
+		fromRef, err := imagesource.ParseReference(k)
 		if err != nil {
-			klog.Warningf("error parsing ref for %s", k)
+			klog.Warningf("error parsing source reference for %s", k)
 			continue
 		}
-		toRef, err := reference.Parse(v)
+		toRef, err := imagesource.ParseReference(v)
 		if err != nil {
-			klog.Warningf("error parsing ref for %s", v)
+			klog.Warningf("error parsing target reference for %s", v)
 			continue
 		}
 		icsp.Spec.RepositoryDigestMirrors = append(icsp.Spec.RepositoryDigestMirrors, operatorv1alpha1.RepositoryDigestMirrors{
-			Source:  fromRef.AsRepository().String(),
-			Mirrors: []string{toRef.AsRepository().String()},
+			Source:  fromRef.Ref.AsRepository().String(),
+			Mirrors: []string{toRef.Ref.AsRepository().String()},
 		})
 
 		// omit digest from target if digest exists
 		to := v
-		if toRef.ID != "" {
-			to = toRef.AsRepository().String()
+		if len(toRef.Ref.ID) > 0 {
+			to = toRef.Ref.AsRepository().String()
 		}
 		if _, err := f.WriteString(fmt.Sprintf("%s=%s\n", k, to)); err != nil {
 			return err

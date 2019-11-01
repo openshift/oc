@@ -25,9 +25,9 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
-	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"github.com/openshift/oc/pkg/cli/image/archive"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
 )
@@ -108,6 +108,8 @@ type Options struct {
 	Confirm bool
 	DryRun  bool
 
+	FileDir string
+
 	genericclioptions.IOStreams
 
 	// ImageMetadataCallback is invoked once per image retrieved, and may be called in parallel if
@@ -159,6 +161,7 @@ func New(name string, streams genericclioptions.IOStreams) *cobra.Command {
 	flag.BoolVarP(&o.PreservePermissions, "preserve-ownership", "p", o.PreservePermissions, "Preserve the permissions of extracted files.")
 	flag.BoolVar(&o.OnlyFiles, "only-files", o.OnlyFiles, "Only extract regular files and directories from the image.")
 	flag.BoolVar(&o.AllLayers, "all-layers", o.AllLayers, "For dry-run mode, process from lowest to highest layer and don't omit duplicate files.")
+	flag.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
 
 	return cmd
 }
@@ -173,7 +176,7 @@ type Mapping struct {
 	// Image is the raw input image to extract
 	Image string
 	// ImageRef is the parsed version of the raw input image
-	ImageRef imagereference.DockerImageReference
+	ImageRef imagesource.TypedImageReference
 	// LayerFilter can select which images to load
 	LayerFilter LayerFilter
 	// From is the directory or file in the image to extract
@@ -260,11 +263,11 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 			}
 		}
 
-		src, err := imagereference.Parse(mapping.Image)
+		src, err := imagesource.ParseReference(mapping.Image)
 		if err != nil {
 			return nil, err
 		}
-		if len(src.Tag) == 0 && len(src.ID) == 0 {
+		if len(src.Ref.Tag) == 0 && len(src.Ref.ID) == 0 {
 			return nil, fmt.Errorf("source image must point to an image ID or image tag")
 		}
 		mapping.ImageRef = src
@@ -307,6 +310,11 @@ func (o *Options) Run() error {
 	if err != nil {
 		return err
 	}
+	fromOptions := &imagesource.Options{
+		FileDir:         o.FileDir,
+		Insecure:        o.SecurityOptions.Insecure,
+		RegistryContext: fromContext,
+	}
 
 	stopCh := make(chan struct{})
 	defer close(stopCh)
@@ -316,12 +324,12 @@ func (o *Options) Run() error {
 			mapping := o.Mappings[i]
 			from := mapping.ImageRef
 			q.Try(func() error {
-				repo, err := fromContext.Repository(ctx, from.DockerClientDefaults().RegistryURL(), from.RepositoryName(), o.SecurityOptions.Insecure)
+				repo, err := fromOptions.Repository(ctx, from)
 				if err != nil {
-					return fmt.Errorf("unable to connect to image repository %s: %v", from.Exact(), err)
+					return fmt.Errorf("unable to connect to image repository %s: %v", from.String(), err)
 				}
 
-				srcManifest, location, err := imagemanifest.FirstManifest(ctx, from, repo, o.FilterOptions.Include)
+				srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {
 						var msg string
@@ -454,14 +462,14 @@ func (o *Options) Run() error {
 						if byEntry != nil {
 							cont, err := layerByEntry(r, options, info, byEntry, o.AllLayers, alreadySeen)
 							if err != nil {
-								err = fmt.Errorf("unable to iterate over layer %s from %s: %v", layer.Digest, from.Exact(), err)
+								err = fmt.Errorf("unable to iterate over layer %s from %s: %v", layer.Digest, from, err)
 							}
 							return cont, err
 						}
 
 						klog.V(4).Infof("Extracting layer %s with options %#v", layer.Digest, options)
 						if _, err := archive.ApplyLayer(mapping.To, r, options); err != nil {
-							return false, fmt.Errorf("unable to extract layer %s from %s: %v", layer.Digest, from.Exact(), err)
+							return false, fmt.Errorf("unable to extract layer %s from %s: %v", layer.Digest, from, err)
 						}
 						return true, nil
 					}()

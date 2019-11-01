@@ -31,6 +31,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/image/extract"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/mirror"
 )
@@ -188,7 +189,7 @@ func (o *MirrorOptions) Run() error {
 
 	var recreateRequired bool
 	var hasPrefix bool
-	var targetFn func(name string) mirror.TypedImageReference
+	var targetFn func(name string) imagesource.TypedImageReference
 	var dst string
 	if len(o.ToImageStream) > 0 {
 		dst = imagereference.DockerImageReference{
@@ -211,17 +212,17 @@ func (o *MirrorOptions) Run() error {
 	if strings.Contains(dst, "${component}") {
 		format := strings.Replace(dst, "${component}", replaceComponentMarker, -1)
 		format = strings.Replace(format, "${version}", replaceVersionMarker, -1)
-		dstRef, err := mirror.ParseReference(format)
+		dstRef, err := imagesource.ParseReference(format)
 		if err != nil {
 			return fmt.Errorf("--to must be a valid image reference: %v", err)
 		}
-		targetFn = func(name string) mirror.TypedImageReference {
+		targetFn = func(name string) imagesource.TypedImageReference {
 			if len(name) == 0 {
 				name = "release"
 			}
 			value := strings.Replace(dst, "${component}", name, -1)
 			value = strings.Replace(value, "${version}", version, -1)
-			ref, err := mirror.ParseReference(value)
+			ref, err := imagesource.ParseReference(value)
 			if err != nil {
 				klog.Fatalf("requested component %q could not be injected into %s: %v", name, dst, err)
 			}
@@ -231,14 +232,14 @@ func (o *MirrorOptions) Run() error {
 		recreateRequired = replaceCount > 1 || (replaceCount == 1 && !strings.Contains(dstRef.Ref.Tag, replaceComponentMarker))
 
 	} else {
-		ref, err := mirror.ParseReference(dst)
+		ref, err := imagesource.ParseReference(dst)
 		if err != nil {
 			return fmt.Errorf("--to must be a valid image repository: %v", err)
 		}
 		if len(ref.Ref.ID) > 0 || len(ref.Ref.Tag) > 0 {
 			return fmt.Errorf("--to must be to an image repository and may not contain a tag or digest")
 		}
-		targetFn = func(name string) mirror.TypedImageReference {
+		targetFn = func(name string) imagesource.TypedImageReference {
 			copied := ref
 			if len(name) > 0 {
 				copied.Ref.Tag = fmt.Sprintf("%s-%s", version, name)
@@ -305,14 +306,14 @@ func (o *MirrorOptions) Run() error {
 				return fmt.Errorf("invalid --to-release-image: %v", err)
 			}
 			mappings = append(mappings, mirror.Mapping{
-				Source:      mirror.TypedImageReference{Ref: srcRef, Type: mirror.DestinationRegistry},
-				Destination: mirror.TypedImageReference{Ref: dstRef, Type: mirror.DestinationRegistry},
+				Source:      imagesource.TypedImageReference{Ref: srcRef, Type: imagesource.DestinationRegistry},
+				Destination: imagesource.TypedImageReference{Ref: dstRef, Type: imagesource.DestinationRegistry},
 				Name:        o.ToRelease,
 			})
 		} else if !o.SkipRelease {
 			dstRef := targetFn("")
 			mappings = append(mappings, mirror.Mapping{
-				Source:      mirror.TypedImageReference{Ref: srcRef, Type: mirror.DestinationRegistry},
+				Source:      imagesource.TypedImageReference{Ref: srcRef, Type: imagesource.DestinationRegistry},
 				Destination: dstRef,
 				Name:        "release",
 			})
@@ -341,7 +342,7 @@ func (o *MirrorOptions) Run() error {
 
 		dstMirrorRef := targetFn(tag.Name)
 		mappings = append(mappings, mirror.Mapping{
-			Source:      mirror.TypedImageReference{Ref: from, Type: mirror.DestinationRegistry},
+			Source:      imagesource.TypedImageReference{Ref: from, Type: imagesource.DestinationRegistry},
 			Destination: dstMirrorRef,
 			Name:        tag.Name,
 		})
@@ -396,7 +397,7 @@ func (o *MirrorOptions) Run() error {
 					},
 				}
 				for _, mapping := range remaining {
-					if mapping.Source.Type != mirror.DestinationRegistry {
+					if mapping.Source.Type != imagesource.DestinationRegistry {
 						return fmt.Errorf("source mapping %s must point to a registry", mapping.Source)
 					}
 					isi.Spec.Images = append(isi.Spec.Images, imagev1.ImageImportSpec{

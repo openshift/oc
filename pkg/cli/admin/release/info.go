@@ -39,6 +39,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/image/extract"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imageinfo "github.com/openshift/oc/pkg/cli/image/info"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 )
@@ -108,14 +109,16 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 	flags.StringVar(&o.ChangelogDir, "changelog", o.ChangelogDir, "Generate changelog output from the git directories extracted to this path.")
 	flags.StringVar(&o.BugsDir, "bugs", o.BugsDir, "Generate bug listings from the changelogs in the git repositories extracted to this path.")
 	flags.BoolVar(&o.IncludeImages, "include-images", o.IncludeImages, "When displaying JSON output of a release output the images the release references.")
+	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
 	return cmd
 }
 
 type InfoOptions struct {
 	genericclioptions.IOStreams
 
-	Images []string
-	From   string
+	Images  []string
+	From    string
+	FileDir string
 
 	Output        string
 	ImageFor      string
@@ -456,10 +459,10 @@ type ReleaseManifestDiff struct {
 }
 
 type ReleaseInfo struct {
-	Image         string                              `json:"image"`
-	ImageRef      imagereference.DockerImageReference `json:"-"`
-	Digest        digest.Digest                       `json:"digest"`
-	ContentDigest digest.Digest                       `json:"contentDigest"`
+	Image         string                          `json:"image"`
+	ImageRef      imagesource.TypedImageReference `json:"-"`
+	Digest        digest.Digest                   `json:"digest"`
+	ContentDigest digest.Digest                   `json:"contentDigest"`
 	// TODO: return the list digest in the future
 	// ListDigest    digest.Digest                       `json:"listDigest"`
 	Config     *dockerv1client.DockerImageConfig `json:"config"`
@@ -478,14 +481,14 @@ type ReleaseInfo struct {
 }
 
 type Image struct {
-	Name          string                              `json:"name"`
-	Ref           imagereference.DockerImageReference `json:"-"`
-	Digest        digest.Digest                       `json:"digest"`
-	ContentDigest digest.Digest                       `json:"contentDigest"`
-	ListDigest    digest.Digest                       `json:"listDigest"`
-	MediaType     string                              `json:"mediaType"`
-	Layers        []distribution.Descriptor           `json:"layers"`
-	Config        *dockerv1client.DockerImageConfig   `json:"config"`
+	Name          string                            `json:"name"`
+	Ref           imagesource.TypedImageReference   `json:"-"`
+	Digest        digest.Digest                     `json:"digest"`
+	ContentDigest digest.Digest                     `json:"contentDigest"`
+	ListDigest    digest.Digest                     `json:"listDigest"`
+	MediaType     string                            `json:"mediaType"`
+	Layers        []distribution.Descriptor         `json:"layers"`
+	Config        *dockerv1client.DockerImageConfig `json:"config"`
 
 	Manifest distribution.Manifest `json:"-"`
 }
@@ -510,7 +513,7 @@ func (i *ReleaseInfo) Platform() string {
 }
 
 func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*ReleaseInfo, error) {
-	ref, err := imagereference.Parse(image)
+	ref, err := imagesource.ParseReference(image)
 	if err != nil {
 		return nil, err
 	}
@@ -518,6 +521,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	verifier := imagemanifest.NewVerifier()
 	opts := extract.NewOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.SecurityOptions = o.SecurityOptions
+	opts.FileDir = o.FileDir
 
 	release := &ReleaseInfo{
 		Image:    image,
@@ -609,7 +613,8 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 		var lock sync.Mutex
 		release.Images = make(map[string]*Image)
 		r := &imageinfo.ImageRetriever{
-			Image:           make(map[string]imagereference.DockerImageReference),
+			FileDir:         opts.FileDir,
+			Image:           make(map[string]imagesource.TypedImageReference),
 			SecurityOptions: o.SecurityOptions,
 			ParallelOptions: o.ParallelOptions,
 			ImageMetadataCallback: func(name string, image *imageinfo.Image, err error) error {
@@ -636,7 +641,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 				release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q has an invalid reference: %v", tag.Name, err))
 				continue
 			}
-			r.Image[tag.Name] = ref
+			r.Image[tag.Name] = imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
 		}
 		if err := r.Run(); err != nil {
 			return nil, err
@@ -924,9 +929,9 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 
 	fmt.Fprintln(w)
 	refExact := release.ImageRef
-	refExact.Tag = ""
-	refExact.ID = release.Digest.String()
-	fmt.Fprintf(w, "Pull From:\t%s\n", refExact.String())
+	refExact.Ref.Tag = ""
+	refExact.Ref.ID = release.Digest.String()
+	fmt.Fprintf(w, "Pull From:\t%s\n", refExact)
 
 	if m := release.Metadata; m != nil {
 		fmt.Fprintln(w)

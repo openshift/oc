@@ -32,6 +32,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/image/extract"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
 // extractTarget describes how a file in the release image can be extracted to disk.
@@ -292,14 +293,15 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	dir := o.Directory
 	infoOptions := NewInfoOptions(o.IOStreams)
 	infoOptions.SecurityOptions = o.SecurityOptions
+	infoOptions.FileDir = o.FileDir
 	release, err := infoOptions.LoadReleaseInfo(o.From, false)
 	if err != nil {
 		return err
 	}
 	releaseName := release.PreferredName()
 	refExact := release.ImageRef
-	refExact.Tag = ""
-	refExact.ID = release.Digest.String()
+	refExact.Ref.Tag = ""
+	refExact.Ref.ID = release.Digest.String()
 	exactReleaseImage := refExact.String()
 
 	// resolve target image references to their pull specs
@@ -321,7 +323,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			return err
 		}
 		target.Mapping.Image = spec
-		target.Mapping.ImageRef = ref
+		target.Mapping.ImageRef = imagesource.TypedImageReference{Ref: ref, Type: imagesource.DestinationRegistry}
 		if target.AsArchive {
 			willArchive = true
 			target.Mapping.Name = fmt.Sprintf(target.ArchiveFormat, releaseName)
