@@ -18,6 +18,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/reference"
+	"github.com/opencontainers/go-digest"
 	godigest "github.com/opencontainers/go-digest"
 )
 
@@ -309,13 +310,21 @@ func (s *fileBlobStore) Create(ctx context.Context, options ...distribution.Blob
 			return nil, err
 		}
 	}
+
 	if opts.Mount.Stat == nil || len(opts.Mount.Stat.Digest) == 0 {
-		return nil, fmt.Errorf("file target blob store requires blobs to have mount stats that include a digest")
+		dir := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "blobs")
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, err
+		}
+		f, err := ioutil.TempFile(dir, ".tmp-")
+		if err != nil {
+			return nil, err
+		}
+		return s.r.newWriterTemp(dir, f), nil
 	}
+
 	d := opts.Mount.Stat.Digest
-
 	path := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "blobs", d.String())
-
 	if opts.Mount.ShouldMount {
 		repoPath := repoPathForName(opts.Mount.From.Name())
 		sourcePath := filepath.Join(s.r.basePath, "v2", repoPath, "blobs", d.String())
@@ -339,13 +348,17 @@ func (s *fileBlobStore) Resume(ctx context.Context, id string) (distribution.Blo
 
 // fileWriter attempts to save blobs to disk in the appropriate location.
 type fileWriter struct {
-	driver    *fileRepository
-	path      string
-	uploadID  string
+	driver   *fileRepository
+	path     string
+	uploadID string
+
+	f *os.File
+
 	closed    bool
 	committed bool
 	cancelled bool
 	size      int64
+	digest    godigest.Digest
 	startedAt time.Time
 }
 
@@ -355,6 +368,15 @@ func (d *fileRepository) newWriter(path, uploadID string, size int64) distributi
 		path:     path,
 		uploadID: uploadID,
 		size:     size,
+	}
+}
+
+func (d *fileRepository) newWriterTemp(path string, f *os.File) distribution.BlobWriter {
+	return &fileWriter{
+		driver:   d,
+		path:     path,
+		f:        f,
+		uploadID: filepath.Base(f.Name()),
 	}
 }
 
@@ -377,6 +399,26 @@ func (w *fileWriter) ReadFrom(r io.Reader) (int64, error) {
 	}
 	if w.startedAt.IsZero() {
 		w.startedAt = time.Now()
+	}
+
+	if w.f != nil {
+		blobDigest, n, err := digestCopy(w.f, r)
+		if err != nil {
+			w.f.Close()
+			return 0, err
+		}
+		if err := w.f.Close(); err != nil {
+			return 0, err
+		}
+		name := w.f.Name()
+		w.f = nil
+		path := filepath.Join(w.path, blobDigest.String())
+		if err := os.Rename(name, path); err != nil {
+			return 0, err
+		}
+		w.size = n
+		w.digest = blobDigest
+		return n, err
 	}
 
 	if err := os.MkdirAll(filepath.Dir(w.path), 0755); err != nil {
@@ -414,6 +456,13 @@ func (w *fileWriter) Close() error {
 		return fmt.Errorf("already closed")
 	}
 	w.closed = true
+	if w.f != nil {
+		w.f.Close()
+		if err := os.Remove(w.f.Name()); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		return nil
+	}
 	return nil
 }
 
@@ -440,5 +489,21 @@ func (w *fileWriter) Commit(ctx context.Context, descriptor distribution.Descrip
 		return desc, fmt.Errorf("already cancelled")
 	}
 	w.committed = true
+	if w.size > 0 {
+		desc.Size = w.size
+	}
+	if len(w.digest) > 0 {
+		desc.Digest = w.digest
+	}
 	return desc, nil
+}
+
+// digestCopy reads all of src into dst. It will return the sha256 sum of the
+// stream (the blobDigest) or an error.
+func digestCopy(dst io.Writer, src io.Reader) (blobDigest digest.Digest, n int64, err error) {
+	algo := digest.Canonical
+	blobhash := algo.Hash()
+	n, err = io.Copy(io.MultiWriter(dst, blobhash), src)
+	blobDigest = digest.NewDigestFromBytes(algo, blobhash.Sum(make([]byte, 0, blobhash.Size())))
+	return blobDigest, n, err
 }
