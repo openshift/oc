@@ -75,9 +75,9 @@ func (o *BuildImageOptions) Run() error {
 func NewBuildImage(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewBuildImageOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "build",
-		Short: "build an operator-registry catalog",
-		Long:  buildLong,
+		Use:     "build",
+		Short:   "build an operator-registry catalog",
+		Long:    buildLong,
 		Example: buildExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
