@@ -74,6 +74,9 @@ func ParseSourceReference(ref string, expandFn func(ref TypedImageReference) ([]
 		return nil, err
 	}
 	if len(src.Ref.Tag) == 0 && len(src.Ref.ID) == 0 {
+		if expandFn == nil {
+			return nil, fmt.Errorf("source references must have a tag or digest specified")
+		}
 		return expandFn(src)
 	}
 	return []TypedImageReference{src}, nil
