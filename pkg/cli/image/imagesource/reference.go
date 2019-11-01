@@ -102,6 +102,9 @@ func ParseReference(ref string) (TypedImageReference, error) {
 	case strings.HasPrefix(ref, "file://"):
 		dstType = DestinationFile
 		ref = strings.TrimPrefix(ref, "file://")
+		if strings.HasPrefix(ref, "/") {
+			ref = ref[1:]
+		}
 	}
 	dst, err := reference.Parse(ref)
 	if err != nil {
