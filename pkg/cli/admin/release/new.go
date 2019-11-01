@@ -40,6 +40,7 @@ import (
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	imageappend "github.com/openshift/oc/pkg/cli/image/append"
 	"github.com/openshift/oc/pkg/cli/image/extract"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 )
 
@@ -277,7 +278,7 @@ func (o *NewOptions) Validate() error {
 }
 
 type imageData struct {
-	Ref           imagereference.DockerImageReference
+	Ref           imagesource.TypedImageReference
 	Config        *dockerv1client.DockerImageConfig
 	Digest        digest.Digest
 	ContentDigest digest.Digest
@@ -374,7 +375,7 @@ func (o *NewOptions) Run() error {
 
 	switch {
 	case len(o.FromReleaseImage) > 0:
-		ref, err := imagereference.Parse(o.FromReleaseImage)
+		ref, err := imagesource.ParseReference(o.FromReleaseImage)
 		if err != nil {
 			return fmt.Errorf("--from-release was not a valid pullspec: %v", err)
 		}
@@ -508,7 +509,7 @@ func (o *NewOptions) Run() error {
 					return nil
 				}
 			}
-			if len(ref.Tag) > 0 {
+			if len(ref.Ref.Tag) > 0 {
 				fmt.Fprintf(o.ErrOut, "info: Release %s built from %d images\n", releaseDigest, len(is.Spec.Tags))
 			} else {
 				fmt.Fprintf(o.ErrOut, "info: Release built from %d images\n", len(is.Spec.Tags))
@@ -970,7 +971,7 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 
 		opts.Mappings = append(opts.Mappings, extract.Mapping{
 			Name:     tag.Name,
-			ImageRef: ref,
+			ImageRef: imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref},
 
 			From: "manifests/",
 			To:   dstDir,
@@ -1011,9 +1012,9 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 					return false, err
 				}
 				if custom {
-					fmt.Fprintf(o.ErrOut, "info: Loading override %s %s\n", m.ImageRef.Exact(), tag.Name)
+					fmt.Fprintf(o.ErrOut, "info: Loading override %s %s\n", m.ImageRef, tag.Name)
 				} else {
-					fmt.Fprintf(o.ErrOut, "info: Loading %s %s\n", m.ImageRef.ID, tag.Name)
+					fmt.Fprintf(o.ErrOut, "info: Loading %s %s\n", m.ImageRef.Ref.ID, tag.Name)
 				}
 				return true, nil
 			},

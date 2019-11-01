@@ -19,8 +19,8 @@ import (
 
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
-	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/image/extract"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 )
 
@@ -77,6 +77,7 @@ func NewExtract(f kcmdutil.Factory, parentName string, streams genericclioptions
 
 	flags.StringVar(&o.Command, "command", o.Command, "Specify 'oc' or 'openshift-install' to extract the client for your operating system.")
 	flags.StringVar(&o.CommandOperatingSystem, "command-os", o.CommandOperatingSystem, "Override which operating system command is extracted (mac, windows, linux). You map specify '*' to extract all tool archives.")
+	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
 	return cmd
 }
 
@@ -98,6 +99,7 @@ type ExtractOptions struct {
 
 	Directory string
 	File      string
+	FileDir   string
 
 	ImageMetadataCallback func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig)
 }
@@ -175,12 +177,13 @@ func (o *ExtractOptions) Run() error {
 	}
 
 	src := o.From
-	ref, err := imagereference.Parse(src)
+	ref, err := imagesource.ParseReference(src)
 	if err != nil {
 		return err
 	}
 	opts := extract.NewOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.SecurityOptions = o.SecurityOptions
+	opts.FileDir = o.FileDir
 
 	switch {
 	case len(o.File) > 0:
@@ -231,7 +234,7 @@ func (o *ExtractOptions) Run() error {
 			if o.ImageMetadataCallback != nil {
 				o.ImageMetadataCallback(m, dgst, contentDigest, config)
 			}
-			if len(ref.ID) > 0 {
+			if len(ref.Ref.ID) > 0 {
 				fmt.Fprintf(o.Out, "Extracted release payload created at %s\n", config.Created.Format(time.RFC3339))
 			} else {
 				fmt.Fprintf(o.Out, "Extracted release payload from digest %s created at %s\n", dgst, config.Created.Format(time.RFC3339))
@@ -256,7 +259,10 @@ func (o *ExtractOptions) extractGit(dir string) error {
 		return err
 	}
 
-	release, err := NewInfoOptions(o.IOStreams).LoadReleaseInfo(o.From, false)
+	opts := NewInfoOptions(o.IOStreams)
+	opts.SecurityOptions = o.SecurityOptions
+	opts.FileDir = o.FileDir
+	release, err := opts.LoadReleaseInfo(o.From, false)
 	if err != nil {
 		return err
 	}

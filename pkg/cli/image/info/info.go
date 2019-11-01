@@ -25,8 +25,8 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
-	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
 )
@@ -62,6 +62,7 @@ func NewInfo(parentName string, streams genericclioptions.IOStreams) *cobra.Comm
 	o.FilterOptions.Bind(flags)
 	o.SecurityOptions.Bind(flags)
 	flags.StringVarP(&o.Output, "output", "o", o.Output, "Print the image in an alternative format: json")
+	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be read from.")
 	return cmd
 }
 
@@ -72,6 +73,8 @@ type InfoOptions struct {
 	FilterOptions   imagemanifest.FilterOptions
 
 	Images []string
+
+	FileDir string
 
 	Output string
 }
@@ -101,17 +104,18 @@ func (o *InfoOptions) Run() error {
 
 	hadError := false
 	for _, location := range o.Images {
-		src, err := imagereference.Parse(location)
+		src, err := imagesource.ParseReference(location)
 		if err != nil {
 			return err
 		}
-		if len(src.Tag) == 0 && len(src.ID) == 0 {
+		if len(src.Ref.Tag) == 0 && len(src.Ref.ID) == 0 {
 			return fmt.Errorf("--from must point to an image ID or image tag")
 		}
 
 		var image *Image
 		retriever := &ImageRetriever{
-			Image: map[string]imagereference.DockerImageReference{
+			FileDir: o.FileDir,
+			Image: map[string]imagesource.TypedImageReference{
 				location: src,
 			},
 			SecurityOptions: o.SecurityOptions,
@@ -178,14 +182,14 @@ func (o *InfoOptions) Run() error {
 }
 
 type Image struct {
-	Name          string                              `json:"name"`
-	Ref           imagereference.DockerImageReference `json:"-"`
-	Digest        digest.Digest                       `json:"digest"`
-	ContentDigest digest.Digest                       `json:"contentDigest"`
-	ListDigest    digest.Digest                       `json:"listDigest"`
-	MediaType     string                              `json:"mediaType"`
-	Layers        []distribution.Descriptor           `json:"layers"`
-	Config        *dockerv1client.DockerImageConfig   `json:"config"`
+	Name          string                            `json:"name"`
+	Ref           imagesource.TypedImageReference   `json:"-"`
+	Digest        digest.Digest                     `json:"digest"`
+	ContentDigest digest.Digest                     `json:"contentDigest"`
+	ListDigest    digest.Digest                     `json:"listDigest"`
+	MediaType     string                            `json:"mediaType"`
+	Layers        []distribution.Descriptor         `json:"layers"`
+	Config        *dockerv1client.DockerImageConfig `json:"config"`
 
 	Manifest distribution.Manifest `json:"-"`
 }
@@ -196,7 +200,7 @@ func describeImage(out io.Writer, image *Image) error {
 	w := tabwriter.NewWriter(out, 0, 4, 1, ' ', 0)
 	defer w.Flush()
 	fmt.Fprintf(w, "Name:\t%s\n", image.Name)
-	if len(image.Ref.ID) == 0 || image.Ref.ID != image.Digest.String() {
+	if len(image.Ref.Ref.ID) == 0 || image.Ref.Ref.ID != image.Digest.String() {
 		fmt.Fprintf(w, "Digest:\t%s\n", image.Digest)
 	}
 	if len(image.ListDigest) > 0 {
@@ -323,7 +327,8 @@ func writeTabSection(out io.Writer, fn func(w io.Writer)) {
 }
 
 type ImageRetriever struct {
-	Image           map[string]imagereference.DockerImageReference
+	FileDir         string
+	Image           map[string]imagesource.TypedImageReference
 	SecurityOptions imagemanifest.SecurityOptions
 	ParallelOptions imagemanifest.ParallelOptions
 	// ImageMetadataCallback is invoked once per image retrieved, and may be called in parallel if
@@ -343,6 +348,11 @@ func (o *ImageRetriever) Run() error {
 	if err != nil {
 		return err
 	}
+	fromOptions := &imagesource.Options{
+		FileDir:         o.FileDir,
+		Insecure:        o.SecurityOptions.Insecure,
+		RegistryContext: fromContext,
+	}
 
 	callbackFn := o.ImageMetadataCallback
 	if callbackFn == nil {
@@ -358,12 +368,12 @@ func (o *ImageRetriever) Run() error {
 			name := key
 			from := o.Image[key]
 			q.Try(func() error {
-				repo, err := fromContext.Repository(ctx, from.DockerClientDefaults().RegistryURL(), from.RepositoryName(), o.SecurityOptions.Insecure)
+				repo, err := fromOptions.Repository(ctx, from)
 				if err != nil {
-					return callbackFn(name, nil, fmt.Errorf("unable to connect to image repository %s: %v", from.Exact(), err))
+					return callbackFn(name, nil, fmt.Errorf("unable to connect to image repository %s: %v", from, err))
 				}
 
-				allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from, repo)
+				allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {
 						var msg string
@@ -406,7 +416,7 @@ func (o *ImageRetriever) Run() error {
 					imageConfig, layers, manifestErr := imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), imagemanifest.ManifestLocation{ManifestList: listDigest, Manifest: srcDigest})
 					mediaType, _, _ := srcManifest.Payload()
 					if err := callbackFn(name, &Image{
-						Name:          from.Exact(),
+						Name:          from.Ref.Exact(),
 						Ref:           from,
 						MediaType:     mediaType,
 						Digest:        srcDigest,
