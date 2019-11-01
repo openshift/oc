@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"sync"
@@ -71,6 +70,10 @@ func NewMirror(f kcmdutil.Factory, parentName string, streams genericclioptions.
 			correct information to give to OpenShift to use that content offline. An alternate mode
 			is to specify --to-image-stream, which imports the images directly into an OpenShift
 			image stream.
+
+			You may use --to-dir to specify a directory to download release content. The command
+			will print the 'oc image mirror' command that can be used to upload the release to
+			another registry.
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, f, args))
@@ -84,7 +87,7 @@ func NewMirror(f kcmdutil.Factory, parentName string, streams genericclioptions.
 	flags.StringVar(&o.From, "from", o.From, "Image containing the release payload.")
 	flags.StringVar(&o.To, "to", o.To, "An image repository to push to.")
 	flags.StringVar(&o.ToImageStream, "to-image-stream", o.ToImageStream, "An image stream to tag images into.")
-	flags.StringVar(&o.ToDir, "to-dir", o.ToDir, "A directory to export images to. Requires the 'skopeo' command.")
+	flags.StringVar(&o.ToDir, "to-dir", o.ToDir, "A directory to export images to.")
 	flags.BoolVar(&o.ToMirror, "to-mirror", o.ToMirror, "Output the mirror mappings instead of mirroring.")
 	flags.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Display information about the mirror without actually executing it.")
 
@@ -158,7 +161,6 @@ func (o *MirrorOptions) Run() error {
 		return fmt.Errorf("must specify a release image with --from")
 	}
 
-	targets := 0
 	outputs := 0
 	if len(o.To) > 0 {
 		outputs++
@@ -170,16 +172,14 @@ func (o *MirrorOptions) Run() error {
 		if outputs == 0 {
 			outputs++
 		}
-		targets++
 	}
 	if o.ToMirror {
-		targets++
+		if outputs == 0 {
+			outputs++
+		}
 	}
 	if outputs != 1 {
 		return fmt.Errorf("must specify an image repository or image stream to mirror the release to")
-	}
-	if targets > 1 {
-		return fmt.Errorf("must specify either --to-mirror or --to-dir")
 	}
 
 	if o.SkipRelease && len(o.ToRelease) > 0 {
@@ -188,7 +188,7 @@ func (o *MirrorOptions) Run() error {
 
 	var recreateRequired bool
 	var hasPrefix bool
-	var targetFn func(name string) mirror.MirrorReference
+	var targetFn func(name string) mirror.TypedImageReference
 	var dst string
 	if len(o.ToImageStream) > 0 {
 		dst = imagereference.DockerImageReference{
@@ -200,46 +200,50 @@ func (o *MirrorOptions) Run() error {
 		dst = o.To
 	}
 	if len(dst) == 0 {
-		dst = "local/image"
+		if len(o.ToDir) > 0 {
+			dst = "file://openshift/release"
+		} else {
+			dst = "openshift/release"
+		}
 	}
 
 	var version string
 	if strings.Contains(dst, "${component}") {
 		format := strings.Replace(dst, "${component}", replaceComponentMarker, -1)
 		format = strings.Replace(format, "${version}", replaceVersionMarker, -1)
-		dstRef, err := mirror.ParseMirrorReference(format)
+		dstRef, err := mirror.ParseReference(format)
 		if err != nil {
 			return fmt.Errorf("--to must be a valid image reference: %v", err)
 		}
-		targetFn = func(name string) mirror.MirrorReference {
+		targetFn = func(name string) mirror.TypedImageReference {
 			if len(name) == 0 {
 				name = "release"
 			}
 			value := strings.Replace(dst, "${component}", name, -1)
 			value = strings.Replace(value, "${version}", version, -1)
-			ref, err := mirror.ParseMirrorReference(value)
+			ref, err := mirror.ParseReference(value)
 			if err != nil {
 				klog.Fatalf("requested component %q could not be injected into %s: %v", name, dst, err)
 			}
 			return ref
 		}
 		replaceCount := strings.Count(dst, "${component}")
-		recreateRequired = replaceCount > 1 || (replaceCount == 1 && !strings.Contains(dstRef.Tag, replaceComponentMarker))
+		recreateRequired = replaceCount > 1 || (replaceCount == 1 && !strings.Contains(dstRef.Ref.Tag, replaceComponentMarker))
 
 	} else {
-		ref, err := mirror.ParseMirrorReference(dst)
+		ref, err := mirror.ParseReference(dst)
 		if err != nil {
 			return fmt.Errorf("--to must be a valid image repository: %v", err)
 		}
-		if len(ref.ID) > 0 || len(ref.Tag) > 0 {
+		if len(ref.Ref.ID) > 0 || len(ref.Ref.Tag) > 0 {
 			return fmt.Errorf("--to must be to an image repository and may not contain a tag or digest")
 		}
-		targetFn = func(name string) mirror.MirrorReference {
+		targetFn = func(name string) mirror.TypedImageReference {
 			copied := ref
 			if len(name) > 0 {
-				copied.Tag = fmt.Sprintf("%s-%s", version, name)
+				copied.Ref.Tag = fmt.Sprintf("%s-%s", version, name)
 			} else {
-				copied.Tag = version
+				copied.Ref.Tag = version
 			}
 			return copied
 		}
@@ -248,7 +252,7 @@ func (o *MirrorOptions) Run() error {
 
 	o.TargetFn = func(name string) imagereference.DockerImageReference {
 		ref := targetFn(name)
-		return ref.DockerImageReference
+		return ref.Ref
 	}
 
 	if recreateRequired {
@@ -301,17 +305,15 @@ func (o *MirrorOptions) Run() error {
 				return fmt.Errorf("invalid --to-release-image: %v", err)
 			}
 			mappings = append(mappings, mirror.Mapping{
-				Type:        mirror.DestinationRegistry,
-				Source:      srcRef,
-				Destination: dstRef,
+				Source:      mirror.TypedImageReference{Ref: srcRef, Type: mirror.DestinationRegistry},
+				Destination: mirror.TypedImageReference{Ref: dstRef, Type: mirror.DestinationRegistry},
 				Name:        o.ToRelease,
 			})
 		} else if !o.SkipRelease {
 			dstRef := targetFn("")
 			mappings = append(mappings, mirror.Mapping{
-				Source:      srcRef,
-				Type:        dstRef.Type(),
-				Destination: dstRef.Combined(),
+				Source:      mirror.TypedImageReference{Ref: srcRef, Type: mirror.DestinationRegistry},
+				Destination: dstRef,
 				Name:        "release",
 			})
 		}
@@ -339,55 +341,25 @@ func (o *MirrorOptions) Run() error {
 
 		dstMirrorRef := targetFn(tag.Name)
 		mappings = append(mappings, mirror.Mapping{
-			Source:      from,
-			Type:        dstMirrorRef.Type(),
-			Destination: dstMirrorRef.Combined(),
+			Source:      mirror.TypedImageReference{Ref: from, Type: mirror.DestinationRegistry},
+			Destination: dstMirrorRef,
 			Name:        tag.Name,
 		})
 		klog.V(2).Infof("Mapping %#v", mappings[len(mappings)-1])
 
 		dstRef := targetFn(tag.Name)
-		dstRef.Tag = ""
-		dstRef.ID = from.ID
-		tag.From.Name = dstRef.Exact()
+		dstRef.Ref.Tag = ""
+		dstRef.Ref.ID = from.ID
+		tag.From.Name = dstRef.Ref.Exact()
 	}
 
 	if len(mappings) == 0 {
 		fmt.Fprintf(o.ErrOut, "warning: Release image contains no image references - is this a valid release?\n")
 	}
 
-	if len(o.ToDir) > 0 {
-		if err := os.MkdirAll(o.ToDir, 0755); err != nil {
-			return err
-		}
-		path := "skopeo"
-		if !o.DryRun {
-			binary, err := exec.LookPath(path)
-			if err != nil {
-				return fmt.Errorf("unable to find the 'skopeo' executable on your path, --to-dir is not available")
-			}
-			path = binary
-		}
-
-		for _, mapping := range mappings {
-			args := []string{"--insecure-policy", "copy", fmt.Sprintf("docker://%s", mapping.Source.Exact()), fmt.Sprintf("docker-archive:%s/%s", o.ToDir, mapping.Destination.Tag)}
-			if o.DryRun {
-				fmt.Fprintln(o.Out, strings.Join(append([]string{path}, args...), " "))
-				continue
-			}
-			cmd := exec.Command(path, args...)
-			cmd.Stdout = o.Out
-			cmd.Stderr = o.ErrOut
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("failed to copy %s to disk", mapping.Name)
-			}
-		}
-		return nil
-	}
-
 	if o.ToMirror {
 		for _, mapping := range mappings {
-			fmt.Fprintf(o.Out, "%s %s\n", mapping.Source.Exact(), mapping.Destination.Exact())
+			fmt.Fprintf(o.Out, "%s %s\n", mapping.Source.String(), mapping.Destination.String())
 		}
 		return nil
 	}
@@ -424,10 +396,13 @@ func (o *MirrorOptions) Run() error {
 					},
 				}
 				for _, mapping := range remaining {
+					if mapping.Source.Type != mirror.DestinationRegistry {
+						return fmt.Errorf("source mapping %s must point to a registry", mapping.Source)
+					}
 					isi.Spec.Images = append(isi.Spec.Images, imagev1.ImageImportSpec{
 						From: corev1.ObjectReference{
 							Kind: "DockerImage",
-							Name: mapping.Source.Exact(),
+							Name: mapping.Source.Ref.Exact(),
 						},
 						To: &corev1.LocalObjectReference{
 							Name: mapping.Name,
@@ -493,6 +468,7 @@ func (o *MirrorOptions) Run() error {
 	opts.SecurityOptions = o.SecurityOptions
 	opts.ParallelOptions = o.ParallelOptions
 	opts.Mappings = mappings
+	opts.FileDir = o.ToDir
 	opts.DryRun = o.DryRun
 	opts.ManifestUpdateCallback = func(registry string, manifests map[digest.Digest]digest.Digest) error {
 		lock.Lock()
@@ -525,17 +501,23 @@ func (o *MirrorOptions) Run() error {
 
 	to := o.ToRelease
 	if len(to) == 0 {
-		to = targetFn("").Exact()
+		to = targetFn("").Ref.Exact()
 	}
-	if hasPrefix {
-		fmt.Fprintf(o.Out, "\nSuccess\nUpdate image:  %s\nMirror prefix: %s\n", to, o.To)
-	} else {
-		fmt.Fprintf(o.Out, "\nSuccess\nUpdate image:  %s\nMirrored to: %s\n", to, o.To)
+	fmt.Fprintf(o.Out, "\nSuccess\nUpdate image:  %s\n", to)
+	if len(o.To) > 0 {
+		if hasPrefix {
+			fmt.Fprintf(o.Out, "Mirror prefix: %s\n", o.To)
+		} else {
+			fmt.Fprintf(o.Out, "Mirrored to: %s\n", o.To)
+		}
 	}
-
-	if o.PrintImageContentInstructions {
-		if err := printImageContentInstructions(o.Out, o.From, o.To, repositories); err != nil {
-			return fmt.Errorf("Error creating mirror usage instructions: %v", err)
+	if len(o.ToDir) > 0 {
+		fmt.Fprintf(o.Out, "\nTo upload local images to a registry, run:\n\n    oc image mirror --from-dir=%s file://%s* REGISTRY/REPOSITORY\n\n", o.ToDir, to)
+	} else if len(o.To) > 0 {
+		if o.PrintImageContentInstructions {
+			if err := printImageContentInstructions(o.Out, o.From, o.To, repositories); err != nil {
+				return fmt.Errorf("Error creating mirror usage instructions: %v", err)
+			}
 		}
 	}
 	return nil

@@ -40,13 +40,18 @@ func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
 func NewInfo(parentName string, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewInfoOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "info IMAGE",
+		Use:   "info IMAGE [...]",
 		Short: "Display information about an image",
 		Long: templates.LongDesc(`
 			Show information about an image in a remote image registry
 
-			Experimental: This command is under active development and may change without notice.
-		`),
+			This command will retrieve metadata about container images in a remote image
+			registry. You may specify images by tag or digest and specify multiple at a
+			time.
+
+			Images in manifest list format will be shown for your current operating system.
+			To see the image for a particular OS use the --filter-by-os=OS/ARCH flag.
+			`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())
