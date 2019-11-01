@@ -43,6 +43,17 @@ var (
 			A mapping.txt file is also created that is compatible with "oc image mirror". This may be used to further
 			customize the mirroring configuration, but should not be needed in normal circumstances.
 		`)
+	mirrorExample = templates.Examples(`
+# Mirror an operator-registry image and its contents to a registry
+%[1]s quay.io/my/image:latest myregistry.com
+
+# Configure a cluster to use a mirrored registry
+oc apply -f manifests/imageContentSourcePolicy.yaml
+
+# Edit the mirroring mappings and mirror with "oc image mirror" manually
+%[1]s --manifests-only quay.io/my/image:latest myregistry.com
+oc image mirror -f manifests/mapping.txt
+`)
 )
 
 type MirrorCatalogOptions struct {
@@ -71,9 +82,10 @@ func NewMirrorCatalog(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMirrorCatalogOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:   "mirror",
+		Use:   "mirror SRC DEST",
 		Short: "mirror an operator-registry catalog",
 		Long:  mirrorLong,
+		Example: fmt.Sprintf(mirrorExample,"oc adm catalog mirror"),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())

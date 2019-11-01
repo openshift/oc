@@ -18,6 +18,13 @@ var (
 		Extracts the contents of a collection of operator manifests to disk, and builds them into
 		an operator registry catalog image.
 		`)
+	buildExample = templates.Examples(`
+# Build an operator catalog from an appregistry repo and store in a file 
+%[1]s --appregistry-org=redhat-operators --to=file://offline/redhat-operators:4.3
+
+# Build an operator catalog from an appregistry repo and mirror to a registry 
+%[1]s --appregistry-org=redhat-operators --to=quay.io/my/redhat-operators:4.3
+`)
 )
 
 type BuildImageOptions struct {
@@ -71,6 +78,7 @@ func NewBuildImage(streams genericclioptions.IOStreams) *cobra.Command {
 		Use:   "build",
 		Short: "build an operator-registry catalog",
 		Long:  buildLong,
+		Example: buildExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())
