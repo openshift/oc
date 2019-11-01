@@ -82,10 +82,10 @@ func NewMirrorCatalog(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMirrorCatalogOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:   "mirror SRC DEST",
-		Short: "mirror an operator-registry catalog",
-		Long:  mirrorLong,
-		Example: fmt.Sprintf(mirrorExample,"oc adm catalog mirror"),
+		Use:     "mirror SRC DEST",
+		Short:   "mirror an operator-registry catalog",
+		Long:    mirrorLong,
+		Example: fmt.Sprintf(mirrorExample, "oc adm catalog mirror"),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -149,6 +149,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 				klog.Warningf("couldn't parse %s, skipping mirror: %v", from, err)
 				continue
 			}
+			
 			// remove destination digest if present
 			toRef, err := imagesource.ParseReference(to)
 			if err != nil {
