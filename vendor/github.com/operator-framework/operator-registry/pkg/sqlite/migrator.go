@@ -58,7 +58,7 @@ func (m *SQLLiteMigrator) Migrate(ctx context.Context) error {
 	}
 
 	if err := tx.Commit(); err != nil {
-		return err
+		return tx.Rollback()
 	}
 	return m.Up(ctx, m.migrations.From(version+1))
 }

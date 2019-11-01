@@ -7,6 +7,11 @@ import (
 
 const BundlePathMigrationKey = 2
 
+// Register this migration
+func init() {
+	migrations[BundlePathMigrationKey] = bundlePathMigration
+}
+
 var bundlePathMigration = &Migration{
 	Id: BundlePathMigrationKey,
 	Up: func(ctx context.Context, tx *sql.Tx) error {
@@ -47,9 +52,4 @@ var bundlePathMigration = &Migration{
 		_, err = tx.ExecContext(ctx, foreingKeyOn)
 		return err
 	},
-}
-
-// Register this migration
-func init() {
-	migrations[BundlePathMigrationKey] = bundlePathMigration
 }
