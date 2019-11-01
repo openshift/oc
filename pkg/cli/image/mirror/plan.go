@@ -16,10 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/openshift/library-go/pkg/image/reference"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
 type retrieverError struct {
-	src, dst TypedImageReference
+	src, dst imagesource.TypedImageReference
 	err      error
 }
 
@@ -149,7 +150,7 @@ func (p *plan) AddError(errs ...error) {
 	p.errs = append(p.errs, errs...)
 }
 
-func (p *plan) RegistryPlan(ref TypedImageReference) *registryPlan {
+func (p *plan) RegistryPlan(ref imagesource.TypedImageReference) *registryPlan {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -244,9 +245,9 @@ func (p *plan) Print(w io.Writer) {
 	for _, name := range p.RegistryNames().List() {
 		r := p.registries[name]
 		switch r.t {
-		case DestinationFile:
+		case imagesource.DestinationFile:
 			fmt.Fprintf(w, "<dir>\n")
-		case DestinationS3:
+		case imagesource.DestinationS3:
 			fmt.Fprintf(w, "s3://\n")
 		default:
 			fmt.Fprintf(w, "%s/\n", name)
@@ -310,7 +311,7 @@ func (p *plan) calculateStats() {
 
 type registryPlan struct {
 	parent *plan
-	t      DestinationType
+	t      imagesource.DestinationType
 	name   string
 
 	lock         sync.Mutex
@@ -439,7 +440,7 @@ func (p *repositoryPlan) AddError(errs ...error) {
 	p.errs = append(p.errs, errs...)
 }
 
-func (p *repositoryPlan) Blobs(from TypedImageReference, location string) *repositoryBlobCopy {
+func (p *repositoryPlan) Blobs(from imagesource.TypedImageReference, location string) *repositoryBlobCopy {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -452,7 +453,7 @@ func (p *repositoryPlan) Blobs(from TypedImageReference, location string) *repos
 		parent: p,
 
 		fromRef:  from,
-		toRef:    TypedImageReference{Type: p.parent.t, Ref: reference.DockerImageReference{Registry: p.parent.name, Name: p.name}},
+		toRef:    imagesource.TypedImageReference{Type: p.parent.t, Ref: reference.DockerImageReference{Registry: p.parent.name, Name: p.name}},
 		location: location,
 
 		blobs: sets.NewString(),
@@ -475,7 +476,7 @@ func (p *repositoryPlan) Manifests() *repositoryManifestPlan {
 	if p.manifests == nil {
 		p.manifests = &repositoryManifestPlan{
 			parent:        p,
-			toRef:         TypedImageReference{Type: p.parent.t, Ref: reference.DockerImageReference{Registry: p.parent.name, Name: p.name}},
+			toRef:         imagesource.TypedImageReference{Type: p.parent.t, Ref: reference.DockerImageReference{Registry: p.parent.name, Name: p.name}},
 			digestsToTags: make(map[godigest.Digest]sets.String),
 			digestCopies:  sets.NewString(),
 			prerequisites: make(map[godigest.Digest]godigest.Digest),
@@ -533,8 +534,8 @@ func (p *repositoryPlan) calculateStats(registryCounts map[string]int) {
 
 type repositoryBlobCopy struct {
 	parent   *repositoryPlan
-	fromRef  TypedImageReference
-	toRef    TypedImageReference
+	fromRef  imagesource.TypedImageReference
+	toRef    imagesource.TypedImageReference
 	location string
 
 	lock  sync.Mutex
@@ -589,7 +590,7 @@ func (p *repositoryBlobCopy) calculateStats() {
 
 type repositoryManifestPlan struct {
 	parent *repositoryPlan
-	toRef  TypedImageReference
+	toRef  imagesource.TypedImageReference
 
 	lock    sync.Mutex
 	to      distribution.ManifestService

@@ -12,101 +12,20 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	digest "github.com/opencontainers/go-digest"
 
-	"github.com/openshift/library-go/pkg/image/reference"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
 // ErrAlreadyExists may be returned by the blob Create function to indicate that the blob already exists.
 var ErrAlreadyExists = fmt.Errorf("blob already exists in the target location")
 
-type TypedImageReference struct {
-	Type DestinationType
-	Ref  reference.DockerImageReference
-}
-
-func (t TypedImageReference) contextKey() contextKey {
-	return contextKey{t: t.Type, registry: t.Ref.Registry}
-}
-
-func (t TypedImageReference) EqualRegistry(other TypedImageReference) bool {
-	return t.Type == other.Type && t.Ref.Registry == other.Ref.Registry
-}
-
-func (t TypedImageReference) Equal(other TypedImageReference) bool {
-	return t.Type == other.Type && t.Ref.Equal(other.Ref)
-}
-
-func (t TypedImageReference) String() string {
-	switch t.Type {
-	case DestinationFile:
-		return fmt.Sprintf("file://%s", t.Ref.Exact())
-	case DestinationS3:
-		return fmt.Sprintf("s3://%s", t.Ref.Exact())
-	default:
-		return t.Ref.Exact()
-	}
-}
-
 type Mapping struct {
-	Source      TypedImageReference
-	Destination TypedImageReference
+	Source      imagesource.TypedImageReference
+	Destination imagesource.TypedImageReference
 	// Name is an optional field for identifying uniqueness within the mappings
 	Name string
 }
 
-var rePossibleExpandableReference = regexp.MustCompile(`:([\w\d-\.*]+)$`)
-
-func ParseSourceReference(ref string, expandFn func(ref TypedImageReference) ([]TypedImageReference, error)) ([]TypedImageReference, error) {
-	if m := rePossibleExpandableReference.FindStringSubmatch(ref); len(m) == 2 && strings.Contains(m[1], "*") && expandFn != nil {
-		subst := rePossibleExpandableReference.ReplaceAllString(ref, ":tag")
-		src, err := ParseReference(subst)
-		if err != nil {
-			return nil, err
-		}
-		if src.Ref.Tag != "tag" {
-			return nil, fmt.Errorf("source expansion is only possible in tags")
-		}
-		src.Ref.Tag = m[1]
-		return expandFn(src)
-	}
-	src, err := ParseReference(ref)
-	if err != nil {
-		return nil, err
-	}
-	if len(src.Ref.Tag) == 0 && len(src.Ref.ID) == 0 {
-		return expandFn(src)
-	}
-	return []TypedImageReference{src}, nil
-}
-
-func ParseDestinationReference(ref string) (TypedImageReference, error) {
-	dst, err := ParseReference(ref)
-	if err != nil {
-		return dst, err
-	}
-	if len(dst.Ref.ID) != 0 {
-		return dst, fmt.Errorf("you must specify a tag for DST or leave it blank to only push by digest")
-	}
-	return dst, err
-}
-
-func ParseReference(ref string) (TypedImageReference, error) {
-	dstType := DestinationRegistry
-	switch {
-	case strings.HasPrefix(ref, "s3://"):
-		dstType = DestinationS3
-		ref = strings.TrimPrefix(ref, "s3://")
-	case strings.HasPrefix(ref, "file://"):
-		dstType = DestinationFile
-		ref = strings.TrimPrefix(ref, "file://")
-	}
-	dst, err := reference.Parse(ref)
-	if err != nil {
-		return TypedImageReference{Ref: dst, Type: dstType}, fmt.Errorf("%q is not a valid image reference: %v", ref, err)
-	}
-	return TypedImageReference{Ref: dst, Type: dstType}, nil
-}
-
-func parseArgs(args []string, overlap map[string]string, expandFn func(s TypedImageReference) ([]TypedImageReference, error)) ([]Mapping, error) {
+func parseArgs(args []string, overlap map[string]string, expandFn func(s imagesource.TypedImageReference) ([]imagesource.TypedImageReference, error)) ([]Mapping, error) {
 	var remainingArgs []string
 	var mappingParts [][]string
 	for _, s := range args {
@@ -135,11 +54,11 @@ func parseArgs(args []string, overlap map[string]string, expandFn func(s TypedIm
 
 	var mappings []Mapping
 	for _, parts := range mappingParts {
-		sources, err := ParseSourceReference(parts[0], expandFn)
+		sources, err := imagesource.ParseSourceReference(parts[0], expandFn)
 		if err != nil {
 			return nil, err
 		}
-		dst, err := ParseDestinationReference(parts[1])
+		dst, err := imagesource.ParseDestinationReference(parts[1])
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +86,7 @@ func parseArgs(args []string, overlap map[string]string, expandFn func(s TypedIm
 	return mappings, nil
 }
 
-func parseFile(filename string, overlap map[string]string, in io.Reader, expandFn func(s TypedImageReference) ([]TypedImageReference, error)) ([]Mapping, error) {
+func parseFile(filename string, overlap map[string]string, in io.Reader, expandFn func(s imagesource.TypedImageReference) ([]imagesource.TypedImageReference, error)) ([]Mapping, error) {
 	var fileMappings []Mapping
 	if filename != "-" {
 		f, err := os.Open(filename)
@@ -206,39 +125,24 @@ func parseFile(filename string, overlap map[string]string, in io.Reader, expandF
 }
 
 type key struct {
-	t          DestinationType
+	t          imagesource.DestinationType
 	registry   string
 	repository string
 }
 
-type DestinationType string
-
-var (
-	DestinationRegistry DestinationType = "docker"
-	DestinationS3       DestinationType = "s3"
-	DestinationFile     DestinationType = "file"
-)
-
-func (t DestinationType) Prefix() string {
-	switch t {
-	case DestinationFile:
-		return "file://"
-	case DestinationS3:
-		return "s3://"
-	default:
-		return ""
-	}
+type destination struct {
+	ref  imagesource.TypedImageReference
+	tags []string
 }
 
-type destination struct {
-	ref  TypedImageReference
-	tags []string
+func contextKeyForReference(t imagesource.TypedImageReference) contextKey {
+	return contextKey{t: t.Type, registry: t.Ref.Registry}
 }
 
 type pushTargets map[key]destination
 
 type destinations struct {
-	ref TypedImageReference
+	ref imagesource.TypedImageReference
 
 	lock    sync.Mutex
 	tags    map[string]pushTargets
@@ -275,7 +179,7 @@ func buildTargetTree(mappings []Mapping) targetTree {
 		src, ok := tree[srcKey]
 		if !ok {
 			src = &destinations{}
-			src.ref = TypedImageReference{Ref: m.Source.Ref.AsRepository(), Type: m.Source.Type}
+			src.ref = imagesource.TypedImageReference{Ref: m.Source.Ref.AsRepository(), Type: m.Source.Type}
 			src.digests = make(map[string]pushTargets)
 			src.tags = make(map[string]pushTargets)
 			tree[srcKey] = src
@@ -298,7 +202,7 @@ func buildTargetTree(mappings []Mapping) targetTree {
 
 		dst, ok := current[dstKey]
 		if !ok {
-			dst.ref = TypedImageReference{Ref: m.Destination.Ref.AsRepository(), Type: m.Destination.Type}
+			dst.ref = imagesource.TypedImageReference{Ref: m.Destination.Ref.AsRepository(), Type: m.Destination.Type}
 		}
 		if len(m.Destination.Ref.Tag) > 0 {
 			dst.tags = append(dst.tags, m.Destination.Ref.Tag)
@@ -318,7 +222,7 @@ func addDockerRegistryScopes(scopes map[contextKey]map[string]bool, targets map[
 				scopes[dstContextKey] = m
 			}
 			m[dstKey.repository] = true
-			if t.ref.Type != DestinationRegistry || dstKey.registry != srcKey.registry || dstKey.repository == srcKey.repository {
+			if t.ref.Type != imagesource.DestinationRegistry || dstKey.registry != srcKey.registry || dstKey.repository == srcKey.repository {
 				continue
 			}
 			srcContextKey := contextKey{t: srcKey.t, registry: srcKey.registry}

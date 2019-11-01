@@ -25,6 +25,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/library-go/pkg/image/registryclient"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
 )
@@ -162,7 +163,7 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	expandFn := func(ref TypedImageReference) ([]TypedImageReference, error) {
+	expandFn := func(ref imagesource.TypedImageReference) ([]imagesource.TypedImageReference, error) {
 		reSearch, err := buildTagSearchRegexp(ref.Ref.Tag)
 		if err != nil {
 			return nil, err
@@ -182,7 +183,7 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 			return nil, err
 		}
 		klog.V(5).Infof("Search for %q found: %v", ref.Ref.Tag, tags)
-		refs := make([]TypedImageReference, 0, len(tags))
+		refs := make([]imagesource.TypedImageReference, 0, len(tags))
 		for _, tag := range tags {
 			if !reSearch.MatchString(tag) {
 				continue
@@ -222,30 +223,19 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (o *MirrorImageOptions) Repository(ctx context.Context, context *registryclient.Context, ref TypedImageReference, source bool) (distribution.Repository, error) {
-	klog.V(5).Infof("Find source=%t registry with %#v", source, ref)
-	switch ref.Type {
-	case DestinationRegistry:
-		return context.Repository(ctx, ref.Ref.DockerClientDefaults().RegistryURL(), ref.Ref.RepositoryName(), o.SecurityOptions.Insecure)
-	case DestinationFile:
-		dir := o.FileDir
-		if len(o.FromFileDir) > 0 && source {
-			dir = o.FromFileDir
-		}
-		driver := &fileDriver{
-			BaseDir: dir,
-		}
-		return driver.Repository(ctx, ref.Ref.DockerClientDefaults().RegistryURL(), ref.Ref.RepositoryName(), o.SecurityOptions.Insecure)
-	case DestinationS3:
-		driver := &s3Driver{
-			Creds:    context.Credentials,
-			CopyFrom: o.AttemptS3BucketCopy,
-		}
-		url := ref.Ref.DockerClientDefaults().RegistryURL()
-		return driver.Repository(ctx, url, ref.Ref.RepositoryName(), o.SecurityOptions.Insecure)
-	default:
-		return nil, fmt.Errorf("unrecognized image reference type %s", ref.Type)
+func (o *MirrorImageOptions) Repository(ctx context.Context, context *registryclient.Context, ref imagesource.TypedImageReference, source bool) (distribution.Repository, error) {
+	dir := o.FileDir
+	if len(o.FromFileDir) > 0 && source {
+		dir = o.FromFileDir
 	}
+	klog.V(5).Infof("Find source=%t registry with %#v", source, ref)
+	opts := &imagesource.Options{
+		FileDir:             dir,
+		Insecure:            o.SecurityOptions.Insecure,
+		AttemptS3BucketCopy: o.AttemptS3BucketCopy,
+		RegistryContext:     context,
+	}
+	return opts.Repository(ctx, ref)
 }
 
 func (o *MirrorImageOptions) Validate() error {
@@ -405,7 +395,7 @@ func (o *MirrorImageOptions) Run() error {
 }
 
 type contextKey struct {
-	t        DestinationType
+	t        imagesource.DestinationType
 	registry string
 }
 
@@ -513,7 +503,7 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 						}
 
 						for _, dst := range pushTargets {
-							toRepo, err := o.Repository(ctx, toContexts[dst.ref.contextKey()], dst.ref, false)
+							toRepo, err := o.Repository(ctx, toContexts[contextKeyForReference(dst.ref)], dst.ref, false)
 							if err != nil {
 								plan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to connect to %s: %v", dst.ref, err)})
 								continue
@@ -652,7 +642,7 @@ func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob d
 		return nil
 	}
 
-	if c.toRef.Type != DestinationRegistry {
+	if c.toRef.Type != imagesource.DestinationRegistry {
 		options = append(options, WithDescriptor(blob))
 	}
 

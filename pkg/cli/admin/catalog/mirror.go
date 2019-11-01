@@ -20,9 +20,12 @@ import (
 
 	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
 	"github.com/openshift/library-go/pkg/image/reference"
-	imgextract "github.com/openshift/oc/pkg/cli/image/extract"
-	imgmirror "github.com/openshift/oc/pkg/cli/image/mirror"
+
 	"github.com/operator-framework/operator-registry/pkg/mirror"
+
+	imgextract "github.com/openshift/oc/pkg/cli/image/extract"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
+	imgmirror "github.com/openshift/oc/pkg/cli/image/mirror"
 )
 
 var (
@@ -127,18 +130,18 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		mirrorMapping := []imgmirror.Mapping{}
 
 		for from, to := range mapping {
-			fromRef, err := imgmirror.ParseReference(from)
+			fromRef, err := imagesource.ParseSourceReference(from, nil)
 			if err != nil {
 				klog.Warningf("couldn't parse %s, skipping mirror", from)
 				continue
 			}
-			toRef, err := imgmirror.ParseReference(to)
+			toRef, err := imagesource.ParseDestinationReference(to)
 			if err != nil {
 				klog.Warningf("couldn't parse %s, skipping mirror", to)
 				continue
 			}
 			mirrorMapping = append(mirrorMapping, imgmirror.Mapping{
-				Source:      fromRef,
+				Source:      fromRef[0],
 				Destination: toRef,
 			})
 		}
