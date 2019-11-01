@@ -134,18 +134,6 @@ func (s *SQLLoader) AddPackageChannels(manifest registry.PackageManifest) error 
 	}
 	defer addReplaces.Close()
 
-	addAPI, err := tx.Prepare("insert or replace into api(group_name, version, kind, plural) values(?, ?, ?, ?)")
-	if err != nil {
-		return err
-	}
-	defer addAPI.Close()
-
-	addAPIProvider, err := tx.Prepare("insert into api_provider(group_name, version, kind, channel_entry_id) values(?, ?, ?, ?)")
-	if err != nil {
-		return err
-	}
-	defer addAPIProvider.Close()
-
 	if _, err := addPackage.Exec(manifest.PackageName); err != nil {
 		// This should be terminal
 		return err
@@ -193,7 +181,7 @@ func (s *SQLLoader) AddPackageChannels(manifest registry.PackageManifest) error 
 				break
 			}
 
-			if err := s.addProvidedAPIs(tx, channelEntryCSV, currentID); err != nil {
+			if err := s.addAPIs(tx, channelEntryCSV, currentID); err != nil {
 				errs = append(errs, err)
 			}
 
@@ -234,7 +222,7 @@ func (s *SQLLoader) AddPackageChannels(manifest registry.PackageManifest) error 
 					continue
 				}
 
-				if err := s.addProvidedAPIs(tx, channelEntryCSV, synthesizedID); err != nil {
+				if err := s.addAPIs(tx, channelEntryCSV, synthesizedID); err != nil {
 					errs = append(errs, err)
 					continue
 				}
@@ -334,7 +322,7 @@ func (s *SQLLoader) getCSV(tx *sql.Tx, csvName string) (*registry.ClusterService
 	return csv, nil
 }
 
-func (s *SQLLoader) addProvidedAPIs(tx *sql.Tx, csv *registry.ClusterServiceVersion, channelEntryId int64) error {
+func (s *SQLLoader) addAPIs(tx *sql.Tx, csv *registry.ClusterServiceVersion, channelEntryId int64) error {
 	addAPI, err := tx.Prepare("insert or replace into api(group_name, version, kind, plural) values(?, ?, ?, ?)")
 	if err != nil {
 		return err
@@ -347,7 +335,13 @@ func (s *SQLLoader) addProvidedAPIs(tx *sql.Tx, csv *registry.ClusterServiceVers
 	}
 	defer addAPIProvider.Close()
 
-	ownedCRDs, _, err := csv.GetCustomResourceDefintions()
+	addApiRequirer, err := tx.Prepare("insert into api_requirer(group_name, version, kind, channel_entry_id) values(?, ?, ?, ?)")
+	if err != nil {
+		return err
+	}
+	defer addApiRequirer.Close()
+
+	ownedCRDs, requiredCRDs, err := csv.GetCustomResourceDefintions()
 	for _, crd := range ownedCRDs {
 		plural, group, err := SplitCRDName(crd.Name)
 		if err != nil {
@@ -360,9 +354,29 @@ func (s *SQLLoader) addProvidedAPIs(tx *sql.Tx, csv *registry.ClusterServiceVers
 			return err
 		}
 	}
+	for _, crd := range requiredCRDs {
+		plural, group, err := SplitCRDName(crd.Name)
+		if err != nil {
+			return err
+		}
+		if _, err := addAPI.Exec(group, crd.Version, crd.Kind, plural); err != nil {
+			return err
+		}
+		if _, err := addApiRequirer.Exec(group, crd.Version, crd.Kind, channelEntryId); err != nil {
+			return err
+		}
+	}
 
-	ownedAPIs, _, err := csv.GetApiServiceDefinitions()
+	ownedAPIs, requiredAPIs, err := csv.GetApiServiceDefinitions()
 	for _, api := range ownedAPIs {
+		if _, err := addAPI.Exec(api.Group, api.Version, api.Kind, api.Name); err != nil {
+			return err
+		}
+		if _, err := addAPIProvider.Exec(api.Group, api.Version, api.Kind, channelEntryId); err != nil {
+			return err
+		}
+	}
+	for _, api := range requiredAPIs {
 		if _, err := addAPI.Exec(api.Group, api.Version, api.Kind, api.Name); err != nil {
 			return err
 		}

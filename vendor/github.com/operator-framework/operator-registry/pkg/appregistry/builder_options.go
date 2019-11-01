@@ -56,16 +56,21 @@ func (o *AppregistryBuildOptions) Complete() error {
 
 	// build a separate path for manifests and the built database, so that
 	// building is idempotent
-	manifestDir, err := ioutil.TempDir("", "manifests-")
-	if err != nil {
-		return err
+	if o.ManifestDir == "" {
+		manifestDir, err := ioutil.TempDir("", "manifests-")
+		if err != nil {
+			return err
+		}
+		o.ManifestDir = manifestDir
 	}
-	o.ManifestDir = manifestDir
-	databaseDir, err := ioutil.TempDir("", "db-")
-	if err != nil {
-		return err
+
+	if o.DatabaseDir == "" {
+		databaseDir, err := ioutil.TempDir("", "db-")
+		if err != nil {
+			return err
+		}
+		o.DatabaseDir = databaseDir
 	}
-	o.DatabaseDir = databaseDir
 
 	if o.DatabasePath == "" {
 		o.DatabasePath = path.Join(o.DatabaseDir, "bundles.db")
@@ -96,6 +101,9 @@ func (c *AppregistryBuildOptions) ToOption() AppregistryBuildOption {
 		if c.AuthToken != "" {
 			o.AuthToken = c.AuthToken
 		}
+		if c.AppRegistryOrg != "" {
+			o.AppRegistryOrg = c.AppRegistryOrg
+		}
 		if c.AppRegistryEndpoint != "" {
 			o.AppRegistryEndpoint = c.AppRegistryEndpoint
 		}
@@ -104,6 +112,9 @@ func (c *AppregistryBuildOptions) ToOption() AppregistryBuildOption {
 		}
 		if c.CacheDir != "" {
 			o.CacheDir = c.CacheDir
+		}
+		if c.DatabaseDir != "" {
+			o.DatabaseDir = c.DatabaseDir
 		}
 	}
 }

@@ -51,7 +51,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
 	github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901
 	github.com/openshift/source-to-image v0.0.0-20190716154012-2a579ecd66df
-	github.com/operator-framework/operator-registry v1.5.0
+	github.com/operator-framework/operator-registry v1.5.2
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/profile v1.3.0 // indirect
 	github.com/prometheus/client_golang v1.1.0

@@ -13,6 +13,10 @@ import (
 
 const RelatedImagesMigrationKey = 1
 
+func init() {
+	migrations[RelatedImagesMigrationKey] = relatedImagesMigration
+}
+
 // listBundles returns a list of operatorbundles as strings
 func listBundles(ctx context.Context, tx *sql.Tx) ([]string, error) {
 	query := "SELECT DISTINCT name FROM operatorbundle"
@@ -116,8 +120,4 @@ var relatedImagesMigration = &Migration{
 		_, err := tx.ExecContext(ctx, sql)
 		return err
 	},
-}
-
-func init() {
-	migrations[RelatedImagesMigrationKey] = relatedImagesMigration
 }
