@@ -13,16 +13,19 @@ import (
 
 var (
 	buildLong = templates.LongDesc(`
-			Builds a catalog container image from a collection operator manifests.
+		Builds a catalog container image from a collection operator manifests.
 
-			Extracts the contents of a collection of operator manifests to disk, and builds them into
-			an operator registry catalog image.
+		Extracts the contents of a collection of operator manifests to disk, and builds them into
+		an operator registry catalog image.
 		`)
 )
 
 type BuildImageOptions struct {
 	*appregistry.AppregistryBuildOptions
 	genericclioptions.IOStreams
+
+	FromFileDir string
+	FileDir     string
 }
 
 func NewBuildImageOptions(streams genericclioptions.IOStreams) *BuildImageOptions {
@@ -35,6 +38,8 @@ func NewBuildImageOptions(streams genericclioptions.IOStreams) *BuildImageOption
 func (o *BuildImageOptions) Complete(cmd *cobra.Command, args []string) error {
 	var appender appregistry.ImageAppendFunc = func(from, to, layer string) error {
 		a := imgappend.NewAppendImageOptions(o.IOStreams)
+		a.FromFileDir = o.FromFileDir
+		a.FileDir = o.FileDir
 		a.From = o.From
 		a.To = o.To
 		a.LayerFiles = []string{layer}
@@ -80,7 +85,10 @@ func NewBuildImage(streams genericclioptions.IOStreams) *cobra.Command {
 	flags.StringVar(&o.AppRegistryEndpoint, "appregistry-endpoint", o.AppRegistryEndpoint, "Endpoint for pulling from an application registry instance.")
 	flags.StringVar(&o.AppRegistryOrg, "appregistry-org", "", "Organization (Namespace) to pull from an application registry instance")
 	flags.StringVar(&o.DatabasePath, "to-db", "", "Local path to save the database to.")
-	flags.StringVar(&o.CacheDir, "dir", "", "Local path to cache manifests when downloading.")
+	flags.StringVar(&o.CacheDir, "manifest-dir", "", "Local path to cache manifests when downloading.")
+
+	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
+	flags.StringVar(&o.FromFileDir, "from-dir", o.FromFileDir, "The directory on disk that file:// images will be read from. Overrides --dir")
 
 	return cmd
 }
