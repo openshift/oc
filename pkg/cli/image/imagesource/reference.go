@@ -112,3 +112,23 @@ func ParseReference(ref string) (TypedImageReference, error) {
 	}
 	return TypedImageReference{Ref: dst, Type: dstType}, nil
 }
+
+// buildTagSearchRegexp creates a regexp from the provided tag value
+// that can be used to filter tags. It supports standard '*' glob
+// rules.
+func buildTagSearchRegexp(tag string) (*regexp.Regexp, error) {
+	search := tag
+	if (len(search)) == 0 {
+		search = "*"
+	}
+	var reText string
+	for _, part := range strings.Split(search, "*") {
+		if len(part) == 0 {
+			reText += ".*"
+			continue
+		}
+		reText += regexp.QuoteMeta(part)
+	}
+	reText = fmt.Sprintf("^%s$", reText)
+	return regexp.Compile(reText)
+}

@@ -97,83 +97,89 @@ func (o *InfoOptions) Run() error {
 	}
 
 	// cache the context
-	_, err := o.SecurityOptions.Context()
+	context, err := o.SecurityOptions.Context()
 	if err != nil {
 		return err
+	}
+	opts := &imagesource.Options{
+		FileDir:         o.FileDir,
+		Insecure:        o.SecurityOptions.Insecure,
+		RegistryContext: context,
 	}
 
 	hadError := false
 	for _, location := range o.Images {
-		src, err := imagesource.ParseReference(location)
+		sources, err := imagesource.ParseSourceReference(location, opts.ExpandWildcard)
 		if err != nil {
 			return err
 		}
-		if len(src.Ref.Tag) == 0 && len(src.Ref.ID) == 0 {
-			return fmt.Errorf("--from must point to an image ID or image tag")
-		}
+		for _, src := range sources {
+			if len(src.Ref.Tag) == 0 && len(src.Ref.ID) == 0 {
+				return fmt.Errorf("--from must point to an image ID or image tag")
+			}
 
-		var image *Image
-		retriever := &ImageRetriever{
-			FileDir: o.FileDir,
-			Image: map[string]imagesource.TypedImageReference{
-				location: src,
-			},
-			SecurityOptions: o.SecurityOptions,
-			ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
-				filtered := make(map[digest.Digest]distribution.Manifest)
-				for _, manifest := range list.Manifests {
-					if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
-						klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
-						continue
+			var image *Image
+			retriever := &ImageRetriever{
+				FileDir: o.FileDir,
+				Image: map[string]imagesource.TypedImageReference{
+					location: src,
+				},
+				SecurityOptions: o.SecurityOptions,
+				ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
+					filtered := make(map[digest.Digest]distribution.Manifest)
+					for _, manifest := range list.Manifests {
+						if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
+							klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
+							continue
+						}
+						filtered[manifest.Digest] = all[manifest.Digest]
 					}
-					filtered[manifest.Digest] = all[manifest.Digest]
-				}
-				if len(filtered) == 1 {
-					return filtered, nil
-				}
+					if len(filtered) == 1 {
+						return filtered, nil
+					}
 
-				buf := &bytes.Buffer{}
-				w := tabwriter.NewWriter(buf, 0, 0, 1, ' ', 0)
-				fmt.Fprintf(w, "  OS\tDIGEST\n")
-				for _, manifest := range list.Manifests {
-					fmt.Fprintf(w, "  %s\t%s\n", imagemanifest.PlatformSpecString(manifest.Platform), manifest.Digest)
-				}
-				w.Flush()
-				return nil, fmt.Errorf("the image is a manifest list and contains multiple images - use --filter-by-os to select from:\n\n%s\n", buf.String())
-			},
+					buf := &bytes.Buffer{}
+					w := tabwriter.NewWriter(buf, 0, 0, 1, ' ', 0)
+					fmt.Fprintf(w, "  OS\tDIGEST\n")
+					for _, manifest := range list.Manifests {
+						fmt.Fprintf(w, "  %s\t%s\n", imagemanifest.PlatformSpecString(manifest.Platform), manifest.Digest)
+					}
+					w.Flush()
+					return nil, fmt.Errorf("the image is a manifest list and contains multiple images - use --filter-by-os to select from:\n\n%s\n", buf.String())
+				},
 
-			ImageMetadataCallback: func(from string, i *Image, err error) error {
+				ImageMetadataCallback: func(from string, i *Image, err error) error {
+					if err != nil {
+						return err
+					}
+					image = i
+					return nil
+				},
+			}
+			if err := retriever.Run(); err != nil {
+				return err
+			}
+
+			switch o.Output {
+			case "":
+			case "json":
+				data, err := json.MarshalIndent(image, "", "  ")
 				if err != nil {
 					return err
 				}
-				image = i
-				return nil
-			},
-		}
-		if err := retriever.Run(); err != nil {
-			return err
-		}
-
-		switch o.Output {
-		case "":
-		case "json":
-			data, err := json.MarshalIndent(image, "", "  ")
-			if err != nil {
-				return err
+				fmt.Fprintf(o.Out, "%s", string(data))
+				continue
+			default:
+				return fmt.Errorf("unrecognized --output, only 'json' is supported")
 			}
-			fmt.Fprintf(o.Out, "%s", string(data))
-			continue
-		default:
-			return fmt.Errorf("unrecognized --output, only 'json' is supported")
-		}
 
-		if err := describeImage(o.Out, image); err != nil {
-			hadError = true
-			if err != kcmdutil.ErrExit {
-				fmt.Fprintf(o.ErrOut, "error: %v", err)
+			if err := describeImage(o.Out, image); err != nil {
+				hadError = true
+				if err != kcmdutil.ErrExit {
+					fmt.Fprintf(o.ErrOut, "error: %v", err)
+				}
 			}
 		}
-
 	}
 	if hadError {
 		return kcmdutil.ErrExit

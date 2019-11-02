@@ -163,47 +163,24 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	expandFn := func(ref imagesource.TypedImageReference) ([]imagesource.TypedImageReference, error) {
-		reSearch, err := buildTagSearchRegexp(ref.Ref.Tag)
-		if err != nil {
-			return nil, err
-		}
-
-		// lookup tags that match the search
-		registryContext, err := o.SecurityOptions.Context()
-		if err != nil {
-			return nil, err
-		}
-		repo, err := o.Repository(context.Background(), registryContext, ref, true)
-		if err != nil {
-			return nil, err
-		}
-		tags, err := repo.Tags(context.Background()).All(context.Background())
-		if err != nil {
-			return nil, err
-		}
-		klog.V(5).Infof("Search for %q found: %v", ref.Ref.Tag, tags)
-		refs := make([]imagesource.TypedImageReference, 0, len(tags))
-		for _, tag := range tags {
-			if !reSearch.MatchString(tag) {
-				continue
-			}
-			copied := ref
-			copied.Ref.Tag = tag
-			refs = append(refs, copied)
-		}
-		return refs, nil
+	registryContext, err := o.SecurityOptions.Context()
+	if err != nil {
+		return err
+	}
+	opts := &imagesource.Options{
+		FileDir:             o.FileDir,
+		Insecure:            o.SecurityOptions.Insecure,
+		AttemptS3BucketCopy: o.AttemptS3BucketCopy,
+		RegistryContext:     registryContext,
 	}
 
 	overlap := make(map[string]string)
-
-	var err error
-	o.Mappings, err = parseArgs(args, overlap, expandFn)
+	o.Mappings, err = parseArgs(args, overlap, opts.ExpandWildcard)
 	if err != nil {
 		return err
 	}
 	for _, filename := range o.Filenames {
-		mappings, err := parseFile(filename, overlap, o.In, expandFn)
+		mappings, err := parseFile(filename, overlap, o.In, opts.ExpandWildcard)
 		if err != nil {
 			return err
 		}
