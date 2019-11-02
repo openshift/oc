@@ -76,6 +76,10 @@ func NewMirror(f kcmdutil.Factory, parentName string, streams genericclioptions.
 			will print the 'oc image mirror' command that can be used to upload the release to
 			another registry.
 		`),
+		Example: templates.Examples(`
+			# Perform a dry run showing what would be mirrored, including the mirror objects
+			%[1]s 4.2.2 --to myregistry.local/openshift/release --dry-run
+			`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, f, args))
 			kcmdutil.CheckErr(o.Run())

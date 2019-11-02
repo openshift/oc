@@ -52,6 +52,20 @@ func NewInfo(parentName string, streams genericclioptions.IOStreams) *cobra.Comm
 			Images in manifest list format will be shown for your current operating system.
 			To see the image for a particular OS use the --filter-by-os=OS/ARCH flag.
 			`),
+		Example: templates.Examples(`
+			# Show information about an image
+			%[1]s quay.io/openshift/cli:latest
+
+			# Show information about images matching a wildcard
+			%[1]s quay.io/openshift/cli:4.*
+
+			# Show information about a file mirrored to disk under DIR
+			%[1]s --dir=DIR file://library/busybox:latest
+
+			# Select which image from a multi-OS image to show
+			%[1]s library/busybox:latest --filter-by-os=linux/arm64
+
+			`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())

@@ -55,6 +55,10 @@ func NewExtract(f kcmdutil.Factory, parentName string, streams genericclioptions
 			any destructive actions on your behalf except for executing a 'git checkout' which
 			may change the current branch. Requires 'git' to be on your path.
 		`),
+		Example: templates.Examples(`
+			# Use git to check out the source code for the current cluster release to DIR
+			%[1]s --git=DIR
+			`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
