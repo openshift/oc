@@ -480,7 +480,13 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 						}
 
 						for _, dst := range pushTargets {
-							toRepo, err := o.Repository(ctx, toContexts[contextKeyForReference(dst.ref)], dst.ref, false)
+							var toRepo distribution.Repository
+							var err error
+							if o.DryRun {
+								toRepo, err = imagesource.NewDryRun(dst.ref)
+							} else {
+								toRepo, err = o.Repository(ctx, toContexts[contextKeyForReference(dst.ref)], dst.ref, false)
+							}
 							if err != nil {
 								plan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to connect to %s: %v", dst.ref, err)})
 								continue
