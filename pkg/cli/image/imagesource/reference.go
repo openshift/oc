@@ -121,14 +121,16 @@ func buildTagSearchRegexp(tag string) (*regexp.Regexp, error) {
 	if (len(search)) == 0 {
 		search = "*"
 	}
-	var reText string
+	var parts []string
 	for _, part := range strings.Split(search, "*") {
 		if len(part) == 0 {
-			reText += ".*"
-			continue
+			if len(parts) == 0 || parts[len(parts)-1] != ".*" {
+				parts = append(parts, ".*")
+			}
+		} else {
+			parts = append(parts, regexp.QuoteMeta(part))
 		}
-		reText += regexp.QuoteMeta(part)
 	}
-	reText = fmt.Sprintf("^%s$", reText)
+	reText := fmt.Sprintf("^%s$", strings.Join(parts, ".*"))
 	return regexp.Compile(reText)
 }

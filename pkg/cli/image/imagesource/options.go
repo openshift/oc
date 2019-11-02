@@ -56,7 +56,7 @@ func (o *Options) ExpandWildcard(ref TypedImageReference) ([]TypedImageReference
 	if err != nil {
 		return nil, err
 	}
-	klog.V(5).Infof("Search for %q found: %v", ref.Ref.Tag, tags)
+	klog.V(5).Infof("Search for %q (%s) found: %v", ref.Ref.Tag, reSearch.String(), tags)
 	refs := make([]TypedImageReference, 0, len(tags))
 	for _, tag := range tags {
 		if !reSearch.MatchString(tag) {
