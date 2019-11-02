@@ -135,6 +135,16 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 	case len(args) > 1:
 		return fmt.Errorf("only one argument is accepted")
 	}
+
+	args, err := findArgumentsFromCluster(f, []string{o.From})
+	if err != nil {
+		return err
+	}
+	if len(args) != 1 {
+		return fmt.Errorf("only one release image may be mirrored")
+	}
+	o.From = args[0]
+
 	o.ClientFn = func() (imageclient.Interface, string, error) {
 		cfg, err := f.ToRESTConfig()
 		if err != nil {

@@ -11,13 +11,10 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
@@ -106,37 +103,21 @@ type ExtractOptions struct {
 
 func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	switch {
-	case len(args) == 0 && len(o.From) == 0:
-		cfg, err := f.ToRESTConfig()
-		if err != nil {
-			return fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
-		}
-		client, err := configv1client.NewForConfig(cfg)
-		if err != nil {
-			return fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
-		}
-		cv, err := client.ConfigV1().ClusterVersions().Get("version", metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return fmt.Errorf("you must be connected to an OpenShift 4.x server to fetch the current version")
-			}
-			return fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
-		}
-		image := cv.Status.Desired.Image
-		if len(image) == 0 && cv.Spec.DesiredUpdate != nil {
-			image = cv.Spec.DesiredUpdate.Image
-		}
-		if len(image) == 0 {
-			return fmt.Errorf("the server is not reporting a release image at this time, please specify an image to extract")
-		}
-		o.From = image
-
 	case len(args) == 1 && len(o.From) > 0, len(args) > 1:
 		return fmt.Errorf("you may only specify a single image via --from or argument")
-
-	case len(args) == 1:
-		o.From = args[0]
 	}
+	if len(o.From) > 0 {
+		args = []string{o.From}
+	}
+	args, err := findArgumentsFromCluster(f, args)
+	if err != nil {
+		return err
+	}
+	if len(args) != 1 {
+		return fmt.Errorf("you may only specify a single image via --from or argument")
+	}
+	o.From = args[0]
+
 	return nil
 }
 
