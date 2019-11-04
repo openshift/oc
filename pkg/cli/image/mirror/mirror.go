@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/docker/distribution"
@@ -716,6 +717,15 @@ func copyManifestToTags(
 	for _, tag := range tags {
 		toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, srcManifest, tag, plan.to, ref, plan.toBlobs, nil)
 		if err != nil {
+			if strings.Contains(err.Error(), "error parsing HTTP 400 response body:") {
+				klog.Errorf("400 error updating manifest %s, checking all references", srcDigest)
+				for _, ref := range srcManifest.References() {
+					_, err := plan.toBlobs.Stat(ctx, ref.Digest)
+					if err != nil {
+						klog.Errorf("manifest %s depends on blob %s which is not uploaded: %v", srcDigest, ref.Digest, err)
+					}
+				}
+			}
 			errs = append(errs, fmt.Errorf("unable to push manifest to %s:%s: %v", plan.toRef, tag, err))
 			continue
 		}
