@@ -101,7 +101,7 @@ replace (
 	github.com/openshift/api => github.com/openshift/api v3.9.1-0.20190927132434-86c3b775619d+incompatible
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20190923180330-3b6373338c9b
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.9.2
-	golang.org/x/time => golang.org/x/time v0.0.0-20181108054448-85acf8d2951c
+	golang.org/x/time => github.com/golang/time v0.0.0-20181108054448-85acf8d2951c
 	k8s.io/api => k8s.io/api v0.0.0-20190918155943-95b840bb6a1f
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20190918161926-8f644eb6e783
 	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20190926190123-4ba2b154755f
