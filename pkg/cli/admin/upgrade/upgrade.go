@@ -180,9 +180,13 @@ func (o *Options) Run() error {
 		}
 
 		sortSemanticVersions(cv.Status.AvailableUpdates)
-		update := cv.Status.AvailableUpdates[len(cv.Status.AvailableUpdates)-1]
-		cv.Spec.DesiredUpdate = &update
 
+		update := cv.Status.AvailableUpdates[len(cv.Status.AvailableUpdates)-1]
+		if o.Force {
+			update.Force = true
+		}
+
+		cv.Spec.DesiredUpdate = &update
 		_, err := o.Client.ConfigV1().ClusterVersions().Update(cv)
 		if err != nil {
 			return fmt.Errorf("Unable to upgrade to latest version %s: %v", update.Version, err)
