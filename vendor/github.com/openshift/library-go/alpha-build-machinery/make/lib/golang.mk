@@ -12,7 +12,7 @@ GOFMT ?=gofmt
 GOFMT_FLAGS ?=-s -l
 GOLINT ?=golint
 
-GO_FILES ?=$(shell find . -name '*.go' -not -path './vendor/*' -print)
+GO_FILES ?=$(shell find . -name '*.go' -not -path '*/vendor/*' -not -path '*/_output/*' -print)
 GO_PACKAGES ?=./...
 GO_TEST_PACKAGES ?=$(GO_PACKAGES)
 
