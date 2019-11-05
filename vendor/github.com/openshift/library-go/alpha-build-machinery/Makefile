@@ -14,6 +14,7 @@ examples :=$(wildcard ./make/examples/*/Makefile.test)
 # Delete lines referencing temporary files and directories
 # Unify make error output between versions
 # Ignore old cp errors on centos7
+# Ignore different make output with `-k` option
 define update-makefile-log
 mkdir -p "$(3)"
 set -o pipefail; $(MAKE) -j 1 -C "$(dir $(1))" -f "$(notdir $(1))" --no-print-directory --warn-undefined-variables $(2) 2>&1 | \
@@ -24,6 +25,7 @@ set -o pipefail; $(MAKE) -j 1 -C "$(dir $(1))" -f "$(notdir $(1))" --no-print-di
    sed -E 's~^[<> ]*((\+\+\+|\-\-\-) \./(testing/)?manifests/.*.yaml).*~\1~' | \
    sed -E 's/^(make\[2\]: \*\*\* \[).*: (.*\] Error 1)/\1\2/' | \
    grep -v 'are the same file' | \
+   grep -E -v -e '^make\[2\]: Target `.*'"'"' not remade because of errors\.$$' | \
    tee "$(3)"/"$(notdir $(1))"$(subst ..,.,.$(2).log)
 
 endef
