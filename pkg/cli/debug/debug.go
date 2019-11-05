@@ -79,7 +79,7 @@ var (
 		a pod (like a deployment, build, or job), objects that can host pods (like nodes), or
 		resources that can be used to create pods (such as image stream tags).
 
-		The debug pod is deleted when the the remote command completes or the user interrupts
+		The debug pod is deleted when the remote command completes or the user interrupts
 		the shell.`)
 
 	debugExample = templates.Examples(`
