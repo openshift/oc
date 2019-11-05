@@ -21,8 +21,18 @@ GO_BUILD_PACKAGES :=$(strip \
 )
 # These tags make sure we can statically link and avoid shared dependencies
 GO_BUILD_FLAGS :=-tags 'include_gcs include_oss containers_image_openpgp gssapi'
+
 GO_BUILD_FLAGS_DARWIN :=-tags 'include_gcs include_oss containers_image_openpgp'
+# TODO: move this into library-go
+ifeq ($(GOHOSTOS), darwin)
+GO_BUILD_FLAGS :=$(GO_BUILD_FLAGS_DARWIN)
+endif
+
 GO_BUILD_FLAGS_WINDOWS :=-tags 'include_gcs include_oss containers_image_openpgp'
+# TODO: move this into library-go
+ifeq ($(GOHOSTOS), windows)
+GO_BUILD_FLAGS :=$(GO_BUILD_FLAGS_WINDOWS)
+endif
 
 OUTPUT_DIR :=_output
 CROSS_BUILD_BINDIR :=$(OUTPUT_DIR)/bin
