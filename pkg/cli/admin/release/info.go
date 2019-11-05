@@ -24,6 +24,8 @@ import (
 	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/transport"
 	"k8s.io/klog"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,6 +36,7 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	configv1 "github.com/openshift/api/config/v1"
 	imageapi "github.com/openshift/api/image/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
@@ -66,14 +69,17 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 			validate that updates have not been tampered with.
 
 			If no arguments are specified the release of the currently connected cluster is displayed.
-			Specify one or more images via pull spec to see details of each release image. The --commits
-			flag will display the Git commit IDs and repository URLs for the source of each component
-			image. The --pullspecs flag will display the full component image pull spec. --size will show
-			a breakdown of each image, their layers, and the total size of the payload. --contents shows
-			the configuration that will be applied to the cluster when the update is run. If you have
-			specified two images the difference between the first and second image will be shown. You
-			may use -o name, -o digest, or -o pullspec to output the tag name, digest for image, or
-			pullspec of the images referenced in the release image.
+			Specify one or more images via pull spec to see details of each release image. You may also
+			pass a semantic version (4.2.2) as an argument, and if cluster version object has seen such a
+			version in the upgrades channel it will find the release info for that version.
+
+			The --commits flag will display the Git commit IDs and repository URLs for the source of each
+			component image. The --pullspecs flag will display the full component image pull spec. --size
+			will show a breakdown of each image, their layers, and the total size of the payload.
+			--contents shows the configuration that will be applied to the cluster when the update is run.
+			If you have specified two images the difference between the first and second image will be
+			shown. You may use -o name, -o digest, or -o pullspec to output the tag name, digest for
+			image, or pullspec of the images referenced in the release image.
 
 			The --verify flag will display one summary line per input release image and verify the
 			integrity of each. The command will return an error if the release has been tampered with.
@@ -85,6 +91,20 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 			the code changes that occurred between the two release arguments. This operation is slow
 			and requires sufficient disk space on the selected drive to clone all repositories.
 		`),
+		Example: templates.Examples(`
+			# Show information about the cluster's current release
+			%[1]s
+
+			# Show the source code that comprises a release
+			%[1]s 4.2.2 --commit-urls
+
+			# Show the source code difference between two releases
+			%[1]s 4.2.0 4.2.2 --commits
+
+			# Show where the images referenced by the release are located
+			%[1]s quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
+
+			`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -137,31 +157,199 @@ type InfoOptions struct {
 	SecurityOptions imagemanifest.SecurityOptions
 }
 
-func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
-	if len(args) == 0 {
-		cfg, err := f.ToRESTConfig()
+func findSemanticVersionArgs(args []string) map[string]semver.Version {
+	semvers := make(map[string]semver.Version)
+	for _, arg := range args {
+		v, err := semver.Parse(arg)
 		if err != nil {
-			return fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
+			continue
 		}
-		client, err := configv1client.NewForConfig(cfg)
-		if err != nil {
-			return fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
+		semvers[arg] = v
+	}
+	return semvers
+}
+
+func findImageInClusterVersion(cv *configv1.ClusterVersion, arg string) (string, bool) {
+	if cv.Status.Desired.Version == arg && len(cv.Status.Desired.Image) > 0 {
+		return cv.Status.Desired.Image, true
+	}
+	for _, available := range cv.Status.AvailableUpdates {
+		if available.Version == arg && len(available.Image) > 0 {
+			return available.Image, true
 		}
-		cv, err := client.ConfigV1().ClusterVersions().Get("version", metav1.GetOptions{})
-		if err != nil {
-			if errors.IsNotFound(err) {
-				return fmt.Errorf("you must be connected to an OpenShift 4.x server to fetch the current version")
+	}
+	for _, history := range cv.Status.History {
+		if history.Version == arg && len(history.Image) > 0 {
+			return history.Image, true
+		}
+	}
+	return "", false
+}
+
+type versionNode struct {
+	Version string `json:"version"`
+	Payload string `json:"payload"`
+}
+
+type versionGraph struct {
+	Nodes []versionNode `json:"nodes"`
+}
+
+const defaultGraphURL = "https://api.openshift.com/api/upgrades_info/v1/graph"
+
+// replaceStableSemanticArgs attempts to look up known major versions in existing public stable
+// channels.
+// TODO: perfom graph lookups from the cluster's graph endpoint and channel in preference
+func replaceStableSemanticArgs(args []string, semanticArgs map[string]semver.Version, graphURL string) error {
+	if len(graphURL) == 0 {
+		graphURL = defaultGraphURL
+	}
+	u, err := url.Parse(graphURL)
+	if err != nil {
+		return err
+	}
+
+	transport, err := transport.HTTPWrappersForConfig(
+		&transport.Config{
+			UserAgent: rest.DefaultKubernetesUserAgent() + "(release-info)",
+		},
+		http.DefaultTransport,
+	)
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Transport: transport}
+
+	for i, arg := range args {
+		v, ok := semanticArgs[arg]
+		if !ok {
+			continue
+		}
+		if v.Major != 4 {
+			continue
+		}
+
+		var found bool
+		for _, stream := range []string{"fast", "stable", "candidate"} {
+			u.RawQuery = url.Values{"channel": []string{fmt.Sprintf("%s-%d.%d", stream, v.Major, v.Minor)}}.Encode()
+			if err := func() error {
+				req, err := http.NewRequest("GET", u.String(), nil)
+				if err != nil {
+					return err
+				}
+				req.Header.Set("Accept", "application/json")
+				resp, err := client.Do(req)
+				if err != nil {
+					return err
+				}
+				defer resp.Body.Close()
+				switch resp.StatusCode {
+				case http.StatusOK:
+				default:
+					io.Copy(ioutil.Discard, resp.Body)
+					return fmt.Errorf("unable to retrieve status for %q: %d", arg, resp.StatusCode)
+				}
+				data, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					return err
+				}
+				var versions versionGraph
+				if err := json.Unmarshal(data, &versions); err != nil {
+					return err
+				}
+				for _, version := range versions.Nodes {
+					if version.Version == arg && len(version.Payload) > 0 {
+						delete(semanticArgs, arg)
+						args[i] = version.Payload
+						found = true
+						break
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
 			}
-			return fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
+			if found {
+				break
+			}
 		}
+	}
+	return nil
+}
+
+func replaceClusterSemanticArgs(f kcmdutil.Factory, args []string, semanticArgs map[string]semver.Version) ([]string, error) {
+	cfg, err := f.ToRESTConfig()
+	if err != nil {
+		return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
+	}
+	client, err := configv1client.NewForConfig(cfg)
+	if err != nil {
+		return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
+	}
+	cv, err := client.ConfigV1().ClusterVersions().Get("version", metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return args, fmt.Errorf("you must be connected to an OpenShift 4.x server to fetch the current version")
+		}
+		return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
+	}
+
+	if len(args) == 0 {
 		image := cv.Status.Desired.Image
 		if len(image) == 0 && cv.Spec.DesiredUpdate != nil {
 			image = cv.Spec.DesiredUpdate.Image
 		}
 		if len(image) == 0 {
-			return fmt.Errorf("the server is not reporting a release image at this time, please specify an image to view")
+			return nil, fmt.Errorf("the server is not reporting a release image at this time, please specify an image to view")
 		}
-		args = []string{image}
+		return []string{image}, nil
+	}
+
+	for i, arg := range args {
+		if _, ok := semanticArgs[arg]; !ok {
+			continue
+		}
+		image, ok := findImageInClusterVersion(cv, arg)
+		if !ok {
+			continue
+		}
+		delete(semanticArgs, arg)
+		klog.V(2).Infof("Replaced argument %q with %q", arg, image)
+		args[i] = image
+	}
+	return args, nil
+}
+
+func findArgumentsFromCluster(f kcmdutil.Factory, args []string) ([]string, error) {
+	semanticArgs := findSemanticVersionArgs(args)
+	if len(semanticArgs) == 0 && len(args) > 0 {
+		return args, nil
+	}
+	klog.V(4).Infof("Found semantic versions: %v", semanticArgs)
+	// attempt to find semantic args from the cluster
+	args, clusterErr := replaceClusterSemanticArgs(f, args, semanticArgs)
+	if len(semanticArgs) == 0 {
+		return args, clusterErr
+	}
+	// if any semantic args remain, try to fetch them from the api endpoint out of a stable channel
+	err := replaceStableSemanticArgs(args, semanticArgs, defaultGraphURL)
+	if len(semanticArgs) == 0 || err != nil {
+		if clusterErr != nil {
+			klog.V(2).Infof("Ignored error retrieving semantic versions from cluster version: %v", err)
+		}
+		return args, err
+	}
+	// if there are any semantic args left, error
+	for arg := range semanticArgs {
+		return nil, fmt.Errorf("the semantic version %q is not present in the cluster version status or in the official versions list, cannot be resolved", arg)
+	}
+	return args, nil
+}
+
+func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
+	args, err := findArgumentsFromCluster(f, args)
+	if err != nil {
+		return err
 	}
 	if len(args) < 1 {
 		return fmt.Errorf("info expects at least one argument, a release image pull spec")
@@ -924,7 +1112,7 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 	fmt.Fprintf(w, "OS/Arch:\t%s/%s\n", release.Config.OS, release.Config.Architecture)
 	fmt.Fprintf(w, "Manifests:\t%d\n", len(release.ManifestFiles))
 	if len(release.UnknownFiles) > 0 {
-		fmt.Fprintf(w, "Unknown files:\t%d\n", len(release.UnknownFiles))
+		fmt.Fprintf(w, "Metadata files:\t%d\n", len(release.UnknownFiles))
 	}
 
 	fmt.Fprintln(w)

@@ -39,7 +39,7 @@ var (
 		external registry name (if configured by your administrator). You may also log in
 		using a service account if you have access to its credentials. If you are logged in
 		to the server using a client certificate the command will report an error because
-		Docker commands do not generally allow client certificates.
+		container registries do not generally allow client certificates.
 
 		As an advanced option you may specify the credentials to login with using --auth-basic
 		with USER:PASSWORD. This may not be used with the -z flag.
@@ -62,6 +62,10 @@ var (
 
 # Log in as the default service account in the current namespace
 %[1]s -z default
+
+# Log in to a different registry using BASIC auth credentials
+%[1]s --registry quay.io --auth-basic=USER:PASS
+
 `)
 )
 
