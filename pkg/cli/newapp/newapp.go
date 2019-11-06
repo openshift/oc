@@ -375,8 +375,8 @@ func (o *AppOptions) RunNewApp() error {
 			"app.kubernetes.io/component": result.Name,
 		}
 
-		for _, name := range o.Config.ImageStreams {
-			if name != "" {
+		for _, is := range o.Config.ImageStreams {
+			if name, _, _ := imageutil.SplitImageStreamTag(is); len(name) > 0 {
 				appLabel["app.kubernetes.io/name"] = name
 			}
 		}
