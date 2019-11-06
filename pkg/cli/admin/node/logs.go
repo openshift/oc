@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -195,7 +196,6 @@ func (req *logRequest) WriteRequest(out io.Writer) error {
 	}
 	err := req.writeTo(out)
 	if err != nil {
-		err = fmt.Errorf("%s %v", req.node, err)
 		req.err = err
 	}
 	return err
@@ -339,6 +339,11 @@ func (o LogsOptions) RunLogs() error {
 	if len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Fprintf(o.ErrOut, "error: %v\n", err)
+			if err, ok := err.(*apierrors.StatusError); ok && err.ErrStatus.Details != nil {
+				for _, cause := range err.ErrStatus.Details.Causes {
+					fmt.Fprintf(o.ErrOut, "  %s\n", cause.Message)
+				}
+			}
 		}
 		return kcmdutil.ErrExit
 	}
