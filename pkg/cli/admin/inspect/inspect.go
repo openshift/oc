@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -90,18 +91,10 @@ func NewCmdInspect(streams genericclioptions.IOStreams, parentCommandPath string
 		Long:    inspectLong,
 		Example: fmt.Sprintf(inspectExample, commandPath),
 		Args:    cobra.MinimumNArgs(1),
-		RunE: func(c *cobra.Command, args []string) error {
-			if err := o.Complete(c, args); err != nil {
-				return err
-			}
-			if err := o.Validate(); err != nil {
-				return err
-			}
-			if err := o.Run(); err != nil {
-				return err
-			}
-
-			return nil
+		Run: func(c *cobra.Command, args []string) {
+			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Validate())
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 
@@ -195,11 +188,12 @@ func (o *InspectOptions) Run() error {
 		}
 	}
 
+	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.destDir)
+
 	if len(allErrs) > 0 {
-		return errors.NewAggregate(allErrs)
+		return fmt.Errorf("errors ocurred while gathering data:\n    %v", errors.NewAggregate(allErrs))
 	}
 
-	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.destDir)
 	return nil
 }
 
@@ -282,7 +276,7 @@ func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourc
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("one or more errors ocurred while gathering config.openshift.io resource data:\n\n    %v", errors.NewAggregate(errs))
+		return fmt.Errorf("one or more errors ocurred while gathering operator.openshift.io resource data:\n\n    %v", errors.NewAggregate(errs))
 	}
 	return nil
 }
