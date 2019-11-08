@@ -100,7 +100,7 @@ GOARCH=s390x
 
 %ifarch x86_64
   # Create Binaries for all supported arches
-  %{make} cross-build GO_BUILD_PACKAGES:='./cmd/oc'
+  %{make} cross-build-darwin-amd64 cross-build-windows-amd64 GO_BUILD_PACKAGES:='./cmd/oc'
 %endif
 
 %install
