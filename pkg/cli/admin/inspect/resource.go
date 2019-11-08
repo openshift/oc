@@ -134,13 +134,13 @@ func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstruct
 
 		relatedInfos, err := objectReferenceToResourceInfos(o.configFlags, relatedRef)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("skipping gathering %s due to error: %v", objectReferenceToString(relatedRef), err))
 			continue
 		}
 
 		for _, relatedInfo := range relatedInfos {
 			if err := InspectResource(relatedInfo, context, o); err != nil {
-				errs = append(errs, err)
+				errs = append(errs, fmt.Errorf("skipping gathering %s due to error: %v", objectReferenceToString(relatedRef), err))
 				continue
 			}
 		}
