@@ -1,3 +1,5 @@
+// +build linux
+
 package catalog
 
 import (
@@ -8,7 +10,13 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
+func init() {
+	addCommand = func(streams genericclioptions.IOStreams, cmd *cobra.Command) {
+		cmd.AddCommand(newCmd(streams))
+	}
+}
+
+func newCmd(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "catalog",
 		Short: "Tools for managing the OpenShift OLM Catalogs",
