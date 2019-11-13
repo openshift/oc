@@ -185,17 +185,18 @@ func buildTargetTree(mappings []Mapping) targetTree {
 		}
 
 		var current pushTargets
-		if tag := m.Source.Ref.Tag; len(tag) != 0 {
-			current = src.tags[tag]
-			if current == nil {
-				current = make(pushTargets)
-				src.tags[tag] = current
-			}
-		} else {
+		if id := m.Source.Ref.ID; len(id) > 0 {
 			current = src.digests[m.Source.Ref.ID]
 			if current == nil {
 				current = make(pushTargets)
 				src.digests[m.Source.Ref.ID] = current
+			}
+		} else {
+			tag := m.Source.Ref.Tag
+			current = src.tags[tag]
+			if current == nil {
+				current = make(pushTargets)
+				src.tags[tag] = current
 			}
 		}
 

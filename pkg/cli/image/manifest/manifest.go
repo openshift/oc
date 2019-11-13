@@ -189,14 +189,14 @@ var PreferManifestList = distribution.WithManifestMediaTypes([]string{
 // AllManifests returns all non-list manifests, the list manifest (if any), the digest the from refers to, or an error.
 func AllManifests(ctx context.Context, from imagereference.DockerImageReference, repo distribution.Repository) (map[digest.Digest]distribution.Manifest, *manifestlist.DeserializedManifestList, digest.Digest, error) {
 	var srcDigest digest.Digest
-	if len(from.Tag) > 0 {
+	if len(from.ID) > 0 {
+		srcDigest = digest.Digest(from.ID)
+	} else if len(from.Tag) > 0 {
 		desc, err := repo.Tags(ctx).Get(ctx, from.Tag)
 		if err != nil {
 			return nil, nil, "", err
 		}
 		srcDigest = desc.Digest
-	} else if len(from.ID) > 0 {
-		srcDigest = digest.Digest(from.ID)
 	} else {
 		return nil, nil, "", fmt.Errorf("no tag or digest specified")
 	}
@@ -231,14 +231,14 @@ func (m ManifestLocation) String() string {
 // FirstManifest returns the first manifest at the request location that matches the filter function.
 func FirstManifest(ctx context.Context, from imagereference.DockerImageReference, repo distribution.Repository, filterFn FilterFunc) (distribution.Manifest, ManifestLocation, error) {
 	var srcDigest digest.Digest
-	if len(from.Tag) > 0 {
+	if len(from.ID) > 0 {
+		srcDigest = digest.Digest(from.ID)
+	} else if len(from.Tag) > 0 {
 		desc, err := repo.Tags(ctx).Get(ctx, from.Tag)
 		if err != nil {
 			return nil, ManifestLocation{}, err
 		}
 		srcDigest = desc.Digest
-	} else if len(from.ID) > 0 {
-		srcDigest = digest.Digest(from.ID)
 	} else {
 		return nil, ManifestLocation{}, fmt.Errorf("no tag or digest specified")
 	}
