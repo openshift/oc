@@ -96,8 +96,10 @@ replace (
 	github.com/ghodss/yaml => github.com/ghodss/yaml v0.0.0-20170327235444-0ca9ea5df545
 	github.com/golang/glog => github.com/openshift/golang-glog v0.0.0-20190322123450-3c92600d7533
 	github.com/onsi/ginkgo => github.com/openshift/onsi-ginkgo v0.0.0-20190125161613-53ca7dc85f60
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20191101174058-d428681bd3ce
+	github.com/openshift/api => github.com/openshift/api v0.0.0-0.20191112184635-86def77f6f
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298
+	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191112181215-0597a29991ca
+	github.com/openshift/source-to-image => github.com/openshift/source-to-image v0.0.0-20191031172932-56e8595e83fb
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.0.0-20181207105117-505eaef01726
 	golang.org/x/time => github.com/golang/time v0.0.0-20181108054448-85acf8d2951c
 	k8s.io/api => github.com/openshift/kubernetes-api v0.0.0-20191104140539-95bf9aaf1163
@@ -118,7 +120,7 @@ replace (
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.0.0-20191016114748-65049c67a58b
 	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20191104125842-899bec6923b1
 	k8s.io/kubelet => k8s.io/kubelet v0.0.0-20191016114556-7841ed97f1b2
-	k8s.io/kubernetes => github.com/openshift/kubernetes v0.0.0-20191104135101-e3568aa898f3
+	k8s.io/kubernetes => github.com/openshift/kubernetes v0.0.0-20191114140606-30868d58224b
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.0.0-20191016115753-cf0698c3a16b
 	k8s.io/metrics => k8s.io/metrics v0.0.0-20191016113814-3b1a734dba6e
 	k8s.io/node-api => k8s.io/node-api v0.0.0-20191016115955-b0b11a2622b0
@@ -126,7 +128,3 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.0.0-20191016114214-d25a4244b17f
 	k8s.io/sample-controller => k8s.io/sample-controller v0.0.0-20191016113152-0c2dd40eec0c
 )
-
-replace github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191104114208-f1a64d6c1a3a
-
-replace github.com/openshift/source-to-image => github.com/openshift/source-to-image v0.0.0-20191031172932-56e8595e83fb
