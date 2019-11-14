@@ -372,7 +372,15 @@ func (d *Driver) Get(id string, options graphdriver.MountOpts) (string, error) {
 	logrus.Debugf("WindowsGraphDriver Get() id %s mountLabel %s", id, options.MountLabel)
 	var dir string
 
-	if len(options.Options) > 0 {
+	switch len(options.Options) {
+	case 0:
+	case 1:
+		if options.Options[0] == "ro" {
+			// ignore "ro" option
+			break
+		}
+		fallthrough
+	default:
 		return "", fmt.Errorf("windows driver does not support mount options")
 	}
 	rID, err := d.resolveID(id)
@@ -581,7 +589,7 @@ func (d *Driver) Changes(id string, idMappings *idtools.IDMappings, parent strin
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
 // The layer should not be mounted when calling this function
-func (d *Driver) ApplyDiff(id string, idMappings *idtools.IDMappings, parent, mountLabel string, diff io.Reader) (int64, error) {
+func (d *Driver) ApplyDiff(id, parent string, options graphdriver.ApplyDiffOpts) (int64, error) {
 	panicIfUsedByLcow()
 	var layerChain []string
 	if parent != "" {
@@ -601,7 +609,7 @@ func (d *Driver) ApplyDiff(id string, idMappings *idtools.IDMappings, parent, mo
 		layerChain = append(layerChain, parentChain...)
 	}
 
-	size, err := d.importLayer(id, diff, layerChain)
+	size, err := d.importLayer(id, options.Diff, layerChain)
 	if err != nil {
 		return 0, err
 	}

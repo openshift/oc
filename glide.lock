@@ -1,5 +1,5 @@
 hash: a302476885fc3355a498c603a8b9405aafc916ef5eadb7c21067c6329874a8d1
-updated: 2019-10-10T12:18:01.241282461+02:00
+updated: 2019-11-14T16:47:46.66252075+01:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: a7dc8b61c822528f973a5e4e7b272055c6fdb43e
@@ -94,7 +94,7 @@ imports:
   - types
   - version
 - name: github.com/containers/storage
-  version: 912de200380ac2fd1e90f91b78c1495ed8d5beea
+  version: 01ea27db516e1ea8dd22b63b69d3a66c571effa7
   subpackages:
   - pkg/fileutils
   - pkg/homedir
@@ -285,13 +285,13 @@ imports:
   subpackages:
   - mat64
 - name: github.com/google/btree
-  version: be84af90a1f71c9eeac820a4cdacb863122396d6
+  version: 479b5e81b0a93ec038d201b0b33d17db599531d3
 - name: github.com/google/cadvisor
   version: 8949c822ea91fa6b4996614a5ad6ade840be24ee
 - name: github.com/google/gofuzz
   version: 24818f796faf91cd76ec7bddd72458fbced7a6c1
 - name: github.com/google/uuid
-  version: 0cd6bf5da1e1c83f8b45653022c74f71af0538a4
+  version: c2e93f3ae59f2904160ceaab466009f965df46d6
 - name: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -299,7 +299,7 @@ imports:
   - compiler
   - extensions
 - name: github.com/gorilla/mux
-  version: 884b5ffcbd3a11b730f0b75f5c86ac408753c34d
+  version: f395758b854c4efa789b8c1e9b73479704c548cb
 - name: github.com/gregjones/httpcache
   version: 787624de3eb7bd915c329cba748687a3b22666a6
   subpackages:
@@ -369,7 +369,7 @@ imports:
 - name: github.com/onsi/gomega
   version: 5533ce8a0da374da682cd53d70ddcc54adf1a710
 - name: github.com/opencontainers/go-digest
-  version: a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
+  version: ac19fd6e7483ff933754af248d80be865e543d22
 - name: github.com/opencontainers/image-spec
   version: 372ad780f63454fbbbbcc7cf80e5b90245c13e13
   subpackages:
@@ -507,7 +507,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 27b03247913b2f6a0abcea95cb9b6c896adc2531
+  version: 8ab60e64997ac0990ef30a4e01481056dec95568
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -543,7 +543,7 @@ imports:
   - pkg/template/templateprocessing
   - pkg/unidling/unidlingclient
 - name: github.com/openshift/source-to-image
-  version: 0b950e4c21af8838c0f523e77114a19b061deaba
+  version: 1877e115164b5ff41e7c86244d9a109258234070
   subpackages:
   - pkg/api
   - pkg/api/constants
@@ -755,7 +755,7 @@ imports:
   - tap
   - transport
 - name: gopkg.in/asn1-ber.v1
-  version: f715ec2f112d1e4195b827ad68cf44017a3ef2b1
+  version: 158c9f99fc9c29a5ca9203be28f0fdf31cfb9701
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/ldap.v2
@@ -1072,7 +1072,7 @@ imports:
 - name: k8s.io/kubelet
   version: f6da02f583256d1a15cc44a101c80bfa2080a46f
 - name: k8s.io/kubernetes
-  version: 1eb36a4850ad82758eaac883beb8f723defb615c
+  version: 9370cd520cf603005556213fbfe5d960096104e1
   repo: https://github.com/openshift/kubernetes.git
   subpackages:
   - cmd/genutils
