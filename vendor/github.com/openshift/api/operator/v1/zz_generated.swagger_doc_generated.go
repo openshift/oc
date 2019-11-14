@@ -192,7 +192,8 @@ func (DNSList) SwaggerDoc() map[string]string {
 }
 
 var map_DNSSpec = map[string]string{
-	"": "DNSSpec is the specification of the desired behavior of the DNS.",
+	"":        "DNSSpec is the specification of the desired behavior of the DNS.",
+	"servers": "servers is a list of DNS resolvers that provide name query delegation for one or more subdomains outside the scope of the cluster domain. If servers consists of more than one Server, longest suffix match will be used to determine the Server.\n\nFor example, if there are two Servers, one for \"foo.com\" and another for \"a.foo.com\", and the name query is for \"www.a.foo.com\", it will be routed to the Server with Zone \"a.foo.com\".\n\nIf this field is nil, no servers are created.",
 }
 
 func (DNSSpec) SwaggerDoc() map[string]string {
@@ -208,6 +209,26 @@ var map_DNSStatus = map[string]string{
 
 func (DNSStatus) SwaggerDoc() map[string]string {
 	return map_DNSStatus
+}
+
+var map_ForwardPlugin = map[string]string{
+	"":          "ForwardPlugin defines a schema for configuring the CoreDNS forward plugin.",
+	"upstreams": "upstreams is a list of resolvers to forward name queries for subdomains of Zones. Upstreams are randomized when more than 1 upstream is specified. Each instance of CoreDNS performs health checking of Upstreams. When a healthy upstream returns an error during the exchange, another resolver is tried from Upstreams. Each upstream is represented by an IP address or IP:port if the upstream listens on a port other than 53.\n\nA maximum of 15 upstreams is allowed per ForwardPlugin.",
+}
+
+func (ForwardPlugin) SwaggerDoc() map[string]string {
+	return map_ForwardPlugin
+}
+
+var map_Server = map[string]string{
+	"":              "Server defines the schema for a server that runs per instance of CoreDNS.",
+	"name":          "name is required and specifies a unique name for the server. Name must comply with the Service Name Syntax of rfc6335.",
+	"zones":         "zones is required and specifies the subdomains that Server is authoritative for. Zones must conform to the rfc1123 definition of a subdomain. Specifying the cluster domain (i.e., \"cluster.local\") is invalid.",
+	"forwardPlugin": "forwardPlugin defines a schema for configuring CoreDNS to proxy DNS messages to upstream resolvers.",
+}
+
+func (Server) SwaggerDoc() map[string]string {
+	return map_Server
 }
 
 var map_Etcd = map[string]string{
