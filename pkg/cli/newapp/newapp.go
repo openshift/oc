@@ -48,6 +48,7 @@ import (
 	templatev1typedclient "github.com/openshift/client-go/template/clientset/versioned/typed/template/v1"
 	"github.com/openshift/library-go/pkg/git"
 	"github.com/openshift/library-go/pkg/image/imageutil"
+	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/helpers/bulk"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 	imagehelpers "github.com/openshift/oc/pkg/helpers/image"
@@ -376,8 +377,8 @@ func (o *AppOptions) RunNewApp() error {
 		}
 
 		for _, is := range o.Config.ImageStreams {
-			if name, _, _ := imageutil.SplitImageStreamTag(is); len(name) > 0 {
-				appLabel["app.kubernetes.io/name"] = name
+			if ref, _ := reference.Parse(is); len(ref.Name) > 0 {
+				appLabel["app.kubernetes.io/name"] = ref.Name
 			}
 		}
 
