@@ -62,10 +62,10 @@ func Get() version.Info {
 //
 // 1. Extract a release binary that contains a cli image
 // 2. Identify the release name, add a NUL terminator byte (0x00) to the end, calculate length
-// 3. Length must be less than 300 bytes
+// 3. Length must be less than the marker length
 // 4. Search through the cli binary for `\x00_RELEASE_VERSION_LOCATION_\x00<PADDING_TO_LENGTH>`
-//    where padding is the ASCII character X and length is the total length of the image
-// 5. Overwrite that chunk of the bytes if found, otherwise return error.
+//    where padding is the ASCII character X and length is the total length of the marker
+// 5. Overwrite the beginning of the marker with the release name and a NUL terminator byte (0x00)
 
 var (
 	// defaultReleaseInfoPadded may be replaced in the binary with Release Metadata: Version that overrides defaultVersion as
