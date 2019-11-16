@@ -180,18 +180,20 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Command: "openshift-install",
 			Mapping: extract.Mapping{Image: "installer-artifacts", From: "usr/share/openshift/mac/openshift-install"},
 
-			Readme:             readmeInstallUnix,
-			InjectReleaseImage: true,
-			ArchiveFormat:      "openshift-install-mac-%s.tar.gz",
+			Readme:               readmeInstallUnix,
+			InjectReleaseImage:   true,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-install-mac-%s.tar.gz",
 		},
 		{
 			OS:      "linux",
 			Command: "openshift-install",
 			Mapping: extract.Mapping{Image: "installer", From: "usr/bin/openshift-install"},
 
-			Readme:             readmeInstallUnix,
-			InjectReleaseImage: true,
-			ArchiveFormat:      "openshift-install-linux-%s.tar.gz",
+			Readme:               readmeInstallUnix,
+			InjectReleaseImage:   true,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-install-linux-%s.tar.gz",
 		},
 		{
 			OS:       "linux",
@@ -199,9 +201,10 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Optional: true,
 			Mapping:  extract.Mapping{Image: "baremetal-installer", From: "usr/bin/openshift-install"},
 
-			Readme:             readmeInstallUnix,
-			InjectReleaseImage: true,
-			ArchiveFormat:      "openshift-baremetal-install-linux-%s.tar.gz",
+			Readme:               readmeInstallUnix,
+			InjectReleaseImage:   true,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-baremetal-install-linux-%s.tar.gz",
 		},
 	}
 
