@@ -492,21 +492,22 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		}
 
 		// copy the input to disk
+		replacements := []replacement{}
 		if target.InjectReleaseImage {
-			var matched bool
-			matched, err = copyAndReplaceReleaseInfo(w, r, 4*1024, exactReleaseImage)
-			if !matched {
-				fmt.Fprintf(o.ErrOut, "warning: Unable to replace release image location into %s, installer will not be locked to the correct image\n", target.Command)
-			}
-		} else if target.InjectReleaseVersion {
-			var matched bool
-			matched, err = copyAndReplaceReleaseVersion(w, r, 4*1024, releaseName)
-			if !matched {
-				fmt.Fprintf(o.ErrOut, "warning: Unable to replace release version location into %s\n", target.Command)
-			}
-		} else {
-			_, err = io.Copy(w, r)
+			replacements = append(replacements, replacement{
+				name:   "release image",
+				marker: append([]byte{0}, []byte(releaseImageMarker[1:])...),
+				value:  exactReleaseImage,
+			})
 		}
+		if target.InjectReleaseVersion {
+			replacements = append(replacements, replacement{
+				name:   "release version",
+				marker: append([]byte{0}, []byte(releaseVersionMarker[1:])...),
+				value:  releaseName,
+			})
+		}
+		err = copyAndReplace(o.ErrOut, w, r, 4*1024, replacements, target.Command)
 		if err != nil {
 			closeFn()
 			f.Close()
@@ -622,45 +623,46 @@ func (o *ExtractOptions) extractCommand(command string) error {
 }
 
 const (
-	// installerReplacement is the location within the installer binary that we can insert our release image info string
-	installerReplacement = "\x00_RELEASE_IMAGE_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00"
-	// releaseVersionReplacement is the location within a binary (oc) that we can insert our release image name string
-	releaseVersionReplacement = "\x00_RELEASE_VERSION_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00\x00_RELEASE_VERSION_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00"
+	// releaseImageMarker is the placeholder within a binary for the release image pullspec.
+	releaseImageMarker = "!_RELEASE_IMAGE_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00"
+	// releaseVersionMarker is the placeholder within a binary for the release image version name string.
+	releaseVersionMarker = "!_RELEASE_VERSION_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00"
 )
 
-// copyAndReplaceReleaseInfo performs a targeted replacement for binaries that contain a special marker string
-// as a constant, replacing the marker with releaseInfo and a NUL terminating byte. It returns true if the
-// replacement was performed.
-func copyAndReplaceReleaseInfo(w io.Writer, r io.Reader, bufferSize int, releaseInfo string) (bool, error) {
-	if len(releaseInfo)+1 > len(installerReplacement) {
-		return false, fmt.Errorf("the release image pull spec is longer than the maximum replacement length for the binary")
-	}
-	if bufferSize < len(installerReplacement) {
-		return false, fmt.Errorf("the buffer size must be greater than %d bytes", len(installerReplacement))
-	}
-
-	return copyReplace(w, r, bufferSize, releaseInfo, installerReplacement)
+type replacement struct {
+	name   string
+	marker []byte
+	value  string
 }
 
-// copyAndReplaceReleaseVersion performs a targeted replacement for binaries that contain a special marker string
-// as a constant, replacing the marker with releaseInfo and a NUL terminating byte. It returns true if the
-// replacement was performed.
-func copyAndReplaceReleaseVersion(w io.Writer, r io.Reader, bufferSize int, releaseInfo string) (bool, error) {
-	if len(releaseInfo)+1 > len(releaseVersionReplacement) {
-		return false, fmt.Errorf("the release image pull spec is longer than the maximum replacement length for the binary")
-	}
-	if bufferSize < len(releaseVersionReplacement) {
-		return false, fmt.Errorf("the buffer size must be greater than %d bytes", len(releaseVersionReplacement))
+// copyAndReplace performs a targeted replacement for binaries that
+// contain special marker strings, replacing the first occurrence of each
+// marker with a new string and a NUL terminating byte.  It logs a warning
+// if any replacements are not performed.
+func copyAndReplace(errorOutput io.Writer, w io.Writer, r io.Reader, bufferSize int, replacements []replacement, name string) error {
+	if len(replacements) == 0 {
+		_, err := io.Copy(w, r)
+		return err
 	}
 
-	return copyReplace(w, r, bufferSize, releaseInfo, releaseVersionReplacement)
-}
+	longestMarker := 0
+	for _, replacement := range replacements {
+		if len(replacement.value) > len(replacement.marker)-1 {
+			return fmt.Errorf("the %s value has %d bytes, but the maximum replacement length is %d", replacement.name, len(replacement.value), len(replacement.marker)-1)
+		}
 
-func copyReplace(w io.Writer, r io.Reader, max int, releaseInfo, marker string) (bool, error) {
-	match := []byte(marker[:len(releaseInfo)+1])
+		if len(replacement.marker) > longestMarker {
+			longestMarker = len(replacement.marker)
+			if bufferSize < longestMarker {
+				return fmt.Errorf("the buffer size must be greater than %d bytes to find %s", len(replacement.marker), replacement.name)
+			}
+		}
+	}
+
 	offset := 0
-	buf := make([]byte, max+offset)
-	matched := false
+	buf := make([]byte, bufferSize)
+	remaining := len(replacements)
+	matches := make([]bool, remaining)
 
 	for {
 		n, err := io.ReadFull(r, buf[offset:])
@@ -668,42 +670,66 @@ func copyReplace(w io.Writer, r io.Reader, max int, releaseInfo, marker string) 
 		// search in the buffer for the expected match
 		end := offset + n
 		if n > 0 {
-			index := bytes.Index(buf[:end], match)
-			if index != -1 {
-				klog.V(2).Infof("Found match at %d (len=%d, offset=%d, n=%d)", index, len(buf), offset, n)
-				// the replacement starts at the beginning of the match, contains the release string and a terminating NUL byte
-				copy(buf[index:index+len(releaseInfo)], []byte(releaseInfo))
-				buf[index+len(releaseInfo)] = 0x00
-				matched = true
+			for i, matched := range matches {
+				if !matched {
+					replacement := replacements[i]
+					index := bytes.Index(buf[:end], replacement.marker)
+					if index != -1 {
+						klog.V(2).Infof("Found match for %s at %d (len=%d, offset=%d, n=%d)", replacements[i].name, index, len(buf), offset, n)
+						// the replacement starts at the beginning of the match, contains the replacement value and a terminating NUL byte
+						copy(buf[index:index+len(replacement.value)], []byte(replacement.value))
+						buf[index+len(replacement.value)] = 0x00
+						matches[i] = true
+						remaining -= 1
+					}
+				}
 			}
 		}
 
 		// write everything that we have already searched (excluding the end of the buffer that will
 		// be checked next pass)
-		nextOffset := end - len(marker)
-		if nextOffset < 0 || matched {
-			nextOffset = 0
+		writeTo := end - longestMarker
+		if writeTo < 0 {
+			writeTo = 0
 		}
-		_, wErr := w.Write(buf[:end-nextOffset])
-		if wErr != nil {
-			return matched, wErr
+		if remaining == 0 || err != nil {
+			writeTo = end
 		}
-		if err != nil {
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
-				return matched, nil
+		offset = 0
+		for offset < writeTo {
+			n, wErr := w.Write(buf[offset:writeTo])
+			if wErr != nil {
+				return wErr
 			}
-			return matched, err
+			offset += n
 		}
 
-		// once we complete a single match, we can copy the rest of the file without processing
-		if matched {
+		if err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				remainingNames := make([]string, 0, len(replacements))
+				for i, matched := range matches {
+					if !matched {
+						remainingNames = append(remainingNames, replacements[i].name)
+					}
+				}
+				sort.Strings(remainingNames)
+				if len(remainingNames) > 0 {
+					fmt.Fprintf(errorOutput, "warning: Unable to make all expected replacements in %s.  Remaining: %s", name, strings.Join(remainingNames, ", "))
+				}
+				return nil
+			}
+			return err
+		}
+
+		// once we match each replacement, we can copy the rest of the file without processing
+		if remaining == 0 {
 			_, err := io.Copy(w, r)
-			return matched, err
+			return err
 		}
 
 		// ensure the beginning of the buffer matches the end of the current buffer so that we
 		// can search for matches that span buffers
-		copy(buf[:nextOffset], buf[end-nextOffset:end])
-		offset = nextOffset
+		copy(buf[:writeTo], buf[writeTo:end])
+		offset = end - writeTo
 	}
 }
