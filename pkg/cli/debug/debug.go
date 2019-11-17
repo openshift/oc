@@ -141,6 +141,7 @@ type DebugOptions struct {
 	DryRun             bool
 	FullCmdName        string
 	Image              string
+	ToNamespace        string
 
 	// IsNode is set after we see the object we're debugging.  We use it to be able to print pertinent advice.
 	IsNode bool
@@ -204,6 +205,7 @@ func NewCmdDebug(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	cmd.Flags().BoolVar(&o.AsRoot, "as-root", o.AsRoot, "If true, try to run the container as the root user")
 	cmd.Flags().Int64Var(&o.AsUser, "as-user", o.AsUser, "Try to run the container as a specific user UID (note: admins may limit your ability to use this flag)")
 	cmd.Flags().StringVar(&o.Image, "image", o.Image, "Override the image used by the targeted container.")
+	cmd.Flags().StringVar(&o.ToNamespace, "to-namespace", o.ToNamespace, "Override the namespace to create the pod into (instead of using --namespace).")
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
@@ -361,6 +363,9 @@ func (o *DebugOptions) RunDebug() error {
 	ns := infos[0].Namespace
 	if len(ns) == 0 {
 		ns = o.Namespace
+	}
+	if len(o.ToNamespace) > 0 {
+		ns = o.ToNamespace
 	}
 	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug", generateapp.MakeSimpleName(infos[0].Name)), ns
 	o.Attach.Pod = pod
