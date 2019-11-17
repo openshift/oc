@@ -731,14 +731,14 @@ func (o *DebugOptions) createPod(pod *corev1.Pod) (*corev1.Pod, error) {
 }
 
 func containerForName(pod *corev1.Pod, name string) *corev1.Container {
-	for i, c := range pod.Spec.Containers {
-		if c.Name == name {
-			return &pod.Spec.Containers[i]
-		}
-	}
 	for i, c := range pod.Spec.InitContainers {
 		if c.Name == name {
 			return &pod.Spec.InitContainers[i]
+		}
+	}
+	for i, c := range pod.Spec.Containers {
+		if c.Name == name {
+			return &pod.Spec.Containers[i]
 		}
 	}
 	return nil
@@ -746,6 +746,9 @@ func containerForName(pod *corev1.Pod, name string) *corev1.Container {
 
 func containerNames(pod *corev1.Pod) []string {
 	var names []string
+	for _, c := range pod.Spec.InitContainers {
+		names = append(names, c.Name)
+	}
 	for _, c := range pod.Spec.Containers {
 		names = append(names, c.Name)
 	}
