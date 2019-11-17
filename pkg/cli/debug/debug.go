@@ -670,6 +670,7 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	}
 
 	if o.OneContainer {
+		pod.Spec.InitContainers = nil
 		pod.Spec.Containers = []corev1.Container{*container}
 	}
 
