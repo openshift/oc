@@ -601,10 +601,6 @@ func (o *DebugOptions) getContainerImageCommand(pod *corev1.Pod, container *core
 func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*corev1.Pod, []string) {
 	pod := o.Attach.Pod
 
-	if !o.KeepInitContainers {
-		pod.Spec.InitContainers = nil
-	}
-
 	// reset the container
 	container := containerForName(pod, o.Attach.ContainerName)
 
@@ -669,9 +665,18 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 		container.SecurityContext.RunAsNonRoot = nil
 	}
 
-	if o.OneContainer {
+	switch {
+	case o.OneContainer:
 		pod.Spec.InitContainers = nil
 		pod.Spec.Containers = []corev1.Container{*container}
+	case o.KeepInitContainers:
+		// there is nothing we need to do
+	case isInitContainer(pod, o.Attach.ContainerName):
+		// keep only the init container we are debugging
+		pod.Spec.InitContainers = []corev1.Container{*container}
+	default:
+		// clear all init containers
+		pod.Spec.InitContainers = nil
 	}
 
 	// reset the pod
@@ -742,6 +747,15 @@ func containerForName(pod *corev1.Pod, name string) *corev1.Container {
 		}
 	}
 	return nil
+}
+
+func isInitContainer(pod *corev1.Pod, name string) bool {
+	for _, c := range pod.Spec.InitContainers {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func containerNames(pod *corev1.Pod) []string {
