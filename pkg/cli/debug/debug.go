@@ -679,6 +679,8 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 		pod.Spec.InitContainers = nil
 	}
 
+	clearHostPorts(pod)
+
 	// reset the pod
 	if pod.Annotations == nil || !o.KeepAnnotations {
 		pod.Annotations = make(map[string]string)
@@ -767,6 +769,31 @@ func containerNames(pod *corev1.Pod) []string {
 		names = append(names, c.Name)
 	}
 	return names
+}
+
+func clearHostPorts(pod *corev1.Pod) {
+	for i := range pod.Spec.InitContainers {
+		if pod.Spec.HostNetwork {
+			pod.Spec.InitContainers[i].Ports = nil
+			continue
+		}
+		for j := range pod.Spec.InitContainers[i].Ports {
+			if pod.Spec.InitContainers[i].Ports[j].HostPort > 0 {
+				pod.Spec.InitContainers[i].Ports[j].HostPort = 0
+			}
+		}
+	}
+	for i := range pod.Spec.Containers {
+		if pod.Spec.HostNetwork {
+			pod.Spec.Containers[i].Ports = nil
+			continue
+		}
+		for j := range pod.Spec.Containers[i].Ports {
+			if pod.Spec.Containers[i].Ports[j].HostPort > 0 {
+				pod.Spec.Containers[i].Ports[j].HostPort = 0
+			}
+		}
+	}
 }
 
 func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*corev1.PodTemplateSpec, error) {
