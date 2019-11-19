@@ -126,7 +126,6 @@ func NewCommandAdmin(name, fullName string, f kcmdutil.Factory, streams genericc
 		release.NewCmd(f, fullName, streams),
 		buildchain.NewCmdBuildChain(name, fullName+" "+buildchain.BuildChainRecommendedCommandName, f, streams),
 		verifyimagesignature.NewCmdVerifyImageSignature(name, fullName+" "+verifyimagesignature.VerifyRecommendedName, f, streams),
-		catalog.NewCmd(streams),
 
 		// part of every root command
 		kubectlwrappers.NewCmdConfig(fullName, "config", f, streams),
@@ -135,6 +134,7 @@ func NewCommandAdmin(name, fullName string, f kcmdutil.Factory, streams genericc
 		// hidden
 		options.NewCmdOptions(streams),
 	)
+	catalog.AddCommand(streams, cmds)
 
 	return cmds
 }
