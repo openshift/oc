@@ -23,6 +23,7 @@ GO_BUILD_PACKAGES :=$(strip \
 GO_BUILD_FLAGS :=-tags 'include_gcs include_oss containers_image_openpgp gssapi'
 GO_BUILD_FLAGS_DARWIN :=-tags 'include_gcs include_oss containers_image_openpgp'
 GO_BUILD_FLAGS_WINDOWS :=-tags 'include_gcs include_oss containers_image_openpgp'
+GO_BUILD_FLAGS_LINUX_CROSS :=-tags 'include_gcs include_oss containers_image_openpgp'
 
 OUTPUT_DIR :=_output
 CROSS_BUILD_BINDIR :=$(OUTPUT_DIR)/bin
@@ -79,7 +80,23 @@ cross-build-windows-amd64:
 	+@GOOS=windows GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_WINDOWS)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/windows_amd64
 .PHONY: cross-build-windows-amd64
 
-cross-build: cross-build-darwin-amd64 cross-build-windows-amd64
+cross-build-linux-amd64:
+	+@GOOS=linux GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_LINUX_CROSS)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/linux_amd64
+.PHONY: cross-build-linux-amd64
+
+cross-build-linux-arm64:
+	+@GOOS=linux GOARCH=arm64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_LINUX_CROSS)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/linux_arm64
+.PHONY: cross-build-linux-arm64
+
+cross-build-linux-ppc64le:
+	+@GOOS=linux GOARCH=ppc64le $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_LINUX_CROSS)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/linux_ppc64le
+.PHONY: cross-build-linux-ppc64le
+
+cross-build-linux-s390x:
+	+@GOOS=linux GOARCH=s390x $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_LINUX_CROSS)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/linux_s390x
+.PHONY: cross-build-linux-s390x
+
+cross-build: cross-build-darwin-amd64 cross-build-windows-amd64 cross-build-linux-amd64 cross-build-linux-arm64 cross-build-linux-ppc64le cross-build-linux-s390x
 .PHONY: cross-build
 
 clean-cross-build:
