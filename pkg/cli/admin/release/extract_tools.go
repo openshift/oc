@@ -46,7 +46,6 @@ type extractTarget struct {
 
 	ArchiveFormat string
 	AsArchive     bool
-	AsZip         bool
 	Readme        string
 	LinkTo        []string
 
@@ -173,7 +172,6 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Readme:               readmeCLIWindows,
 			InjectReleaseVersion: true,
 			ArchiveFormat:        "openshift-client-windows-%s.zip",
-			AsZip:                true,
 		},
 		{
 			OS:      "darwin",
@@ -237,7 +235,6 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	if len(command) == 0 || o.CommandOperatingSystem == "*" {
 		for i := range targets {
 			targets[i].AsArchive = true
-			targets[i].AsZip = targets[i].OS == "windows"
 		}
 	}
 
@@ -397,7 +394,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			text := strings.Replace(target.Readme, `\u0060`, "`", -1)
 			hash = hashFn()
 			w = io.MultiWriter(hash, w)
-			if target.AsZip {
+			if target.OS == "windows" {
 				klog.V(2).Infof("Writing %s as a ZIP archive %s", hdr.Name, layer.Mapping.To)
 				zw := zip.NewWriter(w)
 
