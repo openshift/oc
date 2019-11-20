@@ -151,7 +151,7 @@ func (o *ExtractOptions) Run() error {
 	case len(o.GitExtractDir) > 0:
 		return o.extractGit(o.GitExtractDir)
 	case o.Tools:
-		return o.extractTools()
+		return o.extractCommand("")
 	case len(o.Command) > 0:
 		return o.extractCommand(o.Command)
 	}

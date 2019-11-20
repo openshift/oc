@@ -53,11 +53,6 @@ type extractTarget struct {
 	Mapping extract.Mapping
 }
 
-// extractTools extracts all referenced commands as archives in the target dir.
-func (o *ExtractOptions) extractTools() error {
-	return o.extractCommand("")
-}
-
 var (
 	readmeInstallUnix = heredoc.Doc(`
 	# OpenShift Install
@@ -138,7 +133,7 @@ var (
 	`)
 )
 
-// extractTools extracts specific commands out of images referenced by the release image.
+// extractCommand extracts specific commands out of images referenced by the release image.
 // TODO: in the future the metadata this command contains might be loaded from the release
 //   image, but we must maintain compatibility with older payloads if so
 func (o *ExtractOptions) extractCommand(command string) error {
