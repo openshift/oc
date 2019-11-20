@@ -14,7 +14,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -37,9 +36,10 @@ import (
 
 // extractTarget describes how a file in the release image can be extracted to disk.
 type extractTarget struct {
-	OS       string
-	Command  string
-	Optional bool
+	OS           string
+	Architecture string
+	Command      string
+	Optional     bool
 
 	InjectReleaseImage   bool
 	InjectReleaseVersion bool
@@ -138,7 +138,7 @@ var (
 	`)
 )
 
-// extractTools extracts specific commands out of images referenced by the release image.
+// extractCommand extracts specific commands out of images referenced by the release image.
 // TODO: in the future the metadata this command contains might be loaded from the release
 //   image, but we must maintain compatibility with older payloads if so
 func (o *ExtractOptions) extractCommand(command string) error {
@@ -146,58 +146,31 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	// compatibility of at least N-2 releases.
 	availableTargets := []extractTarget{
 		{
-			OS:      "darwin",
-			Command: "oc",
-			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/mac/oc"},
-
-			LinkTo:               []string{"kubectl"},
-			Readme:               readmeCLIUnix,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-client-mac-%s.tar.gz",
-		},
-		{
-			OS:      "linux",
-			Command: "oc",
-			Mapping: extract.Mapping{Image: "cli", From: "usr/bin/oc"},
-
-			LinkTo:               []string{"kubectl"},
-			Readme:               readmeCLIUnix,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-client-linux-%s.tar.gz",
-		},
-		{
-			OS:      "windows",
-			Command: "oc",
-			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/windows/oc.exe"},
-
-			Readme:               readmeCLIWindows,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-client-windows-%s.zip",
-			AsZip:                true,
-		},
-		{
-			OS:      "darwin",
-			Command: "openshift-install",
-			Mapping: extract.Mapping{Image: "installer-artifacts", From: "usr/share/openshift/mac/openshift-install"},
+			OS:           "darwin",
+			Architecture: "amd64",
+			Command:      "openshift-install",
+			Mapping:      extract.Mapping{Image: "installer-artifacts", From: "usr/share/openshift/mac/openshift-install"},
 
 			Readme:             readmeInstallUnix,
 			InjectReleaseImage: true,
 			ArchiveFormat:      "openshift-install-mac-%s.tar.gz",
 		},
 		{
-			OS:      "linux",
-			Command: "openshift-install",
-			Mapping: extract.Mapping{Image: "installer", From: "usr/bin/openshift-install"},
+			OS:           "linux",
+			Architecture: "amd64",
+			Command:      "openshift-install",
+			Mapping:      extract.Mapping{Image: "installer", From: "usr/bin/openshift-install"},
 
 			Readme:             readmeInstallUnix,
 			InjectReleaseImage: true,
 			ArchiveFormat:      "openshift-install-linux-%s.tar.gz",
 		},
 		{
-			OS:       "linux",
-			Command:  "openshift-baremetal-install",
-			Optional: true,
-			Mapping:  extract.Mapping{Image: "baremetal-installer", From: "usr/bin/openshift-install"},
+			OS:           "linux",
+			Architecture: "amd64",
+			Command:      "openshift-baremetal-install",
+			Optional:     true,
+			Mapping:      extract.Mapping{Image: "baremetal-installer", From: "usr/bin/openshift-install"},
 
 			Readme:             readmeInstallUnix,
 			InjectReleaseImage: true,
@@ -205,36 +178,74 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		},
 	}
 
-	currentOS := runtime.GOOS
-	if len(o.CommandOperatingSystem) > 0 {
-		currentOS = o.CommandOperatingSystem
-	}
-	if currentOS == "mac" {
-		currentOS = "darwin"
+	for _, arch := range []string{"amd64", "arm64", "ppc64le", "s390x"} {
+		for _, operating_system := range []string{"darwin", "linux", "windows"} {
+			archive_format_os := operating_system
+			basename := "oc"
+			switch operating_system {
+			case "darwin":
+				archive_format_os = "mac"
+				if arch != "amd64" {
+					continue
+				}
+			case "windows":
+				basename += ".exe"
+				if arch != "amd64" {
+					continue
+				}
+			default:
+			}
+
+			archiveFormat := fmt.Sprintf("openshift-client-%s-%s-%%s.tar.gz", archive_format_os, arch)
+			if arch == "amd64" { // backwards compat with single-arch names
+				archiveFormat = fmt.Sprintf("openshift-client-%s-%%s.tar.gz", archive_format_os)
+			}
+
+			source := filepath.Join("usr/share/openshift/", fmt.Sprintf("%s_%s", operating_system, arch), basename)
+			if operating_system == "windows" && arch == "amd64" {
+				// old single-arch name sorts before the new standard name, so the new name is a symlink, and we have to point at the old name
+				source = filepath.Join("usr/share/openshift/", operating_system, basename)
+			}
+
+			availableTargets = append(availableTargets, extractTarget{
+				OS:           operating_system,
+				Architecture: arch,
+				Command:      "oc",
+				Mapping:      extract.Mapping{Image: "cli-artifacts", From: source},
+
+				LinkTo:               []string{"kubectl"},
+				Readme:               readmeCLIUnix,
+				InjectReleaseVersion: true,
+				ArchiveFormat:        archiveFormat,
+			})
+		}
 	}
 
 	// Select the subset of targets based on command line input
 	var willArchive bool
 	var targets []extractTarget
 
-	// Filter by command, or gather all non-optional targets
-	if len(command) > 0 {
-		for _, target := range availableTargets {
-			if target.Command == command {
-				targets = append(targets, target)
-			}
+	commands := sets.NewString()
+	for _, target := range availableTargets {
+		commands.Insert(target.Command)
+		if len(command) > 0 && target.Command != command {
+			continue // filter by command
+		} else if command == "" && target.Optional {
+			continue // no command given, gather only non-optional targets
 		}
-	} else {
-		for _, target := range availableTargets {
-			if !target.Optional {
-				targets = append(targets, target)
-			}
+
+		os_arch := fmt.Sprintf("%s/%s", target.OS, target.Architecture)
+		if !o.FilterOptions.OSFilter.MatchString(os_arch) {
+			klog.V(2).Infof("Skipping %s, %q does not match --filter-by-os=%q", target.ArchiveFormat, os_arch, o.FilterOptions.FilterByOS)
+			continue
 		}
+
+		targets = append(targets, target)
 	}
 
-	// If the user didn't specify a command, or the operating system is set
-	// to '*', we'll produce an archive
-	if len(command) == 0 || o.CommandOperatingSystem == "*" {
+	// If user didn't specify a command, we matched multiple targets,
+	// we'll produce archives
+	if len(command) == 0 || len(targets) > 1 {
 		for i := range targets {
 			targets[i].AsArchive = true
 			targets[i].AsZip = targets[i].OS == "windows"
@@ -243,12 +254,12 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 	if len(targets) == 0 {
 		switch {
-		case len(command) > 0 && currentOS != "*":
-			return fmt.Errorf("command %q does not support the operating system %q", o.Command, currentOS)
-		case len(command) > 0:
-			return fmt.Errorf("the supported commands are 'oc' and 'openshift-install'")
+		case command == "":
+			return fmt.Errorf("no available commands for --filter-by-os=%q", o.FilterOptions.FilterByOS)
+		case commands.Has(command):
+			return fmt.Errorf("command %s does not support --filter-by-os=%s", command, o.FilterOptions.FilterByOS)
 		default:
-			return fmt.Errorf("no available commands")
+			return fmt.Errorf("the supported commands are: %s", strings.Join(commands.List(), ", "))
 		}
 	}
 
@@ -308,10 +319,6 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	missing := sets.NewString()
 	var validTargets []extractTarget
 	for _, target := range targets {
-		if currentOS != "*" && target.OS != currentOS {
-			klog.V(2).Infof("Skipping %s, does not match current OS %s", target.ArchiveFormat, target.OS)
-			continue
-		}
 		spec, err := findImageSpec(release.References, target.Mapping.Image, o.From)
 		if err != nil {
 			missing.Insert(target.Mapping.Image)
@@ -330,7 +337,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			target.Mapping.To = filepath.Join(dir, target.Mapping.Name)
 		} else {
 			target.Mapping.To = filepath.Join(dir, target.Command)
-			target.Mapping.Name = fmt.Sprintf("%s-%s", target.OS, target.Command)
+			target.Mapping.Name = fmt.Sprintf("%s-%s-%s", target.OS, target.Architecture, target.Command)
 		}
 		validTargets = append(validTargets, target)
 	}
