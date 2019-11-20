@@ -2,6 +2,7 @@ package release
 
 import (
 	"archive/tar"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -108,7 +109,7 @@ type ExtractOptions struct {
 func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	switch {
 	case len(args) == 1 && len(o.From) > 0, len(args) > 1:
-		return fmt.Errorf("you may only specify a single image via --from or argument")
+		return errors.New("you may only specify a single image via --from or argument")
 	}
 	if len(o.From) > 0 {
 		args = []string{o.From}
@@ -118,7 +119,7 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 		return err
 	}
 	if len(args) != 1 {
-		return fmt.Errorf("you may only specify a single image via --from or argument")
+		return errors.New("you may only specify a single image via --from or argument")
 	}
 	o.From = args[0]
 
@@ -142,11 +143,11 @@ func (o *ExtractOptions) Run() error {
 
 	switch {
 	case sources > 1:
-		return fmt.Errorf("only one of --tools, --command, --file, or --git may be specified")
+		return errors.New("only one of --tools, --command, --file, or --git may be specified")
 	case len(o.From) == 0:
-		return fmt.Errorf("must specify an image containing a release payload with --from")
+		return errors.New("must specify an image containing a release payload with --from")
 	case o.Directory != "." && len(o.File) > 0:
-		return fmt.Errorf("only one of --to and --file may be set")
+		return errors.New("only one of --to and --file may be set")
 
 	case len(o.GitExtractDir) > 0:
 		return o.extractGit(o.GitExtractDir)
@@ -229,7 +230,7 @@ func (o *ExtractOptions) Run() error {
 			return err
 		}
 		if !verifier.Verified() {
-			err := fmt.Errorf("the release image failed content verification and may have been tampered with")
+			err := errors.New("the release image failed content verification and may have been tampered with")
 			if !o.SecurityOptions.SkipVerification {
 				return err
 			}

@@ -3,6 +3,7 @@ package release
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,7 +15,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -131,13 +132,13 @@ type MirrorOptions struct {
 func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []string) error {
 	switch {
 	case len(args) == 0 && len(o.From) == 0:
-		return fmt.Errorf("must specify a release image with --from")
+		return errors.New("must specify a release image with --from")
 	case len(args) == 1 && len(o.From) == 0:
 		o.From = args[0]
 	case len(args) == 1 && len(o.From) > 0:
-		return fmt.Errorf("you may not specify an argument and --from")
+		return errors.New("you may not specify an argument and --from")
 	case len(args) > 1:
-		return fmt.Errorf("only one argument is accepted")
+		return errors.New("only one argument is accepted")
 	}
 
 	args, err := findArgumentsFromCluster(f, []string{o.From})
@@ -145,7 +146,7 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 		return err
 	}
 	if len(args) != 1 {
-		return fmt.Errorf("only one release image may be mirrored")
+		return errors.New("only one release image may be mirrored")
 	}
 	o.From = args[0]
 
@@ -173,7 +174,7 @@ const replaceVersionMarker = "V-V-V-V-V-V-V"
 
 func (o *MirrorOptions) Run() error {
 	if len(o.From) == 0 && o.ImageStream == nil {
-		return fmt.Errorf("must specify a release image with --from")
+		return errors.New("must specify a release image with --from")
 	}
 
 	outputs := 0
@@ -194,11 +195,11 @@ func (o *MirrorOptions) Run() error {
 		}
 	}
 	if outputs != 1 {
-		return fmt.Errorf("must specify an image repository or image stream to mirror the release to")
+		return errors.New("must specify an image repository or image stream to mirror the release to")
 	}
 
 	if o.SkipRelease && len(o.ToRelease) > 0 {
-		return fmt.Errorf("--skip-release-image and --to-release-image may not both be specified")
+		return errors.New("--skip-release-image and --to-release-image may not both be specified")
 	}
 
 	var recreateRequired bool
@@ -251,7 +252,7 @@ func (o *MirrorOptions) Run() error {
 			return fmt.Errorf("--to must be a valid image repository: %v", err)
 		}
 		if len(ref.Ref.ID) > 0 || len(ref.Ref.Tag) > 0 {
-			return fmt.Errorf("--to must be to an image repository and may not contain a tag or digest")
+			return errors.New("--to must be to an image repository and may not contain a tag or digest")
 		}
 		targetFn = func(name string) imagesource.TypedImageReference {
 			copied := ref
@@ -271,7 +272,7 @@ func (o *MirrorOptions) Run() error {
 	}
 
 	if recreateRequired {
-		return fmt.Errorf("when mirroring to multiple repositories, use the new release command with --from-release and --mirror")
+		return errors.New("when mirroring to multiple repositories, use the new release command with --from-release and --mirror")
 	}
 
 	verifier := imagemanifest.NewVerifier()
@@ -295,10 +296,10 @@ func (o *MirrorOptions) Run() error {
 			return fmt.Errorf("unable to load image-references from release payload: %v", err)
 		}
 		if is.Kind != "ImageStream" || is.APIVersion != "image.openshift.io/v1" {
-			return fmt.Errorf("unrecognized image-references in release payload")
+			return errors.New("unrecognized image-references in release payload")
 		}
 		if !verifier.Verified() {
-			err := fmt.Errorf("the release image failed content verification and may have been tampered with")
+			err := errors.New("the release image failed content verification and may have been tampered with")
 			if !o.SecurityOptions.SkipVerification {
 				return err
 			}
@@ -449,7 +450,7 @@ func (o *MirrorOptions) Run() error {
 						delete(hasErrors, name)
 					} else {
 						delete(remaining, name)
-						err := errors.FromObject(&image.Status)
+						err := apierrors.FromObject(&image.Status)
 						hasErrors[name] = err
 						klog.V(2).Infof("Failed to import %s as tag %s: %v", remaining[name].Source, name, err)
 					}

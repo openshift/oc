@@ -8,6 +8,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -246,9 +247,9 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		case len(command) > 0 && currentOS != "*":
 			return fmt.Errorf("command %q does not support the operating system %q", o.Command, currentOS)
 		case len(command) > 0:
-			return fmt.Errorf("the supported commands are 'oc' and 'openshift-install'")
+			return errors.New("the supported commands are 'oc' and 'openshift-install'")
 		default:
-			return fmt.Errorf("no available commands")
+			return errors.New("no available commands")
 		}
 	}
 
@@ -633,7 +634,7 @@ const (
 // replacement was performed.
 func copyAndReplaceReleaseInfo(w io.Writer, r io.Reader, bufferSize int, releaseInfo string) (bool, error) {
 	if len(releaseInfo)+1 > len(installerReplacement) {
-		return false, fmt.Errorf("the release image pull spec is longer than the maximum replacement length for the binary")
+		return false, errors.New("the release image pull spec is longer than the maximum replacement length for the binary")
 	}
 	if bufferSize < len(installerReplacement) {
 		return false, fmt.Errorf("the buffer size must be greater than %d bytes", len(installerReplacement))
@@ -647,7 +648,7 @@ func copyAndReplaceReleaseInfo(w io.Writer, r io.Reader, bufferSize int, release
 // replacement was performed.
 func copyAndReplaceReleaseVersion(w io.Writer, r io.Reader, bufferSize int, releaseInfo string) (bool, error) {
 	if len(releaseInfo)+1 > len(releaseVersionReplacement) {
-		return false, fmt.Errorf("the release image pull spec is longer than the maximum replacement length for the binary")
+		return false, errors.New("the release image pull spec is longer than the maximum replacement length for the binary")
 	}
 	if bufferSize < len(releaseVersionReplacement) {
 		return false, fmt.Errorf("the buffer size must be greater than %d bytes", len(releaseVersionReplacement))

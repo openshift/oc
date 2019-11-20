@@ -145,7 +145,7 @@ func gitOutputToError(err error, out string) error {
 	if len(out) == 0 {
 		return err
 	}
-	return fmt.Errorf(out)
+	return errors.New(out)
 }
 
 var (

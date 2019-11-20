@@ -2,14 +2,14 @@ package release
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"time"
 )
 
 // createReleaseSignatureMessage creates the core message to sign the release payload.
 func createReleaseSignatureMessage(signer string, now time.Time, releaseDigest, pullSpec string) ([]byte, error) {
 	if len(signer) == 0 || now.IsZero() || len(releaseDigest) == 0 || len(pullSpec) == 0 {
-		return nil, fmt.Errorf("you must specify a signer, current timestamp, release digest, and pull spec to sign")
+		return nil, errors.New("you must specify a signer, current timestamp, release digest, and pull spec to sign")
 	}
 
 	sig := &signature{

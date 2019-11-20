@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -261,18 +262,18 @@ func (o *NewOptions) Validate() error {
 		sources++
 	}
 	if sources > 1 {
-		return fmt.Errorf("only one of --from-image-stream, --from-image-stream-file, --from-release, or --from-dir may be specified")
+		return errors.New("only one of --from-image-stream, --from-image-stream-file, --from-release, or --from-dir may be specified")
 	}
 	if sources == 0 {
 		if len(o.Mappings) == 0 {
-			return fmt.Errorf("must specify image mappings when no other source is defined")
+			return errors.New("must specify image mappings when no other source is defined")
 		}
 	}
 	if len(o.ToSignature) > 0 && len(o.ToImage) == 0 {
-		return fmt.Errorf("--to-signature requires --to-image")
+		return errors.New("--to-signature requires --to-image")
 	}
 	if len(o.Mirror) > 0 && o.ReferenceMode != "" && o.ReferenceMode != "public" {
-		return fmt.Errorf("--reference-mode must be public or empty when using --mirror")
+		return errors.New("--reference-mode must be public or empty when using --mirror")
 	}
 	return nil
 }
@@ -426,10 +427,10 @@ func (o *NewOptions) Run() error {
 			return err
 		}
 		if len(imageReferencesData) == 0 {
-			return fmt.Errorf("release image did not contain any image-references content")
+			return errors.New("release image did not contain any image-references content")
 		}
 		if !verifier.Verified() {
-			err := fmt.Errorf("the input release image failed content verification and may have been tampered with")
+			err := errors.New("the input release image failed content verification and may have been tampered with")
 			if !o.SecurityOptions.SkipVerification {
 				return err
 			}
@@ -504,7 +505,7 @@ func (o *NewOptions) Run() error {
 				o.VerifyOutputFn = func(actual digest.Digest) error {
 					// TODO: check contents, digests, image stream, the layers, and the manifest
 					if actual != releaseDigest {
-						return fmt.Errorf("the release could not be reproduced from its inputs")
+						return errors.New("the release could not be reproduced from its inputs")
 					}
 					return nil
 				}
@@ -537,7 +538,7 @@ func (o *NewOptions) Run() error {
 				return fmt.Errorf("unable to load input image stream file: %v", err)
 			}
 			if is.Kind != "ImageStream" || is.APIVersion != "image.openshift.io/v1" {
-				return fmt.Errorf("unrecognized input image stream file, must be an ImageStream in image.openshift.io/v1")
+				return errors.New("unrecognized input image stream file, must be an ImageStream in image.openshift.io/v1")
 			}
 			inputIS = is
 
@@ -586,10 +587,10 @@ func (o *NewOptions) Run() error {
 				}
 				overrideIS := &imageapi.ImageStream{}
 				if err := json.Unmarshal(data, overrideIS); err != nil {
-					return fmt.Errorf("unable to load image data from release directory")
+					return errors.New("unable to load image data from release directory")
 				}
 				if overrideIS.TypeMeta.Kind != "ImageStream" || overrideIS.APIVersion != "image.openshift.io/v1" {
-					return fmt.Errorf("could not parse images: invalid kind/apiVersion")
+					return errors.New("could not parse images: invalid kind/apiVersion")
 				}
 				is = overrideIS
 				continue
@@ -606,7 +607,7 @@ func (o *NewOptions) Run() error {
 	cm := &CincinnatiMetadata{Kind: "cincinnati-metadata-v0"}
 	semverName, err := semver.Parse(name)
 	if err != nil {
-		return fmt.Errorf("--name must be a semantic version")
+		return errors.New("--name must be a semantic version")
 	}
 	cm.Version = semverName.String()
 	if len(o.ReleaseMetadata) > 0 {
@@ -782,7 +783,7 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 		internal := inputIS.Status.DockerImageRepository
 		external := inputIS.Status.PublicDockerImageRepository
 		if forceExternal && len(external) == 0 {
-			return fmt.Errorf("only image streams or releases with public image repositories can be the source for releases when using the default --reference-mode")
+			return errors.New("only image streams or releases with public image repositories can be the source for releases when using the default --reference-mode")
 		}
 
 		externalFn := func(source, image string) string {
@@ -897,13 +898,13 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 		}
 		return nil
 	default:
-		return fmt.Errorf("supported reference modes are: \"public\" (default) and \"source\"")
+		return errors.New("supported reference modes are: 'public' (default) and 'source'")
 	}
 }
 
 func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, metadata map[string]imageData) error {
 	if len(is.Spec.Tags) == 0 {
-		return fmt.Errorf("no component images defined, unable to build a release payload")
+		return errors.New("no component images defined, unable to build a release payload")
 	}
 
 	klog.V(4).Infof("Extracting manifests for release from input images")
@@ -1018,7 +1019,7 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 	}
 
 	if !verifier.Verified() {
-		err := fmt.Errorf("one or more input images failed content verification and may have been tampered with")
+		err := errors.New("one or more input images failed content verification and may have been tampered with")
 		if !o.SecurityOptions.SkipVerification {
 			return err
 		}
@@ -1159,7 +1160,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 			return fmt.Errorf("--to-image was not valid: %v", err)
 		}
 		if len(toRef.ID) > 0 {
-			return fmt.Errorf("--to-image may only point to a repository or tag, not a digest")
+			return errors.New("--to-image may only point to a repository or tag, not a digest")
 		}
 		if len(toRef.Tag) == 0 {
 			toRef.Tag = o.Name
@@ -1213,7 +1214,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 			return err
 		}
 		if !verifier.Verified() {
-			err := fmt.Errorf("the base image failed content verification and may have been tampered with")
+			err := errors.New("the base image failed content verification and may have been tampered with")
 			if !o.SecurityOptions.SkipVerification {
 				return err
 			}
@@ -1479,10 +1480,10 @@ func parseArgs(args []string, overlap map[string]string) ([]Mapping, error) {
 	for _, s := range args {
 		parts := strings.SplitN(s, "=", 2)
 		if len(parts) != 2 {
-			return nil, fmt.Errorf("all arguments must be valid SRC=DST mappings")
+			return nil, errors.New("all arguments must be valid SRC=DST mappings")
 		}
 		if len(parts[0]) == 0 || len(parts[1]) == 0 {
-			return nil, fmt.Errorf("all arguments must be valid SRC=DST mappings")
+			return nil, errors.New("all arguments must be valid SRC=DST mappings")
 		}
 		src := parts[0]
 		dst := parts[1]

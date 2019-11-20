@@ -2,6 +2,7 @@ package release
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -112,7 +113,7 @@ func readReleaseImageReferences(data []byte) (*imageapi.ImageStream, error) {
 		return nil, fmt.Errorf("unable to load release image-references: %v", err)
 	}
 	if is.Kind != "ImageStream" || is.APIVersion != "image.openshift.io/v1" {
-		return nil, fmt.Errorf("unrecognized image-references in release payload")
+		return nil, errors.New("unrecognized image-references in release payload")
 	}
 	return is, nil
 }
@@ -370,7 +371,7 @@ func NewComponentVersionsMapper(releaseName string, versions map[string]string, 
 			switch len(missing) {
 			case 1:
 				if len(missing[0]) == 0 {
-					return nil, fmt.Errorf("empty version references are not allowed")
+					return nil, errors.New("empty version references are not allowed")
 				}
 				return nil, fmt.Errorf("unknown version reference %q", missing[0])
 			default:

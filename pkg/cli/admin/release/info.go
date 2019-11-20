@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,7 +29,7 @@ import (
 	"k8s.io/client-go/transport"
 	"k8s.io/klog"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -288,8 +289,8 @@ func replaceClusterSemanticArgs(f kcmdutil.Factory, args []string, semanticArgs 
 	}
 	cv, err := client.ConfigV1().ClusterVersions().Get("version", metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return args, fmt.Errorf("you must be connected to an OpenShift 4.x server to fetch the current version")
+		if apierrors.IsNotFound(err) {
+			return args, errors.New("you must be connected to an OpenShift 4.x server to fetch the current version")
 		}
 		return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
 	}
@@ -300,7 +301,7 @@ func replaceClusterSemanticArgs(f kcmdutil.Factory, args []string, semanticArgs 
 			image = cv.Spec.DesiredUpdate.Image
 		}
 		if len(image) == 0 {
-			return nil, fmt.Errorf("the server is not reporting a release image at this time, please specify an image to view")
+			return nil, errors.New("the server is not reporting a release image at this time, please specify an image to view")
 		}
 		return []string{image}, nil
 	}
@@ -352,7 +353,7 @@ func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 		return err
 	}
 	if len(args) < 1 {
-		return fmt.Errorf("info expects at least one argument, a release image pull spec")
+		return errors.New("info expects at least one argument, a release image pull spec")
 	}
 	o.Images = args
 	if len(o.From) == 0 && len(o.Images) == 2 && !o.Verify {
@@ -386,43 +387,43 @@ func (o *InfoOptions) Validate() error {
 		count++
 	}
 	if count > 1 {
-		return fmt.Errorf("only one of --commits, --commit-urls, --pullspecs, --contents, --size, --verify may be specified")
+		return errors.New("only one of --commits, --commit-urls, --pullspecs, --contents, --size, --verify may be specified")
 	}
 	if len(o.ImageFor) > 0 && len(o.Output) > 0 {
-		return fmt.Errorf("--output and --image-for may not both be specified")
+		return errors.New("--output and --image-for may not both be specified")
 	}
 	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 {
 		if len(o.From) == 0 {
-			return fmt.Errorf("--changelog/--bugs require --from")
+			return errors.New("--changelog/--bugs require --from")
 		}
 	}
 	if len(o.ChangelogDir) > 0 && len(o.BugsDir) > 0 {
-		return fmt.Errorf("--changelog and --bugs may not both be specified")
+		return errors.New("--changelog and --bugs may not both be specified")
 	}
 	switch {
 	case len(o.BugsDir) > 0:
 		switch o.Output {
 		case "", "name":
 		default:
-			return fmt.Errorf("--output only supports 'name' for --bugs")
+			return errors.New("--output only supports 'name' for --bugs")
 		}
 	case len(o.ChangelogDir) > 0:
 		if len(o.Output) > 0 {
-			return fmt.Errorf("--output is not supported for this mode")
+			return errors.New("--output is not supported for this mode")
 		}
 	default:
 		switch o.Output {
 		case "", "json", "pullspec", "digest", "name":
 		default:
-			return fmt.Errorf("--output only supports 'name', 'json', 'pullspec', or 'digest'")
+			return errors.New("--output only supports 'name', 'json', 'pullspec', or 'digest'")
 		}
 	}
 
 	if len(o.Images) == 0 {
-		return fmt.Errorf("must specify a release image as an argument")
+		return errors.New("must specify a release image as an argument")
 	}
 	if len(o.From) > 0 && len(o.Images) != 1 {
-		return fmt.Errorf("must specify a single release image as argument when comparing to another release image")
+		return errors.New("must specify a single release image as argument when comparing to another release image")
 	}
 
 	return nil
@@ -539,7 +540,7 @@ func (o *InfoOptions) describeImage(release *ReleaseInfo) error {
 		return nil
 	case "":
 	default:
-		return fmt.Errorf("output mode only supports 'name', 'json', 'pullspec', or 'digest'")
+		return errors.New("output mode only supports 'name', 'json', 'pullspec', or 'digest'")
 	}
 	if len(o.ImageFor) > 0 {
 		spec, err := findImageSpec(release.References, o.ImageFor, release.Image)
@@ -789,7 +790,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	}
 
 	if release.References == nil {
-		return nil, fmt.Errorf("release image did not contain an image-references file")
+		return nil, errors.New("release image did not contain an image-references file")
 	}
 
 	release.ComponentVersions, errs = readComponentVersions(release.References)
@@ -837,7 +838,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	}
 
 	if !verifier.Verified() {
-		err := fmt.Errorf("the release image failed content verification and may have been tampered with")
+		err := errors.New("the release image failed content verification and may have been tampered with")
 		if !o.SecurityOptions.SkipVerification {
 			return nil, err
 		}
@@ -1338,7 +1339,7 @@ func digestOrRef(ref string) string {
 
 func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) error {
 	if diff.To.Digest == diff.From.Digest {
-		return fmt.Errorf("releases are identical")
+		return errors.New("releases are identical")
 	}
 
 	fmt.Fprintf(out, heredoc.Docf(`
@@ -1479,7 +1480,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 
 func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format string) error {
 	if diff.To.Digest == diff.From.Digest {
-		return fmt.Errorf("releases are identical")
+		return errors.New("releases are identical")
 	}
 
 	var hasError bool
