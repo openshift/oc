@@ -45,7 +45,6 @@ type extractTarget struct {
 	InjectReleaseVersion bool
 
 	ArchiveFormat string
-	AsArchive     bool
 	AsZip         bool
 	Readme        string
 	LinkTo        []string
@@ -234,12 +233,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 	// If the user didn't specify a command, or the operating system is set
 	// to '*', we'll produce an archive
-	if len(command) == 0 || o.CommandOperatingSystem == "*" {
-		for i := range targets {
-			targets[i].AsArchive = true
-			targets[i].AsZip = targets[i].OS == "windows"
-		}
-	}
+	asArchive := len(command) == 0 || o.CommandOperatingSystem == "*"
 
 	if len(targets) == 0 {
 		switch {
@@ -324,7 +318,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		}
 		target.Mapping.Image = spec
 		target.Mapping.ImageRef = imagesource.TypedImageReference{Ref: ref, Type: imagesource.DestinationRegistry}
-		if target.AsArchive {
+		if asArchive {
 			willArchive = true
 			target.Mapping.Name = fmt.Sprintf(target.ArchiveFormat, releaseName)
 			target.Mapping.To = filepath.Join(dir, target.Mapping.Name)
@@ -393,7 +387,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 		var hash hash.Hash
 		closeFn := func() error { return nil }
-		if target.AsArchive {
+		if asArchive {
 			text := strings.Replace(target.Readme, `\u0060`, "`", -1)
 			hash = hashFn()
 			w = io.MultiWriter(hash, w)
