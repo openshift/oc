@@ -625,10 +625,16 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			missing = append(missing, target.Mapping.From)
 		}
 		sort.Strings(missing)
+		var err error
 		if len(missing) == 1 {
-			return fmt.Errorf("image did not contain %s", missing[0])
+			err = fmt.Errorf("image did not contain %s", missing[0])
+		} else {
+			err = fmt.Errorf("unable to find multiple files: %s", strings.Join(missing, ", "))
 		}
-		return fmt.Errorf("unable to find multiple files: %s", strings.Join(missing, ", "))
+		if len(missing) == len(validTargets) {
+			return err
+		}
+		fmt.Fprintf(o.ErrOut, "warning: %s", err)
 	}
 
 	return nil
