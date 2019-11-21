@@ -201,10 +201,16 @@ func (o *ExtractOptions) extractCommand(command string) error {
 				archiveFormat = fmt.Sprintf("openshift-client-%s-%%s.tar.gz", archive_format_os)
 			}
 
-			source := filepath.Join("usr/share/openshift/", fmt.Sprintf("%s_%s", operating_system, arch), basename)
-			if operating_system == "windows" && arch == "amd64" {
-				// old single-arch name sorts before the new standard name, so the new name is a symlink, and we have to point at the old name
-				source = filepath.Join("usr/share/openshift/", operating_system, basename)
+			source := filepath.Join("usr/share/openshift", fmt.Sprintf("%s_%s", operating_system, arch), basename)
+			// support old names for extracting from 4.2.z and earlier cli-artifacts
+			switch {
+			case operating_system == "darwin" && arch == "amd64":
+				source = filepath.Join("usr/share/openshift/mac", basename)
+			case operating_system == "linux" && arch == "amd64":
+				source = filepath.Join("usr/bin", basename)
+			case operating_system == "windows" && arch == "amd64":
+				source = filepath.Join("usr/share/openshift", operating_system, basename)
+			default:
 			}
 
 			availableTargets = append(availableTargets, extractTarget{

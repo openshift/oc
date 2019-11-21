@@ -8,7 +8,7 @@ RUN make cross-build --warn-undefined-variables
 
 FROM registry.svc.ci.openshift.org/ocp/4.2:cli
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/ /usr/share/openshift/
-RUN mkdir /usr/share/openshift/mac /usr/share/openshift/windows && ln /usr/share/openshift/darwin_amd64/oc /usr/share/openshift/mac/oc && ln /usr/share/openshift/windows_amd64/oc.exe /usr/share/openshift/windows/oc.exe
+RUN mkdir /usr/share/openshift/mac /usr/share/openshift/windows && mv /usr/share/openshift/darwin_amd64/oc /usr/share/openshift/mac/oc && ln -s /usr/share/openshift/mac/oc /usr/share/openshift/darwin_amd64/oc && mv /usr/share/openshift/windows_amd64/oc.exe /usr/share/openshift/windows/oc.exe && ln -s /usr/share/openshift/windows/oc.exe /usr/share/openshift/windows_amd64/oc.exe && rm /usr/share/openshift/linux_amd64/oc && ln -s /usr/bin/oc /usr/share/openshift/linux_amd64/oc
 LABEL io.k8s.display-name="OpenShift Clients" \
       io.k8s.description="OpenShift is a platform for developing, building, and deploying containerized applications." \
       io.openshift.tags="openshift,cli"
