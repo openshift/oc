@@ -27,7 +27,7 @@ import (
 	"github.com/openshift/api/network"
 	"github.com/openshift/api/oauth"
 	"github.com/openshift/api/project"
-	"github.com/openshift/api/quota"
+	quotav1 "github.com/openshift/api/quota/v1"
 	"github.com/openshift/api/route"
 	securityv1 "github.com/openshift/api/security/v1"
 	"github.com/openshift/api/template"
@@ -79,7 +79,7 @@ func main() {
 	utilruntime.Must(network.Install(scheme.Scheme))
 	utilruntime.Must(oauth.Install(scheme.Scheme))
 	utilruntime.Must(project.Install(scheme.Scheme))
-	utilruntime.Must(quota.Install(scheme.Scheme))
+	utilruntime.Must(installNonCRDQuota(scheme.Scheme))
 	utilruntime.Must(route.Install(scheme.Scheme))
 	utilruntime.Must(installNonCRDSecurity(scheme.Scheme))
 	utilruntime.Must(template.Install(scheme.Scheme))
@@ -95,7 +95,7 @@ func main() {
 	utilruntime.Must(network.Install(legacyscheme.Scheme))
 	utilruntime.Must(oauth.Install(legacyscheme.Scheme))
 	utilruntime.Must(project.Install(legacyscheme.Scheme))
-	utilruntime.Must(quota.Install(legacyscheme.Scheme))
+	utilruntime.Must(installNonCRDQuota(legacyscheme.Scheme))
 	utilruntime.Must(route.Install(legacyscheme.Scheme))
 	utilruntime.Must(installNonCRDSecurity(legacyscheme.Scheme))
 	utilruntime.Must(template.Install(legacyscheme.Scheme))
@@ -121,5 +121,17 @@ func installNonCRDSecurity(scheme *apimachineryruntime.Scheme) error {
 		return err
 	}
 	metav1.AddToGroupVersion(scheme, securityv1.GroupVersion)
+	return nil
+}
+
+func installNonCRDQuota(scheme *apimachineryruntime.Scheme) error {
+	scheme.AddKnownTypes(securityv1.GroupVersion,
+		&quotav1.AppliedClusterResourceQuota{},
+		&quotav1.AppliedClusterResourceQuotaList{},
+	)
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return err
+	}
+	metav1.AddToGroupVersion(scheme, quotav1.GroupVersion)
 	return nil
 }
