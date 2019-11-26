@@ -29,7 +29,6 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	operatorv1 "github.com/openshift/api/operator/v1"
 	unidlingapi "github.com/openshift/api/unidling/v1alpha1"
 	appsclient "github.com/openshift/client-go/apps/clientset/versioned"
 	operatorclient "github.com/openshift/client-go/operator/clientset/versioned"
@@ -558,13 +557,12 @@ type scaleInfo struct {
 // scalable resources to zero, and annotating the associated endpoints objects with the scalable resources to unidle
 // when they receive traffic.
 func (o *IdleOptions) RunIdle() error {
-	clusterNetwork, err := o.OperatorClient.OperatorV1().Networks().Get("cluster", metav1.GetOptions{})
-	if err == nil {
-		sdnType := clusterNetwork.Spec.DefaultNetwork.Type
-
-		if sdnType == operatorv1.NetworkTypeOpenShiftSDN {
-			fmt.Fprintln(o.ErrOut, "WARNING: idling when network policies are in place may cause connections to bypass network policy entirely")
-		}
+	networkPolicies, err := o.ClientSet.NetworkingV1().NetworkPolicies(o.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return (fmt.Errorf("Unable to get network policies: %v", err))
+	}
+	if networkPolicies.Size() > 0 {
+		fmt.Fprintln(o.ErrOut, "WARNING: idling when network policies are in place may cause connections to bypass network policy entirely")
 	}
 
 	b := o.Builder().
