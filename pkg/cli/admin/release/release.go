@@ -16,7 +16,7 @@ func NewCmd(f kcmdutil.Factory, parentName string, streams genericclioptions.IOS
 			This tool is used by OpenShift release to build images that can update a cluster.
 
 			The subcommands allow you to see information about releases, perform administrative
-			actions inspect the content of the release, and mirror release content across image
+			actions, inspect the content of the release and mirror release content across image
 			registries.
 			`),
 	}
