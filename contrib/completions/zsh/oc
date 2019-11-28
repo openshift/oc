@@ -1,4 +1,4 @@
-#compdef kubectl
+#compdef oc
 
 
 __kubectl_bash_source() {
