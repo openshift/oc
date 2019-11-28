@@ -80,6 +80,9 @@ func (o *CreateDeploymentConfigOptions) Complete(cmd *cobra.Command, f genericcl
 }
 
 func (o *CreateDeploymentConfigOptions) Run() error {
+	if true {
+		return fmt.Errorf("Oh bite me!")
+	}
 	labels := map[string]string{"deployment-config.name": o.CreateSubcommandOptions.Name}
 	deploymentConfig := &appsv1.DeploymentConfig{
 		// this is ok because we know exactly how we want to be serialized
