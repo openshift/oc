@@ -22,7 +22,6 @@ import (
 	dockercontainer "github.com/docker/docker/api/types/container"
 	dockerapi "github.com/docker/docker/client"
 	"github.com/openshift/source-to-image/pkg/api"
-	"github.com/openshift/source-to-image/pkg/build"
 	"github.com/openshift/source-to-image/pkg/build/strategies"
 	"github.com/openshift/source-to-image/pkg/docker"
 	dockerpkg "github.com/openshift/source-to-image/pkg/docker"
@@ -302,7 +301,7 @@ func (i *integrationTest) exerciseCleanAllowedUIDsBuild(tag, imageName string, e
 		ExcludeRegExp:     tar.DefaultExclusionPattern.String(),
 	}
 	config.AllowedUIDs.Set("1-")
-	_, _, err := strategies.Strategy(engineClient, config, build.Overrides{})
+	_, _, err := strategies.GetStrategy(engineClient, config)
 	if err != nil && !expectError {
 		t.Fatalf("Cannot create a new builder: %v", err)
 	}
@@ -360,7 +359,7 @@ func (i *integrationTest) exerciseCleanBuild(tag string, verifyCallback bool, im
 		ExcludeRegExp:     tar.DefaultExclusionPattern.String(),
 	}
 
-	b, _, err := strategies.Strategy(engineClient, config, build.Overrides{})
+	b, _, err := strategies.GetStrategy(engineClient, config)
 	if err != nil {
 		t.Fatalf("Cannot create a new builder.")
 	}
@@ -450,7 +449,7 @@ func (i *integrationTest) exerciseInjectionBuild(tag, imageName string, injectio
 		Injections:        injectionList,
 		ExcludeRegExp:     tar.DefaultExclusionPattern.String(),
 	}
-	builder, _, err := strategies.Strategy(engineClient, config, build.Overrides{})
+	builder, _, err := strategies.GetStrategy(engineClient, config)
 	if err != nil {
 		t.Fatalf("Unable to create builder: %v", err)
 	}
@@ -521,7 +520,7 @@ func (i *integrationTest) exerciseIncrementalBuild(tag, imageName string, remove
 		ExcludeRegExp:       tar.DefaultExclusionPattern.String(),
 	}
 
-	builder, _, err := strategies.Strategy(engineClient, config, build.Overrides{})
+	builder, _, err := strategies.GetStrategy(engineClient, config)
 	if err != nil {
 		t.Fatalf("Unable to create builder: %v", err)
 	}
@@ -546,7 +545,7 @@ func (i *integrationTest) exerciseIncrementalBuild(tag, imageName string, remove
 		ExcludeRegExp:           tar.DefaultExclusionPattern.String(),
 	}
 
-	builder, _, err = strategies.Strategy(engineClient, config, build.Overrides{})
+	builder, _, err = strategies.GetStrategy(engineClient, config)
 	if err != nil {
 		t.Fatalf("Unable to create incremental builder: %v", err)
 	}

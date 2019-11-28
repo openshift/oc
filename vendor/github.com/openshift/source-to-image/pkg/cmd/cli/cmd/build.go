@@ -11,7 +11,6 @@ import (
 	"github.com/openshift/source-to-image/pkg/api"
 	"github.com/openshift/source-to-image/pkg/api/describe"
 	"github.com/openshift/source-to-image/pkg/api/validation"
-	"github.com/openshift/source-to-image/pkg/build"
 	"github.com/openshift/source-to-image/pkg/build/strategies"
 	cmdutil "github.com/openshift/source-to-image/pkg/cmd/cli/util"
 	"github.com/openshift/source-to-image/pkg/config"
@@ -163,7 +162,7 @@ $ s2i build . centos/ruby-22-centos7 hello-world-app
 
 			log.V(2).Infof("\n%s\n", describe.Config(client, cfg))
 
-			builder, _, err := strategies.Strategy(client, cfg, build.Overrides{})
+			builder, _, err := strategies.GetStrategy(client, cfg)
 			s2ierr.CheckError(err)
 			result, err := builder.Build(cfg)
 			if err != nil {
