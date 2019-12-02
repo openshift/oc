@@ -326,7 +326,7 @@ github.com/opencontainers/image-spec/specs-go
 # github.com/opencontainers/runc v1.0.0-rc8
 github.com/opencontainers/runc/libcontainer/system
 github.com/opencontainers/runc/libcontainer/user
-# github.com/openshift/api v0.0.0-20190916204813-cdbe64fb0c91 => github.com/openshift/api v0.0.0-0.20191112184635-86def77f6f
+# github.com/openshift/api v0.0.0-20190916204813-cdbe64fb0c91 => github.com/openshift/api v3.9.1-0.20191112184635-86def77f6f90+incompatible
 github.com/openshift/api/apps
 github.com/openshift/api/authorization
 github.com/openshift/api/build
