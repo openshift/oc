@@ -141,6 +141,7 @@ type DebugOptions struct {
 	DryRun             bool
 	FullCmdName        string
 	Image              string
+	ToNamespace        string
 
 	// IsNode is set after we see the object we're debugging.  We use it to be able to print pertinent advice.
 	IsNode bool
@@ -204,6 +205,7 @@ func NewCmdDebug(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	cmd.Flags().BoolVar(&o.AsRoot, "as-root", o.AsRoot, "If true, try to run the container as the root user")
 	cmd.Flags().Int64Var(&o.AsUser, "as-user", o.AsUser, "Try to run the container as a specific user UID (note: admins may limit your ability to use this flag)")
 	cmd.Flags().StringVar(&o.Image, "image", o.Image, "Override the image used by the targeted container.")
+	cmd.Flags().StringVar(&o.ToNamespace, "to-namespace", o.ToNamespace, "Override the namespace to create the pod into (instead of using --namespace).")
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
@@ -361,6 +363,9 @@ func (o *DebugOptions) RunDebug() error {
 	ns := infos[0].Namespace
 	if len(ns) == 0 {
 		ns = o.Namespace
+	}
+	if len(o.ToNamespace) > 0 {
+		ns = o.ToNamespace
 	}
 	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug", generateapp.MakeSimpleName(infos[0].Name)), ns
 	o.Attach.Pod = pod
@@ -596,10 +601,6 @@ func (o *DebugOptions) getContainerImageCommand(pod *corev1.Pod, container *core
 func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*corev1.Pod, []string) {
 	pod := o.Attach.Pod
 
-	if !o.KeepInitContainers {
-		pod.Spec.InitContainers = nil
-	}
-
 	// reset the container
 	container := containerForName(pod, o.Attach.ContainerName)
 
@@ -664,9 +665,21 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 		container.SecurityContext.RunAsNonRoot = nil
 	}
 
-	if o.OneContainer {
+	switch {
+	case o.OneContainer:
+		pod.Spec.InitContainers = nil
 		pod.Spec.Containers = []corev1.Container{*container}
+	case o.KeepInitContainers:
+		// there is nothing we need to do
+	case isInitContainer(pod, o.Attach.ContainerName):
+		// keep only the init container we are debugging
+		pod.Spec.InitContainers = []corev1.Container{*container}
+	default:
+		// clear all init containers
+		pod.Spec.InitContainers = nil
 	}
+
+	clearHostPorts(pod)
 
 	// reset the pod
 	if pod.Annotations == nil || !o.KeepAnnotations {
@@ -725,25 +738,62 @@ func (o *DebugOptions) createPod(pod *corev1.Pod) (*corev1.Pod, error) {
 }
 
 func containerForName(pod *corev1.Pod, name string) *corev1.Container {
-	for i, c := range pod.Spec.Containers {
-		if c.Name == name {
-			return &pod.Spec.Containers[i]
-		}
-	}
 	for i, c := range pod.Spec.InitContainers {
 		if c.Name == name {
 			return &pod.Spec.InitContainers[i]
 		}
 	}
+	for i, c := range pod.Spec.Containers {
+		if c.Name == name {
+			return &pod.Spec.Containers[i]
+		}
+	}
 	return nil
+}
+
+func isInitContainer(pod *corev1.Pod, name string) bool {
+	for _, c := range pod.Spec.InitContainers {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func containerNames(pod *corev1.Pod) []string {
 	var names []string
+	for _, c := range pod.Spec.InitContainers {
+		names = append(names, c.Name)
+	}
 	for _, c := range pod.Spec.Containers {
 		names = append(names, c.Name)
 	}
 	return names
+}
+
+func clearHostPorts(pod *corev1.Pod) {
+	for i := range pod.Spec.InitContainers {
+		if pod.Spec.HostNetwork {
+			pod.Spec.InitContainers[i].Ports = nil
+			continue
+		}
+		for j := range pod.Spec.InitContainers[i].Ports {
+			if pod.Spec.InitContainers[i].Ports[j].HostPort > 0 {
+				pod.Spec.InitContainers[i].Ports[j].HostPort = 0
+			}
+		}
+	}
+	for i := range pod.Spec.Containers {
+		if pod.Spec.HostNetwork {
+			pod.Spec.Containers[i].Ports = nil
+			continue
+		}
+		for j := range pod.Spec.Containers[i].Ports {
+			if pod.Spec.Containers[i].Ports[j].HostPort > 0 {
+				pod.Spec.Containers[i].Ports[j].HostPort = 0
+			}
+		}
+	}
 }
 
 func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*corev1.PodTemplateSpec, error) {
