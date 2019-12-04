@@ -48,6 +48,7 @@ func NewCmdRollout(fullName string, f kcmdutil.Factory, streams genericclioption
 	cmd.AddCommand(NewCmdRolloutStatus(fullName, f, streams))
 	cmd.AddCommand(NewCmdRolloutCancel(fullName, f, streams))
 	cmd.AddCommand(NewCmdRolloutRetry(fullName, f, streams))
+	cmd.AddCommand(rollout.NewCmdRolloutRestart(f, streams))
 
 	return cmd
 }
