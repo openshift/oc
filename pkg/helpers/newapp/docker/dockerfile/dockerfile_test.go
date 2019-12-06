@@ -245,6 +245,16 @@ COPY . /boot
 FROM centos:7`,
 			want: []string{"scratch", "centos:7"},
 		},
+		"single FROM with alias": {
+			in:   `FROM golang AS builder`,
+			want: []string{"golang"},
+		},
+		"multiple FROM with aliases": {
+			in: `FROM scratch AS builder
+COPY . /boot
+FROM centos:7 as runner`,
+			want: []string{"scratch", "centos:7"},
+		},
 	}
 	for name, tc := range testCases {
 		node, err := parser.Parse(strings.NewReader(tc.in))

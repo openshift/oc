@@ -69,7 +69,10 @@ func LastBaseImage(node *parser.Node) string {
 func baseImages(node *parser.Node) []string {
 	var images []string
 	for _, pos := range FindAll(node, command.From) {
-		images = append(images, nextValues(node.Children[pos])...)
+		if node.Children[pos].Next == nil {
+			continue
+		}
+		images = append(images, node.Children[pos].Next.Value)
 	}
 	return images
 }
