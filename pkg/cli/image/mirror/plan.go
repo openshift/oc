@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 	"k8s.io/klog"
 
 	units "github.com/docker/go-units"
@@ -266,7 +267,7 @@ func (p *plan) Print(w io.Writer) {
 				}
 			}
 			fmt.Fprintf(w, "    manifests:\n")
-			for _, s := range repo.manifests.digestCopies {
+			for _, s := range repo.manifests.digestCopies.List() {
 				fmt.Fprintf(w, "      %s\n", s)
 			}
 			for _, digest := range repo.manifests.inputDigests().List() {
@@ -470,6 +471,7 @@ func (p *repositoryPlan) Manifests(destinationType DestinationType) *repositoryM
 			destinationType: destinationType,
 			digestsToTags:   make(map[godigest.Digest]sets.String),
 			digestCopies:    sets.NewString(),
+			prerequisites:   make(map[godigest.Digest]godigest.Digest),
 		}
 	}
 	return p.manifests
@@ -590,6 +592,7 @@ type repositoryManifestPlan struct {
 
 	digestsToTags map[godigest.Digest]sets.String
 	digestCopies  sets.String
+	prerequisites map[godigest.Digest]godigest.Digest
 
 	stats struct {
 		count int
@@ -607,6 +610,13 @@ func (p *repositoryManifestPlan) Copy(srcDigest godigest.Digest, srcManifest dis
 	}
 	if p.toBlobs == nil {
 		p.toBlobs = toBlobs
+	}
+
+	switch t := srcManifest.(type) {
+	case *manifestlist.DeserializedManifestList:
+		for _, desc := range t.Manifests {
+			p.prerequisites[desc.Digest] = srcDigest
+		}
 	}
 
 	if len(tags) == 0 {

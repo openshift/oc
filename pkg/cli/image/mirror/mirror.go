@@ -16,6 +16,7 @@ import (
 	units "github.com/docker/go-units"
 	godigest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog"
 
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
@@ -260,34 +261,67 @@ func (o *MirrorImageOptions) Run() error {
 					if phase.IsFailed() {
 						return
 					}
-					// upload manifests
+					// upload manifests in batches by their prerequisites
 					op := unit.repository.manifests
-					registryWorkers[unit.registry.name].Batch(func(w workqueue.Work) {
-						ref, err := reference.WithName(op.toRef.RepositoryName())
-						if err != nil {
-							phase.ExecutionFailure(fmt.Errorf("unable to create reference to repository %s: %v", op.toRef, err))
-							return
+					dependencies := make(map[godigest.Digest]godigest.Digest)
+					for from, to := range op.prerequisites {
+						dependencies[from] = to
+					}
+					marked := sets.NewString()
+					for {
+						waiting := sets.NewString()
+						for _, to := range dependencies {
+							waiting.Insert(string(to))
 						}
-						// upload and tag the manifest
-						for digest := range op.digestsToTags {
-							srcDigest := digest
-							tags := op.digestsToTags[srcDigest].List()
-							w.Parallel(func() {
-								if errs := copyManifestToTags(ctx, ref, srcDigest, tags, op, o.Out); len(errs) > 0 {
-									phase.ExecutionFailure(errs...)
+						uploaded := 0
+						registryWorkers[unit.registry.name].Batch(func(w workqueue.Work) {
+							ref, err := reference.WithName(op.toRef.RepositoryName())
+							if err != nil {
+								phase.ExecutionFailure(fmt.Errorf("unable to create reference to repository %s: %v", op.toRef, err))
+								return
+							}
+							// upload and tag the manifest
+							for digest := range op.digestsToTags {
+								if waiting.Has(string(digest)) || marked.Has(string(digest)) {
+									continue
 								}
-							})
-						}
-						// this is a pure manifest move, put the manifest by its id
-						for digest := range op.digestCopies {
-							srcDigest := godigest.Digest(digest)
-							w.Parallel(func() {
-								if err := copyManifest(ctx, ref, srcDigest, op, o.Out); err != nil {
-									phase.ExecutionFailure(err)
+								delete(dependencies, digest)
+								marked.Insert(string(digest))
+								uploaded++
+
+								srcDigest := digest
+								tags := op.digestsToTags[srcDigest].List()
+								w.Parallel(func() {
+									if errs := copyManifestToTags(ctx, ref, srcDigest, tags, op, o.Out); len(errs) > 0 {
+										phase.ExecutionFailure(errs...)
+									}
+								})
+							}
+							// this is a pure manifest move, put the manifest by its id
+							for digest := range op.digestCopies {
+								if waiting.Has(string(digest)) || marked.Has(string(digest)) {
+									continue
 								}
-							})
+								delete(dependencies, godigest.Digest(digest))
+								marked.Insert(string(digest))
+								uploaded++
+
+								srcDigest := godigest.Digest(digest)
+								w.Parallel(func() {
+									if err := copyManifest(ctx, ref, srcDigest, op, o.Out); err != nil {
+										phase.ExecutionFailure(err)
+									}
+								})
+							}
+						})
+						if len(op.prerequisites) > 0 && uploaded == 0 {
+							phase.ExecutionFailure(fmt.Errorf("circular dependency in manifest lists, unable to upload all: %#v", dependencies))
+							break
 						}
-					})
+						if waiting.Len() == 0 {
+							break
+						}
+					}
 				})
 			}
 		})
@@ -472,6 +506,17 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 										}
 										blobPlan.Copy(blob, srcBlobs, toBlobs)
 									}
+								}
+							}
+
+							if len(srcManifests) > 1 {
+								for _, srcManifest := range srcManifests {
+									manifestDigest, err := registryclient.ContentDigestForManifest(srcManifest, srcDigest.Algorithm())
+									if err != nil {
+										repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("could not create manifesnt for %T", srcManifest)})
+										continue
+									}
+									repoPlan.Manifests(dst.t).Copy(manifestDigest, srcManifest, nil, toManifests, toBlobs)
 								}
 							}
 
