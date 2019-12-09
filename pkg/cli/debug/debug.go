@@ -345,16 +345,12 @@ func (o *DebugOptions) RunDebug() error {
 		return fmt.Errorf("you must identify a resource with a pod template to debug")
 	}
 
-	templateV1, err := o.approximatePodTemplateForObject(infos[0].Object)
-	if err != nil && templateV1 == nil {
+	template, err := o.approximatePodTemplateForObject(infos[0].Object)
+	if err != nil && template == nil {
 		return fmt.Errorf("cannot debug %s: %v", infos[0].Name, err)
 	}
 	if err != nil {
 		klog.V(4).Infof("Unable to get exact template, but continuing with fallback: %v", err)
-	}
-	template := &corev1.PodTemplateSpec{}
-	if err := scheme.Scheme.Convert(templateV1, template, nil); err != nil {
-		return err
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: template.ObjectMeta,
