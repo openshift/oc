@@ -18,7 +18,7 @@ import (
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/openshift/library-go/pkg/image/reference"
-	"github.com/openshift/source-to-image/pkg/scm/git"
+	"github.com/openshift/oc/pkg/helpers/source-to-image/git"
 )
 
 func testImageInfo() *dockerv10.DockerImage {

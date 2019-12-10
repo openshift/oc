@@ -21,7 +21,7 @@ import (
 	"github.com/openshift/library-go/pkg/git"
 	"github.com/openshift/oc/pkg/helpers/newapp"
 
-	s2igit "github.com/openshift/source-to-image/pkg/scm/git"
+	s2igit "github.com/openshift/oc/pkg/helpers/source-to-image/git"
 )
 
 const (

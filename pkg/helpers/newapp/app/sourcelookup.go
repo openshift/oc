@@ -13,8 +13,8 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"k8s.io/klog"
 
-	s2iapi "github.com/openshift/source-to-image/pkg/api"
-	s2igit "github.com/openshift/source-to-image/pkg/scm/git"
+	s2iapi "github.com/openshift/oc/pkg/helpers/source-to-image/api"
+	s2igit "github.com/openshift/oc/pkg/helpers/source-to-image/git"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/apis/core/validation"

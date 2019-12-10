@@ -13,7 +13,7 @@ import (
 	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/helpers/newapp"
-	"github.com/openshift/source-to-image/pkg/scm/git"
+	"github.com/openshift/oc/pkg/helpers/source-to-image/git"
 )
 
 func TestBuildConfigOutput(t *testing.T) {
