@@ -17,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AaronO/go-git-http"
 	githttp "github.com/AaronO/go-git-http"
 	"github.com/AaronO/go-git-http/auth"
 	"github.com/elazarl/goproxy"
