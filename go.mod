@@ -11,12 +11,10 @@ require (
 	github.com/aws/aws-sdk-go v1.17.7
 	github.com/blang/semver v3.5.0+incompatible
 	github.com/certifi/gocertifi v0.0.0-20180905225744-ee1a9a0726d2 // indirect
-	github.com/containerd/continuity v0.0.0-20190827140505-75bee3e2ccb6 // indirect
+	github.com/containerd/continuity v0.0.0-20191127005431-f65d91d395eb // indirect
 	github.com/containers/image v0.0.0-00010101000000-000000000000
 	github.com/containers/storage v0.0.0-20190726081758-912de200380a // indirect
 	github.com/coreos/etcd v3.3.15+incompatible
-	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f // indirect
-	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v0.7.3-0.20190817195342-4760db040282
@@ -39,10 +37,7 @@ require (
 	github.com/gonum/matrix v0.0.0-20170731230223-dd6034299e42 // indirect
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b // indirect
 	github.com/google/btree v0.0.0-20190910154209-be84af90a1f7 // indirect
-	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
-	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0 // indirect
-	github.com/joho/godotenv v0.0.0-20171110010315-6d367c18edf6
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/mtrmac/gpgme v0.0.0-20170102180018-b2432428689c // indirect
@@ -50,23 +45,18 @@ require (
 	github.com/openshift/api v0.0.0-20190916204813-cdbe64fb0c91
 	github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
 	github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901
-	github.com/openshift/source-to-image v0.0.0-20190716154012-2a579ecd66df
 	github.com/operator-framework/operator-registry v1.5.2
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/profile v1.3.0 // indirect
 	github.com/prometheus/client_golang v1.1.0
 	github.com/prometheus/common v0.2.0 // indirect
 	github.com/russross/blackfriday v1.5.2
-	github.com/soheilhy/cmux v0.1.4 // indirect
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.3
-	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
 	github.com/vishvananda/netlink v1.0.0 // indirect
-	github.com/vishvananda/netns v0.0.0-20190625233234-7109fa855b0f // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
-	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
 	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
 	golang.org/x/net v0.0.0-20190812203447-cdfb69ac37fc
 	golang.org/x/sys v0.0.0-20190626221950-04f50cda93cb
@@ -96,10 +86,9 @@ replace (
 	github.com/ghodss/yaml => github.com/ghodss/yaml v0.0.0-20170327235444-0ca9ea5df545
 	github.com/golang/glog => github.com/openshift/golang-glog v0.0.0-20190322123450-3c92600d7533
 	github.com/onsi/ginkgo => github.com/openshift/onsi-ginkgo v0.0.0-20190125161613-53ca7dc85f60
-	github.com/openshift/api => github.com/openshift/api v0.0.0-0.20191112184635-86def77f6f
-	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298
-	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191112181215-0597a29991ca
-	github.com/openshift/source-to-image => github.com/openshift/source-to-image v0.0.0-20191031172932-56e8595e83fb
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20191209132752-992bc3a41fe6
+	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191205152420-9faca5198b4f
+	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191209093827-acc37612b9f9
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.0.0-20181207105117-505eaef01726
 	golang.org/x/time => github.com/golang/time v0.0.0-20181108054448-85acf8d2951c
 	k8s.io/api => github.com/openshift/kubernetes-api v0.0.0-20191104140539-95bf9aaf1163
