@@ -24,6 +24,7 @@ import (
 
 	imgextract "github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
+	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	imgmirror "github.com/openshift/oc/pkg/cli/image/mirror"
 )
 
@@ -67,6 +68,10 @@ type MirrorCatalogOptions struct {
 	FromFileDir string
 	FileDir     string
 
+	SecurityOptions imagemanifest.SecurityOptions
+	FilterOptions   imagemanifest.FilterOptions
+	ParallelOptions imagemanifest.ParallelOptions
+
 	SourceRef imagesource.TypedImageReference
 	Dest      string
 }
@@ -75,6 +80,7 @@ func NewMirrorCatalogOptions(streams genericclioptions.IOStreams) *MirrorCatalog
 	return &MirrorCatalogOptions{
 		IOStreams:                 streams,
 		IndexImageMirrorerOptions: mirror.DefaultImageIndexMirrorerOptions(),
+		ParallelOptions:           imagemanifest.ParallelOptions{MaxPerRegistry: 4},
 	}
 }
 
@@ -93,6 +99,10 @@ func NewMirrorCatalog(streams genericclioptions.IOStreams) *cobra.Command {
 		},
 	}
 	flags := cmd.Flags()
+
+	o.SecurityOptions.Bind(flags)
+	o.FilterOptions.Bind(flags)
+	o.ParallelOptions.Bind(flags)
 
 	flags.StringVar(&o.ManifestDir, "to-manifests", "", "Local path to store manifests.")
 	flags.StringVar(&o.DatabasePath, "path", "", "Specify an in-container to local path mapping for the database.")
@@ -149,7 +159,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 				klog.Warningf("couldn't parse %s, skipping mirror: %v", from, err)
 				continue
 			}
-			
+
 			// remove destination digest if present
 			toRef, err := imagesource.ParseReference(to)
 			if err != nil {
@@ -169,6 +179,9 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			a := imgmirror.NewMirrorImageOptions(o.IOStreams)
 			a.SkipMissing = true
 			a.DryRun = o.DryRun
+			a.SecurityOptions = o.SecurityOptions
+			a.FilterOptions = o.FilterOptions
+			a.ParallelOptions = o.ParallelOptions
 			a.Mappings = []imgmirror.Mapping{{
 				Source:      fromRef[0],
 				Destination: toRef,
