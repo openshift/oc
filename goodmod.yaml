@@ -31,7 +31,13 @@ rules:
   # github.com/openshift/* paths that are tracking "master" branch
   - paths:
     - github.com/openshift/*
+    excludes:
+    - github.com/openshift/source-to-image
     branch: master
+
+  - paths:
+    - github.com/openshift/source-to-image
+    commit: 56e8595e83fbd560e2a0f23a4bd5342aa3aea31b
 
   # misc dependencies
   # TODO: Add comments why we pinning that and what requires it
