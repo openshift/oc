@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -284,46 +285,68 @@ func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, co
 		return err
 	}
 	errs := []error{}
+	wg := sync.WaitGroup{}
+	errLock := sync.Mutex{}
 
-	logOptions := &corev1.PodLogOptions{
-		Container:  container.Name,
-		Follow:     false,
-		Previous:   false,
-		Timestamps: true,
-	}
-	// first, retrieve current logs
-	logsReq := o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
 
-	filename := "current.log"
-	if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
-		errs = append(errs, err)
-
-		// if we had an error, we will try again with an insecure backendproxy flag set
-		logOptions.InsecureSkipTLSVerifyBackend = true
-		logsReq = o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
-		filename = "current.insecure.log"
-		if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
-			errs = append(errs, err)
+		innerErrs := []error{}
+		logOptions := &corev1.PodLogOptions{
+			Container:  container.Name,
+			Follow:     false,
+			Previous:   false,
+			Timestamps: true,
 		}
-	}
-
-	// then, retrieve previous logs
-	logOptions.Previous = true
-	logOptions.InsecureSkipTLSVerifyBackend = false
-	logsReq = o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
-
-	filename = "previous.log"
-	if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
-		errs = append(errs, err)
-
-		// if we had an error, we will try again with an insecure backendproxy flag set
-		logOptions.InsecureSkipTLSVerifyBackend = true
-		logsReq = o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
-		filename = "previous.insecure.log"
+		filename := "current.log"
+		logsReq := o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
 		if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
-			errs = append(errs, err)
+			innerErrs = append(innerErrs, err)
+
+			// if we had an error, we will try again with an insecure backendproxy flag set
+			logOptions.InsecureSkipTLSVerifyBackend = true
+			logsReq = o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
+			filename = "current.insecure.log"
+			if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
+				innerErrs = append(innerErrs, err)
+			}
 		}
-	}
+
+		errLock.Lock()
+		defer errLock.Unlock()
+		errs = append(errs, innerErrs...)
+	}()
+
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+
+		innerErrs := []error{}
+		logOptions := &corev1.PodLogOptions{
+			Container:  container.Name,
+			Follow:     false,
+			Previous:   true,
+			Timestamps: true,
+		}
+		logsReq := o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
+		filename := "previous.log"
+		if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
+			innerErrs = append(innerErrs, err)
+
+			// if we had an error, we will try again with an insecure backendproxy flag set
+			logOptions.InsecureSkipTLSVerifyBackend = true
+			logsReq = o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
+			filename = "previous.insecure.log"
+			if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
+				innerErrs = append(innerErrs, err)
+			}
+		}
+
+		errLock.Lock()
+		defer errLock.Unlock()
+		errs = append(errs, innerErrs...)
+	}()
 
 	return utilerrors.NewAggregate(errs)
 }
