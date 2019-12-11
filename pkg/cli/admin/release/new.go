@@ -125,6 +125,7 @@ func NewRelease(f kcmdutil.Factory, parentName string, streams genericclioptions
 	flags.StringVar(&o.FromReleaseImage, "from-release", o.FromReleaseImage, "Use an existing release image as input.")
 	flags.StringVar(&o.ReferenceMode, "reference-mode", o.ReferenceMode, "By default, the image reference from an image stream points to the public registry for the stream and the image digest. Pass 'source' to build references to the originating image.")
 	flags.StringVar(&o.ExtraComponentVersions, "component-versions", o.ExtraComponentVersions, "Supply additional version strings to the release in key=value[,key=value] form.")
+	flags.StringVar(&o.ExtraComponentVersionsDisplayNames, "component-versions-display-names", o.ExtraComponentVersionsDisplayNames, "Supply additional version display names to the release in key=value[,key=value] form.")
 
 	// properties of the release
 	flags.StringVar(&o.Name, "name", o.Name, "The name of the release. Will default to the current time.")
@@ -175,8 +176,9 @@ type NewOptions struct {
 	Namespace           string
 	ReferenceMode       string
 
-	ExtraComponentVersions string
-	AllowedComponents      []string
+	ExtraComponentVersions             string
+	ExtraComponentVersionsDisplayNames string
+	AllowedComponents                  []string
 
 	Exclude       []string
 	AlwaysInclude []string
@@ -334,7 +336,7 @@ func (o *NewOptions) Run() error {
 	defer o.cleanup()
 
 	// check parameters
-	extraComponentVersions, err := parseComponentVersionsLabel(o.ExtraComponentVersions)
+	extraComponentVersions, err := parseComponentVersionsLabel(o.ExtraComponentVersions, o.ExtraComponentVersionsDisplayNames)
 	if err != nil {
 		return fmt.Errorf("--component-versions is invalid: %v", err)
 	}
@@ -354,6 +356,7 @@ func (o *NewOptions) Run() error {
 		len(o.PreviousVersions) > 0 ||
 		len(o.ToImageBase) > 0 ||
 		len(o.ExtraComponentVersions) > 0 ||
+		len(o.ExtraComponentVersionsDisplayNames) > 0 ||
 		len(o.Mappings) > 0 ||
 		len(o.Exclude) > 0 ||
 		len(o.AlwaysInclude) > 0
@@ -983,9 +986,9 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 				tag.Annotations[annotationBuildSourceLocation] = labels[annotationBuildSourceLocation]
 
 				if versions := labels[annotationBuildVersions]; len(versions) > 0 {
-					components, err := parseComponentVersionsLabel(versions)
+					components, err := parseComponentVersionsLabel(versions, labels[annotationBuildVersionsDisplayNames])
 					if err != nil {
-						return false, fmt.Errorf("tag %q has an invalid %s label: %v", tag.Name, annotationBuildVersions, err)
+						return false, fmt.Errorf("tag %q has an invalid %s or %s label: %v", tag.Name, annotationBuildVersions, annotationBuildVersionsDisplayNames, err)
 					}
 					// TODO: eventually this can be relaxed
 					for component := range components {
@@ -994,6 +997,7 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 						}
 					}
 					tag.Annotations[annotationBuildVersions] = versions
+					tag.Annotations[annotationBuildVersionsDisplayNames] = labels[annotationBuildVersionsDisplayNames]
 				}
 
 				if len(labels[annotationReleaseOperator]) == 0 {

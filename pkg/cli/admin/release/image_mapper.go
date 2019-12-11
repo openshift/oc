@@ -125,73 +125,14 @@ func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, a
 		return nil, err
 	}
 
-	references := make(map[string]ImageReference)
-	for _, tag := range is.Spec.Tags {
-		if tag.From == nil || tag.From.Kind != "DockerImage" {
-			continue
-		}
-		if len(tag.From.Name) == 0 {
-			return nil, fmt.Errorf("no from.name for the tag %s", tag.Name)
-		}
-		ref := ImageReference{SourceRepository: tag.From.Name}
-		for _, inputTag := range input.Spec.Tags {
-			if inputTag.Name == tag.Name {
-				ref.TargetPullSpec = inputTag.From.Name
-				break
-			}
-		}
-		if len(ref.TargetPullSpec) == 0 {
-			if allowMissingImages {
-				klog.V(2).Infof("Image file %q referenced an image %q that is not part of the input images, skipping", path, tag.From.Name)
-				continue
-			}
-			return nil, fmt.Errorf("no input image tag named %q", tag.Name)
-		}
-		references[tag.Name] = ref
-	}
-	imageMapper, err := NewImageMapper(references)
+	versions, tagsByName, references, err := loadImageStreamTransforms(input, is, allowMissingImages, path)
 	if err != nil {
 		return nil, err
 	}
 
-	// load all version values from the input stream, including any defaults, to perform
-	// version substitution in the returned manifests.
-	versions := make(map[string]string)
-	tagsByName := make(map[string][]string)
-	for _, tag := range input.Spec.Tags {
-		if _, ok := references[tag.Name]; !ok {
-			continue
-		}
-		value, ok := tag.Annotations[annotationBuildVersions]
-		if !ok {
-			continue
-		}
-		klog.V(4).Infof("Found build versions from %s: %s", tag.Name, value)
-		items, err := parseComponentVersionsLabel(value)
-		if err != nil {
-			return nil, fmt.Errorf("input image stream has an invalid version annotation for tag %q: %v", tag.Name, value)
-		}
-		for k, v := range items {
-			existing, ok := versions[k]
-			if ok {
-				if existing != v {
-					return nil, fmt.Errorf("input image stream has multiple versions defined for version %s: %s defines %s but was already set to %s on %s", k, tag.Name, v, existing, strings.Join(tagsByName[k], ", "))
-				}
-			} else {
-				versions[k] = v
-				klog.V(4).Infof("Found version %s=%s from %s", k, v, tag.Name)
-			}
-			tagsByName[k] = append(tagsByName[k], tag.Name)
-		}
-	}
-	defaults, err := parseComponentVersionsLabel(input.Annotations[annotationBuildVersions])
+	imageMapper, err := NewImageMapper(references)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read default versions label on input image stream: %v", err)
-	}
-	for k, v := range defaults {
-		if _, ok := versions[k]; !ok {
-			versions[k] = v
-		}
+		return nil, err
 	}
 
 	versionMapper := NewComponentVersionsMapper(input.Name, versions, tagsByName)
@@ -202,6 +143,76 @@ func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, a
 		}
 		return versionMapper(data)
 	}, nil
+}
+
+func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingImages bool, src string) (ComponentVersions, map[string][]string, map[string]ImageReference, error) {
+	references := make(map[string]ImageReference)
+	for _, tag := range local.Spec.Tags {
+		if tag.From == nil || tag.From.Kind != "DockerImage" {
+			continue
+		}
+		if len(tag.From.Name) == 0 {
+			return nil, nil, nil, fmt.Errorf("no from.name for the tag %s", tag.Name)
+		}
+		ref := ImageReference{SourceRepository: tag.From.Name}
+		for _, inputTag := range input.Spec.Tags {
+			if inputTag.Name == tag.Name {
+				ref.TargetPullSpec = inputTag.From.Name
+				break
+			}
+		}
+		if len(ref.TargetPullSpec) == 0 {
+			if allowMissingImages {
+				klog.V(2).Infof("Image file %q referenced an image %q that is not part of the input images, skipping", src, tag.From.Name)
+				continue
+			}
+			return nil, nil, nil, fmt.Errorf("no input image tag named %q", tag.Name)
+		}
+		references[tag.Name] = ref
+	}
+
+	// load all version values from the input stream, including any defaults, to perform
+	// version substitution in the returned manifests.
+	versions := make(ComponentVersions)
+	tagsByName := make(map[string][]string)
+	for _, tag := range input.Spec.Tags {
+		if _, ok := references[tag.Name]; !ok {
+			continue
+		}
+		value, ok := tag.Annotations[annotationBuildVersions]
+		if !ok {
+			continue
+		}
+		displayNameValue := tag.Annotations[annotationBuildVersionsDisplayNames]
+		klog.V(4).Infof("Found build versions from %s: %s (%s)", tag.Name, value, displayNameValue)
+		items, err := parseComponentVersionsLabel(value, displayNameValue)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("input image stream has an invalid version annotation for tag %q: %v", tag.Name, value)
+		}
+		for k, v := range items {
+			existing, ok := versions[k]
+			if ok {
+				if existing.Version != v.Version {
+					return nil, nil, nil, fmt.Errorf("input image stream has multiple versions defined for version %s: %s defines %s but was already set to %s on %s", k, tag.Name, v, existing, strings.Join(tagsByName[k], ", "))
+				}
+			} else {
+				versions[k] = v
+				klog.V(4).Infof("Found version %s=%s from %s", k, v.Version, tag.Name)
+			}
+			tagsByName[k] = append(tagsByName[k], tag.Name)
+		}
+	}
+
+	defaults, err := parseComponentVersionsLabel(input.Annotations[annotationBuildVersions], input.Annotations[annotationBuildVersionsDisplayNames])
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("unable to read default versions label on input image stream: %v", err)
+	}
+	for k, v := range defaults {
+		if _, ok := versions[k]; !ok {
+			versions[k] = v
+		}
+	}
+	return versions, tagsByName, references, nil
 }
 
 type ImageReference struct {
@@ -320,7 +331,7 @@ const (
 // version values) - if that replacement is detected and tagsByName[component] has more than one entry,
 // then an error is returned by the ManifestMapper.
 // If the input release name is not a semver, a request for `0.0.1-snapshot` will be left unmodified.
-func NewComponentVersionsMapper(releaseName string, versions map[string]string, tagsByName map[string][]string) ManifestMapper {
+func NewComponentVersionsMapper(releaseName string, versions ComponentVersions, tagsByName map[string][]string) ManifestMapper {
 	if v, err := semver.Parse(releaseName); err == nil {
 		v.Build = nil
 		releaseName = v.String()
@@ -363,7 +374,7 @@ func NewComponentVersionsMapper(releaseName string, versions map[string]string, 
 			}
 			buf := &bytes.Buffer{}
 			buf.Write(matches[1])
-			buf.WriteString(value)
+			buf.WriteString(value.Version)
 			return buf.Bytes()
 		})
 		if len(missing) > 0 {
@@ -387,15 +398,40 @@ func NewComponentVersionsMapper(releaseName string, versions map[string]string, 
 }
 
 var (
+	// reAllowedVersionKey limits the allowed component name to a strict subset
 	reAllowedVersionKey = regexp.MustCompile(`^[a-z0-9]+[\-a-z0-9]*[a-z0-9]+$`)
+	// reAllowedDisplayNameKey limits the allowed component name to a strict subset
+	reAllowedDisplayNameKey = regexp.MustCompile(`^[a-zA-Z0-9\-\:\s\(\)]+$`)
 )
+
+// ComponentVersion includes the version and optional display name.
+type ComponentVersion struct {
+	Version     string
+	DisplayName string
+}
 
 // ComponentVersions is a map of component names to semantic versions. Names are
 // lowercase alphanumeric and dashes. Semantic versions will have all build
 // labels removed, but prerelease segments are preserved.
-type ComponentVersions map[string]string
+type ComponentVersions map[string]ComponentVersion
+
+// OrderedKeys returns the keys in this map in lexigraphic order.
+func (v ComponentVersions) OrderedKeys() []string {
+	keys := make([]string, 0, len(v))
+	for k := range v {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 func (v ComponentVersions) String() string {
+	return v.VersionLabel()
+}
+
+// VersionLabel formats the ComponentVersions into a valid
+// versions label.
+func (v ComponentVersions) VersionLabel() string {
 	var keys []string
 	for k := range v {
 		keys = append(keys, k)
@@ -406,7 +442,28 @@ func (v ComponentVersions) String() string {
 		if i != 0 {
 			buf.WriteRune(',')
 		}
-		fmt.Fprintf(buf, "%s=%s", k, v[k])
+		fmt.Fprintf(buf, "%s=%s", k, v[k].Version)
+	}
+	return buf.String()
+}
+
+// DisplayNameLabel formats the ComponentVersions into a valid display
+// name label.
+func (v ComponentVersions) DisplayNameLabel() string {
+	var keys []string
+	for k := range v {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	buf := &bytes.Buffer{}
+	for i, k := range keys {
+		if i != 0 {
+			buf.WriteRune(',')
+		}
+		if len(v[k].DisplayName) == 0 {
+			continue
+		}
+		fmt.Fprintf(buf, "%s=%s", k, v[k].DisplayName)
 	}
 	return buf.String()
 }
@@ -414,18 +471,47 @@ func (v ComponentVersions) String() string {
 // parseComponentVersionsLabel returns the version labels specified in the string or
 // an error. Labels are comma-delimited, key=value pairs, and surrounding whitespace is
 // ignored. Names must be a-z, 0-9, or have interior dashes. All values must be
-// semantic versions.
-func parseComponentVersionsLabel(label string) (ComponentVersions, error) {
+// semantic versions. The displayNames label is optional (if provided) and will be combined
+// with the valid versions.
+func parseComponentVersionsLabel(label, displayNames string) (ComponentVersions, error) {
 	label = strings.TrimSpace(label)
 	if len(label) == 0 {
 		return nil, nil
 	}
-	labels := make(map[string]string)
+	var names map[string]string
+	if len(displayNames) > 0 {
+		names = make(map[string]string)
+		for _, pair := range strings.Split(displayNames, ",") {
+			pair = strings.TrimSpace(pair)
+			parts := strings.SplitN(pair, "=", 2)
+			if len(parts) == 1 {
+				return nil, fmt.Errorf("the display name pair %q must be NAME=DISPLAYNAME", pair)
+			}
+			if len(parts[0]) < 2 {
+				return nil, fmt.Errorf("the version name %q must be at least 2 characters", parts[0])
+			}
+			if !reAllowedVersionKey.MatchString(parts[0]) {
+				return nil, fmt.Errorf("the version name %q must only be ASCII alphanumerics and internal hyphens", parts[0])
+			}
+			if !reAllowedDisplayNameKey.MatchString(parts[1]) {
+				return nil, fmt.Errorf("the display name %q must only be alphanumerics, spaces, and symbols in [():-]", parts[1])
+			}
+			names[parts[0]] = parts[1]
+		}
+	}
+
+	labels := make(ComponentVersions)
+	if len(label) == 0 {
+		return nil, fmt.Errorf("the version pair must be NAME=VERSION")
+	}
 	for _, pair := range strings.Split(label, ",") {
 		pair = strings.TrimSpace(pair)
 		parts := strings.SplitN(pair, "=", 2)
 		if len(parts) == 1 {
 			return nil, fmt.Errorf("the version pair %q must be NAME=VERSION", pair)
+		}
+		if len(parts[0]) < 2 {
+			return nil, fmt.Errorf("the version name %q must be at least 2 characters", parts[0])
 		}
 		if !reAllowedVersionKey.MatchString(parts[0]) {
 			return nil, fmt.Errorf("the version name %q must only be ASCII alphanumerics and internal hyphens", parts[0])
@@ -435,7 +521,10 @@ func parseComponentVersionsLabel(label string) (ComponentVersions, error) {
 			return nil, fmt.Errorf("the version pair %q must have a valid semantic version: %v", pair, err)
 		}
 		v.Build = nil
-		labels[parts[0]] = v.String()
+		labels[parts[0]] = ComponentVersion{
+			Version:     v.String(),
+			DisplayName: names[parts[0]],
+		}
 	}
 	return labels, nil
 }

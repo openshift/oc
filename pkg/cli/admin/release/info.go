@@ -657,7 +657,10 @@ type ReleaseInfo struct {
 	Metadata   *CincinnatiMetadata               `json:"metadata"`
 	References *imageapi.ImageStream             `json:"references"`
 
-	ComponentVersions map[string]string `json:"versions"`
+	// This field is deprecated, does not contain display names. Is replaced by
+	// ComponentVersions.
+	DeprecatedComponentVersions map[string]string `json:"versions"`
+	ComponentVersions           ComponentVersions `json:"displayVersions"`
 
 	Images map[string]*Image `json:"images"`
 
@@ -849,15 +852,16 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	return release, nil
 }
 
-func readComponentVersions(is *imageapi.ImageStream) (map[string]string, []error) {
+func readComponentVersions(is *imageapi.ImageStream) (ComponentVersions, []error) {
 	var errs []error
 	combined := make(map[string]sets.String)
+	combinedDisplayNames := make(map[string]sets.String)
 	for _, tag := range is.Spec.Tags {
 		versions, ok := tag.Annotations[annotationBuildVersions]
 		if !ok {
 			continue
 		}
-		all, err := parseComponentVersionsLabel(versions)
+		all, err := parseComponentVersionsLabel(versions, tag.Annotations[annotationBuildVersionsDisplayNames])
 		if err != nil {
 			errs = append(errs, fmt.Errorf("the referenced image %s had an invalid version annotation: %v", tag.Name, err))
 		}
@@ -867,20 +871,58 @@ func readComponentVersions(is *imageapi.ImageStream) (map[string]string, []error
 				existing = sets.NewString()
 				combined[k] = existing
 			}
-			existing.Insert(v)
+			existing.Insert(v.Version)
+
+			existingDisplayName, ok := combinedDisplayNames[k]
+			if !ok {
+				existingDisplayName = sets.NewString()
+				combinedDisplayNames[k] = existingDisplayName
+			}
+			existingDisplayName.Insert(v.DisplayName)
 		}
 	}
-	out := make(map[string]string)
-	var multiples []string
-	for k, v := range combined {
+
+	multiples := sets.NewString()
+	var out ComponentVersions
+	var keys []string
+	for k := range combined {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := combined[k]
 		if v.Len() > 1 {
-			multiples = append(multiples, k)
+			multiples = multiples.Insert(k)
 		}
-		out[k], _ = v.PopAny()
+		if _, ok := out[k]; ok {
+			continue
+		}
+		version := v.List()[0]
+		if out == nil {
+			out = make(ComponentVersions)
+		}
+		out[k] = ComponentVersion{Version: version}
 	}
+	for _, k := range keys {
+		v, ok := combinedDisplayNames[k]
+		if !ok {
+			continue
+		}
+		if v.Len() > 1 {
+			multiples = multiples.Insert(k)
+		}
+		version, ok := out[k]
+		if !ok {
+			continue
+		}
+		if len(version.DisplayName) == 0 {
+			version.DisplayName = v.List()[0]
+		}
+		out[k] = version
+	}
+
 	if len(multiples) > 0 {
-		sort.Strings(multiples)
-		errs = append(errs, fmt.Errorf("multiple versions reported for the following component(s): %v", strings.Join(multiples, ",  ")))
+		errs = append(errs, fmt.Errorf("multiple versions or display names reported for the following component(s): %v", strings.Join(multiples.List(), ",  ")))
 	}
 	return out, errs
 }
@@ -1145,9 +1187,9 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 	if len(release.ComponentVersions) > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "Component Versions:\n")
-		keys := orderedKeys(release.ComponentVersions)
+		keys := release.ComponentVersions.OrderedKeys()
 		for _, key := range keys {
-			fmt.Fprintf(w, "  %s\t%s\n", componentName(key), release.ComponentVersions[key])
+			fmt.Fprintf(w, "  %s\t%s\t%s\n", key, release.ComponentVersions[key].Version, release.ComponentVersions[key].DisplayName)
 		}
 	}
 	writeTabSection(w, func(w io.Writer) {
@@ -1356,16 +1398,16 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 	fmt.Fprintln(out)
 	fmt.Fprintf(out, "## Changes from %s\n\n", diff.From.PreferredName())
 
-	if keys := orderedKeys(diff.To.ComponentVersions); len(keys) > 0 {
+	if keys := diff.To.ComponentVersions.OrderedKeys(); len(keys) > 0 {
 		fmt.Fprintf(out, "### Components\n\n")
 		for _, key := range keys {
 			version := diff.To.ComponentVersions[key]
 			old, ok := diff.From.ComponentVersions[key]
 			if !ok || old == version {
-				fmt.Fprintf(out, "* %s %s\n", componentName(key), version)
+				fmt.Fprintf(out, "* %s %s\n", componentDisplayName(key, version.DisplayName), version)
 				continue
 			}
-			fmt.Fprintf(out, "* %s upgraded from %s to %s\n", componentName(key), old, version)
+			fmt.Fprintf(out, "* %s upgraded from %s to %s\n", componentDisplayName(key, version.DisplayName), old, version)
 		}
 		fmt.Fprintln(out)
 		fmt.Fprintln(out)
@@ -1763,7 +1805,10 @@ func refToShortDescription(ref *imageapi.TagReference) string {
 	return ref.Name
 }
 
-func componentName(key string) string {
+func componentDisplayName(key, displayName string) string {
+	if len(displayName) > 0 {
+		return displayName
+	}
 	parts := strings.Split(key, "-")
 	for i, part := range parts {
 		if len(part) > 0 {
