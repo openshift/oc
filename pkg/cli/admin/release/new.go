@@ -52,7 +52,7 @@ func NewNewOptions(streams genericclioptions.IOStreams) *NewOptions {
 		// We strongly control the set of allowed component versions to prevent confusion
 		// about what component versions may be used for. Changing this list requires
 		// approval from the release architects.
-		AllowedComponents: []string{"kubernetes"},
+		AllowedComponents: []string{"kubernetes", "machine-os"},
 	}
 }
 
