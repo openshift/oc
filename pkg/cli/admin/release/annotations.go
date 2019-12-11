@@ -22,6 +22,10 @@ const (
 	// alphanumeric characters and dashes only. The value `0.0.1-snapshot-key` in a
 	// manifest will be substituted with the version value for key.
 	annotationBuildVersions = "io.openshift.build.versions"
+	// This LABEL is a comma-delimited list of key=displayName pairs that can be consumed
+	// by other manifests within the payload to hardcode component display names.
+	// Display name may contain spaces, dashes, colons, and alphanumeric characters.
+	annotationBuildVersionsDisplayNames = "io.openshift.build.version-display-names"
 
 	// This LABEL is the git ref that an image was built with. Copied unmodified to
 	// the image-references file.

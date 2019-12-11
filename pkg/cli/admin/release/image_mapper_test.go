@@ -1,8 +1,13 @@
 package release
 
 import (
+	"reflect"
 	"strings"
 	"testing"
+
+	imageapi "github.com/openshift/api/image/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/diff"
 )
 
 func TestNewImageMapper(t *testing.T) {
@@ -263,7 +268,7 @@ func TestNewComponentVersionsMapper(t *testing.T) {
 	tests := []struct {
 		name        string
 		releaseName string
-		versions    map[string]string
+		versions    ComponentVersions
 		imagesByTag map[string][]string
 		in          string
 		out         string
@@ -293,49 +298,49 @@ func TestNewComponentVersionsMapper(t *testing.T) {
 			out:         `version: 0.0.1-snapshot\n`,
 		},
 		{
-			versions: map[string]string{"a": "2.0.0"},
+			versions: ComponentVersions{"a": ComponentVersion{Version: "2.0.0"}},
 			in:       `version: 0.0.1-snapshot-a\n`,
 			out:      `version: 2.0.0\n`,
 		},
 		{
-			versions:    map[string]string{"a": "2.0.0"},
+			versions:    ComponentVersions{"a": ComponentVersion{Version: "2.0.0"}},
 			imagesByTag: map[string][]string{"a": {"tag1", "tag2"}},
 			in:          `version: 0.0.1-snapshot-a\n`,
 			wantErr:     `the version for "a" is inconsistent across the referenced images: tag1, tag2`,
 		},
 		{
-			versions:    map[string]string{"a": "2.0.0", "b": "3.0.0"},
+			versions:    ComponentVersions{"a": ComponentVersion{Version: "2.0.0"}, "b": ComponentVersion{Version: "3.0.0"}},
 			imagesByTag: map[string][]string{"a": {"tag1", "tag2"}},
 			in:          `version: 0.0.1-snapshot-b\n`,
 			out:         `version: 3.0.0\n`,
 		},
 		{
-			versions: map[string]string{"a": "2.0.0"},
+			versions: ComponentVersions{"a": ComponentVersion{Version: "2.0.0"}},
 			in:       `version: 0.0.1-snapshot-a`,
 			out:      `version: 2.0.0`,
 		},
 		{
-			versions: map[string]string{"a": "2.0.0"},
+			versions: ComponentVersions{"a": ComponentVersion{Version: "2.0.0"}},
 			in:       `0.0.1-snapshot-a`,
 			out:      `2.0.0`,
 		},
 		{
-			versions: map[string]string{"a": "2.0.0"},
+			versions: ComponentVersions{"a": ComponentVersion{Version: "2.0.0"}},
 			in:       `:0.0.1-snapshot-a`,
 			out:      `:2.0.0`,
 		},
 		{
-			versions: map[string]string{"a": "2.0.0"},
+			versions: ComponentVersions{"a": ComponentVersion{Version: "2.0.0"}},
 			in:       `-0.0.1-snapshot-a_`,
 			out:      `-2.0.0_`,
 		},
 		{
-			versions: map[string]string{"a": "2.0.0"},
+			versions: ComponentVersions{"a": ComponentVersion{Version: "2.0.0"}},
 			in:       `0.0.1-snapshot-a 0.0.1-snapshot-b`,
 			wantErr:  `unknown version reference "b"`,
 		},
 		{
-			versions: map[string]string{"a": "2.0.0", "b": "1.0.0"},
+			versions: ComponentVersions{"a": ComponentVersion{Version: "2.0.0"}, "b": ComponentVersion{Version: "1.0.0"}},
 			in:       `0.0.1-snapshot-a 0.0.1-snapshot-b`,
 			out:      `2.0.0 1.0.0`,
 		},
@@ -359,6 +364,351 @@ func TestNewComponentVersionsMapper(t *testing.T) {
 			}
 			if tt.out != string(out) {
 				t.Errorf("mismatch:\n%s\n%s", tt.out, out)
+			}
+		})
+	}
+}
+
+func Test_parseComponentVersionsLabel(t *testing.T) {
+	type args struct {
+	}
+	tests := []struct {
+		name         string
+		label        string
+		displayNames string
+		want         ComponentVersions
+		wantErr      bool
+	}{
+		{label: ""},
+		{displayNames: "a=b"},
+		{label: "a=1.0.0", wantErr: true},
+		{label: "a!=1.0.0", wantErr: true},
+		{label: "ab", wantErr: true},
+		{label: "a1=1.0.0", displayNames: "a=b", wantErr: true},
+		{label: "a1=1.0.0", want: ComponentVersions{"a1": {Version: "1.0.0"}}},
+		{label: "a1=1.0.0", displayNames: "a1=b 1 c d : -", want: ComponentVersions{"a1": {Version: "1.0.0", DisplayName: "b 1 c d : -"}}},
+		{label: "a1=1.0.0", displayNames: "a1=!", wantErr: true},
+		{label: "a1=1.0.0", displayNames: "a1=!,a1=valid", wantErr: true},
+		{label: "a1=1.0.0", displayNames: "a1=other,a1=valid", want: ComponentVersions{"a1": {Version: "1.0.0", DisplayName: "valid"}}},
+		{label: "a1=1.0.0,b1=2.0.0", displayNames: "a1=other,a1=valid", want: ComponentVersions{"a1": {Version: "1.0.0", DisplayName: "valid"}, "b1": {Version: "2.0.0"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseComponentVersionsLabel(tt.label, tt.displayNames)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseComponentVersionsLabel() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parseComponentVersionsLabel() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_loadImageStreamTransforms(t *testing.T) {
+	type args struct {
+	}
+	tests := []struct {
+		input              *imageapi.ImageStream
+		local              *imageapi.ImageStream
+		allowMissingImages bool
+		src                string
+
+		name     string
+		args     args
+		want     ComponentVersions
+		wantTags map[string][]string
+		wantRefs map[string]ImageReference
+		wantErr  bool
+	}{
+		{
+			name: "error if no source input",
+			input: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{},
+				},
+			},
+			local: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "ignored",
+							From: &corev1.ObjectReference{
+								Name: "a_name",
+								Kind: "SomethingElse",
+							},
+						},
+						{
+							Name: "test",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other:value",
+								Kind: "DockerImage",
+							},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ignore tag for non matching kind",
+			input: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "test",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other@sha256:0000000000000000000000000000000000000001",
+								Kind: "DockerImage",
+							},
+						},
+					},
+				},
+			},
+			local: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "ignored",
+							From: &corev1.ObjectReference{
+								Name: "a_name",
+								Kind: "SomethingElse",
+							},
+						},
+					},
+				},
+			},
+			want:     ComponentVersions{},
+			wantTags: map[string][]string{},
+			wantRefs: map[string]ImageReference{},
+		},
+		{
+			name: "resolve tag",
+			input: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "test",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other@sha256:0000000000000000000000000000000000000001",
+								Kind: "DockerImage",
+							},
+						},
+					},
+				},
+			},
+			local: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "ignored",
+							From: &corev1.ObjectReference{
+								Name: "a_name",
+								Kind: "SomethingElse",
+							},
+						},
+						{
+							Name: "test",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other:value",
+								Kind: "DockerImage",
+							},
+						},
+					},
+				},
+			},
+			want:     ComponentVersions{},
+			wantTags: map[string][]string{},
+			wantRefs: map[string]ImageReference{
+				"test": {
+					SourceRepository: "quay.io/test/other:value",
+					TargetPullSpec:   "quay.io/test/other@sha256:0000000000000000000000000000000000000001",
+				},
+			},
+		},
+		{
+			name: "resolve referenced component",
+			input: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "test",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other@sha256:0000000000000000000000000000000000000001",
+								Kind: "DockerImage",
+							},
+							Annotations: map[string]string{
+								annotationBuildVersions: "other=1.0.0",
+							},
+						},
+					},
+				},
+			},
+			local: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "ignored",
+							From: &corev1.ObjectReference{
+								Name: "a_name",
+								Kind: "SomethingElse",
+							},
+						},
+						{
+							Name: "test",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other:value",
+								Kind: "DockerImage",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"other": {Version: "1.0.0"},
+			},
+			wantTags: map[string][]string{
+				"other": {"test"},
+			},
+			wantRefs: map[string]ImageReference{
+				"test": {
+					SourceRepository: "quay.io/test/other:value",
+					TargetPullSpec:   "quay.io/test/other@sha256:0000000000000000000000000000000000000001",
+				},
+			},
+		},
+
+		{
+			name: "resolve optional display name for component",
+			input: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "test",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other@sha256:0000000000000000000000000000000000000001",
+								Kind: "DockerImage",
+							},
+							Annotations: map[string]string{
+								annotationBuildVersions: "other=1.0.0,test=1.3.6",
+							},
+						},
+						{
+							Name: "test-2",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other@sha256:0000000000000000000000000000000000000001",
+								Kind: "DockerImage",
+							},
+							Annotations: map[string]string{
+								annotationBuildVersions:             "other=1.0.0,test=1.3.6",
+								annotationBuildVersionsDisplayNames: "other=Some Cool Component",
+							},
+						},
+					},
+				},
+			},
+			local: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "ignored",
+							From: &corev1.ObjectReference{
+								Name: "a_name",
+								Kind: "SomethingElse",
+							},
+						},
+						{
+							Name: "test",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other:value",
+								Kind: "DockerImage",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"test":  {Version: "1.3.6"},
+				"other": {Version: "1.0.0"},
+			},
+			wantTags: map[string][]string{
+				"other": {"test"},
+				"test":  {"test"},
+			},
+			wantRefs: map[string]ImageReference{
+				"test": {
+					SourceRepository: "quay.io/test/other:value",
+					TargetPullSpec:   "quay.io/test/other@sha256:0000000000000000000000000000000000000001",
+				},
+			},
+		},
+		{
+			name: "conflicting resolved tags triggers an error",
+			input: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "test",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other@sha256:0000000000000000000000000000000000000001",
+								Kind: "DockerImage",
+							},
+							Annotations: map[string]string{
+								annotationBuildVersions: "other=1.0.0,test=1.3.7",
+							},
+						},
+						{
+							Name: "test-2",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other@sha256:0000000000000000000000000000000000000002",
+								Kind: "DockerImage",
+							},
+							Annotations: map[string]string{
+								annotationBuildVersions:             "other=1.0.0,test=1.3.6",
+								annotationBuildVersionsDisplayNames: "other=Some Cool Component",
+							},
+						},
+					},
+				},
+			},
+			local: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "test",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/other:value",
+								Kind: "DockerImage",
+							},
+						},
+						{
+							Name: "test-2",
+							From: &corev1.ObjectReference{
+								Name: "quay.io/test/test:value",
+								Kind: "DockerImage",
+							},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, got2, err := loadImageStreamTransforms(tt.input, tt.local, tt.allowMissingImages, tt.src)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("loadImageStreamTransforms() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("%s", diff.ObjectReflectDiff(got, tt.want))
+			}
+			if !reflect.DeepEqual(got1, tt.wantTags) {
+				t.Errorf("%s", diff.ObjectReflectDiff(got1, tt.wantTags))
+			}
+			if !reflect.DeepEqual(got2, tt.wantRefs) {
+				t.Errorf("%s", diff.ObjectReflectDiff(got2, tt.wantRefs))
 			}
 		})
 	}
