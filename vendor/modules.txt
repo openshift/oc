@@ -334,7 +334,7 @@ github.com/openshift/api/image
 github.com/openshift/api/network
 github.com/openshift/api/oauth
 github.com/openshift/api/project
-github.com/openshift/api/quota
+github.com/openshift/api/quota/v1
 github.com/openshift/api/route
 github.com/openshift/api/security/v1
 github.com/openshift/api/template
@@ -353,10 +353,10 @@ github.com/openshift/api/network/v1
 github.com/openshift/api/authorization/v1
 github.com/openshift/api/apps/v1
 github.com/openshift/api/image/docker10
-github.com/openshift/api/quota/v1
 github.com/openshift/api/operator/v1
 github.com/openshift/api/unidling/v1alpha1
 github.com/openshift/api
+github.com/openshift/api/quota
 github.com/openshift/api/security
 github.com/openshift/api/image/dockerpre012
 github.com/openshift/api/oauth/v1
@@ -435,7 +435,7 @@ github.com/openshift/client-go/template/clientset/versioned
 github.com/openshift/client-go/template/clientset/versioned/typed/template/v1/fake
 github.com/openshift/client-go/project/clientset/versioned
 github.com/openshift/client-go/route/clientset/versioned
-# github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901 => github.com/openshift/library-go v0.0.0-20191112181215-0597a29991ca
+# github.com/openshift/library-go v0.0.0-20191210125924-37b9180d4790 => github.com/openshift/library-go v0.0.0-20191211184752-d0428efdcd4e
 github.com/openshift/library-go/pkg/serviceability
 github.com/openshift/library-go/pkg/legacyapi/legacygroupification
 github.com/openshift/library-go/pkg/image/imageutil

@@ -49,7 +49,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/openshift/api v0.0.0-20190916204813-cdbe64fb0c91
 	github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
-	github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901
+	github.com/openshift/library-go v0.0.0-20191210125924-37b9180d4790
 	github.com/openshift/source-to-image v0.0.0-20190716154012-2a579ecd66df
 	github.com/operator-framework/operator-registry v1.5.2
 	github.com/pkg/errors v0.8.1
@@ -98,7 +98,7 @@ replace (
 	github.com/onsi/ginkgo => github.com/openshift/onsi-ginkgo v0.0.0-20190125161613-53ca7dc85f60
 	github.com/openshift/api => github.com/openshift/api v0.0.0-0.20191112184635-86def77f6f
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298
-	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191112181215-0597a29991ca
+	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191211184752-d0428efdcd4e
 	github.com/openshift/source-to-image => github.com/openshift/source-to-image v0.0.0-20191031172932-56e8595e83fb
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.0.0-20181207105117-505eaef01726
 	golang.org/x/time => github.com/golang/time v0.0.0-20181108054448-85acf8d2951c
