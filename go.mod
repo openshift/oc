@@ -42,14 +42,14 @@ require (
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0 // indirect
-	github.com/joho/godotenv v0.0.0-20171110010315-6d367c18edf6
+	github.com/joho/godotenv v0.0.0-20171110010315-6d367c18edf6 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/mtrmac/gpgme v0.0.0-20170102180018-b2432428689c // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/openshift/api v0.0.0-20190916204813-cdbe64fb0c91
 	github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
-	github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901
+	github.com/openshift/library-go v0.0.0-20191211184752-d0428efdcd4e
 	github.com/openshift/source-to-image v0.0.0-20190716154012-2a579ecd66df
 	github.com/operator-framework/operator-registry v1.5.2
 	github.com/pkg/errors v0.8.1
@@ -98,7 +98,7 @@ replace (
 	github.com/onsi/ginkgo => github.com/openshift/onsi-ginkgo v0.0.0-20190125161613-53ca7dc85f60
 	github.com/openshift/api => github.com/openshift/api v0.0.0-0.20191112184635-86def77f6f
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298
-	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191112181215-0597a29991ca
+	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191211184752-d0428efdcd4e
 	github.com/openshift/source-to-image => github.com/openshift/source-to-image v0.0.0-20191031172932-56e8595e83fb
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.0.0-20181207105117-505eaef01726
 	golang.org/x/time => github.com/golang/time v0.0.0-20181108054448-85acf8d2951c

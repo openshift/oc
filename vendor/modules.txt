@@ -285,8 +285,6 @@ github.com/imdario/mergo
 github.com/inconshreveable/mousetrap
 # github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af
 github.com/jmespath/go-jmespath
-# github.com/joho/godotenv v0.0.0-20171110010315-6d367c18edf6
-github.com/joho/godotenv
 # github.com/jonboulle/clockwork v0.1.0
 github.com/jonboulle/clockwork
 # github.com/json-iterator/go v1.1.7
@@ -334,7 +332,7 @@ github.com/openshift/api/image
 github.com/openshift/api/network
 github.com/openshift/api/oauth
 github.com/openshift/api/project
-github.com/openshift/api/quota
+github.com/openshift/api/quota/v1
 github.com/openshift/api/route
 github.com/openshift/api/security/v1
 github.com/openshift/api/template
@@ -353,10 +351,10 @@ github.com/openshift/api/network/v1
 github.com/openshift/api/authorization/v1
 github.com/openshift/api/apps/v1
 github.com/openshift/api/image/docker10
-github.com/openshift/api/quota/v1
 github.com/openshift/api/operator/v1
 github.com/openshift/api/unidling/v1alpha1
 github.com/openshift/api
+github.com/openshift/api/quota
 github.com/openshift/api/security
 github.com/openshift/api/image/dockerpre012
 github.com/openshift/api/oauth/v1
@@ -435,7 +433,7 @@ github.com/openshift/client-go/template/clientset/versioned
 github.com/openshift/client-go/template/clientset/versioned/typed/template/v1/fake
 github.com/openshift/client-go/project/clientset/versioned
 github.com/openshift/client-go/route/clientset/versioned
-# github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901 => github.com/openshift/library-go v0.0.0-20191112181215-0597a29991ca
+# github.com/openshift/library-go v0.0.0-20191211184752-d0428efdcd4e => github.com/openshift/library-go v0.0.0-20191211184752-d0428efdcd4e
 github.com/openshift/library-go/pkg/serviceability
 github.com/openshift/library-go/pkg/legacyapi/legacygroupification
 github.com/openshift/library-go/pkg/image/imageutil
