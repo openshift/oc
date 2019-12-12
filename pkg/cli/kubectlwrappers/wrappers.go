@@ -25,6 +25,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/edit"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	"k8s.io/kubectl/pkg/cmd/explain"
+	kget "k8s.io/kubectl/pkg/cmd/get"
 	"k8s.io/kubectl/pkg/cmd/label"
 	"k8s.io/kubectl/pkg/cmd/patch"
 	"k8s.io/kubectl/pkg/cmd/plugin"
@@ -39,7 +40,6 @@ import (
 	kcmdauth "k8s.io/kubernetes/pkg/kubectl/cmd/auth"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/convert"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/cp"
-	kget "k8s.io/kubernetes/pkg/kubectl/cmd/get"
 
 	"github.com/openshift/oc/pkg/cli/create"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
