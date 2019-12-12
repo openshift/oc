@@ -57,10 +57,11 @@ func NewPatternMatcher(patterns []string) (*PatternMatcher, error) {
 	return pm, nil
 }
 
-// Matches matches path against all the patterns. Matches is not safe to be
-// called concurrently
-func (pm *PatternMatcher) Matches(file string) (bool, error) {
-	matched := false
+// Matches verifies the provided filepath against all patterns.
+// It returns the amount of `matches` and `excludes` for the patterns on
+// success, otherwise an error.
+// It is not safe to be called concurrently.
+func (pm *PatternMatcher) Matches(file string) (matches, excludes uint, err error) {
 	file = filepath.FromSlash(file)
 	parentPath := filepath.Dir(file)
 	parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
@@ -74,7 +75,7 @@ func (pm *PatternMatcher) Matches(file string) (bool, error) {
 
 		match, err := pattern.match(file)
 		if err != nil {
-			return false, err
+			return 0, 0, err
 		}
 
 		if !match && parentPath != "." {
@@ -85,14 +86,34 @@ func (pm *PatternMatcher) Matches(file string) (bool, error) {
 		}
 
 		if match {
-			matched = !negative
+			if negative {
+				excludes++
+			} else {
+				matches++
+			}
 		}
 	}
 
-	if matched {
+	if matches > 0 {
 		logrus.Debugf("Skipping excluded path: %s", file)
 	}
 
+	return matches, excludes, nil
+}
+
+// IsMatch verifies the provided filepath against all patterns and returns true
+// if it matches. A match is valid if the amount of positive matches is larger
+// than the negative (excludes) ones.
+// It returns an error on failure and is not safe to be called concurrently.
+func (pm *PatternMatcher) IsMatch(file string) (matched bool, err error) {
+	matches, excludes, err := pm.Matches(file)
+	if err != nil {
+		return false, err
+	}
+
+	if matches > excludes && matches-excludes > 0 {
+		matched = true
+	}
 	return matched, nil
 }
 
@@ -228,7 +249,7 @@ func Matches(file string, patterns []string) (bool, error) {
 		return false, nil
 	}
 
-	return pm.Matches(file)
+	return pm.IsMatch(file)
 }
 
 // CopyFile copies from src to dst until either EOF is reached

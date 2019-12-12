@@ -228,7 +228,7 @@ func TestPatternMatches(t *testing.T) {
 // An exclusion followed by an inclusion should return true.
 func TestExclusionPatternMatchesPatternBefore(t *testing.T) {
 	match, _ := Matches("fileutils.go", []string{"!fileutils.go", "*.go"})
-	if !match {
+	if match {
 		t.Errorf("failed to get true match on exclusion pattern, got %v", match)
 	}
 }
@@ -385,8 +385,8 @@ func TestMatches(t *testing.T) {
 		desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 		pm, err := NewPatternMatcher([]string{test.pattern})
 		require.NoError(t, err, desc)
-		res, _ := pm.Matches(test.text)
-		assert.Equal(t, test.pass, res, desc)
+		res, _, _ := pm.Matches(test.text)
+		assert.Equal(t, test.pass, res > 0, desc)
 	}
 }
 
@@ -587,5 +587,37 @@ func TestMatch(t *testing.T) {
 		if ok != tt.match || err != tt.err {
 			t.Fatalf("Match(%#q, %#q) = %v, %q want %v, %q", pattern, s, ok, errp(err), tt.match, errp(tt.err))
 		}
+	}
+}
+
+func TestMatchesAmount(t *testing.T) {
+	testData := []struct {
+		patterns []string
+		input    string
+		matches  uint
+		excludes uint
+		isMatch  bool
+	}{
+		{[]string{"1", "2", "3"}, "2", 1, 0, true},
+		{[]string{"2", "!2", "!2"}, "2", 1, 2, false},
+		{[]string{"1", "2", "2"}, "2", 2, 0, true},
+		{[]string{"1", "2", "2", "2"}, "2", 3, 0, true},
+		{[]string{"/prefix/path", "/prefix/other"}, "/prefix/path", 1, 0, true},
+		{[]string{"/prefix*", "/prefix/path"}, "/prefix/path", 2, 0, true},
+		{[]string{"/prefix*", "!/prefix/path"}, "/prefix/match", 1, 0, true},
+		{[]string{"/prefix*", "!/prefix/path"}, "/prefix/path", 1, 1, false},
+	}
+
+	for _, testCase := range testData {
+		pm, err := NewPatternMatcher(testCase.patterns)
+		require.NoError(t, err)
+		matches, excludes, err := pm.Matches(testCase.input)
+		require.NoError(t, err)
+		desc := fmt.Sprintf("pattern=%q input=%q", testCase.patterns, testCase.input)
+		assert.Equal(t, testCase.excludes, excludes, desc)
+		assert.Equal(t, testCase.matches, matches, desc)
+
+		isMatch, err := pm.IsMatch(testCase.input)
+		assert.Equal(t, testCase.isMatch, isMatch, desc)
 	}
 }

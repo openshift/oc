@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"archive/tar"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -27,6 +26,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	"github.com/vbatts/tar-split/archive/tar"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -363,7 +363,7 @@ func (r *layerStore) Load() error {
 			}
 			if cleanup, ok := layer.Flags[incompleteFlag]; ok {
 				if b, ok := cleanup.(bool); ok && b {
-					err = r.Delete(layer.ID)
+					err = r.deleteInternal(layer.ID)
 					if err != nil {
 						break
 					}
@@ -372,7 +372,7 @@ func (r *layerStore) Load() error {
 			}
 		}
 		if shouldSave {
-			return r.Save()
+			return r.saveLayers()
 		}
 	}
 	return err
@@ -387,6 +387,19 @@ func (r *layerStore) loadMounts() error {
 	}
 	layerMounts := []layerMountPoint{}
 	if err = json.Unmarshal(data, &layerMounts); len(data) == 0 || err == nil {
+		// Clear all of our mount information.  If another process
+		// unmounted something, it (along with its zero count) won't
+		// have been encoded into the version of mountpoints.json that
+		// we're loading, so our count could fall out of sync with it
+		// if we don't, and if we subsequently change something else,
+		// we'd pass that error along to other process that reloaded
+		// the data after we saved it.
+		for _, layer := range r.layers {
+			layer.MountPoint = ""
+			layer.MountCount = 0
+		}
+		// All of the non-zero count values will have been encoded, so
+		// we reset the still-mounted ones based on the contents.
 		for _, mount := range layerMounts {
 			if mount.MountPoint != "" {
 				if layer, ok := r.lookup(mount.ID); ok {
@@ -403,6 +416,16 @@ func (r *layerStore) loadMounts() error {
 }
 
 func (r *layerStore) Save() error {
+	r.mountsLockfile.Lock()
+	defer r.mountsLockfile.Unlock()
+	defer r.mountsLockfile.Touch()
+	if err := r.saveLayers(); err != nil {
+		return err
+	}
+	return r.saveMounts()
+}
+
+func (r *layerStore) saveLayers() error {
 	if !r.IsReadWrite() {
 		return errors.Wrapf(ErrStoreIsReadOnly, "not allowed to modify the layer store at %q", r.layerspath())
 	}
@@ -418,13 +441,7 @@ func (r *layerStore) Save() error {
 		return err
 	}
 	defer r.Touch()
-	if err := ioutils.AtomicWriteFile(rpath, jldata, 0600); err != nil {
-		return err
-	}
-	r.mountsLockfile.Lock()
-	defer r.mountsLockfile.Unlock()
-	defer r.mountsLockfile.Touch()
-	return r.saveMounts()
+	return ioutils.AtomicWriteFile(rpath, jldata, 0600)
 }
 
 func (r *layerStore) saveMounts() error {
@@ -941,7 +958,7 @@ func (r *layerStore) tspath(id string) string {
 	return filepath.Join(r.layerdir, id+tarSplitSuffix)
 }
 
-func (r *layerStore) Delete(id string) error {
+func (r *layerStore) deleteInternal(id string) error {
 	if !r.IsReadWrite() {
 		return errors.Wrapf(ErrStoreIsReadOnly, "not allowed to delete layers at %q", r.layerspath())
 	}
@@ -950,23 +967,7 @@ func (r *layerStore) Delete(id string) error {
 		return ErrLayerUnknown
 	}
 	id = layer.ID
-	// The layer may already have been explicitly unmounted, but if not, we
-	// should try to clean that up before we start deleting anything at the
-	// driver level.
-	mountCount, err := r.Mounted(id)
-	if err != nil {
-		return errors.Wrapf(err, "error checking if layer %q is still mounted", id)
-	}
-	for mountCount > 0 {
-		if _, err := r.Unmount(id, false); err != nil {
-			return err
-		}
-		mountCount, err = r.Mounted(id)
-		if err != nil {
-			return errors.Wrapf(err, "error checking if layer %q is still mounted", id)
-		}
-	}
-	err = r.driver.Remove(id)
+	err := r.driver.Remove(id)
 	if err == nil {
 		os.Remove(r.tspath(id))
 		delete(r.byid, id)
@@ -1002,11 +1003,36 @@ func (r *layerStore) Delete(id string) error {
 				label.ReleaseLabel(mountLabel)
 			}
 		}
-		if err = r.Save(); err != nil {
-			return err
-		}
 	}
 	return err
+}
+
+func (r *layerStore) Delete(id string) error {
+	layer, ok := r.lookup(id)
+	if !ok {
+		return ErrLayerUnknown
+	}
+	id = layer.ID
+	// The layer may already have been explicitly unmounted, but if not, we
+	// should try to clean that up before we start deleting anything at the
+	// driver level.
+	mountCount, err := r.Mounted(id)
+	if err != nil {
+		return errors.Wrapf(err, "error checking if layer %q is still mounted", id)
+	}
+	for mountCount > 0 {
+		if _, err := r.Unmount(id, false); err != nil {
+			return err
+		}
+		mountCount, err = r.Mounted(id)
+		if err != nil {
+			return errors.Wrapf(err, "error checking if layer %q is still mounted", id)
+		}
+	}
+	if err := r.deleteInternal(id); err != nil {
+		return err
+	}
+	return r.Save()
 }
 
 func (r *layerStore) Lookup(name string) (id string, err error) {
@@ -1261,7 +1287,12 @@ func (r *layerStore) ApplyDiff(to string, diff io.Reader) (size int64, err error
 	if err != nil {
 		return -1, err
 	}
-	size, err = r.driver.ApplyDiff(layer.ID, r.layerMappings(layer), layer.Parent, layer.MountLabel, payload)
+	options := drivers.ApplyDiffOpts{
+		Diff:       payload,
+		Mappings:   r.layerMappings(layer),
+		MountLabel: layer.MountLabel,
+	}
+	size, err = r.driver.ApplyDiff(layer.ID, layer.Parent, options)
 	if err != nil {
 		return -1, err
 	}
