@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AaronO/go-git-http"
+	githttp "github.com/AaronO/go-git-http"
 	"github.com/AaronO/go-git-http/auth"
 	"github.com/elazarl/goproxy"
 	docker "github.com/fsouza/go-dockerclient"
@@ -54,7 +54,7 @@ import (
 	"github.com/openshift/oc/pkg/helpers/newapp/jenkinsfile"
 	"github.com/openshift/oc/pkg/helpers/newapp/source"
 
-	s2igit "github.com/openshift/source-to-image/pkg/scm/git"
+	s2igit "github.com/openshift/oc/pkg/helpers/source-to-image/git"
 )
 
 func skipExternalGit(t *testing.T) {

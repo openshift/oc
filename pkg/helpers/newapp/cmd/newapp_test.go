@@ -31,7 +31,7 @@ import (
 	faketemplatev1client "github.com/openshift/client-go/template/clientset/versioned/fake"
 	"github.com/openshift/oc/pkg/helpers/newapp"
 	"github.com/openshift/oc/pkg/helpers/newapp/app"
-	"github.com/openshift/source-to-image/pkg/scm/git"
+	"github.com/openshift/oc/pkg/helpers/source-to-image/git"
 )
 
 func TestValidate(t *testing.T) {

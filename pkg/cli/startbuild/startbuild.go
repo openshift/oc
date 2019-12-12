@@ -19,8 +19,8 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
 
-	"github.com/openshift/source-to-image/pkg/tar"
-	s2ifs "github.com/openshift/source-to-image/pkg/util/fs"
+	s2ifs "github.com/openshift/oc/pkg/helpers/source-to-image/fs"
+	"github.com/openshift/oc/pkg/helpers/source-to-image/tar"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
