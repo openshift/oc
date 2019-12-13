@@ -21,7 +21,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
@@ -153,7 +152,7 @@ func (o CancelOptions) Run() error {
 			allErrs = append(allErrs, kcmdutil.AddSourceToErr("cancelling", info.Source, fmt.Errorf("unable to cancel paused deployment %s/%s", config.Namespace, config.Name)))
 		}
 
-		mapping, err := o.Mapper.RESTMapping(kapi.Kind("ReplicationController"))
+		mapping, err := o.Mapper.RESTMapping(corev1.SchemeGroupVersion.WithKind("ReplicationController").GroupKind())
 		if err != nil {
 			return err
 		}

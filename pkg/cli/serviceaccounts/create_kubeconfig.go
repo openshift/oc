@@ -14,7 +14,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
-	sautil "k8s.io/kubernetes/pkg/serviceaccount"
 )
 
 const (
@@ -139,7 +138,7 @@ func (o *CreateKubeconfigOptions) Run() error {
 			continue
 		}
 
-		if sautil.IsServiceAccountToken(secret, serviceAccount) {
+		if isServiceAccountToken(secret, serviceAccount) {
 			token, exists := secret.Data[corev1.ServiceAccountTokenKey]
 			if !exists {
 				return fmt.Errorf("service account token %q for service account %q did not contain token data", secret.Name, serviceAccount.Name)

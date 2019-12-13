@@ -8,7 +8,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 )
 
 func reapForClusterRole(clusterBindingClient rbacv1client.ClusterRoleBindingsGetter, bindingClient rbacv1client.RoleBindingsGetter, namespace, name string, out io.Writer) error {
@@ -28,7 +27,7 @@ func reapForClusterRole(clusterBindingClient rbacv1client.ClusterRoleBindingsGet
 		}
 	}
 
-	namespacedBindings, err := bindingClient.RoleBindings(kapi.NamespaceNone).List(metav1.ListOptions{})
+	namespacedBindings, err := bindingClient.RoleBindings(metav1.NamespaceNone).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

@@ -5,11 +5,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openshift/oc/pkg/cli/create/route"
@@ -141,11 +141,11 @@ func resolveServiceName(mapper meta.RESTMapper, resource string) (string, error)
 	if len(resource) == 0 {
 		return "", fmt.Errorf("you need to provide a service name via --service")
 	}
-	rType, name, err := cmdutil.ResolveResource(kapi.Resource("services"), resource, mapper)
+	rType, name, err := cmdutil.ResolveResource(corev1.Resource("services"), resource, mapper)
 	if err != nil {
 		return "", err
 	}
-	if rType != kapi.Resource("services") {
+	if rType != corev1.Resource("services") {
 		return "", fmt.Errorf("cannot expose %v as routes", rType)
 	}
 	return name, nil

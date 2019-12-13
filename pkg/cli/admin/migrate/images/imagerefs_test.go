@@ -6,10 +6,10 @@ import (
 	kappsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
-	kapihelper "k8s.io/kubernetes/pkg/apis/core/helper"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	buildv1 "github.com/openshift/api/build/v1"
@@ -592,7 +592,7 @@ func TestTransform(t *testing.T) {
 				continue
 			}
 
-			if !kapihelper.Semantic.DeepEqual(v.expected, v.obj) {
+			if !apiequality.Semantic.DeepEqual(v.expected, v.obj) {
 				t.Errorf("%d: object: %s", i, diff.ObjectDiff(v.expected, v.obj))
 				continue
 			}

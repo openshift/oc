@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -12,7 +13,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	"github.com/openshift/oc/pkg/cli/create/route"
 )
@@ -159,8 +159,8 @@ func (o *ExposeOptions) Validate(cmd *cobra.Command) error {
 	info := infos[0]
 	mapping := info.ResourceMapping()
 
-	switch mapping.GroupVersionKind.GroupKind() {
-	case kapi.Kind("Service"):
+	switch mapping.Resource.GroupResource() {
+	case corev1.Resource("service"):
 		switch o.Generator {
 		case "service/v1", "service/v2":
 			// Set default protocol back for generating services

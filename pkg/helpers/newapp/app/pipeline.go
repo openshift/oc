@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -18,8 +19,6 @@ import (
 	kuval "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog"
 	"k8s.io/kubectl/pkg/scheme"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/apis/core/validation"
 
 	"github.com/openshift/api/apps"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -28,7 +27,6 @@ import (
 	"github.com/openshift/api/image"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
-	routev1 "github.com/openshift/api/route/v1"
 	imagev1typedclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/helpers/legacy"
@@ -313,7 +311,7 @@ func MakeSimpleName(name string) string {
 var invalidServiceChars = regexp.MustCompile("[^-a-z0-9]")
 
 func makeValidServiceName(name string) (string, string) {
-	if len(validation.ValidateServiceName(name, false)) == 0 {
+	if len(apimachineryvalidation.NameIsDNSSubdomain(name, false)) == 0 {
 		return name, ""
 	}
 	name = MakeSimpleName(name)
@@ -430,28 +428,6 @@ func addService(containers []corev1.Container, objectMeta metav1.ObjectMeta, sel
 	svc := GenerateService(objectMeta, selector)
 	svc.Spec.Ports = ports
 	return svc
-}
-
-// AddRoutes sets up routes for the provided objects.
-func AddRoutes(objects Objects) Objects {
-	routes := []runtime.Object{}
-	for _, o := range objects {
-		switch t := o.(type) {
-		case *kapi.Service:
-			routes = append(routes, &routev1.Route{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   t.Name,
-					Labels: t.Labels,
-				},
-				Spec: routev1.RouteSpec{
-					To: routev1.RouteTargetReference{
-						Name: t.Name,
-					},
-				},
-			})
-		}
-	}
-	return append(objects, routes...)
 }
 
 type acceptNew struct{}

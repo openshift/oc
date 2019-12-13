@@ -5,11 +5,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	"github.com/openshift/library-go/pkg/network/networkapihelpers"
 	"github.com/openshift/library-go/pkg/network/networkutils"
@@ -81,7 +81,7 @@ func (o *IsolateOptions) Run() error {
 
 	errList := []error{}
 	for _, project := range projects {
-		if project.Name == kapi.NamespaceDefault {
+		if project.Name == metav1.NamespaceDefault {
 			errList = append(errList, fmt.Errorf("network isolation for project %q is forbidden", project.Name))
 			continue
 		}
