@@ -51,7 +51,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
 	github.com/openshift/library-go v0.0.0-20191210125924-37b9180d4790
 	github.com/openshift/source-to-image v0.0.0-20190716154012-2a579ecd66df
-	github.com/operator-framework/operator-registry v1.5.2
+	github.com/operator-framework/operator-registry v1.5.4
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/profile v1.3.0 // indirect
 	github.com/prometheus/client_golang v1.1.0
@@ -96,7 +96,7 @@ replace (
 	github.com/ghodss/yaml => github.com/ghodss/yaml v0.0.0-20170327235444-0ca9ea5df545
 	github.com/golang/glog => github.com/openshift/golang-glog v0.0.0-20190322123450-3c92600d7533
 	github.com/onsi/ginkgo => github.com/openshift/onsi-ginkgo v0.0.0-20190125161613-53ca7dc85f60
-	github.com/openshift/api => github.com/openshift/api v0.0.0-0.20191112184635-86def77f6f
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20191112184635-86def77f6f90
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298
 	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191211184752-d0428efdcd4e
 	github.com/openshift/source-to-image => github.com/openshift/source-to-image v0.0.0-20191031172932-56e8595e83fb
