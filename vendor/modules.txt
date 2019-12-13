@@ -491,13 +491,14 @@ github.com/openshift/source-to-image/pkg/util/cygpath
 github.com/openshift/source-to-image/pkg/util/fs
 github.com/openshift/source-to-image/pkg/util/log
 github.com/openshift/source-to-image/pkg/util/user
-# github.com/operator-framework/operator-registry v1.5.2
+# github.com/operator-framework/operator-registry v1.5.4
 github.com/operator-framework/operator-registry/pkg/api
 github.com/operator-framework/operator-registry/pkg/api/grpc_health_v1
 github.com/operator-framework/operator-registry/pkg/apprclient
 github.com/operator-framework/operator-registry/pkg/apprclient/openapi
 github.com/operator-framework/operator-registry/pkg/appregistry
 github.com/operator-framework/operator-registry/pkg/client
+github.com/operator-framework/operator-registry/pkg/containertools
 github.com/operator-framework/operator-registry/pkg/mirror
 github.com/operator-framework/operator-registry/pkg/registry
 github.com/operator-framework/operator-registry/pkg/sqlite
@@ -587,7 +588,7 @@ golang.org/x/text/unicode/norm
 golang.org/x/text/width
 # golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 => github.com/golang/time v0.0.0-20181108054448-85acf8d2951c
 golang.org/x/time/rate
-# golang.org/x/tools v0.0.0-20190621195816-6e04913cbbac
+# golang.org/x/tools v0.0.0-20190706070813-72ffa07ba3db
 golang.org/x/tools/container/intsets
 # google.golang.org/appengine v1.5.0
 google.golang.org/appengine/internal

@@ -1,3 +1,4 @@
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 builder.go ImageAppender
 package appregistry
 
 import (
@@ -46,6 +47,7 @@ type AppregistryImageBuilder struct {
 	CleanOutput bool
 	ManifestDir string
 	DatabaseDir string
+	client      apprclient.Client
 }
 
 func NewAppregistryImageBuilder(options ...AppregistryBuildOption) (*AppregistryImageBuilder, error) {
@@ -69,14 +71,11 @@ func NewAppregistryImageBuilder(options ...AppregistryBuildOption) (*Appregistry
 		CleanOutput:         config.CleanOutput,
 		ManifestDir:         config.ManifestDir,
 		DatabaseDir:         config.DatabaseDir,
+		client:              config.Client,
 	}, nil
 }
 
 func (b *AppregistryImageBuilder) Build() error {
-	opts := apprclient.Options{Source: b.AppRegistryEndpoint}
-	if b.AuthToken != "" {
-		opts.AuthToken = b.AuthToken
-	}
 
 	defer func() {
 		if !b.CleanOutput {
@@ -87,12 +86,7 @@ func (b *AppregistryImageBuilder) Build() error {
 		}
 	}()
 
-	client, err := apprclient.New(opts)
-	if err != nil {
-		return err
-	}
-
-	downloader := NewManifestDownloader(client)
+	downloader := NewManifestDownloader(b.client)
 	if err := downloader.DownloadManifests(b.ManifestDir, b.AppRegistryOrg); err != nil {
 		return err
 	}
