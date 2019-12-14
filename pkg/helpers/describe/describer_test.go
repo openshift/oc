@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
 	kubernetesscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -21,6 +22,7 @@ import (
 	authorizationv1 "github.com/openshift/api/authorization/v1"
 	buildv1 "github.com/openshift/api/build/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
+	dockerpre012 "github.com/openshift/api/image/dockerpre012"
 	imagev1 "github.com/openshift/api/image/v1"
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	projectv1 "github.com/openshift/api/project/v1"
@@ -46,6 +48,7 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&appsv1.DeploymentLog{}),                          // normal users don't ever look at these
 	reflect.TypeOf(&appsv1.DeploymentLogOptions{}),                   // normal users don't ever look at these
 	reflect.TypeOf(&appsv1.DeploymentRequest{}),                      // normal users don't ever look at these
+	reflect.TypeOf(&dockerpre012.DockerImage{}),                      // not a top level resource
 	reflect.TypeOf(&dockerv10.DockerImage{}),                         // not a top level resource
 	reflect.TypeOf(&imagev1.ImageStreamImport{}),                     // normal users don't ever look at these
 	reflect.TypeOf(&oauthv1.OAuthAccessToken{}),                      // normal users don't ever look at these
@@ -57,6 +60,8 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&authorizationv1.IsPersonalSubjectAccessReview{}), // not a top level resource
 	// ATM image signature doesn't provide any human readable information
 	reflect.TypeOf(&imagev1.ImageSignature{}),
+	// we might want to add this in the future
+	reflect.TypeOf(&imagev1.ImageStreamLayers{}),
 
 	// these resources can't be "GET"ed, so you can't make a describer for them
 	reflect.TypeOf(&authorizationv1.SubjectAccessReviewResponse{}),
@@ -70,6 +75,7 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&securityv1.PodSecurityPolicySubjectReview{}),
 	reflect.TypeOf(&securityv1.PodSecurityPolicySelfSubjectReview{}),
 	reflect.TypeOf(&securityv1.PodSecurityPolicyReview{}),
+	reflect.TypeOf(&securityv1.RangeAllocation{}),
 	reflect.TypeOf(&oauthv1.OAuthRedirectReference{}),
 }
 
@@ -79,6 +85,19 @@ var DescriberCoverageExceptions = []reflect.Type{
 var MissingDescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&imagev1.ImageStreamMapping{}),
 	reflect.TypeOf(&oauthv1.OAuthClient{}),
+}
+
+var MissingDescriberGroupCoverageExceptions = []schema.GroupVersion{
+	{Group: "config.openshift.io", Version: "v1"},
+	{Group: "osin.config.openshift.io", Version: "v1"},
+	{Group: "servicecertsigner.config.openshift.io", Version: "v1alpha1"},
+	{Group: "kubecontrolplane.config.openshift.io", Version: "v1"},
+	{Group: "openshiftcontrolplane.config.openshift.io", Version: "v1"},
+
+	{Group: "operator.openshift.io", Version: "v1alpha1"},
+	{Group: "operator.openshift.io", Version: "v1"},
+	{Group: "samples.operator.openshift.io", Version: "v1"},
+	{Group: "imageregistry.operator.openshift.io", Version: "v1"},
 }
 
 func TestDescriberCoverage(t *testing.T) {
@@ -110,7 +129,13 @@ main:
 
 		_, ok := DescriberFor(gvk.GroupKind(), &rest.Config{}, fake.NewSimpleClientset(), "")
 		if !ok {
-			t.Errorf("missing describer for %v.  Check pkg/cmd/cli/describe/describer.go", apiType)
+			for _, exception := range MissingDescriberGroupCoverageExceptions {
+				if exception == gvk.GroupVersion() {
+					continue main
+				}
+			}
+
+			t.Errorf("missing describer for %v (%s).  Check pkg/cmd/cli/describe/describer.go", apiType, gvk)
 		}
 	}
 }
