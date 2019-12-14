@@ -6,10 +6,12 @@ import (
 	"sort"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/reference"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
 
@@ -23,7 +25,7 @@ import (
 )
 
 func NewLogsForObjectFn(delegate polymorphichelpers.LogsForObjectFunc) polymorphichelpers.LogsForObjectFunc {
-	return func(restClientGetter genericclioptions.RESTClientGetter, object, options runtime.Object, timeout time.Duration, allContainers bool) ([]rest.ResponseWrapper, error) {
+	return func(restClientGetter genericclioptions.RESTClientGetter, object, options runtime.Object, timeout time.Duration, allContainers bool) (map[corev1.ObjectReference]rest.ResponseWrapper, error) {
 		clientConfig, err := restClientGetter.ToRESTConfig()
 		if err != nil {
 			return nil, err
@@ -40,7 +42,13 @@ func NewLogsForObjectFn(delegate polymorphichelpers.LogsForObjectFunc) polymorph
 				return nil, err
 			}
 			// TODO: support allContainers flag
-			return []rest.ResponseWrapper{deploymentconfigs.NewRolloutLogClient(appsClient.RESTClient(), t.Namespace).Logs(t.Name, *dopts)}, nil
+			ref, err := reference.GetReference(scheme.Scheme, t)
+			if err != nil {
+				return nil, err
+			}
+			ret := make(map[corev1.ObjectReference]rest.ResponseWrapper)
+			ret[*ref] = deploymentconfigs.NewRolloutLogClient(appsClient.RESTClient(), t.Namespace).Logs(t.Name, *dopts)
+			return ret, nil
 		case *buildv1.Build:
 			bopts, ok := options.(*buildv1.BuildLogOptions)
 			if !ok {
@@ -54,7 +62,13 @@ func NewLogsForObjectFn(delegate polymorphichelpers.LogsForObjectFunc) polymorph
 				return nil, err
 			}
 			// TODO: support allContainers flag
-			return []rest.ResponseWrapper{buildmanualclientv1.NewBuildLogClient(buildClient.RESTClient(), t.Namespace, scheme.Scheme).Logs(t.Name, *bopts)}, nil
+			ref, err := reference.GetReference(scheme.Scheme, t)
+			if err != nil {
+				return nil, err
+			}
+			ret := make(map[corev1.ObjectReference]rest.ResponseWrapper)
+			ret[*ref] = buildmanualclientv1.NewBuildLogClient(buildClient.RESTClient(), t.Namespace, scheme.Scheme).Logs(t.Name, *bopts)
+			return ret, nil
 		case *buildv1.BuildConfig:
 			bopts, ok := options.(*buildv1.BuildLogOptions)
 			if !ok {
@@ -73,15 +87,22 @@ func NewLogsForObjectFn(delegate polymorphichelpers.LogsForObjectFunc) polymorph
 			if len(filteredInternalBuildItems) == 0 {
 				return nil, fmt.Errorf("no builds found for %q", t.Name)
 			}
+			ref, err := reference.GetReference(scheme.Scheme, t)
+			if err != nil {
+				return nil, err
+			}
+			ret := make(map[corev1.ObjectReference]rest.ResponseWrapper)
 			if bopts.Version != nil {
 				// If a version has been specified, try to get the logs from that build.
 				desired := ocbuildapihelpers.BuildNameForConfigVersion(t.Name, int(*bopts.Version))
 				// TODO: support allContainers flag
-				return []rest.ResponseWrapper{logClient.Logs(desired, *bopts)}, nil
+				ret[*ref] = logClient.Logs(desired, *bopts)
+				return ret, nil
 			}
 			sort.Sort(sort.Reverse(ocbuildapihelpers.BuildSliceByCreationTimestamp(filteredInternalBuildItems)))
 			// TODO: support allContainers flag
-			return []rest.ResponseWrapper{logClient.Logs(filteredInternalBuildItems[0].Name, *bopts)}, nil
+			ret[*ref] = logClient.Logs(filteredInternalBuildItems[0].Name, *bopts)
+			return ret, nil
 
 		default:
 			return delegate(restClientGetter, object, options, timeout, allContainers)

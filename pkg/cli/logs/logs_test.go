@@ -95,7 +95,8 @@ func TestRunLogForPipelineStrategy(t *testing.T) {
 				Object:    tc.o,
 				Namespace: "foo",
 			},
-			Client: fakebc.BuildV1(),
+			Client:    fakebc.BuildV1(),
+			Namespace: "foo",
 		}
 		if err := o.runLogPipeline(); err != nil {
 			t.Errorf("%#v: RunLog error %v", tc.o, err)
