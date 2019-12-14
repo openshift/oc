@@ -401,7 +401,7 @@ func printDeploymentRc(deployment *corev1.ReplicationController, kubeClient kube
 	if verbose {
 		fmt.Fprintf(w, "\tName:\t%s\n", deployment.Name)
 	}
-	timeAt := strings.ToLower(formatRelativeTime(deployment.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(deployment.CreationTimestamp.Time))
 	fmt.Fprintf(w, "\tCreated:\t%s ago\n", timeAt)
 	fmt.Fprintf(w, "\tStatus:\t%s\n", appsutil.DeploymentStatusFor(deployment))
 	if deployment.Spec.Replicas != nil {

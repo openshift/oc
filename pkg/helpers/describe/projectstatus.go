@@ -963,7 +963,7 @@ func describeStandaloneJob(f formatter, node graphview.Job) []string {
 }
 
 func describeJobStatus(job *batchv1.Job) string {
-	timeAt := strings.ToLower(formatRelativeTime(job.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(job.CreationTimestamp.Time))
 	return fmt.Sprintf("created %s ago %d/%d completed %d running", timeAt, job.Status.Succeeded, *job.Spec.Completions, job.Status.Active)
 }
 
@@ -1273,7 +1273,7 @@ func describeBuildPhase(build *buildv1.Build, t *metav1.Time, parentName string,
 	if t.IsZero() {
 		time = "<unknown>"
 	} else {
-		time = strings.ToLower(formatRelativeTime(t.Time))
+		time = strings.ToLower(FormatRelativeTime(t.Time))
 	}
 	buildIdentification := fmt.Sprintf("build/%s", build.Name)
 	prefix := parentName + "-"
@@ -1385,7 +1385,7 @@ func describeDeployments(f formatter, dNode *kubegraph.DeploymentNode, activeDep
 }
 
 func describeDeploymentStatus(rs *kappsv1.ReplicaSet, revision int64, first bool, restartCount int32) string {
-	timeAt := strings.ToLower(formatRelativeTime(rs.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(rs.CreationTimestamp.Time))
 	replicaSetRevision, _ := deployutil.Revision(rs)
 	if replicaSetRevision == revision {
 		return fmt.Sprintf("deployment #%d running for %s%s", replicaSetRevision, timeAt, describePodSummaryInline(rs.Status.ReadyReplicas, rs.Status.Replicas, *rs.Spec.Replicas, false, restartCount))
@@ -1434,7 +1434,7 @@ func describeDeploymentConfigDeployments(f formatter, dcNode *appsgraph.Deployme
 }
 
 func describeDeploymentConfigDeploymentStatus(rc *corev1.ReplicationController, first, test bool, restartCount int32) string {
-	timeAt := strings.ToLower(formatRelativeTime(rc.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(rc.CreationTimestamp.Time))
 	status := appsutil.DeploymentStatusFor(rc)
 	version := appsutil.DeploymentVersionFor(rc)
 	maybeCancelling := ""
@@ -1468,29 +1468,29 @@ func describeDeploymentConfigDeploymentStatus(rc *corev1.ReplicationController, 
 }
 
 func describeDeploymentConfigRolloutStatus(d *kappsv1.Deployment) string {
-	timeAt := strings.ToLower(formatRelativeTime(d.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(d.CreationTimestamp.Time))
 	return fmt.Sprintf("created %s ago%s", timeAt, describePodSummaryInline(int32(d.Status.Replicas), int32(d.Status.Replicas), *d.Spec.Replicas, false, 0))
 }
 
 func describeStatefulSetStatus(p *kappsv1.StatefulSet) string {
-	timeAt := strings.ToLower(formatRelativeTime(p.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(p.CreationTimestamp.Time))
 	// TODO: Replace first argument in describePodSummaryInline with ReadyReplicas once that's a thing for pet sets.
 	return fmt.Sprintf("created %s ago%s", timeAt, describePodSummaryInline(int32(p.Status.Replicas), int32(p.Status.Replicas), *p.Spec.Replicas, false, 0))
 }
 
 func describeDaemonSetStatus(ds *kappsv1.DaemonSet) string {
-	timeAt := strings.ToLower(formatRelativeTime(ds.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(ds.CreationTimestamp.Time))
 	replicaSetRevision := ds.Generation
 	return fmt.Sprintf("generation #%d running for %s%s", replicaSetRevision, timeAt, describePodSummaryInline(ds.Status.NumberReady, ds.Status.NumberAvailable, ds.Status.DesiredNumberScheduled, false, 0))
 }
 
 func describeRCStatus(rc *corev1.ReplicationController) string {
-	timeAt := strings.ToLower(formatRelativeTime(rc.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(rc.CreationTimestamp.Time))
 	return fmt.Sprintf("rc/%s created %s ago%s", rc.Name, timeAt, describePodSummaryInline(rc.Status.ReadyReplicas, rc.Status.Replicas, *rc.Spec.Replicas, false, 0))
 }
 
 func describeRSStatus(rs *kappsv1.ReplicaSet) string {
-	timeAt := strings.ToLower(formatRelativeTime(rs.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(rs.CreationTimestamp.Time))
 	return fmt.Sprintf("rs/%s created %s ago%s", rs.Name, timeAt, describePodSummaryInline(rs.Status.ReadyReplicas, rs.Status.Replicas, *rs.Spec.Replicas, false, 0))
 }
 

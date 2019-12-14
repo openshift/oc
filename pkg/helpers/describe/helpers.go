@@ -81,7 +81,7 @@ func formatString(out *tabwriter.Writer, label string, v interface{}) {
 }
 
 func formatTime(out *tabwriter.Writer, label string, t time.Time) {
-	fmt.Fprintf(out, fmt.Sprintf("%s:\t%s ago\n", label, formatRelativeTime(t)))
+	fmt.Fprintf(out, fmt.Sprintf("%s:\t%s ago\n", label, FormatRelativeTime(t)))
 }
 
 func formatLabels(labelMap map[string]string) string {
