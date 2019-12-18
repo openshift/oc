@@ -65,7 +65,11 @@ func (o *InspectOptions) gatherContainerInfo(destDir string, pod *corev1.Pod, co
 	if err := o.gatherContainerAllLogs(path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
 		return err
 	}
-
+	if len(o.restConfig.BearerToken) > 0 {
+		// token authentication is vulnerable to replays if the token is sent to a potentially untrustworthy source.
+		klog.V(1).Infof("        Skipping container endpoint collection for pod %q container %q: Using token authentication\n", pod.Name, container.Name)
+		return nil
+	}
 	if len(container.Ports) == 0 {
 		klog.V(1).Infof("        Skipping container endpoint collection for pod %q container %q: No ports\n", pod.Name, container.Name)
 		return nil
@@ -75,7 +79,7 @@ func (o *InspectOptions) gatherContainerInfo(destDir string, pod *corev1.Pod, co
 		Port:     container.Ports[0].ContainerPort,
 	}
 
-	if err := o.gatherContainerEndpoints(path.Join(destDir, "/"+container.Name), pod, &container, port); err != nil {
+	if err := o.gatherContainerEndpoints(path.Join(destDir, "/"+container.Name), pod, port); err != nil {
 		klog.V(1).Infof("        Skipping one or more container endpoint collection for pod %q container %q: %v\n", pod.Name, container.Name, err)
 	}
 
@@ -99,7 +103,7 @@ func (o *InspectOptions) gatherContainerAllLogs(destDir string, pod *corev1.Pod,
 	return nil
 }
 
-func (o *InspectOptions) gatherContainerEndpoints(destDir string, pod *corev1.Pod, container *corev1.Container, metricsPort *RemoteContainerPort) error {
+func (o *InspectOptions) gatherContainerEndpoints(destDir string, pod *corev1.Pod, metricsPort *RemoteContainerPort) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
