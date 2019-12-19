@@ -410,6 +410,11 @@ type ComponentVersion struct {
 	DisplayName string
 }
 
+// String returns the version of this component.
+func (v ComponentVersion) String() string {
+	return v.Version
+}
+
 // ComponentVersions is a map of component names to semantic versions. Names are
 // lowercase alphanumeric and dashes. Semantic versions will have all build
 // labels removed, but prerelease segments are preserved.
