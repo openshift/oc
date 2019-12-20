@@ -24,6 +24,7 @@ import (
 
 	imgextract "github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
+	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	imgmirror "github.com/openshift/oc/pkg/cli/image/mirror"
 )
 
@@ -43,6 +44,17 @@ var (
 			A mapping.txt file is also created that is compatible with "oc image mirror". This may be used to further
 			customize the mirroring configuration, but should not be needed in normal circumstances.
 		`)
+	mirrorExample = templates.Examples(`
+# Mirror an operator-registry image and its contents to a registry
+%[1]s quay.io/my/image:latest myregistry.com
+
+# Configure a cluster to use a mirrored registry
+oc apply -f manifests/imageContentSourcePolicy.yaml
+
+# Edit the mirroring mappings and mirror with "oc image mirror" manually
+%[1]s --manifests-only quay.io/my/image:latest myregistry.com
+oc image mirror -f manifests/mapping.txt
+`)
 )
 
 type MirrorCatalogOptions struct {
@@ -56,6 +68,10 @@ type MirrorCatalogOptions struct {
 	FromFileDir string
 	FileDir     string
 
+	SecurityOptions imagemanifest.SecurityOptions
+	FilterOptions   imagemanifest.FilterOptions
+	ParallelOptions imagemanifest.ParallelOptions
+
 	SourceRef imagesource.TypedImageReference
 	Dest      string
 }
@@ -64,6 +80,7 @@ func NewMirrorCatalogOptions(streams genericclioptions.IOStreams) *MirrorCatalog
 	return &MirrorCatalogOptions{
 		IOStreams:                 streams,
 		IndexImageMirrorerOptions: mirror.DefaultImageIndexMirrorerOptions(),
+		ParallelOptions:           imagemanifest.ParallelOptions{MaxPerRegistry: 4},
 	}
 }
 
@@ -71,9 +88,10 @@ func NewMirrorCatalog(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMirrorCatalogOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:   "mirror",
-		Short: "mirror an operator-registry catalog",
-		Long:  mirrorLong,
+		Use:     "mirror SRC DEST",
+		Short:   "mirror an operator-registry catalog",
+		Long:    mirrorLong,
+		Example: fmt.Sprintf(mirrorExample, "oc adm catalog mirror"),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -81,6 +99,10 @@ func NewMirrorCatalog(streams genericclioptions.IOStreams) *cobra.Command {
 		},
 	}
 	flags := cmd.Flags()
+
+	o.SecurityOptions.Bind(flags)
+	o.FilterOptions.Bind(flags)
+	o.ParallelOptions.Bind(flags)
 
 	flags.StringVar(&o.ManifestDir, "to-manifests", "", "Local path to store manifests.")
 	flags.StringVar(&o.DatabasePath, "path", "", "Specify an in-container to local path mapping for the database.")
@@ -139,7 +161,18 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 				klog.Warningf("couldn't parse %s, skipping mirror", from)
 				continue
 			}
-			toRef, err := imagesource.ParseDestinationReference(to)
+
+			// remove destination digest if present
+			toRef, err := imagesource.ParseReference(to)
+			if err != nil {
+				klog.Warningf("couldn't parse %s, skipping mirror", to)
+				continue
+			}
+			if toRef.Type == imagesource.DestinationRegistry && len(toRef.Ref.ID) != 0 {
+				to = toRef.Ref.AsRepository().String()
+			}
+
+			toRef, err = imagesource.ParseDestinationReference(to)
 			if err != nil {
 				klog.Warningf("couldn't parse %s, skipping mirror", to)
 				continue
@@ -152,6 +185,9 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 
 		a := imgmirror.NewMirrorImageOptions(o.IOStreams)
 		a.DryRun = o.DryRun
+		a.SecurityOptions = o.SecurityOptions
+		a.FilterOptions = o.FilterOptions
+		a.ParallelOptions = o.ParallelOptions
 		a.Mappings = mirrorMapping
 		if err := a.Validate(); err != nil {
 			return err
