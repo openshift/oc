@@ -9,8 +9,8 @@ include $(addprefix ./vendor/github.com/openshift/library-go/alpha-build-machine
 )
 
 GO_LD_EXTRAFLAGS :=-X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitMajor="1" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitMinor="16" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitVersion="v1.16.0-7-gab72ed5" \
+                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitMinor="17" \
+                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitVersion="v.17.0-4-g38212b5" \
                    -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
                    -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
                    -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitTreeState="clean"

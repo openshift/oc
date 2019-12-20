@@ -128,7 +128,6 @@ func NewCmdImage(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 	o.Source = "docker"
 	cmd.Flags().StringVar(&o.Source, "source", o.Source, "The image source type; valid types are 'imagestreamtag', 'istag', 'imagestreamimage', 'isimage', and 'docker'")
 	cmdutil.AddDryRunFlag(cmd)
-	cmdutil.AddIncludeUninitializedFlag(cmd)
 	return cmd
 }
 
