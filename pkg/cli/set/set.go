@@ -177,10 +177,10 @@ Update ServiceAccount of pod template resources.
 
 	setServiceaccountExample = ktemplates.Examples(`
 # Set Deployment nginx-deployment's ServiceAccount to serviceaccount1
-%[1]s set serviceaccount deployment nginx-deployment serviceaccount1
+%[1]s serviceaccount deployment nginx-deployment serviceaccount1
 
 # Print the result (in yaml format) of updated nginx deployment with serviceaccount from local file, without hitting apiserver
-%[1]s set sa -f nginx-deployment.yaml serviceaccount1 --local --dry-run -o yaml
+%[1]s sa -f nginx-deployment.yaml serviceaccount1 --local --dry-run -o yaml
 `)
 )
 
