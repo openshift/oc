@@ -197,7 +197,7 @@ func NewOcCommand(name, fullName string, in io.Reader, out, errout io.Writer) *c
 		{
 			Message: "Troubleshooting and Debugging Commands:",
 			Commands: []*cobra.Command{
-				logs.NewCmdLogs(logs.LogsRecommendedCommandName, fullName, f, ioStreams),
+				logs.NewCmdLogs(fullName, f, ioStreams),
 				rsh.NewCmdRsh(rsh.RshRecommendedName, fullName, f, ioStreams),
 				rsync.NewCmdRsync(rsync.RsyncRecommendedName, fullName, f, ioStreams),
 				kubectlwrappers.NewCmdPortForward(fullName, f, ioStreams),
