@@ -160,7 +160,7 @@ func (o *ExposeOptions) Validate(cmd *cobra.Command) error {
 	mapping := info.ResourceMapping()
 
 	switch mapping.Resource.GroupResource() {
-	case corev1.Resource("service"):
+	case corev1.Resource("services"):
 		switch o.Generator {
 		case "service/v1", "service/v2":
 			// Set default protocol back for generating services
