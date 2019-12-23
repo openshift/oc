@@ -147,7 +147,7 @@ func (o *ImageLookupOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, ar
 		return err
 	}
 
-	o.PrintTable = (o.PrintFlags.OutputFormat == nil && len(args) == 0 && !o.All) || o.List
+	o.PrintTable = ((o.PrintFlags.OutputFormat == nil || len(*o.PrintFlags.OutputFormat) == 0) && len(args) == 0 && !o.All) || o.List
 
 	o.Args = args
 	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
@@ -202,7 +202,7 @@ func (o *ImageLookupOptions) Run() error {
 	case len(o.Args) == 0 && len(o.Filenames) == 0:
 		b = b.
 			LabelSelectorParam(o.Selector).
-			SelectAllParam(o.All).
+			SelectAllParam(true).
 			ResourceTypes("imagestreams")
 	case o.List:
 		b = b.
