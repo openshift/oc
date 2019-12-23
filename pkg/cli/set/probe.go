@@ -235,7 +235,7 @@ func (o *ProbeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 			Scheme: corev1.URIScheme(strings.ToUpper(url.Scheme)),
 			Host:   host,
 			Port:   intOrString(port),
-			Path:   url.Path,
+			Path:   url.RequestURI(),
 		}
 	}
 
