@@ -6,13 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
-	sautil "k8s.io/kubernetes/pkg/serviceaccount"
 
 	"github.com/openshift/oc/pkg/helpers/term"
 )
@@ -125,8 +124,8 @@ func (o *GetServiceAccountTokenOptions) Run() error {
 			continue
 		}
 
-		if sautil.IsServiceAccountToken(secret, serviceAccount) {
-			token, exists := secret.Data[kapi.ServiceAccountTokenKey]
+		if isServiceAccountToken(secret, serviceAccount) {
+			token, exists := secret.Data[corev1.ServiceAccountTokenKey]
 			if !exists {
 				return fmt.Errorf("service account token %q for service account %q did not contain token data", secret.Name, serviceAccount.Name)
 			}

@@ -20,7 +20,6 @@ import (
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	imageapiv1 "github.com/openshift/api/image/v1"
@@ -96,17 +95,17 @@ func (e *hookExecutor) Execute(hook *appsv1.LifecycleHook, rc *corev1.Replicatio
 				tagEventMessages = append(tagEventMessages, fmt.Sprintf("image %q as %q", image, t.To.Name))
 			}
 		}
-		strategyutil.RecordConfigEvent(e.events, rc, kapi.EventTypeNormal, "Started",
+		strategyutil.RecordConfigEvent(e.events, rc, corev1.EventTypeNormal, "Started",
 			fmt.Sprintf("Running %s-hook (TagImages) %s for rc %s/%s", label, strings.Join(tagEventMessages, ","), rc.Namespace, rc.Name))
 		err = e.tagImages(hook, rc, suffix, label)
 	case hook.ExecNewPod != nil:
-		strategyutil.RecordConfigEvent(e.events, rc, kapi.EventTypeNormal, "Started",
+		strategyutil.RecordConfigEvent(e.events, rc, corev1.EventTypeNormal, "Started",
 			fmt.Sprintf("Running %s-hook (%q) for rc %s/%s", label, strings.Join(hook.ExecNewPod.Command, " "), rc.Namespace, rc.Name))
 		err = e.executeExecNewPod(hook, rc, suffix, label)
 	}
 
 	if err == nil {
-		strategyutil.RecordConfigEvent(e.events, rc, kapi.EventTypeNormal, "Completed",
+		strategyutil.RecordConfigEvent(e.events, rc, corev1.EventTypeNormal, "Completed",
 			fmt.Sprintf("The %s-hook for rc %s/%s completed successfully", label, rc.Namespace, rc.Name))
 		return nil
 	}
@@ -114,11 +113,11 @@ func (e *hookExecutor) Execute(hook *appsv1.LifecycleHook, rc *corev1.Replicatio
 	// Retry failures are treated the same as Abort.
 	switch hook.FailurePolicy {
 	case appsv1.LifecycleHookFailurePolicyAbort, appsv1.LifecycleHookFailurePolicyRetry:
-		strategyutil.RecordConfigEvent(e.events, rc, kapi.EventTypeWarning, "Failed",
+		strategyutil.RecordConfigEvent(e.events, rc, corev1.EventTypeWarning, "Failed",
 			fmt.Sprintf("The %s-hook failed: %v, aborting rollout of %s/%s", label, err, rc.Namespace, rc.Name))
 		return fmt.Errorf("the %s hook failed: %v, aborting rollout of %s/%s", label, err, rc.Namespace, rc.Name)
 	case appsv1.LifecycleHookFailurePolicyIgnore:
-		strategyutil.RecordConfigEvent(e.events, rc, kapi.EventTypeWarning, "Failed",
+		strategyutil.RecordConfigEvent(e.events, rc, corev1.EventTypeWarning, "Failed",
 			fmt.Sprintf("The %s-hook failed: %v (ignore), rollout of %s/%s will continue", label, err, rc.Namespace, rc.Name))
 		return nil
 	default:

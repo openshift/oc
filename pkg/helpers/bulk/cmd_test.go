@@ -7,11 +7,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/apitesting"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	"github.com/openshift/api"
 )
@@ -43,7 +43,7 @@ func TestBulk(t *testing.T) {
 	b := Bulk{Scheme: scheme, Op: bt.Record}
 
 	in := &corev1.Pod{}
-	if errs := b.Run(&kapi.List{Items: []runtime.Object{in}}, "test_namespace"); len(errs) > 0 {
+	if errs := b.Run(&metainternalversion.List{Items: []runtime.Object{in}}, "test_namespace"); len(errs) > 0 {
 		t.Fatal(errs)
 	}
 	if len(bt.recorded) != len([]runtime.Object{in}) {
@@ -60,7 +60,7 @@ func TestBulkOpError(t *testing.T) {
 	b := Bulk{Scheme: scheme, Op: bt.Record}
 
 	in := &corev1.Pod{}
-	if errs := b.Run(&kapi.List{Items: []runtime.Object{in}}, "test_namespace"); len(errs) != 1 || errs[0] != bt.opErr {
+	if errs := b.Run(&metainternalversion.List{Items: []runtime.Object{in}}, "test_namespace"); len(errs) != 1 || errs[0] != bt.opErr {
 		t.Fatal(errs)
 	}
 	if len(bt.recorded) != len([]runtime.Object{in}) {
@@ -80,7 +80,7 @@ func TestBulkAction(t *testing.T) {
 	b2 := b.WithMessage("test1", "test2")
 
 	in := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "obj1"}}
-	if errs := b2.Run(&kapi.List{Items: []runtime.Object{in}}, "test_namespace"); len(errs) != 0 {
+	if errs := b2.Run(&metainternalversion.List{Items: []runtime.Object{in}}, "test_namespace"); len(errs) != 0 {
 		t.Fatal(errs)
 	}
 	if len(bt.recorded) != len([]runtime.Object{in}) {
@@ -110,7 +110,7 @@ func TestBulkActionCompact(t *testing.T) {
 	b2 := b.WithMessage("test1", "test2")
 
 	in := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "obj1"}}
-	if errs := b2.Run(&kapi.List{Items: []runtime.Object{in}}, "test_namespace"); len(errs) != 0 {
+	if errs := b2.Run(&metainternalversion.List{Items: []runtime.Object{in}}, "test_namespace"); len(errs) != 0 {
 		t.Fatal(errs)
 	}
 	if len(bt.recorded) != len([]runtime.Object{in}) {

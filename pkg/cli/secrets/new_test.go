@@ -6,7 +6,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 )
 
 func TestValidate(t *testing.T) {
@@ -237,7 +236,7 @@ func TestCreateSecret(t *testing.T) {
 func TestSecretTypeSpecified(t *testing.T) {
 	options := CreateSecretOptions{
 		Name:           "any",
-		SecretTypeName: string(kapi.SecretTypeDockercfg),
+		SecretTypeName: string(corev1.SecretTypeDockercfg),
 		Sources:        []string{"./bsFixtures/www.google.com"},
 		IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
 	}
@@ -247,7 +246,7 @@ func TestSecretTypeSpecified(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 	if secret.Type != corev1.SecretTypeDockercfg {
-		t.Errorf("expected %v, got %v", kapi.SecretTypeDockercfg, secret.Type)
+		t.Errorf("expected %v, got %v", corev1.SecretTypeDockercfg, secret.Type)
 	}
 }
 func TestSecretTypeDiscovered(t *testing.T) {
@@ -262,6 +261,6 @@ func TestSecretTypeDiscovered(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 	if secret.Type != corev1.SecretTypeDockercfg {
-		t.Errorf("expected %v, got %v", kapi.SecretTypeDockercfg, secret.Type)
+		t.Errorf("expected %v, got %v", corev1.SecretTypeDockercfg, secret.Type)
 	}
 }

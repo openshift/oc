@@ -3,9 +3,9 @@ package top
 import (
 	"testing"
 
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kapihelper "k8s.io/kubernetes/pkg/apis/core/helper"
 
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -305,7 +305,7 @@ func infosEqual(actual, expected []Info) bool {
 	for _, a := range actual {
 		found := false
 		for _, e := range expected {
-			if kapihelper.Semantic.DeepEqual(a, e) {
+			if apiequality.Semantic.DeepEqual(a, e) {
 				found = true
 				break
 			}

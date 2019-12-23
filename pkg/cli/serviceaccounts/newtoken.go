@@ -19,7 +19,6 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/generate"
 	"k8s.io/kubectl/pkg/util/templates"
-	sautil "k8s.io/kubernetes/pkg/serviceaccount"
 
 	"github.com/openshift/oc/pkg/helpers/term"
 )
@@ -224,7 +223,7 @@ func waitForToken(token *corev1.Secret, serviceAccount *corev1.ServiceAccount, t
 
 		switch event.Type {
 		case watch.Modified:
-			if sautil.IsServiceAccountToken(eventToken, serviceAccount) {
+			if isServiceAccountToken(eventToken, serviceAccount) {
 				return true, nil
 			}
 		case watch.Deleted:

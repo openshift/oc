@@ -6,7 +6,7 @@ import (
 	"github.com/gonum/graph"
 
 	corev1 "k8s.io/api/core/v1"
-	kdeplutil "k8s.io/kubernetes/pkg/controller/deployment/util"
+	kctldeployutil "k8s.io/kubectl/pkg/util/deployment"
 
 	buildutil "github.com/openshift/oc/pkg/helpers/build"
 	appsedges "github.com/openshift/oc/pkg/helpers/graph/appsgraph"
@@ -169,7 +169,7 @@ func pvcMarker(g osgraph.Graph, f osgraph.Namer, dcNode *appsgraph.DeploymentCon
 		isBlockedRolling := false
 		rollingParams := dc.Spec.Strategy.RollingParams
 		if rollingParams != nil {
-			maxSurge, _, _ := kdeplutil.ResolveFenceposts(rollingParams.MaxSurge, rollingParams.MaxUnavailable, dc.Spec.Replicas)
+			maxSurge, _, _ := kctldeployutil.ResolveFenceposts(rollingParams.MaxSurge, rollingParams.MaxUnavailable, dc.Spec.Replicas)
 			isBlockedRolling = maxSurge > 0
 		}
 		// If the claim is not RWO or deployments will not have more than a pod running at any time

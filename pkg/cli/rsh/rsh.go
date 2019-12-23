@@ -10,6 +10,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -18,12 +19,9 @@ import (
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
+	"k8s.io/kubectl/pkg/util/podutils"
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/kubectl/pkg/util/term"
-	"k8s.io/kubernetes/pkg/apis/apps"
-	"k8s.io/kubernetes/pkg/apis/batch"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/controller"
 
 	oapps "github.com/openshift/api/apps"
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
@@ -197,7 +195,7 @@ func (o *RshOptions) Run() error {
 }
 
 func podForResource(f kcmdutil.Factory, resource string, timeout time.Duration) (string, error) {
-	sortBy := func(pods []*corev1.Pod) sort.Interface { return sort.Reverse(controller.ActivePods(pods)) }
+	sortBy := func(pods []*corev1.Pod) sort.Interface { return sort.Reverse(podutils.ActivePods(pods)) }
 	namespace, _, err := f.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return "", err
@@ -243,7 +241,7 @@ func podForResource(f kcmdutil.Factory, resource string, timeout time.Duration) 
 			return "", err
 		}
 		return podForResource(f, fmt.Sprintf("rc/%s", appsutil.LatestDeploymentNameForConfig(dc)), timeout)
-	case extensions.Resource("daemonsets"):
+	case extensionsv1beta1.Resource("daemonsets"):
 		kc, err := kubernetes.NewForConfig(clientConfig)
 		if err != nil {
 			return "", err
@@ -266,7 +264,7 @@ func podForResource(f kcmdutil.Factory, resource string, timeout time.Duration) 
 			return "", err
 		}
 		return pod.Name, nil
-	case extensions.Resource("deployments"):
+	case extensionsv1beta1.Resource("deployments"):
 		kc, err := kubernetes.NewForConfig(clientConfig)
 		if err != nil {
 			return "", err
@@ -288,7 +286,7 @@ func podForResource(f kcmdutil.Factory, resource string, timeout time.Duration) 
 			return "", err
 		}
 		return pod.Name, nil
-	case apps.Resource("statefulsets"):
+	case corev1.Resource("statefulsets"):
 		kc, err := kubernetes.NewForConfig(clientConfig)
 		if err != nil {
 			return "", err
@@ -310,7 +308,7 @@ func podForResource(f kcmdutil.Factory, resource string, timeout time.Duration) 
 			return "", err
 		}
 		return pod.Name, nil
-	case extensions.Resource("replicasets"):
+	case extensionsv1beta1.Resource("replicasets"):
 		kc, err := kubernetes.NewForConfig(clientConfig)
 		if err != nil {
 			return "", err
@@ -332,7 +330,7 @@ func podForResource(f kcmdutil.Factory, resource string, timeout time.Duration) 
 			return "", err
 		}
 		return pod.Name, nil
-	case batch.Resource("jobs"):
+	case batchv1.Resource("jobs"):
 		kc, err := kubernetes.NewForConfig(clientConfig)
 		if err != nil {
 			return "", err

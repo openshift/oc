@@ -25,7 +25,6 @@ import (
 	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubectl/pkg/scheme"
-	deployutil "k8s.io/kubernetes/pkg/controller/deployment/util"
 
 	"github.com/openshift/api/annotations"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -39,6 +38,7 @@ import (
 	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
+	deployutil "github.com/openshift/oc/pkg/helpers/deployment"
 	loginerrors "github.com/openshift/oc/pkg/helpers/errors"
 	appsedges "github.com/openshift/oc/pkg/helpers/graph/appsgraph"
 	appsanalysis "github.com/openshift/oc/pkg/helpers/graph/appsgraph/analysis"

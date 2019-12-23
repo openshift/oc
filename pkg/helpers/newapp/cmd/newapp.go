@@ -15,6 +15,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
+	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -22,8 +24,6 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/scheme"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/apis/core/validation"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	authv1 "github.com/openshift/api/authorization/v1"
@@ -171,7 +171,7 @@ var ErrNoInputs = errors.New("no inputs provided")
 
 // AppResult contains the results of an application
 type AppResult struct {
-	List *kapi.List
+	List *metainternalversion.List
 
 	Name      string
 	HasSource bool
@@ -183,7 +183,7 @@ type AppResult struct {
 // QueryResult contains the results of a query (search or list)
 type QueryResult struct {
 	Matches app.ComponentMatches
-	List    *kapi.List
+	List    *metainternalversion.List
 }
 
 // NewAppConfig returns a new AppConfig, but you must set your typer, mapper, and clientMapper after the command has been run
@@ -396,7 +396,7 @@ func validateEnforcedName(name string) error {
 	// up to 63 characters is nominally possible, however "-1" gets added on the
 	// end later for the deployment controller.  Deduct 5 from 63 to at least
 	// cover us up to -9999.
-	if reasons := validation.ValidateServiceName(name, false); (len(reasons) != 0 || len(name) > 58) && !app.IsParameterizableValue(name) {
+	if reasons := apimachineryvalidation.NameIsDNS1035Label(name, false); (len(reasons) != 0 || len(name) > 58) && !app.IsParameterizableValue(name) {
 		return fmt.Errorf("invalid name: %s. Must be an a lower case alphanumeric (a-z, and 0-9) string with a maximum length of 58 characters, where the first character is a letter (a-z), and the '-' character is allowed anywhere except the first or last character.", name)
 	}
 	return nil
@@ -761,7 +761,7 @@ func (c *AppConfig) RunQuery() (*QueryResult, error) {
 
 	return &QueryResult{
 		Matches: matches,
-		List:    &kapi.List{Items: objects},
+		List:    &metainternalversion.List{Items: objects},
 	}, nil
 }
 
@@ -872,7 +872,7 @@ func (c *AppConfig) Run() (*AppResult, error) {
 	}
 	if len(installables) > 0 {
 		return &AppResult{
-			List:      &kapi.List{Items: installables},
+			List:      &metainternalversion.List{Items: installables},
 			Name:      name,
 			Namespace: c.OriginNamespace,
 
@@ -974,7 +974,7 @@ func (c *AppConfig) Run() (*AppResult, error) {
 		}
 	}
 	if len(c.SourceSecret) > 0 {
-		if len(validation.ValidateSecretName(c.SourceSecret, false)) != 0 {
+		if len(apimachineryvalidation.NameIsDNSSubdomain(c.SourceSecret, false)) != 0 {
 			return nil, fmt.Errorf("source secret name %q is invalid", c.SourceSecret)
 		}
 		for _, obj := range objects {
@@ -986,7 +986,7 @@ func (c *AppConfig) Run() (*AppResult, error) {
 		}
 	}
 	if len(c.PushSecret) > 0 {
-		if len(validation.ValidateSecretName(c.PushSecret, false)) != 0 {
+		if len(apimachineryvalidation.NameIsDNSSubdomain(c.PushSecret, false)) != 0 {
 			return nil, fmt.Errorf("push secret name %q is invalid", c.PushSecret)
 		}
 		for _, obj := range objects {
@@ -999,7 +999,7 @@ func (c *AppConfig) Run() (*AppResult, error) {
 	}
 
 	return &AppResult{
-		List:      &kapi.List{Items: objects},
+		List:      &metainternalversion.List{Items: objects},
 		Name:      name,
 		HasSource: len(repositories) != 0,
 		Namespace: c.OriginNamespace,

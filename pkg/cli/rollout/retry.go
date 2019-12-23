@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +20,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
@@ -126,7 +126,7 @@ func (o *RetryOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 
 func (o RetryOptions) Run() error {
 	allErrs := []error{}
-	mapping, err := o.Mapper.RESTMapping(kapi.Kind("ReplicationController"))
+	mapping, err := o.Mapper.RESTMapping(corev1.SchemeGroupVersion.WithKind("ReplicationController").GroupKind())
 	if err != nil {
 		return err
 	}

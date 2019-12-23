@@ -36,8 +36,8 @@ import (
 	scaleclient "k8s.io/client-go/scale"
 	"k8s.io/client-go/util/retry"
 	kscale "k8s.io/kubectl/pkg/scale"
-	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
-	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
+	kctldeployutil "k8s.io/kubectl/pkg/util/deployment"
+	podutil "k8s.io/kubectl/pkg/util/podutils"
 	"k8s.io/utils/integer"
 )
 
@@ -245,7 +245,7 @@ func (r *RollingUpdater) Update(config *RollingUpdaterConfig) error {
 	}
 	// maxSurge is the maximum scaling increment and maxUnavailable are the maximum pods
 	// that can be unavailable during a rollout.
-	maxSurge, maxUnavailable, err := deploymentutil.ResolveFenceposts(&config.MaxSurge, &config.MaxUnavailable, desired)
+	maxSurge, maxUnavailable, err := kctldeployutil.ResolveFenceposts(&config.MaxSurge, &config.MaxUnavailable, desired)
 	if err != nil {
 		return err
 	}
