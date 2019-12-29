@@ -40,7 +40,15 @@ var (
         # Print the OpenShift client, kube-apiserver, and openshift-apiserver version numbers for the current context.
         %[1]s version --short
         # Print the OpenShift client version information for the current context.
-        %[1]s version --client`)
+        %[1]s version --client
+
+        # Other ways to get version info on OpenShift cluster components:
+        # Current cluster version & upgrades are controlled by 'clusterversion.config.openshift.io' resource.
+        %[1]s get clusterversion
+        # Operators controlling cluster components are controlled by 'clusteroperators.config.openshift.io' resources.
+        %[1]s get clusteroperators
+        # Fetch build info for current version, including component repositories and commits.
+        %[1]s adm release info --commit-urls`)
 )
 
 type VersionOptions struct {
@@ -164,6 +172,7 @@ func (o *VersionOptions) Run() error {
 		if versionInfo.ServerVersion != nil {
 			fmt.Fprintf(o.Out, "Kubernetes Version: %s\n", serverVersion.GitVersion)
 		}
+		fmt.Fprintln(o.Out, "Use 'oc adm release info --commit-urls' for details on server components.")
 	case "yaml":
 		marshalled, err := yaml.Marshal(&versionInfo)
 		if err != nil {
