@@ -122,8 +122,11 @@ func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		if len(ref.Registry) == 0 && len(ref.Namespace) == 0 {
 			return fmt.Errorf("--to-image must be a valid image pull spec: no registry or repository specified")
 		}
-		if len(ref.ID) == 0 && len(ref.Tag) == 0 {
-			return fmt.Errorf("--to-image must be a valid image pull spec: no tag or digest specified")
+		if len(ref.Tag) > 0 {
+			return fmt.Errorf("--to-image must be a valid by-digest image pull spec: tags are vulnerable to manipulation by malicious or compromised registries")
+		}
+		if len(ref.ID) == 0 {
+			return fmt.Errorf("--to-image must be a valid by-digest image pull spec: no digest specified")
 		}
 	}
 
