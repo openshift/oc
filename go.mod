@@ -35,7 +35,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/openshift/api v0.0.0-20191217141120-791af96035a5
 	github.com/openshift/client-go v0.0.0-20191216194936-57f413491e9e
-	github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901
+	github.com/openshift/library-go v0.0.0-20200102104155-021f88c1381d
 	github.com/operator-framework/operator-registry v1.5.4
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.1.0
@@ -75,7 +75,7 @@ replace (
 	github.com/onsi/ginkgo => github.com/openshift/onsi-ginkgo v0.0.0-20190125161613-53ca7dc85f60
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20191217141120-791af96035a5
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191216194936-57f413491e9e
-	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191218095328-1c12909e5923
+	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20200102104155-021f88c1381d
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.0.0-20181207105117-505eaef01726
 	golang.org/x/time => github.com/golang/time v0.0.0-20181108054448-85acf8d2951c
 	k8s.io/api => github.com/kubernetes/api v0.0.0-20191121175643-4ed536977f46

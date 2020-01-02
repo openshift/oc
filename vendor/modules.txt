@@ -435,7 +435,7 @@ github.com/openshift/client-go/user/clientset/versioned/fake
 github.com/openshift/client-go/user/clientset/versioned/scheme
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
-# github.com/openshift/library-go v0.0.0-20191003152030-97c62d8a2901 => github.com/openshift/library-go v0.0.0-20191218095328-1c12909e5923
+# github.com/openshift/library-go v0.0.0-20200102104155-021f88c1381d => github.com/openshift/library-go v0.0.0-20200102104155-021f88c1381d
 github.com/openshift/library-go/alpha-build-machinery
 github.com/openshift/library-go/alpha-build-machinery/make
 github.com/openshift/library-go/alpha-build-machinery/make/lib
