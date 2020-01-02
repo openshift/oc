@@ -22,7 +22,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin"
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
 	"github.com/openshift/oc/pkg/cli/admin/groups/sync"
-	"github.com/openshift/oc/pkg/cli/buildlogs"
 	"github.com/openshift/oc/pkg/cli/cancelbuild"
 	"github.com/openshift/oc/pkg/cli/debug"
 	"github.com/openshift/oc/pkg/cli/deployer"
@@ -253,7 +252,6 @@ func NewOcCommand(name, fullName string, in io.Reader, out, errout io.Writer) *c
 		"options",
 		"deploy",
 		// These commands are deprecated and should not appear in help
-		moved(fullName, "logs", cmds, buildlogs.NewCmdBuildLogs(fullName, f, ioStreams)),
 		moved(fullName, "secrets link", secretcmds, secrets.NewCmdLinkSecret("add", fullName, f, ioStreams)),
 		moved(fullName, "create secret", secretcmds, secrets.NewCmdCreateSecret(secrets.NewSecretRecommendedCommandName, fullName, f, ioStreams)),
 		moved(fullName, "create secret", secretcmds, secrets.NewCmdCreateDockerConfigSecret(secrets.CreateDockerConfigSecretRecommendedName, fullName, f, ioStreams, ocSecretsNewFullName, ocEditFullName)),
