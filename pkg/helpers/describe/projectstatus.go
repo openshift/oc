@@ -964,6 +964,9 @@ func describeStandaloneJob(f formatter, node graphview.Job) []string {
 
 func describeJobStatus(job *batchv1.Job) string {
 	timeAt := strings.ToLower(formatRelativeTime(job.CreationTimestamp.Time))
+	if job.Spec.Completions == nil {
+		return ""
+	}
 	return fmt.Sprintf("created %s ago %d/%d completed %d running", timeAt, job.Status.Succeeded, *job.Spec.Completions, job.Status.Active)
 }
 
