@@ -3,7 +3,6 @@ package kubectlwrappers
 import (
 	"bufio"
 	"flag"
-	"path"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -226,16 +225,7 @@ func NewCmdEdit(fullName string, f kcmdutil.Factory, streams genericclioptions.I
 
 // NewCmdConfig is a wrapper for the Kubernetes cli config command
 func NewCmdConfig(fullName, name string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	pathOptions := &kclientcmd.PathOptions{
-		GlobalFile:       kclientcmd.RecommendedHomeFile,
-		EnvVar:           kclientcmd.RecommendedConfigPathEnvVar,
-		ExplicitFileFlag: genericclioptions.OpenShiftKubeConfigFlagName,
-
-		GlobalFileSubpath: path.Join(kclientcmd.RecommendedHomeDir, kclientcmd.RecommendedFileName),
-
-		LoadingRules: kclientcmd.NewDefaultClientConfigLoadingRules(),
-	}
-	pathOptions.LoadingRules.DoNotResolvePaths = true
+	pathOptions := kclientcmd.NewDefaultPathOptions()
 
 	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(config.NewCmdConfig(f, pathOptions, streams)))
 }
