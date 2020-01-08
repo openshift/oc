@@ -56,7 +56,7 @@ image-ocp-recycler: image-ocp-cli
 update: update-generated-completions
 .PHONY: update
 
-verify: verify-cli-conventions verify-generated-completions
+verify: verify-cli-conventions verify-generated-completions verify-imports
 .PHONY: verify
 
 verify-cli-conventions:
@@ -71,6 +71,9 @@ verify-generated-completions: build
 	hack/verify-generated-completions.sh
 .PHONY: verify-generated-completions
 
+verify-imports:
+	hack/verify-imports.sh
+.PHONY: verify-imports
 
 cross-build-darwin-amd64:
 	+@GOOS=darwin GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_DARWIN)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/darwin_amd64
