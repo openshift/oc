@@ -292,8 +292,8 @@ func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, co
 	wg := sync.WaitGroup{}
 	errLock := sync.Mutex{}
 
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 
 		innerErrs := []error{}
@@ -321,9 +321,8 @@ func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, co
 		defer errLock.Unlock()
 		errs = append(errs, innerErrs...)
 	}()
-
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 
 		innerErrs := []error{}
@@ -351,6 +350,6 @@ func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, co
 		defer errLock.Unlock()
 		errs = append(errs, innerErrs...)
 	}()
-
+	wg.Wait()
 	return utilerrors.NewAggregate(errs)
 }
