@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericclioptions/openshiftpatch"
 	"k8s.io/client-go/tools/clientcmd"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
@@ -52,7 +53,12 @@ func NewCmdConfig(f cmdutil.Factory, pathOptions *clientcmd.PathOptions, streams
 	}
 
 	// file paths are common to all sub commands
-	cmd.PersistentFlags().StringVar(&pathOptions.LoadingRules.ExplicitPath, pathOptions.ExplicitFileFlag, pathOptions.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
+	if !openshiftpatch.IsOC {
+		cmd.PersistentFlags().StringVar(&pathOptions.LoadingRules.ExplicitPath, pathOptions.ExplicitFileFlag, pathOptions.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
+	} else {
+		cmd.PersistentFlags().StringVar(&pathOptions.LoadingRules.ExplicitPath, pathOptions.ExplicitFileFlag, pathOptions.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
+		cmd.PersistentFlags().StringVar(&pathOptions.LoadingRules.ExplicitPath, genericclioptions.OpenShiftKubeConfigFlagName, pathOptions.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
+	}
 
 	// TODO(juanvallejo): update all subcommands to work with genericclioptions.IOStreams
 	cmd.AddCommand(NewCmdConfigView(f, streams, pathOptions))
