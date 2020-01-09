@@ -905,7 +905,7 @@ k8s.io/kube-openapi/pkg/common
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/proto/testing
 k8s.io/kube-openapi/pkg/util/proto/validation
-# k8s.io/kubectl v0.0.0 => github.com/openshift/kubernetes-kubectl v0.0.0-20200107205144-7f331345e3e8
+# k8s.io/kubectl v0.0.0 => github.com/openshift/kubernetes-kubectl v0.0.0-20200109100530-0dbab4a25283
 k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd
 k8s.io/kubectl/pkg/cmd/annotate
@@ -984,7 +984,6 @@ k8s.io/kubectl/pkg/util/templates
 k8s.io/kubectl/pkg/util/term
 k8s.io/kubectl/pkg/validation
 # k8s.io/kubernetes v0.0.0-00010101000000-000000000000 => github.com/openshift/kubernetes v1.17.0-alpha.0.0.20191216151305-079984b0a154
-k8s.io/kubernetes/cmd/genutils
 k8s.io/kubernetes/pkg/api/legacyscheme
 k8s.io/kubernetes/pkg/apis/apps
 k8s.io/kubernetes/pkg/apis/apps/install
