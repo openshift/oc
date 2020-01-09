@@ -57,7 +57,8 @@ type InspectOptions struct {
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
 
-	podUrlGetter *PortForwardURLGetter
+	podUrlGetter         *PortForwardURLGetter
+	inspectNonRunningPod bool
 
 	fileWriter    *MultiSourceFileWriter
 	builder       *resource.Builder
@@ -100,7 +101,7 @@ func NewCmdInspect(streams genericclioptions.IOStreams, parentCommandPath string
 
 	cmd.Flags().StringVar(&o.destDir, "dest-dir", o.destDir, "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/inspect.local.<rand>")
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
-
+	cmd.Flags().BoolVarP(&o.inspectNonRunningPod, "non-running-pods", "", o.inspectNonRunningPod, "If present, doesn't skips the collection of non running pods")
 	o.configFlags.AddFlags(cmd.Flags())
 	return cmd
 }

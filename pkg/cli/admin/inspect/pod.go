@@ -17,7 +17,7 @@ import (
 )
 
 func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) error {
-	if pod.Status.Phase != corev1.PodRunning {
+	if pod.Status.Phase != corev1.PodRunning && !o.inspectNonRunningPod {
 		klog.V(1).Infof("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
 		return nil
 	}
@@ -37,7 +37,7 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 	// skip gathering container data if containers are no longer running
 	if running, err := PodRunningReady(pod); err != nil {
 		return err
-	} else if !running {
+	} else if !running && !o.inspectNonRunningPod {
 		klog.V(1).Infof("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
 		return nil
 	}
