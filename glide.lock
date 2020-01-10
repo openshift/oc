@@ -1,5 +1,5 @@
-hash: a302476885fc3355a498c603a8b9405aafc916ef5eadb7c21067c6329874a8d1
-updated: 2019-11-14T16:47:46.66252075+01:00
+hash: b02b691d58eee5e47280bb08385102c933b415a45b8f7a4a115684ce49019112
+updated: 2020-01-10T17:28:56.278066753+01:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: a7dc8b61c822528f973a5e4e7b272055c6fdb43e
@@ -507,7 +507,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 8ab60e64997ac0990ef30a4e01481056dec95568
+  version: 61f035b9264717e7eea25dfe9db1cc2cb69d7530
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -1072,7 +1072,7 @@ imports:
 - name: k8s.io/kubelet
   version: f6da02f583256d1a15cc44a101c80bfa2080a46f
 - name: k8s.io/kubernetes
-  version: 9370cd520cf603005556213fbfe5d960096104e1
+  version: cb0f3cf27e30111710a55667d30724777f1b7656
   repo: https://github.com/openshift/kubernetes.git
   subpackages:
   - cmd/genutils
