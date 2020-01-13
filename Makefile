@@ -8,12 +8,16 @@ include $(addprefix ./vendor/github.com/openshift/library-go/alpha-build-machine
 	targets/openshift/rpm.mk \
 )
 
-GO_LD_EXTRAFLAGS :=-X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitMajor="1" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitMinor="17" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitVersion="v.17.0-4-g38212b5" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitTreeState="clean"
+GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
+                   -X k8s.io/component-base/version.gitMinor="17" \
+                   -X k8s.io/component-base/version.gitVersion="v1.17.0-4-g38212b5" \
+                   -X k8s.io/component-base/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
+                   -X k8s.io/component-base/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+                   -X k8s.io/component-base/version.gitTreeState="clean" \
+                   -X k8s.io/client-go/pkg/version.gitVersion="$(SOURCE_GIT_TAG)" \
+                   -X k8s.io/client-go/pkg/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
+                   -X k8s.io/client-go/pkg/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+                   -X k8s.io/client-go/pkg/version.gitTreeState="$(SOURCE_GIT_TREE_STATE)"
 
 GO_BUILD_PACKAGES :=$(strip \
 	./cmd/... \
