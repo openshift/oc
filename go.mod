@@ -71,7 +71,7 @@ replace (
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.0
 	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20191211181342-5a804e65bdc1
 	k8s.io/apiserver => k8s.io/apiserver v0.17.0
-	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20191211181810-5b89652d688e
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200114162348-c8810ef308ee
 	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20191211181558-5dcabadb2b45
 	k8s.io/cloud-provider => k8s.io/cloud-provider v0.17.0
 	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.17.0
@@ -83,7 +83,7 @@ replace (
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.17.0
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.17.0
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.17.0
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200114121535-5e67185ab42c
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200114162345-1480074475fa
 	k8s.io/kubelet => k8s.io/kubelet v0.17.0
 	k8s.io/kubernetes => github.com/openshift/kubernetes v1.17.0-alpha.0.0.20191216151305-079984b0a154
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.17.0
