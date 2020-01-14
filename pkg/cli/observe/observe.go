@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -439,7 +440,7 @@ func (o *ObserveOptions) Run() error {
 			}
 			return nil
 		}))
-		http.Handle("/metrics", prometheus.Handler())
+		http.Handle("/metrics", promhttp.Handler())
 		go func() {
 			klog.Fatalf("Unable to listen on %q: %v", o.listenAddr, http.ListenAndServe(o.listenAddr, nil))
 		}()
@@ -733,7 +734,7 @@ func (o *ObserveOptions) dumpMetrics() {
 		return
 	}
 	w := httptest.NewRecorder()
-	prometheus.UninstrumentedHandler().ServeHTTP(w, &http.Request{})
+	promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{}).ServeHTTP(w, &http.Request{})
 	if w.Code == http.StatusOK {
 		fmt.Fprintf(o.Out, w.Body.String())
 	}
