@@ -427,6 +427,8 @@ func (o PruneImagesOptions) Run() error {
 		registryPinger        imageprune.RegistryPinger
 	)
 
+	registryPinger = &imageprune.DryRunRegistryPinger{}
+	registryClientFactory = imageprune.FakeRegistryClientFactory
 	if o.Confirm {
 		if len(registryHost) == 0 {
 			registryHost, err = imageprune.DetermineRegistryHost(allImages, allStreams)
@@ -449,13 +451,13 @@ func (o PruneImagesOptions) Run() error {
 			return err
 		}
 
-		registryPinger = &imageprune.DefaultRegistryPinger{
-			Client:   registryClient,
-			Insecure: insecure,
+		// we only need to ping the registry if we are going to access it.
+		if o.PruneRegistry != nil && *o.PruneRegistry {
+			registryPinger = &imageprune.DefaultRegistryPinger{
+				Client:   registryClient,
+				Insecure: insecure,
+			}
 		}
-	} else {
-		registryPinger = &imageprune.DryRunRegistryPinger{}
-		registryClientFactory = imageprune.FakeRegistryClientFactory
 	}
 
 	// verify the registy connection now to avoid future surprises
