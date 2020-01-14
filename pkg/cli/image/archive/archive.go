@@ -32,7 +32,7 @@ type (
 		// REMOVED: use remap instead
 		//UIDMaps          []idtools.IDMap
 		//GIDMaps          []idtools.IDMap
-		ChownOpts        *idtools.IDPair
+		ChownOpts        *idtools.Identity
 		IncludeSourceDir bool
 		// WhiteoutFormat is the expected on disk format for whiteout files.
 		// This format will be converted to the standard format on pack
@@ -69,11 +69,11 @@ type AlterHeader interface {
 }
 
 type RemapIDs struct {
-	mappings *idtools.IDMappings
+	mappings *idtools.IdentityMapping
 }
 
 func (r RemapIDs) Alter(hdr *tar.Header) (bool, error) {
-	ids, err := r.mappings.ToHost(idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid})
+	ids, err := r.mappings.ToHost(idtools.Identity{UID: hdr.Uid, GID: hdr.Gid})
 	hdr.Uid, hdr.Gid = ids.UID, ids.GID
 	return true, err
 }
@@ -303,7 +303,7 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 	return size, nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.IDPair, inUserns bool) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.Identity, inUserns bool) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -382,7 +382,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	// Lchown is not supported on Windows.
 	if Lchown && runtime.GOOS != "windows" {
 		if chownOpts == nil {
-			chownOpts = &idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
+			chownOpts = &idtools.Identity{UID: hdr.Uid, GID: hdr.Gid}
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
 			return err
