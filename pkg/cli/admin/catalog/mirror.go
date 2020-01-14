@@ -192,6 +192,9 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 
 	var extractor mirror.DatabaseExtractorFunc = func(from string) (string, error) {
 		e := imgextract.NewOptions(o.IOStreams)
+		e.SecurityOptions = o.SecurityOptions
+		e.FilterOptions = o.FilterOptions
+		e.ParallelOptions = o.ParallelOptions
 		e.FileDir = o.FileDir
 		if len(o.FromFileDir) > 0 {
 			e.FileDir = o.FromFileDir
