@@ -58,6 +58,7 @@ func NewCmdConfig(f cmdutil.Factory, pathOptions *clientcmd.PathOptions, streams
 	} else {
 		cmd.PersistentFlags().StringVar(&pathOptions.LoadingRules.ExplicitPath, pathOptions.ExplicitFileFlag, pathOptions.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 		cmd.PersistentFlags().StringVar(&pathOptions.LoadingRules.ExplicitPath, genericclioptions.OpenShiftKubeConfigFlagName, pathOptions.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
+		cmd.PersistentFlags().MarkDeprecated(genericclioptions.OpenShiftKubeConfigFlagName, "use --kubeconfig instead")
 	}
 
 	// TODO(juanvallejo): update all subcommands to work with genericclioptions.IOStreams
