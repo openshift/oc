@@ -37,6 +37,9 @@ import (
 	"github.com/openshift/oc/pkg/cli"
 	"github.com/openshift/oc/pkg/helpers/legacy"
 	"github.com/openshift/oc/pkg/version"
+
+	// Import to initialize client auth plugins.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 func injectLoglevelFlag(flags *pflag.FlagSet) {
