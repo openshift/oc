@@ -96,7 +96,7 @@ replace (
 	github.com/ghodss/yaml => github.com/ghodss/yaml v0.0.0-20170327235444-0ca9ea5df545
 	github.com/golang/glog => github.com/openshift/golang-glog v0.0.0-20190322123450-3c92600d7533
 	github.com/onsi/ginkgo => github.com/openshift/onsi-ginkgo v0.0.0-20190125161613-53ca7dc85f60
-	github.com/openshift/api => github.com/openshift/api v0.0.0-0.20191112184635-86def77f6f
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20191112184635-86def77f6f90
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298
 	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20191112181215-0597a29991ca
 	github.com/openshift/source-to-image => github.com/openshift/source-to-image v0.0.0-20191031172932-56e8595e83fb
