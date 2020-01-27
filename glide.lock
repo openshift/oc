@@ -1,9 +1,14 @@
-hash: a302476885fc3355a498c603a8b9405aafc916ef5eadb7c21067c6329874a8d1
-updated: 2019-11-14T16:47:46.66252075+01:00
+hash: b02b691d58eee5e47280bb08385102c933b415a45b8f7a4a115684ce49019112
+updated: 2020-01-27T17:50:53.674603398+01:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: a7dc8b61c822528f973a5e4e7b272055c6fdb43e
   repo: https://github.com/munnerz/goautoneg.git
+- name: cloud.google.com/go
+  version: 3b1ae45394a234c385be014e9a488f2bb6eef821
+  subpackages:
+  - compute/metadata
+  - internal
 - name: github.com/alexbrainman/sspi
   version: e580b900e9f5657daa5473021296289be6da2661
   subpackages:
@@ -63,6 +68,15 @@ imports:
   version: d6e3b3328b783f23731bc4d058875b0371ff8109
   subpackages:
   - winterm
+- name: github.com/Azure/go-autorest
+  version: ea233b6412b0421a65dc6160e16c893364664a95
+  subpackages:
+  - autorest
+  - autorest/adal
+  - autorest/azure
+  - autorest/date
+  - logger
+  - version
 - name: github.com/beorn7/perks
   version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
@@ -120,6 +134,8 @@ imports:
   - spew
 - name: github.com/daviddengcn/go-colortext
   version: 511bcaf42ccd42c38aba7427b6673277bf19e2a1
+- name: github.com/dgrijalva/jwt-go
+  version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
 - name: github.com/docker/distribution
   version: d4c35485a70df4dce2179bc227b1393a69edb809
   repo: https://github.com/openshift/docker-distribution.git
@@ -298,6 +314,15 @@ imports:
   - OpenAPIv2
   - compiler
   - extensions
+- name: github.com/gophercloud/gophercloud
+  version: c818fa66e4c88b30db28038fe3f18f2f4a0db9a8
+  subpackages:
+  - openstack
+  - openstack/identity/v2/tenants
+  - openstack/identity/v2/tokens
+  - openstack/identity/v3/tokens
+  - openstack/utils
+  - pagination
 - name: github.com/gorilla/mux
   version: f395758b854c4efa789b8c1e9b73479704c548cb
 - name: github.com/gregjones/httpcache
@@ -356,7 +381,7 @@ imports:
 - name: github.com/modern-go/reflect2
   version: 94122c33edd36123c84d5368cfb2b69df93a0ec8
 - name: github.com/mtrmac/gpgme
-  version: b2432428689ca58c2b8e8dea9449d3295cf96fc9
+  version: ce00817b8a3f5f0c7dfc5a50be6499b6b8c8c8b4
 - name: github.com/mxk/go-flowrate
   version: cca7078d478f8520f85629ad7c68962d31ed7682
   subpackages:
@@ -507,7 +532,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 8ab60e64997ac0990ef30a4e01481056dec95568
+  version: 61f035b9264717e7eea25dfe9db1cc2cb69d7530
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -616,29 +641,15 @@ imports:
 - name: golang.org/x/crypto
   version: de0752318171da717af4ce24d0a2e8626afaeb11
   subpackages:
-  - bcrypt
-  - blowfish
   - cast5
-  - cryptobyte
-  - cryptobyte/asn1
-  - curve25519
   - ed25519
   - ed25519/internal/edwards25519
-  - internal/chacha20
-  - internal/subtle
-  - nacl/secretbox
-  - ocsp
   - openpgp
   - openpgp/armor
   - openpgp/elgamal
   - openpgp/errors
   - openpgp/packet
   - openpgp/s2k
-  - pkcs12
-  - pkcs12/internal/rc2
-  - poly1305
-  - salsa20/salsa
-  - ssh
   - ssh/terminal
 - name: golang.org/x/net
   version: 65e2d4e15006aab9813ff8769e768bbf4bb667a0
@@ -667,8 +678,6 @@ imports:
   subpackages:
   - unix
   - windows
-  - windows/registry
-  - windows/svc
 - name: golang.org/x/text
   version: b19bf474d317b857955b12035d2c5acb57ce8b01
   subpackages:
@@ -716,9 +725,11 @@ imports:
   version: 12d5545dc1cfa6047a286d5e853841b6471f4c19
   subpackages:
   - internal
+  - internal/app_identity
   - internal/base
   - internal/datastore
   - internal/log
+  - internal/modules
   - internal/remote_api
   - internal/urlfetch
   - urlfetch
@@ -993,7 +1004,12 @@ imports:
   - pkg/apis/clientauthentication/v1alpha1
   - pkg/apis/clientauthentication/v1beta1
   - pkg/version
+  - plugin/pkg/client/auth
+  - plugin/pkg/client/auth/azure
   - plugin/pkg/client/auth/exec
+  - plugin/pkg/client/auth/gcp
+  - plugin/pkg/client/auth/oidc
+  - plugin/pkg/client/auth/openstack
   - rest
   - rest/fake
   - rest/watch
@@ -1072,7 +1088,7 @@ imports:
 - name: k8s.io/kubelet
   version: f6da02f583256d1a15cc44a101c80bfa2080a46f
 - name: k8s.io/kubernetes
-  version: 9370cd520cf603005556213fbfe5d960096104e1
+  version: cb0f3cf27e30111710a55667d30724777f1b7656
   repo: https://github.com/openshift/kubernetes.git
   subpackages:
   - cmd/genutils
