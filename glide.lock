@@ -1,9 +1,14 @@
 hash: b08f0b2b730a097c20468f0bf4ba4501946f6a71c72b213cafe33c3979a284c3
-updated: 2020-02-19T11:56:32.015911352+01:00
+updated: 2020-04-20T13:55:55.571704589+02:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: a7dc8b61c822528f973a5e4e7b272055c6fdb43e
   repo: https://github.com/munnerz/goautoneg.git
+- name: cloud.google.com/go
+  version: 3b1ae45394a234c385be014e9a488f2bb6eef821
+  subpackages:
+  - compute/metadata
+  - internal
 - name: github.com/alexbrainman/sspi
   version: e580b900e9f5657daa5473021296289be6da2661
   subpackages:
@@ -63,6 +68,15 @@ imports:
   version: d6e3b3328b783f23731bc4d058875b0371ff8109
   subpackages:
   - winterm
+- name: github.com/Azure/go-autorest
+  version: ea233b6412b0421a65dc6160e16c893364664a95
+  subpackages:
+  - autorest
+  - autorest/adal
+  - autorest/azure
+  - autorest/date
+  - logger
+  - version
 - name: github.com/beorn7/perks
   version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
@@ -120,6 +134,8 @@ imports:
   - spew
 - name: github.com/daviddengcn/go-colortext
   version: 511bcaf42ccd42c38aba7427b6673277bf19e2a1
+- name: github.com/dgrijalva/jwt-go
+  version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
 - name: github.com/docker/distribution
   version: d4c35485a70df4dce2179bc227b1393a69edb809
   repo: https://github.com/openshift/docker-distribution.git
@@ -298,6 +314,15 @@ imports:
   - OpenAPIv2
   - compiler
   - extensions
+- name: github.com/gophercloud/gophercloud
+  version: c818fa66e4c88b30db28038fe3f18f2f4a0db9a8
+  subpackages:
+  - openstack
+  - openstack/identity/v2/tenants
+  - openstack/identity/v2/tokens
+  - openstack/identity/v3/tokens
+  - openstack/utils
+  - pagination
 - name: github.com/gorilla/mux
   version: f395758b854c4efa789b8c1e9b73479704c548cb
 - name: github.com/gregjones/httpcache
@@ -395,7 +420,7 @@ imports:
   - libcontainer/user
   - libcontainer/utils
 - name: github.com/openshift/api
-  version: d4a64ec2cbd86f11ea74dfdcf6520d5833d0c6cd
+  version: 8ce0047d664fc92a53ded23caef9ede2dc4468c6
   subpackages:
   - annotations
   - apps
@@ -507,7 +532,7 @@ imports:
   - user/clientset/versioned/typed/user/v1
   - user/clientset/versioned/typed/user/v1/fake
 - name: github.com/openshift/library-go
-  version: 61f035b9264717e7eea25dfe9db1cc2cb69d7530
+  version: d58edcb9e7bca8b6c77e261db8df547364f69fb2
   subpackages:
   - pkg/apps/appsserialization
   - pkg/apps/appsutil
@@ -616,29 +641,15 @@ imports:
 - name: golang.org/x/crypto
   version: de0752318171da717af4ce24d0a2e8626afaeb11
   subpackages:
-  - bcrypt
-  - blowfish
   - cast5
-  - cryptobyte
-  - cryptobyte/asn1
-  - curve25519
   - ed25519
   - ed25519/internal/edwards25519
-  - internal/chacha20
-  - internal/subtle
-  - nacl/secretbox
-  - ocsp
   - openpgp
   - openpgp/armor
   - openpgp/elgamal
   - openpgp/errors
   - openpgp/packet
   - openpgp/s2k
-  - pkcs12
-  - pkcs12/internal/rc2
-  - poly1305
-  - salsa20/salsa
-  - ssh
   - ssh/terminal
 - name: golang.org/x/net
   version: 65e2d4e15006aab9813ff8769e768bbf4bb667a0
@@ -667,8 +678,6 @@ imports:
   subpackages:
   - unix
   - windows
-  - windows/registry
-  - windows/svc
 - name: golang.org/x/text
   version: b19bf474d317b857955b12035d2c5acb57ce8b01
   subpackages:
@@ -716,9 +725,11 @@ imports:
   version: 12d5545dc1cfa6047a286d5e853841b6471f4c19
   subpackages:
   - internal
+  - internal/app_identity
   - internal/base
   - internal/datastore
   - internal/log
+  - internal/modules
   - internal/remote_api
   - internal/urlfetch
   - urlfetch
@@ -993,7 +1004,12 @@ imports:
   - pkg/apis/clientauthentication/v1alpha1
   - pkg/apis/clientauthentication/v1beta1
   - pkg/version
+  - plugin/pkg/client/auth
+  - plugin/pkg/client/auth/azure
   - plugin/pkg/client/auth/exec
+  - plugin/pkg/client/auth/gcp
+  - plugin/pkg/client/auth/oidc
+  - plugin/pkg/client/auth/openstack
   - rest
   - rest/fake
   - rest/watch
