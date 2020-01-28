@@ -244,21 +244,10 @@ func NewOcCommand(name, fullName string, in io.Reader, out, errout io.Writer) *c
 	}
 	groups.Add(cmds)
 
-	ocEditFullName := fullName + " edit"
-	ocSecretsFullName := fullName + " " + secrets.SecretsRecommendedName
-	ocSecretsNewFullName := ocSecretsFullName + " " + secrets.NewSecretRecommendedCommandName
-
 	filters := []string{
 		"options",
 		"deploy",
-		// These commands are deprecated and should not appear in help
-		moved(fullName, "secrets link", secretcmds, secrets.NewCmdLinkSecret("add", fullName, f, ioStreams)),
-		moved(fullName, "create secret", secretcmds, secrets.NewCmdCreateSecret(secrets.NewSecretRecommendedCommandName, fullName, f, ioStreams)),
-		moved(fullName, "create secret", secretcmds, secrets.NewCmdCreateDockerConfigSecret(secrets.CreateDockerConfigSecretRecommendedName, fullName, f, ioStreams, ocSecretsNewFullName, ocEditFullName)),
-		moved(fullName, "create secret", secretcmds, secrets.NewCmdCreateBasicAuthSecret(secrets.CreateBasicAuthSecretRecommendedCommandName, fullName, f, ioStreams, ocSecretsNewFullName, ocEditFullName)),
-		moved(fullName, "create secret", secretcmds, secrets.NewCmdCreateSSHAuthSecret(secrets.CreateSSHAuthSecretRecommendedCommandName, fullName, f, ioStreams, ocSecretsNewFullName, ocEditFullName)),
 	}
-
 	changeSharedFlagDefaults(cmds)
 	cmdutil.ActsAsRootCommand(cmds, filters, groups...).
 		ExposeFlags(loginCmd, "certificate-authority", "insecure-skip-tls-verify", "token")

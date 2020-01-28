@@ -10,19 +10,6 @@ import (
 
 const SecretsRecommendedName = "secrets"
 
-const (
-	// SourceUsername is the key of the optional username for basic authentication subcommand
-	SourceUsername = "username"
-	// SourcePassword is the key of the optional password or token for basic authentication subcommand
-	SourcePassword = "password"
-	// SourceCertificate is the key of the optional certificate authority for basic authentication subcommand
-	SourceCertificate = "ca.crt"
-	// SourcePrivateKey is the key of the required SSH private key for SSH authentication subcommand
-	SourcePrivateKey = "ssh-privatekey"
-	// SourceGitconfig is the key of the optional gitconfig content for both basic and SSH authentication subcommands
-	SourceGitConfig = ".gitconfig"
-)
-
 var (
 	secretsLong = templates.LongDesc(`
     Manage secrets in your project
