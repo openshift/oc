@@ -6,15 +6,44 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util/templates"
 )
+
+var (
+	secretsLong = templates.LongDesc(`
+    Manage secrets in your project
+
+    Secrets are used to store confidential information that should not be contained inside of an image.
+    They are commonly used to hold things like keys for authentication to other internal systems like
+    container image registries.`)
+)
+
+func NewCmdSecrets(parent string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	// Parent command to which all subcommands are added.
+	cmds := &cobra.Command{
+		Use:     "secrets",
+		Short:   "Manage secrets",
+		Long:    secretsLong,
+		Aliases: []string{"secret"},
+		Run:     kcmdutil.DefaultSubCommandRun(streams.ErrOut),
+	}
+
+	cmds.AddCommand(NewCmdLinkSecret(parent, f, streams))
+	cmds.AddCommand(NewCmdUnlinkSecret(parent, f, streams))
+
+	return cmds
+}
 
 // SecretOptions Structure holding state for processing secret linking and
 // unlinking.

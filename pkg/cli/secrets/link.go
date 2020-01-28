@@ -14,9 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// LinkSecretRecommendedName `oc secrets link`
-const LinkSecretRecommendedName = "link"
-
 var (
 	linkSecretLong = templates.LongDesc(`
     Link secrets to a service account
@@ -25,13 +22,13 @@ var (
 
 	linkSecretExample = templates.Examples(`
     # Add an image pull secret to a service account to automatically use it for pulling pod images:
-    %[1]s serviceaccount-name pull-secret --for=pull
+    %[1]s link serviceaccount-name pull-secret --for=pull
 
     # Add an image pull secret to a service account to automatically use it for both pulling and pushing build images:
-    %[1]s builder builder-image-secret --for=pull,mount
+    %[1]s link builder builder-image-secret --for=pull,mount
 
     # If the cluster's serviceAccountConfig is operating with limitSecretReferences: True, secrets must be added to the pod's service account whitelist in order to be available to the pod:
-    %[1]s pod-sa pod-secret`)
+    %[1]s link pod-sa pod-secret`)
 )
 
 type LinkSecretOptions struct {
@@ -50,32 +47,18 @@ func NewLinkSecretOptions(streams genericclioptions.IOStreams) *LinkSecretOption
 }
 
 // NewCmdLinkSecret creates a command object for linking a secret reference to a service account
-func NewCmdLinkSecret(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLinkSecret(parent string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewLinkSecretOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s serviceaccounts-name secret-name [another-secret-name]...", name),
+		Use:     "link serviceaccounts-name secret-name [another-secret-name]...",
 		Short:   "Link secrets to a ServiceAccount",
 		Long:    linkSecretLong,
-		Example: fmt.Sprintf(linkSecretExample, fullName),
-		PreRun: func(cmd *cobra.Command, args []string) {
-			if len(os.Args) > 1 && os.Args[1] == "add" {
-				printDeprecationWarning("secrets add", "secrets link")
-			}
-		},
+		Example: fmt.Sprintf(linkSecretExample, parent),
 		Run: func(c *cobra.Command, args []string) {
-			if err := o.Complete(f, args); err != nil {
-				kcmdutil.CheckErr(kcmdutil.UsageErrorf(c, err.Error()))
-			}
-
-			if err := o.Validate(); err != nil {
-				kcmdutil.CheckErr(kcmdutil.UsageErrorf(c, err.Error()))
-			}
-
-			if err := o.LinkSecrets(); err != nil {
-				kcmdutil.CheckErr(err)
-			}
-
+			kcmdutil.CheckErr(o.Complete(f, args))
+			kcmdutil.CheckErr(o.Validate())
+			kcmdutil.CheckErr(o.LinkSecrets())
 		},
 	}
 

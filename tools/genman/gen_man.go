@@ -22,7 +22,7 @@ func main() {
 	}
 
 	if strings.HasSuffix(os.Args[2], "oc") {
-		genCmdMan("oc", cli.NewOcCommand("oc", "oc", &bytes.Buffer{}, os.Stdout, ioutil.Discard))
+		genCmdMan("oc", cli.NewOcCommand("oc", &bytes.Buffer{}, os.Stdout, ioutil.Discard))
 	} else {
 		fmt.Fprintf(os.Stderr, "Root command not specified (oc).")
 		os.Exit(1)

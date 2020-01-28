@@ -14,8 +14,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-const UnlinkSecretRecommendedName = "unlink"
-
 var (
 	unlinkSecretLong = templates.LongDesc(`
     Unlink (detach) secrets from a service account
@@ -24,7 +22,7 @@ var (
 
 	unlinkSecretExample = templates.Examples(`
     # Unlink a secret currently associated with a service account:
-    %[1]s serviceaccount-name secret-name another-secret-name ...`)
+    %[1]s unlink serviceaccount-name secret-name another-secret-name ...`)
 )
 
 type UnlinkSecretOptions struct {
@@ -45,26 +43,18 @@ func NewUnlinkSecretOptions(streams genericclioptions.IOStreams) *UnlinkSecretOp
 }
 
 // NewCmdUnlinkSecret creates a command object for detaching one or more secret references from a service account
-func NewCmdUnlinkSecret(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdUnlinkSecret(parent string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewUnlinkSecretOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s serviceaccount-name secret-name [another-secret-name] ...", name),
+		Use:     "unlink serviceaccount-name secret-name [another-secret-name] ...",
 		Short:   "Detach secrets from a ServiceAccount",
 		Long:    unlinkSecretLong,
-		Example: fmt.Sprintf(unlinkSecretExample, fullName),
+		Example: fmt.Sprintf(unlinkSecretExample, parent),
 		Run: func(c *cobra.Command, args []string) {
-			if err := o.Complete(f, args); err != nil {
-				kcmdutil.CheckErr(kcmdutil.UsageErrorf(c, err.Error()))
-			}
-			if err := o.Validate(); err != nil {
-				kcmdutil.CheckErr(kcmdutil.UsageErrorf(c, err.Error()))
-			}
-
-			if err := o.Run(); err != nil {
-				kcmdutil.CheckErr(err)
-			}
-
+			kcmdutil.CheckErr(o.Complete(f, args))
+			kcmdutil.CheckErr(o.Validate())
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 

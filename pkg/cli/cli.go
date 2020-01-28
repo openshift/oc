@@ -101,8 +101,8 @@ var (
     To see the full list of commands supported, run '%[1]s --help'.`)
 )
 
-func NewDefaultOcCommand(name, fullName string, in io.Reader, out, errout io.Writer) *cobra.Command {
-	cmd := NewOcCommand(name, fullName, in, out, errout)
+func NewDefaultOcCommand(name string, in io.Reader, out, errout io.Writer) *cobra.Command {
+	cmd := NewOcCommand(name, in, out, errout)
 
 	if len(os.Args) <= 1 {
 		return cmd
@@ -123,7 +123,7 @@ func NewDefaultOcCommand(name, fullName string, in io.Reader, out, errout io.Wri
 	return cmd
 }
 
-func NewOcCommand(name, fullName string, in io.Reader, out, errout io.Writer) *cobra.Command {
+func NewOcCommand(name string, in io.Reader, out, errout io.Writer) *cobra.Command {
 	// Main command
 	cmds := &cobra.Command{
 		Use:   name,
@@ -133,7 +133,7 @@ func NewOcCommand(name, fullName string, in io.Reader, out, errout io.Writer) *c
 			explainOut := term.NewResponsiveWriter(out)
 			c.SetOutput(explainOut)
 			kcmdutil.RequireNoArguments(c, args)
-			fmt.Fprintf(explainOut, "%s\n\n%s\n", cliLong, fmt.Sprintf(cliExplain, fullName))
+			fmt.Fprintf(explainOut, "%s\n\n%s\n", cliLong, fmt.Sprintf(cliExplain, name))
 		},
 		BashCompletionFunction: bashCompletionFunc,
 	}
@@ -147,87 +147,87 @@ func NewOcCommand(name, fullName string, in io.Reader, out, errout io.Writer) *c
 
 	ioStreams := genericclioptions.IOStreams{In: in, Out: out, ErrOut: errout}
 
-	loginCmd := login.NewCmdLogin(fullName, f, ioStreams)
-	secretcmds := secrets.NewCmdSecrets(secrets.SecretsRecommendedName, fullName+" "+secrets.SecretsRecommendedName, f, ioStreams)
+	loginCmd := login.NewCmdLogin(name, f, ioStreams)
+	secretcmds := secrets.NewCmdSecrets(name, f, ioStreams)
 
 	groups := ktemplates.CommandGroups{
 		{
 			Message: "Basic Commands:",
 			Commands: []*cobra.Command{
 				loginCmd,
-				requestproject.NewCmdRequestProject(fullName, f, ioStreams),
-				newapp.NewCmdNewApplication(newapp.NewAppRecommendedCommandName, fullName, f, ioStreams),
-				status.NewCmdStatus(status.StatusRecommendedName, fullName, fullName+" "+status.StatusRecommendedName, f, ioStreams),
-				project.NewCmdProject(fullName, f, ioStreams),
-				projects.NewCmdProjects(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdExplain(fullName, f, ioStreams),
+				requestproject.NewCmdRequestProject(name, f, ioStreams),
+				newapp.NewCmdNewApplication(newapp.NewAppRecommendedCommandName, name, f, ioStreams),
+				status.NewCmdStatus(status.StatusRecommendedName, name, name+" "+status.StatusRecommendedName, f, ioStreams),
+				project.NewCmdProject(name, f, ioStreams),
+				projects.NewCmdProjects(name, f, ioStreams),
+				kubectlwrappers.NewCmdExplain(name, f, ioStreams),
 			},
 		},
 		{
 			Message: "Build and Deploy Commands:",
 			Commands: []*cobra.Command{
-				rollout.NewCmdRollout(fullName, f, ioStreams),
-				rollback.NewCmdRollback(fullName, f, ioStreams),
-				newbuild.NewCmdNewBuild(newbuild.NewBuildRecommendedCommandName, fullName, f, ioStreams),
-				startbuild.NewCmdStartBuild(fullName, f, ioStreams),
-				cancelbuild.NewCmdCancelBuild(cancelbuild.CancelBuildRecommendedCommandName, fullName, f, ioStreams),
-				importimage.NewCmdImportImage(fullName, f, ioStreams),
-				tag.NewCmdTag(fullName, f, ioStreams),
+				rollout.NewCmdRollout(name, f, ioStreams),
+				rollback.NewCmdRollback(name, f, ioStreams),
+				newbuild.NewCmdNewBuild(newbuild.NewBuildRecommendedCommandName, name, f, ioStreams),
+				startbuild.NewCmdStartBuild(name, f, ioStreams),
+				cancelbuild.NewCmdCancelBuild(cancelbuild.CancelBuildRecommendedCommandName, name, f, ioStreams),
+				importimage.NewCmdImportImage(name, f, ioStreams),
+				tag.NewCmdTag(name, f, ioStreams),
 			},
 		},
 		{
 			Message: "Application Management Commands:",
 			Commands: []*cobra.Command{
-				kubectlwrappers.NewCmdCreate(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdApply(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdGet(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdDescribe(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdEdit(fullName, f, ioStreams),
-				set.NewCmdSet(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdLabel(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdAnnotate(fullName, f, ioStreams),
-				expose.NewCmdExpose(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdDelete(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdScale(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdAutoscale(fullName, f, ioStreams),
+				kubectlwrappers.NewCmdCreate(name, f, ioStreams),
+				kubectlwrappers.NewCmdApply(name, f, ioStreams),
+				kubectlwrappers.NewCmdGet(name, f, ioStreams),
+				kubectlwrappers.NewCmdDescribe(name, f, ioStreams),
+				kubectlwrappers.NewCmdEdit(name, f, ioStreams),
+				set.NewCmdSet(name, f, ioStreams),
+				kubectlwrappers.NewCmdLabel(name, f, ioStreams),
+				kubectlwrappers.NewCmdAnnotate(name, f, ioStreams),
+				expose.NewCmdExpose(name, f, ioStreams),
+				kubectlwrappers.NewCmdDelete(name, f, ioStreams),
+				kubectlwrappers.NewCmdScale(name, f, ioStreams),
+				kubectlwrappers.NewCmdAutoscale(name, f, ioStreams),
 				secretcmds,
-				serviceaccounts.NewCmdServiceAccounts(serviceaccounts.ServiceAccountsRecommendedName, fullName+" "+serviceaccounts.ServiceAccountsRecommendedName, f, ioStreams),
+				serviceaccounts.NewCmdServiceAccounts(serviceaccounts.ServiceAccountsRecommendedName, name+" "+serviceaccounts.ServiceAccountsRecommendedName, f, ioStreams),
 			},
 		},
 		{
 			Message: "Troubleshooting and Debugging Commands:",
 			Commands: []*cobra.Command{
-				logs.NewCmdLogs(fullName, f, ioStreams),
-				rsh.NewCmdRsh(rsh.RshRecommendedName, fullName, f, ioStreams),
-				rsync.NewCmdRsync(rsync.RsyncRecommendedName, fullName, f, ioStreams),
-				kubectlwrappers.NewCmdPortForward(fullName, f, ioStreams),
-				debug.NewCmdDebug(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdExec(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdProxy(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdAttach(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdRun(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdCp(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdWait(fullName, f, ioStreams),
+				logs.NewCmdLogs(name, f, ioStreams),
+				rsh.NewCmdRsh(rsh.RshRecommendedName, name, f, ioStreams),
+				rsync.NewCmdRsync(rsync.RsyncRecommendedName, name, f, ioStreams),
+				kubectlwrappers.NewCmdPortForward(name, f, ioStreams),
+				debug.NewCmdDebug(name, f, ioStreams),
+				kubectlwrappers.NewCmdExec(name, f, ioStreams),
+				kubectlwrappers.NewCmdProxy(name, f, ioStreams),
+				kubectlwrappers.NewCmdAttach(name, f, ioStreams),
+				kubectlwrappers.NewCmdRun(name, f, ioStreams),
+				kubectlwrappers.NewCmdCp(name, f, ioStreams),
+				kubectlwrappers.NewCmdWait(name, f, ioStreams),
 			},
 		},
 		{
 			Message: "Advanced Commands:",
 			Commands: []*cobra.Command{
-				admin.NewCommandAdmin("adm", fullName+" "+"adm", f, ioStreams),
-				kubectlwrappers.NewCmdReplace(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdPatch(fullName, f, ioStreams),
-				process.NewCmdProcess(fullName, f, ioStreams),
-				extract.NewCmdExtract(fullName, f, ioStreams),
-				observe.NewCmdObserve(fullName, f, ioStreams),
-				policy.NewCmdPolicy(policy.PolicyRecommendedName, fullName+" "+policy.PolicyRecommendedName, f, ioStreams),
-				kubectlwrappers.NewCmdAuth(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdConvert(fullName, f, ioStreams),
-				image.NewCmdImage(fullName, f, ioStreams),
-				registry.NewCmd(fullName, f, ioStreams),
-				idle.NewCmdIdle(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdApiVersions(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdApiResources(fullName, f, ioStreams),
-				kubectlwrappers.NewCmdClusterInfo(fullName, f, ioStreams),
+				admin.NewCommandAdmin("adm", name+" "+"adm", f, ioStreams),
+				kubectlwrappers.NewCmdReplace(name, f, ioStreams),
+				kubectlwrappers.NewCmdPatch(name, f, ioStreams),
+				process.NewCmdProcess(name, f, ioStreams),
+				extract.NewCmdExtract(name, f, ioStreams),
+				observe.NewCmdObserve(name, f, ioStreams),
+				policy.NewCmdPolicy(policy.PolicyRecommendedName, name+" "+policy.PolicyRecommendedName, f, ioStreams),
+				kubectlwrappers.NewCmdAuth(name, f, ioStreams),
+				kubectlwrappers.NewCmdConvert(name, f, ioStreams),
+				image.NewCmdImage(name, f, ioStreams),
+				registry.NewCmd(name, f, ioStreams),
+				idle.NewCmdIdle(name, f, ioStreams),
+				kubectlwrappers.NewCmdApiVersions(name, f, ioStreams),
+				kubectlwrappers.NewCmdApiResources(name, f, ioStreams),
+				kubectlwrappers.NewCmdClusterInfo(name, f, ioStreams),
 				diff.NewCmdDiff(f, ioStreams),
 				kustomize.NewCmdKustomize(ioStreams),
 			},
@@ -235,10 +235,10 @@ func NewOcCommand(name, fullName string, in io.Reader, out, errout io.Writer) *c
 		{
 			Message: "Settings Commands:",
 			Commands: []*cobra.Command{
-				logout.NewCmdLogout("logout", fullName+" logout", fullName+" login", f, ioStreams),
-				kubectlwrappers.NewCmdConfig(fullName, "config", f, ioStreams),
-				whoami.NewCmdWhoAmI(whoami.WhoAmIRecommendedCommandName, fullName+" "+whoami.WhoAmIRecommendedCommandName, f, ioStreams),
-				kubectlwrappers.NewCmdCompletion(fullName, ioStreams),
+				logout.NewCmdLogout("logout", name+" logout", name+" login", f, ioStreams),
+				kubectlwrappers.NewCmdConfig(name, "config", f, ioStreams),
+				whoami.NewCmdWhoAmI(whoami.WhoAmIRecommendedCommandName, name+" "+whoami.WhoAmIRecommendedCommandName, f, ioStreams),
+				kubectlwrappers.NewCmdCompletion(name, ioStreams),
 			},
 		},
 	}
@@ -254,8 +254,8 @@ func NewOcCommand(name, fullName string, in io.Reader, out, errout io.Writer) *c
 
 	cmds.AddCommand(newExperimentalCommand("ex", name+" ex", f, ioStreams))
 
-	cmds.AddCommand(kubectlwrappers.NewCmdPlugin(fullName, f, ioStreams))
-	cmds.AddCommand(version.NewCmdVersion(fullName, f, ioStreams))
+	cmds.AddCommand(kubectlwrappers.NewCmdPlugin(name, f, ioStreams))
+	cmds.AddCommand(version.NewCmdVersion(name, f, ioStreams))
 	cmds.AddCommand(options.NewCmdOptions(ioStreams))
 
 	if cmds.Flag("namespace") != nil {
@@ -349,7 +349,7 @@ func CommandFor(basename string) *cobra.Command {
 		cmd = recycle.NewCommandRecycle(basename, out)
 	default:
 		shimKubectlForOc()
-		cmd = NewDefaultOcCommand("oc", "oc", in, out, errout)
+		cmd = NewDefaultOcCommand("oc", in, out, errout)
 
 		// treat oc as a kubectl plugin
 		if strings.HasPrefix(basename, "kubectl-") {
