@@ -17558,65 +17558,6 @@ _oc_scale()
     noun_aliases=()
 }
 
-_oc_secrets_add()
-{
-    last_command="oc_secrets_add"
-
-    command_aliases=()
-
-    commands=()
-
-    flags=()
-    two_word_flags=()
-    local_nonpersistent_flags=()
-    flags_with_completion=()
-    flags_completion=()
-
-    flags+=("--for=")
-    two_word_flags+=("--for")
-    local_nonpersistent_flags+=("--for=")
-    flags+=("--as=")
-    two_word_flags+=("--as")
-    flags+=("--as-group=")
-    two_word_flags+=("--as-group")
-    flags+=("--cache-dir=")
-    two_word_flags+=("--cache-dir")
-    flags+=("--certificate-authority=")
-    two_word_flags+=("--certificate-authority")
-    flags+=("--client-certificate=")
-    two_word_flags+=("--client-certificate")
-    flags+=("--client-key=")
-    two_word_flags+=("--client-key")
-    flags+=("--cluster=")
-    two_word_flags+=("--cluster")
-    flags+=("--context=")
-    two_word_flags+=("--context")
-    flags+=("--insecure-skip-tls-verify")
-    flags+=("--kubeconfig=")
-    two_word_flags+=("--kubeconfig")
-    flags+=("--match-server-version")
-    flags+=("--namespace=")
-    two_word_flags+=("--namespace")
-    flags_with_completion+=("--namespace")
-    flags_completion+=("__oc_get_namespaces")
-    two_word_flags+=("-n")
-    flags_with_completion+=("-n")
-    flags_completion+=("__oc_get_namespaces")
-    flags+=("--request-timeout=")
-    two_word_flags+=("--request-timeout")
-    flags+=("--server=")
-    two_word_flags+=("--server")
-    two_word_flags+=("-s")
-    flags+=("--token=")
-    two_word_flags+=("--token")
-    flags+=("--user=")
-    two_word_flags+=("--user")
-
-    must_have_one_flag=()
-    must_have_one_noun=()
-    noun_aliases=()
-}
-
 _oc_secrets_link()
 {
     last_command="oc_secrets_link"
@@ -17750,7 +17691,6 @@ _oc_secrets()
     command_aliases=()
 
     commands=()
-    commands+=("add")
     commands+=("link")
     commands+=("unlink")
 
