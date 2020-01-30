@@ -431,6 +431,7 @@ func (o TagOptions) Run() error {
 					Namespace: o.destNamespace[i],
 				},
 				Tag: &imagev1.TagReference{
+					Name:      destTag,
 					Reference: o.referenceTag,
 					ImportPolicy: imagev1.TagImportPolicy{
 						Insecure:  o.insecureTag,
@@ -533,13 +534,19 @@ func (o TagOptions) Run() error {
 					istag.Tag.Generation = nil
 				}
 			}
-			// update tag
+
+			// create or update tag
+			found := false
 			for i := range target.Spec.Tags {
-				t := target.Spec.Tags[i]
+				t := &target.Spec.Tags[i]
 				if t.Name == destTag {
-					t = *istag.Tag
+					*t = *istag.Tag
+					found = true
 					break
 				}
+			}
+			if !found {
+				target.Spec.Tags = append(target.Spec.Tags, *istag.Tag)
 			}
 
 			// Check the stream creation timestamp and make sure we will not
