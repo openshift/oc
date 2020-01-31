@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"fmt"
+
 	"github.com/operator-framework/operator-registry/pkg/appregistry"
 	"github.com/spf13/cobra"
 
@@ -9,6 +11,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imgappend "github.com/openshift/oc/pkg/cli/image/append"
+	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 )
 
 var (
@@ -24,6 +27,10 @@ type BuildImageOptions struct {
 	*appregistry.AppregistryBuildOptions
 	genericclioptions.IOStreams
 
+	SecurityOptions imagemanifest.SecurityOptions
+	FilterOptions   imagemanifest.FilterOptions
+	ParallelOptions imagemanifest.ParallelOptions
+
 	FromFileDir string
 	FileDir     string
 }
@@ -32,6 +39,7 @@ func NewBuildImageOptions(streams genericclioptions.IOStreams) *BuildImageOption
 	return &BuildImageOptions{
 		AppregistryBuildOptions: appregistry.DefaultAppregistryBuildOptions(),
 		IOStreams:               streams,
+		ParallelOptions:         imagemanifest.ParallelOptions{MaxPerRegistry: 4},
 	}
 }
 
@@ -42,6 +50,9 @@ func (o *BuildImageOptions) Complete(cmd *cobra.Command, args []string) error {
 		a.FileDir = o.FileDir
 		a.From = o.From
 		a.To = o.To
+		a.SecurityOptions = o.SecurityOptions
+		a.FilterOptions = o.FilterOptions
+		a.ParallelOptions = o.ParallelOptions
 		a.LayerFiles = []string{layer}
 		if err := a.Validate(); err != nil {
 			return err
@@ -78,6 +89,9 @@ func NewBuildImage(streams genericclioptions.IOStreams) *cobra.Command {
 		},
 	}
 	flags := cmd.Flags()
+	o.SecurityOptions.Bind(flags)
+	o.FilterOptions.Bind(flags)
+	o.ParallelOptions.Bind(flags)
 
 	flags.StringVar(&o.From, "from", o.From, "The image to use as a base.")
 	flags.StringVar(&o.To, "to", "", "The image repository tag to apply to the built catalog image.")
