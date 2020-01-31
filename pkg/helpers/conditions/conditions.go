@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	watchtools "k8s.io/client-go/tools/watch"
+	"k8s.io/klog"
 	krun "k8s.io/kubectl/pkg/cmd/run"
 )
 
@@ -27,6 +28,12 @@ func PodContainerRunning(containerName string) watchtools.ConditionFunc {
 		case *corev1.Pod:
 			switch t.Status.Phase {
 			case corev1.PodRunning, corev1.PodPending:
+				if t.Status.ContainerStatuses[0].State.Waiting != nil {
+					if t.Status.ContainerStatuses[0].State.Waiting.Reason == "CreateContainerError" {
+						klog.V(0).Info(t.Status.ContainerStatuses[0].State.Waiting.Message)
+						return false, fmt.Errorf(t.Status.ContainerStatuses[0].State.Waiting.Message)
+					}
+				}
 			case corev1.PodFailed, corev1.PodSucceeded:
 				return false, krun.ErrPodCompleted
 			default:
