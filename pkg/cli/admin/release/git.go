@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/url"
 	"os"
@@ -209,7 +210,7 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		msg := records[3]
 		msg = rePrefix.ReplaceAllString(strings.TrimSpace(msg), "")
 		if m := reBug.FindStringSubmatch(msg); m != nil {
-			mergeCommit.Subject = msg[len(m[0]):]
+			msg = msg[len(m[0]):]
 			for _, part := range strings.Split(m[1], ",") {
 				for _, subpart := range strings.Split(part, " ") {
 					subpart = strings.TrimSpace(subpart)
@@ -224,12 +225,10 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 					mergeCommit.Bugs = append(mergeCommit.Bugs, bug)
 				}
 			}
-		} else {
-			mergeCommit.Subject = msg
 		}
 		sort.Ints(mergeCommit.Bugs)
-		mergeCommit.Subject = strings.TrimSpace(mergeCommit.Subject)
-		mergeCommit.Subject = strings.SplitN(mergeCommit.Subject, "\n", 2)[0]
+		msg = strings.TrimSpace(msg)
+		msg = strings.SplitN(msg, "\n", 2)[0]
 
 		mergeMsg := records[2]
 		if m := rePR.FindStringSubmatch(mergeMsg); m != nil {
@@ -241,10 +240,14 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 			klog.V(2).Infof("Omitted commit %s which has no pull-request", mergeCommit.Commit)
 			continue
 		}
-		if len(mergeCommit.Subject) == 0 {
-			mergeCommit.Subject = "Merge"
+		if len(msg) == 0 {
+			msg = "Merge"
 		}
 
+		// escape all html sequences
+		msg = html.EscapeString(msg)
+
+		mergeCommit.Subject = msg
 		commits = append(commits, mergeCommit)
 	}
 
