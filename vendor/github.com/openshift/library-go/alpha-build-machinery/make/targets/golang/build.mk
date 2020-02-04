@@ -10,6 +10,7 @@ endef
 
 # We need to build each package separately so go build creates appropriate binaries
 build:
+	$(if $(strip $(GO_BUILD_PACKAGES_EXPANDED)),,$(error no packages to build: GO_BUILD_PACKAGES_EXPANDED var is empty))
 	$(foreach package,$(GO_BUILD_PACKAGES_EXPANDED),$(call build-package,$(package)))
 .PHONY: build
 

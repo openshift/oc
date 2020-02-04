@@ -6,7 +6,7 @@ include $(addprefix $(self_dir), \
 	../../lib/golang.mk \
 )
 
-ifneq "$(GO) list -m" ""
+ifneq "$(GO) list $(GO_MOD_FLAGS) -m" ""
 include $(deps_gomod_mkfile)
 else
 include $(deps_glide_mkfile)

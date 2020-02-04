@@ -1,22 +1,26 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: authentications.operator.openshift.io
+  name: csisnapshotcontrollers.operator.openshift.io
 spec:
-  scope: Cluster
-  preserveUnknownFields: false
   group: operator.openshift.io
-  version: v1
   names:
-    kind: Authentication
-    plural: authentications
-    singular: authentication
+    kind: CSISnapshotController
+    plural: csisnapshotcontrollers
+    singular: csisnapshotcontroller
+  preserveUnknownFields: false
+  scope: Cluster
   subresources:
     status: {}
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
   validation:
     openAPIV3Schema:
-      description: Authentication provides information to configure an operator to
-        manage authentication.
+      description: CSISnapshotController provides a means to configure an operator
+        to manage the CSI snapshots. `cluster` is the canonical name.
       type: object
       required:
       - spec
@@ -34,6 +38,7 @@ spec:
         metadata:
           type: object
         spec:
+          description: spec holds user settable values for configuration
           type: object
           properties:
             logLevel:
@@ -69,6 +74,8 @@ spec:
               nullable: true
               x-kubernetes-preserve-unknown-fields: true
         status:
+          description: status holds observed values from the cluster. They may not
+            be overridden.
           type: object
           properties:
             conditions:
@@ -120,13 +127,6 @@ spec:
                     description: resource is the resource type of the thing you're
                       tracking
                     type: string
-            managingOAuthAPIServer:
-              description: ManagingOAuthAPIServer indicates whether this operator
-                is managing OAuth related APIs. Setting this field to true will cause
-                OAS-O to step down. Note that this field will be removed in the future
-                releases, once https://github.com/openshift/enhancements/blob/master/enhancements/authentication/separate-oauth-resources.md
-                is fully implemented
-              type: boolean
             observedGeneration:
               description: observedGeneration is the last generation change you've
                 dealt with
