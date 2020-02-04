@@ -6,6 +6,7 @@ include $(addprefix ./vendor/github.com/openshift/library-go/alpha-build-machine
 	golang.mk \
 	targets/openshift/images.mk \
 	targets/openshift/rpm.mk \
+	targets/openshift/deps-gomod.mk \
 )
 
 GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
