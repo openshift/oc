@@ -36,6 +36,7 @@ import (
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/openshift/api/network"
+	networkv1 "github.com/openshift/api/network/v1"
 	"github.com/openshift/api/oauth"
 	"github.com/openshift/api/project"
 	projectv1 "github.com/openshift/api/project/v1"
@@ -132,6 +133,7 @@ func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host 
 		image.Kind("Image"):                          &ImageDescriber{imageClient},
 		image.Kind("ImageStream"):                    &ImageStreamDescriber{imageClient},
 		image.Kind("ImageStreamTag"):                 &ImageStreamTagDescriber{imageClient},
+		image.Kind("ImageTag"):                       &ImageTagDescriber{imageClient},
 		image.Kind("ImageStreamImage"):               &ImageStreamImageDescriber{imageClient},
 		route.Kind("Route"):                          &RouteDescriber{routeClient, kclient},
 		project.Kind("Project"):                      &ProjectDescriber{projectClient, kclient},
@@ -797,6 +799,30 @@ func (d *ImageStreamTagDescriber) Describe(namespace, name string, settings desc
 	}
 
 	return DescribeImage(&imageStreamTag.Image, imageStreamTag.Image.Name)
+}
+
+// ImageTagDescriber generates information about a ImageTag (Image).
+type ImageTagDescriber struct {
+	c imageclient.ImageV1Interface
+}
+
+// Describe returns the description of an imageStreamTag
+func (d *ImageTagDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
+	c := d.c.ImageTags(namespace)
+	repo, tag, err := imageutil.ParseImageStreamTagName(name)
+	if err != nil {
+		return "", err
+	}
+	if len(tag) == 0 {
+		// TODO use repo's preferred default, when that's coded
+		tag = imagev1.DefaultImageTag
+	}
+	imageTag, err := c.Get(repo+":"+tag, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	return DescribeImage(imageTag.Image, imageTag.Image.Name)
 }
 
 // ImageStreamImageDescriber generates information about a ImageStreamImage (Image).
@@ -1776,10 +1802,32 @@ func (d *HostSubnetDescriber) Describe(namespace, name string, settings describe
 		formatString(out, "Node", hs.Host)
 		formatString(out, "Node IP", hs.HostIP)
 		formatString(out, "Pod Subnet", hs.Subnet)
-		formatString(out, "Egress CIDRs", strings.Join(hs.EgressCIDRs, ", "))
-		formatString(out, "Egress IPs", strings.Join(hs.EgressIPs, ", "))
+		formatString(out, "Egress CIDRs", hostCIDRsJoin(hs.EgressCIDRs, ", "))
+		formatString(out, "Egress IPs", hostIPsJoin(hs.EgressIPs, ", "))
 		return nil
 	})
+}
+
+func hostCIDRsJoin(cidrs []networkv1.HostSubnetEgressCIDR, sep string) string {
+	var b strings.Builder
+	for i, c := range cidrs {
+		b.WriteString(string(c))
+		if i < len(cidrs)-1 {
+			b.WriteString(sep)
+		}
+	}
+	return b.String()
+}
+
+func hostIPsJoin(ips []networkv1.HostSubnetEgressIP, sep string) string {
+	var b strings.Builder
+	for i, c := range ips {
+		b.WriteString(string(c))
+		if i < len(ips)-1 {
+			b.WriteString(sep)
+		}
+	}
+	return b.String()
 }
 
 type NetNamespaceDescriber struct {
@@ -1796,9 +1844,20 @@ func (d *NetNamespaceDescriber) Describe(namespace, name string, settings descri
 		formatMeta(out, netns.ObjectMeta)
 		formatString(out, "Name", netns.NetName)
 		formatString(out, "ID", netns.NetID)
-		formatString(out, "Egress IPs", strings.Join(netns.EgressIPs, ", "))
+		formatString(out, "Egress IPs", netIPsJoin(netns.EgressIPs, ", "))
 		return nil
 	})
+}
+
+func netIPsJoin(ips []networkv1.NetNamespaceEgressIP, sep string) string {
+	var b strings.Builder
+	for i, c := range ips {
+		b.WriteString(string(c))
+		if i < len(ips)-1 {
+			b.WriteString(sep)
+		}
+	}
+	return b.String()
 }
 
 type EgressNetworkPolicyDescriber struct {

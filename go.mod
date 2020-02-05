@@ -33,9 +33,9 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/mtrmac/gpgme v0.0.0-20170102180018-b2432428689c // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
-	github.com/openshift/api v0.0.0-20191217141120-791af96035a5
-	github.com/openshift/client-go v0.0.0-20191216194936-57f413491e9e
-	github.com/openshift/library-go v0.0.0-20200102104155-021f88c1381d
+	github.com/openshift/api v0.0.0-20200131223221-f2a771e1a90c
+	github.com/openshift/client-go v0.0.0-20200116152001-92a2713fa240
+	github.com/openshift/library-go v0.0.0-20200204164003-bb8cf528f9b0
 	github.com/operator-framework/operator-registry v1.5.4
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.1.0
@@ -45,17 +45,17 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
-	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
-	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
 	golang.org/x/sys v0.0.0-20190826190057-c7b8b68b1456
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	gopkg.in/ldap.v2 v2.5.1
-	k8s.io/api v0.17.0
-	k8s.io/apimachinery v0.17.0
-	k8s.io/apiserver v0.17.0
+	k8s.io/api v0.17.1
+	k8s.io/apimachinery v0.17.1
+	k8s.io/apiserver v0.17.1
 	k8s.io/cli-runtime v0.17.0
-	k8s.io/client-go v0.17.0
-	k8s.io/component-base v0.17.0
+	k8s.io/client-go v0.17.1
+	k8s.io/component-base v0.17.1
 	k8s.io/klog v1.0.0
 	k8s.io/kubectl v0.0.0
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
@@ -67,29 +67,29 @@ replace (
 	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 	github.com/containers/image => github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d
 
-	k8s.io/api => k8s.io/api v0.17.0
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.0
+	k8s.io/api => k8s.io/api v0.17.1
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.1
 	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20191211181342-5a804e65bdc1
-	k8s.io/apiserver => k8s.io/apiserver v0.17.0
+	k8s.io/apiserver => k8s.io/apiserver v0.17.1
 	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200114162348-c8810ef308ee
 	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20191211181558-5dcabadb2b45
-	k8s.io/cloud-provider => k8s.io/cloud-provider v0.17.0
-	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.17.0
-	k8s.io/code-generator => k8s.io/code-generator v0.17.0
-	k8s.io/component-base => k8s.io/component-base v0.17.0
-	k8s.io/cri-api => k8s.io/cri-api v0.17.0
-	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.17.0
-	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.17.0
-	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.17.0
-	k8s.io/kube-proxy => k8s.io/kube-proxy v0.17.0
-	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.17.0
+	k8s.io/cloud-provider => k8s.io/cloud-provider v0.17.1
+	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.17.1
+	k8s.io/code-generator => k8s.io/code-generator v0.17.1
+	k8s.io/component-base => k8s.io/component-base v0.17.1
+	k8s.io/cri-api => k8s.io/cri-api v0.17.1
+	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.17.1
+	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.17.1
+	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.17.1
+	k8s.io/kube-proxy => k8s.io/kube-proxy v0.17.1
+	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.17.1
 	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200205113031-40549974a002
-	k8s.io/kubelet => k8s.io/kubelet v0.17.0
+	k8s.io/kubelet => k8s.io/kubelet v0.17.1
 	k8s.io/kubernetes => github.com/openshift/kubernetes v1.17.0-alpha.0.0.20191216151305-079984b0a154
-	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.17.0
-	k8s.io/metrics => k8s.io/metrics v0.17.0
-	k8s.io/node-api => k8s.io/node-api v0.17.0
-	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.17.0
-	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.17.0
-	k8s.io/sample-controller => k8s.io/sample-controller v0.17.0
+	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.17.1
+	k8s.io/metrics => k8s.io/metrics v0.17.1
+	k8s.io/node-api => k8s.io/node-api v0.17.1
+	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.17.1
+	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.17.1
+	k8s.io/sample-controller => k8s.io/sample-controller v0.17.1
 )

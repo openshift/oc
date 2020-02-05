@@ -39,7 +39,7 @@ update-codegen-crds-$(1): ensure-controller-gen ensure-yq
 update-codegen-crds: update-codegen-crds-$(1)
 .PHONY: update-codegen-crds
 
-verify-codegen-crds-$(1): VERIFY_CODEGEN_CRD_TMP_DIR:=$(shell mktemp -d)
+verify-codegen-crds-$(1): VERIFY_CODEGEN_CRD_TMP_DIR:=$$(shell mktemp -d)
 verify-codegen-crds-$(1): ensure-controller-gen ensure-yq
 	$(call run-crd-gen,$(2),$(3),$$(VERIFY_CODEGEN_CRD_TMP_DIR))
 	$$(foreach p,$$(wildcard $(3)/*.crd.yaml),$$(call diff-file,$$(p),$$(subst $(3),$$(VERIFY_CODEGEN_CRD_TMP_DIR),$$(p))))

@@ -2366,6 +2366,10 @@ func (c *NewAppFakeImageClient) ImageStreamTags(namespace string) imagev1typedcl
 	return c.proxy.ImageStreamTags(namespace)
 }
 
+func (c *NewAppFakeImageClient) ImageTags(namespace string) imagev1typedclient.ImageTagInterface {
+	return c.proxy.ImageTags(namespace)
+}
+
 func (c *NewAppFakeImageClient) RESTClient() krest.Interface {
 	return c.proxy.RESTClient()
 }

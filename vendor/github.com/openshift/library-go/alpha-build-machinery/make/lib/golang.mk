@@ -1,7 +1,10 @@
-GO ?=go
-GOPATH ?=$(shell $(GO) env GOPATH)
-GO_PACKAGE ?=$(shell $(GO) list -m -f '{{ .Path }}' || echo 'no_package_detected')
+include $(addprefix $(dir $(lastword $(MAKEFILE_LIST))), \
+	version.mk \
+)
 
+GO ?=go
+
+GOPATH ?=$(shell $(GO) env GOPATH)
 GOOS ?=$(shell $(GO) env GOOS)
 GOHOSTOS ?=$(shell $(GO) env GOHOSTOS)
 GOARCH ?=$(shell $(GO) env GOARCH)
@@ -13,9 +16,11 @@ GOFMT ?=gofmt
 GOFMT_FLAGS ?=-s -l
 GOLINT ?=golint
 
-GO_FILES ?=$(shell find . -name '*.go' -not -path '*/vendor/*' -not -path '*/_output/*' -print)
-GO_PACKAGES ?=./...
-GO_TEST_PACKAGES ?=$(GO_PACKAGES)
+go_version :=$(shell $(GO) version | sed -E -e 's/.*go([0-9]+.[0-9]+.[0-9]+).*/\1/')
+GO_REQUIRED_MIN_VERSION ?=1.13.5
+ifneq "$(GO_REQUIRED_MIN_VERSION)" ""
+$(call require_minimal_version,$(GO),GO_REQUIRED_MIN_VERSION,$(go_version))
+endif
 
 # Projects not using modules can clear the variable, but by default we want to prevent
 # our projects with modules to unknowingly ignore vendor folder until golang is fixed to use
@@ -28,6 +33,12 @@ GO_MOD_FLAGS ?=
 else
 GO_MOD_FLAGS ?=-mod=vendor
 endif
+
+GO_PACKAGE ?=$(shell $(GO) list $(GO_MOD_FLAGS) -m -f '{{ .Path }}' || echo 'no_package_detected')
+GO_PACKAGES ?=./...
+GO_TEST_PACKAGES ?=$(GO_PACKAGES)
+GO_FILES ?=$(shell find . -name '*.go' -not -path '*/vendor/*' -not -path '*/_output/*' -print)
+
 
 GO_BUILD_PACKAGES ?=./cmd/...
 GO_BUILD_PACKAGES_EXPANDED ?=$(shell $(GO) list $(GO_MOD_FLAGS) $(GO_BUILD_PACKAGES))

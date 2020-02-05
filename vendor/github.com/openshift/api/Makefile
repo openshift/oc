@@ -27,6 +27,7 @@ $(call add-crd-gen,operator-alpha,./operator/v1alpha1,./operator/v1alpha1,./oper
 $(call add-crd-gen,quota,./quota/v1,./quota/v1,./quota/v1)
 $(call add-crd-gen,samples,./samples/v1,./samples/v1,./samples/v1)
 $(call add-crd-gen,security,./security/v1,./security/v1,./security/v1)
+$(call add-crd-gen,network,./network/v1,./network/v1,./network/v1)
 
 RUNTIME ?= podman
 RUNTIME_IMAGE_NAME ?= openshift-api-generator
