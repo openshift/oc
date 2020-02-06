@@ -605,8 +605,11 @@ github.com/opencontainers/runtime-spec v1.0.0/go.mod h1:jwyrGlmzljRJv/Fgzds9SsS/
 github.com/opencontainers/selinux v1.2.2/go.mod h1:+BLncwf63G4dgOzykXAxcmnFlUaOlkDdmw/CqsW6pjs=
 github.com/opencontainers/selinux v1.3.1-0.20190929122143-5215b1806f52/go.mod h1:+BLncwf63G4dgOzykXAxcmnFlUaOlkDdmw/CqsW6pjs=
 github.com/openshift/api v0.0.0-20200116145750-0e2ff1e215dd/go.mod h1:fT6U/JfG8uZzemTRwZA2kBDJP5nWz7v05UHnty/D+pk=
-github.com/openshift/api v0.0.0-20200131223221-f2a771e1a90c h1:6kb8UZix0DNEfZbysav4tlM4s7UJ+Q/OyIQzvkw9H5w=
-github.com/openshift/api v0.0.0-20200131223221-f2a771e1a90c/go.mod h1:fT6U/JfG8uZzemTRwZA2kBDJP5nWz7v05UHnty/D+pk=
+github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87 h1:L/fZlWB7DdYCd09r9LvBa44xRH42Dx80ybxfN1h5C8Y=
+github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87/go.mod h1:fT6U/JfG8uZzemTRwZA2kBDJP5nWz7v05UHnty/D+pk=
+github.com/openshift/build-machinery-go v0.0.0-20200205161356-ef115f5adc73/go.mod h1:1CkcsT3aVebzRBzVTSbiKSkJMsC/CASqxesfqEMfJEc=
+github.com/openshift/build-machinery-go v0.0.0-20200206145628-a8567613b05c h1:qCxKo4e0Zsv+oQtX0a2qmG+zJOWdtuWsMwm3wUtDxjs=
+github.com/openshift/build-machinery-go v0.0.0-20200206145628-a8567613b05c/go.mod h1:1CkcsT3aVebzRBzVTSbiKSkJMsC/CASqxesfqEMfJEc=
 github.com/openshift/client-go v0.0.0-20200116152001-92a2713fa240 h1:XYfJWv2Ch+qInGLDEedHRtDsJwnxyU1L8U7SY56NcA8=
 github.com/openshift/client-go v0.0.0-20200116152001-92a2713fa240/go.mod h1:4riOwdj99Hd/q+iAcJZfNCsQQQMwURnZV6RL4WHYS5w=
 github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d h1:PSyWWs0lnNFruaF7BbQHUNxst7vsqjCNMjpy6jNJLs0=
@@ -623,8 +626,8 @@ github.com/openshift/kubernetes-client-go v0.0.0-20191211181558-5dcabadb2b45 h1:
 github.com/openshift/kubernetes-client-go v0.0.0-20191211181558-5dcabadb2b45/go.mod h1:TYgR6EUHs6k45hb6KWjVD6jFZvJV4gHDikv/It0xz+k=
 github.com/openshift/kubernetes-kubectl v0.0.0-20200205113031-40549974a002 h1:1sQbKdxjkmnLFesvYtIWZs9qwGBKiodpymHVvlCTn6w=
 github.com/openshift/kubernetes-kubectl v0.0.0-20200205113031-40549974a002/go.mod h1:jIPrUAW656Vzn9wZCCe0PC+oTcu56u2HgFD21Xbfk1s=
-github.com/openshift/library-go v0.0.0-20200204164003-bb8cf528f9b0 h1:vLPniKUiBTJyc/ICprOt1vSTn1iM+zN5BYZKCO0CN7E=
-github.com/openshift/library-go v0.0.0-20200204164003-bb8cf528f9b0/go.mod h1:/P1rPwPkaaNtylv8PLYkOTbf6tCdaNYDNqL9Y8GzJfE=
+github.com/openshift/library-go v0.0.0-20200206134157-b4c763d94dcf h1:KXxMZGtbwefe89jh+XdZRcj2UMO71jdIZhKM3CQefMQ=
+github.com/openshift/library-go v0.0.0-20200206134157-b4c763d94dcf/go.mod h1:mLRZGYfPe9Kaum4pyhn6hTO3FTPjOZKFB0RxQSIxiuQ=
 github.com/openzipkin/zipkin-go v0.1.6/go.mod h1:QgAqvLzwWbR/WpD4A3cGpPtJrZXNIiJc5AZX7/PBEpw=
 github.com/operator-framework/operator-registry v1.5.4 h1:ssUAU7CaacYCB6p+CJj9nxXowpD89VLOAY+Aw1w2o8Q=
 github.com/operator-framework/operator-registry v1.5.4/go.mod h1:6T3+8vu3N5fpQikSA1Tp91sLxRordtmmvF6ynvBg06g=
