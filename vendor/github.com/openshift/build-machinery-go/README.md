@@ -1,4 +1,4 @@
-# library-go/alpha-build-machinery
+# library-go/build-machinery-go
 These are the building blocks for this and many of our other repositories to share code for Makefiles, helper scripts and other build related machinery.
 
 ## Makefiles

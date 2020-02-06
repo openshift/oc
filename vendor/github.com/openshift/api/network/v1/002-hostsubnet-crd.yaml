@@ -21,6 +21,11 @@ spec:
       description: HostSubnet describes the container subnet network on a node. The
         HostSubnet object must have the same name as the Node object it corresponds
         to.
+      type: object
+      required:
+      - host
+      - hostIP
+      - subnet
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -31,29 +36,33 @@ spec:
           description: EgressCIDRs is the list of CIDR ranges available for automatically
             assigning egress IPs to this node from. If this field is set then EgressIPs
             should be treated as read-only.
-          items:
-            type: string
-            pattern: '^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/([0-9]|[12][0-9]|3[0-2])$'
           type: array
+          items:
+            description: HostSubnetEgressCIDR represents one egress CIDR from which
+              to assign IP addresses for this node represented by the HostSubnet
+            type: string
+            pattern: ^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/([0-9]|[12][0-9]|3[0-2])$
         egressIPs:
           description: EgressIPs is the list of automatic egress IP addresses currently
             hosted by this node. If EgressCIDRs is empty, this can be set by hand;
             if EgressCIDRs is set then the master will overwrite the value here with
             its own allocation of egress IPs.
-          items:
-            type: string
-            pattern: '^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$'
           type: array
+          items:
+            description: HostSubnetEgressIP represents one egress IP address currently
+              hosted on the node represented by HostSubnet
+            type: string
+            pattern: ^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$
         host:
           description: Host is the name of the node. (This is the same as the object's
             name, but both fields must be set.)
           type: string
-          pattern: '^[a-z0-9.-]+$'
+          pattern: ^[a-z0-9.-]+$
         hostIP:
           description: HostIP is the IP address to be used as a VTEP by other nodes
             in the overlay network
           type: string
-          pattern: '^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$'
+          pattern: ^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$
         kind:
           description: 'Kind is a string value representing the REST resource this
             object represents. Servers may infer this from the endpoint the client
@@ -65,11 +74,7 @@ spec:
           description: Subnet is the CIDR range of the overlay network assigned to
             the node for its pods
           type: string
-          pattern: '^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/([0-9]|[12][0-9]|3[0-2])$'
-      required:
-      - host
-      - hostIP
-      type: object
+          pattern: ^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/([0-9]|[12][0-9]|3[0-2])$
   additionalPrinterColumns:
   - name: Host
     type: string
@@ -77,11 +82,13 @@ spec:
     JSONPath: .host
   - name: Host IP
     type: string
-    description: The IP address to be used as a VTEP by other nodes in the overlay network
+    description: The IP address to be used as a VTEP by other nodes in the overlay
+      network
     JSONPath: .hostIP
   - name: Subnet
     type: string
-    description: The CIDR range of the overlay network assigned to the node for its pods
+    description: The CIDR range of the overlay network assigned to the node for its
+      pods
     JSONPath: .subnet
   - name: Egress CIDRs
     type: string

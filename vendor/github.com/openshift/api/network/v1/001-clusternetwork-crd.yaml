@@ -23,6 +23,10 @@ spec:
         only one object of this type, named "default", which is created by the SDN
         network plugin based on the master configuration when the cluster is brought
         up for the first time.
+      type: object
+      required:
+      - clusterNetworks
+      - serviceNetwork
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -33,38 +37,38 @@ spec:
           description: ClusterNetworks is a list of ClusterNetwork objects that defines
             the global overlay network's L3 space by specifying a set of CIDR and
             netmasks that the SDN can allocate addresses from.
+          type: array
           items:
             description: ClusterNetworkEntry defines an individual cluster network.
               The CIDRs cannot overlap with other cluster network CIDRs, CIDRs reserved
               for external ips, CIDRs reserved for service networks, and CIDRs reserved
               for ingress ips.
+            type: object
+            required:
+            - CIDR
+            - hostSubnetLength
             properties:
               CIDR:
                 description: CIDR defines the total range of a cluster networks address
                   space.
                 type: string
-                pattern: '^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/([0-9]|[12][0-9]|3[0-2])$'
+                pattern: ^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/([0-9]|[12][0-9]|3[0-2])$
               hostSubnetLength:
                 description: HostSubnetLength is the number of bits of the accompanying
                   CIDR address to allocate to each node. eg, 8 would mean that each
                   node would have a /24 slice of the overlay network for its pods.
-                format: int32
                 type: integer
-                minimum: 2
+                format: int32
                 maximum: 30
-            required:
-            - CIDR
-            - hostSubnetLength
-            type: object
-          type: array
+                minimum: 2
         hostsubnetlength:
           description: HostSubnetLength is the number of bits of network to allocate
             to each node. eg, 8 would mean that each node would have a /24 slice of
             the overlay network for its pods
-          format: int32
           type: integer
-          minimum: 2
+          format: int32
           maximum: 30
+          minimum: 2
         kind:
           description: 'Kind is a string value representing the REST resource this
             object represents. Servers may infer this from the endpoint the client
@@ -76,15 +80,15 @@ spec:
           description: MTU is the MTU for the overlay network. This should be 50 less
             than the MTU of the network connecting the nodes. It is normally autodetected
             by the cluster network operator.
-          format: int32
           type: integer
-          minimum: 576
+          format: int32
           maximum: 65536
+          minimum: 576
         network:
           description: Network is a CIDR string specifying the global overlay network's
             L3 space
           type: string
-          pattern: '^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/([0-9]|[12][0-9]|3[0-2])$'
+          pattern: ^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/([0-9]|[12][0-9]|3[0-2])$
         pluginName:
           description: PluginName is the name of the network plugin being used
           type: string
@@ -92,7 +96,7 @@ spec:
           description: ServiceNetwork is the CIDR range that Service IP addresses
             are allocated from
           type: string
-          pattern: '^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/([0-9]|[12][0-9]|3[0-2])$'
+          pattern: ^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/([0-9]|[12][0-9]|3[0-2])$
         vxlanPort:
           description: VXLANPort sets the VXLAN destination port used by the cluster.
             It is set by the master configuration file on startup and cannot be edited
@@ -100,14 +104,10 @@ spec:
             if unset defaults to 4789. Changing VXLANPort allows users to resolve
             issues between openshift SDN and other software trying to use the same
             VXLAN destination port.
-          format: int32
           type: integer
-          minimum: 1
+          format: int32
           maximum: 65535
-      required:
-      - clusterNetworks
-      - serviceNetwork
-      type: object
+          minimum: 1
   additionalPrinterColumns:
   - name: Cluster Network
     type: string
