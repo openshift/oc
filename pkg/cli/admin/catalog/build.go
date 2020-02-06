@@ -89,7 +89,7 @@ func NewBuildImage(streams genericclioptions.IOStreams) *cobra.Command {
 		Use:     "build",
 		Short:   "build an operator-registry catalog",
 		Long:    buildLong,
-		Example: fmt.Sprintf(buildExample, "oc adm catalog mirror"),
+		Example: fmt.Sprintf(buildExample, "oc adm catalog build"),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())
