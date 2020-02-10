@@ -131,18 +131,16 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 
 	var mirrorer mirror.ImageMirrorerFunc
 	mirrorer = func(mapping map[string]string) error {
-		mirrorMapping := []imgmirror.Mapping{}
-
 		for from, to := range mapping {
 			fromRef, err := imagesource.ParseSourceReference(from, nil)
 			if err != nil {
-				klog.Warningf("couldn't parse %s, skipping mirror", from)
+				klog.Warningf("couldn't parse %s, skipping mirror: %v", from, err)
 				continue
 			}
 			// remove destination digest if present
 			toRef, err := imagesource.ParseReference(to)
 			if err != nil {
-				klog.Warningf("couldn't parse %s, skipping mirror", to)
+				klog.Warningf("couldn't parse %s, skipping mirror: %v", to, err)
 				continue
 			}
 			if toRef.Type == imagesource.DestinationRegistry && len(toRef.Ref.ID) != 0 {
@@ -151,22 +149,25 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 
 			toRef, err = imagesource.ParseDestinationReference(to)
 			if err != nil {
-				klog.Warningf("couldn't parse %s, skipping mirror", to)
+				klog.Warningf("couldn't parse %s, skipping mirror: %v", to, err)
 				continue
 			}
-			mirrorMapping = append(mirrorMapping, imgmirror.Mapping{
+
+			a := imgmirror.NewMirrorImageOptions(o.IOStreams)
+			a.SkipMissing = true
+			a.DryRun = o.DryRun
+			a.Mappings = []imgmirror.Mapping{{
 				Source:      fromRef[0],
 				Destination: toRef,
-			})
+			}}
+			if err := a.Validate(); err != nil {
+				klog.Warningf("error configuring image mirroring: %v", err)
+			}
+			if err := a.Run(); err != nil {
+				klog.Warningf("error mirroring image: %v", err)
+			}
 		}
-
-		a := imgmirror.NewMirrorImageOptions(o.IOStreams)
-		a.DryRun = o.DryRun
-		a.Mappings = mirrorMapping
-		if err := a.Validate(); err != nil {
-			return err
-		}
-		return a.Run()
+		return nil
 	}
 
 	if o.ManifestOnly {
