@@ -405,7 +405,7 @@ github.com/openshift/api/template/v1
 github.com/openshift/api/unidling/v1alpha1
 github.com/openshift/api/user
 github.com/openshift/api/user/v1
-# github.com/openshift/build-machinery-go v0.0.0-20200206145628-a8567613b05c
+# github.com/openshift/build-machinery-go v0.0.0-20200210090402-3b072832771e
 github.com/openshift/build-machinery-go
 github.com/openshift/build-machinery-go/make
 github.com/openshift/build-machinery-go/make/lib

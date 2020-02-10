@@ -34,7 +34,7 @@ require (
 	github.com/mtrmac/gpgme v0.0.0-20170102180018-b2432428689c // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/openshift/api v0.0.0-20200205133042-34f0ec8dab87
-	github.com/openshift/build-machinery-go v0.0.0-20200206145628-a8567613b05c
+	github.com/openshift/build-machinery-go v0.0.0-20200210090402-3b072832771e
 	github.com/openshift/client-go v0.0.0-20200116152001-92a2713fa240
 	github.com/openshift/library-go v0.0.0-20200206134157-b4c763d94dcf
 	github.com/operator-framework/operator-registry v1.5.4
