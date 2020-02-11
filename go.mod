@@ -84,7 +84,7 @@ replace (
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.17.1
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.17.1
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.17.1
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200205113031-40549974a002
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200211153013-50adac736181
 	k8s.io/kubelet => k8s.io/kubelet v0.17.1
 	k8s.io/kubernetes => github.com/openshift/kubernetes v1.17.0-alpha.0.0.20191216151305-079984b0a154
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.17.1
