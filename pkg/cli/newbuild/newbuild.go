@@ -141,7 +141,7 @@ func NewCmdNewBuild(name, baseName string, f kcmdutil.Factory, streams genericcl
 	cmd.Flags().MarkHidden("build-env-file")
 	cmd.Flags().StringArrayVar(&o.Config.BuildEnvironmentFiles, "env-file", o.Config.BuildEnvironmentFiles, "File containing key-value pairs of environment variables to set into each container.")
 	cmd.MarkFlagFilename("env-file")
-	cmd.Flags().Var(&o.Config.Strategy, "strategy", "Specify the build strategy to use if you don't want to detect (docker|pipeline|source).")
+	cmd.Flags().Var(&o.Config.Strategy, "strategy", "Specify the build strategy to use if you don't want to detect (docker|pipeline|source). NOTICE: the pipeline strategy is deprecated; consider using Jenkinsfiles directly on Jenkins or OpenShift Pipelines.")
 	cmd.Flags().StringVarP(&o.Config.Dockerfile, "dockerfile", "D", o.Config.Dockerfile, "Specify the contents of a Dockerfile to build directly, implies --strategy=docker. Pass '-' to read from STDIN.")
 	cmd.Flags().StringArrayVar(&o.Config.BuildArgs, "build-arg", o.Config.BuildArgs, "Specify a key-value pair to pass to Docker during the build.")
 	cmd.Flags().BoolVar(&o.Config.BinaryBuild, "binary", o.Config.BinaryBuild, "Instead of expecting a source URL, set the build to expect binary contents. Will disable triggers.")
@@ -228,6 +228,9 @@ func (o *BuildOptions) RunNewBuild() error {
 	for _, item := range result.List.Items {
 		switch t := item.(type) {
 		case *buildv1.BuildConfig:
+			if t.Spec.Strategy.Type == buildv1.JenkinsPipelineBuildStrategyType {
+				fmt.Fprintf(o.Action.ErrOut, "JenkinsPipeline build strategy is deprecated. Use Jenkinsfiles directly on Jenkins or OpenShift Pipelines instead")
+			}
 			if len(t.Spec.Triggers) > 0 && t.Spec.Source.Binary == nil {
 				fmt.Fprintf(out, "%sBuild configuration %q created and build triggered.\n", indent, t.Name)
 				fmt.Fprintf(out, "%sRun '%s logs -f bc/%s' to stream the build progress.\n", indent, o.BaseName, t.Name)

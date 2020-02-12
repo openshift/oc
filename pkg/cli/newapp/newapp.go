@@ -290,7 +290,7 @@ func NewCmdNewApplication(name, baseName string, f kcmdutil.Factory, streams gen
 	cmd.Flags().StringArrayVar(&o.Config.BuildEnvironmentFiles, "build-env-file", o.Config.BuildEnvironmentFiles, "File containing key-value pairs of environment variables to set into each build image.")
 	cmd.MarkFlagFilename("build-env-file")
 	cmd.Flags().StringVar(&o.Config.Name, "name", o.Config.Name, "Set name to use for generated application artifacts")
-	cmd.Flags().Var(&o.Config.Strategy, "strategy", "Specify the build strategy to use if you don't want to detect (docker|pipeline|source).")
+	cmd.Flags().Var(&o.Config.Strategy, "strategy", "Specify the build strategy to use if you don't want to detect (docker|pipeline|source). NOTICE: the pipeline strategy is deprecated; consider using Jenkinsfiles directly on Jenkins or OpenShift Pipelines.")
 	cmd.Flags().StringP("labels", "l", "", "Label to set in all resources for this application.")
 	cmd.Flags().BoolVar(&o.Config.IgnoreUnknownParameters, "ignore-unknown-parameters", o.Config.IgnoreUnknownParameters, "If true, will not stop processing if a provided parameter does not exist in the template.")
 	cmd.Flags().BoolVar(&o.Config.InsecureRegistry, "insecure-registry", o.Config.InsecureRegistry, "If true, indicates that the referenced Docker images are on insecure registries and should bypass certificate checking")
@@ -457,6 +457,9 @@ func (o *AppOptions) RunNewApp() error {
 				installing = append(installing, t)
 			}
 		case *buildv1.BuildConfig:
+			if t.Spec.Strategy.Type == buildv1.JenkinsPipelineBuildStrategyType {
+				fmt.Fprintf(o.Action.ErrOut, "JenkinsPipeline build strategy is deprecated. Use Jenkinsfiles directly on Jenkins or OpenShift Pipelines instead")
+			}
 			triggered := false
 			for _, trigger := range t.Spec.Triggers {
 				switch trigger.Type {
