@@ -127,6 +127,7 @@ func (o *LogsOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 	// TODO: once the upstream command supports binding flags
 	// by outside callers, this will no longer be needed.
 	o.KubeLogOptions.AllContainers = kcmdutil.GetFlagBool(cmd, "all-containers")
+	o.KubeLogOptions.InsecureSkipTLSVerifyBackend = kcmdutil.GetFlagBool(cmd, "insecure-skip-tls-verify-backend")
 	o.KubeLogOptions.Container = kcmdutil.GetFlagString(cmd, "container")
 	o.KubeLogOptions.Selector = kcmdutil.GetFlagString(cmd, "selector")
 	o.KubeLogOptions.Follow = kcmdutil.GetFlagBool(cmd, "follow")
