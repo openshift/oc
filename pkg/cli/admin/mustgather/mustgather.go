@@ -16,6 +16,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -305,6 +306,11 @@ func (o *MustGatherOptions) Run() error {
 			// copy the gathered files into the local destination dir
 			log("downloading gather output")
 			pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+			if err != nil {
+				log("gather output not downloaded: %v\n", err)
+				errs <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
+				return
+			}
 			if err := o.copyFilesFromPod(pod); err != nil {
 				log("gather output not downloaded: %v\n", err)
 				errs <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
@@ -385,16 +391,24 @@ func (o *MustGatherOptions) waitForPodRunning(pod *corev1.Pod) error {
 	err := wait.PollImmediate(time.Second, 10*time.Minute, func() (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{}); err != nil {
+			// at this stage pod should exist, we've been gathering container logs, so error if not found
+			if kerrors.IsNotFound(err) {
+				return true, err
+			}
 			return false, nil
 		}
 		phase = pod.Status.Phase
-		return phase != corev1.PodPending, nil
+		switch phase {
+		case corev1.PodRunning:
+			return true, nil
+		case corev1.PodFailed, corev1.PodSucceeded:
+			return true, fmt.Errorf("%s/%s unexpected pod phase: %s", pod.Namespace, pod.Name, phase)
+		default:
+			return false, nil
+		}
 	})
 	if err != nil {
 		return err
-	}
-	if phase != corev1.PodRunning {
-		return fmt.Errorf("pod is not running: %v\n", phase)
 	}
 	return nil
 }
