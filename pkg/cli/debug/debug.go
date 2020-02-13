@@ -444,7 +444,7 @@ func (o *DebugOptions) RunDebug() error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 		defer cancel()
-		switch containerRunningEvent, err := watchtools.UntilWithoutRetry(ctx, w, conditions.PodContainerRunning(o.Attach.ContainerName)); {
+		switch containerRunningEvent, err := watchtools.UntilWithoutRetry(ctx, w, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient)); {
 		// api didn't error right away but the pod wasn't even created
 		case kapierrors.IsNotFound(err):
 			msg := fmt.Sprintf("unable to create the debug pod %q", pod.Name)
@@ -453,20 +453,17 @@ func (o *DebugOptions) RunDebug() error {
 			}
 			return fmt.Errorf(msg)
 			// switch to logging output
-		case err == krun.ErrPodCompleted, err == conditions.ErrContainerTerminated, !o.Attach.Stdin:
-			return logs.LogsOptions{
-				Object: pod,
-				Options: &corev1.PodLogOptions{
-					Container: o.Attach.ContainerName,
-					Follow:    true,
-				},
-				RESTClientGetter: o.RESTClientGetter,
-				ConsumeRequestFn: logs.DefaultConsumeRequest,
-				IOStreams:        o.IOStreams,
-				LogsForObject:    o.LogsForObject,
-			}.RunLogs()
+		case err == krun.ErrPodCompleted, err == conditions.ErrContainerTerminated:
+			return o.getLogs(pod)
+		case err == conditions.ErrNonZeroExitCode:
+			if err = o.getLogs(pod); err != nil {
+				return err
+			}
+			return conditions.ErrNonZeroExitCode
 		case err != nil:
 			return err
+		case !o.Attach.Stdin:
+			return o.getLogs(pod)
 		default:
 			// TODO this doesn't do us much good for remote debugging sessions, but until we get a local port
 			// set up to proxy, this is what we've got.
@@ -960,6 +957,20 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 	}
 
 	return nil, fmt.Errorf("unable to extract pod template from type %v", reflect.TypeOf(object))
+}
+
+func (o *DebugOptions) getLogs(pod *corev1.Pod) error {
+	return logs.LogsOptions{
+		Object: pod,
+		Options: &corev1.PodLogOptions{
+			Container: o.Attach.ContainerName,
+			Follow:    true,
+		},
+		RESTClientGetter: o.RESTClientGetter,
+		ConsumeRequestFn: logs.DefaultConsumeRequest,
+		IOStreams:        o.IOStreams,
+		LogsForObject:    o.LogsForObject,
+	}.RunLogs()
 }
 
 func setNodeName(template *corev1.PodTemplateSpec, nodeName string) *corev1.PodTemplateSpec {
