@@ -100,6 +100,7 @@ type MirrorImageOptions struct {
 	SkipMultipleScopes bool
 	SkipMissing        bool
 	Force              bool
+	ForceManifestList  bool
 
 	MaxRegistry     int
 	ParallelOptions imagemanifest.ParallelOptions
@@ -149,6 +150,7 @@ func NewCmdMirrorImage(name string, streams genericclioptions.IOStreams) *cobra.
 	flag.BoolVar(&o.SkipMount, "skip-mount", o.SkipMount, "Always push layers instead of cross-mounting them")
 	flag.BoolVar(&o.SkipMultipleScopes, "skip-multiple-scopes", o.SkipMultipleScopes, "Some registries do not support multiple scopes passed to the registry login.")
 	flag.BoolVar(&o.Force, "force", o.Force, "Attempt to write all layers and manifests even if they exist in the remote repository.")
+	flag.BoolVar(&o.ForceManifestList, "force-manifest-list", o.ForceManifestList, "Always attempt to mirror manifestlist even if manifestlist contains a single image digest")
 	flag.IntVar(&o.MaxRegistry, "max-registry", o.MaxRegistry, "Number of concurrent registries to connect to at any one time.")
 	flag.StringSliceVar(&o.AttemptS3BucketCopy, "s3-source-bucket", o.AttemptS3BucketCopy, "A list of bucket/path locations on S3 that may contain already uploaded blobs. Add [store] to the end to use the container image registry path convention.")
 	flag.StringSliceVarP(&o.Filenames, "filename", "f", o.Filenames, "One or more files to read SRC=DST or SRC DST [DST ...] mappings from.")
@@ -462,7 +464,7 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 
 						// filter or load manifest list as appropriate
 						originalSrcDigest := srcDigest
-						srcManifests, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll)
+						srcManifests, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll, o.ForceManifestList)
 						if err != nil {
 							plan.AddError(retrieverError{src: src.ref, err: err})
 							return
