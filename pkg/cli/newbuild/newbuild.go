@@ -229,7 +229,7 @@ func (o *BuildOptions) RunNewBuild() error {
 		switch t := item.(type) {
 		case *buildv1.BuildConfig:
 			if t.Spec.Strategy.Type == buildv1.JenkinsPipelineBuildStrategyType {
-				fmt.Fprintf(o.Action.ErrOut, "JenkinsPipeline build strategy is deprecated. Use Jenkinsfiles directly on Jenkins or OpenShift Pipelines instead")
+				fmt.Fprintln(o.Action.ErrOut, "JenkinsPipeline build strategy is deprecated. Use Jenkinsfiles directly on Jenkins or OpenShift Pipelines instead")
 			}
 			if len(t.Spec.Triggers) > 0 && t.Spec.Source.Binary == nil {
 				fmt.Fprintf(out, "%sBuild configuration %q created and build triggered.\n", indent, t.Name)
