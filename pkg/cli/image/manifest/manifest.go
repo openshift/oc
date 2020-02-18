@@ -252,7 +252,7 @@ func FirstManifest(ctx context.Context, from imagereference.DockerImageReference
 	}
 
 	originalSrcDigest := srcDigest
-	srcManifests, srcManifest, srcDigest, err := ProcessManifestList(ctx, srcDigest, srcManifest, manifests, from, filterFn)
+	srcManifests, srcManifest, srcDigest, err := ProcessManifestList(ctx, srcDigest, srcManifest, manifests, from, filterFn, false)
 	if err != nil {
 		return nil, ManifestLocation{}, err
 	}
@@ -330,7 +330,7 @@ func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifes
 	}
 }
 
-func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imagereference.DockerImageReference, filterFn FilterFunc) ([]distribution.Manifest, distribution.Manifest, digest.Digest, error) {
+func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imagereference.DockerImageReference, filterFn FilterFunc, forceManifestList bool) ([]distribution.Manifest, distribution.Manifest, digest.Digest, error) {
 	var srcManifests []distribution.Manifest
 	switch t := srcManifest.(type) {
 	case *manifestlist.DeserializedManifestList:
@@ -379,7 +379,7 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 		}
 
 		switch {
-		case len(srcManifests) == 1:
+		case len(srcManifests) == 1 && !forceManifestList:
 			manifestDigest, err := registryclient.ContentDigestForManifest(srcManifests[0], srcDigest.Algorithm())
 			if err != nil {
 				return nil, nil, "", err
