@@ -100,6 +100,7 @@ type MirrorImageOptions struct {
 	SkipMultipleScopes bool
 	SkipMissing        bool
 	Force              bool
+	ForceManifestList  bool
 
 	MaxRegistry     int
 	ParallelOptions imagemanifest.ParallelOptions
@@ -143,6 +144,9 @@ func NewCmdMirrorImage(name string, streams genericclioptions.IOStreams) *cobra.
 	o.SecurityOptions.Bind(flag)
 	o.FilterOptions.Bind(flag)
 	o.ParallelOptions.Bind(flag)
+
+	// Always mirror manifestlist if available
+	o.ForceManifestList = true
 
 	flag.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Print the actions that would be taken and exit without writing to the destinations.")
 	flag.BoolVar(&o.SkipMissing, "skip-missing", o.SkipMissing, "If an input image is not found, skip them.")
@@ -462,7 +466,7 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 
 						// filter or load manifest list as appropriate
 						originalSrcDigest := srcDigest
-						srcManifests, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll)
+						srcManifests, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll, o.ForceManifestList)
 						if err != nil {
 							plan.AddError(retrieverError{src: src.ref, err: err})
 							return
