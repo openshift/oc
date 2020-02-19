@@ -1473,37 +1473,28 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 				fmt.Fprintf(out, "### %s\n\n", strings.Join(change.ImagesAffected, ", "))
 			}
 			for _, commit := range commits {
-				var suffix string
+				fmt.Fprintf(out, "*")
+				for i, bug := range commit.Bugs {
+					if i == 0 {
+						fmt.Fprintf(out, " [Bug %d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
+					} else {
+						fmt.Fprintf(out, ", [%d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
+					}
+				}
+				if len(commit.Bugs) > 0 {
+					fmt.Fprintf(out, ":")
+				}
+				fmt.Fprintf(out, " %s", commit.Subject)
 				switch {
 				case commit.PullRequest > 0:
-					suffix = fmt.Sprintf("[#%d](%s)", commit.PullRequest, fmt.Sprintf("https://%s%s/pull/%d", u.Host, u.Path, commit.PullRequest))
+					fmt.Fprintf(out, " [#%d](%s)", commit.PullRequest, fmt.Sprintf("https://%s%s/pull/%d", u.Host, u.Path, commit.PullRequest))
 				case u.Host == "github.com":
 					commit := commit.Commit[:8]
-					suffix = fmt.Sprintf("[%s](%s)", commit, fmt.Sprintf("https://%s%s/commit/%s", u.Host, u.Path, commit))
+					fmt.Fprintf(out, " [%s](%s)", commit, fmt.Sprintf("https://%s%s/commit/%s", u.Host, u.Path, commit))
 				default:
-					suffix = commit.Commit[:8]
+					fmt.Fprintf(out, " %s", commit.Commit[:8])
 				}
-				switch {
-				case len(commit.Bugs) > 0:
-					for i, bug := range commit.Bugs {
-						if i == 0 {
-							fmt.Fprintf(out, "* [Bug %d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
-						} else {
-							fmt.Fprintf(out, ", [%d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
-						}
-						fmt.Fprintf(out,
-							": %s %s\n",
-							commit.Subject,
-							suffix,
-						)
-					}
-				default:
-					fmt.Fprintf(out,
-						"* %s %s\n",
-						commit.Subject,
-						suffix,
-					)
-				}
+				fmt.Fprintf(out, "\n")
 			}
 			if u.Host == "github.com" {
 				fmt.Fprintf(out, "* [Full changelog](%s)\n\n", fmt.Sprintf("https://%s%s/compare/%s...%s", u.Host, u.Path, change.From, change.To))
