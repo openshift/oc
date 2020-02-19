@@ -458,7 +458,7 @@ func (o *AppOptions) RunNewApp() error {
 			}
 		case *buildv1.BuildConfig:
 			if t.Spec.Strategy.Type == buildv1.JenkinsPipelineBuildStrategyType {
-				fmt.Fprintf(o.Action.ErrOut, "JenkinsPipeline build strategy is deprecated. Use Jenkinsfiles directly on Jenkins or OpenShift Pipelines instead")
+				fmt.Fprintln(o.Action.ErrOut, "JenkinsPipeline build strategy is deprecated. Use Jenkinsfiles directly on Jenkins or OpenShift Pipelines instead")
 			}
 			triggered := false
 			for _, trigger := range t.Spec.Triggers {
