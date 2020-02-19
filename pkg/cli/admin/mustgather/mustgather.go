@@ -84,6 +84,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringSliceVar(&o.ImageStreams, "image-stream", o.ImageStreams, "Specify an image stream (namespace/name:tag) containing a must-gather plugin image to run.")
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
+	cmd.Flags().Int64Var(&o.Timeout, "timeout", 600, "The length of time to gather data, in seconds. Defaults to 10 minutes.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	cmd.Flags().MarkHidden("keep")
 
@@ -203,6 +204,7 @@ type MustGatherOptions struct {
 	Images       []string
 	ImageStreams []string
 	Command      []string
+	Timeout      int64
 	Keep         bool
 
 	RsyncRshCmd string
@@ -388,7 +390,7 @@ func newPrefixWriter(out io.Writer, prefix string) io.Writer {
 
 func (o *MustGatherOptions) waitForPodRunning(pod *corev1.Pod) error {
 	phase := pod.Status.Phase
-	err := wait.PollImmediate(time.Second, 10*time.Minute, func() (bool, error) {
+	err := wait.PollImmediate(time.Duration(o.Timeout)*time.Second, time.Minute, func() (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{}); err != nil {
 			// at this stage pod should exist, we've been gathering container logs, so error if not found
@@ -414,7 +416,7 @@ func (o *MustGatherOptions) waitForPodRunning(pod *corev1.Pod) error {
 }
 
 func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error {
-	return wait.PollImmediate(time.Second, 10*time.Minute, func() (bool, error) {
+	return wait.PollImmediate(time.Duration(o.Timeout)*time.Second, time.Minute, func() (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{}); err == nil {
 			if len(pod.Status.InitContainerStatuses) == 0 {
