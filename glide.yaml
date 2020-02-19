@@ -94,6 +94,8 @@ import:
 - package: github.com/containers/image
   repo:    https://github.com/openshift/containers-image.git
   version: openshift-3.8
+- package: github.com/mtrmac/gpgme
+  version: v0.1.2
 # cli
 - package: github.com/docker/distribution
   repo:    https://github.com/openshift/docker-distribution.git

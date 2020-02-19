@@ -1,5 +1,5 @@
-hash: b02b691d58eee5e47280bb08385102c933b415a45b8f7a4a115684ce49019112
-updated: 2020-01-10T17:28:56.278066753+01:00
+hash: b08f0b2b730a097c20468f0bf4ba4501946f6a71c72b213cafe33c3979a284c3
+updated: 2020-02-19T11:56:32.015911352+01:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: a7dc8b61c822528f973a5e4e7b272055c6fdb43e
@@ -356,7 +356,7 @@ imports:
 - name: github.com/modern-go/reflect2
   version: 94122c33edd36123c84d5368cfb2b69df93a0ec8
 - name: github.com/mtrmac/gpgme
-  version: b2432428689ca58c2b8e8dea9449d3295cf96fc9
+  version: c3d28ade92cee62b3b6819332e3a7e38f564ff2c
 - name: github.com/mxk/go-flowrate
   version: cca7078d478f8520f85629ad7c68962d31ed7682
   subpackages:
