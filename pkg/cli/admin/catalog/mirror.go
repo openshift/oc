@@ -156,6 +156,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			a := imgmirror.NewMirrorImageOptions(o.IOStreams)
 			a.SkipMissing = true
 			a.DryRun = o.DryRun
+			a.ForceManifestList = true
 			a.Mappings = []imgmirror.Mapping{{
 				Source:      fromRef[0],
 				Destination: toRef,
