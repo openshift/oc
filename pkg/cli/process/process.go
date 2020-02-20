@@ -142,9 +142,8 @@ func NewCmdProcess(fullName string, f kcmdutil.Factory, streams genericclioption
 
 	// point to the original memory address shared between the jsonpath and go-template printer's TemplateArgument field
 	o.PrintFlags.TemplatePrinterFlags.TemplateArgument = o.PrintFlags.TemplatePrinterFlags.JSONPathPrintFlags.TemplateArgument
-	cmd.Flags().StringVarP(o.PrintFlags.TemplatePrinterFlags.TemplateArgument, "template", "t", *o.PrintFlags.TemplatePrinterFlags.TemplateArgument, "Template string or path to template file to use when -o=go-template, -o=go-template-file. The template format is golang templates [http://golang.org/pkg/text/template/#pkg-overview].")
+	cmd.Flags().StringVar(o.PrintFlags.TemplatePrinterFlags.TemplateArgument, "template", *o.PrintFlags.TemplatePrinterFlags.TemplateArgument, "Template string or path to template file to use when -o=go-template, -o=go-template-file. The template format is golang templates [http://golang.org/pkg/text/template/#pkg-overview].")
 	cmd.MarkFlagFilename("template")
-	cmd.Flags().MarkShorthandDeprecated("template", "-t is no longer supported and will be removed in the future. Use --template instead.")
 
 	cmd.Flags().StringVarP(&o.filename, "filename", "f", o.filename, "Filename or URL to file to read a template")
 	cmd.MarkFlagFilename("filename", "yaml", "yml", "json")
@@ -157,9 +156,6 @@ func NewCmdProcess(fullName string, f kcmdutil.Factory, streams genericclioption
 	cmd.Flags().StringVarP(&o.labels, "labels", "l", o.labels, "Label to set in all resources for this template")
 
 	cmd.Flags().BoolVar(&o.raw, "raw", o.raw, "If true, output the processed template instead of the template's objects. Implied by -o describe")
-
-	cmd.Flags().String("output-version", "", "Output the formatted object with the given version (default api-version).")
-	cmd.Flags().MarkDeprecated("output-version", "this flag is deprecated and will be removed in the future, this flag is ignored")
 
 	return cmd
 }

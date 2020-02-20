@@ -273,8 +273,6 @@ func NewCmdNewApplication(name, baseName string, f kcmdutil.Factory, streams gen
 	cmd.Flags().BoolVar(&o.Config.AsTestDeployment, "as-test", o.Config.AsTestDeployment, "If true create this application as a test deployment, which validates that the deployment succeeds and then scales down.")
 	cmd.Flags().StringSliceVar(&o.Config.SourceRepositories, "code", o.Config.SourceRepositories, "Source code to use to build this application.")
 	cmd.Flags().StringVar(&o.Config.ContextDir, "context-dir", o.Config.ContextDir, "Context directory to be used for the build.")
-	cmd.Flags().StringSliceVarP(&o.Config.ImageStreams, "image", "", o.Config.ImageStreams, "Name of an image stream to use in the app. (deprecated)")
-	cmd.Flags().MarkDeprecated("image", "use --image-stream instead")
 	cmd.Flags().StringSliceVarP(&o.Config.ImageStreams, "image-stream", "i", o.Config.ImageStreams, "Name of an image stream to use in the app.")
 	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "docker-image", o.Config.DockerImages, "Name of a Docker image to include in the app.")
 	cmd.Flags().StringSliceVar(&o.Config.Templates, "template", o.Config.Templates, "Name of a stored template to use in the app.")

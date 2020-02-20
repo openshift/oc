@@ -169,7 +169,7 @@ func NewVolumeOptions(streams genericclioptions.IOStreams) *VolumeOptions {
 func NewCmdVolume(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewVolumeOptions(streams)
 	cmd := &cobra.Command{
-		Use:     "volumes RESOURCE/NAME --add|--remove|--list",
+		Use:     "volumes RESOURCE/NAME --add|--remove",
 		Short:   "Update volumes on a pod template",
 		Long:    volumeLong,
 		Example: fmt.Sprintf(volumeExample, fullName),
@@ -186,7 +186,6 @@ func NewCmdVolume(fullName string, f kcmdutil.Factory, streams genericclioptions
 	cmd.Flags().BoolVar(&o.All, "all", o.All, "If true, select all resources in the namespace of the specified resource types")
 	cmd.Flags().BoolVar(&o.Add, "add", o.Add, "If true, add volume and/or volume mounts for containers")
 	cmd.Flags().BoolVar(&o.Remove, "remove", o.Remove, "If true, remove volume and/or volume mounts for containers")
-	cmd.Flags().BoolVar(&o.List, "list", o.List, "If true, list volumes and volume mounts for containers")
 	cmd.Flags().BoolVar(&o.Local, "local", o.Local, "If true, set image will NOT contact api-server but run locally.")
 	cmd.Flags().StringVar(&o.Name, "name", o.Name, "Name of the volume. If empty, auto generated for add operation")
 	cmd.Flags().StringVarP(&o.Containers, "containers", "c", o.Containers, "The names of containers in the selected pod templates to change - may use wildcards")
@@ -209,9 +208,6 @@ func NewCmdVolume(fullName string, f kcmdutil.Factory, streams genericclioptions
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
-
-	// deprecate --list option
-	cmd.Flags().MarkDeprecated("list", "Volumes and volume mounts can be listed by providing a resource with no additional options.")
 
 	return cmd
 }

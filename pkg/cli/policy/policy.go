@@ -6,7 +6,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	adminpolicy "github.com/openshift/oc/pkg/cli/admin/policy"
-	"github.com/openshift/oc/pkg/cli/policy/cani"
 )
 
 const PolicyRecommendedName = "policy"
@@ -21,7 +20,6 @@ func NewCmdPolicy(name, fullName string, f kcmdutil.Factory, streams genericclio
 	}
 
 	cmds.AddCommand(adminpolicy.NewCmdWhoCan(adminpolicy.WhoCanRecommendedName, fullName+" "+adminpolicy.WhoCanRecommendedName, f, streams))
-	cmds.AddCommand(cani.NewCmdCanI(cani.CanIRecommendedName, fullName+" "+cani.CanIRecommendedName, f, streams))
 	cmds.AddCommand(adminpolicy.NewCmdSccSubjectReview(adminpolicy.SubjectReviewRecommendedName, fullName+" "+adminpolicy.SubjectReviewRecommendedName, f, streams))
 	cmds.AddCommand(adminpolicy.NewCmdSccReview(adminpolicy.ReviewRecommendedName, fullName+" "+adminpolicy.ReviewRecommendedName, f, streams))
 
