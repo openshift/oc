@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"path"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -424,16 +423,7 @@ var (
 
 // NewCmdConfig is a wrapper for the Kubernetes cli config command
 func NewCmdConfig(fullName, name string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	pathOptions := &kclientcmd.PathOptions{
-		GlobalFile:       kclientcmd.RecommendedHomeFile,
-		EnvVar:           kclientcmd.RecommendedConfigPathEnvVar,
-		ExplicitFileFlag: genericclioptions.OpenShiftKubeConfigFlagName,
-
-		GlobalFileSubpath: path.Join(kclientcmd.RecommendedHomeDir, kclientcmd.RecommendedFileName),
-
-		LoadingRules: kclientcmd.NewDefaultClientConfigLoadingRules(),
-	}
-	pathOptions.LoadingRules.DoNotResolvePaths = true
+	pathOptions := kclientcmd.NewDefaultPathOptions()
 
 	cmd := config.NewCmdConfig(f, pathOptions, streams)
 	cmd.Short = "Change configuration files for the client"

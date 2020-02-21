@@ -84,7 +84,7 @@ import:
 - package: github.com/openshift/library-go
   version: release-4.2
 - package: github.com/openshift/source-to-image
-  version: master
+  version: 1877e115164b5ff41e7c86244d9a109258234070
 
 # forks third
 # master
@@ -199,3 +199,23 @@ import:
 # https://github.com/kubernetes/kubernetes/pull/72138
 - package: bitbucket.org/ww/goautoneg
   repo: https://github.com/munnerz/goautoneg.git
+
+# pin to levels from release-4.2 branch
+- package: github.com/containerd/continuity
+  version: 75bee3e2ccb6402e3a986ab8bd3b17003fc0fdec
+- package: github.com/containers/storage
+  version: 01ea27db516e1ea8dd22b63b69d3a66c571effa7
+- package: github.com/gorilla/mux
+  version: f395758b854c4efa789b8c1e9b73479704c548cb
+- package: github.com/opencontainers/go-digest
+  version: ac19fd6e7483ff933754af248d80be865e543d22
+- package: github.com/pkg/profile
+  version: f6fe06335df110bcf1ed6d4e852b760bfc15beee
+- package: github.com/spf13/pflag
+  version: 298182f68c66c05229eb03ac171abe6e309ee79a
+- package: golang.org/x/time
+  version: f51c12702a4d776e4c1fa9b0fabab841babae631
+- package: gopkg.in/asn1-ber.v1
+  version: 158c9f99fc9c29a5ca9203be28f0fdf31cfb9701
+- package: sigs.k8s.io/yaml
+  version: fd68e9863619f6ec2fdd8625fe1f02e7c877e480
