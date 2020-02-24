@@ -171,8 +171,14 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	dir := o.FileDir
+	if len(o.FromFileDir) > 0 {
+		dir = o.FromFileDir
+	}
+
 	opts := &imagesource.Options{
-		FileDir:             o.FileDir,
+		FileDir:             dir,
 		Insecure:            o.SecurityOptions.Insecure,
 		AttemptS3BucketCopy: o.AttemptS3BucketCopy,
 		RegistryContext:     registryContext,
