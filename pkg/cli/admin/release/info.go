@@ -30,6 +30,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -49,8 +50,9 @@ import (
 
 func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
 	return &InfoOptions{
-		IOStreams:       streams,
-		ParallelOptions: imagemanifest.ParallelOptions{MaxPerRegistry: 4},
+		IOStreams:              streams,
+		KubeTemplatePrintFlags: *genericclioptions.NewKubeTemplatePrintFlags(),
+		ParallelOptions:        imagemanifest.ParallelOptions{MaxPerRegistry: 4},
 	}
 }
 
@@ -114,6 +116,7 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 	flags := cmd.Flags()
 	o.SecurityOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
+	o.KubeTemplatePrintFlags.AddFlags(cmd)
 
 	flags.StringVar(&o.From, "changes-from", o.From, "Show changes from this image to the requested image.")
 
@@ -125,7 +128,7 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 	flags.BoolVar(&o.ShowPullSpec, "pullspecs", o.ShowPullSpec, "Display the pull spec of each image instead of the digest.")
 	flags.BoolVar(&o.ShowSize, "size", o.ShowSize, "Display the size of each image including overlap.")
 	flags.StringVar(&o.ImageFor, "image-for", o.ImageFor, "Print the pull spec of the specified image or an error if it does not exist.")
-	flags.StringVarP(&o.Output, "output", "o", o.Output, "Display the release info in an alternative format: digest|json|name|pullspec.")
+	flags.StringVarP(&o.Output, "output", "o", o.Output, "Display the release info in an alternative format: digest|json|name|pullspec|template|jsonpath.")
 	flags.StringVar(&o.ChangelogDir, "changelog", o.ChangelogDir, "Generate changelog output from the git directories extracted to this path.")
 	flags.StringVar(&o.BugsDir, "bugs", o.BugsDir, "Generate bug listings from the changelogs in the git repositories extracted to this path.")
 	flags.BoolVar(&o.IncludeImages, "include-images", o.IncludeImages, "When displaying JSON output of a release output the images the release references.")
@@ -135,6 +138,7 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 
 type InfoOptions struct {
 	genericclioptions.IOStreams
+	genericclioptions.KubeTemplatePrintFlags
 
 	Images  []string
 	From    string
@@ -412,10 +416,9 @@ func (o *InfoOptions) Validate() error {
 			return fmt.Errorf("--output is not supported for this mode")
 		}
 	default:
-		switch o.Output {
-		case "", "json", "pullspec", "digest", "name":
-		default:
-			return fmt.Errorf("--output only supports 'name', 'json', 'pullspec', or 'digest'")
+		output := strings.SplitN(o.Output, "=", 2)[0]
+		if len(output) > 0 && !stringArrContains(o.allowedFormats(), output) {
+			return fmt.Errorf("--output only supports %s", strings.Join(o.allowedFormats(), ", "))
 		}
 	}
 
@@ -489,6 +492,12 @@ func (o *InfoOptions) Run() error {
 	return exitErr
 }
 
+func (opt *InfoOptions) allowedFormats() []string {
+	formats := []string{"json", "pullspec", "digest", "name"}
+	formats = append(formats, opt.KubeTemplatePrintFlags.AllowedFormats()...)
+	return formats
+}
+
 func diffContents(a, b string, out io.Writer) error {
 	fmt.Fprintf(out, `To see the differences between these releases, run:
 
@@ -505,7 +514,8 @@ func (o *InfoOptions) describeImage(release *ReleaseInfo) error {
 		_, err := io.Copy(o.Out, newContentStreamForRelease(release))
 		return err
 	}
-	switch o.Output {
+	output := strings.SplitN(o.Output, "=", 2)
+	switch output[0] {
 	case "json":
 		data, err := json.MarshalIndent(release, "", "  ")
 		if err != nil {
@@ -540,7 +550,18 @@ func (o *InfoOptions) describeImage(release *ReleaseInfo) error {
 		return nil
 	case "":
 	default:
-		return fmt.Errorf("output mode only supports 'name', 'json', 'pullspec', or 'digest'")
+		p, err := o.KubeTemplatePrintFlags.ToPrinter(o.Output)
+		if genericclioptions.IsNoCompatiblePrinterError(err) {
+			return fmt.Errorf("output mode only supports %s", strings.Join(o.allowedFormats(), ", "))
+		}
+		if err != nil {
+			return err
+		}
+		data, err := json.MarshalIndent(release, "", "  ")
+		if err != nil {
+			return err
+		}
+		return p.PrintObj(&runtime.Unknown{Raw: data}, o.Out)
 	}
 	if len(o.ImageFor) > 0 {
 		spec, err := findImageSpec(release.References, o.ImageFor, release.Image)
