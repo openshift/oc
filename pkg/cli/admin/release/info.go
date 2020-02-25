@@ -288,8 +288,9 @@ func replaceClusterSemanticArgs(f kcmdutil.Factory, args []string, semanticArgs 
 	}
 	cv, err := client.ConfigV1().ClusterVersions().Get("version", metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return args, fmt.Errorf("you must be connected to an OpenShift 4.x server to fetch the current version")
+		if errors.IsNotFound(err) || errors.ReasonForError(err) == metav1.StatusReasonUnknown {
+			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
+			return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server")
 		}
 		return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
 	}
