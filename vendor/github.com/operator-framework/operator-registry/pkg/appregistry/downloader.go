@@ -20,15 +20,48 @@ type downloadItem struct {
 
 	// Source refers to the remote appregistry URL and remote registry namespace.
 	Source *Source
+
+	// Release refers to the release number the user requested
+	Release string
 }
 
 func (d *downloadItem) String() string {
-	return fmt.Sprintf("%s", d.RepositoryMetadata)
+	return fmt.Sprintf("%s:%s", d.RepositoryMetadata.Name, d.Release)
+}
+
+type registryOptionsGetter interface {
+	GetRegistryOptions(source *Source) (*apprclient.Options, error)
+}
+
+type secretRegistryOptionsGetter struct {
+	kubeClient kubernetes.Interface
+}
+
+type sourceQuerier interface {
+	QuerySource(source *Source) ([]*apprclient.RegistryMetadata, error)
+}
+
+type appRegistrySourceQuerier struct {
+	kubeClient      kubernetes.Interface
+	regOptionGetter registryOptionsGetter
 }
 
 type downloader struct {
-	logger     *logrus.Entry
-	kubeClient kubernetes.Clientset
+	logger          *logrus.Entry
+	kubeClient      kubernetes.Interface
+	querier         sourceQuerier
+	regOptionGetter registryOptionsGetter
+}
+
+// NewDownloader returns a new instance of downloader
+func newDownloader(logger *logrus.Entry, kubeClient kubernetes.Interface) *downloader {
+	regOptionGetter := &secretRegistryOptionsGetter{kubeClient}
+	return &downloader{
+		logger,
+		kubeClient,
+		&appRegistrySourceQuerier{kubeClient, regOptionGetter},
+		regOptionGetter,
+	}
 }
 
 // Download downloads manifest(s) associated with the specified package(s) from
@@ -43,11 +76,18 @@ func (d *downloader) Download(input *Input) (manifests []*apprclient.OperatorMet
 		d.logger.Errorf("the following error(s) occurred while preparing the download list: %v", err)
 
 		if len(items) == 0 {
-			d.logger.Infof("download list is empty, bailing out: %s", input.Packages)
+			d.logger.Infof("download list is empty, bailing out: %v", input.Packages)
 			return
 		}
 	}
 
+	for _, item := range items {
+		d.logger.Infof(
+			"the following releases are available for package %s -> %s",
+			item.RepositoryMetadata.Name,
+			item.RepositoryMetadata.Releases,
+		)
+	}
 	d.logger.Infof("resolved the following packages: %s", items)
 
 	manifests, err = d.DownloadRepositories(items)
@@ -65,7 +105,7 @@ func (d *downloader) Download(input *Input) (manifests []*apprclient.OperatorMet
 // log it and move on.
 func (d *downloader) Prepare(input *Input) (items []*downloadItem, err error) {
 	packageMap := input.PackagesToMap()
-	itemMap := map[string]*downloadItem{}
+	itemMap := map[Package]*downloadItem{}
 	allErrors := []error{}
 
 	for _, source := range input.Sources {
@@ -74,7 +114,7 @@ func (d *downloader) Prepare(input *Input) (items []*downloadItem, err error) {
 			break
 		}
 
-		repositoryList, err := d.QuerySource(source)
+		repositoryList, err := d.querier.QuerySource(source)
 		if err != nil {
 			allErrors = append(allErrors, err)
 			d.logger.Infof("skipping operator source due to error: %s", source)
@@ -82,22 +122,36 @@ func (d *downloader) Prepare(input *Input) (items []*downloadItem, err error) {
 			continue
 		}
 
+		repositoryMap := map[string]*apprclient.RegistryMetadata{}
 		for _, metadata := range repositoryList {
-			// Repository name has a one to one mapping to operator/package name.
-			// We use this as the key.
-			key := metadata.Name
+			repositoryMap[metadata.Name] = metadata
+		}
 
-			if _, ok := packageMap[key]; ok {
-				// The package specified has been resolved to this repository
-				// name in remote registry.
-				itemMap[key] = &downloadItem{
-					RepositoryMetadata: metadata,
-					Source:             source,
-				}
-
-				// Remove the package specified since it has been resolved.
-				delete(packageMap, key)
+		for _, pkg := range input.Packages {
+			metadata, ok := repositoryMap[pkg.Name]
+			if !ok {
+				// The package is not in the current source
+				continue
 			}
+			// If a specific release was requrested, download it
+			release := pkg.Release
+			if release != "" {
+				releaseMap := metadata.ReleaseMap()
+				if _, ok := releaseMap[pkg.Release]; !ok {
+					// We have the package, but not the requested release
+					continue
+				}
+			} else {
+				// default to the latest
+				release = metadata.Release
+			}
+
+			itemMap[*pkg] = &downloadItem{
+				RepositoryMetadata: metadata,
+				Release:            release,
+				Source:             source,
+			}
+			delete(packageMap, *pkg)
 		}
 	}
 
@@ -124,12 +178,12 @@ func (d *downloader) DownloadRepositories(items []*downloadItem) (manifests []*a
 	for _, item := range items {
 		endpoint := item.Source.Endpoint
 
-		d.logger.Infof("downloading repository: %s from %s", item.RepositoryMetadata, endpoint)
+		d.logger.Infof("downloading repository: %s from %s", item, endpoint)
 
-		options, err := d.SetupRegistryOptions(item.Source)
+		options, err := d.regOptionGetter.GetRegistryOptions(item.Source)
 		if err != nil {
 			allErrors = append(allErrors, err)
-			d.logger.Infof("skipping repository: %s", item.RepositoryMetadata)
+			d.logger.Infof("skipping repository: %s", item)
 
 			continue
 		}
@@ -137,15 +191,15 @@ func (d *downloader) DownloadRepositories(items []*downloadItem) (manifests []*a
 		client, err := apprclient.New(*options)
 		if err != nil {
 			allErrors = append(allErrors, err)
-			d.logger.Infof("skipping repository: %s", item.RepositoryMetadata)
+			d.logger.Infof("skipping repository: %s", item)
 
 			continue
 		}
 
-		manifest, err := client.RetrieveOne(item.RepositoryMetadata.ID(), item.RepositoryMetadata.Release)
+		manifest, err := client.RetrieveOne(item.RepositoryMetadata.ID(), item.Release)
 		if err != nil {
 			allErrors = append(allErrors, err)
-			d.logger.Infof("skipping repository: %s", item.RepositoryMetadata)
+			d.logger.Infof("skipping repository: %s", item)
 
 			continue
 		}
@@ -164,12 +218,12 @@ func (d *downloader) DownloadRepositories(items []*downloadItem) (manifests []*a
 // The function returns the spec ( associated with the OperatorSource object )
 // in the cluster and the list of repositories in remote registry associated
 // with it.
-func (d *downloader) QuerySource(source *Source) (repositories []*apprclient.RegistryMetadata, err error) {
+func (a *appRegistrySourceQuerier) QuerySource(source *Source) (repositories []*apprclient.RegistryMetadata, err error) {
 	if source == nil {
 		return nil, errors.New("specified source is <nil>")
 	}
 
-	options, err := d.SetupRegistryOptions(source)
+	options, err := a.regOptionGetter.GetRegistryOptions(source)
 	if err != nil {
 		return
 	}
@@ -187,17 +241,17 @@ func (d *downloader) QuerySource(source *Source) (repositories []*apprclient.Reg
 	return
 }
 
-// SetupRegistryOptions generates an Options object based on the OperatorSource spec. It passes along
+// GetRegistryOptions generates an Options object based on the OperatorSource spec. It passes along
 // the opsrc endpoint and, if defined, retrieves the authorization token from the specified Secret
 // object.
-func (d *downloader) SetupRegistryOptions(source *Source) (*apprclient.Options, error) {
+func (s *secretRegistryOptionsGetter) GetRegistryOptions(source *Source) (*apprclient.Options, error) {
 	if source == nil {
 		return nil, errors.New("specified source is <nil>")
 	}
 
 	token := ""
 	if source.IsSecretSpecified() {
-		secret, err := d.kubeClient.CoreV1().Secrets(source.Secret.Namespace).Get(source.Secret.Name, metav1.GetOptions{})
+		secret, err := s.kubeClient.CoreV1().Secrets(source.Secret.Namespace).Get(source.Secret.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
