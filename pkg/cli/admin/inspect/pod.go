@@ -17,11 +17,6 @@ import (
 )
 
 func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) error {
-	if pod.Status.Phase != corev1.PodRunning {
-		klog.V(1).Infof("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
-		return nil
-	}
-
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -33,14 +28,6 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 	}
 
 	errs := []error{}
-
-	// skip gathering container data if containers are no longer running
-	if running, err := PodRunningReady(pod); err != nil {
-		return err
-	} else if !running {
-		klog.V(1).Infof("        Skipping container data collection for pod %q: Pod not running\n", pod.Name)
-		return nil
-	}
 
 	// gather data for each container in the given pod
 	for _, container := range pod.Spec.Containers {
