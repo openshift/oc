@@ -2,6 +2,7 @@ package release
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -72,13 +73,22 @@ func NewMirror(f kcmdutil.Factory, parentName string, streams genericclioptions.
 			is to specify --to-image-stream, which imports the images directly into an OpenShift
 			image stream.
 
-			You may use --to-dir to specify a directory to download release content. The command
-			will print the 'oc image mirror' command that can be used to upload the release to
-			another registry.
+			You may use --to-dir to specify a directory to download release content into, and add
+			the file:// prefix to the --to flag. The command will print the 'oc image mirror' command
+			that can be used to upload the release to another registry.
 		`),
 		Example: templates.Examples(`
 			# Perform a dry run showing what would be mirrored, including the mirror objects
 			%[1]s 4.2.2 --to myregistry.local/openshift/release --dry-run
+
+			# Mirror a release into the current directory
+			%[1]s 4.2.2 --to file://openshift/release
+
+			# Mirror a release to another directory in the default location
+			%[1]s 4.2.2 --to-dir /tmp/releases
+
+			# Upload a release from the current directory to another server
+			%[1]s --from file://openshift/release --to myregistry.com/openshift/release
 			`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, f, args))
@@ -92,6 +102,7 @@ func NewMirror(f kcmdutil.Factory, parentName string, streams genericclioptions.
 	flags.StringVar(&o.From, "from", o.From, "Image containing the release payload.")
 	flags.StringVar(&o.To, "to", o.To, "An image repository to push to.")
 	flags.StringVar(&o.ToImageStream, "to-image-stream", o.ToImageStream, "An image stream to tag images into.")
+	flags.StringVar(&o.FromDir, "from-dir", o.ToDir, "A directory to import images from.")
 	flags.StringVar(&o.ToDir, "to-dir", o.ToDir, "A directory to export images to.")
 	flags.BoolVar(&o.ToMirror, "to-mirror", o.ToMirror, "Output the mirror mappings instead of mirroring.")
 	flags.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Display information about the mirror without actually executing it.")
@@ -107,7 +118,8 @@ type MirrorOptions struct {
 	SecurityOptions imagemanifest.SecurityOptions
 	ParallelOptions imagemanifest.ParallelOptions
 
-	From string
+	From    string
+	FromDir string
 
 	To            string
 	ToImageStream string
@@ -222,6 +234,7 @@ func (o *MirrorOptions) Run() error {
 		}
 	}
 
+	var toDisk bool
 	var version string
 	if strings.Contains(dst, "${component}") {
 		format := strings.Replace(dst, "${component}", replaceComponentMarker, -1)
@@ -230,6 +243,7 @@ func (o *MirrorOptions) Run() error {
 		if err != nil {
 			return fmt.Errorf("--to must be a valid image reference: %v", err)
 		}
+		toDisk = dstRef.Type == imagesource.DestinationFile
 		targetFn = func(name string) imagesource.TypedImageReference {
 			if len(name) == 0 {
 				name = "release"
@@ -250,6 +264,7 @@ func (o *MirrorOptions) Run() error {
 		if err != nil {
 			return fmt.Errorf("--to must be a valid image repository: %v", err)
 		}
+		toDisk = ref.Type == imagesource.DestinationFile
 		if len(ref.Ref.ID) > 0 || len(ref.Ref.Tag) > 0 {
 			return fmt.Errorf("--to must be to an image repository and may not contain a tag or digest")
 		}
@@ -307,27 +322,64 @@ func (o *MirrorOptions) Run() error {
 	}
 	version = is.Name
 
+	// sourceFn is given a chance to rewrite source mappings
+	sourceFn := func(ref imagesource.TypedImageReference) imagesource.TypedImageReference {
+		return ref
+	}
 	var mappings []mirror.Mapping
-	if len(o.From) > 0 && !o.SkipRelease {
+	if len(o.From) > 0 {
 		src := o.From
-		srcRef, err := imagereference.Parse(src)
+		srcRef, err := imagesource.ParseReference(src)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid --from: %v", err)
 		}
+
+		// if the source ref is a file type, provide a function that checks the local file store for a given manifest
+		// before continuing, to allow mirroring an entire release to disk in a single file://REPO.
+		if srcRef.Type == imagesource.DestinationFile {
+			if repo, err := (&imagesource.Options{FileDir: o.FromDir}).Repository(context.TODO(), srcRef); err == nil {
+				sourceFn = func(ref imagesource.TypedImageReference) imagesource.TypedImageReference {
+					if ref.Type == imagesource.DestinationFile || len(ref.Ref.ID) == 0 {
+						return ref
+					}
+					manifests, err := repo.Manifests(context.TODO())
+					if err != nil {
+						klog.V(2).Infof("Unable to get local manifest service: %v", err)
+						return ref
+					}
+					ok, err := manifests.Exists(context.TODO(), digest.Digest(ref.Ref.ID))
+					if err != nil {
+						klog.V(2).Infof("Unable to get check for local manifest: %v", err)
+						return ref
+					}
+					if !ok {
+						return ref
+					}
+					updated := srcRef
+					updated.Ref.Tag = ""
+					updated.Ref.ID = ref.Ref.ID
+					klog.V(2).Infof("Rewrote %s to %s", ref, updated)
+					return updated
+				}
+			} else {
+				klog.V(2).Infof("Unable to build local file lookup: %v", err)
+			}
+		}
+
 		if len(o.ToRelease) > 0 {
-			dstRef, err := imagereference.Parse(o.ToRelease)
+			dstRef, err := imagesource.ParseReference(o.ToRelease)
 			if err != nil {
 				return fmt.Errorf("invalid --to-release-image: %v", err)
 			}
 			mappings = append(mappings, mirror.Mapping{
-				Source:      imagesource.TypedImageReference{Ref: srcRef, Type: imagesource.DestinationRegistry},
-				Destination: imagesource.TypedImageReference{Ref: dstRef, Type: imagesource.DestinationRegistry},
+				Source:      srcRef,
+				Destination: dstRef,
 				Name:        o.ToRelease,
 			})
 		} else if !o.SkipRelease {
 			dstRef := targetFn("")
 			mappings = append(mappings, mirror.Mapping{
-				Source:      imagesource.TypedImageReference{Ref: srcRef, Type: imagesource.DestinationRegistry},
+				Source:      srcRef,
 				Destination: dstRef,
 				Name:        "release",
 			})
@@ -350,13 +402,17 @@ func (o *MirrorOptions) Run() error {
 			return fmt.Errorf("image-references should only contain pointers to images by digest: %s", tag.From.Name)
 		}
 
+		// Allow mirror refs to be sourced locally
+		srcMirrorRef := imagesource.TypedImageReference{Ref: from, Type: imagesource.DestinationRegistry}
+		srcMirrorRef = sourceFn(srcMirrorRef)
+
 		// Create a unique map of repos as keys
 		currentRepo := from.AsRepository().String()
 		repositories[currentRepo] = struct{}{}
 
 		dstMirrorRef := targetFn(tag.Name)
 		mappings = append(mappings, mirror.Mapping{
-			Source:      imagesource.TypedImageReference{Ref: from, Type: imagesource.DestinationRegistry},
+			Source:      srcMirrorRef,
 			Destination: dstMirrorRef,
 			Name:        tag.Name,
 		})
@@ -526,8 +582,12 @@ func (o *MirrorOptions) Run() error {
 			fmt.Fprintf(o.Out, "Mirrored to: %s\n", o.To)
 		}
 	}
-	if len(o.ToDir) > 0 {
-		fmt.Fprintf(o.Out, "\nTo upload local images to a registry, run:\n\n    oc image mirror --from-dir=%s file://%s* REGISTRY/REPOSITORY\n\n", o.ToDir, to)
+	if toDisk {
+		if len(o.ToDir) > 0 {
+			fmt.Fprintf(o.Out, "\nTo upload local images to a registry, run:\n\n    oc image mirror --from-dir=%s 'file://%s*' REGISTRY/REPOSITORY\n\n", o.ToDir, to)
+		} else {
+			fmt.Fprintf(o.Out, "\nTo upload local images to a registry, run:\n\n    oc image mirror 'file://%s*' REGISTRY/REPOSITORY\n\n", to)
+		}
 	} else if len(o.To) > 0 {
 		if o.PrintImageContentInstructions {
 			if err := printImageContentInstructions(o.Out, o.From, o.To, repositories); err != nil {
@@ -547,18 +607,24 @@ func printImageContentInstructions(out io.Writer, from, to string, repositories 
 
 	var sources []operatorv1alpha1.RepositoryDigestMirrors
 
-	mirrorRef, err := imagereference.Parse(to)
+	mirrorRef, err := imagesource.ParseReference(to)
 	if err != nil {
 		return fmt.Errorf("Unable to parse image reference '%s': %v", to, err)
 	}
-	mirrorRepo := mirrorRef.AsRepository().String()
+	if mirrorRef.Type != imagesource.DestinationRegistry {
+		return nil
+	}
+	mirrorRepo := mirrorRef.Ref.AsRepository().String()
 
 	if len(from) != 0 {
-		sourceRef, err := imagereference.Parse(from)
+		sourceRef, err := imagesource.ParseReference(from)
 		if err != nil {
 			return fmt.Errorf("Unable to parse image reference '%s': %v", from, err)
 		}
-		sourceRepo := sourceRef.AsRepository().String()
+		if sourceRef.Type != imagesource.DestinationRegistry {
+			return nil
+		}
+		sourceRepo := sourceRef.Ref.AsRepository().String()
 		repositories[sourceRepo] = struct{}{}
 	}
 
