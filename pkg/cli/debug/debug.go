@@ -974,6 +974,8 @@ func (o *DebugOptions) getLogs(pod *corev1.Pod) error {
 }
 
 func setNodeName(template *corev1.PodTemplateSpec, nodeName string) *corev1.PodTemplateSpec {
-	template.Spec.NodeName = nodeName
+	if len(nodeName) > 0 {
+		template.Spec.NodeName = nodeName
+	}
 	return template
 }
