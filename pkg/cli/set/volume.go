@@ -494,6 +494,7 @@ func (o *VolumeOptions) RunVolume() error {
 				return err
 			}
 		}
+		return nil
 	}
 
 	allErrs := []error{}
