@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"database/sql"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -90,6 +91,11 @@ func (b *AppregistryImageBuilder) Build() error {
 	if err := downloader.DownloadManifests(b.ManifestDir, b.AppRegistryOrg); err != nil {
 		return err
 	}
+
+	if !hasManifests(b.ManifestDir) {
+		return fmt.Errorf("no manifests downloaded from appregistry %s/%s", b.AppRegistryEndpoint, b.AppRegistryOrg)
+	}
+
 	klog.V(4).Infof("downloaded manifests to %s\n", b.ManifestDir)
 
 	if err := BuildDatabase(b.ManifestDir, b.DatabasePath); err != nil {
@@ -211,4 +217,12 @@ func BuildLayer(directory string) (string, error) {
 	}
 
 	return archive.Name(), nil
+}
+
+func hasManifests(path string) bool {
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		return false
+	}
+	return len(files) > 0
 }
