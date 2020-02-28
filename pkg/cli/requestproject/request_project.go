@@ -59,7 +59,7 @@ You can add applications to this project with the 'new-app' command. For example
 
     %[1]s new-app ruby~https://github.com/sclorg/ruby-ex.git
 
-to build a new example application in Python. Or use kubectl to deploy a simple Kubernetes application:
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
 
     kubectl create deployment hello-node --image=gcr.io/hello-minikube-zero-install/hello-node
 
