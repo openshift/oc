@@ -42,9 +42,15 @@ type BuildImageOptions struct {
 	FileDir     string
 }
 
+const defaultFromImage = "quay.io/openshift/origin-operator-registry:latest"
+
 func NewBuildImageOptions(streams genericclioptions.IOStreams) *BuildImageOptions {
+	// Adjust default build opts to use an OpenShift base "from" image
+	defaults := appregistry.DefaultAppregistryBuildOptions()
+	defaults.From = defaultFromImage
+
 	return &BuildImageOptions{
-		AppregistryBuildOptions: appregistry.DefaultAppregistryBuildOptions(),
+		AppregistryBuildOptions: defaults,
 		IOStreams:               streams,
 		ParallelOptions:         imagemanifest.ParallelOptions{MaxPerRegistry: 4},
 	}
