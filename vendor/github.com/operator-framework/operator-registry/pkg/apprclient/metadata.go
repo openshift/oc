@@ -31,8 +31,11 @@ type RegistryMetadata struct {
 	// registry.
 	Name string
 
-	// Release represents the version number of the given operator manifest.
+	// Release represents the latest version number of the given operator manifest.
 	Release string
+
+	// Releases represents all the available releases of the given operator manifest
+	Releases []string
 
 	// Digest is the sha256 hash value that uniquely corresponds to the blob
 	// associated with this particular release of the operator manifest.
@@ -46,4 +49,16 @@ func (rm *RegistryMetadata) ID() string {
 
 func (rm *RegistryMetadata) String() string {
 	return fmt.Sprintf("%s/%s:%s", rm.Namespace, rm.Name, rm.Release)
+}
+
+// ReleaseMap returns a map between all the available releases of a package to
+// a bool, usefull for checking is some release is available for a package.
+func (rm *RegistryMetadata) ReleaseMap() map[string]bool {
+	releases := map[string]bool{}
+
+	for _, release := range rm.Releases {
+		releases[release] = false
+	}
+
+	return releases
 }
