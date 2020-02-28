@@ -546,7 +546,7 @@ func (o *VolumeOptions) RunVolume() error {
 
 func (o *VolumeOptions) getVolumeUpdatePatches(infos []*resource.Info, singleItemImplied bool) ([]*Patch, error) {
 	skipped := 0
-	patches := CalculatePatches(infos, scheme.DefaultJSONEncoder(), func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
 		transformed := false
 		ok, err := o.UpdatePodSpecForObject(info.Object, func(spec *corev1.PodSpec) error {
 			var e error
@@ -566,7 +566,7 @@ func (o *VolumeOptions) getVolumeUpdatePatches(infos []*resource.Info, singleIte
 		return transformed, err
 	})
 	if singleItemImplied && skipped == len(infos) {
-		patchError := fmt.Errorf("the %s %s is not a pod or does not have a pod template", infos[0].Mapping.Resource, infos[0].Name)
+		patchError := fmt.Errorf("the %s %s is not a pod or does not have a pod template", infos[0].Object.GetObjectKind().GroupVersionKind().Kind, infos[0].Name)
 		return patches, patchError
 	}
 	return patches, nil
@@ -663,7 +663,7 @@ func (o *VolumeOptions) setVolumeMount(spec *corev1.PodSpec, info *resource.Info
 	opts := o.AddOpts
 	containers, _ := selectContainers(spec.Containers, o.Containers)
 	if len(containers) == 0 && o.Containers != "*" {
-		fmt.Fprintf(o.ErrOut, "warning: %s/%s does not have any containers matching %q\n", info.Mapping.Resource.Resource, info.Name, o.Containers)
+		fmt.Fprintf(o.ErrOut, "warning: %s/%s does not have any containers matching %q\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, o.Containers)
 		return nil
 	}
 
@@ -848,7 +848,7 @@ func (o *VolumeOptions) removeSpecificVolume(spec *corev1.PodSpec, containers, s
 func (o *VolumeOptions) removeVolumeFromSpec(spec *corev1.PodSpec, info *resource.Info) error {
 	containers, skippedContainers := selectContainers(spec.Containers, o.Containers)
 	if len(containers) == 0 && o.Containers != "*" {
-		fmt.Fprintf(o.ErrOut, "warning: %s/%s does not have any containers matching %q\n", info.Mapping.Resource.Resource, info.Name, o.Containers)
+		fmt.Fprintf(o.ErrOut, "warning: %s %s does not have any containers matching %q\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, o.Containers)
 		return nil
 	}
 
@@ -920,11 +920,11 @@ func describeVolumeSource(source *corev1.VolumeSource) string {
 func (o *VolumeOptions) listVolumeForSpec(spec *corev1.PodSpec, info *resource.Info) error {
 	containers, _ := selectContainers(spec.Containers, o.Containers)
 	if len(containers) == 0 && o.Containers != "*" {
-		fmt.Fprintf(o.ErrOut, "warning: %s/%s does not have any containers matching %q\n", info.Mapping.Resource.Resource, info.Name, o.Containers)
+		fmt.Fprintf(o.ErrOut, "warning: %s %s does not have any containers matching %q\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, o.Containers)
 		return nil
 	}
 
-	fmt.Fprintf(o.Out, "%s/%s\n", info.Mapping.Resource.Resource, info.Name)
+	fmt.Fprintf(o.Out, "%s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
 	checkName := (len(o.Name) > 0)
 	found := false
 	for _, vol := range spec.Volumes {
@@ -943,7 +943,7 @@ func (o *VolumeOptions) listVolumeForSpec(spec *corev1.PodSpec, info *resource.I
 			case apierrs.IsNotFound(err):
 				refInfo = "(does not exist)"
 			default:
-				fmt.Fprintf(o.ErrOut, "error: unable to retrieve persistent volume claim %s referenced in %s/%s: %v", claimName, info.Mapping.Resource.Resource, info.Name, err)
+				fmt.Fprintf(o.ErrOut, "error: unable to retrieve persistent volume claim %s referenced in %s %s: %v", claimName, info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, err)
 			}
 		}
 		if len(refInfo) > 0 {
