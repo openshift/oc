@@ -9,7 +9,7 @@ require (
 	github.com/alexbrainman/sspi v0.0.0-20180613141037-e580b900e9f5
 	github.com/apcera/gssapi v0.0.0-00010101000000-000000000000
 	github.com/aws/aws-sdk-go v1.17.7
-	github.com/blang/semver v3.5.0+incompatible
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/certifi/gocertifi v0.0.0-20180905225744-ee1a9a0726d2 // indirect
 	github.com/containerd/continuity v0.0.0-20190827140505-75bee3e2ccb6 // indirect
 	github.com/containers/image v0.0.0-00010101000000-000000000000
@@ -51,7 +51,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
 	github.com/openshift/library-go v0.0.0-20191210125924-37b9180d4790
 	github.com/openshift/source-to-image v0.0.0-20190716154012-2a579ecd66df
-	github.com/operator-framework/operator-registry v1.5.2
+	github.com/operator-framework/operator-registry v1.5.11
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/profile v1.3.0 // indirect
 	github.com/prometheus/client_golang v1.1.0
@@ -68,7 +68,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
 	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
-	golang.org/x/net v0.0.0-20190812203447-cdfb69ac37fc
+	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271
 	golang.org/x/sys v0.0.0-20190626221950-04f50cda93cb
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
@@ -77,9 +77,9 @@ require (
 	k8s.io/apimachinery v0.0.0
 	k8s.io/apiserver v0.0.0
 	k8s.io/cli-runtime v0.0.0
-	k8s.io/client-go v0.0.0
+	k8s.io/client-go v8.0.0+incompatible
 	k8s.io/component-base v0.0.0
-	k8s.io/klog v0.4.0
+	k8s.io/klog v1.0.0
 	k8s.io/kubectl v0.0.0
 	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 	k8s.io/utils v0.0.0-20190801114015-581e00157fb1

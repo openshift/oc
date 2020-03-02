@@ -1,3 +1,4 @@
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 builder.go ImageAppender
 package appregistry
 
 import (
@@ -5,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"database/sql"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -46,6 +48,7 @@ type AppregistryImageBuilder struct {
 	CleanOutput bool
 	ManifestDir string
 	DatabaseDir string
+	client      apprclient.Client
 }
 
 func NewAppregistryImageBuilder(options ...AppregistryBuildOption) (*AppregistryImageBuilder, error) {
@@ -69,14 +72,11 @@ func NewAppregistryImageBuilder(options ...AppregistryBuildOption) (*Appregistry
 		CleanOutput:         config.CleanOutput,
 		ManifestDir:         config.ManifestDir,
 		DatabaseDir:         config.DatabaseDir,
+		client:              config.Client,
 	}, nil
 }
 
 func (b *AppregistryImageBuilder) Build() error {
-	opts := apprclient.Options{Source: b.AppRegistryEndpoint}
-	if b.AuthToken != "" {
-		opts.AuthToken = b.AuthToken
-	}
 
 	defer func() {
 		if !b.CleanOutput {
@@ -87,15 +87,15 @@ func (b *AppregistryImageBuilder) Build() error {
 		}
 	}()
 
-	client, err := apprclient.New(opts)
-	if err != nil {
-		return err
-	}
-
-	downloader := NewManifestDownloader(client)
+	downloader := NewManifestDownloader(b.client)
 	if err := downloader.DownloadManifests(b.ManifestDir, b.AppRegistryOrg); err != nil {
 		return err
 	}
+
+	if !hasManifests(b.ManifestDir) {
+		return fmt.Errorf("no manifests downloaded from appregistry %s/%s", b.AppRegistryEndpoint, b.AppRegistryOrg)
+	}
+
 	klog.V(4).Infof("downloaded manifests to %s\n", b.ManifestDir)
 
 	if err := BuildDatabase(b.ManifestDir, b.DatabasePath); err != nil {
@@ -217,4 +217,12 @@ func BuildLayer(directory string) (string, error) {
 	}
 
 	return archive.Name(), nil
+}
+
+func hasManifests(path string) bool {
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		return false
+	}
+	return len(files) > 0
 }

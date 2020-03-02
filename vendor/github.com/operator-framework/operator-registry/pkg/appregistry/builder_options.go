@@ -3,7 +3,10 @@ package appregistry
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
+
+	"github.com/operator-framework/operator-registry/pkg/apprclient"
 )
 
 type AppregistryBuildOptions struct {
@@ -20,6 +23,8 @@ type AppregistryBuildOptions struct {
 	CleanOutput bool
 	ManifestDir string
 	DatabaseDir string
+
+	Client apprclient.Client
 }
 
 func (o *AppregistryBuildOptions) Validate() error {
@@ -46,18 +51,31 @@ func (o *AppregistryBuildOptions) Validate() error {
 	if o.DatabaseDir == "" {
 		return fmt.Errorf("local database directory required")
 	}
+	if o.Client == nil {
+		return fmt.Errorf("app-registry client must not be nil")
+	}
 
 	return nil
 }
 
 func (o *AppregistryBuildOptions) Complete() error {
-	// if a user has specified a specific cache dir, don't clean it after run
-	o.CleanOutput = o.CacheDir == ""
+	// if a user hasn't specified a specific cache directory, generate a temporary one
+	if o.CacheDir == "" {
+		tmp, err := ioutil.TempDir("", "cache-")
+		if err != nil {
+			return err
+		}
+		o.CacheDir = tmp
 
-	// build a separate path for manifests and the built database, so that
-	// building is idempotent
+		// clean up temporary directories
+		o.CleanOutput = true
+	} else if err := os.MkdirAll(o.CacheDir, os.ModePerm); err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	// build a separate path for manifests and the built database, so that building is idempotent
 	if o.ManifestDir == "" {
-		manifestDir, err := ioutil.TempDir("", "manifests-")
+		manifestDir, err := ioutil.TempDir(o.CacheDir, "manifests-")
 		if err != nil {
 			return err
 		}
@@ -75,6 +93,22 @@ func (o *AppregistryBuildOptions) Complete() error {
 	if o.DatabasePath == "" {
 		o.DatabasePath = path.Join(o.DatabaseDir, "bundles.db")
 	}
+
+	// create the client
+	if o.Client == nil {
+		opts := apprclient.Options{Source: o.AppRegistryEndpoint}
+		if o.AuthToken != "" {
+			opts.AuthToken = o.AuthToken
+		}
+
+		client, err := apprclient.New(opts)
+		if err != nil {
+			return err
+		}
+
+		o.Client = client
+	}
+
 	return nil
 }
 
@@ -88,7 +122,7 @@ func (c *AppregistryBuildOptions) Apply(options []AppregistryBuildOption) {
 // ToOption converts an AppregistryBuildOptions object into a function that applies
 // its current configuration to another AppregistryBuildOptions instance
 func (c *AppregistryBuildOptions) ToOption() AppregistryBuildOption {
-	return  func(o *AppregistryBuildOptions) {
+	return func(o *AppregistryBuildOptions) {
 		if c.Appender != nil {
 			o.Appender = c.Appender
 		}
@@ -115,6 +149,9 @@ func (c *AppregistryBuildOptions) ToOption() AppregistryBuildOption {
 		}
 		if c.DatabaseDir != "" {
 			o.DatabaseDir = c.DatabaseDir
+		}
+		if c.Client != nil {
+			o.Client = c.Client
 		}
 	}
 }
@@ -172,5 +209,11 @@ func WithDatabasePath(s string) AppregistryBuildOption {
 func WithCacheDir(s string) AppregistryBuildOption {
 	return func(o *AppregistryBuildOptions) {
 		o.CacheDir = s
+	}
+}
+
+func WithClient(c apprclient.Client) AppregistryBuildOption {
+	return func(o *AppregistryBuildOptions) {
+		o.Client = c
 	}
 }

@@ -1,3 +1,4 @@
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Client
 package apprclient
 
 import (
@@ -63,7 +64,8 @@ func (c *client) ListPackages(namespace string) ([]*RegistryMetadata, error) {
 			Name:      repository,
 
 			// 'Default' points to the latest release pushed.
-			Release: pkg.Default,
+			Release:  pkg.Default,
+			Releases: pkg.Releases,
 
 			// Getting 'Digest' would require an additional call to the app
 			// registry, so it is being defaulted.
