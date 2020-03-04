@@ -149,6 +149,15 @@ func (o *FilterOptions) Complete(flags *pflag.FlagSet) error {
 	return nil
 }
 
+// IsWildcardFilter returns true if the filter regex is set to a wildcard
+func (o *FilterOptions) IsWildcardFilter() bool {
+	wildcardFilter := ".*"
+	if o.FilterByOS == wildcardFilter {
+		return true
+	}
+	return false
+}
+
 // Include returns true if the provided manifest should be included, or the first image if the user didn't alter the
 // default selection and there is only one image.
 func (o *FilterOptions) Include(d *manifestlist.ManifestDescriptor, hasMultiple bool) bool {
@@ -330,7 +339,7 @@ func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifes
 	}
 }
 
-func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imagereference.DockerImageReference, filterFn FilterFunc, forceManifestList bool) ([]distribution.Manifest, distribution.Manifest, digest.Digest, error) {
+func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imagereference.DockerImageReference, filterFn FilterFunc, keepManifestList bool) ([]distribution.Manifest, distribution.Manifest, digest.Digest, error) {
 	var srcManifests []distribution.Manifest
 	switch t := srcManifest.(type) {
 	case *manifestlist.DeserializedManifestList:
@@ -379,7 +388,7 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 		}
 
 		switch {
-		case len(srcManifests) == 1 && !forceManifestList:
+		case len(srcManifests) == 1 && !keepManifestList:
 			manifestDigest, err := registryclient.ContentDigestForManifest(srcManifests[0], srcDigest.Algorithm())
 			if err != nil {
 				return nil, nil, "", err
