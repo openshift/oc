@@ -594,6 +594,25 @@ func (o *DebugOptions) getContainerImageCommand(pod *corev1.Pod, container *core
 func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*corev1.Pod, []string) {
 	pod := o.Attach.Pod
 
+	if len(o.ToNamespace) > 0 {
+		svcAcctOrig := pod.Spec.ServiceAccountName
+		if !o.IsNode {
+			if len(pod.Spec.Volumes) > 0 {
+				fmt.Fprintf(o.ErrOut, "Volumes and VolumeMounts were cleared in debug pod to run with '--to-namespace', run without '--to-namespace' to keep Volumes,VolumeMounts\n")
+				clearVolumes(pod)
+			}
+		}
+		if len(pod.Spec.ServiceAccountName) != 0 {
+			pod.Spec.ServiceAccountName = ""
+		}
+		if len(pod.Spec.DeprecatedServiceAccount) != 0 {
+			pod.Spec.DeprecatedServiceAccount = ""
+		}
+		if svcAcctOrig != pod.Spec.ServiceAccountName {
+			fmt.Fprintf(o.ErrOut, "ServiceAccountName was cleared in debug pod to run with '--to-namespace', run without '--to-namespace' to keep ServiceAccountName\n")
+		}
+	}
+
 	// reset the container
 	container := containerForName(pod, o.Attach.ContainerName)
 
@@ -658,6 +677,12 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 		container.SecurityContext.RunAsNonRoot = nil
 	}
 
+	// When run in another namespace than original pod, any initContainers that run a command
+	// that depends on VolumeMounts will fail, so unless the initContainer is explicitly being
+	// debugged, remove the initContainers.
+	if len(o.ToNamespace) > 0 && !isInitContainer(pod, o.Attach.ContainerName) {
+		o.KeepInitContainers = false
+	}
 	switch {
 	case o.OneContainer:
 		pod.Spec.InitContainers = nil
@@ -786,6 +811,16 @@ func clearHostPorts(pod *corev1.Pod) {
 				pod.Spec.Containers[i].Ports[j].HostPort = 0
 			}
 		}
+	}
+}
+
+func clearVolumes(pod *corev1.Pod) {
+	pod.Spec.Volumes = []corev1.Volume{}
+	for i := range pod.Spec.Containers {
+		pod.Spec.Containers[i].VolumeMounts = []corev1.VolumeMount{}
+	}
+	for i := range pod.Spec.InitContainers {
+		pod.Spec.InitContainers[i].VolumeMounts = []corev1.VolumeMount{}
 	}
 }
 
