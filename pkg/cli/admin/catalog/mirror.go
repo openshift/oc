@@ -182,7 +182,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			a.SecurityOptions = o.SecurityOptions
 			a.FilterOptions = o.FilterOptions
 			a.ParallelOptions = o.ParallelOptions
-			a.ForceManifestList = true
+			a.KeepManifestList = true
 			a.Mappings = []imgmirror.Mapping{{
 				Source:      fromRef[0],
 				Destination: toRef,
