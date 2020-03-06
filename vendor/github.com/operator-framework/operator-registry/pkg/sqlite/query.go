@@ -36,6 +36,8 @@ func (s *SQLQuerier) ListTables(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	tables := []string{}
 	for rows.Next() {
 		var tableName sql.NullString
@@ -56,6 +58,8 @@ func (s *SQLQuerier) ListPackages(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	packages := []string{}
 	for rows.Next() {
 		var pkgName sql.NullString
@@ -77,6 +81,7 @@ func (s *SQLQuerier) GetPackage(ctx context.Context, name string) (*registry.Pac
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var pkgName sql.NullString
 	var defaultChannel sql.NullString
@@ -109,22 +114,25 @@ func (s *SQLQuerier) GetPackage(ctx context.Context, name string) (*registry.Pac
 }
 
 func (s *SQLQuerier) GetBundle(ctx context.Context, pkgName, channelName, csvName string) (*api.Bundle, error) {
-	query := `SELECT DISTINCT channel_entry.entry_id, operatorbundle.name, operatorbundle.bundle, operatorbundle.bundlepath 
+	query := `SELECT DISTINCT channel_entry.entry_id, operatorbundle.name, operatorbundle.bundle, operatorbundle.bundlepath, operatorbundle.version, operatorbundle.skiprange
 			  FROM operatorbundle INNER JOIN channel_entry ON operatorbundle.name=channel_entry.operatorbundle_name
               WHERE channel_entry.package_name=? AND channel_entry.channel_name=? AND operatorbundle_name=? LIMIT 1`
 	rows, err := s.db.QueryContext(ctx, query, pkgName, channelName, csvName)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	if !rows.Next() {
-		return nil,  fmt.Errorf("no entry found for %s %s %s", pkgName, channelName, csvName)
+		return nil, fmt.Errorf("no entry found for %s %s %s", pkgName, channelName, csvName)
 	}
 	var entryId sql.NullInt64
 	var name sql.NullString
 	var bundle sql.NullString
 	var bundlePath sql.NullString
-	if err := rows.Scan(&entryId, &name, &bundle, &bundlePath); err != nil {
+	var version sql.NullString
+	var skipRange sql.NullString
+	if err := rows.Scan(&entryId, &name, &bundle, &bundlePath, &version, &skipRange); err != nil {
 		return nil, err
 	}
 
@@ -139,6 +147,8 @@ func (s *SQLQuerier) GetBundle(ctx context.Context, pkgName, channelName, csvNam
 	out.PackageName = pkgName
 	out.ChannelName = channelName
 	out.BundlePath = bundlePath.String
+	out.Version = version.String
+	out.SkipRange = skipRange.String
 
 	provided, required, err := s.GetApisForEntry(ctx, entryId.Int64)
 	if err != nil {
@@ -151,7 +161,7 @@ func (s *SQLQuerier) GetBundle(ctx context.Context, pkgName, channelName, csvNam
 }
 
 func (s *SQLQuerier) GetBundleForChannel(ctx context.Context, pkgName string, channelName string) (*api.Bundle, error) {
-	query := `SELECT DISTINCT channel_entry.entry_id, operatorbundle.name, operatorbundle.bundle, operatorbundle.bundlepath FROM channel 
+	query := `SELECT DISTINCT channel_entry.entry_id, operatorbundle.name, operatorbundle.bundle, operatorbundle.bundlepath, operatorbundle.version, operatorbundle.skiprange FROM channel 
               INNER JOIN operatorbundle ON channel.head_operatorbundle_name=operatorbundle.name
               INNER JOIN channel_entry ON (channel_entry.channel_name = channel.name and channel_entry.package_name=channel.package_name and channel_entry.operatorbundle_name=operatorbundle.name)
               WHERE channel.package_name=? AND channel.name=? LIMIT 1`
@@ -159,15 +169,18 @@ func (s *SQLQuerier) GetBundleForChannel(ctx context.Context, pkgName string, ch
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	if !rows.Next() {
-		return nil,  fmt.Errorf("no entry found for %s %s", pkgName, channelName)
+		return nil, fmt.Errorf("no entry found for %s %s", pkgName, channelName)
 	}
 	var entryId sql.NullInt64
 	var name sql.NullString
 	var bundle sql.NullString
 	var bundlePath sql.NullString
-	if err := rows.Scan(&entryId, &name, &bundle, &bundlePath); err != nil {
+	var version sql.NullString
+	var skipRange sql.NullString
+	if err := rows.Scan(&entryId, &name, &bundle, &bundlePath, &version, &skipRange); err != nil {
 		return nil, err
 	}
 
@@ -182,6 +195,8 @@ func (s *SQLQuerier) GetBundleForChannel(ctx context.Context, pkgName string, ch
 	out.PackageName = pkgName
 	out.ChannelName = channelName
 	out.BundlePath = bundlePath.String
+	out.Version = version.String
+	out.SkipRange = skipRange.String
 
 	provided, required, err := s.GetApisForEntry(ctx, entryId.Int64)
 	if err != nil {
@@ -202,6 +217,7 @@ func (s *SQLQuerier) GetChannelEntriesThatReplace(ctx context.Context, name stri
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	entries = []*registry.ChannelEntry{}
 
@@ -228,7 +244,7 @@ func (s *SQLQuerier) GetChannelEntriesThatReplace(ctx context.Context, name stri
 }
 
 func (s *SQLQuerier) GetBundleThatReplaces(ctx context.Context, name, pkgName, channelName string) (*api.Bundle, error) {
-	query := `SELECT DISTINCT replaces.entry_id, operatorbundle.name, operatorbundle.bundle, operatorbundle.bundlepath
+	query := `SELECT DISTINCT replaces.entry_id, operatorbundle.name, operatorbundle.bundle, operatorbundle.bundlepath, operatorbundle.version, operatorbundle.skiprange
               FROM channel_entry
 			  LEFT  OUTER JOIN channel_entry replaces ON replaces.replaces = channel_entry.entry_id
 			  INNER JOIN operatorbundle ON replaces.operatorbundle_name = operatorbundle.name
@@ -237,15 +253,18 @@ func (s *SQLQuerier) GetBundleThatReplaces(ctx context.Context, name, pkgName, c
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	if !rows.Next() {
-		return nil,  fmt.Errorf("no entry found for %s %s", pkgName, channelName)
+		return nil, fmt.Errorf("no entry found for %s %s", pkgName, channelName)
 	}
 	var entryId sql.NullInt64
 	var outName sql.NullString
 	var bundle sql.NullString
 	var bundlePath sql.NullString
-	if err := rows.Scan(&entryId, &outName, &bundle, &bundlePath); err != nil {
+	var version sql.NullString
+	var skipRange sql.NullString
+	if err := rows.Scan(&entryId, &outName, &bundle, &bundlePath, &version, &skipRange); err != nil {
 		return nil, err
 	}
 
@@ -260,6 +279,8 @@ func (s *SQLQuerier) GetBundleThatReplaces(ctx context.Context, name, pkgName, c
 	out.PackageName = pkgName
 	out.ChannelName = channelName
 	out.BundlePath = bundlePath.String
+	out.Version = version.String
+	out.SkipRange = skipRange.String
 
 	provided, required, err := s.GetApisForEntry(ctx, entryId.Int64)
 	if err != nil {
@@ -282,6 +303,7 @@ func (s *SQLQuerier) GetChannelEntriesThatProvide(ctx context.Context, group, ve
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	entries = []*registry.ChannelEntry{}
 
@@ -320,6 +342,7 @@ func (s *SQLQuerier) GetLatestChannelEntriesThatProvide(ctx context.Context, gro
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	entries = []*registry.ChannelEntry{}
 
@@ -348,8 +371,8 @@ func (s *SQLQuerier) GetLatestChannelEntriesThatProvide(ctx context.Context, gro
 }
 
 // Get the the latest bundle that provides the API in a default channel, error unless there is ONLY one
-func (s *SQLQuerier) GetBundleThatProvides(ctx context.Context, group, version, kind string) (*api.Bundle, error) {
-	query := `SELECT DISTINCT channel_entry.entry_id, operatorbundle.bundle, operatorbundle.bundlepath, MIN(channel_entry.depth), channel_entry.operatorbundle_name, channel_entry.package_name, channel_entry.channel_name, channel_entry.replaces
+func (s *SQLQuerier) GetBundleThatProvides(ctx context.Context, group, apiVersion, kind string) (*api.Bundle, error) {
+	query := `SELECT DISTINCT channel_entry.entry_id, operatorbundle.bundle, operatorbundle.bundlepath, MIN(channel_entry.depth), channel_entry.operatorbundle_name, channel_entry.package_name, channel_entry.channel_name, channel_entry.replaces, operatorbundle.version, operatorbundle.skiprange
           FROM channel_entry
           INNER JOIN api_provider ON channel_entry.entry_id = api_provider.channel_entry_id
 		  INNER JOIN operatorbundle ON operatorbundle.name = channel_entry.operatorbundle_name
@@ -357,13 +380,14 @@ func (s *SQLQuerier) GetBundleThatProvides(ctx context.Context, group, version, 
 		  WHERE api_provider.group_name = ? AND api_provider.version = ? AND api_provider.kind = ? AND package.default_channel = channel_entry.channel_name
 		  GROUP BY channel_entry.package_name, channel_entry.channel_name`
 
-	rows, err := s.db.QueryContext(ctx, query, group, version, kind)
+	rows, err := s.db.QueryContext(ctx, query, group, apiVersion, kind)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	if !rows.Next() {
-		return nil, fmt.Errorf("no entry found that provides %s %s %s", group, version, kind)
+		return nil, fmt.Errorf("no entry found that provides %s %s %s", group, apiVersion, kind)
 	}
 	var entryId sql.NullInt64
 	var bundle sql.NullString
@@ -373,12 +397,14 @@ func (s *SQLQuerier) GetBundleThatProvides(ctx context.Context, group, version, 
 	var pkgName sql.NullString
 	var channelName sql.NullString
 	var replaces sql.NullString
-	if err := rows.Scan(&entryId, &bundle, &bundlePath, &min_depth, &bundleName, &pkgName, &channelName, &replaces); err != nil {
+	var version sql.NullString
+	var skipRange sql.NullString
+	if err := rows.Scan(&entryId, &bundle, &bundlePath, &min_depth, &bundleName, &pkgName, &channelName, &replaces, &version, &skipRange); err != nil {
 		return nil, err
 	}
 
 	if !bundle.Valid {
-		return nil, fmt.Errorf("no entry found that provides %s %s %s", group, version, kind)
+		return nil, fmt.Errorf("no entry found that provides %s %s %s", group, apiVersion, kind)
 	}
 
 	out := &api.Bundle{}
@@ -392,6 +418,8 @@ func (s *SQLQuerier) GetBundleThatProvides(ctx context.Context, group, version, 
 	out.PackageName = pkgName.String
 	out.ChannelName = channelName.String
 	out.BundlePath = bundlePath.String
+	out.Version = version.String
+	out.SkipRange = skipRange.String
 
 	provided, required, err := s.GetApisForEntry(ctx, entryId.Int64)
 	if err != nil {
@@ -409,6 +437,8 @@ func (s *SQLQuerier) ListImages(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	images := []string{}
 	for rows.Next() {
 		var imgName sql.NullString
@@ -428,6 +458,7 @@ func (s *SQLQuerier) GetImagesForBundle(ctx context.Context, csvName string) ([]
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	images := []string{}
 	for rows.Next() {
 		var imgName sql.NullString
@@ -441,15 +472,16 @@ func (s *SQLQuerier) GetImagesForBundle(ctx context.Context, csvName string) ([]
 	return images, nil
 }
 
-func (s *SQLQuerier) GetApisForEntry(ctx context.Context, entryId int64) (provided []*api.GroupVersionKind, required []*api.GroupVersionKind, err error) {
+func (s *SQLQuerier) GetApisForEntry(ctx context.Context, entryID int64) (provided []*api.GroupVersionKind, required []*api.GroupVersionKind, err error) {
 	providedQuery := `SELECT DISTINCT api.group_name, api.version, api.kind, api.plural FROM api
 		 	  		  INNER JOIN api_provider ON (api.group_name=api_provider.group_name AND api.version=api_provider.version AND api.kind=api_provider.kind)
 			  		  WHERE api_provider.channel_entry_id=?`
 
-	providedRows, err := s.db.QueryContext(ctx, providedQuery, entryId)
+	providedRows, err := s.db.QueryContext(ctx, providedQuery, entryID)
 	if err != nil {
-		return nil,nil, err
+		return nil, nil, err
 	}
+
 	provided = []*api.GroupVersionKind{}
 	for providedRows.Next() {
 		var groupName sql.NullString
@@ -464,20 +496,23 @@ func (s *SQLQuerier) GetApisForEntry(ctx context.Context, entryId int64) (provid
 			return nil, nil, err
 		}
 		provided = append(provided, &api.GroupVersionKind{
-			Group:  groupName.String,
+			Group:   groupName.String,
 			Version: versionName.String,
-			Kind:   kindName.String,
-			Plural:   pluralName.String,
+			Kind:    kindName.String,
+			Plural:  pluralName.String,
 		})
+	}
+	if err := providedRows.Close(); err != nil {
+		return nil, nil, err
 	}
 
 	requiredQuery := `SELECT DISTINCT api.group_name, api.version, api.kind, api.plural FROM api
 		 	  		  INNER JOIN api_requirer ON (api.group_name=api_requirer.group_name AND api.version=api_requirer.version AND api.kind=api_requirer.kind)
 			  		  WHERE api_requirer.channel_entry_id=?`
 
-	requiredRows, err := s.db.QueryContext(ctx, requiredQuery, entryId)
+	requiredRows, err := s.db.QueryContext(ctx, requiredQuery, entryID)
 	if err != nil {
-		return nil,nil, err
+		return nil, nil, err
 	}
 	required = []*api.GroupVersionKind{}
 	for requiredRows.Next() {
@@ -493,12 +528,118 @@ func (s *SQLQuerier) GetApisForEntry(ctx context.Context, entryId int64) (provid
 			return nil, nil, err
 		}
 		required = append(required, &api.GroupVersionKind{
-			Group:  groupName.String,
+			Group:   groupName.String,
 			Version: versionName.String,
-			Kind:   kindName.String,
-			Plural:   pluralName.String,
+			Kind:    kindName.String,
+			Plural:  pluralName.String,
 		})
+	}
+	if err := requiredRows.Close(); err != nil {
+		return nil, nil, err
 	}
 
 	return
+}
+
+func (s *SQLQuerier) GetBundleVersion(ctx context.Context, image string) (string, error) {
+	query := `SELECT version FROM operatorbundle WHERE bundlepath=? LIMIT 1`
+	rows, err := s.db.QueryContext(ctx, query, image)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var version sql.NullString
+	if rows.Next() {
+		if err := rows.Scan(&version); err != nil {
+			return "", err
+		}
+	}
+	if version.Valid {
+		return version.String, nil
+	}
+	return "", fmt.Errorf("bundle %s not found", image)
+}
+
+func (s *SQLQuerier) GetBundlePathsForPackage(ctx context.Context, pkgName string) ([]string, error) {
+	query := `SELECT DISTINCT bundlepath FROM operatorbundle 
+	INNER JOIN channel_entry ON operatorbundle.name=channel_entry.operatorbundle_name
+	WHERE channel_entry.package_name=?`
+	rows, err := s.db.QueryContext(ctx, query, pkgName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	images := []string{}
+	for rows.Next() {
+		var imgName sql.NullString
+		if err := rows.Scan(&imgName); err != nil {
+			return nil, err
+		}
+		if imgName.Valid && imgName.String != "" {
+			images = append(images, imgName.String)
+		} else {
+			return nil, fmt.Errorf("Index malformed: cannot find paths to bundle images")
+		}
+	}
+	return images, nil
+}
+
+func (s *SQLQuerier) GetDefaultChannelForPackage(ctx context.Context, pkgName string) (string, error) {
+	query := `SELECT DISTINCT default_channel FROM package WHERE name=? LIMIT 1`
+	rows, err := s.db.QueryContext(ctx, query, pkgName)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var defaultChannel sql.NullString
+	if rows.Next() {
+		if err := rows.Scan(&defaultChannel); err != nil {
+			return "", err
+		}
+	}
+	if defaultChannel.Valid {
+		return defaultChannel.String, nil
+	}
+	return "", nil
+}
+
+func (s *SQLQuerier) ListChannels(ctx context.Context, pkgName string) ([]string, error) {
+	query := `SELECT DISTINCT name FROM channel WHERE channel.package_name=?`
+	rows, err := s.db.QueryContext(ctx, query, pkgName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	channels := []string{}
+	for rows.Next() {
+		var chName sql.NullString
+		if err := rows.Scan(&chName); err != nil {
+			return nil, err
+		}
+		if chName.Valid {
+			channels = append(channels, chName.String)
+		}
+	}
+	return channels, nil
+}
+
+func (s *SQLQuerier) GetCurrentCSVNameForChannel(ctx context.Context, pkgName, channel string) (string, error) {
+	query := `SELECT DISTINCT head_operatorbundle_name FROM channel WHERE channel.package_name=? AND channel.name=?`
+	rows, err := s.db.QueryContext(ctx, query, pkgName, channel)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	var csvName sql.NullString
+	if rows.Next() {
+		if err := rows.Scan(&csvName); err != nil {
+			return "", err
+		}
+	}
+	if csvName.Valid {
+		return csvName.String, nil
+	}
+	return "", nil
 }

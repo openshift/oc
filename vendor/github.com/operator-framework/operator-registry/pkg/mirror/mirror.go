@@ -95,14 +95,13 @@ func (b *IndexImageMirrorer) Mirror() (map[string]string, error) {
 
 	var errs []error
 	for _, img := range images {
-		ref, err := reference.ParseNamed(img)
+		ref, err := reference.ParseNormalizedNamed(img)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("couldn't parse image for mirroring (%s), skipping mirror: %s", img, err.Error()))
 			continue
 		}
-
 		domain := reference.Domain(ref)
-		mapping[img] = b.Dest + strings.TrimPrefix(img, domain)
+		mapping[ref.String()] = b.Dest + strings.TrimPrefix(ref.String(), domain)
 	}
 
 	if err := b.ImageMirrorer.Mirror(mapping); err != nil {

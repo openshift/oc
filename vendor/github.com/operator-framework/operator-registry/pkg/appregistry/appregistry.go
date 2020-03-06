@@ -38,10 +38,7 @@ func NewLoader(kubeconfig string, dbName string, downloadPath string, logger *lo
 		input: &inputParser{
 			sourceSpecifier: specifier,
 		},
-		downloader: &downloader{
-			logger:     logger,
-			kubeClient: *kubeClient,
-		},
+		downloader:   newDownloader(logger, kubeClient),
 		downloadPath: downloadPath,
 		decoder:      decoder,
 		loader:       loader,
