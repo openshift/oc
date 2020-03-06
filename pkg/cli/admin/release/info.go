@@ -93,20 +93,20 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 			the code changes that occurred between the two release arguments. This operation is slow
 			and requires sufficient disk space on the selected drive to clone all repositories.
 		`),
-		Example: templates.Examples(`
+		Example: templates.Examples(fmt.Sprintf(`
 			# Show information about the cluster's current release
-			%[1]s
+			%[1]s info
 
 			# Show the source code that comprises a release
-			%[1]s 4.2.2 --commit-urls
+			%[1]s info 4.2.2 --commit-urls
 
 			# Show the source code difference between two releases
-			%[1]s 4.2.0 4.2.2 --commits
+			%[1]s info 4.2.0 4.2.2 --commits
 
 			# Show where the images referenced by the release are located
-			%[1]s quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
+			%[1]s info quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
 
-			`),
+			`, parentName)),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
