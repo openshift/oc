@@ -314,7 +314,7 @@ github.com/moby/buildkit/frontend/dockerfile/parser
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
-# github.com/mtrmac/gpgme v0.0.0-20170102180018-b2432428689c
+# github.com/mtrmac/gpgme v0.1.2
 github.com/mtrmac/gpgme
 # github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f
 github.com/mxk/go-flowrate/flowrate

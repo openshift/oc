@@ -45,7 +45,7 @@ require (
 	github.com/joho/godotenv v0.0.0-20171110010315-6d367c18edf6
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
-	github.com/mtrmac/gpgme v0.0.0-20170102180018-b2432428689c // indirect
+	github.com/mtrmac/gpgme v0.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/openshift/api v0.0.0-20190916204813-cdbe64fb0c91
 	github.com/openshift/client-go v0.0.0-20190813201236-5a5508328169
