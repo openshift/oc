@@ -1761,6 +1761,10 @@ func releaseDiffContentChanges(diff *ReleaseDiff) ([]CodeChange, []ImageChange, 
 		oldRepo, newRepo := from.Annotations[annotationBuildSourceLocation], to.Annotations[annotationBuildSourceLocation]
 		oldCommit, newCommit := from.Annotations[annotationBuildSourceCommit], to.Annotations[annotationBuildSourceCommit]
 
+		if len(newRepo) == 0 || len(oldRepo) == 0 {
+			continue
+		}
+
 		var alternateRepos []string
 		if len(oldRepo) > 0 && oldRepo != newRepo {
 			alternateRepos = append(alternateRepos, oldRepo)
