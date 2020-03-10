@@ -99,7 +99,13 @@ var (
 	  %[1]s daemonset/test -c second -- /bin/env
 
 	  # See the pod that would be created to debug
-	  %[1]s mypod-9xbc -o yaml`)
+	  %[1]s mypod-9xbc -o yaml
+
+	  # Debug a resource but launch the debug pod in another namespace.
+	  # Note: Not all resources can be debugged using --to-namespace without modification. For example,
+	  # volumes and serviceaccounts are namespace-dependent. Add '-o yaml' to output the debug pod definition
+	  # to disk.  If necessary, edit the definition then run 'oc debug -f -' or run without --to-namespace.
+	  %[1]s mypod-9xbc --to-namespace testns`)
 )
 
 type DebugOptions struct {
