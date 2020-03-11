@@ -6,8 +6,7 @@
 %global gopath      %{_datadir}/gocode
 %global import_path github.com/openshift/oc
 
-%global golang_version 1.12
-%global product_name OpenShift
+%global golang_version 1.13
 
 %{!?version: %global version 0.0.1}
 %{!?release: %global release 1}
@@ -28,15 +27,16 @@
 %global make %{os_git_vars} && make SOURCE_GIT_TAG:="${OS_GIT_VERSION}" SOURCE_GIT_COMMIT:="${OS_GIT_COMMIT}" SOURCE_GIT_MAJOR:="${OS_GIT_MAJOR}" SOURCE_GIT_MINOR:="${OS_GIT_MINOR}" SOURCE_GIT_TREE_STATE:="${OS_GIT_TREE_STATE}"
 %endif
 
-%if ! 0%{?local_build:1}
-Source0:        https://%{import_path}/archive/%{commit}/%{name}-%{version}.tar.gz
-%endif
 Name:           openshift-clients
 Version:        %{version}
 Release:        %{release}%{dist}
 Summary:        OpenShift client binaries
 License:        ASL 2.0
 URL:            https://%{import_path}
+
+%if ! 0%{?local_build:1}
+Source0:        https://%{import_path}/archive/%{commit}/%{name}-%{version}.tar.gz
+%endif
 
 # If go_arches not defined fall through to implicit golang archs
 %if 0%{?go_arches:1}
@@ -45,13 +45,12 @@ ExclusiveArch:  %{go_arches}
 ExclusiveArch:  x86_64 aarch64 ppc64le s390x
 %endif
 
-#BuildRequires:  bsdtar
 BuildRequires:  golang >= %{golang_version}
 BuildRequires:  krb5-devel
 BuildRequires:  rsync
 
-Provides:       atomic-openshift-clients
-Obsoletes:      atomic-openshift-clients
+Provides:       atomic-openshift-clients = %{version}
+Obsoletes:      atomic-openshift-clients <= %{version}
 Requires:       bash-completion
 
 %description
@@ -59,14 +58,13 @@ Requires:       bash-completion
 
 %package redistributable
 Summary:        OpenShift Client binaries for Linux, Mac OSX, and Windows
-Provides:       atomic-openshift-clients-redistributable
-Obsoletes:      atomic-openshift-clients-redistributable
+Provides:       atomic-openshift-clients-redistributable = %{version}
+Obsoletes:      atomic-openshift-clients-redistributable <= %{version}
 
 %description redistributable
 %{summary}
 
 %prep
-
 %if ! 0%{?local_build:1}
 %setup -q
 %endif
