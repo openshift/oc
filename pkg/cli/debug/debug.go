@@ -336,13 +336,13 @@ func (o *DebugOptions) RunDebug() error {
 	if len(o.FilenameOptions.Filenames) > 0 {
 		b.FilenameParam(o.ExplicitNamespace, &o.FilenameOptions)
 	}
-	one := false
-	infos, err := b.Do().IntoSingleItemImplied(&one).Infos()
+	infos, err := b.Do().Infos()
 	if err != nil {
 		return err
 	}
-	if !one {
-		return fmt.Errorf("you must identify a resource with a pod template to debug")
+	if len(infos) != 1 {
+		klog.V(4).Infof("Objects: %#v", infos)
+		return fmt.Errorf("you must identify a single resource with a pod template to debug")
 	}
 
 	template, err := o.approximatePodTemplateForObject(infos[0].Object)
