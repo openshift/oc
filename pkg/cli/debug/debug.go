@@ -132,6 +132,7 @@ type DebugOptions struct {
 	KeepInitContainers bool
 	OneContainer       bool
 	NodeName           string
+	NodeNameSet        bool
 	AddEnv             []corev1.EnvVar
 	RemoveEnv          []string
 	Resources          []string
@@ -249,6 +250,8 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 		o.Attach.TTY = false
 		o.Attach.Stdin = false
 	}
+
+	o.NodeNameSet = cmd.Flags().Changed("node-name")
 
 	if o.Annotations == nil {
 		o.Annotations = make(map[string]string)
@@ -858,7 +861,7 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 					{Name: "container-00", Image: t.Image.DockerImageReference},
 				},
 			},
-		}, o.NodeName), nil
+		}, o.NodeName, o.NodeNameSet), nil
 	case *imagev1.ImageStreamImage:
 		// create a minimal pod spec that uses the image referenced by the istag without any introspection
 		// it possible that we could someday do a better job introspecting it
@@ -869,21 +872,21 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 					{Name: "container-00", Image: t.Image.DockerImageReference},
 				},
 			},
-		}, o.NodeName), nil
+		}, o.NodeName, o.NodeNameSet), nil
 	case *appsv1.DeploymentConfig:
 		fallback := t.Spec.Template
 
 		latestDeploymentName := appsutil.LatestDeploymentNameForConfig(t)
 		deployment, err := o.CoreClient.ReplicationControllers(t.Namespace).Get(latestDeploymentName, metav1.GetOptions{})
 		if err != nil {
-			return setNodeName(fallback, o.NodeName), err
+			return setNodeName(fallback, o.NodeName, o.NodeNameSet), err
 		}
 
 		fallback = deployment.Spec.Template
 
 		pods, err := o.CoreClient.Pods(deployment.Namespace).List(metav1.ListOptions{LabelSelector: labels.SelectorFromSet(deployment.Spec.Selector).String()})
 		if err != nil {
-			return setNodeName(fallback, o.NodeName), err
+			return setNodeName(fallback, o.NodeName, o.NodeNameSet), err
 		}
 
 		// If we have any pods available, find the newest
@@ -899,61 +902,61 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 				}
 			}
 		}
-		return setNodeName(fallback, o.NodeName), nil
+		return setNodeName(fallback, o.NodeName, o.NodeNameSet), nil
 
 	case *corev1.Pod:
 		return setNodeName(&corev1.PodTemplateSpec{
 			ObjectMeta: t.ObjectMeta,
 			Spec:       t.Spec,
-		}, o.NodeName), nil
+		}, o.NodeName, o.NodeNameSet), nil
 
 	// ReplicationController
 	case *corev1.ReplicationController:
-		return setNodeName(t.Spec.Template, o.NodeName), nil
+		return setNodeName(t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// ReplicaSet
 	case *extensionsv1beta1.ReplicaSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta2.ReplicaSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1.ReplicaSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// Deployment
 	case *extensionsv1beta1.Deployment:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta1.Deployment:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta2.Deployment:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1.Deployment:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// StatefulSet
 	case *kappsv1.StatefulSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta2.StatefulSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta1.StatefulSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// DaemonSet
 	case *extensionsv1beta1.DaemonSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta2.DaemonSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1.DaemonSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// Job
 	case *batchv1.Job:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// CronJob
 	case *batchv1beta1.CronJob:
-		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *batchv2alpha1.CronJob:
-		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	}
 
 	return nil, fmt.Errorf("unable to extract pod template from type %v", reflect.TypeOf(object))
@@ -973,8 +976,8 @@ func (o *DebugOptions) getLogs(pod *corev1.Pod) error {
 	}.RunLogs()
 }
 
-func setNodeName(template *corev1.PodTemplateSpec, nodeName string) *corev1.PodTemplateSpec {
-	if len(nodeName) > 0 {
+func setNodeName(template *corev1.PodTemplateSpec, nodeName string, overrideWhenEmpty bool) *corev1.PodTemplateSpec {
+	if len(nodeName) > 0 || overrideWhenEmpty {
 		template.Spec.NodeName = nodeName
 	}
 	return template
