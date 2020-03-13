@@ -19,14 +19,18 @@ import (
 	batchv2alpha1 "k8s.io/api/batch/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
 	"k8s.io/kubectl/pkg/cmd/attach"
 	"k8s.io/kubectl/pkg/cmd/logs"
@@ -445,10 +449,6 @@ func (o *DebugOptions) RunDebug() error {
 
 	klog.V(5).Infof("Created attach arguments: %#v", o.Attach)
 	return o.Attach.InterruptParent.Run(func() error {
-		w, err := o.CoreClient.Pods(pod.Namespace).Watch(metav1.SingleObject(pod.ObjectMeta))
-		if err != nil {
-			return err
-		}
 		if !o.Attach.Quiet {
 			if len(commandString) > 0 {
 				fmt.Fprintf(o.ErrOut, "Starting pod/%s, command was: %s\n", pod.Name, commandString)
@@ -460,9 +460,35 @@ func (o *DebugOptions) RunDebug() error {
 			}
 		}
 
+		fieldSelector := fields.OneTermEqualSelector("metadata.name", pod.Name).String()
+		lw := &cache.ListWatch{
+			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+				options.FieldSelector = fieldSelector
+				return o.CoreClient.Pods(ns).List(options)
+			},
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+				options.FieldSelector = fieldSelector
+				return o.CoreClient.Pods(ns).Watch(options)
+			},
+		}
+		preconditionFunc := func(store cache.Store) (bool, error) {
+			_, exists, err := store.Get(&metav1.ObjectMeta{Namespace: ns, Name: pod.Name})
+			if err != nil {
+				return true, err
+			}
+			if !exists {
+				// We need to make sure we see the object in the cache before we start waiting for events
+				// or we would be waiting for the timeout if such object didn't exist.
+				// (e.g. it was deleted before we started informers so they wouldn't even see the delete event)
+				return true, errors.NewNotFound(corev1.Resource("pods"), pod.Name)
+			}
+
+			return false, nil
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 		defer cancel()
-		containerRunningEvent, err := watchtools.UntilWithoutRetry(ctx, w, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient))
+		containerRunningEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient))
 		if err == nil {
 			klog.V(4).Infof("Stopped waiting for pod: %s %#v", containerRunningEvent.Type, containerRunningEvent.Object)
 		} else {
