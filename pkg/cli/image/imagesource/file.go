@@ -210,10 +210,15 @@ func atomicLink(path string, sourcePath string) error {
 // atomicWrite performs an atomic symlink and move of a file. It expects the destination
 // to be a file or to be missing.
 func atomicSymlink(path string, sourcePath string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	if err := os.Symlink(sourcePath, path+".download"); err != nil {
+	relSource, err := filepath.Rel(dir, sourcePath)
+	if err != nil {
+		return err
+	}
+	if err := os.Symlink(relSource, path+".download"); err != nil {
 		return err
 	}
 	return os.Rename(path+".download", path)
