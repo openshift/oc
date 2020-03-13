@@ -462,7 +462,13 @@ func (o *DebugOptions) RunDebug() error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 		defer cancel()
-		switch containerRunningEvent, err := watchtools.UntilWithoutRetry(ctx, w, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient)); {
+		containerRunningEvent, err := watchtools.UntilWithoutRetry(ctx, w, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient))
+		if err == nil {
+			klog.V(4).Infof("Stopped waiting for pod: %s %#v", containerRunningEvent.Type, containerRunningEvent.Object)
+		} else {
+			klog.V(4).Infof("Stopped waiting for pod: %v", err)
+		}
+		switch {
 		// api didn't error right away but the pod wasn't even created
 		case kapierrors.IsNotFound(err):
 			msg := fmt.Sprintf("unable to create the debug pod %q", pod.Name)
