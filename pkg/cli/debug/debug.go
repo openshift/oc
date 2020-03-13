@@ -115,10 +115,11 @@ type DebugOptions struct {
 	LogsForObject    polymorphichelpers.LogsForObjectFunc
 	RESTClientGetter genericclioptions.RESTClientGetter
 
-	NoStdin    bool
-	ForceTTY   bool
-	DisableTTY bool
-	Timeout    time.Duration
+	PreservePod bool
+	NoStdin     bool
+	ForceTTY    bool
+	DisableTTY  bool
+	Timeout     time.Duration
 
 	Command            []string
 	Annotations        map[string]string
@@ -208,6 +209,7 @@ func NewCmdDebug(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	cmd.Flags().Int64Var(&o.AsUser, "as-user", o.AsUser, "Try to run the container as a specific user UID (note: admins may limit your ability to use this flag)")
 	cmd.Flags().StringVar(&o.Image, "image", o.Image, "Override the image used by the targeted container.")
 	cmd.Flags().StringVar(&o.ToNamespace, "to-namespace", o.ToNamespace, "Override the namespace to create the pod into (instead of using --namespace).")
+	cmd.Flags().BoolVar(&o.PreservePod, "preserve-pod", o.PreservePod, "If true, the pod will not be deleted after the debug command exits.")
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
@@ -420,6 +422,9 @@ func (o *DebugOptions) RunDebug() error {
 	o.Attach.InterruptParent = interrupt.New(
 		func(os.Signal) { os.Exit(1) },
 		func() {
+			if o.PreservePod {
+				return
+			}
 			stderr := o.ErrOut
 			if stderr == nil {
 				stderr = os.Stderr
