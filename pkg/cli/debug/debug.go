@@ -193,6 +193,7 @@ func NewCmdDebug(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	cmd.Flags().MarkHidden("show-all")
 	cmd.Flags().Bool("show-labels", false, "When printing, show all labels as the last column (default hide labels column)")
 
+	cmd.Flags().BoolVarP(&o.Attach.Quiet, "quiet", "q", o.Attach.Quiet, "No informational messages will be printed.")
 	cmd.Flags().BoolVarP(&o.NoStdin, "no-stdin", "I", o.NoStdin, "Bypasses passing STDIN to the container, defaults to true if no command specified")
 	cmd.Flags().BoolVarP(&o.ForceTTY, "tty", "t", o.ForceTTY, "Force a pseudo-terminal to be allocated")
 	cmd.Flags().BoolVarP(&o.DisableTTY, "no-tty", "T", o.DisableTTY, "Disable pseudo-terminal allocation")
@@ -370,10 +371,12 @@ func (o *DebugOptions) RunDebug() error {
 	o.Attach.Pod = pod
 
 	if len(o.Attach.ContainerName) == 0 && len(pod.Spec.Containers) > 0 {
-		if len(pod.Spec.Containers) > 1 && len(o.FullCmdName) > 0 {
-			fmt.Fprintf(o.ErrOut, "Defaulting container name to %s.\n", pod.Spec.Containers[0].Name)
-			fmt.Fprintf(o.ErrOut, "Use '%s describe pod/%s -n %s' to see all of the containers in this pod.\n", o.FullCmdName, pod.Name, pod.Namespace)
-			fmt.Fprintf(o.ErrOut, "\n")
+		if !o.Attach.Quiet {
+			if len(pod.Spec.Containers) > 1 && len(o.FullCmdName) > 0 {
+				fmt.Fprintf(o.ErrOut, "Defaulting container name to %s.\n", pod.Spec.Containers[0].Name)
+				fmt.Fprintf(o.ErrOut, "Use '%s describe pod/%s -n %s' to see all of the containers in this pod.\n", o.FullCmdName, pod.Name, pod.Namespace)
+				fmt.Fprintf(o.ErrOut, "\n")
+			}
 		}
 
 		klog.V(4).Infof("Defaulting container name to %s", pod.Spec.Containers[0].Name)
@@ -421,10 +424,15 @@ func (o *DebugOptions) RunDebug() error {
 			if stderr == nil {
 				stderr = os.Stderr
 			}
-			fmt.Fprintf(stderr, "\nRemoving debug pod ...\n")
+			if !o.Attach.Quiet {
+				fmt.Fprintf(stderr, "\nRemoving debug pod ...\n")
+			}
 			if err := o.CoreClient.Pods(pod.Namespace).Delete(pod.Name, metav1.NewDeleteOptions(0)); err != nil {
 				if !kapierrors.IsNotFound(err) {
-					fmt.Fprintf(stderr, "error: unable to delete the debug pod %q: %v\n", pod.Name, err)
+					klog.V(2).Infof("Unable to delete the debug pod %q: %v", pod.Name, err)
+					if !o.Attach.Quiet {
+						fmt.Fprintf(stderr, "error: unable to delete the debug pod %q: %v\n", pod.Name, err)
+					}
 				}
 			}
 		},
@@ -436,13 +444,15 @@ func (o *DebugOptions) RunDebug() error {
 		if err != nil {
 			return err
 		}
-		if len(commandString) > 0 {
-			fmt.Fprintf(o.ErrOut, "Starting pod/%s, command was: %s\n", pod.Name, commandString)
-		} else {
-			fmt.Fprintf(o.ErrOut, "Starting pod/%s ...\n", pod.Name)
-		}
-		if o.IsNode {
-			fmt.Fprintf(o.ErrOut, "To use host binaries, run `chroot /host`\n")
+		if !o.Attach.Quiet {
+			if len(commandString) > 0 {
+				fmt.Fprintf(o.ErrOut, "Starting pod/%s, command was: %s\n", pod.Name, commandString)
+			} else {
+				fmt.Fprintf(o.ErrOut, "Starting pod/%s ...\n", pod.Name)
+			}
+			if o.IsNode {
+				fmt.Fprintf(o.ErrOut, "To use host binaries, run `chroot /host`\n")
+			}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
@@ -468,10 +478,12 @@ func (o *DebugOptions) RunDebug() error {
 		case !o.Attach.Stdin:
 			return o.getLogs(pod)
 		default:
-			// TODO this doesn't do us much good for remote debugging sessions, but until we get a local port
-			// set up to proxy, this is what we've got.
-			if podWithStatus, ok := containerRunningEvent.Object.(*corev1.Pod); ok {
-				fmt.Fprintf(o.Attach.ErrOut, "Pod IP: %s\n", podWithStatus.Status.PodIP)
+			if !o.Attach.Quiet {
+				// TODO this doesn't do us much good for remote debugging sessions, but until we get a local port
+				// set up to proxy, this is what we've got.
+				if podWithStatus, ok := containerRunningEvent.Object.(*corev1.Pod); ok {
+					fmt.Fprintf(o.Attach.ErrOut, "Pod IP: %s\n", podWithStatus.Status.PodIP)
+				}
 			}
 
 			// TODO: attach can race with pod completion, allow attach to switch to logs
