@@ -130,8 +130,8 @@ func NewCmdRsync(name, parent string, f kcmdutil.Factory, streams genericcliopti
 	// Flags for rsync options, Must match rsync flag names
 	cmd.Flags().BoolVarP(&o.Quiet, "quiet", "q", false, "Suppress non-error messages")
 	cmd.Flags().BoolVar(&o.Delete, "delete", false, "If true, delete files not present in source")
-	cmd.Flags().StringSliceVar(&o.RsyncExclude, "exclude", nil, "If true, exclude files matching specified pattern")
-	cmd.Flags().StringSliceVar(&o.RsyncInclude, "include", nil, "If true, include files matching specified pattern")
+	cmd.Flags().StringSliceVar(&o.RsyncExclude, "exclude", nil, "When specified, exclude files matching pattern")
+	cmd.Flags().StringSliceVar(&o.RsyncInclude, "include", nil, "When specified, include files matching pattern")
 	cmd.Flags().BoolVar(&o.RsyncProgress, "progress", false, "If true, show progress during transfer")
 	cmd.Flags().BoolVar(&o.RsyncNoPerms, "no-perms", false, "If true, do not transfer permissions")
 	cmd.Flags().BoolVarP(&o.Watch, "watch", "w", false, "Watch directory for changes and resync automatically")
