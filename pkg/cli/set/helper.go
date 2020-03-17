@@ -106,46 +106,6 @@ type Patch struct {
 	Patch  []byte
 }
 
-// CalculatePatches calls the mutation function on each provided info object, and generates a strategic merge patch for
-// the changes in the object. Encoder must be able to encode the info into the appropriate destination type. If mutateFn
-// returns false, the object is not included in the final list of patches.
-func CalculatePatches(infos []*resource.Info, encoder runtime.Encoder, mutateFn func(*resource.Info) (bool, error)) []*Patch {
-	var patches []*Patch
-	for _, info := range infos {
-		patch := &Patch{Info: info}
-
-		versionedEncoder := scheme.Codecs.EncoderForVersion(encoder, patch.Info.Mapping.GroupVersionKind.GroupVersion())
-		patch.Before, patch.Err = runtime.Encode(versionedEncoder, info.Object)
-
-		ok, err := mutateFn(info)
-		if !ok {
-			continue
-		}
-		if err != nil {
-			patch.Err = err
-		}
-		patches = append(patches, patch)
-		if patch.Err != nil {
-			continue
-		}
-
-		patch.After, patch.Err = runtime.Encode(versionedEncoder, info.Object)
-		if patch.Err != nil {
-			continue
-		}
-
-		// TODO: should be via New
-		versioned, err := scheme.Scheme.ConvertToVersion(info.Object, info.Mapping.GroupVersionKind.GroupVersion())
-		if err != nil {
-			patch.Err = err
-			continue
-		}
-
-		patch.Patch, patch.Err = strategicpatch.CreateTwoWayMergePatch(patch.Before, patch.After, versioned)
-	}
-	return patches
-}
-
 // CalculatePatchesExternal calls the mutation function on each provided info object, and generates a strategic merge patch for
 // the changes in the object. Encoder must be able to encode the info into the appropriate destination type. If mutateFn
 // returns false, the object is not included in the final list of patches.
