@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -98,11 +99,12 @@ type StartBuildOptions struct {
 	FromWebhook  string
 	ListWebhooks string
 
-	Commit      string
-	FromFile    string
-	FromDir     string
-	FromRepo    string
-	FromArchive string
+	Commit        string
+	FromFile      string
+	FromDir       string
+	FromRepo      string
+	FromArchive   string
+	ExcludeRegExp string
 
 	Env  []string
 	Args []string
@@ -171,6 +173,7 @@ func NewCmdStartBuild(fullName string, f kcmdutil.Factory, streams genericcliopt
 	cmd.Flags().StringVar(&o.FromArchive, "from-archive", o.FromArchive, "An archive (tar, tar.gz, zip) to be extracted before the build and used as the binary input.")
 	cmd.Flags().StringVar(&o.FromRepo, "from-repo", o.FromRepo, "The path to a local source code repository to use as the binary input for a build.")
 	cmd.Flags().StringVar(&o.Commit, "commit", o.Commit, "Specify the source code commit identifier the build should use; requires a build based on a Git repository")
+	cmd.Flags().StringVarP(&o.ExcludeRegExp, "exclude", "", tar.DefaultExclusionPattern.String(), "When using the --from-dir option: regular expression for selecting files from the source tree to exclude from the build; the default excludes the '.git' directory (see https://golang.org/pkg/regexp for syntax, but note that \"\" will be interpreted as allow all files and exclude no files)")
 
 	cmd.Flags().StringVar(&o.ListWebhooks, "list-webhooks", o.ListWebhooks, "List the webhooks for the specified build config or build; accepts 'all', 'generic', or 'github'")
 	cmd.Flags().StringVar(&o.FromWebhook, "from-webhook", o.FromWebhook, "Specify a generic webhook URL for an existing build config to trigger")
@@ -216,6 +219,10 @@ func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, cmd
 		o.AsBinary = true
 	} else if fromCount > 1 {
 		return fmt.Errorf("only one of --from-file, --from-repo, --from-archive or --from-dir may be specified")
+	}
+
+	if cmd.Flags().Lookup("exclude").Changed && len(o.FromDir) == 0 {
+		return fmt.Errorf("the --exclude flag is only supported with --from-dir")
 	}
 
 	o.Printer, err = o.PrintFlags.ToPrinter()
@@ -431,7 +438,7 @@ func (o *StartBuildOptions) Run() error {
 			fmt.Fprintf(o.ErrOut, "WARNING: Specifying build arguments with binary builds is not supported.\n")
 		}
 		instantiateClient := buildclientmanual.NewBuildInstantiateBinaryClient(o.BuildClient.RESTClient(), o.Namespace)
-		if newBuild, err = streamPathToBuild(o.Git, o.In, o.ErrOut, instantiateClient, o.FromDir, o.FromFile, o.FromRepo, request); err != nil {
+		if newBuild, err = streamPathToBuild(o.Git, o.In, o.ErrOut, instantiateClient, o.FromDir, o.FromFile, o.FromRepo, o.ExcludeRegExp, request); err != nil {
 			if kerrors.IsAlreadyExists(err) {
 				return transformIsAlreadyExistsError(err, o.Name)
 			}
@@ -535,7 +542,7 @@ func (o *StartBuildOptions) RunListBuildWebHooks() error {
 	return nil
 }
 
-func streamPathToBuild(repo git.Repository, in io.Reader, out io.Writer, client buildclientmanual.BuildInstantiateBinaryInterface, fromDir, fromFile, fromRepo string, options *buildv1.BinaryBuildRequestOptions) (*buildv1.Build, error) {
+func streamPathToBuild(repo git.Repository, in io.Reader, out io.Writer, client buildclientmanual.BuildInstantiateBinaryInterface, fromDir, fromFile, fromRepo string, excludeRegExp string, options *buildv1.BinaryBuildRequestOptions) (*buildv1.Build, error) {
 	asDir, asFile, asRepo := len(fromDir) > 0, len(fromFile) > 0, len(fromRepo) > 0
 
 	if asRepo && !git.IsGitInstalled() {
@@ -670,10 +677,17 @@ func streamPathToBuild(repo git.Repository, in io.Reader, out io.Writer, client 
 				fmt.Fprintf(out, "Uploading directory %q as binary input for the build ...\n", clean)
 			}
 
+			re, err := regexp.Compile(excludeRegExp)
+			if err != nil {
+				return nil, err
+			}
+
 			pr, pw := io.Pipe()
 			go func() {
 				w := gzip.NewWriter(pw)
-				if err := tar.New(s2ifs.NewFileSystem()).CreateTarStream(path, false, w); err != nil {
+				t := tar.New(s2ifs.NewFileSystem())
+				t.SetExclusionPattern(re)
+				if err := t.CreateTarStream(path, false, w); err != nil {
 					pw.CloseWithError(err)
 				} else {
 					w.Close()
