@@ -1,12 +1,14 @@
 package secrets
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	coreapiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -127,7 +129,7 @@ func (o UnlinkSecretOptions) unlinkSecretsFromServiceAccount(serviceaccount *cor
 		// Save the updated Secret lists back to the server
 		serviceaccount.Secrets = newMountSecrets
 		serviceaccount.ImagePullSecrets = newPullSecrets
-		_, err = o.KubeClient.ServiceAccounts(o.Namespace).Update(serviceaccount)
+		_, err = o.KubeClient.ServiceAccounts(o.Namespace).Update(context.TODO(), serviceaccount, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}

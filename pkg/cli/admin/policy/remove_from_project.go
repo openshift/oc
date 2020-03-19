@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -127,7 +128,7 @@ func (o *RemoveFromProjectOptions) Validate(f kcmdutil.Factory, cmd *cobra.Comma
 }
 
 func (o *RemoveFromProjectOptions) Run() error {
-	roleBindings, err := o.Client.RoleBindings(o.BindingNamespace).List(metav1.ListOptions{})
+	roleBindings, err := o.Client.RoleBindings(o.BindingNamespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -174,9 +175,9 @@ func (o *RemoveFromProjectOptions) Run() error {
 
 		if !o.DryRun {
 			if len(currBinding.Subjects) > 0 {
-				_, err = o.Client.RoleBindings(o.BindingNamespace).Update(&currBinding)
+				_, err = o.Client.RoleBindings(o.BindingNamespace).Update(context.TODO(), &currBinding, metav1.UpdateOptions{})
 			} else {
-				err = o.Client.RoleBindings(o.BindingNamespace).Delete(currBinding.Name, &metav1.DeleteOptions{})
+				err = o.Client.RoleBindings(o.BindingNamespace).Delete(context.TODO(), currBinding.Name, metav1.DeleteOptions{})
 			}
 			if err != nil {
 				return err

@@ -146,7 +146,7 @@ func (o *ServiceAccountTokenOptions) Validate() error {
 
 // Run creates a new token secret, waits for the service account token controller to fulfill it, then adds the token to the service account
 func (o *ServiceAccountTokenOptions) Run() error {
-	serviceAccount, err := o.SAClient.Get(o.SAName, metav1.GetOptions{})
+	serviceAccount, err := o.SAClient.Get(context.TODO(), o.SAName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (o *ServiceAccountTokenOptions) Run() error {
 		Data: map[string][]byte{},
 	}
 
-	persistedToken, err := o.SecretsClient.Create(tokenSecret)
+	persistedToken, err := o.SecretsClient.Create(context.TODO(), tokenSecret, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func waitForToken(token *corev1.Secret, serviceAccount *corev1.ServiceAccount, t
 		TimeoutSeconds:  &timeoutSeconds,
 	}
 
-	watcher, err := client.Watch(options)
+	watcher, err := client.Watch(context.TODO(), options)
 	if err != nil {
 		return nil, fmt.Errorf("could not begin watch for token: %v", err)
 	}

@@ -1,6 +1,7 @@
 package tag
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -239,7 +240,7 @@ func (o *TagOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 			if len(srcNamespace) == 0 {
 				srcNamespace = o.namespace
 			}
-			is, err := o.client.ImageStreams(srcNamespace).Get(ref.Name, metav1.GetOptions{})
+			is, err := o.client.ImageStreams(srcNamespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -376,7 +377,7 @@ func (o TagOptions) Run() error {
 
 			if o.deleteTag {
 				// new server support
-				err := o.client.ImageStreamTags(o.destNamespace[i]).Delete(imageutil.JoinImageStreamTag(destName, destTag), &metav1.DeleteOptions{})
+				err := o.client.ImageStreamTags(o.destNamespace[i]).Delete(context.TODO(), imageutil.JoinImageStreamTag(destName, destTag), metav1.DeleteOptions{})
 				switch {
 				case err == nil:
 					fmt.Fprintf(o.Out, "Deleted tag %s/%s.\n", o.destNamespace[i], destNameAndTag)
@@ -390,7 +391,7 @@ func (o TagOptions) Run() error {
 				}
 
 				// try the old way
-				target, err := isc.Get(destName, metav1.GetOptions{})
+				target, err := isc.Get(context.TODO(), destName, metav1.GetOptions{})
 				if err != nil {
 					if !kerrors.IsNotFound(err) {
 						return err
@@ -416,7 +417,7 @@ func (o TagOptions) Run() error {
 				}
 				target.Spec.Tags = tags
 
-				if _, err = isc.Update(target); err != nil {
+				if _, err = isc.Update(context.TODO(), target, metav1.UpdateOptions{}); err != nil {
 					return err
 				}
 
@@ -485,7 +486,7 @@ func (o TagOptions) Run() error {
 			}
 
 			// supported by new servers.
-			_, err := o.client.ImageStreamTags(o.destNamespace[i]).Update(istag)
+			_, err := o.client.ImageStreamTags(o.destNamespace[i]).Update(context.TODO(), istag, metav1.UpdateOptions{})
 			switch {
 			case err == nil:
 				fmt.Fprintln(o.Out, msg)
@@ -493,7 +494,7 @@ func (o TagOptions) Run() error {
 
 			case kerrors.IsMethodNotSupported(err), kerrors.IsForbidden(err), kerrors.IsNotFound(err):
 				// if we got one of these errors, it possible that a Create will do what we need.  Try that
-				_, err := o.client.ImageStreamTags(o.destNamespace[i]).Create(istag)
+				_, err := o.client.ImageStreamTags(o.destNamespace[i]).Create(context.TODO(), istag, metav1.CreateOptions{})
 				switch {
 				case err == nil:
 					fmt.Fprintln(o.Out, msg)
@@ -512,7 +513,7 @@ func (o TagOptions) Run() error {
 
 			}
 
-			target, err := isc.Get(destName, metav1.GetOptions{})
+			target, err := isc.Get(context.TODO(), destName, metav1.GetOptions{})
 			if kerrors.IsNotFound(err) {
 				target = &imagev1.ImageStream{
 					ObjectMeta: metav1.ObjectMeta{
@@ -552,9 +553,9 @@ func (o TagOptions) Run() error {
 			// Check the stream creation timestamp and make sure we will not
 			// create a new image stream while deleting.
 			if target.CreationTimestamp.IsZero() && !o.deleteTag {
-				_, err = isc.Create(target)
+				_, err = isc.Create(context.TODO(), target, metav1.CreateOptions{})
 			} else {
-				_, err = isc.Update(target)
+				_, err = isc.Update(context.TODO(), target, metav1.UpdateOptions{})
 			}
 			if err != nil {
 				return err

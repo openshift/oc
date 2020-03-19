@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -225,7 +226,7 @@ func (o *SCCModificationOptions) CompleteGroups(f kcmdutil.Factory, cmd *cobra.C
 }
 
 func (o *SCCModificationOptions) AddSCC() error {
-	scc, err := o.SCCInterface.Get(o.SCCName, metav1.GetOptions{})
+	scc, err := o.SCCInterface.Get(context.TODO(), o.SCCName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -248,7 +249,7 @@ func (o *SCCModificationOptions) AddSCC() error {
 		return p.PrintObj(scc, o.Out)
 	}
 
-	_, err = o.SCCInterface.Update(scc)
+	_, err = o.SCCInterface.Update(context.TODO(), scc, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -257,7 +258,7 @@ func (o *SCCModificationOptions) AddSCC() error {
 }
 
 func (o *SCCModificationOptions) RemoveSCC() error {
-	scc, err := o.SCCInterface.Get(o.SCCName, metav1.GetOptions{})
+	scc, err := o.SCCInterface.Get(context.TODO(), o.SCCName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -280,7 +281,7 @@ func (o *SCCModificationOptions) RemoveSCC() error {
 		return p.PrintObj(scc, o.Out)
 	}
 
-	_, err = o.SCCInterface.Update(scc)
+	_, err = o.SCCInterface.Update(context.TODO(), scc, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

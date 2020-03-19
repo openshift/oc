@@ -1,6 +1,7 @@
 package bulk
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -191,7 +192,7 @@ func (c Creator) Create(obj *unstructured.Unstructured, namespace string) (*unst
 		namespace = ""
 	}
 
-	return c.Client.Resource(mapping.Resource).Namespace(namespace).Create(obj, metav1.CreateOptions{})
+	return c.Client.Resource(mapping.Resource).Namespace(namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
 }
 
 func NoOp(obj *unstructured.Unstructured, namespace string) (*unstructured.Unstructured, error) {

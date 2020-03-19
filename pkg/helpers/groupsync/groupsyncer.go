@@ -1,6 +1,7 @@
 package syncgroups
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -121,11 +122,11 @@ func (s *LDAPGroupSyncer) determineUsernames(members []*ldap.Entry) ([]string, e
 // updateOpenShiftGroup creates the OpenShift Group in etcd
 func (s *LDAPGroupSyncer) updateOpenShiftGroup(openshiftGroup *userv1.Group) error {
 	if len(openshiftGroup.UID) > 0 {
-		_, err := s.GroupClient.Update(openshiftGroup)
+		_, err := s.GroupClient.Update(context.TODO(), openshiftGroup, metav1.UpdateOptions{})
 		return err
 	}
 
-	_, err := s.GroupClient.Create(openshiftGroup)
+	_, err := s.GroupClient.Create(context.TODO(), openshiftGroup, metav1.CreateOptions{})
 	return err
 }
 
@@ -140,7 +141,7 @@ func (s *LDAPGroupSyncer) makeOpenShiftGroup(ldapGroupUID string, usernames []st
 		return nil, err
 	}
 
-	group, err := s.GroupClient.Get(groupName, metav1.GetOptions{})
+	group, err := s.GroupClient.Get(context.TODO(), groupName, metav1.GetOptions{})
 	if kapierrors.IsNotFound(err) {
 		group = &userv1.Group{}
 		group.Name = groupName

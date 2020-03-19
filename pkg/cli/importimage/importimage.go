@@ -1,6 +1,7 @@
 package importimage
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -186,7 +187,7 @@ func (o *ImportImageOptions) Run() error {
 		return err
 	}
 
-	result, err := o.imageClient.ImageStreamImports(isi.Namespace).Create(isi)
+	result, err := o.imageClient.ImageStreamImports(isi.Namespace).Create(context.TODO(), isi, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -274,7 +275,7 @@ func (e importError) Error() string {
 
 func (o *ImportImageOptions) createImageImport() (*imagev1.ImageStream, *imagev1.ImageStreamImport, error) {
 	var isi *imagev1.ImageStreamImport
-	stream, err := o.isClient.Get(o.Name, metav1.GetOptions{})
+	stream, err := o.isClient.Get(context.TODO(), o.Name, metav1.GetOptions{})
 	// no stream, try creating one
 	if err != nil {
 		if !errors.IsNotFound(err) {

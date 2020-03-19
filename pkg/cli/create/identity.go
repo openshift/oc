@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -98,7 +99,7 @@ func (o *CreateIdentityOptions) Run() error {
 
 	if !o.CreateSubcommandOptions.DryRun {
 		var err error
-		identity, err = o.IdentityClient.Identities().Create(identity)
+		identity, err = o.IdentityClient.Identities().Create(context.TODO(), identity, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

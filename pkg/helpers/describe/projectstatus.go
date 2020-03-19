@@ -1,6 +1,7 @@
 package describe
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sort"
@@ -198,7 +199,7 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 	allNamespaces := namespace == metav1.NamespaceAll
 	var project *projectv1.Project
 	if !allNamespaces {
-		p, err := d.ProjectClient.Projects().Get(namespace, metav1.GetOptions{})
+		p, err := d.ProjectClient.Projects().Get(context.TODO(), namespace, metav1.GetOptions{})
 		if err != nil {
 			// a forbidden error here (without a --namespace value) means that
 			// the user has not created any projects, and is therefore using a
@@ -1658,7 +1659,7 @@ type rcLoader struct {
 }
 
 func (l *rcLoader) Load() error {
-	list, err := l.lister.ReplicationControllers(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.ReplicationControllers(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1682,7 +1683,7 @@ type serviceLoader struct {
 }
 
 func (l *serviceLoader) Load() error {
-	list, err := l.lister.Services(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Services(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1706,7 +1707,7 @@ type podLoader struct {
 }
 
 func (l *podLoader) Load() error {
-	list, err := l.lister.Pods(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Pods(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1730,7 +1731,7 @@ type jobLoader struct {
 }
 
 func (l *jobLoader) Load() error {
-	list, err := l.lister.Jobs(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Jobs(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1754,7 +1755,7 @@ type statefulSetLoader struct {
 }
 
 func (l *statefulSetLoader) Load() error {
-	list, err := l.lister.StatefulSets(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.StatefulSets(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1778,7 +1779,7 @@ type horizontalPodAutoscalerLoader struct {
 }
 
 func (l *horizontalPodAutoscalerLoader) Load() error {
-	list, err := l.lister.HorizontalPodAutoscalers(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.HorizontalPodAutoscalers(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1802,7 +1803,7 @@ type deploymentLoader struct {
 }
 
 func (l *deploymentLoader) Load() error {
-	list, err := l.lister.Deployments(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Deployments(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1826,7 +1827,7 @@ type daemonsetLoader struct {
 }
 
 func (l *daemonsetLoader) Load() error {
-	list, err := l.lister.DaemonSets(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.DaemonSets(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1850,7 +1851,7 @@ type replicasetLoader struct {
 }
 
 func (l *replicasetLoader) Load() error {
-	list, err := l.lister.ReplicaSets(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.ReplicaSets(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1874,7 +1875,7 @@ type serviceAccountLoader struct {
 }
 
 func (l *serviceAccountLoader) Load() error {
-	list, err := l.lister.ServiceAccounts(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.ServiceAccounts(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1898,7 +1899,7 @@ type secretLoader struct {
 }
 
 func (l *secretLoader) Load() error {
-	list, err := l.lister.Secrets(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Secrets(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1922,7 +1923,7 @@ type pvcLoader struct {
 }
 
 func (l *pvcLoader) Load() error {
-	list, err := l.lister.PersistentVolumeClaims(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.PersistentVolumeClaims(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1946,7 +1947,7 @@ type isLoader struct {
 }
 
 func (l *isLoader) Load() error {
-	list, err := l.lister.ImageStreams(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.ImageStreams(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1971,7 +1972,7 @@ type dcLoader struct {
 }
 
 func (l *dcLoader) Load() error {
-	list, err := l.lister.DeploymentConfigs(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.DeploymentConfigs(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1999,7 +2000,7 @@ type bcLoader struct {
 }
 
 func (l *bcLoader) Load() error {
-	list, err := l.lister.BuildConfigs(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.BuildConfigs(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -2023,7 +2024,7 @@ type buildLoader struct {
 }
 
 func (l *buildLoader) Load() error {
-	list, err := l.lister.Builds(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Builds(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -2050,7 +2051,7 @@ type routeLoader struct {
 }
 
 func (l *routeLoader) Load() error {
-	list, err := l.lister.Routes(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Routes(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

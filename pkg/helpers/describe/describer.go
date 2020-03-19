@@ -1,6 +1,7 @@
 package describe
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -188,7 +189,7 @@ func getBuildPodName(build *buildv1.Build) string {
 // Describe returns the description of a build
 func (d *BuildDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.buildClient.Builds(namespace)
-	buildObj, err := c.Get(name, metav1.GetOptions{})
+	buildObj, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -197,7 +198,7 @@ func (d *BuildDescriber) Describe(namespace, name string, settings describe.Desc
 		events = &corev1.EventList{}
 	}
 	// get also pod events and merge it all into one list for describe
-	if pod, err := d.kubeClient.CoreV1().Pods(namespace).Get(getBuildPodName(buildObj), metav1.GetOptions{}); err == nil {
+	if pod, err := d.kubeClient.CoreV1().Pods(namespace).Get(context.TODO(), getBuildPodName(buildObj), metav1.GetOptions{}); err == nil {
 		if podEvents, _ := d.kubeClient.CoreV1().Events(namespace).Search(scheme.Scheme, pod); podEvents != nil {
 			events.Items = append(events.Items, podEvents.Items...)
 		}
@@ -545,11 +546,11 @@ func describeBuildTriggers(triggers []buildv1.BuildTriggerPolicy, name, namespac
 // Describe returns the description of a buildConfig
 func (d *BuildConfigDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.buildClient.BuildConfigs(namespace)
-	buildConfig, err := c.Get(name, metav1.GetOptions{})
+	buildConfig, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
-	buildList, err := d.buildClient.Builds(namespace).List(metav1.ListOptions{})
+	buildList, err := d.buildClient.Builds(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -613,7 +614,7 @@ type OAuthAccessTokenDescriber struct {
 
 func (d *OAuthAccessTokenDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.client.OAuthAccessTokens()
-	oAuthAccessToken, err := c.Get(name, metav1.GetOptions{})
+	oAuthAccessToken, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -645,7 +646,7 @@ type ImageDescriber struct {
 // Describe returns the description of an image
 func (d *ImageDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.Images()
-	image, err := c.Get(name, metav1.GetOptions{})
+	image, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -793,7 +794,7 @@ func (d *ImageStreamTagDescriber) Describe(namespace, name string, settings desc
 		// TODO use repo's preferred default, when that's coded
 		tag = imagev1.DefaultImageTag
 	}
-	imageStreamTag, err := c.Get(repo+":"+tag, metav1.GetOptions{})
+	imageStreamTag, err := c.Get(context.TODO(), repo+":"+tag, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -817,7 +818,7 @@ func (d *ImageTagDescriber) Describe(namespace, name string, settings describe.D
 		// TODO use repo's preferred default, when that's coded
 		tag = imagev1.DefaultImageTag
 	}
-	imageTag, err := c.Get(repo+":"+tag, metav1.GetOptions{})
+	imageTag, err := c.Get(context.TODO(), repo+":"+tag, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -833,7 +834,7 @@ type ImageStreamImageDescriber struct {
 // Describe returns the description of an imageStreamImage
 func (d *ImageStreamImageDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.ImageStreamImages(namespace)
-	imageStreamImage, err := c.Get(name, metav1.GetOptions{})
+	imageStreamImage, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -849,7 +850,7 @@ type ImageStreamDescriber struct {
 // Describe returns the description of an imageStream
 func (d *ImageStreamDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.ImageClient.ImageStreams(namespace)
-	imageStream, err := c.Get(name, metav1.GetOptions{})
+	imageStream, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -884,7 +885,7 @@ type routeEndpointInfo struct {
 // Describe returns the description of a route
 func (d *RouteDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.routeClient.Routes(namespace)
-	route, err := c.Get(name, metav1.GetOptions{})
+	route, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -895,7 +896,7 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 		if backend.Weight != nil {
 			totalWeight += *backend.Weight
 		}
-		ep, endpointsErr := d.kubeClient.CoreV1().Endpoints(namespace).Get(backend.Name, metav1.GetOptions{})
+		ep, endpointsErr := d.kubeClient.CoreV1().Endpoints(namespace).Get(context.TODO(), backend.Name, metav1.GetOptions{})
 		endpoints[backend.Name] = routeEndpointInfo{ep, endpointsErr}
 	}
 
@@ -1017,17 +1018,17 @@ type ProjectDescriber struct {
 // Describe returns the description of a project
 func (d *ProjectDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	projectsClient := d.projectClient.Projects()
-	project, err := projectsClient.Get(name, metav1.GetOptions{})
+	project, err := projectsClient.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 	resourceQuotasClient := d.kubeClient.CoreV1().ResourceQuotas(name)
-	resourceQuotaList, err := resourceQuotasClient.List(metav1.ListOptions{})
+	resourceQuotaList, err := resourceQuotasClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return "", err
 	}
 	limitRangesClient := d.kubeClient.CoreV1().LimitRanges(name)
-	limitRangeList, err := limitRangesClient.List(metav1.ListOptions{})
+	limitRangeList, err := limitRangesClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1236,7 +1237,7 @@ func (d *TemplateDescriber) describeObjects(objects []runtime.RawExtension, out 
 // Describe returns the description of a template
 func (d *TemplateDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.templateClient.Templates(namespace)
-	template, err := c.Get(name, metav1.GetOptions{})
+	template, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1270,7 +1271,7 @@ type TemplateInstanceDescriber struct {
 // Describe returns the description of a template instance
 func (d *TemplateInstanceDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.templateClient.TemplateInstances(namespace)
-	templateInstance, err := c.Get(name, metav1.GetOptions{})
+	templateInstance, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1323,7 +1324,7 @@ func (d *TemplateInstanceDescriber) DescribeObjects(objects []templatev1.Templat
 // kinternalprinter.SecretDescriber#Describe could have been used here, but the formatting
 // is off when it prints the information and seems to not be easily fixable
 func (d *TemplateInstanceDescriber) DescribeParameters(template templatev1.Template, namespace, name string, out *tabwriter.Writer) {
-	secret, err := d.kubeClient.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
+	secret, err := d.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 
 	formatString(out, "Parameters", " ")
 
@@ -1361,7 +1362,7 @@ func (d *IdentityDescriber) Describe(namespace, name string, settings describe.D
 	userClient := d.c.Users()
 	identityClient := d.c.Identities()
 
-	identity, err := identityClient.Get(name, metav1.GetOptions{})
+	identity, err := identityClient.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1373,7 +1374,7 @@ func (d *IdentityDescriber) Describe(namespace, name string, settings describe.D
 			formatString(out, "User Name", identity.User.Name)
 			formatString(out, "User UID", identity.User.UID)
 		} else {
-			resolvedUser, err := userClient.Get(identity.User.Name, metav1.GetOptions{})
+			resolvedUser, err := userClient.Get(context.TODO(), identity.User.Name, metav1.GetOptions{})
 
 			nameValue := identity.User.Name
 			uidValue := string(identity.User.UID)
@@ -1408,7 +1409,7 @@ type UserIdentityMappingDescriber struct {
 func (d *UserIdentityMappingDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.UserIdentityMappings()
 
-	mapping, err := c.Get(name, metav1.GetOptions{})
+	mapping, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1432,7 +1433,7 @@ func (d *UserDescriber) Describe(namespace, name string, settings describe.Descr
 	userClient := d.c.Users()
 	identityClient := d.c.Identities()
 
-	user, err := userClient.Get(name, metav1.GetOptions{})
+	user, err := userClient.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1447,7 +1448,7 @@ func (d *UserDescriber) Describe(namespace, name string, settings describe.Descr
 			formatString(out, "Identities", "<none>")
 		} else {
 			for i, identity := range user.Identities {
-				resolvedIdentity, err := identityClient.Get(identity, metav1.GetOptions{})
+				resolvedIdentity, err := identityClient.Get(context.TODO(), identity, metav1.GetOptions{})
 
 				value := identity
 				if kerrs.IsNotFound(err) {
@@ -1478,7 +1479,7 @@ type GroupDescriber struct {
 
 // Describe returns the description of a group
 func (d *GroupDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	group, err := d.c.Groups().Get(name, metav1.GetOptions{})
+	group, err := d.c.Groups().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1526,7 +1527,7 @@ type RoleDescriber struct {
 // Describe returns the description of a role
 func (d *RoleDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.Roles(namespace)
-	role, err := c.Get(name, metav1.GetOptions{})
+	role, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1556,7 +1557,7 @@ type RoleBindingDescriber struct {
 // Describe returns the description of a roleBinding
 func (d *RoleBindingDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.RoleBindings(namespace)
-	roleBinding, err := c.Get(name, metav1.GetOptions{})
+	roleBinding, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1564,10 +1565,10 @@ func (d *RoleBindingDescriber) Describe(namespace, name string, settings describ
 	var role *authorizationv1.Role
 	if len(roleBinding.RoleRef.Namespace) == 0 {
 		var clusterRole *authorizationv1.ClusterRole
-		clusterRole, err = d.c.ClusterRoles().Get(roleBinding.RoleRef.Name, metav1.GetOptions{})
+		clusterRole, err = d.c.ClusterRoles().Get(context.TODO(), roleBinding.RoleRef.Name, metav1.GetOptions{})
 		role = authorizationhelpers.ToRole(clusterRole)
 	} else {
-		role, err = d.c.Roles(roleBinding.RoleRef.Namespace).Get(roleBinding.RoleRef.Name, metav1.GetOptions{})
+		role, err = d.c.Roles(roleBinding.RoleRef.Namespace).Get(context.TODO(), roleBinding.RoleRef.Name, metav1.GetOptions{})
 	}
 
 	return DescribeRoleBinding(roleBinding, role, err)
@@ -1611,7 +1612,7 @@ type ClusterRoleDescriber struct {
 // Describe returns the description of a role
 func (d *ClusterRoleDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.ClusterRoles()
-	role, err := c.Get(name, metav1.GetOptions{})
+	role, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1627,12 +1628,12 @@ type ClusterRoleBindingDescriber struct {
 // Describe returns the description of a roleBinding
 func (d *ClusterRoleBindingDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.ClusterRoleBindings()
-	roleBinding, err := c.Get(name, metav1.GetOptions{})
+	roleBinding, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
-	role, err := d.c.ClusterRoles().Get(roleBinding.RoleRef.Name, metav1.GetOptions{})
+	role, err := d.c.ClusterRoles().Get(context.TODO(), roleBinding.RoleRef.Name, metav1.GetOptions{})
 	return DescribeRoleBinding(authorizationhelpers.ToRoleBinding(roleBinding), authorizationhelpers.ToRole(role), err)
 }
 
@@ -1700,7 +1701,7 @@ type ClusterQuotaDescriber struct {
 }
 
 func (d *ClusterQuotaDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	quota, err := d.c.ClusterResourceQuotas().Get(name, metav1.GetOptions{})
+	quota, err := d.c.ClusterResourceQuotas().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1756,7 +1757,7 @@ type AppliedClusterQuotaDescriber struct {
 }
 
 func (d *AppliedClusterQuotaDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	quota, err := d.c.AppliedClusterResourceQuotas(namespace).Get(name, metav1.GetOptions{})
+	quota, err := d.c.AppliedClusterResourceQuotas(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1769,7 +1770,7 @@ type ClusterNetworkDescriber struct {
 
 // Describe returns the description of a ClusterNetwork
 func (d *ClusterNetworkDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	cn, err := d.c.ClusterNetworks().Get(name, metav1.GetOptions{})
+	cn, err := d.c.ClusterNetworks().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1793,7 +1794,7 @@ type HostSubnetDescriber struct {
 
 // Describe returns the description of a HostSubnet
 func (d *HostSubnetDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	hs, err := d.c.HostSubnets().Get(name, metav1.GetOptions{})
+	hs, err := d.c.HostSubnets().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1836,7 +1837,7 @@ type NetNamespaceDescriber struct {
 
 // Describe returns the description of a NetNamespace
 func (d *NetNamespaceDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	netns, err := d.c.NetNamespaces().Get(name, metav1.GetOptions{})
+	netns, err := d.c.NetNamespaces().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1867,7 +1868,7 @@ type EgressNetworkPolicyDescriber struct {
 // Describe returns the description of an EgressNetworkPolicy
 func (d *EgressNetworkPolicyDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.EgressNetworkPolicies(namespace)
-	policy, err := c.Get(name, metav1.GetOptions{})
+	policy, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1890,7 +1891,7 @@ type RoleBindingRestrictionDescriber struct {
 
 // Describe returns the description of a RoleBindingRestriction.
 func (d *RoleBindingRestrictionDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	rbr, err := d.c.RoleBindingRestrictions(namespace).Get(name, metav1.GetOptions{})
+	rbr, err := d.c.RoleBindingRestrictions(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1951,7 +1952,7 @@ type SecurityContextConstraintsDescriber struct {
 }
 
 func (d *SecurityContextConstraintsDescriber) Describe(namespace, name string, s describe.DescriberSettings) (string, error) {
-	scc, err := d.c.SecurityContextConstraints().Get(name, metav1.GetOptions{})
+	scc, err := d.c.SecurityContextConstraints().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}

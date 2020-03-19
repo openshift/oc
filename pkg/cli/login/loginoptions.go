@@ -2,6 +2,7 @@ package login
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -279,7 +280,7 @@ func (o *LoginOptions) gatherProjectInfo() error {
 		return err
 	}
 
-	projectsList, err := projectClient.Projects().List(metav1.ListOptions{})
+	projectsList, err := projectClient.Projects().List(context.TODO(), metav1.ListOptions{})
 	// if we're running on kube (or likely kube), just set it to "default"
 	if kerrors.IsNotFound(err) || kerrors.IsForbidden(err) {
 		fmt.Fprintf(o.Out, "Using \"default\".  You can switch projects with:\n\n '%s project <projectname>'\n", o.CommandName)
@@ -298,7 +299,7 @@ func (o *LoginOptions) gatherProjectInfo() error {
 
 	if len(o.DefaultNamespace) > 0 && !projects.Has(o.DefaultNamespace) {
 		// Attempt a direct get of our current project in case it hasn't appeared in the list yet
-		if currentProject, err := projectClient.Projects().Get(o.DefaultNamespace, metav1.GetOptions{}); err == nil {
+		if currentProject, err := projectClient.Projects().Get(context.TODO(), o.DefaultNamespace, metav1.GetOptions{}); err == nil {
 			// If we get it successfully, add it to the list
 			projectsItems = append(projectsItems, *currentProject)
 			projects.Insert(currentProject.Name)
@@ -330,7 +331,7 @@ func (o *LoginOptions) gatherProjectInfo() error {
 			}
 		}
 
-		current, err := projectClient.Projects().Get(namespace, metav1.GetOptions{})
+		current, err := projectClient.Projects().Get(context.TODO(), namespace, metav1.GetOptions{})
 		if err != nil && !kerrors.IsNotFound(err) && !kerrors.IsForbidden(err) {
 			return err
 		}

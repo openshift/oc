@@ -1,6 +1,7 @@
 package buildchain
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -132,7 +133,7 @@ func (o *BuildChainOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	// Setup namespace
 	if o.allNamespaces {
 		// TODO: Handle different uses of build-chain; user and admin
-		projectList, err := o.projectClient.Projects().List(metav1.ListOptions{})
+		projectList, err := o.projectClient.Projects().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return err
 		}
@@ -196,7 +197,7 @@ func (o *BuildChainOptions) RunBuildChain() error {
 	if err != nil {
 		if _, isNotFoundErr := err.(describe.NotFoundErr); isNotFoundErr {
 			// Try to get the imageStreamTag via a direct GET
-			if _, getErr := o.imageClient.ImageStreamTags(o.defaultNamespace).Get(o.name, metav1.GetOptions{}); getErr != nil {
+			if _, getErr := o.imageClient.ImageStreamTags(o.defaultNamespace).Get(context.TODO(), o.name, metav1.GetOptions{}); getErr != nil {
 				return getErr
 			}
 			fmt.Printf("Image stream tag %q in %q doesn't have any dependencies.\n", o.name, o.defaultNamespace)

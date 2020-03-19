@@ -53,11 +53,11 @@ func (c *acceptAvailablePods) Accept(rc *corev1.ReplicationController) error {
 	lw := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.FieldSelector = fieldSelector
-			return c.kclient.ReplicationControllers(rc.Namespace).List(options)
+			return c.kclient.ReplicationControllers(rc.Namespace).List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 			options.FieldSelector = fieldSelector
-			return c.kclient.ReplicationControllers(rc.Namespace).Watch(options)
+			return c.kclient.ReplicationControllers(rc.Namespace).Watch(context.TODO(), options)
 		},
 	}
 

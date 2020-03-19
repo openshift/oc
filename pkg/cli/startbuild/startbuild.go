@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -297,7 +298,7 @@ func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, cmd
 
 	// when listing webhooks, allow --from-build to lookup a build config
 	if build.Resource("builds") == resource && len(o.ListWebhooks) > 0 {
-		build, err := o.BuildClient.Builds(o.Namespace).Get(name, metav1.GetOptions{})
+		build, err := o.BuildClient.Builds(o.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -445,7 +446,7 @@ func (o *StartBuildOptions) Run() error {
 			return err
 		}
 	case len(o.FromBuild) > 0:
-		if newBuild, err = o.BuildClient.Builds(o.Namespace).Clone(request.Name, request); err != nil {
+		if newBuild, err = o.BuildClient.Builds(o.Namespace).Clone(context.TODO(), request.Name, request, metav1.CreateOptions{}); err != nil {
 			if isInvalidSourceInputsError(err) {
 				return fmt.Errorf("build %s/%s has no valid source inputs and '--from-build' cannot be used for binary builds", o.Namespace, o.Name)
 			}
@@ -455,7 +456,7 @@ func (o *StartBuildOptions) Run() error {
 			return err
 		}
 	default:
-		if newBuild, err = o.BuildClient.BuildConfigs(o.Namespace).Instantiate(request.Name, request); err != nil {
+		if newBuild, err = o.BuildClient.BuildConfigs(o.Namespace).Instantiate(context.TODO(), request.Name, request, metav1.CreateOptions{}); err != nil {
 			if isInvalidSourceInputsError(err) {
 				return fmt.Errorf("build configuration %s/%s has no valid source inputs, if this is a binary build you must specify one of '--from-dir', '--from-repo', or '--from-file'", o.Namespace, o.Name)
 			}
@@ -492,7 +493,7 @@ func (o *StartBuildOptions) streamBuildLogs(build *buildv1.Build) error {
 	}
 	var err error
 	for {
-		rd, logErr := o.BuildLogClient.Logs(build.Name, opts).Stream()
+		rd, logErr := o.BuildLogClient.Logs(build.Name, opts).Stream(context.TODO())
 		if logErr != nil {
 			err = ocerrors.NewError("unable to stream the build logs").WithCause(logErr)
 			klog.V(4).Infof("Error: %v", err)
@@ -513,7 +514,7 @@ func (o *StartBuildOptions) streamBuildLogs(build *buildv1.Build) error {
 
 // RunListBuildWebHooks prints the webhooks for the provided build config.
 func (o *StartBuildOptions) RunListBuildWebHooks() error {
-	config, err := o.BuildClient.BuildConfigs(o.Namespace).Get(o.Name, metav1.GetOptions{})
+	config, err := o.BuildClient.BuildConfigs(o.Namespace).Get(context.TODO(), o.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -941,7 +942,7 @@ func WaitForBuildComplete(c buildv1client.BuildInterface, name string) error {
 			b.Status.Phase == buildv1.BuildPhaseError
 	}
 	for {
-		list, err := c.List(metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String()})
+		list, err := c.List(context.TODO(), metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String()})
 		if err != nil {
 			return err
 		}
@@ -955,7 +956,7 @@ func WaitForBuildComplete(c buildv1client.BuildInterface, name string) error {
 		}
 
 		rv := list.ResourceVersion
-		w, err := c.Watch(metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String(), ResourceVersion: rv})
+		w, err := c.Watch(context.TODO(), metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String(), ResourceVersion: rv})
 		if err != nil {
 			return err
 		}

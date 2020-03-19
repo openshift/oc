@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -113,7 +114,7 @@ func (o *CreateUserIdentityMappingOptions) Run() error {
 
 	var err error
 	if !o.CreateSubcommandOptions.DryRun {
-		mapping, err = o.UserIdentityMappingClient.UserIdentityMappings().Create(mapping)
+		mapping, err = o.UserIdentityMappingClient.UserIdentityMappings().Create(context.TODO(), mapping, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

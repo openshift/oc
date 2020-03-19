@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -481,7 +482,7 @@ updates:
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to set env: %v\n", err))
 			continue

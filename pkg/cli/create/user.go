@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -87,7 +88,7 @@ func (o *CreateUserOptions) Run() error {
 	}
 	var err error
 	if !o.CreateSubcommandOptions.DryRun {
-		user, err = o.UserClient.Users().Create(user)
+		user, err = o.UserClient.Users().Create(context.TODO(), user, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

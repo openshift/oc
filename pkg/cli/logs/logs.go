@@ -1,6 +1,7 @@
 package logs
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/kubectl/pkg/cmd/logs"
@@ -121,7 +122,7 @@ func (o *LogsOptions) RunLog() error {
 		buildName := buildhelpers.BuildNameForConfigVersion(t.ObjectMeta.Name, int(t.Status.LastVersion))
 		isPipeline = t.Spec.CommonSpec.Strategy.JenkinsPipelineStrategy != nil
 		if isPipeline {
-			build, _ = o.Client.Builds(o.LogsOptions.Namespace).Get(buildName, metav1.GetOptions{})
+			build, _ = o.Client.Builds(o.LogsOptions.Namespace).Get(context.TODO(), buildName, metav1.GetOptions{})
 			if build == nil {
 				return fmt.Errorf("the build %s for build config %s was not found", buildName, t.Name)
 			}

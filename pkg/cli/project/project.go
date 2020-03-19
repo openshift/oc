@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -311,13 +312,13 @@ func (o *ProjectOptions) GetContextFromName(contextName string) (*clientcmdapi.C
 }
 
 func ConfirmProjectAccess(currentProject string, projectClient projectv1client.ProjectV1Interface, kClient corev1client.CoreV1Interface) error {
-	_, projectErr := projectClient.Projects().Get(currentProject, metav1.GetOptions{})
+	_, projectErr := projectClient.Projects().Get(context.TODO(), currentProject, metav1.GetOptions{})
 	if !kapierrors.IsNotFound(projectErr) && !kapierrors.IsForbidden(projectErr) {
 		return projectErr
 	}
 
 	// at this point we know the error is a not found or forbidden, but we'll test namespaces just in case we're running on kube
-	if _, err := kClient.Namespaces().Get(currentProject, metav1.GetOptions{}); err == nil {
+	if _, err := kClient.Namespaces().Get(context.TODO(), currentProject, metav1.GetOptions{}); err == nil {
 		return nil
 	}
 
@@ -326,7 +327,7 @@ func ConfirmProjectAccess(currentProject string, projectClient projectv1client.P
 }
 
 func GetProjects(projectClient projectv1client.ProjectV1Interface, kClient corev1client.CoreV1Interface) ([]projectv1.Project, error) {
-	projects, err := projectClient.Projects().List(metav1.ListOptions{})
+	projects, err := projectClient.Projects().List(context.TODO(), metav1.ListOptions{})
 	if err == nil {
 		return projects.Items, nil
 	}
@@ -335,7 +336,7 @@ func GetProjects(projectClient projectv1client.ProjectV1Interface, kClient corev
 		return nil, err
 	}
 
-	namespaces, err := kClient.Namespaces().List(metav1.ListOptions{})
+	namespaces, err := kClient.Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

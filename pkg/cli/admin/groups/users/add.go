@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -60,7 +61,7 @@ func (o *AddUsersOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 }
 
 func (o *AddUsersOptions) Run() error {
-	group, err := o.GroupModificationOptions.GroupClient.Groups().Get(o.GroupModificationOptions.Group, metav1.GetOptions{})
+	group, err := o.GroupModificationOptions.GroupClient.Groups().Get(context.TODO(), o.GroupModificationOptions.Group, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -75,7 +76,7 @@ func (o *AddUsersOptions) Run() error {
 	}
 
 	if !o.GroupModificationOptions.DryRun {
-		group, err = o.GroupModificationOptions.GroupClient.Groups().Update(group)
+		group, err = o.GroupModificationOptions.GroupClient.Groups().Update(context.TODO(), group, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}

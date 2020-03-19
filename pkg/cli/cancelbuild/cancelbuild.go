@@ -1,6 +1,7 @@
 package cancelbuild
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -209,7 +210,7 @@ func labelValue(name string) string {
 // Optionally you can specify a filter function to select only builds that
 // matches your criteria.
 func buildConfigBuilds(c buildtv1client.BuildsGetter, namespace, name string, filterFunc buildFilter) ([]*buildv1.Build, error) {
-	result, err := c.Builds(namespace).List(metav1.ListOptions{LabelSelector: buildConfigSelector(name).String()})
+	result, err := c.Builds(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: buildConfigSelector(name).String()})
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +244,7 @@ func (o *CancelBuildOptions) Validate() error {
 func (o *CancelBuildOptions) RunCancelBuild() error {
 	var builds []*buildv1.Build
 	for _, name := range o.BuildNames {
-		build, err := o.BuildClient.Get(name, metav1.GetOptions{})
+		build, err := o.BuildClient.Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			o.ReportError(fmt.Errorf("build %s/%s not found", o.Namespace, name))
 			continue
@@ -270,7 +271,7 @@ func (o *CancelBuildOptions) RunCancelBuild() error {
 			}
 			logClient := buildclientv1.NewBuildLogClient(o.Client.RESTClient(), o.Namespace, scheme.Scheme)
 			opts := buildv1.BuildLogOptions{NoWait: true}
-			response, err := logClient.Logs(b.Name, opts).Do().Raw()
+			response, err := logClient.Logs(b.Name, opts).Do(context.TODO()).Raw()
 			if err != nil {
 				o.ReportError(fmt.Errorf("unable to fetch logs for %s/%s: %v", b.Namespace, b.Name, err))
 				continue
@@ -287,12 +288,12 @@ func (o *CancelBuildOptions) RunCancelBuild() error {
 			defer wg.Done()
 			err := wait.Poll(500*time.Millisecond, o.timeout, func() (bool, error) {
 				build.Status.Cancelled = true
-				_, err := o.BuildClient.Update(build)
+				_, err := o.BuildClient.Update(context.TODO(), build, metav1.UpdateOptions{})
 				switch {
 				case err == nil:
 					return true, nil
 				case kapierrors.IsConflict(err):
-					build, err = o.BuildClient.Get(build.Name, metav1.GetOptions{})
+					build, err = o.BuildClient.Get(context.TODO(), build.Name, metav1.GetOptions{})
 					return false, err
 				}
 				return true, err
@@ -314,7 +315,7 @@ func (o *CancelBuildOptions) RunCancelBuild() error {
 				timeout = timeout + (3 * time.Minute)
 			}
 			err = wait.Poll(500*time.Millisecond, timeout, func() (bool, error) {
-				updatedBuild, err := o.BuildClient.Get(build.Name, metav1.GetOptions{})
+				updatedBuild, err := o.BuildClient.Get(context.TODO(), build.Name, metav1.GetOptions{})
 				if err != nil {
 					return true, err
 				}
@@ -336,7 +337,7 @@ func (o *CancelBuildOptions) RunCancelBuild() error {
 	if o.Restart {
 		for _, b := range builds {
 			request := &buildv1.BuildRequest{ObjectMeta: metav1.ObjectMeta{Namespace: b.Namespace, Name: b.Name}}
-			build, err := o.BuildClient.Clone(request.Name, request)
+			build, err := o.BuildClient.Clone(context.TODO(), request.Name, request, metav1.CreateOptions{})
 			if err != nil {
 				o.ReportError(fmt.Errorf("build %s/%s failed to restart: %v", b.Namespace, b.Name, err))
 				continue

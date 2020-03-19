@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -220,7 +221,7 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 
 	errs := []error{}
 	for _, resource := range resources {
-		resourceList, err := o.dynamicClient.Resource(resource).List(metav1.ListOptions{})
+		resourceList, err := o.dynamicClient.Resource(resource).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -261,7 +262,7 @@ func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourc
 
 	errs := []error{}
 	for _, resource := range resources {
-		resourceList, err := o.dynamicClient.Resource(resource).List(metav1.ListOptions{})
+		resourceList, err := o.dynamicClient.Resource(resource).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			errs = append(errs, err)
 			continue

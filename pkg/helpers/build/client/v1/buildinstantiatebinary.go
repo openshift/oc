@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"io"
 
 	"k8s.io/client-go/rest"
@@ -31,7 +32,7 @@ func (c *buildInstatiateBinary) InstantiateBinary(name string, options *buildv1.
 		SubResource("instantiatebinary").
 		Body(r).
 		VersionedParams(options, scheme.ParameterCodec).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return result, err
 }

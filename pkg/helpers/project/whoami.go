@@ -1,6 +1,8 @@
 package project
 
 import (
+	"context"
+
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	restclient "k8s.io/client-go/rest"
@@ -15,7 +17,7 @@ func WhoAmI(clientConfig *restclient.Config) (*userv1.User, error) {
 		return nil, err
 	}
 
-	me, err := client.Users().Get("~", metav1.GetOptions{})
+	me, err := client.Users().Get(context.TODO(), "~", metav1.GetOptions{})
 
 	// if we're talking to kube (or likely talking to kube),
 	if kerrors.IsNotFound(err) || kerrors.IsForbidden(err) {

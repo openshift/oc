@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -501,7 +502,7 @@ func (o *VolumeOptions) RunVolume() error {
 	for _, info := range updateInfos {
 		var obj runtime.Object
 		if len(info.ResourceVersion) == 0 {
-			obj, err = resource.NewHelper(info.Client, info.Mapping).Create(info.Namespace, false, info.Object, &metav1.CreateOptions{})
+			obj, err = resource.NewHelper(info.Client, info.Mapping).Create(info.Namespace, false, info.Object)
 		} else {
 			obj, err = resource.NewHelper(info.Client, info.Mapping).Replace(info.Namespace, info.Name, true, info.Object)
 		}
@@ -929,7 +930,7 @@ func (o *VolumeOptions) listVolumeForSpec(spec *corev1.PodSpec, info *resource.I
 		refInfo := ""
 		if vol.VolumeSource.PersistentVolumeClaim != nil {
 			claimName := vol.VolumeSource.PersistentVolumeClaim.ClaimName
-			claim, err := o.Client.CoreV1().PersistentVolumeClaims(info.Namespace).Get(claimName, metav1.GetOptions{})
+			claim, err := o.Client.CoreV1().PersistentVolumeClaims(info.Namespace).Get(context.TODO(), claimName, metav1.GetOptions{})
 			switch {
 			case err == nil:
 				refInfo = fmt.Sprintf("(%s)", describePersistentVolumeClaim(claim))

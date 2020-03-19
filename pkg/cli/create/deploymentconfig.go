@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -105,7 +106,7 @@ func (o *CreateDeploymentConfigOptions) Run() error {
 
 	if !o.CreateSubcommandOptions.DryRun {
 		var err error
-		deploymentConfig, err = o.Client.DeploymentConfigs(o.CreateSubcommandOptions.Namespace).Create(deploymentConfig)
+		deploymentConfig, err = o.Client.DeploymentConfigs(o.CreateSubcommandOptions.Namespace).Create(context.TODO(), deploymentConfig, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

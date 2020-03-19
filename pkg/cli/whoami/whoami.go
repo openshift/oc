@@ -1,6 +1,7 @@
 package whoami
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -75,7 +76,7 @@ func NewCmdWhoAmI(name, fullName string, f kcmdutil.Factory, streams genericclio
 }
 
 func (o WhoAmIOptions) WhoAmI() (*userv1.User, error) {
-	me, err := o.UserInterface.Users().Get("~", metav1.GetOptions{})
+	me, err := o.UserInterface.Users().Get(context.TODO(), "~", metav1.GetOptions{})
 	if err == nil {
 		fmt.Fprintf(o.Out, "%s\n", me.Name)
 	}
@@ -113,7 +114,7 @@ func (o *WhoAmIOptions) Validate() error {
 }
 
 func (o *WhoAmIOptions) getWebConsoleUrl() (string, error) {
-	consolePublicConfig, err := o.KubeClient.CoreV1().ConfigMaps(openShiftConfigManagedNamespaceName).Get(consolePublicConfigMap, metav1.GetOptions{})
+	consolePublicConfig, err := o.KubeClient.CoreV1().ConfigMaps(openShiftConfigManagedNamespaceName).Get(context.TODO(), consolePublicConfigMap, metav1.GetOptions{})
 	// This means the command was run against 3.x server
 	if errors.IsNotFound(err) {
 		return o.ClientConfig.Host, nil

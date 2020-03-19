@@ -1,6 +1,7 @@
 package rollback
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sort"
@@ -204,7 +205,7 @@ func (o *RollbackOptions) Run() error {
 	switch r := obj.(type) {
 	case *corev1.ReplicationController:
 		dcName := appsutil.DeploymentConfigNameFor(r)
-		dc, err := o.appsClient.DeploymentConfigs(r.Namespace).Get(dcName, metav1.GetOptions{})
+		dc, err := o.appsClient.DeploymentConfigs(r.Namespace).Get(context.TODO(), dcName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -247,7 +248,7 @@ func (o *RollbackOptions) Run() error {
 			IncludeReplicationMeta: o.IncludeScalingSettings,
 		},
 	}
-	newConfig, err := o.appsClient.DeploymentConfigs(o.Namespace).Rollback(configName, rollback)
+	newConfig, err := o.appsClient.DeploymentConfigs(o.Namespace).Rollback(context.TODO(), configName, rollback, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -262,7 +263,7 @@ func (o *RollbackOptions) Run() error {
 	}
 
 	// Perform a real rollback.
-	rolledback, err := o.appsClient.DeploymentConfigs(newConfig.Namespace).Update(newConfig)
+	rolledback, err := o.appsClient.DeploymentConfigs(newConfig.Namespace).Update(context.TODO(), newConfig, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -342,7 +343,7 @@ func (o *RollbackOptions) findResource(targetName string) (runtime.Object, *meta
 // version will be returned.
 func (o *RollbackOptions) findTargetDeployment(config *appsv1.DeploymentConfig, desiredVersion int64) (*corev1.ReplicationController, error) {
 	// Find deployments for the config sorted by version descending.
-	deploymentList, err := o.kubeClient.CoreV1().ReplicationControllers(config.Namespace).List(metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(config.Name).String()})
+	deploymentList, err := o.kubeClient.CoreV1().ReplicationControllers(config.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(config.Name).String()})
 	if err != nil {
 		return nil, err
 	}
