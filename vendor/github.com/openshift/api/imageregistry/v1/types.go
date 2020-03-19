@@ -87,6 +87,9 @@ type ImageRegistrySpec struct {
 	// +optional
 	// +kubebuilder:validation:Pattern=`^(RollingUpdate|Recreate)$`
 	RolloutStrategy string `json:"rolloutStrategy,omitempty" protobuf:"bytes,15,opt,name=rolloutStrategy"`
+	// affinity is a group of node affinity scheduling rules for the image registry pod(s).
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty" protobuf:"bytes,16,opt,name=affinity"`
 }
 
 // ImageRegistryStatus reports image registry operational status.
