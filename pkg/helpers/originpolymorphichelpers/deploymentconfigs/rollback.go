@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/describe/versioned"
+	"k8s.io/kubectl/pkg/describe"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -55,7 +55,7 @@ func (r *DeploymentConfigRollbacker) Rollback(obj runtime.Object, updatedAnnotat
 
 	if dryRunStrategy == cmdutil.DryRunClient {
 		out := bytes.NewBuffer([]byte("\n"))
-		versioned.DescribePodTemplate(rolledback.Spec.Template, describe.NewPrefixWriter(out))
+		describe.DescribePodTemplate(rolledback.Spec.Template, describe.NewPrefixWriter(out))
 		return out.String(), nil
 	}
 
