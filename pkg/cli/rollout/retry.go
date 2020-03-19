@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -166,7 +167,7 @@ func (o RetryOptions) Run() error {
 		}
 
 		latestDeploymentName := appsutil.LatestDeploymentNameForConfig(config)
-		rc, err := o.Clientset.CoreV1().ReplicationControllers(config.Namespace).Get(latestDeploymentName, metav1.GetOptions{})
+		rc, err := o.Clientset.CoreV1().ReplicationControllers(config.Namespace).Get(context.TODO(), latestDeploymentName, metav1.GetOptions{})
 		if err != nil {
 			if kerrors.IsNotFound(err) {
 				allErrs = append(allErrs, kcmdutil.AddSourceToErr("retrying", info.Source, fmt.Errorf("unable to find the latest rollout (#%d).\nYou can start a new rollout with 'oc rollout latest dc/%s'.", config.Status.LatestVersion, config.Name)))
@@ -189,7 +190,7 @@ func (o RetryOptions) Run() error {
 		}
 
 		// Delete the deployer pod as well as the deployment hooks pods, if any
-		pods, err := o.Clientset.CoreV1().Pods(config.Namespace).List(metav1.ListOptions{LabelSelector: appsutil.DeployerPodSelector(
+		pods, err := o.Clientset.CoreV1().Pods(config.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: appsutil.DeployerPodSelector(
 			latestDeploymentName).String()})
 		if err != nil {
 			allErrs = append(allErrs, kcmdutil.AddSourceToErr("retrying", info.Source, fmt.Errorf("failed to list deployer/hook pods for deployment #%d: %v", config.Status.LatestVersion, err)))
@@ -197,7 +198,7 @@ func (o RetryOptions) Run() error {
 		}
 		hasError := false
 		for _, pod := range pods.Items {
-			err := o.Clientset.CoreV1().Pods(pod.Namespace).Delete(pod.Name, metav1.NewDeleteOptions(0))
+			err := o.Clientset.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, *metav1.NewDeleteOptions(0))
 			if err != nil {
 				allErrs = append(allErrs, kcmdutil.AddSourceToErr("retrying", info.Source, fmt.Errorf("failed to delete deployer/hook pod %s for deployment #%d: %v", pod.Name, config.Status.LatestVersion, err)))
 				hasError = true
@@ -226,7 +227,7 @@ func (o RetryOptions) Run() error {
 			continue
 		}
 
-		if _, err := o.Clientset.CoreV1().ReplicationControllers(rc.Namespace).Patch(rc.Name, types.StrategicMergePatchType, patches[0].Patch); err != nil {
+		if _, err := o.Clientset.CoreV1().ReplicationControllers(rc.Namespace).Patch(context.TODO(), rc.Name, types.StrategicMergePatchType, patches[0].Patch, metav1.PatchOptions{}); err != nil {
 			allErrs = append(allErrs, kcmdutil.AddSourceToErr("retrying", info.Source, err))
 			continue
 		}

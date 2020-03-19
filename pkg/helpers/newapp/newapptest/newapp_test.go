@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -2380,8 +2381,8 @@ type NewAppFakeImageStreams struct {
 	proxy imagev1typedclient.ImageStreamInterface
 }
 
-func (c *NewAppFakeImageStreams) Get(name string, options metav1.GetOptions) (result *imagev1.ImageStream, err error) {
-	result, err = c.proxy.Get(name, options)
+func (c *NewAppFakeImageStreams) Get(ctx context.Context, name string, options metav1.GetOptions) (result *imagev1.ImageStream, err error) {
+	result, err = c.proxy.Get(ctx, name, options)
 	if err != nil {
 		return nil, err
 	}
@@ -2394,42 +2395,42 @@ func (c *NewAppFakeImageStreams) Get(name string, options metav1.GetOptions) (re
 	return result, nil
 }
 
-func (c *NewAppFakeImageStreams) List(opts metav1.ListOptions) (result *imagev1.ImageStreamList, err error) {
-	return c.proxy.List(opts)
+func (c *NewAppFakeImageStreams) List(ctx context.Context, opts metav1.ListOptions) (result *imagev1.ImageStreamList, err error) {
+	return c.proxy.List(ctx, opts)
 }
 
-func (c *NewAppFakeImageStreams) Watch(opts metav1.ListOptions) (kwatch.Interface, error) {
-	return c.proxy.Watch(opts)
+func (c *NewAppFakeImageStreams) Watch(ctx context.Context, opts metav1.ListOptions) (kwatch.Interface, error) {
+	return c.proxy.Watch(ctx, opts)
 }
 
-func (c *NewAppFakeImageStreams) Create(imageStream *imagev1.ImageStream) (result *imagev1.ImageStream, err error) {
-	return c.proxy.Create(imageStream)
+func (c *NewAppFakeImageStreams) Create(ctx context.Context, imageStream *imagev1.ImageStream, opts metav1.CreateOptions) (result *imagev1.ImageStream, err error) {
+	return c.proxy.Create(ctx, imageStream, opts)
 }
 
-func (c *NewAppFakeImageStreams) Update(imageStream *imagev1.ImageStream) (result *imagev1.ImageStream, err error) {
-	return c.proxy.Update(imageStream)
+func (c *NewAppFakeImageStreams) Update(ctx context.Context, imageStream *imagev1.ImageStream, opts metav1.UpdateOptions) (result *imagev1.ImageStream, err error) {
+	return c.proxy.Update(ctx, imageStream, opts)
 }
 
-func (c *NewAppFakeImageStreams) UpdateStatus(imageStream *imagev1.ImageStream) (*imagev1.ImageStream, error) {
-	return c.proxy.UpdateStatus(imageStream)
+func (c *NewAppFakeImageStreams) UpdateStatus(ctx context.Context, imageStream *imagev1.ImageStream, opts metav1.UpdateOptions) (*imagev1.ImageStream, error) {
+	return c.proxy.UpdateStatus(ctx, imageStream, opts)
 }
 
-func (c *NewAppFakeImageStreams) Delete(name string, options *metav1.DeleteOptions) error {
-	return c.proxy.Delete(name, options)
+func (c *NewAppFakeImageStreams) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
+	return c.proxy.Delete(ctx, name, opts)
 }
 
-func (c *NewAppFakeImageStreams) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
-	return c.proxy.DeleteCollection(options, listOptions)
+func (c *NewAppFakeImageStreams) DeleteCollection(ctx context.Context, options metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+	return c.proxy.DeleteCollection(ctx, options, listOptions)
 }
 
-func (c *NewAppFakeImageStreams) Patch(name string, pt ktypes.PatchType, data []byte, subresources ...string) (result *imagev1.ImageStream, err error) {
-	return c.proxy.Patch(name, pt, data, subresources...)
+func (c *NewAppFakeImageStreams) Patch(ctx context.Context, name string, pt ktypes.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *imagev1.ImageStream, err error) {
+	return c.proxy.Patch(ctx, name, pt, data, opts, subresources...)
 }
 
-func (c *NewAppFakeImageStreams) Secrets(imageStreamName string, opts metav1.GetOptions) (result *corev1.SecretList, err error) {
-	return c.proxy.Secrets(imageStreamName, opts)
+func (c *NewAppFakeImageStreams) Secrets(ctx context.Context, imageStreamName string, opts metav1.GetOptions) (result *corev1.SecretList, err error) {
+	return c.proxy.Secrets(ctx, imageStreamName, opts)
 }
 
-func (c *NewAppFakeImageStreams) Layers(imageStreamName string, opts metav1.GetOptions) (result *imagev1.ImageStreamLayers, err error) {
-	return c.proxy.Layers(imageStreamName, opts)
+func (c *NewAppFakeImageStreams) Layers(ctx context.Context, imageStreamName string, opts metav1.GetOptions) (result *imagev1.ImageStreamLayers, err error) {
+	return c.proxy.Layers(ctx, imageStreamName, opts)
 }

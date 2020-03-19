@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -1231,7 +1232,7 @@ func TestModifyRoleBindingWarnings(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 			}
 
-			rbs, err := o.RbacClient.RoleBindings(tt.inputs.roleNamespace).List(metav1.ListOptions{})
+			rbs, err := o.RbacClient.RoleBindings(tt.inputs.roleNamespace).List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
 				t.Errorf("unexpected error fetching rolebindings: %v", err)
 			}
@@ -1253,7 +1254,7 @@ func TestModifyRoleBindingWarnings(t *testing.T) {
 				t.Errorf("missing rolebinding: %s", missing)
 			}
 
-			crbs, err := o.RbacClient.ClusterRoleBindings().List(metav1.ListOptions{})
+			crbs, err := o.RbacClient.ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
 				t.Errorf("unexpected error fetching clusterrolebindings: %v", err)
 			}
@@ -1292,7 +1293,7 @@ func getRoleBindingAbstractionsList(rbacClient rbacv1client.RbacV1Interface, nam
 	ret := make([]*roleBindingAbstraction, 0)
 	// see if we can find an existing binding that points to the role in question.
 	if len(namespace) > 0 {
-		roleBindings, err := rbacClient.RoleBindings(namespace).List(metav1.ListOptions{})
+		roleBindings, err := rbacClient.RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil && !kapierrors.IsNotFound(err) {
 			return nil, err
 		}
@@ -1302,7 +1303,7 @@ func getRoleBindingAbstractionsList(rbacClient rbacv1client.RbacV1Interface, nam
 			ret = append(ret, &roleBindingAbstraction{rbacClient: rbacClient, roleBinding: &roleBinding})
 		}
 	} else {
-		clusterRoleBindings, err := rbacClient.ClusterRoleBindings().List(metav1.ListOptions{})
+		clusterRoleBindings, err := rbacClient.ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil && !kapierrors.IsNotFound(err) {
 			return nil, err
 		}

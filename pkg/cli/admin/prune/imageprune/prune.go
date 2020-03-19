@@ -1,6 +1,7 @@
 package imageprune
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1618,7 +1619,7 @@ func NewImageDeleter(images imagev1client.ImagesGetter) ImageDeleter {
 
 func (p *imageDeleter) DeleteImage(image *imagev1.Image) error {
 	klog.V(4).Infof("Deleting image %q", image.Name)
-	return p.images.Images().Delete(image.Name, metav1.NewDeleteOptions(0))
+	return p.images.Images().Delete(context.TODO(), image.Name, *metav1.NewDeleteOptions(0))
 }
 
 // imageStreamDeleter updates an image stream in OpenShift.
@@ -1636,12 +1637,12 @@ func NewImageStreamDeleter(streams imagev1client.ImageStreamsGetter) ImageStream
 }
 
 func (p *imageStreamDeleter) GetImageStream(stream *imagev1.ImageStream) (*imagev1.ImageStream, error) {
-	return p.streams.ImageStreams(stream.Namespace).Get(stream.Name, metav1.GetOptions{})
+	return p.streams.ImageStreams(stream.Namespace).Get(context.TODO(), stream.Name, metav1.GetOptions{})
 }
 
 func (p *imageStreamDeleter) UpdateImageStream(stream *imagev1.ImageStream) (*imagev1.ImageStream, error) {
 	klog.V(4).Infof("Updating ImageStream %s", getName(stream))
-	is, err := p.streams.ImageStreams(stream.Namespace).UpdateStatus(stream)
+	is, err := p.streams.ImageStreams(stream.Namespace).UpdateStatus(context.TODO(), stream, metav1.UpdateOptions{})
 	if err == nil {
 		klog.V(5).Infof("Updated ImageStream: %#v", is)
 	}

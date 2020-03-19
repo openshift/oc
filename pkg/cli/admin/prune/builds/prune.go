@@ -1,6 +1,7 @@
 package builds
 
 import (
+	"context"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,5 +101,5 @@ type buildDeleter struct {
 var _ BuildDeleter = &buildDeleter{}
 
 func (c *buildDeleter) DeleteBuild(build *buildv1.Build) error {
-	return c.client.Builds(build.Namespace).Delete(build.Name, &metav1.DeleteOptions{})
+	return c.client.Builds(build.Namespace).Delete(context.TODO(), build.Name, metav1.DeleteOptions{})
 }

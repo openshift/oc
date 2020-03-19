@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -60,7 +61,7 @@ func (o *AddUsersOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 }
 
 func (o *AddUsersOptions) Run() error {
-	group, err := o.GroupModificationOptions.GroupClient.Groups().Get(o.GroupModificationOptions.Group, metav1.GetOptions{})
+	group, err := o.GroupModificationOptions.GroupClient.Groups().Get(context.TODO(), o.GroupModificationOptions.Group, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -74,8 +75,8 @@ func (o *AddUsersOptions) Run() error {
 		group.Users = append(group.Users, user)
 	}
 
-	if !o.GroupModificationOptions.DryRun {
-		group, err = o.GroupModificationOptions.GroupClient.Groups().Update(group)
+	if o.GroupModificationOptions.DryRunStrategy != kcmdutil.DryRunClient {
+		group, err = o.GroupModificationOptions.GroupClient.Groups().Update(context.TODO(), group, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -90,9 +91,9 @@ type GroupModificationOptions struct {
 
 	GroupClient userv1typedclient.GroupsGetter
 
-	Group  string
-	Users  []string
-	DryRun bool
+	Group          string
+	Users          []string
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	genericclioptions.IOStreams
 }
@@ -121,12 +122,14 @@ func (o *GroupModificationOptions) Complete(f kcmdutil.Factory, cmd *cobra.Comma
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
 		o.PrintFlags.NamePrintFlags.Operation = operation
-		if o.DryRun {
-			o.PrintFlags.Complete("%s (dry run)")
-		}
+		kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 		return o.PrintFlags.ToPrinter()
 	}
 

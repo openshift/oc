@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"time"
@@ -304,7 +305,7 @@ func (o *MigrateAPIStorageOptions) save(info *resource.Info, reporter migrate.Re
 		newObject, err := o.client.
 			Resource(info.Mapping.Resource).
 			Namespace(info.Namespace).
-			Update(oldObject, metav1.UpdateOptions{})
+			Update(context.TODO(), oldObject, metav1.UpdateOptions{})
 		// storage migration is special in that all it needs to do is a no-op update to cause
 		// the api server to migrate the object to the preferred version.  thus if we encounter
 		// a conflict, we know that something updated the object and we no longer need to do

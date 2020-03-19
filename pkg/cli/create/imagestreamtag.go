@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -174,8 +175,8 @@ func (o *CreateImageStreamTagOptions) Run() error {
 		}
 	}
 
-	if !o.CreateSubcommandOptions.DryRun {
-		isTag, err = o.Client.ImageStreamTags(o.CreateSubcommandOptions.Namespace).Create(isTag)
+	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
+		isTag, err = o.Client.ImageStreamTags(o.CreateSubcommandOptions.Namespace).Create(context.TODO(), isTag, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

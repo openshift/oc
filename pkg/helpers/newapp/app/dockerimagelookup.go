@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -215,7 +216,7 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 		})
 	}
 	isi.Name = "newapp"
-	result, err := s.Client.Create(isi)
+	result, err := s.Client.Create(context.TODO(), isi, metav1.CreateOptions{})
 	if err != nil {
 		if err == imagehelpers.ErrImageStreamImportUnsupported && s.Fallback != nil {
 			return s.Fallback.Search(precise, terms...)

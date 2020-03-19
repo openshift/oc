@@ -2,6 +2,7 @@ package cani
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -184,7 +185,7 @@ func (o *CanIOptions) Run() error {
 		sar.Scopes = o.Scopes
 	}
 
-	response, err := o.AuthClient.SubjectAccessReviews().Create(sar)
+	response, err := o.AuthClient.SubjectAccessReviews().Create(context.TODO(), sar, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -217,7 +218,7 @@ func (o *CanIOptions) listAllPermissions() error {
 			rulesReview.Spec.Scopes = o.Scopes
 		}
 
-		whatCanIDo, err := o.AuthClient.SelfSubjectRulesReviews(o.Namespace).Create(rulesReview)
+		whatCanIDo, err := o.AuthClient.SelfSubjectRulesReviews(o.Namespace).Create(context.TODO(), rulesReview, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -233,7 +234,7 @@ func (o *CanIOptions) listAllPermissions() error {
 			},
 		}
 
-		whatCanYouDo, err := o.AuthClient.SubjectRulesReviews(o.Namespace).Create(rulesReview)
+		whatCanYouDo, err := o.AuthClient.SubjectRulesReviews(o.Namespace).Create(context.TODO(), rulesReview, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

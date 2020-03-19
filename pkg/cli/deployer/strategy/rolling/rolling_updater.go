@@ -21,6 +21,7 @@ package rolling
 // package must maintain backwards compatibility with older openshift versions.
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strconv"
@@ -50,7 +51,7 @@ func ControllerHasDesiredReplicas(rcClient coreclient.ReplicationControllersGett
 	desiredGeneration := controller.Generation
 
 	return func() (bool, error) {
-		ctrl, err := rcClient.ReplicationControllers(controller.Namespace).Get(controller.Name, metav1.GetOptions{})
+		ctrl, err := rcClient.ReplicationControllers(controller.Namespace).Get(context.TODO(), controller.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -226,7 +227,7 @@ func (r *RollingUpdater) Update(config *RollingUpdaterConfig) error {
 	// annotation if it doesn't yet exist.
 	_, hasOriginalAnnotation := oldRc.Annotations[originalReplicasAnnotation]
 	if !hasOriginalAnnotation {
-		existing, err := r.rcClient.ReplicationControllers(oldRc.Namespace).Get(oldRc.Name, metav1.GetOptions{})
+		existing, err := r.rcClient.ReplicationControllers(oldRc.Namespace).Get(context.TODO(), oldRc.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -433,7 +434,7 @@ func (r *RollingUpdater) scaleAndWaitWithScaler(rc *corev1.ReplicationController
 	if err := scaler.Scale(rc.Namespace, rc.Name, uint(*rc.Spec.Replicas), &kscale.ScalePrecondition{Size: -1}, retry, wait, corev1.SchemeGroupVersion.WithResource("replicationcontrollers")); err != nil {
 		return nil, err
 	}
-	return r.rcClient.ReplicationControllers(rc.Namespace).Get(rc.Name, metav1.GetOptions{})
+	return r.rcClient.ReplicationControllers(rc.Namespace).Get(context.TODO(), rc.Name, metav1.GetOptions{})
 }
 
 // readyPods returns the old and new ready counts for their pods.
@@ -451,7 +452,7 @@ func (r *RollingUpdater) readyPods(oldRc, newRc *corev1.ReplicationController, m
 		controller := controllers[i]
 		selector := labels.Set(controller.Spec.Selector).AsSelector()
 		options := metav1.ListOptions{LabelSelector: selector.String()}
-		pods, err := r.podClient.Pods(controller.Namespace).List(options)
+		pods, err := r.podClient.Pods(controller.Namespace).List(context.TODO(), options)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -501,7 +502,7 @@ func (r *RollingUpdater) getOrCreateTargetControllerWithClient(controller *corev
 		controller.Annotations[sourceIdAnnotation] = sourceId
 		zero := int32(0)
 		controller.Spec.Replicas = &zero
-		newRc, err := r.rcClient.ReplicationControllers(r.ns).Create(controller)
+		newRc, err := r.rcClient.ReplicationControllers(r.ns).Create(context.TODO(), controller, metav1.CreateOptions{})
 		return newRc, false, err
 	}
 	// Validate and use the existing controller.
@@ -521,7 +522,7 @@ func (r *RollingUpdater) existingController(controller *corev1.ReplicationContro
 		return nil, errors.NewNotFound(corev1.Resource("replicationcontrollers"), controller.Name)
 	}
 	// controller name is required to get rc back
-	return r.rcClient.ReplicationControllers(controller.Namespace).Get(controller.Name, metav1.GetOptions{})
+	return r.rcClient.ReplicationControllers(controller.Namespace).Get(context.TODO(), controller.Name, metav1.GetOptions{})
 }
 
 // cleanupWithClients performs cleanup tasks after the rolling update. Update
@@ -530,7 +531,7 @@ func (r *RollingUpdater) existingController(controller *corev1.ReplicationContro
 func (r *RollingUpdater) cleanupWithClients(oldRc, newRc *corev1.ReplicationController, config *RollingUpdaterConfig) error {
 	// Clean up annotations
 	var err error
-	newRc, err = r.rcClient.ReplicationControllers(r.ns).Get(newRc.Name, metav1.GetOptions{})
+	newRc, err = r.rcClient.ReplicationControllers(r.ns).Get(context.TODO(), newRc.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -545,7 +546,7 @@ func (r *RollingUpdater) cleanupWithClients(oldRc, newRc *corev1.ReplicationCont
 	if err = wait.Poll(config.Interval, config.Timeout, ControllerHasDesiredReplicas(r.rcClient, newRc)); err != nil {
 		return err
 	}
-	newRc, err = r.rcClient.ReplicationControllers(r.ns).Get(newRc.Name, metav1.GetOptions{})
+	newRc, err = r.rcClient.ReplicationControllers(r.ns).Get(context.TODO(), newRc.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -554,11 +555,11 @@ func (r *RollingUpdater) cleanupWithClients(oldRc, newRc *corev1.ReplicationCont
 	case DeleteRollingUpdateCleanupPolicy:
 		// delete old rc
 		fmt.Fprintf(config.Out, "Update succeeded. Deleting %s\n", oldRc.Name)
-		return r.rcClient.ReplicationControllers(r.ns).Delete(oldRc.Name, nil)
+		return r.rcClient.ReplicationControllers(r.ns).Delete(context.TODO(), oldRc.Name, metav1.DeleteOptions{})
 	case RenameRollingUpdateCleanupPolicy:
 		// delete old rc
 		fmt.Fprintf(config.Out, "Update succeeded. Deleting old controller: %s\n", oldRc.Name)
-		if err := r.rcClient.ReplicationControllers(r.ns).Delete(oldRc.Name, nil); err != nil {
+		if err := r.rcClient.ReplicationControllers(r.ns).Delete(context.TODO(), oldRc.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 		fmt.Fprintf(config.Out, "Renaming %s to %s\n", newRc.Name, oldRc.Name)
@@ -576,12 +577,12 @@ func Rename(c coreclient.ReplicationControllersGetter, rc *corev1.ReplicationCon
 	rc.ResourceVersion = ""
 	// First delete the oldName RC and orphan its pods.
 	propagation := metav1.DeletePropagationOrphan
-	err := c.ReplicationControllers(rc.Namespace).Delete(oldName, &metav1.DeleteOptions{PropagationPolicy: &propagation})
+	err := c.ReplicationControllers(rc.Namespace).Delete(context.TODO(), oldName, metav1.DeleteOptions{PropagationPolicy: &propagation})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	err = wait.Poll(5*time.Second, 60*time.Second, func() (bool, error) {
-		_, err := c.ReplicationControllers(rc.Namespace).Get(oldName, metav1.GetOptions{})
+		_, err := c.ReplicationControllers(rc.Namespace).Get(context.TODO(), oldName, metav1.GetOptions{})
 		if err == nil {
 			return false, nil
 		} else if errors.IsNotFound(err) {
@@ -594,7 +595,7 @@ func Rename(c coreclient.ReplicationControllersGetter, rc *corev1.ReplicationCon
 		return err
 	}
 	// Then create the same RC with the new name.
-	_, err = c.ReplicationControllers(rc.Namespace).Create(rc)
+	_, err = c.ReplicationControllers(rc.Namespace).Create(context.TODO(), rc, metav1.CreateOptions{})
 	return err
 }
 
@@ -619,14 +620,14 @@ func updateRcWithRetries(rcClient coreclient.ReplicationControllersGetter, names
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() (e error) {
 		// Apply the update, then attempt to push it to the apiserver.
 		applyUpdate(rc)
-		if rc, e = rcClient.ReplicationControllers(namespace).Update(rc); e == nil {
+		if rc, e = rcClient.ReplicationControllers(namespace).Update(context.TODO(), rc, metav1.UpdateOptions{}); e == nil {
 			// rc contains the latest controller post update
 			return
 		}
 		updateErr := e
 		// Update the controller with the latest resource version, if the update failed we
 		// can't trust rc so use oldRc.Name.
-		if rc, e = rcClient.ReplicationControllers(namespace).Get(oldRc.Name, metav1.GetOptions{}); e != nil {
+		if rc, e = rcClient.ReplicationControllers(namespace).Get(context.TODO(), oldRc.Name, metav1.GetOptions{}); e != nil {
 			// The Get failed: Value in rc cannot be trusted.
 			rc = oldRc
 		}

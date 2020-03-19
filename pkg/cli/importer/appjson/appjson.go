@@ -1,6 +1,7 @@
 package appjson
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -135,7 +136,7 @@ func (o *AppJSONOptions) createResources(list *corev1.List) (*corev1.List, []err
 			continue
 		}
 
-		_, err = o.DynamicClient.Resource(mapping.Resource).Namespace(o.Namespace).Create(unstructuredObj, metav1.CreateOptions{})
+		_, err = o.DynamicClient.Resource(mapping.Resource).Namespace(o.Namespace).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 		if err != nil {
 			errors = append(errors, err)
 			continue

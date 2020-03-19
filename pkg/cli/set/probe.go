@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/url"
@@ -92,7 +93,7 @@ type ProbeOptions struct {
 	UpdatePodSpecForObject polymorphichelpers.UpdatePodSpecForObjectFunc
 	Command                []string
 	Resources              []string
-	DryRun                 bool
+	DryRunStrategy         kcmdutil.DryRunStrategy
 
 	FlagSet       func(string) bool
 	HTTPGetAction *corev1.HTTPGetAction
@@ -183,10 +184,11 @@ func (o *ProbeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 	o.Builder = f.NewBuilder
 	o.UpdatePodSpecForObject = polymorphichelpers.UpdatePodSpecForObjectFn
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -345,14 +347,14 @@ func (o *ProbeOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, err)
 			continue

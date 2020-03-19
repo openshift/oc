@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"sort"
@@ -510,7 +511,7 @@ func (a *acceptNonExistentImageStream) Accept(from interface{}) bool {
 	if len(is.Namespace) > 0 {
 		namespace = is.Namespace
 	}
-	imgstrm, err := a.getter.ImageStreams(namespace).Get(is.Name, metav1.GetOptions{})
+	imgstrm, err := a.getter.ImageStreams(namespace).Get(context.TODO(), is.Name, metav1.GetOptions{})
 	if err == nil && imgstrm != nil {
 		klog.V(4).Infof("acceptor determined that imagestream %s in namespace %s exists so don't accept: %#v", is.Name, namespace, imgstrm)
 		return false
@@ -559,7 +560,7 @@ func (a *acceptNonExistentImageStreamTag) Accept(from interface{}) bool {
 	if len(ist.Namespace) > 0 {
 		namespace = ist.Namespace
 	}
-	tag, err := a.getter.ImageStreamTags(namespace).Get(ist.Name, metav1.GetOptions{})
+	tag, err := a.getter.ImageStreamTags(namespace).Get(context.TODO(), ist.Name, metav1.GetOptions{})
 	if err == nil && tag != nil {
 		klog.V(4).Infof("acceptor determined that imagestreamtag %s in namespace %s exists so don't accept: %#v", ist.Name, namespace, tag)
 		return false

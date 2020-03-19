@@ -1,6 +1,7 @@
 package process
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math/rand"
@@ -343,7 +344,7 @@ func (o *ProcessOptions) RunProcess() error {
 			return fmt.Errorf("invalid value syntax %q", o.templateName)
 		}
 
-		templateObj, err := o.templateClient.Templates(sourceNamespace).Get(storedTemplate, metav1.GetOptions{})
+		templateObj, err := o.templateClient.Templates(sourceNamespace).Get(context.TODO(), storedTemplate, metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
 				return fmt.Errorf("template %q could not be found", storedTemplate)

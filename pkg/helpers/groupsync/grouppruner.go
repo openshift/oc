@@ -1,9 +1,11 @@
 package syncgroups
 
 import (
+	"context"
 	"fmt"
 	"io"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 
 	userv1client "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
@@ -72,7 +74,7 @@ func (s *LDAPGroupPruner) Prune() []error {
 		}
 
 		if !s.DryRun {
-			if err := s.GroupClient.Delete(groupName, nil); err != nil {
+			if err := s.GroupClient.Delete(context.TODO(), groupName, metav1.DeleteOptions{}); err != nil {
 				fmt.Fprintf(s.Err, "Error pruning OpenShift group %q: %v.\n", groupName, err)
 				errors = append(errors, err)
 				continue

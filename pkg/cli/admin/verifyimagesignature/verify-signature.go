@@ -167,7 +167,7 @@ func (o *VerifyImageSignatureOptions) Complete(f kcmdutil.Factory, cmd *cobra.Co
 	// We need the current user name so we can record it into an verification condition and
 	// we need a bearer token so we can fetch the manifest from the registry.
 	// TODO: Add support for external registries (currently only integrated registry will
-	if me, err := userClient.Users().Get("~", metav1.GetOptions{}); err != nil {
+	if me, err := userClient.Users().Get(context.TODO(), "~", metav1.GetOptions{}); err != nil {
 		return err
 	} else {
 		o.CurrentUser = me.Name
@@ -185,7 +185,7 @@ func (o *VerifyImageSignatureOptions) Complete(f kcmdutil.Factory, cmd *cobra.Co
 }
 
 func (o VerifyImageSignatureOptions) Run() error {
-	img, err := o.ImageClient.Images().Get(o.InputImage, metav1.GetOptions{})
+	img, err := o.ImageClient.Images().Get(context.TODO(), o.InputImage, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func (o VerifyImageSignatureOptions) Run() error {
 	}
 
 	if o.Save || o.RemoveAll {
-		_, err := o.ImageClient.Images().Update(img)
+		_, err := o.ImageClient.Images().Update(context.TODO(), img, metav1.UpdateOptions{})
 		return err
 	} else {
 		fmt.Fprintf(o.Out, "Neither --save nor --remove-all were passed, image %q not updated to %v\n", o.InputImage, img)

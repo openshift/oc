@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"time"
@@ -50,7 +51,7 @@ func RecordConfigEvent(client corev1client.EventsGetter, deployment *corev1.Repl
 		Count:          1,
 		Type:           eventType,
 	}
-	if _, err := client.Events(ref.Namespace).Create(event); err != nil {
+	if _, err := client.Events(ref.Namespace).Create(context.TODO(), event, metav1.CreateOptions{}); err != nil {
 		klog.Errorf("Could not create event '%#v': %v", event, err)
 	}
 }

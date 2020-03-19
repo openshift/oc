@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -116,13 +117,13 @@ type VolumeOptions struct {
 	List   bool
 
 	// Common optional params
-	Name       string
-	Containers string
-	Confirm    bool
-	Local      bool
-	Args       []string
-	Printer    printers.ResourcePrinter
-	DryRun     bool
+	Name           string
+	Containers     string
+	Confirm        bool
+	Local          bool
+	Args           []string
+	Printer        printers.ResourcePrinter
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	// Add op params
 	AddOpts *AddVolumeOptions
@@ -360,10 +361,12 @@ func (o *VolumeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	o.AddOpts.TypeChanged = cmd.Flag("type").Changed
 	o.AddOpts.ClassChanged = cmd.Flag("claim-class").Changed
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
+
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -488,7 +491,7 @@ func (o *VolumeOptions) RunVolume() error {
 	if patchError != nil {
 		return patchError
 	}
-	if o.Local || o.DryRun {
+	if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 		for _, info := range infos {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				return err
@@ -501,7 +504,7 @@ func (o *VolumeOptions) RunVolume() error {
 	for _, info := range updateInfos {
 		var obj runtime.Object
 		if len(info.ResourceVersion) == 0 {
-			obj, err = resource.NewHelper(info.Client, info.Mapping).Create(info.Namespace, false, info.Object, &metav1.CreateOptions{})
+			obj, err = resource.NewHelper(info.Client, info.Mapping).Create(info.Namespace, false, info.Object)
 		} else {
 			obj, err = resource.NewHelper(info.Client, info.Mapping).Replace(info.Namespace, info.Name, true, info.Object)
 		}
@@ -524,7 +527,7 @@ func (o *VolumeOptions) RunVolume() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
@@ -936,7 +939,7 @@ func (o *VolumeOptions) listVolumeForSpec(spec *corev1.PodSpec, info *resource.I
 		refInfo := ""
 		if vol.VolumeSource.PersistentVolumeClaim != nil {
 			claimName := vol.VolumeSource.PersistentVolumeClaim.ClaimName
-			claim, err := o.Client.CoreV1().PersistentVolumeClaims(info.Namespace).Get(claimName, metav1.GetOptions{})
+			claim, err := o.Client.CoreV1().PersistentVolumeClaims(info.Namespace).Get(context.TODO(), claimName, metav1.GetOptions{})
 			switch {
 			case err == nil:
 				refInfo = fmt.Sprintf("(%s)", describePersistentVolumeClaim(claim))

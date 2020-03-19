@@ -2,6 +2,7 @@ package policy
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -139,9 +140,9 @@ func (o *WhoCanOptions) run() error {
 	resourceAccessReviewResponse := &authorizationv1.ResourceAccessReviewResponse{}
 	var err error
 	if o.allNamespaces {
-		resourceAccessReviewResponse, err = o.client.ResourceAccessReviews().Create(&authorizationv1.ResourceAccessReview{Action: authorizationAttributes})
+		resourceAccessReviewResponse, err = o.client.ResourceAccessReviews().Create(context.TODO(), &authorizationv1.ResourceAccessReview{Action: authorizationAttributes}, metav1.CreateOptions{})
 	} else {
-		resourceAccessReviewResponse, err = o.client.LocalResourceAccessReviews(o.bindingNamespace).Create(&authorizationv1.LocalResourceAccessReview{Action: authorizationAttributes})
+		resourceAccessReviewResponse, err = o.client.LocalResourceAccessReviews(o.bindingNamespace).Create(context.TODO(), &authorizationv1.LocalResourceAccessReview{Action: authorizationAttributes}, metav1.CreateOptions{})
 	}
 
 	if err != nil {

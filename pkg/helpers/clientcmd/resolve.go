@@ -1,6 +1,7 @@
 package clientcmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -20,7 +21,7 @@ func ParseDockerImageReferenceToStringFunc(spec string) (string, error) {
 
 // resolveImagePullSpec resolves the provided source which can be "docker", "istag" or
 // "isimage" and returns the full Docker pull spec.
-func resolveImagePullSpec(imageClient imagev1typedclient.ImageV1Interface, source, name, defaultNamespace string) (string, error) {
+func resolveImagePullSpec(ctx context.Context, imageClient imagev1typedclient.ImageV1Interface, source, name, defaultNamespace string) (string, error) {
 	// for Docker source, just passtrough the image name
 	if isDockerImageSource(source) {
 		return name, nil
@@ -34,7 +35,7 @@ func resolveImagePullSpec(imageClient imagev1typedclient.ImageV1Interface, sourc
 	dockerImageReference := ""
 
 	if isImageStreamTag(source) {
-		if resolved, err := imageClient.ImageStreamTags(namespace).Get(image, metav1.GetOptions{}); err != nil {
+		if resolved, err := imageClient.ImageStreamTags(namespace).Get(ctx, image, metav1.GetOptions{}); err != nil {
 			return "", fmt.Errorf("failed to get image stream tag %q: %v", image, err)
 		} else {
 			dockerImageReference = resolved.Image.DockerImageReference
@@ -42,7 +43,7 @@ func resolveImagePullSpec(imageClient imagev1typedclient.ImageV1Interface, sourc
 	}
 
 	if isImageStreamImage(source) {
-		if resolved, err := imageClient.ImageStreamImages(namespace).Get(image, metav1.GetOptions{}); err != nil {
+		if resolved, err := imageClient.ImageStreamImages(namespace).Get(ctx, image, metav1.GetOptions{}); err != nil {
 			return "", fmt.Errorf("failed to get image stream image %q: %v", image, err)
 		} else {
 			dockerImageReference = resolved.Image.DockerImageReference
