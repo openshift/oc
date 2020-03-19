@@ -83,7 +83,7 @@ type DataOptions struct {
 	UpdateDataForObject func(obj runtime.Object, fn func(data map[string][]byte) error) (bool, error)
 	Command             []string
 	Resources           []string
-	DryRun              bool
+	DryRunStrategy      kcmdutil.DryRunStrategy
 
 	FlagSet func(string) bool
 
@@ -159,10 +159,12 @@ func (o *DataOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 	o.Builder = f.NewBuilder
 	o.UpdateDataForObject = updateDataForObject
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -269,7 +271,7 @@ func (o *DataOptions) Run() error {
 			return nil
 		})
 		if valid && !changed {
-			if o.Local || o.DryRun {
+			if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 				if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 					allErrs = append(allErrs, err)
 				}
@@ -293,7 +295,7 @@ func (o *DataOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}

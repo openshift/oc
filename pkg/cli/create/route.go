@@ -47,8 +47,8 @@ type CreateRouteSubcommandOptions struct {
 	// Name of resource being created
 	Name        string
 	ServiceName string
-	// DryRun is true if the command should be simulated but not run against the server
-	DryRun bool
+
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	Namespace        string
 	EnforceNamespace bool
@@ -101,10 +101,11 @@ func (o *CreateRouteSubcommandOptions) Complete(f kcmdutil.Factory, cmd *cobra.C
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err

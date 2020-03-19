@@ -97,7 +97,7 @@ func (o *CreateIdentityOptions) Run() error {
 		ProviderUserName: o.ProviderUserName,
 	}
 
-	if !o.CreateSubcommandOptions.DryRun {
+	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
 		var err error
 		identity, err = o.IdentityClient.Identities().Create(context.TODO(), identity, metav1.CreateOptions{})
 		if err != nil {

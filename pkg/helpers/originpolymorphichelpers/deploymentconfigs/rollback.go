@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/describe/versioned"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 
@@ -28,7 +30,7 @@ var _ polymorphichelpers.Rollbacker = &DeploymentConfigRollbacker{}
 
 // Rollback the provided deployment config to a specific revision. If revision is zero, we will
 // rollback to the previous deployment.
-func (r *DeploymentConfigRollbacker) Rollback(obj runtime.Object, updatedAnnotations map[string]string, toRevision int64, dryRun bool) (string, error) {
+func (r *DeploymentConfigRollbacker) Rollback(obj runtime.Object, updatedAnnotations map[string]string, toRevision int64, dryRunStrategy cmdutil.DryRunStrategy) (string, error) {
 	config, ok := obj.(*appsv1.DeploymentConfig)
 	if !ok {
 		return "", fmt.Errorf("passed object is not a deployment config: %#v", obj)
@@ -51,9 +53,9 @@ func (r *DeploymentConfigRollbacker) Rollback(obj runtime.Object, updatedAnnotat
 		return "", err
 	}
 
-	if dryRun {
+	if dryRunStrategy == cmdutil.DryRunClient {
 		out := bytes.NewBuffer([]byte("\n"))
-		versioned.DescribePodTemplate(rolledback.Spec.Template, versioned.NewPrefixWriter(out))
+		versioned.DescribePodTemplate(rolledback.Spec.Template, describe.NewPrefixWriter(out))
 		return out.String(), nil
 	}
 

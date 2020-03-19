@@ -92,7 +92,7 @@ func (o *CreateImageStreamOptions) Run() error {
 		},
 	}
 
-	if !o.CreateSubcommandOptions.DryRun {
+	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
 		var err error
 		imageStream, err = o.Client.ImageStreams(o.CreateSubcommandOptions.Namespace).Create(context.TODO(), imageStream, metav1.CreateOptions{})
 		if err != nil {
