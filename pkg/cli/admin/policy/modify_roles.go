@@ -102,7 +102,7 @@ type RoleModificationOptions struct {
 	Groups   []string
 	Subjects []rbacv1.Subject
 
-	DryRun bool
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	PrintErrf func(format string, args ...interface{})
 
@@ -333,7 +333,11 @@ func (o *RoleModificationOptions) innerComplete(f kcmdutil.Factory, cmd *cobra.C
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetFlagBool(cmd, "dry-run")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+
 	o.PrintErrf = func(format string, args ...interface{}) {
 		fmt.Fprintf(o.ErrOut, format, args...)
 	}
@@ -386,7 +390,7 @@ func (o *RoleModificationOptions) CompleteUserWithSA(f kcmdutil.Factory, cmd *co
 	}
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
-		o.PrintFlags.NamePrintFlags.Operation = getSuccessMessage(o.DryRun, operation, o.Targets)
+		o.PrintFlags.NamePrintFlags.Operation = getSuccessMessage(o.DryRunStrategy == kcmdutil.DryRunClient, operation, o.Targets)
 		return o.PrintFlags.ToPrinter()
 	}
 
@@ -408,7 +412,7 @@ func (o *RoleModificationOptions) Complete(f kcmdutil.Factory, cmd *cobra.Comman
 	}
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
-		o.PrintFlags.NamePrintFlags.Operation = getSuccessMessage(o.DryRun, operation, o.Targets)
+		o.PrintFlags.NamePrintFlags.Operation = getSuccessMessage(o.DryRunStrategy == kcmdutil.DryRunClient, operation, o.Targets)
 		return o.PrintFlags.ToPrinter()
 	}
 
@@ -545,7 +549,7 @@ func (o *RoleModificationOptions) AddRole() error {
 	}
 	roleBinding.SetSubjects(newSubjects)
 
-	if o.DryRun || (o.PrintFlags.OutputFormat != nil && len(*o.PrintFlags.OutputFormat) > 0) {
+	if o.DryRunStrategy == kcmdutil.DryRunClient || (o.PrintFlags.OutputFormat != nil && len(*o.PrintFlags.OutputFormat) > 0) {
 		return p.PrintObj(roleBinding.Object(), o.Out)
 	}
 
@@ -715,7 +719,7 @@ func (o *RoleModificationOptions) RemoveRole() error {
 	}
 
 	roleToPrint := o.roleObjectToPrint()
-	if o.DryRun {
+	if o.DryRunStrategy == kcmdutil.DryRunClient {
 		return p.PrintObj(roleToPrint, o.Out)
 	}
 

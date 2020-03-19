@@ -115,7 +115,7 @@ type TriggersOptions struct {
 	Builder           func() *resource.Builder
 	Namespace         string
 	ExplicitNamespace bool
-	DryRun            bool
+	DryRunStrategy    kcmdutil.DryRunStrategy
 	Args              []string
 
 	resource.FilenameOptions
@@ -215,12 +215,13 @@ func (o *TriggersOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 	}
 
 	o.Args = args
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
 	o.Builder = f.NewBuilder
 
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
-	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -334,7 +335,7 @@ func (o *TriggersOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}

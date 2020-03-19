@@ -87,7 +87,7 @@ type BackendsOptions struct {
 	Builder           func() *resource.Builder
 	Namespace         string
 	ExplicitNamespace bool
-	DryRun            bool
+	DryRunStrategy    kcmdutil.DryRunStrategy
 	Resources         []string
 
 	resource.FilenameOptions
@@ -152,16 +152,17 @@ func (o *BackendsOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 
 	o.PrintTable = o.Transform.Empty()
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
 	o.Mapper, err = f.ToRESTMapper()
 	if err != nil {
 		return err
 	}
 	o.Builder = f.NewBuilder
 
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
-	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -239,7 +240,7 @@ func (o *BackendsOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}

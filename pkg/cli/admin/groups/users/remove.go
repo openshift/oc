@@ -71,7 +71,7 @@ func (o *RemoveUsersOptions) Run() error {
 	}
 	group.Users = newUsers
 
-	if !o.GroupModificationOptions.DryRun {
+	if o.GroupModificationOptions.DryRunStrategy != kcmdutil.DryRunClient {
 		group, err = o.GroupModificationOptions.GroupClient.Groups().Update(context.TODO(), group, metav1.UpdateOptions{})
 		if err != nil {
 			return err

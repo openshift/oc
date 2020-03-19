@@ -117,13 +117,13 @@ type VolumeOptions struct {
 	List   bool
 
 	// Common optional params
-	Name       string
-	Containers string
-	Confirm    bool
-	Local      bool
-	Args       []string
-	Printer    printers.ResourcePrinter
-	DryRun     bool
+	Name           string
+	Containers     string
+	Confirm        bool
+	Local          bool
+	Args           []string
+	Printer        printers.ResourcePrinter
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	// Add op params
 	AddOpts *AddVolumeOptions
@@ -361,10 +361,12 @@ func (o *VolumeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	o.AddOpts.TypeChanged = cmd.Flag("type").Changed
 	o.AddOpts.ClassChanged = cmd.Flag("claim-class").Changed
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
+
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -489,7 +491,7 @@ func (o *VolumeOptions) RunVolume() error {
 	if patchError != nil {
 		return patchError
 	}
-	if o.Local || o.DryRun {
+	if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 		for _, info := range infos {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				return err

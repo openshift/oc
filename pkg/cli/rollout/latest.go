@@ -52,8 +52,8 @@ type RolloutLatestOptions struct {
 	mapper    meta.RESTMapper
 	Resource  string
 
-	DryRun bool
-	again  bool
+	DryRunStrategy kcmdutil.DryRunStrategy
+	again          bool
 
 	appsClient appsclient.DeploymentConfigsGetter
 	kubeClient kubernetes.Interface
@@ -106,10 +106,12 @@ func (o *RolloutLatestOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, 
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetFlagBool(cmd, "dry-run")
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 
 	if o.PrintFlags.OutputFormat != nil && *o.PrintFlags.OutputFormat == "revision" {
 		fmt.Fprintln(o.ErrOut, "--output=revision is deprecated. Use `--output=jsonpath={.status.latestVersion}` or `--output=go-template={{.status.latestVersion}}` instead")
@@ -189,7 +191,7 @@ func (o *RolloutLatestOptions) RunRolloutLatest() error {
 	}
 
 	dc := config
-	if !o.DryRun {
+	if o.DryRunStrategy != kcmdutil.DryRunClient {
 		request := &appsv1.DeploymentRequest{
 			Name:   config.Name,
 			Latest: !o.again,

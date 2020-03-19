@@ -136,7 +136,7 @@ func (o *CreateReencryptRouteOptions) Run() error {
 		route.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyType(o.InsecurePolicy)
 	}
 
-	if !o.CreateRouteSubcommandOptions.DryRun {
+	if o.CreateRouteSubcommandOptions.DryRunStrategy != kcmdutil.DryRunClient {
 		route, err = o.CreateRouteSubcommandOptions.Client.Routes(o.CreateRouteSubcommandOptions.Namespace).Create(context.TODO(), route, metav1.CreateOptions{})
 		if err != nil {
 			return err
