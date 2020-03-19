@@ -1,6 +1,7 @@
 package appregistry
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -251,7 +252,7 @@ func (s *secretRegistryOptionsGetter) GetRegistryOptions(source *Source) (*apprc
 
 	token := ""
 	if source.IsSecretSpecified() {
-		secret, err := s.kubeClient.CoreV1().Secrets(source.Secret.Namespace).Get(source.Secret.Name, metav1.GetOptions{})
+		secret, err := s.kubeClient.CoreV1().Secrets(source.Secret.Namespace).Get(context.TODO(), source.Secret.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
