@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/describe"
-	"k8s.io/kubectl/pkg/describe/versioned"
 	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api/apps"
@@ -155,8 +154,8 @@ func (d *DeploymentConfigDescriber) Describe(namespace, name string, settings de
 					latestDeploymentEvents.Items = append(latestDeploymentEvents.Items, events.Items[i-1])
 				}
 				fmt.Fprintln(out)
-				pw := versioned.NewPrefixWriter(out)
-				versioned.DescribeEvents(latestDeploymentEvents, pw)
+				pw := describe.NewPrefixWriter(out)
+				describe.DescribeEvents(latestDeploymentEvents, pw)
 			}
 		}
 		return nil
@@ -317,7 +316,7 @@ func printDeploymentConfigSpec(kc kubernetes.Interface, dc appsv1.DeploymentConf
 
 	// Pod template
 	fmt.Fprintf(w, "Template:\n")
-	versioned.DescribePodTemplate(spec.Template, versioned.NewPrefixWriter(w))
+	describe.DescribePodTemplate(spec.Template, describe.NewPrefixWriter(w))
 
 	return nil
 }

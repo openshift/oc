@@ -2,18 +2,12 @@ package originpolymorphichelpers
 
 import (
 	"k8s.io/kubectl/pkg/generate"
-	"k8s.io/kubectl/pkg/generate/versioned"
 
-	deploymentcmd "github.com/openshift/oc/pkg/helpers/originpolymorphichelpers/deploymentconfigs"
 	routegen "github.com/openshift/oc/pkg/helpers/route/generator"
 )
 
 func defaultGenerators(cmdName string) map[string]generate.Generator {
 	generators := map[string]map[string]generate.Generator{}
-	generators["run"] = map[string]generate.Generator{
-		"deploymentconfig/v1": deploymentcmd.BasicDeploymentConfigController{},
-		"run-controller/v1":   versioned.BasicReplicationController{}, // legacy alias for run/v1
-	}
 	generators["expose"] = map[string]generate.Generator{
 		"route/v1": routegen.RouteGenerator{},
 	}

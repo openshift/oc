@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/kubectl/pkg/describe/versioned"
+	"k8s.io/kubectl/pkg/describe"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -67,7 +67,7 @@ func (h *DeploymentConfigHistoryViewer) ViewHistory(namespace, name string, revi
 
 		buf := bytes.NewBuffer([]byte{})
 
-		versioned.DescribePodTemplate(desired, versioned.NewPrefixWriter(buf))
+		describe.DescribePodTemplate(desired, describe.NewPrefixWriter(buf))
 		return buf.String(), nil
 	}
 

@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/describe"
-	"k8s.io/kubectl/pkg/describe/versioned"
 	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api/annotations"
@@ -71,7 +70,7 @@ import (
 	routedisplayhelpers "github.com/openshift/oc/pkg/helpers/route"
 )
 
-func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host string) map[schema.GroupKind]describe.Describer {
+func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host string) map[schema.GroupKind]describe.ResourceDescriber {
 	// FIXME: This should use the client factory
 	// we can't fail and we can't log at a normal level because this is sometimes called with `nils` for help :(
 	kubeClient, err := kubernetes.NewForConfig(clientConfig)
@@ -127,7 +126,7 @@ func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host 
 		klog.V(1).Info(err)
 	}
 
-	m := map[schema.GroupKind]describe.Describer{
+	m := map[schema.GroupKind]describe.ResourceDescriber{
 		oapps.Kind("DeploymentConfig"):               &DeploymentConfigDescriber{appsClient, kubeClient, nil},
 		build.Kind("Build"):                          &BuildDescriber{buildClient, kclient},
 		build.Kind("BuildConfig"):                    &BuildConfigDescriber{buildClient, kclient, host},
@@ -167,7 +166,7 @@ func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host 
 }
 
 // DescriberFor returns a describer for a given kind of resource
-func DescriberFor(kind schema.GroupKind, clientConfig *rest.Config, kubeClient kubernetes.Interface, host string) (describe.Describer, bool) {
+func DescriberFor(kind schema.GroupKind, clientConfig *rest.Config, kubeClient kubernetes.Interface, host string) (describe.ResourceDescriber, bool) {
 	f, ok := describerMap(clientConfig, kubeClient, host)[kind]
 	if ok {
 		return f, true
@@ -244,7 +243,7 @@ func (d *BuildDescriber) Describe(namespace, name string, settings describe.Desc
 			formatString(out, "Log Tail", buildObj.Status.LogSnippet)
 		}
 		if settings.ShowEvents {
-			versioned.DescribeEvents(events, versioned.NewPrefixWriter(out))
+			describe.DescribeEvents(events, describe.NewPrefixWriter(out))
 		}
 
 		return nil
@@ -600,7 +599,7 @@ func (d *BuildConfigDescriber) Describe(namespace, name string, settings describ
 			events, _ := d.kubeClient.CoreV1().Events(namespace).Search(scheme.Scheme, buildConfig)
 			if events != nil {
 				fmt.Fprint(out, "\n")
-				versioned.DescribeEvents(events, versioned.NewPrefixWriter(out))
+				describe.DescribeEvents(events, describe.NewPrefixWriter(out))
 			}
 		}
 		return nil
@@ -1060,7 +1059,7 @@ func (d *ProjectDescriber) Describe(namespace, name string, settings describe.De
 				for resource := range resourceQuota.Status.Hard {
 					resources = append(resources, resource)
 				}
-				sort.Sort(versioned.SortableResourceNames(resources))
+				sort.Sort(describe.SortableResourceNames(resources))
 
 				msg := "\t%v\t%v\t%v\n"
 				for i := range resources {
@@ -1739,7 +1738,7 @@ func DescribeClusterQuota(quota *quotav1.ClusterResourceQuota) (string, error) {
 		for resource := range quota.Status.Total.Hard {
 			resources = append(resources, resource)
 		}
-		sort.Sort(versioned.SortableResourceNames(resources))
+		sort.Sort(describe.SortableResourceNames(resources))
 
 		msg := "%v\t%v\t%v\n"
 		for i := range resources {
