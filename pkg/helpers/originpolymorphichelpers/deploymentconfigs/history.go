@@ -2,6 +2,7 @@ package deploymentconfigs
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"sort"
 	"text/tabwriter"
@@ -32,7 +33,7 @@ var _ polymorphichelpers.HistoryViewer = &DeploymentConfigHistoryViewer{}
 // ViewHistory returns a description of all the history it can find for a deployment config.
 func (h *DeploymentConfigHistoryViewer) ViewHistory(namespace, name string, revision int64) (string, error) {
 	opts := metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()}
-	deploymentList, err := h.rn.ReplicationControllers(namespace).List(opts)
+	deploymentList, err := h.rn.ReplicationControllers(namespace).List(context.TODO(), opts)
 	if err != nil {
 		return "", err
 	}

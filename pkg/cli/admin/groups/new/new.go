@@ -1,6 +1,7 @@
 package new
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -137,7 +138,7 @@ func (o *NewGroupOptions) Run() error {
 
 	if !o.DryRun {
 		var err error
-		group, err = o.GroupClient.Groups().Create(group)
+		group, err = o.GroupClient.Groups().Create(context.TODO(), group, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

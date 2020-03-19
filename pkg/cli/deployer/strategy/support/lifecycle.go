@@ -77,7 +77,7 @@ func NewHookExecutor(kubeClient kubernetes.Interface, imageClient imageclienttyp
 			Follow:     true,
 			Timestamps: false,
 		}
-		return executor.pods.Pods(pod.Namespace).GetLogs(pod.Name, opts).Stream()
+		return executor.pods.Pods(pod.Namespace).GetLogs(pod.Name, opts).Stream(context.TODO())
 	}
 	return executor
 }
@@ -152,7 +152,7 @@ func (e *hookExecutor) tagImages(hook *appsv1.LifecycleHook, rc *corev1.Replicat
 		if len(namespace) == 0 {
 			namespace = rc.Namespace
 		}
-		if _, err := e.tags.ImageStreamTags(namespace).Update(&imageapiv1.ImageStreamTag{
+		if _, err := e.tags.ImageStreamTags(namespace).Update(context.TODO(), &imageapiv1.ImageStreamTag{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      action.To.Name,
 				Namespace: namespace,
@@ -163,7 +163,7 @@ func (e *hookExecutor) tagImages(hook *appsv1.LifecycleHook, rc *corev1.Replicat
 					Name: value,
 				},
 			},
-		}); err != nil {
+		}, metav1.UpdateOptions{}); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -188,7 +188,7 @@ func (e *hookExecutor) executeExecNewPod(hook *appsv1.LifecycleHook, rc *corev1.
 		return err
 	}
 
-	deployerPod, err := e.pods.Pods(rc.Namespace).Get(appsutil.DeployerPodNameForDeployment(rc.Name), metav1.GetOptions{})
+	deployerPod, err := e.pods.Pods(rc.Namespace).Get(context.TODO(), appsutil.DeployerPodNameForDeployment(rc.Name), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func (e *hookExecutor) executeExecNewPod(hook *appsv1.LifecycleHook, rc *corev1.
 	completed, created := false, false
 
 	// Try to create the pod.
-	pod, err := e.pods.Pods(rc.Namespace).Create(podSpec)
+	pod, err := e.pods.Pods(rc.Namespace).Create(context.TODO(), podSpec, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("couldn't create lifecycle pod for %s: %v", rc.Name, err)
@@ -235,11 +235,11 @@ func (e *hookExecutor) executeExecNewPod(hook *appsv1.LifecycleHook, rc *corev1.
 	listWatcher := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.FieldSelector = fields.OneTermEqualSelector("metadata.name", pod.Name).String()
-			return e.pods.Pods(pod.Namespace).List(options)
+			return e.pods.Pods(pod.Namespace).List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 			options.FieldSelector = fields.OneTermEqualSelector("metadata.name", pod.Name).String()
-			return e.pods.Pods(pod.Namespace).Watch(options)
+			return e.pods.Pods(pod.Namespace).Watch(context.TODO(), options)
 		},
 	}
 	// make sure that the pod exists and wasn't deleted early

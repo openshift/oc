@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -95,7 +96,7 @@ func getUniqueName(rbacClient rbacv1client.RbacV1Interface, basename string, nam
 	existingNames := sets.String{}
 
 	if len(namespace) > 0 {
-		roleBindings, err := rbacClient.RoleBindings(namespace).List(metav1.ListOptions{})
+		roleBindings, err := rbacClient.RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil && !kapierrors.IsNotFound(err) {
 			return "", err
 		}
@@ -103,7 +104,7 @@ func getUniqueName(rbacClient rbacv1client.RbacV1Interface, basename string, nam
 			existingNames.Insert(currBinding.Name)
 		}
 	} else {
-		roleBindings, err := rbacClient.ClusterRoleBindings().List(metav1.ListOptions{})
+		roleBindings, err := rbacClient.ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil && !kapierrors.IsNotFound(err) {
 			return "", err
 		}
@@ -162,9 +163,9 @@ func getRoleBindingAbstraction(rbacClient rbacv1client.RbacV1Interface, name str
 	var err error
 	r := roleBindingAbstraction{rbacClient: rbacClient}
 	if len(namespace) > 0 {
-		r.roleBinding, err = rbacClient.RoleBindings(namespace).Get(name, metav1.GetOptions{})
+		r.roleBinding, err = rbacClient.RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	} else {
-		r.clusterRoleBinding, err = rbacClient.ClusterRoleBindings().Get(name, metav1.GetOptions{})
+		r.clusterRoleBinding, err = rbacClient.ClusterRoleBindings().Get(context.TODO(), name, metav1.GetOptions{})
 	}
 	if err != nil {
 		return nil, err
@@ -176,7 +177,7 @@ func getRoleBindingAbstractionsForRole(rbacClient rbacv1client.RbacV1Interface, 
 	ret := make([]*roleBindingAbstraction, 0)
 	// see if we can find an existing binding that points to the role in question.
 	if len(namespace) > 0 {
-		roleBindings, err := rbacClient.RoleBindings(namespace).List(metav1.ListOptions{})
+		roleBindings, err := rbacClient.RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil && !kapierrors.IsNotFound(err) {
 			return nil, err
 		}
@@ -188,7 +189,7 @@ func getRoleBindingAbstractionsForRole(rbacClient rbacv1client.RbacV1Interface, 
 			}
 		}
 	} else {
-		clusterRoleBindings, err := rbacClient.ClusterRoleBindings().List(metav1.ListOptions{})
+		clusterRoleBindings, err := rbacClient.ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil && !kapierrors.IsNotFound(err) {
 			return nil, err
 		}
@@ -263,9 +264,9 @@ func (r roleBindingAbstraction) Object() runtime.Object {
 func (r roleBindingAbstraction) Create() error {
 	var err error
 	if r.roleBinding != nil {
-		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Create(r.roleBinding)
+		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Create(context.TODO(), r.roleBinding, metav1.CreateOptions{})
 	} else {
-		_, err = r.rbacClient.ClusterRoleBindings().Create(r.clusterRoleBinding)
+		_, err = r.rbacClient.ClusterRoleBindings().Create(context.TODO(), r.clusterRoleBinding, metav1.CreateOptions{})
 	}
 	return err
 }
@@ -273,9 +274,9 @@ func (r roleBindingAbstraction) Create() error {
 func (r roleBindingAbstraction) Update() error {
 	var err error
 	if r.roleBinding != nil {
-		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Update(r.roleBinding)
+		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Update(context.TODO(), r.roleBinding, metav1.UpdateOptions{})
 	} else {
-		_, err = r.rbacClient.ClusterRoleBindings().Update(r.clusterRoleBinding)
+		_, err = r.rbacClient.ClusterRoleBindings().Update(context.TODO(), r.clusterRoleBinding, metav1.UpdateOptions{})
 	}
 	return err
 }
@@ -283,9 +284,9 @@ func (r roleBindingAbstraction) Update() error {
 func (r roleBindingAbstraction) Delete() error {
 	var err error
 	if r.roleBinding != nil {
-		err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Delete(r.roleBinding.Name, &metav1.DeleteOptions{})
+		err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Delete(context.TODO(), r.roleBinding.Name, metav1.DeleteOptions{})
 	} else {
-		err = r.rbacClient.ClusterRoleBindings().Delete(r.clusterRoleBinding.Name, &metav1.DeleteOptions{})
+		err = r.rbacClient.ClusterRoleBindings().Delete(context.TODO(), r.clusterRoleBinding.Name, metav1.DeleteOptions{})
 	}
 	return err
 }

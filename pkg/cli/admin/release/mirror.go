@@ -492,7 +492,7 @@ func (o *MirrorOptions) Run() error {
 					Body(isi).
 					// this instructs the api server to allow our request to take up to an hour - chosen as a high boundary
 					Timeout(3 * time.Minute).
-					Do().
+					Do(context.TODO()).
 					Into(result); err != nil {
 					return err
 				}

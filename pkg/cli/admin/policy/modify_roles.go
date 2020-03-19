@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -508,9 +509,9 @@ func (o *RoleModificationOptions) AddRole() error {
 	if o.PrintErrf != nil {
 		var err error
 		if roleBinding.RoleKind() == "Role" {
-			_, err = o.RbacClient.Roles(o.RoleBindingNamespace).Get(roleBinding.RoleName(), metav1.GetOptions{})
+			_, err = o.RbacClient.Roles(o.RoleBindingNamespace).Get(context.TODO(), roleBinding.RoleName(), metav1.GetOptions{})
 		} else {
-			_, err = o.RbacClient.ClusterRoles().Get(roleBinding.RoleName(), metav1.GetOptions{})
+			_, err = o.RbacClient.ClusterRoles().Get(context.TODO(), roleBinding.RoleName(), metav1.GetOptions{})
 		}
 		if err != nil && kapierrors.IsNotFound(err) {
 			o.PrintErrf("Warning: role '%s' not found\n", roleBinding.RoleName())
@@ -526,15 +527,15 @@ func (o *RoleModificationOptions) AddRole() error {
 			switch newSubject.Kind {
 			case rbacv1.ServiceAccountKind:
 				if o.ServiceAccountClient != nil {
-					_, err = o.ServiceAccountClient.ServiceAccounts(newSubject.Namespace).Get(newSubject.Name, metav1.GetOptions{})
+					_, err = o.ServiceAccountClient.ServiceAccounts(newSubject.Namespace).Get(context.TODO(), newSubject.Name, metav1.GetOptions{})
 				}
 			case rbacv1.UserKind:
 				if o.UserClient != nil {
-					_, err = o.UserClient.Users().Get(newSubject.Name, metav1.GetOptions{})
+					_, err = o.UserClient.Users().Get(context.TODO(), newSubject.Name, metav1.GetOptions{})
 				}
 			case rbacv1.GroupKind:
 				if o.UserClient != nil {
-					_, err = o.UserClient.Groups().Get(newSubject.Name, metav1.GetOptions{})
+					_, err = o.UserClient.Groups().Get(context.TODO(), newSubject.Name, metav1.GetOptions{})
 				}
 			}
 			if err != nil && kapierrors.IsNotFound(err) {

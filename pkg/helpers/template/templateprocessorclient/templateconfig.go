@@ -1,6 +1,8 @@
 package templateprocessorclient
 
 import (
+	"context"
+
 	"k8s.io/client-go/rest"
 
 	templatev1 "github.com/openshift/api/template/v1"
@@ -28,6 +30,6 @@ func (c *templateProcessor) Process(in *templatev1.Template) (*templatev1.Templa
 	err := c.client.Post().
 		Namespace(c.ns).
 		Resource("processedTemplates").
-		Body(in).Do().Into(template)
+		Body(in).Do(context.TODO()).Into(template)
 	return template, err
 }

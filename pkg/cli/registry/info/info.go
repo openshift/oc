@@ -1,6 +1,7 @@
 package info
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -116,7 +117,7 @@ func (i *RegistryInfo) HostPort() (string, bool) {
 
 func findRegistryInfo(client imageclient.Interface, namespaces ...string) (*RegistryInfo, error) {
 	for _, ns := range namespaces {
-		imageStreams, err := client.ImageV1().ImageStreams(ns).List(metav1.ListOptions{})
+		imageStreams, err := client.ImageV1().ImageStreams(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil || len(imageStreams.Items) == 0 {
 			continue
 		}

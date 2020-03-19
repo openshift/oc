@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -175,7 +176,7 @@ func (o *RolloutLatestOptions) RunRolloutLatest() error {
 	}
 
 	deploymentName := appsutil.LatestDeploymentNameForConfigAndVersion(config.Name, config.Status.LatestVersion)
-	deployment, err := o.kubeClient.CoreV1().ReplicationControllers(config.Namespace).Get(deploymentName, metav1.GetOptions{})
+	deployment, err := o.kubeClient.CoreV1().ReplicationControllers(config.Namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 	switch {
 	case err == nil:
 		// Reject attempts to start a concurrent deployment.
@@ -195,13 +196,13 @@ func (o *RolloutLatestOptions) RunRolloutLatest() error {
 			Force:  true,
 		}
 
-		dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Instantiate(config.Name, request)
+		dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Instantiate(context.TODO(), config.Name, request, metav1.CreateOptions{})
 
 		// Pre 1.4 servers don't support the instantiate endpoint. Fallback to incrementing
 		// latestVersion on them.
 		if kerrors.IsNotFound(err) || kerrors.IsForbidden(err) {
 			config.Status.LatestVersion++
-			dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Update(config)
+			dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Update(context.TODO(), config, metav1.UpdateOptions{})
 		}
 
 		if err != nil {

@@ -1,6 +1,7 @@
 package version
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -129,7 +130,7 @@ func (o *VersionOptions) Run() error {
 		}
 		if o.oClient != nil {
 			var clusterOperator *configv1.ClusterOperator
-			clusterOperator, serverErr = o.oClient.ClusterOperators().Get("openshift-apiserver", metav1.GetOptions{})
+			clusterOperator, serverErr = o.oClient.ClusterOperators().Get(context.TODO(), "openshift-apiserver", metav1.GetOptions{})
 			// error here indicates logged in as non-admin, log and move on
 			if serverErr != nil {
 				switch {

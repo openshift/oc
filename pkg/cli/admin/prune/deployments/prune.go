@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"context"
 	"time"
 
 	"k8s.io/klog"
@@ -109,5 +110,5 @@ func NewDeploymentDeleter(deployments corev1client.ReplicationControllersGetter)
 func (p *deploymentDeleter) DeleteDeployment(deployment *corev1.ReplicationController) error {
 	klog.V(4).Infof("Deleting deployment %q", deployment.Name)
 	policy := metav1.DeletePropagationBackground
-	return p.deployments.ReplicationControllers(deployment.Namespace).Delete(deployment.Name, &metav1.DeleteOptions{PropagationPolicy: &policy})
+	return p.deployments.ReplicationControllers(deployment.Namespace).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{PropagationPolicy: &policy})
 }

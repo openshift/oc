@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
@@ -199,7 +201,7 @@ func (o *SCCSubjectReviewOptions) pspSubjectReview(userOrSA string, podTemplateS
 			Groups:   o.Groups,
 		},
 	}
-	return o.sccSubjectReviewClient.PodSecurityPolicySubjectReviews(o.namespace).Create(podSecurityPolicySubjectReview)
+	return o.sccSubjectReviewClient.PodSecurityPolicySubjectReviews(o.namespace).Create(context.TODO(), podSecurityPolicySubjectReview, metav1.CreateOptions{})
 }
 
 func (o *SCCSubjectReviewOptions) pspSelfSubjectReview(podTemplateSpec *corev1.PodTemplateSpec) (*securityv1.PodSecurityPolicySelfSubjectReview, error) {
@@ -208,7 +210,7 @@ func (o *SCCSubjectReviewOptions) pspSelfSubjectReview(podTemplateSpec *corev1.P
 			Template: *podTemplateSpec,
 		},
 	}
-	return o.sccSubjectReviewClient.PodSecurityPolicySelfSubjectReviews(o.namespace).Create(podSecurityPolicySelfSubjectReview)
+	return o.sccSubjectReviewClient.PodSecurityPolicySelfSubjectReviews(o.namespace).Create(context.TODO(), podSecurityPolicySelfSubjectReview, metav1.CreateOptions{})
 }
 
 func subjectReviewHumanPrinter(info *resource.Info, obj runtime.Object, noHeaders *bool, out io.Writer) error {

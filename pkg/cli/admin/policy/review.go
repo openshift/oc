@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
@@ -203,7 +205,7 @@ func (o *SCCReviewOptions) Run(args []string) error {
 				ServiceAccountNames: o.shortServiceAccountNames,
 			},
 		}
-		unversionedObj, err := o.client.PodSecurityPolicyReviews(o.namespace).Create(review)
+		unversionedObj, err := o.client.PodSecurityPolicyReviews(o.namespace).Create(context.TODO(), review, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("unable to compute Pod Security Policy Review for %q: %v", objectName, err)
 		}

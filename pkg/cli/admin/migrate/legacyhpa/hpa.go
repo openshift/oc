@@ -1,6 +1,7 @@
 package legacyhpa
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -180,6 +181,6 @@ func (o *MigrateLegacyHPAOptions) save(info *resource.Info, reporter migrate.Rep
 		return fmt.Errorf("unrecognized object %#v", info.Object)
 	}
 
-	_, err := o.hpaClient.HorizontalPodAutoscalers(hpa.Namespace).Update(hpa)
+	_, err := o.hpaClient.HorizontalPodAutoscalers(hpa.Namespace).Update(context.TODO(), hpa, metav1.UpdateOptions{})
 	return migrate.DefaultRetriable(info, err)
 }

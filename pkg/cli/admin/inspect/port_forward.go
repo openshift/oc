@@ -2,6 +2,7 @@ package inspect
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -127,7 +128,7 @@ func (c *PortForwardURLGetter) Get(urlPath string, pod *corev1.Pod, config *rest
 			return
 		}
 
-		ioCloser, err := restClient.Get().RequestURI(urlPath).Stream()
+		ioCloser, err := restClient.Get().RequestURI(urlPath).Stream(context.TODO())
 		if err != nil {
 			lastErr = err
 			return

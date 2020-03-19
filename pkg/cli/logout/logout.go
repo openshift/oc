@@ -1,6 +1,7 @@
 package logout
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -120,7 +121,7 @@ func (o LogoutOptions) RunLogout() error {
 		return err
 	}
 
-	if err := client.OAuthAccessTokens().Delete(token, &metav1.DeleteOptions{}); err != nil {
+	if err := client.OAuthAccessTokens().Delete(context.TODO(), token, metav1.DeleteOptions{}); err != nil {
 		klog.V(1).Infof("%v", err)
 	}
 

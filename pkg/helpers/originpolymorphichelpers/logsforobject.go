@@ -1,6 +1,7 @@
 package originpolymorphichelpers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -79,7 +80,7 @@ func NewLogsForObjectFn(delegate polymorphichelpers.LogsForObjectFunc) polymorph
 				return nil, err
 			}
 			logClient := buildmanualclientv1.NewBuildLogClient(buildClient.RESTClient(), t.Namespace, scheme.Scheme)
-			builds, err := buildClient.Builds(t.Namespace).List(metav1.ListOptions{})
+			builds, err := buildClient.Builds(t.Namespace).List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
 				return nil, err
 			}

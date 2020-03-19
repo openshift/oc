@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"regexp"
@@ -202,7 +203,7 @@ func (req *logRequest) WriteRequest(out io.Writer) error {
 }
 
 func (req *logRequest) writeTo(out io.Writer) error {
-	in, err := req.req.Stream()
+	in, err := req.req.Stream(context.TODO())
 	if err != nil {
 		return err
 	}

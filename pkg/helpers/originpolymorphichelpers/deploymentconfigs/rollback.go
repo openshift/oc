@@ -2,6 +2,7 @@ package deploymentconfigs
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,7 +46,7 @@ func (r *DeploymentConfigRollbacker) Rollback(obj runtime.Object, updatedAnnotat
 		},
 	}
 
-	rolledback, err := r.dn.DeploymentConfigs(config.Namespace).Rollback(config.Name, rollback)
+	rolledback, err := r.dn.DeploymentConfigs(config.Namespace).Rollback(context.TODO(), config.Name, rollback, metav1.CreateOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -56,7 +57,7 @@ func (r *DeploymentConfigRollbacker) Rollback(obj runtime.Object, updatedAnnotat
 		return out.String(), nil
 	}
 
-	_, err = r.dn.DeploymentConfigs(config.Namespace).Update(rolledback)
+	_, err = r.dn.DeploymentConfigs(config.Namespace).Update(context.TODO(), rolledback, metav1.UpdateOptions{})
 	if err != nil {
 		return "", err
 	}

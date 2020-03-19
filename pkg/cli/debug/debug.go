@@ -442,7 +442,7 @@ func (o *DebugOptions) RunDebug() error {
 			if !o.Attach.Quiet {
 				fmt.Fprintf(stderr, "\nRemoving debug pod ...\n")
 			}
-			if err := o.CoreClient.Pods(pod.Namespace).Delete(pod.Name, metav1.NewDeleteOptions(0)); err != nil {
+			if err := o.CoreClient.Pods(pod.Namespace).Delete(context.TODO(), pod.Name, *metav1.NewDeleteOptions(0)); err != nil {
 				if !kapierrors.IsNotFound(err) {
 					klog.V(2).Infof("Unable to delete the debug pod %q: %v", pod.Name, err)
 					if !o.Attach.Quiet {
@@ -470,11 +470,11 @@ func (o *DebugOptions) RunDebug() error {
 		lw := &cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				options.FieldSelector = fieldSelector
-				return o.CoreClient.Pods(ns).List(options)
+				return o.CoreClient.Pods(ns).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				options.FieldSelector = fieldSelector
-				return o.CoreClient.Pods(ns).Watch(options)
+				return o.CoreClient.Pods(ns).Watch(context.TODO(), options)
 			},
 		}
 		preconditionFunc := func(store cache.Store) (bool, error) {
@@ -555,7 +555,7 @@ func (o *DebugOptions) getContainerImageViaDeploymentConfig(pod *corev1.Pod, con
 		return nil, nil // Pod doesn't appear to have been created by a DeploymentConfig
 	}
 
-	dc, err := o.AppsClient.DeploymentConfigs(o.Attach.Pod.Namespace).Get(dcname, metav1.GetOptions{})
+	dc, err := o.AppsClient.DeploymentConfigs(o.Attach.Pod.Namespace).Get(context.TODO(), dcname, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -575,7 +575,7 @@ func (o *DebugOptions) getContainerImageViaDeploymentConfig(pod *corev1.Pod, con
 				namespace = o.Attach.Pod.Namespace
 			}
 
-			isi, err := o.ImageClient.ImageStreamImages(namespace).Get(imageutil.JoinImageStreamImage(isname, ref.ID), metav1.GetOptions{})
+			isi, err := o.ImageClient.ImageStreamImages(namespace).Get(context.TODO(), imageutil.JoinImageStreamImage(isname, ref.ID), metav1.GetOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -609,7 +609,7 @@ func (o *DebugOptions) getContainerImageViaImageStreamImport(container *corev1.C
 		},
 	}
 
-	isi, err := o.ImageClient.ImageStreamImports(o.Attach.Pod.Namespace).Create(isi)
+	isi, err := o.ImageClient.ImageStreamImports(o.Attach.Pod.Namespace).Create(context.TODO(), isi, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -767,13 +767,13 @@ func (o *DebugOptions) createPod(pod *corev1.Pod) (*corev1.Pod, error) {
 	namespace, name := pod.Namespace, pod.Name
 
 	// create the pod
-	created, err := o.CoreClient.Pods(namespace).Create(pod)
+	created, err := o.CoreClient.Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err == nil || !kapierrors.IsAlreadyExists(err) {
 		return created, err
 	}
 
 	// only continue if the pod has the right annotations
-	existing, err := o.CoreClient.Pods(namespace).Get(name, metav1.GetOptions{})
+	existing, err := o.CoreClient.Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -782,10 +782,10 @@ func (o *DebugOptions) createPod(pod *corev1.Pod) (*corev1.Pod, error) {
 	}
 
 	// delete the existing pod
-	if err := o.CoreClient.Pods(namespace).Delete(name, metav1.NewDeleteOptions(0)); err != nil && !kapierrors.IsNotFound(err) {
+	if err := o.CoreClient.Pods(namespace).Delete(context.TODO(), name, *metav1.NewDeleteOptions(0)); err != nil && !kapierrors.IsNotFound(err) {
 		return nil, fmt.Errorf("unable to delete existing debug pod %q: %v", name, err)
 	}
-	return o.CoreClient.Pods(namespace).Create(pod)
+	return o.CoreClient.Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 }
 
 func containerForName(pod *corev1.Pod, name string) *corev1.Container {
@@ -860,7 +860,7 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 		}
 		image := o.Image
 		if len(o.Image) == 0 {
-			istag, err := o.ImageClient.ImageStreamTags("openshift").Get("tools:latest", metav1.GetOptions{})
+			istag, err := o.ImageClient.ImageStreamTags("openshift").Get(context.TODO(), "tools:latest", metav1.GetOptions{})
 			if err == nil && len(istag.Image.DockerImageReference) > 0 {
 				image = istag.Image.DockerImageReference
 			}
@@ -932,14 +932,14 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 		fallback := t.Spec.Template
 
 		latestDeploymentName := appsutil.LatestDeploymentNameForConfig(t)
-		deployment, err := o.CoreClient.ReplicationControllers(t.Namespace).Get(latestDeploymentName, metav1.GetOptions{})
+		deployment, err := o.CoreClient.ReplicationControllers(t.Namespace).Get(context.TODO(), latestDeploymentName, metav1.GetOptions{})
 		if err != nil {
 			return setNodeName(fallback, o.NodeName, o.NodeNameSet), err
 		}
 
 		fallback = deployment.Spec.Template
 
-		pods, err := o.CoreClient.Pods(deployment.Namespace).List(metav1.ListOptions{LabelSelector: labels.SelectorFromSet(deployment.Spec.Selector).String()})
+		pods, err := o.CoreClient.Pods(deployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(deployment.Spec.Selector).String()})
 		if err != nil {
 			return setNodeName(fallback, o.NodeName, o.NodeNameSet), err
 		}

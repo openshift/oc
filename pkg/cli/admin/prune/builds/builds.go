@@ -1,6 +1,7 @@
 package builds
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -129,7 +130,7 @@ func (o PruneBuildsOptions) Validate() error {
 
 // Run contains all the necessary functionality for the OpenShift cli prune builds command.
 func (o PruneBuildsOptions) Run() error {
-	buildConfigList, err := o.BuildClient.BuildConfigs(o.Namespace).List(metav1.ListOptions{})
+	buildConfigList, err := o.BuildClient.BuildConfigs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -138,7 +139,7 @@ func (o PruneBuildsOptions) Run() error {
 		buildConfigs = append(buildConfigs, &buildConfigList.Items[i])
 	}
 
-	buildList, err := o.BuildClient.Builds(o.Namespace).List(metav1.ListOptions{})
+	buildList, err := o.BuildClient.Builds(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

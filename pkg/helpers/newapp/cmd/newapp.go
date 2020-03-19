@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -642,7 +643,7 @@ func (c *AppConfig) installComponents(components app.ComponentReferences, env ap
 
 	serviceAccountName := "installer"
 	if token != nil && token.ServiceAccount {
-		if _, err := c.KubeClient.CoreV1().ServiceAccounts(c.OriginNamespace).Get(serviceAccountName, metav1.GetOptions{}); err != nil {
+		if _, err := c.KubeClient.CoreV1().ServiceAccounts(c.OriginNamespace).Get(context.TODO(), serviceAccountName, metav1.GetOptions{}); err != nil {
 			if kerrors.IsNotFound(err) {
 				objects = append(objects,
 					// create a new service account
@@ -1050,7 +1051,7 @@ func (c *AppConfig) crossStreamCircularTagReference(stream *imagev1.ImageStream,
 			if !ok {
 				return false
 			}
-			stream, err := c.ImageClient.ImageStreams(tagRef.From.Namespace).Get(fromstream, metav1.GetOptions{})
+			stream, err := c.ImageClient.ImageStreams(tagRef.From.Namespace).Get(context.TODO(), fromstream, metav1.GetOptions{})
 			if err != nil && !kerrors.IsNotFound(err) {
 				return false
 			}
@@ -1098,7 +1099,7 @@ func (c *AppConfig) crossStreamInputToOutputTagReference(instream, outstream *im
 			if !ok {
 				return false
 			}
-			instream, err := c.ImageClient.ImageStreams(tagRef.From.Namespace).Get(fromstream, metav1.GetOptions{})
+			instream, err := c.ImageClient.ImageStreams(tagRef.From.Namespace).Get(context.TODO(), fromstream, metav1.GetOptions{})
 			if err != nil && !kerrors.IsNotFound(err) {
 				return false
 			}
@@ -1180,7 +1181,7 @@ func (c *AppConfig) followRefToDockerImage(ref *corev1.ObjectReference, isContex
 		// when new-build is being used, so scan objects being created for it.
 		if isContext = c.findImageStreamInObjectList(objects, isName, isNS); isContext == nil {
 			var err error
-			isContext, err = c.ImageClient.ImageStreams(isNS).Get(isName, metav1.GetOptions{})
+			isContext, err = c.ImageClient.ImageStreams(isNS).Get(context.TODO(), isName, metav1.GetOptions{})
 			if err != nil {
 				return nil, fmt.Errorf("Unable to check for circular build input/outputs: %v", err)
 			}
@@ -1327,11 +1328,11 @@ func (c *AppConfig) checkCircularReferences(objects app.Objects) error {
 					if len(onamespace) == 0 {
 						onamespace = c.OriginNamespace
 					}
-					istream, err := c.ImageClient.ImageStreams(inamespace).Get(iname, metav1.GetOptions{})
+					istream, err := c.ImageClient.ImageStreams(inamespace).Get(context.TODO(), iname, metav1.GetOptions{})
 					if istream == nil || kerrors.IsNotFound(err) {
 						istream = c.findImageStreamInObjectList(objects, iname, inamespace)
 					}
-					ostream, err := c.ImageClient.ImageStreams(onamespace).Get(oname, metav1.GetOptions{})
+					ostream, err := c.ImageClient.ImageStreams(onamespace).Get(context.TODO(), oname, metav1.GetOptions{})
 					if ostream == nil || kerrors.IsNotFound(err) {
 						ostream = c.findImageStreamInObjectList(objects, oname, onamespace)
 					}

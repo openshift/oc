@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -63,7 +64,7 @@ func (r ImageStreamSearcher) Search(precise bool, terms ...string) (ComponentMat
 		for _, namespace := range namespaces {
 			klog.V(4).Infof("checking ImageStreams %s/%s with ref %q", namespace, ref.Name, searchTag)
 			exact := false
-			streams, err := r.Client.ImageStreams(namespace).List(metav1.ListOptions{})
+			streams, err := r.Client.ImageStreams(namespace).List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
 				if errors.IsNotFound(err) || errors.IsForbidden(err) {
 					continue
@@ -188,7 +189,7 @@ func (r ImageStreamSearcher) Search(precise bool, terms ...string) (ComponentMat
 					continue
 				}
 
-				imageStreamImage, err := r.Client.ImageStreamImages(namespace).Get(imageutil.JoinImageStreamImage(stream.Name, latest.Image), metav1.GetOptions{})
+				imageStreamImage, err := r.Client.ImageStreamImages(namespace).Get(context.TODO(), imageutil.JoinImageStreamImage(stream.Name, latest.Image), metav1.GetOptions{})
 				if err != nil {
 					if errors.IsNotFound(err) {
 						// continue searching
@@ -292,7 +293,7 @@ func (r *ImageStreamByAnnotationSearcher) getImageStreams(namespace string) ([]i
 	imageStreamList, ok := r.imageStreams[namespace]
 	if !ok {
 		var err error
-		imageStreamList, err = r.Client.ImageStreams(namespace).List(metav1.ListOptions{})
+		imageStreamList, err = r.Client.ImageStreams(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -345,7 +346,7 @@ func (r *ImageStreamByAnnotationSearcher) annotationMatches(stream *imagev1.Imag
 		if latest == nil {
 			continue
 		}
-		imageStream, err := r.ImageStreamImages.ImageStreamImages(stream.Namespace).Get(imageutil.JoinImageStreamImage(stream.Name, latest.Image), metav1.GetOptions{})
+		imageStream, err := r.ImageStreamImages.ImageStreamImages(stream.Namespace).Get(context.TODO(), imageutil.JoinImageStreamImage(stream.Name, latest.Image), metav1.GetOptions{})
 		if err != nil {
 			klog.V(2).Infof("Could not retrieve image stream image for stream %q, tag %q: %v", stream.Name, tagref.Name, err)
 			continue

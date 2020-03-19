@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -186,8 +187,8 @@ func (o CancelOptions) Run() error {
 				return false
 			}
 
-			if _, err := o.KubeClient.CoreV1().ReplicationControllers(rc.Namespace).Patch(rc.Name, types.StrategicMergePatchType,
-				patches[0].Patch); err != nil {
+			if _, err := o.KubeClient.CoreV1().ReplicationControllers(rc.Namespace).Patch(context.TODO(), rc.Name, types.StrategicMergePatchType,
+				patches[0].Patch, metav1.PatchOptions{}); err != nil {
 				allErrs = append(allErrs, kcmdutil.AddSourceToErr("cancelling", info.Source, err))
 				return false
 			}
@@ -226,7 +227,7 @@ func (o CancelOptions) Run() error {
 }
 
 func (o CancelOptions) forEachControllerInConfig(namespace, name string, mutateFunc func(*corev1.ReplicationController) bool) ([]*corev1.ReplicationController, bool, error) {
-	deploymentList, err := o.KubeClient.CoreV1().ReplicationControllers(namespace).List(metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()})
+	deploymentList, err := o.KubeClient.CoreV1().ReplicationControllers(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()})
 	if err != nil {
 		return nil, false, err
 	}

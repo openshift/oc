@@ -2,6 +2,7 @@ package idle
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -241,7 +242,7 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 		if pod, ok := podsLoaded[ref]; ok {
 			return pod, nil
 		}
-		pod, err := o.ClientSet.CoreV1().Pods(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
+		pod, err := o.ClientSet.CoreV1().Pods(ref.Namespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -558,7 +559,7 @@ type scaleInfo struct {
 // scalable resources to zero, and annotating the associated endpoints objects with the scalable resources to unidle
 // when they receive traffic.
 func (o *IdleOptions) RunIdle() error {
-	clusterNetwork, err := o.OperatorClient.OperatorV1().Networks().Get("cluster", metav1.GetOptions{})
+	clusterNetwork, err := o.OperatorClient.OperatorV1().Networks().Get(context.TODO(), "cluster", metav1.GetOptions{})
 	if err == nil {
 		sdnType := clusterNetwork.Spec.DefaultNetwork.Type
 

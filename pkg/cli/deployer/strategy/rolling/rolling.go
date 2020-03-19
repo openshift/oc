@@ -2,6 +2,7 @@ package rolling
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -172,7 +173,7 @@ func (s *RollingDeploymentStrategy) Deploy(from *corev1.ReplicationController, t
 	// Related upstream issue:
 	// https://github.com/kubernetes/kubernetes/pull/7183
 	err = wait.Poll(s.apiRetryPeriod, s.apiRetryTimeout, func() (done bool, err error) {
-		existing, err := s.rcClient.ReplicationControllers(to.Namespace).Get(to.Name, metav1.GetOptions{})
+		existing, err := s.rcClient.ReplicationControllers(to.Namespace).Get(context.TODO(), to.Name, metav1.GetOptions{})
 		if err != nil {
 			msg := fmt.Sprintf("couldn't look up deployment %s: %s", to.Name, err)
 			if kerrors.IsNotFound(err) {
@@ -184,7 +185,7 @@ func (s *RollingDeploymentStrategy) Deploy(from *corev1.ReplicationController, t
 		}
 		if _, hasSourceId := existing.Annotations[sourceIdAnnotation]; !hasSourceId {
 			existing.Annotations[sourceIdAnnotation] = fmt.Sprintf("%s:%s", from.Name, from.ObjectMeta.UID)
-			if _, err := s.rcClient.ReplicationControllers(existing.Namespace).Update(existing); err != nil {
+			if _, err := s.rcClient.ReplicationControllers(existing.Namespace).Update(context.TODO(), existing, metav1.UpdateOptions{}); err != nil {
 				msg := fmt.Sprintf("couldn't assign source annotation to deployment %s: %v", existing.Name, err)
 				if kerrors.IsNotFound(err) {
 					return false, fmt.Errorf("%s", msg)
@@ -199,7 +200,7 @@ func (s *RollingDeploymentStrategy) Deploy(from *corev1.ReplicationController, t
 	if err != nil {
 		return err
 	}
-	to, err = s.rcClient.ReplicationControllers(to.Namespace).Get(to.Name, metav1.GetOptions{})
+	to, err = s.rcClient.ReplicationControllers(to.Namespace).Get(context.TODO(), to.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -37,7 +38,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 		return err
 	}
 
-	ns, err := o.kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	ns, err := o.kubeClient.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
 	if err != nil { // If we can't get the namespace we need to exit out
 		return err
 	}
@@ -59,7 +60,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 
 	// collect specific resource information for namespace
 	for gvr := range resourcesTypesToStore {
-		list, err := o.dynamicClient.Resource(gvr).Namespace(namespace).List(metav1.ListOptions{})
+		list, err := o.dynamicClient.Resource(gvr).Namespace(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			errs = append(errs, err)
 		}
