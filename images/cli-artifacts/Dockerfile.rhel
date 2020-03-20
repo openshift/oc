@@ -13,6 +13,7 @@ COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_amd64/oc /
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_arm64/oc /usr/share/openshift/linux_arm64/oc
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_ppc64le/oc /usr/share/openshift/linux_ppc64le/oc
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_s390x/oc /usr/share/openshift/linux_s390x/oc
+COPY --from=builder /go/src/github.com/openshift/oc/LICENSE /usr/share/openshift/LICENSE
 LABEL io.k8s.display-name="OpenShift Clients" \
       io.k8s.description="OpenShift is a platform for developing, building, and deploying containerized applications." \
       io.openshift.tags="openshift,cli"
