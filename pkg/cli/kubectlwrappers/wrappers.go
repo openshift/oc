@@ -236,7 +236,7 @@ func NewCmdCp(fullName string, f kcmdutil.Factory, streams genericclioptions.IOS
 }
 
 func NewCmdWait(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	return kwait.NewCmdWait(f, streams)
+	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(kwait.NewCmdWait(f, streams)))
 }
 
 func NewCmdAuth(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
