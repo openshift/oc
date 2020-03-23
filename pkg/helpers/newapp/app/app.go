@@ -3,6 +3,7 @@ package app
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net"
 	"reflect"
@@ -11,16 +12,18 @@ import (
 
 	"k8s.io/klog"
 
+	kappsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	buildv1 "github.com/openshift/api/build/v1"
 	"github.com/openshift/library-go/pkg/git"
+	triggerutil "github.com/openshift/library-go/pkg/image/trigger"
 	"github.com/openshift/oc/pkg/helpers/newapp"
-
 	s2igit "github.com/openshift/oc/pkg/helpers/source-to-image/git"
 )
 
@@ -310,7 +313,7 @@ func (r *BuildRef) BuildConfig() (*buildv1.BuildConfig, error) {
 	}, nil
 }
 
-type DeploymentHook struct {
+type DeploymentConfigHook struct {
 	Shell string
 }
 
@@ -321,7 +324,7 @@ type DeploymentConfigRef struct {
 	Env      Environment
 	Labels   map[string]string
 	AsTest   bool
-	PostHook *DeploymentHook
+	PostHook *DeploymentConfigHook
 }
 
 // DeploymentConfig creates a deploymentConfig resource from the deployment configuration reference
@@ -359,7 +362,7 @@ func (r *DeploymentConfigRef) DeploymentConfig() (*appsv1.DeploymentConfig, erro
 
 	template := corev1.PodSpec{}
 	for i := range r.Images {
-		c, containerTriggers, err := r.Images[i].DeployableContainer()
+		c, containerTriggers, err := r.Images[i].DeployableContainer(false)
 		if err != nil {
 			return nil, err
 		}
@@ -416,6 +419,120 @@ func (r *DeploymentConfigRef) DeploymentConfig() (*appsv1.DeploymentConfig, erro
 	}
 
 	return dc, nil
+}
+
+// DeploymentRef is a reference to a deployment configuration
+type DeploymentRef struct {
+	Name     string
+	Images   []*ImageRef
+	Env      Environment
+	Labels   map[string]string
+	AsTest   bool
+	PostHook *DeploymentConfigHook
+}
+
+// Deployment creates a deployment resource from the deployment reference
+//
+// TODO: take a pod template spec as argument
+func (r *DeploymentRef) Deployment() (*kappsv1.Deployment, error) {
+	if len(r.Name) == 0 {
+		suggestions := NameSuggestions{}
+		for i := range r.Images {
+			suggestions = append(suggestions, r.Images[i])
+		}
+		name, ok := suggestions.SuggestName()
+		if !ok {
+			return nil, fmt.Errorf("unable to suggest a name for this Deployment")
+		}
+		r.Name = name
+	}
+
+	selector := map[string]string{
+		"deployment": r.Name,
+	}
+	for k, v := range r.Labels {
+		if _, ok := selector[k]; ok {
+			continue
+		}
+		selector[k] = v
+	}
+
+	imageTriggers := []appsv1.DeploymentTriggerPolicy{}
+	template := corev1.PodSpec{}
+	for i := range r.Images {
+		c, containerTriggers, err := r.Images[i].DeployableContainer(true)
+		if err != nil {
+			return nil, err
+		}
+		imageTriggers = append(imageTriggers, containerTriggers...)
+		template.Containers = append(template.Containers, *c)
+	}
+
+	// Transform deployment config triggers to deployment annotation triggers.
+	annotation := map[string]string{}
+	if len(imageTriggers) > 0 {
+		path := field.NewPath("spec", "template", "spec")
+		triggers := []triggerutil.ObjectFieldTrigger{}
+		for _, t := range imageTriggers {
+			for _, containerName := range t.ImageChangeParams.ContainerNames {
+				trigger := triggerutil.ObjectFieldTrigger{
+					From: triggerutil.ObjectReference{
+						Kind:      "ImageStreamTag",
+						Name:      t.ImageChangeParams.From.Name,
+						Namespace: t.ImageChangeParams.From.Namespace,
+					},
+					FieldPath: fmt.Sprintf(path.Child("containers").String()+"[?(@.name==\"%s\")].image", containerName),
+					Paused:    false,
+				}
+				triggers = append(triggers, trigger)
+			}
+		}
+		out, err := json.Marshal(triggers)
+		if err != nil {
+			return nil, err
+		}
+		annotation[triggerutil.TriggerAnnotationKey] = string(out)
+	}
+
+	// Create EmptyDir volumes for all container volume mounts
+	for _, c := range template.Containers {
+		for _, v := range c.VolumeMounts {
+			template.Volumes = append(template.Volumes, corev1.Volume{
+				Name: v.Name,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{Medium: corev1.StorageMediumDefault},
+				},
+			})
+		}
+	}
+
+	for i := range template.Containers {
+		template.Containers[i].Env = append(template.Containers[i].Env, r.Env.List()...)
+	}
+
+	replicas := int32(1)
+	d := &kappsv1.Deployment{
+		// this is ok because we know exactly how we want to be serialized
+		TypeMeta: metav1.TypeMeta{APIVersion: kappsv1.SchemeGroupVersion.String(), Kind: "Deployment"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        r.Name,
+			Annotations: annotation,
+		},
+		Spec: kappsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: selector,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: selector,
+				},
+				Spec: template,
+			},
+		},
+	}
+
+	return d, nil
 }
 
 // GenerateSecret generates a random secret string

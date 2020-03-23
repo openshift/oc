@@ -23,6 +23,7 @@ import (
 	"github.com/elazarl/goproxy"
 	docker "github.com/fsouza/go-dockerclient"
 
+	kappsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/apitesting"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -384,6 +385,49 @@ func TestNewAppRunAll(t *testing.T) {
 				OriginNamespace: "default",
 			},
 			expected: map[string][]string{
+				"imageStream": {"ruby-hello-world", "ruby"},
+				"buildConfig": {"ruby-hello-world"},
+				"deployment":  {"ruby-hello-world"},
+				"service":     {"ruby-hello-world"},
+			},
+			expectedName:    "ruby-hello-world",
+			expectedVolumes: nil,
+			expectedErr:     nil,
+		},
+		{
+			name: "successful ruby app generation - deployment config",
+			config: &cmd.AppConfig{
+				ComponentInputs: cmd.ComponentInputs{
+					SourceRepositories: []string{"https://github.com/openshift/ruby-hello-world"},
+				},
+				Resolvers: cmd.Resolvers{
+					ImageStreamByAnnotationSearcher: app.NewImageStreamByAnnotationSearcher(okImageClient.ImageV1(), okImageClient.ImageV1(), []string{"default"}),
+					TemplateSearcher: app.TemplateSearcher{
+						Client:     okTemplateClient.TemplateV1(),
+						Namespaces: []string{"openshift", "default"},
+					},
+					DockerSearcher: fakeDockerSearcher(),
+					ImageStreamSearcher: app.ImageStreamSearcher{
+						Client:     okImageClient.ImageV1(),
+						Namespaces: []string{"default"},
+					},
+					Detector: app.SourceRepositoryEnumerator{
+						Detectors:         source.DefaultDetectors,
+						DockerfileTester:  dockerfile.NewTester(),
+						JenkinsfileTester: jenkinsfile.NewTester(),
+					},
+				},
+				GenerationInputs: cmd.GenerationInputs{
+					Strategy:         newapp.StrategySource,
+					DeploymentConfig: true,
+				},
+				Typer:           customScheme,
+				ImageClient:     okImageClient.ImageV1(),
+				TemplateClient:  okTemplateClient.TemplateV1(),
+				RouteClient:     okRouteClient.RouteV1(),
+				OriginNamespace: "default",
+			},
+			expected: map[string][]string{
 				"imageStream":      {"ruby-hello-world", "ruby"},
 				"buildConfig":      {"ruby-hello-world"},
 				"deploymentConfig": {"ruby-hello-world"},
@@ -429,10 +473,10 @@ func TestNewAppRunAll(t *testing.T) {
 				OriginNamespace: "default",
 			},
 			expected: map[string][]string{
-				"imageStream":      {"ruby-hello-world", "ruby"},
-				"buildConfig":      {"ruby-hello-world"},
-				"deploymentConfig": {"ruby-hello-world"},
-				"service":          {"ruby-hello-world"},
+				"imageStream": {"ruby-hello-world", "ruby"},
+				"buildConfig": {"ruby-hello-world"},
+				"deployment":  {"ruby-hello-world"},
+				"service":     {"ruby-hello-world"},
 			},
 			expectedName:    "ruby-hello-world",
 			expectedVolumes: nil,
@@ -473,10 +517,10 @@ func TestNewAppRunAll(t *testing.T) {
 			},
 			checkPort: "8080",
 			expected: map[string][]string{
-				"imageStream":      {"ruby-hello-world", "ruby-25-centos7"},
-				"buildConfig":      {"ruby-hello-world"},
-				"deploymentConfig": {"ruby-hello-world"},
-				"service":          {"ruby-hello-world"},
+				"imageStream": {"ruby-hello-world", "ruby-25-centos7"},
+				"buildConfig": {"ruby-hello-world"},
+				"deployment":  {"ruby-hello-world"},
+				"service":     {"ruby-hello-world"},
 			},
 			expectedName: "ruby-hello-world",
 			expectedErr:  nil,
@@ -513,10 +557,10 @@ func TestNewAppRunAll(t *testing.T) {
 				OriginNamespace: "default",
 			},
 			expected: map[string][]string{
-				"imageStream":      {"sti-ruby"},
-				"buildConfig":      {"sti-ruby"},
-				"deploymentConfig": {"sti-ruby"},
-				"service":          {"sti-ruby"},
+				"imageStream": {"sti-ruby"},
+				"buildConfig": {"sti-ruby"},
+				"deployment":  {"sti-ruby"},
+				"service":     {"sti-ruby"},
 			},
 			expectedName:    "sti-ruby",
 			expectedVolumes: nil,
@@ -554,10 +598,10 @@ func TestNewAppRunAll(t *testing.T) {
 				OriginNamespace: "default",
 			},
 			expected: map[string][]string{
-				"imageStream":      {"sti-ruby"},
-				"buildConfig":      {"sti-ruby"},
-				"deploymentConfig": {"sti-ruby"},
-				"service":          {"sti-ruby"},
+				"imageStream": {"sti-ruby"},
+				"buildConfig": {"sti-ruby"},
+				"deployment":  {"sti-ruby"},
+				"service":     {"sti-ruby"},
 			},
 			expectedName:    "sti-ruby",
 			expectedVolumes: nil,
@@ -608,10 +652,10 @@ func TestNewAppRunAll(t *testing.T) {
 				OriginNamespace: "default",
 			},
 			expected: map[string][]string{
-				"imageStream":      {"example", "ruby-hello-world"},
-				"buildConfig":      {"ruby-hello-world"},
-				"deploymentConfig": {"ruby-hello-world"},
-				"service":          {"ruby-hello-world"},
+				"imageStream": {"example", "ruby-hello-world"},
+				"buildConfig": {"ruby-hello-world"},
+				"deployment":  {"ruby-hello-world"},
+				"service":     {"ruby-hello-world"},
 			},
 			expectedName:    "ruby-hello-world",
 			expectedErr:     nil,
@@ -650,10 +694,10 @@ func TestNewAppRunAll(t *testing.T) {
 			},
 
 			expected: map[string][]string{
-				"imageStream":      {"mysql"},
-				"deploymentConfig": {"mysql"},
-				"service":          {"mysql"},
-				"volumeMounts":     {"mysql-volume-1"},
+				"imageStream":  {"mysql"},
+				"deployment":   {"mysql"},
+				"service":      {"mysql"},
+				"volumeMounts": {"mysql-volume-1"},
 			},
 			expectedName: "mysql",
 			expectedVolumes: map[string]string{
@@ -699,10 +743,10 @@ func TestNewAppRunAll(t *testing.T) {
 				OriginNamespace: "default",
 			},
 			expected: map[string][]string{
-				"imageStream":      {"ruby-hello-world", "ruby-25-centos7"},
-				"buildConfig":      {"ruby-hello-world"},
-				"deploymentConfig": {"ruby-hello-world"},
-				"service":          {"ruby-hello-world"},
+				"imageStream": {"ruby-hello-world", "ruby-25-centos7"},
+				"buildConfig": {"ruby-hello-world"},
+				"deployment":  {"ruby-hello-world"},
+				"service":     {"ruby-hello-world"},
 			},
 			expectedName: "ruby-hello-world",
 			expectedErr:  nil,
@@ -744,10 +788,10 @@ func TestNewAppRunAll(t *testing.T) {
 				OriginNamespace: "default",
 			},
 			expected: map[string][]string{
-				"imageStream":      {"ruby-hello-world"},
-				"buildConfig":      {"ruby-hello-world"},
-				"deploymentConfig": {"ruby-hello-world"},
-				"service":          {"ruby-hello-world"},
+				"imageStream": {"ruby-hello-world"},
+				"buildConfig": {"ruby-hello-world"},
+				"deployment":  {"ruby-hello-world"},
+				"service":     {"ruby-hello-world"},
 			},
 			expectedName: "ruby-hello-world",
 			expectedErr:  nil,
@@ -791,9 +835,9 @@ func TestNewAppRunAll(t *testing.T) {
 				OriginNamespace: "default",
 			},
 			expected: map[string][]string{
-				"imageStream":      {"custom"},
-				"deploymentConfig": {"custom"},
-				"service":          {"custom"},
+				"imageStream": {"custom"},
+				"deployment":  {"custom"},
+				"service":     {"custom"},
 			},
 			expectedName: "custom",
 			expectedErr:  nil,
@@ -827,9 +871,9 @@ func TestNewAppRunAll(t *testing.T) {
 				OriginNamespace: "default",
 			},
 			expected: map[string][]string{
-				"imageStream":      {"custom"},
-				"deploymentConfig": {"custom"},
-				"service":          {"custom"},
+				"imageStream": {"custom"},
+				"deployment":  {"custom"},
+				"service":     {"custom"},
 			},
 			expectedName: "custom",
 			errFn: func(err error) bool {
@@ -900,6 +944,27 @@ func TestNewAppRunAll(t *testing.T) {
 				case *imagev1.ImageStream:
 					got["imageStream"] = append(got["imageStream"], tp.Name)
 					imageStreams = append(imageStreams, tp)
+				case *kappsv1.Deployment:
+					got["deployment"] = append(got["deployment"], tp.Name)
+					podTemplate := tp.Spec.Template
+					for _, volume := range podTemplate.Spec.Volumes {
+						if volume.VolumeSource.EmptyDir != nil {
+							gotVolumes[volume.Name] = "EmptyDir"
+						} else {
+							gotVolumes[volume.Name] = "UNKNOWN"
+						}
+					}
+					for _, container := range podTemplate.Spec.Containers {
+						for _, volumeMount := range container.VolumeMounts {
+							got["volumeMounts"] = append(got["volumeMounts"], volumeMount.Name)
+						}
+					}
+					if test.config.Labels != nil {
+						if !mapContains(test.config.Labels, tp.Spec.Template.Labels) {
+							t.Errorf("%s: did not get expected deployment r selector. Expected: %v. Got: %v",
+								test.name, test.config.Labels, tp.Spec.Selector)
+						}
+					}
 				case *appsv1.DeploymentConfig:
 					got["deploymentConfig"] = append(got["deploymentConfig"], tp.Name)
 					if podTemplate := tp.Spec.Template; podTemplate != nil {
