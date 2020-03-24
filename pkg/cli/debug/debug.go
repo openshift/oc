@@ -19,14 +19,18 @@ import (
 	batchv2alpha1 "k8s.io/api/batch/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
 	"k8s.io/kubectl/pkg/cmd/attach"
 	"k8s.io/kubectl/pkg/cmd/logs"
@@ -121,10 +125,11 @@ type DebugOptions struct {
 	LogsForObject    polymorphichelpers.LogsForObjectFunc
 	RESTClientGetter genericclioptions.RESTClientGetter
 
-	NoStdin    bool
-	ForceTTY   bool
-	DisableTTY bool
-	Timeout    time.Duration
+	PreservePod bool
+	NoStdin     bool
+	ForceTTY    bool
+	DisableTTY  bool
+	Timeout     time.Duration
 
 	Command            []string
 	Annotations        map[string]string
@@ -138,6 +143,7 @@ type DebugOptions struct {
 	KeepInitContainers bool
 	OneContainer       bool
 	NodeName           string
+	NodeNameSet        bool
 	AddEnv             []corev1.EnvVar
 	RemoveEnv          []string
 	Resources          []string
@@ -198,6 +204,7 @@ func NewCmdDebug(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	cmd.Flags().MarkHidden("show-all")
 	cmd.Flags().Bool("show-labels", false, "When printing, show all labels as the last column (default hide labels column)")
 
+	cmd.Flags().BoolVarP(&o.Attach.Quiet, "quiet", "q", o.Attach.Quiet, "No informational messages will be printed.")
 	cmd.Flags().BoolVarP(&o.NoStdin, "no-stdin", "I", o.NoStdin, "Bypasses passing STDIN to the container, defaults to true if no command specified")
 	cmd.Flags().BoolVarP(&o.ForceTTY, "tty", "t", o.ForceTTY, "Force a pseudo-terminal to be allocated")
 	cmd.Flags().BoolVarP(&o.DisableTTY, "no-tty", "T", o.DisableTTY, "Disable pseudo-terminal allocation")
@@ -212,6 +219,7 @@ func NewCmdDebug(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	cmd.Flags().Int64Var(&o.AsUser, "as-user", o.AsUser, "Try to run the container as a specific user UID (note: admins may limit your ability to use this flag)")
 	cmd.Flags().StringVar(&o.Image, "image", o.Image, "Override the image used by the targeted container.")
 	cmd.Flags().StringVar(&o.ToNamespace, "to-namespace", o.ToNamespace, "Override the namespace to create the pod into (instead of using --namespace).")
+	cmd.Flags().BoolVar(&o.PreservePod, "preserve-pod", o.PreservePod, "If true, the pod will not be deleted after the debug command exits.")
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
@@ -255,6 +263,8 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 		o.Attach.TTY = false
 		o.Attach.Stdin = false
 	}
+
+	o.NodeNameSet = cmd.Flags().Changed("node-name")
 
 	if o.Annotations == nil {
 		o.Annotations = make(map[string]string)
@@ -342,13 +352,13 @@ func (o *DebugOptions) RunDebug() error {
 	if len(o.FilenameOptions.Filenames) > 0 {
 		b.FilenameParam(o.ExplicitNamespace, &o.FilenameOptions)
 	}
-	one := false
-	infos, err := b.Do().IntoSingleItemImplied(&one).Infos()
+	infos, err := b.Do().Infos()
 	if err != nil {
 		return err
 	}
-	if !one {
-		return fmt.Errorf("you must identify a resource with a pod template to debug")
+	if len(infos) != 1 {
+		klog.V(4).Infof("Objects: %#v", infos)
+		return fmt.Errorf("you must identify a single resource with a pod template to debug")
 	}
 
 	template, err := o.approximatePodTemplateForObject(infos[0].Object)
@@ -373,10 +383,12 @@ func (o *DebugOptions) RunDebug() error {
 	o.Attach.Pod = pod
 
 	if len(o.Attach.ContainerName) == 0 && len(pod.Spec.Containers) > 0 {
-		if len(pod.Spec.Containers) > 1 && len(o.FullCmdName) > 0 {
-			fmt.Fprintf(o.ErrOut, "Defaulting container name to %s.\n", pod.Spec.Containers[0].Name)
-			fmt.Fprintf(o.ErrOut, "Use '%s describe pod/%s -n %s' to see all of the containers in this pod.\n", o.FullCmdName, pod.Name, pod.Namespace)
-			fmt.Fprintf(o.ErrOut, "\n")
+		if !o.Attach.Quiet {
+			if len(pod.Spec.Containers) > 1 && len(o.FullCmdName) > 0 {
+				fmt.Fprintf(o.ErrOut, "Defaulting container name to %s.\n", pod.Spec.Containers[0].Name)
+				fmt.Fprintf(o.ErrOut, "Use '%s describe pod/%s -n %s' to see all of the containers in this pod.\n", o.FullCmdName, pod.Name, pod.Namespace)
+				fmt.Fprintf(o.ErrOut, "\n")
+			}
 		}
 
 		klog.V(4).Infof("Defaulting container name to %s", pod.Spec.Containers[0].Name)
@@ -420,14 +432,22 @@ func (o *DebugOptions) RunDebug() error {
 	o.Attach.InterruptParent = interrupt.New(
 		func(os.Signal) { os.Exit(1) },
 		func() {
+			if o.PreservePod {
+				return
+			}
 			stderr := o.ErrOut
 			if stderr == nil {
 				stderr = os.Stderr
 			}
-			fmt.Fprintf(stderr, "\nRemoving debug pod ...\n")
+			if !o.Attach.Quiet {
+				fmt.Fprintf(stderr, "\nRemoving debug pod ...\n")
+			}
 			if err := o.CoreClient.Pods(pod.Namespace).Delete(pod.Name, metav1.NewDeleteOptions(0)); err != nil {
 				if !kapierrors.IsNotFound(err) {
-					fmt.Fprintf(stderr, "error: unable to delete the debug pod %q: %v\n", pod.Name, err)
+					klog.V(2).Infof("Unable to delete the debug pod %q: %v", pod.Name, err)
+					if !o.Attach.Quiet {
+						fmt.Fprintf(stderr, "error: unable to delete the debug pod %q: %v\n", pod.Name, err)
+					}
 				}
 			}
 		},
@@ -435,22 +455,52 @@ func (o *DebugOptions) RunDebug() error {
 
 	klog.V(5).Infof("Created attach arguments: %#v", o.Attach)
 	return o.Attach.InterruptParent.Run(func() error {
-		w, err := o.CoreClient.Pods(pod.Namespace).Watch(metav1.SingleObject(pod.ObjectMeta))
-		if err != nil {
-			return err
+		if !o.Attach.Quiet {
+			if len(commandString) > 0 {
+				fmt.Fprintf(o.ErrOut, "Starting pod/%s, command was: %s\n", pod.Name, commandString)
+			} else {
+				fmt.Fprintf(o.ErrOut, "Starting pod/%s ...\n", pod.Name)
+			}
+			if o.IsNode {
+				fmt.Fprintf(o.ErrOut, "To use host binaries, run `chroot /host`\n")
+			}
 		}
-		if len(commandString) > 0 {
-			fmt.Fprintf(o.ErrOut, "Starting pod/%s, command was: %s\n", pod.Name, commandString)
-		} else {
-			fmt.Fprintf(o.ErrOut, "Starting pod/%s ...\n", pod.Name)
+
+		fieldSelector := fields.OneTermEqualSelector("metadata.name", pod.Name).String()
+		lw := &cache.ListWatch{
+			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+				options.FieldSelector = fieldSelector
+				return o.CoreClient.Pods(ns).List(options)
+			},
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+				options.FieldSelector = fieldSelector
+				return o.CoreClient.Pods(ns).Watch(options)
+			},
 		}
-		if o.IsNode {
-			fmt.Fprintf(o.ErrOut, "To use host binaries, run `chroot /host`\n")
+		preconditionFunc := func(store cache.Store) (bool, error) {
+			_, exists, err := store.Get(&metav1.ObjectMeta{Namespace: ns, Name: pod.Name})
+			if err != nil {
+				return true, err
+			}
+			if !exists {
+				// We need to make sure we see the object in the cache before we start waiting for events
+				// or we would be waiting for the timeout if such object didn't exist.
+				// (e.g. it was deleted before we started informers so they wouldn't even see the delete event)
+				return true, errors.NewNotFound(corev1.Resource("pods"), pod.Name)
+			}
+
+			return false, nil
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 		defer cancel()
-		switch containerRunningEvent, err := watchtools.UntilWithoutRetry(ctx, w, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient)); {
+		containerRunningEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient))
+		if err == nil {
+			klog.V(4).Infof("Stopped waiting for pod: %s %#v", containerRunningEvent.Type, containerRunningEvent.Object)
+		} else {
+			klog.V(4).Infof("Stopped waiting for pod: %v", err)
+		}
+		switch {
 		// api didn't error right away but the pod wasn't even created
 		case kapierrors.IsNotFound(err):
 			msg := fmt.Sprintf("unable to create the debug pod %q", pod.Name)
@@ -471,10 +521,12 @@ func (o *DebugOptions) RunDebug() error {
 		case !o.Attach.Stdin:
 			return o.getLogs(pod)
 		default:
-			// TODO this doesn't do us much good for remote debugging sessions, but until we get a local port
-			// set up to proxy, this is what we've got.
-			if podWithStatus, ok := containerRunningEvent.Object.(*corev1.Pod); ok {
-				fmt.Fprintf(o.Attach.ErrOut, "Pod IP: %s\n", podWithStatus.Status.PodIP)
+			if !o.Attach.Quiet {
+				// TODO this doesn't do us much good for remote debugging sessions, but until we get a local port
+				// set up to proxy, this is what we've got.
+				if podWithStatus, ok := containerRunningEvent.Object.(*corev1.Pod); ok {
+					fmt.Fprintf(o.Attach.ErrOut, "Pod IP: %s\n", podWithStatus.Status.PodIP)
+				}
 			}
 
 			// TODO: attach can race with pod completion, allow attach to switch to logs
@@ -864,7 +916,7 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 					{Name: "container-00", Image: t.Image.DockerImageReference},
 				},
 			},
-		}, o.NodeName), nil
+		}, o.NodeName, o.NodeNameSet), nil
 	case *imagev1.ImageStreamImage:
 		// create a minimal pod spec that uses the image referenced by the istag without any introspection
 		// it possible that we could someday do a better job introspecting it
@@ -875,21 +927,21 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 					{Name: "container-00", Image: t.Image.DockerImageReference},
 				},
 			},
-		}, o.NodeName), nil
+		}, o.NodeName, o.NodeNameSet), nil
 	case *appsv1.DeploymentConfig:
 		fallback := t.Spec.Template
 
 		latestDeploymentName := appsutil.LatestDeploymentNameForConfig(t)
 		deployment, err := o.CoreClient.ReplicationControllers(t.Namespace).Get(latestDeploymentName, metav1.GetOptions{})
 		if err != nil {
-			return setNodeName(fallback, o.NodeName), err
+			return setNodeName(fallback, o.NodeName, o.NodeNameSet), err
 		}
 
 		fallback = deployment.Spec.Template
 
 		pods, err := o.CoreClient.Pods(deployment.Namespace).List(metav1.ListOptions{LabelSelector: labels.SelectorFromSet(deployment.Spec.Selector).String()})
 		if err != nil {
-			return setNodeName(fallback, o.NodeName), err
+			return setNodeName(fallback, o.NodeName, o.NodeNameSet), err
 		}
 
 		// If we have any pods available, find the newest
@@ -905,61 +957,61 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 				}
 			}
 		}
-		return setNodeName(fallback, o.NodeName), nil
+		return setNodeName(fallback, o.NodeName, o.NodeNameSet), nil
 
 	case *corev1.Pod:
 		return setNodeName(&corev1.PodTemplateSpec{
 			ObjectMeta: t.ObjectMeta,
 			Spec:       t.Spec,
-		}, o.NodeName), nil
+		}, o.NodeName, o.NodeNameSet), nil
 
 	// ReplicationController
 	case *corev1.ReplicationController:
-		return setNodeName(t.Spec.Template, o.NodeName), nil
+		return setNodeName(t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// ReplicaSet
 	case *extensionsv1beta1.ReplicaSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta2.ReplicaSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1.ReplicaSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// Deployment
 	case *extensionsv1beta1.Deployment:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta1.Deployment:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta2.Deployment:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1.Deployment:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// StatefulSet
 	case *kappsv1.StatefulSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta2.StatefulSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta1.StatefulSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// DaemonSet
 	case *extensionsv1beta1.DaemonSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1beta2.DaemonSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *kappsv1.DaemonSet:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// Job
 	case *batchv1.Job:
-		return setNodeName(&t.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// CronJob
 	case *batchv1beta1.CronJob:
-		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *batchv2alpha1.CronJob:
-		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName), nil
+		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	}
 
 	return nil, fmt.Errorf("unable to extract pod template from type %v", reflect.TypeOf(object))
@@ -979,8 +1031,8 @@ func (o *DebugOptions) getLogs(pod *corev1.Pod) error {
 	}.RunLogs()
 }
 
-func setNodeName(template *corev1.PodTemplateSpec, nodeName string) *corev1.PodTemplateSpec {
-	if len(nodeName) > 0 {
+func setNodeName(template *corev1.PodTemplateSpec, nodeName string, overrideWhenEmpty bool) *corev1.PodTemplateSpec {
+	if len(nodeName) > 0 || overrideWhenEmpty {
 		template.Spec.NodeName = nodeName
 	}
 	return template

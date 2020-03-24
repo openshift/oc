@@ -39,6 +39,10 @@ func PodContainerRunning(containerName string, coreClient corev1client.CoreV1Int
 						}
 					}
 				}
+				// until the pod is marked as running, we we have to loop
+				if t.Status.Phase == corev1.PodPending {
+					return false, nil
+				}
 			case corev1.PodFailed, corev1.PodSucceeded:
 				for _, s := range t.Status.ContainerStatuses {
 					if s.State.Terminated != nil {
