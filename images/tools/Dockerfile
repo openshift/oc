@@ -22,8 +22,6 @@ RUN INSTALL_PKGS="\
   net-tools \
   netsniff-ng \
   nmap-ncat \
-  numactl \
-  numactl-devel \
   parted \
   pciutils \
   psmisc \
@@ -39,6 +37,9 @@ RUN INSTALL_PKGS="\
   xfsprogs \
   " && \
   yum -y install $INSTALL_PKGS && rpm -V --nosize --nofiledigest --nomtime --nomode $INSTALL_PKGS && yum clean all && rm -rf /var/cache/*
+  # Disabled until they are buildable on s390x
+  # numactl \
+  # numactl-devel \
 
 # The tools image doesn't require a root user.
 USER 1001
