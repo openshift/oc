@@ -3,40 +3,27 @@ package rsh
 import (
 	"fmt"
 	"os"
-	"sort"
 	"time"
 
 	"github.com/spf13/cobra"
 
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/kubernetes"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/kubectl/pkg/util/term"
-	"k8s.io/kubernetes/pkg/apis/apps"
-	"k8s.io/kubernetes/pkg/apis/batch"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/controller"
-
-	oapps "github.com/openshift/api/apps"
-	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
-	"github.com/openshift/library-go/pkg/apps/appsutil"
-	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
 const (
-	RshRecommendedName = "rsh"
-	DefaultShell       = "/bin/sh"
+	RshRecommendedName   = "rsh"
+	DefaultShell         = "/bin/sh"
+	defaultPodRshTimeout = 60 * time.Second
 )
 
 var (
+	rshUsageStr    = "rsh (POD | TYPE/NAME) [-c CONTAINER] [flags] -- COMMAND [args...]"
+	rshUsageErrStr = fmt.Sprintf("expected '%s'.\nPOD or TYPE/NAME is a required argument for the rsh command", rshUsageStr)
+
 	rshLong = templates.LongDesc(`
 		Open a remote shell session to a container
 
@@ -87,6 +74,7 @@ func NewRshOptions(parent string, streams genericclioptions.IOStreams) *RshOptio
 		ForceTTY:   false,
 		DisableTTY: false,
 		Timeout:    10,
+		Executable: DefaultShell,
 		ExecOptions: &exec.ExecOptions{
 			StreamOptions: exec.StreamOptions{
 				IOStreams: streams,
@@ -105,27 +93,35 @@ func NewCmdRsh(name string, parent string, f kcmdutil.Factory, streams genericcl
 	options := NewRshOptions(parent, streams)
 
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s [flags] POD [COMMAND]", name),
-		Short:   "Start a shell session in a pod",
-		Long:    fmt.Sprintf(rshLong, parent),
-		Example: fmt.Sprintf(rshExample, parent+" "+name),
+		Use:                   rshUsageStr,
+		DisableFlagsInUseLine: true,
+		Short:                 "Start a shell session in a container.",
+		Long:                  fmt.Sprintf(rshLong, parent),
+		Example:               fmt.Sprintf(rshExample, parent+" "+name),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(options.Complete(f, cmd, args))
 			kcmdutil.CheckErr(options.Validate())
 			kcmdutil.CheckErr(options.Run())
 		},
 	}
-	cmd.Flags().BoolVarP(&options.ForceTTY, "tty", "t", false, "Force a pseudo-terminal to be allocated")
-	cmd.Flags().BoolVarP(&options.DisableTTY, "no-tty", "T", false, "Disable pseudo-terminal allocation")
-	cmd.Flags().StringVar(&options.Executable, "shell", DefaultShell, "Path to the shell command")
-	cmd.Flags().IntVar(&options.Timeout, "timeout", 10, "Request timeout for obtaining a pod from the server; defaults to 10 seconds")
-	cmd.Flags().StringVarP(&options.ContainerName, "container", "c", "", "Container name; defaults to first container")
+	kcmdutil.AddPodRunningTimeoutFlag(cmd, defaultPodRshTimeout)
+	cmd.Flags().BoolVarP(&options.ForceTTY, "tty", "t", options.ForceTTY, "Force a pseudo-terminal to be allocated")
+	cmd.Flags().BoolVarP(&options.DisableTTY, "no-tty", "T", options.DisableTTY, "Disable pseudo-terminal allocation")
+	cmd.Flags().StringVar(&options.Executable, "shell", options.Executable, "Path to the shell command")
+	cmd.Flags().IntVar(&options.Timeout, "timeout", options.Timeout, "Request timeout for obtaining a pod from the server; defaults to 10 seconds")
+	cmd.Flags().MarkDeprecated("timeout", "use --request-timeout, instead.")
+	cmd.Flags().StringVarP(&options.ContainerName, "container", "c", options.ContainerName, "Container name; defaults to first container")
 	cmd.Flags().SetInterspersed(false)
 	return cmd
 }
 
 // Complete applies the command environment to RshOptions
 func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
+	argsLenAtDash := cmd.ArgsLenAtDash()
+	if len(args) == 0 || argsLenAtDash == 0 {
+		return kcmdutil.UsageErrorf(cmd, "%s", rshUsageErrStr)
+	}
+
 	switch {
 	case o.ForceTTY && o.DisableTTY:
 		return kcmdutil.UsageErrorf(cmd, "you may not specify -t and -T together")
@@ -137,35 +133,17 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 		o.TTY = term.IsTerminal(o.In)
 	}
 
-	if len(args) < 1 {
-		return kcmdutil.UsageErrorf(cmd, "rsh requires a single Pod to connect to")
+	if err := o.ExecOptions.Complete(f, cmd, args, argsLenAtDash); err != nil {
+		return err
 	}
-	resource := args[0]
+
+	// overwrite ExecOptions with rsh specifics
 	args = args[1:]
 	if len(args) > 0 {
 		o.Command = args
 	} else {
 		o.Command = []string{o.Executable}
 	}
-
-	namespace, _, err := f.ToRawKubeConfigLoader().Namespace()
-	if err != nil {
-		return err
-	}
-	o.Namespace = namespace
-
-	config, err := f.ToRESTConfig()
-	if err != nil {
-		return err
-	}
-	o.Config = config
-
-	o.PodClient, err = corev1client.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	o.PodName, err = podForResource(f, resource, time.Duration(o.Timeout)*time.Second)
 
 	fullCmdName := ""
 	cmdParent := cmd.Parent()
@@ -174,7 +152,7 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 	}
 	o.ExecOptions.EnableSuggestedCmdUsage = len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe")
 
-	return err
+	return nil
 }
 
 // Validate ensures that RshOptions are valid
@@ -194,173 +172,4 @@ func (o *RshOptions) Run() error {
 		o.Command = append(o.Command, "-c", termsh)
 	}
 	return o.ExecOptions.Run()
-}
-
-func podForResource(f kcmdutil.Factory, resource string, timeout time.Duration) (string, error) {
-	sortBy := func(pods []*corev1.Pod) sort.Interface { return sort.Reverse(controller.ActivePods(pods)) }
-	namespace, _, err := f.ToRawKubeConfigLoader().Namespace()
-	if err != nil {
-		return "", err
-	}
-	mapper, err := f.ToRESTMapper()
-	if err != nil {
-		return "", err
-	}
-	resourceType, name, err := cmdutil.ResolveResource(corev1.Resource("pods"), resource, mapper)
-	if err != nil {
-		return "", err
-	}
-	clientConfig, err := f.ToRESTConfig()
-	if err != nil {
-		return "", err
-	}
-
-	switch resourceType {
-	case corev1.Resource("pods"):
-		return name, nil
-	case corev1.Resource("replicationcontrollers"):
-		kc, err := corev1client.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-		rc, err := kc.ReplicationControllers(namespace).Get(name, metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		selector := labels.SelectorFromSet(rc.Spec.Selector)
-		pod, _, err := polymorphichelpers.GetFirstPod(kc, namespace, selector.String(), timeout, sortBy)
-		if err != nil {
-			return "", err
-		}
-		return pod.Name, nil
-	case oapps.Resource("deploymentconfigs"):
-		appsClient, err := appsv1client.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-		dc, err := appsClient.DeploymentConfigs(namespace).Get(name, metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		return podForResource(f, fmt.Sprintf("rc/%s", appsutil.LatestDeploymentNameForConfig(dc)), timeout)
-	case extensions.Resource("daemonsets"):
-		kc, err := kubernetes.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-		ds, err := kc.ExtensionsV1beta1().DaemonSets(namespace).Get(name, metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		selector, err := metav1.LabelSelectorAsSelector(ds.Spec.Selector)
-		if err != nil {
-			return "", err
-		}
-		coreclient, err := corev1client.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-
-		pod, _, err := polymorphichelpers.GetFirstPod(coreclient, namespace, selector.String(), timeout, sortBy)
-		if err != nil {
-			return "", err
-		}
-		return pod.Name, nil
-	case extensions.Resource("deployments"):
-		kc, err := kubernetes.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-		d, err := kc.ExtensionsV1beta1().Deployments(namespace).Get(name, metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		selector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
-		if err != nil {
-			return "", err
-		}
-		coreclient, err := corev1client.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-		pod, _, err := polymorphichelpers.GetFirstPod(coreclient, namespace, selector.String(), timeout, sortBy)
-		if err != nil {
-			return "", err
-		}
-		return pod.Name, nil
-	case apps.Resource("statefulsets"):
-		kc, err := kubernetes.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-		s, err := kc.AppsV1().StatefulSets(namespace).Get(name, metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		selector, err := metav1.LabelSelectorAsSelector(s.Spec.Selector)
-		if err != nil {
-			return "", err
-		}
-		coreclient, err := corev1client.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-		pod, _, err := polymorphichelpers.GetFirstPod(coreclient, namespace, selector.String(), timeout, sortBy)
-		if err != nil {
-			return "", err
-		}
-		return pod.Name, nil
-	case extensions.Resource("replicasets"):
-		kc, err := kubernetes.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-		rs, err := kc.ExtensionsV1beta1().ReplicaSets(namespace).Get(name, metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		selector, err := metav1.LabelSelectorAsSelector(rs.Spec.Selector)
-		if err != nil {
-			return "", err
-		}
-		coreclient, err := corev1client.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-		pod, _, err := polymorphichelpers.GetFirstPod(coreclient, namespace, selector.String(), timeout, sortBy)
-		if err != nil {
-			return "", err
-		}
-		return pod.Name, nil
-	case batch.Resource("jobs"):
-		kc, err := kubernetes.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-		job, err := kc.BatchV1().Jobs(namespace).Get(name, metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		coreclient, err := corev1client.NewForConfig(clientConfig)
-		if err != nil {
-			return "", err
-		}
-
-		return podNameForJob(job, coreclient, timeout, sortBy)
-	default:
-		return "", fmt.Errorf("remote shell for %s is not supported", resourceType)
-	}
-}
-
-func podNameForJob(job *batchv1.Job, kc corev1client.CoreV1Interface, timeout time.Duration, sortBy func(pods []*corev1.Pod) sort.Interface) (string, error) {
-	selector, err := metav1.LabelSelectorAsSelector(job.Spec.Selector)
-	if err != nil {
-		return "", err
-	}
-
-	pod, _, err := polymorphichelpers.GetFirstPod(kc, job.Namespace, selector.String(), timeout, sortBy)
-	if err != nil {
-		return "", err
-	}
-	return pod.Name, nil
 }
