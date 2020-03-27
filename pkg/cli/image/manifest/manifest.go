@@ -445,6 +445,16 @@ func PutManifestInCompatibleSchema(
 	} else {
 		klog.V(5).Infof("Put manifest %s", ref)
 	}
+	switch t := srcManifest.(type) {
+	case *schema1.SignedManifest:
+		manifest, err := convertToSchema2(ctx, blobs, t)
+		if err != nil {
+			klog.V(2).Infof("Unable to convert manifest to schema2: %v", err)
+			return toManifests.Put(ctx, t, distribution.WithTag(tag))
+		}
+		return toManifests.Put(ctx, manifest, options...)
+	}
+
 	toDigest, err := toManifests.Put(ctx, srcManifest, options...)
 	if err == nil {
 		return toDigest, nil
@@ -481,6 +491,51 @@ func PutManifestInCompatibleSchema(
 		klog.Infof("Converted to v2schema1\n%s", string(data))
 	}
 	return toManifests.Put(ctx, schema1Manifest, distribution.WithTag(tag))
+}
+
+// convertToSchema2 attempts to build a v2 manifest from a v1 manifest, which requires reading blobs to get layer sizes.
+// Requires the destination layers already exist in the target repository.
+func convertToSchema2(ctx context.Context, blobs distribution.BlobService, srcManifest *schema1.SignedManifest) (distribution.Manifest, error) {
+	if klog.V(6) {
+		klog.Infof("Up converting v1 schema image:\n%#v", srcManifest.Manifest)
+	}
+
+	config, layers, err := ManifestToImageConfig(ctx, srcManifest, blobs, ManifestLocation{})
+	if err != nil {
+		return nil, err
+	}
+	if klog.V(6) {
+		klog.Infof("Resulting schema: %#v", config)
+	}
+	// create synthetic history
+	// TODO: create restored history?
+	if len(config.History) == 0 {
+		for i := len(config.History); i < len(layers); i++ {
+			config.History = append(config.History, dockerv1client.DockerConfigHistory{
+				Created: config.Created,
+			})
+		}
+	}
+
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		return nil, err
+	}
+	if klog.V(6) {
+		klog.Infof("Resulting config.json:\n%s", string(configJSON))
+	}
+	b := schema2.NewManifestBuilder(blobs, schema2.MediaTypeImageConfig, configJSON)
+	for _, layer := range layers {
+		desc, err := blobs.Stat(ctx, layer.Digest)
+		if err != nil {
+			return nil, err
+		}
+		desc.MediaType = schema2.MediaTypeLayer
+		if err := b.AppendReference(desc); err != nil {
+			return nil, err
+		}
+	}
+	return b.Build(ctx)
 }
 
 // TDOO: remove when quay.io switches to v2 schema
