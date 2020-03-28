@@ -84,6 +84,21 @@ func (g *git) basename() string {
 	return filepath.Base(g.path)
 }
 
+func (g *git) VerifyCommit(repo, commit string) (bool, error) {
+	_, err := g.exec("rev-parse", commit)
+	if err == nil {
+		return true, nil
+	}
+
+	// try to fetch by URL
+	klog.V(4).Infof("failed to find commit, fetching: %v", err)
+	if err := ensureFetchedRemoteForRepo(g, repo); err != nil {
+		return false, err
+	}
+	_, err = g.exec("rev-parse", commit)
+	return err == nil, nil
+}
+
 func (g *git) CheckoutCommit(repo, commit string) error {
 	_, err := g.exec("checkout", commit)
 	if err == nil {

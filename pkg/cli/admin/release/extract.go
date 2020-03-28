@@ -2,9 +2,12 @@ package release
 
 import (
 	"archive/tar"
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	digest "github.com/opencontainers/go-digest"
@@ -19,6 +22,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
+	"github.com/openshift/oc/pkg/cli/image/workqueue"
 )
 
 func NewExtractOptions(streams genericclioptions.IOStreams) *ExtractOptions {
@@ -79,6 +83,8 @@ func NewExtract(f kcmdutil.Factory, parentName string, streams genericclioptions
 	flags.StringVar(&o.Command, "command", o.Command, "Specify 'oc' or 'openshift-install' to extract the client for your operating system.")
 	flags.StringVar(&o.CommandOperatingSystem, "command-os", o.CommandOperatingSystem, "Override which operating system command is extracted (mac, windows, linux). You map specify '*' to extract all tool archives.")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
+
+	flags.StringVarP(&o.Output, "output", "o", o.Output, "Output format. Supports 'commit' when used with '--git'.")
 	return cmd
 }
 
@@ -87,6 +93,8 @@ type ExtractOptions struct {
 
 	SecurityOptions imagemanifest.SecurityOptions
 	ParallelOptions imagemanifest.ParallelOptions
+
+	Output string
 
 	From string
 
@@ -138,6 +146,10 @@ func (o *ExtractOptions) Run() error {
 	}
 	if len(o.GitExtractDir) > 0 {
 		sources++
+	}
+
+	if len(o.Output) > 0 && len(o.GitExtractDir) == 0 {
+		return fmt.Errorf("--output is only supported with --git")
 	}
 
 	switch {
@@ -240,6 +252,12 @@ func (o *ExtractOptions) Run() error {
 }
 
 func (o *ExtractOptions) extractGit(dir string) error {
+	switch o.Output {
+	case "commit", "":
+	default:
+		return fmt.Errorf("the only supported option for --output is 'commit'")
+	}
+
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return err
 	}
@@ -253,40 +271,70 @@ func (o *ExtractOptions) extractGit(dir string) error {
 	}
 
 	hadErrors := false
+	var once sync.Once
 	alreadyExtracted := make(map[string]string)
-	for _, ref := range release.References.Spec.Tags {
-		repo := ref.Annotations[annotationBuildSourceLocation]
-		commit := ref.Annotations[annotationBuildSourceCommit]
-		if len(repo) == 0 || len(commit) == 0 {
-			if klog.V(2) {
-				klog.Infof("Tag %s has no source info", ref.Name)
-			} else {
-				fmt.Fprintf(o.ErrOut, "warning: Tag %s has no source info\n", ref.Name)
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+	q := workqueue.New(8, ctx.Done())
+	q.Batch(func(w workqueue.Work) {
+		for _, ref := range release.References.Spec.Tags {
+			repo := ref.Annotations[annotationBuildSourceLocation]
+			commit := ref.Annotations[annotationBuildSourceCommit]
+			if len(repo) == 0 || len(commit) == 0 {
+				if klog.V(2) {
+					klog.Infof("Tag %s has no source info", ref.Name)
+				} else {
+					fmt.Fprintf(o.ErrOut, "warning: Tag %s has no source info\n", ref.Name)
+				}
+				continue
 			}
-			continue
-		}
-		if oldCommit, ok := alreadyExtracted[repo]; ok {
-			if oldCommit != commit {
-				fmt.Fprintf(o.ErrOut, "warning: Repo %s referenced more than once with different commits, only checking out the first reference\n", repo)
+			if oldCommit, ok := alreadyExtracted[repo]; ok {
+				if oldCommit != commit {
+					fmt.Fprintf(o.ErrOut, "warning: Repo %s referenced more than once with different commits, only checking out the first reference\n", repo)
+				}
+				continue
 			}
-			continue
-		}
-		alreadyExtracted[repo] = commit
+			alreadyExtracted[repo] = commit
 
-		extractedRepo, err := ensureCloneForRepo(dir, repo, nil, o.Out, o.ErrOut)
-		if err != nil {
-			hadErrors = true
-			fmt.Fprintf(o.ErrOut, "error: cloning %s: %v\n", repo, err)
-			continue
-		}
+			w.Parallel(func() {
+				buf := &bytes.Buffer{}
+				extractedRepo, err := ensureCloneForRepo(dir, repo, nil, buf, buf)
+				if err != nil {
+					once.Do(func() { hadErrors = true })
+					fmt.Fprintf(o.ErrOut, "error: cloning %s: %v\n%s\n", repo, err, buf.String())
+					return
+				}
 
-		klog.V(2).Infof("Checkout %s from %s ...", commit, repo)
-		if err := extractedRepo.CheckoutCommit(repo, commit); err != nil {
-			hadErrors = true
-			fmt.Fprintf(o.ErrOut, "error: checking out commit for %s: %v\n", repo, err)
-			continue
+				switch o.Output {
+				case "commit":
+					klog.V(2).Infof("Checkout %s from %s ...", commit, repo)
+					buf.Reset()
+					ok, err := extractedRepo.VerifyCommit(repo, commit)
+					if err != nil {
+						once.Do(func() { hadErrors = true })
+						fmt.Fprintf(o.ErrOut, "error: could not find commit %s in %s: %v\n%s\n", commit, repo, err, buf.String())
+						return
+					}
+					if !ok {
+						once.Do(func() { hadErrors = true })
+						fmt.Fprintf(o.ErrOut, "error: could not find commit %s in %s", commit, repo)
+						return
+					}
+					fmt.Fprintf(o.Out, "%s %s\n", extractedRepo.path, commit)
+
+				case "":
+					klog.V(2).Infof("Checkout %s from %s ...", commit, repo)
+					buf.Reset()
+					if err := extractedRepo.CheckoutCommit(repo, commit); err != nil {
+						once.Do(func() { hadErrors = true })
+						fmt.Fprintf(o.ErrOut, "error: checking out commit for %s: %v\n%s\n", repo, err, buf.String())
+						return
+					}
+					fmt.Fprintf(o.Out, "%s\n", extractedRepo.path)
+				}
+			})
 		}
-	}
+	})
 	if hadErrors {
 		return kcmdutil.ErrExit
 	}
