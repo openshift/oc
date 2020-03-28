@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"html"
 	"io"
 	"net/url"
 	"os"
@@ -243,9 +242,6 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		if len(msg) == 0 {
 			msg = "Merge"
 		}
-
-		// escape all html sequences
-		msg = html.EscapeString(msg)
 
 		mergeCommit.Subject = msg
 		commits = append(commits, mergeCommit)

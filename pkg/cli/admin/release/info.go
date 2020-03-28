@@ -1400,6 +1400,13 @@ func digestOrRef(ref string) string {
 	return ref
 }
 
+// replaceUnsafeInput prevents HTML blocks from being started in markdown for external
+// inputs, but allows entities and quotes
+var replaceUnsafeInput = strings.NewReplacer(
+	`<`, "&lt;",
+	`>`, "&gt;",
+)
+
 func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) error {
 	if diff.To.Digest == diff.From.Digest {
 		return fmt.Errorf("releases are identical")
@@ -1506,7 +1513,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 				if len(commit.Bugs) > 0 {
 					fmt.Fprintf(out, ":")
 				}
-				fmt.Fprintf(out, " %s", commit.Subject)
+				fmt.Fprintf(out, " %s", replaceUnsafeInput.Replace(commit.Subject))
 				switch {
 				case commit.PullRequest > 0:
 					fmt.Fprintf(out, " [#%d](%s)", commit.PullRequest, fmt.Sprintf("https://%s%s/pull/%d", u.Host, u.Path, commit.PullRequest))
