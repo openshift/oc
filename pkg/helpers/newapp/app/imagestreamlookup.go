@@ -30,6 +30,7 @@ func (r ImageStreamSearcher) Type() string {
 
 // Search will attempt to find imagestreams with names that match the passed in value
 func (r ImageStreamSearcher) Search(precise bool, terms ...string) (ComponentMatches, []error) {
+	fmt.Printf("ImageStreamSearcher.Search\n")
 	componentMatches := ComponentMatches{}
 	var errs []error
 	for _, term := range terms {
@@ -66,6 +67,7 @@ func (r ImageStreamSearcher) Search(precise bool, terms ...string) (ComponentMat
 			exact := false
 			streams, err := r.Client.ImageStreams(namespace).List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
+				fmt.Printf("ImageStreamSearcher.err: %v\n", err)
 				if errors.IsNotFound(err) || errors.IsForbidden(err) {
 					continue
 				}
@@ -223,6 +225,7 @@ func (r ImageStreamSearcher) Search(precise bool, terms ...string) (ComponentMat
 			}
 		}
 	}
+	fmt.Printf("ImageStreamSearcher.Search: componentMatches: %#v, errs: %v\n", componentMatches, errs)
 	return componentMatches, errs
 }
 
