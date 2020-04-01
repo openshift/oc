@@ -2,6 +2,7 @@ package newapp
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -487,7 +488,7 @@ func (o *AppOptions) RunNewApp() error {
 				var route *routev1.Route
 				//check if route processing was completed and host field is prepopulated by router
 				err := wait.PollImmediate(500*time.Millisecond, RoutePollTimeout, func() (bool, error) {
-					route, err = config.RouteClient.Routes(t.Namespace).Get(t.Name, metav1.GetOptions{})
+					route, err = config.RouteClient.Routes(t.Namespace).Get(context.TODO(), t.Name, metav1.GetOptions{})
 					if err != nil {
 						return false, fmt.Errorf("Error while polling route %s", t.Name)
 					}
@@ -593,7 +594,7 @@ func followInstallation(config *newcmd.AppConfig, clientGetter genericclioptions
 
 func installationStarted(c corev1typedclient.PodInterface, name string, s corev1typedclient.SecretInterface) wait.ConditionFunc {
 	return func() (bool, error) {
-		pod, err := c.Get(name, metav1.GetOptions{})
+		pod, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -601,10 +602,10 @@ func installationStarted(c corev1typedclient.PodInterface, name string, s corev1
 			return false, nil
 		}
 		// delete a secret named the same as the pod if it exists
-		if secret, err := s.Get(name, metav1.GetOptions{}); err == nil {
+		if secret, err := s.Get(context.TODO(), name, metav1.GetOptions{}); err == nil {
 			if secret.Annotations[newcmd.GeneratedForJob] == "true" &&
 				secret.Annotations[newcmd.GeneratedForJobFor] == pod.Annotations[newcmd.GeneratedForJobFor] {
-				if err := s.Delete(name, nil); err != nil {
+				if err := s.Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
 					klog.V(4).Infof("Failed to delete install secret %s: %v", name, err)
 				}
 			}
@@ -615,7 +616,7 @@ func installationStarted(c corev1typedclient.PodInterface, name string, s corev1
 
 func installationComplete(c corev1typedclient.PodInterface, name string, out io.Writer) wait.ConditionFunc {
 	return func() (bool, error) {
-		pod, err := c.Get(name, metav1.GetOptions{})
+		pod, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			if kapierrors.IsNotFound(err) {
 				return false, fmt.Errorf("installation pod was deleted; unable to determine whether it completed successfully")
@@ -625,7 +626,7 @@ func installationComplete(c corev1typedclient.PodInterface, name string, out io.
 		switch pod.Status.Phase {
 		case corev1.PodSucceeded:
 			fmt.Fprintf(out, "--> Success\n")
-			if err := c.Delete(name, nil); err != nil {
+			if err := c.Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
 				klog.V(4).Infof("Failed to delete install pod %s: %v", name, err)
 			}
 			return true, nil

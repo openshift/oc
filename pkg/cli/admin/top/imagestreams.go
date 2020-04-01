@@ -1,6 +1,7 @@
 package top
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sort"
@@ -85,13 +86,13 @@ func (o *TopImageStreamsOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command
 		return err
 	}
 
-	allImages, err := imageClient.Images().List(metav1.ListOptions{})
+	allImages, err := imageClient.Images().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	o.Images = allImages
 
-	allStreams, err := imageClient.ImageStreams(namespace).List(metav1.ListOptions{})
+	allStreams, err := imageClient.ImageStreams(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

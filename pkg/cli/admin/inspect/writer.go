@@ -2,6 +2,7 @@ package inspect
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 
@@ -10,14 +11,14 @@ import (
 )
 
 type fileWriterSource interface {
-	Stream() (io.ReadCloser, error)
+	Stream(context.Context) (io.ReadCloser, error)
 }
 
 type TextWriterSource struct {
 	Text string
 }
 
-func (t *TextWriterSource) Stream() (io.ReadCloser, error) {
+func (t *TextWriterSource) Stream(ctx context.Context) (io.ReadCloser, error) {
 	return &resourceWriterReadCloser{buffer: bytes.NewBuffer([]byte(t.Text))}, nil
 }
 
@@ -26,7 +27,7 @@ type resourceWriterSource struct {
 	printer printers.ResourcePrinter
 }
 
-func (r *resourceWriterSource) Stream() (io.ReadCloser, error) {
+func (r *resourceWriterSource) Stream(ctx context.Context) (io.ReadCloser, error) {
 	buf := bytes.NewBuffer(nil)
 	if err := r.printer.PrintObj(r.obj, buf); err != nil {
 		return nil, err
@@ -56,7 +57,7 @@ func (f *simpleFileWriter) Write(filepath string, src fileWriterSource) error {
 	}
 	defer dest.Close()
 
-	readCloser, err := src.Stream()
+	readCloser, err := src.Stream(context.TODO())
 	if err != nil {
 		return err
 	}

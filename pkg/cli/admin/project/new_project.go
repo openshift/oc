@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -113,7 +114,7 @@ func (o *NewProjectOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 }
 
 func (o *NewProjectOptions) Run() error {
-	if _, err := o.ProjectClient.Projects().Get(o.ProjectName, metav1.GetOptions{}); err != nil {
+	if _, err := o.ProjectClient.Projects().Get(context.TODO(), o.ProjectName, metav1.GetOptions{}); err != nil {
 		if !kerrors.IsNotFound(err) {
 			return err
 		}
@@ -129,7 +130,7 @@ func (o *NewProjectOptions) Run() error {
 	if o.UseNodeSelector {
 		project.Annotations[projectv1.ProjectNodeSelector] = o.NodeSelector
 	}
-	project, err := o.ProjectClient.Projects().Create(project)
+	project, err := o.ProjectClient.Projects().Create(context.TODO(), project, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -151,14 +152,14 @@ func (o *NewProjectOptions) Run() error {
 			errs = append(errs, err)
 		} else {
 			if err := wait.PollImmediate(time.Second, time.Minute, func() (bool, error) {
-				resp, err := o.SARClient.Create(&authorizationv1.SubjectAccessReview{
+				resp, err := o.SARClient.Create(context.TODO(), &authorizationv1.SubjectAccessReview{
 					Action: authorizationv1.Action{
 						Namespace: o.ProjectName,
 						Verb:      "get",
 						Resource:  "projects",
 					},
 					User: o.AdminUser,
-				})
+				}, metav1.CreateOptions{})
 				if err != nil {
 					return false, err
 				}

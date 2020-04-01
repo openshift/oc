@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -11,7 +12,7 @@ import (
 )
 
 func reapForRole(bindingClient rbacv1client.RoleBindingsGetter, namespace, name string, out io.Writer) error {
-	bindings, err := bindingClient.RoleBindings(namespace).List(metav1.ListOptions{})
+	bindings, err := bindingClient.RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -20,7 +21,7 @@ func reapForRole(bindingClient rbacv1client.RoleBindingsGetter, namespace, name 
 	for _, binding := range bindings.Items {
 		if binding.RoleRef.Kind == "Role" && binding.RoleRef.Name == name {
 			foreground := metav1.DeletePropagationForeground
-			if err := bindingClient.RoleBindings(namespace).Delete(binding.Name, &metav1.DeleteOptions{PropagationPolicy: &foreground}); err != nil && !kerrors.IsNotFound(err) {
+			if err := bindingClient.RoleBindings(namespace).Delete(context.TODO(), binding.Name, metav1.DeleteOptions{PropagationPolicy: &foreground}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
 				fmt.Fprintf(out, "rolebinding.rbac.authorization.k8s.io/"+binding.Name+" deleted\n")

@@ -1,6 +1,7 @@
 package syncgroups
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -40,7 +41,7 @@ func (l *allOpenShiftGroupLister) ListGroups() ([]string, error) {
 		return nil, err
 	}
 	hostSelector := labels.Set(map[string]string{LDAPHostLabel: host}).AsSelector()
-	allGroups, err := l.client.List(metav1.ListOptions{LabelSelector: hostSelector.String()})
+	allGroups, err := l.client.List(context.TODO(), metav1.ListOptions{LabelSelector: hostSelector.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +131,7 @@ func (l *openshiftGroupLister) ListGroups() ([]string, error) {
 			continue
 		}
 
-		group, err := l.client.Get(name, metav1.GetOptions{})
+		group, err := l.client.Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

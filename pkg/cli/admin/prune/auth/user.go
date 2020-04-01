@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -30,7 +31,7 @@ func reapForUser(
 	errors = append(errors, reapNamespacedBindings(removedSubject, authorizationClient, out)...)
 
 	// Remove the user from sccs
-	sccs, err := securityClient.List(metav1.ListOptions{})
+	sccs, err := securityClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -44,7 +45,7 @@ func reapForUser(
 		if len(retainedUsers) != len(scc.Users) {
 			updatedSCC := scc
 			updatedSCC.Users = retainedUsers
-			if _, err := securityClient.Update(&updatedSCC); err != nil && !kerrors.IsNotFound(err) {
+			if _, err := securityClient.Update(context.TODO(), &updatedSCC, metav1.UpdateOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
 				fmt.Fprintf(out, "securitycontextconstraints.security.openshift.io/"+updatedSCC.Name+" updated\n")
@@ -53,7 +54,7 @@ func reapForUser(
 	}
 
 	// Remove the user from groups
-	groups, err := userClient.Groups().List(metav1.ListOptions{})
+	groups, err := userClient.Groups().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -67,7 +68,7 @@ func reapForUser(
 		if len(retainedUsers) != len(group.Users) {
 			updatedGroup := group
 			updatedGroup.Users = retainedUsers
-			if _, err := userClient.Groups().Update(&updatedGroup); err != nil && !kerrors.IsNotFound(err) {
+			if _, err := userClient.Groups().Update(context.TODO(), &updatedGroup, metav1.UpdateOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
 				fmt.Fprintf(out, "group.user.openshift.io/"+updatedGroup.Name+" updated\n")
@@ -78,13 +79,13 @@ func reapForUser(
 	// Remove the user's OAuthClientAuthorizations
 	// Once https://github.com/kubernetes/kubernetes/pull/28112 is fixed, use a field selector
 	// to filter on the userName, rather than fetching all authorizations and filtering client-side
-	authorizations, err := oauthClient.OAuthClientAuthorizations().List(metav1.ListOptions{})
+	authorizations, err := oauthClient.OAuthClientAuthorizations().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, authorization := range authorizations.Items {
 		if authorization.UserName == name {
-			if err := oauthClient.OAuthClientAuthorizations().Delete(authorization.Name, &metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+			if err := oauthClient.OAuthClientAuthorizations().Delete(context.TODO(), authorization.Name, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
 				fmt.Fprintf(out, "oauthclientauthorization.oauth.openshift.io/"+authorization.Name+" updated\n")

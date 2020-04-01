@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -101,7 +102,7 @@ type RoleModificationOptions struct {
 	Groups   []string
 	Subjects []rbacv1.Subject
 
-	DryRun bool
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	PrintErrf func(format string, args ...interface{})
 
@@ -332,7 +333,11 @@ func (o *RoleModificationOptions) innerComplete(f kcmdutil.Factory, cmd *cobra.C
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetFlagBool(cmd, "dry-run")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+
 	o.PrintErrf = func(format string, args ...interface{}) {
 		fmt.Fprintf(o.ErrOut, format, args...)
 	}
@@ -385,7 +390,7 @@ func (o *RoleModificationOptions) CompleteUserWithSA(f kcmdutil.Factory, cmd *co
 	}
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
-		o.PrintFlags.NamePrintFlags.Operation = getSuccessMessage(o.DryRun, operation, o.Targets)
+		o.PrintFlags.NamePrintFlags.Operation = getSuccessMessage(o.DryRunStrategy == kcmdutil.DryRunClient, operation, o.Targets)
 		return o.PrintFlags.ToPrinter()
 	}
 
@@ -407,7 +412,7 @@ func (o *RoleModificationOptions) Complete(f kcmdutil.Factory, cmd *cobra.Comman
 	}
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
-		o.PrintFlags.NamePrintFlags.Operation = getSuccessMessage(o.DryRun, operation, o.Targets)
+		o.PrintFlags.NamePrintFlags.Operation = getSuccessMessage(o.DryRunStrategy == kcmdutil.DryRunClient, operation, o.Targets)
 		return o.PrintFlags.ToPrinter()
 	}
 
@@ -508,9 +513,9 @@ func (o *RoleModificationOptions) AddRole() error {
 	if o.PrintErrf != nil {
 		var err error
 		if roleBinding.RoleKind() == "Role" {
-			_, err = o.RbacClient.Roles(o.RoleBindingNamespace).Get(roleBinding.RoleName(), metav1.GetOptions{})
+			_, err = o.RbacClient.Roles(o.RoleBindingNamespace).Get(context.TODO(), roleBinding.RoleName(), metav1.GetOptions{})
 		} else {
-			_, err = o.RbacClient.ClusterRoles().Get(roleBinding.RoleName(), metav1.GetOptions{})
+			_, err = o.RbacClient.ClusterRoles().Get(context.TODO(), roleBinding.RoleName(), metav1.GetOptions{})
 		}
 		if err != nil && kapierrors.IsNotFound(err) {
 			o.PrintErrf("Warning: role '%s' not found\n", roleBinding.RoleName())
@@ -526,15 +531,15 @@ func (o *RoleModificationOptions) AddRole() error {
 			switch newSubject.Kind {
 			case rbacv1.ServiceAccountKind:
 				if o.ServiceAccountClient != nil {
-					_, err = o.ServiceAccountClient.ServiceAccounts(newSubject.Namespace).Get(newSubject.Name, metav1.GetOptions{})
+					_, err = o.ServiceAccountClient.ServiceAccounts(newSubject.Namespace).Get(context.TODO(), newSubject.Name, metav1.GetOptions{})
 				}
 			case rbacv1.UserKind:
 				if o.UserClient != nil {
-					_, err = o.UserClient.Users().Get(newSubject.Name, metav1.GetOptions{})
+					_, err = o.UserClient.Users().Get(context.TODO(), newSubject.Name, metav1.GetOptions{})
 				}
 			case rbacv1.GroupKind:
 				if o.UserClient != nil {
-					_, err = o.UserClient.Groups().Get(newSubject.Name, metav1.GetOptions{})
+					_, err = o.UserClient.Groups().Get(context.TODO(), newSubject.Name, metav1.GetOptions{})
 				}
 			}
 			if err != nil && kapierrors.IsNotFound(err) {
@@ -544,7 +549,7 @@ func (o *RoleModificationOptions) AddRole() error {
 	}
 	roleBinding.SetSubjects(newSubjects)
 
-	if o.DryRun || (o.PrintFlags.OutputFormat != nil && len(*o.PrintFlags.OutputFormat) > 0) {
+	if o.DryRunStrategy == kcmdutil.DryRunClient || (o.PrintFlags.OutputFormat != nil && len(*o.PrintFlags.OutputFormat) > 0) {
 		return p.PrintObj(roleBinding.Object(), o.Out)
 	}
 
@@ -714,7 +719,7 @@ func (o *RoleModificationOptions) RemoveRole() error {
 	}
 
 	roleToPrint := o.roleObjectToPrint()
-	if o.DryRun {
+	if o.DryRunStrategy == kcmdutil.DryRunClient {
 		return p.PrintObj(roleToPrint, o.Out)
 	}
 

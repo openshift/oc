@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -93,7 +94,7 @@ func (p *ProjectOptions) Validate() error {
 		errList = append(errList, errors.New("must provide --selector=<project_selector> or projects"))
 	}
 
-	clusterNetwork, err := p.NetClient.ClusterNetworks().Get(networkv1.ClusterNetworkDefault, metav1.GetOptions{})
+	clusterNetwork, err := p.NetClient.ClusterNetworks().Get(context.TODO(), networkv1.ClusterNetworkDefault, metav1.GetOptions{})
 	if err != nil {
 		if kapierrors.IsNotFound(err) {
 			errList = append(errList, errors.New("managing pod network is only supported for openshift multitenant network plugin"))
@@ -170,7 +171,7 @@ func (p *ProjectOptions) GetProjects() ([]*projectv1.Project, error) {
 
 func (p *ProjectOptions) UpdatePodNetwork(nsName string, action networkapihelpers.PodNetworkAction, args string) error {
 	// Get corresponding NetNamespace for given namespace
-	netns, err := p.NetClient.NetNamespaces().Get(nsName, metav1.GetOptions{})
+	netns, err := p.NetClient.NetNamespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -179,7 +180,7 @@ func (p *ProjectOptions) UpdatePodNetwork(nsName string, action networkapihelper
 	networkapihelpers.SetChangePodNetworkAnnotation(netns, action, args)
 
 	// Update NetNamespace object
-	_, err = p.NetClient.NetNamespaces().Update(netns)
+	_, err = p.NetClient.NetNamespaces().Update(context.TODO(), netns, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -191,7 +192,7 @@ func (p *ProjectOptions) UpdatePodNetwork(nsName string, action networkapihelper
 		Factor:   1.1,
 	}
 	return wait.ExponentialBackoff(backoff, func() (bool, error) {
-		updatedNetNs, err := p.NetClient.NetNamespaces().Get(netns.NetName, metav1.GetOptions{})
+		updatedNetNs, err := p.NetClient.NetNamespaces().Get(context.TODO(), netns.NetName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}

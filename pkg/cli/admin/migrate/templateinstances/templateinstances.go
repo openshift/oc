@@ -1,6 +1,7 @@
 package templateinstances
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -168,6 +170,6 @@ func (o *MigrateTemplateInstancesOptions) save(info *resource.Info, reporter mig
 		return fmt.Errorf("unrecognized object %#v", info.Object)
 	}
 
-	_, err := o.templateClient.TemplateInstances(templateInstance.Namespace).UpdateStatus(templateInstance)
+	_, err := o.templateClient.TemplateInstances(templateInstance.Namespace).UpdateStatus(context.TODO(), templateInstance, metav1.UpdateOptions{})
 	return migrate.DefaultRetriable(info, err)
 }

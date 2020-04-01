@@ -5,7 +5,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions/openshiftpatch"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kcmdset "k8s.io/kubectl/pkg/cmd/set"
-	describeversioned "k8s.io/kubectl/pkg/describe/versioned"
+	describeversioned "k8s.io/kubectl/pkg/describe"
 	"k8s.io/kubectl/pkg/generate/versioned"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 

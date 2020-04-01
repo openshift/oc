@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"strings"
@@ -128,9 +129,9 @@ func (o *CreateClusterQuotaOptions) Run() error {
 		clusterQuota.Spec.Quota.Hard[corev1.ResourceName(tokens[0])] = quantity
 	}
 
-	if !o.CreateSubcommandOptions.DryRun {
+	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
 		var err error
-		clusterQuota, err = o.Client.ClusterResourceQuotas().Create(clusterQuota)
+		clusterQuota, err = o.Client.ClusterResourceQuotas().Create(context.TODO(), clusterQuota, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

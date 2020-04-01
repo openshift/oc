@@ -2,6 +2,7 @@ package mustgather
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"math/rand"
@@ -41,7 +42,7 @@ var (
 	mustGatherLong = templates.LongDesc(`
 		Launch a pod to gather debugging information
 
-		This command will launch a pod in a temporary namespace on your cluster that gathers 
+		This command will launch a pod in a temporary namespace on your cluster that gathers
 		debugging information and then downloads the gathered information.
 
 		Experimental: This command is under active development and may change without notice.
@@ -54,10 +55,10 @@ var (
 		# gather information with a specific local folder to copy to
 		  oc adm must-gather --dest-dir=/local/directory
 
-		# gather information using multiple plug-in images 
+		# gather information using multiple plug-in images
 		  oc adm must-gather --image=quay.io/kubevirt/must-gather --image=quay.io/openshift/origin-must-gather
 
-		# gather information using a specific image stream plug-in 
+		# gather information using a specific image stream plug-in
 		  oc adm must-gather --image-stream=openshift/must-gather:latest
 
 		# gather information using a specific image, command, and pod-dir
@@ -178,7 +179,7 @@ func parseImageStreamTagString(s string) (string, string, string) {
 }
 
 func (o *MustGatherOptions) resolveImageStreamTag(namespace, name, tag string) (string, error) {
-	imageStream, err := o.ImageClient.ImageStreams(namespace).Get(name, metav1.GetOptions{})
+	imageStream, err := o.ImageClient.ImageStreams(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -226,7 +227,7 @@ func (o *MustGatherOptions) Run() error {
 	var err error
 
 	// create namespace
-	ns, err := o.Client.CoreV1().Namespaces().Create(&corev1.Namespace{
+	ns, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "openshift-must-gather-",
 			Labels: map[string]string{
@@ -236,14 +237,14 @@ func (o *MustGatherOptions) Run() error {
 				"oc.openshift.io/command": "oc adm must-gather",
 			},
 		},
-	})
+	}, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 	o.PrinterCreated.PrintObj(ns, o.LogOut)
 	if !o.Keep {
 		defer func() {
-			if err := o.Client.CoreV1().Namespaces().Delete(ns.Name, nil); err != nil {
+			if err := o.Client.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
 				fmt.Printf("%v", err)
 				return
 			}
@@ -251,14 +252,14 @@ func (o *MustGatherOptions) Run() error {
 		}()
 	}
 
-	clusterRoleBinding, err := o.Client.RbacV1().ClusterRoleBindings().Create(o.newClusterRoleBinding(ns.Name))
+	clusterRoleBinding, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), o.newClusterRoleBinding(ns.Name), metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 	o.PrinterCreated.PrintObj(clusterRoleBinding, o.LogOut)
 	if !o.Keep {
 		defer func() {
-			if err := o.Client.RbacV1().ClusterRoleBindings().Delete(clusterRoleBinding.Name, &metav1.DeleteOptions{}); err != nil {
+			if err := o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), clusterRoleBinding.Name, metav1.DeleteOptions{}); err != nil {
 				fmt.Printf("%v", err)
 				return
 			}
@@ -269,7 +270,7 @@ func (o *MustGatherOptions) Run() error {
 	// create pods
 	var pods []*corev1.Pod
 	for _, image := range o.Images {
-		pod, err := o.Client.CoreV1().Pods(ns.Name).Create(o.newPod(o.NodeName, image))
+		pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image), metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -307,7 +308,7 @@ func (o *MustGatherOptions) Run() error {
 
 			// copy the gathered files into the local destination dir
 			log("downloading gather output")
-			pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+			pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
 			if err != nil {
 				log("gather output not downloaded: %v\n", err)
 				errs <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
@@ -392,7 +393,7 @@ func (o *MustGatherOptions) waitForPodRunning(pod *corev1.Pod) error {
 	phase := pod.Status.Phase
 	err := wait.PollImmediate(time.Duration(o.Timeout)*time.Second, time.Minute, func() (bool, error) {
 		var err error
-		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{}); err != nil {
+		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err != nil {
 			// at this stage pod should exist, we've been gathering container logs, so error if not found
 			if kerrors.IsNotFound(err) {
 				return true, err
@@ -418,7 +419,7 @@ func (o *MustGatherOptions) waitForPodRunning(pod *corev1.Pod) error {
 func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error {
 	return wait.PollImmediate(time.Duration(o.Timeout)*time.Second, time.Minute, func() (bool, error) {
 		var err error
-		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{}); err == nil {
+		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err == nil {
 			if len(pod.Status.InitContainerStatuses) == 0 {
 				return false, nil
 			}

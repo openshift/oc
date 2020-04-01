@@ -16,9 +16,8 @@ type CreateSubcommandOptions struct {
 	// PrintFlags holds options necessary for obtaining a printer
 	PrintFlags *genericclioptions.PrintFlags
 	// Name of resource being created
-	Name string
-	// DryRun is true if the command should be simulated but not run against the server
-	DryRun bool
+	Name           string
+	DryRunStrategy cmdutil.DryRunStrategy
 
 	Namespace        string
 	EnforceNamespace bool
@@ -45,10 +44,12 @@ func (o *CreateSubcommandOptions) Complete(f genericclioptions.RESTClientGetter,
 		return err
 	}
 
-	o.DryRun = cmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+
+	cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err

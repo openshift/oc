@@ -1,12 +1,14 @@
 package secrets
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	coreapiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -145,7 +147,7 @@ func (o LinkSecretOptions) linkSecretsToServiceAccount(serviceaccount *coreapiv1
 		}
 	}
 	if updated {
-		_, err = o.KubeClient.ServiceAccounts(o.Namespace).Update(serviceaccount)
+		_, err = o.KubeClient.ServiceAccounts(o.Namespace).Update(context.TODO(), serviceaccount, metav1.UpdateOptions{})
 		return err
 	}
 

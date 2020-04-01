@@ -1,6 +1,7 @@
 package serviceaccounts
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -127,13 +128,13 @@ func (o *CreateKubeconfigOptions) Validate() error {
 }
 
 func (o *CreateKubeconfigOptions) Run() error {
-	serviceAccount, err := o.SAClient.Get(o.SAName, metav1.GetOptions{})
+	serviceAccount, err := o.SAClient.Get(context.TODO(), o.SAName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, reference := range serviceAccount.Secrets {
-		secret, err := o.SecretsClient.Get(reference.Name, metav1.GetOptions{})
+		secret, err := o.SecretsClient.Get(context.TODO(), reference.Name, metav1.GetOptions{})
 		if err != nil {
 			continue
 		}

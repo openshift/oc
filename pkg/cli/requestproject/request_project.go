@@ -1,6 +1,7 @@
 package requestproject
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -135,7 +136,7 @@ func (o *RequestProjectOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command,
 
 // Run implements all the necessary functionality for RequestProject.
 func (o *RequestProjectOptions) Run() error {
-	if err := o.Client.RESTClient().Get().Resource("projectrequests").Do().Into(&metav1.Status{}); err != nil {
+	if err := o.Client.RESTClient().Get().Resource("projectrequests").Do(context.TODO()).Into(&metav1.Status{}); err != nil {
 		return err
 	}
 
@@ -145,7 +146,7 @@ func (o *RequestProjectOptions) Run() error {
 	projectRequest.Description = o.Description
 	projectRequest.Annotations = make(map[string]string)
 
-	project, err := o.Client.ProjectRequests().Create(projectRequest)
+	project, err := o.Client.ProjectRequests().Create(context.TODO(), projectRequest, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

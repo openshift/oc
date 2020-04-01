@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -51,8 +52,8 @@ type RolloutLatestOptions struct {
 	mapper    meta.RESTMapper
 	Resource  string
 
-	DryRun bool
-	again  bool
+	DryRunStrategy kcmdutil.DryRunStrategy
+	again          bool
 
 	appsClient appsclient.DeploymentConfigsGetter
 	kubeClient kubernetes.Interface
@@ -105,10 +106,12 @@ func (o *RolloutLatestOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, 
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetFlagBool(cmd, "dry-run")
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 
 	if o.PrintFlags.OutputFormat != nil && *o.PrintFlags.OutputFormat == "revision" {
 		fmt.Fprintln(o.ErrOut, "--output=revision is deprecated. Use `--output=jsonpath={.status.latestVersion}` or `--output=go-template={{.status.latestVersion}}` instead")
@@ -175,7 +178,7 @@ func (o *RolloutLatestOptions) RunRolloutLatest() error {
 	}
 
 	deploymentName := appsutil.LatestDeploymentNameForConfigAndVersion(config.Name, config.Status.LatestVersion)
-	deployment, err := o.kubeClient.CoreV1().ReplicationControllers(config.Namespace).Get(deploymentName, metav1.GetOptions{})
+	deployment, err := o.kubeClient.CoreV1().ReplicationControllers(config.Namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 	switch {
 	case err == nil:
 		// Reject attempts to start a concurrent deployment.
@@ -188,20 +191,20 @@ func (o *RolloutLatestOptions) RunRolloutLatest() error {
 	}
 
 	dc := config
-	if !o.DryRun {
+	if o.DryRunStrategy != kcmdutil.DryRunClient {
 		request := &appsv1.DeploymentRequest{
 			Name:   config.Name,
 			Latest: !o.again,
 			Force:  true,
 		}
 
-		dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Instantiate(config.Name, request)
+		dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Instantiate(context.TODO(), config.Name, request, metav1.CreateOptions{})
 
 		// Pre 1.4 servers don't support the instantiate endpoint. Fallback to incrementing
 		// latestVersion on them.
 		if kerrors.IsNotFound(err) || kerrors.IsForbidden(err) {
 			config.Status.LatestVersion++
-			dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Update(config)
+			dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Update(context.TODO(), config, metav1.UpdateOptions{})
 		}
 
 		if err != nil {

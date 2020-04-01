@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -35,7 +36,7 @@ type RemoveFromProjectOptions struct {
 	Groups []string
 	Users  []string
 
-	DryRun bool
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	Output string
 
@@ -93,13 +94,15 @@ func (o *RemoveFromProjectOptions) Complete(f kcmdutil.Factory, cmd *cobra.Comma
 	}
 
 	o.Output = kcmdutil.GetFlagString(cmd, "output")
-	o.DryRun = kcmdutil.GetFlagBool(cmd, "dry-run")
-
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
-	}
 
 	var err error
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
+
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -127,7 +130,7 @@ func (o *RemoveFromProjectOptions) Validate(f kcmdutil.Factory, cmd *cobra.Comma
 }
 
 func (o *RemoveFromProjectOptions) Run() error {
-	roleBindings, err := o.Client.RoleBindings(o.BindingNamespace).List(metav1.ListOptions{})
+	roleBindings, err := o.Client.RoleBindings(o.BindingNamespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -139,8 +142,8 @@ func (o *RemoveFromProjectOptions) Run() error {
 	sasRemoved := sets.String{}
 	othersRemoved := sets.String{}
 	dryRunText := ""
-	if o.DryRun {
-		dryRunText = " (dry run)"
+	if o.DryRunStrategy == kcmdutil.DryRunClient {
+		dryRunText = " (dry client run)"
 	}
 
 	updatedBindings := &rbacv1.RoleBindingList{
@@ -172,11 +175,11 @@ func (o *RemoveFromProjectOptions) Run() error {
 			continue
 		}
 
-		if !o.DryRun {
+		if o.DryRunStrategy != kcmdutil.DryRunClient {
 			if len(currBinding.Subjects) > 0 {
-				_, err = o.Client.RoleBindings(o.BindingNamespace).Update(&currBinding)
+				_, err = o.Client.RoleBindings(o.BindingNamespace).Update(context.TODO(), &currBinding, metav1.UpdateOptions{})
 			} else {
-				err = o.Client.RoleBindings(o.BindingNamespace).Delete(currBinding.Name, &metav1.DeleteOptions{})
+				err = o.Client.RoleBindings(o.BindingNamespace).Delete(context.TODO(), currBinding.Name, metav1.DeleteOptions{})
 			}
 			if err != nil {
 				return err

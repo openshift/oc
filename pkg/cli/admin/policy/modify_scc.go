@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -49,9 +50,9 @@ type SCCModificationOptions struct {
 	DefaultSubjectNamespace string
 	Subjects                []corev1.ObjectReference
 
-	IsGroup bool
-	DryRun  bool
-	Output  string
+	IsGroup        bool
+	DryRunStrategy kcmdutil.DryRunStrategy
+	Output         string
 
 	genericclioptions.IOStreams
 }
@@ -151,15 +152,17 @@ func (o *SCCModificationOptions) CompleteUsers(f kcmdutil.Factory, cmd *cobra.Co
 		return errors.New("you must specify at least one user or service account")
 	}
 
-	o.DryRun = kcmdutil.GetFlagBool(cmd, "dry-run")
+	var err error
+
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
 	o.Output = kcmdutil.GetFlagString(cmd, "output")
 
 	o.ToPrinter = func(message string) (printers.ResourcePrinter, error) {
 		o.PrintFlags.NamePrintFlags.Operation = message
-		if o.DryRun {
-			o.PrintFlags.Complete("%s (dry run)")
-		}
-
+		kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 		return o.PrintFlags.ToPrinter()
 	}
 
@@ -191,13 +194,16 @@ func (o *SCCModificationOptions) CompleteGroups(f kcmdutil.Factory, cmd *cobra.C
 	}
 
 	o.Output = kcmdutil.GetFlagString(cmd, "output")
-	o.DryRun = kcmdutil.GetFlagBool(cmd, "dry-run")
+
+	var err error
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
 
 	o.ToPrinter = func(message string) (printers.ResourcePrinter, error) {
 		o.PrintFlags.NamePrintFlags.Operation = message
-		if o.DryRun {
-			o.PrintFlags.Complete("%s (dry run)")
-		}
+		kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 
 		return o.PrintFlags.ToPrinter()
 	}
@@ -225,7 +231,7 @@ func (o *SCCModificationOptions) CompleteGroups(f kcmdutil.Factory, cmd *cobra.C
 }
 
 func (o *SCCModificationOptions) AddSCC() error {
-	scc, err := o.SCCInterface.Get(o.SCCName, metav1.GetOptions{})
+	scc, err := o.SCCInterface.Get(context.TODO(), o.SCCName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -244,11 +250,11 @@ func (o *SCCModificationOptions) AddSCC() error {
 		return err
 	}
 
-	if o.DryRun {
+	if o.DryRunStrategy == kcmdutil.DryRunClient {
 		return p.PrintObj(scc, o.Out)
 	}
 
-	_, err = o.SCCInterface.Update(scc)
+	_, err = o.SCCInterface.Update(context.TODO(), scc, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -257,7 +263,7 @@ func (o *SCCModificationOptions) AddSCC() error {
 }
 
 func (o *SCCModificationOptions) RemoveSCC() error {
-	scc, err := o.SCCInterface.Get(o.SCCName, metav1.GetOptions{})
+	scc, err := o.SCCInterface.Get(context.TODO(), o.SCCName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -276,11 +282,11 @@ func (o *SCCModificationOptions) RemoveSCC() error {
 		return err
 	}
 
-	if o.DryRun {
+	if o.DryRunStrategy == kcmdutil.DryRunClient {
 		return p.PrintObj(scc, o.Out)
 	}
 
-	_, err = o.SCCInterface.Update(scc)
+	_, err = o.SCCInterface.Update(context.TODO(), scc, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

@@ -316,29 +316,29 @@ func validateRegistryURL(registryURL string) error {
 
 // Run contains all the necessary functionality for the OpenShift cli prune images command.
 func (o PruneImagesOptions) Run() error {
-	allPods, err := o.KubeClient.CoreV1().Pods(o.Namespace).List(metav1.ListOptions{})
+	allPods, err := o.KubeClient.CoreV1().Pods(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	allRCs, err := o.KubeClient.CoreV1().ReplicationControllers(o.Namespace).List(metav1.ListOptions{})
+	allRCs, err := o.KubeClient.CoreV1().ReplicationControllers(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	allBCs, err := o.BuildClient.BuildConfigs(o.Namespace).List(metav1.ListOptions{})
+	allBCs, err := o.BuildClient.BuildConfigs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	// We need to tolerate 'not found' errors for buildConfigs since they may be disabled in Atomic
 	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
 
-	allBuilds, err := o.BuildClient.Builds(o.Namespace).List(metav1.ListOptions{})
+	allBuilds, err := o.BuildClient.Builds(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	// We need to tolerate 'not found' errors for builds since they may be disabled in Atomic
 	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
 
-	allDSs, err := o.KubeClient.AppsV1().DaemonSets(o.Namespace).List(metav1.ListOptions{})
+	allDSs, err := o.KubeClient.AppsV1().DaemonSets(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		// TODO: remove in future (3.9) release
 		if !kerrors.IsForbidden(err) {
@@ -347,7 +347,7 @@ func (o PruneImagesOptions) Run() error {
 		fmt.Fprintf(o.ErrOut, "Failed to list daemonsets: %v\n - * Make sure to update clusterRoleBindings.\n", err)
 	}
 
-	allDeployments, err := o.KubeClient.AppsV1().Deployments(o.Namespace).List(metav1.ListOptions{})
+	allDeployments, err := o.KubeClient.AppsV1().Deployments(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		// TODO: remove in future (3.9) release
 		if !kerrors.IsForbidden(err) {
@@ -356,12 +356,12 @@ func (o PruneImagesOptions) Run() error {
 		fmt.Fprintf(o.ErrOut, "Failed to list deployments: %v\n - * Make sure to update clusterRoleBindings.\n", err)
 	}
 
-	allDCs, err := o.AppsClient.DeploymentConfigs(o.Namespace).List(metav1.ListOptions{})
+	allDCs, err := o.AppsClient.DeploymentConfigs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	allRSs, err := o.KubeClient.AppsV1().ReplicaSets(o.Namespace).List(metav1.ListOptions{})
+	allRSs, err := o.KubeClient.AppsV1().ReplicaSets(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		// TODO: remove in future (3.9) release
 		if !kerrors.IsForbidden(err) {
@@ -370,7 +370,7 @@ func (o PruneImagesOptions) Run() error {
 		fmt.Fprintf(o.ErrOut, "Failed to list replicasets: %v\n - * Make sure to update clusterRoleBindings.\n", err)
 	}
 
-	limitRangesList, err := o.KubeClient.CoreV1().LimitRanges(o.Namespace).List(metav1.ListOptions{})
+	limitRangesList, err := o.KubeClient.CoreV1().LimitRanges(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -386,8 +386,8 @@ func (o PruneImagesOptions) Run() error {
 	}
 
 	ctx := context.TODO()
-	allImagesUntyped, err := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-		return o.ImageClient.Images().List(opts)
+	allImagesUntyped, _, err := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return o.ImageClient.Images().List(context.TODO(), opts)
 	}).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -400,14 +400,14 @@ func (o PruneImagesOptions) Run() error {
 		return err
 	}
 
-	imageWatcher, err := o.ImageClient.Images().Watch(metav1.ListOptions{})
+	imageWatcher, err := o.ImageClient.Images().Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("internal error: failed to watch for images: %v"+
 			"\n - image changes will not be detected", err))
 		imageWatcher = watch.NewFake()
 	}
 
-	imageStreamWatcher, err := o.ImageClient.ImageStreams(o.Namespace).Watch(metav1.ListOptions{})
+	imageStreamWatcher, err := o.ImageClient.ImageStreams(o.Namespace).Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("internal error: failed to watch for image streams: %v"+
 			"\n - image stream changes will not be detected", err))
@@ -415,7 +415,7 @@ func (o PruneImagesOptions) Run() error {
 	}
 	defer imageStreamWatcher.Stop()
 
-	allStreams, err := o.ImageClient.ImageStreams(o.Namespace).List(metav1.ListOptions{})
+	allStreams, err := o.ImageClient.ImageStreams(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -897,7 +897,7 @@ func getClientAndMasterVersions(client discovery.DiscoveryInterface, timeout tim
 	go func() {
 		defer close(done)
 
-		ocVersionBody, err := client.RESTClient().Get().AbsPath("/version/openshift").Do().Raw()
+		ocVersionBody, err := client.RESTClient().Get().AbsPath("/version/openshift").Do(context.TODO()).Raw()
 		switch {
 		case err == nil:
 			var ocServerInfo apimachineryversion.Info

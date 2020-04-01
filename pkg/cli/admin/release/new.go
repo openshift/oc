@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -545,7 +546,7 @@ func (o *NewOptions) Run() error {
 			inputIS = is
 
 		} else {
-			is, err := o.ImageClient.ImageV1().ImageStreams(o.Namespace).Get(o.FromImageStream, metav1.GetOptions{})
+			is, err := o.ImageClient.ImageV1().ImageStreams(o.Namespace).Get(context.TODO(), o.FromImageStream, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}

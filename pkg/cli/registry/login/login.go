@@ -2,6 +2,7 @@ package login
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,15 +44,15 @@ var (
 
 		As an advanced option you may specify the credentials to login with using --auth-basic
 		with USER:PASSWORD. This may not be used with the -z flag.
-		
-		You may specify an alternate file to write credentials to with --to instead of 
-		.docker/config.json in your home directory. If you pass --to=- the file will be 
+
+		You may specify an alternate file to write credentials to with --to instead of
+		.docker/config.json in your home directory. If you pass --to=- the file will be
 		written to standard output.
 
 		To detect the registry hostname the client will attempt to find an image stream in
 		the current namespace or the openshift namespace and use the status fields that
 		indicate the registry hostnames. If no image stream is found or if you do not have
-		permission to view image streams you will have to pass the --registry flag with the 
+		permission to view image streams you will have to pass the --registry flag with the
 		desired hostname.
 
 		Experimental: This command is under active development and may change without notice.`)
@@ -162,7 +163,7 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 		if err != nil {
 			return err
 		}
-		sa, err := client.CoreV1().ServiceAccounts(ns).Get(o.ServiceAccount, metav1.GetOptions{})
+		sa, err := client.CoreV1().ServiceAccounts(ns).Get(context.TODO(), o.ServiceAccount, metav1.GetOptions{})
 		if err != nil {
 			if kerrors.IsNotFound(err) {
 				return fmt.Errorf("the service account %s does not exist in namespace %s", o.ServiceAccount, ns)
@@ -171,7 +172,7 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 		}
 		var lastErr error
 		for _, ref := range sa.Secrets {
-			secret, err := client.CoreV1().Secrets(ns).Get(ref.Name, metav1.GetOptions{})
+			secret, err := client.CoreV1().Secrets(ns).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 			if err != nil {
 				lastErr = err
 				continue
@@ -245,7 +246,7 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 
 func findPublicHostname(client *imageclient.Clientset, namespaces ...string) (name string, internal bool, err error) {
 	for _, ns := range namespaces {
-		imageStreams, err := client.ImageV1().ImageStreams(ns).List(metav1.ListOptions{})
+		imageStreams, err := client.ImageV1().ImageStreams(ns).List(context.TODO(), metav1.ListOptions{})
 		if kerrors.IsUnauthorized(err) {
 			return "", false, err
 		}

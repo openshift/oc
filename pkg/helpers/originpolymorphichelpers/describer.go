@@ -12,7 +12,7 @@ import (
 )
 
 func NewDescriberFn(delegate describe.DescriberFunc) describe.DescriberFunc {
-	return func(restClientGetter genericclioptions.RESTClientGetter, mapping *meta.RESTMapping) (describe.Describer, error) {
+	return func(restClientGetter genericclioptions.RESTClientGetter, mapping *meta.RESTMapping) (describe.ResourceDescriber, error) {
 
 		// TODO we need to refactor the describer logic to handle misses or run serverside.
 		// for now we can special case our "sometimes origin, sometimes kube" resource

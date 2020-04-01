@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -91,10 +92,12 @@ func (o *CreateUserIdentityMappingOptions) Complete(cmd *cobra.Command, f generi
 		return err
 	}
 
-	o.CreateSubcommandOptions.DryRun = cmdutil.GetDryRunFlag(cmd)
-	if o.CreateSubcommandOptions.DryRun {
-		o.CreateSubcommandOptions.PrintFlags.Complete("%s (dry run)")
+	o.CreateSubcommandOptions.DryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+
+	cmdutil.PrintFlagsWithDryRunStrategy(o.CreateSubcommandOptions.PrintFlags, o.CreateSubcommandOptions.DryRunStrategy)
 	o.CreateSubcommandOptions.Printer, err = o.CreateSubcommandOptions.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -112,8 +115,8 @@ func (o *CreateUserIdentityMappingOptions) Run() error {
 	}
 
 	var err error
-	if !o.CreateSubcommandOptions.DryRun {
-		mapping, err = o.UserIdentityMappingClient.UserIdentityMappings().Create(mapping)
+	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
+		mapping, err = o.UserIdentityMappingClient.UserIdentityMappings().Create(context.TODO(), mapping, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

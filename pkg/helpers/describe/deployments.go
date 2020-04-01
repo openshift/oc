@@ -1,6 +1,7 @@
 package describe
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sort"
@@ -16,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/describe"
-	"k8s.io/kubectl/pkg/describe/versioned"
 	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api/apps"
@@ -69,7 +69,7 @@ func (d *DeploymentConfigDescriber) Describe(namespace, name string, settings de
 		deploymentConfig = d.config
 	} else {
 		var err error
-		deploymentConfig, err = d.appsClient.DeploymentConfigs(namespace).Get(name, metav1.GetOptions{})
+		deploymentConfig, err = d.appsClient.DeploymentConfigs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		}
@@ -83,7 +83,7 @@ func (d *DeploymentConfigDescriber) Describe(namespace, name string, settings de
 		)
 
 		if d.config == nil {
-			if rcs, err := d.kubeClient.CoreV1().ReplicationControllers(namespace).List(metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(deploymentConfig.Name).String()}); err == nil {
+			if rcs, err := d.kubeClient.CoreV1().ReplicationControllers(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(deploymentConfig.Name).String()}); err == nil {
 				deploymentsHistory = make([]*corev1.ReplicationController, 0, len(rcs.Items))
 				for i := range rcs.Items {
 					deploymentsHistory = append(deploymentsHistory, &rcs.Items[i])
@@ -154,8 +154,8 @@ func (d *DeploymentConfigDescriber) Describe(namespace, name string, settings de
 					latestDeploymentEvents.Items = append(latestDeploymentEvents.Items, events.Items[i-1])
 				}
 				fmt.Fprintln(out)
-				pw := versioned.NewPrefixWriter(out)
-				versioned.DescribeEvents(latestDeploymentEvents, pw)
+				pw := describe.NewPrefixWriter(out)
+				describe.DescribeEvents(latestDeploymentEvents, pw)
 			}
 		}
 		return nil
@@ -316,14 +316,14 @@ func printDeploymentConfigSpec(kc kubernetes.Interface, dc appsv1.DeploymentConf
 
 	// Pod template
 	fmt.Fprintf(w, "Template:\n")
-	versioned.DescribePodTemplate(spec.Template, versioned.NewPrefixWriter(w))
+	describe.DescribePodTemplate(spec.Template, describe.NewPrefixWriter(w))
 
 	return nil
 }
 
 // TODO: Move this upstream
 func printAutoscalingInfo(res []schema.GroupResource, namespace, name string, kclient kubernetes.Interface, w *tabwriter.Writer) {
-	hpaList, err := kclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(metav1.ListOptions{LabelSelector: labels.Everything().String()})
+	hpaList, err := kclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Everything().String()})
 	if err != nil {
 		return
 	}
@@ -380,7 +380,7 @@ func printDeploymentRc(deployment *corev1.ReplicationController, kubeClient kube
 
 func getPodStatusForDeployment(deployment *corev1.ReplicationController, kubeClient kubernetes.Interface) (running, waiting, succeeded, failed int,
 	err error) {
-	rcPods, err := kubeClient.CoreV1().Pods(deployment.Namespace).List(metav1.ListOptions{LabelSelector: labels.Set(deployment.Spec.Selector).AsSelector().String()})
+	rcPods, err := kubeClient.CoreV1().Pods(deployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Set(deployment.Spec.Selector).AsSelector().String()})
 	if err != nil {
 		return
 	}
@@ -418,21 +418,21 @@ func NewLatestDeploymentsDescriber(client appstypedclient.AppsV1Interface, kclie
 func (d *LatestDeploymentsDescriber) Describe(namespace, name string) (string, error) {
 	var f formatter
 
-	config, err := d.appsClient.DeploymentConfigs(namespace).Get(name, metav1.GetOptions{})
+	config, err := d.appsClient.DeploymentConfigs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
 	var deployments []corev1.ReplicationController
 	if d.count == -1 || d.count > 1 {
-		list, err := d.kubeClient.CoreV1().ReplicationControllers(namespace).List(metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()})
+		list, err := d.kubeClient.CoreV1().ReplicationControllers(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()})
 		if err != nil && !kerrors.IsNotFound(err) {
 			return "", err
 		}
 		deployments = list.Items
 	} else {
 		deploymentName := appsutil.LatestDeploymentNameForConfig(config)
-		deployment, err := d.kubeClient.CoreV1().ReplicationControllers(config.Namespace).Get(deploymentName, metav1.GetOptions{})
+		deployment, err := d.kubeClient.CoreV1().ReplicationControllers(config.Namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			return "", err
 		}

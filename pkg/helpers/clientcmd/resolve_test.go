@@ -1,6 +1,7 @@
 package clientcmd
 
 import (
+	"context"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,7 +88,7 @@ func TestResolveImagePullSpec(t *testing.T) {
 
 	for i, test := range testCases {
 		t.Logf("[%d] trying to resolve %q %s and expecting %q (expectErr=%t)", i, test.source, test.input, test.expect, test.expectErr)
-		result, err := resolveImagePullSpec(test.client.ImageV1(), test.source, test.input, "default")
+		result, err := resolveImagePullSpec(context.TODO(), test.client.ImageV1(), test.source, test.input, "default")
 		if err != nil && !test.expectErr {
 			t.Errorf("[%d] unexpected error: %v", i, err)
 		} else if err == nil && test.expectErr {

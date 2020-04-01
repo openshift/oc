@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -54,7 +55,7 @@ func (o *RemoveUsersOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, ar
 }
 
 func (o *RemoveUsersOptions) Run() error {
-	group, err := o.GroupModificationOptions.GroupClient.Groups().Get(o.GroupModificationOptions.Group, metav1.GetOptions{})
+	group, err := o.GroupModificationOptions.GroupClient.Groups().Get(context.TODO(), o.GroupModificationOptions.Group, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -70,8 +71,8 @@ func (o *RemoveUsersOptions) Run() error {
 	}
 	group.Users = newUsers
 
-	if !o.GroupModificationOptions.DryRun {
-		group, err = o.GroupModificationOptions.GroupClient.Groups().Update(group)
+	if o.GroupModificationOptions.DryRunStrategy != kcmdutil.DryRunClient {
+		group, err = o.GroupModificationOptions.GroupClient.Groups().Update(context.TODO(), group, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
