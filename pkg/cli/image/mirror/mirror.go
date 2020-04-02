@@ -101,6 +101,7 @@ type MirrorImageOptions struct {
 	SkipMissing        bool
 	Force              bool
 	KeepManifestList   bool
+	ContinueOnError    bool
 
 	MaxRegistry     int
 	ParallelOptions imagemanifest.ParallelOptions
@@ -146,6 +147,7 @@ func NewCmdMirrorImage(name string, streams genericclioptions.IOStreams) *cobra.
 	o.ParallelOptions.Bind(flag)
 
 	flag.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Print the actions that would be taken and exit without writing to the destinations.")
+	flag.BoolVar(&o.ContinueOnError, "continue-on-error", o.ContinueOnError, "If an error occurs, keep going and attempt to mirror as much as possible.")
 	flag.BoolVar(&o.SkipMissing, "skip-missing", o.SkipMissing, "If an input image is not found, skip them.")
 	flag.BoolVar(&o.SkipMount, "skip-mount", o.SkipMount, "Always push layers instead of cross-mounting them")
 	flag.BoolVar(&o.SkipMultipleScopes, "skip-multiple-scopes", o.SkipMultipleScopes, "Some registries do not support multiple scopes passed to the registry login.")
@@ -232,6 +234,7 @@ func (o *MirrorImageOptions) Validate() error {
 }
 
 func (o *MirrorImageOptions) Run() error {
+	var continuedOnFailure bool
 	start := time.Now()
 	p, err := o.plan()
 	if err != nil {
@@ -244,7 +247,10 @@ func (o *MirrorImageOptions) Run() error {
 		for _, err := range errs {
 			fmt.Fprintf(o.ErrOut, "error: %v\n", err)
 		}
-		return fmt.Errorf("an error occurred during planning")
+		if !o.ContinueOnError {
+			return fmt.Errorf("an error occurred during planning")
+		}
+		continuedOnFailure = true
 	}
 
 	work := Greedy(p)
@@ -297,7 +303,10 @@ func (o *MirrorImageOptions) Run() error {
 						}
 					})
 					if phase.IsFailed() {
-						return
+						if !o.ContinueOnError {
+							return
+						}
+						continuedOnFailure = true
 					}
 					// upload manifests in batches by their prerequisites
 					op := unit.repository.manifests
@@ -367,7 +376,10 @@ func (o *MirrorImageOptions) Run() error {
 			for _, err := range phase.ExecutionFailures() {
 				fmt.Fprintf(o.ErrOut, "error: %v\n", err)
 			}
-			return fmt.Errorf("one or more errors occurred while uploading images")
+			if !o.ContinueOnError {
+				return fmt.Errorf("one or more errors occurred while uploading images")
+			}
+			continuedOnFailure = true
 		}
 	}
 
@@ -375,11 +387,17 @@ func (o *MirrorImageOptions) Run() error {
 		for _, reg := range p.registries {
 			klog.V(4).Infof("Manifests mapped %#v", reg.manifestConversions)
 			if err := o.ManifestUpdateCallback(reg.name, reg.manifestConversions); err != nil {
-				return err
+				if !o.ContinueOnError {
+					return err
+				}
+				continuedOnFailure = true
+				fmt.Fprintf(o.ErrOut, "error: %v\n", err)
 			}
 		}
 	}
-
+	if continuedOnFailure {
+		return fmt.Errorf("one or more errors occurred")
+	}
 	return nil
 }
 
