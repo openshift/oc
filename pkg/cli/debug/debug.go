@@ -865,7 +865,7 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 				image = istag.Image.DockerImageReference
 			}
 		}
-		if len(o.Image) == 0 {
+		if len(image) == 0 {
 			image = "registry.redhat.io/rhel7/support-tools"
 		}
 		zero := int64(0)
