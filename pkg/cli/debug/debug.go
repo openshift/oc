@@ -239,6 +239,12 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 	o.Resources = resources
 	o.RESTClientGetter = f
 
+	strategy, err := kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+	o.DryRun = strategy != kcmdutil.DryRunNone
+
 	switch {
 	case o.ForceTTY && o.NoStdin:
 		return kcmdutil.UsageErrorf(cmd, "you may not specify -I and -t together")
@@ -274,7 +280,6 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 		o.Command = []string{"/bin/sh"}
 	}
 
-	var err error
 	o.Namespace, o.ExplicitNamespace, err = f.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return err
@@ -420,6 +425,10 @@ func (o *DebugOptions) RunDebug() error {
 
 	if o.Printer != nil {
 		return o.Printer.PrintObj(pod, o.Out)
+	}
+
+	if o.DryRun {
+		return nil
 	}
 
 	klog.V(5).Infof("Creating pod: %#v", pod)
