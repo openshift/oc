@@ -32,6 +32,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/mustgather"
 	"github.com/openshift/oc/pkg/cli/admin/network"
 	"github.com/openshift/oc/pkg/cli/admin/node"
+	"github.com/openshift/oc/pkg/cli/admin/oauth"
 	"github.com/openshift/oc/pkg/cli/admin/policy"
 	"github.com/openshift/oc/pkg/cli/admin/project"
 	"github.com/openshift/oc/pkg/cli/admin/prune"
@@ -86,6 +87,7 @@ func NewCommandAdmin(name, fullName string, f kcmdutil.Factory, streams genericc
 				groups.NewCmdGroups(groups.GroupsRecommendedName, fullName+" "+groups.GroupsRecommendedName, f, streams),
 				withShortDescription(certificates.NewCmdCertificate(f, streams), "Approve or reject certificate requests"),
 				network.NewCmdPodNetwork(network.PodNetworkCommandName, fullName+" "+network.PodNetworkCommandName, f, streams),
+				oauth.NewCmd(oauth.RecommendedName, fullName+" "+oauth.RecommendedName, f, streams),
 			},
 		},
 		{
