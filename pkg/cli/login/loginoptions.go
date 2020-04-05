@@ -21,7 +21,6 @@ import (
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	kterm "k8s.io/kubectl/pkg/util/term"
 
-	userv1 "github.com/openshift/api/user/v1"
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	"github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
@@ -190,20 +189,18 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	// if a token were explicitly provided, try to use it
 	if o.tokenProvided() {
 		clientConfig.BearerToken = o.Token
-		if me, err := project.WhoAmI(clientConfig); err == nil {
-			o.Username = me.Name
-			o.Config = clientConfig
-
-			fmt.Fprintf(o.Out, "Logged into %q as %q using the token provided.\n\n", o.Config.Host, o.Username)
-			return nil
-
-		} else {
+		me, err := project.WhoAmI(clientConfig)
+		if err != nil {
 			if kerrors.IsUnauthorized(err) {
 				return fmt.Errorf("The token provided is invalid or expired.\n\n")
 			}
-
 			return err
 		}
+		o.Username = me.Name
+		o.Config = clientConfig
+
+		fmt.Fprintf(o.Out, "Logged into %q as %q using the token provided.\n\n", o.Config.Host, o.Username)
+		return nil
 	}
 
 	// if a username was provided try to make use of it, but if a password were provided we force a token
@@ -264,15 +261,6 @@ func (o *LoginOptions) gatherAuthInfo() error {
 // multiple projects.
 // Requires o.Username to be set.
 func (o *LoginOptions) gatherProjectInfo() error {
-	me, err := o.whoAmI()
-	if err != nil {
-		return err
-	}
-
-	if o.Username != me.Name {
-		return fmt.Errorf("current user, %v, does not match expected user %v", me.Name, o.Username)
-	}
-
 	projectClient, err := projectv1typedclient.NewForConfig(o.Config)
 	if err != nil {
 		return err
@@ -423,10 +411,6 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 	}
 
 	return created, nil
-}
-
-func (o LoginOptions) whoAmI() (*userv1.User, error) {
-	return project.WhoAmI(o.Config)
 }
 
 func (o *LoginOptions) usernameProvided() bool {
