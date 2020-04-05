@@ -373,7 +373,7 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 		globalExistedBefore = false
 	}
 
-	newConfig, err := cliconfig.CreateConfig(o.Project, o.Config)
+	newConfig, err := cliconfig.CreateConfig(o.Project, o.Username, o.Config)
 	if err != nil {
 		return false, err
 	}
