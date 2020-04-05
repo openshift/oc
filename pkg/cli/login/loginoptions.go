@@ -80,18 +80,16 @@ func NewLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
 
 // Gather all required information in a comprehensive order.
 func (o *LoginOptions) GatherInfo() error {
+	defer o.prepareAndDisplayMOTD()
+
 	if err := o.gatherAuthInfo(); err != nil {
-		// Display MOTD even if authentication failed
-		o.prepareAndDisplayMOTD()
 		return err
 	}
 	if err := o.gatherProjectInfo(); err != nil {
-		// Display MOTD even project info gathering failed
-		o.prepareAndDisplayMOTD()
 		return err
 	}
 
-	return o.prepareAndDisplayMOTD()
+	return nil
 }
 
 // getClientConfig returns back the current clientConfig as we know it.  If there is no clientConfig, it builds one with enough information
