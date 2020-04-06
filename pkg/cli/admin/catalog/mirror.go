@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,9 +18,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
-
-	"github.com/operator-framework/operator-registry/pkg/mirror"
-
 	imgextract "github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
@@ -33,7 +29,7 @@ var (
 			Mirrors the contents of a catalog into a registry.
 
 			This command will pull down an image containing a catalog database, extract it to disk, query it to find
-      all of the images used in the manifests, and then mirror them to a target registry.
+			all of the images used in the manifests, and then mirror them to a target registry.
 
 			By default, the database is extracted to a temporary directory, but can be saved locally via flags.
 
@@ -57,8 +53,12 @@ oc image mirror -f manifests/mapping.txt
 `)
 )
 
+func init() {
+	subCommands = append(subCommands, NewMirrorCatalog)
+}
+
 type MirrorCatalogOptions struct {
-	*mirror.IndexImageMirrorerOptions
+	*IndexImageMirrorerOptions
 	genericclioptions.IOStreams
 
 	DryRun       bool
@@ -79,7 +79,7 @@ type MirrorCatalogOptions struct {
 func NewMirrorCatalogOptions(streams genericclioptions.IOStreams) *MirrorCatalogOptions {
 	return &MirrorCatalogOptions{
 		IOStreams:                 streams,
-		IndexImageMirrorerOptions: mirror.DefaultImageIndexMirrorerOptions(),
+		IndexImageMirrorerOptions: DefaultImageIndexMirrorerOptions(),
 		ParallelOptions:           imagemanifest.ParallelOptions{MaxPerRegistry: 4},
 	}
 }
@@ -151,7 +151,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		}
 	}
 
-	var mirrorer mirror.ImageMirrorerFunc
+	var mirrorer ImageMirrorerFunc
 	mirrorer = func(mapping map[string]string) error {
 		for from, to := range mapping {
 			fromRef, err := imagesource.ParseSourceReference(from, nil)
@@ -205,7 +205,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 
 	o.ImageMirrorer = mirrorer
 
-	var extractor mirror.DatabaseExtractorFunc = func(from string) (string, error) {
+	var extractor DatabaseExtractorFunc = func(from string) (string, error) {
 		e := imgextract.NewOptions(o.IOStreams)
 		e.SecurityOptions = o.SecurityOptions
 		e.FilterOptions = o.FilterOptions
@@ -246,9 +246,9 @@ func (o *MirrorCatalogOptions) Validate() error {
 }
 
 func (o *MirrorCatalogOptions) Run() error {
-	indexMirrorer, err := mirror.NewIndexImageMirror(o.IndexImageMirrorerOptions.ToOption(),
-		mirror.WithSource(o.SourceRef.String()),
-		mirror.WithDest(o.Dest),
+	indexMirrorer, err := NewIndexImageMirror(o.IndexImageMirrorerOptions.ToOption(),
+		WithSource(o.SourceRef.String()),
+		WithDest(o.Dest),
 	)
 	if err != nil {
 		return err

@@ -1,3 +1,5 @@
+// +build linux
+
 package catalog
 
 import (
@@ -13,6 +15,10 @@ import (
 	imgappend "github.com/openshift/oc/pkg/cli/image/append"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 )
+
+func init() {
+	subCommands = append(subCommands, NewBuildImage)
+}
 
 var (
 	buildLong = templates.LongDesc(`
