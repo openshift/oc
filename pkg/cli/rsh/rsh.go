@@ -133,6 +133,16 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 		o.TTY = term.IsTerminal(o.In)
 	}
 
+	// Value of argsLenAtDash is -1 since cmd.ArgsLenAtDash() assumes all the flags
+	// of flag.FlagSet were parsed. The opposite is true. Thus, it needs to be computed manually.
+	// In case the command is present, the first item in args is a pod name,
+	// the rest is a command and its arguments.
+	// Kubectl exec expects the command to be preceded by '--'.
+	// Oc rsh always provides the command as the second item of args.
+	if len(args) > 1 {
+		argsLenAtDash = 1
+	}
+
 	if err := o.ExecOptions.Complete(f, cmd, args, argsLenAtDash); err != nil {
 		return err
 	}
