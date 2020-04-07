@@ -834,6 +834,7 @@ func getRegistryClient(clientConfig *restclient.Config, registryCABundle string,
 
 	// zero out everything we don't want to use
 	registryClientConfig.BearerToken = ""
+	registryClientConfig.BearerTokenFile = ""
 	registryClientConfig.CertFile = ""
 	registryClientConfig.CertData = []byte{}
 	registryClientConfig.KeyFile = ""
