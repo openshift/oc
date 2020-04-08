@@ -272,6 +272,8 @@ func WriteManifests(name, dir string, mapping map[string]string) error {
 		}
 	}()
 
+	name = strings.ReplaceAll(name, "/", "-")
+
 	icsp := operatorv1alpha1.ImageContentSourcePolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: operatorv1alpha1.GroupVersion.String(),
