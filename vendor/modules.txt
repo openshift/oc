@@ -33,6 +33,10 @@ github.com/RangelReale/osincli
 # github.com/alexbrainman/sspi v0.0.0-20180613141037-e580b900e9f5
 github.com/alexbrainman/sspi
 github.com/alexbrainman/sspi/negotiate
+# github.com/alicebob/sqlittle v1.4.0
+github.com/alicebob/sqlittle
+github.com/alicebob/sqlittle/db
+github.com/alicebob/sqlittle/sql
 # github.com/antihax/optional v0.0.0-20180407024304-ca021399b1a6
 github.com/antihax/optional
 # github.com/apcera/gssapi v0.0.0-00010101000000-000000000000 => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
@@ -581,6 +585,8 @@ golang.org/x/crypto/openpgp/errors
 golang.org/x/crypto/openpgp/packet
 golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/ssh/terminal
+# golang.org/x/exp v0.0.0-20190419195159-b8972e603456
+golang.org/x/exp/mmap
 # golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
