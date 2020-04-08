@@ -161,7 +161,7 @@ type AppregistryBuildOption func(*AppregistryBuildOptions)
 func DefaultAppregistryBuildOptions() *AppregistryBuildOptions {
 	return &AppregistryBuildOptions{
 		AppRegistryEndpoint: "https://quay.io/cnr",
-		From:                "quay.io/operator-framework/operator-registry-server:latest",
+		From:                "quay.io/operator-framework/operator-registry-server:v1.6.1",
 	}
 }
 
