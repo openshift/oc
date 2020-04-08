@@ -3,6 +3,7 @@ package login
 import (
 	"crypto/tls"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -275,7 +276,7 @@ func TestPreserveErrTypeAuthInfo(t *testing.T) {
 	invoked := make(chan struct{}, 3)
 	oauthResponse := []byte{}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case invoked <- struct{}{}:
 			t.Logf("saw %s request for path: %s", r.Method, r.URL.String())
@@ -313,6 +314,9 @@ func TestPreserveErrTypeAuthInfo(t *testing.T) {
 
 		Config: &restclient.Config{
 			Host: server.URL,
+			TLSClientConfig: restclient.TLSClientConfig{
+				CAData: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}),
+			},
 		},
 
 		IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
