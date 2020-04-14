@@ -31,22 +31,22 @@ type Bundle struct {
 	Name        string
 	Objects     []*unstructured.Unstructured
 	Package     string
-	Channel     string
+	Channels    []string
 	BundleImage string
 	csv         *ClusterServiceVersion
 	crds        []*v1beta1.CustomResourceDefinition
 	cacheStale  bool
 }
 
-func NewBundle(name, pkgName, channelName string, objs ...*unstructured.Unstructured) *Bundle {
-	bundle := &Bundle{Name: name, Package: pkgName, Channel: channelName, cacheStale: false}
+func NewBundle(name, pkgName string, channels []string, objs ...*unstructured.Unstructured) *Bundle {
+	bundle := &Bundle{Name: name, Package: pkgName, Channels: channels, cacheStale: false}
 	for _, o := range objs {
 		bundle.Add(o)
 	}
 	return bundle
 }
 
-func NewBundleFromStrings(name, pkgName, channelName string, objs []string) (*Bundle, error) {
+func NewBundleFromStrings(name, pkgName string, channels []string, objs []string) (*Bundle, error) {
 	unstObjs := []*unstructured.Unstructured{}
 	for _, o := range objs {
 		dec := yaml.NewYAMLOrJSONDecoder(strings.NewReader(o), 10)
@@ -56,7 +56,7 @@ func NewBundleFromStrings(name, pkgName, channelName string, objs []string) (*Bu
 		}
 		unstObjs = append(unstObjs, unst)
 	}
-	return NewBundle(name, pkgName, channelName, unstObjs...), nil
+	return NewBundle(name, pkgName, channels, unstObjs...), nil
 }
 
 func (b *Bundle) Size() int {
@@ -87,6 +87,20 @@ func (b *Bundle) SkipRange() (string, error) {
 		return "", err
 	}
 	return b.csv.GetSkipRange(), nil
+}
+
+func (b *Bundle) Replaces() (string, error) {
+	if err := b.cache(); err != nil {
+		return "", err
+	}
+	return b.csv.GetReplaces()
+}
+
+func (b *Bundle) Skips() ([]string, error) {
+	if err := b.cache(); err != nil {
+		return nil, err
+	}
+	return b.csv.GetSkips()
 }
 
 func (b *Bundle) CustomResourceDefinitions() ([]*v1beta1.CustomResourceDefinition, error) {

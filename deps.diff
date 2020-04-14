@@ -1,7 +1,0 @@
-diff --no-dereference -N -r current/vendor/github.com/operator-framework/operator-registry/pkg/appregistry/downloader.go updated/vendor/github.com/operator-framework/operator-registry/pkg/appregistry/downloader.go
-4d3
-< 	"context"
-255c254
-< 		secret, err := s.kubeClient.CoreV1().Secrets(source.Secret.Namespace).Get(context.TODO(), source.Secret.Name, metav1.GetOptions{})
----
-> 		secret, err := s.kubeClient.CoreV1().Secrets(source.Secret.Namespace).Get(source.Secret.Name, metav1.GetOptions{})

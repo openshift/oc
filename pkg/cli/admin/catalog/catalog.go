@@ -1,5 +1,3 @@
-// +build linux
-
 package catalog
 
 import (
@@ -10,26 +8,27 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-func init() {
-	addCommand = func(streams genericclioptions.IOStreams, cmd *cobra.Command) {
-		cmd.AddCommand(newCmd(streams))
-	}
-}
-
-func newCmd(streams genericclioptions.IOStreams) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "catalog",
-		Short: "Tools for managing the OpenShift OLM Catalogs",
-		Long: templates.LongDesc(`
+var catalogCmd = &cobra.Command{
+	Use:   "catalog",
+	Short: "Tools for managing the OpenShift OLM Catalogs",
+	Long: templates.LongDesc(`
 			This tool is used to extract and mirror the contents of catalogs for Operator
 			Lifecycle Manager.
 
 			The subcommands allow you to build catalog images from a source (such as appregistry) 
 			and mirror its content across registries.
 			`),
-		Run: kcmdutil.DefaultSubCommandRun(streams.ErrOut),
+}
+
+type subCommandFunc func(genericclioptions.IOStreams) *cobra.Command
+
+// subcommands are added via init in the subcommand files
+var subCommands = make([]subCommandFunc, 0)
+
+func AddCommand(streams genericclioptions.IOStreams, cmd *cobra.Command) {
+	catalogCmd.Run = kcmdutil.DefaultSubCommandRun(streams.ErrOut)
+	for _, c := range subCommands {
+		catalogCmd.AddCommand(c(streams))
 	}
-	cmd.AddCommand(NewBuildImage(streams))
-	cmd.AddCommand(NewMirrorCatalog(streams))
-	return cmd
+	cmd.AddCommand(catalogCmd)
 }

@@ -1,8 +1,14 @@
 package registry
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+)
+
+var (
+	// ErrPackageNotInDatabase is an error that describes a package not found error when querying the registry
+	ErrPackageNotInDatabase = errors.New("Package not in database")
 )
 
 // APIKey stores GroupVersionKind for use as map keys
@@ -74,6 +80,18 @@ type ChannelEntry struct {
 	ChannelName string
 	BundleName  string
 	Replaces    string
+}
+
+// ChannelEntryAnnotated is a denormalized node in a channel graph annotated with additional entry level info
+type ChannelEntryAnnotated struct {
+	PackageName        string
+	ChannelName        string
+	BundleName         string
+	BundlePath         string
+	Version            string
+	Replaces           string
+	ReplacesVersion    string
+	ReplacesBundlePath string
 }
 
 // AnnotationsFile holds annotation information about a bundle

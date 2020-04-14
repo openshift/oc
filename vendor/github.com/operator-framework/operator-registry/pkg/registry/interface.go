@@ -8,9 +8,10 @@ import (
 
 type Load interface {
 	AddOperatorBundle(bundle *Bundle) error
-	AddBundlePackageChannels(manifest PackageManifest, bundle Bundle) error
+	AddBundleSemver(graph *Package, bundle *Bundle) error
 	AddPackageChannels(manifest PackageManifest) error
-	RmPackageName(packageName string) error
+	AddBundlePackageChannels(manifest PackageManifest, bundle *Bundle) error
+	RemovePackage(packageName string) error
 	ClearNonDefaultBundles(packageName string) error
 }
 
@@ -18,6 +19,8 @@ type Query interface {
 	ListTables(ctx context.Context) ([]string, error)
 	ListPackages(ctx context.Context) ([]string, error)
 	GetPackage(ctx context.Context, name string) (*PackageManifest, error)
+	GetDefaultPackage(ctx context.Context, name string) (string, error)
+	GetChannelEntriesFromPackage(ctx context.Context, packageName string) ([]ChannelEntryAnnotated, error)
 	GetBundle(ctx context.Context, pkgName, channelName, csvName string) (*api.Bundle, error)
 	GetBundleForChannel(ctx context.Context, pkgName string, channelName string) (*api.Bundle, error)
 	// Get all channel entries that say they replace this one
@@ -40,10 +43,24 @@ type Query interface {
 	GetBundleVersion(ctx context.Context, image string) (string, error)
 	// List Images for Package
 	GetBundlePathsForPackage(ctx context.Context, pkgName string) ([]string, error)
+	// List Bundles for Package
+	GetBundlesForPackage(ctx context.Context, pkgName string) (map[BundleKey]struct{}, error)
 	// Get DefaultChannel for Package
 	GetDefaultChannelForPackage(ctx context.Context, pkgName string) (string, error)
 	// List channels for package
 	ListChannels(ctx context.Context, pkgName string) ([]string, error)
 	// Get CurrentCSV name for channel and package
 	GetCurrentCSVNameForChannel(ctx context.Context, pkgName, channel string) (string, error)
+}
+
+// GraphLoader generates a graph
+// GraphLoader supports multiple different loading schemes
+// GraphLoader from SQL, GraphLoader from old format (filesystem), GraphLoader from SQL + input bundles
+type GraphLoader interface {
+	Generate(packageName string) (*Package, error)
+}
+
+// RegistryPopulator populates a registry.
+type RegistryPopulator interface {
+	Populate() error
 }
