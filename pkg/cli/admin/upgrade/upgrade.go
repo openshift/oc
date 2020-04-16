@@ -174,10 +174,11 @@ func (o *Options) Run() error {
 			return nil
 		}
 
-		if !o.AllowUpgradeWithWarnings {
-			if err := checkForUpgrade(cv); err != nil {
-				return err
+		if err := checkForUpgrade(cv); err != nil {
+			if !o.AllowUpgradeWithWarnings {
+				return fmt.Errorf("%s\n\nIf you want to upgrade anyway, use --allow-upgrade-with-warnings.", err)
 			}
+			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
 		}
 
 		sortSemanticVersions(cv.Status.AvailableUpdates)
@@ -259,14 +260,16 @@ func (o *Options) Run() error {
 			}
 		}
 
-		switch {
-		case o.Force:
+		if o.Force {
 			update.Force = true
 			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
-		case !o.AllowUpgradeWithWarnings:
-			if err := checkForUpgrade(cv); err != nil {
-				return err
+		}
+
+		if err := checkForUpgrade(cv); err != nil {
+			if !o.AllowUpgradeWithWarnings {
+				return fmt.Errorf("%s\n\nIf you want to upgrade anyway, use --allow-upgrade-with-warnings.", err)
 			}
+			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
 		}
 
 		cv.Spec.DesiredUpdate = update
@@ -419,13 +422,13 @@ func findCondition(conditions []configv1.ClusterOperatorStatusCondition, name co
 
 func checkForUpgrade(cv *configv1.ClusterVersion) error {
 	if c := findCondition(cv.Status.Conditions, "Invalid"); c != nil && c.Status == configv1.ConditionTrue {
-		return fmt.Errorf("The cluster version object is invalid, you must correct the invalid state first.\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
+		return fmt.Errorf("the cluster version object is invalid, you must correct the invalid state first.\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
 	}
 	if c := findCondition(cv.Status.Conditions, configv1.OperatorDegraded); c != nil && c.Status == configv1.ConditionTrue {
-		return fmt.Errorf("The cluster is experiencing an upgrade-blocking error, use --allow-upgrade-with-warnings to upgrade anyway.\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
+		return fmt.Errorf("the cluster is experiencing an upgrade-blocking error\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
 	}
 	if c := findCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue {
-		return fmt.Errorf("Already upgrading, pass --allow-upgrade-with-warnings to override.\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
+		return fmt.Errorf("already upgrading.\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
 	}
 	return nil
 }
