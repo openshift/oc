@@ -55,9 +55,9 @@ func New(f kcmdutil.Factory, parentName string, streams genericclioptions.IOStre
 			must pass --allow-upgrade-with-warnings to proceed (see note below on the implications).
 
 			If the cluster reports that the upgrade should not be performed due to a content
-			verification error or an operator blocking upgrades, please verify those errors. Do not
-			upgrade to images that are not appropriately signed without understanding the risks of
-			upgrading your cluster to untrusted code. If you must override this protection use
+			verification error or update precondition failures such as operators blocking upgrades.
+			Do not upgrade to images that are not appropriately signed without understanding the risks
+			of upgrading your cluster to untrusted code. If you must override this protection use
 			the --force flag.
 
 			If there are no versions available, or a bug in the cluster version operator prevents
@@ -185,6 +185,7 @@ func (o *Options) Run() error {
 		update := cv.Status.AvailableUpdates[len(cv.Status.AvailableUpdates)-1]
 		if o.Force {
 			update.Force = true
+			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
 		}
 
 		cv.Spec.DesiredUpdate = &update
@@ -260,6 +261,7 @@ func (o *Options) Run() error {
 		switch {
 		case o.Force:
 			update.Force = true
+			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
 		case !o.AllowUpgradeWithWarnings:
 			if err := checkForUpgrade(cv); err != nil {
 				return err
