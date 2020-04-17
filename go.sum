@@ -714,8 +714,8 @@ github.com/openshift/kubernetes-client-go v0.0.0-20200312102710-a3d38b2f4366 h1:
 github.com/openshift/kubernetes-client-go v0.0.0-20200312102710-a3d38b2f4366/go.mod h1:UvuVxHjKWIcgy0iMvF+bwNDW7l0mskTNOaOW1Qv5BMA=
 github.com/openshift/kubernetes-kubectl v0.0.0-20200318132203-d76c0712736d h1:/ljjf5pqefwDv0KY719ixfAoRUC0SZBHtxDSkxn+ofY=
 github.com/openshift/kubernetes-kubectl v0.0.0-20200318132203-d76c0712736d/go.mod h1:W/RhsZUzxhIrbUQLQCCKNKZkz4LVbglYCjaR8jP/JIw=
-github.com/openshift/library-go v0.0.0-20200327125526-163b2f0d6264 h1:VcZjTupwjxB9ANlKxerMNdfjqlTBWrVxgrjKi7VBwOY=
-github.com/openshift/library-go v0.0.0-20200327125526-163b2f0d6264/go.mod h1:CfydoH0B+RYs22uQZQ36A1mz5m5zhucpMGh8t5s71v4=
+github.com/openshift/library-go v0.0.0-20200402123743-4015ba624cae h1:QE9zls9gSMcB8LYWi2mFvVaiAcI4ECg6b45/OYHGe9E=
+github.com/openshift/library-go v0.0.0-20200402123743-4015ba624cae/go.mod h1:CfydoH0B+RYs22uQZQ36A1mz5m5zhucpMGh8t5s71v4=
 github.com/openzipkin/zipkin-go v0.1.6/go.mod h1:QgAqvLzwWbR/WpD4A3cGpPtJrZXNIiJc5AZX7/PBEpw=
 github.com/operator-framework/api v0.1.1 h1:DbfxRJUPMQlQW6nbfoNzWLxv1rIv13Gt8GbsF2aglFk=
 github.com/operator-framework/api v0.1.1/go.mod h1:yzNYR7qyJqRGOOp+bT6Z/iYSbSPNxeh3Si93Gx/3OBY=
