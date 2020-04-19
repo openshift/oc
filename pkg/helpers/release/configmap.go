@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
-	"sigs.k8s.io/yaml"
 )
 
 // ReleaseAnnotationConfigMapVerifier is an annotation set on a config map in the
@@ -69,21 +68,6 @@ func GetSignaturesAsConfigmap(digest string, signatures [][]byte) (*corev1.Confi
 		cm.BinaryData[fmt.Sprintf("%s-%d", prefix, i+1)] = signatures[i]
 	}
 	return cm, nil
-}
-
-// GetSignaturesAsConfigmapBytes stores the given signatures as a configmap and
-// and returns configmap as bytes. Uses digestToKeyPrefix to replace colon with
-// dash when saving digest to configmap.
-func GetSignaturesAsConfigmapBytes(digest string, signatures [][]byte) ([]byte, error) {
-	cm, err := GetSignaturesAsConfigmap(digest, signatures)
-	if err != nil {
-		return nil, err
-	}
-	cmData, err := yaml.Marshal(cm)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create %s manifest: %v", digest, err)
-	}
-	return cmData, nil
 }
 
 // NewFromConfigMapData expects to receive the data field of the first config map in the release

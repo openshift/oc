@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,7 +19,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -87,30 +88,29 @@ func NewMirror(f kcmdutil.Factory, parentName string, streams genericclioptions.
 			that must be applied to a cluster to use the mirror, but you may opt to rewrite the
 			update to point to the new location and lose the cryptographic integrity of the update.
 
-			Creates a release image signature ConfigMap that can either be saved to a directory or
-			applied directly to a connected cluster.
+			Creates a release image signature ConfigMap that can be saved to a directory, applied
+			directly to a connected cluster, or both.
 
 			The common use for this command is to mirror a specific OpenShift release version to
 			a private registry and create a signature ConfigMap for use in a disconnected or
-			offline context. The command copies all	images that are part of a release into the
+			offline context. The command copies all images that are part of a release into the
 			target repository and then prints the correct information to give to OpenShift to use
-			that content offline. An alternate mode	is to specify --to-image-stream, which imports
+			that content offline. An alternate mode is to specify --to-image-stream, which imports
 			the images directly into an OpenShift image stream.
 
 			You may use --to-dir to specify a directory to download release content into, and add
 			the file:// prefix to the --to flag. The command will print the 'oc image mirror' command
 			that can be used to upload the release to another registry.
 
-			You may use either --apply-release-image-signature or --release-image-signature-to-dir
+			You may use --apply-release-image-signature, --release-image-signature-to-dir, or both
 			to control the handling of the signature ConfigMap. Option
 			--apply-release-image-signature will apply the ConfigMap directly to a connected
 			cluster while --release-image-signature-to-dir specifies an export target directory. If
-			neither of these options is specified --to-dir is expected under which a 'config'
-			directory will be created to contain the ConfigMap. The --overwrite option only applies
-			when --apply-release-image-signature is specified and indicates to update an exisiting
-			ConfigMap if one is found. A ConfigMap written to a directory will always replace one
-			that already exists.
-			
+			--release-image-signature-to-dir is not specified but --to-dir is,
+			--release-image-signature-to-dir defaults to a 'config' subdirectory of --to-dir.
+			The --overwrite option only applies when --apply-release-image-signature is specified
+			and indicates to update an exisiting ConfigMap if one is found. A ConfigMap written to a
+			directory will always replace onethat already exists.
 		`),
 		Example: templates.Examples(fmt.Sprintf(`
 			# Perform a dry run showing what would be mirrored, including the mirror objects
@@ -273,20 +273,12 @@ func (o *MirrorOptions) Validate() error {
 		return fmt.Errorf("--skip-release-image and --to-release-image may not both be specified")
 	}
 
-	if o.ApplyReleaseImageSignature {
-		if len(o.ReleaseImageSignatureToDir) != 0 {
-			return fmt.Errorf("--release-image-signature-to-dir and --apply-release-image-signature may not both be specified")
-		}
-	} else {
-		if len(o.ReleaseImageSignatureToDir) == 0 {
-			if len(o.ToDir) == 0 {
-				return fmt.Errorf("if --to-dir and --apply-release-image-signature are not specified, --release-image-signature-to-dir must be used to specify a directory to export the signature")
-			}
-			o.ReleaseImageSignatureToDir = o.ToDir + configFilesBaseDir
-		}
-		if o.Overwrite {
-			return fmt.Errorf("--overwite is only valid when --apply-release-image-signature is specified")
-		}
+	if len(o.ReleaseImageSignatureToDir) == 0 && len(o.ToDir) > 0 {
+		o.ReleaseImageSignatureToDir = filepath.Join(o.ToDir, configFilesBaseDir)
+	}
+
+	if o.Overwrite && !o.ApplyReleaseImageSignature {
+		return fmt.Errorf("--overwite is only valid when --apply-release-image-signature is specified")
 	}
 	return nil
 }
@@ -318,76 +310,71 @@ func createSignatureFileName(digest string) (string, error) {
 }
 
 // handleSignatures implements the image release signature configmap specific logic.
-// Signature configmaps are either written to a directory or applied to a cluster.
-func (o *MirrorOptions) handleSignatures(context context.Context, signaturesByDigest map[string][][]byte) {
+// Signature configmaps may be written to a directory or applied to a cluster.
+func (o *MirrorOptions) handleSignatures(context context.Context, signaturesByDigest map[string][][]byte) error {
 	var client corev1client.ConfigMapInterface
 	if !o.DryRun && o.ApplyReleaseImageSignature {
 		var err error
 		client, err = o.CoreV1ClientFn()
 		if err != nil {
-			fmt.Fprintf(o.ErrOut, "error: Can't apply manifests to cluster -%v\n", err)
-			return
+			return fmt.Errorf("creating a Kubernetes API client: %v", err)
 		}
 	}
 	for digest, signatures := range signaturesByDigest {
+		cmData, err := release.GetSignaturesAsConfigmap(digest, signatures)
+		if err != nil {
+			return fmt.Errorf("converting signatures to a configmap: %v", err)
+		}
 		if o.ApplyReleaseImageSignature {
-			cmData, err := release.GetSignaturesAsConfigmap(digest, signatures)
-			if err != nil {
-				fmt.Fprintf(o.ErrOut, "error: %v\n", err)
-				continue
-			}
 			if o.DryRun {
 				fmt.Fprintf(o.Out, "info: Create or configure configmap %s\n", cmData.Name)
-				continue
-			}
-			var create bool = true
-			if o.Overwrite {
-				// An error is returned if the configmap does not exist in which case we will
-				// attempt to create the manifest.
-				if _, err := client.Get(cmData.Name, metav1.GetOptions{}); err == nil {
-					create = false
-					if _, err := client.Update(cmData); err != nil {
-						fmt.Fprintf(o.ErrOut, "error: Configure failed for configmap %s, %v\n", cmData.Name, err)
+			} else {
+				var create bool = true
+				if o.Overwrite {
+					// An error is returned if the configmap does not exist in which case we will
+					// attempt to create the manifest.
+					if _, err := client.Get(cmData.Name, metav1.GetOptions{}); err == nil {
+						create = false
+						if _, err := client.Update(cmData); err != nil {
+							return fmt.Errorf("updating configmap %s: %v", cmData.Name, err)
+						} else {
+							fmt.Fprintf(o.Out, "configmap/%s configured\n", cmData.Name)
+						}
+					}
+				}
+				if create {
+					if _, err := client.Create(cmData); err != nil {
+						return fmt.Errorf("creating configmap %s: %v", cmData.Name, err)
 					} else {
-						fmt.Fprintf(o.Out, "configmap/%s configured\n", cmData.Name)
+						fmt.Fprintf(o.Out, "configmap/%s created\n", cmData.Name)
 					}
 				}
 			}
-			if create {
-				if _, err := client.Create(cmData); err != nil {
-					fmt.Fprintf(o.ErrOut, "error: Create failed for configmap %s, %v\n", cmData.Name, err)
-				} else {
-					fmt.Fprintf(o.Out, "configmap/%s created\n", cmData.Name)
-				}
-			}
-		} else {
-			cmData, err := release.GetSignaturesAsConfigmapBytes(digest, signatures)
-			if err != nil {
-				fmt.Fprintf(o.ErrOut, "error: %v\n", err)
-				continue
-			}
+		}
+		if len(o.ReleaseImageSignatureToDir) > 0 {
 			fileName, err := createSignatureFileName(digest)
 			if err != nil {
-				fmt.Fprintf(o.ErrOut, "error: %v\n", err)
-				continue
+				return fmt.Errorf("creating filename: %v", err)
 			}
 			fullName := filepath.Join(o.ReleaseImageSignatureToDir, fileName)
 			if o.DryRun {
 				fmt.Fprintf(o.Out, "info: Write configmap signature file %s\n", fullName)
-				continue
+			} else {
+				cmDataBytes, err := yaml.Marshal(cmData)
+				if err != nil {
+					return fmt.Errorf("marshaling configmap YAML: %v", err)
+				}
+				if err := os.MkdirAll(filepath.Dir(fullName), 0750); err != nil {
+					return err
+				}
+				if err := ioutil.WriteFile(fullName, cmDataBytes, 0640); err != nil {
+					return err
+				}
+				fmt.Fprintf(o.Out, "Configmap signature file %s created\n", fullName)
 			}
-			if err := os.MkdirAll(filepath.Dir(fullName), 0750); err != nil {
-				fmt.Fprintf(o.ErrOut, "error: Failed to create dir: %v\n", err)
-				return
-			}
-			if err := ioutil.WriteFile(fullName, cmData, 0640); err != nil {
-				fmt.Fprintf(o.ErrOut, "error: Failed to write file: %v\n", err)
-				return
-			}
-			fmt.Fprintf(o.Out, "Configmap signature file %s created\n", fullName)
 		}
 	}
-	return
+	return nil
 }
 
 func (o *MirrorOptions) Run() error {
@@ -707,7 +694,7 @@ func (o *MirrorOptions) Run() error {
 						delete(hasErrors, name)
 					} else {
 						delete(remaining, name)
-						err := errors.FromObject(&image.Status)
+						err := apierrors.FromObject(&image.Status)
 						hasErrors[name] = err
 						klog.V(2).Infof("Failed to import %s as tag %s: %v", remaining[name].Source, name, err)
 					}
@@ -798,11 +785,24 @@ func (o *MirrorOptions) Run() error {
 			}
 		}
 	}
-	signatures := imageVerifier.Signatures()
-	if signatures != nil && len(signatures) > 0 {
-		o.handleSignatures(ctx, signatures)
-	} else {
-		fmt.Fprintf(os.Stderr, "info: No signatures found for digest %s, configmap can not be created\n", releaseDigest)
+	if o.ApplyReleaseImageSignature || len(o.ReleaseImageSignatureToDir) > 0 {
+		signatures := imageVerifier.Signatures()
+		if signatures == nil || len(signatures) == 0 {
+			return errors.New("failed to retrieve cached signatures")
+		}
+		if _, ok := signatures[releaseDigest]; ok {
+			err := o.handleSignatures(ctx, signatures)
+			if err != nil {
+				return fmt.Errorf("handling release image signatures: %v", err)
+			}
+		} else {
+			digests := make([]string, 0, len(signatures))
+			for digest := range signatures {
+				digests = append(digests, digest)
+			}
+			sort.Strings(digests)
+			return fmt.Errorf("no cached signatures for digest %s, just:\n%s", releaseDigest, strings.Join(digests, "\n"))
+		}
 	}
 	return nil
 }
