@@ -775,6 +775,20 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 				errs = append(errs, err)
 				return true, nil
 			}
+			for _, tag := range is.Spec.Tags {
+				// If ForcePrefix true, use user-provided image rather than its mirrored source
+				// imagereference.Parse returns the digest ID of each component in the release image-reference.
+				// If can't get digest ID, skip this tag, this happens when user has built a payload by
+				// replacing component images in the release with a new image
+				if opts.SecurityOptions.ForcePrefix {
+					forcePrefix := ref.Ref.AsRepository().String()
+					_, err := imagereference.Parse(tag.From.Name)
+					if err == nil {
+						tag.From.Name = forcePrefix
+					}
+				}
+			}
+
 			release.References = is
 		case "release-metadata":
 			data, err := ioutil.ReadAll(r)

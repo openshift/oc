@@ -517,10 +517,12 @@ func (o *MirrorOptions) Run() error {
 	if err := imageVerifier.Verify(ctx, releaseDigest); err != nil {
 		fmt.Fprintf(o.ErrOut, "warning: An image was retrieved that failed verification: %v\n", err)
 	}
+	var srcRef imagesource.TypedImageReference
 	var mappings []mirror.Mapping
 	if len(o.From) > 0 {
+		var err error
 		src := o.From
-		srcRef, err := imagesource.ParseReference(src)
+		srcRef, err = imagesource.ParseReference(src)
 		if err != nil {
 			return fmt.Errorf("invalid --from: %v", err)
 		}
@@ -593,6 +595,12 @@ func (o *MirrorOptions) Run() error {
 			return fmt.Errorf("image-references should only contain pointers to images by digest: %s", tag.From.Name)
 		}
 
+		// if ForcePrefix set, set from to be user-provided image rather than it's mirrored source
+		if o.SecurityOptions.ForcePrefix {
+			forcePrefix := srcRef.Ref.AsRepository()
+			forcePrefix.ID = from.ID
+			from = forcePrefix
+		}
 		// Allow mirror refs to be sourced locally
 		srcMirrorRef := imagesource.TypedImageReference{Ref: from, Type: imagesource.DestinationRegistry}
 		srcMirrorRef = sourceFn(srcMirrorRef)
