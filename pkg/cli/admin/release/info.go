@@ -775,6 +775,28 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 				errs = append(errs, err)
 				return true, nil
 			}
+			// try to verify user-passed image first, in case of mirrored images this will
+			// exist, and if so, use this instead of the release image-reference. If this doesn't
+			// exist, proceed with release image-reference from the readReleaseImageReference above
+			newRef := ref.Ref.AsRepository()
+			// Try the registry/repo passed from the user first.  If image does not exist,
+			// proceed with the release info from the release image-references, from readReleaseImageReference above
+			for _, tag := range is.Spec.Tags {
+				// tagRef is the sha of each component in the release image-reference.
+				// If can't get digest ID, skip this tag, this happens when user has built a payload by
+				// replacing component images in the release with a new image
+				tagRef, err := imagereference.Parse(tag.From.Name)
+				if err != nil {
+					continue
+				}
+				newRef.ID = tagRef.ID
+				// If the user-given registry/repo/name:digest exists, replace with that, if not keep the
+				// is.Spec.Tag from release image-reference
+				if verifyImageExists(opts, newRef) {
+					tag.From.Name = newRef.String()
+				}
+			}
+
 			release.References = is
 		case "release-metadata":
 			data, err := ioutil.ReadAll(r)
@@ -873,6 +895,35 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	sort.Strings(release.Warnings)
 
 	return release, nil
+}
+
+func verifyImageExists(opts *extract.Options, ref imagereference.DockerImageReference) bool {
+	from := imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
+	ctx := context.Background()
+	fromContext, err := opts.SecurityOptions.Context()
+	if err != nil {
+		return false
+	}
+	fromOptions := &imagesource.Options{
+		FileDir:         opts.FileDir,
+		Insecure:        opts.SecurityOptions.Insecure,
+		RegistryContext: fromContext,
+	}
+
+	repo, err := fromOptions.Repository(ctx, from)
+	if err != nil {
+		klog.V(2).Infof("unable to connect to image repository %s: %v", from.String(), err)
+		return false
+	}
+	_, _, err = imagemanifest.FirstManifest(ctx, from.Ref, repo, opts.FilterOptions.Include)
+	if err != nil {
+		if imagemanifest.IsImageNotFound(err) {
+			return false
+		}
+		klog.V(2).Infof("unable to read image %s: %v", from.String(), err)
+		return false
+	}
+	return true
 }
 
 func readComponentVersions(is *imageapi.ImageStream) (ComponentVersions, []error) {
