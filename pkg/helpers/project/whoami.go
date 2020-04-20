@@ -2,6 +2,9 @@ package project
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,9 +26,11 @@ func WhoAmI(clientConfig *restclient.Config) (*userv1.User, error) {
 	if kerrors.IsNotFound(err) || kerrors.IsForbidden(err) {
 		switch {
 		case len(clientConfig.BearerToken) > 0:
-			// the user has already been willing to provide the token on the CLI, so they probably
-			// don't mind using it again if they switch to and from this user
-			return &userv1.User{ObjectMeta: metav1.ObjectMeta{Name: clientConfig.BearerToken}}, nil
+			// convert their token to a hash instead of printing it
+			h := sha256.New()
+			h.Write([]byte(clientConfig.BearerToken))
+			tokenName := fmt.Sprintf("token-%s", base64.RawURLEncoding.EncodeToString(h.Sum(nil)[:9]))
+			return &userv1.User{ObjectMeta: metav1.ObjectMeta{Name: tokenName}}, nil
 
 		case len(clientConfig.Username) > 0:
 			return &userv1.User{ObjectMeta: metav1.ObjectMeta{Name: clientConfig.Username}}, nil

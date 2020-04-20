@@ -24,6 +24,7 @@ import (
 	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	clientcfg "github.com/openshift/oc/pkg/helpers/originkubeconfignames"
+	"github.com/openshift/oc/pkg/helpers/project"
 )
 
 type ProjectOptions struct {
@@ -200,14 +201,14 @@ func (o ProjectOptions) Run() error {
 	// We have an argument that can be either a context or project
 	argument := o.ProjectName
 
-	contextInUse := ""
-	namespaceInUse := ""
+	var contextInUse, namespaceInUse, userNameInUse string
 
 	// Check if argument is an existing context, if so just set it as the context in use.
 	// If not a context then we will try to handle it as a project.
 	if context, contextExists := o.GetContextFromName(argument); contextExists {
 		contextInUse = argument
 		namespaceInUse = context.Namespace
+		userNameInUse = context.AuthInfo
 
 		config.CurrentContext = argument
 	} else {
@@ -250,8 +251,15 @@ func (o ProjectOptions) Run() error {
 			}
 		}
 		projectName := argument
+		if len(userNameInUse) == 0 {
+			user, err := project.WhoAmI(o.RESTConfig)
+			if err != nil {
+				return fmt.Errorf("unable to default to a user name: %v", err)
+			}
+			userNameInUse = user.Name
+		}
 
-		kubeconfig, err := cliconfig.CreateConfig(projectName, o.RESTConfig)
+		kubeconfig, err := cliconfig.CreateConfig(projectName, userNameInUse, o.RESTConfig)
 		if err != nil {
 			return err
 		}
