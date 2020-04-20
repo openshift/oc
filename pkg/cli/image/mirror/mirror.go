@@ -579,7 +579,8 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 							case src.ref.EqualRegistry(dst.ref) && canonicalFrom.String() == canonicalTo.String():
 								// if the source and destination repos are the same, we don't need to copy layers unless forced
 							default:
-								if _, err := toManifests.Get(ctx, srcDigest); err != nil {
+								m, err := toManifests.Get(ctx, srcDigest)
+								if err != nil || m == nil {
 									mustCopyLayers = true
 									blobPlan.AlreadyExists(distribution.Descriptor{Digest: srcDigest})
 								} else {
@@ -647,8 +648,8 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob distribution.Descriptor, referentialClient *http.Client, force, skipMount bool, errOut io.Writer) error {
 	// if we aren't forcing upload, check to see if the blob aleady exists
 	if !force {
-		_, err := c.to.Stat(ctx, blob.Digest)
-		if err == nil {
+		b, err := c.to.Stat(ctx, blob.Digest)
+		if err == nil && b.Size > 0 {
 			// blob exists, skip
 			klog.V(5).Infof("Server reports blob exists %#v", blob)
 			c.parent.parent.AssociateBlob(c.parent.name, blob)

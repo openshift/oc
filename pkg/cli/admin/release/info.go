@@ -367,6 +367,8 @@ func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 		o.From = o.Images[0]
 		o.Images = o.Images[1:]
 	}
+	o.SecurityOptions.LookupAlternate = true
+
 	return nil
 }
 
@@ -734,17 +736,37 @@ func (i *ReleaseInfo) Platform() string {
 	return fmt.Sprintf("%s/%s", os, arch)
 }
 
+// LoadReleaseInfo takes an image and returns release payload info or an error.
+// If retrieveImages is true, release payload component images will also be fetched.
 func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*ReleaseInfo, error) {
+	ctx := context.Background()
 	ref, err := imagesource.ParseReference(image)
 	if err != nil {
 		return nil, err
 	}
-
+	regContext, err := o.SecurityOptions.Context()
+	if err != nil {
+		return nil, err
+	}
+	sourceOpts := &imagesource.Options{
+		FileDir:         o.FileDir,
+		Insecure:        o.SecurityOptions.Insecure,
+		RegistryContext: regContext,
+	}
+	repo, err := sourceOpts.RepositoryWithLocation(ctx, ref)
+	if err != nil {
+		return nil, err
+	}
+	newRef := repo.Ref()
+	newRef.ID = ref.Ref.ID
+	newRef.Tag = ref.Ref.Tag
+	image = newRef.String()
+	updatedRef := ref.Ref != newRef
+	ref.Ref = newRef
 	verifier := imagemanifest.NewVerifier()
-	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := extract.NewExtractOptions(o.IOStreams)
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FileDir = o.FileDir
-
 	release := &ReleaseInfo{
 		Image:    image,
 		ImageRef: ref,
@@ -778,7 +800,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 				return true, nil
 			}
 			release.RawMetadata[hdr.Name] = data
-			is, err := readReleaseImageReferences(data)
+			is, err := readReleaseImageReferences(data, updatedRef, newRef)
 			if err != nil {
 				errs = append(errs, err)
 				return true, nil
@@ -825,7 +847,6 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	if release.References == nil {
 		return nil, fmt.Errorf("release image did not contain an image-references file")
 	}
-
 	release.ComponentVersions, errs = readComponentVersions(release.References)
 	for _, err := range errs {
 		release.Warnings = append(release.Warnings, err.Error())

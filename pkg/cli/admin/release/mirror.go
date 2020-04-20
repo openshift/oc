@@ -247,7 +247,9 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 		client := coreClient.ConfigMaps(configmap.NamespaceLabelConfigMap)
 		return client, nil
 	}
-	o.PrintImageContentInstructions = true
+
+	o.SecurityOptions.LookupAlternate = true
+
 	return nil
 }
 

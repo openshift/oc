@@ -267,11 +267,12 @@ func (o *AppendImageOptions) Run() error {
 		fromRepo          distribution.Repository
 	)
 	if from != nil {
-		repo, err := fromOptions.Repository(ctx, *from)
+		repo, err := fromOptions.RepositoryWithLocation(ctx, *from)
 		if err != nil {
 			return err
 		}
 		fromRepo = repo
+		from.Ref = repo.Ref()
 
 		srcManifest, manifestLocation, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 		if err != nil {

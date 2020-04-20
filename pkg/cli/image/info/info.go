@@ -403,11 +403,11 @@ func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource
 			name := key
 			from := refs[key]
 			q.Try(func() error {
-				repo, err := fromOptions.Repository(ctx, from)
+				repo, err := fromOptions.RepositoryWithLocation(ctx, from)
 				if err != nil {
 					return callbackFn(name, nil, fmt.Errorf("unable to connect to image repository %s: %v", from, err))
 				}
-
+				from.Ref = repo.Ref()
 				allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {

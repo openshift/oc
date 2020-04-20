@@ -246,6 +246,8 @@ func (o *NewOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 			o.Namespace = namespace
 		}
 	}
+
+	o.SecurityOptions.LookupAlternate = true
 	return nil
 }
 
@@ -441,7 +443,7 @@ func (o *NewOptions) Run() error {
 			fmt.Fprintf(o.ErrOut, "warning: %v\n", err)
 		}
 
-		inputIS, err := readReleaseImageReferences(imageReferencesData)
+		inputIS, err := readReleaseImageReferences(imageReferencesData, false, ref.Ref)
 		if err != nil {
 			return fmt.Errorf("unable to load image-references from release contents: %v", err)
 		}

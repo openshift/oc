@@ -17,6 +17,16 @@ type Options struct {
 	RegistryContext     *registryclient.Context
 }
 
+// RepositoryWithLocation retrieves the appropriate repository implementation and imageReference for the given typed reference.
+func (o *Options) RepositoryWithLocation(ctx context.Context, ref TypedImageReference) (registryclient.RepositoryWithLocation, error) {
+	switch ref.Type {
+	case DestinationRegistry:
+		return o.RegistryContext.Repository(ctx, ref.Ref.DockerClientDefaults().RegistryURL(), ref.Ref.RepositoryName(), o.Insecure)
+	default:
+		return nil, fmt.Errorf("expected image reference of type registry %s, use o.Repository instead.", ref.Type)
+	}
+}
+
 // Repository retrieves the appropriate repository implementation for the given typed reference.
 func (o *Options) Repository(ctx context.Context, ref TypedImageReference) (distribution.Repository, error) {
 	switch ref.Type {

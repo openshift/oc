@@ -355,15 +355,14 @@ func (o *ExtractOptions) Run() error {
 			mapping := o.Mappings[i]
 			from := mapping.ImageRef
 			q.Try(func() error {
-				repo, err := fromOptions.Repository(ctx, from)
+				repo, err := fromOptions.RepositoryWithLocation(ctx, from)
 				if err != nil {
 					return fmt.Errorf("unable to connect to image repository %s: %v", from.String(), err)
 				}
-
 				srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {
-						msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
+						msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from.Ref.String())
 						return imagemanifest.NewImageForbidden(msg, err)
 					}
 					if imagemanifest.IsImageNotFound(err) {

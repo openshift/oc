@@ -29,6 +29,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
+	"github.com/openshift/library-go/pkg/image/strategy"
 	"github.com/openshift/oc/pkg/cli/image/manifest/dockercredentials"
 	"github.com/openshift/oc/pkg/helpers/image/dockerlayer/add"
 )
@@ -45,6 +46,7 @@ type SecurityOptions struct {
 	RegistryConfig   string
 	Insecure         bool
 	SkipVerification bool
+	LookupAlternate  bool
 
 	CachedContext *registryclient.Context
 }
@@ -130,6 +132,9 @@ func (o *SecurityOptions) NewContext() (*registryclient.Context, error) {
 		}
 	}
 	context := registryclient.NewContext(rt, insecureRT).WithCredentials(creds)
+	if o.LookupAlternate {
+		context = context.WithAlternateBlobSourceStrategy(strategy.NewSimpleLookupICSPStrategy("", nil))
+	}
 	context.DisableDigestVerification = o.SkipVerification
 	return context, nil
 }
@@ -238,6 +243,9 @@ func AllManifests(ctx context.Context, from imagereference.DockerImageReference,
 	if err != nil {
 		return nil, nil, "", err
 	}
+	if srcManifest == nil {
+		return nil, nil, "", fmt.Errorf("srcManifest for ref %s is nil", from.String())
+	}
 
 	return ManifestsFromList(ctx, srcDigest, srcManifest, manifests, from)
 }
@@ -281,6 +289,9 @@ func FirstManifest(ctx context.Context, from imagereference.DockerImageReference
 		return nil, ManifestLocation{}, err
 	}
 
+	if srcManifest == nil {
+		return nil, ManifestLocation{}, fmt.Errorf("manifest for %s is nil", from.String())
+	}
 	originalSrcDigest := srcDigest
 	srcManifests, srcManifest, srcDigest, err := ProcessManifestList(ctx, srcDigest, srcManifest, manifests, from, filterFn, false)
 	if err != nil {

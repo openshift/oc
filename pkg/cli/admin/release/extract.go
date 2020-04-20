@@ -173,6 +173,7 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 		return fmt.Errorf("you may only specify a single image via --from or argument")
 	}
 	o.From = args[0]
+	o.SecurityOptions.LookupAlternate = true
 
 	return nil
 }

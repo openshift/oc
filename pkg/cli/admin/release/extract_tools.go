@@ -27,7 +27,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/MakeNowJust/heredoc"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
@@ -320,11 +319,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			missing.Insert(target.Mapping.Image)
 			continue
 		}
-		klog.V(2).Infof("Will extract %s from %s", target.Mapping.From, spec)
 		ref, err := imagereference.Parse(spec)
 		if err != nil {
 			return err
 		}
+		klog.V(2).Infof("Will extract %s from %s", target.Mapping.From, spec)
 		target.Mapping.Image = spec
 		target.Mapping.ImageRef = imagesource.TypedImageReference{Ref: ref, Type: imagesource.DestinationRegistry}
 		if target.AsArchive {
@@ -349,7 +348,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	}
 
 	// will extract in parallel
-	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := extract.NewExtractOptions(o.IOStreams)
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
 	opts.OnlyFiles = true

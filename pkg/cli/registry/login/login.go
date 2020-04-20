@@ -290,7 +290,7 @@ func (o *LoginOptions) Run() error {
 			return err
 		}
 		c := registryclient.NewContext(http.DefaultTransport, insecureRT).WithCredentials(creds)
-		if _, err := c.Repository(ctx, url, "does_not_exist", o.Insecure); err != nil {
+		if _, err := c.RepositoryForRef(ctx, reference.DockerImageReference{Registry: url.Host, Namespace: "does_not_exist"}, o.Insecure); err != nil {
 			return fmt.Errorf("unable to check your credentials - pass --skip-check to bypass this error: %v", err)
 		}
 	}

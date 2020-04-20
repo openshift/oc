@@ -149,6 +149,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 }
 
 func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error {
+	o.SecurityOptions.LookupAlternate = true
 	if len(args) < 2 {
 		return fmt.Errorf("must specify source and dest")
 	}
