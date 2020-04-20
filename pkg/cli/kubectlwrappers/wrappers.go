@@ -96,6 +96,7 @@ func NewCmdCreate(fullName string, f kcmdutil.Factory, streams genericclioptions
 	cmd.AddCommand(create.NewCmdCreateUserIdentityMapping(create.UserIdentityMappingRecommendedName, fullName+" create "+create.UserIdentityMappingRecommendedName, f, streams))
 	cmd.AddCommand(create.NewCmdCreateImageStream(create.ImageStreamRecommendedName, fullName+" create "+create.ImageStreamRecommendedName, f, streams))
 	cmd.AddCommand(create.NewCmdCreateImageStreamTag(create.ImageStreamTagRecommendedName, fullName+" create "+create.ImageStreamTagRecommendedName, f, streams))
+	cmd.AddCommand(create.NewCmdCreateBuild(create.BuildRecommendedName, fullName+" create "+create.BuildRecommendedName, f, streams))
 
 	adjustCmdExamples(cmd, fullName, "create")
 
