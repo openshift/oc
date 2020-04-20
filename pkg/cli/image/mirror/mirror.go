@@ -26,6 +26,7 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
@@ -187,7 +188,7 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 		o.KeepManifestList = true
 	}
 
-	registryContext, err := o.SecurityOptions.Context()
+	registryContext, err := o.SecurityOptions.Context(imagereference.DockerImageReference{})
 	if err != nil {
 		return err
 	}
@@ -209,6 +210,7 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	for _, filename := range o.Filenames {
 		mappings, err := parseFile(filename, overlap, o.In, opts.ExpandWildcard)
 		if err != nil {
@@ -230,17 +232,18 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (o *MirrorImageOptions) Repository(ctx context.Context, context *registryclient.Context, ref imagesource.TypedImageReference, source bool) (distribution.Repository, error) {
+func (o *MirrorImageOptions) Repository(ctx context.Context, regContext *registryclient.Context, ref imagesource.TypedImageReference, source bool) (distribution.Repository, distribution.ManifestService, error) {
 	dir := o.FileDir
 	if len(o.FromFileDir) > 0 && source {
 		dir = o.FromFileDir
 	}
 	klog.V(5).Infof("Find source=%t registry with %#v", source, ref)
+
 	opts := &imagesource.Options{
 		FileDir:             dir,
 		Insecure:            o.SecurityOptions.Insecure,
 		AttemptS3BucketCopy: o.AttemptS3BucketCopy,
-		RegistryContext:     context,
+		RegistryContext:     regContext,
 	}
 	return opts.Repository(ctx, ref)
 }
@@ -430,7 +433,7 @@ type contextKey struct {
 
 func (o *MirrorImageOptions) plan() (*plan, error) {
 	ctx := apirequest.NewContext()
-	context, err := o.SecurityOptions.Context()
+	context, err := o.SecurityOptions.Context(imagereference.DockerImageReference{})
 	if err != nil {
 		return nil, err
 	}
@@ -463,16 +466,12 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 	for name := range tree {
 		src := tree[name]
 		q.Queue(func(_ workqueue.Work) {
-			srcRepo, err := o.Repository(ctx, fromContext, src.ref, true)
+			srcRepo, manifests, err := o.Repository(ctx, fromContext, src.ref, true)
 			if err != nil {
 				plan.AddError(retrieverError{err: fmt.Errorf("unable to connect to %s: %v", src.ref, err), src: src.ref})
 				return
 			}
-			manifests, err := srcRepo.Manifests(ctx)
-			if err != nil {
-				plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to access source image %s manifests: %v", src.ref, err)})
-				return
-			}
+
 			rq := registryWorkers[name.registry]
 			rq.Batch(func(w workqueue.Work) {
 				// convert source tags to digests
@@ -533,11 +532,12 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 
 						for _, dst := range pushTargets {
 							var toRepo distribution.Repository
+							var toManifests distribution.ManifestService
 							var err error
 							if o.DryRun {
 								toRepo, err = imagesource.NewDryRun(dst.ref)
 							} else {
-								toRepo, err = o.Repository(ctx, toContexts[contextKeyForReference(dst.ref)], dst.ref, false)
+								toRepo, toManifests, err = o.Repository(ctx, toContexts[contextKeyForReference(dst.ref)], dst.ref, false)
 							}
 							if err != nil {
 								plan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to connect to %s: %v", dst.ref, err)})
@@ -549,12 +549,6 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 							registryPlan := plan.RegistryPlan(dst.ref)
 							repoPlan := registryPlan.RepositoryPlan(canonicalTo.String())
 							blobPlan := repoPlan.Blobs(src.ref, location)
-
-							toManifests, err := toRepo.Manifests(ctx)
-							if err != nil {
-								repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to access destination image %s manifests: %v", src.ref, err)})
-								continue
-							}
 
 							var mustCopyLayers bool
 							switch {

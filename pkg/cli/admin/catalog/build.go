@@ -96,7 +96,7 @@ func (o *BuildImageOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	}
 
 	imageFromRealeaseTags := func(img string) {
-		info, err := infoOpts.LoadReleaseInfo(img, false)
+		info, err := infoOpts.LoadReleaseInfo(img, false, false, "")
 		if err != nil {
 			klog.V(2).Infof("unable to load image from %s: %v", img, err)
 			return

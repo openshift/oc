@@ -102,6 +102,7 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 	}
 	flags := cmd.Flags()
 	o.SecurityOptions.Bind(flags)
+	o.FilterOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
 
 	flags.StringVar(&o.From, "from", o.From, "Image containing the release payload.")
@@ -127,7 +128,9 @@ type ExtractOptions struct {
 	genericclioptions.IOStreams
 
 	SecurityOptions imagemanifest.SecurityOptions
+	FilterOptions   imagemanifest.FilterOptions
 	ParallelOptions imagemanifest.ParallelOptions
+	InfoOptions     InfoOptions
 
 	Output string
 
@@ -174,6 +177,15 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	}
 	o.From = args[0]
 
+	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
+		return err
+	}
+	if err := o.InfoOptions.Complete(f, cmd, args); err != nil {
+		return err
+	}
+	if err := o.SecurityOptions.Complete(f, o.From); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -208,6 +220,13 @@ func (o *ExtractOptions) Run() error {
 		}
 	}
 
+	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts.ParallelOptions = o.ParallelOptions
+	opts.FilterOptions = o.FilterOptions
+	opts.SecurityOptions = o.SecurityOptions
+
+	opts.FileDir = o.FileDir
+
 	switch {
 	case sources > 1:
 		return fmt.Errorf("only one of --tools, --command, --credentials-requests, --file, or --git may be specified")
@@ -234,11 +253,6 @@ func (o *ExtractOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
-	opts.ParallelOptions = o.ParallelOptions
-	opts.SecurityOptions = o.SecurityOptions
-	opts.FileDir = o.FileDir
-
 	switch {
 	case len(o.File) > 0:
 		if o.ImageMetadataCallback != nil {
@@ -419,10 +433,7 @@ func (o *ExtractOptions) extractGit(dir string) error {
 		return err
 	}
 
-	opts := NewInfoOptions(o.IOStreams)
-	opts.SecurityOptions = o.SecurityOptions
-	opts.FileDir = o.FileDir
-	release, err := opts.LoadReleaseInfo(o.From, false)
+	release, err := o.InfoOptions.LoadReleaseInfo(o.From, false, false, "")
 	if err != nil {
 		return err
 	}

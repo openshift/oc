@@ -25,6 +25,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
+	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
@@ -109,16 +110,15 @@ func (o *InfoOptions) Run() error {
 	if len(o.Images) == 0 {
 		return fmt.Errorf("must specify one or more images as arguments")
 	}
-
-	// cache the context
-	context, err := o.SecurityOptions.Context()
+	regContext, err := o.SecurityOptions.Context(imagereference.DockerImageReference{})
 	if err != nil {
 		return err
 	}
+
 	opts := &imagesource.Options{
 		FileDir:         o.FileDir,
 		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: context,
+		RegistryContext: regContext,
 	}
 
 	hadError := false
@@ -364,7 +364,7 @@ type ImageRetriever struct {
 
 func (o *ImageRetriever) Run() error {
 	ctx := context.Background()
-	fromContext, err := o.SecurityOptions.Context()
+	fromContext, err := o.SecurityOptions.Context(imagereference.DockerImageReference{})
 	if err != nil {
 		return err
 	}
@@ -388,12 +388,12 @@ func (o *ImageRetriever) Run() error {
 			name := key
 			from := o.Image[key]
 			q.Try(func() error {
-				repo, err := fromOptions.Repository(ctx, from)
+				repo, manifests, err := fromOptions.Repository(ctx, from)
 				if err != nil {
 					return callbackFn(name, nil, fmt.Errorf("unable to connect to image repository %s: %v", from, err))
 				}
 
-				allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
+				allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from.Ref, manifests, repo)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {
 						msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)

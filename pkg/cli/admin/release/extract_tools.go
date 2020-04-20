@@ -292,20 +292,153 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		}
 	}
 
-	// load the release image
+	// load release image
 	dir := o.Directory
-	infoOptions := NewInfoOptions(o.IOStreams)
-	infoOptions.SecurityOptions = o.SecurityOptions
-	infoOptions.FileDir = o.FileDir
-	release, err := infoOptions.LoadReleaseInfo(o.From, false)
-	if err != nil {
-		return err
+	var releaseFromRefErr error
+	targetRelease := targetReleaseInfo{}
+	if len(o.SecurityOptions.ImageContentSourcePolicyFile) > 0 {
+		o.SecurityOptions.AddImageSourcePoliciesFromFile(o.From)
+		releaseFromImageSources, err := o.InfoOptions.LoadReleaseInfo(o.From, false, true, o.SecurityOptions.ImageContentSourcePolicyFile)
+		if err != nil {
+			return fmt.Errorf("could not load release %s from icsp file %s: %v", o.From, o.SecurityOptions.ImageContentSourcePolicyFile, err)
+		}
+		targetRelease, err = o.setReleaseLookup(releaseFromImageSources, targets, currentOS, willArchive)
+		if err != nil {
+			// if icsp-file set, then return error if lookup from icsp fails
+			return fmt.Errorf("failed lookup of release %s from icsp file %s: %v", o.From, o.SecurityOptions.ImageContentSourcePolicyFile, err)
+		}
+	} else {
+		// This will be tried first, if no ImageContentSourcePolicyFile passed
+		releaseFromRef, loadReleaseFromRefErr := o.InfoOptions.LoadReleaseInfo(o.From, false, false, "")
+		if loadReleaseFromRefErr == nil {
+			targetRelease, releaseFromRefErr = o.setReleaseLookup(releaseFromRef, targets, currentOS, willArchive)
+			// This will be returned if further lookup fails
+			if releaseFromRefErr != nil {
+				// If there's an error, now look for other imageSources - icsp and/or the user-passed image registry/repo/name
+				klog.V(2).Infof("Failed lookup of release from its reference: %v", releaseFromRefErr)
+				// now try other sources
+				releaseFromImageSources, err := o.InfoOptions.LoadReleaseInfo(o.From, false, true, "")
+				if err != nil {
+					return err
+				}
+				targetRelease, err = o.setReleaseLookup(releaseFromImageSources, targets, currentOS, willArchive)
+				if err != nil {
+					klog.V(2).Infof("Failed lookup of release: %v", err)
+					return releaseFromRefErr
+				}
+			}
+		} else {
+			klog.V(2).Infof("Failed to load release info from image reference: %v", loadReleaseFromRefErr)
+			// now try other sources
+			releaseFromImageSources, err := o.InfoOptions.LoadReleaseInfo(o.From, false, true, "")
+			if err != nil {
+				return err
+			}
+			targetRelease, err = o.setReleaseLookup(releaseFromImageSources, targets, currentOS, willArchive)
+			if err != nil {
+				klog.V(2).Infof("Failed lookup of release: %v", err)
+				return loadReleaseFromRefErr
+			}
+		}
 	}
+	if targetRelease.willArchive {
+		buf := &bytes.Buffer{}
+		fmt.Fprintf(buf, heredoc.Doc(`
+			Client tools for OpenShift
+			--------------------------
+
+			These archives contain the client tooling for [OpenShift](https://docs.openshift.com).
+
+			To verify the contents of this directory, use the 'gpg' and 'shasum' tools to
+			ensure the archives you have downloaded match those published from this location.
+
+			The openshift-install binary has been preconfigured to install the following release:
+
+			---
+
+		`))
+		if err := describeReleaseInfo(buf, targetRelease.release, false, false, true, false); err != nil {
+			return err
+		}
+		filename := "release.txt"
+		if err := ioutil.WriteFile(filepath.Join(dir, filename), buf.Bytes(), 0644); err != nil {
+			return err
+		}
+		hash := hashFn()
+		hash.Write(buf.Bytes())
+		targetRelease.hashByTargetName[filename] = hex.EncodeToString(hash.Sum(nil))
+	}
+
+	// write a checksum of the tar files to disk as sha256sum.txt.asc
+	if len(targetRelease.hashByTargetName) > 0 {
+		var keys []string
+		for k := range targetRelease.hashByTargetName {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var lines []string
+		for _, k := range keys {
+			hash := targetRelease.hashByTargetName[k]
+			lines = append(lines, fmt.Sprintf("%s  %s", hash, filepath.Base(k)))
+		}
+		// ensure a trailing newline
+		if len(lines[len(lines)-1]) != 0 {
+			lines = append(lines, "")
+		}
+		// write the content manifest
+		data := []byte(strings.Join(lines, "\n"))
+		filename := "sha256sum.txt"
+		if err := ioutil.WriteFile(filepath.Join(dir, filename), data, 0644); err != nil {
+			return fmt.Errorf("unable to write checksum file: %v", err)
+		}
+		// sign the content manifest
+		if signer != nil {
+			buf := &bytes.Buffer{}
+			if err := openpgp.ArmoredDetachSign(buf, signer, bytes.NewBuffer(data), nil); err != nil {
+				return fmt.Errorf("unable to sign the sha256sum.txt file: %v", err)
+			}
+			if err := ioutil.WriteFile(filepath.Join(dir, filename+".asc"), buf.Bytes(), 0644); err != nil {
+				return fmt.Errorf("unable to write signed manifest: %v", err)
+			}
+		}
+	}
+
+	// if we did not process some targets, report that to the user and error if necessary
+	if len(targetRelease.targetsByName) > 0 {
+		var missing []string
+		for _, target := range targetRelease.targetsByName {
+			missing = append(missing, target.Mapping.From)
+		}
+		sort.Strings(missing)
+		if len(missing) == 1 {
+			return fmt.Errorf("image did not contain %s", missing[0])
+		}
+		return fmt.Errorf("unable to find multiple files: %s", strings.Join(missing, ", "))
+	}
+
+	return nil
+}
+
+type targetReleaseInfo struct {
+	release          *ReleaseInfo
+	willArchive      bool
+	hashByTargetName map[string]string
+	targetsByName    map[string]extractTarget
+}
+
+func (o *ExtractOptions) setReleaseLookup(release *ReleaseInfo, targets []extractTarget, currentOS string, toArchive bool) (targetReleaseInfo, error) {
 	releaseName := release.PreferredName()
 	refExact := release.ImageRef
 	refExact.Ref.Tag = ""
 	refExact.Ref.ID = release.Digest.String()
 	exactReleaseImage := refExact.String()
+
+	tr := targetReleaseInfo{
+		release:          release,
+		willArchive:      toArchive,
+		hashByTargetName: make(map[string]string),
+		targetsByName:    make(map[string]extractTarget),
+	}
 
 	// resolve target image references to their pull specs
 	missing := sets.NewString()
@@ -323,16 +456,16 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		klog.V(2).Infof("Will extract %s from %s", target.Mapping.From, spec)
 		ref, err := imagereference.Parse(spec)
 		if err != nil {
-			return err
+			return targetReleaseInfo{}, err
 		}
 		target.Mapping.Image = spec
 		target.Mapping.ImageRef = imagesource.TypedImageReference{Ref: ref, Type: imagesource.DestinationRegistry}
 		if target.AsArchive {
-			willArchive = true
+			tr.willArchive = true
 			target.Mapping.Name = fmt.Sprintf(target.ArchiveFormat, releaseName)
-			target.Mapping.To = filepath.Join(dir, target.Mapping.Name)
+			target.Mapping.To = filepath.Join(o.Directory, target.Mapping.Name)
 		} else {
-			target.Mapping.To = filepath.Join(dir, target.Command)
+			target.Mapping.To = filepath.Join(o.Directory, target.Command)
 			target.Mapping.Name = fmt.Sprintf("%s-%s", target.OS, target.Command)
 		}
 		validTargets = append(validTargets, target)
@@ -340,9 +473,9 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 	if len(validTargets) == 0 {
 		if len(missing) == 1 {
-			return fmt.Errorf("the image %q containing the desired command is not available", missing.List()[0])
+			return targetReleaseInfo{}, fmt.Errorf("the image %q containing the desired command is not available", missing.List()[0])
 		}
-		return fmt.Errorf("some required images are missing: %s", strings.Join(missing.List(), ", "))
+		return targetReleaseInfo{}, fmt.Errorf("some required images are missing: %s", strings.Join(missing.List(), ", "))
 	}
 	if len(missing) > 0 {
 		fmt.Fprintf(o.ErrOut, "warning: Some commands can not be extracted due to missing images: %s\n", strings.Join(missing.List(), ", "))
@@ -356,16 +489,13 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 	// create the mapping lookup of the valid targets
 	var extractLock sync.Mutex
-	targetsByName := make(map[string]extractTarget)
 	for _, target := range validTargets {
-		targetsByName[target.Mapping.Name] = target
+		tr.targetsByName[target.Mapping.Name] = target
 		opts.Mappings = append(opts.Mappings, target.Mapping)
 	}
-	hashByTargetName := make(map[string]string)
-
 	// ensure to is a directory
-	if err := os.MkdirAll(dir, 0777); err != nil {
-		return err
+	if err := os.MkdirAll(o.Directory, 0777); err != nil {
+		return targetReleaseInfo{}, err
 	}
 
 	// as each layer is extracted, take the output binary and write it to disk
@@ -374,7 +504,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		target, ok := func() (extractTarget, bool) {
 			extractLock.Lock()
 			defer extractLock.Unlock()
-			target, ok := targetsByName[layer.Mapping.Name]
+			target, ok := tr.targetsByName[layer.Mapping.Name]
 			return target, ok
 		}()
 		if !ok {
@@ -395,6 +525,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		w = bw
 
 		var hash hash.Hash
+		var hashFn = sha256.New
 		closeFn := func() error { return nil }
 		if target.AsArchive {
 			text := strings.Replace(target.Readme, `\u0060`, "`", -1)
@@ -535,94 +666,18 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		func() {
 			extractLock.Lock()
 			defer extractLock.Unlock()
-			delete(targetsByName, layer.Mapping.Name)
+			delete(tr.targetsByName, layer.Mapping.Name)
 			if hash != nil {
-				hashByTargetName[layer.Mapping.To] = hex.EncodeToString(hash.Sum(nil))
+				tr.hashByTargetName[layer.Mapping.To] = hex.EncodeToString(hash.Sum(nil))
 			}
 		}()
 
 		return false, nil
 	}
 	if err := opts.Run(); err != nil {
-		return err
+		return targetReleaseInfo{}, err
 	}
-
-	if willArchive {
-		buf := &bytes.Buffer{}
-		fmt.Fprintf(buf, heredoc.Doc(`
-			Client tools for OpenShift
-			--------------------------
-
-			These archives contain the client tooling for [OpenShift](https://docs.openshift.com).
-
-			To verify the contents of this directory, use the 'gpg' and 'shasum' tools to
-			ensure the archives you have downloaded match those published from this location.
-
-			The openshift-install binary has been preconfigured to install the following release:
-
-			---
-
-		`))
-		if err := describeReleaseInfo(buf, release, false, false, true, false); err != nil {
-			return err
-		}
-		filename := "release.txt"
-		if err := ioutil.WriteFile(filepath.Join(dir, filename), buf.Bytes(), 0644); err != nil {
-			return err
-		}
-		hash := hashFn()
-		hash.Write(buf.Bytes())
-		hashByTargetName[filename] = hex.EncodeToString(hash.Sum(nil))
-	}
-
-	// write a checksum of the tar files to disk as sha256sum.txt.asc
-	if len(hashByTargetName) > 0 {
-		var keys []string
-		for k := range hashByTargetName {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		var lines []string
-		for _, k := range keys {
-			hash := hashByTargetName[k]
-			lines = append(lines, fmt.Sprintf("%s  %s", hash, filepath.Base(k)))
-		}
-		// ensure a trailing newline
-		if len(lines[len(lines)-1]) != 0 {
-			lines = append(lines, "")
-		}
-		// write the content manifest
-		data := []byte(strings.Join(lines, "\n"))
-		filename := "sha256sum.txt"
-		if err := ioutil.WriteFile(filepath.Join(dir, filename), data, 0644); err != nil {
-			return fmt.Errorf("unable to write checksum file: %v", err)
-		}
-		// sign the content manifest
-		if signer != nil {
-			buf := &bytes.Buffer{}
-			if err := openpgp.ArmoredDetachSign(buf, signer, bytes.NewBuffer(data), nil); err != nil {
-				return fmt.Errorf("unable to sign the sha256sum.txt file: %v", err)
-			}
-			if err := ioutil.WriteFile(filepath.Join(dir, filename+".asc"), buf.Bytes(), 0644); err != nil {
-				return fmt.Errorf("unable to write signed manifest: %v", err)
-			}
-		}
-	}
-
-	// if we did not process some targets, report that to the user and error if necessary
-	if len(targetsByName) > 0 {
-		var missing []string
-		for _, target := range targetsByName {
-			missing = append(missing, target.Mapping.From)
-		}
-		sort.Strings(missing)
-		if len(missing) == 1 {
-			return fmt.Errorf("image did not contain %s", missing[0])
-		}
-		return fmt.Errorf("unable to find multiple files: %s", strings.Join(missing, ", "))
-	}
-
-	return nil
+	return tr, nil
 }
 
 const (

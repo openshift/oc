@@ -44,7 +44,7 @@ func NewCmdImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 			Commands: []*cobra.Command{
 				serve.NewServe(streams),
 				append.NewCmdAppendImage(streams),
-				extract.NewExtract(streams),
+				extract.NewExtract(f, streams),
 			},
 		},
 	}

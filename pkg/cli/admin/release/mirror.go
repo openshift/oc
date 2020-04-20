@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -50,8 +49,9 @@ import (
 )
 
 // configFilesBaseDir is created under '--to-dir', when specified, to contain release image
-// signature files. It is not used when '--release-image-signature-to-dir` is specified
-// which takes precedence over '--to-dir'.
+// signature and icsp files. It is not used for signature file when '--release-image-signature-to-dir' is specified.
+// It is not used for icsp file when '--release-image-icsp-to-dir' is specified.
+// The signature-to and icsp-to flags take precedence over '--to-dir'.
 const configFilesBaseDir = "config"
 
 // maxDigestHashLen is used to truncate digest hash portion before using as part of
@@ -60,6 +60,9 @@ const maxDigestHashLen = 16
 
 // signatureFileNameFmt defines format of the release image signature file name
 const signatureFileNameFmt = "signature-%s-%s.yaml"
+
+// icspFileNameFmt defines format of the release image ImageContentSourcePolicy file name
+const icspFileNameFmt = "icsp-%s-%s.yaml"
 
 // NewMirrorOptions creates the options for mirroring a release.
 func NewMirrorOptions(streams genericclioptions.IOStreams) *MirrorOptions {
@@ -106,30 +109,36 @@ func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 			that can be used to upload the release to another registry.
 
 			You may use --apply-release-image-signature, --release-image-signature-to-dir, or both
-			to control the handling of the signature ConfigMap. Option
-			--apply-release-image-signature will apply the ConfigMap directly to a connected
-			cluster while --release-image-signature-to-dir specifies an export target directory. If
+			to control the handling of the signature ConfigMap file. Option
+			--apply-release-image-signature will apply the release signature ConfigMap directly to a connected
+			cluster while --release-image-signature-to-dir specifies an export target directory. If 
 			--release-image-signature-to-dir is not specified but --to-dir is,
 			--release-image-signature-to-dir defaults to a 'config' subdirectory of --to-dir.
 			The --overwrite option only applies when --apply-release-image-signature is specified
 			and indicates to update an exisiting ConfigMap if one is found. A ConfigMap written to a
 			directory will always replace onethat already exists.
+
+			You may use --release-image-icsp-to-dir to specifiy the export target directory of the
+			ImageContentSourcePolicy file.  The default is 'config'. If not specified but --to-dir is,
+			--release-image-icsp-to-dir defaults to a 'config' subdirectory of --to-dir. 
 		`),
 		Example: templates.Examples(`
-			# Perform a dry run showing what would be mirrored, including the mirror objects
+			# Perform a dry run showing what would be mirrored, including the mirror objects, and control where signature and ICSP files are written
 			oc adm release mirror 4.3.0 --to myregistry.local/openshift/release \
-				--release-image-signature-to-dir /tmp/releases --dry-run
+				--release-image-signature-to-dir /tmp/releases \
+				--release-image-icsp-to-dir /tmp/icsps --dry-run
 
-			# Mirror a release into the current directory
+			# Mirror a release into the current directory and control where signature and ICSP files are written
 			oc adm release mirror 4.3.0 --to file://openshift/release \
-				--release-image-signature-to-dir /tmp/releases
+				--release-image-signature-to-dir /tmp/releases \
+				--release-image-icsp-to-dir /tmp/icsps
 
 			# Mirror a release to another directory in the default location
 			oc adm release mirror 4.3.0 --to-dir /tmp/releases
 
 			# Upload a release from the current directory to another server
 			oc adm release mirror --from file://openshift/release --to myregistry.com/openshift/release \
-				--release-image-signature-to-dir /tmp/releases
+				--release-image-config-dir /tmp/releases
 
 			# Mirror the 4.3.0 release to repository registry.example.com and apply signatures to connected cluster
 			oc adm release mirror --from=quay.io/openshift-release-dev/ocp-release:4.3.0-x86_64 \
@@ -150,10 +159,11 @@ func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 	flags.StringVar(&o.ToImageStream, "to-image-stream", o.ToImageStream, "An image stream to tag images into.")
 	flags.StringVar(&o.FromDir, "from-dir", o.FromDir, "A directory to import images from.")
 	flags.StringVar(&o.ToDir, "to-dir", o.ToDir, "A directory to export images to.")
+	flags.StringVar(&o.ReleaseImageICSPToDir, "release-image-icsp-to-dir", o.ReleaseImageICSPToDir, "Path to write ImageContentSourcePolicy file. If not set, defaults to 'config'.")
+	flags.StringVar(&o.ReleaseImageSignatureToDir, "release-image-signature-to-dir", o.ReleaseImageSignatureToDir, "Path to write release image signature ConfigMap files. If not set, defaults to 'config'.")
 	flags.BoolVar(&o.ToMirror, "to-mirror", o.ToMirror, "Output the mirror mappings instead of mirroring.")
 	flags.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Display information about the mirror without actually executing it.")
 	flags.BoolVar(&o.ApplyReleaseImageSignature, "apply-release-image-signature", o.ApplyReleaseImageSignature, "Apply release image signature to connected cluster.")
-	flags.StringVar(&o.ReleaseImageSignatureToDir, "release-image-signature-to-dir", o.ReleaseImageSignatureToDir, "A directory to export release image signature to.")
 
 	flags.BoolVar(&o.SkipRelease, "skip-release-image", o.SkipRelease, "Do not push the release image.")
 	flags.StringVar(&o.ToRelease, "to-release-image", o.ToRelease, "Specify an alternate locations for the release image instead as tag 'release' in --to.")
@@ -182,6 +192,7 @@ type MirrorOptions struct {
 
 	ApplyReleaseImageSignature bool
 	ReleaseImageSignatureToDir string
+	ReleaseImageICSPToDir      string
 	Overwrite                  bool
 
 	DryRun                        bool
@@ -215,6 +226,10 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 	}
 	o.From = args[0]
 
+	if err := o.SecurityOptions.Complete(f, ""); err != nil {
+		return err
+	}
+
 	o.ImageClientFn = func() (imageclient.Interface, string, error) {
 		cfg, err := f.ToRESTConfig()
 		if err != nil {
@@ -242,7 +257,6 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 		client := coreClient.ConfigMaps(configmap.NamespaceLabelConfigMap)
 		return client, nil
 	}
-	o.PrintImageContentInstructions = true
 	return nil
 }
 
@@ -280,6 +294,10 @@ func (o *MirrorOptions) Validate() error {
 		o.ReleaseImageSignatureToDir = filepath.Join(o.ToDir, configFilesBaseDir)
 	}
 
+	if len(o.ReleaseImageICSPToDir) == 0 && len(o.ToDir) > 0 {
+		o.ReleaseImageICSPToDir = filepath.Join(o.ToDir, configFilesBaseDir)
+	}
+
 	if o.Overwrite && !o.ApplyReleaseImageSignature {
 		return fmt.Errorf("--overwite is only valid when --apply-release-image-signature is specified")
 	}
@@ -310,6 +328,19 @@ func createSignatureFileName(digest string) (string, error) {
 		hash = hash[:maxDigestHashLen]
 	}
 	return fmt.Sprintf(signatureFileNameFmt, algo, hash), nil
+}
+
+func createICSPFileName(digest string) (string, error) {
+	parts := strings.SplitN(digest, ":", 3)
+	if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
+		return "", fmt.Errorf("the provided digest, %s, must be of the form ALGO:HASH", digest)
+	}
+	algo, hash := parts[0], parts[1]
+
+	if len(hash) > maxDigestHashLen {
+		hash = hash[:maxDigestHashLen]
+	}
+	return fmt.Sprintf(icspFileNameFmt, algo, hash), nil
 }
 
 // handleSignatures implements the image release signature configmap specific logic.
@@ -520,10 +551,11 @@ func (o *MirrorOptions) Run() error {
 	if err := imageVerifier.Verify(ctx, releaseDigest); err != nil {
 		fmt.Fprintf(o.ErrOut, "warning: An image was retrieved that failed verification: %v\n", err)
 	}
+	var srcRef imagesource.TypedImageReference
 	var mappings []mirror.Mapping
 	if len(o.From) > 0 {
 		src := o.From
-		srcRef, err := imagesource.ParseReference(src)
+		srcRef, err = imagesource.ParseReference(src)
 		if err != nil {
 			return fmt.Errorf("invalid --from: %v", err)
 		}
@@ -531,14 +563,9 @@ func (o *MirrorOptions) Run() error {
 		// if the source ref is a file type, provide a function that checks the local file store for a given manifest
 		// before continuing, to allow mirroring an entire release to disk in a single file://REPO.
 		if srcRef.Type == imagesource.DestinationFile {
-			if repo, err := (&imagesource.Options{FileDir: o.FromDir}).Repository(context.TODO(), srcRef); err == nil {
+			if _, manifests, err := (&imagesource.Options{FileDir: o.FromDir}).Repository(context.TODO(), srcRef); err == nil {
 				sourceFn = func(ref imagesource.TypedImageReference) imagesource.TypedImageReference {
 					if ref.Type == imagesource.DestinationFile || len(ref.Ref.ID) == 0 {
-						return ref
-					}
-					manifests, err := repo.Manifests(context.TODO())
-					if err != nil {
-						klog.V(2).Infof("Unable to get local manifest service: %v", err)
 						return ref
 					}
 					ok, err := manifests.Exists(context.TODO(), digest.Digest(ref.Ref.ID))
@@ -583,6 +610,7 @@ func (o *MirrorOptions) Run() error {
 	repositories := make(map[string]struct{})
 
 	// build the mapping list for mirroring and rewrite if necessary
+	//userGivenRef := srcRef.Ref.AsRepository()
 	for i := range is.Spec.Tags {
 		tag := &is.Spec.Tags[i]
 		if tag.From == nil || tag.From.Kind != "DockerImage" {
@@ -596,6 +624,10 @@ func (o *MirrorOptions) Run() error {
 			return fmt.Errorf("image-references should only contain pointers to images by digest: %s", tag.From.Name)
 		}
 
+		opts := mirror.NewMirrorImageOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+		opts.SecurityOptions = o.SecurityOptions
+		opts.ParallelOptions = o.ParallelOptions
+		opts.FileDir = o.ToDir
 		// Allow mirror refs to be sourced locally
 		srcMirrorRef := imagesource.TypedImageReference{Ref: from, Type: imagesource.DestinationRegistry}
 		srcMirrorRef = sourceFn(srcMirrorRef)
@@ -786,18 +818,18 @@ func (o *MirrorOptions) Run() error {
 				fmt.Fprintf(o.Out, "Mirrored to: %s\n", t)
 			}
 		}
+		if len(o.ReleaseImageICSPToDir) == 0 {
+			o.ReleaseImageICSPToDir = configFilesBaseDir
+		}
+		if err := o.printImageContentInstructions(repositories, toList, releaseDigest); err != nil {
+			return fmt.Errorf("Error creating mirror usage instructions: %v", err)
+		}
 	}
 	if toDisk {
 		if len(o.ToDir) > 0 {
 			fmt.Fprintf(o.Out, "\nTo upload local images to a registry, run:\n\n    oc image mirror --from-dir=%s 'file://%s*' REGISTRY/REPOSITORY\n\n", o.ToDir, to)
 		} else {
 			fmt.Fprintf(o.Out, "\nTo upload local images to a registry, run:\n\n    oc image mirror 'file://%s*' REGISTRY/REPOSITORY\n\n", to)
-		}
-	} else if len(toList) > 0 {
-		if o.PrintImageContentInstructions {
-			if err := printImageContentInstructions(o.Out, o.From, toList, o.ReleaseImageSignatureToDir, repositories); err != nil {
-				return fmt.Errorf("Error creating mirror usage instructions: %v", err)
-			}
 		}
 	}
 	if o.ApplyReleaseImageSignature || len(o.ReleaseImageSignatureToDir) > 0 {
@@ -824,7 +856,7 @@ func (o *MirrorOptions) Run() error {
 
 // printImageContentInstructions provides examples to the user for using the new repository mirror
 // https://github.com/openshift/installer/blob/master/docs/dev/alternative_release_image_sources.md
-func printImageContentInstructions(out io.Writer, from string, toList []string, signatureToDir string, repositories map[string]struct{}) error {
+func (o *MirrorOptions) printImageContentInstructions(repositories map[string]struct{}, toList []string, digest string) error {
 	type installConfigSubsection struct {
 		ImageContentSources []operatorv1alpha1.RepositoryDigestMirrors `json:"imageContentSources"`
 	}
@@ -835,17 +867,16 @@ func printImageContentInstructions(out io.Writer, from string, toList []string, 
 		mirrorRef, err := imagesource.ParseReference(to)
 		if err != nil {
 			return fmt.Errorf("Unable to parse image reference '%s': %v", to, err)
-		}
-		if mirrorRef.Type != imagesource.DestinationRegistry {
-			return nil
-		}
-		mirrorRepo := mirrorRef.Ref.AsRepository().String()
+	if mirrorRef.Type != imagesource.DestinationRegistry {
+		return nil
+	}
+	mirrorRepo := mirrorRef.Ref.AsRepository().String()
 
-		if len(from) != 0 {
-			sourceRef, err := imagesource.ParseReference(from)
-			if err != nil {
-				return fmt.Errorf("Unable to parse image reference '%s': %v", from, err)
-			}
+	if len(o.From) != 0 {
+		sourceRef, err := imagesource.ParseReference(o.From)
+		if err != nil {
+			return fmt.Errorf("Unable to parse image reference '%s': %v", o.From, err)
+		}
 			if sourceRef.Type != imagesource.DestinationRegistry {
 				return nil
 			}
@@ -867,6 +898,7 @@ func printImageContentInstructions(out io.Writer, from string, toList []string, 
 			return sources[i].Source < sources[j].Source
 		})
 	}
+}
 
 	// Create and display install-config.yaml example
 	imageContentSources := installConfigSubsection{
@@ -875,16 +907,19 @@ func printImageContentInstructions(out io.Writer, from string, toList []string, 
 	if err != nil {
 		return fmt.Errorf("Unable to marshal install-config.yaml example yaml: %v", err)
 	}
-	fmt.Fprintf(out, "\nTo use the new mirrored repository to install, add the following section to the install-config.yaml:\n\n")
-	fmt.Fprintf(out, string(installConfigExample))
+	fmt.Fprintf(o.Out, "\nTo use the new mirrored repository to install, add the following section to the install-config.yaml:\n\n")
+	fmt.Fprintf(o.Out, string(installConfigExample))
 
-	// Create and display ImageContentSourcePolicy example
+	// Create and display ImageContentSourcePolicy
+	mirrorRepoStripped := strings.FieldsFunc(mirrorRef.Ref.Name, func(r rune) bool { return strings.ContainsRune(" .:/", r) })
+	icspName := strings.Join(mirrorRepoStripped[:], "-")
+
 	icsp := operatorv1alpha1.ImageContentSourcePolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: operatorv1alpha1.GroupVersion.String(),
 			Kind:       "ImageContentSourcePolicy"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "example",
+			Name: icspName,
 		},
 		Spec: operatorv1alpha1.ImageContentSourcePolicySpec{
 			RepositoryDigestMirrors: sources,
@@ -899,16 +934,30 @@ func printImageContentInstructions(out io.Writer, from string, toList []string, 
 	}
 	delete(unstructuredObj.Object["metadata"].(map[string]interface{}), "creationTimestamp")
 
-	icspExample, err := yaml.Marshal(unstructuredObj.Object)
+	icspDataBytes, err := yaml.Marshal(unstructuredObj.Object)
 	if err != nil {
-		return fmt.Errorf("Unable to marshal ImageContentSourcePolicy example yaml: %v", err)
+		return fmt.Errorf("Unable to marshal ImageContentSourcePolicy yaml: %v", err)
 	}
-	fmt.Fprintf(out, "\n\nTo use the new mirrored repository for upgrades, use the following to create an ImageContentSourcePolicy:\n\n")
-	fmt.Fprintf(out, string(icspExample))
+	icspFileName, err := createICSPFileName(digest)
+	if err != nil {
+		return fmt.Errorf("creating filename: %v", err)
+	}
+	icspFullName := filepath.Join(o.ReleaseImageICSPToDir, icspFileName)
+	if o.DryRun {
+		fmt.Fprintf(o.Out, "\ninfo: Write ImageContentSourcePolicy file %s\n", icspFullName)
+	} else {
+		if err := os.MkdirAll(filepath.Dir(icspFullName), 0750); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(icspFullName, icspDataBytes, 0640); err != nil {
+			return err
+		}
+		fmt.Fprintf(o.Out, "\nImageContentSourcePolicy file %s created\n", icspFullName)
+	}
+	fmt.Fprintf(o.Out, "\n\nTo use the new mirrored repository for upgrades, use the following to create an ImageContentSourcePolicy:\n\n")
+	fmt.Fprintf(o.Out, string(icspDataBytes))
 
-	if len(signatureToDir) != 0 {
-		fmt.Fprintf(out, "\n\nTo apply signature configmaps use 'oc apply' on files found in %s\n\n", signatureToDir)
-	}
+	fmt.Fprintf(o.Out, "\n\nTo apply ImageContentSourcePolicy,  use 'oc apply' on file %s\n\n", icspFullName)
 
 	return nil
 }

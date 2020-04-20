@@ -115,7 +115,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 		Long:    mirrorLong,
 		Example: mirrorExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(cmd, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -137,7 +137,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	return cmd
 }
 
-func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *MirrorCatalogOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("must specify source and dest")
 	}
@@ -291,7 +291,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		}
 		e.Paths = []string{o.DatabasePath}
 		e.Confirm = true
-		if err := e.Complete(cmd, []string{o.SourceRef.String()}); err != nil {
+		if err := e.Complete(f, cmd, []string{o.SourceRef.String()}); err != nil {
 			return "", err
 		}
 		if err := e.Validate(); err != nil {

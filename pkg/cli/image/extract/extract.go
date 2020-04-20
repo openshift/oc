@@ -135,7 +135,7 @@ func NewExtractOptions(streams genericclioptions.IOStreams) *ExtractOptions {
 }
 
 // New creates a new command
-func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
+func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewExtractOptions(streams)
 
 	cmd := &cobra.Command{
@@ -144,7 +144,7 @@ func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
 		Long:    desc,
 		Example: example,
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -286,11 +286,10 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 	return mappings, nil
 }
 
-func (o *ExtractOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
 		return err
 	}
-
 	if len(args) == 0 {
 		return fmt.Errorf("you must specify at least one image to extract as an argument")
 	}
@@ -304,6 +303,11 @@ func (o *ExtractOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	if err := o.SecurityOptions.Complete(f, ""); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -316,7 +320,8 @@ func (o *ExtractOptions) Validate() error {
 
 func (o *ExtractOptions) Run() error {
 	ctx := context.Background()
-	fromContext, err := o.SecurityOptions.Context()
+	var err error
+	fromContext, err := o.SecurityOptions.Context(o.Mappings[0].ImageRef.Ref)
 	if err != nil {
 		return err
 	}
@@ -325,7 +330,6 @@ func (o *ExtractOptions) Run() error {
 		Insecure:        o.SecurityOptions.Insecure,
 		RegistryContext: fromContext,
 	}
-
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	q := workqueue.New(o.ParallelOptions.MaxPerRegistry, stopCh)
@@ -334,9 +338,9 @@ func (o *ExtractOptions) Run() error {
 			mapping := o.Mappings[i]
 			from := mapping.ImageRef
 			q.Try(func() error {
-				repo, err := fromOptions.Repository(ctx, from)
-				if err != nil {
-					return fmt.Errorf("unable to connect to image repository %s: %v", from.String(), err)
+				repo, _, err := fromOptions.Repository(ctx, from)
+				if err != nil || repo == nil {
+					return fmt.Errorf("unable to connect to image repository %s: %v", from, err)
 				}
 
 				srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
@@ -351,17 +355,14 @@ func (o *ExtractOptions) Run() error {
 					}
 					return fmt.Errorf("unable to read image %s: %v", from, err)
 				}
-
 				contentDigest, err := registryclient.ContentDigestForManifest(srcManifest, location.Manifest.Algorithm())
 				if err != nil {
 					return err
 				}
-
 				imageConfig, layers, err := imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), location)
 				if err != nil {
-					return fmt.Errorf("unable to parse image %s: %v", from, err)
+					return err
 				}
-
 				if mapping.ConditionFn != nil {
 					ok, err := mapping.ConditionFn(&mapping, location.Manifest, imageConfig)
 					if err != nil {

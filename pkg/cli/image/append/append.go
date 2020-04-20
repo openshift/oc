@@ -210,7 +210,7 @@ func (o *AppendImageOptions) Run() error {
 	}
 
 	ctx := context.Background()
-	fromContext, err := o.SecurityOptions.Context()
+	fromContext, err := o.SecurityOptions.Context(from.Ref)
 	if err != nil {
 		return err
 	}
@@ -230,30 +230,25 @@ func (o *AppendImageOptions) Run() error {
 		RegistryContext: toContext,
 	}
 
-	toRepo, err := toOptions.Repository(ctx, to)
+	toRepo, toManifests, err := toOptions.Repository(ctx, to)
 	if err != nil {
 		return err
 	}
-	toManifests, err := toRepo.Manifests(ctx)
-	if err != nil {
-		return err
-	}
-
 	var (
 		base              *dockerv1client.DockerImageConfig
 		baseDigest        digest.Digest
 		baseContentDigest digest.Digest
 		layers            []distribution.Descriptor
 		fromRepo          distribution.Repository
+		srcManifest       distribution.Manifest
+		manifestLocation  imagemanifest.ManifestLocation
 	)
 	if from != nil {
-		repo, err := fromOptions.Repository(ctx, *from)
+		repo, _, err := toOptions.Repository(ctx, *from)
 		if err != nil {
 			return err
 		}
-		fromRepo = repo
-
-		srcManifest, manifestLocation, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+		srcManifest, manifestLocation, err = imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 		if err != nil {
 			return fmt.Errorf("unable to read image %s: %v", from, err)
 		}
@@ -261,7 +256,6 @@ func (o *AppendImageOptions) Run() error {
 		if err != nil {
 			return fmt.Errorf("unable to parse image %s: %v", from, err)
 		}
-
 		contentDigest, err := registryclient.ContentDigestForManifest(srcManifest, manifestLocation.Manifest.Algorithm())
 		if err != nil {
 			return err
@@ -269,7 +263,7 @@ func (o *AppendImageOptions) Run() error {
 
 		baseDigest = manifestLocation.Manifest
 		baseContentDigest = contentDigest
-
+		fromRepo = repo
 	} else {
 		base = add.NewEmptyConfig()
 		layers = nil
