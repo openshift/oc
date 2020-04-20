@@ -174,6 +174,14 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	}
 	o.From = args[0]
 
+	if cmd.Flags().Changed("lookup-cluster-icsp") && !o.SecurityOptions.LookupClusterICSP {
+		o.SecurityOptions.LookupClusterICSP = false
+	} else if len(o.SecurityOptions.ICSPFile) == 0 {
+		o.SecurityOptions.LookupClusterICSP = true
+	}
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -230,10 +238,24 @@ func (o *ExtractOptions) Run() error {
 	}
 
 	src := o.From
+	regContext, err := o.SecurityOptions.Context()
+	if err != nil {
+		return err
+	}
+	sourceOpts := &imagesource.Options{
+		FileDir:         o.FileDir,
+		Insecure:        o.SecurityOptions.Insecure,
+		RegistryContext: regContext,
+	}
 	ref, err := imagesource.ParseReference(src)
 	if err != nil {
 		return err
 	}
+	_, newRef, err := sourceOpts.RepositoryWithAlternateRef(context.Background(), ref)
+	if err != nil {
+		return err
+	}
+	ref = imagesource.TypedImageReference{Type: ref.Type, Ref: newRef}
 	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
@@ -427,6 +449,7 @@ func (o *ExtractOptions) extractGit(dir string) error {
 	opts := NewInfoOptions(o.IOStreams)
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FileDir = o.FileDir
+
 	release, err := opts.LoadReleaseInfo(o.From, false)
 	if err != nil {
 		return err

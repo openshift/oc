@@ -151,7 +151,7 @@ func NewMirrorImageOptions(streams genericclioptions.IOStreams) *MirrorImageOpti
 }
 
 // NewCommandMirrorImage copies images from one location to another.
-func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMirrorImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMirrorImageOptions(streams)
 
 	cmd := &cobra.Command{
@@ -160,16 +160,16 @@ func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 		Long:    mirrorDesc,
 		Example: mirrorExample,
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
 
 	flag := cmd.Flags()
-	o.SecurityOptions.Bind(flag)
 	o.FilterOptions.Bind(flag)
 	o.ParallelOptions.Bind(flag)
+	o.SecurityOptions.Bind(flag)
 
 	flag.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Print the actions that would be taken and exit without writing to the destinations.")
 	flag.BoolVar(&o.ContinueOnError, "continue-on-error", o.ContinueOnError, "If an error occurs, keep going and attempt to mirror as much as possible.")
@@ -187,7 +187,7 @@ func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *MirrorImageOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if o.KeepManifestList && len(o.FilterOptions.FilterByOS) == 0 {
 		o.FilterOptions.FilterByOS = ".*"
 	}
@@ -196,18 +196,22 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if o.FilterOptions.IsWildcardFilter() {
-		o.KeepManifestList = true
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
 	}
 
-	registryContext, err := o.SecurityOptions.Context()
-	if err != nil {
-		return err
+	if o.FilterOptions.IsWildcardFilter() {
+		o.KeepManifestList = true
 	}
 
 	dir := o.FileDir
 	if len(o.FromFileDir) > 0 {
 		dir = o.FromFileDir
+	}
+
+	registryContext, err := o.SecurityOptions.Context()
+	if err != nil {
+		return err
 	}
 
 	opts := &imagesource.Options{
@@ -222,6 +226,7 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	for _, filename := range o.Filenames {
 		mappings, err := parseFile(filename, overlap, o.In, opts.ExpandWildcard)
 		if err != nil {
@@ -243,17 +248,18 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (o *MirrorImageOptions) Repository(ctx context.Context, context *registryclient.Context, ref imagesource.TypedImageReference, source bool) (distribution.Repository, error) {
+func (o *MirrorImageOptions) Repository(ctx context.Context, regContext *registryclient.Context, ref imagesource.TypedImageReference, source bool) (distribution.Repository, error) {
 	dir := o.FileDir
 	if len(o.FromFileDir) > 0 && source {
 		dir = o.FromFileDir
 	}
 	klog.V(5).Infof("Find source=%t registry with %#v", source, ref)
+
 	opts := &imagesource.Options{
 		FileDir:             dir,
 		Insecure:            o.SecurityOptions.Insecure,
 		AttemptS3BucketCopy: o.AttemptS3BucketCopy,
-		RegistryContext:     context,
+		RegistryContext:     regContext,
 	}
 	return opts.Repository(ctx, ref)
 }
@@ -508,7 +514,6 @@ func (o *MirrorImageOptions) plan() ([]*plan, error) {
 									return
 								}
 								plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to retrieve source image %s by tag %s: %v", src.ref, srcTag, err)})
-								return
 							}
 							srcDigest := desc.Digest
 							klog.V(3).Infof("Resolved source image %s:%s to %s\n", src.ref, srcTag, srcDigest)
@@ -526,43 +531,43 @@ func (o *MirrorImageOptions) plan() ([]*plan, error) {
 							// load the manifest
 							srcDigest := godigest.Digest(srcDigestString)
 							srcManifest, err := manifests.Get(ctx, godigest.Digest(srcDigest), imagemanifest.PreferManifestList)
+						if err != nil {
+							plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to retrieve source image %s manifest %s: %v", src.ref, srcDigest, err)})
+							return
+						}
+						klog.V(5).Infof("Found manifest %s with type %T", srcDigest, srcManifest)
+
+						// filter or load manifest list as appropriate
+						originalSrcDigest := srcDigest
+						srcManifests, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll, o.KeepManifestList)
+						if err != nil {
+							plan.AddError(retrieverError{src: src.ref, err: err})
+							return
+						}
+						if len(srcManifests) == 0 {
+							fmt.Fprintf(o.ErrOut, "info: Filtered all images from %s, skipping\n", src.ref)
+							return
+						}
+
+						var location string
+						if srcDigest == originalSrcDigest {
+							location = fmt.Sprintf("manifest %s", srcDigest)
+						} else {
+							location = fmt.Sprintf("manifest %s in manifest list %s", srcDigest, originalSrcDigest)
+						}
+
+						for _, dst := range pushTargets {
+							var toRepo distribution.Repository
+							var err error
+							if o.DryRun {
+								toRepo, err = imagesource.NewDryRun(dst.ref)
+							} else {
+								toRepo, err = o.Repository(ctx, toContexts[contextKeyForReference(dst.ref)], dst.ref, false)
+							}
 							if err != nil {
 								plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to retrieve source image %s manifest %s: %v", src.ref, srcDigest, err)})
 								return
 							}
-							klog.V(5).Infof("Found manifest %s with type %T", srcDigest, srcManifest)
-
-							// filter or load manifest list as appropriate
-							originalSrcDigest := srcDigest
-							srcManifests, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll, o.KeepManifestList)
-							if err != nil {
-								plan.AddError(retrieverError{src: src.ref, err: err})
-								return
-							}
-							if len(srcManifests) == 0 {
-								fmt.Fprintf(o.ErrOut, "info: Filtered all images from %s, skipping\n", src.ref)
-								return
-							}
-
-							var location string
-							if srcDigest == originalSrcDigest {
-								location = fmt.Sprintf("manifest %s", srcDigest)
-							} else {
-								location = fmt.Sprintf("manifest %s in manifest list %s", srcDigest, originalSrcDigest)
-							}
-
-							for _, dst := range pushTargets {
-								var toRepo distribution.Repository
-								var err error
-								if o.DryRun {
-									toRepo, err = imagesource.NewDryRun(dst.ref)
-								} else {
-									toRepo, err = o.Repository(ctx, toContexts[contextKeyForReference(dst.ref)], dst.ref, false)
-								}
-								if err != nil {
-									plan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to connect to %s: %v", dst.ref, err)})
-									continue
-								}
 
 								canonicalTo := toRepo.Named()
 

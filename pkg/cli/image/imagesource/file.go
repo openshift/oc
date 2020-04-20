@@ -43,6 +43,7 @@ func (d *fileDriver) Repository(ctx context.Context, server *url.URL, repoName s
 		repoPath: repoPathForName(repoName),
 		basePath: d.BaseDir,
 	}
+
 	return repo, nil
 }
 

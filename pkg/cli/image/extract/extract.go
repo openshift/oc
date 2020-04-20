@@ -156,7 +156,7 @@ func NewExtractOptions(streams genericclioptions.IOStreams) *ExtractOptions {
 }
 
 // New creates a new command
-func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
+func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewExtractOptions(streams)
 
 	cmd := &cobra.Command{
@@ -165,7 +165,7 @@ func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
 		Long:    desc,
 		Example: example,
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -307,11 +307,10 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 	return mappings, nil
 }
 
-func (o *ExtractOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
 		return err
 	}
-
 	if len(args) == 0 {
 		return fmt.Errorf("you must specify at least one image to extract as an argument")
 	}
@@ -325,6 +324,11 @@ func (o *ExtractOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -346,7 +350,6 @@ func (o *ExtractOptions) Run() error {
 		Insecure:        o.SecurityOptions.Insecure,
 		RegistryContext: fromContext,
 	}
-
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	q := workqueue.New(o.ParallelOptions.MaxPerRegistry, stopCh)
@@ -355,11 +358,11 @@ func (o *ExtractOptions) Run() error {
 			mapping := o.Mappings[i]
 			from := mapping.ImageRef
 			q.Try(func() error {
-				repo, err := fromOptions.Repository(ctx, from)
+				repo, newRef, err := fromOptions.RepositoryWithAlternateRef(ctx, from)
 				if err != nil {
 					return fmt.Errorf("unable to connect to image repository %s: %v", from.String(), err)
 				}
-
+				from.Ref = newRef
 				srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {

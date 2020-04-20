@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/docker/distribution"
+	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"k8s.io/klog/v2"
 )
@@ -15,6 +16,18 @@ type Options struct {
 	Insecure            bool
 	AttemptS3BucketCopy []string
 	RegistryContext     *registryclient.Context
+}
+
+// RepositoryWithAlternateRef retrieves the appropriate repository implementation for the given typed reference.
+// In case of DestinationRegistry type, also returns preferred DockerImageReference that may have been updated with alternative image sources
+// from ImageContentSourcePolicy objects.
+func (o *Options) RepositoryWithAlternateRef(ctx context.Context, ref TypedImageReference) (distribution.Repository, imagereference.DockerImageReference, error) {
+	switch ref.Type {
+	case DestinationRegistry:
+		return o.RegistryContext.RepositoryWithAlternateReference(ctx, ref.Ref)
+	default:
+		return nil, ref.Ref, fmt.Errorf("unexpected type for call to RepositoryWithAlternateRef %s, call Repository instead", ref.Type)
+	}
 }
 
 // Repository retrieves the appropriate repository implementation for the given typed reference.

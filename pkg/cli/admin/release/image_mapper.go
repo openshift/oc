@@ -103,16 +103,46 @@ func parseImageStream(path string) (*imageapi.ImageStream, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to read release image info from release contents: %v", err)
 	}
-	return readReleaseImageReferences(data)
+	return readReleaseImageReferences(data, false, imagereference.DockerImageReference{})
 }
 
-func readReleaseImageReferences(data []byte) (*imageapi.ImageStream, error) {
+func readReleaseImageReferences(data []byte, replacedRef bool, newRef imagereference.DockerImageReference) (*imageapi.ImageStream, error) {
 	is := &imageapi.ImageStream{}
 	if err := yaml.Unmarshal(data, &is); err != nil {
 		return nil, fmt.Errorf("unable to load release image-references: %v", err)
 	}
 	if is.Kind != "ImageStream" || is.APIVersion != "image.openshift.io/v1" {
 		return nil, fmt.Errorf("unrecognized image-references in release payload")
+	}
+	tagRef, err := imagereference.Parse(is.Spec.Tags[0].From.Name)
+	if err != nil {
+		return nil, err
+	}
+	// if !replacedRef and tagRef matches newRef then don't update image-references
+	// if refs don't match, still need to update image-references
+	if !replacedRef && tagRef.Registry == newRef.Registry && tagRef.Namespace == newRef.Namespace {
+		return is, nil
+	}
+	// ensure image reference tags are updated with preferred image reference, update when:
+	//  1) mirrored release, extract from the mirrored release name ex: localhost:5000/release as opposed to quay.io/openshift-release-dev
+	//  2) mirrored release, extract from original quay.io/openshift-release-dev but with ICSP, so have to update all mirrored image references
+	for i, tag := range is.Spec.Tags {
+		if tag.From == nil || tag.From.Kind != "DockerImage" {
+			continue
+		}
+		tRef, err := imagereference.Parse(tag.From.Name)
+		if err != nil {
+			continue
+		}
+		// ie don't update if this image reference is a substituted component image
+		if tag.Annotations != nil {
+			if _, ok := tag.Annotations[annotationReleaseOverride]; ok {
+				continue
+			}
+			newRef.ID = tRef.ID
+			newRef.Tag = tRef.Tag
+			is.Spec.Tags[i].From.Name = newRef.String()
+		}
 	}
 	return is, nil
 }

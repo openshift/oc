@@ -126,7 +126,7 @@ func NewAppendImageOptions(streams genericclioptions.IOStreams) *AppendImageOpti
 }
 
 // New creates a new command
-func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAppendImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewAppendImageOptions(streams)
 
 	cmd := &cobra.Command{
@@ -135,7 +135,7 @@ func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
 		Long:    desc,
 		Example: example,
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -164,11 +164,13 @@ func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-func (o *AppendImageOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *AppendImageOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
 		return err
 	}
-
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
 	for _, arg := range args {
 		if arg == "-" {
 			if o.LayerStream != nil {
@@ -240,16 +242,14 @@ func (o *AppendImageOptions) Run() error {
 	}
 
 	if len(o.FromFileDir) > 0 {
-		fromOptions.FileDir = o.FromFileDir
+		o.SecurityOptions.FileDir = o.FromFileDir
 	}
-
 	toContext := fromContext.Copy().WithActions("pull", "push")
 	toOptions := &imagesource.Options{
 		FileDir:         o.FileDir,
 		Insecure:        o.SecurityOptions.Insecure,
 		RegistryContext: toContext,
 	}
-
 	toRepo, err := toOptions.Repository(ctx, to)
 	if err != nil {
 		return err
@@ -258,7 +258,6 @@ func (o *AppendImageOptions) Run() error {
 	if err != nil {
 		return err
 	}
-
 	var (
 		base              *dockerv1client.DockerImageConfig
 		baseDigest        digest.Digest
@@ -267,21 +266,20 @@ func (o *AppendImageOptions) Run() error {
 		fromRepo          distribution.Repository
 	)
 	if from != nil {
-		repo, err := fromOptions.Repository(ctx, *from)
+		repo, newRef, err := fromOptions.RepositoryWithAlternateRef(ctx, *from)
 		if err != nil {
 			return err
 		}
 		fromRepo = repo
-
-		srcManifest, manifestLocation, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+		from.Ref = newRef
+		srcManifest, manifestLocation, err := imagemanifest.FirstManifest(ctx, from.Ref, fromRepo, o.FilterOptions.Include)
 		if err != nil {
 			return fmt.Errorf("unable to read image %s: %v", from, err)
 		}
-		base, layers, err = imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), manifestLocation)
+		base, layers, err = imagemanifest.ManifestToImageConfig(ctx, srcManifest, fromRepo.Blobs(ctx), manifestLocation)
 		if err != nil {
 			return fmt.Errorf("unable to parse image %s: %v", from, err)
 		}
-
 		contentDigest, err := registryclient.ContentDigestForManifest(srcManifest, manifestLocation.Manifest.Algorithm())
 		if err != nil {
 			return err
@@ -289,7 +287,6 @@ func (o *AppendImageOptions) Run() error {
 
 		baseDigest = manifestLocation.Manifest
 		baseContentDigest = contentDigest
-
 	} else {
 		base = add.NewEmptyConfig()
 		layers = nil
@@ -388,7 +385,6 @@ func (o *AppendImageOptions) Run() error {
 			needLayerDigest := len(base.RootFS.DiffIDs[i]) == 0
 			w.Try(func() error {
 				fromBlobs := fromRepo.Blobs(ctx)
-
 				// check whether the blob exists
 				if !o.Force {
 					if desc, err := toBlobs.Stat(ctx, layer.Digest); err == nil {
