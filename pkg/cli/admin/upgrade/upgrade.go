@@ -302,6 +302,9 @@ func (o *Options) Run() error {
 		} else {
 			fmt.Fprintln(o.ErrOut, "warning: No current status info, see `oc describe clusterversion` for more details")
 		}
+		if len(cv.Spec.Upstream) > 0 && len(cv.Spec.Channel) > 0 { // if these are unset, we notify the user via RetrievedUpdates handling below
+			fmt.Fprintf(o.Out, "Cluster is watching %s for updates in channel %s\n", cv.Spec.Upstream, cv.Spec.Channel)
+		}
 		fmt.Fprintln(o.Out)
 
 		if len(cv.Status.AvailableUpdates) > 0 {
