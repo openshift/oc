@@ -226,27 +226,28 @@ func (o *Options) Run() error {
 			}
 		}
 		if len(o.ToImage) > 0 {
-			if !o.AllowExplicitUpgrade {
-				var found bool
-				for _, available := range cv.Status.AvailableUpdates {
-					// if images exactly match
-					if available.Image == o.ToImage {
-						found = true
-						break
-					}
-					// if digests match (signature verification would match)
-					if refAvailable, err := imagereference.Parse(available.Image); err == nil {
-						if refTo, err := imagereference.Parse(o.ToImage); err == nil {
-							if len(refTo.ID) > 0 && refAvailable.ID == refTo.ID {
-								found = true
-								break
-							}
+			var found bool
+			for _, available := range cv.Status.AvailableUpdates {
+				// if images exactly match
+				if available.Image == o.ToImage {
+					found = true
+					break
+				}
+				// if digests match (signature verification would match)
+				if refAvailable, err := imagereference.Parse(available.Image); err == nil {
+					if refTo, err := imagereference.Parse(o.ToImage); err == nil {
+						if len(refTo.ID) > 0 && refAvailable.ID == refTo.ID {
+							found = true
+							break
 						}
 					}
 				}
-				if !found {
+			}
+			if !found {
+				if !o.AllowExplicitUpgrade {
 					return fmt.Errorf("The requested upgrade image is not one of the available updates, you must pass --allow-explicit-upgrade to continue")
 				}
+				fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates.  You have used --allow-explicit-upgrade to the update to preceed anyway")
 			}
 			if o.ToImage == cv.Status.Desired.Image && !o.AllowExplicitUpgrade {
 				fmt.Fprintf(o.Out, "info: Cluster is already using release image %s\n", o.ToImage)
