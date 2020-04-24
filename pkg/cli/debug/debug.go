@@ -21,6 +21,7 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -81,13 +82,17 @@ var (
 
 		You may invoke other types of objects besides pods - any controller resource that creates
 		a pod (like a deployment, build, or job), objects that can host pods (like nodes), or
-		resources that can be used to create pods (such as image stream tags).
+		resources that can be used to create pods (such as image stream tags), or simply pass
+		'--image=IMAGE' to start a simple shell session in an image with a shell program
 
 		The debug pod is deleted when the remote command completes or the user interrupts
 		the shell.
 	`)
 
 	debugExample = templates.Examples(`
+		# Start a shell session into a pod using the OpenShift tools image
+		oc debug
+
 		# Debug a currently running deployment by creating a new pod
 		oc debug deploy/test
 
@@ -352,18 +357,58 @@ func (o DebugOptions) Validate() error {
 
 // Debug creates and runs a debugging pod.
 func (o *DebugOptions) RunDebug() error {
-	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
-		NamespaceParam(o.Namespace).DefaultNamespace().
-		SingleResourceType().
-		ResourceNames("pods", o.Resources...).
-		Flatten()
-	if len(o.FilenameOptions.Filenames) > 0 {
-		b.FilenameParam(o.ExplicitNamespace, &o.FilenameOptions)
-	}
-	infos, err := b.Do().Infos()
-	if err != nil {
-		return err
+	var infos []*resource.Info
+
+	// the simplest possible debug is an image
+	if len(o.Resources) == 0 {
+		image := o.Image
+
+		if len(image) == 0 {
+			imageStream := o.ImageStream
+			if len(imageStream) == 0 {
+				imageStream = "openshift/tools:latest"
+			}
+			imageFromStream, err := o.resolveImageStreamTagString(imageStream)
+			if err != nil {
+				return fmt.Errorf("unable to resolve a default pod image from image stream %s: %v", imageStream, err)
+			}
+			image = imageFromStream
+			klog.V(4).Infof("Defaulted image from imagestream %s: %s", imageStream, image)
+		}
+
+		infos = append(infos, &resource.Info{
+			Mapping: &meta.RESTMapping{
+				Resource:         corev1.SchemeGroupVersion.WithResource("pods"),
+				GroupVersionKind: corev1.SchemeGroupVersion.WithKind("Pod"),
+			},
+			Name: "image",
+			Object: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "image",
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "debug", Image: image},
+					},
+				},
+			},
+		})
+
+	} else {
+		b := o.Builder().
+			WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+			NamespaceParam(o.Namespace).DefaultNamespace().
+			SingleResourceType().
+			ResourceNames("pods", o.Resources...).
+			Flatten()
+		if len(o.FilenameOptions.Filenames) > 0 {
+			b.FilenameParam(o.ExplicitNamespace, &o.FilenameOptions)
+		}
+		var err error
+		infos, err = b.Do().Infos()
+		if err != nil {
+			return err
+		}
 	}
 	if len(infos) != 1 {
 		klog.V(4).Infof("Objects: %#v", infos)
