@@ -41,10 +41,10 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/mtrmac/gpgme v0.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
-	github.com/openshift/api v0.0.0-20200330134433-8e259f67fc55
-	github.com/openshift/build-machinery-go v0.0.0-20200211121458-5e3d6e570160
-	github.com/openshift/client-go v0.0.0-20200326155132-2a6cd50aedd0
-	github.com/openshift/library-go v0.0.0-20200402123743-4015ba624cae
+	github.com/openshift/api v0.0.0-20200424083944-0422dc17083e
+	github.com/openshift/build-machinery-go v0.0.0-20200424080330-082bf86082cc
+	github.com/openshift/client-go v0.0.0-20200422192633-6f6c07fc2a70
+	github.com/openshift/library-go v0.0.0-20200427130628-9b02543ac833
 	github.com/operator-framework/operator-registry v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.1.0
@@ -57,18 +57,18 @@ require (
 	github.com/yvasiyarov/gorelic v0.0.7 // indirect
 	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20160601141957-9c099fbc30e9 // indirect
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
-	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
-	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5
+	golang.org/x/net v0.0.0-20200421231249-e086a090c8fd
+	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	gopkg.in/ldap.v2 v2.5.1
-	k8s.io/api v0.18.0
-	k8s.io/apimachinery v0.18.0
-	k8s.io/apiserver v0.18.0
-	k8s.io/cli-runtime v0.18.0
+	k8s.io/api v0.18.2
+	k8s.io/apimachinery v0.18.2
+	k8s.io/apiserver v0.18.2
+	k8s.io/cli-runtime v0.18.2
 	k8s.io/client-go v8.0.0+incompatible
-	k8s.io/component-base v0.18.0
+	k8s.io/component-base v0.18.2
 	k8s.io/klog v1.0.0
-	k8s.io/kubectl v0.18.0
+	k8s.io/kubectl v0.18.2
 	k8s.io/kubernetes v1.13.0
 	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
 	rsc.io/letsencrypt v0.0.3 // indirect
@@ -85,29 +85,29 @@ replace (
 	// yet provides the same fix.
 	github.com/docker/docker => github.com/docker/docker v1.4.2-0.20191121165722-d1d5f6476656
 
-	k8s.io/api => k8s.io/api v0.18.0
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.0
-	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20200312102044-c0dda0f30426
-	k8s.io/apiserver => k8s.io/apiserver v0.18.0
-	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200312153851-13871249b361
-	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20200312102710-a3d38b2f4366
-	k8s.io/cloud-provider => k8s.io/cloud-provider v0.18.0
-	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.18.0
-	k8s.io/code-generator => k8s.io/code-generator v0.18.0
-	k8s.io/component-base => k8s.io/component-base v0.18.0
-	k8s.io/cri-api => k8s.io/cri-api v0.18.0
-	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.18.0
-	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.18.0
-	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.18.0
-	k8s.io/kube-proxy => k8s.io/kube-proxy v0.18.0
-	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.18.0
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200318132203-d76c0712736d
-	k8s.io/kubelet => k8s.io/kubelet v0.18.0
-	k8s.io/kubernetes => github.com/openshift/kubernetes v1.17.0-alpha.0.0.20200318164551-e37bbac80705
-	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.0
-	k8s.io/metrics => k8s.io/metrics v0.18.0
-	k8s.io/node-api => k8s.io/node-api v0.18.0
-	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.18.0
-	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.18.0
-	k8s.io/sample-controller => k8s.io/sample-controller v0.18.0
+	k8s.io/api => k8s.io/api v0.18.2
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.2
+	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20200427132717-228307e8b83c
+	k8s.io/apiserver => k8s.io/apiserver v0.18.2
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200427133506-c9b12ef3d51a
+	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20200427132843-d2e6d74049b0
+	k8s.io/cloud-provider => k8s.io/cloud-provider v0.18.2
+	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.18.2
+	k8s.io/code-generator => k8s.io/code-generator v0.18.2
+	k8s.io/component-base => k8s.io/component-base v0.18.2
+	k8s.io/cri-api => k8s.io/cri-api v0.18.2
+	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.18.2
+	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.18.2
+	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.18.2
+	k8s.io/kube-proxy => k8s.io/kube-proxy v0.18.2
+	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.18.2
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200427133609-5c71e22e20a8
+	k8s.io/kubelet => k8s.io/kubelet v0.18.2
+	k8s.io/kubernetes => github.com/openshift/kubernetes v1.17.0-alpha.0.0.20200427141011-f0879866c662
+	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.2
+	k8s.io/metrics => k8s.io/metrics v0.18.2
+	k8s.io/node-api => k8s.io/node-api v0.18.2
+	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.18.2
+	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.18.2
+	k8s.io/sample-controller => k8s.io/sample-controller v0.18.2
 )
