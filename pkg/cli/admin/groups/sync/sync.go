@@ -138,6 +138,8 @@ func NewCmdSync(name, fullName string, f kcmdutil.Factory, streams genericcliopt
 	cmd.Flags().StringVar(&o.Type, "type", o.Type, "which groups white- and blacklist entries refer to: "+strings.Join(AllowedSourceTypes, ","))
 	cmd.Flags().BoolVar(&o.Confirm, "confirm", o.Confirm, "if true, modify OpenShift groups; if false, display results of a dry-run")
 
+	o.PrintFlags.AddFlags(cmd)
+
 	return cmd
 }
 
