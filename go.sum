@@ -718,8 +718,6 @@ github.com/openshift/kubernetes-client-go v0.0.0-20200427132843-d2e6d74049b0 h1:
 github.com/openshift/kubernetes-client-go v0.0.0-20200427132843-d2e6d74049b0/go.mod h1:Xcm5wVGXX9HAA2JJ2sSBUn3tCJ+4SVlCbl2MNNv+CIU=
 github.com/openshift/kubernetes-kubectl v0.0.0-20200427133609-5c71e22e20a8 h1:tKQtgLeIHG2+1SsAxTx0y8hS7+tn4V5nDCbuB1jwiW8=
 github.com/openshift/kubernetes-kubectl v0.0.0-20200427133609-5c71e22e20a8/go.mod h1:OdgFa3AlsPKRpFFYE7ICTwulXOcMGXHTc+UKhHKvrb4=
-github.com/openshift/library-go v0.0.0-20200427130628-9b02543ac833 h1:glEuGTvwkQJXfCzVfosZ3oq73L8QltO6Xyxo1oTf5Ig=
-github.com/openshift/library-go v0.0.0-20200427130628-9b02543ac833/go.mod h1:2kWwXTkpoQJUN3jZ3QW88EIY1hdRMqxgRs2hheEW/pg=
 github.com/openzipkin/zipkin-go v0.1.6/go.mod h1:QgAqvLzwWbR/WpD4A3cGpPtJrZXNIiJc5AZX7/PBEpw=
 github.com/operator-framework/api v0.1.1 h1:DbfxRJUPMQlQW6nbfoNzWLxv1rIv13Gt8GbsF2aglFk=
 github.com/operator-framework/api v0.1.1/go.mod h1:yzNYR7qyJqRGOOp+bT6Z/iYSbSPNxeh3Si93Gx/3OBY=
@@ -805,6 +803,8 @@ github.com/russross/blackfriday v1.5.2 h1:HyvC0ARfnZBqnXwABFeSZHpKvJHJJfPz81GNue
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/go-glob v0.0.0-20170128012129-256dc444b735/go.mod h1:807d1WSdnB0XRJzKNil9Om6lcp/3a0v4qIHxIXzX/Yc=
+github.com/sallyom/library-go v0.0.0-20200430203736-45b3644c0d98 h1:oJ8aKLcKl4gXY9bFeXkMcU/QEaqU4EHl6qMJRy8xBn8=
+github.com/sallyom/library-go v0.0.0-20200430203736-45b3644c0d98/go.mod h1:2kWwXTkpoQJUN3jZ3QW88EIY1hdRMqxgRs2hheEW/pg=
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
 github.com/sclevine/spec v1.2.0/go.mod h1:W4J29eT/Kzv7/b9IWLB055Z+qvVC9vt0Arko24q7p+U=
 github.com/seccomp/libseccomp-golang v0.9.1/go.mod h1:GbW5+tmTXfcxTToHLXlScSlAvWlF4P2Ca7zGrPiEpWo=

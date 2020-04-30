@@ -84,6 +84,8 @@ replace (
 	// d1d5f6476656c6aad457e2a91d3436e66b6f2251 is more suitable since it does not break fsouza/go-clientdocker,
 	// yet provides the same fix.
 	github.com/docker/docker => github.com/docker/docker v1.4.2-0.20191121165722-d1d5f6476656
+	// TODO: REMOVE-FAKE BUMP
+	github.com/openshift/library-go => github.com/sallyom/library-go v0.0.0-20200430203736-45b3644c0d98
 
 	k8s.io/api => k8s.io/api v0.18.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.2

@@ -1,6 +1,7 @@
 package reference
 
 import (
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
@@ -60,6 +61,19 @@ func Parse(spec string) (DockerImageReference, error) {
 	}
 
 	return ref, nil
+}
+
+// GetSpecDigest returns the image digest from a DockerImageReference string.
+// example 'sha:22204fa2...' in an image 'registry/ocp/release@sha:22204fa2...'
+func GetSpecDigest(spec string) (string, error) {
+	namedRef, err := reference.ParseNamed(spec)
+	if err != nil {
+		return "", err
+	}
+	if named, ok := namedRef.(reference.Digested); ok {
+		return named.Digest().String(), nil
+	}
+	return "", fmt.Errorf("could not parse digest for spec: %v", spec)
 }
 
 // Equal returns true if the other DockerImageReference is equivalent to the
