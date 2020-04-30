@@ -600,7 +600,7 @@ func (o *RoleModificationOptions) checkRolebindingAutoupdate(roleBinding *roleBi
 			o.PrintErrf("Warning: Your changes may get lost whenever a master"+
 				" is restarted, unless you prevent reconciliation of this"+
 				" rolebinding using the following command: oc annotate"+
-				" %s.rbac %s '%s=false' --overwrite", roleBinding.Type(),
+				" %s.rbac %s '%s=false' --overwrite\n", roleBinding.Type(),
 				roleBinding.Name(), rbacv1.AutoUpdateAnnotationKey)
 		}
 	}
