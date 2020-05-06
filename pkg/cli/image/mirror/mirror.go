@@ -185,7 +185,7 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 		FileDir:             dir,
 		Insecure:            o.SecurityOptions.Insecure,
 		AttemptS3BucketCopy: o.AttemptS3BucketCopy,
-		RegistryContext:     registryContext,
+		RegistryContext:     registryContext.PushContext,
 	}
 
 	overlap := make(map[string]string)
@@ -412,8 +412,8 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	fromContext := context.Copy()
-	toContext := context.Copy().WithActions("pull", "push")
+	fromContext := context.PullContext.Copy()
+	toContext := context.PushContext.Copy().WithActions("pull", "push")
 	toContexts := make(map[contextKey]*registryclient.Context)
 
 	tree := buildTargetTree(o.Mappings)

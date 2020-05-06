@@ -111,14 +111,14 @@ func (o *InfoOptions) Run() error {
 	}
 
 	// cache the context
-	context, err := o.SecurityOptions.Context()
+	registryContext, err := o.SecurityOptions.Context()
 	if err != nil {
 		return err
 	}
 	opts := &imagesource.Options{
 		FileDir:         o.FileDir,
 		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: context,
+		RegistryContext: registryContext.PullContext,
 	}
 
 	hadError := false
@@ -364,14 +364,14 @@ type ImageRetriever struct {
 
 func (o *ImageRetriever) Run() error {
 	ctx := context.Background()
-	fromContext, err := o.SecurityOptions.Context()
+	registryContext, err := o.SecurityOptions.Context()
 	if err != nil {
 		return err
 	}
 	fromOptions := &imagesource.Options{
 		FileDir:         o.FileDir,
 		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: fromContext,
+		RegistryContext: registryContext.PullContext,
 	}
 
 	callbackFn := o.ImageMetadataCallback

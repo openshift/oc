@@ -105,6 +105,14 @@ func NewRelease(f kcmdutil.Factory, parentName string, streams genericclioptions
 			%[1]s new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 \
 				cli=docker.io/mycompany/cli:latest --to-image docker.io/mycompany/myrepo:latest
 
+			# Create a release from a Red Hat owned Quay repository and push to a personal Quay repository
+			# In this case pass --registry-config to specify credentials for registry to push images
+			# and --pull-secret to specify credentials to pull images from, or whichever is not the default.
+			# Both of these default to ~/.docker/config.json
+			# In this example, push credentials for personal quay repository are in ~/.docker/config.json
+			%[1]s new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 \
+			    --pull-secret /path/to/pull-secret quay.io/yourrepo/yourrelease:test
+
 			# Run a verification pass to ensure the release can be reproduced
 			%[1]s new --from-release registry.svc.ci.openshift.org/origin/release:v4.1
 				`, parentName)),

@@ -38,16 +38,23 @@ func (o *ParallelOptions) Bind(flags *pflag.FlagSet) {
 	flags.IntVar(&o.MaxPerRegistry, "max-per-registry", o.MaxPerRegistry, "Number of concurrent requests allowed per registry.")
 }
 
+type RegistryContext struct {
+	PushContext *registryclient.Context
+	PullContext *registryclient.Context
+}
+
 type SecurityOptions struct {
 	RegistryConfig   string
+	PullSecretPath   string
 	Insecure         bool
 	SkipVerification bool
 
-	CachedContext *registryclient.Context
+	CachedContext RegistryContext
 }
 
 func (o *SecurityOptions) Bind(flags *pflag.FlagSet) {
 	flags.StringVarP(&o.RegistryConfig, "registry-config", "a", o.RegistryConfig, "Path to your registry credentials (defaults to ~/.docker/config.json)")
+	flags.StringVar(&o.PullSecretPath, "pull-secret", o.PullSecretPath, "Path to pull-secret (registry credentials) for pulling images to (defaults to registry-config that defaults to ~/.docker/config.json)")
 	flags.BoolVar(&o.Insecure, "insecure", o.Insecure, "Allow push and pull operations to registries to be made over HTTP")
 	flags.BoolVar(&o.SkipVerification, "skip-verification", o.SkipVerification, "Skip verifying the integrity of the retrieved content. This is not recommended, but may be necessary when importing images from older image registries. Only bypass verification if the registry is known to be trustworthy.")
 }
@@ -81,37 +88,51 @@ func (v *verifier) Verified() bool {
 	return !v.hadError
 }
 
-func (o *SecurityOptions) Context() (*registryclient.Context, error) {
-	if o.CachedContext != nil {
+func (o *SecurityOptions) Context() (RegistryContext, error) {
+	if o.CachedContext.PushContext != nil && o.CachedContext.PullContext != nil {
 		return o.CachedContext, nil
 	}
-	context, err := o.NewContext()
+	registryContext, err := o.NewContext()
 	if err == nil {
-		o.CachedContext = context
-		o.CachedContext.Retries = 3
+		o.CachedContext.PullContext = registryContext.PullContext
+		o.CachedContext.PushContext = registryContext.PushContext
+		registryContext.PullContext.Retries = 3
+		registryContext.PushContext.Retries = 3
 	}
-	return context, err
+	return registryContext, err
 }
 
-func (o *SecurityOptions) NewContext() (*registryclient.Context, error) {
+func (o *SecurityOptions) NewContext() (RegistryContext, error) {
+	var registryContext RegistryContext
 	rt, err := rest.TransportFor(&rest.Config{})
 	if err != nil {
-		return nil, err
+		return registryContext, err
 	}
 	insecureRT, err := rest.TransportFor(&rest.Config{TLSClientConfig: rest.TLSClientConfig{Insecure: true}})
 	if err != nil {
-		return nil, err
+		return registryContext, err
 	}
-	creds := dockercredentials.NewLocal()
+	pushCreds := dockercredentials.NewLocal()
 	if len(o.RegistryConfig) > 0 {
-		creds, err = dockercredentials.NewFromFile(o.RegistryConfig)
+		pushCreds, err = dockercredentials.NewFromFile(o.RegistryConfig)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load --registry-config: %v", err)
+			return registryContext, fmt.Errorf("unable to load --registry-config: %v", err)
 		}
 	}
-	context := registryclient.NewContext(rt, insecureRT).WithCredentials(creds)
-	context.DisableDigestVerification = o.SkipVerification
-	return context, nil
+	pullCreds := dockercredentials.NewLocal()
+	if len(o.PullSecretPath) > 0 {
+		pullCreds, err = dockercredentials.NewFromFile(o.PullSecretPath)
+		if err != nil {
+			return registryContext, fmt.Errorf("unable to load --pull-secret: %v", err)
+		}
+	} else {
+		pullCreds = pushCreds
+	}
+	registryContext.PullContext = registryclient.NewContext(rt, insecureRT).WithCredentials(pullCreds)
+	registryContext.PullContext.DisableDigestVerification = o.SkipVerification
+	registryContext.PushContext = registryclient.NewContext(rt, insecureRT).WithCredentials(pushCreds)
+	registryContext.PushContext.DisableDigestVerification = o.SkipVerification
+	return registryContext, nil
 }
 
 // FilterOptions assist in filtering out unneeded manifests from ManifestList objects.

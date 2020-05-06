@@ -210,7 +210,9 @@ func (o *AppendImageOptions) Run() error {
 	}
 
 	ctx := context.Background()
-	fromContext, err := o.SecurityOptions.Context()
+	registryContext, err := o.SecurityOptions.Context()
+	fromContext := registryContext.PullContext
+	pushContext := registryContext.PushContext
 	if err != nil {
 		return err
 	}
@@ -223,7 +225,7 @@ func (o *AppendImageOptions) Run() error {
 		fromOptions.FileDir = o.FromFileDir
 	}
 
-	toContext := fromContext.Copy().WithActions("pull", "push")
+	toContext := pushContext.Copy().WithActions("pull", "push")
 	toOptions := &imagesource.Options{
 		FileDir:         o.FileDir,
 		Insecure:        o.SecurityOptions.Insecure,

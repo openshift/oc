@@ -306,14 +306,14 @@ func (o *Options) Validate() error {
 
 func (o *Options) Run() error {
 	ctx := context.Background()
-	fromContext, err := o.SecurityOptions.Context()
+	registryContext, err := o.SecurityOptions.Context()
 	if err != nil {
 		return err
 	}
 	fromOptions := &imagesource.Options{
 		FileDir:         o.FileDir,
 		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: fromContext,
+		RegistryContext: registryContext.PullContext,
 	}
 
 	stopCh := make(chan struct{})
