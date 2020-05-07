@@ -126,6 +126,13 @@ func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		if len(ref.ID) == 0 && len(ref.Tag) == 0 {
 			return fmt.Errorf("--to-image must be a valid image pull spec: no tag or digest specified")
 		}
+		if len(ref.Tag) > 0 {
+			if o.Force {
+				fmt.Fprintln(o.ErrOut, "warning: Using by-tag pull specs is dangerous, and while we still allow it in combination with --force for backward compatibility, it would be much safer to pass a by-digest pull spec instead")
+			} else {
+				return fmt.Errorf("--to-image must be a by-digest pull spec, unless --force is also set, because release images that are not accessed via digest cannot be verified by the cluster.  Even when --force is set, using tags is not recommended, although we continue to allow it for backwards compatibility")
+			}
+		}
 	}
 
 	cfg, err := f.ToRESTConfig()
