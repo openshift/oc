@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/etcd/clientv3"
-	"github.com/coreos/etcd/pkg/transport"
 	"github.com/spf13/cobra"
+	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/pkg/transport"
 	"golang.org/x/net/context"
 	"k8s.io/klog"
 
@@ -105,7 +105,7 @@ func generateClientConfig(o *MigrateTTLReferenceOptions) (*clientv3.Config, erro
 	}
 
 	if o.caFile != "" {
-		tlsinfo.CAFile = o.caFile
+		tlsinfo.TrustedCAFile = o.caFile
 		cfgtls = &tlsinfo
 	}
 
