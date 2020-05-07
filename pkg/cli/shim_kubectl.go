@@ -17,7 +17,7 @@ import (
 func shimKubectlForOc() {
 	// we only need this change for `oc`.  `kubectl` should behave as close to `kubectl` as we can
 	// if we call this factory construction method, we want the openshift style config loading
-	kclientcmd.ErrEmptyConfig = genericclioptions.NewErrConfigurationMissing()
+	kclientcmd.ErrEmptyConfig = genericclioptions.ErrEmptyConfig
 	kcmdset.ParseDockerImageReferenceToStringFunc = clientcmd.ParseDockerImageReferenceToStringFunc
 	openshiftpatch.OAPIToGroupified = legacygroupification.OAPIToGroupified
 	openshiftpatch.OAPIToGroupifiedGVK = legacygroupification.OAPIToGroupifiedGVK
