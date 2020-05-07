@@ -41,10 +41,10 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/mtrmac/gpgme v0.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
-	github.com/openshift/api v0.0.0-20200424083944-0422dc17083e
+	github.com/openshift/api v0.0.0-20200429152225-b98a784d8e6d
 	github.com/openshift/build-machinery-go v0.0.0-20200424080330-082bf86082cc
 	github.com/openshift/client-go v0.0.0-20200422192633-6f6c07fc2a70
-	github.com/openshift/library-go v0.0.0-20200427130628-9b02543ac833
+	github.com/openshift/library-go v0.0.0-20200506083334-710b0bd21d0c
 	github.com/operator-framework/operator-registry v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.1.0
@@ -89,8 +89,8 @@ replace (
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.2
 	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20200427132717-228307e8b83c
 	k8s.io/apiserver => k8s.io/apiserver v0.18.2
-	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200427133506-c9b12ef3d51a
-	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20200427132843-d2e6d74049b0
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200507115657-2fb95e953778
+	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20200507115529-5e2a2d83bced
 	k8s.io/cloud-provider => k8s.io/cloud-provider v0.18.2
 	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.18.2
 	k8s.io/code-generator => k8s.io/code-generator v0.18.2
@@ -101,7 +101,7 @@ replace (
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.18.2
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.18.2
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.18.2
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200427133609-5c71e22e20a8
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200507115706-2f87de22f81a
 	k8s.io/kubelet => k8s.io/kubelet v0.18.2
 	k8s.io/kubernetes => github.com/openshift/kubernetes v1.17.0-alpha.0.0.20200427141011-f0879866c662
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.2
