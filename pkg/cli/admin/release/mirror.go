@@ -377,6 +377,35 @@ func (o *MirrorOptions) handleSignatures(context context.Context, signaturesByDi
 	return nil
 }
 
+func verifySrcImageExists(o *mirror.MirrorImageOptions, ref imagereference.DockerImageReference) bool {
+	from := imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
+	ctx := context.Background()
+	fromContext, err := o.SecurityOptions.Context()
+	if err != nil {
+		return false
+	}
+	fromOptions := &imagesource.Options{
+		FileDir:         o.FileDir,
+		Insecure:        o.SecurityOptions.Insecure,
+		RegistryContext: fromContext,
+	}
+
+	repo, err := fromOptions.Repository(ctx, from)
+	if err != nil {
+		klog.V(2).Infof("unable to connect to image repository %s: %v", from.String(), err)
+		return false
+	}
+	_, _, err = imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+	if err != nil {
+		if imagemanifest.IsImageNotFound(err) {
+			return false
+		}
+		klog.V(2).Infof("unable to read image %s: %v", from.String(), err)
+		return false
+	}
+	return true
+}
+
 func (o *MirrorOptions) Run() error {
 	var recreateRequired bool
 	var hasPrefix bool
@@ -517,10 +546,12 @@ func (o *MirrorOptions) Run() error {
 	if err := imageVerifier.Verify(ctx, releaseDigest); err != nil {
 		fmt.Fprintf(o.ErrOut, "warning: An image was retrieved that failed verification: %v\n", err)
 	}
+	var srcRef imagesource.TypedImageReference
 	var mappings []mirror.Mapping
 	if len(o.From) > 0 {
+		var err error
 		src := o.From
-		srcRef, err := imagesource.ParseReference(src)
+		srcRef, err = imagesource.ParseReference(src)
 		if err != nil {
 			return fmt.Errorf("invalid --from: %v", err)
 		}
@@ -579,6 +610,7 @@ func (o *MirrorOptions) Run() error {
 
 	repositories := make(map[string]struct{})
 
+	newRef := srcRef.Ref.AsRepository()
 	// build the mapping list for mirroring and rewrite if necessary
 	for i := range is.Spec.Tags {
 		tag := &is.Spec.Tags[i]
@@ -593,9 +625,23 @@ func (o *MirrorOptions) Run() error {
 			return fmt.Errorf("image-references should only contain pointers to images by digest: %s", tag.From.Name)
 		}
 
+		opts := mirror.NewMirrorImageOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+		opts.SecurityOptions = o.SecurityOptions
+		opts.ParallelOptions = o.ParallelOptions
+		opts.FileDir = o.ToDir
 		// Allow mirror refs to be sourced locally
 		srcMirrorRef := imagesource.TypedImageReference{Ref: from, Type: imagesource.DestinationRegistry}
 		srcMirrorRef = sourceFn(srcMirrorRef)
+		// Try the registry/repo passed from the user first.  If image does not exist,
+		// proceed with the release info from the release image-references
+		// ID is the sha of each component in the release image-reference.
+		newRef.ID = from.ID
+		// If the user-given registry/repo/name:digest exists, replace with that, if not keep the
+		// is.Spec.Tag from release image-reference
+		if verifySrcImageExists(opts, newRef) {
+			srcMirrorRef = imagesource.TypedImageReference{Ref: newRef, Type: imagesource.DestinationRegistry}
+			srcMirrorRef = sourceFn(srcMirrorRef)
+		}
 
 		// Create a unique map of repos as keys
 		currentRepo := from.AsRepository().String()
