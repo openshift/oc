@@ -219,35 +219,22 @@ func (o ProjectOptions) Run() error {
 			}
 
 			if err := ConfirmProjectAccess(argument, client, kubeclient); err != nil {
+				msg := ""
 				if isNotFound, isForbidden := kapierrors.IsNotFound(err), kapierrors.IsForbidden(err); isNotFound || isForbidden {
-					var msg string
 					if isForbidden {
 						msg = fmt.Sprintf("You are not a member of project %q.", argument)
 					} else {
 						msg = fmt.Sprintf("A project named %q does not exist on %q.", argument, clientCfg.Host)
 					}
 
-					projects, err := GetProjects(client, kubeclient)
-					if err == nil {
-						switch len(projects) {
-						case 0:
-							msg += "\nYou are not a member of any projects. You can request a project to be created with the 'new-project' command."
-						case 1:
-							msg += fmt.Sprintf("\nYou have one project on this server: %s", DisplayNameForProject(&projects[0]))
-						default:
-							msg += "\nYour projects are:"
-							for _, project := range projects {
-								msg += fmt.Sprintf("\n* %s", DisplayNameForProject(&project))
-							}
-						}
-					}
-
-					if hasMultipleServers(config) {
-						msg += "\nTo see projects on another server, pass '--server=<server>'."
-					}
-					return errors.New(msg)
 				}
-				return err
+				if msg == "" {
+					msg = err.Error()
+				}
+				if hasMultipleServers(config) {
+					msg += "\nTo see projects on another server, pass '--server=<server>'."
+				}
+				return errors.New(msg)
 			}
 		}
 		projectName := argument
@@ -320,18 +307,43 @@ func (o *ProjectOptions) GetContextFromName(contextName string) (*clientcmdapi.C
 }
 
 func ConfirmProjectAccess(currentProject string, projectClient projectv1client.ProjectV1Interface, kClient corev1client.CoreV1Interface) error {
-	_, projectErr := projectClient.Projects().Get(context.TODO(), currentProject, metav1.GetOptions{})
-	if !kapierrors.IsNotFound(projectErr) && !kapierrors.IsForbidden(projectErr) {
-		return projectErr
-	}
+	projects, err := GetProjects(projectClient, kClient)
+	if err != nil {
+		_, projectErr := projectClient.Projects().Get(context.TODO(), currentProject, metav1.GetOptions{})
+		if !kapierrors.IsNotFound(projectErr) && !kapierrors.IsForbidden(projectErr) {
+			return projectErr
+		}
 
-	// at this point we know the error is a not found or forbidden, but we'll test namespaces just in case we're running on kube
-	if _, err := kClient.Namespaces().Get(context.TODO(), currentProject, metav1.GetOptions{}); err == nil {
+		// at this point we know the error is a not found or forbidden, but we'll test namespaces just in case we're running on kube
+		if _, err = kClient.Namespaces().Get(context.TODO(), currentProject, metav1.GetOptions{}); err == nil {
+			return nil
+		}
+	}
+	matched := false
+	for _, p := range projects {
+		if p.Name == currentProject {
+			matched = true
+			break
+		}
+	}
+	if matched {
 		return nil
 	}
-
+	var msg string
+	switch len(projects) {
+	// this happens when user runs 'oc project' and project is listed as current-context in config but has been deleted
+	case 0:
+		msg += "You are not a member of any projects. You can request a project to be created with the 'new-project' command."
+	case 1:
+		msg += fmt.Sprintf("You are not a member of project %s.\nYou have one project on this server: %s", currentProject, DisplayNameForProject(&projects[0]))
+	default:
+		msg += "\nYour projects are:"
+		for _, p := range projects {
+			msg += fmt.Sprintf("\n* %s", DisplayNameForProject(&p))
+		}
+	}
 	// otherwise return the openshift error default
-	return projectErr
+	return errors.New(msg)
 }
 
 func GetProjects(projectClient projectv1client.ProjectV1Interface, kClient corev1client.CoreV1Interface) ([]projectv1.Project, error) {
