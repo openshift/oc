@@ -158,10 +158,8 @@ func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, baseCLI
 		}
 		_, err = projectClient.Projects().Get(namespace, metav1.GetOptions{})
 		switch {
-		case kapierrors.IsForbidden(err):
-			return fmt.Errorf("you do not have rights to view project %q", namespace)
-		case kapierrors.IsNotFound(err):
-			return fmt.Errorf("the project %q specified in your config does not exist", namespace)
+		case kapierrors.IsForbidden(err), kapierrors.IsNotFound(err):
+			return fmt.Errorf("you do not have rights to view project %q specified in your config or the project doesn't exist", namespace)
 		case err != nil:
 			return err
 		}
