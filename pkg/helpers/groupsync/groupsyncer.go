@@ -15,6 +15,7 @@ import (
 
 	userv1 "github.com/openshift/api/user/v1"
 	userv1client "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
+	"github.com/openshift/library-go/pkg/security/ldapquery"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"
 )
 
@@ -85,6 +86,10 @@ func (s *LDAPGroupSyncer) Sync() ([]*userv1.Group, []error) {
 		// update the OpenShift Group corresponding to this record
 		openshiftGroup, err := s.makeOpenShiftGroup(ldapGroupUID, usernames)
 		if err != nil {
+			if ldapquery.IsQueryOutOfBoundsError(err) {
+				fmt.Fprintf(s.Err, "%s\n", err.Error())
+				continue
+			}
 			fmt.Fprintf(s.Err, "Error building OpenShift group for LDAP group %q: %v.\n", ldapGroupUID, err)
 			errors = append(errors, err)
 			continue
