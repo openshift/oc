@@ -8,6 +8,8 @@ import (
 	"k8s.io/kubectl/pkg/cmd/rollout"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
+
+	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
 var (
@@ -48,7 +50,7 @@ func NewCmdRollout(fullName string, f kcmdutil.Factory, streams genericclioption
 	cmd.AddCommand(NewCmdRolloutStatus(fullName, f, streams))
 	cmd.AddCommand(NewCmdRolloutCancel(fullName, f, streams))
 	cmd.AddCommand(NewCmdRolloutRetry(fullName, f, streams))
-	cmd.AddCommand(rollout.NewCmdRolloutRestart(f, streams))
+	cmd.AddCommand(cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(rollout.NewCmdRolloutRestart(f, streams))))
 
 	return cmd
 }
