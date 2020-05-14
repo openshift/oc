@@ -10214,6 +10214,72 @@ _oc_create_priorityclass()
     noun_aliases=()
 }
 
+_oc_create_project()
+{
+    last_command="oc_create_project"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--description=")
+    two_word_flags+=("--description")
+    local_nonpersistent_flags+=("--description=")
+    flags+=("--display-name=")
+    two_word_flags+=("--display-name")
+    local_nonpersistent_flags+=("--display-name=")
+    flags+=("--skip-config-write")
+    local_nonpersistent_flags+=("--skip-config-write")
+    flags+=("--as=")
+    two_word_flags+=("--as")
+    flags+=("--as-group=")
+    two_word_flags+=("--as-group")
+    flags+=("--cache-dir=")
+    two_word_flags+=("--cache-dir")
+    flags+=("--certificate-authority=")
+    two_word_flags+=("--certificate-authority")
+    flags+=("--client-certificate=")
+    two_word_flags+=("--client-certificate")
+    flags+=("--client-key=")
+    two_word_flags+=("--client-key")
+    flags+=("--cluster=")
+    two_word_flags+=("--cluster")
+    flags+=("--context=")
+    two_word_flags+=("--context")
+    flags+=("--insecure-skip-tls-verify")
+    flags+=("--kubeconfig=")
+    two_word_flags+=("--kubeconfig")
+    flags+=("--match-server-version")
+    flags+=("--namespace=")
+    two_word_flags+=("--namespace")
+    flags_with_completion+=("--namespace")
+    flags_completion+=("__oc_get_namespaces")
+    two_word_flags+=("-n")
+    flags_with_completion+=("-n")
+    flags_completion+=("__oc_get_namespaces")
+    flags+=("--request-timeout=")
+    two_word_flags+=("--request-timeout")
+    flags+=("--server=")
+    two_word_flags+=("--server")
+    two_word_flags+=("-s")
+    flags+=("--tls-server-name=")
+    two_word_flags+=("--tls-server-name")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    flags+=("--user=")
+    two_word_flags+=("--user")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
 _oc_create_quota()
 {
     last_command="oc_create_quota"
@@ -11828,6 +11894,7 @@ _oc_create()
         command_aliases+=("pc")
         aliashash["pc"]="priorityclass"
     fi
+    commands+=("project")
     commands+=("quota")
     if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
         command_aliases+=("resourcequota")
