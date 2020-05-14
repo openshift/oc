@@ -155,7 +155,7 @@ func NewOcCommand(name string, in io.Reader, out, errout io.Writer) *cobra.Comma
 			Message: "Basic Commands:",
 			Commands: []*cobra.Command{
 				loginCmd,
-				requestproject.NewCmdRequestProject(name, f, ioStreams),
+				requestproject.NewCmdRequestProject(name, "new-project", f, ioStreams),
 				newapp.NewCmdNewApplication(newapp.NewAppRecommendedCommandName, name, f, ioStreams),
 				status.NewCmdStatus(status.StatusRecommendedName, name, name+" "+status.StatusRecommendedName, f, ioStreams),
 				project.NewCmdProject(name, f, ioStreams),

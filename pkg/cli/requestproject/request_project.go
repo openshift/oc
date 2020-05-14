@@ -47,10 +47,10 @@ var (
 
 	requestProjectExample = templates.Examples(`
 		# Create a new project with minimal information
-		%[1]s new-project web-team-dev
+		%[1]s %[2]s web-team-dev
 
 		# Create a new project with a display name and description
-		%[1]s new-project web-team-dev --display-name="Web Team Development" --description="Development project for the web team."`)
+		%[1]s %[2]s web-team-dev --display-name="Web Team Development" --description="Development project for the web team."`)
 )
 
 // RequestProject next steps.
@@ -81,13 +81,18 @@ func NewRequestProjectOptions(baseName string, streams genericclioptions.IOStrea
 }
 
 // NewCmdRequestProject implement the OpenShift cli RequestProject command.
-func NewCmdRequestProject(baseName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRequestProject(baseName, cmdName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRequestProjectOptions(baseName, streams)
 	cmd := &cobra.Command{
-		Use:     "new-project NAME [--display-name=DISPLAYNAME] [--description=DESCRIPTION]",
+		Use:     fmt.Sprintf("%[1]s NAME [--display-name=DISPLAYNAME] [--description=DESCRIPTION]", cmdName),
 		Short:   "Request a new project",
 		Long:    requestProjectLong,
-		Example: fmt.Sprintf(requestProjectExample, baseName),
+		Example: fmt.Sprintf(requestProjectExample, baseName, cmdName),
+		PreRun: func(_ *cobra.Command, _ []string) {
+			if cmdName == "new-project" {
+				fmt.Fprintf(streams.ErrOut, "oc new-project is DEPRECATED and will be removed in a future version. Use oc create project instead.\n")
+			}
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())

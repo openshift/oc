@@ -41,6 +41,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubectl/cmd/cp"
 
 	"github.com/openshift/oc/pkg/cli/create"
+	"github.com/openshift/oc/pkg/cli/requestproject"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
@@ -97,6 +98,8 @@ func NewCmdCreate(fullName string, f kcmdutil.Factory, streams genericclioptions
 	cmd.AddCommand(create.NewCmdCreateImageStream(create.ImageStreamRecommendedName, fullName+" create "+create.ImageStreamRecommendedName, f, streams))
 	cmd.AddCommand(create.NewCmdCreateImageStreamTag(create.ImageStreamTagRecommendedName, fullName+" create "+create.ImageStreamTagRecommendedName, f, streams))
 	cmd.AddCommand(create.NewCmdCreateBuild(create.BuildRecommendedName, fullName+" create "+create.BuildRecommendedName, f, streams))
+
+	cmd.AddCommand(requestproject.NewCmdRequestProject(fullName, "project", f, streams))
 
 	adjustCmdExamples(cmd, fullName, "create")
 
