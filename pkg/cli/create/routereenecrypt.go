@@ -21,16 +21,19 @@ var (
 		Create a route that uses reencrypt TLS termination
 
 		Specify the service (either just its name or using type/name syntax) that the
-		generated route should expose via the --service flag. A destination CA certificate
-		is needed for reencrypt routes, specify one with the --dest-ca-cert flag.`)
+		generated route should expose using the --service flag. You may also specify
+		a destination CA certificate using the --dest-ca-cert flag. If --dest-ca-cert
+		is omitted, the route will use the service CA, meaning the service must use
+		a serving certificate from the serving cert signer.`)
 
 	reencryptRouteExample = templates.Examples(`
-		# Create a route named "my-route" that exposes the frontend service.
+		# Create a route named "my-route" that exposes the frontend service:
 	  %[1]s create route reencrypt my-route --service=frontend --dest-ca-cert cert.cert
 
-	  # Create a reencrypt route that exposes the frontend service and re-use
-	  # the service name as the route name.
-	  %[1]s create route reencrypt --service=frontend --dest-ca-cert cert.cert`)
+	  # Create a reencrypt route that exposes the frontend service, letting the
+	  # route name default to the service name and the destination CA certificate
+	  # default to the service CA:
+	  %[1]s create route reencrypt --service=frontend`)
 )
 
 type CreateReencryptRouteOptions struct {
@@ -54,7 +57,7 @@ func NewCmdCreateReencryptRoute(fullName string, f kcmdutil.Factory, streams gen
 		CreateRouteSubcommandOptions: NewCreateRouteSubcommandOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     "reencrypt [NAME] --dest-ca-cert=FILENAME --service=SERVICE",
+		Use:     "reencrypt [NAME] --service=SERVICE",
 		Short:   "Create a route that uses reencrypt TLS termination",
 		Long:    reencryptRouteLong,
 		Example: fmt.Sprintf(reencryptRouteExample, fullName),
@@ -76,7 +79,7 @@ func NewCmdCreateReencryptRoute(fullName string, f kcmdutil.Factory, streams gen
 	cmd.MarkFlagFilename("key")
 	cmd.Flags().StringVar(&o.CACert, "ca-cert", o.CACert, "Path to a CA certificate file.")
 	cmd.MarkFlagFilename("ca-cert")
-	cmd.Flags().StringVar(&o.DestCACert, "dest-ca-cert", o.DestCACert, "Path to a CA certificate file, used for securing the connection from the router to the destination.")
+	cmd.Flags().StringVar(&o.DestCACert, "dest-ca-cert", o.DestCACert, "Path to a CA certificate file, used for securing the connection from the router to the destination. Defaults to the Service CA.")
 	cmd.MarkFlagFilename("dest-ca-cert")
 	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WilcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
