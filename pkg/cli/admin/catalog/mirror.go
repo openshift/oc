@@ -87,7 +87,7 @@ func NewMirrorCatalogOptions(streams genericclioptions.IOStreams) *MirrorCatalog
 	}
 }
 
-func NewMirrorCatalog(streams genericclioptions.IOStreams) *cobra.Command {
+func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMirrorCatalogOptions(streams)
 
 	cmd := &cobra.Command{

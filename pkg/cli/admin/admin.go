@@ -134,7 +134,7 @@ func NewCommandAdmin(name, fullName string, f kcmdutil.Factory, streams genericc
 		// hidden
 		options.NewCmdOptions(streams),
 	)
-	catalog.AddCommand(streams, cmds)
+	catalog.AddCommand(f, streams, cmds)
 
 	return cmds
 }

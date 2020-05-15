@@ -20,15 +20,15 @@ var catalogCmd = &cobra.Command{
 			`),
 }
 
-type subCommandFunc func(genericclioptions.IOStreams) *cobra.Command
+type subCommandFunc func(kcmdutil.Factory, genericclioptions.IOStreams) *cobra.Command
 
 // subcommands are added via init in the subcommand files
 var subCommands = make([]subCommandFunc, 0)
 
-func AddCommand(streams genericclioptions.IOStreams, cmd *cobra.Command) {
+func AddCommand(f kcmdutil.Factory, streams genericclioptions.IOStreams, cmd *cobra.Command) {
 	catalogCmd.Run = kcmdutil.DefaultSubCommandRun(streams.ErrOut)
 	for _, c := range subCommands {
-		catalogCmd.AddCommand(c(streams))
+		catalogCmd.AddCommand(c(f, streams))
 	}
 	cmd.AddCommand(catalogCmd)
 }
