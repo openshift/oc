@@ -48,6 +48,7 @@ type CreateKubeconfigOptions struct {
 	SecretsClient    corev1client.SecretInterface
 	RawConfig        clientcmdapi.Config
 	ContextNamespace string
+	Context          string
 
 	genericclioptions.IOStreams
 }
@@ -80,6 +81,12 @@ func (o *CreateKubeconfigOptions) Complete(args []string, f cmdutil.Factory, cmd
 	if len(args) != 1 {
 		return cmdutil.UsageErrorf(cmd, fmt.Sprintf("expected one service account name as an argument, got %q", args))
 	}
+	context, err := cmd.Flags().GetString("context")
+	if err != nil {
+		return fmt.Errorf("unable to get value for --context flag: %v", err)
+	}
+
+	o.Context = context
 
 	o.SAName = args[0]
 
@@ -145,7 +152,14 @@ func (o *CreateKubeconfigOptions) Run() error {
 				return fmt.Errorf("service account token %q for service account %q did not contain token data", secret.Name, serviceAccount.Name)
 			}
 
+			// It's assumed o.RawConfig is only read here since MinifyConfig modifies
+			// the list of contexts and reduces it to a single context given by CurrentContext
+			// field. Thus, it's safe to modify cfg.CurrentContext here.
 			cfg := &o.RawConfig
+			if o.Context != "" {
+				cfg.CurrentContext = o.Context
+			}
+
 			if err := clientcmdapi.MinifyConfig(cfg); err != nil {
 				return fmt.Errorf("invalid configuration, unable to create new config file: %v", err)
 			}
