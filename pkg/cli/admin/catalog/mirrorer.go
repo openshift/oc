@@ -157,6 +157,8 @@ func mappingForImages(images map[string]struct{}, dest imagesource.TypedImageRef
 			continue
 		}
 
+		ref = reference.TagNameOnly(ref)
+
 		components := append(destComponents, strings.Split(reference.Path(ref), "/")...)
 		if len(components) < 2 {
 			errs = append(errs, fmt.Errorf("couldn't parse image path components for mirroring (%s), skipping mirror", img))

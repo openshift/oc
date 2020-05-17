@@ -1,10 +1,10 @@
 package catalog
 
 import (
-	"github.com/openshift/library-go/pkg/image/reference"
 	"reflect"
 	"testing"
 
+	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
@@ -48,15 +48,15 @@ func TestMirror(t *testing.T) {
 				Dest:              mustParse(t, "localhost:5000"),
 			},
 			want: map[string]Target{
-				"quay.io/test/prometheus.0.14.0": {
-					WithTag: "localhost:5000/test/prometheus.0.14.0:ce7b31e2",
+				"quay.io/test/prometheus.0.14.0:latest": {
+					WithTag: "localhost:5000/test/prometheus.0.14.0:latest",
 				},
 				"quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8": {
 					WithTag:    "localhost:5000/coreos/etcd-operator:b56e2636",
 					WithDigest: "localhost:5000/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
 				},
-				"quay.io/test/etcd.0.9.0": {
-					WithTag: "localhost:5000/test/etcd.0.9.0:eee5548c",
+				"quay.io/test/etcd.0.9.0:latest": {
+					WithTag: "localhost:5000/test/etcd.0.9.0:latest",
 				},
 				"quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d": {
 					WithTag:    "localhost:5000/coreos/prometheus-operator:7f39d12d",
@@ -66,8 +66,8 @@ func TestMirror(t *testing.T) {
 					WithTag:    "localhost:5000/coreos/prometheus-operator:1ebe036a",
 					WithDigest: "localhost:5000/coreos/prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
 				},
-				"quay.io/test/prometheus.0.22.2": {
-					WithTag: "localhost:5000/test/prometheus.0.22.2:d044a13d",
+				"quay.io/test/prometheus.0.22.2:latest": {
+					WithTag: "localhost:5000/test/prometheus.0.22.2:latest",
 				},
 				"quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2": {
 					WithTag:    "localhost:5000/coreos/etcd-operator:2f1eb95",
@@ -77,11 +77,11 @@ func TestMirror(t *testing.T) {
 					WithTag:    "localhost:5000/coreos/prometheus-operator:76771fef",
 					WithDigest: "localhost:5000/coreos/prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
 				},
-				"quay.io/test/etcd.0.9.2": {
-					WithTag: "localhost:5000/test/etcd.0.9.2:f0e557b2",
+				"quay.io/test/etcd.0.9.2:latest": {
+					WithTag: "localhost:5000/test/etcd.0.9.2:latest",
 				},
-				"quay.io/test/prometheus.0.15.0": {
-					WithTag: "localhost:5000/test/prometheus.0.15.0:b5586049",
+				"quay.io/test/prometheus.0.15.0:latest": {
+					WithTag: "localhost:5000/test/prometheus.0.15.0:latest",
 				},
 			},
 		},
@@ -94,15 +94,15 @@ func TestMirror(t *testing.T) {
 				Dest:              mustParse(t, "localhost:5000/org"),
 			},
 			want: map[string]Target{
-				"quay.io/test/prometheus.0.14.0": {
-					WithTag: "localhost:5000/org/test-prometheus.0.14.0:ce7b31e2",
+				"quay.io/test/prometheus.0.14.0:latest": {
+					WithTag: "localhost:5000/org/test-prometheus.0.14.0:latest",
 				},
 				"quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8": {
 					WithTag:    "localhost:5000/org/coreos-etcd-operator:b56e2636",
 					WithDigest: "localhost:5000/org/coreos-etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
 				},
-				"quay.io/test/etcd.0.9.0": {
-					WithTag: "localhost:5000/org/test-etcd.0.9.0:eee5548c",
+				"quay.io/test/etcd.0.9.0:latest": {
+					WithTag: "localhost:5000/org/test-etcd.0.9.0:latest",
 				},
 				"quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d": {
 					WithTag:    "localhost:5000/org/coreos-prometheus-operator:7f39d12d",
@@ -112,8 +112,8 @@ func TestMirror(t *testing.T) {
 					WithTag:    "localhost:5000/org/coreos-prometheus-operator:1ebe036a",
 					WithDigest: "localhost:5000/org/coreos-prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
 				},
-				"quay.io/test/prometheus.0.22.2": {
-					WithTag: "localhost:5000/org/test-prometheus.0.22.2:d044a13d",
+				"quay.io/test/prometheus.0.22.2:latest": {
+					WithTag: "localhost:5000/org/test-prometheus.0.22.2:latest",
 				},
 				"quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2": {
 					WithTag:    "localhost:5000/org/coreos-etcd-operator:2f1eb95",
@@ -123,11 +123,11 @@ func TestMirror(t *testing.T) {
 					WithTag:    "localhost:5000/org/coreos-prometheus-operator:76771fef",
 					WithDigest: "localhost:5000/org/coreos-prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
 				},
-				"quay.io/test/etcd.0.9.2": {
-					WithTag: "localhost:5000/org/test-etcd.0.9.2:f0e557b2",
+				"quay.io/test/etcd.0.9.2:latest": {
+					WithTag: "localhost:5000/org/test-etcd.0.9.2:latest",
 				},
-				"quay.io/test/prometheus.0.15.0": {
-					WithTag: "localhost:5000/org/test-prometheus.0.15.0:b5586049",
+				"quay.io/test/prometheus.0.15.0:latest": {
+					WithTag: "localhost:5000/org/test-prometheus.0.15.0:latest",
 				},
 			},
 		},
@@ -140,15 +140,15 @@ func TestMirror(t *testing.T) {
 				Dest:              mustParse(t, "quay.io/org"),
 			},
 			want: map[string]Target{
-				"quay.io/test/prometheus.0.14.0": {
-					WithTag: "quay.io/org/test-prometheus.0.14.0:ce7b31e2",
+				"quay.io/test/prometheus.0.14.0:latest": {
+					WithTag: "quay.io/org/test-prometheus.0.14.0:latest",
 				},
 				"quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8": {
 					WithTag:    "quay.io/org/coreos-etcd-operator:b56e2636",
 					WithDigest: "quay.io/org/coreos-etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
 				},
-				"quay.io/test/etcd.0.9.0": {
-					WithTag: "quay.io/org/test-etcd.0.9.0:eee5548c",
+				"quay.io/test/etcd.0.9.0:latest": {
+					WithTag: "quay.io/org/test-etcd.0.9.0:latest",
 				},
 				"quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d": {
 					WithTag:    "quay.io/org/coreos-prometheus-operator:7f39d12d",
@@ -158,8 +158,8 @@ func TestMirror(t *testing.T) {
 					WithTag:    "quay.io/org/coreos-prometheus-operator:1ebe036a",
 					WithDigest: "quay.io/org/coreos-prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
 				},
-				"quay.io/test/prometheus.0.22.2": {
-					WithTag: "quay.io/org/test-prometheus.0.22.2:d044a13d",
+				"quay.io/test/prometheus.0.22.2:latest": {
+					WithTag: "quay.io/org/test-prometheus.0.22.2:latest",
 				},
 				"quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2": {
 					WithTag:    "quay.io/org/coreos-etcd-operator:2f1eb95",
@@ -169,11 +169,11 @@ func TestMirror(t *testing.T) {
 					WithTag:    "quay.io/org/coreos-prometheus-operator:76771fef",
 					WithDigest: "quay.io/org/coreos-prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
 				},
-				"quay.io/test/etcd.0.9.2": {
-					WithTag: "quay.io/org/test-etcd.0.9.2:f0e557b2",
+				"quay.io/test/etcd.0.9.2:latest": {
+					WithTag: "quay.io/org/test-etcd.0.9.2:latest",
 				},
-				"quay.io/test/prometheus.0.15.0": {
-					WithTag: "quay.io/org/test-prometheus.0.15.0:b5586049",
+				"quay.io/test/prometheus.0.15.0:latest": {
+					WithTag: "quay.io/org/test-prometheus.0.15.0:latest",
 				},
 			},
 		},
@@ -272,9 +272,33 @@ func TestMappingForImages(t *testing.T) {
 				maxComponents: 2,
 			},
 			wantMapping: map[string]Target{
-				"docker.io/my/image": {
+				"docker.io/my/image:latest": {
 					WithDigest: "",
-					WithTag:    "quay.io/my/image:4f9407ca",
+					WithTag:    "quay.io/my/image:latest",
+				},
+			},
+		},
+		{
+			name: "tagged and untagged images to registry",
+			args: args{
+				images: map[string]struct{}{
+					"docker.io/my/image":                  {},
+					"docker.io/my/second-image:preserved": {},
+				},
+				dest: imagesource.TypedImageReference{
+					Type: imagesource.DestinationRegistry,
+					Ref:  mustParseRef(t, "quay.io"),
+				},
+				maxComponents: 2,
+			},
+			wantMapping: map[string]Target{
+				"docker.io/my/image:latest": {
+					WithDigest: "",
+					WithTag:    "quay.io/my/image:latest",
+				},
+				"docker.io/my/second-image:preserved": {
+					WithDigest: "",
+					WithTag:    "quay.io/my/second-image:preserved",
 				},
 			},
 		},
@@ -367,9 +391,9 @@ func TestMappingForImages(t *testing.T) {
 				maxComponents: 2,
 			},
 			wantMapping: map[string]Target{
-				"docker.io/my/image": {
+				"docker.io/my/image:latest": {
 					WithDigest: "",
-					WithTag:    "quay.io/my-org/my-image:4f9407ca",
+					WithTag:    "quay.io/my-org/my-image:latest",
 				},
 			},
 		},
@@ -424,9 +448,9 @@ func TestMappingForImages(t *testing.T) {
 				maxComponents: 3,
 			},
 			wantMapping: map[string]Target{
-				"docker.io/my/image": {
+				"docker.io/my/image:latest": {
 					WithDigest: "",
-					WithTag:    "quay.io/my-org/my/image:4f9407ca",
+					WithTag:    "quay.io/my-org/my/image:latest",
 				},
 			},
 		},
