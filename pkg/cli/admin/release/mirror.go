@@ -145,7 +145,7 @@ func NewMirror(f kcmdutil.Factory, parentName string, streams genericclioptions.
 	flags.StringVar(&o.From, "from", o.From, "Image containing the release payload.")
 	flags.StringVar(&o.To, "to", o.To, "An image repository to push to.")
 	flags.StringVar(&o.ToImageStream, "to-image-stream", o.ToImageStream, "An image stream to tag images into.")
-	flags.StringVar(&o.FromDir, "from-dir", o.ToDir, "A directory to import images from.")
+	flags.StringVar(&o.FromDir, "from-dir", o.FromDir, "A directory to import images from.")
 	flags.StringVar(&o.ToDir, "to-dir", o.ToDir, "A directory to export images to.")
 	flags.BoolVar(&o.ToMirror, "to-mirror", o.ToMirror, "Output the mirror mappings instead of mirroring.")
 	flags.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Display information about the mirror without actually executing it.")
@@ -464,11 +464,13 @@ func (o *MirrorOptions) Run() error {
 		// load image references
 		buf := &bytes.Buffer{}
 		extractOpts := NewExtractOptions(genericclioptions.IOStreams{Out: buf, ErrOut: o.ErrOut}, true)
+		extractOpts.ParallelOptions = o.ParallelOptions
 		extractOpts.SecurityOptions = o.SecurityOptions
 		extractOpts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig) {
 			releaseDigest = contentDigest.String()
 			verifier.Verify(dgst, contentDigest)
 		}
+		extractOpts.FileDir = o.FromDir
 		extractOpts.From = o.From
 		extractOpts.File = "image-references"
 		if err := extractOpts.Run(); err != nil {
@@ -728,6 +730,7 @@ func (o *MirrorOptions) Run() error {
 	opts.SecurityOptions = o.SecurityOptions
 	opts.ParallelOptions = o.ParallelOptions
 	opts.Mappings = mappings
+	opts.FromFileDir = o.FromDir
 	opts.FileDir = o.ToDir
 	opts.DryRun = o.DryRun
 	opts.ManifestUpdateCallback = func(registry string, manifests map[digest.Digest]digest.Digest) error {
