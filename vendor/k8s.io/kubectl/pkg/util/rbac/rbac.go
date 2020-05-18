@@ -42,7 +42,11 @@ func CompactRules(rules []rbacv1.PolicyRule) ([]rbacv1.PolicyRule, error) {
 				if existingRule.Verbs == nil {
 					existingRule.Verbs = []string{}
 				}
-				existingRule.Verbs = append(existingRule.Verbs, rule.Verbs...)
+				for _, v := range rule.Verbs {
+					if !isDuplicateVerb(existingRule.Verbs, v) {
+						existingRule.Verbs = append(existingRule.Verbs, v)
+					}
+				}
 			} else {
 				// Copy the rule to accumulate matching simple resource rules into
 				simpleRules[resource] = rule.DeepCopy()
@@ -125,4 +129,14 @@ func (s SortableRuleSlice) Len() int      { return len(s) }
 func (s SortableRuleSlice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 func (s SortableRuleSlice) Less(i, j int) bool {
 	return strings.Compare(s[i].String(), s[j].String()) < 0
+}
+
+// isDuplicateVerb returns true if verb already exists in list of verbs.
+func isDuplicateVerb(verbs []string, v string) bool {
+	for _, verb := range verbs {
+		if verb == v {
+			return true
+		}
+	}
+	return false
 }
