@@ -107,7 +107,8 @@ type ExtractOptions struct {
 
 	Output string
 
-	From string
+	FromDir string
+	From    string
 
 	Tools                  bool
 	Command                string
@@ -193,6 +194,7 @@ func (o *ExtractOptions) Run() error {
 		return err
 	}
 	opts := extract.NewOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FileDir = o.FileDir
 
