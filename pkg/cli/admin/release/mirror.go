@@ -377,35 +377,6 @@ func (o *MirrorOptions) handleSignatures(context context.Context, signaturesByDi
 	return nil
 }
 
-func verifySrcImageExists(o *mirror.MirrorImageOptions, ref imagereference.DockerImageReference) bool {
-	from := imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
-	ctx := context.Background()
-	fromContext, err := o.SecurityOptions.Context()
-	if err != nil {
-		return false
-	}
-	fromOptions := &imagesource.Options{
-		FileDir:         o.FileDir,
-		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: fromContext,
-	}
-
-	repo, err := fromOptions.Repository(ctx, from)
-	if err != nil {
-		klog.V(2).Infof("unable to connect to image repository %s: %v", from.String(), err)
-		return false
-	}
-	_, _, err = imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
-	if err != nil {
-		if imagemanifest.IsImageNotFound(err) {
-			return false
-		}
-		klog.V(2).Infof("unable to read image %s: %v", from.String(), err)
-		return false
-	}
-	return true
-}
-
 func (o *MirrorOptions) Run() error {
 	var recreateRequired bool
 	var hasPrefix bool
@@ -638,7 +609,11 @@ func (o *MirrorOptions) Run() error {
 		newRef.ID = from.ID
 		// If the user-given registry/repo/name:digest exists, replace with that, if not keep the
 		// is.Spec.Tag from release image-reference
-		if verifySrcImageExists(opts, newRef) {
+		fromContext, err := opts.SecurityOptions.Context()
+		if err != nil {
+			return err
+		}
+		if verifyImageExists(fromContext, opts.FileDir, opts.SecurityOptions.Insecure, opts.FilterOptions.Include, newRef) {
 			srcMirrorRef = imagesource.TypedImageReference{Ref: newRef, Type: imagesource.DestinationRegistry}
 			srcMirrorRef = sourceFn(srcMirrorRef)
 		}

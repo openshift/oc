@@ -792,7 +792,11 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 				newRef.ID = tagRef.ID
 				// If the user-given registry/repo/name:digest exists, replace with that, if not keep the
 				// is.Spec.Tag from release image-reference
-				if verifyImageExists(opts, newRef) {
+				fromContext, err := opts.SecurityOptions.Context()
+				if err != nil {
+					return true, nil
+				}
+				if verifyImageExists(fromContext, opts.FileDir, o.SecurityOptions.Insecure, opts.FilterOptions.Include, newRef) {
 					tag.From.Name = newRef.String()
 				}
 			}
@@ -895,35 +899,6 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	sort.Strings(release.Warnings)
 
 	return release, nil
-}
-
-func verifyImageExists(opts *extract.Options, ref imagereference.DockerImageReference) bool {
-	from := imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
-	ctx := context.Background()
-	fromContext, err := opts.SecurityOptions.Context()
-	if err != nil {
-		return false
-	}
-	fromOptions := &imagesource.Options{
-		FileDir:         opts.FileDir,
-		Insecure:        opts.SecurityOptions.Insecure,
-		RegistryContext: fromContext,
-	}
-
-	repo, err := fromOptions.Repository(ctx, from)
-	if err != nil {
-		klog.V(2).Infof("unable to connect to image repository %s: %v", from.String(), err)
-		return false
-	}
-	_, _, err = imagemanifest.FirstManifest(ctx, from.Ref, repo, opts.FilterOptions.Include)
-	if err != nil {
-		if imagemanifest.IsImageNotFound(err) {
-			return false
-		}
-		klog.V(2).Infof("unable to read image %s: %v", from.String(), err)
-		return false
-	}
-	return true
 }
 
 func readComponentVersions(is *imageapi.ImageStream) (ComponentVersions, []error) {
