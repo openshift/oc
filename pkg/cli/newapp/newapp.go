@@ -271,6 +271,7 @@ func NewCmdNewApplication(name, baseName string, f kcmdutil.Factory, streams gen
 	o.PrintFlags.AddFlags(cmd)
 
 	cmd.Flags().BoolVar(&o.Config.AsTestDeployment, "as-test", o.Config.AsTestDeployment, "If true create this application as a test deployment, which validates that the deployment succeeds and then scales down.")
+	cmd.Flags().BoolVar(&o.Config.DeploymentConfig, "as-deployment-config", o.Config.DeploymentConfig, "If true create this application as a deployment config, which allows for hooks and custom strategies.")
 	cmd.Flags().StringSliceVar(&o.Config.SourceRepositories, "code", o.Config.SourceRepositories, "Source code to use to build this application.")
 	cmd.Flags().StringVar(&o.Config.ContextDir, "context-dir", o.Config.ContextDir, "Context directory to be used for the build.")
 	cmd.Flags().StringSliceVarP(&o.Config.ImageStreams, "image-stream", "i", o.Config.ImageStreams, "Name of an image stream to use in the app.")

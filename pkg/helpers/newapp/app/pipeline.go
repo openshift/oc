@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	kappsv1 "k8s.io/api/apps/v1"
+	kappsv1beta1 "k8s.io/api/apps/v1beta1"
 	kappsv1beta2 "k8s.io/api/apps/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -175,19 +176,20 @@ type Pipeline struct {
 	Name string
 	From string
 
-	InputImage *ImageRef
-	Build      *BuildRef
-	Image      *ImageRef
-	Deployment *DeploymentConfigRef
-	Labels     map[string]string
+	InputImage       *ImageRef
+	Build            *BuildRef
+	Image            *ImageRef
+	Deployment       *DeploymentRef
+	DeploymentConfig *DeploymentConfigRef
+	Labels           map[string]string
 }
 
-// NeedsDeployment sets the pipeline for deployment.
-func (p *Pipeline) NeedsDeployment(env Environment, labels map[string]string, asTest bool) error {
+// NeedsDeploymentConfig sets the pipeline for deploymentconfig.
+func (p *Pipeline) NeedsDeploymentConfig(env Environment, labels map[string]string, asTest bool) error {
 	if p.Deployment != nil {
 		return nil
 	}
-	p.Deployment = &DeploymentConfigRef{
+	p.DeploymentConfig = &DeploymentConfigRef{
 		Name: p.Name,
 		Images: []*ImageRef{
 			p.Image,
@@ -195,6 +197,22 @@ func (p *Pipeline) NeedsDeployment(env Environment, labels map[string]string, as
 		Env:    env,
 		Labels: labels,
 		AsTest: asTest,
+	}
+	return nil
+}
+
+// NeedsDeployment sets the pipeline for deployment.
+func (p *Pipeline) NeedsDeployment(env Environment, labels map[string]string, asTest bool) error {
+	if p.Deployment != nil {
+		return nil
+	}
+	p.Deployment = &DeploymentRef{
+		Name: p.Name,
+		Images: []*ImageRef{
+			p.Image,
+		},
+		Env:    env,
+		Labels: labels,
 	}
 	return nil
 }
@@ -257,7 +275,16 @@ func (p *Pipeline) Objects(accept, objectAccept Acceptor) (Objects, error) {
 		}
 	}
 	if p.Deployment != nil && accept.Accept(p.Deployment) {
-		dc, err := p.Deployment.DeploymentConfig()
+		dc, err := p.Deployment.Deployment()
+		if err != nil {
+			return nil, err
+		}
+		if objectAccept.Accept(dc) {
+			objects = append(objects, dc)
+		}
+	}
+	if p.DeploymentConfig != nil && accept.Accept(p.DeploymentConfig) {
+		dc, err := p.DeploymentConfig.DeploymentConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -273,17 +300,17 @@ type PipelineGroup []*Pipeline
 
 // Reduce squashes all common components from the pipelines.
 func (g PipelineGroup) Reduce() error {
-	var deployment *DeploymentConfigRef
+	var deploymentConfig *DeploymentConfigRef
 	for _, p := range g {
-		if p.Deployment == nil || p.Deployment == deployment {
+		if p.DeploymentConfig == nil || p.DeploymentConfig == deploymentConfig {
 			continue
 		}
-		if deployment == nil {
-			deployment = p.Deployment
+		if deploymentConfig == nil {
+			deploymentConfig = p.DeploymentConfig
 		} else {
-			deployment.Images = append(deployment.Images, p.Deployment.Images...)
-			deployment.Env = NewEnvironment(deployment.Env, p.Deployment.Env)
-			p.Deployment = deployment
+			deploymentConfig.Images = append(deploymentConfig.Images, p.DeploymentConfig.Images...)
+			deploymentConfig.Env = NewEnvironment(deploymentConfig.Env, p.DeploymentConfig.Env)
+			p.DeploymentConfig = deploymentConfig
 		}
 	}
 	return nil
@@ -394,6 +421,26 @@ func AddServices(objects Objects, firstPortOnly bool) Objects {
 		switch t := o.(type) {
 		case *appsv1.DeploymentConfig:
 			svc := addService(t.Spec.Template.Spec.Containers, t.ObjectMeta, t.Spec.Selector, firstPortOnly)
+			if svc != nil {
+				svcs = append(svcs, svc)
+			}
+		case *kappsv1.Deployment:
+			svc := addService(t.Spec.Template.Spec.Containers, t.ObjectMeta, t.Spec.Template.Labels, firstPortOnly)
+			if svc != nil {
+				svcs = append(svcs, svc)
+			}
+		case *extensionsv1beta1.Deployment:
+			svc := addService(t.Spec.Template.Spec.Containers, t.ObjectMeta, t.Spec.Template.Labels, firstPortOnly)
+			if svc != nil {
+				svcs = append(svcs, svc)
+			}
+		case *kappsv1beta1.Deployment:
+			svc := addService(t.Spec.Template.Spec.Containers, t.ObjectMeta, t.Spec.Template.Labels, firstPortOnly)
+			if svc != nil {
+				svcs = append(svcs, svc)
+			}
+		case *kappsv1beta2.Deployment:
+			svc := addService(t.Spec.Template.Spec.Containers, t.ObjectMeta, t.Spec.Template.Labels, firstPortOnly)
 			if svc != nil {
 				svcs = append(svcs, svc)
 			}

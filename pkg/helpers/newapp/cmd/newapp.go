@@ -93,6 +93,7 @@ type GenerationInputs struct {
 	AllowMissingImageStreamTags bool
 
 	Deploy           bool
+	DeploymentConfig bool
 	AsTestDeployment bool
 
 	AllowGenerationErrors bool
@@ -489,8 +490,14 @@ func (c *AppConfig) buildPipelines(components app.ComponentReferences, environme
 				}
 			}
 			if c.Deploy {
-				if err := pipeline.NeedsDeployment(environment, c.Labels, c.AsTestDeployment); err != nil {
-					return nil, fmt.Errorf("can't set up a deployment for %q: %v", refInput, err)
+				if c.DeploymentConfig {
+					if err := pipeline.NeedsDeploymentConfig(environment, c.Labels, c.AsTestDeployment); err != nil {
+						return nil, fmt.Errorf("can't set up a deployment config for %q: %v", refInput, err)
+					}
+				} else {
+					if err := pipeline.NeedsDeployment(environment, c.Labels, c.AsTestDeployment); err != nil {
+						return nil, fmt.Errorf("can't set up a deployment for %q: %v", refInput, err)
+					}
 				}
 			}
 			if c.NoOutput {
@@ -499,6 +506,7 @@ func (c *AppConfig) buildPipelines(components app.ComponentReferences, environme
 			if refInput.Uses != nil && refInput.Uses.GetStrategy() == newapp.StrategyPipeline {
 				pipeline.Build.Output = nil
 				pipeline.Deployment = nil
+				pipeline.DeploymentConfig = nil
 				pipeline.Image = nil
 				pipeline.InputImage = nil
 			}
@@ -962,6 +970,10 @@ func (c *AppConfig) Run() (*AppResult, error) {
 		for _, pipeline := range pipelines {
 			if pipeline.Deployment != nil {
 				name = pipeline.Deployment.Name
+				break
+			}
+			if pipeline.DeploymentConfig != nil {
+				name = pipeline.DeploymentConfig.Name
 				break
 			}
 		}
