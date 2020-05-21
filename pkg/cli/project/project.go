@@ -158,14 +158,16 @@ func (o ProjectOptions) Run() error {
 		currentProject = currentContext.Namespace
 	}
 
+	client, kubeclient, err := o.ClientFn()
+	if err != nil {
+		return err
+	}
+	if err := client.RESTClient().Get().Resource("projectrequests").Do(context.TODO()).Into(&metav1.Status{}); err != nil {
+		return err
+	}
 	// No argument provided, we will just print info
 	if len(o.ProjectName) == 0 {
 		if len(currentProject) > 0 {
-			client, kubeclient, err := o.ClientFn()
-			if err != nil {
-				return err
-			}
-
 			switch err := ConfirmProjectAccess(currentProject, client, kubeclient); {
 			case kapierrors.IsForbidden(err), kapierrors.IsNotFound(err):
 				return fmt.Errorf("you do not have rights to view project %q specified in your config or the project doesn't exist", currentProject)
