@@ -144,6 +144,9 @@ func TestRequestToken(t *testing.T) {
 
 	initialRequest := req{}
 
+	initialHead := req{"", http.MethodHead, "/"}
+	initialHeadResp := resp{http.StatusInternalServerError, "", nil} // value of status is ignored
+
 	basicChallenge1 := resp{401, "", []string{"Basic realm=foo"}}
 	basicRequest1 := req{"Basic bXl1c2VyOm15cGFzc3dvcmQ=", "", ""} // base64("myuser:mypassword")
 	basicChallenge2 := resp{401, "", []string{"Basic realm=seriously...foo"}}
@@ -170,6 +173,7 @@ func TestRequestToken(t *testing.T) {
 		"defaulted basic handler, no challenge, success": {
 			Handler: &BasicChallengeHandler{Username: "myuser", Password: "mypassword"},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, success},
 			},
 			ExpectedToken: successfulToken,
@@ -177,6 +181,7 @@ func TestRequestToken(t *testing.T) {
 		"defaulted basic handler, basic challenge, success": {
 			Handler: &BasicChallengeHandler{Username: "myuser", Password: "mypassword"},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
 				{basicRequest1, success},
 			},
@@ -185,6 +190,7 @@ func TestRequestToken(t *testing.T) {
 		"defaulted basic handler, basic+negotiate challenge, success": {
 			Handler: &BasicChallengeHandler{Username: "myuser", Password: "mypassword"},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, doubleChallenge},
 				{basicRequest1, success},
 			},
@@ -193,6 +199,7 @@ func TestRequestToken(t *testing.T) {
 		"defaulted basic handler, basic challenge, failure": {
 			Handler: &BasicChallengeHandler{Username: "myuser", Password: "mypassword"},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
 				{basicRequest1, basicChallenge2},
 			},
@@ -201,6 +208,7 @@ func TestRequestToken(t *testing.T) {
 		"defaulted basic handler, negotiate challenge, failure": {
 			Handler: &BasicChallengeHandler{Username: "myuser", Password: "mypassword"},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, negotiateChallenge1},
 			},
 			ExpectedError: "unhandled challenge",
@@ -208,6 +216,7 @@ func TestRequestToken(t *testing.T) {
 		"failing basic handler, basic challenge, failure": {
 			Handler: &BasicChallengeHandler{},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
 			},
 			ExpectedError: "challenger chose not to retry the request",
@@ -217,6 +226,7 @@ func TestRequestToken(t *testing.T) {
 		"prompting basic handler, no challenge, success": {
 			Handler: &BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, success},
 			},
 			ExpectedToken: successfulToken,
@@ -224,6 +234,7 @@ func TestRequestToken(t *testing.T) {
 		"prompting basic handler, basic challenge, success": {
 			Handler: &BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
 				{basicRequest1, success},
 			},
@@ -232,6 +243,7 @@ func TestRequestToken(t *testing.T) {
 		"prompting basic handler, basic+negotiate challenge, success": {
 			Handler: &BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, doubleChallenge},
 				{basicRequest1, success},
 			},
@@ -240,6 +252,7 @@ func TestRequestToken(t *testing.T) {
 		"prompting basic handler, basic challenge, failure": {
 			Handler: &BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
 				{basicRequest1, basicChallenge2},
 			},
@@ -248,6 +261,7 @@ func TestRequestToken(t *testing.T) {
 		"prompting basic handler, negotiate challenge, failure": {
 			Handler: &BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, negotiateChallenge1},
 			},
 			ExpectedError: "unhandled challenge",
@@ -257,6 +271,7 @@ func TestRequestToken(t *testing.T) {
 		"negotiate handler, no challenge, success": {
 			Handler: &NegotiateChallengeHandler{negotiator: &successfulNegotiator{rounds: 1}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, success},
 			},
 			ExpectedToken: successfulToken,
@@ -264,6 +279,7 @@ func TestRequestToken(t *testing.T) {
 		"negotiate handler, negotiate challenge, success": {
 			Handler: &NegotiateChallengeHandler{negotiator: &successfulNegotiator{rounds: 1}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, negotiateChallenge1},
 				{negotiateRequest1, success},
 			},
@@ -272,6 +288,7 @@ func TestRequestToken(t *testing.T) {
 		"negotiate handler, negotiate challenge, 2 rounds, success": {
 			Handler: &NegotiateChallengeHandler{negotiator: &successfulNegotiator{rounds: 2}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, negotiateChallenge1},
 				{negotiateRequest1, negotiateChallenge2},
 				{negotiateRequest2, success},
@@ -281,6 +298,7 @@ func TestRequestToken(t *testing.T) {
 		"negotiate handler, negotiate challenge, 2 rounds, success with mutual auth": {
 			Handler: &NegotiateChallengeHandler{negotiator: &successfulNegotiator{rounds: 2}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, negotiateChallenge1},
 				{negotiateRequest1, successWithNegotiate},
 			},
@@ -289,6 +307,7 @@ func TestRequestToken(t *testing.T) {
 		"negotiate handler, negotiate challenge, 2 rounds expected, server success without client completion": {
 			Handler: &NegotiateChallengeHandler{negotiator: &successfulNegotiator{rounds: 2}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, negotiateChallenge1},
 				{negotiateRequest1, success},
 			},
@@ -299,6 +318,7 @@ func TestRequestToken(t *testing.T) {
 		"unloadable negotiate handler, no challenge, success": {
 			Handler: &NegotiateChallengeHandler{negotiator: &unloadableNegotiator{}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, success},
 			},
 			ExpectedToken: successfulToken,
@@ -306,6 +326,7 @@ func TestRequestToken(t *testing.T) {
 		"unloadable negotiate handler, negotiate challenge, failure": {
 			Handler: &NegotiateChallengeHandler{negotiator: &unloadableNegotiator{}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, negotiateChallenge1},
 			},
 			ExpectedError: "unhandled challenge",
@@ -313,6 +334,7 @@ func TestRequestToken(t *testing.T) {
 		"unloadable negotiate handler, basic challenge, failure": {
 			Handler: &NegotiateChallengeHandler{negotiator: &unloadableNegotiator{}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
 			},
 			ExpectedError: "unhandled challenge",
@@ -322,6 +344,7 @@ func TestRequestToken(t *testing.T) {
 		"failing negotiate handler, no challenge, success": {
 			Handler: &NegotiateChallengeHandler{negotiator: &failingNegotiator{}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, success},
 			},
 			ExpectedToken: successfulToken,
@@ -329,6 +352,7 @@ func TestRequestToken(t *testing.T) {
 		"failing negotiate handler, negotiate challenge, failure": {
 			Handler: &NegotiateChallengeHandler{negotiator: &failingNegotiator{}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, negotiateChallenge1},
 			},
 			ExpectedError: "InitSecContext failed",
@@ -336,6 +360,7 @@ func TestRequestToken(t *testing.T) {
 		"failing negotiate handler, basic challenge, failure": {
 			Handler: &NegotiateChallengeHandler{negotiator: &failingNegotiator{}},
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
 			},
 			ExpectedError: "unhandled challenge",
@@ -348,6 +373,7 @@ func TestRequestToken(t *testing.T) {
 				&BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			),
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, success},
 			},
 			ExpectedToken: successfulToken,
@@ -358,6 +384,7 @@ func TestRequestToken(t *testing.T) {
 				&BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			),
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, doubleChallenge},
 				{basicRequest1, success},
 			},
@@ -369,6 +396,7 @@ func TestRequestToken(t *testing.T) {
 				&BasicChallengeHandler{},
 			),
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, doubleChallenge},
 				{negotiateRequest1, negotiateChallenge2},
 				{negotiateRequest2, success},
@@ -381,6 +409,7 @@ func TestRequestToken(t *testing.T) {
 				&BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			),
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, doubleChallenge},
 				{negotiateRequest1, negotiateChallenge2},
 				{negotiateRequest2, success},
@@ -393,6 +422,7 @@ func TestRequestToken(t *testing.T) {
 				&BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			),
 			Requests: []requestResponse{
+				{initialHead, initialHeadResp},
 				{initialRequest, doubleChallenge},
 				{negotiateRequest1, negotiateChallenge2},
 				{negotiateRequest2, doubleChallenge},

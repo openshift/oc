@@ -407,25 +407,29 @@ func transportWithSystemRoots(issuer string, clientConfig *restclient.Config) (h
 		return nil, err
 	}
 
-	// perform the retrieval with insecure transport, otherwise oauth-server
-	// logs remote tls error which is confusing during troubleshooting
-	config := tls.Config{
-		Certificates:       []tls.Certificate{},
-		InsecureSkipVerify: true,
-		ServerName:         issuerURL.Hostname(),
-	}
-
 	port := issuerURL.Port()
 	if len(port) == 0 {
 		port = "443"
 	}
-	conn, err := tls.Dial("tcp", net.JoinHostPort(issuerURL.Hostname(), port), &config)
+	// perform the retrieval with insecure transport, otherwise oauth-server
+	// logs remote tls error which is confusing during troubleshooting
+	client := http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			TLSClientConfig: &tls.Config{
+				Certificates:       []tls.Certificate{},
+				InsecureSkipVerify: true,
+				ServerName:         issuerURL.Hostname(),
+			},
+		},
+	}
+	resp, err := client.Head(issuer)
 	if err != nil {
 		return nil, err
 	}
-	conn.Close()
+	resp.Body.Close()
 
-	_, err = verifyServerCertChain(issuerURL.Hostname(), conn.ConnectionState().PeerCertificates)
+	_, err = verifyServerCertChain(issuerURL.Hostname(), resp.TLS.PeerCertificates)
 	switch err.(type) {
 	case nil:
 		// copy the config so we can freely mutate it
