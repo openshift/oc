@@ -38,12 +38,18 @@ func DefaultRsyncRemoteShellToUse(cmd *cobra.Command) string {
 	cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {
 		localFlags.Insert(flag.Name)
 	})
-	excludeFlags := localFlags.Difference(sets.NewString("container", "no-tty", "shell", "timeout", "tty"))
+	// flag.Name represents what was present on the CLI, so the excluded list needs
+	// to have both short and long versions of flags
+	excludeFlags := localFlags.Difference(sets.NewString("container", "c", "no-tty", "T", "shell", "timeout", "tty", "t"))
 	cmd.Flags().Visit(func(flag *pflag.Flag) {
 		if excludeFlags.Has(flag.Name) {
 			return
 		}
-		rshCmd = append(rshCmd, fmt.Sprintf("--%s=%s", flag.Name, flag.Value.String()))
+		if flag.Name == flag.Shorthand {
+			rshCmd = append(rshCmd, fmt.Sprintf("-%s=%s", flag.Name, flag.Value.String()))
+		} else {
+			rshCmd = append(rshCmd, fmt.Sprintf("--%s=%s", flag.Name, flag.Value.String()))
+		}
 	})
 	return strings.Join(rsyncEscapeCommand(rshCmd), " ")
 }
