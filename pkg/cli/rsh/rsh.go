@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	rshUsageStr    = "rsh (POD | TYPE/NAME) [-c CONTAINER] [flags] -- COMMAND [args...]"
+	rshUsageStr    = "rsh [-c CONTAINER] [flags] (POD | TYPE/NAME) COMMAND [args...]"
 	rshUsageErrStr = fmt.Sprintf("expected '%s'.\nPOD or TYPE/NAME is a required argument for the rsh command", rshUsageStr)
 
 	rshLong = templates.LongDesc(`
@@ -90,8 +90,7 @@ func NewRshOptions(parent string, streams genericclioptions.IOStreams) *RshOptio
 
 // NewCmdRsh returns a command that attempts to open a shell session to the server.
 func NewCmdRsh(name string, parent string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	options := NewRshOptions(parent, streams)
-
+	o := NewRshOptions(parent, streams)
 	cmd := &cobra.Command{
 		Use:                   rshUsageStr,
 		DisableFlagsInUseLine: true,
@@ -99,18 +98,29 @@ func NewCmdRsh(name string, parent string, f kcmdutil.Factory, streams genericcl
 		Long:                  fmt.Sprintf(rshLong, parent),
 		Example:               fmt.Sprintf(rshExample, parent+" "+name),
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(options.Complete(f, cmd, args))
-			kcmdutil.CheckErr(options.Validate())
-			kcmdutil.CheckErr(options.Run())
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			kcmdutil.CheckErr(o.Validate())
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 	kcmdutil.AddPodRunningTimeoutFlag(cmd, defaultPodRshTimeout)
-	cmd.Flags().BoolVarP(&options.ForceTTY, "tty", "t", options.ForceTTY, "Force a pseudo-terminal to be allocated")
-	cmd.Flags().BoolVarP(&options.DisableTTY, "no-tty", "T", options.DisableTTY, "Disable pseudo-terminal allocation")
-	cmd.Flags().StringVar(&options.Executable, "shell", options.Executable, "Path to the shell command")
-	cmd.Flags().IntVar(&options.Timeout, "timeout", options.Timeout, "Request timeout for obtaining a pod from the server; defaults to 10 seconds")
+	kcmdutil.AddJsonFilenameFlag(cmd.Flags(), &o.FilenameOptions.Filenames, "to use to rsh into the resource")
+	cmd.Flags().BoolVarP(&o.ForceTTY, "tty", "t", o.ForceTTY, "Force a pseudo-terminal to be allocated")
+	cmd.Flags().BoolVarP(&o.DisableTTY, "no-tty", "T", o.DisableTTY, "Disable pseudo-terminal allocation")
+	cmd.Flags().StringVar(&o.Executable, "shell", o.Executable, "Path to the shell command")
+	cmd.Flags().IntVar(&o.Timeout, "timeout", o.Timeout, "Request timeout for obtaining a pod from the server; defaults to 10 seconds")
 	cmd.Flags().MarkDeprecated("timeout", "use --request-timeout, instead.")
-	cmd.Flags().StringVarP(&options.ContainerName, "container", "c", options.ContainerName, "Container name; defaults to first container")
+	cmd.Flags().StringVarP(&o.ContainerName, "container", "c", o.ContainerName, "Container name; defaults to first container")
+	// For consistencty with rsh API (https://linux.die.net/man/1/rsh) we don't
+	// allow '--' and we need this flag enabled explicitly, otherwise two things
+	// will break:
+	// 1. '--' will start to work and we don't want that, although when specifying resource
+	//    using -f we still need to ensure it's not showing up.
+	// 2. this stops parsing when it encounters first non-flag argument, and that's
+	//    critical for calls like this:
+	//    oc rsh must-gather-rddfk rsync --server --sender -vlDtpre.iLsfxC --numeric-ids ...
+	//    without below the above example will fail, cobra will try to parse -vlDtpre.iLsfxC
+	//    and will fail because it won't be able to convert that into int.
 	cmd.Flags().SetInterspersed(false)
 	return cmd
 }
@@ -118,7 +128,12 @@ func NewCmdRsh(name string, parent string, f kcmdutil.Factory, streams genericcl
 // Complete applies the command environment to RshOptions
 func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	argsLenAtDash := cmd.ArgsLenAtDash()
-	if len(args) == 0 || argsLenAtDash == 0 {
+	if len(args) == 0 && argsLenAtDash == 0 && len(o.FilenameOptions.Filenames) == 0 {
+		return kcmdutil.UsageErrorf(cmd, "%s", rshUsageErrStr)
+	}
+	// this check ensures we don't accept invocation with '--' in it, iow.
+	// 'oc rsh pod -- date' nor 'oc rsh -f pod.yaml -- date'
+	if argsLenAtDash != -1 || (len(args) > 0 && (args[0] == "--" || args[1] == "--")) {
 		return kcmdutil.UsageErrorf(cmd, "%s", rshUsageErrStr)
 	}
 
@@ -137,8 +152,8 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 	// of flag.FlagSet were parsed. The opposite is true. Thus, it needs to be computed manually.
 	// In case the command is present, the first item in args is a pod name,
 	// the rest is a command and its arguments.
-	// Kubectl exec expects the command to be preceded by '--'.
-	// Oc rsh always provides the command as the second item of args.
+	// kubectl exec expects the command to be preceded by '--'.
+	// oc rsh always provides the command as the second item of args.
 	if len(args) > 1 {
 		argsLenAtDash = 1
 	}
@@ -148,9 +163,11 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 	}
 
 	// overwrite ExecOptions with rsh specifics
-	args = args[1:]
-	if len(args) > 0 {
-		o.Command = args
+	if len(args) > 0 && len(o.FilenameOptions.Filenames) != 0 {
+		o.Command = args[0:]
+		o.ResourceName = ""
+	} else if len(args) > 1 {
+		o.Command = args[1:]
 	} else {
 		o.Command = []string{o.Executable}
 	}
@@ -160,7 +177,7 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 	if cmdParent != nil {
 		fullCmdName = cmdParent.CommandPath()
 	}
-	o.ExecOptions.EnableSuggestedCmdUsage = len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe")
+	o.EnableSuggestedCmdUsage = len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe")
 
 	return nil
 }
