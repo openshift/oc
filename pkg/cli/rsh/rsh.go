@@ -133,7 +133,7 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 	}
 	// this check ensures we don't accept invocation with '--' in it, iow.
 	// 'oc rsh pod -- date' nor 'oc rsh -f pod.yaml -- date'
-	if argsLenAtDash != -1 || (len(args) > 0 && (args[0] == "--" || args[1] == "--")) {
+	if argsLenAtDash != -1 || (len(args) > 0 && args[0] == "--") || (len(args) > 1 && args[1] == "--") {
 		return kcmdutil.UsageErrorf(cmd, "%s", rshUsageErrStr)
 	}
 
