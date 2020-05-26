@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog"
 
 	kappsv1 "k8s.io/api/apps/v1"
@@ -470,6 +471,7 @@ func (r *DeploymentRef) Deployment() (*kappsv1.Deployment, error) {
 
 	// Transform deployment config triggers to deployment annotation triggers.
 	annotation := map[string]string{}
+	containersWithTrigger := sets.NewString()
 	if len(imageTriggers) > 0 {
 		path := field.NewPath("spec", "template", "spec")
 		triggers := []triggerutil.ObjectFieldTrigger{}
@@ -485,6 +487,7 @@ func (r *DeploymentRef) Deployment() (*kappsv1.Deployment, error) {
 					Paused:    false,
 				}
 				triggers = append(triggers, trigger)
+				containersWithTrigger.Insert(containerName)
 			}
 		}
 		out, err := json.Marshal(triggers)
@@ -508,8 +511,13 @@ func (r *DeploymentRef) Deployment() (*kappsv1.Deployment, error) {
 
 	for i := range template.Containers {
 		template.Containers[i].Env = append(template.Containers[i].Env, r.Env.List()...)
-	}
 
+		// We need to empty the image field for containers that has image trigger defined, otherwise
+		// the deployment will trigger twice.
+		if containersWithTrigger.Has(template.Containers[i].Name) {
+			template.Containers[i].Image = " "
+		}
+	}
 	replicas := int32(1)
 	d := &kappsv1.Deployment{
 		// this is ok because we know exactly how we want to be serialized
