@@ -774,20 +774,6 @@ func SetAnnotations(annotations map[string]string, result *newcmd.AppResult) err
 	return nil
 }
 
-// addDeploymentConfigNestedLabels adds new label(s) to a nested labels of a single DeploymentConfig object
-func addDeploymentConfigNestedLabels(obj *appsv1.DeploymentConfig, labels labels.Set) error {
-	if obj.Spec.Template == nil {
-		return nil
-	}
-	if obj.Spec.Template.Labels == nil {
-		obj.Spec.Template.Labels = make(map[string]string)
-	}
-	for k, v := range labels {
-		obj.Spec.Template.Labels[k] = v
-	}
-	return nil
-}
-
 func addObjectLabels(obj runtime.Object, labels labels.Set) error {
 	if labels == nil {
 		return nil

@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fsouza/go-dockerclient"
+	docker "github.com/fsouza/go-dockerclient"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/klog"
 
 	corev1 "k8s.io/api/core/v1"
@@ -1455,12 +1456,26 @@ func AddObjectAnnotations(obj runtime.Object, annotations map[string]string) err
 	accessor.SetAnnotations(metaAnnotations)
 
 	switch objType := obj.(type) {
+	case *v1.Deployment:
+		if err := addDeploymentNestedAnnotations(objType, annotations); err != nil {
+			return fmt.Errorf("unable to add nested annotations to %s/%s: %v", obj.GetObjectKind().GroupVersionKind(), accessor.GetName(), err)
+		}
 	case *appsv1.DeploymentConfig:
 		if err := addDeploymentConfigNestedAnnotations(objType, annotations); err != nil {
 			return fmt.Errorf("unable to add nested annotations to %s/%s: %v", obj.GetObjectKind().GroupVersionKind(), accessor.GetName(), err)
 		}
 	}
 
+	return nil
+}
+
+func addDeploymentNestedAnnotations(obj *v1.Deployment, annotations map[string]string) error {
+	if obj.Spec.Template.Annotations == nil {
+		obj.Spec.Template.Annotations = make(map[string]string)
+	}
+	for k, v := range annotations {
+		obj.Spec.Template.Annotations[k] = v
+	}
 	return nil
 }
 
