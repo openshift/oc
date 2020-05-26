@@ -1,26 +1,34 @@
 package catalog
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/tabwriter"
 
-	"github.com/alicebob/sqlittle"
-	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/klog"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 	"sigs.k8s.io/yaml"
 
+	"github.com/alicebob/sqlittle"
+	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/opencontainers/go-digest"
+	"github.com/spf13/cobra"
+
 	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
 	imgextract "github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
+	"github.com/openshift/oc/pkg/cli/image/info"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	imgmirror "github.com/openshift/oc/pkg/cli/image/mirror"
 )
@@ -56,6 +64,8 @@ oc apply -f manifests/imageContentSourcePolicy.yaml
 oc image mirror -f manifests/mapping.txt
 `)
 )
+
+const IndexLocationLabelKey = "operators.operatorframework.io.index.database.v1"
 
 func init() {
 	subCommands = append(subCommands, NewMirrorCatalog)
@@ -144,12 +154,61 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		return err
 	}
 
+	// try to get the index db location label from src, from pkg/image/info
+	var image *info.Image
+	retriever := &info.ImageRetriever{
+		FileDir: o.FileDir,
+		Image: map[string]imagesource.TypedImageReference{
+			src: srcRef,
+		},
+		SecurityOptions: o.SecurityOptions,
+		ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
+			filtered := make(map[digest.Digest]distribution.Manifest)
+			for _, manifest := range list.Manifests {
+				if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
+					klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
+					continue
+				}
+				filtered[manifest.Digest] = all[manifest.Digest]
+			}
+			if len(filtered) == 1 {
+				return filtered, nil
+			}
+
+			buf := &bytes.Buffer{}
+			w := tabwriter.NewWriter(buf, 0, 0, 1, ' ', 0)
+			fmt.Fprintf(w, "  OS\tDIGEST\n")
+			for _, manifest := range list.Manifests {
+				fmt.Fprintf(w, "  %s\t%s\n", imagemanifest.PlatformSpecString(manifest.Platform), manifest.Digest)
+			}
+			w.Flush()
+			return nil, fmt.Errorf("the image is a manifest list and contains multiple images - use --filter-by-os to select from:\n\n%s\n", buf.String())
+		},
+
+		ImageMetadataCallback: func(from string, i *info.Image, err error) error {
+			if err != nil {
+				return err
+			}
+			image = i
+			return nil
+		},
+	}
+	if err := retriever.Run(); err != nil {
+		return err
+	}
+	indexLocation, ok := image.Config.Config.Labels[IndexLocationLabelKey]
+	if ok {
+		fmt.Fprintf(o.IOStreams.Out, "src image has index label for database path: %s\n", indexLocation)
+	} else {
+		indexLocation = "/"
+	}
+
 	if o.DatabasePath == "" {
 		tmpdir, err := ioutil.TempDir("", "")
 		if err != nil {
 			return err
 		}
-		o.DatabasePath = "/:" + tmpdir
+		o.DatabasePath = indexLocation + ":" + tmpdir
 	} else {
 		dir := strings.Split(o.DatabasePath, ":")
 		if len(dir) < 2 {
@@ -159,6 +218,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			return err
 		}
 	}
+	fmt.Fprintf(o.IOStreams.Out, "using database path mapping: %s\n", o.DatabasePath)
 
 	var mirrorer ImageMirrorerFunc
 	mirrorer = func(mapping map[string]Target) error {
@@ -245,6 +305,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			return nil
 		})
 		if err == errFound {
+			fmt.Fprintf(o.IOStreams.Out, "using database at: %s\n", dbPath)
 			return dbPath, nil
 		}
 		if err != nil {
