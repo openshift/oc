@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/alicebob/sqlittle"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -226,8 +227,30 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		if len(e.Mappings) < 1 {
 			return "", fmt.Errorf("couldn't extract database")
 		}
-		fmt.Fprintf(o.IOStreams.Out, "wrote database to %s\n", filepath.Join(e.Mappings[0].To, "bundles.db"))
-		return filepath.Join(e.Mappings[0].To, "bundles.db"), nil
+
+		fmt.Fprintf(o.IOStreams.Out, "wrote database to %s\n", e.Mappings[0].To)
+		var dbPath string
+		errFound := fmt.Errorf("found valid db file")
+		err := filepath.Walk(e.Mappings[0].To, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if info.IsDir() {
+				return nil
+			}
+			if _, err := sqlittle.Open(path); err == nil {
+				dbPath = path
+				return errFound
+			}
+			return nil
+		})
+		if err == errFound {
+			return dbPath, nil
+		}
+		if err != nil {
+			return "", err
+		}
+		return "", fmt.Errorf("no database file found in %s", e.Mappings[0].To)
 	}
 	o.DatabaseExtractor = extractor
 	return nil
