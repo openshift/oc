@@ -182,10 +182,6 @@ func NewCmdAutoscale(fullName string, f kcmdutil.Factory, streams genericcliopti
 // NewCmdRun is a wrapper for the Kubernetes cli run command
 func NewCmdRun(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(run.NewCmdRun(f, streams)))
-	cmd.Flags().Set("generator", "")
-	cmd.Flag("generator").Usage = "The name of the API generator to use.  Default is 'deploymentconfig/v1' if --restart=Always, otherwise the default is 'run-pod/v1'."
-	cmd.Flag("generator").DefValue = ""
-	cmd.Flag("generator").Changed = false
 	return cmd
 }
 
