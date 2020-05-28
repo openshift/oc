@@ -81,10 +81,10 @@ var (
 
 		If you specify a source code URL, it will set up a build that takes your source code and converts
 		it into an image that can run inside of a pod. Local source must be in a git repository that has a
-		remote repository that the server can see. The images will be deployed via a deployment
-		configuration, and a service will be connected to the first public port of the app. You may either specify
-		components using the various existing flags or let %[2]s autodetect what kind of components
-		you have provided.
+		remote repository that the server can see. The images will be deployed via a deployment or
+		deployment configuration, and a service will be connected to the first public port of the app.
+		You may either specify components using the various existing flags or let %[2]s autodetect
+		what kind of components you have provided.
 
 		If you provide source code, a new build will be automatically triggered.
 		You can use '%[1]s status' to check the progress.`)
