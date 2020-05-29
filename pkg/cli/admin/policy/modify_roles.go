@@ -390,7 +390,7 @@ func (o *RoleModificationOptions) CompleteUserWithSA(f kcmdutil.Factory, cmd *co
 	}
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
-		o.PrintFlags.NamePrintFlags.Operation = getSuccessMessage(o.DryRunStrategy == kcmdutil.DryRunClient, operation, o.Targets)
+		o.PrintFlags.NamePrintFlags.Operation = getRolesSuccessMessage(o.DryRunStrategy, operation, o.Targets)
 		return o.PrintFlags.ToPrinter()
 	}
 
@@ -412,7 +412,7 @@ func (o *RoleModificationOptions) Complete(f kcmdutil.Factory, cmd *cobra.Comman
 	}
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
-		o.PrintFlags.NamePrintFlags.Operation = getSuccessMessage(o.DryRunStrategy == kcmdutil.DryRunClient, operation, o.Targets)
+		o.PrintFlags.NamePrintFlags.Operation = getRolesSuccessMessage(o.DryRunStrategy, operation, o.Targets)
 		return o.PrintFlags.ToPrinter()
 	}
 
@@ -549,7 +549,7 @@ func (o *RoleModificationOptions) AddRole() error {
 	}
 	roleBinding.SetSubjects(newSubjects)
 
-	if o.DryRunStrategy == kcmdutil.DryRunClient || (o.PrintFlags.OutputFormat != nil && len(*o.PrintFlags.OutputFormat) > 0) {
+	if o.DryRunStrategy == kcmdutil.DryRunClient {
 		return p.PrintObj(roleBinding.Object(), o.Out)
 	}
 
@@ -680,42 +680,22 @@ func (o *RoleModificationOptions) RemoveRole() error {
 			return fmt.Errorf("unable to find target %v", o.Targets)
 		}
 
-		var updated *unstructured.UnstructuredList
-		if len(o.RoleBindingNamespace) > 0 {
-			updatedBindings := &unstructured.UnstructuredList{
-				Object: map[string]interface{}{
-					"kind":       "List",
-					"apiVersion": "v1",
-					"metadata":   map[string]interface{}{},
-				},
+		updatedBindings := &unstructured.UnstructuredList{
+			Object: map[string]interface{}{
+				"kind":       "List",
+				"apiVersion": "v1",
+				"metadata":   map[string]interface{}{},
+			},
+		}
+		for _, binding := range roleBindings {
+			obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(binding.Object())
+			if err != nil {
+				return err
 			}
-			for _, binding := range roleBindings {
-				obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(binding.Object())
-				if err != nil {
-					return err
-				}
-				updatedBindings.Items = append(updatedBindings.Items, unstructured.Unstructured{Object: obj})
-			}
-			updated = updatedBindings
-		} else {
-			updatedBindings := &unstructured.UnstructuredList{
-				Object: map[string]interface{}{
-					"kind":       "List",
-					"apiVersion": "v1",
-					"metadata":   map[string]interface{}{},
-				},
-			}
-			for _, binding := range roleBindings {
-				obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(binding.Object())
-				if err != nil {
-					return err
-				}
-				updatedBindings.Items = append(updatedBindings.Items, unstructured.Unstructured{Object: obj})
-			}
-			updated = updatedBindings
+			updatedBindings.Items = append(updatedBindings.Items, unstructured.Unstructured{Object: obj})
 		}
 
-		return p.PrintObj(updated, o.Out)
+		return p.PrintObj(updatedBindings, o.Out)
 	}
 
 	roleToPrint := o.roleObjectToPrint()
@@ -763,12 +743,12 @@ existingLoop:
 	return newSubjects, found
 }
 
-func getSuccessMessage(dryRun bool, operation string, targets []string) string {
+func getRolesSuccessMessage(dryRunStrategy kcmdutil.DryRunStrategy, operation string, targets []string) string {
 	allTargets := fmt.Sprintf("%q", targets)
 	if len(targets) == 1 {
 		allTargets = fmt.Sprintf("%q", targets[0])
 	}
-	if dryRun {
+	if dryRunStrategy == kcmdutil.DryRunClient {
 		return fmt.Sprintf("%s: %s (dry run)", operation, allTargets)
 	}
 	return fmt.Sprintf("%s: %s", operation, allTargets)
