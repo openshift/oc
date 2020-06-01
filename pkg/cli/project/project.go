@@ -37,6 +37,8 @@ type ProjectOptions struct {
 	ProjectOnly  bool
 	DisplayShort bool
 
+	Context string
+
 	// SkipAccessValidation means that if a specific name is requested, don't bother checking for access to the project
 	SkipAccessValidation bool
 
@@ -81,7 +83,7 @@ func NewCmdProject(fullName string, f kcmdutil.Factory, streams genericclioption
 		Example: fmt.Sprintf(projectExample, fullName),
 		Run: func(cmd *cobra.Command, args []string) {
 			o.PathOptions = cliconfig.NewPathOptions(cmd)
-			kcmdutil.CheckErr(o.Complete(f, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
@@ -90,7 +92,7 @@ func NewCmdProject(fullName string, f kcmdutil.Factory, streams genericclioption
 	return cmd
 }
 
-func (o *ProjectOptions) Complete(f genericclioptions.RESTClientGetter, args []string) error {
+func (o *ProjectOptions) Complete(f genericclioptions.RESTClientGetter, cmd *cobra.Command, args []string) error {
 	switch argsLength := len(args); {
 	case argsLength > 1:
 		return errors.New("Only one argument is supported (project name or context name).")
@@ -99,6 +101,15 @@ func (o *ProjectOptions) Complete(f genericclioptions.RESTClientGetter, args []s
 	}
 
 	var err error
+	o.Context, err = cmd.Flags().GetString("context")
+	if err != nil {
+		return fmt.Errorf("unable to get value for --context flag: %v", err)
+	}
+
+	if o.Context != "" {
+		o.Config.CurrentContext = o.Context
+	}
+
 	o.Config, err = f.ToRawKubeConfigLoader().RawConfig()
 	if err != nil {
 		return err

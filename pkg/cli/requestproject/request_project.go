@@ -111,7 +111,7 @@ func (o *RequestProjectOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command,
 	if !o.SkipConfigWrite {
 		o.ProjectOptions = ocproject.NewProjectOptions(o.IOStreams)
 		o.ProjectOptions.PathOptions = cliconfig.NewPathOptions(cmd)
-		if err := o.ProjectOptions.Complete(f, []string{""}); err != nil {
+		if err := o.ProjectOptions.Complete(f, cmd, []string{""}); err != nil {
 			return err
 		}
 	} else {
