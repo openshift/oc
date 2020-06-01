@@ -399,7 +399,7 @@ func (o *InfoOptions) Validate() error {
 	}
 	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 {
 		if len(o.From) == 0 {
-			return fmt.Errorf("--changelog/--bugs require --from")
+			return fmt.Errorf("--changelog/--bugs require --changes-from")
 		}
 	}
 	if len(o.ChangelogDir) > 0 && len(o.BugsDir) > 0 {
