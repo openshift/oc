@@ -2,8 +2,10 @@ package inspect
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -216,36 +218,48 @@ func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod,
 		return fmt.Errorf("unable to find any available /healthz paths hosted in pod %q", pod.Name)
 	}
 
-	for _, healthzPath := range healthzPaths {
-		result, err := o.podUrlGetter.Get(path.Join("/", healthzPath), pod, o.restConfig, metricsPort)
-		if err != nil {
-			// TODO: aggregate errors
-			return err
-		}
+	err = o.podUrlGetter.ForwardRequests(pod, o.restConfig, metricsPort, func(restClient rest.Interface) error {
+		for _, healthzPath := range healthzPaths {
+			ioCloser, err := restClient.Get().RequestURI(path.Join("/", healthzPath)).Stream(context.TODO())
+			if err != nil {
+				return err
+			}
+			defer ioCloser.Close()
 
-		if len(healthzSeparator) > len(healthzPath) {
-			continue
-		}
-		filename := healthzPath[len(healthzSeparator):]
-		if len(filename) == 0 {
-			filename = "index"
-		} else {
-			filename = strings.TrimPrefix(filename, "/")
-		}
+			data := bytes.NewBuffer(nil)
+			if _, err := io.Copy(data, ioCloser); err != nil {
+				return err
+			}
 
-		filenameSegs := strings.Split(filename, "/")
-		if len(filenameSegs) > 1 {
-			// ensure directory structure for nested paths exists
-			filenameSegs = filenameSegs[:len(filenameSegs)-1]
-			if err := os.MkdirAll(path.Join(destDir, "/"+strings.Join(filenameSegs, "/")), os.ModePerm); err != nil {
+			if len(healthzSeparator) > len(healthzPath) {
+				continue
+			}
+			filename := healthzPath[len(healthzSeparator):]
+			if len(filename) == 0 {
+				filename = "index"
+			} else {
+				filename = strings.TrimPrefix(filename, "/")
+			}
+
+			filenameSegs := strings.Split(filename, "/")
+			if len(filenameSegs) > 1 {
+				// ensure directory structure for nested paths exists
+				filenameSegs = filenameSegs[:len(filenameSegs)-1]
+				if err := os.MkdirAll(path.Join(destDir, "/"+strings.Join(filenameSegs, "/")), os.ModePerm); err != nil {
+					return err
+				}
+			}
+
+			if err := o.fileWriter.WriteFromSource(path.Join(destDir, filename), &TextWriterSource{Text: data.String()}); err != nil {
 				return err
 			}
 		}
-
-		if err := o.fileWriter.WriteFromSource(path.Join(destDir, filename), &TextWriterSource{Text: result}); err != nil {
-			return err
-		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
+
 	return nil
 }
 
