@@ -114,6 +114,9 @@ func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	// we make lots and lots of client calls, don't slow down artificially.
+	o.restConfig.QPS = 999999
+	o.restConfig.Burst = 999999
 
 	o.kubeClient, err = kubernetes.NewForConfig(o.restConfig)
 	if err != nil {
