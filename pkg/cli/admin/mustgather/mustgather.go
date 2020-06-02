@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/openshift/oc/pkg/cli/admin/inspect"
+
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
@@ -280,7 +282,7 @@ func (o *MustGatherOptions) Run() error {
 
 	var wg sync.WaitGroup
 	wg.Add(len(pods))
-	errs := make(chan error, len(pods))
+	errCh := make(chan error, len(pods))
 	for _, pod := range pods {
 		go func(pod *corev1.Pod) {
 			defer wg.Done()
@@ -290,7 +292,7 @@ func (o *MustGatherOptions) Run() error {
 			// wait for gather container to be running (gather is running)
 			if err := o.waitForGatherContainerRunning(pod); err != nil {
 				log("gather did not start: %s", err)
-				errs <- fmt.Errorf("gather did not start for pod %s: %s", pod.Name, err)
+				errCh <- fmt.Errorf("gather did not start for pod %s: %s", pod.Name, err)
 				return
 			}
 			// stream gather container logs
@@ -302,7 +304,7 @@ func (o *MustGatherOptions) Run() error {
 			log("waiting for gather to complete")
 			if err := o.waitForPodRunning(pod); err != nil {
 				log("gather never finished: %v", err)
-				errs <- fmt.Errorf("gather never finished for pod %s: %s", pod.Name, err)
+				errCh <- fmt.Errorf("gather never finished for pod %s: %s", pod.Name, err)
 				return
 			}
 
@@ -311,23 +313,29 @@ func (o *MustGatherOptions) Run() error {
 			pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
 			if err != nil {
 				log("gather output not downloaded: %v\n", err)
-				errs <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
+				errCh <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
 				return
 			}
 			if err := o.copyFilesFromPod(pod); err != nil {
 				log("gather output not downloaded: %v\n", err)
-				errs <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
+				errCh <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
 				return
 			}
 		}(pod)
 	}
 	wg.Wait()
-	close(errs)
-	var arr []error
-	for i := range errs {
-		arr = append(arr, i)
+	close(errCh)
+	var errs []error
+	for i := range errCh {
+		errs = append(errs, i)
 	}
-	return errors.NewAggregate(arr)
+
+	// now gather all the events into a single file and produce a unified file
+	if err := inspect.CreateEventFilterPage(o.DestDir); err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.NewAggregate(errs)
 }
 
 func newPodOutLogger(out io.Writer, podName string) func(string, ...interface{}) {

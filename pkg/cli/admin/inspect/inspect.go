@@ -189,8 +189,12 @@ func (o *InspectOptions) Run() error {
 		}
 	}
 
-	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.destDir)
+	// now gather all the events into a single file and produce a unified file
+	if err := CreateEventFilterPage(o.destDir); err != nil {
+		allErrs = append(allErrs, err)
+	}
 
+	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.destDir)
 	if len(allErrs) > 0 {
 		return fmt.Errorf("errors ocurred while gathering data:\n    %v", errors.NewAggregate(allErrs))
 	}

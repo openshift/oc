@@ -2,16 +2,22 @@ package inspect
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path"
+	"path/filepath"
 
+	configv1 "github.com/openshift/api/config/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
-
-	configv1 "github.com/openshift/api/config/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // resourceContext is used to keep track of previously seen objects
@@ -134,4 +140,75 @@ func filenameForInfo(info *resource.Info) string {
 	}
 
 	return info.Name + ".yaml"
+}
+
+// getAllEventsRecursive returns a union (not deconflicted) or all events under a directory
+func getAllEventsRecursive(rootDir string) (*corev1.EventList, error) {
+	// now gather all the events into a single file and produce a unified file
+	eventLists := &corev1.EventList{}
+	err := filepath.Walk(rootDir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.Name() != "events.yaml" {
+				return nil
+			}
+			eventBytes, err := ioutil.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			events, err := readEvents(eventBytes)
+			if err != nil {
+				return err
+			}
+			eventLists.Items = append(eventLists.Items, events.Items...)
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	return eventLists, nil
+}
+
+// CreateEventFilterPage reads all events in rootDir recursively, produces a single file, and produces a webpage
+// that can be viewed locally to filter the events.
+func CreateEventFilterPage(rootDir string) error {
+	events, err := getAllEventsRecursive(rootDir)
+	if err != nil {
+		return err
+	}
+	jsonSerializer := json.NewSerializerWithOptions(json.DefaultMetaFactory, coreScheme, coreScheme, json.SerializerOptions{Pretty: true})
+	unifiedEventBytes, err := runtime.Encode(jsonSerializer, events)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(filepath.Join(rootDir, "all-events.json"), unifiedEventBytes, 0644)
+	if err != nil {
+		return err
+	}
+
+	// TODO produce suresh's event filter file
+
+	return nil
+}
+
+var (
+	coreScheme = runtime.NewScheme()
+	coreCodecs = serializer.NewCodecFactory(coreScheme)
+)
+
+func init() {
+	if err := corev1.AddToScheme(coreScheme); err != nil {
+		panic(err)
+	}
+}
+
+func readEvents(objBytes []byte) (*corev1.EventList, error) {
+	requiredObj, err := runtime.Decode(coreCodecs.UniversalDecoder(corev1.SchemeGroupVersion), objBytes)
+	if err != nil {
+		return nil, err
+	}
+	return requiredObj.(*corev1.EventList), nil
 }
