@@ -134,6 +134,7 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 	flags.StringVar(&o.BugsDir, "bugs", o.BugsDir, "Generate bug listings from the changelogs in the git repositories extracted to this path.")
 	flags.BoolVar(&o.IncludeImages, "include-images", o.IncludeImages, "When displaying JSON output of a release output the images the release references.")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
+	flags.BoolVar(&o.SkipBugCheck, "skip-bug-check", o.SkipBugCheck, "Do not check bug statuses when running generating bug listing with --output=name")
 	return cmd
 }
 
@@ -157,6 +158,7 @@ type InfoOptions struct {
 
 	ChangelogDir string
 	BugsDir      string
+	SkipBugCheck bool
 
 	ParallelOptions imagemanifest.ParallelOptions
 	SecurityOptions imagemanifest.SecurityOptions
@@ -397,6 +399,12 @@ func (o *InfoOptions) Validate() error {
 	if len(o.ImageFor) > 0 && len(o.Output) > 0 {
 		return fmt.Errorf("--output and --image-for may not both be specified")
 	}
+	if o.SkipBugCheck && len(o.BugsDir) == 0 {
+		return fmt.Errorf("--skip-bug-check requires --bugs")
+	}
+	if o.SkipBugCheck && o.Output != "name" {
+		return fmt.Errorf("--skip-bug-check requires --output to be set to 'name'")
+	}
 	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 {
 		if len(o.From) == 0 {
 			return fmt.Errorf("--changelog/--bugs require --from")
@@ -464,7 +472,7 @@ func (o *InfoOptions) Run() error {
 			return err
 		}
 		if len(o.BugsDir) > 0 {
-			return describeBugs(o.Out, o.ErrOut, diff, o.BugsDir, o.Output)
+			return describeBugs(o.Out, o.ErrOut, diff, o.BugsDir, o.Output, o.SkipBugCheck)
 		}
 		if len(o.ChangelogDir) > 0 {
 			return describeChangelog(o.Out, o.ErrOut, diff, o.ChangelogDir)
@@ -1540,7 +1548,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 	return nil
 }
 
-func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format string) error {
+func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format string, skipBugCheck bool) error {
 	if diff.To.Digest == diff.From.Digest {
 		return fmt.Errorf("releases are identical")
 	}
@@ -1565,40 +1573,43 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 	}
 
 	bugs := make(map[int]BugInfo)
-
-	u, err := url.Parse("https://bugzilla.redhat.com/rest/bug")
-	if err != nil {
-		return err
-	}
-	client := http.DefaultClient
-	allBugIDs := bugIDs.List()
-	for len(allBugIDs) > 0 {
-		var next []int
-		if len(allBugIDs) > 10 {
-			next = allBugIDs[:10]
-			allBugIDs = allBugIDs[10:]
-		} else {
-			next = allBugIDs
-			allBugIDs = nil
-		}
-
-		bugList, err := retrieveBugs(client, u, next, 2)
-		if err != nil {
-
-		}
-		for _, bug := range bugList.Bugs {
-			bugs[bug.ID] = bug
-		}
-	}
-
 	var valid []int
-	for _, id := range bugIDs.List() {
-		if _, ok := bugs[id]; !ok {
-			fmt.Fprintf(errOut, "error: Bug %d was not retrieved\n", id)
-			hasError = true
-			continue
+	if skipBugCheck {
+		valid = bugIDs.List()
+	} else {
+		u, err := url.Parse("https://bugzilla.redhat.com/rest/bug")
+		if err != nil {
+			return err
 		}
-		valid = append(valid, id)
+		client := http.DefaultClient
+		allBugIDs := bugIDs.List()
+		for len(allBugIDs) > 0 {
+			var next []int
+			if len(allBugIDs) > 10 {
+				next = allBugIDs[:10]
+				allBugIDs = allBugIDs[10:]
+			} else {
+				next = allBugIDs
+				allBugIDs = nil
+			}
+
+			bugList, err := retrieveBugs(client, u, next, 2)
+			if err != nil {
+
+			}
+			for _, bug := range bugList.Bugs {
+				bugs[bug.ID] = bug
+			}
+		}
+
+		for _, id := range bugIDs.List() {
+			if _, ok := bugs[id]; !ok {
+				fmt.Fprintf(errOut, "error: Bug %d was not retrieved\n", id)
+				hasError = true
+				continue
+			}
+			valid = append(valid, id)
+		}
 	}
 
 	if len(valid) > 0 {
