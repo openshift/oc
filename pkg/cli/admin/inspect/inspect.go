@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -25,6 +26,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -60,11 +62,15 @@ type InspectOptions struct {
 
 	podUrlGetter *PortForwardURLGetter
 
-	fileWriter    *MultiSourceFileWriter
-	builder       *resource.Builder
-	args          []string
-	namespace     string
-	allNamespaces bool
+	fileWriter     *MultiSourceFileWriter
+	builder        *resource.Builder
+	since          time.Duration
+	args           []string
+	namespace      string
+	sinceTime      string
+	allNamespaces  bool
+	sinceInt       int64
+	sinceTimestamp metav1.Time
 
 	// directory where all gathered data will be stored
 	destDir string
@@ -101,6 +107,8 @@ func NewCmdInspect(streams genericclioptions.IOStreams, parentCommandPath string
 
 	cmd.Flags().StringVar(&o.destDir, "dest-dir", o.destDir, "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/inspect.local.<rand>")
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
+	cmd.Flags().StringVar(&o.sinceTime, "since-time", o.sinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Only one of since-time / since may be used.")
+	cmd.Flags().DurationVar(&o.since, "since", o.since, "Only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Only one of since-time / since may be used.")
 
 	o.configFlags.AddFlags(cmd.Flags())
 	return cmd
@@ -135,6 +143,16 @@ func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if o.since != 0 {
+		o.sinceInt = (int64(o.since.Round(time.Second).Seconds()))
+	}
+	if len(o.sinceTime) > 0 {
+		o.sinceTimestamp, err = util.ParseRFC3339(o.sinceTime, metav1.Now)
+		if err != nil {
+			return err
+		}
+	}
+
 	printer, err := o.printFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -158,6 +176,9 @@ func (o *InspectOptions) Validate() error {
 	if len(o.destDir) == 0 {
 		return fmt.Errorf("--dest-dir must not be empty")
 	}
+	if len(o.sinceTime) > 0 && o.since != 0 {
+		return fmt.Errorf("at most one of `sinceTime` or `since` may be specified")
+	}
 	return nil
 }
 
@@ -177,6 +198,7 @@ func (o *InspectOptions) Run() error {
 	// ensure we're able to proceed writing data to specified destination
 	if err := ensureDirectoryViable(o.destDir, o.overwrite); err != nil {
 		return err
+
 	}
 
 	// finally, gather polymorphic resources specified by the user
