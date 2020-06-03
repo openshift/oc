@@ -148,14 +148,15 @@ func (o *LogsOptions) RunLog() error {
 
 func (o *LogsOptions) buildLogOptions(podLogOptions *corev1.PodLogOptions) *buildv1.BuildLogOptions {
 	bopts := &buildv1.BuildLogOptions{
-		Container:    podLogOptions.Container,
-		Follow:       podLogOptions.Follow,
-		Previous:     podLogOptions.Previous,
-		SinceSeconds: podLogOptions.SinceSeconds,
-		SinceTime:    podLogOptions.SinceTime,
-		Timestamps:   podLogOptions.Timestamps,
-		TailLines:    podLogOptions.TailLines,
-		LimitBytes:   podLogOptions.LimitBytes,
+		Container:                    podLogOptions.Container,
+		Follow:                       podLogOptions.Follow,
+		Previous:                     podLogOptions.Previous,
+		SinceSeconds:                 podLogOptions.SinceSeconds,
+		SinceTime:                    podLogOptions.SinceTime,
+		Timestamps:                   podLogOptions.Timestamps,
+		TailLines:                    podLogOptions.TailLines,
+		LimitBytes:                   podLogOptions.LimitBytes,
+		InsecureSkipTLSVerifyBackend: podLogOptions.InsecureSkipTLSVerifyBackend,
 	}
 	if o.Version != 0 {
 		bopts.Version = &o.Version

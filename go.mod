@@ -41,7 +41,7 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/mtrmac/gpgme v0.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
-	github.com/openshift/api v0.0.0-20200429152225-b98a784d8e6d
+	github.com/openshift/api v0.0.0-20200521162313-4090b8d67ad8
 	github.com/openshift/build-machinery-go v0.0.0-20200424080330-082bf86082cc
 	github.com/openshift/client-go v0.0.0-20200422192633-6f6c07fc2a70
 	github.com/openshift/library-go v0.0.0-20200506083334-710b0bd21d0c
@@ -61,8 +61,8 @@ require (
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	gopkg.in/ldap.v2 v2.5.1
-	k8s.io/api v0.18.2
-	k8s.io/apimachinery v0.18.2
+	k8s.io/api v0.18.3
+	k8s.io/apimachinery v0.18.3
 	k8s.io/apiserver v0.18.2
 	k8s.io/cli-runtime v0.18.2
 	k8s.io/client-go v8.0.0+incompatible
