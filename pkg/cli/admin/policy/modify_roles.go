@@ -661,13 +661,17 @@ func (o *RoleModificationOptions) RemoveRole() error {
 	subjectsToRemove := authorizationutil.BuildRBACSubjects(o.Users, o.Groups)
 	subjectsToRemove = append(subjectsToRemove, o.Subjects...)
 
-	found := 0
-	cnt := 0
+	var bindingsToUpdate []*roleBindingAbstraction
 	for _, roleBinding := range roleBindings {
-		var resultingSubjects []rbacv1.Subject
-		resultingSubjects, cnt = removeSubjects(roleBinding.Subjects(), subjectsToRemove)
+		resultingSubjects, removed := removeSubjects(roleBinding.Subjects(), subjectsToRemove)
 		roleBinding.SetSubjects(resultingSubjects)
-		found += cnt
+		if removed > 0 {
+			bindingsToUpdate = append(bindingsToUpdate, roleBinding)
+		}
+	}
+
+	if len(bindingsToUpdate) == 0 {
+		return fmt.Errorf("unable to find target %v", o.Targets)
 	}
 
 	p, err := o.ToPrinter("removed")
@@ -676,10 +680,6 @@ func (o *RoleModificationOptions) RemoveRole() error {
 	}
 
 	if o.PrintFlags.OutputFormat != nil && len(*o.PrintFlags.OutputFormat) > 0 {
-		if found == 0 {
-			return fmt.Errorf("unable to find target %v", o.Targets)
-		}
-
 		updatedBindings := &unstructured.UnstructuredList{
 			Object: map[string]interface{}{
 				"kind":       "List",
@@ -687,7 +687,7 @@ func (o *RoleModificationOptions) RemoveRole() error {
 				"metadata":   map[string]interface{}{},
 			},
 		}
-		for _, binding := range roleBindings {
+		for _, binding := range bindingsToUpdate {
 			obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(binding.Object())
 			if err != nil {
 				return err
@@ -703,7 +703,7 @@ func (o *RoleModificationOptions) RemoveRole() error {
 		return p.PrintObj(roleToPrint, o.Out)
 	}
 
-	for _, roleBinding := range roleBindings {
+	for _, roleBinding := range bindingsToUpdate {
 		if len(roleBinding.Subjects()) > 0 || roleBinding.Annotation(rbacv1.AutoUpdateAnnotationKey) == "false" {
 			err = roleBinding.Update()
 		} else {
@@ -713,9 +713,6 @@ func (o *RoleModificationOptions) RemoveRole() error {
 			return err
 		}
 		o.checkRolebindingAutoupdate(roleBinding)
-	}
-	if found == 0 {
-		return fmt.Errorf("unable to find target %v", o.Targets)
 	}
 
 	return p.PrintObj(roleToPrint, o.Out)
@@ -733,7 +730,6 @@ existingLoop:
 				existingSubject.Namespace == toRemove.Namespace {
 				found++
 				continue existingLoop
-
 			}
 		}
 
