@@ -123,7 +123,7 @@ spec:
   repositoryDigestMirrors:
   - mirrors:
     - quay.io/olmtest/strimzi-operator
-    source: docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4
+    source: docker.io/strimzi/operator
 `,
 			),
 		},
@@ -151,7 +151,7 @@ spec:
   repositoryDigestMirrors:
   - mirrors:
     - quay.io/olmtest/strimzi-operator
-    source: docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4
+    source: docker.io/strimzi/operator
 `,
 			),
 		},

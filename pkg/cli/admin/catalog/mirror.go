@@ -398,13 +398,18 @@ func generateICSP(out io.Writer, name string, mapping map[string]Target) ([]byte
 			fmt.Fprintf(out, "no digest mapping available for %s, skip writing to ImageContentSourcePolicy\n", k)
 			continue
 		}
+		fromRef, err := imagesource.ParseReference(k)
+		if err != nil {
+			fmt.Fprintf(out, "error parsing source reference for %s, skip writing to ImageContentSourcePolicy\n", v)
+			continue
+		}
 		toRef, err := imagesource.ParseReference(v.WithDigest)
 		if err != nil {
 			fmt.Fprintf(out, "error parsing target reference for %s, skip writing to ImageContentSourcePolicy\n", v)
 			continue
 		}
 		icsp.Spec.RepositoryDigestMirrors = append(icsp.Spec.RepositoryDigestMirrors, operatorv1alpha1.RepositoryDigestMirrors{
-			Source:  k,
+			Source:  fromRef.Ref.AsRepository().String(),
 			Mirrors: []string{toRef.Ref.AsRepository().String()},
 		})
 	}
