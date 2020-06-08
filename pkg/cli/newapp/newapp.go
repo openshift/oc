@@ -59,15 +59,6 @@ import (
 	dockerutil "github.com/openshift/oc/pkg/helpers/newapp/docker"
 )
 
-// NewAppRecommendedCommandName is the recommended command name.
-const NewAppRecommendedCommandName = "new-app"
-
-// ExposeRecommendedName is the recommended command name to expose app.
-const ExposeRecommendedName = "expose"
-
-// StatusRecommendedName is the recommended command name.
-const StatusRecommendedName = "status"
-
 // RoutePollTimoutSeconds sets how long new-app command waits for route host to be prepopulated
 const RoutePollTimeout = 5 * time.Second
 
@@ -83,68 +74,69 @@ var (
 		it into an image that can run inside of a pod. Local source must be in a git repository that has a
 		remote repository that the server can see. The images will be deployed via a deployment or
 		deployment configuration, and a service will be connected to the first public port of the app.
-		You may either specify components using the various existing flags or let %[2]s autodetect
+		You may either specify components using the various existing flags or let oc new-app autodetect
 		what kind of components you have provided.
 
 		If you provide source code, a new build will be automatically triggered.
-		You can use '%[1]s status' to check the progress.`)
+		You can use 'oc status' to check the progress.`)
 
 	newAppExample = templates.Examples(`
-	  # List all local templates and image streams that can be used to create an app
-	  %[1]s %[2]s --list
+		# List all local templates and image streams that can be used to create an app
+		oc new-app --list
 
-	  # Create an application based on the source code in the current git repository (with a public remote) and a Docker image
-	  %[1]s %[2]s . --docker-image=repo/langimage
+		# Create an application based on the source code in the current git repository (with a public remote) and a Docker image
+		oc new-app . --docker-image=repo/langimage
 
-	  # Create an application myapp with Docker based build strategy expecting binary input
-	  %[1]s %[2]s  --strategy=docker --binary --name myapp
+		# Create an application myapp with Docker based build strategy expecting binary input
+		oc new-app  --strategy=docker --binary --name myapp
 
-	  # Create a Ruby application based on the provided [image]~[source code] combination
-	  %[1]s %[2]s centos/ruby-25-centos7~https://github.com/sclorg/ruby-ex.git
+		# Create a Ruby application based on the provided [image]~[source code] combination
+		oc new-app centos/ruby-25-centos7~https://github.com/sclorg/ruby-ex.git
 
-	  # Use the public Docker Hub MySQL image to create an app. Generated artifacts will be labeled with db=mysql
-	  %[1]s %[2]s mysql MYSQL_USER=user MYSQL_PASSWORD=pass MYSQL_DATABASE=testdb -l db=mysql
+		# Use the public Docker Hub MySQL image to create an app. Generated artifacts will be labeled with db=mysql
+		oc new-app mysql MYSQL_USER=user MYSQL_PASSWORD=pass MYSQL_DATABASE=testdb -l db=mysql
 
-	  # Use a MySQL image in a private registry to create an app and override application artifacts' names
-	  %[1]s %[2]s --docker-image=myregistry.com/mycompany/mysql --name=private
+		# Use a MySQL image in a private registry to create an app and override application artifacts' names
+		oc new-app --docker-image=myregistry.com/mycompany/mysql --name=private
 
-	  # Create an application from a remote repository using its beta4 branch
-	  %[1]s %[2]s https://github.com/openshift/ruby-hello-world#beta4
+		# Create an application from a remote repository using its beta4 branch
+		oc new-app https://github.com/openshift/ruby-hello-world#beta4
 
-	  # Create an application based on a stored template, explicitly setting a parameter value
-	  %[1]s %[2]s --template=ruby-helloworld-sample --param=MYSQL_USER=admin
+		# Create an application based on a stored template, explicitly setting a parameter value
+		oc new-app --template=ruby-helloworld-sample --param=MYSQL_USER=admin
 
-	  # Create an application from a remote repository and specify a context directory
-	  %[1]s %[2]s https://github.com/youruser/yourgitrepo --context-dir=src/build
+		# Create an application from a remote repository and specify a context directory
+		oc new-app https://github.com/youruser/yourgitrepo --context-dir=src/build
 
-	  # Create an application from a remote private repository and specify which existing secret to use
-	  %[1]s %[2]s https://github.com/youruser/yourgitrepo --source-secret=yoursecret
+		# Create an application from a remote private repository and specify which existing secret to use
+		oc new-app https://github.com/youruser/yourgitrepo --source-secret=yoursecret
 
-	  # Create an application based on a template file, explicitly setting a parameter value
-	  %[1]s %[2]s --file=./example/myapp/template.json --param=MYSQL_USER=admin
+		# Create an application based on a template file, explicitly setting a parameter value
+		oc new-app --file=./example/myapp/template.json --param=MYSQL_USER=admin
 
-	  # Search all templates, image streams, and Docker images for the ones that match "ruby"
-	  %[1]s %[2]s --search ruby
+		# Search all templates, image streams, and Docker images for the ones that match "ruby"
+		oc new-app --search ruby
 
-	  # Search for "ruby", but only in stored templates (--template, --image-stream and --docker-image
-	  # can be used to filter search results)
-	  %[1]s %[2]s --search --template=ruby
+		# Search for "ruby", but only in stored templates (--template, --image-stream and --docker-image
+		# can be used to filter search results)
+		oc new-app --search --template=ruby
 
-	  # Search for "ruby" in stored templates and print the output as an YAML
-	  %[1]s %[2]s --search --template=ruby --output=yaml`)
+		# Search for "ruby" in stored templates and print the output as an YAML
+		oc new-app --search --template=ruby --output=yaml
+	`)
 
 	newAppNoInput = `You must specify one or more images, image streams, templates, or source code locations to create an application.
 
 To list all local templates and image streams, use:
 
-  %[1]s %[2]s -L
+  oc new-app -L
 
 To search templates, image streams, and Docker images that match the arguments provided, use:
 
-  %[1]s %[2]s -S php
-  %[1]s %[2]s -S --template=ruby
-  %[1]s %[2]s -S --image-stream=mysql
-  %[1]s %[2]s -S --docker-image=python
+  oc new-app -S php
+  oc new-app -S --template=ruby
+  oc new-app -S --image-stream=mysql
+  oc new-app -S --docker-image=python
 `
 )
 
@@ -154,7 +146,6 @@ type ObjectGeneratorOptions struct {
 
 	Config *newcmd.AppConfig
 
-	BaseName    string
 	CommandPath string
 	CommandName string
 
@@ -173,7 +164,7 @@ type AppOptions struct {
 }
 
 //Complete sets all common default options for commands (new-app and new-build)
-func (o *ObjectGeneratorOptions) Complete(baseName, commandName string, f kcmdutil.Factory, c *cobra.Command, args []string) error {
+func (o *ObjectGeneratorOptions) Complete(f kcmdutil.Factory, c *cobra.Command, args []string) error {
 	cmdutil.WarnAboutCommaSeparation(o.ErrOut, o.Config.Environment, "--env")
 	cmdutil.WarnAboutCommaSeparation(o.ErrOut, o.Config.BuildEnvironment, "--build-env")
 
@@ -214,8 +205,6 @@ func (o *ObjectGeneratorOptions) Complete(baseName, commandName string, f kcmdut
 
 	o.Config.DryRun = o.Action.DryRun
 	o.CommandPath = c.CommandPath()
-	o.BaseName = baseName
-	o.CommandName = commandName
 
 	o.LogsForObject = polymorphichelpers.LogsForObjectFn
 	o.Printer, err = o.PrintFlags.ToPrinter()
@@ -253,17 +242,17 @@ func NewAppOptions(streams genericclioptions.IOStreams) *AppOptions {
 }
 
 // NewCmdNewApplication implements the OpenShift cli new-app command.
-func NewCmdNewApplication(name, baseName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdNewApplication(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewAppOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:        fmt.Sprintf("%s (IMAGE | IMAGESTREAM | TEMPLATE | PATH | URL ...)", name),
+		Use:        "new-app (IMAGE | IMAGESTREAM | TEMPLATE | PATH | URL ...)",
 		Short:      "Create a new application",
-		Long:       fmt.Sprintf(newAppLong, baseName, name),
-		Example:    fmt.Sprintf(newAppExample, baseName, name),
+		Long:       newAppLong,
+		Example:    newAppExample,
 		SuggestFor: []string{"app", "application"},
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(baseName, name, f, c, args))
+			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.RunNewApp())
 		},
 	}
@@ -310,11 +299,11 @@ func NewCmdNewApplication(name, baseName string, f kcmdutil.Factory, streams gen
 }
 
 // Complete sets any default behavior for the command
-func (o *AppOptions) Complete(baseName, commandName string, f kcmdutil.Factory, c *cobra.Command, args []string) error {
+func (o *AppOptions) Complete(f kcmdutil.Factory, c *cobra.Command, args []string) error {
 	o.RESTClientGetter = f
 
 	cmdutil.WarnAboutCommaSeparation(o.ErrOut, o.ObjectGeneratorOptions.Config.TemplateParameters, "--param")
-	err := o.ObjectGeneratorOptions.Complete(baseName, commandName, f, c, args)
+	err := o.ObjectGeneratorOptions.Complete(f, c, args)
 	if err != nil {
 		return err
 	}
@@ -330,7 +319,7 @@ func (o *AppOptions) RunNewApp() error {
 	if config.Querying() {
 		result, err := config.RunQuery()
 		if err != nil {
-			return HandleError(err, o.BaseName, o.CommandName, o.CommandPath, config, TransformRunError)
+			return HandleError(err, o.CommandPath, config, TransformRunError)
 		}
 
 		if o.Action.ShouldPrint() {
@@ -352,13 +341,13 @@ func (o *AppOptions) RunNewApp() error {
 			return o.Printer.PrintObj(list, o.Out)
 		}
 
-		return printHumanReadableQueryResult(result, out, o.BaseName, o.CommandName)
+		return printHumanReadableQueryResult(result, out)
 	}
 
 	CheckGitInstalled(out)
 
 	result, err := config.Run()
-	if err := HandleError(err, o.BaseName, o.CommandName, o.CommandPath, config, TransformRunError); err != nil {
+	if err := HandleError(err, o.CommandPath, config, TransformRunError); err != nil {
 		return err
 	}
 
@@ -469,9 +458,9 @@ func (o *AppOptions) RunNewApp() error {
 				}
 			}
 			if triggered {
-				fmt.Fprintf(out, "%[1]sBuild scheduled, use '%[3]s logs -f bc/%[2]s' to track its progress.\n", indent, t.Name, o.BaseName)
+				fmt.Fprintf(out, "%[1]sBuild scheduled, use 'oc logs -f buildconfig/%[2]s' to track its progress.\n", indent, t.Name)
 			} else {
-				fmt.Fprintf(out, "%[1]sUse '%[3]s start-build %[2]s' to start a build.\n", indent, t.Name, o.BaseName)
+				fmt.Fprintf(out, "%[1]sUse 'oc start-build %[2]s' to start a build.\n", indent, t.Name)
 			}
 		case *imagev1.ImageStream:
 			if len(t.Status.DockerImageRepository) == 0 {
@@ -510,7 +499,7 @@ func (o *AppOptions) RunNewApp() error {
 		return followInstallation(config, o.RESTClientGetter, installing[0], o.LogsForObject)
 	case len(installing) > 1:
 		for i := range installing {
-			fmt.Fprintf(out, "%sTrack installation of %s with '%s logs %s'.\n", indent, installing[i].Name, o.BaseName, installing[i].Name)
+			fmt.Fprintf(out, "%sTrack installation of %s with 'oc logs %s'.\n", indent, installing[i].Name, installing[i].Name)
 		}
 	case len(result.List.Items) > 0:
 		//if we don't find a route we give a message to expose it
@@ -520,11 +509,11 @@ func (o *AppOptions) RunNewApp() error {
 			if len(svc) > 0 {
 				fmt.Fprintf(out, "%sApplication is not exposed. You can expose services to the outside world by executing one or more of the commands below:\n", indent)
 				for _, s := range svc {
-					fmt.Fprintf(out, "%s '%s %s svc/%s' \n", indent, o.BaseName, ExposeRecommendedName, s.Name)
+					fmt.Fprintf(out, "%s 'oc expose service/%s' \n", indent, s.Name)
 				}
 			}
 		}
-		fmt.Fprintf(out, "%sRun '%s %s' to view your app.\n", indent, o.BaseName, StatusRecommendedName)
+		fmt.Fprintf(out, "%sRun 'oc status' to view your app.\n", indent)
 	}
 	return nil
 }
@@ -886,7 +875,7 @@ func retryBuildConfig(obj *unstructured.Unstructured, err error) *unstructured.U
 	return nil
 }
 
-func HandleError(err error, baseName, commandName, commandPath string, config *newcmd.AppConfig, transformError func(err error, baseName, commandName, commandPath string, groups ErrorGroups, config *newcmd.AppConfig)) error {
+func HandleError(err error, commandPath string, config *newcmd.AppConfig, transformError func(err error, commandPath string, groups ErrorGroups, config *newcmd.AppConfig)) error {
 	if err == nil {
 		return nil
 	}
@@ -896,7 +885,7 @@ func HandleError(err error, baseName, commandName, commandPath string, config *n
 	}
 	groups := ErrorGroups{}
 	for _, err := range errs {
-		transformError(err, baseName, commandName, commandPath, groups, config)
+		transformError(err, commandPath, groups, config)
 	}
 	buf := &bytes.Buffer{}
 	for _, group := range groups {
@@ -932,7 +921,7 @@ func (g ErrorGroups) Add(group string, suggestion string, classification string,
 	g[group] = all
 }
 
-func TransformRunError(err error, baseName, commandName, commandPath string, groups ErrorGroups, config *newcmd.AppConfig) {
+func TransformRunError(err error, commandPath string, groups ErrorGroups, config *newcmd.AppConfig) {
 	switch t := err.(type) {
 	case newcmd.ErrRequiresExplicitAccess:
 		if t.Input.Token != nil && t.Input.Token.ServiceAccount {
@@ -1004,7 +993,7 @@ func TransformRunError(err error, baseName, commandName, commandPath string, gro
 					heredoc.Docf(`
 						The argument %[1]q could apply to the following Docker images, OpenShift image streams, or templates:
 
-						%[2]sTo view a full list of matches, use '%[3]s %[4]s -S %[1]s'`, t.Value, buf.String(), baseName, commandName,
+						%[2]sTo view a full list of matches, use 'oc new-app -S %[1]s'`, t.Value, buf.String(),
 					),
 					classification.String(),
 					t,
@@ -1071,7 +1060,7 @@ func TransformRunError(err error, baseName, commandName, commandPath string, gro
 		groups.Add("", "", "", fmt.Errorf("to install components you must be logged in with an OAuth token (instead of only a certificate)"))
 	case newcmd.ErrNoInputs:
 		// TODO: suggest things to the user
-		groups.Add("", "", "", UsageError(commandPath, newAppNoInput, baseName, commandName))
+		groups.Add("", "", "", UsageError(commandPath, newAppNoInput))
 	default:
 		if runtime.IsNotRegisteredError(err) {
 			groups.Add("", "", "", fmt.Errorf(fmt.Sprintf("The template contained an object type unknown to `oc new-app`.  Use `oc process -f <template> | oc create -f -` instead.  Error details: %v", err)))
@@ -1087,7 +1076,7 @@ func UsageError(commandPath, format string, args ...interface{}) error {
 	return fmt.Errorf("%s\nSee '%s -h' for help and examples", msg, commandPath)
 }
 
-func printHumanReadableQueryResult(r *newcmd.QueryResult, out io.Writer, baseName, commandName string) error {
+func printHumanReadableQueryResult(r *newcmd.QueryResult, out io.Writer) error {
 	if len(r.Matches) == 0 {
 		return fmt.Errorf("no matches found")
 	}
@@ -1112,7 +1101,7 @@ func printHumanReadableQueryResult(r *newcmd.QueryResult, out io.Writer, baseNam
 	sort.Sort(newappapp.ScoredComponentMatches(dockerImages))
 
 	if len(templates) > 0 {
-		fmt.Fprintf(out, "Templates (%s %s --template=<template>)\n", baseName, commandName)
+		fmt.Fprintf(out, "Templates (oc new-app --template=<template>)\n")
 		fmt.Fprintln(out, "-----")
 		for _, match := range templates {
 			template := match.Template
@@ -1128,7 +1117,7 @@ func printHumanReadableQueryResult(r *newcmd.QueryResult, out io.Writer, baseNam
 	}
 
 	if len(imageStreams) > 0 {
-		fmt.Fprintf(out, "Image streams (%s %s --image-stream=<image-stream> [--code=<source>])\n", baseName, commandName)
+		fmt.Fprintf(out, "Image streams (oc new-app --image-stream=<image-stream> [--code=<source>])\n")
 		fmt.Fprintln(out, "-----")
 		for _, match := range imageStreams {
 			imageStream := match.ImageStream
@@ -1162,7 +1151,7 @@ func printHumanReadableQueryResult(r *newcmd.QueryResult, out io.Writer, baseNam
 	}
 
 	if len(dockerImages) > 0 {
-		fmt.Fprintf(out, "Docker images (%s %s --docker-image=<docker-image> [--code=<source>])\n", baseName, commandName)
+		fmt.Fprintf(out, "Docker images (oc new-app --docker-image=<docker-image> [--code=<source>])\n")
 		fmt.Fprintln(out, "-----")
 		for _, match := range dockerImages {
 			image := match.DockerImage

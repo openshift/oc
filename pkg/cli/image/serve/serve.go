@@ -24,7 +24,7 @@ func NewServeOptions(streams genericclioptions.IOStreams) *ServeOptions {
 	}
 }
 
-func New(parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewServe(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewServeOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "serve IMAGE",

@@ -38,9 +38,9 @@ var (
 		Once lookup is enabled, simply reference the image stream tag in the image field of the object.
 		For example:
 
-				$ %[2]s import-image mysql:latest --confirm
-				$ %[1]s image-lookup mysql
-				$ %[2]s run mysql --image=mysql
+				$ oc import-image mysql:latest --confirm
+				$ oc set image-lookup mysql
+				$ oc run mysql --image=mysql
 
 		will import the latest MySQL image from the DockerHub, set that image stream to handle the
 		"mysql" name within the project, and then launch a deployment that points to the image we
@@ -51,9 +51,9 @@ var (
 		namespace for any image that matches, regardless of whether the image stream has lookup
 		enabled.
 
-				$ %[2]s run mysql --image=myregistry:5000/test/mysql:v1
-				$ %[2]s tag --source=docker myregistry:5000/test/mysql:v1 mysql:v1
-				$ %[1]s image-lookup deploy/mysql
+				$ oc run mysql --image=myregistry:5000/test/mysql:v1
+				$ oc tag --source=docker myregistry:5000/test/mysql:v1 mysql:v1
+				$ oc set image-lookup deploy/mysql
 
 		Which should trigger a deployment pointing to the imported mysql:v1 tag.
 
@@ -61,22 +61,22 @@ var (
 
 	imageLookupExample = templates.Examples(`
 		# Print all of the image streams and whether they resolve local names
-		%[1]s image-lookup
+		oc set image-lookup
 
 		# Use local name lookup on image stream mysql
-		%[1]s image-lookup mysql
+		oc set image-lookup mysql
 
 		# Force a deployment to use local name lookup
-		%[1]s image-lookup deploy/mysql
+		oc set image-lookup deploy/mysql
 
 		# Show the current status of the deployment lookup
-		%[1]s image-lookup deploy/mysql --list
+		oc set image-lookup deploy/mysql --list
 
 		# Disable local name lookup on image stream mysql
-		%[1]s image-lookup mysql --enabled=false
+		oc set image-lookup mysql --enabled=false
 
 		# Set local name lookup on all image streams
-		%[1]s image-lookup --all`)
+		oc set image-lookup --all`)
 )
 
 const alphaResolveNamesAnnotation = "alpha.image.policy.openshift.io/resolve-names"
@@ -113,13 +113,13 @@ func NewImageLookupOptions(streams genericclioptions.IOStreams) *ImageLookupOpti
 }
 
 // NewCmdImageLookup implements the set image-lookup command
-func NewCmdImageLookup(fullName, parentName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdImageLookup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewImageLookupOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "image-lookup STREAMNAME [...]",
 		Short:   "Change how images are resolved when deploying applications",
-		Long:    fmt.Sprintf(imageLookupLong, fullName, parentName),
-		Example: fmt.Sprintf(imageLookupExample, fullName),
+		Long:    imageLookupLong,
+		Example: imageLookupExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

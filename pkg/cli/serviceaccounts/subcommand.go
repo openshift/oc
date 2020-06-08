@@ -18,18 +18,18 @@ const (
 	serviceAccountsShort = `Manage service accounts in your project`
 )
 
-func NewCmdServiceAccounts(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdServiceAccounts(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	cmds := &cobra.Command{
-		Use:     name,
+		Use:     "serviceaccounts",
 		Short:   serviceAccountsShort,
 		Long:    serviceAccountsLong,
 		Aliases: []string{"sa"},
 		Run:     kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 
-	cmds.AddCommand(NewCommandCreateKubeconfig(CreateKubeconfigRecommendedName, fullName+" "+CreateKubeconfigRecommendedName, f, streams))
-	cmds.AddCommand(NewCommandGetServiceAccountToken(GetServiceAccountTokenRecommendedName, fullName+" "+GetServiceAccountTokenRecommendedName, f, streams))
-	cmds.AddCommand(NewCommandNewServiceAccountToken(NewServiceAccountTokenRecommendedName, fullName+" "+NewServiceAccountTokenRecommendedName, f, streams))
+	cmds.AddCommand(NewCommandCreateKubeconfig(f, streams))
+	cmds.AddCommand(NewCommandGetServiceAccountToken(f, streams))
+	cmds.AddCommand(NewCommandNewServiceAccountToken(f, streams))
 
 	return cmds
 }

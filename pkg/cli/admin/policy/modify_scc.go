@@ -22,25 +22,22 @@ import (
 )
 
 const (
-	AddSCCToGroupRecommendedName      = "add-scc-to-group"
-	AddSCCToUserRecommendedName       = "add-scc-to-user"
-	RemoveSCCFromGroupRecommendedName = "remove-scc-from-group"
-	RemoveSCCFromUserRecommendedName  = "remove-scc-from-user"
-
 	RBACNamesFmt = "system:openshift:scc:%s"
 )
 
 var (
 	addSCCToUserExample = templates.Examples(`
 		# Add the 'restricted' security context constraint to user1 and user2
-		%[1]s restricted user1 user2
+		oc adm policy add-scc-to-user restricted user1 user2
 
 		# Add the 'privileged' security context constraint to the service account serviceaccount1 in the current namespace
-		%[1]s privileged -z serviceaccount1`)
+		oc adm policy add-scc-to-user privileged -z serviceaccount1
+	`)
 
 	addSCCToGroupExample = templates.Examples(`
 		# Add the 'restricted' security context constraint to group1 and group2
-		%[1]s restricted group1 group2`)
+		oc adm policy add-scc-to-group restricted group1 group2
+	`)
 )
 
 type SCCModificationOptions struct {
@@ -70,13 +67,13 @@ func NewSCCModificationOptions(streams genericclioptions.IOStreams) *SCCModifica
 	}
 }
 
-func NewCmdAddSCCToGroup(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddSCCToGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewSCCModificationOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name + " SCC GROUP [GROUP ...]",
+		Use:     "add-scc-to-group SCC GROUP [GROUP ...]",
 		Short:   "Add security context constraint to groups",
 		Long:    `Add security context constraint to groups`,
-		Example: fmt.Sprintf(addSCCToGroupExample, fullName),
+		Example: addSCCToGroupExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteGroups(f, cmd, args))
 			kcmdutil.CheckErr(o.AddSCC())
@@ -88,14 +85,14 @@ func NewCmdAddSCCToGroup(name, fullName string, f kcmdutil.Factory, streams gene
 	return cmd
 }
 
-func NewCmdAddSCCToUser(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddSCCToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewSCCModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
-		Use:     name + " SCC (USER | -z SERVICEACCOUNT) [USER ...]",
+		Use:     "add-scc-to-user SCC (USER | -z SERVICEACCOUNT) [USER ...]",
 		Short:   "Add security context constraint to users or a service account",
 		Long:    `Add security context constraint to users or a service account`,
-		Example: fmt.Sprintf(addSCCToUserExample, fullName),
+		Example: addSCCToUserExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUsers(f, cmd, args))
 			kcmdutil.CheckErr(o.AddSCC())
@@ -109,10 +106,10 @@ func NewCmdAddSCCToUser(name, fullName string, f kcmdutil.Factory, streams gener
 	return cmd
 }
 
-func NewCmdRemoveSCCFromGroup(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveSCCFromGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewSCCModificationOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name + " SCC GROUP [GROUP ...]",
+		Use:   "remove-scc-from-group SCC GROUP [GROUP ...]",
 		Short: "Remove group from scc",
 		Long:  `Remove group from scc`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -126,11 +123,11 @@ func NewCmdRemoveSCCFromGroup(name, fullName string, f kcmdutil.Factory, streams
 	return cmd
 }
 
-func NewCmdRemoveSCCFromUser(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveSCCFromUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewSCCModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
-		Use:   name + " SCC USER [USER ...]",
+		Use:   "remove-scc-from-user SCC USER [USER ...]",
 		Short: "Remove user from scc",
 		Long:  `Remove user from scc`,
 		Run: func(cmd *cobra.Command, args []string) {

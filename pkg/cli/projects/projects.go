@@ -38,10 +38,9 @@ type ProjectsOptions struct {
 	genericclioptions.IOStreams
 }
 
-func NewProjectsOptions(name string, streams genericclioptions.IOStreams) *ProjectsOptions {
+func NewProjectsOptions(streams genericclioptions.IOStreams) *ProjectsOptions {
 	return &ProjectsOptions{
-		IOStreams:   streams,
-		CommandName: name,
+		IOStreams: streams,
 	}
 }
 
@@ -67,8 +66,8 @@ var (
 )
 
 // NewCmdProjects implements the OpenShift cli rollback command
-func NewCmdProjects(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewProjectsOptions(fullName, streams)
+func NewCmdProjects(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewProjectsOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "projects",
 		Short: "Display existing projects",

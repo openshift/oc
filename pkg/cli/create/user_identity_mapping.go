@@ -23,11 +23,13 @@ var (
 		Typically, identities are automatically mapped to users during login. If automatic
 		mapping is disabled (by using the "lookup" mapping method), or a mapping needs to
 		be manually established between an identity and a user, this command can be used
-		to create a useridentitymapping object.`)
+		to create a useridentitymapping object.
+	`)
 
 	userIdentityMappingExample = templates.Examples(`
 		# Map the identity "acme_ldap:adamjones" to the user "ajones"
-		oc acme_ldap:adamjones ajones`)
+		oc create useridentitymapping acme_ldap:adamjones ajones
+	`)
 )
 
 type CreateUserIdentityMappingOptions struct {

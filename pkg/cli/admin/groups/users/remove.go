@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -13,32 +12,32 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-const RemoveRecommendedName = "remove-users"
-
 var (
 	removeLong = templates.LongDesc(`
 		Remove users from a group.
 
-		This command will remove users from the list of members for a group.`)
+		This command will remove users from the list of members for a group.
+	`)
 
 	removeExample = templates.Examples(`
 		# Remove user1 and user2 from my-group
-	%[1]s my-group user1 user2`)
+		oc adm groups remove-users my-group user1 user2
+	`)
 )
 
 type RemoveUsersOptions struct {
 	GroupModificationOptions *GroupModificationOptions
 }
 
-func NewCmdRemoveUsers(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveUsers(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &RemoveUsersOptions{
 		GroupModificationOptions: NewGroupModificationOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     name + " GROUP USER [USER ...]",
+		Use:     "remove-users GROUP USER [USER ...]",
 		Short:   "Remove users from a group",
 		Long:    removeLong,
-		Example: fmt.Sprintf(removeExample, fullName),
+		Example: removeExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())

@@ -33,15 +33,17 @@ type Version struct {
 
 var (
 	versionLong = templates.LongDesc(`
-        Print the OpenShift client, kube-apiserver, and openshift-apiserver versions for the current context.
-        Pass --client to print only the OpenShift client version.`)
+		Print the OpenShift client, kube-apiserver, and openshift-apiserver versions for the current context.
+		Pass --client to print only the OpenShift client version.
+	`)
 	versionExample = templates.Examples(`
-        # Print the OpenShift client, kube-apiserver, and openshift-apiserver version information for the current context.
-        %[1]s version
-        # Print the OpenShift client, kube-apiserver, and openshift-apiserver version numbers for the current context.
-        %[1]s version --short
-        # Print the OpenShift client version information for the current context.
-        %[1]s version --client`)
+		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version information for the current context.
+		oc version
+		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version numbers for the current context.
+		oc version --short
+		# Print the OpenShift client version information for the current context.
+		oc version --client
+	`)
 )
 
 type VersionOptions struct {
@@ -60,13 +62,13 @@ func NewVersionOptions(ioStreams genericclioptions.IOStreams) *VersionOptions {
 
 // NewCmdVersion is copied from upstream NewCmdVersion with addition of OpenShift Server version info.
 // OpenShift Server version is output only if logged in to a cluster as an admin user.
-func NewCmdVersion(fullName string, f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVersion(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
 	o := NewVersionOptions(ioStreams)
 	cmd := &cobra.Command{
 		Use:     "version",
 		Short:   i18n.T("Print the client and server version information"),
 		Long:    "Print the client and server version information for the current context",
-		Example: fmt.Sprintf(versionExample, fullName),
+		Example: versionExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.Complete(f, cmd))

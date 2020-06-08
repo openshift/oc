@@ -22,7 +22,8 @@ var (
 		Expose containers externally via secured routes
 
 		Three types of secured routes are supported: edge, passthrough, and reencrypt.
-		If you wish to create unsecured routes, see "oc expose -h"`)
+		If you wish to create unsecured routes, see "oc expose -h"
+	`)
 )
 
 // NewCmdCreateRoute is a macro command to create a secured route.

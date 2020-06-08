@@ -27,11 +27,13 @@ var (
 		be created manually.
 
 		Corresponding user and useridentitymapping objects must also be created
-		to allow logging in with the created identity.`)
+		to allow logging in with the created identity.
+	`)
 
 	identityExample = templates.Examples(`
 		# Create an identity with identity provider "acme_ldap" and the identity provider username "adamjones"
-		oc create identity acme_ldap:adamjones`)
+		oc create identity acme_ldap:adamjones
+	`)
 )
 
 type CreateIdentityOptions struct {

@@ -69,24 +69,25 @@ var (
 
 	startBuildExample = templates.Examples(`
 		# Starts build from build config "hello-world"
-	  %[1]s start-build hello-world
+		oc start-build hello-world
 
-	  # Starts build from a previous build "hello-world-1"
-	  %[1]s start-build --from-build=hello-world-1
+		# Starts build from a previous build "hello-world-1"
+		oc start-build --from-build=hello-world-1
 
-	  # Use the contents of a directory as build input
-	  %[1]s start-build hello-world --from-dir=src/
+		# Use the contents of a directory as build input
+		oc start-build hello-world --from-dir=src/
 
-	  # Send the contents of a Git repository to the server from tag 'v2'
-	  %[1]s start-build hello-world --from-repo=../hello-world --commit=v2
+		# Send the contents of a Git repository to the server from tag 'v2'
+		oc start-build hello-world --from-repo=../hello-world --commit=v2
 
-	  # Start a new build for build config "hello-world" and watch the logs until the build
-	  # completes or fails.
-	  %[1]s start-build hello-world --follow
+		# Start a new build for build config "hello-world" and watch the logs until the build
+		# completes or fails.
+		oc start-build hello-world --follow
 
-	  # Start a new build for build config "hello-world" and wait until the build completes. It
-	  # exits with a non-zero return code if the build fails.
-	  %[1]s start-build hello-world --wait`)
+		# Start a new build for build config "hello-world" and wait until the build completes. It
+		# exits with a non-zero return code if the build fails.
+		oc start-build hello-world --wait
+	`)
 )
 
 type StartBuildOptions struct {
@@ -144,17 +145,17 @@ func NewStartBuildOptions(streams genericclioptions.IOStreams) *StartBuildOption
 }
 
 // NewCmdStartBuild implements the OpenShift cli start-build command
-func NewCmdStartBuild(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdStartBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewStartBuildOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:        "start-build (BUILDCONFIG | --from-build=BUILD)",
 		Short:      "Start a new build",
 		Long:       startBuildLong,
-		Example:    fmt.Sprintf(startBuildExample, fullName),
+		Example:    startBuildExample,
 		SuggestFor: []string{"build", "builds"},
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(f, cmd, fullName, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -186,7 +187,7 @@ func NewCmdStartBuild(fullName string, f kcmdutil.Factory, streams genericcliopt
 	return cmd
 }
 
-func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, cmdFullName string, args []string) error {
+func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	var err error
 	o.Git = git.NewRepository()
 	o.ClientConfig, err = f.ToRESTConfig()
@@ -252,7 +253,7 @@ func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, cmd
 		return nil
 
 	case len(args) != 1 && len(buildName) == 0:
-		return kcmdutil.UsageErrorf(cmd, "Must pass a name of a build config or specify build name with '--from-build' flag.\nUse \"%s get bc\" to list all available build configs.", cmdFullName)
+		return kcmdutil.UsageErrorf(cmd, "Must pass a name of a build config or specify build name with '--from-build' flag.\nUse \"oc get buildconfig\" to list all available build configs.")
 	}
 
 	clientConfig, err := f.ToRESTConfig()

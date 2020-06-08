@@ -63,19 +63,19 @@ var (
 
 	tagExample = templates.Examples(`
 		# Tag the current image for the image stream 'openshift/ruby' and tag '2.0' into the image stream 'yourproject/ruby with tag 'tip'.
-	  %[1]s tag openshift/ruby:2.0 yourproject/ruby:tip
+		oc tag openshift/ruby:2.0 yourproject/ruby:tip
 
-	  # Tag a specific image.
-	  %[1]s tag openshift/ruby@sha256:6b646fa6bf5e5e4c7fa41056c27910e679c03ebe7f93e361e6515a9da7e258cc yourproject/ruby:tip
+		# Tag a specific image.
+		oc tag openshift/ruby@sha256:6b646fa6bf5e5e4c7fa41056c27910e679c03ebe7f93e361e6515a9da7e258cc yourproject/ruby:tip
 
-	  # Tag an external container image.
-	  %[1]s tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip
+		# Tag an external container image.
+		oc tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip
 
-	  # Tag an external container image and request pullthrough for it.
-	  %[1]s tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip --reference-policy=local
+		# Tag an external container image and request pullthrough for it.
+		oc tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip --reference-policy=local
 
-	  # Remove the specified spec tag from an image stream.
-	  %[1]s tag openshift/origin-control-plane:latest -d`)
+		# Remove the specified spec tag from an image stream.
+		oc tag openshift/origin-control-plane:latest -d`)
 )
 
 const (
@@ -90,13 +90,13 @@ func NewTagOptions(streams genericclioptions.IOStreams) *TagOptions {
 }
 
 // NewCmdTag implements the OpenShift cli tag command.
-func NewCmdTag(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTag(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewTagOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "tag [--source=SOURCETYPE] SOURCE DEST [DEST ...]",
 		Short:   "Tag existing images into image streams",
 		Long:    tagLong,
-		Example: fmt.Sprintf(tagExample, fullName),
+		Example: tagExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

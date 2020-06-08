@@ -349,7 +349,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	}
 
 	// will extract in parallel
-	opts := extract.NewOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
 	opts.OnlyFiles = true
@@ -552,16 +552,16 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		fmt.Fprintf(buf, heredoc.Doc(`
 			Client tools for OpenShift
 			--------------------------
-			
+
 			These archives contain the client tooling for [OpenShift](https://docs.openshift.com).
 
 			To verify the contents of this directory, use the 'gpg' and 'shasum' tools to
 			ensure the archives you have downloaded match those published from this location.
-			
+
 			The openshift-install binary has been preconfigured to install the following release:
 
 			---
-			
+
 		`))
 		if err := describeReleaseInfo(buf, release, false, false, true, false); err != nil {
 			return err

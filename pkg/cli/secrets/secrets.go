@@ -29,7 +29,7 @@ var (
     container image registries.`)
 )
 
-func NewCmdSecrets(parent string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSecrets(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
 		Use:     "secrets",
@@ -39,8 +39,8 @@ func NewCmdSecrets(parent string, f kcmdutil.Factory, streams genericclioptions.
 		Run:     kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 
-	cmds.AddCommand(NewCmdLinkSecret(parent, f, streams))
-	cmds.AddCommand(NewCmdUnlinkSecret(parent, f, streams))
+	cmds.AddCommand(NewCmdLinkSecret(f, streams))
+	cmds.AddCommand(NewCmdUnlinkSecret(f, streams))
 
 	return cmds
 }

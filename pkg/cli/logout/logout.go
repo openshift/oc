@@ -42,11 +42,13 @@ var (
 		are typically managed by other programs. Instead, you can delete your config file to remove
 		the local copy of that certificate or the record of your server login.
 
-		After logging out, if you want to log back into the server use '%[1]s'.`)
+		After logging out, if you want to log back into the server use 'oc login'.
+	`)
 
 	logoutExample = templates.Examples(`
-	  # Logout
-	  %[1]s`)
+		# Logout
+		oc logout
+	`)
 )
 
 func NewLogoutOptions(streams genericclioptions.IOStreams) *LogoutOptions {
@@ -56,13 +58,13 @@ func NewLogoutOptions(streams genericclioptions.IOStreams) *LogoutOptions {
 }
 
 // NewCmdLogout implements the OpenShift cli logout command
-func NewCmdLogout(name, fullName, ocLoginFullCommand string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogout(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewLogoutOptions(streams)
 	cmds := &cobra.Command{
-		Use:     name,
+		Use:     "logout",
 		Short:   "End the current server session",
-		Long:    fmt.Sprintf(logoutLong, ocLoginFullCommand),
-		Example: fmt.Sprintf(logoutExample, fullName),
+		Long:    logoutLong,
+		Example: logoutExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate(args))

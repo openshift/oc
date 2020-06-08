@@ -119,7 +119,7 @@ func TestNewAppDefaultFlags(t *testing.T) {
 		},
 	}
 
-	cmd := NewCmdNewApplication("oc", NewAppRecommendedCommandName, nil, genericclioptions.NewTestIOStreamsDiscard())
+	cmd := NewCmdNewApplication(nil, genericclioptions.NewTestIOStreamsDiscard())
 
 	for _, v := range tests {
 		f := cmd.Flag(v.flagName)
@@ -224,8 +224,7 @@ func TestNewAppRunFailure(t *testing.T) {
 
 	opts := &AppOptions{
 		ObjectGeneratorOptions: &ObjectGeneratorOptions{
-			BaseName:    "oc",
-			CommandName: NewAppRecommendedCommandName,
+			CommandName: "new-app",
 		},
 	}
 
@@ -376,8 +375,6 @@ func TestNewAppRunQueryActions(t *testing.T) {
 			Action: configcmd.BulkAction{
 				IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
 			},
-			BaseName:    "oc",
-			CommandName: NewAppRecommendedCommandName,
 		},
 	}
 

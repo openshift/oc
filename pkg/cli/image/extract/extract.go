@@ -56,30 +56,31 @@ var (
 		  [~<prefix>] - select the layer with the matching digest prefix or return an error
 
 		Negative indices are counted from the end of the list, e.g. [-1] selects the last
-		layer.`)
+		layer.
+		`)
 
 	example = templates.Examples(`
-# Extract the busybox image into the current directory
-%[1]s docker.io/library/busybox:latest
+		# Extract the busybox image into the current directory
+		oc image extract docker.io/library/busybox:latest
 
-# Extract the busybox image to a temp directory (must exist)
-%[1]s docker.io/library/busybox:latest --path /:/tmp/busybox
+		# Extract the busybox image to a temp directory (must exist)
+		oc image extract docker.io/library/busybox:latest --path /:/tmp/busybox
 
-# Extract a single file from the image into the current directory
-%[1]s docker.io/library/centos:7 --path /bin/bash:.
+		# Extract a single file from the image into the current directory
+		oc image extract docker.io/library/centos:7 --path /bin/bash:.
 
-# Extract all .repo files from the image's /etc/yum.repos.d/ folder.
-%[1]s docker.io/library/centos:7 --path /etc/yum.repos.d/*.repo:.
+		# Extract all .repo files from the image's /etc/yum.repos.d/ folder.
+		oc image extract docker.io/library/centos:7 --path /etc/yum.repos.d/*.repo:.
 
-# Extract the last layer in the image
-%[1]s docker.io/library/centos:7[-1]
+		# Extract the last layer in the image
+		oc image extract docker.io/library/centos:7[-1]
 
-# Extract the first three layers of the image
-%[1]s docker.io/library/centos:7[:3]
+		# Extract the first three layers of the image
+		oc image extract docker.io/library/centos:7[:3]
 
-# Extract the last three layers of the image
-%[1]s docker.io/library/centos:7[-3:]
-`)
+		# Extract the last three layers of the image
+		oc image extract docker.io/library/centos:7[-3:]
+	`)
 )
 
 type LayerInfo struct {
@@ -92,7 +93,7 @@ type LayerInfo struct {
 // an error, or false to stop processing.
 type TarEntryFunc func(*tar.Header, LayerInfo, io.Reader) (cont bool, err error)
 
-type Options struct {
+type ExtractOptions struct {
 	Mappings []Mapping
 
 	Files []string
@@ -124,8 +125,8 @@ type Options struct {
 	AllLayers bool
 }
 
-func NewOptions(streams genericclioptions.IOStreams) *Options {
-	return &Options{
+func NewExtractOptions(streams genericclioptions.IOStreams) *ExtractOptions {
+	return &ExtractOptions{
 		Paths: []string{},
 
 		IOStreams:       streams,
@@ -134,14 +135,14 @@ func NewOptions(streams genericclioptions.IOStreams) *Options {
 }
 
 // New creates a new command
-func New(name string, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewOptions(streams)
+func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewExtractOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "extract",
 		Short:   "Copy files from an image to the filesystem",
 		Long:    desc,
-		Example: fmt.Sprintf(example, name+" extract"),
+		Example: example,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(c, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -285,7 +286,7 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 	return mappings, nil
 }
 
-func (o *Options) Complete(cmd *cobra.Command, args []string) error {
+func (o *ExtractOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
 		return err
 	}
@@ -306,14 +307,14 @@ func (o *Options) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (o *Options) Validate() error {
+func (o *ExtractOptions) Validate() error {
 	if len(o.Mappings) == 0 {
 		return fmt.Errorf("you must specify one or more paths or files")
 	}
 	return o.FilterOptions.Validate()
 }
 
-func (o *Options) Run() error {
+func (o *ExtractOptions) Run() error {
 	ctx := context.Background()
 	fromContext, err := o.SecurityOptions.Context()
 	if err != nil {

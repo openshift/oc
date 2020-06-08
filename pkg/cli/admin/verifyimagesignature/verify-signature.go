@@ -53,25 +53,21 @@ var (
 
 	verifyImageSignatureExample = templates.Examples(`
 	# Verify the image signature and identity using the local GPG keychain
-	%[1]s sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
+	oc adm verify-image-signature sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
 			--expected-identity=registry.local:5000/foo/bar:v1
 
 	# Verify the image signature and identity using the local GPG keychain and save the status
-	%[1]s sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
+	oc adm verify-image-signature sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
 			--expected-identity=registry.local:5000/foo/bar:v1 --save
 
 	# Verify the image signature and identity via exposed registry route
-	%[1]s sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
+	oc adm verify-image-signature sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
 			--expected-identity=registry.local:5000/foo/bar:v1 \
 			--registry-url=docker-registry.foo.com
 
 	# Remove all signature verifications from the image
-	%[1]s sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 --remove-all
+	oc adm verify-image-signature sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 --remove-all
 	`)
-)
-
-const (
-	VerifyRecommendedName = "verify-image-signature"
 )
 
 type VerifyImageSignatureOptions struct {
@@ -101,13 +97,13 @@ func NewVerifyImageSignatureOptions(streams genericclioptions.IOStreams) *Verify
 	}
 }
 
-func NewCmdVerifyImageSignature(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVerifyImageSignature(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewVerifyImageSignatureOptions(streams)
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s IMAGE --expected-identity=EXPECTED_IDENTITY [--save]", VerifyRecommendedName),
+		Use:     "verify-image-signature IMAGE --expected-identity=EXPECTED_IDENTITY [--save]",
 		Short:   "Verify the image identity contained in the image signature",
 		Long:    verifyImageSignatureLongDesc,
-		Example: fmt.Sprintf(verifyImageSignatureExample, fullName),
+		Example: verifyImageSignatureExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

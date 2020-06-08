@@ -52,10 +52,11 @@ var (
 
 	internalMigrateTemplateInstancesExample = templates.Examples(`
 		# Perform a dry-run of updating all objects
-	  %[1]s
+		oc adm migrate template-instances
 
-	  # To actually perform the update, the confirm flag must be appended
-	  %[1]s --confirm`)
+		# To actually perform the update, the confirm flag must be appended
+		oc adm migrate template-instances --confirm
+	`)
 )
 
 func prettyPrintMigrations(versionKinds map[apiType]apiType) string {
@@ -85,15 +86,15 @@ func NewMigrateTemplateInstancesOptions(streams genericclioptions.IOStreams) *Mi
 }
 
 // NewCmdMigrateTemplateInstancesAPI implements a MigrateTemplateInstances command
-func NewCmdMigrateTemplateInstances(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMigrateTemplateInstances(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateTemplateInstancesOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
+		Use:     "template-instances",
 		Short:   "Update TemplateInstances to point to the latest group-version-kinds",
 		Long:    internalMigrateTemplateInstancesLong,
-		Example: fmt.Sprintf(internalMigrateTemplateInstancesExample, fullName),
+		Example: internalMigrateTemplateInstancesExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(name, f, cmd, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -103,9 +104,9 @@ func NewCmdMigrateTemplateInstances(name, fullName string, f kcmdutil.Factory, s
 	return cmd
 }
 
-func (o *MigrateTemplateInstancesOptions) Complete(name string, f kcmdutil.Factory, c *cobra.Command, args []string) error {
+func (o *MigrateTemplateInstancesOptions) Complete(f kcmdutil.Factory, c *cobra.Command, args []string) error {
 	if len(args) != 0 {
-		return fmt.Errorf("%s takes no positional arguments", name)
+		return fmt.Errorf("oc adm migrate template-instances takes no positional arguments")
 	}
 
 	o.ResourceOptions.SaveFn = o.save

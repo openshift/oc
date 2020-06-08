@@ -18,26 +18,24 @@ import (
 )
 
 const (
-	GetServiceAccountTokenRecommendedName = "get-token"
-
 	getServiceAccountTokenShort = `Get a token assigned to a service account.`
-
-	getServiceAccountTokenUsage = `%s SA-NAME`
 )
 
 var (
 	getServiceAccountTokenLong = templates.LongDesc(`
-    Get a token assigned to a service account.
+		Get a token assigned to a service account.
 
-    If the service account has multiple tokens, the first token found will be returned.
+		If the service account has multiple tokens, the first token found will be returned.
 
-    Service account API tokens are used by service accounts to authenticate to the API.
-    Client actions using a service account token will be executed as if the service account
-    itself were making the actions.`)
+		Service account API tokens are used by service accounts to authenticate to the API.
+		Client actions using a service account token will be executed as if the service account
+		itself were making the actions.
+	`)
 
 	getServiceAccountTokenExamples = templates.Examples(`
-    # Get the service account token from service account 'default'
-    %[1]s 'default'`)
+		# Get the service account token from service account 'default'
+		oc serviceaccounts get-token 'default'
+	`)
 )
 
 type GetServiceAccountTokenOptions struct {
@@ -54,14 +52,14 @@ func NewGetServiceAccountTokenOptions(streams genericclioptions.IOStreams) *GetS
 	}
 }
 
-func NewCommandGetServiceAccountToken(name, fullname string, f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandGetServiceAccountToken(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	options := NewGetServiceAccountTokenOptions(streams)
 
 	getServiceAccountTokenCommand := &cobra.Command{
-		Use:     fmt.Sprintf(getServiceAccountTokenUsage, name),
+		Use:     "get-token NAME",
 		Short:   getServiceAccountTokenShort,
 		Long:    getServiceAccountTokenLong,
-		Example: fmt.Sprintf(getServiceAccountTokenExamples, fullname),
+		Example: getServiceAccountTokenExamples,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(options.Complete(args, f, cmd))
 			cmdutil.CheckErr(options.Validate())

@@ -28,12 +28,13 @@ var (
 		has not configured a public hostname for the registry then this command may fail when
 		run outside of the server.
 
-		Experimental: This command is under active development and may change without notice.`)
+		Experimental: This command is under active development and may change without notice.
+	`)
 
 	example = templates.Examples(`
-# Display information about the integrated registry
-%[1]s
-`)
+		# Display information about the integrated registry
+		oc registry info
+	`)
 )
 
 type Options struct {
@@ -55,14 +56,14 @@ func NewRegistryInfoOptions(streams genericclioptions.IOStreams) *Options {
 }
 
 // New creates a command that displays info about the registry.
-func NewRegistryInfoCmd(name string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRegistryInfoCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRegistryInfoOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "info ",
 		Short:   "Print info about the integrated registry",
 		Long:    desc,
-		Example: fmt.Sprintf(example, name+" info"),
+		Example: example,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args))
 			kcmdutil.CheckErr(o.Validate())

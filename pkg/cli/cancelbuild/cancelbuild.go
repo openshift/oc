@@ -38,23 +38,25 @@ var (
 		Cancel running, pending, or new builds
 
 		This command requests a graceful shutdown of the build. There may be a delay between requesting
-		the build and the time the build is terminated.`)
+		the build and the time the build is terminated.
+	`)
 
 	cancelBuildExample = templates.Examples(`
-	  # Cancel the build with the given name
-	  %[1]s %[2]s ruby-build-2
+		# Cancel the build with the given name
+		oc cancel-build ruby-build-2
 
-	  # Cancel the named build and print the build logs
-	  %[1]s %[2]s ruby-build-2 --dump-logs
+		# Cancel the named build and print the build logs
+		oc cancel-build ruby-build-2 --dump-logs
 
-	  # Cancel the named build and create a new one with the same parameters
-	  %[1]s %[2]s ruby-build-2 --restart
+		# Cancel the named build and create a new one with the same parameters
+		oc cancel-build ruby-build-2 --restart
 
-	  # Cancel multiple builds
-	  %[1]s %[2]s ruby-build-1 ruby-build-2 ruby-build-3
+		# Cancel multiple builds
+		oc cancel-build ruby-build-1 ruby-build-2 ruby-build-3
 
-	  # Cancel all builds created from 'ruby-build' build configuration that are in 'new' state
-	  %[1]s %[2]s bc/ruby-build --state=new`)
+		# Cancel all builds created from 'ruby-build' build configuration that are in 'new' state
+		oc cancel-build bc/ruby-build --state=new
+	`)
 )
 
 // CancelBuildOptions contains all the options for running the CancelBuild cli command.
@@ -88,13 +90,13 @@ func NewCancelBuildOptions(streams genericclioptions.IOStreams) *CancelBuildOpti
 }
 
 // NewCmdCancelBuild implements the OpenShift cli cancel-build command
-func NewCmdCancelBuild(name, baseName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCancelBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCancelBuildOptions(streams)
 	cmd := &cobra.Command{
-		Use:        fmt.Sprintf("%s (BUILD | BUILDCONFIG)", name),
+		Use:        "cancel-build (BUILD | BUILDCONFIG)",
 		Short:      "Cancel running, pending, or new builds",
 		Long:       cancelBuildLong,
-		Example:    fmt.Sprintf(cancelBuildExample, baseName, name),
+		Example:    cancelBuildExample,
 		SuggestFor: []string{"builds", "stop-build"},
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

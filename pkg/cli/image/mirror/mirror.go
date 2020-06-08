@@ -58,35 +58,35 @@ var (
 
 		Images in manifest list format will be copied as-is unless you use --filter-by-os to restrict
 		the allowed images to copy in a manifest list. This flag has no effect on regular images.
-		`)
+	`)
 
 	mirrorExample = templates.Examples(`
-# Copy image to another tag
-%[1]s myregistry.com/myimage:latest myregistry.com/myimage:stable
+		# Copy image to another tag
+		oc image mirror myregistry.com/myimage:latest myregistry.com/myimage:stable
 
-# Copy image to another registry
-%[1]s myregistry.com/myimage:latest docker.io/myrepository/myimage:stable
+		# Copy image to another registry
+		oc image mirror myregistry.com/myimage:latest docker.io/myrepository/myimage:stable
 
-# Copy all tags starting with mysql to the destination repository
-%[1]s myregistry.com/myimage:mysql* docker.io/myrepository/myimage
+		# Copy all tags starting with mysql to the destination repository
+		oc image mirror myregistry.com/myimage:mysql* docker.io/myrepository/myimage
 
-# Copy image to disk, creating a directory structure that can be served as a registry
-%[1]s myregistry.com/myimage:latest file://myrepository/myimage:latest
+		# Copy image to disk, creating a directory structure that can be served as a registry
+		oc image mirror myregistry.com/myimage:latest file://myrepository/myimage:latest
 
-# Copy image to S3 (pull from <bucket>.s3.amazonaws.com/image:latest)
-%[1]s myregistry.com/myimage:latest s3://s3.amazonaws.com/<region>/<bucket>/image:latest
+		# Copy image to S3 (pull from <bucket>.s3.amazonaws.com/image:latest)
+		oc image mirror myregistry.com/myimage:latest s3://s3.amazonaws.com/<region>/<bucket>/image:latest
 
-# Copy image to S3 without setting a tag (pull via @<digest>)
-%[1]s myregistry.com/myimage:latest s3://s3.amazonaws.com/<region>/<bucket>/image
+		# Copy image to S3 without setting a tag (pull via @<digest>)
+		oc image mirror myregistry.com/myimage:latest s3://s3.amazonaws.com/<region>/<bucket>/image
 
-# Copy image to multiple locations
-%[1]s myregistry.com/myimage:latest docker.io/myrepository/myimage:stable \
-    docker.io/myrepository/myimage:dev
+		# Copy image to multiple locations
+		oc image mirror myregistry.com/myimage:latest docker.io/myrepository/myimage:stable \
+			docker.io/myrepository/myimage:dev
 
-# Copy multiple images
-%[1]s myregistry.com/myimage:latest=myregistry.com/other:test \
-    myregistry.com/myimage:new=myregistry.com/other:target
-`)
+		# Copy multiple images
+		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+			myregistry.com/myimage:new=myregistry.com/other:target
+	`)
 )
 
 type MirrorImageOptions struct {
@@ -126,14 +126,14 @@ func NewMirrorImageOptions(streams genericclioptions.IOStreams) *MirrorImageOpti
 }
 
 // NewCommandMirrorImage copies images from one location to another.
-func NewCmdMirrorImage(name string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMirrorImageOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "mirror SRC DST [DST ...]",
 		Short:   "Mirror images from one repository to another",
 		Long:    mirrorDesc,
-		Example: fmt.Sprintf(mirrorExample, name+" mirror"),
+		Example: mirrorExample,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(c, args))
 			kcmdutil.CheckErr(o.Validate())

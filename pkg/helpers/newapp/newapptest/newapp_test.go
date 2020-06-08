@@ -2075,7 +2075,6 @@ func TestNewAppListAndSearch(t *testing.T) {
 	for _, test := range tests {
 		stdout, stderr := PrepareAppConfig(test.options.Config)
 		test.options.Action.Out, test.options.ErrOut = stdout, stderr
-		test.options.BaseName = "oc"
 		test.options.CommandName = "new-app"
 
 		err := test.options.RunNewApp()

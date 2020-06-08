@@ -27,11 +27,12 @@ var (
 
 		Builds create container images from source code or Dockerfiles. A build can pull source
 		code from Git or accept a Dockerfile that pulls the source content.
-		`)
+	`)
 
 	buildExample = templates.Examples(`
 		# Create a new build
-		oc create build myapp`)
+		oc create build myapp
+	`)
 )
 
 type CreateBuildOptions struct {

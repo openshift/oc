@@ -61,30 +61,31 @@ var (
 		trigger for a build config will only trigger the first build.`)
 
 	triggersExample = templates.Examples(`
-	  # Print the triggers on the deployment config 'myapp'
-	  %[1]s triggers dc/myapp
+		# Print the triggers on the deployment config 'myapp'
+		oc set triggers dc/myapp
 
-	  # Set all triggers to manual
-	  %[1]s triggers dc/myapp --manual
+		# Set all triggers to manual
+		oc set triggers dc/myapp --manual
 
-	  # Enable all automatic triggers
-	  %[1]s triggers dc/myapp --auto
+		# Enable all automatic triggers
+		oc set triggers dc/myapp --auto
 
-	  # Reset the GitHub webhook on a build to a new, generated secret
-	  %[1]s triggers bc/webapp --from-github
-	  %[1]s triggers bc/webapp --from-webhook
+		# Reset the GitHub webhook on a build to a new, generated secret
+		oc set triggers bc/webapp --from-github
+		oc set triggers bc/webapp --from-webhook
 
-	  # Remove all triggers
-	  %[1]s triggers bc/webapp --remove-all
+		# Remove all triggers
+		oc set triggers bc/webapp --remove-all
 
-	  # Stop triggering on config change
-	  %[1]s triggers dc/myapp --from-config --remove
+		# Stop triggering on config change
+		oc set triggers dc/myapp --from-config --remove
 
-	  # Add an image trigger to a build config
-	  %[1]s triggers bc/webapp --from-image=namespace1/image:latest
+		# Add an image trigger to a build config
+		oc set triggers bc/webapp --from-image=namespace1/image:latest
 
-	  # Add an image trigger to a stateful set on the main container
-	  %[1]s triggers statefulset/db --from-image=namespace1/image:latest -c main`)
+		# Add an image trigger to a stateful set on the main container
+		oc set triggers statefulset/db --from-image=namespace1/image:latest -c main
+	`)
 )
 
 type TriggersOptions struct {
@@ -130,13 +131,13 @@ func NewTriggersOptions(streams genericclioptions.IOStreams) *TriggersOptions {
 }
 
 // NewCmdTriggers implements the set triggers command
-func NewCmdTriggers(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTriggers(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewTriggersOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "triggers RESOURCE/NAME [--from-config|--from-image|--from-github|--from-webhook] [--auto|--manual]",
 		Short:   "Update the triggers on one or more objects",
 		Long:    triggersLong,
-		Example: fmt.Sprintf(triggersExample, fullName),
+		Example: triggersExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

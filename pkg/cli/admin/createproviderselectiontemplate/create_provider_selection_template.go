@@ -11,8 +11,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-const CreateProviderSelectionTemplateCommand = "create-provider-selection-template"
-
 var providerSelectionLongDescription = templates.LongDesc(`
 	Create a template for customizing the provider selection page
 
@@ -39,10 +37,10 @@ func NewCreateProviderSelectionTemplateOptions(streams genericclioptions.IOStrea
 	}
 }
 
-func NewCommandCreateProviderSelectionTemplate(f kcmdutil.Factory, commandName string, fullName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateProviderSelectionTemplate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCreateProviderSelectionTemplateOptions(streams)
 	cmd := &cobra.Command{
-		Use:   commandName,
+		Use:   "create-provider-selection-template",
 		Short: "Create a provider selection template",
 		Long:  providerSelectionLongDescription,
 		Run: func(cmd *cobra.Command, args []string) {

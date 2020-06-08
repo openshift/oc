@@ -51,29 +51,31 @@ var (
 
 		Process resolves the template on the server, but you may pass --local to parameterize the template
 		locally. When running locally be aware that the version of your client tools will determine what
-		template transformations are supported, rather than the server.`)
+		template transformations are supported, rather than the server.
+	`)
 
 	processExample = templates.Examples(`
 		# Convert template.json file into resource list and pass to create
-	  %[1]s process -f template.json | %[1]s create -f -
+		oc process -f template.json | oc create -f -
 
-	  # Process a file locally instead of contacting the server
-	  %[1]s process -f template.json --local -o yaml
+		# Process a file locally instead of contacting the server
+		oc process -f template.json --local -o yaml
 
-	  # Process template while passing a user-defined label
-	  %[1]s process -f template.json -l name=mytemplate
+		# Process template while passing a user-defined label
+		oc process -f template.json -l name=mytemplate
 
-	  # Convert stored template into resource list
-	  %[1]s process foo
+		# Convert stored template into resource list
+		oc process foo
 
-	  # Convert stored template into resource list by setting/overriding parameter values
-	  %[1]s process foo PARM1=VALUE1 PARM2=VALUE2
+		# Convert stored template into resource list by setting/overriding parameter values
+		oc process foo PARM1=VALUE1 PARM2=VALUE2
 
-	  # Convert template stored in different namespace into a resource list
-	  %[1]s process openshift//foo
+		# Convert template stored in different namespace into a resource list
+		oc process openshift//foo
 
-	  # Convert template.json into resource list
-	  cat template.json | %[1]s process -f -`)
+		# Convert template.json into resource list
+		cat template.json | oc process -f -
+	`)
 )
 
 type ProcessOptions struct {
@@ -118,14 +120,14 @@ func NewProcessOptions(streams genericclioptions.IOStreams) *ProcessOptions {
 }
 
 // NewCmdProcess implements the OpenShift cli process command
-func NewCmdProcess(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProcess(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewProcessOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "process (TEMPLATE | -f FILENAME) [-p=KEY=VALUE]",
 		Short:   "Process a template into list of resources",
 		Long:    processLong,
-		Example: fmt.Sprintf(processExample, fullName),
+		Example: processExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate(cmd))

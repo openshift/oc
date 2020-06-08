@@ -60,10 +60,10 @@ func NewNewProjectOptions(streams genericclioptions.IOStreams) *NewProjectOption
 }
 
 // NewCmdNewProject implements the OpenShift cli new-project command
-func NewCmdNewProject(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdNewProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewNewProjectOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name + " NAME [--display-name=DISPLAYNAME] [--description=DESCRIPTION]",
+		Use:   "new-project NAME [--display-name=DISPLAYNAME] [--description=DESCRIPTION]",
 		Short: "Create a new project",
 		Long:  newProjectLong,
 		Run: func(cmd *cobra.Command, args []string) {

@@ -31,29 +31,31 @@ var (
 
 		The information required to login -- like username and password, a session token, or
 		the server details -- can be provided through flags. If not provided, the command will
-		prompt for user input as needed.`)
+		prompt for user input as needed.
+	`)
 
 	loginExample = templates.Examples(`
 		# Log in interactively
-	  %[1]s login
+		oc login
 
-	  # Log in to the given server with the given certificate authority file
-	  %[1]s login localhost:8443 --certificate-authority=/path/to/cert.crt
+		# Log in to the given server with the given certificate authority file
+		oc login localhost:8443 --certificate-authority=/path/to/cert.crt
 
-	  # Log in to the given server with the given credentials (will not prompt interactively)
-	  %[1]s login localhost:8443 --username=myuser --password=mypass`)
+		# Log in to the given server with the given credentials (will not prompt interactively)
+		oc login localhost:8443 --username=myuser --password=mypass
+	`)
 )
 
 // NewCmdLogin implements the OpenShift cli login command
-func NewCmdLogin(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewLoginOptions(streams)
 	cmds := &cobra.Command{
 		Use:     "login [URL]",
 		Short:   "Log in to a server",
 		Long:    loginLong,
-		Example: fmt.Sprintf(loginExample, fullName),
+		Example: loginExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(f, cmd, args, fullName))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate(cmd, kcmdutil.GetFlagString(cmd, "server"), args))
 
 			if err := o.Run(); kapierrors.IsUnauthorized(err) {
@@ -83,7 +85,7 @@ func NewCmdLogin(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	return cmds
 }
 
-func (o *LoginOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string, commandName string) error {
+func (o *LoginOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	kubeconfig, err := f.ToRawKubeConfigLoader().RawConfig()
 	o.StartingKubeConfig = &kubeconfig
 	if err != nil {
@@ -100,11 +102,6 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 		return err
 	}
 	o.RequestTimeout = timeout
-
-	o.CommandName = commandName
-	if o.CommandName == "" {
-		o.CommandName = "oc"
-	}
 
 	parsedDefaultClusterURL, err := url.Parse(defaultClusterURL)
 	if err != nil {
@@ -182,7 +179,7 @@ func (o LoginOptions) Run() error {
 	}
 
 	if newFileCreated {
-		fmt.Fprintf(o.Out, "Welcome! See '%s help' to get started.\n", o.CommandName)
+		fmt.Fprintf(o.Out, "Welcome! See 'oc help' to get started.\n")
 	}
 	return nil
 }

@@ -84,32 +84,34 @@ var (
 		resources that can be used to create pods (such as image stream tags).
 
 		The debug pod is deleted when the remote command completes or the user interrupts
-		the shell.`)
+		the shell.
+	`)
 
 	debugExample = templates.Examples(`
-	  # Debug a currently running deployment by creating a new pod
-		%[1]s deploy/test
+		# Debug a currently running deployment by creating a new pod
+		oc debug deploy/test
 
 		# Debug a node as an administrator
-		%[1]s node/master-1
+		oc debug node/master-1
 
 		# Launch a shell in a pod using the provided image stream tag
-		%[1]s istag/mysql:latest -n openshift
+		oc debug istag/mysql:latest -n openshift
 
-	  # Test running a job as a non-root user
-	  %[1]s job/test --as-user=1000000
+		# Test running a job as a non-root user
+		oc debug job/test --as-user=1000000
 
-	  # Debug a specific failing container by running the env command in the 'second' container
-	  %[1]s daemonset/test -c second -- /bin/env
+		# Debug a specific failing container by running the env command in the 'second' container
+		oc debug daemonset/test -c second -- /bin/env
 
-	  # See the pod that would be created to debug
-	  %[1]s mypod-9xbc -o yaml
+		# See the pod that would be created to debug
+		oc debug mypod-9xbc -o yaml
 
-	  # Debug a resource but launch the debug pod in another namespace.
-	  # Note: Not all resources can be debugged using --to-namespace without modification. For example,
-	  # volumes and serviceaccounts are namespace-dependent. Add '-o yaml' to output the debug pod definition
-	  # to disk.  If necessary, edit the definition then run 'oc debug -f -' or run without --to-namespace.
-	  %[1]s mypod-9xbc --to-namespace testns`)
+		# Debug a resource but launch the debug pod in another namespace.
+		# Note: Not all resources can be debugged using --to-namespace without modification. For example,
+		# volumes and serviceaccounts are namespace-dependent. Add '-o yaml' to output the debug pod definition
+		# to disk.  If necessary, edit the definition then run 'oc debug -f -' or run without --to-namespace.
+		oc debug mypod-9xbc --to-namespace testns
+	`)
 )
 
 type DebugOptions struct {
@@ -178,13 +180,13 @@ func NewDebugOptions(streams genericclioptions.IOStreams) *DebugOptions {
 }
 
 // NewCmdDebug creates a command for debugging pods.
-func NewCmdDebug(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewDebugOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "debug RESOURCE/NAME [ENV1=VAL1 ...] [-c CONTAINER] [flags] [-- COMMAND]",
 		Short:   "Launch a new instance of a pod for debugging",
 		Long:    debugLong,
-		Example: fmt.Sprintf(debugExample, fmt.Sprintf("%s debug", fullName)),
+		Example: debugExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, f, args))
 			kcmdutil.CheckErr(o.Validate())

@@ -21,11 +21,13 @@ var (
 	deploymentConfigLong = templates.LongDesc(`
 		Create a deployment config that uses a given image.
 
-		Deployment configs define the template for a pod and manages deploying new images or configuration changes.`)
+		Deployment configs define the template for a pod and manages deploying new images or configuration changes.
+	`)
 
 	deploymentConfigExample = templates.Examples(`
 		# Create an nginx deployment config named my-nginx
-		oc create deploymentconfig my-nginx --image=nginx`)
+		oc create deploymentconfig my-nginx --image=nginx
+	`)
 )
 
 type CreateDeploymentConfigOptions struct {

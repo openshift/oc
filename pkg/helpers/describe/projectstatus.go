@@ -77,8 +77,6 @@ type ProjectStatusDescriber struct {
 	Server        string
 	Suggest       bool
 
-	// root command used when calling this command
-	CommandBaseName    string
 	RequestedNamespace string
 	CurrentNamespace   string
 
@@ -205,7 +203,7 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 			// the user has not created any projects, and is therefore using a
 			// default namespace that they cannot list projects from.
 			if kapierrors.IsForbidden(err) && len(d.RequestedNamespace) == 0 && len(d.CurrentNamespace) == 0 {
-				return loginerrors.NoProjectsExistMessage(d.CanRequestProjects, d.CommandBaseName), nil
+				return loginerrors.NoProjectsExistMessage(d.CanRequestProjects), nil
 			}
 			if !kapierrors.IsNotFound(err) {
 				return "", err
@@ -550,14 +548,14 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 
 		switch {
 		case !d.Suggest && ((len(errorMarkers) > 0 && errorSuggestions > 0) || len(warningMarkers) > 0 || len(infoMarkers) > 0):
-			fmt.Fprintf(out, "%s identified, use '%s status --suggest' to see details.\n", markerString, d.CommandBaseName)
+			fmt.Fprintf(out, "%s identified, use 'oc status --suggest' to see details.\n", markerString)
 
 		case (len(services) == 0) && (len(standaloneDCs) == 0) && (len(standaloneImages) == 0):
 			fmt.Fprintln(out, "You have no services, deployment configs, or build configs.")
-			fmt.Fprintf(out, "Run '%[1]s new-app' to create an application.\n", d.CommandBaseName)
+			fmt.Fprintf(out, "Run 'oc new-app' to create an application.\n")
 
 		default:
-			fmt.Fprintf(out, "View details with '%[1]s describe <resource>/<name>' or list everything with '%[1]s get all'.\n", d.CommandBaseName)
+			fmt.Fprintf(out, "View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.\n")
 		}
 
 		return nil

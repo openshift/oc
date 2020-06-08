@@ -19,32 +19,32 @@ import (
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 )
 
-const AddRecommendedName = "add-users"
-
 var (
 	addLong = templates.LongDesc(`
 		Add users to a group.
 
-		This command will append unique users to the list of members for a group.`)
+		This command will append unique users to the list of members for a group.
+	`)
 
 	addExample = templates.Examples(`
 		# Add user1 and user2 to my-group
-	%[1]s my-group user1 user2`)
+		oc adm groups add-users my-group user1 user2
+	`)
 )
 
 type AddUsersOptions struct {
 	GroupModificationOptions *GroupModificationOptions
 }
 
-func NewCmdAddUsers(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddUsers(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &AddUsersOptions{
 		GroupModificationOptions: NewGroupModificationOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     name + " GROUP USER [USER ...]",
+		Use:     "add-users GROUP USER [USER ...]",
 		Short:   "Add users to a group",
 		Long:    addLong,
-		Example: fmt.Sprintf(addExample, fullName),
+		Example: addExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())

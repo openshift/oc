@@ -57,14 +57,16 @@ var (
 		name, this command will accept that context name instead.
 
 		For advanced configuration, or to manage the contents of your config file, use the 'config'
-		command.`)
+		command.
+	`)
 
 	projectExample = templates.Examples(`
 		# Switch to 'myapp' project
-		%[1]s project myapp
+		oc project myapp
 
 		# Display the project currently in use
-		%[1]s project`)
+		oc project
+	`)
 )
 
 func NewProjectOptions(streams genericclioptions.IOStreams) *ProjectOptions {
@@ -74,13 +76,13 @@ func NewProjectOptions(streams genericclioptions.IOStreams) *ProjectOptions {
 }
 
 // NewCmdProject implements the OpenShift cli rollback command
-func NewCmdProject(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewProjectOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "project [NAME]",
 		Short:   "Switch to another project",
 		Long:    projectLong,
-		Example: fmt.Sprintf(projectExample, fullName),
+		Example: projectExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			o.PathOptions = cliconfig.NewPathOptions(cmd)
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

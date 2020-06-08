@@ -10,10 +10,10 @@ import (
 const CertRecommendedName = "ca"
 
 // NewCmdCert implements the OpenShift cli ca command
-func NewCmdCert(name, fullName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCert(streams genericclioptions.IOStreams) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
-		Use:        name,
+		Use:        "ca",
 		Long:       "Manage certificates and keys",
 		Short:      "",
 		Run:        cmdutil.DefaultSubCommandRun(streams.ErrOut),
@@ -22,8 +22,8 @@ func NewCmdCert(name, fullName string, streams genericclioptions.IOStreams) *cob
 	}
 
 	subCommands := []*cobra.Command{
-		NewCommandEncrypt(EncryptCommandName, fullName+" "+EncryptCommandName, streams),
-		NewCommandDecrypt(DecryptCommandName, fullName+" "+DecryptCommandName, fullName+" "+EncryptCommandName, streams),
+		NewCommandEncrypt(streams),
+		NewCommandDecrypt(streams),
 	}
 
 	for _, cmd := range subCommands {

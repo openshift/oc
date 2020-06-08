@@ -44,17 +44,18 @@ var (
 		Experimental: This command is under active development and may change without notice.`)
 
 	dataExample = templates.Examples(`
-	  # Set the 'password' key of a secret
-	  %[1]s data secret/foo password=this_is_secret
+		# Set the 'password' key of a secret
+		oc set data secret/foo password=this_is_secret
 
-	  # Remove the 'password' key from a secret
-	  %[1]s data secret/foo password-
+		# Remove the 'password' key from a secret
+		oc set data secret/foo password-
 
-	  # Update the 'haproxy.conf' key of a config map from a file on disk
-	  %[1]s data configmap/bar --from-file=../haproxy.conf
+		# Update the 'haproxy.conf' key of a config map from a file on disk
+		oc set data configmap/bar --from-file=../haproxy.conf
 
-	  # Update a secret with the contents of a directory, one key per file
-	  %[1]s data secret/foo --from-file=secret-dir`)
+		# Update a secret with the contents of a directory, one key per file
+		oc set data secret/foo --from-file=secret-dir
+	`)
 )
 
 type DataOptions struct {
@@ -99,13 +100,13 @@ func NewDataOptions(streams genericclioptions.IOStreams) *DataOptions {
 }
 
 // NewCmdData implements the set data command
-func NewCmdData(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdData(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewDataOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "data RESOURCE/NAME [KEY=VALUE|KEY- ...] [--from-file=file|dir|key=path]",
 		Short:   "Update the data within a config map or secret",
 		Long:    dataLong,
-		Example: fmt.Sprintf(dataExample, fullName),
+		Example: dataExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

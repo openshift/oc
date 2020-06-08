@@ -30,25 +30,27 @@ var (
 		the logs for a particular version of it via --version.
 
 		If your pod is failing to start, you may need to use the --previous option to see the
-		logs of the last attempt.`)
+		logs of the last attempt.
+	`)
 
 	logsExample = templates.Examples(`
 		# Start streaming the logs of the most recent build of the openldap build config.
-	  %[1]s logs -f bc/openldap
+		oc logs -f bc/openldap
 
-	  # Start streaming the logs of the latest deployment of the mysql deployment config.
-	  %[1]s logs -f dc/mysql
+		# Start streaming the logs of the latest deployment of the mysql deployment config.
+		oc logs -f dc/mysql
 
-	  # Get the logs of the first deployment for the mysql deployment config. Note that logs
-	  # from older deployments may not exist either because the deployment was successful
-	  # or due to deployment pruning or manual deletion of the deployment.
-	  %[1]s logs --version=1 dc/mysql
+		# Get the logs of the first deployment for the mysql deployment config. Note that logs
+		# from older deployments may not exist either because the deployment was successful
+		# or due to deployment pruning or manual deletion of the deployment.
+		oc logs --version=1 dc/mysql
 
-	  # Return a snapshot of ruby-container logs from pod backend.
-	  %[1]s logs backend -c ruby-container
+		# Return a snapshot of ruby-container logs from pod backend.
+		oc logs backend -c ruby-container
 
-	  # Start streaming of ruby-container logs from pod backend.
-	  %[1]s logs -f pod/backend -c ruby-container`)
+		# Start streaming of ruby-container logs from pod backend.
+		oc logs -f pod/backend -c ruby-container
+	`)
 )
 
 // LogsOptions holds all the necessary options for running oc logs.
@@ -70,13 +72,13 @@ func NewLogsOptions(streams genericclioptions.IOStreams) *LogsOptions {
 }
 
 // NewCmdLogs creates a new logs command that supports OpenShift resources.
-func NewCmdLogs(baseName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewLogsOptions(streams)
 	cmd := &cobra.Command{
 		Use:        "logs [-f] [-p] (POD | TYPE/NAME) [-c CONTAINER]",
 		Short:      "Print the logs for a container in a pod",
 		Long:       logsLong,
-		Example:    fmt.Sprintf(logsExample, baseName),
+		Example:    logsExample,
 		SuggestFor: []string{"builds", "deployments"},
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

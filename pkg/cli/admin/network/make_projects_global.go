@@ -14,20 +14,20 @@ import (
 	"github.com/openshift/library-go/pkg/network/networkutils"
 )
 
-const MakeGlobalProjectsNetworkCommandName = "make-projects-global"
-
 var (
 	makeGlobalProjectsNetworkLong = templates.LongDesc(`
 		Make project network global
 
-		Allows projects to access all pods in the cluster and vice versa when using the %[1]s network plugin.`)
+		Allows projects to access all pods in the cluster and vice versa when using the %[1]s network plugin.
+	`)
 
 	makeGlobalProjectsNetworkExample = templates.Examples(`
 		# Allow project p1 to access all pods in the cluster and vice versa
-		%[1]s <p1>
+		oc adm pod-network make-projects-global <p1>
 
 		# Allow all projects with label name=share to access all pods in the cluster and vice versa
-		%[1]s --selector='name=share'`)
+		oc adm pod-network make-projects-global --selector='name=share'
+	`)
 )
 
 type MakeGlobalOptions struct {
@@ -40,13 +40,13 @@ func NewMakeGlobalOptions(streams genericclioptions.IOStreams) *MakeGlobalOption
 	}
 }
 
-func NewCmdMakeGlobalProjectsNetwork(commandName, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMakeGlobalProjectsNetwork(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMakeGlobalOptions(streams)
 	cmd := &cobra.Command{
-		Use:     commandName,
+		Use:     "make-projects-global",
 		Short:   "Make project network global",
 		Long:    fmt.Sprintf(makeGlobalProjectsNetworkLong, networkutils.MultiTenantPluginName),
-		Example: fmt.Sprintf(makeGlobalProjectsNetworkExample, fullName),
+		Example: makeGlobalProjectsNetworkExample,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())

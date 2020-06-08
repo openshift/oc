@@ -25,11 +25,13 @@ var (
 		be created manually.
 
 		Corresponding identity and useridentitymapping objects must also be created
-		to allow logging in as the created user.`)
+		to allow logging in as the created user.
+	`)
 
 	userExample = templates.Examples(`
 		# Create a user with the username "ajones" and the display name "Adam Jones"
-		oc create user ajones --full-name="Adam Jones"`)
+		oc create user ajones --full-name="Adam Jones"
+	`)
 )
 
 type CreateUserOptions struct {

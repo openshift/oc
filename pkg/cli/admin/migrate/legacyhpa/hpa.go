@@ -46,10 +46,11 @@ var (
 
 	internalMigrateLegacyHPAExample = templates.Examples(`
 		# Perform a dry-run of updating all objects
-	  %[1]s
+		oc adm migrate legacy-hpa
 
-	  # To actually perform the update, the confirm flag must be appended
-	  %[1]s --confirm`)
+		# To actually perform the update, the confirm flag must be appended
+		oc adm migrate legacy-hpa --confirm
+	`)
 )
 
 func prettyPrintMigrations(versionKinds map[metav1.TypeMeta]metav1.TypeMeta) string {
@@ -80,16 +81,16 @@ func NewMigrateLegacyHPAOptions(streams genericclioptions.IOStreams) *MigrateLeg
 }
 
 // NewCmdMigrateLegacyAPI implements a MigrateLegacyHPA command
-func NewCmdMigrateLegacyHPA(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMigrateLegacyHPA(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateLegacyHPAOptions(streams)
 	cmd := &cobra.Command{
-		Use:        name,
+		Use:        "legacy-hpa",
 		Short:      "Update HPAs to point to the latest group-version-kinds",
 		Long:       internalMigrateLegacyHPALong,
-		Example:    fmt.Sprintf(internalMigrateLegacyHPAExample, fullName),
+		Example:    internalMigrateLegacyHPAExample,
 		Deprecated: "migration of content is managed automatically in OpenShift 4.x",
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(name, f, cmd, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -99,9 +100,9 @@ func NewCmdMigrateLegacyHPA(name, fullName string, f kcmdutil.Factory, streams g
 	return cmd
 }
 
-func (o *MigrateLegacyHPAOptions) Complete(name string, f kcmdutil.Factory, c *cobra.Command, args []string) error {
+func (o *MigrateLegacyHPAOptions) Complete(f kcmdutil.Factory, c *cobra.Command, args []string) error {
 	if len(args) != 0 {
-		return fmt.Errorf("%s takes no positional arguments", name)
+		return fmt.Errorf("oc adm migrate legacy-hpa takes no positional arguments")
 	}
 
 	o.ResourceOptions.SaveFn = o.save

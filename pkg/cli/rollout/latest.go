@@ -36,11 +36,11 @@ var (
 		your image change triggers.`)
 
 	rolloutLatestExample = templates.Examples(`
-	# Start a new rollout based on the latest images defined in the image change triggers.
-	%[1]s rollout latest dc/nginx
+		# Start a new rollout based on the latest images defined in the image change triggers.
+		oc rollout latest dc/nginx
 
-	# Print the rolled out deployment config
-	%[1]s rollout latest dc/nginx -o json`)
+		# Print the rolled out deployment config
+		oc rollout latest dc/nginx -o json`)
 )
 
 // RolloutLatestOptions holds all the options for the `rollout latest` command.
@@ -71,14 +71,14 @@ func NewRolloutLatestOptions(streams genericclioptions.IOStreams) *RolloutLatest
 }
 
 // NewCmdRolloutLatest implements the oc rollout latest subcommand.
-func NewCmdRolloutLatest(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutLatest(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRolloutLatestOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "latest DEPLOYMENTCONFIG",
 		Short:   "Start a new rollout for a deployment config with the latest state from its triggers",
 		Long:    rolloutLatestLong,
-		Example: fmt.Sprintf(rolloutLatestExample, fullName),
+		Example: rolloutLatestExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.RunRolloutLatest())

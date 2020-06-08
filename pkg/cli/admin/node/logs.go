@@ -41,18 +41,18 @@ var (
 		administrators. The system:node-admins role grants this permission by default.
 		You check who has that permission via:
 
-		    $ oc adm policy who-can --all-namespaces get nodes/log
-		`)
+		oc adm policy who-can --all-namespaces get nodes/log
+	`)
 
 	logsExample = templates.Examples(`
 		# Show kubelet logs from all masters
-		%[1]s node-logs --role master -u kubelet
+		oc adm node-logs node-logs --role master -u kubelet
 
 		# See what logs are available in masters in /var/logs
-		%[1]s node-logs --role master --path=/
+		oc adm node-logs node-logs --role master --path=/
 
 		# Display cron log file from all masters
-		%[1]s node-logs --role master --path=cron
+		oc adm node-logs node-logs --role master --path=cron
 	`)
 )
 
@@ -95,14 +95,14 @@ func NewLogsOptions(streams genericclioptions.IOStreams) *LogsOptions {
 }
 
 // NewCmdLogs creates a new logs command that supports OpenShift resources.
-func NewCmdLogs(baseName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewLogsOptions(streams)
 	cmd := &cobra.Command{
 		Use:                   "node-logs [-l LABELS] [NODE...]",
 		DisableFlagsInUseLine: true,
 		Short:                 "Display and filter node logs",
 		Long:                  logsLong,
-		Example:               fmt.Sprintf(logsExample, baseName),
+		Example:               logsExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

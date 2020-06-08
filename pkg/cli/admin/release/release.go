@@ -8,7 +8,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-func NewCmd(f kcmdutil.Factory, parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "release",
 		Short: "Tools for managing the OpenShift release process",
@@ -20,9 +20,9 @@ func NewCmd(f kcmdutil.Factory, parentName string, streams genericclioptions.IOS
 			registries.
 			`),
 	}
-	cmd.AddCommand(NewInfo(f, parentName+" release", streams))
-	cmd.AddCommand(NewRelease(f, parentName+" release", streams))
-	cmd.AddCommand(NewExtract(f, parentName+" release", streams))
-	cmd.AddCommand(NewMirror(f, parentName+" release", streams))
+	cmd.AddCommand(NewInfo(f, streams))
+	cmd.AddCommand(NewRelease(f, streams))
+	cmd.AddCommand(NewExtract(f, streams))
+	cmd.AddCommand(NewMirror(f, streams))
 	return cmd
 }

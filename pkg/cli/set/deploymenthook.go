@@ -50,14 +50,15 @@ var (
 
 	deploymentHookExample = templates.Examples(`
 		# Clear pre and post hooks on a deployment config
-	  %[1]s deployment-hook dc/myapp --remove --pre --post
+		oc set deployment-hook dc/myapp --remove --pre --post
 
-	  # Set the pre deployment hook to execute a db migration command for an application
-	  # using the data volume from the application
-	  %[1]s deployment-hook dc/myapp --pre --volumes=data -- /var/lib/migrate-db.sh
+		# Set the pre deployment hook to execute a db migration command for an application
+		# using the data volume from the application
+		oc set deployment-hook dc/myapp --pre --volumes=data -- /var/lib/migrate-db.sh
 
-	  # Set a mid deployment hook along with additional environment variables
-	  %[1]s deployment-hook dc/myapp --mid --volumes=data -e VAR1=value1 -e VAR2=value2 -- /var/lib/prepare-deploy.sh`)
+		# Set a mid deployment hook along with additional environment variables
+		oc set deployment-hook dc/myapp --mid --volumes=data -e VAR1=value1 -e VAR2=value2 -- /var/lib/prepare-deploy.sh
+	`)
 )
 
 type DeploymentHookOptions struct {
@@ -99,13 +100,13 @@ func NewDeploymentHookOptions(streams genericclioptions.IOStreams) *DeploymentHo
 }
 
 // NewCmdDeploymentHook implements the set deployment-hook command
-func NewCmdDeploymentHook(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDeploymentHook(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewDeploymentHookOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "deployment-hook DEPLOYMENTCONFIG --pre|--post|--mid -- CMD",
 		Short:   "Update a deployment hook on a deployment config",
 		Long:    deploymentHookLong,
-		Example: fmt.Sprintf(deploymentHookExample, fullName),
+		Example: deploymentHookExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

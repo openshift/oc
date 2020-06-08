@@ -1,8 +1,6 @@
 package rollout
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/rollout"
@@ -33,7 +31,7 @@ var (
 )
 
 // NewCmdRollout facilitates kubectl rollout subcommands
-func NewCmdRollout(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRollout(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rollout SUBCOMMAND",
 		Short: "Manage a Kubernetes deployment or OpenShift deployment config",
@@ -42,15 +40,15 @@ func NewCmdRollout(fullName string, f kcmdutil.Factory, streams genericclioption
 	}
 
 	// subcommands
-	cmd.AddCommand(NewCmdRolloutHistory(fullName, f, streams))
-	cmd.AddCommand(NewCmdRolloutPause(fullName, f, streams))
-	cmd.AddCommand(NewCmdRolloutResume(fullName, f, streams))
-	cmd.AddCommand(NewCmdRolloutUndo(fullName, f, streams))
-	cmd.AddCommand(NewCmdRolloutLatest(fullName, f, streams))
-	cmd.AddCommand(NewCmdRolloutStatus(fullName, f, streams))
-	cmd.AddCommand(NewCmdRolloutCancel(fullName, f, streams))
-	cmd.AddCommand(NewCmdRolloutRetry(fullName, f, streams))
-	cmd.AddCommand(cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(rollout.NewCmdRolloutRestart(f, streams))))
+	cmd.AddCommand(NewCmdRolloutHistory(f, streams))
+	cmd.AddCommand(NewCmdRolloutPause(f, streams))
+	cmd.AddCommand(NewCmdRolloutResume(f, streams))
+	cmd.AddCommand(NewCmdRolloutUndo(f, streams))
+	cmd.AddCommand(NewCmdRolloutLatest(f, streams))
+	cmd.AddCommand(NewCmdRolloutStatus(f, streams))
+	cmd.AddCommand(NewCmdRolloutCancel(f, streams))
+	cmd.AddCommand(NewCmdRolloutRetry(f, streams))
+	cmd.AddCommand(cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(rollout.NewCmdRolloutRestart(f, streams))))
 
 	return cmd
 }
@@ -64,17 +62,17 @@ var (
 
 	rolloutHistoryExample = templates.Examples(`
 		# View the rollout history of a deployment
-	  %[1]s rollout history dc/nginx
+		oc rollout history dc/nginx
 
 	  # View the details of deployment revision 3
-	  %[1]s rollout history dc/nginx --revision=3`)
+		oc rollout history dc/nginx --revision=3`)
 )
 
 // NewCmdRolloutHistory is a wrapper for the Kubernetes cli rollout history command
-func NewCmdRolloutHistory(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutHistory(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := rollout.NewCmdRolloutHistory(f, streams)
 	cmd.Long = rolloutHistoryLong
-	cmd.Example = fmt.Sprintf(rolloutHistoryExample, fullName)
+	cmd.Example = rolloutHistoryExample
 	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
 	return cmd
 }
@@ -84,20 +82,20 @@ var (
     Mark the provided resource as paused
 
     Paused resources will not be reconciled by a controller.
-    Use \"%[1]s rollout resume\" to resume a paused resource.`)
+    Use \"oc rollout resume\" to resume a paused resource.`)
 
 	rolloutPauseExample = templates.Examples(`
     # Mark the nginx deployment as paused. Any current state of
     # the deployment will continue its function, new updates to the deployment will not
     # have an effect as long as the deployment is paused.
-    %[1]s rollout pause dc/nginx`)
+    oc rollout pause dc/nginx`)
 )
 
 // NewCmdRolloutPause is a wrapper for the Kubernetes cli rollout pause command
-func NewCmdRolloutPause(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutPause(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := rollout.NewCmdRolloutPause(f, streams)
 	cmd.Long = rolloutPauseLong
-	cmd.Example = fmt.Sprintf(rolloutPauseExample, fullName)
+	cmd.Example = rolloutPauseExample
 	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
 	return cmd
 }
@@ -111,14 +109,14 @@ var (
 
 	rolloutResumeExample = templates.Examples(`
     # Resume an already paused deployment
-    %[1]s rollout resume dc/nginx`)
+    oc rollout resume dc/nginx`)
 )
 
 // NewCmdRolloutResume is a wrapper for the Kubernetes cli rollout resume command
-func NewCmdRolloutResume(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutResume(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := rollout.NewCmdRolloutResume(f, streams)
 	cmd.Long = rolloutResumeLong
-	cmd.Example = fmt.Sprintf(rolloutResumeExample, fullName)
+	cmd.Example = rolloutResumeExample
 	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
 	return cmd
 }
@@ -146,17 +144,17 @@ var (
 
 	rolloutUndoExample = templates.Examples(`
     # Rollback to the previous deployment
-    %[1]s rollout undo dc/nginx
+    oc rollout undo dc/nginx
 
     # Rollback to deployment revision 3. The replication controller for that version must exist.
-    %[1]s rollout undo dc/nginx --to-revision=3`)
+    oc rollout undo dc/nginx --to-revision=3`)
 )
 
 // NewCmdRolloutUndo is a wrapper for the Kubernetes cli rollout undo command
-func NewCmdRolloutUndo(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutUndo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := rollout.NewCmdRolloutUndo(f, streams)
 	cmd.Long = rolloutUndoLong
-	cmd.Example = fmt.Sprintf(rolloutUndoExample, fullName)
+	cmd.Example = rolloutUndoExample
 	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
 	return cmd
 }
@@ -167,13 +165,13 @@ var (
 
 	rolloutStatusExample = templates.Examples(`
 		# Watch the status of the latest rollout
-  	%[1]s rollout status dc/nginx`)
+		oc rollout status dc/nginx`)
 )
 
 // NewCmdRolloutStatus is a wrapper for the Kubernetes cli rollout status command
-func NewCmdRolloutStatus(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutStatus(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := rollout.NewCmdRolloutStatus(f, streams)
 	cmd.Long = rolloutStatusLong
-	cmd.Example = fmt.Sprintf(rolloutStatusExample, fullName)
+	cmd.Example = rolloutStatusExample
 	return cmd
 }

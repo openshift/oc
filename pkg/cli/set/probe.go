@@ -53,26 +53,27 @@ var (
 		to fail.`)
 
 	probeExample = templates.Examples(`
-	  # Clear both readiness and liveness probes off all containers
-	  %[1]s probe dc/myapp --remove --readiness --liveness
+		# Clear both readiness and liveness probes off all containers
+		oc set probe dc/myapp --remove --readiness --liveness
 
-	  # Set an exec action as a liveness probe to run 'echo ok'
-	  %[1]s probe dc/myapp --liveness -- echo ok
+		# Set an exec action as a liveness probe to run 'echo ok'
+		oc set probe dc/myapp --liveness -- echo ok
 
-	  # Set a readiness probe to try to open a TCP socket on 3306
-	  %[1]s probe rc/mysql --readiness --open-tcp=3306
+		# Set a readiness probe to try to open a TCP socket on 3306
+		oc set probe rc/mysql --readiness --open-tcp=3306
 
-	  # Set an HTTP startup probe for port 8080 and path /healthz over HTTP on the pod IP
-	  %[1]s probe dc/webapp --startup --get-url=http://:8080/healthz
+		# Set an HTTP startup probe for port 8080 and path /healthz over HTTP on the pod IP
+		oc probe dc/webapp --startup --get-url=http://:8080/healthz
 
-	  # Set an HTTP readiness probe for port 8080 and path /healthz over HTTP on the pod IP
-	  %[1]s probe dc/webapp --readiness --get-url=http://:8080/healthz
+		# Set an HTTP readiness probe for port 8080 and path /healthz over HTTP on the pod IP
+		oc probe dc/webapp --readiness --get-url=http://:8080/healthz
 
-	  # Set an HTTP readiness probe over HTTPS on 127.0.0.1 for a hostNetwork pod
-	  %[1]s probe dc/router --readiness --get-url=https://127.0.0.1:1936/stats
+		# Set an HTTP readiness probe over HTTPS on 127.0.0.1 for a hostNetwork pod
+		oc set probe dc/router --readiness --get-url=https://127.0.0.1:1936/stats
 
-	  # Set only the initial-delay-seconds field on all deployments
-	  %[1]s probe dc --all --readiness --initial-delay-seconds=30`)
+		# Set only the initial-delay-seconds field on all deployments
+		oc set probe dc --all --readiness --initial-delay-seconds=30
+	`)
 )
 
 type ProbeOptions struct {
@@ -130,13 +131,13 @@ func NewProbeOptions(streams genericclioptions.IOStreams) *ProbeOptions {
 }
 
 // NewCmdProbe implements the set probe command
-func NewCmdProbe(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProbe(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewProbeOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "probe RESOURCE/NAME --readiness|--liveness [flags] (--get-url=URL|--open-tcp=PORT|-- CMD)",
 		Short:   "Update a probe on a pod template",
 		Long:    probeLong,
-		Example: fmt.Sprintf(probeExample, fullName),
+		Example: probeExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

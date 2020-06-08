@@ -49,7 +49,7 @@ type dockerGCConfigCmdOptions struct {
 }
 
 var (
-	dockerGC_long = templates.LongDesc(`
+	dockerGCLong = templates.LongDesc(`
 		Perform garbage collection to free space in docker storage
 
 		If the OpenShift node is configured to use a container runtime other than docker,
@@ -58,14 +58,16 @@ var (
 
 		This utility allows garbage collection to do be done on the docker storage.
 
-		Only the overlay2 docker storage driver is supported at this time.`)
+		Only the overlay2 docker storage driver is supported at this time.
+	`)
 
-	dockerGC_example = templates.Examples(`
-	  # Perform garbage collection with the default settings
-	  %[1]s %[2]s`)
+	dockerGCExample = templates.Examples(`
+		# Perform garbage collection with the default settings
+		oc ex dockergc
+	`)
 )
 
-func NewCmdDockerGCConfig(f kcmdutil.Factory, parentName, name string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDockerGCConfig(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	options := &dockerGCConfigCmdOptions{
 		DryRun:                      false,
 		MinimumGCAge:                DefaultMinimumGCAge,
@@ -73,10 +75,10 @@ func NewCmdDockerGCConfig(f kcmdutil.Factory, parentName, name string, streams g
 		ImageGCLowThresholdPercent:  DefaultImageGCLowThresholdPercent,
 	}
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s [NAME]", name),
+		Use:     "dockergc [NAME]",
 		Short:   "Perform garbage collection to free space in docker storage",
-		Long:    dockerGC_long,
-		Example: fmt.Sprintf(dockerGC_example, parentName, name),
+		Long:    dockerGCLong,
+		Example: dockerGCExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			err := Run(f, options, cmd, args)
 			if err == kcmdutil.ErrExit {
