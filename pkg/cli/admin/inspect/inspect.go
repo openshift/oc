@@ -122,6 +122,9 @@ func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	// we make lots and lots of client calls, don't slow down artificially.
+	o.restConfig.QPS = 999999
+	o.restConfig.Burst = 999999
 
 	o.kubeClient, err = kubernetes.NewForConfig(o.restConfig)
 	if err != nil {
@@ -211,8 +214,12 @@ func (o *InspectOptions) Run() error {
 		}
 	}
 
-	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.destDir)
+	// now gather all the events into a single file and produce a unified file
+	if err := CreateEventFilterPage(o.destDir); err != nil {
+		allErrs = append(allErrs, err)
+	}
 
+	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.destDir)
 	if len(allErrs) > 0 {
 		return fmt.Errorf("errors ocurred while gathering data:\n    %v", errors.NewAggregate(allErrs))
 	}
