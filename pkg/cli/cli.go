@@ -21,7 +21,6 @@ import (
 
 	"github.com/openshift/oc/pkg/cli/admin"
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
-	"github.com/openshift/oc/pkg/cli/admin/groups/sync"
 	"github.com/openshift/oc/pkg/cli/cancelbuild"
 	"github.com/openshift/oc/pkg/cli/debug"
 	"github.com/openshift/oc/pkg/cli/deployer"
@@ -321,9 +320,6 @@ func newExperimentalCommand(f kcmdutil.Factory, ioStreams genericclioptions.IOSt
 	experimental.AddCommand(buildchain.NewCmdBuildChain(f, ioStreams))
 	experimental.AddCommand(options.NewCmdOptions(ioStreams))
 
-	// these groups also live under `oc adm groups {sync,prune}` and are here only for backwards compatibility
-	experimental.AddCommand(sync.NewCmdSync(f, ioStreams))
-	experimental.AddCommand(sync.NewCmdPrune(f, ioStreams))
 	return experimental
 }
 
