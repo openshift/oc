@@ -2,7 +2,6 @@ package create
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -10,13 +9,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 )
-
-var DeploymentConfigRecommendedName = "deploymentconfig"
 
 var (
 	deploymentConfigLong = templates.LongDesc(`
@@ -26,7 +25,7 @@ var (
 
 	deploymentConfigExample = templates.Examples(`
 		# Create an nginx deployment config named my-nginx
-  	%[1]s my-nginx --image=nginx`)
+		oc create deploymentconfig my-nginx --image=nginx`)
 )
 
 type CreateDeploymentConfigOptions struct {
@@ -39,15 +38,15 @@ type CreateDeploymentConfigOptions struct {
 }
 
 // NewCmdCreateDeploymentConfig is a macro command to create a new deployment config.
-func NewCmdCreateDeploymentConfig(name, fullName string, f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateDeploymentConfig(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreateDeploymentConfigOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     name + " NAME --image=IMAGE -- [COMMAND] [args...]",
+		Use:     "deploymentconfig NAME --image=IMAGE -- [COMMAND] [args...]",
 		Short:   "Create deployment config with default options that uses a given image.",
 		Long:    deploymentConfigLong,
-		Example: fmt.Sprintf(deploymentConfigExample, fullName),
+		Example: deploymentConfigExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
 			cmdutil.CheckErr(o.Run())
@@ -57,7 +56,7 @@ func NewCmdCreateDeploymentConfig(name, fullName string, f genericclioptions.RES
 	cmd.Flags().StringVar(&o.Image, "image", o.Image, "The image for the container to run.")
 	cmd.MarkFlagRequired("image")
 
-	o.CreateSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateSubcommandOptions.AddFlags(cmd)
 	cmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -102,6 +101,10 @@ func (o *CreateDeploymentConfigOptions) Run() error {
 				},
 			},
 		},
+	}
+
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, deploymentConfig, scheme.DefaultJSONEncoder()); err != nil {
+		return err
 	}
 
 	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {

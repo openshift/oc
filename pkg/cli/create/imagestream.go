@@ -2,20 +2,19 @@ package create
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imagev1 "github.com/openshift/api/image/v1"
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 )
-
-const ImageStreamRecommendedName = "imagestream"
 
 var (
 	imageStreamLong = templates.LongDesc(`
@@ -32,7 +31,7 @@ var (
 
 	imageStreamExample = templates.Examples(`
 		# Create a new image stream
-  	%[1]s mysql`)
+		oc create imagestream mysql`)
 )
 
 type CreateImageStreamOptions struct {
@@ -44,15 +43,15 @@ type CreateImageStreamOptions struct {
 }
 
 // NewCmdCreateImageStream is a macro command to create a new image stream
-func NewCmdCreateImageStream(name, fullName string, f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateImageStream(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreateImageStreamOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     name + " NAME",
+		Use:     "imagestream NAME",
 		Short:   "Create a new empty image stream.",
 		Long:    imageStreamLong,
-		Example: fmt.Sprintf(imageStreamExample, fullName),
+		Example: imageStreamExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
 			cmdutil.CheckErr(o.Run())
@@ -61,7 +60,7 @@ func NewCmdCreateImageStream(name, fullName string, f genericclioptions.RESTClie
 	}
 	cmd.Flags().BoolVar(&o.LookupLocal, "lookup-local", o.LookupLocal, "If true, the image stream will be the source for any top-level image reference in this project.")
 
-	o.CreateSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateSubcommandOptions.AddFlags(cmd)
 	cmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -90,6 +89,10 @@ func (o *CreateImageStreamOptions) Run() error {
 				Local: o.LookupLocal,
 			},
 		},
+	}
+
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, imageStream, scheme.DefaultJSONEncoder()); err != nil {
+		return err
 	}
 
 	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {

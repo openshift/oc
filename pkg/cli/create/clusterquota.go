@@ -13,13 +13,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	quotav1 "github.com/openshift/api/quota/v1"
 	quotav1client "github.com/openshift/client-go/quota/clientset/versioned/typed/quota/v1"
 )
-
-const ClusterQuotaRecommendedName = "clusterresourcequota"
 
 var (
 	clusterQuotaLong = templates.LongDesc(`
@@ -29,7 +29,7 @@ var (
 
 	clusterQuotaExample = templates.Examples(`
 		# Create a cluster resource quota limited to 10 pods
-  	%[1]s limit-bob --project-annotation-selector=openshift.io/requester=user-bob --hard=pods=10`)
+		oc create clusterresourcequota limit-bob --project-annotation-selector=openshift.io/requester=user-bob --hard=pods=10`)
 )
 
 type CreateClusterQuotaOptions struct {
@@ -52,13 +52,13 @@ func NewCreateClusterQuotaOptions(streams genericclioptions.IOStreams) *CreateCl
 }
 
 // NewCmdCreateClusterQuota is a macro command to create a new cluster quota.
-func NewCmdCreateClusterQuota(name, fullName string, f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateClusterQuota(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCreateClusterQuotaOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name + " NAME --project-label-selector=key=value [--hard=RESOURCE=QUANTITY]...",
+		Use:     "clusterresourcequota NAME --project-label-selector=key=value [--hard=RESOURCE=QUANTITY]...",
 		Short:   "Create cluster resource quota resource.",
 		Long:    clusterQuotaLong,
-		Example: fmt.Sprintf(clusterQuotaExample, fullName),
+		Example: clusterQuotaExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
 			cmdutil.CheckErr(o.Run())
@@ -69,7 +69,7 @@ func NewCmdCreateClusterQuota(name, fullName string, f genericclioptions.RESTCli
 	cmd.Flags().StringVar(&o.AnnotationSelectorStr, "project-annotation-selector", o.AnnotationSelectorStr, "The project annotation selector for the cluster resource quota")
 	cmd.Flags().StringSliceVar(&o.Hard, "hard", o.Hard, "The resource to constrain: RESOURCE=QUANTITY (pods=10)")
 
-	o.CreateSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateSubcommandOptions.AddFlags(cmd)
 	cmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -127,6 +127,10 @@ func (o *CreateClusterQuotaOptions) Run() error {
 			return err
 		}
 		clusterQuota.Spec.Quota.Hard[corev1.ResourceName(tokens[0])] = quantity
+	}
+
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, clusterQuota, scheme.DefaultJSONEncoder()); err != nil {
+		return err
 	}
 
 	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {

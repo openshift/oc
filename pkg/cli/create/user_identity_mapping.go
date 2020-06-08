@@ -10,13 +10,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	userv1 "github.com/openshift/api/user/v1"
 	userv1client "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 )
-
-const UserIdentityMappingRecommendedName = "useridentitymapping"
 
 var (
 	userIdentityMappingLong = templates.LongDesc(`
@@ -27,7 +27,7 @@ var (
 
 	userIdentityMappingExample = templates.Examples(`
 		# Map the identity "acme_ldap:adamjones" to the user "ajones"
-  	%[1]s acme_ldap:adamjones ajones`)
+		oc acme_ldap:adamjones ajones`)
 )
 
 type CreateUserIdentityMappingOptions struct {
@@ -46,20 +46,20 @@ func NewCreateUserIdentityMappingOptions(streams genericclioptions.IOStreams) *C
 }
 
 // NewCmdCreateUserIdentityMapping is a macro command to create a new identity
-func NewCmdCreateUserIdentityMapping(name, fullName string, f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateUserIdentityMapping(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCreateUserIdentityMappingOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name + " <IDENTITY_NAME> <USER_NAME>",
+		Use:     "useridentitymapping <IDENTITY_NAME> <USER_NAME>",
 		Short:   "Manually map an identity to a user.",
 		Long:    userIdentityMappingLong,
-		Example: fmt.Sprintf(userIdentityMappingExample, fullName),
+		Example: userIdentityMappingExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
 
-	o.CreateSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateSubcommandOptions.AddFlags(cmd)
 	cmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -87,23 +87,7 @@ func (o *CreateUserIdentityMappingOptions) Complete(cmd *cobra.Command, f generi
 		return err
 	}
 
-	o.CreateSubcommandOptions.Namespace, o.CreateSubcommandOptions.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
-	if err != nil {
-		return err
-	}
-
-	o.CreateSubcommandOptions.DryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
-	if err != nil {
-		return err
-	}
-
-	cmdutil.PrintFlagsWithDryRunStrategy(o.CreateSubcommandOptions.PrintFlags, o.CreateSubcommandOptions.DryRunStrategy)
-	o.CreateSubcommandOptions.Printer, err = o.CreateSubcommandOptions.PrintFlags.ToPrinter()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return o.CreateSubcommandOptions.Complete(f, cmd, args)
 }
 
 func (o *CreateUserIdentityMappingOptions) Run() error {
@@ -112,6 +96,10 @@ func (o *CreateUserIdentityMappingOptions) Run() error {
 		TypeMeta: metav1.TypeMeta{APIVersion: userv1.SchemeGroupVersion.String(), Kind: "UserIdentityMapping"},
 		Identity: corev1.ObjectReference{Name: o.Identity},
 		User:     corev1.ObjectReference{Name: o.User},
+	}
+
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, mapping, scheme.DefaultJSONEncoder()); err != nil {
+		return err
 	}
 
 	var err error
