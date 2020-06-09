@@ -13,7 +13,7 @@ import (
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/diff"
-	"k8s.io/kubectl/pkg/cmd/kustomize"
+
 	"k8s.io/kubectl/pkg/cmd/plugin"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
@@ -229,7 +229,7 @@ func NewOcCommand(name string, in io.Reader, out, errout io.Writer) *cobra.Comma
 				kubectlwrappers.NewCmdApiResources(name, f, ioStreams),
 				kubectlwrappers.NewCmdClusterInfo(name, f, ioStreams),
 				diff.NewCmdDiff(f, ioStreams),
-				kustomize.NewCmdKustomize(ioStreams),
+				kubectlwrappers.NewCmdKustomize(name, ioStreams),
 			},
 		},
 		{

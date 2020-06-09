@@ -25,6 +25,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/exec"
 	"k8s.io/kubectl/pkg/cmd/explain"
 	kget "k8s.io/kubectl/pkg/cmd/get"
+	"k8s.io/kubectl/pkg/cmd/kustomize"
 	"k8s.io/kubectl/pkg/cmd/label"
 	"k8s.io/kubectl/pkg/cmd/patch"
 	"k8s.io/kubectl/pkg/cmd/plugin"
@@ -254,4 +255,8 @@ func NewCmdApiResources(fullName string, f kcmdutil.Factory, streams genericclio
 
 func NewCmdApiVersions(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(apiresources.NewCmdAPIVersions(f, streams)))
+}
+
+func NewCmdKustomize(fullName string, streams genericclioptions.IOStreams) *cobra.Command {
+	return cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(kustomize.NewCmdKustomize(streams)))
 }
