@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -184,12 +185,28 @@ func CreateEventFilterPage(rootDir string) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(filepath.Join(rootDir, "all-events.json"), unifiedEventBytes, 0644)
+
+	alleventsFile, err := os.OpenFile(filepath.Join(rootDir, "all-events.json.js"), os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer alleventsFile.Close()
+
+	_, err = alleventsFile.WriteString("var allEvents = ")
 	if err != nil {
 		return err
 	}
 
-	// TODO produce suresh's event filter file
+	_, err = alleventsFile.Write(bytes.ReplaceAll(unifiedEventBytes, []byte("\\\\n"), []byte("\\n+")))
+	if err != nil {
+		return err
+	}
+
+	// produce jqgrid based event filter file
+	err = ioutil.WriteFile(filepath.Join(rootDir, "event-filter.html"), eventFilterHtml, 0644)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
