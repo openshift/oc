@@ -396,21 +396,11 @@ func (o *ImageRetriever) Run() error {
 				allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {
-						var msg string
-						if len(o.Image) == 1 {
-							msg = "image does not exist or you don't have permission to access the repository"
-						} else {
-							msg = fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
-						}
+						msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
 						return callbackFn(name, nil, imagemanifest.NewImageForbidden(msg, err))
 					}
 					if imagemanifest.IsImageNotFound(err) {
-						var msg string
-						if len(o.Image) == 1 {
-							msg = "image does not exist"
-						} else {
-							msg = fmt.Sprintf("image %q does not exist", from)
-						}
+						msg := fmt.Sprintf("image %q does not exist", from)
 						return callbackFn(name, nil, imagemanifest.NewImageNotFound(msg, err))
 					}
 					return callbackFn(name, nil, fmt.Errorf("unable to read image %s: %v", from, err))
