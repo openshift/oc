@@ -93,6 +93,7 @@ func NewCommandCreateKubeConfig(commandName string, fullName string, streams gen
 				kcmdutil.CheckErr(err)
 			}
 		},
+		Deprecated: "and will be removed in the future version",
 	}
 
 	cmd.Flags().StringVar(&o.APIServerURL, "master", o.APIServerURL, "The API server's URL.")
