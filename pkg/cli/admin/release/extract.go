@@ -17,8 +17,10 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
+	"sigs.k8s.io/yaml"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -30,6 +32,19 @@ import (
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
 	"github.com/pkg/errors"
+)
+
+var (
+	credentialsRequestGVK = schema.GroupVersionKind{Group: "cloudcredential.openshift.io", Version: "v1", Kind: "CredentialsRequest"}
+
+	credRequestCloudProviderSpecKindMapping = map[string]string{
+		"aws":       "AWSProviderSpec",
+		"azure":     "AzureProviderSpec",
+		"openstack": "OpenStackProviderSpec",
+		"gcp":       "GCPProviderSpec",
+		"ovirt":     "OvirtProviderSpec",
+		"vsphere":   "VSphereProviderSpec",
+	}
 )
 
 // NewExtractOptions is also used internally as part of image mirroring. For image mirroring
@@ -64,6 +79,10 @@ func NewExtract(f kcmdutil.Factory, parentName string, streams genericclioptions
 			signed by the key. For more advanced signing use the generated sha256sum.txt and an
 			external tool like gpg.
 
+			The --credentials-requests flag filters extracted manifests to only cloud credential
+			requests. The --cloud flag further filters credential requests to a specific cloud.
+			Valid values for --cloud include aws, gcp, azure, openstack, ovirt, and vsphere.
+
 			Instead of extracting the manifests, you can specify --git=DIR to perform a Git
 			checkout of the source code that comprises the release. A warning will be printed
 			if the component is not associated with source code. The command will not perform
@@ -73,6 +92,9 @@ func NewExtract(f kcmdutil.Factory, parentName string, streams genericclioptions
 		Example: templates.Examples(fmt.Sprintf(`
 			# Use git to check out the source code for the current cluster release to DIR
 			%[1]s extract --git=DIR
+
+			# Extract cloud credential requests for AWS
+			%[1]s extract --credentials-requests --cloud=aws
 			`, parentName)),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -95,6 +117,9 @@ func NewExtract(f kcmdutil.Factory, parentName string, streams genericclioptions
 	flags.StringVar(&o.CommandOperatingSystem, "command-os", o.CommandOperatingSystem, "Override which operating system command is extracted (mac, windows, linux). You map specify '*' to extract all tool archives.")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
 
+	flags.BoolVar(&o.CredentialsRequests, "credentials-requests", o.CredentialsRequests, "Extract credential request manifests only")
+	flags.StringVar(&o.Cloud, "cloud", o.Cloud, "Specify the cloud for which credential request manifests should be extracted.")
+
 	flags.StringVarP(&o.Output, "output", "o", o.Output, "Output format. Supports 'commit' when used with '--git'.")
 	return cmd
 }
@@ -114,6 +139,11 @@ type ExtractOptions struct {
 	Command                string
 	CommandOperatingSystem string
 	SigningKey             string
+
+	// CredentialsRequests if true, results in only credential request manifests getting extracted.
+	// If Cloud is specified, then only the credential requests for that cloud are extracted.
+	CredentialsRequests bool
+	Cloud               string
 
 	// GitExtractDir is the path of a root directory to extract the source of a release to.
 	GitExtractDir string
@@ -153,6 +183,9 @@ func (o *ExtractOptions) Run() error {
 	if o.Tools {
 		sources++
 	}
+	if o.CredentialsRequests {
+		sources++
+	}
 	if len(o.File) > 0 {
 		sources++
 	}
@@ -167,9 +200,18 @@ func (o *ExtractOptions) Run() error {
 		return fmt.Errorf("--output is only supported with --git")
 	}
 
+	if !o.CredentialsRequests && len(o.Cloud) > 0 {
+		return fmt.Errorf("--cloud is only supported with --credentials-requests")
+	}
+	if len(o.Cloud) > 0 {
+		if _, ok := credRequestCloudProviderSpecKindMapping[o.Cloud]; !ok {
+			return fmt.Errorf("--cloud value not recognized, must be one of: %v", validCloudValues())
+		}
+	}
+
 	switch {
 	case sources > 1:
-		return fmt.Errorf("only one of --tools, --command, --file, or --git may be specified")
+		return fmt.Errorf("only one of --tools, --command, --credentials-requests, --file, or --git may be specified")
 	case len(o.From) == 0:
 		return fmt.Errorf("must specify an image containing a release payload with --from")
 	case o.Directory != "." && len(o.File) > 0:
@@ -294,6 +336,63 @@ func (o *ExtractOptions) Run() error {
 		}
 		return nil
 
+	case o.CredentialsRequests:
+		opts.OnlyFiles = true
+		opts.Mappings = []extract.Mapping{
+			{
+				ImageRef: ref,
+
+				From: "release-manifests/",
+				To:   dir,
+			},
+		}
+		expectedProviderSpecKind := ""
+		if len(o.Cloud) > 0 {
+			expectedProviderSpecKind = credRequestCloudProviderSpecKindMapping[o.Cloud]
+		}
+		opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
+			if ext := path.Ext(hdr.Name); len(ext) == 0 || !(ext == ".yaml" || ext == ".yml" || ext == ".json") {
+				return true, nil
+			}
+			klog.V(4).Infof("Found manifest %s", hdr.Name)
+			raw, err := ioutil.ReadAll(r)
+			if err != nil {
+				return false, errors.Wrapf(err, "error reading file %s", hdr.Name)
+			}
+			ms, err := manifest.ParseManifests(bytes.NewReader(raw))
+			if err != nil {
+				return false, errors.Wrapf(err, "error parsing %s", hdr.Name)
+			}
+			credRequestManifests := []manifest.Manifest{}
+			for _, m := range ms {
+				if m.GVK != credentialsRequestGVK {
+					continue
+				}
+				if len(expectedProviderSpecKind) > 0 {
+					kind, _, err := unstructured.NestedString(m.Obj.Object, "spec", "providerSpec", "kind")
+					if err != nil {
+						return false, errors.Wrap(err, "error extracting cred request kind")
+					}
+					if kind != expectedProviderSpecKind {
+						continue
+					}
+				}
+				credRequestManifests = append(credRequestManifests, m)
+			}
+			if len(credRequestManifests) == 0 {
+				return true, nil
+			}
+			for _, m := range credRequestManifests {
+				yamlBytes, err := yaml.JSONToYAML(m.Raw)
+				if err != nil {
+					return false, errors.Wrapf(err, "error serializing manifest in %s", hdr.Name)
+				}
+				fmt.Fprintf(o.Out, "---\n")
+				o.Out.Write(yamlBytes)
+			}
+			return true, nil
+		}
+		return opts.Run()
 	default:
 		opts.OnlyFiles = true
 		opts.Mappings = []extract.Mapping{
@@ -418,4 +517,12 @@ func (o *ExtractOptions) extractGit(dir string) error {
 		return kcmdutil.ErrExit
 	}
 	return nil
+}
+
+func validCloudValues() []string {
+	values := make([]string, 0, len(credRequestCloudProviderSpecKindMapping))
+	for k := range credRequestCloudProviderSpecKindMapping {
+		values = append(values, k)
+	}
+	return values
 }
