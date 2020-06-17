@@ -30,7 +30,7 @@ import (
 
 var (
 	probeLong = templates.LongDesc(`
-		Set or remove a liveness or readiness probe from a pod or pod template
+		Set or remove a liveness, readiness or startup probe from a pod or pod template
 
 		Each container in a pod may define one or more probes that are used for general health
 		checking. A liveness probe is checked periodically to ensure the container is still healthy:
@@ -38,6 +38,8 @@ var (
 		flag for each container, which controls whether the container's ports are included in the list
 		of endpoints for a service and whether a deployment can proceed. A readiness check should
 		indicate when your container is ready to accept incoming traffic or begin handling work.
+		A startup probe allows additional startup time for a container before a liveness probe
+		is started.
 		Setting both liveness and readiness probes for each container is highly recommended.
 
 		The three probe types are:
@@ -60,6 +62,9 @@ var (
 	  # Set a readiness probe to try to open a TCP socket on 3306
 	  %[1]s probe rc/mysql --readiness --open-tcp=3306
 
+	  # Set an HTTP startup probe for port 8080 and path /healthz over HTTP on the pod IP
+	  %[1]s probe dc/webapp --startup --get-url=http://:8080/healthz
+
 	  # Set an HTTP readiness probe for port 8080 and path /healthz over HTTP on the pod IP
 	  %[1]s probe dc/webapp --readiness --get-url=http://:8080/healthz
 
@@ -78,6 +83,7 @@ type ProbeOptions struct {
 	All               bool
 	Readiness         bool
 	Liveness          bool
+	Startup           bool
 	Remove            bool
 	Local             bool
 	OpenTCPSocket     string
@@ -145,6 +151,7 @@ func NewCmdProbe(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	cmd.Flags().BoolVar(&o.Remove, "remove", o.Remove, "If true, remove the specified probe(s).")
 	cmd.Flags().BoolVar(&o.Readiness, "readiness", o.Readiness, "Set or remove a readiness probe to indicate when this container should receive traffic")
 	cmd.Flags().BoolVar(&o.Liveness, "liveness", o.Liveness, "Set or remove a liveness probe to verify this container is running")
+	cmd.Flags().BoolVar(&o.Startup, "startup", o.Startup, "Set or remove a startup probe to verify this container is running")
 	cmd.Flags().BoolVar(&o.Local, "local", o.Local, "If true, set image will NOT contact api-server but run locally.")
 	cmd.Flags().StringVar(&o.OpenTCPSocket, "open-tcp", o.OpenTCPSocket, "A port number or port name to attempt to open via TCP.")
 	cmd.Flags().StringVar(&o.HTTPGet, "get-url", o.HTTPGet, "A URL to perform an HTTP GET on (you can omit the host, have a string port, or omit the scheme.")
@@ -245,8 +252,8 @@ func (o *ProbeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 }
 
 func (o *ProbeOptions) Validate() error {
-	if !o.Readiness && !o.Liveness {
-		return fmt.Errorf("you must specify one of --readiness, --liveness or both")
+	if !o.Readiness && !o.Liveness && !o.Startup {
+		return fmt.Errorf("you must specify at least one of --readiness, --liveness, --startup")
 	}
 	count := 0
 	if o.Command != nil {
@@ -376,6 +383,9 @@ func (o *ProbeOptions) updateContainer(container *corev1.Container) {
 		if o.Liveness {
 			container.LivenessProbe = nil
 		}
+		if o.Startup {
+			container.StartupProbe = nil
+		}
 		return
 	}
 	if o.Readiness {
@@ -389,6 +399,12 @@ func (o *ProbeOptions) updateContainer(container *corev1.Container) {
 			container.LivenessProbe = &corev1.Probe{}
 		}
 		o.updateProbe(container.LivenessProbe)
+	}
+	if o.Startup {
+		if container.StartupProbe == nil {
+			container.StartupProbe = &corev1.Probe{}
+		}
+		o.updateProbe(container.StartupProbe)
 	}
 }
 
