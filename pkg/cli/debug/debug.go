@@ -126,6 +126,7 @@ type DebugOptions struct {
 	RESTClientGetter genericclioptions.RESTClientGetter
 
 	PreservePod bool
+	ForceStdin  bool
 	NoStdin     bool
 	ForceTTY    bool
 	DisableTTY  bool
@@ -205,6 +206,7 @@ func NewCmdDebug(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	cmd.Flags().Bool("show-labels", false, "When printing, show all labels as the last column (default hide labels column)")
 
 	cmd.Flags().BoolVarP(&o.Attach.Quiet, "quiet", "q", o.Attach.Quiet, "No informational messages will be printed.")
+	cmd.Flags().BoolVar(&o.ForceStdin, "force-stdin", o.ForceStdin, "Forces passing STDIN to the container even when commands are passed on the command line.")
 	cmd.Flags().BoolVarP(&o.NoStdin, "no-stdin", "I", o.NoStdin, "Bypasses passing STDIN to the container, defaults to true if no command specified")
 	cmd.Flags().BoolVarP(&o.ForceTTY, "tty", "t", o.ForceTTY, "Force a pseudo-terminal to be allocated")
 	cmd.Flags().BoolVarP(&o.DisableTTY, "no-tty", "T", o.DisableTTY, "Disable pseudo-terminal allocation")
@@ -258,7 +260,7 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 	case o.DisableTTY:
 		o.Attach.TTY = false
 	// don't default TTY to true if a command is passed
-	case len(o.Command) > 0:
+	case len(o.Command) > 0 && !o.ForceStdin:
 		o.Attach.TTY = false
 		o.Attach.Stdin = false
 	default:
