@@ -15,7 +15,6 @@ import (
 
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
 	"github.com/openshift/oc/pkg/cli/admin/catalog"
-	"github.com/openshift/oc/pkg/cli/admin/cert"
 	"github.com/openshift/oc/pkg/cli/admin/createbootstrapprojecttemplate"
 	"github.com/openshift/oc/pkg/cli/admin/createerrortemplate"
 	"github.com/openshift/oc/pkg/cli/admin/createkubeconfig"
@@ -115,8 +114,6 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 			},
 		},
 	}
-
-	cmds.AddCommand(cert.NewCmdCert(streams))
 
 	groups.Add(cmds)
 	cmdutil.ActsAsRootCommand(cmds, []string{"options"}, groups...)
