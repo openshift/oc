@@ -255,7 +255,7 @@ func (o *Options) Run() error {
 				if !o.AllowExplicitUpgrade {
 					return fmt.Errorf("The requested upgrade image is not one of the available updates, you must pass --allow-explicit-upgrade to continue")
 				}
-				fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates.  You have used --allow-explicit-upgrade to the update to preceed anyway")
+				fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates.  You have used --allow-explicit-upgrade to the update to proceed anyway")
 			}
 			if o.ToImage == cv.Status.Desired.Image && !o.AllowExplicitUpgrade {
 				fmt.Fprintf(o.Out, "info: Cluster is already using release image %s\n", o.ToImage)
