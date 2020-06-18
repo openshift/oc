@@ -106,13 +106,13 @@ func (o *ProjectOptions) Complete(f genericclioptions.RESTClientGetter, cmd *cob
 		return fmt.Errorf("unable to get value for --context flag: %v", err)
 	}
 
-	if o.Context != "" {
-		o.Config.CurrentContext = o.Context
-	}
-
 	o.Config, err = f.ToRawKubeConfigLoader().RawConfig()
 	if err != nil {
 		return err
+	}
+
+	if o.Context != "" {
+		o.Config.CurrentContext = o.Context
 	}
 
 	o.RESTConfig, err = f.ToRESTConfig()
