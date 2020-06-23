@@ -1,7 +1,6 @@
 package observe
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,50 +19,23 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/oc/pkg/helpers/proc"
-)
-
-var (
-	observeCounts = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "observe_counts",
-			Help: "Number of changes observed to the underlying resource.",
-		},
-		[]string{"type"},
-	)
-	execDurations = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name: "observe_exec_durations_milliseconds",
-			Help: "Item execution latency distributions.",
-		},
-		[]string{"type", "exit_code"},
-	)
-	nameExecDurations = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name: "observe_name_exec_durations_milliseconds",
-			Help: "Name list execution latency distributions.",
-		},
-		[]string{"exit_code"},
-	)
 )
 
 var (
@@ -238,9 +209,9 @@ func NewCmdObserve(fullName string, f kcmdutil.Factory, streams genericclioption
 		Long:    fmt.Sprintf(observeLong, fullName),
 		Example: fmt.Sprintf(observeExample, fullName),
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
-			cmdutil.CheckErr(o.Validate())
-			cmdutil.CheckErr(o.Run())
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			kcmdutil.CheckErr(o.Validate())
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 
@@ -758,61 +729,6 @@ func (o *ObserveOptions) dumpMetrics() {
 	}
 }
 
-func measureCommandDuration(m *prometheus.SummaryVec, fn func() error, labels ...string) error {
-	n := time.Now()
-	err := fn()
-	duration := time.Now().Sub(n)
-	statusCode, ok := exitCodeForCommandError(err)
-	if !ok {
-		statusCode = -1
-	}
-	m.WithLabelValues(append(labels, strconv.Itoa(statusCode))...).Observe(float64(duration / time.Millisecond))
-
-	if errnoError(err) == syscall.ECHILD {
-		// ignore wait4 syscall errno as it means
-		// that the subprocess has started and ended
-		// before the wait call was made.
-		return nil
-	}
-
-	return err
-}
-
-func errnoError(err error) syscall.Errno {
-	if se, ok := err.(*os.SyscallError); ok {
-		if errno, ok := se.Err.(syscall.Errno); ok {
-			return errno
-		}
-	}
-
-	return 0
-}
-
-func exitCodeForCommandError(err error) (int, bool) {
-	if err == nil {
-		return 0, true
-	}
-	if exit, ok := err.(*exec.ExitError); ok {
-		if ws, ok := exit.ProcessState.Sys().(syscall.WaitStatus); ok {
-			return ws.ExitStatus(), true
-		}
-	}
-	return 0, false
-}
-
-func retryCommandError(onExitStatus, times int, fn func() error) error {
-	err := fn()
-	if err != nil && onExitStatus != 0 && times > 0 {
-		if status, ok := exitCodeForCommandError(err); ok {
-			if status == onExitStatus {
-				klog.V(4).Infof("retrying command: %v", err)
-				return retryCommandError(onExitStatus, times-1, fn)
-			}
-		}
-	}
-	return err
-}
-
 func printCommandLine(cmd string, args ...string) string {
 	outCmd := cmd
 	if strings.ContainsAny(outCmd, "\"\\ ") {
@@ -835,134 +751,6 @@ func printCommandLine(cmd string, args ...string) string {
 		return outCmd
 	}
 	return fmt.Sprintf("%s %s", outCmd, strings.Join(outArgs, " "))
-}
-
-type restListWatcher struct {
-	*resource.Helper
-	namespace string
-	selector  string
-}
-
-func (lw restListWatcher) List(opt metav1.ListOptions) (runtime.Object, error) {
-	opt.LabelSelector = lw.selector
-	return lw.Helper.List(lw.namespace, "", false, &opt)
-}
-
-func (lw restListWatcher) Watch(opt metav1.ListOptions) (watch.Interface, error) {
-	opt.LabelSelector = lw.selector
-	return lw.Helper.Watch(lw.namespace, opt.ResourceVersion, &opt)
-}
-
-type printerWrapper struct {
-	printer printers.ResourcePrinter
-}
-
-func (p printerWrapper) PrintObj(obj runtime.Object) ([]string, []byte, error) {
-	data, err := runtime.Encode(scheme.DefaultJSONEncoder(), obj)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	out := bytes.Buffer{}
-	if err := p.printer.PrintObj(obj, &out); err != nil {
-		return nil, nil, err
-	}
-	return []string{out.String()}, data, nil
-}
-
-type knownObjects interface {
-	cache.KeyListerGetter
-
-	ListKeysError() error
-	Put(key string, value interface{})
-	Remove(key string)
-}
-
-type objectArguments struct {
-	key       string
-	arguments []string
-	output    []byte
-}
-
-func objectArgumentsKeyFunc(obj interface{}) (string, error) {
-	if args, ok := obj.(objectArguments); ok {
-		return args.key, nil
-	}
-	return cache.MetaNamespaceKeyFunc(obj)
-}
-
-type objectArgumentsStore struct {
-	keyFn func() ([]string, error)
-
-	lock      sync.Mutex
-	arguments map[string]interface{}
-	err       error
-}
-
-func (r *objectArgumentsStore) ListKeysError() error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	return r.err
-}
-
-func (r *objectArgumentsStore) ListKeys() []string {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
-	if r.keyFn != nil {
-		var keys []string
-		keys, r.err = r.keyFn()
-		return keys
-	}
-
-	keys := make([]string, 0, len(r.arguments))
-	for k := range r.arguments {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-func (r *objectArgumentsStore) GetByKey(key string) (interface{}, bool, error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	args := r.arguments[key]
-	return args, true, nil
-}
-
-func (r *objectArgumentsStore) Put(key string, arguments interface{}) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	if r.arguments == nil {
-		r.arguments = make(map[string]interface{})
-	}
-	r.arguments[key] = arguments
-}
-
-func (r *objectArgumentsStore) Remove(key string) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	delete(r.arguments, key)
-}
-
-type newlineTrailingWriter struct {
-	w        io.Writer
-	openLine bool
-}
-
-func (w *newlineTrailingWriter) Write(data []byte) (int, error) {
-	if len(data) > 0 && data[len(data)-1] != '\n' {
-		w.openLine = true
-	}
-	return w.w.Write(data)
-}
-
-func (w *newlineTrailingWriter) Flush() error {
-	if w.openLine {
-		w.openLine = false
-		_, err := fmt.Fprintln(w.w)
-		return err
-	}
-	return nil
 }
 
 type stringSliceFlag []string
