@@ -205,7 +205,7 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 			// the user has not created any projects, and is therefore using a
 			// default namespace that they cannot list projects from.
 			if kapierrors.IsForbidden(err) && len(d.RequestedNamespace) == 0 && len(d.CurrentNamespace) == 0 {
-				return loginerrors.NoProjectsExistMessage(d.CanRequestProjects, "", d.CommandBaseName), nil
+				return loginerrors.NoProjectsExistMessage(d.CanRequestProjects, d.CommandBaseName), nil
 			}
 			if !kapierrors.IsNotFound(err) {
 				return "", err
