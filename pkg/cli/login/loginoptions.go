@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -267,29 +266,6 @@ func (o *LoginOptions) gatherProjectInfo() error {
 		return err
 	}
 
-	canRequest, err := loginutil.CanRequestProjects(o.Config, o.DefaultNamespace)
-	if err != nil {
-		return err
-	}
-	// check if ProjectRequestMessage is set
-	if !canRequest {
-		msg := ""
-		res, err := projectClient.RESTClient().Get().Resource("projectrequests").DoRaw(context.TODO())
-		if err != nil && res != nil {
-			// if err != nil, try to extract ProjectRequestMessage from status if set
-			status := metav1.Status{}
-			err := json.Unmarshal(res, &status)
-			if err != nil {
-				return err
-			}
-			if len(status.Details.Causes) != 0 && status.Details.Causes[0].Message != "" {
-				msg = status.Details.Causes[0].Message
-			}
-			// now return redirected error from !canRequest with the extracted ProjectRequestMessage if set
-			fmt.Fprintf(o.Out, errors.NoProjectsExistMessage(canRequest, msg, o.CommandName))
-			return nil
-		}
-	}
 	projectsList, err := projectClient.Projects().List(context.TODO(), metav1.ListOptions{})
 	// if we're running on kube (or likely kube), just set it to "default"
 	if kerrors.IsNotFound(err) || kerrors.IsForbidden(err) {
@@ -318,7 +294,11 @@ func (o *LoginOptions) gatherProjectInfo() error {
 
 	switch len(projectsItems) {
 	case 0:
-		msg := errors.NoProjectsExistMessage(canRequest, "", o.CommandName)
+		canRequest, err := loginutil.CanRequestProjects(o.Config, o.DefaultNamespace)
+		if err != nil {
+			return err
+		}
+		msg := errors.NoProjectsExistMessage(canRequest, o.CommandName)
 		fmt.Fprintf(o.Out, msg)
 		o.Project = ""
 
