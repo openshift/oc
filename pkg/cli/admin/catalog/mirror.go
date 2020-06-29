@@ -82,6 +82,8 @@ type MirrorCatalogOptions struct {
 	FromFileDir string
 	FileDir     string
 
+	IcspScope string
+
 	SecurityOptions imagemanifest.SecurityOptions
 	FilterOptions   imagemanifest.FilterOptions
 	ParallelOptions imagemanifest.ParallelOptions
@@ -95,6 +97,7 @@ func NewMirrorCatalogOptions(streams genericclioptions.IOStreams) *MirrorCatalog
 		IOStreams:                 streams,
 		IndexImageMirrorerOptions: DefaultImageIndexMirrorerOptions(),
 		ParallelOptions:           imagemanifest.ParallelOptions{MaxPerRegistry: 4},
+		IcspScope:                 "repository",
 	}
 }
 
@@ -125,6 +128,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
 	flags.StringVar(&o.FromFileDir, "from-dir", o.FromFileDir, "The directory on disk that file:// images will be read from. Overrides --dir")
 	flags.IntVar(&o.MaxPathComponents, "max-components", 2, "The maximum number of path components allowed in a destination mapping. Example: `quay.io/org/repo` has two path components.")
+	flags.StringVar(&o.IcspScope, "icsp-scope", o.IcspScope, "Scope of registry mirrors in imagecontentsourcepolicy file. Allowed values: repository, registry. Defaults to: repository")
 	return cmd
 }
 
@@ -314,6 +318,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		return "", fmt.Errorf("no database file found in %s", e.Mappings[0].To)
 	}
 	o.DatabaseExtractor = extractor
+
 	return nil
 }
 
@@ -323,6 +328,11 @@ func (o *MirrorCatalogOptions) Validate() error {
 	}
 	if o.ManifestDir == "" {
 		return fmt.Errorf("must specify path for manifests")
+	}
+	switch o.IcspScope {
+	case "repository", "registry":
+	default:
+		return fmt.Errorf("invalid icsp-scope %s", o.IcspScope)
 	}
 	return nil
 }
@@ -340,10 +350,10 @@ func (o *MirrorCatalogOptions) Run() error {
 		fmt.Fprintf(o.IOStreams.ErrOut, "errors during mirroring. the full contents of the catalog may not have been mirrored: %s\n", err.Error())
 	}
 
-	return WriteManifests(o.IOStreams.Out, o.SourceRef.Ref.Name, o.ManifestDir, mapping)
+	return WriteManifests(o.IOStreams.Out, o.SourceRef.Ref.Name, o.ManifestDir, o.IcspScope, mapping)
 }
 
-func WriteManifests(out io.Writer, name, dir string, mapping map[string]Target) error {
+func WriteManifests(out io.Writer, name, dir, icspScope string, mapping map[string]Target) error {
 	f, err := os.Create(filepath.Join(dir, "mapping.txt"))
 	if err != nil {
 		return err
@@ -358,7 +368,7 @@ func WriteManifests(out io.Writer, name, dir string, mapping map[string]Target) 
 		return err
 	}
 
-	icsp, err := generateICSP(out, name, mapping)
+	icsp, err := generateICSP(out, name, icspScope, mapping)
 	if err != nil {
 		return err
 	}
@@ -380,7 +390,7 @@ func writeToMapping(w io.StringWriter, mapping map[string]Target) error {
 	return nil
 }
 
-func generateICSP(out io.Writer, name string, mapping map[string]Target) ([]byte, error) {
+func generateICSP(out io.Writer, name string, icspScope string, mapping map[string]Target) ([]byte, error) {
 	icsp := operatorv1alpha1.ImageContentSourcePolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: operatorv1alpha1.GroupVersion.String(),
@@ -393,6 +403,7 @@ func generateICSP(out io.Writer, name string, mapping map[string]Target) ([]byte
 		},
 	}
 
+	registryMapping := map[string]string{}
 	for k, v := range mapping {
 		if len(v.WithDigest) == 0 {
 			fmt.Fprintf(out, "no digest mapping available for %s, skip writing to ImageContentSourcePolicy\n", k)
@@ -408,9 +419,16 @@ func generateICSP(out io.Writer, name string, mapping map[string]Target) ([]byte
 			fmt.Fprintf(out, "error parsing target reference for %s, skip writing to ImageContentSourcePolicy\n", v)
 			continue
 		}
+		if icspScope == "registry" {
+			registryMapping[fromRef.Ref.Registry] = toRef.Ref.Registry
+		} else {
+			registryMapping[fromRef.Ref.AsRepository().String()] = toRef.Ref.AsRepository().String()
+		}
+	}
+	for key := range registryMapping {
 		icsp.Spec.RepositoryDigestMirrors = append(icsp.Spec.RepositoryDigestMirrors, operatorv1alpha1.RepositoryDigestMirrors{
-			Source:  fromRef.Ref.AsRepository().String(),
-			Mirrors: []string{toRef.Ref.AsRepository().String()},
+			Source:  key,
+			Mirrors: []string{registryMapping[key]},
 		})
 	}
 
