@@ -427,7 +427,7 @@ github.com/openshift/build-machinery-go/make/targets/golang
 github.com/openshift/build-machinery-go/make/targets/openshift
 github.com/openshift/build-machinery-go/make/targets/openshift/operator
 github.com/openshift/build-machinery-go/scripts
-# github.com/openshift/client-go v0.0.0-20200422192633-6f6c07fc2a70
+# github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c
 github.com/openshift/client-go/apps/clientset/versioned
 github.com/openshift/client-go/apps/clientset/versioned/fake
 github.com/openshift/client-go/apps/clientset/versioned/scheme
@@ -489,7 +489,7 @@ github.com/openshift/client-go/user/clientset/versioned/fake
 github.com/openshift/client-go/user/clientset/versioned/scheme
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
-# github.com/openshift/library-go v0.0.0-20200506083334-710b0bd21d0c
+# github.com/openshift/library-go v0.0.0-20200629115313-82f0d09841e8
 github.com/openshift/library-go/pkg/apps/appsserialization
 github.com/openshift/library-go/pkg/apps/appsutil
 github.com/openshift/library-go/pkg/authorization/authorizationutil
@@ -733,7 +733,7 @@ k8s.io/api/settings/v1alpha1
 k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
-# k8s.io/apiextensions-apiserver v0.18.2 => k8s.io/apiextensions-apiserver v0.18.2
+# k8s.io/apiextensions-apiserver v0.18.3 => k8s.io/apiextensions-apiserver v0.18.2
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
 # k8s.io/apimachinery v0.18.3 => github.com/openshift/kubernetes-apimachinery v0.0.0-20200427132717-228307e8b83c
@@ -796,7 +796,7 @@ k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/netutil
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/apiserver v0.18.2 => k8s.io/apiserver v0.18.2
+# k8s.io/apiserver v0.18.3 => k8s.io/apiserver v0.18.2
 k8s.io/apiserver/pkg/apis/audit
 k8s.io/apiserver/pkg/authentication/authenticator
 k8s.io/apiserver/pkg/authentication/request/x509
@@ -962,7 +962,7 @@ k8s.io/client-go/util/jsonpath
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
-# k8s.io/component-base v0.18.2 => k8s.io/component-base v0.18.2
+# k8s.io/component-base v0.18.3 => k8s.io/component-base v0.18.2
 k8s.io/component-base/cli/flag
 k8s.io/component-base/featuregate
 k8s.io/component-base/logs
