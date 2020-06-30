@@ -341,7 +341,7 @@ func (p *registryPlan) SavedManifest(srcDigest, dstDigest godigest.Digest) {
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	klog.V(4).Infof("Associated digest %s with converted digest %s", srcDigest, dstDigest)
+	klog.V(2).Infof("Associated digest: %s, Converted digest: %s", srcDigest, dstDigest)
 	p.manifestConversions[srcDigest] = dstDigest
 }
 

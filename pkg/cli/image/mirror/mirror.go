@@ -339,7 +339,7 @@ func (o *MirrorImageOptions) Run() error {
 								srcDigest := digest
 								tags := op.digestsToTags[srcDigest].List()
 								w.Parallel(func() {
-									if errs := copyManifestToTags(ctx, ref, srcDigest, tags, op, o.Out); len(errs) > 0 {
+									if errs := copyManifestToTags(ctx, ref, srcDigest, tags, op, o.Out, o.ErrOut); len(errs) > 0 {
 										phase.ExecutionFailure(errs...)
 									}
 								})
@@ -355,7 +355,7 @@ func (o *MirrorImageOptions) Run() error {
 
 								srcDigest := godigest.Digest(digest)
 								w.Parallel(func() {
-									if err := copyManifest(ctx, ref, srcDigest, op, o.Out); err != nil {
+									if err := copyManifest(ctx, ref, srcDigest, op, o.Out, o.ErrOut); err != nil {
 										phase.ExecutionFailure(err)
 									}
 								})
@@ -720,6 +720,7 @@ func copyManifestToTags(
 	tags []string,
 	plan *repositoryManifestPlan,
 	out io.Writer,
+	errOut io.Writer,
 ) []error {
 	var errs []error
 	srcManifest, ok := plan.parent.parent.parent.GetManifest(srcDigest)
@@ -735,6 +736,9 @@ func copyManifestToTags(
 		for _, desc := range srcManifest.References() {
 			plan.parent.parent.AssociateBlob(desc.Digest, plan.parent.name)
 		}
+		if srcDigest != toDigest {
+			fmt.Fprintf(errOut, "warning: Digests are not preserved with schema version 1 images. Support for schema version 1 images will be removed in a future release.\n")
+		}
 		plan.parent.parent.SavedManifest(srcDigest, toDigest)
 		fmt.Fprintf(out, "%s %s:%s\n", toDigest, plan.toRef, tag)
 	}
@@ -747,6 +751,7 @@ func copyManifest(
 	srcDigest godigest.Digest,
 	plan *repositoryManifestPlan,
 	out io.Writer,
+	errOut io.Writer,
 ) error {
 	srcManifest, ok := plan.parent.parent.parent.GetManifest(srcDigest)
 	if !ok {
@@ -758,6 +763,9 @@ func copyManifest(
 	}
 	for _, desc := range srcManifest.References() {
 		plan.parent.parent.AssociateBlob(desc.Digest, plan.parent.name)
+	}
+	if srcDigest != toDigest {
+		fmt.Fprintf(errOut, "warning: Digests are not preserved with schema version 1 images. Support for schema version 1 images will be removed in a future release.\n")
 	}
 	plan.parent.parent.SavedManifest(srcDigest, toDigest)
 	fmt.Fprintf(out, "%s %s\n", toDigest, plan.toRef)
