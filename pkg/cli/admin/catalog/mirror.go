@@ -135,6 +135,13 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	src := args[0]
 	dest := args[1]
 
+	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
+		return err
+	}
+	if err := o.FilterOptions.Validate(); err != nil {
+		return err
+	}
+
 	srcRef, err := imagesource.ParseReference(src)
 	if err != nil {
 		return err
