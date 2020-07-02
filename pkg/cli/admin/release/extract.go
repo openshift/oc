@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -116,7 +117,7 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
 
 	flags.BoolVar(&o.CredentialsRequests, "credentials-requests", o.CredentialsRequests, "Extract credential request manifests only")
-	flags.StringVar(&o.Cloud, "cloud", o.Cloud, "Specify the cloud for which credential request manifests should be extracted.")
+	flags.StringVar(&o.Cloud, "cloud", o.Cloud, "Specify the cloud for which credential request manifests should be extracted. Works only in combination with --credentials-requests.")
 
 	flags.StringVarP(&o.Output, "output", "o", o.Output, "Output format. Supports 'commit' when used with '--git'.")
 	return cmd
@@ -276,20 +277,21 @@ func (o *ExtractOptions) Run() error {
 				case "release-metadata":
 					return true, nil
 				default:
-					if ext := path.Ext(hdr.Name); len(ext) > 0 && (ext == ".yaml" || ext == ".yml" || ext == ".json") {
-						klog.V(4).Infof("Found manifest %s", hdr.Name)
-						raw, err := ioutil.ReadAll(r)
-						if err != nil {
-							manifestErrs = append(manifestErrs, errors.Wrapf(err, "error reading file %s", hdr.Name))
-							return true, nil
-						}
-						ms, err := manifest.ParseManifests(bytes.NewReader(raw))
-						if err != nil {
-							manifestErrs = append(manifestErrs, errors.Wrapf(err, "error parsing %s", hdr.Name))
-							return true, nil
-						}
-						o.Manifests = append(o.Manifests, ms...)
+					if ext := path.Ext(hdr.Name); len(ext) == 0 || !(ext == ".yaml" || ext == ".yml" || ext == ".json") {
+						return true, nil
 					}
+					klog.V(4).Infof("Found manifest %s", hdr.Name)
+					raw, err := ioutil.ReadAll(r)
+					if err != nil {
+						manifestErrs = append(manifestErrs, errors.Wrapf(err, "error reading file %s", hdr.Name))
+						return true, nil
+					}
+					ms, err := manifest.ParseManifests(bytes.NewReader(raw))
+					if err != nil {
+						manifestErrs = append(manifestErrs, errors.Wrapf(err, "error parsing %s", hdr.Name))
+						return true, nil
+					}
+					o.Manifests = append(o.Manifests, ms...)
 				}
 				return true, nil
 			}
@@ -335,7 +337,6 @@ func (o *ExtractOptions) Run() error {
 			if err != nil {
 				return false, errors.Wrapf(err, "error parsing %s", hdr.Name)
 			}
-			credRequestManifests := []manifest.Manifest{}
 			for _, m := range ms {
 				if m.GVK != credentialsRequestGVK {
 					continue
@@ -349,18 +350,24 @@ func (o *ExtractOptions) Run() error {
 						continue
 					}
 				}
-				credRequestManifests = append(credRequestManifests, m)
+				o.Manifests = append(o.Manifests, m)
 			}
-			if len(credRequestManifests) == 0 {
-				return true, nil
+			out := o.Out
+			if len(o.Directory) > 0 {
+				out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
+				if err != nil {
+					return false, errors.Wrapf(err, "error creating manifest in %s", hdr.Name)
+				}
 			}
-			for _, m := range credRequestManifests {
+			for _, m := range o.Manifests {
 				yamlBytes, err := yaml.JSONToYAML(m.Raw)
 				if err != nil {
 					return false, errors.Wrapf(err, "error serializing manifest in %s", hdr.Name)
 				}
-				fmt.Fprintf(o.Out, "---\n")
-				o.Out.Write(yamlBytes)
+				fmt.Fprintf(out, "---\n")
+				if _, err := out.Write(yamlBytes); err != nil {
+					return false, errors.Wrapf(err, "error writing manifest in %s", hdr.Name)
+				}
 			}
 			return true, nil
 		}
