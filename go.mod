@@ -43,8 +43,8 @@ require (
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/openshift/api v0.0.0-20200521162313-4090b8d67ad8
 	github.com/openshift/build-machinery-go v0.0.0-20200424080330-082bf86082cc
-	github.com/openshift/client-go v0.0.0-20200422192633-6f6c07fc2a70
-	github.com/openshift/library-go v0.0.0-20200506083334-710b0bd21d0c
+	github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c
+	github.com/openshift/library-go v0.0.0-20200629115313-82f0d09841e8
 	github.com/operator-framework/operator-registry v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.1.0
@@ -63,10 +63,10 @@ require (
 	gopkg.in/ldap.v2 v2.5.1
 	k8s.io/api v0.18.3
 	k8s.io/apimachinery v0.18.3
-	k8s.io/apiserver v0.18.2
+	k8s.io/apiserver v0.18.3
 	k8s.io/cli-runtime v0.18.2
 	k8s.io/client-go v8.0.0+incompatible
-	k8s.io/component-base v0.18.2
+	k8s.io/component-base v0.18.3
 	k8s.io/klog v1.0.0
 	k8s.io/kubectl v0.18.2
 	k8s.io/kubernetes v1.13.0
