@@ -205,8 +205,14 @@ func (o *InspectOptions) Run() error {
 	}
 
 	// finally, gather polymorphic resources specified by the user
+	allErrs := []error{}
 	ctx := NewResourceContext()
-	allErrs := ParallelInspectResource(infos, ctx, o)
+	for _, info := range infos {
+		err := InspectResource(info, ctx, o)
+		if err != nil {
+			allErrs = append(allErrs, err)
+		}
+	}
 
 	// now gather all the events into a single file and produce a unified file
 	if err := CreateEventFilterPage(o.destDir); err != nil {
@@ -224,10 +230,11 @@ func (o *InspectOptions) Run() error {
 // gatherConfigResourceData gathers all config.openshift.io resources
 func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceContext) error {
 	// determine if we've already collected configResourceData
-	if ctx.visited(configResourceDataKey) {
+	if ctx.visited.Has(configResourceDataKey) {
 		klog.V(1).Infof("Skipping previously-collected config.openshift.io resource data")
 		return nil
 	}
+	ctx.visited.Insert(configResourceDataKey)
 
 	klog.V(1).Infof("Gathering config.openshift.io resource data...\n")
 
@@ -266,10 +273,11 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 // gatherOperatorResourceData gathers all kubeapiserver.operator.openshift.io resources
 func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourceContext) error {
 	// determine if we've already collected operatorResourceData
-	if ctx.visited(operatorResourceDataKey) {
+	if ctx.visited.Has(operatorResourceDataKey) {
 		klog.V(1).Infof("Skipping previously-collected operator.openshift.io resource data")
 		return nil
 	}
+	ctx.visited.Insert(operatorResourceDataKey)
 
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
