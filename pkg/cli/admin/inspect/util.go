@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sync"
 
 	configv1 "github.com/openshift/api/config/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -24,33 +23,13 @@ import (
 
 // resourceContext is used to keep track of previously seen objects
 type resourceContext struct {
-	lock sync.Mutex
-
-	alreadyVisited sets.String
+	visited sets.String
 }
 
 func NewResourceContext() *resourceContext {
 	return &resourceContext{
-		alreadyVisited: sets.NewString(),
+		visited: sets.NewString(),
 	}
-}
-
-// visited returns whether or not an item already has already been visited and adds it to the list
-func (r *resourceContext) visited(resource string) bool {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
-	ret := r.alreadyVisited.Has(resource)
-	r.alreadyVisited.Insert(resource)
-	return ret
-}
-
-// visited returns whether or not an item already has already been visited and does NOT add it to the list
-func (r *resourceContext) peekVisited(resource string) bool {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
-	return r.alreadyVisited.Has(resource)
 }
 
 func objectReferenceToString(ref *configv1.ObjectReference) string {
