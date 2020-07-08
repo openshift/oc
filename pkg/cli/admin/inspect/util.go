@@ -2,20 +2,24 @@ package inspect
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	configv1 "github.com/openshift/api/config/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -173,6 +177,48 @@ func getAllEventsRecursive(rootDir string) (*corev1.EventList, error) {
 	return eventLists, nil
 }
 
+func createEventFilterPageFromFile(eventFile string, rootDir string) error {
+	jsonStream, err := os.Open(eventFile)
+	if err != nil {
+		return err
+	}
+	decoder := json.NewDecoder(jsonStream)
+	var events corev1.EventList
+	if err := decoder.Decode(&events); err != nil {
+		return err
+	}
+	return createEventFilterPage(&events, rootDir)
+}
+
+func createEventFilterPage(events *corev1.EventList, rootDir string) error {
+	sort.Slice(events.Items, func(i, j int) bool {
+		return events.Items[i].LastTimestamp.Time.Before(events.Items[j].LastTimestamp.Time)
+	})
+
+	t := template.Must(template.New("events").Funcs(template.FuncMap{
+		"formatTime": func(t metav1.Time) template.HTML {
+			return template.HTML(t.Format("15:04:05"))
+		},
+		"formatReason": func(r string) template.HTML {
+			switch {
+			case strings.Contains(strings.ToLower(r), "fail"),
+				strings.Contains(strings.ToLower(r), "error"):
+				return template.HTML(`<div class="alert alert-danger" role="alert">` + r + `</div>`)
+			case strings.Contains(strings.ToLower(r), "notready"):
+				return template.HTML(`<div class="alert alert-warning" role="alert">` + r + `</div>`)
+			}
+			return template.HTML(`<div class="alert alert-light" role="alert">` + r + `</div>`)
+		},
+	}).Parse(eventHTMLPage))
+
+	out := bytes.NewBuffer([]byte{})
+	if err := t.Execute(out, events); err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(filepath.Join(rootDir, "event-filter.html"), out.Bytes(), 0644)
+}
+
 // CreateEventFilterPage reads all events in rootDir recursively, produces a single file, and produces a webpage
 // that can be viewed locally to filter the events.
 func CreateEventFilterPage(rootDir string) error {
@@ -180,35 +226,7 @@ func CreateEventFilterPage(rootDir string) error {
 	if err != nil {
 		return err
 	}
-	jsonSerializer := json.NewSerializerWithOptions(json.DefaultMetaFactory, coreScheme, coreScheme, json.SerializerOptions{Pretty: true})
-	unifiedEventBytes, err := runtime.Encode(jsonSerializer, events)
-	if err != nil {
-		return err
-	}
-
-	alleventsFile, err := os.OpenFile(filepath.Join(rootDir, "all-events.json.js"), os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-	defer alleventsFile.Close()
-
-	_, err = alleventsFile.WriteString("var allEvents = ")
-	if err != nil {
-		return err
-	}
-
-	_, err = alleventsFile.Write(bytes.ReplaceAll(unifiedEventBytes, []byte("\\\\n"), []byte("\\n+")))
-	if err != nil {
-		return err
-	}
-
-	// produce jqgrid based event filter file
-	err = ioutil.WriteFile(filepath.Join(rootDir, "event-filter.html"), eventFilterHtml, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return createEventFilterPage(events, rootDir)
 }
 
 var (
