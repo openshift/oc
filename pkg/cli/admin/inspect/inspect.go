@@ -78,6 +78,7 @@ type InspectOptions struct {
 	overwrite bool
 
 	genericclioptions.IOStreams
+	eventFile string
 }
 
 func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
@@ -97,7 +98,6 @@ func NewCmdInspect(streams genericclioptions.IOStreams, parentCommandPath string
 		Short:   "Collect debugging data for a given resource",
 		Long:    inspectLong,
 		Example: fmt.Sprintf(inspectExample, commandPath),
-		Args:    cobra.MinimumNArgs(1),
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(c, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -106,6 +106,7 @@ func NewCmdInspect(streams genericclioptions.IOStreams, parentCommandPath string
 	}
 
 	cmd.Flags().StringVar(&o.destDir, "dest-dir", o.destDir, "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/inspect.local.<rand>")
+	cmd.Flags().StringVar(&o.eventFile, "events-file", o.eventFile, "A path to an events.json file to create a HTML page from")
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 	cmd.Flags().StringVar(&o.sinceTime, "since-time", o.sinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Only one of since-time / since may be used.")
 	cmd.Flags().DurationVar(&o.since, "since", o.since, "Only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Only one of since-time / since may be used.")
@@ -116,6 +117,10 @@ func NewCmdInspect(streams genericclioptions.IOStreams, parentCommandPath string
 
 func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 	o.args = args
+
+	if len(o.eventFile) > 0 {
+		return nil
+	}
 
 	var err error
 	o.restConfig, err = o.configFlags.ToRESTConfig()
@@ -186,6 +191,9 @@ func (o *InspectOptions) Validate() error {
 }
 
 func (o *InspectOptions) Run() error {
+	if len(o.eventFile) > 0 {
+		return createEventFilterPageFromFile(o.eventFile, o.destDir)
+	}
 	r := o.builder.
 		Unstructured().
 		NamespaceParam(o.namespace).DefaultNamespace().AllNamespaces(o.allNamespaces).
