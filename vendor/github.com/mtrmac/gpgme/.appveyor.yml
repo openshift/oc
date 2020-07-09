@@ -7,7 +7,7 @@ branches:
 
 clone_folder: c:\gopath\src\github.com\proglottis\gpgme
 
-environment:
+environment:   
   GOPATH: c:\gopath
   GOROOT: C:\go-x86
   CGO_LDFLAGS: -LC:\gpg\lib
