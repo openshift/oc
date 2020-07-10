@@ -61,15 +61,15 @@ require (
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	gopkg.in/ldap.v2 v2.5.1
-	k8s.io/api v0.18.3
-	k8s.io/apimachinery v0.18.3
-	k8s.io/apiserver v0.18.3
-	k8s.io/cli-runtime v0.18.2
-	k8s.io/client-go v8.0.0+incompatible
-	k8s.io/component-base v0.18.3
+	k8s.io/api v0.19.0-rc.1
+	k8s.io/apimachinery v0.19.0-rc.1
+	k8s.io/apiserver v0.19.0-rc.1
+	k8s.io/cli-runtime v0.19.0-rc.1
+	k8s.io/client-go v0.19.0-rc.1
+	k8s.io/component-base v0.19.0-rc.1
 	k8s.io/klog v1.0.0
-	k8s.io/kubectl v0.18.2
-	k8s.io/kubernetes v1.13.0
+	k8s.io/kubectl v0.19.0-rc.1
+	k8s.io/kubernetes v1.19.0-rc.1
 	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/yaml v1.2.0
@@ -85,29 +85,29 @@ replace (
 	// yet provides the same fix.
 	github.com/docker/docker => github.com/docker/docker v1.4.2-0.20191121165722-d1d5f6476656
 
-	k8s.io/api => k8s.io/api v0.18.2
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.2
-	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20200427132717-228307e8b83c
-	k8s.io/apiserver => k8s.io/apiserver v0.18.2
-	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200507115657-2fb95e953778
-	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20200507115529-5e2a2d83bced
-	k8s.io/cloud-provider => k8s.io/cloud-provider v0.18.2
-	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.18.2
-	k8s.io/code-generator => k8s.io/code-generator v0.18.2
-	k8s.io/component-base => k8s.io/component-base v0.18.2
-	k8s.io/cri-api => k8s.io/cri-api v0.18.2
-	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.18.2
-	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.18.2
-	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.18.2
-	k8s.io/kube-proxy => k8s.io/kube-proxy v0.18.2
-	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.18.2
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200722081042-50f8964fc1c3
-	k8s.io/kubelet => k8s.io/kubelet v0.18.2
-	k8s.io/kubernetes => github.com/openshift/kubernetes v1.19.0-alpha.0.0.20200427141011-f0879866c662
+	k8s.io/api => k8s.io/api v0.19.0-rc.1
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.19.0-rc.1
+	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery oc-4.6-kubernetes-1.19-rc.1
+	k8s.io/apiserver => k8s.io/apiserver v0.19.0-rc.1
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime oc-4.6-kubernetes-1.19-rc.1
+	k8s.io/client-go => github.com/openshift/kubernetes-client-go oc-4.6-kubernetes-1.19-rc.1
+	k8s.io/cloud-provider => k8s.io/cloud-provider v0.19.0-rc.1
+	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.19.0-rc.1
+	k8s.io/code-generator => k8s.io/code-generator v0.19.0-rc.1
+	k8s.io/component-base => k8s.io/component-base v0.19.0-rc.1
+	k8s.io/cri-api => k8s.io/cri-api v0.19.0-rc.1
+	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.19.0-rc.1
+	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.19.0-rc.1
+	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.19.0-rc.1
+	k8s.io/kube-proxy => k8s.io/kube-proxy v0.19.0-rc.1
+	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.19.0-rc.1
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl oc-4.6-kubernetes-1.19-rc.1
+	k8s.io/kubelet => k8s.io/kubelet v0.19.0-rc.1
+	k8s.io/kubernetes => github.com/openshift/kubernetes oc-4.6-kubernetes-1.19-rc.1
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.2
-	k8s.io/metrics => k8s.io/metrics v0.18.2
-	k8s.io/node-api => k8s.io/node-api v0.18.2
-	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.18.2
-	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.18.2
-	k8s.io/sample-controller => k8s.io/sample-controller v0.18.2
+	k8s.io/metrics => k8s.io/metrics v0.19.0-rc.1
+	k8s.io/node-api => k8s.io/node-api v0.19.0-rc.1
+	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.19.0-rc.1
+	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.19.0-rc.1
+	k8s.io/sample-controller => k8s.io/sample-controller v0.19.0-rc.1
 )
