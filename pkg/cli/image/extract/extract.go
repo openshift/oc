@@ -217,30 +217,39 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 			if len(mapping.From) > 0 {
 				mapping.From = strings.TrimPrefix(mapping.From, "/")
 			}
-			if len(mapping.To) > 0 {
-				fi, err := os.Stat(mapping.To)
-				if os.IsNotExist(err) {
-					return nil, fmt.Errorf("destination path does not exist: %s", mapping.To)
-				}
+
+			toPath := mapping.To
+			if len(toPath) == 0 {
+				toPath = "."
+			}
+			toPath, err := filepath.Abs(toPath)
+			if err != nil {
+				return nil, fmt.Errorf("cannot make path %q absolute: %v", mapping.To, err)
+			}
+			mapping.To = toPath
+
+			fi, err := os.Stat(mapping.To)
+			if os.IsNotExist(err) {
+				return nil, fmt.Errorf("destination path does not exist: %s", mapping.To)
+			}
+			if err != nil {
+				return nil, fmt.Errorf("invalid argument: %s", err)
+			}
+			if !fi.IsDir() {
+				return nil, fmt.Errorf("invalid argument: %s is not a directory", arg)
+			}
+			if requireEmpty {
+				f, err := os.Open(mapping.To)
 				if err != nil {
-					return nil, fmt.Errorf("invalid argument: %s", err)
+					return nil, fmt.Errorf("unable to check directory: %v", err)
 				}
-				if !fi.IsDir() {
-					return nil, fmt.Errorf("invalid argument: %s is not a directory", arg)
+				names, err := f.Readdirnames(1)
+				f.Close()
+				if err != nil && err != io.EOF {
+					return nil, fmt.Errorf("could not check for empty directory: %v", err)
 				}
-				if requireEmpty {
-					f, err := os.Open(mapping.To)
-					if err != nil {
-						return nil, fmt.Errorf("unable to check directory: %v", err)
-					}
-					names, err := f.Readdirnames(1)
-					f.Close()
-					if err != nil && err != io.EOF {
-						return nil, fmt.Errorf("could not check for empty directory: %v", err)
-					}
-					if len(names) > 0 {
-						return nil, fmt.Errorf("directory %s must be empty, pass --confirm to overwrite contents of directory", mapping.To)
-					}
+				if len(names) > 0 {
+					return nil, fmt.Errorf("directory %s must be empty, pass --confirm to overwrite contents of directory", mapping.To)
 				}
 			}
 			mappings = append(mappings, mapping)
