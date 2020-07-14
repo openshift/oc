@@ -5,7 +5,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/spf13/pflag"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // Helper contains all the valid config options for connecting to Docker from

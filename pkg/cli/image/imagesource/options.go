@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/openshift/library-go/pkg/image/registryclient"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // Options contains inputs necessary to build a repository implementation for a reference.

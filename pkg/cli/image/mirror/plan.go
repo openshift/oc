@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	units "github.com/docker/go-units"
 	godigest "github.com/opencontainers/go-digest"

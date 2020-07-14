@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/distribution/registry/client/auth"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/credentialprovider"
 
 	"github.com/openshift/library-go/pkg/image/registryclient"

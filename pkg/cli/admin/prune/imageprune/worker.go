@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	gonum "github.com/gonum/graph"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	kerrapi "k8s.io/apimachinery/pkg/api/errors"
 

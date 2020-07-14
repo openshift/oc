@@ -10,7 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/docker/go-units"
 	corev1 "k8s.io/api/core/v1"

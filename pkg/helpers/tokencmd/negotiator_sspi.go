@@ -16,7 +16,7 @@ import (
 
 	"github.com/alexbrainman/sspi"
 	"github.com/alexbrainman/sspi/negotiate"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (

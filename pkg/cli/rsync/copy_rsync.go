@@ -12,7 +12,7 @@ import (
 
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )

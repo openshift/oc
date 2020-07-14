@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	s2ifs "github.com/openshift/oc/pkg/helpers/source-to-image/fs"
 	"github.com/openshift/oc/pkg/helpers/source-to-image/tar"
@@ -655,7 +655,7 @@ func streamPathToBuild(repo git.Repository, in io.Reader, out io.Writer, client 
 				// We only want to grab the contents of the specified commit, with
 				// submodules included
 				cloneOptions := []string{"--recursive"}
-				if verbose := klog.V(3); !verbose {
+				if !klog.V(3).Enabled() {
 					cloneOptions = append(cloneOptions, "--quiet")
 				}
 
