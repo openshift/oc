@@ -147,6 +147,5 @@ func deleteTokenFromConfig(config kclientcmdapi.Config, pathOptions *kclientcmd.
 			// don't break, its possible that more than one user stanza has the same token.
 		}
 	}
-
 	return kclientcmd.ModifyConfig(pathOptions, config, true)
 }
