@@ -1,8 +1,6 @@
 package observe
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
-	"text/template"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -23,50 +19,23 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/jsonpath"
 	"k8s.io/klog"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/oc/pkg/helpers/proc"
-)
-
-var (
-	observeCounts = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "observe_counts",
-			Help: "Number of changes observed to the underlying resource.",
-		},
-		[]string{"type"},
-	)
-	execDurations = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name: "observe_exec_durations_milliseconds",
-			Help: "Item execution latency distributions.",
-		},
-		[]string{"type", "exit_code"},
-	)
-	nameExecDurations = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name: "observe_name_exec_durations_milliseconds",
-			Help: "Name list execution latency distributions.",
-		},
-		[]string{"exit_code"},
-	)
 )
 
 var (
@@ -167,8 +136,10 @@ var (
 )
 
 type ObserveOptions struct {
-	debugOut  io.Writer
-	noHeaders bool
+	PrintFlags *genericclioptions.PrintFlags
+
+	debugOut io.Writer
+	quiet    bool
 
 	client           resource.RESTClient
 	mapping          *meta.RESTMapping
@@ -204,9 +175,8 @@ type ObserveOptions struct {
 	printMetricsOnExit bool
 
 	// control the output of the command
-	templateType    string
 	templates       stringSliceFlag
-	printer         ColumnPrinter
+	printer         printerWrapper
 	strictTemplates bool
 
 	argumentStore *objectArgumentsStore
@@ -218,10 +188,12 @@ type ObserveOptions struct {
 
 func NewObserveOptions(streams genericclioptions.IOStreams) *ObserveOptions {
 	return &ObserveOptions{
+		PrintFlags: (&genericclioptions.PrintFlags{
+			TemplatePrinterFlags: genericclioptions.NewKubeTemplatePrintFlags(),
+		}).WithDefaultOutput("jsonpath").WithTypeSetter(scheme.Scheme),
 		IOStreams: streams,
 
 		retryCount:    2,
-		templateType:  "jsonpath",
 		maximumErrors: 20,
 		listenAddr:    ":11251",
 	}
@@ -237,17 +209,9 @@ func NewCmdObserve(fullName string, f kcmdutil.Factory, streams genericclioption
 		Long:    fmt.Sprintf(observeLong, fullName),
 		Example: fmt.Sprintf(observeExample, fullName),
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := o.Complete(f, cmd, args); err != nil {
-				cmdutil.CheckErr(err)
-			}
-
-			if err := o.Validate(args); err != nil {
-				cmdutil.CheckErr(cmdutil.UsageErrorf(cmd, err.Error()))
-			}
-
-			if err := o.Run(); err != nil {
-				cmdutil.CheckErr(err)
-			}
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			kcmdutil.CheckErr(o.Validate())
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 
@@ -260,11 +224,13 @@ func NewCmdObserve(fullName string, f kcmdutil.Factory, streams genericclioption
 	cmd.Flags().Var(&o.nameSyncCommand, "names", "A command that will list all of the currently known names, optional. Specify multiple times to add arguments. Use to get notifications when objects are deleted.")
 
 	// add additional arguments / info to the server
-	cmd.Flags().StringVar(&o.templateType, "output", o.templateType, "Controls the template type used for the --argument flags. Supported values are gotemplate and jsonpath.")
 	cmd.Flags().BoolVar(&o.strictTemplates, "strict-templates", o.strictTemplates, "If true return an error on any field or map key that is not missing in a template.")
+	cmd.Flags().MarkDeprecated("strict-templates", "and will be removed in a future release. Use --allow-missing-template-keys=false instead.")
 	cmd.Flags().VarP(&o.templates, "argument", "a", "Template for the arguments to be passed to each command in the format defined by --output.")
-	cmd.Flags().StringVar(&o.typeEnvVar, "type-env-var", "", "The name of an env var to set with the type of event received ('Sync', 'Updated', 'Deleted', 'Added') to the reaction command or --delete.")
-	cmd.Flags().StringVar(&o.objectEnvVar, "object-env-var", "", "The name of an env var to serialize the object to when calling the command, optional.")
+	cmd.Flags().MarkShorthandDeprecated("a", "and will be removed in a future release. Use --template instead.")
+	cmd.Flags().MarkDeprecated("argument", "and will be removed in a future release. Use --template instead.")
+	cmd.Flags().StringVar(&o.typeEnvVar, "type-env-var", o.typeEnvVar, "The name of an env var to set with the type of event received ('Sync', 'Updated', 'Deleted', 'Added') to the reaction command or --delete.")
+	cmd.Flags().StringVar(&o.objectEnvVar, "object-env-var", o.objectEnvVar, "The name of an env var to serialize the object to when calling the command, optional.")
 
 	// control retries of individual commands
 	cmd.Flags().IntVar(&o.maximumErrors, "maximum-errors", o.maximumErrors, "Exit after this many errors have been detected with. May be set to -1 for no maximum.")
@@ -279,8 +245,11 @@ func NewCmdObserve(fullName string, f kcmdutil.Factory, streams genericclioption
 	cmd.Flags().StringVar(&o.listenAddr, "listen-addr", o.listenAddr, "The name of an interface to listen on to expose metrics and health checking.")
 
 	// additional debug output
-	cmd.Flags().BoolVar(&o.noHeaders, "no-headers", o.noHeaders, "If true, skip printing information about each event prior to executing the command.")
+	cmd.Flags().BoolVar(&o.quiet, "no-headers", o.quiet, "If true, skip printing information about each event prior to executing the command.")
+	cmd.Flags().MarkDeprecated("no-headers", "and will be removed in a future release. Use --quiet instead.")
+	cmd.Flags().BoolVarP(&o.quiet, "quiet", "q", o.quiet, "If true, skip printing information about each event prior to executing the command.")
 
+	o.PrintFlags.AddFlags(cmd)
 	return cmd
 }
 
@@ -334,24 +303,44 @@ func (o *ObserveOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 		return err
 	}
 
-	switch o.templateType {
-	case "jsonpath":
-		p, err := NewJSONPathArgumentPrinter(o.includeNamespace, o.strictTemplates, o.templates...)
-		if err != nil {
-			return err
-		}
-		o.printer = p
-	case "gotemplate":
-		p, err := NewGoTemplateArgumentPrinter(o.includeNamespace, o.strictTemplates, o.templates...)
-		if err != nil {
-			return err
-		}
-		o.printer = p
-	default:
-		return fmt.Errorf("template type %q not recognized - valid values are jsonpath and gotemplate", o.templateType)
+	// TODO: Remove in the next release
+	// support backwards compatibility with misspelling of "go-template" output format
+	if o.PrintFlags.OutputFormat != nil && *o.PrintFlags.OutputFormat == "gotemplate" {
+		fmt.Fprintf(o.ErrOut, "DEPRECATED: The 'gotemplate' output format has been replaced by 'go-template', please use the new spelling instead\n")
+		*o.PrintFlags.OutputFormat = "go-template"
 	}
-	o.printer = NewVersionedColumnPrinter(o.printer, scheme.Scheme, version.GroupVersion())
-	if o.noHeaders {
+
+	// TODO: Remove in the next release
+	// support backwards compatibility with incorrect flag --strict-templates
+	if o.strictTemplates {
+		*o.PrintFlags.TemplatePrinterFlags.AllowMissingKeys = !o.strictTemplates
+	}
+
+	// TODO: Remove in the next rlease
+	// support backwards compatibility with incorrect flag --argument
+	templatesStr := o.templates.String()
+	if len(templatesStr) > 0 {
+		*o.PrintFlags.TemplatePrinterFlags.TemplateArgument = templatesStr
+	}
+
+	// prevent output-format from defaulting to go-template if no --output format
+	// is explicitly provided by the user, which was added as backwards
+	// compatibility see:
+	// https://github.com/kubernetes/cli-runtime/blob/3002134656c683c343e3688a8c95df5bfcd9c458/pkg/genericclioptions/print_flags.go#L89
+	o.PrintFlags.OutputFlagSpecified = func() bool { return true }
+
+	var printer printers.ResourcePrinter
+	if o.PrintFlags.TemplatePrinterFlags.TemplateArgument != nil && len(*o.PrintFlags.TemplatePrinterFlags.TemplateArgument) > 0 {
+		printer, err = o.PrintFlags.ToPrinter()
+		if err != nil {
+			return err
+		}
+	} else {
+		printer = printers.NewDiscardingPrinter()
+	}
+	o.printer = printerWrapper{printer: printer}
+
+	if o.quiet {
 		o.debugOut = ioutil.Discard
 	} else {
 		o.debugOut = o.Out
@@ -398,7 +387,7 @@ func (o *ObserveOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	return nil
 }
 
-func (o *ObserveOptions) Validate(args []string) error {
+func (o *ObserveOptions) Validate() error {
 	if len(o.nameSyncCommand) > 0 && len(o.deleteCommand) == 0 {
 		return fmt.Errorf("--delete and --names must both be specified")
 	}
@@ -575,7 +564,7 @@ func (o *ObserveOptions) calculateArguments(delta cache.Delta) (runtime.Object, 
 		if obj, ok := t.Obj.(runtime.Object); ok {
 			object = obj
 
-			args, data, err := o.printer.Print(obj)
+			args, data, err := o.printer.PrintObj(object)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("unable to write arguments: %v", err)
 			}
@@ -602,7 +591,7 @@ func (o *ObserveOptions) calculateArguments(delta cache.Delta) (runtime.Object, 
 	case runtime.Object:
 		object = t
 
-		args, data, err := o.printer.Print(t)
+		args, data, err := o.printer.PrintObj(object)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("unable to write arguments: %v", err)
 		}
@@ -740,61 +729,6 @@ func (o *ObserveOptions) dumpMetrics() {
 	}
 }
 
-func measureCommandDuration(m *prometheus.SummaryVec, fn func() error, labels ...string) error {
-	n := time.Now()
-	err := fn()
-	duration := time.Now().Sub(n)
-	statusCode, ok := exitCodeForCommandError(err)
-	if !ok {
-		statusCode = -1
-	}
-	m.WithLabelValues(append(labels, strconv.Itoa(statusCode))...).Observe(float64(duration / time.Millisecond))
-
-	if errnoError(err) == syscall.ECHILD {
-		// ignore wait4 syscall errno as it means
-		// that the subprocess has started and ended
-		// before the wait call was made.
-		return nil
-	}
-
-	return err
-}
-
-func errnoError(err error) syscall.Errno {
-	if se, ok := err.(*os.SyscallError); ok {
-		if errno, ok := se.Err.(syscall.Errno); ok {
-			return errno
-		}
-	}
-
-	return 0
-}
-
-func exitCodeForCommandError(err error) (int, bool) {
-	if err == nil {
-		return 0, true
-	}
-	if exit, ok := err.(*exec.ExitError); ok {
-		if ws, ok := exit.ProcessState.Sys().(syscall.WaitStatus); ok {
-			return ws.ExitStatus(), true
-		}
-	}
-	return 0, false
-}
-
-func retryCommandError(onExitStatus, times int, fn func() error) error {
-	err := fn()
-	if err != nil && onExitStatus != 0 && times > 0 {
-		if status, ok := exitCodeForCommandError(err); ok {
-			if status == onExitStatus {
-				klog.V(4).Infof("retrying command: %v", err)
-				return retryCommandError(onExitStatus, times-1, fn)
-			}
-		}
-	}
-	return err
-}
-
 func printCommandLine(cmd string, args ...string) string {
 	outCmd := cmd
 	if strings.ContainsAny(outCmd, "\"\\ ") {
@@ -817,249 +751,6 @@ func printCommandLine(cmd string, args ...string) string {
 		return outCmd
 	}
 	return fmt.Sprintf("%s %s", outCmd, strings.Join(outArgs, " "))
-}
-
-type restListWatcher struct {
-	*resource.Helper
-	namespace string
-	selector  string
-}
-
-func (lw restListWatcher) List(opt metav1.ListOptions) (runtime.Object, error) {
-	opt.LabelSelector = lw.selector
-	return lw.Helper.List(lw.namespace, "", false, &opt)
-}
-
-func (lw restListWatcher) Watch(opt metav1.ListOptions) (watch.Interface, error) {
-	opt.LabelSelector = lw.selector
-	return lw.Helper.Watch(lw.namespace, opt.ResourceVersion, &opt)
-}
-
-type JSONPathColumnPrinter struct {
-	includeNamespace bool
-	rawTemplates     []string
-	templates        []*jsonpath.JSONPath
-	buf              *bytes.Buffer
-}
-
-func NewJSONPathArgumentPrinter(includeNamespace, strict bool, templates ...string) (*JSONPathColumnPrinter, error) {
-	p := &JSONPathColumnPrinter{
-		includeNamespace: includeNamespace,
-		rawTemplates:     templates,
-		buf:              &bytes.Buffer{},
-	}
-	for _, s := range templates {
-		t := jsonpath.New("template").AllowMissingKeys(!strict)
-		if err := t.Parse(s); err != nil {
-			return nil, err
-		}
-		p.templates = append(p.templates, t)
-	}
-	return p, nil
-}
-
-func (p *JSONPathColumnPrinter) Print(obj interface{}) ([]string, []byte, error) {
-	var columns []string
-	for i, t := range p.templates {
-		p.buf.Reset()
-		if err := t.Execute(p.buf, obj); err != nil {
-			return nil, nil, fmt.Errorf("error executing template '%v': '%v'\n----data----\n%+v\n", p.rawTemplates[i], err, obj)
-		}
-		columns = append(columns, p.buf.String())
-	}
-	return columns, nil, nil
-}
-
-type GoTemplateColumnPrinter struct {
-	includeNamespace bool
-	strict           bool
-	rawTemplates     []string
-	templates        []*template.Template
-	buf              *bytes.Buffer
-}
-
-func NewGoTemplateArgumentPrinter(includeNamespace, strict bool, templates ...string) (*GoTemplateColumnPrinter, error) {
-	p := &GoTemplateColumnPrinter{
-		includeNamespace: includeNamespace,
-		strict:           strict,
-		rawTemplates:     templates,
-		buf:              &bytes.Buffer{},
-	}
-	for _, s := range templates {
-		t := template.New("template")
-		child, err := t.Parse(s)
-		if err != nil {
-			return nil, err
-		}
-		if !strict {
-			child.Option("missingkey=zero")
-		}
-		p.templates = append(p.templates, child)
-	}
-	return p, nil
-}
-
-func (p *GoTemplateColumnPrinter) Print(obj interface{}) ([]string, []byte, error) {
-	var columns []string
-	for i, t := range p.templates {
-		p.buf.Reset()
-		if err := t.Execute(p.buf, obj); err != nil {
-			return nil, nil, fmt.Errorf("error executing template '%v': '%v'\n----data----\n%+v\n", p.rawTemplates[i], err, obj)
-		}
-		// if the template resolves to the special <no value> result, return it as an empty string
-		// most arguments will prefer empty vs an arbitrary constant, and we are making gotemplates consistent with
-		// jsonpath
-		if p.buf.String() == "<no value>" {
-			if p.strict {
-				return nil, nil, fmt.Errorf("error executing template '%v': <no value>", p.rawTemplates[i])
-			}
-			columns = append(columns, "")
-		} else {
-			columns = append(columns, p.buf.String())
-		}
-	}
-	return columns, nil, nil
-}
-
-type ColumnPrinter interface {
-	Print(obj interface{}) ([]string, []byte, error)
-}
-
-// VersionedPrinter takes runtime objects and ensures they are converted to a given API version
-// prior to being passed to a nested printer.
-type VersionedColumnPrinter struct {
-	printer   ColumnPrinter
-	convertor runtime.ObjectConvertor
-	version   runtime.GroupVersioner
-}
-
-// NewVersionedHumanReadablePrinter wraps a printer to convert objects to a known API version prior to printing.
-func NewVersionedColumnPrinter(printer ColumnPrinter, convertor runtime.ObjectConvertor, version runtime.GroupVersioner) ColumnPrinter {
-	return &VersionedColumnPrinter{
-		printer:   printer,
-		convertor: convertor,
-		version:   version,
-	}
-}
-
-// Print converts the object to a map[string]interface{} in the target version before calling the nested printer.
-func (p *VersionedColumnPrinter) Print(out interface{}) ([]string, []byte, error) {
-	var output []byte
-	if obj, ok := out.(runtime.Object); ok {
-		converted, err := p.convertor.ConvertToVersion(obj, p.version)
-		if err != nil {
-			if !runtime.IsNotRegisteredError(err) {
-				return nil, nil, err
-			}
-			converted = obj
-		}
-		data, err := json.Marshal(converted)
-		if err != nil {
-			return nil, nil, err
-		}
-		output = data
-		out = map[string]interface{}{}
-		if err := json.Unmarshal(data, &out); err != nil {
-			return nil, nil, err
-		}
-	}
-	args, _, err := p.printer.Print(out)
-	return args, output, err
-}
-
-type knownObjects interface {
-	cache.KeyListerGetter
-
-	ListKeysError() error
-	Put(key string, value interface{})
-	Remove(key string)
-}
-
-type objectArguments struct {
-	key       string
-	arguments []string
-	output    []byte
-}
-
-func objectArgumentsKeyFunc(obj interface{}) (string, error) {
-	if args, ok := obj.(objectArguments); ok {
-		return args.key, nil
-	}
-	return cache.MetaNamespaceKeyFunc(obj)
-}
-
-type objectArgumentsStore struct {
-	keyFn func() ([]string, error)
-
-	lock      sync.Mutex
-	arguments map[string]interface{}
-	err       error
-}
-
-func (r *objectArgumentsStore) ListKeysError() error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	return r.err
-}
-
-func (r *objectArgumentsStore) ListKeys() []string {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
-	if r.keyFn != nil {
-		var keys []string
-		keys, r.err = r.keyFn()
-		return keys
-	}
-
-	keys := make([]string, 0, len(r.arguments))
-	for k := range r.arguments {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-func (r *objectArgumentsStore) GetByKey(key string) (interface{}, bool, error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	args := r.arguments[key]
-	return args, true, nil
-}
-
-func (r *objectArgumentsStore) Put(key string, arguments interface{}) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	if r.arguments == nil {
-		r.arguments = make(map[string]interface{})
-	}
-	r.arguments[key] = arguments
-}
-
-func (r *objectArgumentsStore) Remove(key string) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	delete(r.arguments, key)
-}
-
-type newlineTrailingWriter struct {
-	w        io.Writer
-	openLine bool
-}
-
-func (w *newlineTrailingWriter) Write(data []byte) (int, error) {
-	if len(data) > 0 && data[len(data)-1] != '\n' {
-		w.openLine = true
-	}
-	return w.w.Write(data)
-}
-
-func (w *newlineTrailingWriter) Flush() error {
-	if w.openLine {
-		w.openLine = false
-		_, err := fmt.Fprintln(w.w)
-		return err
-	}
-	return nil
 }
 
 type stringSliceFlag []string
