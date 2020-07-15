@@ -428,7 +428,7 @@ func ManifestsFromList(ctx context.Context, srcDigest digest.Digest, srcManifest
 	}
 }
 
-// TDOO: remove when quay.io switches to v2 schema
+// TODO: Remove support for v2 schema in 4.9
 func PutManifestInCompatibleSchema(
 	ctx context.Context,
 	srcManifest distribution.Manifest,
@@ -538,7 +538,7 @@ func convertToSchema2(ctx context.Context, blobs distribution.BlobService, srcMa
 	return b.Build(ctx)
 }
 
-// TDOO: remove when quay.io switches to v2 schema
+// TODO: Remove support for v2 schema in 4.9
 func convertToSchema1(ctx context.Context, blobs distribution.BlobService, configJSON []byte, schema2Manifest *schema2.DeserializedManifest, ref reference.Named) (distribution.Manifest, error) {
 	if configJSON == nil {
 		targetDescriptor := schema2Manifest.Target()
@@ -573,7 +573,7 @@ var (
 	privateKey     libtrust.PrivateKey
 )
 
-// TDOO: remove when quay.io switches to v2 schema
+// TODO: Remove support for v2 schema in 4.9
 func loadPrivateKey() (libtrust.PrivateKey, error) {
 	privateKeyLock.Lock()
 	defer privateKeyLock.Unlock()
