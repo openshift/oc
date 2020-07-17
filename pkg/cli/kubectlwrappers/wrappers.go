@@ -88,16 +88,16 @@ func NewCmdCreate(fullName string, f kcmdutil.Factory, streams genericclioptions
 	cmd := cmdutil.ReplaceCommandName("kubectl", fullName, templates.Normalize(kcreate.NewCmdCreate(f, streams)))
 
 	// create subcommands
-	cmd.AddCommand(create.NewCmdCreateRoute(fullName, f, streams))
-	cmd.AddCommand(create.NewCmdCreateDeploymentConfig(create.DeploymentConfigRecommendedName, fullName+" create "+create.DeploymentConfigRecommendedName, f, streams))
-	cmd.AddCommand(create.NewCmdCreateClusterQuota(create.ClusterQuotaRecommendedName, fullName+" create "+create.ClusterQuotaRecommendedName, f, streams))
+	cmd.AddCommand(create.NewCmdCreateRoute(f, streams))
+	cmd.AddCommand(create.NewCmdCreateDeploymentConfig(f, streams))
+	cmd.AddCommand(create.NewCmdCreateClusterQuota(f, streams))
 
-	cmd.AddCommand(create.NewCmdCreateUser(create.UserRecommendedName, fullName+" create "+create.UserRecommendedName, f, streams))
-	cmd.AddCommand(create.NewCmdCreateIdentity(create.IdentityRecommendedName, fullName+" create "+create.IdentityRecommendedName, f, streams))
-	cmd.AddCommand(create.NewCmdCreateUserIdentityMapping(create.UserIdentityMappingRecommendedName, fullName+" create "+create.UserIdentityMappingRecommendedName, f, streams))
-	cmd.AddCommand(create.NewCmdCreateImageStream(create.ImageStreamRecommendedName, fullName+" create "+create.ImageStreamRecommendedName, f, streams))
-	cmd.AddCommand(create.NewCmdCreateImageStreamTag(create.ImageStreamTagRecommendedName, fullName+" create "+create.ImageStreamTagRecommendedName, f, streams))
-	cmd.AddCommand(create.NewCmdCreateBuild(create.BuildRecommendedName, fullName+" create "+create.BuildRecommendedName, f, streams))
+	cmd.AddCommand(create.NewCmdCreateUser(f, streams))
+	cmd.AddCommand(create.NewCmdCreateIdentity(f, streams))
+	cmd.AddCommand(create.NewCmdCreateUserIdentityMapping(f, streams))
+	cmd.AddCommand(create.NewCmdCreateImageStream(f, streams))
+	cmd.AddCommand(create.NewCmdCreateImageStreamTag(f, streams))
+	cmd.AddCommand(create.NewCmdCreateBuild(f, streams))
 
 	adjustCmdExamples(cmd, fullName, "create")
 

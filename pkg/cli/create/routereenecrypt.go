@@ -2,13 +2,14 @@ package create
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -28,12 +29,12 @@ var (
 
 	reencryptRouteExample = templates.Examples(`
 		# Create a route named "my-route" that exposes the frontend service:
-	  %[1]s create route reencrypt my-route --service=frontend --dest-ca-cert cert.cert
+		oc create route reencrypt my-route --service=frontend --dest-ca-cert cert.cert
 
-	  # Create a reencrypt route that exposes the frontend service, letting the
-	  # route name default to the service name and the destination CA certificate
-	  # default to the service CA:
-	  %[1]s create route reencrypt --service=frontend`)
+		# Create a reencrypt route that exposes the frontend service, letting the
+		# route name default to the service name and the destination CA certificate
+		# default to the service CA:
+		oc create route reencrypt --service=frontend`)
 )
 
 type CreateReencryptRouteOptions struct {
@@ -52,7 +53,7 @@ type CreateReencryptRouteOptions struct {
 }
 
 // NewCmdCreateReencryptRoute is a macro command to create a reencrypt route.
-func NewCmdCreateReencryptRoute(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateReencryptRoute(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreateReencryptRouteOptions{
 		CreateRouteSubcommandOptions: NewCreateRouteSubcommandOptions(streams),
 	}
@@ -60,7 +61,7 @@ func NewCmdCreateReencryptRoute(fullName string, f kcmdutil.Factory, streams gen
 		Use:     "reencrypt [NAME] --service=SERVICE",
 		Short:   "Create a route that uses reencrypt TLS termination",
 		Long:    reencryptRouteLong,
-		Example: fmt.Sprintf(reencryptRouteExample, fullName),
+		Example: reencryptRouteExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
@@ -84,7 +85,7 @@ func NewCmdCreateReencryptRoute(fullName string, f kcmdutil.Factory, streams gen
 	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WilcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
 	kcmdutil.AddValidateFlags(cmd)
-	o.CreateRouteSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateRouteSubcommandOptions.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -137,6 +138,10 @@ func (o *CreateReencryptRouteOptions) Run() error {
 
 	if len(o.InsecurePolicy) > 0 {
 		route.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyType(o.InsecurePolicy)
+	}
+
+	if err := util.CreateOrUpdateAnnotation(o.CreateRouteSubcommandOptions.CreateAnnotation, route, scheme.DefaultJSONEncoder()); err != nil {
+		return err
 	}
 
 	if o.CreateRouteSubcommandOptions.DryRunStrategy != kcmdutil.DryRunClient {

@@ -11,6 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	buildv1 "github.com/openshift/api/build/v1"
@@ -18,8 +20,6 @@ import (
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/helpers/env"
 )
-
-const BuildRecommendedName = "build"
 
 var (
 	buildLong = templates.LongDesc(`
@@ -31,7 +31,7 @@ var (
 
 	buildExample = templates.Examples(`
 		# Create a new build
-  	%[1]s myapp`)
+		oc create build myapp`)
 )
 
 type CreateBuildOptions struct {
@@ -54,15 +54,15 @@ type CreateBuildOptions struct {
 }
 
 // NewCmdCreateBuild is a macro command to create a new build stream
-func NewCmdCreateBuild(name, fullName string, f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateBuild(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreateBuildOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     name + " NAME",
+		Use:     "build NAME",
 		Short:   "Create a new build",
 		Long:    buildLong,
-		Example: fmt.Sprintf(buildExample, fullName),
+		Example: buildExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
 			cmdutil.CheckErr(o.Run())
@@ -81,7 +81,7 @@ func NewCmdCreateBuild(name, fullName string, f genericclioptions.RESTClientGett
 	cmd.Flags().IntVar(&o.BuildLoglevel, "build-loglevel", o.BuildLoglevel, "Set the log level for builds (0-10, 0 default).")
 	cmd.Flags().StringArrayVar(&o.Env, "env", o.Env, "Add enviroment variables to the build strategy.")
 
-	o.CreateSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateSubcommandOptions.AddFlags(cmd)
 	cmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -212,7 +212,11 @@ func (o *CreateBuildOptions) Run() error {
 		}
 	}
 
-	if o.CreateSubcommandOptions.DryRunStrategy == cmdutil.DryRunNone {
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, build, scheme.DefaultJSONEncoder()); err != nil {
+		return err
+	}
+
+	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
 		var err error
 		build, err = o.Client.Builds(o.CreateSubcommandOptions.Namespace).Create(context.TODO(), build, metav1.CreateOptions{})
 		if err != nil {

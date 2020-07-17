@@ -11,6 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -28,11 +30,11 @@ var (
 
 	edgeRouteExample = templates.Examples(`
 		# Create an edge route named "my-route" that exposes frontend service.
-	  %[1]s create route edge my-route --service=frontend
+		oc create route edge my-route --service=frontend
 
-	  # Create an edge route that exposes the frontend service and specify a path.
-	  # If the route name is omitted, the service name will be re-used.
-	  %[1]s create route edge --service=frontend --path /assets`)
+		# Create an edge route that exposes the frontend service and specify a path.
+		# If the route name is omitted, the service name will be re-used.
+		oc create route edge --service=frontend --path /assets`)
 )
 
 type CreateEdgeRouteOptions struct {
@@ -50,7 +52,7 @@ type CreateEdgeRouteOptions struct {
 }
 
 // NewCmdCreateEdgeRoute is a macro command to create an edge route.
-func NewCmdCreateEdgeRoute(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateEdgeRoute(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreateEdgeRouteOptions{
 		CreateRouteSubcommandOptions: NewCreateRouteSubcommandOptions(streams),
 	}
@@ -58,7 +60,7 @@ func NewCmdCreateEdgeRoute(fullName string, f kcmdutil.Factory, streams genericc
 		Use:     "edge [NAME] --service=SERVICE",
 		Short:   "Create a route that uses edge TLS termination",
 		Long:    edgeRouteLong,
-		Example: fmt.Sprintf(edgeRouteExample, fullName),
+		Example: edgeRouteExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
@@ -80,7 +82,7 @@ func NewCmdCreateEdgeRoute(fullName string, f kcmdutil.Factory, streams genericc
 	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WilcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
 	kcmdutil.AddValidateFlags(cmd)
-	o.CreateRouteSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateRouteSubcommandOptions.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -127,6 +129,10 @@ func (o *CreateEdgeRouteOptions) Run() error {
 
 	if len(o.InsecurePolicy) > 0 {
 		route.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyType(o.InsecurePolicy)
+	}
+
+	if err := util.CreateOrUpdateAnnotation(o.CreateRouteSubcommandOptions.CreateAnnotation, route, scheme.DefaultJSONEncoder()); err != nil {
+		return err
 	}
 
 	if o.CreateRouteSubcommandOptions.DryRunStrategy != kcmdutil.DryRunClient {

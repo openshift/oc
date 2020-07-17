@@ -9,6 +9,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -21,21 +22,21 @@ var (
 		Expose containers externally via secured routes
 
 		Three types of secured routes are supported: edge, passthrough, and reencrypt.
-		If you wish to create unsecured routes, see "%[1]s expose -h"`)
+		If you wish to create unsecured routes, see "oc expose -h"`)
 )
 
 // NewCmdCreateRoute is a macro command to create a secured route.
-func NewCmdCreateRoute(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateRoute(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "route",
 		Short: "Expose containers externally via secured routes",
-		Long:  fmt.Sprintf(routeLong, fullName),
+		Long:  routeLong,
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 
-	cmd.AddCommand(NewCmdCreateEdgeRoute(fullName, f, streams))
-	cmd.AddCommand(NewCmdCreatePassthroughRoute(fullName, f, streams))
-	cmd.AddCommand(NewCmdCreateReencryptRoute(fullName, f, streams))
+	cmd.AddCommand(NewCmdCreateEdgeRoute(f, streams))
+	cmd.AddCommand(NewCmdCreatePassthroughRoute(f, streams))
+	cmd.AddCommand(NewCmdCreateReencryptRoute(f, streams))
 
 	return cmd
 }
@@ -52,6 +53,7 @@ type CreateRouteSubcommandOptions struct {
 
 	Namespace        string
 	EnforceNamespace bool
+	CreateAnnotation bool
 
 	Mapper meta.RESTMapper
 
@@ -68,6 +70,11 @@ func NewCreateRouteSubcommandOptions(ioStreams genericclioptions.IOStreams) *Cre
 		PrintFlags: genericclioptions.NewPrintFlags("created").WithTypeSetter(scheme.Scheme),
 		IOStreams:  ioStreams,
 	}
+}
+
+func (o *CreateRouteSubcommandOptions) AddFlags(cmd *cobra.Command) {
+	o.PrintFlags.AddFlags(cmd)
+	cmdutil.AddApplyAnnotationVarFlags(cmd, &o.CreateAnnotation)
 }
 
 func (o *CreateRouteSubcommandOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
@@ -100,6 +107,8 @@ func (o *CreateRouteSubcommandOptions) Complete(f kcmdutil.Factory, cmd *cobra.C
 	if err != nil {
 		return err
 	}
+
+	o.CreateAnnotation = cmdutil.GetFlagBool(cmd, cmdutil.ApplyAnnotationsFlag)
 
 	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
 	if err != nil {

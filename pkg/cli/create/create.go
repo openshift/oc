@@ -16,8 +16,9 @@ type CreateSubcommandOptions struct {
 	// PrintFlags holds options necessary for obtaining a printer
 	PrintFlags *genericclioptions.PrintFlags
 	// Name of resource being created
-	Name           string
-	DryRunStrategy cmdutil.DryRunStrategy
+	Name             string
+	DryRunStrategy   cmdutil.DryRunStrategy
+	CreateAnnotation bool
 
 	Namespace        string
 	EnforceNamespace bool
@@ -30,6 +31,11 @@ func NewCreateSubcommandOptions(ioStreams genericclioptions.IOStreams) *CreateSu
 		PrintFlags: genericclioptions.NewPrintFlags("created").WithTypeSetter(scheme.Scheme),
 		IOStreams:  ioStreams,
 	}
+}
+
+func (o *CreateSubcommandOptions) AddFlags(cmd *cobra.Command) {
+	o.PrintFlags.AddFlags(cmd)
+	cmdutil.AddApplyAnnotationVarFlags(cmd, &o.CreateAnnotation)
 }
 
 func (o *CreateSubcommandOptions) Complete(f genericclioptions.RESTClientGetter, cmd *cobra.Command, args []string) error {
