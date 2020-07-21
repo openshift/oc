@@ -2,10 +2,13 @@ package inspect
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -178,10 +181,27 @@ func getAllEventsRecursive(rootDir string) (*corev1.EventList, error) {
 }
 
 func createEventFilterPageFromFile(eventFile string, rootDir string) error {
-	jsonStream, err := os.Open(eventFile)
-	if err != nil {
-		return err
+	var jsonStream io.Reader
+	var err error
+
+	if strings.HasPrefix(eventFile, "https://") || strings.HasPrefix(eventFile, "http://") {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		resp, err := client.Get(eventFile)
+		if err != nil {
+			return err
+		}
+		jsonStream = resp.Body
+		defer resp.Body.Close()
+	} else {
+		jsonStream, err = os.Open(eventFile)
+		if err != nil {
+			return err
+		}
 	}
+
 	decoder := json.NewDecoder(jsonStream)
 	var events corev1.EventList
 	if err := decoder.Decode(&events); err != nil {
@@ -196,18 +216,29 @@ func createEventFilterPage(events *corev1.EventList, rootDir string) error {
 	})
 
 	t := template.Must(template.New("events").Funcs(template.FuncMap{
-		"formatTime": func(t metav1.Time) template.HTML {
-			return template.HTML(t.Format("15:04:05"))
+		"formatTime": func(created, firstSeen, lastSeen metav1.Time, count int32) template.HTML {
+			countMsg := ""
+			if count > 1 {
+				countMsg = fmt.Sprintf(" <small>(x%d)</small>", count)
+			}
+			if lastSeen.IsZero() {
+				lastSeen = created
+			}
+			return template.HTML(fmt.Sprintf(`<time datetime="%s" title="First Seen: %s">%s</time>%s`, lastSeen.String(), firstSeen.Format("15:04:05"), lastSeen.Format("15:04:05"), countMsg))
 		},
 		"formatReason": func(r string) template.HTML {
 			switch {
 			case strings.Contains(strings.ToLower(r), "fail"),
-				strings.Contains(strings.ToLower(r), "error"):
-				return template.HTML(`<div class="alert alert-danger" role="alert">` + r + `</div>`)
-			case strings.Contains(strings.ToLower(r), "notready"):
-				return template.HTML(`<div class="alert alert-warning" role="alert">` + r + `</div>`)
+				strings.Contains(strings.ToLower(r), "error"),
+				strings.Contains(strings.ToLower(r), "kill"),
+				strings.Contains(strings.ToLower(r), "backoff"):
+				return template.HTML(`<p class="text-danger">` + r + `</p>`)
+			case strings.Contains(strings.ToLower(r), "notready"),
+				strings.Contains(strings.ToLower(r), "unhealthy"),
+				strings.Contains(strings.ToLower(r), "missing"):
+				return template.HTML(`<p class="text-warning">` + r + `</p>`)
 			}
-			return template.HTML(`<div class="alert alert-light" role="alert">` + r + `</div>`)
+			return template.HTML(`<p class="text-muted">` + r + `</p>`)
 		},
 	}).Parse(eventHTMLPage))
 
