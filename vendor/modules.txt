@@ -976,7 +976,7 @@ k8s.io/kube-openapi/pkg/common
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/proto/testing
 k8s.io/kube-openapi/pkg/util/proto/validation
-# k8s.io/kubectl v0.18.2 => github.com/openshift/kubernetes-kubectl v0.0.0-20200507115706-2f87de22f81a
+# k8s.io/kubectl v0.18.2 => github.com/wking/kubernetes/staging/src/k8s.io/kubectl v0.0.0-20200721233800-80328a61100c
 k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd
 k8s.io/kubectl/pkg/cmd/annotate
@@ -1125,7 +1125,7 @@ k8s.io/kubernetes/pkg/kubectl/cmd/cp
 k8s.io/kubernetes/pkg/registry/rbac/reconciliation
 k8s.io/kubernetes/pkg/registry/rbac/validation
 k8s.io/kubernetes/pkg/util/parsers
-# k8s.io/metrics v0.18.2 => k8s.io/metrics v0.18.2
+# k8s.io/metrics v0.0.0 => k8s.io/metrics v0.18.2
 k8s.io/metrics/pkg/apis/metrics
 k8s.io/metrics/pkg/apis/metrics/v1alpha1
 k8s.io/metrics/pkg/apis/metrics/v1beta1

@@ -712,8 +712,6 @@ github.com/openshift/kubernetes-cli-runtime v0.0.0-20200507115657-2fb95e953778 h
 github.com/openshift/kubernetes-cli-runtime v0.0.0-20200507115657-2fb95e953778/go.mod h1:yfFR2sQQzDsV0VEKGZtrJwEy4hLZ2oj4ZIfodgxAHWQ=
 github.com/openshift/kubernetes-client-go v0.0.0-20200507115529-5e2a2d83bced h1:tFIeR3M66xC/l+tuhlZKfK+OCMNk7ZfqeJQaR1ofoRo=
 github.com/openshift/kubernetes-client-go v0.0.0-20200507115529-5e2a2d83bced/go.mod h1:Xcm5wVGXX9HAA2JJ2sSBUn3tCJ+4SVlCbl2MNNv+CIU=
-github.com/openshift/kubernetes-kubectl v0.0.0-20200507115706-2f87de22f81a h1:BG3HbZLvm1NlUkDoelF+vPG+Lnz6mKu0cPNAD800TDU=
-github.com/openshift/kubernetes-kubectl v0.0.0-20200507115706-2f87de22f81a/go.mod h1:OdgFa3AlsPKRpFFYE7ICTwulXOcMGXHTc+UKhHKvrb4=
 github.com/openshift/library-go v0.0.0-20200629115313-82f0d09841e8 h1:ktjMcHXeq378TfJVfbffJtbY/wiRsde2DWEXQjkLs7U=
 github.com/openshift/library-go v0.0.0-20200629115313-82f0d09841e8/go.mod h1:gckhmPaUyPXT9HFUIeA8YgUzn3OzM5PhS2azW+Y8VmU=
 github.com/openzipkin/zipkin-go v0.1.6/go.mod h1:QgAqvLzwWbR/WpD4A3cGpPtJrZXNIiJc5AZX7/PBEpw=
@@ -895,6 +893,8 @@ github.com/vishvananda/netns v0.0.0-20171111001504-be1fbeda1936/go.mod h1:ZjcWmF
 github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df h1:OviZH7qLw/7ZovXvuNyL3XQl8UFofeikI1NW1Gypu7k=
 github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df/go.mod h1:JP3t17pCcGlemwknint6hfoeCVQrEMVwxRLRjXpq+BU=
 github.com/vmware/govmomi v0.20.3/go.mod h1:URlwyTFZX72RmxtxuaFL2Uj3fD1JTvZdx59bHWk6aFU=
+github.com/wking/kubernetes/staging/src/k8s.io/kubectl v0.0.0-20200721233800-80328a61100c h1:aqiJ7SYlM2ci99N1sKDrS48zpBa+O7ogvuboW8XTeSs=
+github.com/wking/kubernetes/staging/src/k8s.io/kubectl v0.0.0-20200721233800-80328a61100c/go.mod h1:lLLodYzjtaBEMebmdtYz2Sh+X8/3DB79imNypXbONsE=
 github.com/xanzy/go-gitlab v0.15.0/go.mod h1:8zdQa/ri1dfn8eS3Ir1SyfvOKlw7WBJ8DVThkpGiXrs=
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.0/go.mod h1:Jhud4/sHMO4oL310DaZAKk9ZaJ08SJfe+sJh0HrGL1Y=
