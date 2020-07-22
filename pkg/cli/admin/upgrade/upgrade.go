@@ -30,7 +30,7 @@ func NewOptions(streams genericclioptions.IOStreams) *Options {
 	}
 }
 
-func New(f kcmdutil.Factory, parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "upgrade --to=VERSION",

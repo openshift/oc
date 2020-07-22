@@ -33,10 +33,10 @@ var policyLong = ktemplates.LongDesc(`
 	and 'scc'.`)
 
 // NewCmdPolicy implements the OpenShift cli policy command
-func NewCmdPolicy(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPolicy(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
-		Use:   name,
+		Use:   "policy",
 		Short: "Manage cluster authorization and security policy",
 		Long:  policyLong,
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
@@ -46,43 +46,43 @@ func NewCmdPolicy(name, fullName string, f kcmdutil.Factory, streams genericclio
 		{
 			Message: "Discover:",
 			Commands: []*cobra.Command{
-				NewCmdWhoCan(WhoCanRecommendedName, fullName+" "+WhoCanRecommendedName, f, streams),
-				NewCmdSccSubjectReview(SubjectReviewRecommendedName, fullName+" "+SubjectReviewRecommendedName, f, streams),
-				NewCmdSccReview(ReviewRecommendedName, fullName+" "+ReviewRecommendedName, f, streams),
+				NewCmdWhoCan(f, streams),
+				NewCmdSccSubjectReview(f, streams),
+				NewCmdSccReview(f, streams),
 			},
 		},
 		{
 			Message: "Manage project membership:",
 			Commands: []*cobra.Command{
-				NewCmdRemoveUserFromProject(RemoveUserRecommendedName, fullName+" "+RemoveUserRecommendedName, f, streams),
-				NewCmdRemoveGroupFromProject(RemoveGroupRecommendedName, fullName+" "+RemoveGroupRecommendedName, f, streams),
+				NewCmdRemoveUserFromProject(f, streams),
+				NewCmdRemoveGroupFromProject(f, streams),
 			},
 		},
 		{
 			Message: "Assign roles to users and groups:",
 			Commands: []*cobra.Command{
-				NewCmdAddRoleToUser(AddRoleToUserRecommendedName, fullName+" "+AddRoleToUserRecommendedName, f, streams),
-				NewCmdAddRoleToGroup(AddRoleToGroupRecommendedName, fullName+" "+AddRoleToGroupRecommendedName, f, streams),
-				NewCmdRemoveRoleFromUser(RemoveRoleFromUserRecommendedName, fullName+" "+RemoveRoleFromUserRecommendedName, f, streams),
-				NewCmdRemoveRoleFromGroup(RemoveRoleFromGroupRecommendedName, fullName+" "+RemoveRoleFromGroupRecommendedName, f, streams),
+				NewCmdAddRoleToUser(f, streams),
+				NewCmdAddRoleToGroup(f, streams),
+				NewCmdRemoveRoleFromUser(f, streams),
+				NewCmdRemoveRoleFromGroup(f, streams),
 			},
 		},
 		{
 			Message: "Assign cluster roles to users and groups:",
 			Commands: []*cobra.Command{
-				NewCmdAddClusterRoleToUser(AddClusterRoleToUserRecommendedName, fullName+" "+AddClusterRoleToUserRecommendedName, f, streams),
-				NewCmdAddClusterRoleToGroup(AddClusterRoleToGroupRecommendedName, fullName+" "+AddClusterRoleToGroupRecommendedName, f, streams),
-				NewCmdRemoveClusterRoleFromUser(RemoveClusterRoleFromUserRecommendedName, fullName+" "+RemoveClusterRoleFromUserRecommendedName, f, streams),
-				NewCmdRemoveClusterRoleFromGroup(RemoveClusterRoleFromGroupRecommendedName, fullName+" "+RemoveClusterRoleFromGroupRecommendedName, f, streams),
+				NewCmdAddClusterRoleToUser(f, streams),
+				NewCmdAddClusterRoleToGroup(f, streams),
+				NewCmdRemoveClusterRoleFromUser(f, streams),
+				NewCmdRemoveClusterRoleFromGroup(f, streams),
 			},
 		},
 		{
 			Message: "Manage policy on pods and containers:",
 			Commands: []*cobra.Command{
-				NewCmdAddSCCToUser(AddSCCToUserRecommendedName, fullName+" "+AddSCCToUserRecommendedName, f, streams),
-				NewCmdAddSCCToGroup(AddSCCToGroupRecommendedName, fullName+" "+AddSCCToGroupRecommendedName, f, streams),
-				NewCmdRemoveSCCFromUser(RemoveSCCFromUserRecommendedName, fullName+" "+RemoveSCCFromUserRecommendedName, f, streams),
-				NewCmdRemoveSCCFromGroup(RemoveSCCFromGroupRecommendedName, fullName+" "+RemoveSCCFromGroupRecommendedName, f, streams),
+				NewCmdAddSCCToUser(f, streams),
+				NewCmdAddSCCToGroup(f, streams),
+				NewCmdRemoveSCCFromUser(f, streams),
+				NewCmdRemoveSCCFromGroup(f, streams),
 			},
 		},
 	}

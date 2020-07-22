@@ -11,8 +11,6 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 )
 
-const CreateBootstrapProjectTemplateCommand = "create-bootstrap-project-template"
-
 type CreateBootstrapProjectTemplateOptions struct {
 	PrintFlags *genericclioptions.PrintFlags
 
@@ -32,10 +30,10 @@ func NewCreateBootstrapProjectTemplateOptions(streams genericclioptions.IOStream
 	}
 }
 
-func NewCommandCreateBootstrapProjectTemplate(f kcmdutil.Factory, commandName string, fullName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateBootstrapProjectTemplate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCreateBootstrapProjectTemplateOptions(streams)
 	cmd := &cobra.Command{
-		Use:   commandName,
+		Use:   "create-bootstrap-project-template",
 		Short: "Create a bootstrap project template",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(args))

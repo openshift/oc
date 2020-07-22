@@ -18,28 +18,26 @@ import (
 )
 
 const (
-	CreateKubeconfigRecommendedName = "create-kubeconfig"
-
 	createKubeconfigShort = `Generate a kubeconfig file for a service account`
-
-	createKubeconfigUsage = `%s SA-NAME`
 )
 
 var (
 	createKubeconfigLong = templates.LongDesc(`
-    Generate a kubeconfig file that will utilize this service account.
+		Generate a kubeconfig file that will utilize this service account.
 
-    The kubeconfig file will reference the service account token and use the current server,
-    namespace, and cluster contact info. If the service account has multiple tokens, the
-    first token found will be returned. The generated file will be output to STDOUT.
+		The kubeconfig file will reference the service account token and use the current server,
+		namespace, and cluster contact info. If the service account has multiple tokens, the
+		first token found will be returned. The generated file will be output to STDOUT.
 
-    Service account API tokens are used by service accounts to authenticate to the API.
-    Client actions using a service account token will be executed as if the service account
-    itself were making the actions.`)
+		Service account API tokens are used by service accounts to authenticate to the API.
+		Client actions using a service account token will be executed as if the service account
+		itself were making the actions.
+	`)
 
 	createKubeconfigExamples = templates.Examples(`
-    # Create a kubeconfig file for service account 'default'
-    %[1]s 'default' > default.kubeconfig`)
+		# Create a kubeconfig file for service account 'default'
+		oc serviceaccounts create-kubeconfig 'default' > default.kubeconfig
+	`)
 )
 
 type CreateKubeconfigOptions struct {
@@ -59,14 +57,14 @@ func NewCreateKubeconfigOptions(streams genericclioptions.IOStreams) *CreateKube
 	}
 }
 
-func NewCommandCreateKubeconfig(name, fullname string, f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateKubeconfig(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	options := NewCreateKubeconfigOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf(createKubeconfigUsage, name),
+		Use:     "create-kubeconfig NAME",
 		Short:   createKubeconfigShort,
 		Long:    createKubeconfigLong,
-		Example: fmt.Sprintf(createKubeconfigExamples, fullname),
+		Example: createKubeconfigExamples,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(options.Complete(args, f, cmd))
 			cmdutil.CheckErr(options.Validate())

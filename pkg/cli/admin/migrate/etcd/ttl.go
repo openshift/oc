@@ -28,11 +28,13 @@ var (
 
 		Any resource impacted by this command will be removed from etcd after the lease-duration
 		expires. Be VERY CAREFUL in which values you place to --ttl-keys-prefix, and ensure you
-		have an up to date backup of your etcd database.`)
+		have an up to date backup of your etcd database.
+	`)
 
 	internalMigrateTTLExample = templates.Examples(`
-	  # Migrate TTLs for keys under /kubernetes.io/events to a 2 hour lease
-	  %[1]s --etcd-address=localhost:2379 --ttl-keys-prefix=/kubernetes.io/events/ --lease-duration=2h`)
+		# Migrate TTLs for keys under /kubernetes.io/events to a 2 hour lease
+		oc adm migrate etcd-ttl --etcd-address=localhost:2379 --ttl-keys-prefix=/kubernetes.io/events/ --lease-duration=2h
+	`)
 )
 
 type MigrateTTLReferenceOptions struct {
@@ -53,13 +55,13 @@ func NewMigrateTTLReferenceOptions(streams genericclioptions.IOStreams) *Migrate
 }
 
 // NewCmdMigrateTTLs helps move etcd v2 TTL keys to etcd v3 lease keys.
-func NewCmdMigrateTTLs(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMigrateTTLs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateTTLReferenceOptions(streams)
 	cmd := &cobra.Command{
-		Use:        fmt.Sprintf("%s --etcd-address=HOST --ttl-keys-prefix=PATH", name),
+		Use:        "etcd-ttl --etcd-address=HOST --ttl-keys-prefix=PATH",
 		Short:      "Attach keys to etcd v3 leases to assist in etcd v2 migrations",
 		Long:       internalMigrateTTLLong,
-		Example:    fmt.Sprintf(internalMigrateTTLExample, fullName),
+		Example:    internalMigrateTTLExample,
 		Deprecated: "migration of content is managed automatically in OpenShift 4.x",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Run())

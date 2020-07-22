@@ -58,16 +58,15 @@ var (
 		Experimental: This command is under active development and may change without notice.`)
 
 	example = templates.Examples(`
-# Log in to the integrated registry
-%[1]s
+		# Log in to the integrated registry
+		oc registry login
 
-# Log in as the default service account in the current namespace
-%[1]s -z default
+		# Log in as the default service account in the current namespace
+		oc registry login -z default
 
-# Log in to a different registry using BASIC auth credentials
-%[1]s --registry quay.io --auth-basic=USER:PASS
-
-`)
+		# Log in to a different registry using BASIC auth credentials
+		oc registry login --registry quay.io --auth-basic=USER:PASS
+	`)
 )
 
 type Credentials struct {
@@ -109,14 +108,14 @@ func NewRegistryLoginOptions(streams genericclioptions.IOStreams) *LoginOptions 
 }
 
 // New logs you in to a container image registry locally.
-func NewRegistryLoginCmd(name string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRegistryLoginOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "login ",
 		Short:   "Login to the integrated registry",
 		Long:    desc,
-		Example: fmt.Sprintf(example, name+" login"),
+		Example: example,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args))
 			kcmdutil.CheckErr(o.Validate())

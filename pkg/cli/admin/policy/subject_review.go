@@ -28,18 +28,19 @@ import (
 
 var (
 	subjectReviewLong = templates.LongDesc(`Check whether a User, Service Account or a Group can create a Pod.
-	It returns a list of Security Context Constraints that will admit the resource.
-	If User is specified but not Groups, it is interpreted as "What if User is not a member of any groups".
-	If User and Groups are empty, then the check is performed using the current user
+		It returns a list of Security Context Constraints that will admit the resource.
+		If User is specified but not Groups, it is interpreted as "What if User is not a member of any groups".
+		If User and Groups are empty, then the check is performed using the current user
 	`)
 	subjectReviewExamples = templates.Examples(`# Check whether user bob can create a pod specified in myresource.yaml
-	$ %[1]s -u bob -f myresource.yaml
+		oc adm policy scc-subject-review -u bob -f myresource.yaml
 
-	# Check whether user bob who belongs to projectAdmin group can create a pod specified in myresource.yaml
-	$ %[1]s -u bob -g projectAdmin -f myresource.yaml
+		# Check whether user bob who belongs to projectAdmin group can create a pod specified in myresource.yaml
+		oc adm policy scc-subject-review -u bob -g projectAdmin -f myresource.yaml
 
-	# Check whether ServiceAccount specified in podTemplateSpec in myresourcewithsa.yaml can create the Pod
-	$  %[1]s -f myresourcewithsa.yaml `)
+		# Check whether ServiceAccount specified in podTemplateSpec in myresourcewithsa.yaml can create the Pod
+		oc adm policy scc-subject-review -f myresourcewithsa.yaml
+	`)
 )
 
 const SubjectReviewRecommendedName = "scc-subject-review"
@@ -70,13 +71,13 @@ func NewSCCSubjectReviewOptions(streams genericclioptions.IOStreams) *SCCSubject
 	}
 }
 
-func NewCmdSccSubjectReview(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSccSubjectReview(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewSCCSubjectReviewOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
+		Use:     "scc-subject-review",
 		Long:    subjectReviewLong,
 		Short:   "Check whether a user or a ServiceAccount can create a Pod.",
-		Example: fmt.Sprintf(subjectReviewExamples, fullName, fullName),
+		Example: subjectReviewExamples,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args, cmd))
 			kcmdutil.CheckErr(o.Run(args))

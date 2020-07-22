@@ -21,20 +21,20 @@ var topLong = templates.LongDesc(`
 	This command analyzes resources managed by the platform and presents current
 	usage statistics.`)
 
-func NewCommandTop(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandTop(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
-		Use:   name,
+		Use:   "top",
 		Short: "Show usage statistics of resources on the server",
 		Long:  topLong,
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 
-	cmdTopNode := cmdutil.ReplaceCommandName("kubectl", fullName, top.NewCmdTopNode(f, nil, streams))
-	cmdTopPod := cmdutil.ReplaceCommandName("kubectl", fullName, top.NewCmdTopPod(f, nil, streams))
+	cmdTopNode := cmdutil.ReplaceCommandName("kubectl", "oc adm", top.NewCmdTopNode(f, nil, streams))
+	cmdTopPod := cmdutil.ReplaceCommandName("kubectl", "oc adm", top.NewCmdTopPod(f, nil, streams))
 
-	cmds.AddCommand(NewCmdTopImages(f, fullName, TopImagesRecommendedName, streams))
-	cmds.AddCommand(NewCmdTopImageStreams(f, fullName, TopImageStreamsRecommendedName, streams))
+	cmds.AddCommand(NewCmdTopImages(f, streams))
+	cmds.AddCommand(NewCmdTopImageStreams(f, streams))
 	cmdTopNode.Long = templates.LongDesc(cmdTopNode.Long)
 	cmdTopNode.Example = templates.Examples(cmdTopNode.Example)
 	cmdTopPod.Long = templates.LongDesc(cmdTopPod.Long)

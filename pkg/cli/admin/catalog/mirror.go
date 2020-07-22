@@ -35,34 +35,34 @@ import (
 
 var (
 	mirrorLong = templates.LongDesc(`
-			Mirrors the contents of a catalog into a registry.
+		Mirrors the contents of a catalog into a registry.
 
-			This command will pull down an image containing a catalog database, extract it to disk, query it to find
-			all of the images used in the manifests, and then mirror them to a target registry.
+		This command will pull down an image containing a catalog database, extract it to disk, query it to find
+		all of the images used in the manifests, and then mirror them to a target registry.
 
-			By default, the database is extracted to a temporary directory, but can be saved locally via flags.
+		By default, the database is extracted to a temporary directory, but can be saved locally via flags.
 
-			An ImageContentSourcePolicy is written to a file that can be adedd to a cluster with access to the target 
-			registry. This will configure the cluster to pull from the mirrors instead of the locations referenced in
-			the operator manifests.
+		An ImageContentSourcePolicy is written to a file that can be adedd to a cluster with access to the target
+		registry. This will configure the cluster to pull from the mirrors instead of the locations referenced in
+		the operator manifests.
 
-			A mapping.txt file is also created that is compatible with "oc image mirror". This may be used to further
-			customize the mirroring configuration, but should not be needed in normal circumstances.
-		`)
+		A mapping.txt file is also created that is compatible with "oc image mirror". This may be used to further
+		customize the mirroring configuration, but should not be needed in normal circumstances.
+	`)
 	mirrorExample = templates.Examples(`
-# Mirror an operator-registry image and its contents to a registry
-%[1]s quay.io/my/image:latest myregistry.com
+		# Mirror an operator-registry image and its contents to a registry
+		oc adm catalog mirror quay.io/my/image:latest myregistry.com
 
-# Mirror an operator-registry image and its contents to a particular namespace in a registry
-%[1]s quay.io/my/image:latest myregistry.com/my-namespace
+		# Mirror an operator-registry image and its contents to a particular namespace in a registry
+		oc adm catalog mirror quay.io/my/image:latest myregistry.com/my-namespace
 
-# Configure a cluster to use a mirrored registry
-oc apply -f manifests/imageContentSourcePolicy.yaml
+		# Configure a cluster to use a mirrored registry
+		oc apply -f manifests/imageContentSourcePolicy.yaml
 
-# Edit the mirroring mappings and mirror with "oc image mirror" manually
-%[1]s --manifests-only quay.io/my/image:latest myregistry.com
-oc image mirror -f manifests/mapping.txt
-`)
+		# Edit the mirroring mappings and mirror with "oc image mirror" manually
+		oc adm catalog mirror --manifests-only quay.io/my/image:latest myregistry.com
+		oc image mirror -f manifests/mapping.txt
+	`)
 )
 
 const IndexLocationLabelKey = "operators.operatorframework.io.index.database.v1"
@@ -105,7 +105,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 		Use:     "mirror SRC DEST",
 		Short:   "mirror an operator-registry catalog",
 		Long:    mirrorLong,
-		Example: fmt.Sprintf(mirrorExample, "oc adm catalog mirror"),
+		Example: mirrorExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -272,7 +272,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	o.ImageMirrorer = mirrorer
 
 	var extractor DatabaseExtractorFunc = func(from imagesource.TypedImageReference) (string, error) {
-		e := imgextract.NewOptions(o.IOStreams)
+		e := imgextract.NewExtractOptions(o.IOStreams)
 		e.SecurityOptions = o.SecurityOptions
 		e.FilterOptions = o.FilterOptions
 		e.ParallelOptions = o.ParallelOptions

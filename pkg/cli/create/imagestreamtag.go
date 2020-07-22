@@ -32,12 +32,13 @@ var (
 
 		If --resolve-local is passed, the image stream will be used as the source when pods reference
 		it by name. For example, if stream 'mysql' resolves local names, a pod that points to
-		'mysql:latest' will use the image the image stream points to under the "latest" tag.`)
+		'mysql:latest' will use the image the image stream points to under the "latest" tag.
+	`)
 
 	imageStreamTagExample = templates.Examples(`
 		# Create a new image stream tag based on an image on a remote registry
 		oc create imagestreamtag mysql:latest --from-image=myregistry.local/mysql/mysql:5.0
-		`)
+	`)
 )
 
 type CreateImageStreamTagOptions struct {

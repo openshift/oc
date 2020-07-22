@@ -67,11 +67,11 @@ var (
 
 		    $ cat set_owner.sh
 		    #!/bin/sh
-		    if [[ "$(%[1]s get namespace "$1" --template='{{ .metadata.annotations.owner }}')" == "" ]]; then
-		      %[1]s annotate namespace "$1" owner=bob
+		    if [[ "$(oc get namespace "$1" --template='{{ .metadata.annotations.owner }}')" == "" ]]; then
+		      oc annotate namespace "$1" owner=bob
 		    fi
 
-		    $ %[1]s observe namespaces -- ./set_owner.sh
+		    $ oc observe namespaces -- ./set_owner.sh
 
 		The set_owner.sh script is invoked with a single argument (the namespace name)
 		for each namespace. This simple script ensures that any user without the
@@ -104,7 +104,7 @@ var (
 		    touch inventory
 		    cut -f 1-1 -d ' ' inventory
 
-		    $ %[1]s observe nodes -a '{ .status.addresses[0].address }' \
+		    $ oc observe nodes -a '{ .status.addresses[0].address }' \
 		      --names ./known_nodes.sh \
 		      --delete ./remove_from_inventory.sh \
 		      -- ./add_to_inventory.sh
@@ -122,17 +122,19 @@ var (
 		script could make a call to allocate storage on your infrastructure as a
 		service, or register node names in DNS, or set complex firewalls. The more
 		complex your integration, the more important it is to record enough data in the
-		remote system that you can identify when resources on either side are deleted.`)
+		remote system that you can identify when resources on either side are deleted.\
+	`)
 
 	observeExample = templates.Examples(`
 		# Observe changes to services
-	  %[1]s observe services
+		oc observe services
 
-	  # Observe changes to services, including the clusterIP and invoke a script for each
-	  %[1]s observe services -a '{ .spec.clusterIP }' -- register_dns.sh
+		# Observe changes to services, including the clusterIP and invoke a script for each
+		oc observe services -a '{ .spec.clusterIP }' -- register_dns.sh
 
-	  # Observe changes to services filtered by a label selector
-	  %[1]s observe namespaces -l regist-dns=true -a '{ .spec.clusterIP }' -- register_dns.sh`)
+		# Observe changes to services filtered by a label selector
+		oc observe namespaces -l regist-dns=true -a '{ .spec.clusterIP }' -- register_dns.sh
+	`)
 )
 
 type ObserveOptions struct {
@@ -200,14 +202,14 @@ func NewObserveOptions(streams genericclioptions.IOStreams) *ObserveOptions {
 }
 
 // NewCmdObserve creates the observe command.
-func NewCmdObserve(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdObserve(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewObserveOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "observe RESOURCE [-- COMMAND ...]",
 		Short:   "Observe changes to resources and react to them (experimental)",
-		Long:    fmt.Sprintf(observeLong, fullName),
-		Example: fmt.Sprintf(observeExample, fullName),
+		Long:    observeLong,
+		Example: observeExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

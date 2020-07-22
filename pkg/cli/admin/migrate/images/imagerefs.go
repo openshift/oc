@@ -54,23 +54,25 @@ var (
 		* secrets (docker)
 
 		Only images, imagestreams, and secrets are updated by default. Updating images and image
-		streams requires administrative privileges.`)
+		streams requires administrative privileges.
+	`)
 
 	internalMigrateImagesExample = templates.Examples(`
 		# Perform a dry-run of migrating all "docker.io" references to "myregistry.com"
-	  %[1]s docker.io/*=myregistry.com/*
+		oc adm migrate image-references docker.io/*=myregistry.com/*
 
-	  # To actually perform the migration, the confirm flag must be appended
-	  %[1]s docker.io/*=myregistry.com/* --confirm
+		# To actually perform the migration, the confirm flag must be appended
+		oc adm migrate image-references docker.io/*=myregistry.com/* --confirm
 
-	  # To see more details of what will be migrated, use the loglevel and output flags
-	  %[1]s docker.io/*=myregistry.com/* --loglevel=2 -o yaml
+		# To see more details of what will be migrated, use the loglevel and output flags
+		oc adm migrate image-references docker.io/*=myregistry.com/* --loglevel=2 -o yaml
 
-	  # Migrate from a service IP to an internal service DNS name
-	  %[1]s 172.30.1.54/*=registry.openshift.svc.cluster.local/*
+		# Migrate from a service IP to an internal service DNS name
+		oc adm migrate image-references 172.30.1.54/*=registry.openshift.svc.cluster.local/*
 
-	  # Migrate from a service IP to an internal service DNS name for all deployment configs and builds
-	  %[1]s 172.30.1.54/*=registry.openshift.svc.cluster.local/* --include=buildconfigs,deploymentconfigs`)
+		# Migrate from a service IP to an internal service DNS name for all deployment configs and builds
+		oc adm migrate image-references 172.30.1.54/*=registry.openshift.svc.cluster.local/* --include=buildconfigs,deploymentconfigs
+	`)
 )
 
 type MigrateImageReferenceOptions struct {
@@ -88,13 +90,13 @@ func NewMigrateImageReferenceOptions(streams genericclioptions.IOStreams) *Migra
 }
 
 // NewCmdMigrateImageReferences implements a MigrateImages command
-func NewCmdMigrateImageReferences(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMigrateImageReferences(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateImageReferenceOptions(streams)
 	cmd := &cobra.Command{
-		Use:        fmt.Sprintf("%s REGISTRY/NAME=REGISTRY/NAME [...]", name),
+		Use:        "image-references REGISTRY/NAME=REGISTRY/NAME [...]",
 		Short:      "Update embedded Docker image references",
 		Long:       internalMigrateImagesLong,
-		Example:    fmt.Sprintf(internalMigrateImagesExample, fullName),
+		Example:    internalMigrateImagesExample,
 		Deprecated: "migration of content is managed automatically in OpenShift 4.x",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

@@ -40,16 +40,16 @@ var (
 
 	buildSecretExample = templates.Examples(`
 		# Clear push secret on a build config
-		%[1]s build-secret --push --remove bc/mybuild
+		oc set build-secret --push --remove bc/mybuild
 
 		# Set the pull secret on a build config
-		%[1]s build-secret --pull bc/mybuild mysecret
+		oc set build-secret --pull bc/mybuild mysecret
 
 		# Set the push and pull secret on a build config
-		%[1]s build-secret --push --pull bc/mybuild mysecret
+		oc set build-secret --push --pull bc/mybuild mysecret
 
 		# Set the source secret on a set of build configs matching a selector
-		%[1]s build-secret --source -l app=myapp gitsecret`)
+		oc set build-secret --source -l app=myapp gitsecret`)
 )
 
 type BuildSecretOptions struct {
@@ -85,13 +85,13 @@ func NewBuildSecretOptions(streams genericclioptions.IOStreams) *BuildSecretOpti
 }
 
 // NewCmdBuildSecret implements the set build-secret command
-func NewCmdBuildSecret(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdBuildSecret(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewBuildSecretOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "build-secret BUILDCONFIG SECRETNAME",
 		Short:   "Update a build secret on a build config",
 		Long:    buildSecretLong,
-		Example: fmt.Sprintf(buildSecretExample, fullName),
+		Example: buildSecretExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	RshRecommendedName   = "rsh"
 	DefaultShell         = "/bin/sh"
 	defaultPodRshTimeout = 60 * time.Second
 )
@@ -39,25 +38,26 @@ var (
 		the shell (or command) will be executed. By default its value is the same as the TERM
 		variable from the local environment; if not set, 'xterm' is used.
 
-		Note, some containers may not include a shell - use '%[1]s exec' if you need to run commands
+		Note, some containers may not include a shell - use 'oc exec' if you need to run commands
 		directly.`)
 
 	rshExample = templates.Examples(`
-	  # Open a shell session on the first container in pod 'foo'
-	  %[1]s foo
+		# Open a shell session on the first container in pod 'foo'
+		oc rsh foo
 
-	  # Open a shell session on the first container in pod 'foo' and namespace 'bar'
-	  # (Note that oc client specific arguments must come before the resource name and its arguments)
-	  %[1]s -n bar foo
+		# Open a shell session on the first container in pod 'foo' and namespace 'bar'
+		# (Note that oc client specific arguments must come before the resource name and its arguments)
+		oc rsh -n bar foo
 
-	  # Run the command 'cat /etc/resolv.conf' inside pod 'foo'
-	  %[1]s foo cat /etc/resolv.conf
+		# Run the command 'cat /etc/resolv.conf' inside pod 'foo'
+		oc rsh foo cat /etc/resolv.conf
 
-	  # See the configuration of your internal registry
-	  %[1]s dc/docker-registry cat config.yml
+		# See the configuration of your internal registry
+		oc rsh dc/docker-registry cat config.yml
 
-	  # Open a shell session on the container named 'index' inside a pod of your job
-	  %[1]s -c index job/sheduled`)
+		# Open a shell session on the container named 'index' inside a pod of your job
+		oc rsh -c index job/sheduled
+	`)
 )
 
 // RshOptions declare the arguments accepted by the Rsh command
@@ -69,7 +69,7 @@ type RshOptions struct {
 	*exec.ExecOptions
 }
 
-func NewRshOptions(parent string, streams genericclioptions.IOStreams) *RshOptions {
+func NewRshOptions(streams genericclioptions.IOStreams) *RshOptions {
 	return &RshOptions{
 		ForceTTY:   false,
 		DisableTTY: false,
@@ -82,21 +82,21 @@ func NewRshOptions(parent string, streams genericclioptions.IOStreams) *RshOptio
 				Stdin:     true,
 			},
 
-			ParentCommandName: parent,
+			ParentCommandName: "oc",
 			Executor:          &exec.DefaultRemoteExecutor{},
 		},
 	}
 }
 
 // NewCmdRsh returns a command that attempts to open a shell session to the server.
-func NewCmdRsh(name string, parent string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewRshOptions(parent, streams)
+func NewCmdRsh(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewRshOptions(streams)
 	cmd := &cobra.Command{
 		Use:                   rshUsageStr,
 		DisableFlagsInUseLine: true,
 		Short:                 "Start a shell session in a container.",
-		Long:                  fmt.Sprintf(rshLong, parent),
-		Example:               fmt.Sprintf(rshExample, parent+" "+name),
+		Long:                  rshLong,
+		Example:               rshExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

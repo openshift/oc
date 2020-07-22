@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	WhoAmIRecommendedCommandName        = "whoami"
 	openShiftConfigManagedNamespaceName = "openshift-config-managed"
 	consolePublicConfigMap              = "console-public"
 )
@@ -53,11 +52,11 @@ func NewWhoAmIOptions(streams genericclioptions.IOStreams) *WhoAmIOptions {
 	}
 }
 
-func NewCmdWhoAmI(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdWhoAmI(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewWhoAmIOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:   name,
+		Use:   "whoami",
 		Short: "Return information about the current session",
 		Long:  whoamiLong,
 		Run: func(cmd *cobra.Command, args []string) {

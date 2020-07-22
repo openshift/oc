@@ -27,11 +27,13 @@ var (
 
 		If --lookup-local is passed, the image stream will be used as the source when pods reference
 		it by name. For example, if stream 'mysql' resolves local names, a pod that points to
-		'mysql:latest' will use the image the image stream points to under the "latest" tag.`)
+		'mysql:latest' will use the image the image stream points to under the "latest" tag.
+	`)
 
 	imageStreamExample = templates.Examples(`
 		# Create a new image stream
-		oc create imagestream mysql`)
+		oc create imagestream mysql
+	`)
 )
 
 type CreateImageStreamOptions struct {

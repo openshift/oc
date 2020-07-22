@@ -25,11 +25,13 @@ var (
 	clusterQuotaLong = templates.LongDesc(`
 		Create a cluster resource quota that controls certain resources.
 
-		Cluster resource quota objects defined quota restrictions that span multiple projects based on label selectors.`)
+		Cluster resource quota objects defined quota restrictions that span multiple projects based on label selectors.
+	`)
 
 	clusterQuotaExample = templates.Examples(`
 		# Create a cluster resource quota limited to 10 pods
-		oc create clusterresourcequota limit-bob --project-annotation-selector=openshift.io/requester=user-bob --hard=pods=10`)
+		oc create clusterresourcequota limit-bob --project-annotation-selector=openshift.io/requester=user-bob --hard=pods=10
+	`)
 )
 
 type CreateClusterQuotaOptions struct {

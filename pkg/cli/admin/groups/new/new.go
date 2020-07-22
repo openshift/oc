@@ -19,23 +19,23 @@ import (
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 )
 
-const NewGroupRecommendedName = "new"
-
 var (
 	newLong = templates.LongDesc(`
 		Create a new group.
 
-		This command will create a new group with an optional list of users.`)
+		This command will create a new group with an optional list of users.
+	`)
 
 	newExample = templates.Examples(`
 		# Add a group with no users
-	  %[1]s my-group
+		oc adm groups new my-group
 
-	  # Add a group with two users
-	  %[1]s my-group user1 user2
+		# Add a group with two users
+		oc adm groups new my-group user1 user2
 
-	  # Add a group with one user and shorter output
-	  %[1]s my-group user1 -o name`)
+		# Add a group with one user and shorter output
+		oc adm groups new my-group user1 -o name
+	`)
 )
 
 type NewGroupOptions struct {
@@ -59,13 +59,13 @@ func NewNewGroupOptions(streams genericclioptions.IOStreams) *NewGroupOptions {
 	}
 }
 
-func NewCmdNewGroup(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdNewGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewNewGroupOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name + " GROUP [USER ...]",
+		Use:     "new GROUP [USER ...]",
 		Short:   "Create a new group",
 		Long:    newLong,
-		Example: fmt.Sprintf(newExample, fullName),
+		Example: newExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

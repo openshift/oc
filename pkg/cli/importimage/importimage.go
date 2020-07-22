@@ -39,8 +39,8 @@ var (
 		see the 'tag' command.`)
 
 	importImageExample = templates.Examples(`
-	  %[1]s import-image mystream
-		`)
+		oc import-image mystream
+	`)
 )
 
 // ImageImportOptions contains all the necessary information to perform an import.
@@ -73,7 +73,7 @@ type ImportImageOptions struct {
 	genericclioptions.IOStreams
 }
 
-func NewImportImageOptions(name string, streams genericclioptions.IOStreams) *ImportImageOptions {
+func NewImportImageOptions(streams genericclioptions.IOStreams) *ImportImageOptions {
 	return &ImportImageOptions{
 		PrintFlags:      genericclioptions.NewPrintFlags("imported"),
 		IOStreams:       streams,
@@ -82,14 +82,14 @@ func NewImportImageOptions(name string, streams genericclioptions.IOStreams) *Im
 }
 
 // NewCmdImportImage implements the OpenShift cli import-image command.
-func NewCmdImportImage(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewImportImageOptions(fullName, streams)
+func NewCmdImportImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewImportImageOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "import-image IMAGESTREAM[:TAG]",
 		Short:   "Imports images from a container image registry",
 		Long:    importImageLong,
-		Example: fmt.Sprintf(importImageExample, fullName),
+		Example: importImageExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

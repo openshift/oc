@@ -33,20 +33,22 @@ var (
 		names of each key will be written to stdandard error.
 
 		You can limit which keys are extracted with the --keys=NAME flag, or set the directory to extract to
-		with --to=DIRECTORY.`)
+		with --to=DIRECTORY.
+	`)
 
 	extractExample = templates.Examples(`
 		# extract the secret "test" to the current directory
-	  %[1]s extract secret/test
+		oc extract secret/test
 
-	  # extract the config map "nginx" to the /tmp directory
-	  %[1]s extract configmap/nginx --to=/tmp
+		# extract the config map "nginx" to the /tmp directory
+		oc extract configmap/nginx --to=/tmp
 
 		# extract the config map "nginx" to STDOUT
-	  %[1]s extract configmap/nginx --to=-
+		oc extract configmap/nginx --to=-
 
-	  # extract only the key "nginx.conf" from config map "nginx" to the /tmp directory
-	  %[1]s extract configmap/nginx --to=/tmp --keys=nginx.conf`)
+		# extract only the key "nginx.conf" from config map "nginx" to the /tmp directory
+		oc extract configmap/nginx --to=/tmp --keys=nginx.conf
+	`)
 )
 
 type ExtractOptions struct {
@@ -72,14 +74,14 @@ func NewExtractOptions(targetDirectory string, streams genericclioptions.IOStrea
 	}
 }
 
-func NewCmdExtract(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewExtractOptions(".", streams)
 
 	cmd := &cobra.Command{
 		Use:     "extract RESOURCE/NAME [--to=DIRECTORY] [--keys=KEY ...]",
 		Short:   "Extract secrets or config maps to disk",
 		Long:    extractLong,
-		Example: fmt.Sprintf(extractExample, fullName),
+		Example: extractExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

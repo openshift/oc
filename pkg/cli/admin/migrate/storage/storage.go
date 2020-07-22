@@ -45,17 +45,19 @@ var (
 		have significantly increased the expiration time of events, run a migration with --include=events
 
 		WARNING: This is a slow command and will put significant load on an API server. It may also
-		result in significant intra-cluster traffic.`)
+		result in significant intra-cluster traffic.
+	`)
 
 	internalMigrateStorageExample = templates.Examples(`
-	  # Perform an update of all objects
-	  %[1]s
+		# Perform an update of all objects
+		oc adm migrate storage
 
-	  # Only migrate pods
-	  %[1]s --include=pods
+		# Only migrate pods
+		oc adm migrate storage --include=pods
 
-	  # Only pods that are in namespaces starting with "bar"
-	  %[1]s --include=pods --from-key=bar/ --to-key=bar/\xFF`)
+		# Only pods that are in namespaces starting with "bar"
+		oc adm migrate storage --include=pods --from-key=bar/ --to-key=bar/\xFF
+	`)
 )
 
 const (
@@ -187,13 +189,13 @@ func NewMigrateAPIStorageOptions(streams genericclioptions.IOStreams) *MigrateAP
 }
 
 // NewCmdMigrateAPIStorage implements a MigrateStorage command
-func NewCmdMigrateAPIStorage(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMigrateAPIStorage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateAPIStorageOptions(streams)
 	cmd := &cobra.Command{
-		Use:        name, // TODO do something useful here
+		Use:        "storage",
 		Short:      "Update the stored version of API objects",
 		Long:       internalMigrateStorageLong,
-		Example:    fmt.Sprintf(internalMigrateStorageExample, fullName),
+		Example:    internalMigrateStorageExample,
 		Deprecated: "migration of content is managed automatically in OpenShift 4.x",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

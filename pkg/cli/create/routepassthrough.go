@@ -21,7 +21,8 @@ var (
 		Create a route that uses passthrough TLS termination
 
 		Specify the service (either just its name or using type/name syntax) that the
-		generated route should expose via the --service flag.`)
+		generated route should expose via the --service flag.
+	`)
 
 	passthroughRouteExample = templates.Examples(`
 		# Create a passthrough route named "my-route" that exposes the frontend service.
@@ -29,7 +30,8 @@ var (
 
 		# Create a passthrough route that exposes the frontend service and specify
 		# a hostname. If the route name is omitted, the service name will be re-used.
-		oc create route passthrough --service=frontend --hostname=www.example.com`)
+		oc create route passthrough --service=frontend --hostname=www.example.com
+	`)
 )
 
 type CreatePassthroughRouteOptions struct {

@@ -25,7 +25,8 @@ var (
 		generated route should expose using the --service flag. You may also specify
 		a destination CA certificate using the --dest-ca-cert flag. If --dest-ca-cert
 		is omitted, the route will use the service CA, meaning the service must use
-		a serving certificate from the serving cert signer.`)
+		a serving certificate from the serving cert signer.
+	`)
 
 	reencryptRouteExample = templates.Examples(`
 		# Create a route named "my-route" that exposes the frontend service:
@@ -34,7 +35,8 @@ var (
 		# Create a reencrypt route that exposes the frontend service, letting the
 		# route name default to the service name and the destination CA certificate
 		# default to the service CA:
-		oc create route reencrypt --service=frontend`)
+		oc create route reencrypt --service=frontend
+	`)
 )
 
 type CreateReencryptRouteOptions struct {

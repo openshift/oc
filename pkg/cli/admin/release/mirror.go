@@ -74,7 +74,7 @@ func NewMirrorOptions(streams genericclioptions.IOStreams) *MirrorOptions {
 //     --from=registry.svc.ci.openshift.org/openshift/v4.0 \
 //     --to=mycompany.com/myrepository/repo
 //
-func NewMirror(f kcmdutil.Factory, parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMirrorOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "mirror",
@@ -112,26 +112,26 @@ func NewMirror(f kcmdutil.Factory, parentName string, streams genericclioptions.
 			and indicates to update an exisiting ConfigMap if one is found. A ConfigMap written to a
 			directory will always replace onethat already exists.
 		`),
-		Example: templates.Examples(fmt.Sprintf(`
+		Example: templates.Examples(`
 			# Perform a dry run showing what would be mirrored, including the mirror objects
-			%[1]s mirror 4.3.0 --to myregistry.local/openshift/release \
+			oc adm release mirror 4.3.0 --to myregistry.local/openshift/release \
 				--release-image-signature-to-dir /tmp/releases --dry-run
 
 			# Mirror a release into the current directory
-			%[1]s mirror 4.3.0 --to file://openshift/release \
+			oc adm release mirror 4.3.0 --to file://openshift/release \
 				--release-image-signature-to-dir /tmp/releases
 
 			# Mirror a release to another directory in the default location
-			%[1]s mirror 4.3.0 --to-dir /tmp/releases
+			oc adm release mirror 4.3.0 --to-dir /tmp/releases
 
 			# Upload a release from the current directory to another server
-			%[1]s mirror --from file://openshift/release --to myregistry.com/openshift/release \
+			oc adm release mirror --from file://openshift/release --to myregistry.com/openshift/release \
 				--release-image-signature-to-dir /tmp/releases
 
 			# Mirror the 4.3.0 release to repository registry.example.com and apply signatures to connected cluster
-			%[1]s mirror --from=quay.io/openshift-release-dev/ocp-release:4.3.0-x86_64 \
+			oc adm release mirror --from=quay.io/openshift-release-dev/ocp-release:4.3.0-x86_64 \
 				--to=registry.example.com/your/repository --apply-release-image-signature
-			`, parentName)),
+		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, f, args))
 			kcmdutil.CheckErr(o.Validate())

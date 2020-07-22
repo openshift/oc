@@ -39,7 +39,7 @@ var (
 		When setting backends, the first backend is the primary and the other backends are
 		considered alternates. For example:
 
-		    $ %[1]s route-backends web prod=99 canary=1
+		    $ oc set route-backends web prod=99 canary=1
 
 		will set the primary backend to service "prod" with a weight of 99 and the first
 		alternate backend to service "canary" with a weight of 1. This means 99%% of traffic will
@@ -54,22 +54,23 @@ var (
 
 	backendsExample = templates.Examples(`
 		# Print the backends on the route 'web'
-	  %[1]s route-backends web
+		oc set route-backends web
 
-	  # Set two backend services on route 'web' with 2/3rds of traffic going to 'a'
-	  %[1]s route-backends web a=2 b=1
+		# Set two backend services on route 'web' with 2/3rds of traffic going to 'a'
+		oc set route-backends web a=2 b=1
 
-	  # Increase the traffic percentage going to b by 10%% relative to a
-	  %[1]s route-backends web --adjust b=+10%%
+		# Increase the traffic percentage going to b by 10%% relative to a
+		oc set route-backends web --adjust b=+10%%
 
-	  # Set traffic percentage going to b to 10%% of the traffic going to a
-	  %[1]s route-backends web --adjust b=10%%
+		# Set traffic percentage going to b to 10%% of the traffic going to a
+		oc set route-backends web --adjust b=10%%
 
-	  # Set weight of b to 10
-	  %[1]s route-backends web --adjust b=10
+		# Set weight of b to 10
+		oc set route-backends web --adjust b=10
 
-	  # Set the weight to all backends to zero
-	  %[1]s route-backends web --zero`)
+		# Set the weight to all backends to zero
+		oc set route-backends web --zero
+	`)
 )
 
 type BackendsOptions struct {
@@ -102,13 +103,13 @@ func NewBackendsOptions(streams genericclioptions.IOStreams) *BackendsOptions {
 }
 
 // NewCmdRouteBackends implements the set route-backends command
-func NewCmdRouteBackends(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRouteBackends(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewBackendsOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "route-backends ROUTENAME [--zero|--equal] [--adjust] SERVICE=WEIGHT[%] [...]",
 		Short:   "Update the backends for a route",
-		Long:    fmt.Sprintf(backendsLong, fullName),
-		Example: fmt.Sprintf(backendsExample, fullName),
+		Long:    backendsLong,
+		Example: backendsExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

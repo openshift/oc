@@ -21,14 +21,16 @@ var (
 	joinProjectsNetworkLong = templates.LongDesc(`
 		Join project network
 
-		Allows projects to join existing project network when using the %[1]s network plugin.`)
+		Allows projects to join existing project network when using the %[1]s network plugin.
+	`)
 
 	joinProjectsNetworkExample = templates.Examples(`
 		# Allow project p2 to use project p1 network
-		%[1]s --to=<p1> <p2>
+		oc adm pod-network join-projects --to=<p1> <p2>
 
 		# Allow all projects with label name=top-secret to use project p1 network
-		%[1]s --to=<p1> --selector='name=top-secret'`)
+		oc adm pod-network join-projects --to=<p1> --selector='name=top-secret'
+	`)
 )
 
 type JoinOptions struct {
@@ -45,13 +47,13 @@ func NewJoinOptions(streams genericclioptions.IOStreams) *JoinOptions {
 	}
 }
 
-func NewCmdJoinProjectsNetwork(commandName, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdJoinProjectsNetwork(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewJoinOptions(streams)
 	cmd := &cobra.Command{
-		Use:     commandName,
+		Use:     "join-projects",
 		Short:   "Join project network",
 		Long:    fmt.Sprintf(joinProjectsNetworkLong, networkutils.MultiTenantPluginName),
-		Example: fmt.Sprintf(joinProjectsNetworkExample, fullName),
+		Example: joinProjectsNetworkExample,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())

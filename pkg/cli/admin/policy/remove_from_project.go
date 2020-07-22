@@ -20,11 +20,6 @@ import (
 	"github.com/openshift/library-go/pkg/authorization/authorizationutil"
 )
 
-const (
-	RemoveGroupRecommendedName = "remove-group"
-	RemoveUserRecommendedName  = "remove-user"
-)
-
 type RemoveFromProjectOptions struct {
 	PrintFlags *genericclioptions.PrintFlags
 
@@ -51,10 +46,10 @@ func NewRemoveFromProjectOptions(streams genericclioptions.IOStreams) *RemoveFro
 }
 
 // NewCmdRemoveGroupFromProject implements the OpenShift cli remove-group command
-func NewCmdRemoveGroupFromProject(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveGroupFromProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRemoveFromProjectOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name + " GROUP [GROUP ...]",
+		Use:   "remove-group GROUP [GROUP ...]",
 		Short: "Remove group from the current project",
 		Long:  `Remove group from the current project`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -70,10 +65,10 @@ func NewCmdRemoveGroupFromProject(name, fullName string, f kcmdutil.Factory, str
 }
 
 // NewCmdRemoveUserFromProject implements the OpenShift cli remove-user command
-func NewCmdRemoveUserFromProject(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveUserFromProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRemoveFromProjectOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name + " USER [USER ...]",
+		Use:   "remove-user USER [USER ...]",
 		Short: "Remove user from the current project",
 		Long:  `Remove user from the current project`,
 		Run: func(cmd *cobra.Command, args []string) {

@@ -35,17 +35,19 @@ var (
 
 		Supported formats for the generated graph are dot and a human-readable output.
 		Tag and namespace are optional and if they are not specified, 'latest' and the
-		default namespace will be used respectively.`)
+		default namespace will be used respectively.
+	`)
 
 	buildChainExample = templates.Examples(`
 		# Build the dependency tree for the 'latest' tag in <image-stream>
-	  %[1]s <image-stream>
+		oc adm build-chain <image-stream>
 
-	  # Build the dependency tree for 'v2' tag in dot format and visualize it via the dot utility
-	  %[1]s <image-stream>:v2 -o dot | dot -T svg -o deps.svg
+		# Build the dependency tree for 'v2' tag in dot format and visualize it via the dot utility
+		oc adm build-chain <image-stream>:v2 -o dot | dot -T svg -o deps.svg
 
-	  # Build the dependency tree across all namespaces for the specified image stream tag found in 'test' namespace
-	  %[1]s <image-stream> -n test --all`)
+		# Build the dependency tree across all namespaces for the specified image stream tag found in 'test' namespace
+		oc adm build-chain <image-stream> -n test --all
+	`)
 )
 
 // BuildChainOptions contains all the options needed for build-chain
@@ -66,7 +68,7 @@ type BuildChainOptions struct {
 }
 
 // NewCmdBuildChain implements the OpenShift experimental build-chain command
-func NewCmdBuildChain(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdBuildChain(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	options := &BuildChainOptions{
 		namespaces: sets.NewString(),
 	}
@@ -74,7 +76,7 @@ func NewCmdBuildChain(name, fullName string, f kcmdutil.Factory, streams generic
 		Use:     "build-chain IMAGESTREAMTAG",
 		Short:   "Output the inputs and dependencies of your builds",
 		Long:    buildChainLong,
-		Example: fmt.Sprintf(buildChainExample, fullName),
+		Example: buildChainExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(options.Complete(f, cmd, args, streams.Out))
 			kcmdutil.CheckErr(options.Validate())

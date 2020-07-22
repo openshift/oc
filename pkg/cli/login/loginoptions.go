@@ -298,7 +298,7 @@ func (o *LoginOptions) gatherProjectInfo() error {
 		if err != nil {
 			return err
 		}
-		msg := errors.NoProjectsExistMessage(canRequest, o.CommandName)
+		msg := errors.NoProjectsExistMessage(canRequest)
 		fmt.Fprintf(o.Out, msg)
 		o.Project = ""
 

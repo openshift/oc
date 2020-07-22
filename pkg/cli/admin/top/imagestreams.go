@@ -31,11 +31,13 @@ var (
 		Show usage statistics for ImageStreams
 
 		This command analyzes all the ImageStreams managed by the platform and presents current
-		usage statistics.`)
+		usage statistics.
+	`)
 
 	topImageStreamsExample = templates.Examples(`
 		# Show usage statistics for ImageStreams
-  	%[1]s %[2]s`)
+		oc adm top imagestreams
+	`)
 )
 
 type TopImageStreamsOptions struct {
@@ -53,13 +55,13 @@ func NewTopImageStreamsOptions(streams genericclioptions.IOStreams) *TopImageStr
 }
 
 // NewCmdTopImageStreams implements the OpenShift cli top imagestreams command.
-func NewCmdTopImageStreams(f kcmdutil.Factory, parentName, name string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTopImageStreams(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewTopImageStreamsOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
+		Use:     "imagestreams",
 		Short:   "Show usage statistics for ImageStreams",
 		Long:    topImageStreamsLong,
-		Example: fmt.Sprintf(topImageStreamsExample, parentName, name),
+		Example: topImageStreamsExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate(cmd))

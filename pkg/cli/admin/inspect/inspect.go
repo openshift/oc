@@ -44,10 +44,10 @@ var (
 
 	inspectExample = templates.Examples(`
 		# Collect debugging data for the "openshift-apiserver" clusteroperator
-		%[1]s clusteroperator/openshift-apiserver
+		oc adm inspect clusteroperator/openshift-apiserver
 
 		# Collect debugging data for all clusteroperators
-		%[1]s clusteroperator
+		oc adm inspect clusteroperator
 	`)
 )
 
@@ -90,14 +90,13 @@ func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
 	}
 }
 
-func NewCmdInspect(streams genericclioptions.IOStreams, parentCommandPath string) *cobra.Command {
+func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewInspectOptions(streams)
-	commandPath := strings.TrimSpace(parentCommandPath + " inspect")
 	cmd := &cobra.Command{
 		Use:     "inspect (TYPE[.VERSION][.GROUP] [NAME] | TYPE[.VERSION][.GROUP]/NAME ...) [flags]",
 		Short:   "Collect debugging data for a given resource",
 		Long:    inspectLong,
-		Example: fmt.Sprintf(inspectExample, commandPath),
+		Example: inspectExample,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(c, args))
 			kcmdutil.CheckErr(o.Validate())

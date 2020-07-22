@@ -37,17 +37,19 @@ var (
 
 		The command for a build hook may be specified as a shell script (with the --script argument),
 		as a new entrypoint command on the image with the --command argument, or as a set of
-		arguments to the image's entrypoint (default).`)
+		arguments to the image's entrypoint (default).
+	`)
 
 	buildHookExample = templates.Examples(`
 		# Clear post-commit hook on a build config
-	  %[1]s build-hook bc/mybuild --post-commit --remove
+		oc set build-hook bc/mybuild --post-commit --remove
 
-	  # Set the post-commit hook to execute a test suite using a new entrypoint
-	  %[1]s build-hook bc/mybuild --post-commit --command -- /bin/bash -c /var/lib/test-image.sh
+		# Set the post-commit hook to execute a test suite using a new entrypoint
+		oc set build-hook bc/mybuild --post-commit --command -- /bin/bash -c /var/lib/test-image.sh
 
-	  # Set the post-commit hook to execute a shell script
-	  %[1]s build-hook bc/mybuild --post-commit --script="/var/lib/test-image.sh param1 param2 && /var/lib/done.sh"`)
+		# Set the post-commit hook to execute a shell script
+		oc set build-hook bc/mybuild --post-commit --script="/var/lib/test-image.sh param1 param2 && /var/lib/done.sh"
+	`)
 )
 
 type BuildHookOptions struct {
@@ -83,13 +85,13 @@ func NewBuildHookOptions(streams genericclioptions.IOStreams) *BuildHookOptions 
 }
 
 // NewCmdBuildHook implements the set build-hook command
-func NewCmdBuildHook(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdBuildHook(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewBuildHookOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "build-hook BUILDCONFIG --post-commit [--command] [--script] -- CMD",
 		Short:   "Update a build hook on a build config",
 		Long:    buildHookLong,
-		Example: fmt.Sprintf(buildHookExample, fullName),
+		Example: buildHookExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

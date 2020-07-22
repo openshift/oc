@@ -50,10 +50,10 @@ func NewWhoCanOptions(streams genericclioptions.IOStreams) *WhoCanOptions {
 }
 
 // NewCmdWhoCan implements the OpenShift cli who-can command
-func NewCmdWhoCan(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdWhoCan(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewWhoCanOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name + " VERB RESOURCE [NAME]",
+		Use:   "who-can VERB RESOURCE [NAME]",
 		Short: "List who can perform the specified action on a resource",
 		Long:  "List who can perform the specified action on a resource",
 		Run: func(cmd *cobra.Command, args []string) {

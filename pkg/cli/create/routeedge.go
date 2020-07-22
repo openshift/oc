@@ -26,7 +26,8 @@ var (
 		Create a route that uses edge TLS termination
 
 		Specify the service (either just its name or using type/name syntax) that the
-		generated route should expose via the --service flag.`)
+		generated route should expose via the --service flag.
+	`)
 
 	edgeRouteExample = templates.Examples(`
 		# Create an edge route named "my-route" that exposes frontend service.
@@ -34,7 +35,8 @@ var (
 
 		# Create an edge route that exposes the frontend service and specify a path.
 		# If the route name is omitted, the service name will be re-used.
-		oc create route edge --service=frontend --path /assets`)
+		oc create route edge --service=frontend --path /assets
+	`)
 )
 
 type CreateEdgeRouteOptions struct {

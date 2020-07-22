@@ -89,23 +89,23 @@ var (
 	imagesExample = templates.Examples(`
 	  # See, what the prune command would delete if only images and their referrers were more than an hour old
 	  # and obsoleted by 3 newer revisions under the same tag were considered.
-	  %[1]s %[2]s --keep-tag-revisions=3 --keep-younger-than=60m
+	  oc adm prune images --keep-tag-revisions=3 --keep-younger-than=60m
 
 	  # To actually perform the prune operation, the confirm flag must be appended
-	  %[1]s %[2]s --keep-tag-revisions=3 --keep-younger-than=60m --confirm
+	  oc adm prune images --keep-tag-revisions=3 --keep-younger-than=60m --confirm
 
 	  # See, what the prune command would delete if we're interested in removing images
 	  # exceeding currently set limit ranges ('openshift.io/Image')
-	  %[1]s %[2]s --prune-over-size-limit
+	  oc adm prune images --prune-over-size-limit
 
 	  # To actually perform the prune operation, the confirm flag must be appended
-	  %[1]s %[2]s --prune-over-size-limit --confirm
+	  oc adm prune images --prune-over-size-limit --confirm
 
 	  # Force the insecure http protocol with the particular registry host name
-	  %[1]s %[2]s --registry-url=http://registry.example.org --confirm
+	  oc adm prune images --registry-url=http://registry.example.org --confirm
 
 	  # Force a secure connection with a custom certificate authority to the particular registry host name
-	  %[1]s %[2]s --registry-url=registry.example.org --certificate-authority=/path/to/custom/ca.crt --confirm`)
+	  oc adm prune images --registry-url=registry.example.org --certificate-authority=/path/to/custom/ca.crt --confirm`)
 )
 
 var (
@@ -142,7 +142,7 @@ type PruneImagesOptions struct {
 }
 
 // NewCmdPruneImages implements the OpenShift cli prune images command.
-func NewCmdPruneImages(f kcmdutil.Factory, parentName, name string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	allImages := true
 	opts := &PruneImagesOptions{
 		Confirm:            false,
@@ -154,12 +154,10 @@ func NewCmdPruneImages(f kcmdutil.Factory, parentName, name string, streams gene
 	}
 
 	cmd := &cobra.Command{
-		Use:   name,
-		Short: "Remove unreferenced images",
-		Long:  fmt.Sprintf(imagesLongDesc, "system:image-pruner"),
-
-		Example: fmt.Sprintf(imagesExample, parentName, name),
-
+		Use:     "images",
+		Short:   "Remove unreferenced images",
+		Long:    fmt.Sprintf(imagesLongDesc, "system:image-pruner"),
+		Example: imagesExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(opts.Complete(f, cmd, args, streams.Out))
 			kcmdutil.CheckErr(opts.Validate())

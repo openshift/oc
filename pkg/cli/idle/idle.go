@@ -47,11 +47,13 @@ var (
 		are scaled down to zero replicas.
 
 		Upon receiving network traffic, the services (and any associated routes) will "wake up" the
-		associated resources by scaling them back up to their previous scale.`)
+		associated resources by scaling them back up to their previous scale.
+	`)
 
 	idleExample = templates.Examples(`
 		# Idle the scalable controllers associated with the services listed in to-idle.txt
-		$ %[1]s idle --resource-names-file to-idle.txt`)
+		$ oc idle --resource-names-file to-idle.txt
+	`)
 )
 
 type IdleOptions struct {
@@ -61,8 +63,6 @@ type IdleOptions struct {
 	selector      string
 	allNamespaces bool
 	resources     []string
-
-	cmdFullName string
 
 	ClientForMappingFn func(*meta.RESTMapping) (resource.RESTClient, error)
 	ClientConfig       *rest.Config
@@ -79,22 +79,21 @@ type IdleOptions struct {
 	genericclioptions.IOStreams
 }
 
-func NewIdleOptions(name string, streams genericclioptions.IOStreams) *IdleOptions {
+func NewIdleOptions(streams genericclioptions.IOStreams) *IdleOptions {
 	return &IdleOptions{
-		IOStreams:   streams,
-		cmdFullName: name,
+		IOStreams: streams,
 	}
 }
 
 // NewCmdIdle implements the OpenShift cli idle command
-func NewCmdIdle(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewIdleOptions(fullName, streams)
+func NewCmdIdle(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewIdleOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "idle (SERVICE_ENDPOINTS... | -l label | --all | --resource-names-file FILENAME)",
 		Short:   "Idle scalable resources",
 		Long:    idleLong,
-		Example: fmt.Sprintf(idleExample, fullName),
+		Example: idleExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.RunIdle())
@@ -306,7 +305,7 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 
 		endpoints, isEndpoints := info.Object.(*corev1.Endpoints)
 		if !isEndpoints {
-			return fmt.Errorf("you must specify endpoints, not %v (view available endpoints with \"%s get endpoints\").", info.Mapping.Resource, o.cmdFullName)
+			return fmt.Errorf("you must specify endpoints, not %v (view available endpoints with \"oc get endpoints\").", info.Mapping.Resource)
 		}
 
 		endpointsName := types.NamespacedName{

@@ -43,14 +43,15 @@ var (
 
 		The following flags are passed to rsync by default:
 		--archive --no-owner --no-group --omit-dir-times --numeric-ids
-		`)
+	`)
 
 	rsyncExample = templates.Examples(`
-	  # Synchronize a local directory with a pod directory
-	  %[1]s ./local/dir/ POD:/remote/dir
+		# Synchronize a local directory with a pod directory
+		oc rsync ./local/dir/ POD:/remote/dir
 
-	  # Synchronize a pod directory with a local directory
-	  %[1]s POD:/remote/dir/ ./local/dir`)
+		# Synchronize a pod directory with a local directory
+		oc rsync POD:/remote/dir/ ./local/dir
+	`)
 
 	rsyncDefaultFlags = []string{"--archive", "--no-owner", "--no-group", "--omit-dir-times", "--numeric-ids"}
 )
@@ -109,14 +110,14 @@ func NewRsyncOptions(streams genericclioptions.IOStreams) *RsyncOptions {
 }
 
 // NewCmdRsync creates a new sync command
-func NewCmdRsync(name, parent string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRsync(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRsyncOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s SOURCE DESTINATION", name),
+		Use:     "rsync SOURCE DESTINATION",
 		Short:   "Copy files between local filesystem and a pod",
 		Long:    rsyncLong,
-		Example: fmt.Sprintf(rsyncExample, parent+" "+name),
+		Example: rsyncExample,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())

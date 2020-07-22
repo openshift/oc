@@ -15,20 +15,20 @@ import (
 	"github.com/openshift/library-go/pkg/network/networkutils"
 )
 
-const IsolateProjectsNetworkCommandName = "isolate-projects"
-
 var (
 	isolateProjectsNetworkLong = templates.LongDesc(`
 		Isolate project network
 
-		Allows projects to isolate their network from other projects when using the %[1]s network plugin.`)
+		Allows projects to isolate their network from other projects when using the %[1]s network plugin.
+	`)
 
 	isolateProjectsNetworkExample = templates.Examples(`
 		# Provide isolation for project p1
-		%[1]s <p1>
+		oc adm pod-network isolate-projects <p1>
 
 		# Allow all projects with label name=top-secret to have their own isolated project network
-		%[1]s --selector='name=top-secret'`)
+		oc adm pod-network isolate-projects --selector='name=top-secret'
+	`)
 )
 
 type IsolateOptions struct {
@@ -41,13 +41,13 @@ func NewIsolateOptions(streams genericclioptions.IOStreams) *IsolateOptions {
 	}
 }
 
-func NewCmdIsolateProjectsNetwork(commandName, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdIsolateProjectsNetwork(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewIsolateOptions(streams)
 	cmd := &cobra.Command{
-		Use:     commandName,
+		Use:     "isolate-projects",
 		Short:   "Isolate project network",
 		Long:    fmt.Sprintf(isolateProjectsNetworkLong, networkutils.MultiTenantPluginName),
-		Example: fmt.Sprintf(isolateProjectsNetworkExample, fullName),
+		Example: isolateProjectsNetworkExample,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())

@@ -19,32 +19,32 @@ import (
 	"github.com/openshift/oc/pkg/helpers/groupsync/ldap"
 )
 
-const PruneRecommendedName = "prune"
-
 var (
 	pruneLong = templates.LongDesc(`
-    Prune OpenShift Groups referencing missing records on from an external provider.
+		Prune OpenShift Groups referencing missing records on from an external provider.
 
-    In order to prune OpenShift Group records using those from an external provider, determine which Groups you wish
-    to prune. For instance, all or some groups may be selected from the current Groups stored in OpenShift that have
-    been synced previously. Any combination of a literal whitelist, a whitelist file and a blacklist file is supported.
-    The path to a sync configuration file that was used for syncing the groups in question is required in order to
-    describe how data is requested from the external record store. Default behavior is to indicate all OpenShift groups
-    for which the external record does not exist, to run the pruning process and commit the results, use the --confirm
-    flag.`)
+		In order to prune OpenShift Group records using those from an external provider, determine which Groups you wish
+		to prune. For instance, all or some groups may be selected from the current Groups stored in OpenShift that have
+		been synced previously. Any combination of a literal whitelist, a whitelist file and a blacklist file is supported.
+		The path to a sync configuration file that was used for syncing the groups in question is required in order to
+		describe how data is requested from the external record store. Default behavior is to indicate all OpenShift groups
+		for which the external record does not exist, to run the pruning process and commit the results, use the --confirm
+		flag.
+	`)
 
 	pruneExamples = templates.Examples(`
-    # Prune all orphaned groups
-    %[1]s --sync-config=/path/to/ldap-sync-config.yaml --confirm
+		# Prune all orphaned groups
+		oc adm %[1]s --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-    # Prune all orphaned groups except the ones from the blacklist file
-    %[1]s --blacklist=/path/to/blacklist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
+		# Prune all orphaned groups except the ones from the blacklist file
+		oc adm %[1]s --blacklist=/path/to/blacklist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-    # Prune all orphaned groups from a list of specific groups specified in a whitelist file
-    %[1]s --whitelist=/path/to/whitelist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
+		# Prune all orphaned groups from a list of specific groups specified in a whitelist file
+		oc adm %[1]s --whitelist=/path/to/whitelist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-    # Prune all orphaned groups from a list of specific groups specified in a whitelist
-    %[1]s groups/group_name groups/other_name --sync-config=/path/to/ldap-sync-config.yaml --confirm`)
+		# Prune all orphaned groups from a list of specific groups specified in a whitelist
+		oc adm %[1]s groups/group_name groups/other_name --sync-config=/path/to/ldap-sync-config.yaml --confirm
+	`)
 )
 
 type PruneOptions struct {
@@ -76,7 +76,7 @@ func NewPruneOptions(streams genericclioptions.IOStreams) *PruneOptions {
 	}
 }
 
-func NewCmdPrune(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneGroups(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewPruneOptions(streams)
 	cmd := &cobra.Command{
 		Use:     fmt.Sprintf("%s [WHITELIST] [--whitelist=WHITELIST-FILE] [--blacklist=BLACKLIST-FILE] --sync-config=CONFIG-SOURCE", name),

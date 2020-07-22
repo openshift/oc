@@ -46,17 +46,17 @@ type CancelOptions struct {
 
 var (
 	rolloutCancelLong = templates.LongDesc(`
-Cancel the in-progress deployment
+		Cancel the in-progress deployment
 
-Running this command will cause the current in-progress deployment to be
-cancelled, but keep in mind that this is a best-effort operation and may take
-some time to complete. It’s possible the deployment will partially or totally
-complete before the cancellation is effective. In such a case an appropriate
-event will be emitted.`)
+		Running this command will cause the current in-progress deployment to be
+		cancelled, but keep in mind that this is a best-effort operation and may take
+		some time to complete. It’s possible the deployment will partially or totally
+		complete before the cancellation is effective. In such a case an appropriate
+		event will be emitted.`)
 
 	rolloutCancelExample = templates.Examples(`
-	# Cancel the in-progress deployment based on 'nginx'
-  %[1]s rollout cancel dc/nginx`)
+		# Cancel the in-progress deployment based on 'nginx'
+  		oc rollout cancel dc/nginx`)
 )
 
 func NewRolloutCancelOptions(streams genericclioptions.IOStreams) *CancelOptions {
@@ -66,13 +66,13 @@ func NewRolloutCancelOptions(streams genericclioptions.IOStreams) *CancelOptions
 	}
 }
 
-func NewCmdRolloutCancel(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutCancel(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRolloutCancelOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "cancel (TYPE NAME | TYPE/NAME) [flags]",
 		Long:    rolloutCancelLong,
-		Example: fmt.Sprintf(rolloutCancelExample, fullName),
+		Example: rolloutCancelExample,
 		Short:   "cancel the in-progress deployment",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

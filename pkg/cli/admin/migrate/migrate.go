@@ -8,17 +8,15 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-const MigrateRecommendedName = "migrate"
-
 var migrateLong = templates.LongDesc(`
 	Migrate resources on the cluster
 
 	These commands assist administrators in performing preventative maintenance on a cluster.`)
 
-func NewCommandMigrate(name, fullName string, f cmdutil.Factory, streams genericclioptions.IOStreams, cmds ...*cobra.Command) *cobra.Command {
+func NewCommandMigrate(f cmdutil.Factory, streams genericclioptions.IOStreams, cmds ...*cobra.Command) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmd := &cobra.Command{
-		Use:   name,
+		Use:   "migrate",
 		Short: "Migrate data in the cluster",
 		Long:  migrateLong,
 		Run:   cmdutil.DefaultSubCommandRun(streams.ErrOut),

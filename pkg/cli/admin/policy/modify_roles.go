@@ -26,59 +26,52 @@ import (
 	"github.com/openshift/library-go/pkg/authorization/authorizationutil"
 )
 
-const (
-	AddRoleToGroupRecommendedName      = "add-role-to-group"
-	AddRoleToUserRecommendedName       = "add-role-to-user"
-	RemoveRoleFromGroupRecommendedName = "remove-role-from-group"
-	RemoveRoleFromUserRecommendedName  = "remove-role-from-user"
-
-	AddClusterRoleToGroupRecommendedName      = "add-cluster-role-to-group"
-	AddClusterRoleToUserRecommendedName       = "add-cluster-role-to-user"
-	RemoveClusterRoleFromGroupRecommendedName = "remove-cluster-role-from-group"
-	RemoveClusterRoleFromUserRecommendedName  = "remove-cluster-role-from-user"
-)
-
 var (
 	addRoleToUserExample = templates.Examples(`
 		# Add the 'view' role to user1 for the current project
-	  %[1]s view user1
+		oc adm policy add-role-to-user view user1
 
-	  # Add the 'edit' role to serviceaccount1 for the current project
-	  %[1]s edit -z serviceaccount1`)
+		# Add the 'edit' role to serviceaccount1 for the current project
+		oc adm policy add-role-to-user edit -z serviceaccount1
+	`)
 
 	addRoleToUserLongDesc = templates.LongDesc(`
-	  Add a role to users or service accounts for the current project
+		Add a role to users or service accounts for the current project
 
-	  This command allows you to grant a user access to specific resources and actions within the current project, by assigning them to a role. It creates or modifies a RoleBinding referencing the specified role adding the user(s) or serviceaccount(s) to the list of subjects. The command does not require that the matching role or user/serviceaccount resources exist and will create the binding successfully even when the role or user/serviceaccount do not exist or when the user does not have access to view them.
+		This command allows you to grant a user access to specific resources and actions within the current project, by assigning them to a role. It creates or modifies a RoleBinding referencing the specified role adding the user(s) or serviceaccount(s) to the list of subjects. The command does not require that the matching role or user/serviceaccount resources exist and will create the binding successfully even when the role or user/serviceaccount do not exist or when the user does not have access to view them.
 
-	  If the --rolebinding-name argument is supplied, it will look for an existing rolebinding with that name. The role on the matching rolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used. When --role-namespace argument is specified as a non-empty value, it MUST match the current namespace. When role-namespace is specified, the rolebinding will reference a namespaced Role. Otherwise, the rolebinding will reference a ClusterRole resource.
+		If the --rolebinding-name argument is supplied, it will look for an existing rolebinding with that name. The role on the matching rolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used. When --role-namespace argument is specified as a non-empty value, it MUST match the current namespace. When role-namespace is specified, the rolebinding will reference a namespaced Role. Otherwise, the rolebinding will reference a ClusterRole resource.
 
-	  To learn more, see information about RBAC and policy, or use the 'get' and 'describe' commands on the following resources: 'clusterroles', 'clusterrolebindings', 'roles', 'rolebindings', 'users', 'groups', and 'serviceaccounts'.`)
+		To learn more, see information about RBAC and policy, or use the 'get' and 'describe' commands on the following resources: 'clusterroles', 'clusterrolebindings', 'roles', 'rolebindings', 'users', 'groups', and 'serviceaccounts'.
+	`)
 
 	addRoleToGroupLongDesc = templates.LongDesc(`
-	  Add a role to groups for the current project
+		Add a role to groups for the current project
 
-	  This command allows you to grant a group access to specific resources and actions within the current project, by assigning them to a role. It creates or modifies a RoleBinding referencing the specified role adding the group(s) to the list of subjects. The command does not require that the matching role or group resources exist and will create the binding successfully even when the role or group do not exist or when the user does not have access to view them.
+		This command allows you to grant a group access to specific resources and actions within the current project, by assigning them to a role. It creates or modifies a RoleBinding referencing the specified role adding the group(s) to the list of subjects. The command does not require that the matching role or group resources exist and will create the binding successfully even when the role or group do not exist or when the user does not have access to view them.
 
-	  If the --rolebinding-name argument is supplied, it will look for an existing rolebinding with that name. The role on the matching rolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used. When --role-namespace argument is specified as a non-empty value, it MUST match the current namespace. When role-namespace is specified, the rolebinding will reference a namespaced Role. Otherwise, the rolebinding will reference a ClusterRole resource.
+		If the --rolebinding-name argument is supplied, it will look for an existing rolebinding with that name. The role on the matching rolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used. When --role-namespace argument is specified as a non-empty value, it MUST match the current namespace. When role-namespace is specified, the rolebinding will reference a namespaced Role. Otherwise, the rolebinding will reference a ClusterRole resource.
 
-	  To learn more, see information about RBAC and policy, or use the 'get' and 'describe' commands on the following resources: 'clusterroles', 'clusterrolebindings', 'roles', 'rolebindings', 'users', 'groups', and 'serviceaccounts'.`)
+		To learn more, see information about RBAC and policy, or use the 'get' and 'describe' commands on the following resources: 'clusterroles', 'clusterrolebindings', 'roles', 'rolebindings', 'users', 'groups', and 'serviceaccounts'.
+	`)
 
 	addClusterRoleToUserLongDesc = templates.LongDesc(`
-	  Add a role to users or service accounts across all projects
+		Add a role to users or service accounts across all projects
 
-	  This command allows you to grant a user access to specific resources and actions within the cluster, by assigning them to a role. It creates or modifies a ClusterRoleBinding referencing the specified ClusterRole, adding the user(s) or serviceaccount(s) to the list of subjects. This command does not require that the matching cluster role or user/serviceaccount resources exist and will create the binding successfully even when the role or user/serviceaccount do not exist or when the user does not have access to view them.
+		This command allows you to grant a user access to specific resources and actions within the cluster, by assigning them to a role. It creates or modifies a ClusterRoleBinding referencing the specified ClusterRole, adding the user(s) or serviceaccount(s) to the list of subjects. This command does not require that the matching cluster role or user/serviceaccount resources exist and will create the binding successfully even when the role or user/serviceaccount do not exist or when the user does not have access to view them.
 
-	  If the --rolebinding-name argument is supplied, it will look for an existing clusterrolebinding with that name. The role on the matching clusterrolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used.
+		If the --rolebinding-name argument is supplied, it will look for an existing clusterrolebinding with that name. The role on the matching clusterrolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used.
 
-	  To learn more, see information about RBAC and policy, or use the 'get' and 'describe' commands on the following resources: 'clusterroles', 'clusterrolebindings', 'roles', 'rolebindings', 'users', 'groups', and 'serviceaccounts'.`)
+		To learn more, see information about RBAC and policy, or use the 'get' and 'describe' commands on the following resources: 'clusterroles', 'clusterrolebindings', 'roles', 'rolebindings', 'users', 'groups', and 'serviceaccounts'.
+	`)
 
 	addClusterRoleToGroupLongDesc = templates.LongDesc(`
-	  Add a role to groups for the current project
+		Add a role to groups for the current project
 
-	  This command creates or modifies a ClusterRoleBinding with the named cluster role by adding the named group(s) to the list of subjects. The command does not require the matching role or group resources exist and will create the binding successfully even when the role or group do not exist or when the user does not have access to view them.
+		This command creates or modifies a ClusterRoleBinding with the named cluster role by adding the named group(s) to the list of subjects. The command does not require the matching role or group resources exist and will create the binding successfully even when the role or group do not exist or when the user does not have access to view them.
 
-	  If the --rolebinding-name argument is supplied, it will look for an existing clusterrolebinding with that name. The role on the matching clusterrolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used.`)
+		If the --rolebinding-name argument is supplied, it will look for an existing clusterrolebinding with that name. The role on the matching clusterrolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used.
+	`)
 )
 
 type RoleModificationOptions struct {
@@ -117,10 +110,10 @@ func NewRoleModificationOptions(streams genericclioptions.IOStreams) *RoleModifi
 }
 
 // NewCmdAddRoleToGroup implements the OpenShift cli add-role-to-group command
-func NewCmdAddRoleToGroup(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name + " ROLE GROUP [GROUP ...]",
+		Use:   "add-role-to-group ROLE GROUP [GROUP ...]",
 		Short: "Add a role to groups for the current project",
 		Long:  addRoleToGroupLongDesc,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -139,14 +132,14 @@ func NewCmdAddRoleToGroup(name, fullName string, f kcmdutil.Factory, streams gen
 }
 
 // NewCmdAddRoleToUser implements the OpenShift cli add-role-to-user command
-func NewCmdAddRoleToUser(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
-		Use:     name + " ROLE (USER | -z SERVICEACCOUNT) [USER ...]",
+		Use:     "add-role-to-user ROLE (USER | -z SERVICEACCOUNT) [USER ...]",
 		Short:   "Add a role to users or serviceaccounts for the current project",
 		Long:    addRoleToUserLongDesc,
-		Example: fmt.Sprintf(addRoleToUserExample, fullName),
+		Example: addRoleToUserExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
@@ -164,10 +157,10 @@ func NewCmdAddRoleToUser(name, fullName string, f kcmdutil.Factory, streams gene
 }
 
 // NewCmdRemoveRoleFromGroup implements the OpenShift cli remove-role-from-group command
-func NewCmdRemoveRoleFromGroup(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveRoleFromGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name + " ROLE GROUP [GROUP ...]",
+		Use:   "remove-role-from-group ROLE GROUP [GROUP ...]",
 		Short: "Remove a role from groups for the current project",
 		Long:  `Remove a role from groups for the current project`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -186,11 +179,11 @@ func NewCmdRemoveRoleFromGroup(name, fullName string, f kcmdutil.Factory, stream
 }
 
 // NewCmdRemoveRoleFromUser implements the OpenShift cli remove-role-from-user command
-func NewCmdRemoveRoleFromUser(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
-		Use:   name + " ROLE USER [USER ...]",
+		Use:   "remove-role-from-user ROLE USER [USER ...]",
 		Short: "Remove a role from users for the current project",
 		Long:  `Remove a role from users for the current project`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -210,11 +203,11 @@ func NewCmdRemoveRoleFromUser(name, fullName string, f kcmdutil.Factory, streams
 }
 
 // NewCmdAddClusterRoleToGroup implements the OpenShift cli add-cluster-role-to-group command
-func NewCmdAddClusterRoleToGroup(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddClusterRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	cmd := &cobra.Command{
-		Use:   name + " <role> <group> [group]...",
+		Use:   "add-cluster-role-to-group ROLE GROUP [GROUP...]",
 		Short: "Add a role to groups for all projects in the cluster",
 		Long:  addClusterRoleToGroupLongDesc,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -231,12 +224,12 @@ func NewCmdAddClusterRoleToGroup(name, fullName string, f kcmdutil.Factory, stre
 }
 
 // NewCmdAddClusterRoleToUser implements the OpenShift cli add-cluster-role-to-user command
-func NewCmdAddClusterRoleToUser(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	o.SANames = []string{}
 	cmd := &cobra.Command{
-		Use:   name + " <role> <user | -z serviceaccount> [user]...",
+		Use:   "add-cluster-role-to-user ROLE (USER | -z serviceaccount) [user]...",
 		Short: "Add a role to users for all projects in the cluster",
 		Long:  addClusterRoleToUserLongDesc,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -254,11 +247,11 @@ func NewCmdAddClusterRoleToUser(name, fullName string, f kcmdutil.Factory, strea
 }
 
 // NewCmdRemoveClusterRoleFromGroup implements the OpenShift cli remove-cluster-role-from-group command
-func NewCmdRemoveClusterRoleFromGroup(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveClusterRoleFromGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	cmd := &cobra.Command{
-		Use:   name + " <role> <group> [group]...",
+		Use:   "remove-cluster-role-from-group ROLE GROUP [GROUP...]",
 		Short: "Remove a role from groups for all projects in the cluster",
 		Long:  `Remove a role from groups for all projects in the cluster`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -275,12 +268,12 @@ func NewCmdRemoveClusterRoleFromGroup(name, fullName string, f kcmdutil.Factory,
 }
 
 // NewCmdRemoveClusterRoleFromUser implements the OpenShift cli remove-cluster-role-from-user command
-func NewCmdRemoveClusterRoleFromUser(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveClusterRoleFromUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	o.SANames = []string{}
 	cmd := &cobra.Command{
-		Use:   name + " <role> <user> [user]...",
+		Use:   "remove-cluster-role-from-user ROLE USER [USER...]",
 		Short: "Remove a role from users for all projects in the cluster",
 		Long:  `Remove a role from users for all projects in the cluster`,
 		Run: func(cmd *cobra.Command, args []string) {

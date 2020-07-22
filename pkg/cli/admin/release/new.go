@@ -57,7 +57,7 @@ func NewNewOptions(streams genericclioptions.IOStreams) *NewOptions {
 	}
 }
 
-func NewRelease(f kcmdutil.Factory, parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRelease(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewNewOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "new [SRC=DST ...]",
@@ -93,21 +93,21 @@ func NewRelease(f kcmdutil.Factory, parentName string, streams genericclioptions
 			will override the default cluster-version-operator image with one pulled from
 			registry.example.com.
 		`),
-		Example: templates.Examples(fmt.Sprintf(`
+		Example: templates.Examples(`
 			# Create a release from the latest origin images and push to a DockerHub repo
-			%[1]s new --from-image-stream=4.1 -n origin --to-image docker.io/mycompany/myrepo:latest
+			oc adm release new --from-image-stream=4.1 -n origin --to-image docker.io/mycompany/myrepo:latest
 
 			# Create a new release with updated metadata from a previous release
-			%[1]s new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 --name 4.1.1 \
+			oc adm release new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 --name 4.1.1 \
 				--previous 4.1.0 --metadata ... --to-image docker.io/mycompany/myrepo:latest
 
 			# Create a new release and override a single image
-			%[1]s new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 \
+			oc adm release new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 \
 				cli=docker.io/mycompany/cli:latest --to-image docker.io/mycompany/myrepo:latest
 
 			# Run a verification pass to ensure the release can be reproduced
-			%[1]s new --from-release registry.svc.ci.openshift.org/origin/release:v4.1
-				`, parentName)),
+			oc adm release new --from-release registry.svc.ci.openshift.org/origin/release:v4.1
+		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -390,7 +390,7 @@ func (o *NewOptions) Run() error {
 		var imageReferencesData, releaseMetadata []byte
 
 		buf := &bytes.Buffer{}
-		extractOpts := extract.NewOptions(genericclioptions.IOStreams{Out: buf, ErrOut: o.ErrOut})
+		extractOpts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: buf, ErrOut: o.ErrOut})
 		extractOpts.ParallelOptions = o.ParallelOptions
 		extractOpts.SecurityOptions = o.SecurityOptions
 		extractOpts.OnlyFiles = true
@@ -926,7 +926,7 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 
 	verifier := imagemanifest.NewVerifier()
 	var lock sync.Mutex
-	opts := extract.NewOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
 	opts.OnlyFiles = true

@@ -30,8 +30,7 @@ import (
 )
 
 const (
-	TopImagesRecommendedName = "images"
-	maxImageIDLength         = 20
+	maxImageIDLength = 20
 )
 
 var (
@@ -39,11 +38,13 @@ var (
 		Show usage statistics for Images
 
 		This command analyzes all the Images managed by the platform and presents current
-		usage statistics.`)
+		usage statistics.
+	`)
 
 	topImagesExample = templates.Examples(`
 		# Show usage statistics for Images
-  	%[1]s %[2]s`)
+		oc adm top images
+	`)
 )
 
 type TopImagesOptions struct {
@@ -62,13 +63,13 @@ func NewTopImagesOptions(streams genericclioptions.IOStreams) *TopImagesOptions 
 }
 
 // NewCmdTopImages implements the OpenShift cli top images command.
-func NewCmdTopImages(f kcmdutil.Factory, parentName, name string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTopImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewTopImagesOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
+		Use:     "images",
 		Short:   "Show usage statistics for Images",
 		Long:    topImagesLong,
-		Example: fmt.Sprintf(topImagesExample, parentName, name),
+		Example: topImagesExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate(cmd))

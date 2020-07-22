@@ -69,32 +69,33 @@ var (
 		For descriptions on other volume types, see https://docs.openshift.com`)
 
 	volumeExample = templates.Examples(`
-	  # List volumes defined on all deployment configs in the current project
-	  %[1]s volume dc --all
+		# List volumes defined on all deployment configs in the current project
+		oc set volume dc --all
 
-	  # Add a new empty dir volume to deployment config (dc) 'myapp' mounted under
-	  # /var/lib/myapp
-	  %[1]s volume dc/myapp --add --mount-path=/var/lib/myapp
+		# Add a new empty dir volume to deployment config (dc) 'myapp' mounted under
+		# /var/lib/myapp
+		oc set volume dc/myapp --add --mount-path=/var/lib/myapp
 
-	  # Use an existing persistent volume claim (pvc) to overwrite an existing volume 'v1'
-	  %[1]s volume dc/myapp --add --name=v1 -t pvc --claim-name=pvc1 --overwrite
+		# Use an existing persistent volume claim (pvc) to overwrite an existing volume 'v1'
+		oc set volume dc/myapp --add --name=v1 -t pvc --claim-name=pvc1 --overwrite
 
-	  # Remove volume 'v1' from deployment config 'myapp'
-	  %[1]s volume dc/myapp --remove --name=v1
+		# Remove volume 'v1' from deployment config 'myapp'
+		oc set volume dc/myapp --remove --name=v1
 
-	  # Create a new persistent volume claim that overwrites an existing volume 'v1'
-	  %[1]s volume dc/myapp --add --name=v1 -t pvc --claim-size=1G --overwrite
+		# Create a new persistent volume claim that overwrites an existing volume 'v1'
+		oc set volume dc/myapp --add --name=v1 -t pvc --claim-size=1G --overwrite
 
-	  # Change the mount point for volume 'v1' to /data
-	  %[1]s volume dc/myapp --add --name=v1 -m /data --overwrite
+		# Change the mount point for volume 'v1' to /data
+		oc set volume dc/myapp --add --name=v1 -m /data --overwrite
 
-	  # Modify the deployment config by removing volume mount "v1" from container "c1"
-	  # (and by removing the volume "v1" if no other containers have volume mounts that reference it)
-	  %[1]s volume dc/myapp --remove --name=v1 --containers=c1
+		# Modify the deployment config by removing volume mount "v1" from container "c1"
+		# (and by removing the volume "v1" if no other containers have volume mounts that reference it)
+		oc set volume dc/myapp --remove --name=v1 --containers=c1
 
-	  # Add new volume based on a more complex volume source (AWS EBS, GCE PD,
-	  # Ceph, Gluster, NFS, ISCSI, ...)
-	  %[1]s volume dc/myapp --add -m /data --source=<json-string>`)
+		# Add new volume based on a more complex volume source (AWS EBS, GCE PD,
+		# Ceph, Gluster, NFS, ISCSI, ...)
+		oc set volume dc/myapp --add -m /data --source=<json-string>
+	`)
 )
 
 type VolumeOptions struct {
@@ -166,13 +167,13 @@ func NewVolumeOptions(streams genericclioptions.IOStreams) *VolumeOptions {
 	}
 }
 
-func NewCmdVolume(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVolume(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewVolumeOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "volumes RESOURCE/NAME --add|--remove",
 		Short:   "Update volumes on a pod template",
 		Long:    volumeLong,
-		Example: fmt.Sprintf(volumeExample, fullName),
+		Example: volumeExample,
 		Aliases: []string{"volume"},
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

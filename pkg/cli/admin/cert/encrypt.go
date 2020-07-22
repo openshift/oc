@@ -48,10 +48,10 @@ type EncryptOptions struct {
 
 var encryptExample = templates.Examples(`
 	# Encrypt the content of secret.txt with a generated key:
-	%[1]s --genkey=secret.key --in=secret.txt --out=secret.encrypted
+	oc adm ca encrypt --genkey=secret.key --in=secret.txt --out=secret.encrypted
 
 	# Encrypt the content of secret2.txt with an existing key:
-	%[1]s --key=secret.key < secret2.txt > secret2.encrypted`)
+	oc adm ca encrypt --key=secret.key < secret2.txt > secret2.encrypted`)
 
 func NewEncryptOptions(streams genericclioptions.IOStreams) *EncryptOptions {
 	return &EncryptOptions{
@@ -61,12 +61,12 @@ func NewEncryptOptions(streams genericclioptions.IOStreams) *EncryptOptions {
 	}
 }
 
-func NewCommandEncrypt(commandName string, fullName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandEncrypt(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewEncryptOptions(streams)
 	cmd := &cobra.Command{
-		Use:     commandName,
+		Use:     "encrypt",
 		Short:   "Encrypt data with AES-256-CBC encryption",
-		Example: fmt.Sprintf(encryptExample, fullName),
+		Example: encryptExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Validate(args))
 			kcmdutil.CheckErr(o.Encrypt())

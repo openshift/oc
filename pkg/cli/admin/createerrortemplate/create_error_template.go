@@ -11,8 +11,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-const CreateErrorTemplateCommand = "create-error-template"
-
 var errorLongDescription = templates.LongDesc(`
 		Create a template for customizing the error page
 
@@ -38,10 +36,10 @@ func NewCreateErrorTemplateOptions(streams genericclioptions.IOStreams) *CreateE
 	}
 }
 
-func NewCommandCreateErrorTemplate(f kcmdutil.Factory, commandName string, fullName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateErrorTemplate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCreateErrorTemplateOptions(streams)
 	cmd := &cobra.Command{
-		Use:   commandName,
+		Use:   "create-error-template",
 		Short: "Create an error page template",
 		Long:  errorLongDescription,
 		Run: func(cmd *cobra.Command, args []string) {

@@ -57,7 +57,7 @@ func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
 	}
 }
 
-func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewInfoOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "info IMAGE [--changes-from=IMAGE] [--verify|--commits|--pullspecs]",
@@ -94,20 +94,20 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 			the code changes that occurred between the two release arguments. This operation is slow
 			and requires sufficient disk space on the selected drive to clone all repositories.
 		`),
-		Example: templates.Examples(fmt.Sprintf(`
+		Example: templates.Examples(`
 			# Show information about the cluster's current release
-			%[1]s info
+			oc adm release info
 
 			# Show the source code that comprises a release
-			%[1]s info 4.2.2 --commit-urls
+			oc adm release info 4.2.2 --commit-urls
 
 			# Show the source code difference between two releases
-			%[1]s info 4.2.0 4.2.2 --commits
+			oc adm release info 4.2.0 4.2.2 --commits
 
 			# Show where the images referenced by the release are located
-			%[1]s info quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
+			oc adm release info quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
 
-			`, parentName)),
+		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -741,7 +741,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	}
 
 	verifier := imagemanifest.NewVerifier()
-	opts := extract.NewOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FileDir = o.FileDir
 

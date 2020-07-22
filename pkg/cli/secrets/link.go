@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	coreapiv1 "k8s.io/api/core/v1"
@@ -18,19 +17,21 @@ import (
 
 var (
 	linkSecretLong = templates.LongDesc(`
-    Link secrets to a service account
+		Link secrets to a service account
 
-    Linking a secret enables a service account to automatically use that secret for some forms of authentication.`)
+		Linking a secret enables a service account to automatically use that secret for some forms of authentication.
+	`)
 
 	linkSecretExample = templates.Examples(`
-    # Add an image pull secret to a service account to automatically use it for pulling pod images:
-    %[1]s link serviceaccount-name pull-secret --for=pull
+		# Add an image pull secret to a service account to automatically use it for pulling pod images:
+		oc link serviceaccount-name pull-secret --for=pull
 
-    # Add an image pull secret to a service account to automatically use it for both pulling and pushing build images:
-    %[1]s link builder builder-image-secret --for=pull,mount
+		# Add an image pull secret to a service account to automatically use it for both pulling and pushing build images:
+		oc link builder builder-image-secret --for=pull,mount
 
-    # If the cluster's serviceAccountConfig is operating with limitSecretReferences: True, secrets must be added to the pod's service account whitelist in order to be available to the pod:
-    %[1]s link pod-sa pod-secret`)
+		# If the cluster's serviceAccountConfig is operating with limitSecretReferences: True, secrets must be added to the pod's service account whitelist in order to be available to the pod:
+		oc link pod-sa pod-secret
+	`)
 )
 
 type LinkSecretOptions struct {
@@ -49,14 +50,14 @@ func NewLinkSecretOptions(streams genericclioptions.IOStreams) *LinkSecretOption
 }
 
 // NewCmdLinkSecret creates a command object for linking a secret reference to a service account
-func NewCmdLinkSecret(parent string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLinkSecret(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewLinkSecretOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "link serviceaccounts-name secret-name [another-secret-name]...",
 		Short:   "Link secrets to a ServiceAccount",
 		Long:    linkSecretLong,
-		Example: fmt.Sprintf(linkSecretExample, parent),
+		Example: linkSecretExample,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -156,8 +157,4 @@ func (o LinkSecretOptions) linkSecretsToServiceAccount(serviceaccount *coreapiv1
 	}
 
 	return nil
-}
-
-func printDeprecationWarning(command, alias string) {
-	fmt.Fprintf(os.Stderr, "%s is DEPRECATED and will be removed in a future version. Use %s instead.\n", alias, command)
 }

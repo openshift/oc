@@ -24,7 +24,6 @@ type RequestProjectOptions struct {
 	DisplayName string
 	Description string
 
-	Name   string
 	Server string
 
 	SkipConfigWrite bool
@@ -47,10 +46,10 @@ var (
 
 	requestProjectExample = templates.Examples(`
 		# Create a new project with minimal information
-		%[1]s new-project web-team-dev
+		oc new-project web-team-dev
 
 		# Create a new project with a display name and description
-		%[1]s new-project web-team-dev --display-name="Web Team Development" --description="Development project for the web team."`)
+		oc new-project web-team-dev --display-name="Web Team Development" --description="Development project for the web team."`)
 )
 
 // RequestProject next steps.
@@ -58,36 +57,35 @@ const (
 	requestProjectNewAppOutput = `
 You can add applications to this project with the 'new-app' command. For example, try:
 
-    %[1]s new-app ruby~https://github.com/sclorg/ruby-ex.git
+    oc new-app ruby~https://github.com/sclorg/ruby-ex.git
 
 to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
 
     kubectl create deployment hello-node --image=gcr.io/hello-minikube-zero-install/hello-node
 
 `
-	requestProjectSwitchProjectOutput = `Project %[2]q created on server %[3]q.
+	requestProjectSwitchProjectOutput = `Project %[1]q created on server %[2]q.
 
 To switch to this project and start adding applications, use:
 
-    %[1]s project %[2]s
+    oc project %[2]s
 `
 )
 
-func NewRequestProjectOptions(baseName string, streams genericclioptions.IOStreams) *RequestProjectOptions {
+func NewRequestProjectOptions(streams genericclioptions.IOStreams) *RequestProjectOptions {
 	return &RequestProjectOptions{
 		IOStreams: streams,
-		Name:      baseName,
 	}
 }
 
 // NewCmdRequestProject implement the OpenShift cli RequestProject command.
-func NewCmdRequestProject(baseName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewRequestProjectOptions(baseName, streams)
+func NewCmdRequestProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewRequestProjectOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "new-project NAME [--display-name=DISPLAYNAME] [--description=DESCRIPTION]",
 		Short:   "Request a new project",
 		Long:    requestProjectLong,
-		Example: fmt.Sprintf(requestProjectExample, baseName),
+		Example: requestProjectExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
@@ -160,9 +158,9 @@ func (o *RequestProjectOptions) Run() error {
 			return err
 		}
 
-		fmt.Fprintf(o.Out, requestProjectNewAppOutput, o.Name)
+		fmt.Fprintf(o.Out, requestProjectNewAppOutput)
 	} else {
-		fmt.Fprintf(o.Out, requestProjectSwitchProjectOutput, o.Name, o.ProjectName, o.Server)
+		fmt.Fprintf(o.Out, requestProjectSwitchProjectOutput, o.ProjectName, o.Server)
 	}
 
 	return nil

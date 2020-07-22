@@ -54,9 +54,9 @@ var (
 `)
 
 	rolloutRetryExample = templates.Examples(`
-	  # Retry the latest failed deployment based on 'frontend'
-	  # The deployer pod and any hook pods are deleted for the latest failed deployment
-	  %[1]s rollout retry dc/frontend
+		# Retry the latest failed deployment based on 'frontend'
+		# The deployer pod and any hook pods are deleted for the latest failed deployment
+		oc rollout retry dc/frontend
 `)
 )
 
@@ -67,12 +67,12 @@ func NewRolloutRetryOptions(streams genericclioptions.IOStreams) *RetryOptions {
 	}
 }
 
-func NewCmdRolloutRetry(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutRetry(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRolloutRetryOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "retry (TYPE NAME | TYPE/NAME) [flags]",
 		Long:    rolloutRetryLong,
-		Example: fmt.Sprintf(rolloutRetryExample, fullName),
+		Example: rolloutRetryExample,
 		Short:   "Retry the latest failed rollout",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

@@ -46,7 +46,7 @@ func main() {
 
 	outFile := outDir + "oc_by_example_content.adoc"
 	out := os.Stdout
-	cmd := cli.NewOcCommand("oc", &bytes.Buffer{}, out, ioutil.Discard)
+	cmd := cli.NewOcCommand(&bytes.Buffer{}, out, ioutil.Discard)
 
 	if err := gendocs.GenDocs(cmd, outFile); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to generate docs: %v\n", err)

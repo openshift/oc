@@ -38,10 +38,10 @@ type DecryptOptions struct {
 
 var decryptExample = templates.Examples(`
 	# Decrypt an encrypted file to a cleartext file:
-	%[1]s --key=secret.key --in=secret.encrypted --out=secret.decrypted
+	oc adm ca decrypt --key=secret.key --in=secret.encrypted --out=secret.decrypted
 
 	# Decrypt from stdin to stdout:
-	%[1]s --key=secret.key < secret2.encrypted > secret2.decrypted`)
+	oc adm ca decrypt --key=secret.key < secret2.encrypted > secret2.decrypted`)
 
 func NewDecryptOptions(streams genericclioptions.IOStreams) *DecryptOptions {
 	return &DecryptOptions{
@@ -50,22 +50,22 @@ func NewDecryptOptions(streams genericclioptions.IOStreams) *DecryptOptions {
 	}
 }
 
-func NewCommandDecrypt(commandName string, fullName, encryptFullName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandDecrypt(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewDecryptOptions(streams)
 	cmd := &cobra.Command{
-		Use:     commandName,
-		Short:   fmt.Sprintf("Decrypt data encrypted with %q", encryptFullName),
-		Example: fmt.Sprintf(decryptExample, fullName),
+		Use:     "decrypt",
+		Short:   fmt.Sprintf("Decrypt data encrypted with oc adm ca encrypt"),
+		Example: decryptExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Validate(args))
 			kcmdutil.CheckErr(o.Decrypt())
 		},
 	}
 
-	cmd.Flags().StringVar(&o.EncryptedFile, "in", o.EncryptedFile, fmt.Sprintf("File containing encrypted data, in the format written by %q.", encryptFullName))
+	cmd.Flags().StringVar(&o.EncryptedFile, "in", o.EncryptedFile, fmt.Sprintf("File containing encrypted data, in the format written by oc adm ca encrypt."))
 	cmd.Flags().StringVar(&o.DecryptedFile, "out", o.DecryptedFile, "File to write the decrypted data to. Written to stdout if omitted.")
 
-	cmd.Flags().StringVar(&o.KeyFile, "key", o.KeyFile, fmt.Sprintf("The file to read the decrypting key from. Must be a PEM file in the format written by %q.", encryptFullName))
+	cmd.Flags().StringVar(&o.KeyFile, "key", o.KeyFile, fmt.Sprintf("The file to read the decrypting key from. Must be a PEM file in the format written by oc adm ca encrypt."))
 
 	// autocompletion hints
 	cmd.MarkFlagFilename("in")
