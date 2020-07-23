@@ -89,7 +89,25 @@ func (o *CreateUserIdentityMappingOptions) Complete(cmd *cobra.Command, f generi
 		return err
 	}
 
-	return o.CreateSubcommandOptions.Complete(f, cmd, args)
+	// we can't use Complete from CreateSubcommandOptions b/c it requires exactly one name
+	// and create useridentitymapping requires exactly two
+	o.CreateSubcommandOptions.Namespace, o.CreateSubcommandOptions.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
+	if err != nil {
+		return err
+	}
+
+	o.CreateSubcommandOptions.DryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+
+	cmdutil.PrintFlagsWithDryRunStrategy(o.CreateSubcommandOptions.PrintFlags, o.CreateSubcommandOptions.DryRunStrategy)
+	o.CreateSubcommandOptions.Printer, err = o.CreateSubcommandOptions.PrintFlags.ToPrinter()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (o *CreateUserIdentityMappingOptions) Run() error {
