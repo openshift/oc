@@ -48,7 +48,7 @@ const eventHTMLPage = `
   data-show-columns="true">
   <thead>
     <tr>
-      <th data-width="100" data-field="time" data-filter-control="input">Time</th>
+      <th data-width="100" data-field="time" data-filter-control="input" data-sortable="true">Time</th>
       <th data-width="200" data-field="namespace" data-filter-control="input" data-sortable="true">Namespace</th>
       <th data-width="200" data-field="component" data-filter-control="input" data-sortable="true">Component</th>
       <th data-field="reason" data-filter-control="input">Reason</th>
