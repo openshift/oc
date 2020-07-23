@@ -245,7 +245,7 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 	if err != nil {
 		return err
 	}
-	o.DryRun = strategy != kcmdutil.DryRunClient
+	o.DryRun = strategy != kcmdutil.DryRunNone
 
 	switch {
 	case o.ForceTTY && o.NoStdin:
