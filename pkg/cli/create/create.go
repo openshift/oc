@@ -43,8 +43,8 @@ func (o *CreateSubcommandOptions) Complete(f genericclioptions.RESTClientGetter,
 	if err != nil {
 		return err
 	}
-
 	o.Name = name
+
 	o.Namespace, o.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return err
