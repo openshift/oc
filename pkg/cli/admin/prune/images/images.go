@@ -44,6 +44,7 @@ import (
 	buildv1client "github.com/openshift/client-go/build/clientset/versioned/typed/build/v1"
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/library-go/pkg/network/networkutils"
+
 	"github.com/openshift/oc/pkg/cli/admin/prune/imageprune"
 	imagegraph "github.com/openshift/oc/pkg/helpers/graph/imagegraph/nodes"
 	"github.com/openshift/oc/pkg/version"
@@ -113,6 +114,7 @@ var (
 	defaultKeepTagRevisions        = 3
 	defaultPruneImageOverSizeLimit = false
 	defaultPruneRegistry           = true
+	defaultNumWorkers              = 5
 )
 
 // PruneImagesOptions holds all the required options for pruning images.
@@ -128,6 +130,7 @@ type PruneImagesOptions struct {
 	ForceInsecure       bool
 	PruneRegistry       *bool
 	IgnoreInvalidRefs   bool
+	NumWorkers          *int
 
 	ClientConfig       *restclient.Config
 	AppsClient         appsv1client.AppsV1Interface
@@ -151,6 +154,7 @@ func NewCmdPruneImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 		PruneOverSizeLimit: &defaultPruneImageOverSizeLimit,
 		PruneRegistry:      &defaultPruneRegistry,
 		AllImages:          &allImages,
+		NumWorkers:         &defaultNumWorkers,
 	}
 
 	cmd := &cobra.Command{
@@ -175,6 +179,7 @@ func NewCmdPruneImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 	cmd.Flags().BoolVar(&opts.ForceInsecure, "force-insecure", opts.ForceInsecure, "If true, allow an insecure connection to the container image registry that is hosted via HTTP or has an invalid HTTPS certificate. Whenever possible, use --certificate-authority instead of this dangerous option.")
 	cmd.Flags().BoolVar(opts.PruneRegistry, "prune-registry", *opts.PruneRegistry, "If false, the prune operation will clean up image API objects, but the none of the associated content in the registry is removed.  Note, if only image API objects are cleaned up through use of this flag, the only means for subsequently cleaning up registry data corresponding to those image API objects is to employ the 'hard prune' administrative task.")
 	cmd.Flags().BoolVar(&opts.IgnoreInvalidRefs, "ignore-invalid-refs", opts.IgnoreInvalidRefs, "If true, the pruning process will ignore all errors while parsing image references. This means that the pruning process will ignore the intended connection between the object and the referenced image. As a result an image may be incorrectly deleted as unused.")
+	cmd.Flags().IntVar(opts.NumWorkers, "num-workers", *opts.NumWorkers, "Specify the number of parallel works to use when running prune operations.")
 
 	return cmd
 }
@@ -493,6 +498,9 @@ func (o PruneImagesOptions) Run() error {
 	}
 	if o.Namespace != metav1.NamespaceAll {
 		options.Namespace = o.Namespace
+	}
+	if o.NumWorkers != nil {
+		options.NumWorkers = *o.NumWorkers
 	}
 	pruner, errs := imageprune.NewPruner(options)
 	if errs != nil {
