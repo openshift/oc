@@ -238,7 +238,7 @@ func (o *MigrateImageReferenceOptions) transform(obj runtime.Object) (migrate.Re
 			t.Data[corev1.DockerConfigKey] = data
 			return migrate.ReporterBool(true), nil
 		case corev1.SecretTypeDockerConfigJson:
-			var v credentialprovider.DockerConfigJson
+			var v credentialprovider.DockerConfigJSON
 			if err := json.Unmarshal(t.Data[corev1.DockerConfigJsonKey], &v); err != nil {
 				return nil, err
 			}

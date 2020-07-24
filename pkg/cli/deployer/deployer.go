@@ -246,7 +246,7 @@ func (d *Deployer) Deploy(namespace, rcName string) error {
 		}
 		// Scale the deployment down to zero.
 		retryWaitParams := kscale.NewRetryParams(1*time.Second, 120*time.Second)
-		if err := d.scaler.Scale(candidate.Namespace, candidate.Name, uint(0), &kscale.ScalePrecondition{Size: -1, ResourceVersion: ""}, retryWaitParams, retryWaitParams, corev1.SchemeGroupVersion.WithResource("replicationcontrollers")); err != nil {
+		if err := d.scaler.Scale(candidate.Namespace, candidate.Name, uint(0), &kscale.ScalePrecondition{Size: -1, ResourceVersion: ""}, retryWaitParams, retryWaitParams, corev1.SchemeGroupVersion.WithResource("replicationcontrollers"), false); err != nil {
 			fmt.Fprintf(d.errOut, "error: Couldn't scale down prior deployment %s: %v\n", appsutil.LabelForDeployment(candidate), err)
 		} else {
 			fmt.Fprintf(d.out, "--> Scaled older deployment %s down\n", candidate.Name)

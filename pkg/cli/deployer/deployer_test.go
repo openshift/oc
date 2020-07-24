@@ -234,11 +234,11 @@ type ScaleEvent struct {
 	Size uint
 }
 
-func (t *FakeScaler) Scale(namespace, name string, newSize uint, preconditions *kscale.ScalePrecondition, retry, wait *kscale.RetryParams, resource schema.GroupVersionResource) error {
+func (t *FakeScaler) Scale(namespace, name string, newSize uint, preconditions *kscale.ScalePrecondition, retry, wait *kscale.RetryParams, resource schema.GroupVersionResource, dryRun bool) error {
 	t.Events = append(t.Events, ScaleEvent{name, newSize})
 	return nil
 }
 
-func (t *FakeScaler) ScaleSimple(namespace, name string, preconditions *kscale.ScalePrecondition, newSize uint, resource schema.GroupVersionResource) (string, error) {
+func (t *FakeScaler) ScaleSimple(namespace, name string, preconditions *kscale.ScalePrecondition, newSize uint, resource schema.GroupVersionResource, dryRun bool) (string, error) {
 	return "", fmt.Errorf("unexpected call to ScaleSimple")
 }

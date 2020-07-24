@@ -431,7 +431,7 @@ func (r *RollingUpdater) scaleDown(newRc, oldRc *corev1.ReplicationController, d
 // scalerScaleAndWait scales a controller using a Scaler and a real client.
 func (r *RollingUpdater) scaleAndWaitWithScaler(rc *corev1.ReplicationController, retry, wait *kscale.RetryParams) (*corev1.ReplicationController, error) {
 	scaler := kscale.NewScaler(r.scaleClient)
-	if err := scaler.Scale(rc.Namespace, rc.Name, uint(*rc.Spec.Replicas), &kscale.ScalePrecondition{Size: -1}, retry, wait, corev1.SchemeGroupVersion.WithResource("replicationcontrollers")); err != nil {
+	if err := scaler.Scale(rc.Namespace, rc.Name, uint(*rc.Spec.Replicas), &kscale.ScalePrecondition{Size: -1}, retry, wait, corev1.SchemeGroupVersion.WithResource("replicationcontrollers"), false); err != nil {
 		return nil, err
 	}
 	return r.rcClient.ReplicationControllers(rc.Namespace).Get(context.TODO(), rc.Name, metav1.GetOptions{})
