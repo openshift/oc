@@ -3,8 +3,6 @@
 
 __kubectl_bash_source() {
 	alias shopt=':'
-	alias _expand=_bash_expand
-	alias _complete=_bash_comp
 	emulate -L sh
 	setopt kshglob noshglob braceexpand
 
@@ -71,49 +69,9 @@ __kubectl_get_comp_words_by_ref() {
 }
 
 __kubectl_filedir() {
-	local RET OLD_IFS w qw
-
-	__kubectl_debug "_filedir $@ cur=$cur"
-	if [[ "$1" = \~* ]]; then
-		# somehow does not work. Maybe, zsh does not call this at all
-		eval echo "$1"
-		return 0
-	fi
-
-	OLD_IFS="$IFS"
-	IFS=$'\n'
-	if [ "$1" = "-d" ]; then
-		shift
-		RET=( $(compgen -d) )
-	else
-		RET=( $(compgen -f) )
-	fi
-	IFS="$OLD_IFS"
-
-	IFS="," __kubectl_debug "RET=${RET[@]} len=${#RET[@]}"
-
-	for w in ${RET[@]}; do
-		if [[ ! "${w}" = "${cur}"* ]]; then
-			continue
-		fi
-		if eval "[[ \"\${w}\" = *.$1 || -d \"\${w}\" ]]"; then
-			qw="$(__kubectl_quote "${w}")"
-			if [ -d "${w}" ]; then
-				COMPREPLY+=("${qw}/")
-			else
-				COMPREPLY+=("${qw}")
-			fi
-		fi
-	done
-}
-
-__kubectl_quote() {
-    if [[ $1 == \'* || $1 == \"* ]]; then
-        # Leave out first character
-        printf %q "${1:1}"
-    else
-	printf %q "$1"
-    fi
+	# Don't need to do anything here.
+	# Otherwise we will get trailing space without "compopt -o nospace"
+	true
 }
 
 autoload -U +X bashcompinit && bashcompinit
@@ -121,7 +79,7 @@ autoload -U +X bashcompinit && bashcompinit
 # use word boundary patterns for BSD or GNU sed
 LWORD='[[:<:]]'
 RWORD='[[:>:]]'
-if sed --help 2>&1 | grep -q GNU; then
+if sed --help 2>&1 | grep -q 'GNU\|BusyBox'; then
 	LWORD='\<'
 	RWORD='\>'
 fi
@@ -177,6 +135,67 @@ __oc_contains_word()
         [[ $w = "$word" ]] && return
     done
     return 1
+}
+
+__oc_handle_go_custom_completion()
+{
+    __oc_debug "${FUNCNAME[0]}: cur is ${cur}, words[*] is ${words[*]}, #words[@] is ${#words[@]}"
+
+    local out requestComp lastParam lastChar comp directive args
+
+    # Prepare the command to request completions for the program.
+    # Calling ${words[0]} instead of directly oc allows to handle aliases
+    args=("${words[@]:1}")
+    requestComp="${words[0]} __completeNoDesc ${args[*]}"
+
+    lastParam=${words[$((${#words[@]}-1))]}
+    lastChar=${lastParam:$((${#lastParam}-1)):1}
+    __oc_debug "${FUNCNAME[0]}: lastParam ${lastParam}, lastChar ${lastChar}"
+
+    if [ -z "${cur}" ] && [ "${lastChar}" != "=" ]; then
+        # If the last parameter is complete (there is a space following it)
+        # We add an extra empty parameter so we can indicate this to the go method.
+        __oc_debug "${FUNCNAME[0]}: Adding extra empty parameter"
+        requestComp="${requestComp} \"\""
+    fi
+
+    __oc_debug "${FUNCNAME[0]}: calling ${requestComp}"
+    # Use eval to handle any environment variables and such
+    out=$(eval "${requestComp}" 2>/dev/null)
+
+    # Extract the directive integer at the very end of the output following a colon (:)
+    directive=${out##*:}
+    # Remove the directive
+    out=${out%:*}
+    if [ "${directive}" = "${out}" ]; then
+        # There is not directive specified
+        directive=0
+    fi
+    __oc_debug "${FUNCNAME[0]}: the completion directive is: ${directive}"
+    __oc_debug "${FUNCNAME[0]}: the completions are: ${out[*]}"
+
+    if [ $((directive & 1)) -ne 0 ]; then
+        # Error code.  No completion.
+        __oc_debug "${FUNCNAME[0]}: received error from custom completion go code"
+        return
+    else
+        if [ $((directive & 2)) -ne 0 ]; then
+            if [[ $(type -t compopt) = "builtin" ]]; then
+                __oc_debug "${FUNCNAME[0]}: activating no space"
+                compopt -o nospace
+            fi
+        fi
+        if [ $((directive & 4)) -ne 0 ]; then
+            if [[ $(type -t compopt) = "builtin" ]]; then
+                __oc_debug "${FUNCNAME[0]}: activating no file completion"
+                compopt +o default
+            fi
+        fi
+
+        while IFS='' read -r comp; do
+            COMPREPLY+=("$comp")
+        done < <(compgen -W "${out[*]}" -- "$cur")
+    fi
 }
 
 __oc_handle_reply()
@@ -242,6 +261,10 @@ __oc_handle_reply()
     completions=("${commands[@]}")
     if [[ ${#must_have_one_noun[@]} -ne 0 ]]; then
         completions=("${must_have_one_noun[@]}")
+    elif [[ -n "${has_completion_function}" ]]; then
+        # if a go completion function is provided, defer to that function
+        completions=()
+        __oc_handle_go_custom_completion
     fi
     if [[ ${#must_have_one_flag[@]} -ne 0 ]]; then
         completions+=("${must_have_one_flag[@]}")
@@ -6020,6 +6043,9 @@ _oc_adm_taint()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--output=")
     two_word_flags+=("--output")
     two_word_flags+=("-o")
@@ -6212,18 +6238,6 @@ _oc_adm_top_node()
     flags_with_completion=()
     flags_completion=()
 
-    flags+=("--heapster-namespace=")
-    two_word_flags+=("--heapster-namespace")
-    local_nonpersistent_flags+=("--heapster-namespace=")
-    flags+=("--heapster-port=")
-    two_word_flags+=("--heapster-port")
-    local_nonpersistent_flags+=("--heapster-port=")
-    flags+=("--heapster-scheme=")
-    two_word_flags+=("--heapster-scheme")
-    local_nonpersistent_flags+=("--heapster-scheme=")
-    flags+=("--heapster-service=")
-    two_word_flags+=("--heapster-service")
-    local_nonpersistent_flags+=("--heapster-service=")
     flags+=("--no-headers")
     local_nonpersistent_flags+=("--no-headers")
     flags+=("--selector=")
@@ -6296,18 +6310,6 @@ _oc_adm_top_pod()
     local_nonpersistent_flags+=("--all-namespaces")
     flags+=("--containers")
     local_nonpersistent_flags+=("--containers")
-    flags+=("--heapster-namespace=")
-    two_word_flags+=("--heapster-namespace")
-    local_nonpersistent_flags+=("--heapster-namespace=")
-    flags+=("--heapster-port=")
-    two_word_flags+=("--heapster-port")
-    local_nonpersistent_flags+=("--heapster-port=")
-    flags+=("--heapster-scheme=")
-    two_word_flags+=("--heapster-scheme")
-    local_nonpersistent_flags+=("--heapster-scheme=")
-    flags+=("--heapster-service=")
-    two_word_flags+=("--heapster-service")
-    local_nonpersistent_flags+=("--heapster-service=")
     flags+=("--no-headers")
     local_nonpersistent_flags+=("--no-headers")
     flags+=("--selector=")
@@ -6751,6 +6753,9 @@ _oc_annotate()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--field-selector=")
     two_word_flags+=("--field-selector")
     local_nonpersistent_flags+=("--field-selector=")
@@ -6766,6 +6771,8 @@ _oc_annotate()
     two_word_flags+=("--kustomize")
     two_word_flags+=("-k")
     local_nonpersistent_flags+=("--kustomize=")
+    flags+=("--list")
+    local_nonpersistent_flags+=("--list")
     flags+=("--local")
     local_nonpersistent_flags+=("--local")
     flags+=("--output=")
@@ -6986,6 +6993,9 @@ _oc_apply_edit-last-applied()
 
     flags+=("--allow-missing-template-keys")
     local_nonpersistent_flags+=("--allow-missing-template-keys")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -7662,6 +7672,9 @@ _oc_autoscale()
     local_nonpersistent_flags+=("--cpu-percent=")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -9272,6 +9285,9 @@ _oc_create_clusterrole()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--non-resource-url=")
     two_word_flags+=("--non-resource-url")
     local_nonpersistent_flags+=("--non-resource-url=")
@@ -9364,6 +9380,9 @@ _oc_create_clusterrolebinding()
     local_nonpersistent_flags+=("--clusterrole=")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--group=")
     two_word_flags+=("--group")
     local_nonpersistent_flags+=("--group=")
@@ -9423,6 +9442,7 @@ _oc_create_clusterrolebinding()
     two_word_flags+=("--user")
 
     must_have_one_flag=()
+    must_have_one_flag+=("--clusterrole=")
     must_have_one_noun=()
     noun_aliases=()
 }
@@ -9447,6 +9467,9 @@ _oc_create_configmap()
     local_nonpersistent_flags+=("--append-hash")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--from-env-file=")
     two_word_flags+=("--from-env-file")
     local_nonpersistent_flags+=("--from-env-file=")
@@ -9531,6 +9554,9 @@ _oc_create_cronjob()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--image=")
     two_word_flags+=("--image")
     local_nonpersistent_flags+=("--image=")
@@ -9593,6 +9619,8 @@ _oc_create_cronjob()
     two_word_flags+=("--user")
 
     must_have_one_flag=()
+    must_have_one_flag+=("--image=")
+    must_have_one_flag+=("--schedule=")
     must_have_one_noun=()
     noun_aliases=()
 }
@@ -9615,6 +9643,9 @@ _oc_create_deployment()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--image=")
     two_word_flags+=("--image")
     local_nonpersistent_flags+=("--image=")
@@ -9622,6 +9653,13 @@ _oc_create_deployment()
     two_word_flags+=("--output")
     two_word_flags+=("-o")
     local_nonpersistent_flags+=("--output=")
+    flags+=("--port=")
+    two_word_flags+=("--port")
+    local_nonpersistent_flags+=("--port=")
+    flags+=("--replicas=")
+    two_word_flags+=("--replicas")
+    two_word_flags+=("-r")
+    local_nonpersistent_flags+=("--replicas=")
     flags+=("--save-config")
     local_nonpersistent_flags+=("--save-config")
     flags+=("--template=")
@@ -10011,6 +10049,9 @@ _oc_create_job()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--from=")
     two_word_flags+=("--from")
     local_nonpersistent_flags+=("--from=")
@@ -10092,6 +10133,9 @@ _oc_create_namespace()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--output=")
     two_word_flags+=("--output")
     two_word_flags+=("-o")
@@ -10167,6 +10211,9 @@ _oc_create_poddisruptionbudget()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--max-unavailable=")
     two_word_flags+=("--max-unavailable")
     local_nonpersistent_flags+=("--max-unavailable=")
@@ -10254,6 +10301,9 @@ _oc_create_priorityclass()
     local_nonpersistent_flags+=("--description=")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--global-default")
     local_nonpersistent_flags+=("--global-default")
     flags+=("--output=")
@@ -10337,6 +10387,9 @@ _oc_create_quota()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--hard=")
     two_word_flags+=("--hard")
     local_nonpersistent_flags+=("--hard=")
@@ -10418,6 +10471,9 @@ _oc_create_role()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--output=")
     two_word_flags+=("--output")
     two_word_flags+=("-o")
@@ -10505,6 +10561,9 @@ _oc_create_rolebinding()
     local_nonpersistent_flags+=("--clusterrole=")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--group=")
     two_word_flags+=("--group")
     local_nonpersistent_flags+=("--group=")
@@ -10978,6 +11037,9 @@ _oc_create_secret_docker-registry()
     local_nonpersistent_flags+=("--docker-username=")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--from-file=")
     two_word_flags+=("--from-file")
     local_nonpersistent_flags+=("--from-file=")
@@ -11034,8 +11096,6 @@ _oc_create_secret_docker-registry()
     two_word_flags+=("--user")
 
     must_have_one_flag=()
-    must_have_one_flag+=("--docker-password=")
-    must_have_one_flag+=("--docker-username=")
     must_have_one_noun=()
     noun_aliases=()
 }
@@ -11060,6 +11120,9 @@ _oc_create_secret_generic()
     local_nonpersistent_flags+=("--append-hash")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--from-env-file=")
     two_word_flags+=("--from-env-file")
     local_nonpersistent_flags+=("--from-env-file=")
@@ -11152,6 +11215,9 @@ _oc_create_secret_tls()
     local_nonpersistent_flags+=("--cert=")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--key=")
     two_word_flags+=("--key")
     local_nonpersistent_flags+=("--key=")
@@ -11294,6 +11360,9 @@ _oc_create_service_clusterip()
     local_nonpersistent_flags+=("--clusterip=")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--output=")
     two_word_flags+=("--output")
     two_word_flags+=("-o")
@@ -11375,6 +11444,9 @@ _oc_create_service_externalname()
     flags+=("--external-name=")
     two_word_flags+=("--external-name")
     local_nonpersistent_flags+=("--external-name=")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--output=")
     two_word_flags+=("--output")
     two_word_flags+=("-o")
@@ -11454,6 +11526,9 @@ _oc_create_service_loadbalancer()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--output=")
     two_word_flags+=("--output")
     two_word_flags+=("-o")
@@ -11532,6 +11607,9 @@ _oc_create_service_nodeport()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--node-port=")
     two_word_flags+=("--node-port")
     local_nonpersistent_flags+=("--node-port=")
@@ -11675,6 +11753,9 @@ _oc_create_serviceaccount()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--output=")
     two_word_flags+=("--output")
     two_word_flags+=("-o")
@@ -11977,6 +12058,9 @@ _oc_create()
     local_nonpersistent_flags+=("--dry-run")
     flags+=("--edit")
     local_nonpersistent_flags+=("--edit")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -12416,6 +12500,10 @@ _oc_diff()
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
+    flags+=("--selector=")
+    two_word_flags+=("--selector")
+    two_word_flags+=("-l")
+    local_nonpersistent_flags+=("--selector=")
     flags+=("--server-side")
     local_nonpersistent_flags+=("--server-side")
     flags+=("--as=")
@@ -12478,6 +12566,9 @@ _oc_edit()
 
     flags+=("--allow-missing-template-keys")
     local_nonpersistent_flags+=("--allow-missing-template-keys")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -12978,6 +13069,9 @@ _oc_expose()
     flags+=("--external-ip=")
     two_word_flags+=("--external-ip")
     local_nonpersistent_flags+=("--external-ip=")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -14032,6 +14126,9 @@ _oc_label()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--field-selector=")
     two_word_flags+=("--field-selector")
     local_nonpersistent_flags+=("--field-selector=")
@@ -14919,6 +15016,9 @@ _oc_patch()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -16507,6 +16607,9 @@ _oc_replace()
     local_nonpersistent_flags+=("--cascade")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -16938,6 +17041,9 @@ _oc_rollout_pause()
 
     flags+=("--allow-missing-template-keys")
     local_nonpersistent_flags+=("--allow-missing-template-keys")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -17024,6 +17130,9 @@ _oc_rollout_restart()
 
     flags+=("--allow-missing-template-keys")
     local_nonpersistent_flags+=("--allow-missing-template-keys")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -17111,6 +17220,9 @@ _oc_rollout_resume()
 
     flags+=("--allow-missing-template-keys")
     local_nonpersistent_flags+=("--allow-missing-template-keys")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -17706,6 +17818,9 @@ _oc_run()
     local_nonpersistent_flags+=("--env=")
     flags+=("--expose")
     local_nonpersistent_flags+=("--expose")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -17754,6 +17869,8 @@ _oc_run()
     flags+=("--port=")
     two_word_flags+=("--port")
     local_nonpersistent_flags+=("--port=")
+    flags+=("--privileged")
+    local_nonpersistent_flags+=("--privileged")
     flags+=("--quiet")
     local_nonpersistent_flags+=("--quiet")
     flags+=("--record")
@@ -17856,6 +17973,8 @@ _oc_scale()
     flags+=("--current-replicas=")
     two_word_flags+=("--current-replicas")
     local_nonpersistent_flags+=("--current-replicas=")
+    flags+=("--dry-run")
+    local_nonpersistent_flags+=("--dry-run")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -18938,6 +19057,9 @@ _oc_set_image()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -19266,6 +19388,9 @@ _oc_set_resources()
     local_nonpersistent_flags+=("--containers=")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -19468,6 +19593,9 @@ _oc_set_selector()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -19559,6 +19687,9 @@ _oc_set_serviceaccount()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -19651,6 +19782,9 @@ _oc_set_subject()
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
     local_nonpersistent_flags+=("--dry-run")
+    flags+=("--field-manager=")
+    two_word_flags+=("--field-manager")
+    local_nonpersistent_flags+=("--field-manager=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -20728,6 +20862,7 @@ __start_oc()
     local commands=("oc")
     local must_have_one_flag=()
     local must_have_one_noun=()
+    local has_completion_function
     local last_command
     local nouns=()
 
@@ -20746,4 +20881,3 @@ BASH_COMPLETION_EOF
 }
 
 __kubectl_bash_source <(__kubectl_convert_bash_to_zsh)
-_complete kubectl 2>/dev/null
