@@ -15,7 +15,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/time/rate"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema1"
@@ -621,7 +621,7 @@ func VerifyManifestIntegrity(manifest distribution.Manifest, dgst digest.Digest)
 		return err
 	}
 	if contentDigest != dgst {
-		if klog.V(4) {
+		if klog.V(4).Enabled() {
 			_, payload, _ := manifest.Payload()
 			klog.Infof("Mismatched content: %s\n%s", contentDigest, string(payload))
 		}

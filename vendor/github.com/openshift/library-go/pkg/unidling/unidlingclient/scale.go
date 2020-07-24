@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/scale"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	unidlingapi "github.com/openshift/api/unidling/v1alpha1"
