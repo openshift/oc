@@ -20,9 +20,9 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -39,6 +39,8 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	oappsv1 "github.com/openshift/api/apps/v1"
+	buildv1 "github.com/openshift/api/build/v1"
 	imagev1 "github.com/openshift/api/image/v1"
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	buildv1client "github.com/openshift/client-go/build/clientset/versioned/typed/build/v1"
@@ -115,6 +117,7 @@ var (
 	defaultPruneImageOverSizeLimit = false
 	defaultPruneRegistry           = true
 	defaultNumWorkers              = 5
+	defaultChunkSize               = 2000
 )
 
 // PruneImagesOptions holds all the required options for pruning images.
@@ -131,6 +134,7 @@ type PruneImagesOptions struct {
 	PruneRegistry       *bool
 	IgnoreInvalidRefs   bool
 	NumWorkers          *int
+	ChunkSize           int
 
 	ClientConfig       *restclient.Config
 	AppsClient         appsv1client.AppsV1Interface
@@ -155,6 +159,7 @@ func NewCmdPruneImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 		PruneRegistry:      &defaultPruneRegistry,
 		AllImages:          &allImages,
 		NumWorkers:         &defaultNumWorkers,
+		ChunkSize:          defaultChunkSize,
 	}
 
 	cmd := &cobra.Command{
@@ -180,6 +185,7 @@ func NewCmdPruneImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 	cmd.Flags().BoolVar(opts.PruneRegistry, "prune-registry", *opts.PruneRegistry, "If false, the prune operation will clean up image API objects, but the none of the associated content in the registry is removed.  Note, if only image API objects are cleaned up through use of this flag, the only means for subsequently cleaning up registry data corresponding to those image API objects is to employ the 'hard prune' administrative task.")
 	cmd.Flags().BoolVar(&opts.IgnoreInvalidRefs, "ignore-invalid-refs", opts.IgnoreInvalidRefs, "If true, the pruning process will ignore all errors while parsing image references. This means that the pruning process will ignore the intended connection between the object and the referenced image. As a result an image may be incorrectly deleted as unused.")
 	cmd.Flags().IntVar(opts.NumWorkers, "num-workers", *opts.NumWorkers, "Specify the number of parallel workers to use when running prune operations.")
+	cmd.Flags().IntVar(&opts.ChunkSize, "chunk-size", opts.ChunkSize, "Retrieve resources in chunks rather than all at once. This value may need to be increased in very large clusters.")
 
 	return cmd
 }
@@ -317,89 +323,159 @@ func validateRegistryURL(registryURL string) error {
 	return nil
 }
 
+func (o PruneImagesOptions) pagedQuery(ctx context.Context, listFn pager.ListPageFunc, eachFn func(obj runtime.Object) error) error {
+	p := pager.New(listFn)
+	p.PageSize = int64(o.ChunkSize)
+	return p.EachListItem(ctx, metav1.ListOptions{}, eachFn)
+}
+
 // Run contains all the necessary functionality for the OpenShift cli prune images command.
 func (o PruneImagesOptions) Run() error {
-	allPods, err := o.KubeClient.CoreV1().Pods(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	allRCs, err := o.KubeClient.CoreV1().ReplicationControllers(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	allBCs, err := o.BuildClient.BuildConfigs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	// We need to tolerate 'not found' errors for buildConfigs since they may be disabled in Atomic
-	if err != nil && !kerrors.IsNotFound(err) {
-		return err
-	}
-
-	allBuilds, err := o.BuildClient.Builds(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	// We need to tolerate 'not found' errors for builds since they may be disabled in Atomic
-	if err != nil && !kerrors.IsNotFound(err) {
-		return err
-	}
-
-	allDSs, err := o.KubeClient.AppsV1().DaemonSets(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		// TODO: remove in future (3.9) release
-		if !kerrors.IsForbidden(err) {
-			return err
-		}
-		fmt.Fprintf(o.ErrOut, "Failed to list daemonsets: %v\n - * Make sure to update clusterRoleBindings.\n", err)
-	}
-
-	allDeployments, err := o.KubeClient.AppsV1().Deployments(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		// TODO: remove in future (3.9) release
-		if !kerrors.IsForbidden(err) {
-			return err
-		}
-		fmt.Fprintf(o.ErrOut, "Failed to list deployments: %v\n - * Make sure to update clusterRoleBindings.\n", err)
-	}
-
-	allDCs, err := o.AppsClient.DeploymentConfigs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	allRSs, err := o.KubeClient.AppsV1().ReplicaSets(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		// TODO: remove in future (3.9) release
-		if !kerrors.IsForbidden(err) {
-			return err
-		}
-		fmt.Fprintf(o.ErrOut, "Failed to list replicasets: %v\n - * Make sure to update clusterRoleBindings.\n", err)
-	}
-
-	limitRangesList, err := o.KubeClient.CoreV1().LimitRanges(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	limitRangesMap := make(map[string][]*corev1.LimitRange)
-	for i := range limitRangesList.Items {
-		limit := limitRangesList.Items[i]
-		limits, ok := limitRangesMap[limit.Namespace]
-		if !ok {
-			limits = []*corev1.LimitRange{}
-		}
-		limits = append(limits, &limit)
-		limitRangesMap[limit.Namespace] = limits
-	}
-
 	ctx := context.TODO()
-	allImagesUntyped, _, err := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-		return o.ImageClient.Images().List(context.TODO(), opts)
-	}).List(ctx, metav1.ListOptions{})
-	if err != nil {
+
+	var allImages imagev1.ImageList
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.ImageClient.Images().List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			allImages.Items = append(allImages.Items, *obj.(*imagev1.Image))
+			return nil
+		},
+	); err != nil {
 		return err
 	}
-	allImages := &imagev1.ImageList{}
-	if err := meta.EachListItem(allImagesUntyped, func(obj runtime.Object) error {
-		allImages.Items = append(allImages.Items, *obj.(*imagev1.Image))
-		return nil
-	}); err != nil {
+
+	var allImageStreams imagev1.ImageStreamList
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.ImageClient.ImageStreams(o.Namespace).List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			allImageStreams.Items = append(allImageStreams.Items, *obj.(*imagev1.ImageStream))
+			return nil
+		},
+	); err != nil {
+		return err
+	}
+
+	var allPods corev1.PodList
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.KubeClient.CoreV1().Pods(o.Namespace).List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			allPods.Items = append(allPods.Items, *obj.(*corev1.Pod))
+			return nil
+		},
+	); err != nil {
+		return err
+	}
+
+	var allRCs corev1.ReplicationControllerList
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.KubeClient.CoreV1().ReplicationControllers(o.Namespace).List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			allRCs.Items = append(allRCs.Items, *obj.(*corev1.ReplicationController))
+			return nil
+		},
+	); err != nil {
+		return err
+	}
+
+	var allDCs oappsv1.DeploymentConfigList
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.AppsClient.DeploymentConfigs(o.Namespace).List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			allDCs.Items = append(allDCs.Items, *obj.(*oappsv1.DeploymentConfig))
+			return nil
+		},
+	); err != nil {
+		return err
+	}
+
+	var allBCs buildv1.BuildConfigList
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.BuildClient.BuildConfigs(o.Namespace).List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			allBCs.Items = append(allBCs.Items, *obj.(*buildv1.BuildConfig))
+			return nil
+		},
+	); err != nil {
+		return err
+	}
+
+	var allBuilds buildv1.BuildList
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.BuildClient.Builds(o.Namespace).List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			allBuilds.Items = append(allBuilds.Items, *obj.(*buildv1.Build))
+			return nil
+		},
+	); err != nil {
+		return err
+	}
+
+	var allDSs appsv1.DaemonSetList
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.KubeClient.AppsV1().DaemonSets(o.Namespace).List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			allDSs.Items = append(allDSs.Items, *obj.(*appsv1.DaemonSet))
+			return nil
+		},
+	); err != nil {
+		return err
+	}
+
+	var allDeployments appsv1.DeploymentList
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.KubeClient.AppsV1().Deployments(o.Namespace).List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			allDeployments.Items = append(allDeployments.Items, *obj.(*appsv1.Deployment))
+			return nil
+		},
+	); err != nil {
+		return err
+	}
+
+	var allRSs appsv1.ReplicaSetList
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.KubeClient.AppsV1().ReplicaSets(o.Namespace).List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			allRSs.Items = append(allRSs.Items, *obj.(*appsv1.ReplicaSet))
+			return nil
+		},
+	); err != nil {
+		return err
+	}
+
+	limitRangesMap := make(map[string][]*corev1.LimitRange)
+	if err := o.pagedQuery(ctx,
+		func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			return o.KubeClient.CoreV1().LimitRanges(o.Namespace).List(ctx, opts)
+		},
+		func(obj runtime.Object) error {
+			limit := obj.(*corev1.LimitRange)
+			limits := limitRangesMap[limit.Namespace]
+			limits = append(limits, limit)
+			limitRangesMap[limit.Namespace] = limits
+			return nil
+		},
+	); err != nil {
 		return err
 	}
 
@@ -418,11 +494,6 @@ func (o PruneImagesOptions) Run() error {
 	}
 	defer imageStreamWatcher.Stop()
 
-	allStreams, err := o.ImageClient.ImageStreams(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
 	var (
 		registryHost          = o.RegistryUrlOverride
 		registryClientFactory imageprune.RegistryClientFactoryFunc
@@ -434,7 +505,7 @@ func (o PruneImagesOptions) Run() error {
 	registryClientFactory = imageprune.FakeRegistryClientFactory
 	if o.Confirm {
 		if len(registryHost) == 0 {
-			registryHost, err = imageprune.DetermineRegistryHost(allImages, allStreams)
+			registryHost, err = imageprune.DetermineRegistryHost(&allImages, &allImageStreams)
 			if err != nil {
 				return fmt.Errorf("unable to determine registry: %v", err)
 			}
@@ -477,18 +548,18 @@ func (o PruneImagesOptions) Run() error {
 		KeepTagRevisions:      o.KeepTagRevisions,
 		PruneOverSizeLimit:    o.PruneOverSizeLimit,
 		AllImages:             o.AllImages,
-		Images:                allImages,
+		Images:                &allImages,
 		ImageWatcher:          imageWatcher,
-		Streams:               allStreams,
+		Streams:               &allImageStreams,
 		StreamWatcher:         imageStreamWatcher,
-		Pods:                  allPods,
-		RCs:                   allRCs,
-		BCs:                   allBCs,
-		Builds:                allBuilds,
-		DSs:                   allDSs,
-		Deployments:           allDeployments,
-		DCs:                   allDCs,
-		RSs:                   allRSs,
+		Pods:                  &allPods,
+		RCs:                   &allRCs,
+		BCs:                   &allBCs,
+		Builds:                &allBuilds,
+		DSs:                   &allDSs,
+		Deployments:           &allDeployments,
+		DCs:                   &allDCs,
+		RSs:                   &allRSs,
 		LimitRanges:           limitRangesMap,
 		DryRun:                o.Confirm == false,
 		RegistryClientFactory: registryClientFactory,
