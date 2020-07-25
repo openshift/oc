@@ -1204,14 +1204,28 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 			fmt.Fprintf(w, "  Upgrades:\t<none>\n")
 		}
 		var keys []string
-		for k := range m.Metadata {
+		for k, v := range m.Metadata {
+			switch t := v.(type) {
+			case string:
+				if len(t) == 0 {
+					continue
+				}
+			case []interface{}:
+				if len(t) == 0 {
+					continue
+				}
+			case map[string]interface{}:
+				if len(t) == 0 {
+					continue
+				}
+			}
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		writeTabSection(w, func(w io.Writer) {
+			fmt.Fprintf(w, "  Metadata:\n")
 			for _, k := range keys {
-				fmt.Fprintf(w, "  Metadata:\n")
-				fmt.Fprintf(w, "    %s:\t%s\n", k, m.Metadata[k])
+				fmt.Fprintf(w, "    %s:\t%v\n", k, m.Metadata[k])
 			}
 		})
 	}
