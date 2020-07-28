@@ -10,3 +10,7 @@ aliases:
     - smarterclayton
     - vrutkovs
     - wking
+  catalog-approvers:
+    - ecordell
+  catalog-reviewers:
+    - ecordell
