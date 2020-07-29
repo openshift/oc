@@ -20,17 +20,16 @@ RUN INSTALL_PKGS="\
   ltrace \
   mailx \
   net-tools \
-  netsniff-ng \
   nmap-ncat \
   parted \
   pciutils \
+  procps-ng \
   psmisc \
   perf \
-  screen \
   strace \
   sysstat \
-  sysvinit-tools \
   tcpdump \
+  tmux \
   util-linux \
   vim-enhanced \
   wget \
