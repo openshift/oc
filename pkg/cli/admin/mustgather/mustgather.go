@@ -520,6 +520,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 					},
 				},
 			},
+			NodeSelector:                  map[string]string{corev1.LabelOSStable: "linux"},
 			TerminationGracePeriodSeconds: &zero,
 			Tolerations: []corev1.Toleration{
 				{
