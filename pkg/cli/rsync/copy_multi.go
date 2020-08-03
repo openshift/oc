@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // copyStrategies is an ordered list of copyStrategy objects that behaves as a single

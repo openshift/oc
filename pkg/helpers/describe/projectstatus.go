@@ -9,24 +9,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	kappsv1 "k8s.io/api/apps/v1"
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	kapierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/kubernetes"
-	kappsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
-	autoscalingv1client "k8s.io/client-go/kubernetes/typed/autoscaling/v1"
-	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/kubectl/pkg/scheme"
-
 	"github.com/openshift/api/annotations"
 	appsv1 "github.com/openshift/api/apps/v1"
 	buildv1 "github.com/openshift/api/build/v1"
@@ -59,6 +41,22 @@ import (
 	routegraph "github.com/openshift/oc/pkg/helpers/graph/routegraph/nodes"
 	"github.com/openshift/oc/pkg/helpers/parallel"
 	routedisplayhelpers "github.com/openshift/oc/pkg/helpers/route"
+	kappsv1 "k8s.io/api/apps/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	kapierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/kubernetes"
+	kappsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
+	autoscalingv1client "k8s.io/client-go/kubernetes/typed/autoscaling/v1"
+	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 const ForbiddenListWarning = "Forbidden"
@@ -1981,11 +1979,7 @@ func (l *dcLoader) Load() error {
 
 func (l *dcLoader) AddToGraph(g osgraph.Graph) error {
 	for i := range l.items {
-		internalConfig := &appsv1.DeploymentConfig{}
-		if err := scheme.Scheme.Convert(&l.items[i], internalConfig, nil); err != nil {
-			return err
-		}
-		appsgraph.EnsureDeploymentConfigNode(g, internalConfig)
+		appsgraph.EnsureDeploymentConfigNode(g, &l.items[i])
 	}
 
 	return nil

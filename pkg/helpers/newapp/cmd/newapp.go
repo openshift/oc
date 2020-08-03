@@ -12,7 +12,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	v1 "k8s.io/api/apps/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -1285,7 +1285,7 @@ func (c *AppConfig) removeRedundantTags(objects app.Objects) (app.Objects, error
 func (c *AppConfig) checkCircularReferences(objects app.Objects) error {
 	for i, obj := range objects {
 
-		if klog.V(5) {
+		if klog.V(5).Enabled() {
 			json, _ := json.MarshalIndent(obj, "", "\t")
 			klog.Infof("\n\nCycle check input object %v:\n%v\n", i, string(json))
 		}

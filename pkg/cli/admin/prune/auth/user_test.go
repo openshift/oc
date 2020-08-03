@@ -1,11 +1,10 @@
 package auth
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"io/ioutil"
 	"reflect"
 	"testing"
-
-	"github.com/davecgh/go-spew/spew"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -174,12 +173,12 @@ func TestUserReaper(t *testing.T) {
 			},
 			expected: []interface{}{
 				clienttesting.UpdateActionImpl{ActionImpl: clienttesting.ActionImpl{Verb: "update", Resource: groupsResource}, Object: &userv1.Group{
-					ObjectMeta: metav1.ObjectMeta{Name: "group-one-user"},
-					Users:      []string{},
-				}},
-				clienttesting.UpdateActionImpl{ActionImpl: clienttesting.ActionImpl{Verb: "update", Resource: groupsResource}, Object: &userv1.Group{
 					ObjectMeta: metav1.ObjectMeta{Name: "group-multiple-users"},
 					Users:      []string{"bob2", "steve"},
+				}},
+				clienttesting.UpdateActionImpl{ActionImpl: clienttesting.ActionImpl{Verb: "update", Resource: groupsResource}, Object: &userv1.Group{
+					ObjectMeta: metav1.ObjectMeta{Name: "group-one-user"},
+					Users:      []string{},
 				}},
 			},
 		},

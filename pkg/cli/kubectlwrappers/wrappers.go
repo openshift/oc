@@ -18,6 +18,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/clusterinfo"
 	"k8s.io/kubectl/pkg/cmd/completion"
 	"k8s.io/kubectl/pkg/cmd/config"
+	"k8s.io/kubectl/pkg/cmd/cp"
 	kcreate "k8s.io/kubectl/pkg/cmd/create"
 	"k8s.io/kubectl/pkg/cmd/delete"
 	"k8s.io/kubectl/pkg/cmd/describe"
@@ -39,7 +40,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 	kcmdauth "k8s.io/kubernetes/pkg/kubectl/cmd/auth"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/convert"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/cp"
 
 	"github.com/openshift/oc/pkg/cli/create"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"

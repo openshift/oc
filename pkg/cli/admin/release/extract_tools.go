@@ -24,7 +24,7 @@ import (
 
 	"golang.org/x/crypto/openpgp"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"

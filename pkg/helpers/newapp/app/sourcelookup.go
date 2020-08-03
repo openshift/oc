@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	s2iapi "github.com/openshift/oc/pkg/helpers/source-to-image/api"
 	s2igit "github.com/openshift/oc/pkg/helpers/source-to-image/git"

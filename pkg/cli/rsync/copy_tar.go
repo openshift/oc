@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	s2ifs "github.com/openshift/oc/pkg/helpers/source-to-image/fs"
 	"github.com/openshift/oc/pkg/helpers/source-to-image/tar"

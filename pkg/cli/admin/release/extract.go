@@ -16,7 +16,7 @@ import (
 
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -459,7 +459,7 @@ func (o *ExtractOptions) extractGit(dir string) error {
 			repo := ref.Annotations[annotationBuildSourceLocation]
 			commit := ref.Annotations[annotationBuildSourceCommit]
 			if len(repo) == 0 || len(commit) == 0 {
-				if klog.V(2) {
+				if klog.V(2).Enabled() {
 					klog.Infof("Tag %s has no source info", ref.Name)
 				} else {
 					fmt.Fprintf(o.ErrOut, "warning: Tag %s has no source info\n", ref.Name)

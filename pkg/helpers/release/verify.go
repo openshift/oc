@@ -24,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	coreclientsetv1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/openshift/library-go/pkg/manifest"
 )
@@ -308,7 +308,7 @@ func (v *ReleaseVerifier) Verify(ctx context.Context, releaseDigest string) erro
 	}
 
 	if len(remaining) > 0 {
-		if klog.V(4) {
+		if klog.V(4).Enabled() {
 			for k := range remaining {
 				klog.Infof("Unable to verify %s against keyring %s", releaseDigest, k)
 			}

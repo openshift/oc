@@ -1,4 +1,4 @@
-FROM registry.svc.ci.openshift.org/ocp/4.5:cli
+FROM registry.svc.ci.openshift.org/ocp/4.6:cli
 RUN INSTALL_PKGS="\
   bash-completion \
   bc \

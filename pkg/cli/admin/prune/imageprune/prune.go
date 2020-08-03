@@ -15,7 +15,7 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	gonum "github.com/gonum/graph"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	kappsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

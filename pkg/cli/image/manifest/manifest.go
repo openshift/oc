@@ -21,7 +21,7 @@ import (
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
@@ -302,7 +302,7 @@ func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifes
 		return base, layers, nil
 
 	case *schema1.SignedManifest:
-		if klog.V(4) {
+		if klog.V(4).Enabled() {
 			_, configJSON, _ := srcManifest.Payload()
 			klog.Infof("Raw image config json:\n%s", string(configJSON))
 		}
@@ -479,14 +479,14 @@ func PutManifestInCompatibleSchema(
 	klog.V(5).Infof("Registry reported invalid manifest error, attempting to convert to v2schema1 as ref %s", tagRef)
 	schema1Manifest, convertErr := convertToSchema1(ctx, blobs, configJSON, schema2Manifest, tagRef)
 	if convertErr != nil {
-		if klog.V(6) {
+		if klog.V(6).Enabled() {
 			_, data, _ := schema2Manifest.Payload()
 			klog.Infof("Input schema\n%s", string(data))
 		}
 		klog.V(2).Infof("Unable to convert manifest to schema1: %v", convertErr)
 		return toDigest, err
 	}
-	if klog.V(6) {
+	if klog.V(6).Enabled() {
 		_, data, _ := schema1Manifest.Payload()
 		klog.Infof("Converted to v2schema1\n%s", string(data))
 	}
@@ -496,7 +496,7 @@ func PutManifestInCompatibleSchema(
 // convertToSchema2 attempts to build a v2 manifest from a v1 manifest, which requires reading blobs to get layer sizes.
 // Requires the destination layers already exist in the target repository.
 func convertToSchema2(ctx context.Context, blobs distribution.BlobService, srcManifest *schema1.SignedManifest) (distribution.Manifest, error) {
-	if klog.V(6) {
+	if klog.V(6).Enabled() {
 		klog.Infof("Up converting v1 schema image:\n%#v", srcManifest.Manifest)
 	}
 
@@ -504,7 +504,7 @@ func convertToSchema2(ctx context.Context, blobs distribution.BlobService, srcMa
 	if err != nil {
 		return nil, err
 	}
-	if klog.V(6) {
+	if klog.V(6).Enabled() {
 		klog.Infof("Resulting schema: %#v", config)
 	}
 	// create synthetic history
@@ -521,7 +521,7 @@ func convertToSchema2(ctx context.Context, blobs distribution.BlobService, srcMa
 	if err != nil {
 		return nil, err
 	}
-	if klog.V(6) {
+	if klog.V(6).Enabled() {
 		klog.Infof("Resulting config.json:\n%s", string(configJSON))
 	}
 	b := schema2.NewManifestBuilder(blobs, schema2.MediaTypeImageConfig, configJSON)
@@ -552,7 +552,7 @@ func convertToSchema1(ctx context.Context, blobs distribution.BlobService, confi
 	if err != nil {
 		return nil, err
 	}
-	if klog.V(6) {
+	if klog.V(6).Enabled() {
 		klog.Infof("Down converting v2 schema image:\n%#v\n%s", schema2Manifest.Layers, configJSON)
 	}
 	builder := schema1.NewConfigManifestBuilder(blobs, trustKey, ref, configJSON)

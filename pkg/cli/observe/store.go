@@ -18,7 +18,7 @@ type restListWatcher struct {
 
 func (lw restListWatcher) List(opt metav1.ListOptions) (runtime.Object, error) {
 	opt.LabelSelector = lw.selector
-	return lw.Helper.List(lw.namespace, "", false, &opt)
+	return lw.Helper.List(lw.namespace, "", &opt)
 }
 
 func (lw restListWatcher) Watch(opt metav1.ListOptions) (watch.Interface, error) {

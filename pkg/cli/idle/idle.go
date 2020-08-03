@@ -280,7 +280,7 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 		}
 
 		var controller runtime.Object
-		controller, err = helper.Get(ref.namespace, ref.Name, false)
+		controller, err = helper.Get(ref.namespace, ref.Name)
 		if err != nil {
 			return nil, err
 		}

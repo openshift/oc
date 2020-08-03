@@ -23,6 +23,7 @@ func shimKubectlForOc() {
 	openshiftpatch.OAPIToGroupifiedGVK = legacygroupification.OAPIToGroupifiedGVK
 	openshiftpatch.IsOAPIFn = legacygroupification.IsOAPI
 	openshiftpatch.IsOC = true
+	kclientcmd.UseModifyConfigLock = false
 
 	// update polymorphic helpers
 	polymorphichelpers.AttachablePodForObjectFn = originpolymorphichelpers.NewAttachablePodForObjectFn(polymorphichelpers.AttachablePodForObjectFn)
