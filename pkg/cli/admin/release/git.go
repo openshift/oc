@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -135,7 +134,7 @@ func sourceLocationAsRelativePath(dir, location string) (string, error) {
 	if strings.HasSuffix(gitPath, ".git") {
 		gitPath = strings.TrimSuffix(gitPath, ".git")
 	}
-	gitPath = path.Clean(gitPath)
+	gitPath = filepath.Clean(gitPath)
 	basePath := filepath.Join(dir, u.Host, filepath.FromSlash(gitPath))
 	return basePath, nil
 }

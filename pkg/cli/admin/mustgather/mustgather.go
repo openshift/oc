@@ -7,7 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
-	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -352,13 +352,13 @@ func (o *MustGatherOptions) log(format string, a ...interface{}) {
 func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	streams := o.IOStreams
 	streams.Out = newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name))
-	destDir := path.Join(o.DestDir, regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.InitContainerStatuses[0].ImageID, "-"))
+	destDir := filepath.Join(o.DestDir, regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.InitContainerStatuses[0].ImageID, "-"))
 	if err := os.MkdirAll(destDir, 0775); err != nil {
 		return err
 	}
 	rsyncOptions := &rsync.RsyncOptions{
 		Namespace:     pod.Namespace,
-		Source:        &rsync.PathSpec{PodName: pod.Name, Path: path.Clean(o.SourceDir) + "/"},
+		Source:        &rsync.PathSpec{PodName: pod.Name, Path: filepath.Clean(o.SourceDir) + "/"},
 		ContainerName: "copy",
 		Destination:   &rsync.PathSpec{PodName: "", Path: destDir},
 		Client:        o.Client,
@@ -500,7 +500,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "must-gather-output",
-							MountPath: path.Clean(o.SourceDir),
+							MountPath: filepath.Clean(o.SourceDir),
 							ReadOnly:  false,
 						},
 					},
@@ -514,7 +514,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "must-gather-output",
-							MountPath: path.Clean(o.SourceDir),
+							MountPath: filepath.Clean(o.SourceDir),
 							ReadOnly:  false,
 						},
 					},
