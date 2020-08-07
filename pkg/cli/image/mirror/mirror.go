@@ -514,7 +514,6 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 			})
 
 			canonicalFrom := srcRepo.Named()
-
 			rq.Queue(func(w workqueue.Work) {
 				for key := range src.digests {
 					srcDigestString, pushTargets := key, src.digests[key]

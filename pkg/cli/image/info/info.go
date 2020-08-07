@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -99,6 +100,9 @@ func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("info expects at least one argument, an image pull spec")
 	}
 	o.Images = args
+	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -138,26 +142,7 @@ func (o *InfoOptions) Run() error {
 				FileDir:         o.FileDir,
 				SecurityOptions: o.SecurityOptions,
 				ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
-					filtered := make(map[digest.Digest]distribution.Manifest)
-					for _, manifest := range list.Manifests {
-						if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
-							klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
-							continue
-						}
-						filtered[manifest.Digest] = all[manifest.Digest]
-					}
-					if len(filtered) == 1 {
-						return filtered, nil
-					}
-
-					buf := &bytes.Buffer{}
-					w := tabwriter.NewWriter(buf, 0, 0, 1, ' ', 0)
-					fmt.Fprintf(w, "  OS\tDIGEST\n")
-					for _, manifest := range list.Manifests {
-						fmt.Fprintf(w, "  %s\t%s\n", imagemanifest.PlatformSpecString(manifest.Platform), manifest.Digest)
-					}
-					w.Flush()
-					return nil, fmt.Errorf("the image is a manifest list and contains multiple images - use --filter-by-os to select from:\n\n%s\n", buf.String())
+					return FilterManifestList(from, list, all, o.FilterOptions)
 				},
 
 				ImageMetadataCallback: func(from string, i *Image, err error) error {
@@ -458,4 +443,33 @@ func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource
 			})
 		}
 	})
+}
+
+// FilterManifestList returns map of digest to manifest, or a list of available platforms upon error,
+// to distinguish errors between multiple manifests found and no manifests found
+func FilterManifestList(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest, filterOptions imagemanifest.FilterOptions) (map[digest.Digest]distribution.Manifest, error) {
+	filtered := make(map[digest.Digest]distribution.Manifest)
+	for _, manifest := range list.Manifests {
+		if !filterOptions.Include(&manifest, len(list.Manifests) > 1) {
+			klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
+			continue
+		}
+		filtered[manifest.Digest] = all[manifest.Digest]
+	}
+	if len(filtered) == 1 {
+		return filtered, nil
+	}
+	msg := fmt.Sprintf("no manifests retrieved that match filter %s", filterOptions.FilterByOS)
+	if len(filtered) > 1 {
+		msg = fmt.Sprintf("multiple manifests that match filter %s", filterOptions.FilterByOS)
+	}
+
+	buf := &bytes.Buffer{}
+	w := tabwriter.NewWriter(buf, 0, 0, 1, ' ', 0)
+	fmt.Fprintf(w, "  OS\tDIGEST\n")
+	for _, manifest := range list.Manifests {
+		fmt.Fprintf(w, "  %s\t%s\n", imagemanifest.PlatformSpecString(manifest.Platform), manifest.Digest)
+	}
+	w.Flush()
+	return nil, fmt.Errorf("%s\nThe image is a manifest list - use --filter-by-os to select only a single option from below\nIf the --filter-by-os option you passed is listed below, try again with '^os/arch$' to avoid multiple manifests matching with regex expansion:\n\n%s\nor, to default to system '%s/%s' don't pass --filter-by-os.\n\n", msg, buf.String(), runtime.GOOS, runtime.GOARCH)
 }

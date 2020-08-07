@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 	dockerarchive "github.com/docker/docker/pkg/archive"
 	digest "github.com/opencontainers/go-digest"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"github.com/openshift/oc/pkg/cli/image/archive"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
+	imageinfo "github.com/openshift/oc/pkg/cli/image/info"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
 )
@@ -313,7 +315,7 @@ func (o *ExtractOptions) Complete(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(args) == 0 {
-		return fmt.Errorf("you must specify at least one image to extract as an argument")
+		return fmt.Errorf("you must specify an image to extract as an argument")
 	}
 
 	if len(o.Paths) == 0 && len(o.Files) == 0 {
@@ -325,6 +327,7 @@ func (o *ExtractOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -372,7 +375,13 @@ func (o *ExtractOptions) Run() error {
 					}
 					return fmt.Errorf("unable to read image %s: %v", from, err)
 				}
-
+				if _, ok := srcManifest.(*manifestlist.DeserializedManifestList); ok {
+					// If type is a ManifestList here, did not filter to single manifest from manifest list
+					// print os/arch options for this image as a convenience and error
+					if _, err = imageinfo.FilterManifestList(from.String(), srcManifest.(*manifestlist.DeserializedManifestList), nil, o.FilterOptions); err != nil {
+						return err
+					}
+				}
 				contentDigest, err := registryclient.ContentDigestForManifest(srcManifest, location.Manifest.Algorithm())
 				if err != nil {
 					return err

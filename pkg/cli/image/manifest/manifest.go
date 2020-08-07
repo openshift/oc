@@ -282,23 +282,21 @@ func FirstManifest(ctx context.Context, from imagereference.DockerImageReference
 	if err != nil {
 		return nil, ManifestLocation{}, err
 	}
-
 	originalSrcDigest := srcDigest
 	srcManifests, srcManifest, srcDigest, err := ProcessManifestList(ctx, srcDigest, srcManifest, manifests, from, filterFn, false)
 	if err != nil {
 		return nil, ManifestLocation{}, err
 	}
 	if len(srcManifests) == 0 {
-		return nil, ManifestLocation{}, fmt.Errorf("filtered all images from manifest list")
+		return nil, ManifestLocation{}, fmt.Errorf("filtered all images from list and no matching manifests found")
 	}
-
 	if srcDigest != originalSrcDigest {
 		return srcManifest, ManifestLocation{Manifest: srcDigest, ManifestList: originalSrcDigest}, nil
 	}
 	return srcManifest, ManifestLocation{Manifest: srcDigest}, nil
 }
 
-// ManifestToImageConfig takes an image manifest and converts it into a structured object.
+// ManifestToImageConfig takes an image manifest and converts it into a DockerImageConfig and digest Descriptors.
 func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifest, blobs distribution.BlobService, location ManifestLocation) (*dockerv1client.DockerImageConfig, []distribution.Descriptor, error) {
 	switch t := srcManifest.(type) {
 	case *schema2.DeserializedManifest:
@@ -316,13 +314,12 @@ func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifes
 		}
 
 		base := config
-		layers := t.Layers
 		base.Size = 0
 		for _, layer := range t.Layers {
 			base.Size += layer.Size
 		}
 
-		return base, layers, nil
+		return base, t.Layers, nil
 
 	case *ocischema.DeserializedManifest:
 		if t.Config.MediaType != imagespecv1.MediaTypeImageConfig {
@@ -439,7 +436,6 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 			if err != nil {
 				return nil, nil, "", err
 			}
-			klog.Warningf("Chose %s/%s manifest from the manifest list.", t.Manifests[0].Platform.OS, t.Manifests[0].Platform.Architecture)
 			return srcManifests, srcManifests[0], manifestDigest, nil
 		default:
 			return append(srcManifests, manifestList), manifestList, manifestDigest, nil
