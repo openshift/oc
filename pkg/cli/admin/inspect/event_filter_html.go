@@ -51,6 +51,7 @@ const eventHTMLPage = `
       <th data-width="100" data-field="time" data-filter-control="input" data-sortable="true">Time</th>
       <th data-width="200" data-field="namespace" data-filter-control="input" data-sortable="true">Namespace</th>
       <th data-width="200" data-field="component" data-filter-control="input" data-sortable="true">Component</th>
+      <th data-width="200" data-field="relatedobject" data-filter-control="input" data-sortable="true">RelatedObject</th>
       <th data-field="reason" data-filter-control="input">Reason</th>
       <th data-field="message" data-filter-control="input" data-escape="true">Message</th>
     </tr>
@@ -61,6 +62,7 @@ const eventHTMLPage = `
       <td>{{formatTime .ObjectMeta.CreationTimestamp .FirstTimestamp .LastTimestamp .Count}}</td>
       <td><p class="truncated">{{.Namespace}}</p></td>
       <td><p class="truncated">{{.Source.Component}}</p></td>
+      <td><p class="truncated">{{.InvolvedObject.Name}}</p></td>
       <td>{{formatReason .Reason}}</td>
       <td data-formatter="messageFormatter">{{.Message}}</td>
     </tr>
