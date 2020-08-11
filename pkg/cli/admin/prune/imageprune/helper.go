@@ -40,6 +40,10 @@ func (ba isByAge) Less(i, j int) bool {
 	return ba[i].CreationTimestamp.After(ba[j].CreationTimestamp.Time)
 }
 
+// ErrRegistryHostNotFound is an error returned when we could not find an image from where we can
+// derive the image registry host.
+var ErrRegistryHostNotFound = fmt.Errorf("no image found from where we can derive registry host")
+
 // DetermineRegistryHost returns registry host embedded in a pull-spec of the latest unmanaged image or the
 // latest imagestream from the provided lists. If no such pull-spec is found, error is returned.
 func DetermineRegistryHost(images *imagev1.ImageList, imageStreams *imagev1.ImageStreamList) (string, error) {
@@ -73,7 +77,7 @@ func DetermineRegistryHost(images *imagev1.ImageList, imageStreams *imagev1.Imag
 	}
 
 	if len(pullSpec) == 0 {
-		return "", fmt.Errorf("no managed image found")
+		return "", ErrRegistryHostNotFound
 	}
 
 	ref, err := reference.Parse(pullSpec)

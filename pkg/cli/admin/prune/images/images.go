@@ -436,7 +436,14 @@ func (o PruneImagesOptions) Run() error {
 		if len(registryHost) == 0 {
 			registryHost, err = imageprune.DetermineRegistryHost(allImages, allStreams)
 			if err != nil {
-				return fmt.Errorf("unable to determine registry: %v", err)
+				if err != imageprune.ErrRegistryHostNotFound {
+					return fmt.Errorf("unable to determine registry: %v", err)
+				}
+				// if we can't determine the registry host (ErrNoImageFound) and
+				// we need to prune it as well, bail out immediately.
+				if o.PruneRegistry != nil && *o.PruneRegistry {
+					return fmt.Errorf("unable to find the remote registry host: %v", err)
+				}
 			}
 		}
 
