@@ -494,9 +494,10 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 			},
 			InitContainers: []corev1.Container{
 				{
-					Name:    "gather",
-					Image:   image,
-					Command: []string{"/usr/bin/gather"},
+					Name:            "gather",
+					Image:           image,
+					ImagePullPolicy: corev1.PullAlways,
+					Command:         []string{"/usr/bin/gather"},
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "must-gather-output",
@@ -508,9 +509,10 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 			},
 			Containers: []corev1.Container{
 				{
-					Name:    "copy",
-					Image:   image,
-					Command: []string{"/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait"},
+					Name:            "copy",
+					Image:           image,
+					ImagePullPolicy: corev1.PullAlways,
+					Command:         []string{"/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait"},
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "must-gather-output",
