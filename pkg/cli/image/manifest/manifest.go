@@ -452,6 +452,7 @@ func PutManifestInCompatibleSchema(
 			klog.V(2).Infof("Unable to convert manifest to schema2: %v", err)
 			return toManifests.Put(ctx, t, distribution.WithTag(tag))
 		}
+		klog.Infof("warning: Digests are not preserved with schema version 1 images. Support for schema version 1 images will be removed in a future release")
 		return toManifests.Put(ctx, manifest, options...)
 	}
 

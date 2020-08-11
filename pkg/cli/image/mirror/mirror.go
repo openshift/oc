@@ -86,6 +86,20 @@ var (
 		# Copy multiple images
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			myregistry.com/myimage:new=myregistry.com/other:target
+
+		# Copy manifest list of a multi-architecture image, even if only a single image is found.
+		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+			--keep-manifest-list=true
+
+		# Copy specific os/arch manifest of a multi-architecture image
+		# Run 'oc image info myregistry.com/myimage:latest' to see available os/arch for multi-arch images
+		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+			--filter-by-os=os/arch
+
+		# Copy all os/arch manifests of a multi-architecture image
+		# Run 'oc image info myregistry.com/myimage:latest' to see list of os/arch manifests that will be mirrored.
+		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+			--filter-by-os=/*
 	`)
 )
 
@@ -736,9 +750,6 @@ func copyManifestToTags(
 		for _, desc := range srcManifest.References() {
 			plan.parent.parent.AssociateBlob(desc.Digest, plan.parent.name)
 		}
-		if srcDigest != toDigest {
-			fmt.Fprintf(errOut, "warning: Digests are not preserved with schema version 1 images. Support for schema version 1 images will be removed in a future release.\n")
-		}
 		plan.parent.parent.SavedManifest(srcDigest, toDigest)
 		fmt.Fprintf(out, "%s %s:%s\n", toDigest, plan.toRef, tag)
 	}
@@ -763,9 +774,6 @@ func copyManifest(
 	}
 	for _, desc := range srcManifest.References() {
 		plan.parent.parent.AssociateBlob(desc.Digest, plan.parent.name)
-	}
-	if srcDigest != toDigest {
-		fmt.Fprintf(errOut, "warning: Digests are not preserved with schema version 1 images. Support for schema version 1 images will be removed in a future release.\n")
 	}
 	plan.parent.parent.SavedManifest(srcDigest, toDigest)
 	fmt.Fprintf(out, "%s %s\n", toDigest, plan.toRef)
