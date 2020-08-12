@@ -39,6 +39,42 @@ import (
 
 var logLevel = flag.Int("loglevel", 0, "")
 
+func TestPruneWithoutImagesWithRegistryAccess(t *testing.T) {
+	pruneRegistry := true
+	opts := &PruneImagesOptions{
+		Namespace:     "foo",
+		AppsClient:    &fakeappsv1client.FakeAppsV1{Fake: &(fakeappsclient.NewSimpleClientset().Fake)},
+		BuildClient:   &fakebuildv1client.FakeBuildV1{Fake: &(fakebuildclient.NewSimpleClientset().Fake)},
+		ImageClient:   &fakeimagev1client.FakeImageV1{Fake: &(fakeimageclient.NewSimpleClientset().Fake)},
+		KubeClient:    fakekubernetes.NewSimpleClientset(),
+		Out:           ioutil.Discard,
+		ErrOut:        os.Stderr,
+		Confirm:       true,
+		PruneRegistry: &pruneRegistry,
+	}
+
+	if err := opts.Run(); err == nil {
+		t.Errorf("expected 'unable to find the remote registry host' error, nil received instead")
+	}
+}
+
+func TestPruneWithoutImagesNoRegistryAccess(t *testing.T) {
+	opts := &PruneImagesOptions{
+		Namespace:   "foo",
+		AppsClient:  &fakeappsv1client.FakeAppsV1{Fake: &(fakeappsclient.NewSimpleClientset().Fake)},
+		BuildClient: &fakebuildv1client.FakeBuildV1{Fake: &(fakebuildclient.NewSimpleClientset().Fake)},
+		ImageClient: &fakeimagev1client.FakeImageV1{Fake: &(fakeimageclient.NewSimpleClientset().Fake)},
+		KubeClient:  fakekubernetes.NewSimpleClientset(),
+		Out:         ioutil.Discard,
+		ErrOut:      os.Stderr,
+		Confirm:     true,
+	}
+
+	if err := opts.Run(); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
 func TestImagePruneNamespaced(t *testing.T) {
 	var level klog.Level
 	level.Set(fmt.Sprint(*logLevel))
