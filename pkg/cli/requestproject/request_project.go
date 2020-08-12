@@ -57,7 +57,7 @@ const (
 	requestProjectNewAppOutput = `
 You can add applications to this project with the 'new-app' command. For example, try:
 
-    oc new-app ruby~https://github.com/sclorg/ruby-ex.git
+    oc new-app rails-postgresql-example
 
 to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
 
