@@ -240,12 +240,10 @@ func (v *ReleaseVerifier) Verify(ctx context.Context, releaseDigest string) erro
 		for k, keyring := range remaining {
 			content, _, err := verifySignatureWithKeyring(bytes.NewReader(signature), keyring)
 			if err != nil {
-				klog.Infof("keyring %q could not verify signature: %v", k, err)
 				klog.V(4).Infof("keyring %q could not verify signature: %v", k, err)
 				continue
 			}
 			if err := verifyAtomicContainerSignature(content, releaseDigest); err != nil {
-				klog.Infof("signature %q is not valid: %v", path, err)
 				klog.V(4).Infof("signature %q is not valid: %v", path, err)
 				continue
 			}
@@ -262,7 +260,6 @@ func (v *ReleaseVerifier) Verify(ctx context.Context, releaseDigest string) erro
 		}
 		signatures, err := store.DigestSignatures(ctx, releaseDigest)
 		if err != nil {
-			klog.Infof("store %s could not load signatures: %v", store, err)
 			klog.V(4).Infof("store %s could not load signatures: %v", store, err)
 			continue
 		}
@@ -473,7 +470,6 @@ func checkHTTPSignatures(ctx context.Context, client *http.Client, u url.URL, ma
 			break
 		}
 		if err != nil {
-			klog.Info(err)
 			klog.V(4).Info(err)
 			continue
 		}
