@@ -399,7 +399,7 @@ func newPrefixWriter(out io.Writer, prefix string) io.Writer {
 
 func (o *MustGatherOptions) waitForPodRunning(pod *corev1.Pod) error {
 	phase := pod.Status.Phase
-	err := wait.PollImmediate(time.Minute, time.Duration(o.Timeout)*time.Second, func() (bool, error) {
+	err := wait.PollImmediate(3*time.Second, time.Duration(o.Timeout)*time.Second, func() (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err != nil {
 			// at this stage pod should exist, we've been gathering container logs, so error if not found
@@ -425,7 +425,7 @@ func (o *MustGatherOptions) waitForPodRunning(pod *corev1.Pod) error {
 }
 
 func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error {
-	return wait.PollImmediate(time.Minute, time.Duration(o.Timeout)*time.Second, func() (bool, error) {
+	return wait.PollImmediate(3*time.Second, time.Duration(o.Timeout)*time.Second, func() (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err == nil {
 			if len(pod.Status.InitContainerStatuses) == 0 {
