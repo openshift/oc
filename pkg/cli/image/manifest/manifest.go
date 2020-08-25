@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 	"runtime"
 	"sync"
@@ -50,6 +51,23 @@ func (o *SecurityOptions) Bind(flags *pflag.FlagSet) {
 	flags.StringVarP(&o.RegistryConfig, "registry-config", "a", o.RegistryConfig, "Path to your registry credentials (defaults to ~/.docker/config.json)")
 	flags.BoolVar(&o.Insecure, "insecure", o.Insecure, "Allow push and pull operations to registries to be made over HTTP")
 	flags.BoolVar(&o.SkipVerification, "skip-verification", o.SkipVerification, "Skip verifying the integrity of the retrieved content. This is not recommended, but may be necessary when importing images from older image registries. Only bypass verification if the registry is known to be trustworthy.")
+}
+
+// ReferentialHTTPClient returns an http.Client that is appropriate for accessing
+// blobs referenced outside of the registry (due to the present of the URLs attribute
+// in the manifest reference for a layer).
+func (o *SecurityOptions) ReferentialHTTPClient() (*http.Client, error) {
+	ctx, err := o.Context()
+	if err != nil {
+		return nil, err
+	}
+	client := &http.Client{}
+	if o.Insecure {
+		client.Transport = ctx.InsecureTransport
+	} else {
+		client.Transport = ctx.Transport
+	}
+	return client, nil
 }
 
 type Verifier interface {
@@ -349,10 +367,10 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 		filtered := make([]manifestlist.ManifestDescriptor, 0, len(t.Manifests))
 		for _, manifest := range t.Manifests {
 			if !filterFn(&manifest, len(t.Manifests) > 1) {
-				klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, ref)
+				klog.V(5).Infof("Skipping image %s for %#v from %s", manifest.Digest, manifest.Platform, ref)
 				continue
 			}
-			klog.V(5).Infof("Including image for %#v from %s", manifest.Platform, ref)
+			klog.V(5).Infof("Including image %s for %#v from %s", manifest.Digest, manifest.Platform, ref)
 			filtered = append(filtered, manifest)
 		}
 

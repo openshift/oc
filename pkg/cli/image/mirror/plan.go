@@ -192,10 +192,20 @@ func (p *plan) CacheBlob(blob distribution.Descriptor) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	if existing, ok := p.blobs[blob.Digest]; ok && existing.Size > 0 {
+	existing, ok := p.blobs[blob.Digest]
+	if !ok {
+		p.blobs[blob.Digest] = blob
 		return
 	}
-	p.blobs[blob.Digest] = blob
+	if existing.Size == 0 {
+		existing.Size = blob.Size
+	}
+	if len(blob.URLs) > 0 {
+		urls := sets.NewString(existing.URLs...)
+		urls.Insert(blob.URLs...)
+		existing.URLs = urls.List()
+	}
+	p.blobs[blob.Digest] = existing
 }
 
 func (p *plan) GetBlob(digest godigest.Digest) distribution.Descriptor {
@@ -328,11 +338,12 @@ type registryPlan struct {
 	}
 }
 
-func (p *registryPlan) AssociateBlob(digest godigest.Digest, repo string) {
+func (p *registryPlan) AssociateBlob(repo string, desc distribution.Descriptor) {
+	p.parent.CacheBlob(desc)
+
 	p.lock.Lock()
 	defer p.lock.Unlock()
-
-	p.blobsByRepo[digest] = repo
+	p.blobsByRepo[desc.Digest] = repo
 }
 
 func (p *registryPlan) SavedManifest(srcDigest, dstDigest godigest.Digest) {
@@ -550,8 +561,7 @@ type repositoryBlobCopy struct {
 }
 
 func (p *repositoryBlobCopy) AlreadyExists(blob distribution.Descriptor) {
-	p.parent.parent.parent.CacheBlob(blob)
-	p.parent.parent.AssociateBlob(blob.Digest, p.parent.name)
+	p.parent.parent.AssociateBlob(p.parent.name, blob)
 	p.parent.ExpectBlob(blob.Digest)
 
 	p.lock.Lock()
