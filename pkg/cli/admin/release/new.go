@@ -1218,7 +1218,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 		options.LayerStream = r
 		options.To = toRef.Exact()
 		if err := options.Run(); err != nil {
-			return err
+			return fmt.Errorf("failed to push image %s: %v", toRef.Exact(), err)
 		}
 		if !verifier.Verified() {
 			err := fmt.Errorf("the base image failed content verification and may have been tampered with")
