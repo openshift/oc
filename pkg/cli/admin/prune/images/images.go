@@ -432,11 +432,11 @@ func (o PruneImagesOptions) Run() error {
 
 	registryPinger = &imageprune.DryRunRegistryPinger{}
 	registryClientFactory = imageprune.FakeRegistryClientFactory
-	if o.Confirm {
+	if o.Confirm && o.PruneRegistry != nil && *o.PruneRegistry {
 		if len(registryHost) == 0 {
 			registryHost, err = imageprune.DetermineRegistryHost(allImages, allStreams)
 			if err != nil {
-				return fmt.Errorf("unable to determine registry: %v", err)
+				return fmt.Errorf("unable to find the remote registry host: %v", err)
 			}
 		}
 
@@ -454,12 +454,9 @@ func (o PruneImagesOptions) Run() error {
 			return err
 		}
 
-		// we only need to ping the registry if we are going to access it.
-		if o.PruneRegistry != nil && *o.PruneRegistry {
-			registryPinger = &imageprune.DefaultRegistryPinger{
-				Client:   registryClient,
-				Insecure: insecure,
-			}
+		registryPinger = &imageprune.DefaultRegistryPinger{
+			Client:   registryClient,
+			Insecure: insecure,
 		}
 	}
 
