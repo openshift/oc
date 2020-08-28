@@ -2,8 +2,11 @@ package logout
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
@@ -20,6 +23,8 @@ import (
 	kubeconfiglib "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/project"
 )
+
+const sha256Prefix = "sha256~"
 
 type LogoutOptions struct {
 	StartingKubeConfig *kclientcmdapi.Config
@@ -110,6 +115,7 @@ func (o LogoutOptions) Validate(args []string) error {
 
 func (o LogoutOptions) RunLogout() error {
 	token := o.Config.BearerToken
+	tokenName := o.Config.BearerToken
 
 	client, err := oauthv1client.NewForConfig(o.Config)
 	if err != nil {
@@ -121,7 +127,11 @@ func (o LogoutOptions) RunLogout() error {
 		return err
 	}
 
-	if err := client.OAuthAccessTokens().Delete(context.TODO(), token, metav1.DeleteOptions{}); err != nil {
+	if strings.HasPrefix(tokenName, sha256Prefix) {
+		tokenName = tokenToObjectName(tokenName)
+	}
+
+	if err := client.OAuthAccessTokens().Delete(context.TODO(), tokenName, metav1.DeleteOptions{}); err != nil {
 		klog.V(1).Infof("%v", err)
 	}
 
@@ -147,4 +157,26 @@ func deleteTokenFromConfig(config kclientcmdapi.Config, pathOptions *kclientcmd.
 	}
 
 	return kclientcmd.ModifyConfig(pathOptions, config, true)
+}
+
+// tokenToObjectName returns the oauthaccesstokens object name for the given raw token,
+// i.e. the sha256 hash prefixed with "sha256~".
+func tokenToObjectName(code string) string {
+	name, prefixed := trimSHA256Prefix(code)
+	if prefixed {
+		return sha256Token(name)
+	}
+	return name
+}
+
+func trimSHA256Prefix(code string) (string, bool) {
+	if !strings.HasPrefix(code, sha256Prefix) {
+		return code, false
+	}
+	return strings.TrimPrefix(code, sha256Prefix), true
+}
+
+func sha256Token(token string) string {
+	h := sha256.Sum256([]byte(token))
+	return sha256Prefix + base64.RawURLEncoding.EncodeToString(h[0:])
 }
