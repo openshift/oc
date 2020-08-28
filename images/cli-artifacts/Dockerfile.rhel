@@ -7,6 +7,7 @@ RUN yum install -y --setopt=skip_missing_names_on_install=False gpgme-devel liba
 RUN make cross-build --warn-undefined-variables
 
 FROM registry.svc.ci.openshift.org/ocp/4.2:cli
+RUN yum install -y python3 && yum clean all
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/darwin_amd64/oc /usr/share/openshift/mac/oc
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/windows_amd64/oc.exe /usr/share/openshift/windows/oc.exe
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_amd64/oc /usr/share/openshift/linux_amd64/oc
