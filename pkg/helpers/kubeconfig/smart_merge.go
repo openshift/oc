@@ -52,6 +52,7 @@ func CreateConfig(namespace, userName string, clientCfg *restclient.Config) (*cl
 	if err != nil {
 		return nil, err
 	}
+	userName = userName + "/" + clusterNick
 
 	config := clientcmdapi.NewConfig()
 
