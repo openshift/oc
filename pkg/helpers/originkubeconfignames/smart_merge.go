@@ -35,6 +35,7 @@ func GetUserNicknameFromCert(clusterNick string, chain ...*x509.Certificate) (st
 }
 
 func GetContextNickname(namespace, clusterNick, userNick string) string {
+	// Split the trailing clusterNick off of the userNick
 	tokens := strings.SplitN(userNick, "/", 2)
 	return namespace + "/" + clusterNick + "/" + tokens[0]
 }
