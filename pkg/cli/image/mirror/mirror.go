@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"net/http"
 	"time"
 
 	"github.com/docker/distribution"
@@ -278,6 +280,12 @@ func (o *MirrorImageOptions) Run() error {
 		return nil
 	}
 
+	// we must have a client available for accessing referential URLs
+	referentialClient, err := o.SecurityOptions.ReferentialHTTPClient()
+	if err != nil {
+		return err
+	}
+
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	q := workqueue.New(o.MaxRegistry, stopCh)
@@ -307,11 +315,11 @@ func (o *MirrorImageOptions) Run() error {
 								digest := godigest.Digest(digestString)
 								blob := op.parent.parent.parent.GetBlob(digest)
 								w.Parallel(func() {
-									if err := copyBlob(ctx, work, op, blob, o.Force, o.SkipMount, o.ErrOut); err != nil {
+									if err := copyBlob(ctx, work, op, blob, referentialClient, o.Force, o.SkipMount, o.ErrOut); err != nil {
 										phase.ExecutionFailure(err)
 										return
 									}
-									op.parent.parent.AssociateBlob(digest, unit.repository.name)
+									op.parent.parent.AssociateBlob(unit.repository.name, blob)
 								})
 							}
 						}
@@ -583,7 +591,7 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 									}
 									for _, blob := range srcManifest.References() {
 										if src.ref.EqualRegistry(dst.ref) {
-											registryPlan.AssociateBlob(blob.Digest, canonicalFrom.String())
+											registryPlan.AssociateBlob(canonicalFrom.String(), blob)
 										}
 										blobPlan.Copy(blob, srcBlobs, toBlobs)
 									}
@@ -619,14 +627,14 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 	return plan, nil
 }
 
-func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob distribution.Descriptor, force, skipMount bool, errOut io.Writer) error {
+func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob distribution.Descriptor, referentialClient *http.Client, force, skipMount bool, errOut io.Writer) error {
 	// if we aren't forcing upload, check to see if the blob aleady exists
 	if !force {
 		_, err := c.to.Stat(ctx, blob.Digest)
 		if err == nil {
 			// blob exists, skip
 			klog.V(5).Infof("Server reports blob exists %#v", blob)
-			c.parent.parent.AssociateBlob(blob.Digest, c.parent.name)
+			c.parent.parent.AssociateBlob(c.parent.name, blob)
 			c.parent.ExpectBlob(blob.Digest)
 			return nil
 		}
@@ -652,9 +660,11 @@ func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob d
 		}
 	}
 
+	from := &descriptorBlobSource{client: referentialClient, blobs: c.from}
+
 	// if the object is small enough, put directly
 	if blob.Size > 0 && blob.Size < 16384 {
-		data, err := c.from.Get(ctx, blob.Digest)
+		data, err := from.Get(ctx, blob)
 		if err != nil {
 			return fmt.Errorf("unable to push %s: failed to retrieve blob %s: %s", c.fromRef, blob.Digest, err)
 		}
@@ -698,9 +708,9 @@ func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob d
 	}
 
 	err = func() error {
-		klog.V(5).Infof("Uploading blob %s", blob.Digest)
+		klog.V(5).Infof("Uploading blob %s (%v)", blob.Digest, blob.URLs)
 		defer w.Cancel(ctx)
-		r, err := c.from.Open(ctx, blob.Digest)
+		r, err := from.Open(ctx, blob)
 		if err != nil {
 			return fmt.Errorf("unable to open source layer %s to copy to %s: %v", blob.Digest, c.toRef, err)
 		}
@@ -727,6 +737,94 @@ func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob d
 	return nil
 }
 
+// descriptorBlobSource abstracts copying blob contents from either a blob service or
+// the URLs field of the source descriptor.
+type descriptorBlobSource struct {
+	client *http.Client
+	blobs  distribution.BlobService
+}
+
+// Get attempts to retrieve the blob from the target registry blob service, or retrieves
+// the contents of the blob from the first available URL provided as an alternate.
+// ErrBlobUnknown is returned if none of the available URLs return an object, which may
+// hide the root cause of the error, but preserves the behavior of mirror. The registry
+// is always checked first.
+func (s *descriptorBlobSource) Get(ctx context.Context, desc distribution.Descriptor) ([]byte, error) {
+	data, err := s.blobs.Get(ctx, desc.Digest)
+	if err == nil {
+		return data, nil
+	}
+	if len(desc.URLs) == 0 || err != distribution.ErrBlobUnknown {
+		klog.V(5).Infof("Failed to retrieve blob %s and no urls present: %v", desc.Digest, err)
+		return nil, err
+	}
+	for _, url := range desc.URLs {
+		klog.V(5).Infof("Attempting to retrieve blob %s from %s", desc.Digest, url)
+		resp, err := s.client.Get(url)
+		if err != nil {
+			klog.V(5).Infof("Failed to retrieve blob %s from %s: %v", desc.Digest, url, err)
+			continue
+		}
+		data, err = func() ([]byte, error) {
+			defer resp.Body.Close()
+			return ioutil.ReadAll(resp.Body)
+		}()
+		if err != nil {
+			continue
+		}
+		return data, nil
+	}
+
+	return nil, distribution.ErrBlobUnknown
+}
+
+// Open attempts to get the blob from the target registry blob service, or opens an
+// HTTP connection to the first available URL in the list. ErrBlobUnknown is returned
+// if none of the available URLs return an object, which may hide the root cause of
+// the error, but preserves the behavior of mirror. The registry is always checked
+// first.
+func (s *descriptorBlobSource) Open(ctx context.Context, desc distribution.Descriptor) (io.ReadCloser, error) {
+	klog.Infof("Attempting to retrieve blob %s from registry or urls %v", desc.Digest, desc.URLs)
+	rsc, err := s.blobs.Open(ctx, desc.Digest)
+	if err == nil {
+		// the blob service lazily connects on Read, so we must emulate an empty read
+		// here to determine whether the blob exists in order to attempt to fallback
+		// to a different URL
+		var zeroBuf []byte
+		if _, err = rsc.Read(zeroBuf); err == nil {
+			return rsc, nil
+		}
+	}
+	if len(desc.URLs) == 0 || err != distribution.ErrBlobUnknown {
+		klog.V(5).Infof("Failed to retrieve blob %s and no urls present: %v", desc.Digest, err)
+		return nil, err
+	}
+
+	for _, url := range desc.URLs {
+		klog.V(5).Infof("Attempting to retrieve blob %s from %s", desc.Digest, url)
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			klog.V(5).Infof("Failed to retrieve blob %s from %s: %v", desc.Digest, url, err)
+			continue
+		}
+		resp, err := s.client.Do(req)
+		if err != nil {
+			klog.V(5).Infof("Failed to retrieve blob %s from %s: %v", desc.Digest, url, err)
+			continue
+		}
+		if !client.SuccessStatus(resp.StatusCode) {
+			resp.Body.Close()
+			if err := client.HandleErrorResponse(resp); err != nil {
+				klog.V(5).Infof("Failed to retrieve blob %s from %s: %v", desc.Digest, url, err)
+				continue
+			}
+		}
+		return resp.Body, nil
+	}
+
+	return nil, distribution.ErrBlobUnknown
+}
+
 func copyManifestToTags(
 	ctx context.Context,
 	ref reference.Named,
@@ -748,7 +846,7 @@ func copyManifestToTags(
 			continue
 		}
 		for _, desc := range srcManifest.References() {
-			plan.parent.parent.AssociateBlob(desc.Digest, plan.parent.name)
+			plan.parent.parent.AssociateBlob(plan.parent.name, desc)
 		}
 		plan.parent.parent.SavedManifest(srcDigest, toDigest)
 		fmt.Fprintf(out, "%s %s:%s\n", toDigest, plan.toRef, tag)
@@ -773,7 +871,7 @@ func copyManifest(
 		return fmt.Errorf("unable to push manifest to %s: %v", plan.toRef, err)
 	}
 	for _, desc := range srcManifest.References() {
-		plan.parent.parent.AssociateBlob(desc.Digest, plan.parent.name)
+		plan.parent.parent.AssociateBlob(plan.parent.name, desc)
 	}
 	plan.parent.parent.SavedManifest(srcDigest, toDigest)
 	fmt.Fprintf(out, "%s %s\n", toDigest, plan.toRef)
