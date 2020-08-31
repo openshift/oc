@@ -302,7 +302,7 @@ func (o *MustGatherOptions) Run() error {
 
 			// wait for pod to be running (gather has completed)
 			log("waiting for gather to complete")
-			if err := o.waitForPodRunning(pod); err != nil {
+			if err := o.waitForGatherToComplete(pod); err != nil {
 				log("gather never finished: %v", err)
 				errCh <- fmt.Errorf("gather never finished for pod %s: %s", pod.Name, err)
 				return
@@ -352,7 +352,7 @@ func (o *MustGatherOptions) log(format string, a ...interface{}) {
 func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	streams := o.IOStreams
 	streams.Out = newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name))
-	destDir := path.Join(o.DestDir, regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.InitContainerStatuses[0].ImageID, "-"))
+	destDir := path.Join(o.DestDir, regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.ContainerStatuses[0].ImageID, "-"))
 	if err := os.MkdirAll(destDir, 0775); err != nil {
 		return err
 	}
@@ -363,7 +363,7 @@ func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 		Destination:   &rsync.PathSpec{PodName: "", Path: destDir},
 		Client:        o.Client,
 		Config:        o.Config,
-		RshCmd:        fmt.Sprintf("%s --namespace=%s", o.RsyncRshCmd, pod.Namespace),
+		RshCmd:        fmt.Sprintf("%s --namespace=%s -c copy", o.RsyncRshCmd, pod.Namespace),
 		IOStreams:     streams,
 	}
 	rsyncOptions.Strategy = rsync.NewDefaultCopyStrategy(rsyncOptions)
@@ -376,7 +376,7 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 		ResourceArg: pod.Name,
 		Options: &corev1.PodLogOptions{
 			Follow:    true,
-			Container: pod.Spec.InitContainers[0].Name,
+			Container: pod.Spec.Containers[0].Name,
 		},
 		RESTClientGetter: o.RESTClientGetter,
 		Object:           pod,
@@ -397,8 +397,7 @@ func newPrefixWriter(out io.Writer, prefix string) io.Writer {
 	return writer
 }
 
-func (o *MustGatherOptions) waitForPodRunning(pod *corev1.Pod) error {
-	phase := pod.Status.Phase
+func (o *MustGatherOptions) waitForGatherToComplete(pod *corev1.Pod) error {
 	err := wait.PollImmediate(3*time.Second, time.Duration(o.Timeout)*time.Second, func() (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err != nil {
@@ -408,15 +407,26 @@ func (o *MustGatherOptions) waitForPodRunning(pod *corev1.Pod) error {
 			}
 			return false, nil
 		}
-		phase = pod.Status.Phase
-		switch phase {
-		case corev1.PodRunning:
-			return true, nil
-		case corev1.PodFailed, corev1.PodSucceeded:
-			return true, fmt.Errorf("%s/%s unexpected pod phase: %s", pod.Namespace, pod.Name, phase)
-		default:
+		var state *corev1.ContainerState
+		for _, cstate := range pod.Status.ContainerStatuses {
+			if cstate.Name == "gather" {
+				state = &cstate.State
+				break
+			}
+		}
+
+		// missing status for gather container => timeout in the worst case
+		if state == nil {
 			return false, nil
 		}
+
+		if state.Terminated != nil {
+			if state.Terminated.ExitCode == 0 {
+				return true, nil
+			}
+			return true, fmt.Errorf("%s/%s unexpectedly terminated: exit code: %v, reason: %s, message: %s", pod.Namespace, pod.Name, state.Terminated.ExitCode, state.Terminated.Reason, state.Terminated.Message)
+		}
+		return false, nil
 	})
 	if err != nil {
 		return err
@@ -428,10 +438,10 @@ func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error
 	return wait.PollImmediate(3*time.Second, time.Duration(o.Timeout)*time.Second, func() (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err == nil {
-			if len(pod.Status.InitContainerStatuses) == 0 {
+			if len(pod.Status.ContainerStatuses) == 0 {
 				return false, nil
 			}
-			state := pod.Status.InitContainerStatuses[0].State
+			state := pod.Status.ContainerStatuses[0].State
 			if state.Waiting != nil && state.Waiting.Reason == "ErrImagePull" {
 				return true, fmt.Errorf("unable to pull image: %v: %v", state.Waiting.Reason, state.Waiting.Message)
 			}
@@ -492,7 +502,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 					},
 				},
 			},
-			InitContainers: []corev1.Container{
+			Containers: []corev1.Container{
 				{
 					Name:            "gather",
 					Image:           image,
@@ -506,8 +516,6 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 						},
 					},
 				},
-			},
-			Containers: []corev1.Container{
 				{
 					Name:            "copy",
 					Image:           image,
@@ -532,7 +540,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 		},
 	}
 	if len(o.Command) > 0 {
-		ret.Spec.InitContainers[0].Command = o.Command
+		ret.Spec.Containers[0].Command = o.Command
 	}
 	return ret
 }
