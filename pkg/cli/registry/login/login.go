@@ -136,6 +136,8 @@ func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams
 }
 
 func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
+	var cfg *rest.Config
+	var err error
 	credentials := 0
 	if len(o.ServiceAccount) > 0 {
 		credentials++
@@ -147,9 +149,12 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 		return fmt.Errorf("You may only specify a single authentication input as -z or --auth-basic")
 	}
 
-	cfg, err := f.ToRESTConfig()
-	if err != nil {
-		return err
+	// Using basic auth doesn't require a kubeconfig/rest config
+	if len(o.AuthBasic) == 0 || len(o.HostPort) == 0 {
+		cfg, err = f.ToRESTConfig()
+		if err != nil {
+			return err
+		}
 	}
 
 	switch {
