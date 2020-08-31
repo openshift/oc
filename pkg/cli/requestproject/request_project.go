@@ -61,7 +61,7 @@ You can add applications to this project with the 'new-app' command. For example
 
 to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
 
-    kubectl create deployment hello-node --image=gcr.io/hello-minikube-zero-install/hello-node
+    kubectl create deployment hello-node --image=k8s.gcr.io/echoserver:1.4
 
 `
 	requestProjectSwitchProjectOutput = `Project %[1]q created on server %[2]q.
