@@ -317,6 +317,10 @@ func (o *Options) Run() error {
 		}
 		fmt.Fprintln(o.Out)
 
+		if c := findCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
+			fmt.Fprintf(o.Out, "Upgradeable=False\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
+		}
+
 		if len(cv.Status.AvailableUpdates) > 0 {
 			fmt.Fprintf(o.Out, "Updates:\n\n")
 			w := tabwriter.NewWriter(o.Out, 0, 2, 1, ' ', 0)
