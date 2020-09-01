@@ -552,6 +552,13 @@ func (config *inClusterClientConfig) ClientConfig() (*restclient.Config, error) 
 			icc.BearerToken = config.overrides.AuthInfo.Token
 			icc.BearerTokenFile = config.overrides.AuthInfo.TokenFile
 		}
+		if len(config.overrides.AuthInfo.Impersonate) > 0 || len(config.overrides.AuthInfo.ImpersonateGroups) > 0 {
+			icc.Impersonate = restclient.ImpersonationConfig{
+				UserName: config.overrides.AuthInfo.Impersonate,
+				Groups:   config.overrides.AuthInfo.ImpersonateGroups,
+				Extra:    config.overrides.AuthInfo.ImpersonateUserExtra,
+			}
+		}
 		if certificateAuthorityFile := config.overrides.ClusterInfo.CertificateAuthority; len(certificateAuthorityFile) > 0 {
 			icc.TLSClientConfig.CAFile = certificateAuthorityFile
 		}
