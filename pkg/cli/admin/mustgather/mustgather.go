@@ -236,7 +236,8 @@ func (o *MustGatherOptions) Run() error {
 				"openshift.io/run-level": "0",
 			},
 			Annotations: map[string]string{
-				"oc.openshift.io/command": "oc adm must-gather",
+				"oc.openshift.io/command":    "oc adm must-gather",
+				"openshift.io/node-selector": "",
 			},
 		},
 	}, metav1.CreateOptions{})
