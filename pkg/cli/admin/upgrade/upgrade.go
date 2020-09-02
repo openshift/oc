@@ -169,7 +169,7 @@ func (o *Options) Run() error {
 			return fmt.Errorf("Unable to cancel current rollout: %v", err)
 		}
 		if updateIsEquivalent(*original, updated.Status.Desired) {
-			fmt.Fprintf(o.Out, "Cleared the update field, still at %s\n", updateVersionString(updated.Status.Desired))
+			fmt.Fprintf(o.Out, "Cleared the update field, still at %s\n", releaseVersionString(updated.Status.Desired))
 		} else {
 			fmt.Fprintf(o.Out, "Cancelled requested upgrade to %s\n", updateVersionString(*original))
 		}
@@ -191,12 +191,16 @@ func (o *Options) Run() error {
 		sortSemanticVersions(cv.Status.AvailableUpdates)
 
 		update := cv.Status.AvailableUpdates[len(cv.Status.AvailableUpdates)-1]
+		desiredUpdate := &configv1.Update{
+			Version: update.Version,
+			Image:   update.Image,
+		}
 		if o.Force {
-			update.Force = true
+			desiredUpdate.Force = true
 			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
 		}
 
-		cv.Spec.DesiredUpdate = &update
+		cv.Spec.DesiredUpdate = desiredUpdate
 		_, err := o.Client.ConfigV1().ClusterVersions().Update(context.TODO(), cv, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("Unable to upgrade to latest version %s: %v", update.Version, err)
@@ -219,7 +223,10 @@ func (o *Options) Run() error {
 			}
 			for _, available := range cv.Status.AvailableUpdates {
 				if available.Version == o.To {
-					update = &available
+					update = &configv1.Update{
+						Version: available.Version,
+						Image:   available.Image,
+					}
 					break
 				}
 			}
@@ -370,6 +377,16 @@ func updateVersionString(update configv1.Update) string {
 	return "<unknown>"
 }
 
+func releaseVersionString(release configv1.Release) string {
+	if len(release.Version) > 0 {
+		return release.Version
+	}
+	if len(release.Image) > 0 {
+		return release.Image
+	}
+	return "<unknown>"
+}
+
 func stringArrContains(arr []string, s string) bool {
 	for _, item := range arr {
 		if item == s {
@@ -385,7 +402,7 @@ func writeTabSection(out io.Writer, fn func(w io.Writer)) {
 	w.Flush()
 }
 
-func updateIsEquivalent(a, b configv1.Update) bool {
+func updateIsEquivalent(a configv1.Update, b configv1.Release) bool {
 	switch {
 	case len(a.Image) > 0 && len(b.Image) > 0:
 		return a.Image == b.Image
@@ -397,7 +414,7 @@ func updateIsEquivalent(a, b configv1.Update) bool {
 }
 
 // sortSemanticVersions sorts the input slice in increasing order.
-func sortSemanticVersions(versions []configv1.Update) {
+func sortSemanticVersions(versions []configv1.Release) {
 	sort.Slice(versions, func(i, j int) bool {
 		a, errA := semver.Parse(versions[i].Version)
 		b, errB := semver.Parse(versions[j].Version)
@@ -414,7 +431,7 @@ func sortSemanticVersions(versions []configv1.Update) {
 	})
 }
 
-func versionStrings(updates []configv1.Update) []string {
+func versionStrings(updates []configv1.Release) []string {
 	var arr []string
 	for _, update := range updates {
 		arr = append(arr, update.Version)
