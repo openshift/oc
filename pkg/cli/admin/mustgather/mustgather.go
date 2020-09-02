@@ -506,7 +506,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 				{
 					Name:            "gather",
 					Image:           image,
-					ImagePullPolicy: corev1.PullAlways,
+					ImagePullPolicy: corev1.PullIfNotPresent,
 					Command:         []string{"/usr/bin/gather"},
 					VolumeMounts: []corev1.VolumeMount{
 						{
@@ -519,7 +519,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 				{
 					Name:            "copy",
 					Image:           image,
-					ImagePullPolicy: corev1.PullAlways,
+					ImagePullPolicy: corev1.PullIfNotPresent,
 					Command:         []string{"/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait"},
 					VolumeMounts: []corev1.VolumeMount{
 						{
