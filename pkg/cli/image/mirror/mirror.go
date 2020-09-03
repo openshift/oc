@@ -784,7 +784,7 @@ func (s *descriptorBlobSource) Get(ctx context.Context, desc distribution.Descri
 // the error, but preserves the behavior of mirror. The registry is always checked
 // first.
 func (s *descriptorBlobSource) Open(ctx context.Context, desc distribution.Descriptor) (io.ReadCloser, error) {
-	klog.Infof("Attempting to retrieve blob %s from registry or urls %v", desc.Digest, desc.URLs)
+	klog.V(5).Infof("Attempting to retrieve blob %s from registry or urls %v", desc.Digest, desc.URLs)
 	rsc, err := s.blobs.Open(ctx, desc.Digest)
 	if err == nil {
 		// the blob service lazily connects on Read, so we must emulate an empty read
