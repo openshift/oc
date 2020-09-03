@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -375,11 +376,49 @@ func (o *DebugOptions) RunDebug() error {
 	if err != nil {
 		klog.V(4).Infof("Unable to get exact template, but continuing with fallback: %v", err)
 	}
+	var debugNodeNS *corev1.Namespace
+	generateName := names.SimpleNameGenerator.GenerateName("openshift-debug-node-")
+	// create namespace only if debugging a node
+	if o.IsNode && len(o.ToNamespace) == 0 && !o.ExplicitNamespace {
+		if !o.Attach.Quiet {
+			fmt.Fprintf(o.ErrOut, "Creating debug namespace/%s ...\n", generateName)
+		}
+		debugNodeNS, err = o.CoreClient.Namespaces().Create(context.TODO(), &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: generateName,
+				Labels: map[string]string{
+					"openshift.io/run-level": "0",
+				},
+				Annotations: map[string]string{
+					"openshift.io/node-selector": "",
+				},
+			},
+		}, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	defer func() {
+		if debugNodeNS != nil {
+			if !o.Attach.Quiet {
+				fmt.Fprintf(o.ErrOut, "Removing debug namespace/%s ...\n", generateName)
+			}
+
+			if err := o.CoreClient.Namespaces().Delete(context.TODO(), debugNodeNS.Name, metav1.DeleteOptions{}); err != nil {
+				fmt.Fprintf(o.ErrOut, "%v\n", err)
+				return
+			}
+		}
+	}()
+
 	pod := &corev1.Pod{
 		ObjectMeta: template.ObjectMeta,
 		Spec:       template.Spec,
 	}
 	ns := infos[0].Namespace
+	if debugNodeNS != nil {
+		ns = debugNodeNS.Name
+	}
 	if len(ns) == 0 {
 		ns = o.Namespace
 	}
