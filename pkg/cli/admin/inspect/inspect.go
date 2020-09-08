@@ -206,10 +206,19 @@ func (o *InspectOptions) Run() error {
 	}
 
 	// ensure we're able to proceed writing data to specified destination
-	if err := ensureDirectoryViable(o.destDir, o.overwrite); err != nil {
+	if err := o.ensureDirectoryViable(); err != nil {
 		return err
-
 	}
+
+	// ensure destination path exists
+	if err := os.MkdirAll(o.destDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	if err := o.logTimestamp(); err != nil {
+		return err
+	}
+	defer o.logTimestamp()
 
 	// finally, gather polymorphic resources specified by the user
 	allErrs := []error{}
@@ -318,12 +327,12 @@ func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourc
 	return nil
 }
 
-// ensureDirectoryViable returns an error if the given path:
+// ensureDirectoryViable returns an error if destDir:
 // 1. already exists AND is a file (not a directory)
-// 2. already exists AND is NOT empty
+// 2. already exists AND is NOT empty, unless overwrite was passed
 // 3. an IO error occurs
-func ensureDirectoryViable(dirPath string, allowDataOverride bool) error {
-	baseDirInfo, err := os.Stat(dirPath)
+func (o *InspectOptions) ensureDirectoryViable() error {
+	baseDirInfo, err := os.Stat(o.destDir)
 	if err != nil && os.IsNotExist(err) {
 		// no error, directory simply does not exist yet
 		return nil
@@ -333,16 +342,25 @@ func ensureDirectoryViable(dirPath string, allowDataOverride bool) error {
 	}
 
 	if !baseDirInfo.IsDir() {
-		return fmt.Errorf("%q exists and is a file", dirPath)
+		return fmt.Errorf("%q exists and is a file", o.destDir)
 	}
-	files, err := ioutil.ReadDir(dirPath)
+	files, err := ioutil.ReadDir(o.destDir)
 	if err != nil {
 		return err
 	}
-	if len(files) > 0 && !allowDataOverride {
-		return fmt.Errorf("%q exists and is not empty. Pass --overwrite to allow data overwrites", dirPath)
+	if len(files) > 0 && !o.overwrite {
+		return fmt.Errorf("%q exists and is not empty. Pass --overwrite to allow data overwrites", o.destDir)
 	}
 	return nil
+}
+
+func (o *InspectOptions) logTimestamp() error {
+	f, err := os.OpenFile(path.Join(o.destDir, "timestamp"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteString(fmt.Sprintf("%v\n", time.Now()))
+	return err
 }
 
 // supportedResourceFinder provides a way to discover supported resources by the server.
