@@ -133,6 +133,9 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 		clientConfig.CAData = caData
 	}
 
+	// if user has selected option --insecure-skip-tls-verify=true, TLS server certificate verification should not be attempted
+	clientConfig.Insecure = o.InsecureTLS
+
 	// try to TCP connect to the server to make sure it's reachable, and discover
 	// about the need of certificates or insecure TLS
 	if err := dialToServer(*clientConfig); err != nil {
