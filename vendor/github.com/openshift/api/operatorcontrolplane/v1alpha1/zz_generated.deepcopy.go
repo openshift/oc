@@ -31,6 +31,20 @@ func (in *OutageEntry) DeepCopyInto(out *OutageEntry) {
 	*out = *in
 	in.Start.DeepCopyInto(&out.Start)
 	in.End.DeepCopyInto(&out.End)
+	if in.StartLogs != nil {
+		in, out := &in.StartLogs, &out.StartLogs
+		*out = make([]LogEntry, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.EndLogs != nil {
+		in, out := &in.EndLogs, &out.EndLogs
+		*out = make([]LogEntry, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 

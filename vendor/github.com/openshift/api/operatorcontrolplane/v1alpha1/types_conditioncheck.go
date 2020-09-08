@@ -110,6 +110,20 @@ type OutageEntry struct {
 	// +optional
 	// +nullable
 	End metav1.Time `json:"end,omitempty"`
+
+	// StartLogs contains log entries related to the start of this outage. Should contain
+	// the original failure, any entries where the failure mode changed.
+	// +optional
+	StartLogs []LogEntry `json:"startLogs,omitempty"`
+
+	// EndLogs contains log entries related to the end of this outage. Should contain the success
+	// entry that resolved the outage and possibly a few of the failure log entries that preceded it.
+	// +optional
+	EndLogs []LogEntry `json:"endLogs,omitempty"`
+
+	// Message summarizes outage details in a human readable format.
+	// +optional
+	Message string `json:"message,omitempty"`
 }
 
 // PodNetworkConnectivityCheckCondition represents the overall status of the pod network connectivity.

@@ -66,13 +66,13 @@ type InfrastructureStatus struct {
 	// For more info: https://github.com/etcd-io/etcd/blob/329be66e8b3f9e2e6af83c123ff89297e49ebd15/Documentation/op-guide/clustering.md#dns-discovery
 	EtcdDiscoveryDomain string `json:"etcdDiscoveryDomain"`
 
-	// apiServerURL is a valid URI with scheme(http/https), address and
-	// optionally a port (defaulting to 80 for http and 443 for https).  apiServerURL can be used by components like the web console
+	// apiServerURL is a valid URI with scheme 'https', address and
+	// optionally a port (defaulting to 443).  apiServerURL can be used by components like the web console
 	// to tell users where to find the Kubernetes API.
 	APIServerURL string `json:"apiServerURL"`
 
-	// apiServerInternalURL is a valid URI with scheme(http/https),
-	// address and port.  apiServerInternalURL can be used by components
+	// apiServerInternalURL is a valid URI with scheme 'https',
+	// address and optionally a port (defaulting to 443).  apiServerInternalURL can be used by components
 	// like kubelets, to contact the Kubernetes API server using the
 	// infrastructure provider rather than Kubernetes networking.
 	APIServerInternalURL string `json:"apiServerInternalURI"`
