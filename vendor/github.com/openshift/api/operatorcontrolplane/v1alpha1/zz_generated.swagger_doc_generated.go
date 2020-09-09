@@ -25,9 +25,12 @@ func (LogEntry) SwaggerDoc() map[string]string {
 }
 
 var map_OutageEntry = map[string]string{
-	"":      "OutageEntry records time period of an outage",
-	"start": "Start of outage detected",
-	"end":   "End of outage detected",
+	"":          "OutageEntry records time period of an outage",
+	"start":     "Start of outage detected",
+	"end":       "End of outage detected",
+	"startLogs": "StartLogs contains log entries related to the start of this outage. Should contain the original failure, any entries where the failure mode changed.",
+	"endLogs":   "EndLogs contains log entries related to the end of this outage. Should contain the success entry that resolved the outage and possibly a few of the failure log entries that preceded it.",
+	"message":   "Message summarizes outage details in a human readable format.",
 }
 
 func (OutageEntry) SwaggerDoc() map[string]string {

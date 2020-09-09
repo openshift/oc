@@ -9,7 +9,7 @@ import (
 )
 
 func TestSortSemanticVersions(t *testing.T) {
-	expected := []configv1.Update{
+	expected := []configv1.Release{
 		{Version: "not-sem-ver-1"},
 		{Version: "not-sem-ver-2"},
 		{Version: "2.0.0"},
@@ -19,7 +19,7 @@ func TestSortSemanticVersions(t *testing.T) {
 		{Version: "10.0.0"},
 	}
 
-	actual := make([]configv1.Update, len(expected))
+	actual := make([]configv1.Release, len(expected))
 	for i, j := range rand.Perm(len(expected)) {
 		actual[i] = expected[j]
 	}
