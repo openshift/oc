@@ -9,8 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -290,23 +288,6 @@ func (o *ExtractOptions) Run() error {
 							manifestErrs = append(manifestErrs, errors.Wrapf(err, "error parsing %s", hdr.Name))
 							return true, nil
 						}
-						for i := range ms {
-							ms[i].OriginalFilename = filepath.Base(hdr.Name)
-							src := fmt.Sprintf("the config map %s/%s", ms[i].Obj.GetNamespace(), ms[i].Obj.GetName())
-							data, _, err := unstructured.NestedStringMap(ms[i].Obj.Object, "data")
-							if err != nil {
-								manifestErrs = append(manifestErrs, errors.Wrapf(err, "%s is not valid", src))
-								continue
-							}
-							for k, v := range data {
-								switch {
-								case strings.HasPrefix(k, "verifier-public-key-"):
-									klog.V(2).Infof("Found in %s:\n%s %s", hdr.Name, k, v)
-								case strings.HasPrefix(k, "store-"):
-									klog.V(2).Infof("Found in %s:\n%s\n%s", hdr.Name, k, v)
-								}
-							}
-						}
 						o.Manifests = append(o.Manifests, ms...)
 					}
 				}
@@ -320,19 +301,10 @@ func (o *ExtractOptions) Run() error {
 			return fmt.Errorf("image did not contain %s", o.File)
 		}
 
-		// Only output manifest errors if manifests were being extracted and we didn't find the expected signature
-		// manifests. We don't care about errors in other manifests and they will only confuse/alarm the user.
+		// Only output manifest errors if manifests were being extracted.
 		// Do not return an error so current operation, e.g. mirroring, continues.
-		if len(manifestErrs) > 0 {
-			if o.ExtractManifests && len(o.Manifests) == 0 {
-				fmt.Fprintf(o.ErrOut, "Errors: %s\n", errorList(manifestErrs))
-			}
-		}
-
-		// Output an error if manifests were being extracted and we didn't find the expected signature
-		// manifests. Do not return an error so current operation, e.g. mirroring, continues.
-		if o.ExtractManifests && len(o.Manifests) == 0 {
-			fmt.Fprintf(o.ErrOut, "No manifests found\n")
+		if o.ExtractManifests && len(manifestErrs) > 0 {
+			fmt.Fprintf(o.ErrOut, "Errors: %s\n", errorList(manifestErrs))
 		}
 		return nil
 
