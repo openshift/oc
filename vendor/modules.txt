@@ -689,7 +689,7 @@ gopkg.in/inf.v0
 gopkg.in/ldap.v2
 # gopkg.in/yaml.v2 v2.2.8
 gopkg.in/yaml.v2
-# k8s.io/api v0.18.2 => k8s.io/api v0.18.2
+# k8s.io/api v0.18.8 => k8s.io/api v0.18.2
 k8s.io/api/admission/v1
 k8s.io/api/admission/v1beta1
 k8s.io/api/admissionregistration/v1
@@ -736,7 +736,7 @@ k8s.io/api/storage/v1beta1
 # k8s.io/apiextensions-apiserver v0.18.2 => k8s.io/apiextensions-apiserver v0.18.2
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
-# k8s.io/apimachinery v0.18.2 => github.com/openshift/kubernetes-apimachinery v0.0.0-20200427132717-228307e8b83c
+# k8s.io/apimachinery v0.18.8 => github.com/openshift/kubernetes-apimachinery v0.0.0-20200427132717-228307e8b83c
 k8s.io/apimachinery/pkg/api/apitesting
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -809,7 +809,7 @@ k8s.io/apiserver/pkg/server/healthz
 k8s.io/apiserver/pkg/server/httplog
 k8s.io/apiserver/pkg/storage/names
 k8s.io/apiserver/pkg/util/feature
-# k8s.io/cli-runtime v0.18.2 => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200507115657-2fb95e953778
+# k8s.io/cli-runtime v0.18.8 => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200507115657-2fb95e953778
 k8s.io/cli-runtime/pkg/genericclioptions
 k8s.io/cli-runtime/pkg/genericclioptions/openshiftpatch
 k8s.io/cli-runtime/pkg/kustomize
@@ -962,7 +962,7 @@ k8s.io/client-go/util/jsonpath
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
-# k8s.io/component-base v0.18.2 => k8s.io/component-base v0.18.2
+# k8s.io/component-base v0.18.8 => k8s.io/component-base v0.18.2
 k8s.io/component-base/cli/flag
 k8s.io/component-base/featuregate
 k8s.io/component-base/logs
@@ -971,12 +971,12 @@ k8s.io/component-base/metrics/legacyregistry
 k8s.io/component-base/version
 # k8s.io/klog v1.0.0
 k8s.io/klog
-# k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c
+# k8s.io/kube-openapi v0.0.0-20200410145947-61e04a5be9a6
 k8s.io/kube-openapi/pkg/common
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/proto/testing
 k8s.io/kube-openapi/pkg/util/proto/validation
-# k8s.io/kubectl v0.18.2 => github.com/openshift/kubernetes-kubectl v0.0.0-20200507115706-2f87de22f81a
+# k8s.io/kubectl v0.18.2 => github.com/openshift/kubernetes-kubectl v0.0.0-20200910133141-9d89ff16e58d
 k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd
 k8s.io/kubectl/pkg/cmd/annotate
@@ -1125,7 +1125,7 @@ k8s.io/kubernetes/pkg/kubectl/cmd/cp
 k8s.io/kubernetes/pkg/registry/rbac/reconciliation
 k8s.io/kubernetes/pkg/registry/rbac/validation
 k8s.io/kubernetes/pkg/util/parsers
-# k8s.io/metrics v0.18.2 => k8s.io/metrics v0.18.2
+# k8s.io/metrics v0.18.8 => k8s.io/metrics v0.18.2
 k8s.io/metrics/pkg/apis/metrics
 k8s.io/metrics/pkg/apis/metrics/v1alpha1
 k8s.io/metrics/pkg/apis/metrics/v1beta1

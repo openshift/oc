@@ -61,12 +61,12 @@ require (
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	gopkg.in/ldap.v2 v2.5.1
-	k8s.io/api v0.18.2
-	k8s.io/apimachinery v0.18.2
+	k8s.io/api v0.18.8
+	k8s.io/apimachinery v0.18.8
 	k8s.io/apiserver v0.18.2
-	k8s.io/cli-runtime v0.18.2
+	k8s.io/cli-runtime v0.18.8
 	k8s.io/client-go v8.0.0+incompatible
-	k8s.io/component-base v0.18.2
+	k8s.io/component-base v0.18.8
 	k8s.io/klog v1.0.0
 	k8s.io/kubectl v0.18.2
 	k8s.io/kubernetes v1.13.0
@@ -101,7 +101,7 @@ replace (
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.18.2
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.18.2
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.18.2
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200507115706-2f87de22f81a
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200910133141-9d89ff16e58d
 	k8s.io/kubelet => k8s.io/kubelet v0.18.2
 	k8s.io/kubernetes => github.com/openshift/kubernetes v1.17.0-alpha.0.0.20200427141011-f0879866c662
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.2
