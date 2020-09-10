@@ -1027,7 +1027,7 @@ k8s.io/kube-openapi/pkg/common
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/proto/testing
 k8s.io/kube-openapi/pkg/util/proto/validation
-# k8s.io/kubectl v0.19.0 => github.com/openshift/kubernetes-kubectl v0.0.0-20200831185820-c769ddd2f589
+# k8s.io/kubectl v0.19.0 => github.com/openshift/kubernetes-kubectl v0.0.0-20200910125353-30f1c7e86f1f
 k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd
 k8s.io/kubectl/pkg/cmd/annotate
