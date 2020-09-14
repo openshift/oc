@@ -221,15 +221,8 @@ func (o *Options) Run() error {
 				fmt.Fprintf(o.Out, "info: Cluster is already at version %s\n", o.To)
 				return nil
 			}
-			for _, available := range cv.Status.AvailableUpdates {
-				if available.Version == o.To {
-					update = &configv1.Update{
-						Version: available.Version,
-						Image:   available.Image,
-					}
-					break
-				}
-			}
+			var fromAvailableUpdates bool
+			update, fromAvailableUpdates = findUpdateFromConfigVersion(cv, o.To)
 			if update == nil {
 				if len(cv.Status.AvailableUpdates) == 0 {
 					if c := findCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
@@ -237,7 +230,12 @@ func (o *Options) Run() error {
 					}
 					return fmt.Errorf("No available updates, specify --to-image or wait for new updates to be available")
 				}
-				return fmt.Errorf("The update %s is not one of the available updates: %s", o.To, strings.Join(versionStrings(cv.Status.AvailableUpdates), ", "))
+				return fmt.Errorf("The update %s is neither one of the available updates (%s) nor present in the update history", o.To, strings.Join(versionStrings(cv.Status.AvailableUpdates), ", "))
+			} else if !fromAvailableUpdates {
+				if !o.AllowExplicitUpgrade {
+					return fmt.Errorf("The requested upgrade image is not one of the available updates, you must pass --allow-explicit-upgrade to continue")
+				}
+				fmt.Fprintln(o.ErrOut, "warning: The requested upgrade version is not one of the available updates.  You have used --allow-explicit-upgrade to the update to proceed anyway")
 			}
 		}
 		if len(o.ToImage) > 0 {
@@ -459,4 +457,28 @@ func checkForUpgrade(cv *configv1.ClusterVersion) error {
 		return fmt.Errorf("already upgrading.\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
 	}
 	return nil
+}
+
+// findUpdateFromConfigVersion looks up the given version in available
+// updates, falling back to history if the version string has no image
+// pullspec defined in available updates.  The availableUpdate boolean is
+// true if and only if the pullspec was extracted from available updates.
+func findUpdateFromConfigVersion(config *configv1.ClusterVersion, version string) (update *configv1.Update, availableUpdate bool) {
+	for _, update := range config.Status.AvailableUpdates {
+		if update.Version == version && len(update.Image) > 0 {
+			return &configv1.Update{
+				Version: version,
+				Image:   update.Image,
+			}, true
+		}
+	}
+	for _, history := range config.Status.History {
+		if history.Version == version && len(history.Image) > 0 {
+			return &configv1.Update{
+				Version: version,
+				Image:   history.Image,
+			}, false
+		}
+	}
+	return nil, false
 }
