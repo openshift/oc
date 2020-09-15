@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/distribution/registry/client/auth"
 	digest "github.com/opencontainers/go-digest"
+	"k8s.io/klog/v2"
 
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
@@ -169,47 +170,70 @@ func (d *destinations) mergeIntoDigests(srcDigest digest.Digest, target pushTarg
 
 type targetTree map[key]*destinations
 
-func buildTargetTree(mappings []Mapping) targetTree {
-	tree := make(targetTree)
-	for _, m := range mappings {
-		srcKey := key{t: m.Source.Type, registry: m.Source.Ref.Registry, repository: m.Source.Ref.RepositoryName()}
-		dstKey := key{t: m.Destination.Type, registry: m.Destination.Ref.Registry, repository: m.Destination.Ref.RepositoryName()}
+func buildTargetTrees(mappings []Mapping) []targetTree {
+	var trees []targetTree
+	// split targetTrees into chunks of 10
+	chunkedMappings := chunk(mappings, 10)
+	for _, chunk := range chunkedMappings {
+		tree := make(targetTree)
+		for _, m := range chunk {
+			srcKey := key{t: m.Source.Type, registry: m.Source.Ref.Registry, repository: m.Source.Ref.RepositoryName()}
+			dstKey := key{t: m.Destination.Type, registry: m.Destination.Ref.Registry, repository: m.Destination.Ref.RepositoryName()}
 
-		src, ok := tree[srcKey]
-		if !ok {
-			src = &destinations{}
-			src.ref = imagesource.TypedImageReference{Ref: m.Source.Ref.AsRepository(), Type: m.Source.Type}
-			src.digests = make(map[string]pushTargets)
-			src.tags = make(map[string]pushTargets)
-			tree[srcKey] = src
-		}
-
-		var current pushTargets
-		if id := m.Source.Ref.ID; len(id) > 0 {
-			current = src.digests[m.Source.Ref.ID]
-			if current == nil {
-				current = make(pushTargets)
-				src.digests[m.Source.Ref.ID] = current
+			src, ok := tree[srcKey]
+			if !ok {
+				src = &destinations{}
+				src.ref = imagesource.TypedImageReference{Ref: m.Source.Ref.AsRepository(), Type: m.Source.Type}
+				src.digests = make(map[string]pushTargets)
+				src.tags = make(map[string]pushTargets)
+				tree[srcKey] = src
 			}
-		} else {
-			tag := m.Source.Ref.Tag
-			current = src.tags[tag]
-			if current == nil {
-				current = make(pushTargets)
-				src.tags[tag] = current
-			}
-		}
 
-		dst, ok := current[dstKey]
-		if !ok {
-			dst.ref = imagesource.TypedImageReference{Ref: m.Destination.Ref.AsRepository(), Type: m.Destination.Type}
+			var current pushTargets
+			if id := m.Source.Ref.ID; len(id) > 0 {
+				current = src.digests[m.Source.Ref.ID]
+				if current == nil {
+					current = make(pushTargets)
+					src.digests[m.Source.Ref.ID] = current
+				}
+			} else {
+				tag := m.Source.Ref.Tag
+				current = src.tags[tag]
+				if current == nil {
+					current = make(pushTargets)
+					src.tags[tag] = current
+				}
+			}
+
+			dst, ok := current[dstKey]
+			if !ok {
+				dst.ref = imagesource.TypedImageReference{Ref: m.Destination.Ref.AsRepository(), Type: m.Destination.Type}
+			}
+			if len(m.Destination.Ref.Tag) > 0 {
+				dst.tags = append(dst.tags, m.Destination.Ref.Tag)
+			}
+			current[dstKey] = dst
 		}
-		if len(m.Destination.Ref.Tag) > 0 {
-			dst.tags = append(dst.tags, m.Destination.Ref.Tag)
-		}
-		current[dstKey] = dst
+		trees = append(trees, tree)
 	}
-	return tree
+	return trees
+}
+
+func chunk(mappings []Mapping, size int) [][]Mapping {
+	var chunkedMappings [][]Mapping
+	for i := 0; i < len(mappings); i += size {
+		m := mappings[i:min(i+size, len(mappings))]
+		chunkedMappings = append(chunkedMappings, m)
+	}
+	klog.Infof("LEN CHUNKED MAPPING: %d", len(chunkedMappings))
+	return chunkedMappings
+}
+
+func min(a, b int) int {
+	if a <= b {
+		return a
+	}
+	return b
 }
 
 func addDockerRegistryScopes(scopes map[contextKey]map[string]bool, targets map[string]pushTargets, srcKey key) {
