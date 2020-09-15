@@ -1,7 +1,6 @@
 FROM registry.svc.ci.openshift.org/openshift/release:golang-1.14 AS builder
 WORKDIR /go/src/github.com/openshift/oc
 COPY . .
-RUN yum install -y --setopt=skip_missing_names_on_install=False gpgme-devel libassuan-devel
 RUN make build --warn-undefined-variables
 
 FROM registry.svc.ci.openshift.org/ocp/4.2:base

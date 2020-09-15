@@ -3,7 +3,6 @@
 FROM registry.svc.ci.openshift.org/ocp/builder:rhel-8-golang-openshift-4.6 AS builder
 WORKDIR /go/src/github.com/openshift/oc
 COPY . .
-RUN yum install -y --setopt=skip_missing_names_on_install=False gpgme-devel libassuan-devel
 RUN make cross-build --warn-undefined-variables
 
 FROM registry.svc.ci.openshift.org/ocp/4.6:cli
