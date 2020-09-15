@@ -43,7 +43,7 @@ require (
 	github.com/openshift/api v0.0.0-20200901182017-7ac89ba6b971
 	github.com/openshift/build-machinery-go v0.0.0-20200819073603-48aa266c95f7
 	github.com/openshift/client-go v0.0.0-20200827190008-3062137373b5
-	github.com/openshift/library-go v0.0.0-20200907120738-ea57b121ba1a
+	github.com/openshift/library-go v0.0.0-20200911100307-610c6e9e90b8
 	github.com/operator-framework/operator-registry v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
@@ -84,8 +84,6 @@ replace (
 	// d1d5f6476656c6aad457e2a91d3436e66b6f2251 is more suitable since it does not break fsouza/go-clientdocker,
 	// yet provides the same fix.
 	github.com/docker/docker => github.com/docker/docker v1.4.2-0.20191121165722-d1d5f6476656
-
-	github.com/openshift/apiserver-library-go => github.com/openshift/apiserver-library-go v0.0.0-20200901140731-1236dc23c728
 
 	k8s.io/api => k8s.io/api v0.19.0
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.19.0
