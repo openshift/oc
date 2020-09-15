@@ -268,173 +268,175 @@ func (o *MirrorImageOptions) Validate() error {
 func (o *MirrorImageOptions) Run() error {
 	var continuedOnFailure bool
 	start := time.Now()
-	p, err := o.plan()
+	plans, err := o.plan()
 	if err != nil {
 		return err
 	}
-	p.Print(o.ErrOut)
-	fmt.Fprintln(o.ErrOut)
+	for _, p := range plans {
+		p.Print(o.ErrOut)
+		fmt.Fprintln(o.ErrOut)
 
-	if errs := p.Errors(); len(errs) > 0 {
-		for _, err := range errs {
-			fmt.Fprintf(o.ErrOut, "error: %v\n", err)
-		}
-		if !o.ContinueOnError {
-			return fmt.Errorf("an error occurred during planning")
-		}
-		continuedOnFailure = true
-	}
-
-	work := Greedy(p)
-	work.Print(o.ErrOut)
-	fmt.Fprintln(o.ErrOut)
-
-	fmt.Fprintf(o.ErrOut, "info: Planning completed in %s\n", time.Now().Sub(start).Round(10*time.Millisecond))
-
-	if o.DryRun {
-		fmt.Fprintf(o.ErrOut, "info: Dry run complete\n")
-		return nil
-	}
-
-	// we must have a client available for accessing referential URLs
-	referentialClient, err := o.SecurityOptions.ReferentialHTTPClient()
-	if err != nil {
-		return err
-	}
-
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	q := workqueue.New(o.MaxRegistry, stopCh)
-	registryWorkers := make(map[string]workqueue.Interface)
-	for name := range p.RegistryNames() {
-		registryWorkers[name] = workqueue.New(o.ParallelOptions.MaxPerRegistry, stopCh)
-	}
-
-	next := time.Now()
-	defer func() {
-		d := time.Now().Sub(next)
-		fmt.Fprintf(o.ErrOut, "info: Mirroring completed in %s (%s/s)\n", d.Truncate(10*time.Millisecond), units.HumanSize(float64(work.stats.bytes)/d.Seconds()))
-	}()
-
-	ctx := apirequest.NewContext()
-	for j := range work.phases {
-		phase := &work.phases[j]
-		q.Batch(func(w workqueue.Work) {
-			for i := range phase.independent {
-				unit := phase.independent[i]
-				w.Parallel(func() {
-					// upload blobs
-					registryWorkers[unit.registry.name].Batch(func(w workqueue.Work) {
-						for i := range unit.repository.blobs {
-							op := unit.repository.blobs[i]
-							for digestString := range op.blobs {
-								digest := godigest.Digest(digestString)
-								blob := op.parent.parent.parent.GetBlob(digest)
-								w.Parallel(func() {
-									if err := copyBlob(ctx, work, op, blob, referentialClient, o.Force, o.SkipMount, o.ErrOut); err != nil {
-										phase.ExecutionFailure(err)
-										return
-									}
-									op.parent.parent.AssociateBlob(unit.repository.name, blob)
-								})
-							}
-						}
-					})
-					if phase.IsFailed() {
-						if !o.ContinueOnError {
-							return
-						}
-						continuedOnFailure = true
-					}
-					// upload manifests in batches by their prerequisites
-					op := unit.repository.manifests
-					dependencies := make(map[godigest.Digest]godigest.Digest)
-					for from, to := range op.prerequisites {
-						dependencies[from] = to
-					}
-					marked := sets.NewString()
-					for {
-						waiting := sets.NewString()
-						for _, to := range dependencies {
-							waiting.Insert(string(to))
-						}
-						uploaded := 0
-						registryWorkers[unit.registry.name].Batch(func(w workqueue.Work) {
-							ref, err := reference.WithName(op.toRef.Ref.RepositoryName())
-							if err != nil {
-								phase.ExecutionFailure(fmt.Errorf("unable to create reference to repository %s: %v", op.toRef, err))
-								return
-							}
-							// upload and tag the manifest
-							for digest := range op.digestsToTags {
-								if waiting.Has(string(digest)) || marked.Has(string(digest)) {
-									continue
-								}
-								delete(dependencies, digest)
-								marked.Insert(string(digest))
-								uploaded++
-
-								srcDigest := digest
-								tags := op.digestsToTags[srcDigest].List()
-								w.Parallel(func() {
-									if errs := copyManifestToTags(ctx, ref, srcDigest, tags, op, o.Out, o.ErrOut); len(errs) > 0 {
-										phase.ExecutionFailure(errs...)
-									}
-								})
-							}
-							// this is a pure manifest move, put the manifest by its id
-							for digest := range op.digestCopies {
-								if waiting.Has(string(digest)) || marked.Has(string(digest)) {
-									continue
-								}
-								delete(dependencies, godigest.Digest(digest))
-								marked.Insert(string(digest))
-								uploaded++
-
-								srcDigest := godigest.Digest(digest)
-								w.Parallel(func() {
-									if err := copyManifest(ctx, ref, srcDigest, op, o.Out, o.ErrOut); err != nil {
-										phase.ExecutionFailure(err)
-									}
-								})
-							}
-						})
-						if len(op.prerequisites) > 0 && uploaded == 0 {
-							phase.ExecutionFailure(fmt.Errorf("circular dependency in manifest lists, unable to upload all: %#v", dependencies))
-							break
-						}
-						if waiting.Len() == 0 {
-							break
-						}
-					}
-				})
-			}
-		})
-		if phase.IsFailed() {
-			for _, err := range phase.ExecutionFailures() {
+		if errs := p.Errors(); len(errs) > 0 {
+			for _, err := range errs {
 				fmt.Fprintf(o.ErrOut, "error: %v\n", err)
 			}
 			if !o.ContinueOnError {
-				return fmt.Errorf("one or more errors occurred while uploading images")
+				return fmt.Errorf("an error occurred during planning")
 			}
 			continuedOnFailure = true
 		}
-	}
 
-	if o.ManifestUpdateCallback != nil {
-		for _, reg := range p.registries {
-			klog.V(4).Infof("Manifests mapped %#v", reg.manifestConversions)
-			if err := o.ManifestUpdateCallback(reg.name, reg.manifestConversions); err != nil {
+		work := Greedy(p)
+		work.Print(o.ErrOut)
+		fmt.Fprintln(o.ErrOut)
+
+		fmt.Fprintf(o.ErrOut, "info: Planning completed in %s\n", time.Now().Sub(start).Round(10*time.Millisecond))
+
+		if o.DryRun {
+			fmt.Fprintf(o.ErrOut, "info: Dry run complete\n")
+			return nil
+		}
+
+		// we must have a client available for accessing referential URLs
+		referentialClient, err := o.SecurityOptions.ReferentialHTTPClient()
+		if err != nil {
+			return err
+		}
+
+		stopCh := make(chan struct{})
+		defer close(stopCh)
+		q := workqueue.New(o.MaxRegistry, stopCh)
+		registryWorkers := make(map[string]workqueue.Interface)
+		for name := range p.RegistryNames() {
+			registryWorkers[name] = workqueue.New(o.ParallelOptions.MaxPerRegistry, stopCh)
+		}
+
+		next := time.Now()
+		defer func() {
+			d := time.Now().Sub(next)
+			fmt.Fprintf(o.ErrOut, "info: Mirroring completed in %s (%s/s)\n", d.Truncate(10*time.Millisecond), units.HumanSize(float64(work.stats.bytes)/d.Seconds()))
+		}()
+
+		ctx := apirequest.NewContext()
+		for j := range work.phases {
+			phase := &work.phases[j]
+			q.Batch(func(w workqueue.Work) {
+				for i := range phase.independent {
+					unit := phase.independent[i]
+					w.Parallel(func() {
+						// upload blobs
+						registryWorkers[unit.registry.name].Batch(func(w workqueue.Work) {
+							for i := range unit.repository.blobs {
+								op := unit.repository.blobs[i]
+								for digestString := range op.blobs {
+									digest := godigest.Digest(digestString)
+									blob := op.parent.parent.parent.GetBlob(digest)
+									w.Parallel(func() {
+										if err := copyBlob(ctx, work, op, blob, referentialClient, o.Force, o.SkipMount, o.ErrOut); err != nil {
+											phase.ExecutionFailure(err)
+											return
+										}
+										op.parent.parent.AssociateBlob(unit.repository.name, blob)
+									})
+								}
+							}
+						})
+						if phase.IsFailed() {
+							if !o.ContinueOnError {
+								return
+							}
+							continuedOnFailure = true
+						}
+						// upload manifests in batches by their prerequisites
+						op := unit.repository.manifests
+						dependencies := make(map[godigest.Digest]godigest.Digest)
+						for from, to := range op.prerequisites {
+							dependencies[from] = to
+						}
+						marked := sets.NewString()
+						for {
+							waiting := sets.NewString()
+							for _, to := range dependencies {
+								waiting.Insert(string(to))
+							}
+							uploaded := 0
+							registryWorkers[unit.registry.name].Batch(func(w workqueue.Work) {
+								ref, err := reference.WithName(op.toRef.Ref.RepositoryName())
+								if err != nil {
+									phase.ExecutionFailure(fmt.Errorf("unable to create reference to repository %s: %v", op.toRef, err))
+									return
+								}
+								// upload and tag the manifest
+								for digest := range op.digestsToTags {
+									if waiting.Has(string(digest)) || marked.Has(string(digest)) {
+										continue
+									}
+									delete(dependencies, digest)
+									marked.Insert(string(digest))
+									uploaded++
+
+									srcDigest := digest
+									tags := op.digestsToTags[srcDigest].List()
+									w.Parallel(func() {
+										if errs := copyManifestToTags(ctx, ref, srcDigest, tags, op, o.Out, o.ErrOut); len(errs) > 0 {
+											phase.ExecutionFailure(errs...)
+										}
+									})
+								}
+								// this is a pure manifest move, put the manifest by its id
+								for digest := range op.digestCopies {
+									if waiting.Has(string(digest)) || marked.Has(string(digest)) {
+										continue
+									}
+									delete(dependencies, godigest.Digest(digest))
+									marked.Insert(string(digest))
+									uploaded++
+
+									srcDigest := godigest.Digest(digest)
+									w.Parallel(func() {
+										if err := copyManifest(ctx, ref, srcDigest, op, o.Out, o.ErrOut); err != nil {
+											phase.ExecutionFailure(err)
+										}
+									})
+								}
+							})
+							if len(op.prerequisites) > 0 && uploaded == 0 {
+								phase.ExecutionFailure(fmt.Errorf("circular dependency in manifest lists, unable to upload all: %#v", dependencies))
+								break
+							}
+							if waiting.Len() == 0 {
+								break
+							}
+						}
+					})
+				}
+			})
+			if phase.IsFailed() {
+				for _, err := range phase.ExecutionFailures() {
+					fmt.Fprintf(o.ErrOut, "error: %v\n", err)
+				}
 				if !o.ContinueOnError {
-					return err
+					return fmt.Errorf("one or more errors occurred while uploading images")
 				}
 				continuedOnFailure = true
-				fmt.Fprintf(o.ErrOut, "error: %v\n", err)
 			}
 		}
-	}
-	if continuedOnFailure {
-		return fmt.Errorf("one or more errors occurred")
+
+		if o.ManifestUpdateCallback != nil {
+			for _, reg := range p.registries {
+				klog.V(4).Infof("Manifests mapped %#v", reg.manifestConversions)
+				if err := o.ManifestUpdateCallback(reg.name, reg.manifestConversions); err != nil {
+					if !o.ContinueOnError {
+						return err
+					}
+					continuedOnFailure = true
+					fmt.Fprintf(o.ErrOut, "error: %v\n", err)
+				}
+			}
+		}
+		if continuedOnFailure {
+			return fmt.Errorf("one or more errors occurred")
+		}
 	}
 	return nil
 }
@@ -444,7 +446,8 @@ type contextKey struct {
 	registry string
 }
 
-func (o *MirrorImageOptions) plan() (*plan, error) {
+func (o *MirrorImageOptions) plan() ([]*plan, error) {
+	var plans []*plan
 	ctx := apirequest.NewContext()
 	context, err := o.SecurityOptions.Context()
 	if err != nil {
@@ -454,194 +457,197 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 	toContext := context.Copy().WithActions("pull", "push")
 	toContexts := make(map[contextKey]*registryclient.Context)
 
-	tree := buildTargetTree(o.Mappings)
-	for registry, scopes := range calculateDockerRegistryScopes(tree) {
-		klog.V(5).Infof("Using scopes for registry %s: %v", registry, scopes)
-		if o.SkipMultipleScopes {
-			toContexts[registry] = toContext.Copy()
-		} else {
-			toContexts[registry] = toContext.Copy().WithScopes(scopes...)
-		}
-	}
-
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-	q := workqueue.New(o.MaxRegistry, stopCh)
-	registryWorkers := make(map[string]workqueue.Interface)
-	for name := range tree {
-		if _, ok := registryWorkers[name.registry]; !ok {
-			registryWorkers[name.registry] = workqueue.New(o.ParallelOptions.MaxPerRegistry, stopCh)
-		}
-	}
-
-	plan := newPlan()
-
-	for name := range tree {
-		src := tree[name]
-		q.Queue(func(_ workqueue.Work) {
-			srcRepo, err := o.Repository(ctx, fromContext, src.ref, true)
-			if err != nil {
-				plan.AddError(retrieverError{err: fmt.Errorf("unable to connect to %s: %v", src.ref, err), src: src.ref})
-				return
+	trees := buildTargetTrees(o.Mappings)
+	for _, tree := range trees {
+		for registry, scopes := range calculateDockerRegistryScopes(tree) {
+			klog.V(5).Infof("Using scopes for registry %s: %v", registry, scopes)
+			if o.SkipMultipleScopes {
+				toContexts[registry] = toContext.Copy()
+			} else {
+				toContexts[registry] = toContext.Copy().WithScopes(scopes...)
 			}
-			manifests, err := srcRepo.Manifests(ctx)
-			if err != nil {
-				plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to access source image %s manifests: %v", src.ref, err)})
-				return
+		}
+
+		stopCh := make(chan struct{})
+		defer close(stopCh)
+		q := workqueue.New(o.MaxRegistry, stopCh)
+		registryWorkers := make(map[string]workqueue.Interface)
+		for name := range tree {
+			if _, ok := registryWorkers[name.registry]; !ok {
+				registryWorkers[name.registry] = workqueue.New(o.ParallelOptions.MaxPerRegistry, stopCh)
 			}
-			rq := registryWorkers[name.registry]
-			rq.Batch(func(w workqueue.Work) {
-				// convert source tags to digests
-				for tag := range src.tags {
-					srcTag, pushTargets := tag, src.tags[tag]
-					w.Parallel(func() {
-						desc, err := srcRepo.Tags(ctx).Get(ctx, srcTag)
-						if err != nil {
-							if o.SkipMissing && imagemanifest.IsImageNotFound(err) {
-								ref := src.ref
-								ref.Ref.Tag = srcTag
-								fmt.Fprintf(o.ErrOut, "warning: Image %s does not exist and will not be mirrored\n", ref)
+		}
+
+		plan := newPlan()
+
+		for name := range tree {
+			src := tree[name]
+			q.Queue(func(_ workqueue.Work) {
+				srcRepo, err := o.Repository(ctx, fromContext, src.ref, true)
+				if err != nil {
+					plan.AddError(retrieverError{err: fmt.Errorf("unable to connect to %s: %v", src.ref, err), src: src.ref})
+					return
+				}
+				manifests, err := srcRepo.Manifests(ctx)
+				if err != nil {
+					plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to access source image %s manifests: %v", src.ref, err)})
+					return
+				}
+				rq := registryWorkers[name.registry]
+				rq.Batch(func(w workqueue.Work) {
+					// convert source tags to digests
+					for tag := range src.tags {
+						srcTag, pushTargets := tag, src.tags[tag]
+						w.Parallel(func() {
+							desc, err := srcRepo.Tags(ctx).Get(ctx, srcTag)
+							if err != nil {
+								if o.SkipMissing && imagemanifest.IsImageNotFound(err) {
+									ref := src.ref
+									ref.Ref.Tag = srcTag
+									fmt.Fprintf(o.ErrOut, "warning: Image %s does not exist and will not be mirrored\n", ref)
+									return
+								}
+								plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to retrieve source image %s by tag %s: %v", src.ref, srcTag, err)})
 								return
 							}
-							plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to retrieve source image %s by tag %s: %v", src.ref, srcTag, err)})
-							return
-						}
-						srcDigest := desc.Digest
-						klog.V(3).Infof("Resolved source image %s:%s to %s\n", src.ref, srcTag, srcDigest)
-						src.mergeIntoDigests(srcDigest, pushTargets)
-					})
-				}
-			})
+							srcDigest := desc.Digest
+							klog.V(3).Infof("Resolved source image %s:%s to %s\n", src.ref, srcTag, srcDigest)
+							src.mergeIntoDigests(srcDigest, pushTargets)
+						})
+					}
+				})
 
-			canonicalFrom := srcRepo.Named()
+				canonicalFrom := srcRepo.Named()
 
-			rq.Queue(func(w workqueue.Work) {
-				for key := range src.digests {
-					srcDigestString, pushTargets := key, src.digests[key]
-					w.Parallel(func() {
-						// load the manifest
-						srcDigest := godigest.Digest(srcDigestString)
-						srcManifest, err := manifests.Get(ctx, godigest.Digest(srcDigest), imagemanifest.PreferManifestList)
-						if err != nil {
-							plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to retrieve source image %s manifest %s: %v", src.ref, srcDigest, err)})
-							return
-						}
-						klog.V(5).Infof("Found manifest %s with type %T", srcDigest, srcManifest)
+				rq.Queue(func(w workqueue.Work) {
+					for key := range src.digests {
+						srcDigestString, pushTargets := key, src.digests[key]
+						w.Parallel(func() {
+							// load the manifest
+							srcDigest := godigest.Digest(srcDigestString)
+							srcManifest, err := manifests.Get(ctx, godigest.Digest(srcDigest), imagemanifest.PreferManifestList)
+							if err != nil {
+								plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to retrieve source image %s manifest %s: %v", src.ref, srcDigest, err)})
+								return
+							}
+							klog.V(5).Infof("Found manifest %s with type %T", srcDigest, srcManifest)
 
-						// filter or load manifest list as appropriate
-						originalSrcDigest := srcDigest
-						srcManifests, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll, o.KeepManifestList)
-						if err != nil {
-							plan.AddError(retrieverError{src: src.ref, err: err})
-							return
-						}
-						if len(srcManifests) == 0 {
-							fmt.Fprintf(o.ErrOut, "info: Filtered all images from %s, skipping\n", src.ref)
-							return
-						}
+							// filter or load manifest list as appropriate
+							originalSrcDigest := srcDigest
+							srcManifests, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll, o.KeepManifestList)
+							if err != nil {
+								plan.AddError(retrieverError{src: src.ref, err: err})
+								return
+							}
+							if len(srcManifests) == 0 {
+								fmt.Fprintf(o.ErrOut, "info: Filtered all images from %s, skipping\n", src.ref)
+								return
+							}
 
-						var location string
-						if srcDigest == originalSrcDigest {
-							location = fmt.Sprintf("manifest %s", srcDigest)
-						} else {
-							location = fmt.Sprintf("manifest %s in manifest list %s", srcDigest, originalSrcDigest)
-						}
-
-						for _, dst := range pushTargets {
-							var toRepo distribution.Repository
-							var err error
-							if o.DryRun {
-								toRepo, err = imagesource.NewDryRun(dst.ref)
+							var location string
+							if srcDigest == originalSrcDigest {
+								location = fmt.Sprintf("manifest %s", srcDigest)
 							} else {
-								toRepo, err = o.Repository(ctx, toContexts[contextKeyForReference(dst.ref)], dst.ref, false)
-							}
-							if err != nil {
-								plan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to connect to %s: %v", dst.ref, err)})
-								continue
+								location = fmt.Sprintf("manifest %s in manifest list %s", srcDigest, originalSrcDigest)
 							}
 
-							canonicalTo := toRepo.Named()
-
-							registryPlan := plan.RegistryPlan(dst.ref)
-							repoPlan := registryPlan.RepositoryPlan(canonicalTo.String())
-							blobPlan := repoPlan.Blobs(src.ref, location)
-
-							toManifests, err := toRepo.Manifests(ctx)
-							if err != nil {
-								repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to access destination image %s manifests: %v", src.ref, err)})
-								continue
-							}
-
-							var mustCopyLayers bool
-							switch {
-							case o.Force:
-								mustCopyLayers = true
-							case src.ref.EqualRegistry(dst.ref) && canonicalFrom.String() == canonicalTo.String():
-								// if the source and destination repos are the same, we don't need to copy layers unless forced
-							default:
-								if _, err := toManifests.Get(ctx, srcDigest); err != nil {
-									mustCopyLayers = true
-									blobPlan.AlreadyExists(distribution.Descriptor{Digest: srcDigest})
+							for _, dst := range pushTargets {
+								var toRepo distribution.Repository
+								var err error
+								if o.DryRun {
+									toRepo, err = imagesource.NewDryRun(dst.ref)
 								} else {
-									klog.V(4).Infof("Manifest exists in %s, no need to copy layers without --force", dst.ref)
+									toRepo, err = o.Repository(ctx, toContexts[contextKeyForReference(dst.ref)], dst.ref, false)
 								}
-							}
+								if err != nil {
+									plan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to connect to %s: %v", dst.ref, err)})
+									continue
+								}
 
-							toBlobs := toRepo.Blobs(ctx)
+								canonicalTo := toRepo.Named()
 
-							if mustCopyLayers {
-								// upload all the blobs
-								srcBlobs := srcRepo.Blobs(ctx)
+								registryPlan := plan.RegistryPlan(dst.ref)
+								repoPlan := registryPlan.RepositoryPlan(canonicalTo.String())
+								blobPlan := repoPlan.Blobs(src.ref, location)
 
-								// upload each manifest
-								for _, srcManifest := range srcManifests {
-									switch srcManifest.(type) {
-									case *schema2.DeserializedManifest:
-									case *schema1.SignedManifest:
-									case *ocischema.DeserializedManifest:
-									case *manifestlist.DeserializedManifestList:
-										// we do not need to upload layers in a manifestlist
-										continue
-									default:
-										repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("the manifest type %T is not supported", srcManifest)})
-										continue
+								toManifests, err := toRepo.Manifests(ctx)
+								if err != nil {
+									repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to access destination image %s manifests: %v", src.ref, err)})
+									continue
+								}
+
+								var mustCopyLayers bool
+								switch {
+								case o.Force:
+									mustCopyLayers = true
+								case src.ref.EqualRegistry(dst.ref) && canonicalFrom.String() == canonicalTo.String():
+									// if the source and destination repos are the same, we don't need to copy layers unless forced
+								default:
+									if _, err := toManifests.Get(ctx, srcDigest); err != nil {
+										mustCopyLayers = true
+										blobPlan.AlreadyExists(distribution.Descriptor{Digest: srcDigest})
+									} else {
+										klog.V(4).Infof("Manifest exists in %s, no need to copy layers without --force", dst.ref)
 									}
-									for _, blob := range srcManifest.References() {
-										if src.ref.EqualRegistry(dst.ref) {
-											registryPlan.AssociateBlob(canonicalFrom.String(), blob)
+								}
+
+								toBlobs := toRepo.Blobs(ctx)
+
+								if mustCopyLayers {
+									// upload all the blobs
+									srcBlobs := srcRepo.Blobs(ctx)
+
+									// upload each manifest
+									for _, srcManifest := range srcManifests {
+										switch srcManifest.(type) {
+										case *schema2.DeserializedManifest:
+										case *schema1.SignedManifest:
+										case *ocischema.DeserializedManifest:
+										case *manifestlist.DeserializedManifestList:
+											// we do not need to upload layers in a manifestlist
+											continue
+										default:
+											repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("the manifest type %T is not supported", srcManifest)})
+											continue
 										}
-										blobPlan.Copy(blob, srcBlobs, toBlobs)
+										for _, blob := range srcManifest.References() {
+											if src.ref.EqualRegistry(dst.ref) {
+												registryPlan.AssociateBlob(canonicalFrom.String(), blob)
+											}
+											blobPlan.Copy(blob, srcBlobs, toBlobs)
+										}
 									}
 								}
-							}
 
-							if len(srcManifests) > 1 {
-								for _, srcManifest := range srcManifests {
-									manifestDigest, err := registryclient.ContentDigestForManifest(srcManifest, srcDigest.Algorithm())
-									if err != nil {
-										repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("could not create manifesnt for %T", srcManifest)})
-										continue
+								if len(srcManifests) > 1 {
+									for _, srcManifest := range srcManifests {
+										manifestDigest, err := registryclient.ContentDigestForManifest(srcManifest, srcDigest.Algorithm())
+										if err != nil {
+											repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("could not create manifesnt for %T", srcManifest)})
+											continue
+										}
+										repoPlan.Manifests().Copy(manifestDigest, srcManifest, nil, toManifests, toBlobs)
 									}
-									repoPlan.Manifests().Copy(manifestDigest, srcManifest, nil, toManifests, toBlobs)
 								}
-							}
 
-							repoPlan.Manifests().Copy(srcDigest, srcManifest, dst.tags, toManifests, toBlobs)
-						}
-					})
-				}
+								repoPlan.Manifests().Copy(srcDigest, srcManifest, dst.tags, toManifests, toBlobs)
+							}
+						})
+					}
+				})
 			})
-		})
-	}
-	for _, q := range registryWorkers {
+		}
+		for _, q := range registryWorkers {
+			q.Done()
+		}
 		q.Done()
+
+		plan.trim()
+		plan.calculateStats()
+
+		plans = append(plans, plan)
 	}
-	q.Done()
-
-	plan.trim()
-	plan.calculateStats()
-
-	return plan, nil
+	return plans, nil
 }
 
 func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob distribution.Descriptor, referentialClient *http.Client, force, skipMount bool, errOut io.Writer) error {
