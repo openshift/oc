@@ -1,6 +1,6 @@
 # This Dockerfile builds an image containing the Mac and Windows version of oc
 # layered on top of the Linux cli image.
-FROM registry.svc.ci.openshift.org/ocp/builder:rhel-8-golang-openshift-4.6 AS builder
+FROM registry.svc.ci.openshift.org/ocp/builder:rhel-7-golang-openshift-4.6 AS builder
 WORKDIR /go/src/github.com/openshift/oc
 COPY . .
 RUN make cross-build --warn-undefined-variables
