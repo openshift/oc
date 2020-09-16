@@ -510,6 +510,12 @@ github.com/openshift/library-go/pkg/serviceability
 github.com/openshift/library-go/pkg/template/generator
 github.com/openshift/library-go/pkg/template/templateprocessing
 github.com/openshift/library-go/pkg/unidling/unidlingclient
+github.com/openshift/library-go/pkg/verify
+github.com/openshift/library-go/pkg/verify/store
+github.com/openshift/library-go/pkg/verify/store/configmap
+github.com/openshift/library-go/pkg/verify/store/parallel
+github.com/openshift/library-go/pkg/verify/store/sigstore
+github.com/openshift/library-go/pkg/verify/util
 # github.com/operator-framework/api v0.1.1
 github.com/operator-framework/api/pkg/lib/version
 github.com/operator-framework/api/pkg/operators

@@ -39,11 +39,14 @@ import (
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/manifest"
+	"github.com/openshift/library-go/pkg/verify"
+	"github.com/openshift/library-go/pkg/verify/store/configmap"
+	"github.com/openshift/library-go/pkg/verify/store/sigstore"
+	"github.com/openshift/library-go/pkg/verify/util"
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/mirror"
-	"github.com/openshift/oc/pkg/helpers/release"
 )
 
 // configFilesBaseDir is created under '--to-dir', when specified, to contain release image
@@ -236,7 +239,7 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 		if err != nil {
 			return nil, err
 		}
-		client := coreClient.ConfigMaps(release.NamespaceLabelConfigMap)
+		client := coreClient.ConfigMaps(configmap.NamespaceLabelConfigMap)
 		return client, nil
 	}
 	o.PrintImageContentInstructions = true
@@ -321,7 +324,7 @@ func (o *MirrorOptions) handleSignatures(context context.Context, signaturesByDi
 		}
 	}
 	for digest, signatures := range signaturesByDigest {
-		cmData, err := release.GetSignaturesAsConfigmap(digest, signatures)
+		cmData, err := verify.GetSignaturesAsConfigmap(digest, signatures)
 		if err != nil {
 			return fmt.Errorf("converting signatures to a configmap: %v", err)
 		}
@@ -360,7 +363,7 @@ func (o *MirrorOptions) handleSignatures(context context.Context, signaturesByDi
 			if o.DryRun {
 				fmt.Fprintf(o.Out, "info: Write configmap signature file %s\n", fullName)
 			} else {
-				cmDataBytes, err := yaml.Marshal(cmData)
+				cmDataBytes, err := util.ConfigMapAsBytes(cmData)
 				if err != nil {
 					return fmt.Errorf("marshaling configmap YAML: %v", err)
 				}
@@ -497,11 +500,11 @@ func (o *MirrorOptions) Run() error {
 	sourceFn := func(ref imagesource.TypedImageReference) imagesource.TypedImageReference {
 		return ref
 	}
-	// Wraps operator's HTTPClient method to allow image verifier to create http client with up-to-date config
-	clientBuilder := &verifyClientBuilder{builder: o.HTTPClient}
+
+	httpClientConstructor := sigstore.NewCachedHTTPClientConstructor(o.HTTPClient, nil)
 
 	// Attempt to load a verifier as defined by the release being mirrored
-	imageVerifier, err := release.LoadConfigMapVerifierDataFromUpdate(manifests, clientBuilder, nil)
+	imageVerifier, err := verify.NewFromManifests(manifests, httpClientConstructor.HTTPClient)
 	if err != nil {
 		return fmt.Errorf("Unable to load configmap verifier: %v", err)
 	}
@@ -509,7 +512,6 @@ func (o *MirrorOptions) Run() error {
 		klog.V(4).Infof("Verifying release authenticity: %v", imageVerifier)
 	} else {
 		fmt.Fprintf(o.ErrOut, "warning: No release authenticity verification is configured, all releases are considered unverified\n")
-		imageVerifier = release.Reject
 	}
 	// verify the provided payload
 	ctx, cancelFn := context.WithCancel(context.Background())
