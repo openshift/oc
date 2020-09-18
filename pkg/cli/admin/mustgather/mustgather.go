@@ -527,7 +527,8 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 					Name:            "gather",
 					Image:           image,
 					ImagePullPolicy: corev1.PullIfNotPresent,
-					Command:         []string{"/usr/bin/gather"},
+					// always force disk flush to ensure that all data gathered is accessible in the copy container
+					Command: []string{"/bin/bash", "-c", "/usr/bin/gather; sync"},
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "must-gather-output",
@@ -560,7 +561,9 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 		},
 	}
 	if len(o.Command) > 0 {
-		ret.Spec.Containers[0].Command = o.Command
+		// always force disk flush to ensure that all data gathered is accessible in the copy container
+		ret.Spec.Containers[0].Command = []string{"/bin/bash", "-c", fmt.Sprintf("%s; sync", strings.Join(o.Command, " "))}
 	}
+
 	return ret
 }
