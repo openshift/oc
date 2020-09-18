@@ -328,6 +328,19 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.Out, "Upgradeable=False\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
 		}
 
+		if cv.Spec.Channel != "" {
+			if cv.Spec.Upstream == "" {
+				fmt.Fprint(o.Out, "Upstream is unset, so the cluster will use an appropriate default.\n")
+			} else {
+				fmt.Fprintf(o.Out, "Upstream: %s\n", cv.Spec.Upstream)
+			}
+			if len(cv.Status.Desired.Channels) > 0 {
+				fmt.Fprintf(o.Out, "Channel: %s (available channels: %s)\n", cv.Spec.Channel, strings.Join(cv.Status.Desired.Channels, ", "))
+			} else {
+				fmt.Fprintf(o.Out, "Channel: %s\n", cv.Spec.Channel)
+			}
+		}
+
 		if len(cv.Status.AvailableUpdates) > 0 {
 			fmt.Fprintf(o.Out, "Updates:\n\n")
 			w := tabwriter.NewWriter(o.Out, 0, 2, 1, ' ', 0)
