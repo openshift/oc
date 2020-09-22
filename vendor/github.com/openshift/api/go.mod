@@ -1,6 +1,6 @@
 module github.com/openshift/api
 
-go 1.13
+go 1.15
 
 require (
 	github.com/gogo/protobuf v1.3.1
