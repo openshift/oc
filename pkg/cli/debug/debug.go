@@ -156,6 +156,7 @@ type DebugOptions struct {
 	DryRun             bool
 	FullCmdName        string
 	Image              string
+	ImageStream        string
 	ToNamespace        string
 
 	// IsNode is set after we see the object we're debugging.  We use it to be able to print pertinent advice.
@@ -221,6 +222,7 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	cmd.Flags().BoolVar(&o.AsRoot, "as-root", o.AsRoot, "If true, try to run the container as the root user")
 	cmd.Flags().Int64Var(&o.AsUser, "as-user", o.AsUser, "Try to run the container as a specific user UID (note: admins may limit your ability to use this flag)")
 	cmd.Flags().StringVar(&o.Image, "image", o.Image, "Override the image used by the targeted container.")
+	cmd.Flags().StringVar(&o.ImageStream, "image-stream", o.ImageStream, "Specify an image stream (namespace/name:tag) containing a debug image to run.")
 	cmd.Flags().StringVar(&o.ToNamespace, "to-namespace", o.ToNamespace, "Override the namespace to create the pod into (instead of using --namespace).")
 	cmd.Flags().BoolVar(&o.PreservePod, "preserve-pod", o.PreservePod, "If true, the pod will not be deleted after the debug command exits.")
 
@@ -910,12 +912,18 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 		}
 		image := o.Image
 		if len(o.Image) == 0 {
-			istag, err := o.ImageClient.ImageStreamTags("openshift").Get(context.TODO(), "tools:latest", metav1.GetOptions{})
-			if err == nil && len(istag.Image.DockerImageReference) > 0 {
-				image = istag.Image.DockerImageReference
+			imageStream := o.ImageStream
+			if len(o.ImageStream) == 0 {
+				imageStream = "openshift/tools:latest"
+			}
+			if imageFromStream, err := o.resolveImageStreamTagString(imageStream); err == nil {
+				image = imageFromStream
+			} else {
+				klog.V(2).Infof("Unable to resolve image stream '%v': %v", imageStream, err)
 			}
 		}
 		if len(image) == 0 {
+			klog.V(2).Infof("Falling to 'registry.redhat.io/rhel8/support-tools' image")
 			image = "registry.redhat.io/rhel8/support-tools"
 		}
 		zero := int64(0)
@@ -1086,4 +1094,39 @@ func setNodeName(template *corev1.PodTemplateSpec, nodeName string, overrideWhen
 		template.Spec.NodeName = nodeName
 	}
 	return template
+}
+
+func (o *DebugOptions) resolveImageStreamTagString(s string) (string, error) {
+	namespace, name, tag := parseImageStreamTagString(s)
+	if len(namespace) == 0 {
+		return "", fmt.Errorf("expected namespace/name:tag")
+	}
+	return o.resolveImageStreamTag(namespace, name, tag)
+}
+
+func parseImageStreamTagString(s string) (string, string, string) {
+	var namespace, nameAndTag string
+	parts := strings.SplitN(s, "/", 2)
+	switch len(parts) {
+	case 2:
+		namespace = parts[0]
+		nameAndTag = parts[1]
+	case 1:
+		nameAndTag = parts[0]
+	}
+	name, tag, _ := imageutil.SplitImageStreamTag(nameAndTag)
+	return namespace, name, tag
+}
+
+func (o *DebugOptions) resolveImageStreamTag(namespace, name, tag string) (string, error) {
+	imageStream, err := o.ImageClient.ImageStreams(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	var image string
+	var ok bool
+	if image, ok = imageutil.ResolveLatestTaggedImage(imageStream, tag); !ok {
+		return "", fmt.Errorf("unable to resolve the imagestream tag %s/%s:%s", namespace, name, tag)
+	}
+	return image, nil
 }
