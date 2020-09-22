@@ -25,7 +25,7 @@ var (
 
 	unlinkSecretExample = templates.Examples(`
 		# Unlink a secret currently associated with a service account:
-		oc unlink serviceaccount-name secret-name another-secret-name ...
+		oc secrets unlink serviceaccount-name secret-name another-secret-name ...
 	`)
 )
 
