@@ -1,6 +1,6 @@
 module github.com/openshift/oc
 
-go 1.13
+go 1.14
 
 require (
 	github.com/AaronO/go-git-http v0.0.0-20161214145340-1d9485b3a98f
@@ -40,10 +40,10 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/mtrmac/gpgme v0.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
-	github.com/openshift/api v0.0.0-20200901182017-7ac89ba6b971
-	github.com/openshift/build-machinery-go v0.0.0-20200819073603-48aa266c95f7
+	github.com/openshift/api v0.0.0-20200922074107-8c5a4702c21a
+	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
 	github.com/openshift/client-go v0.0.0-20200827190008-3062137373b5
-	github.com/openshift/library-go v0.0.0-20200911100307-610c6e9e90b8
+	github.com/openshift/library-go v0.0.0-20200921120329-c803a7b7bb2c
 	github.com/operator-framework/operator-registry v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
@@ -101,10 +101,10 @@ replace (
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.19.0
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.19.0
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.19.0
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200910125353-30f1c7e86f1f
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200922135455-1f5b2cd472a9
 	k8s.io/kubelet => k8s.io/kubelet v0.19.0
-	k8s.io/kubernetes => github.com/openshift/kubernetes v1.20.0-alpha.0.0.20200902150006-fa7747b0a802
-	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.2
+	k8s.io/kubernetes => github.com/openshift/kubernetes v1.20.0-alpha.0.0.20200922142336-4700daee7399
+	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.19.0
 	k8s.io/metrics => k8s.io/metrics v0.19.0
 	k8s.io/node-api => k8s.io/node-api v0.19.0
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.19.0
