@@ -33,6 +33,8 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	imagereference "github.com/openshift/library-go/pkg/image/reference"
+
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	"github.com/openshift/library-go/pkg/operator/resource/retry"
@@ -274,6 +276,12 @@ func (o *MustGatherOptions) Run() error {
 	// ... and finally must-gather pod
 	var pods []*corev1.Pod
 	for _, image := range o.Images {
+		_, err := imagereference.Parse(image)
+		if err != nil {
+			o.log("unable to parse image reference %s: %v", image, err)
+			return err
+		}
+
 		pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image), metav1.CreateOptions{})
 		if err != nil {
 			return err
@@ -462,8 +470,11 @@ func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error
 				return false, nil
 			}
 			state := pod.Status.ContainerStatuses[0].State
-			if state.Waiting != nil && state.Waiting.Reason == "ErrImagePull" {
-				return true, fmt.Errorf("unable to pull image: %v: %v", state.Waiting.Reason, state.Waiting.Message)
+			if state.Waiting != nil {
+				switch state.Waiting.Reason {
+				case "ErrImagePull", "ImagePullBackOff", "InvalidImageName":
+					return true, fmt.Errorf("unable to pull image: %v: %v", state.Waiting.Reason, state.Waiting.Message)
+				}
 			}
 			running := state.Running != nil
 			terminated := state.Terminated != nil
