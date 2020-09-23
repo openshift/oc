@@ -24,13 +24,13 @@ var (
 
 	linkSecretExample = templates.Examples(`
 		# Add an image pull secret to a service account to automatically use it for pulling pod images:
-		oc link serviceaccount-name pull-secret --for=pull
+		oc secrets link serviceaccount-name pull-secret --for=pull
 
 		# Add an image pull secret to a service account to automatically use it for both pulling and pushing build images:
-		oc link builder builder-image-secret --for=pull,mount
+		oc secrets link builder builder-image-secret --for=pull,mount
 
 		# If the cluster's serviceAccountConfig is operating with limitSecretReferences: True, secrets must be added to the pod's service account whitelist in order to be available to the pod:
-		oc link pod-sa pod-secret
+		oc secrets link pod-sa pod-secret
 	`)
 )
 
