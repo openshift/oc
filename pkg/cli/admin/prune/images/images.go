@@ -13,23 +13,17 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"text/tabwriter"
 	"time"
 
-	gonum "github.com/gonum/graph"
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
 	knet "k8s.io/apimachinery/pkg/util/net"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	apimachineryversion "k8s.io/apimachinery/pkg/version"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
@@ -46,7 +40,6 @@ import (
 	"github.com/openshift/library-go/pkg/network/networkutils"
 
 	"github.com/openshift/oc/pkg/cli/admin/prune/imageprune"
-	imagegraph "github.com/openshift/oc/pkg/helpers/graph/imagegraph/nodes"
 	"github.com/openshift/oc/pkg/version"
 )
 
@@ -221,6 +214,8 @@ func (o *PruneImagesOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, ar
 	if len(o.ClientConfig.BearerToken) == 0 {
 		return errNoToken
 	}
+	o.ClientConfig.QPS = 100
+	o.ClientConfig.Burst = 100
 	o.KubeClient, err = kubernetes.NewForConfig(o.ClientConfig)
 	if err != nil {
 		return err
@@ -388,50 +383,37 @@ func (o PruneImagesOptions) Run() error {
 		limitRangesMap[limit.Namespace] = limits
 	}
 
-	ctx := context.TODO()
-	allImagesUntyped, _, err := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-		return o.ImageClient.Images().List(context.TODO(), opts)
-	}).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	allImages := &imagev1.ImageList{}
-	if err := meta.EachListItem(allImagesUntyped, func(obj runtime.Object) error {
-		allImages.Items = append(allImages.Items, *obj.(*imagev1.Image))
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	imageWatcher, err := o.ImageClient.Images().Watch(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("internal error: failed to watch for images: %v"+
-			"\n - image changes will not be detected", err))
-		imageWatcher = watch.NewFake()
-	}
-
-	imageStreamWatcher, err := o.ImageClient.ImageStreams(o.Namespace).Watch(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("internal error: failed to watch for image streams: %v"+
-			"\n - image stream changes will not be detected", err))
-		imageStreamWatcher = watch.NewFake()
-	}
-	defer imageStreamWatcher.Stop()
-
 	allStreams, err := o.ImageClient.ImageStreams(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
+	allStreamsMap := map[string]*imagev1.ImageStream{}
+	for i := range allStreams.Items {
+		stream := &allStreams.Items[i]
+		allStreamsMap[fmt.Sprintf("%s/%s", stream.Namespace, stream.Name)] = stream
+	}
+
+	ctx := context.TODO()
+	allImages := map[string]*imagev1.Image{}
+	err = pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return o.ImageClient.Images().List(ctx, opts)
+	}).EachListItem(ctx, metav1.ListOptions{Limit: 5000}, func(obj runtime.Object) error {
+		image := obj.(*imagev1.Image)
+		allImages[image.Name] = image
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	var (
-		registryHost          = o.RegistryUrlOverride
-		registryClientFactory imageprune.RegistryClientFactoryFunc
-		registryClient        *http.Client
-		registryPinger        imageprune.RegistryPinger
+		registryHost   = o.RegistryUrlOverride
+		registryClient *http.Client
+		registryPinger imageprune.RegistryPinger
 	)
 
 	registryPinger = &imageprune.DryRunRegistryPinger{}
-	registryClientFactory = imageprune.FakeRegistryClientFactory
 	if o.Confirm && o.PruneRegistry != nil && *o.PruneRegistry {
 		if len(registryHost) == 0 {
 			registryHost, err = imageprune.DetermineRegistryHost(allImages, allStreams)
@@ -446,10 +428,7 @@ func (o PruneImagesOptions) Run() error {
 				strings.HasPrefix(registryHost, "http://")
 		}
 
-		registryClientFactory = func() (*http.Client, error) {
-			return getRegistryClient(o.ClientConfig, o.CABundle, insecure)
-		}
-		registryClient, err = registryClientFactory()
+		registryClient, err = getRegistryClient(o.ClientConfig, o.CABundle, insecure)
 		if err != nil {
 			return err
 		}
@@ -470,28 +449,24 @@ func (o PruneImagesOptions) Run() error {
 	}
 
 	options := imageprune.PrunerOptions{
-		KeepYoungerThan:       o.KeepYoungerThan,
-		KeepTagRevisions:      o.KeepTagRevisions,
-		PruneOverSizeLimit:    o.PruneOverSizeLimit,
-		AllImages:             o.AllImages,
-		Images:                allImages,
-		ImageWatcher:          imageWatcher,
-		Streams:               allStreams,
-		StreamWatcher:         imageStreamWatcher,
-		Pods:                  allPods,
-		RCs:                   allRCs,
-		BCs:                   allBCs,
-		Builds:                allBuilds,
-		DSs:                   allDSs,
-		Deployments:           allDeployments,
-		DCs:                   allDCs,
-		RSs:                   allRSs,
-		LimitRanges:           limitRangesMap,
-		DryRun:                o.Confirm == false,
-		RegistryClientFactory: registryClientFactory,
-		RegistryURL:           registryURL,
-		PruneRegistry:         o.PruneRegistry,
-		IgnoreInvalidRefs:     o.IgnoreInvalidRefs,
+		KeepYoungerThan:    o.KeepYoungerThan,
+		KeepTagRevisions:   o.KeepTagRevisions,
+		PruneOverSizeLimit: o.PruneOverSizeLimit,
+		AllImages:          o.AllImages,
+		Images:             allImages,
+		Streams:            allStreamsMap,
+		Pods:               allPods,
+		RCs:                allRCs,
+		BCs:                allBCs,
+		Builds:             allBuilds,
+		DSs:                allDSs,
+		Deployments:        allDeployments,
+		DCs:                allDCs,
+		RSs:                allRSs,
+		LimitRanges:        limitRangesMap,
+		DryRun:             o.Confirm == false,
+		PruneRegistry:      o.PruneRegistry,
+		IgnoreInvalidRefs:  o.IgnoreInvalidRefs,
 	}
 	if o.Namespace != metav1.NamespaceAll {
 		options.Namespace = o.Namespace
@@ -505,27 +480,18 @@ func (o PruneImagesOptions) Run() error {
 		return fmt.Errorf("failed to build graph - no changes made")
 	}
 
-	imagePrunerFactory := func() (imageprune.ImageDeleter, error) {
-		return &describingImageDeleter{w: o.Out, errOut: o.ErrOut}, nil
-	}
 	imageStreamDeleter := &describingImageStreamDeleter{w: o.Out, errOut: o.ErrOut}
 	layerLinkDeleter := &describingLayerLinkDeleter{w: o.Out, errOut: o.ErrOut}
-	blobDeleter := &describingBlobDeleter{w: o.Out, errOut: o.ErrOut}
 	manifestDeleter := &describingManifestDeleter{w: o.Out, errOut: o.ErrOut}
+	blobDeleter := &describingBlobDeleter{w: o.Out, errOut: o.ErrOut}
+	imageDeleter := &describingImageDeleter{w: o.Out, errOut: o.ErrOut}
 
 	if o.Confirm {
 		imageStreamDeleter.delegate = imageprune.NewImageStreamDeleter(o.ImageClient)
-		layerLinkDeleter.delegate = imageprune.NewLayerLinkDeleter()
-		blobDeleter.delegate = imageprune.NewBlobDeleter()
-		manifestDeleter.delegate = imageprune.NewManifestDeleter()
-
-		imagePrunerFactory = func() (imageprune.ImageDeleter, error) {
-			imageClient, err := o.ImageClientFactory()
-			if err != nil {
-				return nil, err
-			}
-			return imageprune.NewImageDeleter(imageClient), nil
-		}
+		layerLinkDeleter.delegate = imageprune.NewLayerLinkDeleter(registryClient, registryURL)
+		manifestDeleter.delegate = imageprune.NewManifestDeleter(registryClient, registryURL)
+		blobDeleter.delegate = imageprune.NewBlobDeleter(registryClient, registryURL)
+		imageDeleter.delegate = imageprune.NewImageDeleter(o.ImageClient)
 	} else {
 		fmt.Fprintln(o.ErrOut, "Dry run enabled - no modifications will be made. Add --confirm to remove images")
 	}
@@ -534,99 +500,15 @@ func (o PruneImagesOptions) Run() error {
 		fmt.Fprintln(o.Out, "Only API objects will be removed.  No modifications to the image registry will be made.")
 	}
 
-	deletions, failures := pruner.Prune(
-		imagePrunerFactory,
+	stats, errs := pruner.Prune(
 		imageStreamDeleter,
 		layerLinkDeleter,
-		blobDeleter,
 		manifestDeleter,
+		blobDeleter,
+		imageDeleter,
 	)
-	printSummary(o.Out, deletions, failures)
-	if len(failures) == 1 {
-		return &failures[0]
-	}
-	if len(failures) > 0 {
-		return fmt.Errorf("failed")
-	}
-	return nil
-}
-
-func printSummary(out io.Writer, deletions []imageprune.Deletion, failures []imageprune.Failure) {
-	// TODO: for higher verbosity, sum by error type
-	if len(failures) == 0 {
-		fmt.Fprintf(out, "Deleted %d objects.\n", len(deletions))
-	} else {
-		fmt.Fprintf(out, "Deleted %d objects out of %d.\n", len(deletions), len(deletions)+len(failures))
-		fmt.Fprintf(out, "Failed to delete %d objects.\n", len(failures))
-	}
-	if !klog.V(2).Enabled() {
-		return
-	}
-
-	fmt.Fprintf(out, "\n")
-
-	w := tabwriter.NewWriter(out, 10, 4, 3, ' ', 0)
-	defer w.Flush()
-
-	buckets := make(map[string]struct{ deletions, failures, total uint64 })
-	count := func(node gonum.Node, parent gonum.Node, deletions uint64, failures uint64) {
-		bucket := ""
-		switch t := node.(type) {
-		case *imagegraph.ImageStreamNode:
-			bucket = "is"
-		case *imagegraph.ImageNode:
-			bucket = "image"
-		case *imagegraph.ImageComponentNode:
-			bucket = "component/" + string(t.Type)
-			if parent == nil {
-				bucket = "blob"
-			}
-		default:
-			bucket = fmt.Sprintf("other/%T", t)
-		}
-		c := buckets[bucket]
-		c.deletions += deletions
-		c.failures += failures
-		c.total += deletions + failures
-		buckets[bucket] = c
-	}
-
-	for _, d := range deletions {
-		count(d.Node, d.Parent, 1, 0)
-	}
-	for _, f := range failures {
-		count(f.Node, f.Parent, 0, 1)
-	}
-
-	printAndPopBucket := func(name string, desc string) {
-		cnt, ok := buckets[name]
-		if ok {
-			delete(buckets, name)
-		}
-		if cnt.total == 0 {
-			return
-		}
-		fmt.Fprintf(w, "%s:\t%d\n", desc, cnt.deletions)
-		if cnt.failures == 0 {
-			return
-		}
-		// add padding before failures to make it appear subordinate to the line above
-		for i := 0; i < len(desc)-len("failures"); i++ {
-			fmt.Fprintf(w, " ")
-		}
-		fmt.Fprintf(w, "failures:\t%d\n", cnt.failures)
-	}
-
-	printAndPopBucket("is", "Image Stream updates")
-	printAndPopBucket("image", "Image deletions")
-	printAndPopBucket("blob", "Blob deletions")
-	printAndPopBucket("component/"+string(imagegraph.ImageComponentTypeManifest), "Image Manifest Link deletions")
-	printAndPopBucket("component/"+string(imagegraph.ImageComponentTypeConfig), "Image Config Link deletions")
-	printAndPopBucket("component/"+string(imagegraph.ImageComponentTypeLayer), "Image Layer Link deletions")
-
-	for name := range buckets {
-		printAndPopBucket(name, fmt.Sprintf("%s deletions", strings.TrimPrefix(name, "other/")))
-	}
+	fmt.Fprintf(o.Out, "Summary: %s\n", stats)
+	return errs
 }
 
 func (o *PruneImagesOptions) printGraphBuildErrors(errs kutilerrors.Aggregate) {
@@ -662,24 +544,29 @@ func (o *PruneImagesOptions) printGraphBuildErrors(errs kutilerrors.Aggregate) {
 // describingImageStreamDeleter prints information about each image stream update.
 // If a delegate exists, its DeleteImageStream function is invoked prior to returning.
 type describingImageStreamDeleter struct {
-	w             io.Writer
-	delegate      imageprune.ImageStreamDeleter
-	headerPrinted bool
-	errOut        io.Writer
+	w        io.Writer
+	delegate imageprune.ImageStreamDeleter
+	errOut   io.Writer
 }
 
 var _ imageprune.ImageStreamDeleter = &describingImageStreamDeleter{}
 
 func (p *describingImageStreamDeleter) GetImageStream(stream *imagev1.ImageStream) (*imagev1.ImageStream, error) {
-	return stream, nil
-}
-
-func (p *describingImageStreamDeleter) UpdateImageStream(stream *imagev1.ImageStream) (*imagev1.ImageStream, error) {
 	if p.delegate == nil {
 		return stream, nil
 	}
 
-	updatedStream, err := p.delegate.UpdateImageStream(stream)
+	return p.delegate.GetImageStream(stream)
+}
+
+func (p *describingImageStreamDeleter) UpdateImageStream(stream *imagev1.ImageStream, deletedItems int) (*imagev1.ImageStream, error) {
+	fmt.Fprintf(p.w, "Deleting %d items from image stream %s/%s\n", deletedItems, stream.Namespace, stream.Name)
+
+	if p.delegate == nil {
+		return stream, nil
+	}
+
+	updatedStream, err := p.delegate.UpdateImageStream(stream, deletedItems)
 	if err != nil {
 		fmt.Fprintf(p.errOut, "error updating image stream %s/%s to remove image references: %v\n", stream.Namespace, stream.Name, err)
 	}
@@ -687,22 +574,12 @@ func (p *describingImageStreamDeleter) UpdateImageStream(stream *imagev1.ImageSt
 	return updatedStream, err
 }
 
-func (p *describingImageStreamDeleter) NotifyImageStreamPrune(stream *imagev1.ImageStream, updatedTags []string, deletedTags []string) {
-	if len(updatedTags) > 0 {
-		fmt.Fprintf(p.w, "Updating istags %s/%s: %s\n", stream.Namespace, stream.Name, strings.Join(updatedTags, ", "))
-	}
-	if len(deletedTags) > 0 {
-		fmt.Fprintf(p.w, "Deleting istags %s/%s: %s\n", stream.Namespace, stream.Name, strings.Join(deletedTags, ", "))
-	}
-}
-
 // describingImageDeleter prints information about each image being deleted.
 // If a delegate exists, its DeleteImage function is invoked prior to returning.
 type describingImageDeleter struct {
-	w             io.Writer
-	delegate      imageprune.ImageDeleter
-	headerPrinted bool
-	errOut        io.Writer
+	w        io.Writer
+	delegate imageprune.ImageDeleter
+	errOut   io.Writer
 }
 
 var _ imageprune.ImageDeleter = &describingImageDeleter{}
@@ -725,22 +602,21 @@ func (p *describingImageDeleter) DeleteImage(image *imagev1.Image) error {
 // describingLayerLinkDeleter prints information about each repo layer link being deleted. If a delegate
 // exists, its DeleteLayerLink function is invoked prior to returning.
 type describingLayerLinkDeleter struct {
-	w             io.Writer
-	delegate      imageprune.LayerLinkDeleter
-	headerPrinted bool
-	errOut        io.Writer
+	w        io.Writer
+	delegate imageprune.LayerLinkDeleter
+	errOut   io.Writer
 }
 
 var _ imageprune.LayerLinkDeleter = &describingLayerLinkDeleter{}
 
-func (p *describingLayerLinkDeleter) DeleteLayerLink(registryClient *http.Client, registryURL *url.URL, repo, name string) error {
+func (p *describingLayerLinkDeleter) DeleteLayerLink(repo, name string) error {
 	fmt.Fprintf(p.w, "Deleting layer link %s in repository %s\n", name, repo)
 
 	if p.delegate == nil {
 		return nil
 	}
 
-	err := p.delegate.DeleteLayerLink(registryClient, registryURL, repo, name)
+	err := p.delegate.DeleteLayerLink(repo, name)
 	if err != nil {
 		fmt.Fprintf(p.errOut, "error deleting repository %s layer link %s from the registry: %v\n", repo, name, err)
 	}
@@ -751,22 +627,21 @@ func (p *describingLayerLinkDeleter) DeleteLayerLink(registryClient *http.Client
 // describingBlobDeleter prints information about each blob being deleted. If a
 // delegate exists, its DeleteBlob function is invoked prior to returning.
 type describingBlobDeleter struct {
-	w             io.Writer
-	delegate      imageprune.BlobDeleter
-	headerPrinted bool
-	errOut        io.Writer
+	w        io.Writer
+	delegate imageprune.BlobDeleter
+	errOut   io.Writer
 }
 
 var _ imageprune.BlobDeleter = &describingBlobDeleter{}
 
-func (p *describingBlobDeleter) DeleteBlob(registryClient *http.Client, registryURL *url.URL, layer string) error {
+func (p *describingBlobDeleter) DeleteBlob(layer string) error {
 	fmt.Fprintf(p.w, "Deleting blob %s\n", layer)
 
 	if p.delegate == nil {
 		return nil
 	}
 
-	err := p.delegate.DeleteBlob(registryClient, registryURL, layer)
+	err := p.delegate.DeleteBlob(layer)
 	if err != nil {
 		fmt.Fprintf(p.errOut, "error deleting blob %s from the registry: %v\n", layer, err)
 	}
@@ -778,22 +653,21 @@ func (p *describingBlobDeleter) DeleteBlob(registryClient *http.Client, registry
 // deleted. If a delegate exists, its DeleteManifest function is invoked prior
 // to returning.
 type describingManifestDeleter struct {
-	w             io.Writer
-	delegate      imageprune.ManifestDeleter
-	headerPrinted bool
-	errOut        io.Writer
+	w        io.Writer
+	delegate imageprune.ManifestDeleter
+	errOut   io.Writer
 }
 
 var _ imageprune.ManifestDeleter = &describingManifestDeleter{}
 
-func (p *describingManifestDeleter) DeleteManifest(registryClient *http.Client, registryURL *url.URL, repo, manifest string) error {
+func (p *describingManifestDeleter) DeleteManifest(repo, manifest string) error {
 	fmt.Fprintf(p.w, "Deleting manifest link %s in repository %s\n", manifest, repo)
 
 	if p.delegate == nil {
 		return nil
 	}
 
-	err := p.delegate.DeleteManifest(registryClient, registryURL, repo, manifest)
+	err := p.delegate.DeleteManifest(repo, manifest)
 	if err != nil {
 		fmt.Fprintf(p.errOut, "error deleting manifest link %s from repository %s: %v\n", manifest, repo, err)
 	}

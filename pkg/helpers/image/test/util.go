@@ -36,13 +36,6 @@ const (
 	managedByOpenShiftAnnotation = "openshift.io/image.managed"
 )
 
-// ImageList turns the given images into ImageList.
-func ImageList(images ...imagev1.Image) imagev1.ImageList {
-	return imagev1.ImageList{
-		Items: images,
-	}
-}
-
 // AgedImage creates a test image with specified age.
 func AgedImage(id, ref string, ageInMinutes int64, layers ...string) imagev1.Image {
 	return CreatedImage(id, ref, time.Now().Add(time.Duration(ageInMinutes)*time.Minute*-1), layers...)
@@ -162,6 +155,7 @@ func PodSpecInternal(containerImages ...string) corev1.PodSpec {
 	}
 	for _, image := range containerImages {
 		container := corev1.Container{
+			Name:  "app",
 			Image: image,
 		}
 		spec.Containers = append(spec.Containers, container)
@@ -181,13 +175,6 @@ func PodSpec(containerImages ...string) corev1.PodSpec {
 		spec.Containers = append(spec.Containers, container)
 	}
 	return spec
-}
-
-// StreamList turns the given streams into StreamList.
-func StreamList(streams ...imagev1.ImageStream) imagev1.ImageStreamList {
-	return imagev1.ImageStreamList{
-		Items: streams,
-	}
 }
 
 // Stream creates and returns a test ImageStream object 1 minute old

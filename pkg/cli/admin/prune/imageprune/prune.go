@@ -3,18 +3,16 @@ package imageprune
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
-	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
-	gonum "github.com/gonum/graph"
 	"k8s.io/klog/v2"
 
 	kappsv1 "k8s.io/api/apps/v1"
@@ -23,9 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
 
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -36,48 +31,128 @@ import (
 	"github.com/openshift/library-go/pkg/build/buildutil"
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	"github.com/openshift/library-go/pkg/image/reference"
-	appsgraph "github.com/openshift/oc/pkg/helpers/graph/appsgraph/nodes"
-	buildgraph "github.com/openshift/oc/pkg/helpers/graph/buildgraph/nodes"
-	"github.com/openshift/oc/pkg/helpers/graph/genericgraph"
-	imagegraph "github.com/openshift/oc/pkg/helpers/graph/imagegraph/nodes"
-	kubegraph "github.com/openshift/oc/pkg/helpers/graph/kubegraph/nodes"
 )
 
-// TODO these edges should probably have an `Add***Edges` method in images/graph and be moved there
-const (
-	// ReferencedImageEdgeKind defines a "strong" edge where the tail is an
-	// ImageNode, with strong indicating that the ImageNode tail is not a
-	// candidate for pruning.
-	ReferencedImageEdgeKind = "ReferencedImage"
-	// WeakReferencedImageEdgeKind defines a "weak" edge where the tail is
-	// an ImageNode, with weak indicating that this particular edge does
-	// not keep an ImageNode from being a candidate for pruning.
-	WeakReferencedImageEdgeKind = "WeakReferencedImage"
+const defaultPruneImageWorkerCount = 5
 
-	// ReferencedImageConfigEdgeKind defines an edge from an ImageStreamNode or an
-	// ImageNode to an ImageComponentNode.
-	ReferencedImageConfigEdgeKind = "ReferencedImageConfig"
+type imageStreamTagReference struct {
+	Namespace string
+	Name      string
+	Tag       string
+}
 
-	// ReferencedImageLayerEdgeKind defines an edge from an ImageStreamNode or an
-	// ImageNode to an ImageComponentNode.
-	ReferencedImageLayerEdgeKind = "ReferencedImageLayer"
+func (r imageStreamTagReference) String() string {
+	return fmt.Sprintf("%s/%s:%s", r.Namespace, r.Name, r.Tag)
+}
 
-	// ReferencedImageManifestEdgeKind defines an edge from an ImageStreamNode or an
-	// ImageNode to an ImageComponentNode.
-	ReferencedImageManifestEdgeKind = "ReferencedImageManifest"
+type imageStreamImageReference struct {
+	Namespace string
+	Name      string
+	Digest    string
+}
 
-	defaultPruneImageWorkerCount = 5
-)
+func (r imageStreamImageReference) String() string {
+	return fmt.Sprintf("%s/%s@%s", r.Namespace, r.Name, r.Digest)
+}
 
-// RegistryClientFactoryFunc is a factory function returning a registry client for use in a worker.
-type RegistryClientFactoryFunc func() (*http.Client, error)
+type resourceReference struct {
+	Resource  string
+	Namespace string
+	Name      string
+}
 
-//ImagePrunerFactoryFunc is a factory function returning an image deleter for use in a worker.
-type ImagePrunerFactoryFunc func() (ImageDeleter, error)
+func (r resourceReference) String() string {
+	if r.Namespace == "" {
+		return fmt.Sprintf("%s/%s", r.Resource, r.Name)
+	}
+	return fmt.Sprintf("%s/%s namespace=%s", r.Resource, r.Name, r.Namespace)
+}
 
-// FakeRegistryClientFactory is a registry client factory creating no client at all. Useful for dry run.
-func FakeRegistryClientFactory() (*http.Client, error) {
-	return nil, nil
+func referencesSample(refs []resourceReference) string {
+	if len(refs) == 0 {
+		return ""
+	}
+
+	result := ""
+	suffix := ""
+	limit := len(refs)
+	if limit >= 5 {
+		limit = 3
+		suffix = fmt.Sprintf(", and %d more", len(refs)-limit)
+	}
+	result += refs[0].String()
+	for i := 1; i < limit; i++ {
+		result += ", "
+		result += refs[i].String()
+	}
+	return result + suffix
+}
+
+type PruneStats struct {
+	mutex                      sync.Mutex
+	DeletedImages              int
+	DeletedImageStreamTagItems int
+	UpdatedImageStreams        int
+	DeletedLayerLinks          int
+	DeletedManifestLinks       int
+	DeletedBlobs               int
+}
+
+func (s *PruneStats) Copy() *PruneStats {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return &PruneStats{
+		DeletedImages:              s.DeletedImages,
+		DeletedImageStreamTagItems: s.DeletedImageStreamTagItems,
+		UpdatedImageStreams:        s.UpdatedImageStreams,
+		DeletedLayerLinks:          s.DeletedLayerLinks,
+		DeletedManifestLinks:       s.DeletedManifestLinks,
+		DeletedBlobs:               s.DeletedBlobs,
+	}
+}
+
+func (s *PruneStats) Add(other *PruneStats) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	other = other.Copy() // make a local copy to avoid races
+
+	s.DeletedImages += other.DeletedImages
+	s.DeletedImageStreamTagItems += other.DeletedImageStreamTagItems
+	s.UpdatedImageStreams += other.UpdatedImageStreams
+	s.DeletedLayerLinks += other.DeletedLayerLinks
+	s.DeletedManifestLinks += other.DeletedManifestLinks
+	s.DeletedBlobs += other.DeletedBlobs
+}
+
+func (s *PruneStats) String() string {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	var parts []string
+	if s.DeletedImages != 0 {
+		parts = append(parts, fmt.Sprintf("deleted %d image object(s)", s.DeletedImages))
+	}
+	if s.DeletedImageStreamTagItems != 0 {
+		parts = append(parts, fmt.Sprintf("deleted %d image stream tag item(s)", s.DeletedImageStreamTagItems))
+	}
+	if s.UpdatedImageStreams != 0 {
+		parts = append(parts, fmt.Sprintf("updated %d image stream(s)", s.UpdatedImageStreams))
+	}
+	if s.DeletedLayerLinks != 0 {
+		parts = append(parts, fmt.Sprintf("deleted %d layer link(s)", s.DeletedLayerLinks))
+	}
+	if s.DeletedManifestLinks != 0 {
+		parts = append(parts, fmt.Sprintf("deleted %d manifest link(s)", s.DeletedManifestLinks))
+	}
+	if s.DeletedBlobs != 0 {
+		parts = append(parts, fmt.Sprintf("deleted %d blob(s)", s.DeletedBlobs))
+	}
+	if len(parts) == 0 {
+		return "deleted 0 objects"
+	}
+	return strings.Join(parts, ", ")
 }
 
 // pruneAlgorithm contains the various settings to use when evaluating images
@@ -101,25 +176,23 @@ type ImageDeleter interface {
 type ImageStreamDeleter interface {
 	// GetImageStream returns a fresh copy of an image stream.
 	GetImageStream(stream *imagev1.ImageStream) (*imagev1.ImageStream, error)
-	// UpdateImageStream removes all references to the image from the image
-	// stream's status.tags. The updated image stream is returned.
-	UpdateImageStream(stream *imagev1.ImageStream) (*imagev1.ImageStream, error)
-	// NotifyImageStreamPrune shows notification about updated image stream.
-	NotifyImageStreamPrune(stream *imagev1.ImageStream, updatedTags []string, deletedTags []string)
+	// UpdateImageStream updates the image stream's status. The updated image
+	// stream is returned.
+	UpdateImageStream(stream *imagev1.ImageStream, deletedItems int) (*imagev1.ImageStream, error)
 }
 
 // BlobDeleter knows how to delete a blob from the container image registry.
 type BlobDeleter interface {
 	// DeleteBlob uses registryClient to ask the registry at registryURL
 	// to remove the blob.
-	DeleteBlob(registryClient *http.Client, registryURL *url.URL, blob string) error
+	DeleteBlob(blob string) error
 }
 
 // LayerLinkDeleter knows how to delete a repository layer link from the container image registry.
 type LayerLinkDeleter interface {
 	// DeleteLayerLink uses registryClient to ask the registry at registryURL to
 	// delete the repository layer link.
-	DeleteLayerLink(registryClient *http.Client, registryURL *url.URL, repo, linkName string) error
+	DeleteLayerLink(repo, linkName string) error
 }
 
 // ManifestDeleter knows how to delete image manifest data for a repository from
@@ -127,7 +200,7 @@ type LayerLinkDeleter interface {
 type ManifestDeleter interface {
 	// DeleteManifest uses registryClient to ask the registry at registryURL to
 	// delete the repository's image manifest data.
-	DeleteManifest(registryClient *http.Client, registryURL *url.URL, repo, manifest string) error
+	DeleteManifest(repo, manifest string) error
 }
 
 // PrunerOptions contains the fields used to initialize a new Pruner.
@@ -149,16 +222,12 @@ type PrunerOptions struct {
 	PruneRegistry *bool
 	// Namespace to be pruned, if specified it should never remove Images.
 	Namespace string
-	// Images is the entire list of images in OpenShift. An image must be in this
-	// list to be a candidate for pruning.
-	Images *imagev1.ImageList
-	// ImageWatcher watches for image changes.
-	ImageWatcher watch.Interface
+	// Images is the entire list of images in OpenShift indexed by their name.
+	// An image must be in this list to be a candidate for pruning.
+	Images map[string]*imagev1.Image
 	// Streams is the entire list of image streams across all namespaces in the
-	// cluster.
-	Streams *imagev1.ImageStreamList
-	// StreamWatcher watches for stream changes.
-	StreamWatcher watch.Interface
+	// cluster indexed by "namespace/name" strings.
+	Streams map[string]*imagev1.ImageStream
 	// Pods is the entire list of pods across all namespaces in the cluster.
 	Pods *corev1.PodList
 	// RCs is the entire list of replication controllers across all namespaces in
@@ -182,10 +251,6 @@ type PrunerOptions struct {
 	// DryRun indicates that no changes will be made to the cluster and nothing
 	// will be removed.
 	DryRun bool
-	// RegistryClient is the http.Client to use when contacting the registry.
-	RegistryClientFactory RegistryClientFactoryFunc
-	// RegistryURL is the URL of the integrated container image registry.
-	RegistryURL *url.URL
 	// IgnoreInvalidRefs indicates that all invalid references should be ignored.
 	IgnoreInvalidRefs bool
 	// NumWorkers is a desired number of workers concurrently handling image prune jobs. If less than 1, the
@@ -195,34 +260,30 @@ type PrunerOptions struct {
 
 // Pruner knows how to prune istags, images, manifest, layers, image configs and blobs.
 type Pruner interface {
-	// Prune uses imagePruner, streamPruner, layerLinkPruner, blobPruner, and
-	// manifestPruner to remove images that have been identified as candidates
-	// for pruning based on the Pruner's internal pruning algorithm.
+	// Prune uses deleters to remove images that have been identified as
+	// candidates for pruning based on the Pruner's internal pruning algorithm.
 	// Please see NewPruner for details on the algorithm.
 	Prune(
-		imagePrunerFactory ImagePrunerFactoryFunc,
-		streamPruner ImageStreamDeleter,
-		layerLinkPruner LayerLinkDeleter,
-		blobPruner BlobDeleter,
-		manifestPruner ManifestDeleter,
-	) (deletions []Deletion, failures []Failure)
+		imageStreamDeleter ImageStreamDeleter,
+		layerLinkDeleter LayerLinkDeleter,
+		manifestDeleter ManifestDeleter,
+		blobDeleter BlobDeleter,
+		imageDeleter ImageDeleter,
+	) (*PruneStats, kerrors.Aggregate)
 }
 
 // pruner is an object that knows how to prune a data set
 type pruner struct {
-	g                     genericgraph.Graph
-	algorithm             pruneAlgorithm
-	ignoreInvalidRefs     bool
-	registryClientFactory RegistryClientFactoryFunc
-	registryURL           *url.URL
-	imageWatcher          watch.Interface
-	imageStreamWatcher    watch.Interface
-	imageStreamLimits     map[string][]*corev1.LimitRange
-	// sorted queue of images to prune; nil stands for empty queue
-	queue *nodeItem
-	// contains prunable images removed from queue that are currently being processed
-	processedImages map[*imagegraph.ImageNode]*Job
-	numWorkers      int
+	usedTags   map[imageStreamTagReference][]resourceReference
+	usedImages map[imageStreamImageReference][]resourceReference
+
+	images       map[string]*imagev1.Image
+	imageStreams map[string]*imagev1.ImageStream
+
+	algorithm         pruneAlgorithm
+	ignoreInvalidRefs bool
+	imageStreamLimits map[string][]*corev1.LimitRange
+	numWorkers        int
 }
 
 var _ Pruner = &pruner{}
@@ -299,46 +360,338 @@ func NewPruner(options PrunerOptions) (Pruner, kerrors.Aggregate) {
 	algorithm.namespace = options.Namespace
 
 	p := &pruner{
-		algorithm:             algorithm,
-		ignoreInvalidRefs:     options.IgnoreInvalidRefs,
-		registryClientFactory: options.RegistryClientFactory,
-		registryURL:           options.RegistryURL,
-		processedImages:       make(map[*imagegraph.ImageNode]*Job),
-		imageWatcher:          options.ImageWatcher,
-		imageStreamWatcher:    options.StreamWatcher,
-		imageStreamLimits:     options.LimitRanges,
-		numWorkers:            options.NumWorkers,
+		images:            options.Images,
+		imageStreams:      options.Streams,
+		algorithm:         algorithm,
+		ignoreInvalidRefs: options.IgnoreInvalidRefs,
+		imageStreamLimits: options.LimitRanges,
+		numWorkers:        options.NumWorkers,
 	}
 
 	if p.numWorkers < 1 {
 		p.numWorkers = defaultPruneImageWorkerCount
 	}
 
-	if err := p.buildGraph(options); err != nil {
+	for _, image := range p.images {
+		if err := imageutil.ImageWithMetadata(image); err != nil {
+			return nil, kerrors.NewAggregate([]error{
+				fmt.Errorf("failed to read image metadata for %s: %v", image.Name, err),
+			})
+		}
+	}
+
+	if err := p.analyzeImageStreamsReferences(options); err != nil {
 		return nil, err
 	}
 
 	return p, nil
 }
 
-// buildGraph builds a graph
-func (p *pruner) buildGraph(options PrunerOptions) kerrors.Aggregate {
-	p.g = genericgraph.New()
+func (p *pruner) analyzeImageStreamsReferences(options PrunerOptions) kerrors.Aggregate {
+	p.usedTags = map[imageStreamTagReference][]resourceReference{}
+	p.usedImages = map[imageStreamImageReference][]resourceReference{}
 
 	var errs []error
-
-	errs = append(errs, p.addImagesToGraph(options.Images)...)
-	errs = append(errs, p.addImageStreamsToGraph(options.Streams, options.LimitRanges)...)
-	errs = append(errs, p.addPodsToGraph(options.Pods)...)
-	errs = append(errs, p.addReplicationControllersToGraph(options.RCs)...)
-	errs = append(errs, p.addBuildConfigsToGraph(options.BCs)...)
-	errs = append(errs, p.addBuildsToGraph(options.Builds)...)
-	errs = append(errs, p.addDaemonSetsToGraph(options.DSs)...)
-	errs = append(errs, p.addDeploymentsToGraph(options.Deployments)...)
-	errs = append(errs, p.addDeploymentConfigsToGraph(options.DCs)...)
-	errs = append(errs, p.addReplicaSetsToGraph(options.RSs)...)
-
+	errs = append(errs, p.analyzeReferencesFromPods(options.Pods)...)
+	errs = append(errs, p.analyzeReferencesFromReplicationControllers(options.RCs)...)
+	errs = append(errs, p.analyzeReferencesFromDeploymentConfigs(options.DCs)...)
+	errs = append(errs, p.analyzeReferencesFromReplicaSets(options.RSs)...)
+	errs = append(errs, p.analyzeReferencesFromDeployments(options.Deployments)...)
+	errs = append(errs, p.analyzeReferencesFromDaemonSets(options.DSs)...)
+	errs = append(errs, p.analyzeReferencesFromBuilds(options.Builds)...)
+	errs = append(errs, p.analyzeReferencesFromBuildConfigs(options.BCs)...)
 	return kerrors.NewAggregate(errs)
+}
+
+// analyzeImageReference analyzes which ImageStreamImage or ImageStreamTag is
+// referenced by imageReference, and associates it with referrer.
+func (p *pruner) analyzeImageReference(referrer resourceReference, subreferrer string, imageReference string) error {
+	logPrefix := subreferrer
+	if logPrefix != "" {
+		logPrefix += ": "
+	}
+
+	ref, err := reference.Parse(imageReference)
+	if err != nil {
+		err = newErrBadReferenceTo(referrer, subreferrer, "image", imageReference, err)
+		if !p.ignoreInvalidRefs {
+			return err
+		}
+		klog.V(1).Infof("%s - skipping", err)
+		return nil
+	}
+
+	if ref.Registry == "" || ref.Namespace == "" || strings.Index(ref.Name, "/") != -1 {
+		klog.V(4).Infof("%s: %simage reference %s does not match hostname/namespace/name pattern - skipping", referrer, logPrefix, imageReference)
+		return nil
+	}
+
+	if len(ref.ID) == 0 {
+		// Attempt to dereference istag. Since we cannot be sure whether the reference refers to the
+		// integrated registry or not, we ignore the host part completely. As a consequence, we may keep
+		// image otherwise sentenced for a removal just because its pull spec accidentally matches one of
+		// our imagestreamtags.
+
+		// set the tag if empty
+		ref = ref.DockerClientDefaults()
+
+		istag := imageStreamTagReference{
+			Namespace: ref.Namespace,
+			Name:      ref.Name,
+			Tag:       ref.Tag,
+		}
+		klog.V(4).Infof("%s: %sgot reference to ImageStreamTag %s (registry name is %s)", referrer, logPrefix, istag, ref.Registry)
+		p.usedTags[istag] = append(p.usedTags[istag], referrer)
+		return nil
+	}
+
+	isimage := imageStreamImageReference{
+		Namespace: ref.Namespace,
+		Name:      ref.Name,
+		Digest:    ref.ID,
+	}
+	klog.V(4).Infof("%s: %sgot reference to ImageStreamImage %s (registry name is %s)", referrer, logPrefix, isimage, ref.Registry)
+	p.usedImages[isimage] = append(p.usedImages[isimage], referrer)
+	return nil
+}
+
+// analyzeReferencesFromPodSpec extracts information about image streams that
+// are specified by referrer's pod spec's containers.
+func (p *pruner) analyzeReferencesFromPodSpec(referrer resourceReference, spec *corev1.PodSpec) []error {
+	var errs []error
+
+	for _, container := range spec.InitContainers {
+		if len(strings.TrimSpace(container.Image)) == 0 {
+			klog.V(4).Infof("%s: init container %s: ignoring container because it has no reference to image", referrer, container.Name)
+			continue
+		}
+
+		err := p.analyzeImageReference(referrer, fmt.Sprintf("init container %s", container.Name), container.Image)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	for _, container := range spec.Containers {
+		if len(strings.TrimSpace(container.Image)) == 0 {
+			klog.V(4).Infof("%s: container %s: ignoring container because it has no reference to image", referrer, container.Name)
+			continue
+		}
+
+		err := p.analyzeImageReference(referrer, fmt.Sprintf("container %s", container.Name), container.Image)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
+}
+
+// analyzeReferencesFromBuildStrategy extracts information about image streams
+// that are used by referrer's build strategy.
+func (p *pruner) analyzeReferencesFromBuildStrategy(referrer resourceReference, strategy buildv1.BuildStrategy) []error {
+	from := buildutil.GetInputReference(strategy)
+	if from == nil {
+		klog.V(4).Infof("%s: unable to determine 'from' reference - skipping", referrer)
+		return nil
+	}
+
+	switch from.Kind {
+	case "DockerImage":
+		if len(strings.TrimSpace(from.Name)) == 0 {
+			klog.V(4).Infof("%s: ignoring build strategy because it has no reference to image", referrer)
+			return nil
+		}
+
+		err := p.analyzeImageReference(referrer, "", from.Name)
+		if err != nil {
+			return []error{err}
+		}
+
+	case "ImageStreamImage":
+		name, id, err := imageutil.ParseImageStreamImageName(from.Name)
+		if err != nil {
+			if !p.ignoreInvalidRefs {
+				return []error{newErrBadReferenceTo(referrer, "", "ImageStreamImage", from.Name, err)}
+			}
+			klog.V(1).Infof("%s: failed to parse ImageStreamImage name %q: %v - skipping", referrer, from.Name, err)
+			return nil
+		}
+
+		isimage := imageStreamImageReference{
+			Namespace: from.Namespace,
+			Name:      name,
+			Digest:    id,
+		}
+		if isimage.Namespace == "" {
+			isimage.Namespace = referrer.Namespace
+		}
+		klog.V(4).Infof("%s: got reference to ImageStreamImage %s", referrer, isimage)
+		p.usedImages[isimage] = append(p.usedImages[isimage], referrer)
+
+	case "ImageStreamTag":
+		name, tag, err := imageutil.ParseImageStreamTagName(from.Name)
+		if err != nil {
+			if !p.ignoreInvalidRefs {
+				return []error{newErrBadReferenceTo(referrer, "", "ImageStreamTag", from.Name, err)}
+			}
+			klog.V(1).Infof("%s: failed to parse ImageStreamTag name %q: %v", referrer, from.Name, err)
+			return nil
+		}
+
+		istag := imageStreamTagReference{
+			Namespace: from.Namespace,
+			Name:      name,
+			Tag:       tag,
+		}
+		if istag.Namespace == "" {
+			istag.Namespace = referrer.Namespace
+		}
+		klog.V(4).Infof("%s: got reference to ImageStreamTag %s", referrer, istag)
+		p.usedTags[istag] = append(p.usedTags[istag], referrer)
+
+	default:
+		klog.Warningf("%s: ignoring unrecognized source location %#v", referrer, from)
+	}
+
+	return nil
+}
+
+// analyzeReferencesFromPods finds references to imagestreams from pods.
+func (p *pruner) analyzeReferencesFromPods(pods *corev1.PodList) []error {
+	var errs []error
+	for _, pod := range pods.Items {
+		ref := resourceReference{
+			Resource:  "pod",
+			Namespace: pod.Namespace,
+			Name:      pod.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+
+		// A pod is only *excluded* from being added to the graph if its phase is not
+		// pending or running. Additionally, it has to be at least as old as the minimum
+		// age threshold defined by the algorithm.
+		if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
+			if pod.CreationTimestamp.Time.Before(p.algorithm.keepYoungerThan) {
+				klog.V(4).Infof("%s: ignoring pod because it's not running nor pending and is too old", ref)
+				continue
+			}
+		}
+
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &pod.Spec)...)
+	}
+	return errs
+}
+
+// analyzeReferencesFromReplicationControllers finds references to imagestreams
+// from replication controllers.
+func (p *pruner) analyzeReferencesFromReplicationControllers(rcs *corev1.ReplicationControllerList) []error {
+	var errs []error
+	for _, rc := range rcs.Items {
+		ref := resourceReference{
+			Resource:  "replicationcontroller",
+			Namespace: rc.Namespace,
+			Name:      rc.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &rc.Spec.Template.Spec)...)
+	}
+	return errs
+}
+
+// analyzeReferencesFromDeploymentConfigs finds references to imagestreams from
+// deployment configs.
+func (p *pruner) analyzeReferencesFromDeploymentConfigs(dcs *appsv1.DeploymentConfigList) []error {
+	var errs []error
+	for _, dc := range dcs.Items {
+		ref := resourceReference{
+			Resource:  "deploymentconfig",
+			Namespace: dc.Namespace,
+			Name:      dc.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &dc.Spec.Template.Spec)...)
+	}
+	return errs
+}
+
+// analyzeReferencesFromReplicaSets finds references to imagestreams from
+// replica sets.
+func (p *pruner) analyzeReferencesFromReplicaSets(rss *kappsv1.ReplicaSetList) []error {
+	var errs []error
+	for _, rs := range rss.Items {
+		ref := resourceReference{
+			Resource:  "replicaset",
+			Namespace: rs.Namespace,
+			Name:      rs.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &rs.Spec.Template.Spec)...)
+	}
+	return errs
+}
+
+// analyzeReferencesFromDeployments finds references to imagestreams from
+// deployments.
+func (p *pruner) analyzeReferencesFromDeployments(deploys *kappsv1.DeploymentList) []error {
+	var errs []error
+	for _, deploy := range deploys.Items {
+		ref := resourceReference{
+			Resource:  "deployment",
+			Namespace: deploy.Namespace,
+			Name:      deploy.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &deploy.Spec.Template.Spec)...)
+	}
+	return errs
+}
+
+// analyzeReferencesFromDaemonSets finds references to imagestreams from daemon
+// sets.
+func (p *pruner) analyzeReferencesFromDaemonSets(dss *kappsv1.DaemonSetList) []error {
+	var errs []error
+	for _, ds := range dss.Items {
+		ref := resourceReference{
+			Resource:  "daemonset",
+			Namespace: ds.Namespace,
+			Name:      ds.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &ds.Spec.Template.Spec)...)
+	}
+	return errs
+}
+
+// analyzeReferencesFromBuilds finds references to imagestreams from builds.
+func (p *pruner) analyzeReferencesFromBuilds(builds *buildv1.BuildList) []error {
+	var errs []error
+	for _, build := range builds.Items {
+		ref := resourceReference{
+			Resource:  "build",
+			Namespace: build.Namespace,
+			Name:      build.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromBuildStrategy(ref, build.Spec.Strategy)...)
+	}
+	return errs
+}
+
+// analyzeReferencesFromBuildConfigs finds references to imagestreams from
+// build configs.
+func (p *pruner) analyzeReferencesFromBuildConfigs(bcs *buildv1.BuildConfigList) []error {
+	var errs []error
+	for _, bc := range bcs.Items {
+		ref := resourceReference{
+			Resource:  "buildconfig",
+			Namespace: bc.Namespace,
+			Name:      bc.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromBuildStrategy(ref, bc.Spec.Strategy)...)
+	}
+	return errs
 }
 
 func getValue(option interface{}) string {
@@ -348,143 +701,6 @@ func getValue(option interface{}) string {
 	return "<nil>"
 }
 
-// addImagesToGraph adds all images, their manifests and their layers to the graph.
-func (p *pruner) addImagesToGraph(images *imagev1.ImageList) []error {
-	var errs []error
-	for i := range images.Items {
-		image := &images.Items[i]
-
-		klog.V(4).Infof("Adding image %q to graph", image.Name)
-		imageNode := imagegraph.EnsureImageNode(p.g, image)
-
-		if err := imageutil.ImageWithMetadata(image); err != nil {
-			klog.V(1).Infof("Failed to read image metadata for image %s: %v", image.Name, err)
-			errs = append(errs, err)
-			continue
-		}
-		dockerImage, ok := image.DockerImageMetadata.Object.(*dockerv10.DockerImage)
-		if !ok {
-			klog.V(1).Infof("Failed to read image metadata for image %s", image.Name)
-			errs = append(errs, fmt.Errorf("Failed to read image metadata for image %s", image.Name))
-			continue
-		}
-		if image.DockerImageManifestMediaType == schema2.MediaTypeManifest && len(dockerImage.ID) > 0 {
-			configName := dockerImage.ID
-			klog.V(4).Infof("Adding image config %q to graph", configName)
-			configNode := imagegraph.EnsureImageComponentConfigNode(p.g, configName)
-			p.g.AddEdge(imageNode, configNode, ReferencedImageConfigEdgeKind)
-		}
-
-		for _, layer := range image.DockerImageLayers {
-			klog.V(4).Infof("Adding image layer %q to graph", layer.Name)
-			layerNode := imagegraph.EnsureImageComponentLayerNode(p.g, layer.Name)
-			p.g.AddEdge(imageNode, layerNode, ReferencedImageLayerEdgeKind)
-		}
-
-		klog.V(4).Infof("Adding image manifest %q to graph", image.Name)
-		manifestNode := imagegraph.EnsureImageComponentManifestNode(p.g, image.Name)
-		p.g.AddEdge(imageNode, manifestNode, ReferencedImageManifestEdgeKind)
-	}
-
-	return errs
-}
-
-// addImageStreamsToGraph adds all the streams to the graph. The most recent n
-// image revisions for a tag will be preserved, where n is specified by the
-// algorithm's keepTagRevisions. Image revisions older than n are candidates
-// for pruning if the image stream's age is at least as old as the minimum
-// threshold in algorithm.  Otherwise, if the image stream is younger than the
-// threshold, all image revisions for that stream are ineligible for pruning.
-// If pruneOverSizeLimit flag is set to true, above does not matter, instead
-// all images size is checked against LimitRanges defined in that same namespace,
-// and whenever its size exceeds the smallest limit in that namespace, it will be
-// considered a candidate for pruning.
-//
-// addImageStreamsToGraph also adds references from each stream to all the
-// layers it references (via each image a stream references).
-func (p *pruner) addImageStreamsToGraph(streams *imagev1.ImageStreamList, limits map[string][]*corev1.LimitRange) []error {
-	for i := range streams.Items {
-		stream := &streams.Items[i]
-
-		klog.V(4).Infof("Examining ImageStream %s", getName(stream))
-
-		// use a weak reference for old image revisions by default
-		oldImageRevisionReferenceKind := WeakReferencedImageEdgeKind
-
-		if !p.algorithm.pruneOverSizeLimit && stream.CreationTimestamp.Time.After(p.algorithm.keepYoungerThan) {
-			// stream's age is below threshold - use a strong reference for old image revisions instead
-			oldImageRevisionReferenceKind = ReferencedImageEdgeKind
-		}
-
-		klog.V(4).Infof("Adding ImageStream %s to graph", getName(stream))
-		isNode := imagegraph.EnsureImageStreamNode(p.g, stream)
-		imageStreamNode := isNode.(*imagegraph.ImageStreamNode)
-
-		for _, tag := range stream.Status.Tags {
-			istNode := imagegraph.EnsureImageStreamTagNode(p.g, makeISTagWithStream(stream, tag.Tag))
-
-			for i, tagEvent := range tag.Items {
-				imageNode := imagegraph.FindImage(p.g, tag.Items[i].Image)
-				if imageNode == nil {
-					klog.V(2).Infof("Unable to find image %q in graph (from tag=%q, revision=%d, dockerImageReference=%s) - skipping",
-						tag.Items[i].Image, tag.Tag, tagEvent.Generation, tag.Items[i].DockerImageReference)
-					continue
-				}
-
-				kind := oldImageRevisionReferenceKind
-				if p.algorithm.pruneOverSizeLimit {
-					if exceedsLimits(stream, imageNode.Image, limits) {
-						kind = WeakReferencedImageEdgeKind
-					} else {
-						kind = ReferencedImageEdgeKind
-					}
-				} else {
-					if i < p.algorithm.keepTagRevisions {
-						kind = ReferencedImageEdgeKind
-					}
-				}
-
-				if i == 0 {
-					klog.V(4).Infof("Adding edge (kind=%s) from %q to %q", kind, istNode.UniqueName(), imageNode.UniqueName())
-					p.g.AddEdge(istNode, imageNode, kind)
-				}
-
-				klog.V(4).Infof("Checking for existing strong reference from stream %s to image %s", getName(stream), imageNode.Image.Name)
-				if edge := p.g.Edge(imageStreamNode, imageNode); edge != nil && p.g.EdgeKinds(edge).Has(ReferencedImageEdgeKind) {
-					klog.V(4).Infof("Strong reference found")
-					continue
-				}
-
-				klog.V(4).Infof("Adding edge (kind=%s) from %q to %q", kind, imageStreamNode.UniqueName(), imageNode.UniqueName())
-				p.g.AddEdge(imageStreamNode, imageNode, kind)
-
-				klog.V(4).Infof("Adding stream->(layer|config) references")
-				// add stream -> layer references so we can prune them later
-				for _, s := range p.g.From(imageNode) {
-					cn, ok := s.(*imagegraph.ImageComponentNode)
-					if !ok {
-						continue
-					}
-
-					klog.V(4).Infof("Adding reference from stream %s to %s", getName(stream), cn.Describe())
-					switch cn.Type {
-					case imagegraph.ImageComponentTypeConfig:
-						p.g.AddEdge(imageStreamNode, s, ReferencedImageConfigEdgeKind)
-					case imagegraph.ImageComponentTypeLayer:
-						p.g.AddEdge(imageStreamNode, s, ReferencedImageLayerEdgeKind)
-					case imagegraph.ImageComponentTypeManifest:
-						p.g.AddEdge(imageStreamNode, s, ReferencedImageManifestEdgeKind)
-					default:
-						utilruntime.HandleError(fmt.Errorf("internal error: unhandled image component type %q", cn.Type))
-					}
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
 // exceedsLimits checks if given image exceeds LimitRanges defined in ImageStream's namespace.
 func exceedsLimits(is *imagev1.ImageStream, image *imagev1.Image, limits map[string][]*corev1.LimitRange) bool {
 	limitRanges, ok := limits[is.Namespace]
@@ -492,9 +708,6 @@ func exceedsLimits(is *imagev1.ImageStream, image *imagev1.Image, limits map[str
 		return false
 	}
 
-	if err := imageutil.ImageWithMetadata(image); err != nil {
-		return false
-	}
 	dockerImage, ok := image.DockerImageMetadata.Object.(*dockerv10.DockerImage)
 	if !ok {
 		return false
@@ -515,8 +728,8 @@ func exceedsLimits(is *imagev1.ImageStream, image *imagev1.Image, limits map[str
 			}
 			if limitQuantity.Cmp(*imageSize) < 0 {
 				// image size is larger than the permitted limit range max size
-				klog.V(4).Infof("Image %s in stream %s exceeds limit %s: %v vs %v",
-					image.Name, getName(is), limitRange.Name, *imageSize, limitQuantity)
+				klog.V(4).Infof("Image %s in stream %s/%s exceeds limit %s: %v vs %v",
+					image.Name, is.Namespace, is.Name, limitRange.Name, *imageSize, limitQuantity)
 				return true
 			}
 		}
@@ -524,1083 +737,491 @@ func exceedsLimits(is *imagev1.ImageStream, image *imagev1.Image, limits map[str
 	return false
 }
 
-// addPodsToGraph adds pods to the graph.
-//
-// Edges are added to the graph from each pod to the images specified by that
-// pod's list of containers, as long as the image is managed by OpenShift.
-func (p *pruner) addPodsToGraph(pods *corev1.PodList) []error {
-	var errs []error
+func getImageBlobs(image *imagev1.Image) ([]string, error) {
+	blobs := make([]string, 0, len(image.DockerImageLayers)+1)
 
-	for i := range pods.Items {
-		pod := &pods.Items[i]
-
-		desc := fmt.Sprintf("Pod %s", getName(pod))
-		klog.V(4).Infof("Examining %s", desc)
-
-		// A pod is only *excluded* from being added to the graph if its phase is not
-		// pending or running. Additionally, it has to be at least as old as the minimum
-		// age threshold defined by the algorithm.
-		if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
-			if !pod.CreationTimestamp.Time.After(p.algorithm.keepYoungerThan) {
-				klog.V(4).Infof("Ignoring %s for image reference counting because it's not running/pending and is too old", desc)
-				continue
-			}
-		}
-
-		klog.V(4).Infof("Adding %s to graph", desc)
-		podNode := kubegraph.EnsurePodNode(p.g, pod)
-
-		errs = append(errs, p.addPodSpecToGraph(getRef(pod), &pod.Spec, podNode)...)
+	for _, layer := range image.DockerImageLayers {
+		blobs = append(blobs, layer.Name)
 	}
 
-	return errs
+	dockerImage, ok := image.DockerImageMetadata.Object.(*dockerv10.DockerImage)
+	if !ok {
+		return blobs, fmt.Errorf("failed to read metadata for image %s", image.Name)
+	}
+
+	if image.DockerImageManifestMediaType == schema2.MediaTypeManifest && len(dockerImage.ID) > 0 {
+		configName := dockerImage.ID
+		blobs = append(blobs, configName)
+	}
+
+	return blobs, nil
 }
 
-// Edges are added to the graph from each predecessor (pod or replication
-// controller) to the images specified by the pod spec's list of containers, as
-// long as the image is managed by OpenShift.
-func (p *pruner) addPodSpecToGraph(referrer *corev1.ObjectReference, spec *corev1.PodSpec, predecessor gonum.Node) []error {
-	var errs []error
-
-	for j := range spec.Containers {
-		container := spec.Containers[j]
-
-		if len(strings.TrimSpace(container.Image)) == 0 {
-			klog.V(4).Infof("Ignoring edge from %s because container has no reference to image", getKindName(referrer))
-			continue
-		}
-
-		klog.V(4).Infof("Examining container image %q", container.Image)
-
-		ref, err := reference.Parse(container.Image)
-		if err != nil {
-			klog.Warningf("Unable to parse DockerImageReference %q of %s: %v - skipping", container.Image, getKindName(referrer), err)
-			if !p.ignoreInvalidRefs {
-				errs = append(errs, newErrBadReferenceToImage(container.Image, referrer, err.Error()))
-			}
-			continue
-		}
-
-		if len(ref.ID) == 0 {
-			// Attempt to dereference istag. Since we cannot be sure whether the reference refers to the
-			// integrated registry or not, we ignore the host part completely. As a consequence, we may keep
-			// image otherwise sentenced for a removal just because its pull spec accidentally matches one of
-			// our imagestreamtags.
-
-			// set the tag if empty
-			ref = ref.DockerClientDefaults()
-			klog.V(4).Infof("%q has no image ID", container.Image)
-			node := p.g.Find(imagegraph.ImageStreamTagNodeName(makeISTag(ref.Namespace, ref.Name, ref.Tag)))
-			if node == nil {
-				klog.V(4).Infof("No image stream tag found for %q - skipping", container.Image)
-				continue
-			}
-			for _, n := range p.g.From(node) {
-				imgNode, ok := n.(*imagegraph.ImageNode)
-				if !ok {
-					continue
-				}
-				klog.V(4).Infof("Adding edge from pod to image %q referenced by %s:%s", imgNode.Image.Name, ref.RepositoryName(), ref.Tag)
-				p.g.AddEdge(predecessor, imgNode, ReferencedImageEdgeKind)
-			}
-			continue
-		}
-
-		imageNode := imagegraph.FindImage(p.g, ref.ID)
-		if imageNode == nil {
-			klog.V(2).Infof("Unable to find image %q referenced by %s in the graph - skipping", ref.ID, getKindName(referrer))
-			continue
-		}
-
-		klog.V(4).Infof("Adding edge from %s to image %v", getKindName(referrer), imageNode)
-		p.g.AddEdge(predecessor, imageNode, ReferencedImageEdgeKind)
-	}
-
-	return errs
+type stringsCounter struct {
+	mutex  sync.Mutex
+	counts map[string]int
 }
 
-// addReplicationControllersToGraph adds replication controllers to the graph.
-//
-// Edges are added to the graph from each replication controller to the images
-// specified by its pod spec's list of containers, as long as the image is
-// managed by OpenShift.
-func (p *pruner) addReplicationControllersToGraph(rcs *corev1.ReplicationControllerList) []error {
-	var errs []error
-
-	for i := range rcs.Items {
-		rc := &rcs.Items[i]
-		desc := fmt.Sprintf("ReplicationController %s", getName(rc))
-		klog.V(4).Infof("Examining %s", desc)
-		rcNode := kubegraph.EnsureReplicationControllerNode(p.g, rc)
-		errs = append(errs, p.addPodSpecToGraph(getRef(rc), &rc.Spec.Template.Spec, rcNode)...)
+func newStringsCounter() *stringsCounter {
+	return &stringsCounter{
+		counts: make(map[string]int),
 	}
-
-	return errs
 }
 
-// addDaemonSetsToGraph adds daemon set to the graph.
-//
-// Edges are added to the graph from each daemon set to the images specified by its pod spec's list of
-// containers, as long as the image is managed by OpenShift.
-func (p *pruner) addDaemonSetsToGraph(dss *kappsv1.DaemonSetList) []error {
-	var errs []error
-
-	for i := range dss.Items {
-		ds := &dss.Items[i]
-		desc := fmt.Sprintf("DaemonSet %s", getName(ds))
-		klog.V(4).Infof("Examining %s", desc)
-		dsNode := kubegraph.EnsureDaemonSetNode(p.g, ds)
-		errs = append(errs, p.addPodSpecToGraph(getRef(ds), &ds.Spec.Template.Spec, dsNode)...)
-	}
-
-	return errs
+func (c *stringsCounter) Add(key string, delta int) int {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.counts[key] += delta
+	return c.counts[key]
 }
 
-// addDeploymentsToGraph adds kube's deployments to the graph.
-//
-// Edges are added to the graph from each deployment to the images specified by its pod spec's list of
-// containers, as long as the image is managed by OpenShift.
-func (p *pruner) addDeploymentsToGraph(dmnts *kappsv1.DeploymentList) []error {
-	var errs []error
-
-	for i := range dmnts.Items {
-		d := &dmnts.Items[i]
-		ref := getRef(d)
-		klog.V(4).Infof("Examining %s", getKindName(ref))
-		dNode := kubegraph.EnsureDeploymentNode(p.g, d)
-		errs = append(errs, p.addPodSpecToGraph(ref, &d.Spec.Template.Spec, dNode)...)
-	}
-
-	return errs
+type referenceCounts struct {
+	Blobs     *stringsCounter
+	Manifests *stringsCounter
 }
 
-// addDeploymentConfigsToGraph adds deployment configs to the graph.
-//
-// Edges are added to the graph from each deployment config to the images
-// specified by its pod spec's list of containers, as long as the image is
-// managed by OpenShift.
-func (p *pruner) addDeploymentConfigsToGraph(dcs *appsv1.DeploymentConfigList) []error {
-	var errs []error
-
-	for i := range dcs.Items {
-		dc := &dcs.Items[i]
-		ref := getRef(dc)
-		klog.V(4).Infof("Examining %s", getKindName(ref))
-		dcNode := appsgraph.EnsureDeploymentConfigNode(p.g, dc)
-		errs = append(errs, p.addPodSpecToGraph(getRef(dc), &dc.Spec.Template.Spec, dcNode)...)
+func newReferenceCounts() referenceCounts {
+	return referenceCounts{
+		Blobs:     newStringsCounter(),
+		Manifests: newStringsCounter(),
 	}
-
-	return errs
 }
 
-// addReplicaSetsToGraph adds replica set to the graph.
-//
-// Edges are added to the graph from each replica set to the images specified by its pod spec's list of
-// containers, as long as the image is managed by OpenShift.
-func (p *pruner) addReplicaSetsToGraph(rss *kappsv1.ReplicaSetList) []error {
-	var errs []error
-
-	for i := range rss.Items {
-		rs := &rss.Items[i]
-		ref := getRef(rs)
-		klog.V(4).Infof("Examining %s", getKindName(ref))
-		rsNode := kubegraph.EnsureReplicaSetNode(p.g, rs)
-		errs = append(errs, p.addPodSpecToGraph(ref, &rs.Spec.Template.Spec, rsNode)...)
-	}
-
-	return errs
-}
-
-// addBuildConfigsToGraph adds build configs to the graph.
-//
-// Edges are added to the graph from each build config to the image specified by its strategy.from.
-func (p *pruner) addBuildConfigsToGraph(bcs *buildv1.BuildConfigList) []error {
-	var errs []error
-
-	for i := range bcs.Items {
-		bc := &bcs.Items[i]
-		ref := getRef(bc)
-		klog.V(4).Infof("Examining %s", getKindName(ref))
-		bcNode := buildgraph.EnsureBuildConfigNode(p.g, bc)
-		errs = append(errs, p.addBuildStrategyImageReferencesToGraph(ref, bc.Spec.Strategy, bcNode)...)
-	}
-
-	return errs
-}
-
-// addBuildsToGraph adds builds to the graph.
-//
-// Edges are added to the graph from each build to the image specified by its strategy.from.
-func (p *pruner) addBuildsToGraph(builds *buildv1.BuildList) []error {
-	var errs []error
-
-	for i := range builds.Items {
-		build := &builds.Items[i]
-		ref := getRef(build)
-		klog.V(4).Infof("Examining %s", getKindName(ref))
-		buildNode := buildgraph.EnsureBuildNode(p.g, build)
-		errs = append(errs, p.addBuildStrategyImageReferencesToGraph(ref, build.Spec.Strategy, buildNode)...)
-	}
-
-	return errs
-}
-
-// resolveISTagName parses  and tries to find it in the graph. If the parsing fails,
-// an error is returned. If the istag cannot be found, nil is returned.
-func (p *pruner) resolveISTagName(g genericgraph.Graph, referrer *corev1.ObjectReference, istagName string) (*imagegraph.ImageStreamTagNode, error) {
-	name, tag, err := imageutil.ParseImageStreamTagName(istagName)
-	if err != nil {
-		if p.ignoreInvalidRefs {
-			klog.Warningf("Failed to parse ImageStreamTag name %q: %v", istagName, err)
-			return nil, nil
-		}
-		return nil, newErrBadReferenceTo("ImageStreamTag", istagName, referrer, err.Error())
-	}
-	node := g.Find(imagegraph.ImageStreamTagNodeName(makeISTag(referrer.Namespace, name, tag)))
-	if istNode, ok := node.(*imagegraph.ImageStreamTagNode); ok {
-		return istNode, nil
-	}
-
-	return nil, nil
-}
-
-// addBuildStrategyImageReferencesToGraph ads references from the build strategy's parent node to the image
-// the build strategy references.
-//
-// Edges are added to the graph from each predecessor (build or build config)
-// to the image specified by strategy.from, as long as the image is managed by
-// OpenShift.
-func (p *pruner) addBuildStrategyImageReferencesToGraph(referrer *corev1.ObjectReference, strategy buildv1.BuildStrategy, predecessor gonum.Node) []error {
-	from := buildutil.GetInputReference(strategy)
-	if from == nil {
-		klog.V(4).Infof("Unable to determine 'from' reference - skipping")
-		return nil
-	}
-
-	klog.V(4).Infof("Examining build strategy with from: %#v", from)
-
-	var imageID string
-
-	switch from.Kind {
-	case "DockerImage":
-		if len(strings.TrimSpace(from.Name)) == 0 {
-			klog.V(4).Infof("Ignoring edge from %s because build strategy has no reference to image", getKindName(referrer))
-			return nil
-		}
-		ref, err := reference.Parse(from.Name)
-		if err != nil {
-			klog.Warningf("Failed to parse DockerImage name %q of %s: %v", from.Name, getKindName(referrer), err)
-			if !p.ignoreInvalidRefs {
-				return []error{newErrBadReferenceToImage(from.Name, referrer, err.Error())}
-			}
-			return nil
-		}
-		imageID = ref.ID
-
-	case "ImageStreamImage":
-		_, id, err := imageutil.ParseImageStreamImageName(from.Name)
-		if err != nil {
-			klog.Warningf("Failed to parse ImageStreamImage name %q of %s: %v", from.Name, getKindName(referrer), err)
-			if !p.ignoreInvalidRefs {
-				return []error{newErrBadReferenceTo("ImageStreamImage", from.Name, referrer, err.Error())}
-			}
-			return nil
-		}
-		imageID = id
-
-	case "ImageStreamTag":
-		istNode, err := p.resolveISTagName(p.g, referrer, from.Name)
-		if err != nil {
-			klog.V(4).Infof(err.Error())
-			return []error{err}
-		}
-		if istNode == nil {
-			klog.V(2).Infof("%s referenced by %s could not be found", getKindName(from), getKindName(referrer))
-			return nil
-		}
-		for _, n := range p.g.From(istNode) {
-			imgNode, ok := n.(*imagegraph.ImageNode)
+func (p *pruner) getRepositoryReferenceCounts(is *imagev1.ImageStream) (referenceCounts, error) {
+	counts := newReferenceCounts()
+	for _, tagEventList := range is.Status.Tags {
+		for _, tagEvent := range tagEventList.Items {
+			image, ok := p.images[tagEvent.Image]
 			if !ok {
+				klog.Warningf("imagestream %s/%s: tag %s: image %s not found", is.Namespace, is.Name, tagEventList.Tag, tagEvent.Image)
 				continue
 			}
-			imageID = imgNode.Image.Name
-			break
+
+			counts.Manifests.Add(image.Name, 1)
+
+			imageBlobs, err := getImageBlobs(image)
+			if err != nil {
+				return counts, fmt.Errorf("tag %s: image %s: %v", tagEventList.Tag, tagEvent.Image, err)
+			}
+			for _, blob := range imageBlobs {
+				counts.Blobs.Add(blob, 1)
+			}
 		}
-		if len(imageID) == 0 {
-			klog.V(4).Infof("No image referenced by %s found", getKindName(from))
-			return nil
-		}
-
-	default:
-		klog.V(4).Infof("Ignoring unrecognized source location %q in %s", getKindName(from), getKindName(referrer))
-		return nil
 	}
-
-	klog.V(4).Infof("Looking for image %q in graph", imageID)
-	imageNode := imagegraph.FindImage(p.g, imageID)
-	if imageNode == nil {
-		klog.V(2).Infof("Unable to find image %q in graph referenced by %s - skipping", imageID, getKindName(referrer))
-		return nil
-	}
-
-	klog.V(4).Infof("Adding edge from %s to image %s", predecessor, imageNode.Image.Name)
-	p.g.AddEdge(predecessor, imageNode, ReferencedImageEdgeKind)
-
-	return nil
+	return counts, nil
 }
 
-func (p *pruner) handleImageStreamEvent(event watch.Event) {
-	getIsNode := func() (*imagev1.ImageStream, *imagegraph.ImageStreamNode) {
-		is, ok := event.Object.(*imagev1.ImageStream)
-		if !ok {
-			utilruntime.HandleError(fmt.Errorf("internal error: expected ImageStream object in %s event, not %T", event.Type, event.Object))
-			return nil, nil
+func (p *pruner) getGlobalReferenceCounts(images map[string]*imagev1.Image) (referenceCounts, error) {
+	counts := newReferenceCounts()
+	for _, image := range images {
+		counts.Manifests.Add(image.Name, 1)
+		counts.Blobs.Add(image.Name, 1)
+
+		imageBlobs, err := getImageBlobs(image)
+		if err != nil {
+			return counts, fmt.Errorf("image %s: %v", image.Name, err)
 		}
-		n := p.g.Find(imagegraph.ImageStreamNodeName(is))
-		if isNode, ok := n.(*imagegraph.ImageStreamNode); ok {
-			return is, isNode
+		for _, blob := range imageBlobs {
+			counts.Blobs.Add(blob, 1)
 		}
-		return is, nil
 	}
-
-	// NOTE: an addition of an imagestream previously deleted from the graph is a noop due to a limitation of
-	// the current gonum/graph package
-	switch event.Type {
-	case watch.Added:
-		is, isNode := getIsNode()
-		if is == nil {
-			return
-		}
-		if isNode != nil {
-			klog.V(4).Infof("Ignoring added ImageStream %s that is already present in the graph", getName(is))
-			return
-		}
-		klog.V(4).Infof("Adding ImageStream %s to the graph", getName(is))
-		p.addImageStreamsToGraph(&imagev1.ImageStreamList{Items: []imagev1.ImageStream{*is}}, p.imageStreamLimits)
-
-	case watch.Modified:
-		is, isNode := getIsNode()
-		if is == nil {
-			return
-		}
-
-		if isNode != nil {
-			klog.V(4).Infof("Removing updated ImageStream %s from the graph", getName(is))
-			// first remove the current node if present
-			p.g.RemoveNode(isNode)
-		}
-
-		klog.V(4).Infof("Adding updated ImageStream %s back to the graph", getName(is))
-		p.addImageStreamsToGraph(&imagev1.ImageStreamList{Items: []imagev1.ImageStream{*is}}, p.imageStreamLimits)
-	}
+	return counts, nil
 }
 
-func (p *pruner) handleImageEvent(event watch.Event) {
-	getImageNode := func() (*imagev1.Image, *imagegraph.ImageNode) {
-		img, ok := event.Object.(*imagev1.Image)
-		if !ok {
-			utilruntime.HandleError(fmt.Errorf("internal error: expected Image object in %s event, not %T", event.Type, event.Object))
-			return nil, nil
-		}
-		return img, imagegraph.FindImage(p.g, img.Name)
-	}
-
-	switch event.Type {
-	// NOTE: an addition of an image previously deleted from the graph is a noop due to a limitation of the
-	// current gonum/graph package
-	case watch.Added:
-		img, imgNode := getImageNode()
-		if img == nil {
-			return
-		}
-		if imgNode != nil {
-			klog.V(4).Infof("Ignoring added Image %s that is already present in the graph", img.Name)
-			return
-		}
-		klog.V(4).Infof("Adding new Image %s to the graph", img.Name)
-		p.addImagesToGraph(&imagev1.ImageList{Items: []imagev1.Image{*img}})
-
-	case watch.Deleted:
-		img, imgNode := getImageNode()
-		if imgNode == nil {
-			klog.V(4).Infof("Ignoring event for deleted Image %s that is not present in the graph", img.Name)
-			return
-		}
-		klog.V(4).Infof("Removing deleted image %s from the graph", img.Name)
-		p.g.RemoveNode(imgNode)
-	}
-}
-
-// getImageNodes returns only nodes of type ImageNode.
-func getImageNodes(nodes []gonum.Node) map[string]*imagegraph.ImageNode {
-	ret := make(map[string]*imagegraph.ImageNode)
-	for i := range nodes {
-		if node, ok := nodes[i].(*imagegraph.ImageNode); ok {
-			ret[node.Image.Name] = node
-		}
-	}
-	return ret
-}
-
-// edgeKind returns true if the edge from "from" to "to" is of the desired kind.
-func edgeKind(g genericgraph.Graph, from, to gonum.Node, desiredKind string) bool {
-	edge := g.Edge(from, to)
-	kinds := g.EdgeKinds(edge)
-	return kinds.Has(desiredKind)
-}
-
-// imageIsPrunable returns true if the image node only has weak references
-// from its predecessors to it. A weak reference to an image is a reference
-// from an image stream to an image where the image is not the current image
-// for a tag and the image stream is at least as old as the minimum pruning
-// age.
-func imageIsPrunable(g genericgraph.Graph, imageNode *imagegraph.ImageNode, algorithm pruneAlgorithm) bool {
-	if !algorithm.allImages {
-		if imageNode.Image.Annotations[imagev1.ManagedByOpenShiftAnnotation] != "true" {
-			klog.V(4).Infof("Image %q with DockerImageReference %q belongs to an external registry - skipping",
-				imageNode.Image.Name, imageNode.Image.DockerImageReference)
-			return false
-		}
-	}
-
-	if !algorithm.pruneOverSizeLimit && imageNode.Image.CreationTimestamp.Time.After(algorithm.keepYoungerThan) {
-		klog.V(4).Infof("Image %q is younger than minimum pruning age", imageNode.Image.Name)
-		return false
-	}
-
-	for _, n := range g.To(imageNode) {
-		klog.V(4).Infof("Examining predecessor %#v", n)
-		if edgeKind(g, n, imageNode, ReferencedImageEdgeKind) {
-			klog.V(4).Infof("Strong reference detected")
-			return false
-		}
-	}
-
-	return true
-}
-
-func calculatePrunableImages(
-	g genericgraph.Graph,
-	imageNodes map[string]*imagegraph.ImageNode,
-	algorithm pruneAlgorithm,
-) []*imagegraph.ImageNode {
-	prunable := []*imagegraph.ImageNode{}
-
-	for _, imageNode := range imageNodes {
-		klog.V(4).Infof("Examining image %q", imageNode.Image.Name)
-
-		if imageIsPrunable(g, imageNode, algorithm) {
-			klog.V(4).Infof("Image %q is prunable", imageNode.Image.Name)
-			prunable = append(prunable, imageNode)
-		}
-	}
-
-	return prunable
-}
-
-// pruneStreams removes references from all image streams' status.tags entries to prunable images, invoking
-// streamPruner.UpdateImageStream for each updated stream.
-func pruneStreams(
-	g genericgraph.Graph,
-	prunableImageNodes []*imagegraph.ImageNode,
-	streamPruner ImageStreamDeleter,
-	keepYoungerThan time.Time,
-) (deletions []Deletion, failures []Failure) {
-	imageNameToNode := map[string]*imagegraph.ImageNode{}
-	for _, node := range prunableImageNodes {
-		imageNameToNode[node.Image.Name] = node
-	}
-
-	noChangeErr := errors.New("nothing changed")
-
-	klog.V(4).Infof("Removing pruned image references from streams")
-	for _, node := range g.Nodes() {
-		streamNode, ok := node.(*imagegraph.ImageStreamNode)
-		if !ok {
+func (p *pruner) pruneImageStreamTag(is *imagev1.ImageStream, tagEventList imagev1.NamedTagEventList, counts referenceCounts, layerLinkDeleter LayerLinkDeleter) (imagev1.NamedTagEventList, int, []string, []error) {
+	filteredItems := tagEventList.Items[:0]
+	var manifestsToDelete []string
+	var errs []error
+	for rev, item := range tagEventList.Items {
+		if item.Created.After(p.algorithm.keepYoungerThan) {
+			klog.V(4).Infof("imagestream %s/%s: tag %s: revision %d: keeping %s because of --keep-younger-than", is.Namespace, is.Name, tagEventList.Tag, rev+1, item.Image)
+			filteredItems = append(filteredItems, item)
 			continue
 		}
-		streamName := getName(streamNode.ImageStream)
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			stream, err := streamPruner.GetImageStream(streamNode.ImageStream)
+
+		if rev == 0 {
+			istag := imageStreamTagReference{
+				Namespace: is.Namespace,
+				Name:      is.Name,
+				Tag:       tagEventList.Tag,
+			}
+			if usedBy := p.usedTags[istag]; len(usedBy) > 0 {
+				klog.V(4).Infof("imagestream %s/%s: tag %s: revision %d: keeping %s because tag is used by %s", is.Namespace, is.Name, tagEventList.Tag, rev+1, item.Image, referencesSample(usedBy))
+				filteredItems = append(filteredItems, item)
+				continue
+			}
+		}
+
+		image, ok := p.images[item.Image]
+		if !ok {
+			// There are few options why the image may not be found:
+			// 1. the image is deleted manually and this record is no longer valid
+			// 2. the imagestream was observed before the image creation, i.e.
+			//    this record was created recently and it should be protected
+			//    by keepYoungerThan
+			klog.Infof("imagestream %s/%s: tag %s: revision %d: image %s not found, deleting...", is.Namespace, is.Name, tagEventList.Tag, rev+1, item.Image)
+			continue
+		}
+
+		if p.algorithm.pruneOverSizeLimit {
+			if !exceedsLimits(is, image, p.imageStreamLimits) {
+				klog.V(4).Infof("imagestream %s/%s: tag %s: revision %d: keeping %s because --prune-over-size-limit is used and image does not exceed limits", is.Namespace, is.Name, tagEventList.Tag, rev+1, item.Image)
+				filteredItems = append(filteredItems, item)
+				continue
+			}
+		} else {
+			if rev < p.algorithm.keepTagRevisions {
+				klog.V(4).Infof("imagestream %s/%s: tag %s: revision %d: keeping %s because of --keep-tag-revisions", is.Namespace, is.Name, tagEventList.Tag, rev+1, item.Image)
+				filteredItems = append(filteredItems, item)
+				continue
+			}
+		}
+
+		isimage := imageStreamImageReference{
+			Namespace: is.Namespace,
+			Name:      is.Name,
+			Digest:    item.Image,
+		}
+		if usedBy := p.usedImages[isimage]; len(usedBy) > 0 {
+			klog.V(4).Infof("imagestream %s/%s: tag %s: revision %d: keeping %s because image is used by %s", is.Namespace, is.Name, tagEventList.Tag, rev+1, item.Image, referencesSample(usedBy))
+			filteredItems = append(filteredItems, item)
+			continue
+		}
+
+		klog.V(4).Infof("imagestream %s/%s: tag %s: revision %d: deleting repository links for %s...", is.Namespace, is.Name, tagEventList.Tag, rev+1, item.Image)
+
+		if p.algorithm.pruneRegistry {
+			if counts.Manifests.Add(image.Name, -1) == 0 {
+				manifestsToDelete = append(manifestsToDelete, image.Name)
+			}
+
+			imageBlobs, err := getImageBlobs(image)
 			if err != nil {
-				if kerrapi.IsNotFound(err) {
-					klog.V(4).Infof("Unable to get image stream %s: removed during prune", streamName)
-					return noChangeErr
-				}
-				return err
+				klog.Warningf("imagestream %s/%s: tag %s: image %s: %s", is.Namespace, is.Name, tagEventList.Tag, item.Image, err)
 			}
-
-			updatedTags := sets.NewString()
-			deletedTags := sets.NewString()
-
-			for _, tag := range stream.Status.Tags {
-				if updated, deleted := pruneISTagHistory(g, imageNameToNode, keepYoungerThan, streamName, stream, tag.Tag); deleted {
-					deletedTags.Insert(tag.Tag)
-				} else if updated {
-					updatedTags.Insert(tag.Tag)
+			for _, blob := range imageBlobs {
+				if counts.Blobs.Add(blob, -1) == 0 {
+					err := layerLinkDeleter.DeleteLayerLink(fmt.Sprintf("%s/%s", is.Namespace, is.Name), blob)
+					if err != nil {
+						errs = append(errs, fmt.Errorf("failed to delete layer link %s: %v", blob, err))
+					}
 				}
 			}
+		}
+	}
 
-			if updatedTags.Len() == 0 && deletedTags.Len() == 0 {
-				return noChangeErr
-			}
+	deletedItems := len(tagEventList.Items) - len(filteredItems)
 
-			updatedStream, err := streamPruner.UpdateImageStream(stream)
-			if err == nil {
-				streamPruner.NotifyImageStreamPrune(stream, updatedTags.List(), deletedTags.List())
-				streamNode.ImageStream = updatedStream
-			}
+	tagEventList.Items = filteredItems
 
+	return tagEventList, deletedItems, manifestsToDelete, errs
+}
+
+func (p *pruner) pruneImageStream(stream *imagev1.ImageStream, imageStreamDeleter ImageStreamDeleter, layerLinkDeleter LayerLinkDeleter, manifestDeleter ManifestDeleter) (*imagev1.ImageStream, *PruneStats, []error) {
+	klog.V(4).Infof("Examining ImageStream %s/%s", stream.Namespace, stream.Name)
+
+	if !p.algorithm.pruneOverSizeLimit && stream.CreationTimestamp.Time.After(p.algorithm.keepYoungerThan) {
+		klog.V(4).Infof("imagestream %s/%s: keeping all images because of --keep-younger-than", stream.Namespace, stream.Name)
+		return stream, &PruneStats{}, nil
+	}
+
+	collectingLayerLinkDeleter := newCollectingLayerLinkDeleter(layerLinkDeleter)
+
+	var manifestsToDelete []string
+	var errs []error
+	var deletedItems int
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		manifestsToDelete = nil
+
+		is, err := imageStreamDeleter.GetImageStream(stream)
+		if err != nil {
 			if kerrapi.IsNotFound(err) {
-				klog.V(4).Infof("Unable to update image stream %s: removed during prune", streamName)
+				klog.V(4).Infof("imagestream %s/%s: skipping because it does not exist anymore", stream.Namespace, stream.Name)
+				stream = nil
 				return nil
 			}
-
 			return err
-		})
-
-		if err == noChangeErr {
-			continue
 		}
+		stream = is
+
+		counts, err := p.getRepositoryReferenceCounts(is)
 		if err != nil {
-			failures = append(failures, Failure{Node: streamNode, Err: err})
+			klog.Warningf("imagestream %s/%s: %v", is.Namespace, is.Name, err)
+			return nil
+		}
+
+		deletedItems = 0
+		for i, tagEventList := range is.Status.Tags {
+			updatedTagEventList, deletedTagItems, tagManifestsToDelete, tagErrs := p.pruneImageStreamTag(is, tagEventList, counts, collectingLayerLinkDeleter)
+			is.Status.Tags[i] = updatedTagEventList
+			deletedItems += deletedTagItems
+			manifestsToDelete = append(manifestsToDelete, tagManifestsToDelete...)
+			errs = append(errs, tagErrs...)
+		}
+
+		// deleting tags without items
+		tags := is.Status.Tags[:0]
+		for i := range is.Status.Tags {
+			if len(is.Status.Tags[i].Items) > 0 {
+				tags = append(tags, is.Status.Tags[i])
+			}
+		}
+		is.Status.Tags = tags
+
+		if deletedItems > 0 {
+			updatedStream, err := imageStreamDeleter.UpdateImageStream(is, deletedItems)
+			if kerrapi.IsNotFound(err) {
+				klog.V(4).Infof("imagestream %s/%s: the image stream cannot be updated because it's gone", is.Namespace, is.Name)
+				stream = nil
+				return nil
+			} else if err != nil {
+				return err
+			}
+			stream = updatedStream
+		}
+
+		return nil
+	})
+	stats := &PruneStats{
+		DeletedLayerLinks: collectingLayerLinkDeleter.DeletedLayerLinkCount(),
+	}
+	if err != nil {
+		errs = append(errs, err)
+		return stream, stats, errs
+	}
+
+	if deletedItems > 0 {
+		stats.DeletedImageStreamTagItems = deletedItems
+		stats.UpdatedImageStreams = 1
+	}
+
+	if p.algorithm.pruneRegistry {
+		for _, digest := range manifestsToDelete {
+			err := manifestDeleter.DeleteManifest(fmt.Sprintf("%s/%s", stream.Namespace, stream.Name), digest)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to delete manifest link %s: %v", digest, err))
+			} else {
+				stats.DeletedManifestLinks++
+			}
+		}
+	}
+
+	return stream, stats, errs
+}
+
+func (p *pruner) pruneImage(image *imagev1.Image, usedImages map[string]bool, counts referenceCounts, blobDeleter BlobDeleter, imageDeleter ImageDeleter) (*PruneStats, []error) {
+	stats := &PruneStats{}
+
+	if usedImages[image.Name] {
+		klog.V(4).Infof("image %s: keeping because it is used by imagestreams", image.Name)
+		return stats, nil
+	}
+
+	if !p.algorithm.allImages {
+		if image.Annotations[imagev1.ManagedByOpenShiftAnnotation] != "true" {
+			klog.V(4).Infof("image %s: keeping external image because --all=false", image.Name)
+			return stats, nil
+		}
+	}
+
+	if !p.algorithm.pruneOverSizeLimit && image.CreationTimestamp.Time.After(p.algorithm.keepYoungerThan) {
+		klog.V(4).Infof("image %s: keeping because of --keep-younger-than", image.Name)
+		return stats, nil
+	}
+
+	klog.V(4).Infof("image %s: deleting...", image.Name)
+
+	var errs []error
+	failures := 0
+
+	if p.algorithm.pruneRegistry {
+		imageBlobs, err := getImageBlobs(image)
+		if err != nil {
+			return stats, []error{err}
+		}
+
+		for _, blob := range imageBlobs {
+			if counts.Blobs.Add(blob, -1) == 0 {
+				err := blobDeleter.DeleteBlob(blob)
+				if err != nil {
+					failures++
+					errs = append(errs, fmt.Errorf("failed to delete blob %s: %v", blob, err))
+				} else {
+					stats.DeletedBlobs++
+				}
+			}
+		}
+		if counts.Blobs.Add(image.Name, -1) == 0 {
+			err := blobDeleter.DeleteBlob(image.Name)
+			if err != nil {
+				failures++
+				errs = append(errs, fmt.Errorf("failed to delete manifest blob %s: %v", image.Name, err))
+			} else {
+				stats.DeletedBlobs++
+			}
+		}
+	}
+
+	if stats.DeletedBlobs > 0 || failures == 0 {
+		if err := imageDeleter.DeleteImage(image); err != nil {
+			errs = append(errs, fmt.Errorf("failed to delete image %s: %v", image.Name, err))
 		} else {
-			deletions = append(deletions, Deletion{Node: streamNode})
+			stats.DeletedImages++
 		}
 	}
 
-	klog.V(4).Infof("Done removing pruned image references from streams")
-	return
+	return stats, errs
 }
 
-// strengthenReferencesFromFailedImageStreams turns weak references between image streams and images to
-// strong. This must be called right after the image stream pruning to prevent images that failed to be
-// untagged from being pruned.
-func strengthenReferencesFromFailedImageStreams(g genericgraph.Graph, failures []Failure) {
-	for _, f := range failures {
-		for _, n := range g.From(f.Node) {
-			imageNode, ok := n.(*imagegraph.ImageNode)
-			if !ok {
-				continue
-			}
-			edge := g.Edge(f.Node, imageNode)
-			if edge == nil {
-				continue
-			}
-			kinds := g.EdgeKinds(edge)
-			if kinds.Has(ReferencedImageEdgeKind) {
-				continue
-			}
-			g.RemoveEdge(edge)
-			g.AddEdge(f.Node, imageNode, ReferencedImageEdgeKind)
-		}
-	}
-}
-
-// pruneISTagHistory processes tag event list of the given image stream tag. It removes references to images
-// that are going to be removed or are missing in the graph.
-func pruneISTagHistory(
-	g genericgraph.Graph,
-	prunableImageNodes map[string]*imagegraph.ImageNode,
-	keepYoungerThan time.Time,
-	streamName string,
-	imageStream *imagev1.ImageStream,
-	tag string,
-) (tagUpdated, tagDeleted bool) {
-	history, _ := imageutil.StatusHasTag(imageStream, tag)
-	newHistory := imagev1.NamedTagEventList{Tag: tag}
-
-	for _, tagEvent := range history.Items {
-		klog.V(4).Infof("Checking image stream tag %s:%s generation %d with image %q", streamName, tag, tagEvent.Generation, tagEvent.Image)
-
-		if ok, reason := tagEventIsPrunable(tagEvent, g, prunableImageNodes, keepYoungerThan); ok {
-			klog.V(4).Infof("Image stream tag %s:%s generation %d - removing because %s", streamName, tag, tagEvent.Generation, reason)
-			tagUpdated = true
-		} else {
-			klog.V(4).Infof("Image stream tag %s:%s generation %d - keeping because %s", streamName, tag, tagEvent.Generation, reason)
-			newHistory.Items = append(newHistory.Items, tagEvent)
-		}
-	}
-
-	if len(newHistory.Items) == 0 {
-		klog.V(4).Infof("Image stream tag %s:%s - removing empty tag", streamName, tag)
-		tags := []imagev1.NamedTagEventList{}
-		for i := range imageStream.Status.Tags {
-			t := imageStream.Status.Tags[i]
-			if t.Tag != tag {
-				tags = append(tags, t)
-			}
-		}
-		imageStream.Status.Tags = tags
-		tagDeleted = true
-		tagUpdated = false
-	} else if tagUpdated {
-		for i := range imageStream.Status.Tags {
-			t := imageStream.Status.Tags[i]
-			if t.Tag == tag {
-				imageStream.Status.Tags[i] = newHistory
-				break
-			}
-		}
-	}
-
-	return
-}
-
-func tagEventIsPrunable(
-	tagEvent imagev1.TagEvent,
-	g genericgraph.Graph,
-	prunableImageNodes map[string]*imagegraph.ImageNode,
-	keepYoungerThan time.Time,
-) (ok bool, reason string) {
-	if _, ok := prunableImageNodes[tagEvent.Image]; ok {
-		return true, fmt.Sprintf("image %q matches deleted image", tagEvent.Image)
-	}
-
-	n := imagegraph.FindImage(g, tagEvent.Image)
-	if n != nil {
-		return false, fmt.Sprintf("image %q is not deleted", tagEvent.Image)
-	}
-
-	if n == nil && !tagEvent.Created.After(keepYoungerThan) {
-		return true, fmt.Sprintf("image %q is absent", tagEvent.Image)
-	}
-
-	return false, "the tag event is younger than threshold"
-}
-
-// byLayerCountAndAge sorts a list of image nodes from the largest (by the number of image layers) to the
-// smallest. Images with the same number of layers are ordered from the oldest to the youngest.
-type byLayerCountAndAge []*imagegraph.ImageNode
-
-func (b byLayerCountAndAge) Len() int      { return len(b) }
-func (b byLayerCountAndAge) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
-func (b byLayerCountAndAge) Less(i, j int) bool {
-	fst, snd := b[i].Image, b[j].Image
-	if len(fst.DockerImageLayers) > len(snd.DockerImageLayers) {
-		return true
-	}
-	if len(fst.DockerImageLayers) < len(snd.DockerImageLayers) {
-		return false
-	}
-
-	return fst.CreationTimestamp.Before(&snd.CreationTimestamp) ||
-		(!snd.CreationTimestamp.Before(&fst.CreationTimestamp) && fst.Name < snd.Name)
-}
-
-// nodeItem is an item of a doubly-linked list of image nodes.
-type nodeItem struct {
-	node       *imagegraph.ImageNode
-	prev, next *nodeItem
-}
-
-// pop removes the item from a doubly-linked list and returns the image node it holds and its former next
-// neighbour.
-func (i *nodeItem) pop() (node *imagegraph.ImageNode, next *nodeItem) {
-	n, p := i.next, i.prev
-	if p != nil {
-		p.next = n
-	}
-	if n != nil {
-		n.prev = p
-	}
-	return i.node, n
-}
-
-// insertAfter makes a new list item from the given node and inserts it into the list right after the given
-// item. The newly created item is returned.
-func insertAfter(item *nodeItem, node *imagegraph.ImageNode) *nodeItem {
-	newItem := &nodeItem{
-		node: node,
-		prev: item,
-	}
-	if item != nil {
-		if item.next != nil {
-			item.next.prev = newItem
-			newItem.next = item.next
-		}
-		item.next = newItem
-	}
-	return newItem
-}
-
-// makeQueue makes a doubly-linked list of items out of the given array of image nodes.
-func makeQueue(nodes []*imagegraph.ImageNode) *nodeItem {
-	var head, tail *nodeItem
-	for i, n := range nodes {
-		tail = insertAfter(tail, n)
-		if i == 0 {
-			head = tail
-		}
-	}
-	return head
-}
-
-// Prune prunes the objects like this:
-//  1. it calculates the prunable images and builds a queue
-//     - the queue does not ever grow, it only shrinks (newly created images are not added)
-//  2. it untags the prunable images from image streams
-//  3. it spawns workers
-//  4. it turns each prunable image into a job for the workers and makes sure they are busy
-//  5. it terminates the workers once the queue is empty and reports results
-func (p *pruner) Prune(
-	imagePrunerFactory ImagePrunerFactoryFunc,
+func (p *pruner) pruneImageStreams(
 	streamPruner ImageStreamDeleter,
-	layerLinkPruner LayerLinkDeleter,
-	blobPruner BlobDeleter,
-	manifestPruner ManifestDeleter,
-) (deletions []Deletion, failures []Failure) {
-	allNodes := p.g.Nodes()
-
-	imageNodes := getImageNodes(allNodes)
-	prunable := calculatePrunableImages(p.g, imageNodes, p.algorithm)
-
-	/* Instead of deleting streams in a per-image job, prune them all at once. Otherwise each image stream
-	 * would have to be modified for each prunable image it contains. */
-	deletions, failures = pruneStreams(p.g, prunable, streamPruner, p.algorithm.keepYoungerThan)
-	/* if namespace is specified, prune only ImageStreams and nothing more if we have any errors after
-	 * ImageStreams pruning this may mean that we still have references to images. */
-	if len(p.algorithm.namespace) > 0 || len(prunable) == 0 {
-		return deletions, failures
+	layerLinkDeleter LayerLinkDeleter,
+	manifestDeleter ManifestDeleter,
+) (*PruneStats, []error) {
+	var keys []string
+	for k := range p.imageStreams {
+		keys = append(keys, k)
 	}
 
-	strengthenReferencesFromFailedImageStreams(p.g, failures)
-
-	// Sorting images from the largest (by number of layers) to the smallest is supposed to distribute the
-	// blob deletion workload equally across whole queue.
-	// If processed randomly, most probably, job processed in the beginning wouldn't delete any blobs (due to
-	// too many remaining referers) contrary to the jobs processed at the end.
-	// The assumption is based on another assumption that images with many layers have a low probability of
-	// sharing their components with other images.
-	sort.Sort(byLayerCountAndAge(prunable))
-	p.queue = makeQueue(prunable)
-
-	var (
-		jobChan    = make(chan *Job)
-		resultChan = make(chan JobResult)
-	)
-
-	defer close(jobChan)
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
+	workQueue := make(chan string)
+	pruneStats := &PruneStats{}
+	errorsCh := make(chan error)
 
 	for i := 0; i < p.numWorkers; i++ {
-		worker, err := NewWorker(
-			p.algorithm,
-			p.registryClientFactory,
-			p.registryURL,
-			imagePrunerFactory,
-			streamPruner,
-			layerLinkPruner,
-			blobPruner,
-			manifestPruner,
-		)
-		if err != nil {
-			failures = append(failures, Failure{
-				Err: fmt.Errorf("failed to initialize worker: %v", err),
-			})
-			return
-		}
-		go worker.Run(jobChan, resultChan)
-	}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for k := range workQueue {
+				mutex.Lock()
+				stream := p.imageStreams[k]
+				mutex.Unlock()
 
-	ds, fs := p.runLoop(jobChan, resultChan)
-	deletions = append(deletions, ds...)
-	failures = append(failures, fs...)
+				updatedStream, stats, errs := p.pruneImageStream(stream, streamPruner, layerLinkDeleter, manifestDeleter)
 
-	return
-}
-
-// runLoop processes the queue of prunable images until empty. It makes the workers busy and updates the graph
-// with each change.
-func (p *pruner) runLoop(
-	jobChan chan<- *Job,
-	resultChan <-chan JobResult,
-) (deletions []Deletion, failures []Failure) {
-	imgUpdateChan := p.imageWatcher.ResultChan()
-	isUpdateChan := p.imageStreamWatcher.ResultChan()
-	for {
-		// make workers busy
-		for len(p.processedImages) < p.numWorkers {
-			job, blocked := p.getNextJob()
-			if blocked {
-				break
-			}
-			if job == nil {
-				if len(p.processedImages) == 0 {
-					return
+				if updatedStream == nil {
+					mutex.Lock()
+					delete(p.imageStreams, k)
+					mutex.Unlock()
+				} else if updatedStream != stream {
+					mutex.Lock()
+					p.imageStreams[k] = updatedStream
+					mutex.Unlock()
 				}
-				break
-			}
-			jobChan <- job
-			p.processedImages[job.Image] = job
-		}
 
-		select {
-		case res := <-resultChan:
-			p.updateGraphWithResult(&res)
-			for _, deletion := range res.Deletions {
-				deletions = append(deletions, deletion)
-			}
-			for _, failure := range res.Failures {
-				failures = append(failures, failure)
-			}
-			delete(p.processedImages, res.Job.Image)
-		case <-isUpdateChan:
-			// TODO: fix gonum/graph to not reuse IDs of deleted nodes and reenable event handling
-			//p.handleImageStreamEvent(event)
-		case <-imgUpdateChan:
-			// TODO: fix gonum/graph to not reuse IDs of deleted nodes and reenable event handling
-			//p.handleImageEvent(event)
-		}
-	}
-}
+				pruneStats.Add(stats)
 
-// getNextJob removes a prunable image from the queue, makes a job out of it and returns it.
-// Image may be removed from the queue without being processed if it becomes not prunable (by being referred
-// by a new image stream). Image may also be skipped and processed later when it is currently blocked.
-//
-// Image is blocked when at least one of its components is currently being processed in a running job and
-// the component has either:
-//   - only one remaining strong reference from the blocked image (the other references are being currently
-//     removed)
-//   - only one remaining reference in an image stream, where the component is tagged (via image) (the other
-//     references are being currently removed)
-//
-// The concept of blocked images attempts to preserve image components until the very last image
-// referencing them is deleted. Otherwise an image previously considered as prunable becomes not prunable may
-// become not usable since its components have been removed already.
-func (p *pruner) getNextJob() (job *Job, blocked bool) {
-	if p.queue == nil {
-		return
-	}
-
-	pop := func(item *nodeItem) (*imagegraph.ImageNode, *nodeItem) {
-		node, next := item.pop()
-		if item == p.queue {
-			p.queue = next
-		}
-		return node, next
-	}
-
-	for item := p.queue; item != nil; {
-		// something could have changed
-		if !imageIsPrunable(p.g, item.node, p.algorithm) {
-			_, item = pop(item)
-			continue
-		}
-
-		if components, blocked := getImageComponents(p.g, p.processedImages, item.node); !blocked {
-			job = &Job{
-				Image:      item.node,
-				Components: components,
-			}
-			_, item = pop(item)
-			break
-		}
-		item = item.next
-	}
-
-	blocked = job == nil && p.queue != nil
-
-	return
-}
-
-// updateGraphWithResult updates the graph with the result from completed job. Image nodes are deleted for
-// each deleted image. Image components are deleted if they were removed from the global blob store. Unlinked
-// imagecomponent (layer/config/manifest link) will cause an edge between image stream and the component to be
-// deleted.
-func (p *pruner) updateGraphWithResult(res *JobResult) {
-	imageDeleted := false
-	for _, d := range res.Deletions {
-		switch d.Node.(type) {
-		case *imagegraph.ImageNode:
-			imageDeleted = true
-			p.g.RemoveNode(d.Node)
-		case *imagegraph.ImageComponentNode:
-			// blob -> delete the node with all the edges
-			if d.Parent == nil {
-				p.g.RemoveNode(d.Node)
-				continue
-			}
-
-			// link in a repository -> delete just edges
-			isn, ok := d.Parent.(*imagegraph.ImageStreamNode)
-			if !ok {
-				continue
-			}
-			edge := p.g.Edge(isn, d.Node)
-			if edge == nil {
-				continue
-			}
-			p.g.RemoveEdge(edge)
-		case *imagegraph.ImageStreamNode:
-			// ignore
-		default:
-			utilruntime.HandleError(fmt.Errorf("internal error: unhandled graph node %t", d.Node))
-		}
-	}
-
-	if imageDeleted {
-		return
-	}
-}
-
-// getImageComponents gathers image components with locations, where they can be removed at this time.
-// Each component can be prunable in several image streams and in the global blob store.
-func getImageComponents(
-	g genericgraph.Graph,
-	processedImages map[*imagegraph.ImageNode]*Job,
-	image *imagegraph.ImageNode,
-) (components ComponentRetentions, blocked bool) {
-	components = make(ComponentRetentions)
-
-	for _, node := range g.From(image) {
-		kinds := g.EdgeKinds(g.Edge(image, node))
-		if len(kinds.Intersection(sets.NewString(
-			ReferencedImageLayerEdgeKind,
-			ReferencedImageConfigEdgeKind,
-			ReferencedImageManifestEdgeKind,
-		))) == 0 {
-			continue
-		}
-
-		imageStrongRefCounter := 0
-		imageMarkedForDeletionCounter := 0
-		referencingStreams := map[*imagegraph.ImageStreamNode]struct{}{}
-		referencingImages := map[*imagegraph.ImageNode]struct{}{}
-
-		comp, ok := node.(*imagegraph.ImageComponentNode)
-		if !ok {
-			continue
-		}
-
-		for _, ref := range g.To(comp) {
-			switch t := ref.(type) {
-			case (*imagegraph.ImageNode):
-				imageStrongRefCounter++
-				if _, processed := processedImages[t]; processed {
-					imageMarkedForDeletionCounter++
+				for _, err := range errs {
+					err = fmt.Errorf("imagestream %s/%s: %v", stream.Namespace, stream.Name, err)
+					klog.V(4).Info(err)
+					errorsCh <- err
 				}
-				referencingImages[t] = struct{}{}
-
-			case *imagegraph.ImageStreamNode:
-				referencingStreams[t] = struct{}{}
-
-			default:
-				continue
 			}
-		}
-
-		switch {
-		// the component is referenced only by the given image -> prunable globally
-		case imageStrongRefCounter < 2:
-			components.Add(comp, true)
-		// the component can be pruned once the other referencing image that is being deleted is finished;
-		// don't touch it until then
-		case imageStrongRefCounter-imageMarkedForDeletionCounter < 2:
-			return nil, true
-		// not prunable component
-		default:
-			components.Add(comp, false)
-		}
-
-		if addComponentReferencingStreams(
-			g,
-			components,
-			referencingImages,
-			referencingStreams,
-			processedImages,
-			comp,
-		) {
-			return nil, true
-		}
+		}()
 	}
 
-	return
+	go func() {
+		for _, k := range keys {
+			workQueue <- k
+		}
+		close(workQueue)
+		wg.Wait()
+		close(errorsCh)
+	}()
+
+	var errs []error
+	for err := range errorsCh {
+		errs = append(errs, err)
+	}
+	return pruneStats, errs
 }
 
-// addComponentReferencingStreams records information about prunability of the given component in all the
-// streams referencing it (via tagged image). It updates given components attribute.
-func addComponentReferencingStreams(
-	g genericgraph.Graph,
-	components ComponentRetentions,
-	referencingImages map[*imagegraph.ImageNode]struct{},
-	referencingStreams map[*imagegraph.ImageStreamNode]struct{},
-	processedImages map[*imagegraph.ImageNode]*Job,
-	comp *imagegraph.ImageComponentNode,
-) (blocked bool) {
-streamLoop:
-	for stream := range referencingStreams {
-		refCounter := 0
-		markedForDeletionCounter := 0
-
-		for image := range referencingImages {
-			edge := g.Edge(stream, image)
-			if edge == nil {
-				continue
+func (p *pruner) pruneImages(
+	blobDeleter BlobDeleter,
+	imageDeleter ImageDeleter,
+) (*PruneStats, []error) {
+	usedImages := map[string]bool{}
+	for _, stream := range p.imageStreams {
+		for _, tag := range stream.Status.Tags {
+			for _, item := range tag.Items {
+				usedImages[item.Image] = true
 			}
-			kinds := g.EdgeKinds(edge)
-			// tagged not prunable image -> keep the component in the stream
-			if kinds.Has(ReferencedImageEdgeKind) {
-				components.AddReferencingStreams(comp, false, stream)
-				continue streamLoop
-			}
-			if !kinds.Has(WeakReferencedImageEdgeKind) {
-				continue
-			}
-
-			refCounter++
-			if _, processed := processedImages[image]; processed {
-				markedForDeletionCounter++
-			}
-
-			if refCounter-markedForDeletionCounter > 1 {
-				components.AddReferencingStreams(comp, false, stream)
-				continue streamLoop
-			}
-		}
-
-		switch {
-		// there's just one remaining strong reference from the stream -> unlink
-		case refCounter < 2:
-			components.AddReferencingStreams(comp, true, stream)
-		// there's just one remaining strong reference and at least one another reference now being
-		// dereferenced in a running job -> wait until it completes
-		case refCounter-markedForDeletionCounter < 2:
-			return true
-		// not yet prunable
-		default:
-			components.AddReferencingStreams(comp, false, stream)
 		}
 	}
 
-	return false
+	pruneStats := &PruneStats{}
+
+	counts, err := p.getGlobalReferenceCounts(p.images)
+	if err != nil {
+		return pruneStats, []error{err}
+	}
+
+	var wg sync.WaitGroup
+	imagesToDelete := make(chan *imagev1.Image)
+	errorsCh := make(chan error)
+
+	for i := 0; i < p.numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for image := range imagesToDelete {
+				stats, errs := p.pruneImage(image, usedImages, counts, blobDeleter, imageDeleter)
+
+				pruneStats.Add(stats)
+
+				for _, err := range errs {
+					err = fmt.Errorf("image %s: %v", image.Name, err)
+					klog.V(4).Info(err)
+					errorsCh <- err
+				}
+			}
+		}()
+	}
+
+	go func() {
+		for _, image := range p.images {
+			imagesToDelete <- image
+		}
+		close(imagesToDelete)
+		wg.Wait()
+		close(errorsCh)
+	}()
+
+	var errs []error
+	for err = range errorsCh {
+		errs = append(errs, err)
+	}
+	return pruneStats, errs
 }
 
-// imageComponentIsPrunable returns true if the image component is not referenced by any images.
-func imageComponentIsPrunable(g genericgraph.Graph, cn *imagegraph.ImageComponentNode) bool {
-	for _, predecessor := range g.To(cn) {
-		klog.V(4).Infof("Examining predecessor %#v of image config %v", predecessor, cn)
-		if g.Kind(predecessor) == imagegraph.ImageNodeKind {
-			klog.V(4).Infof("Config %v has an image predecessor", cn)
-			return false
-		}
+// Prune deletes historical items from image streams (image stream tag
+// revisions) that are not protected by the pruner options and not used by the
+// cluster objects. After that, it deletes images that are not used by image
+// streams.
+func (p *pruner) Prune(
+	streamPruner ImageStreamDeleter,
+	layerLinkDeleter LayerLinkDeleter,
+	manifestDeleter ManifestDeleter,
+	blobDeleter BlobDeleter,
+	imageDeleter ImageDeleter,
+) (*PruneStats, kerrors.Aggregate) {
+	pruneStats := &PruneStats{}
+	var errs []error
+
+	// Stage 1: delete history from image streams
+	stats, errors := p.pruneImageStreams(streamPruner, layerLinkDeleter, manifestDeleter)
+	pruneStats.Add(stats)
+	errs = append(errs, errors...)
+
+	// Stage 2: delete images
+	if p.algorithm.namespace == "" {
+		stats, errors := p.pruneImages(blobDeleter, imageDeleter)
+		pruneStats.Add(stats)
+		errs = append(errs, errors...)
 	}
 
-	return true
-}
-
-// streamReferencingImageComponent returns a list of ImageStreamNodes that reference a
-// given ImageComponentNode.
-func streamsReferencingImageComponent(g genericgraph.Graph, cn *imagegraph.ImageComponentNode) []*imagegraph.ImageStreamNode {
-	ret := []*imagegraph.ImageStreamNode{}
-	for _, predecessor := range g.To(cn) {
-		if g.Kind(predecessor) != imagegraph.ImageStreamNodeKind {
-			continue
-		}
-		ret = append(ret, predecessor.(*imagegraph.ImageStreamNode))
-	}
-
-	return ret
+	return pruneStats, kerrors.NewAggregate(errs)
 }
 
 // imageDeleter removes an image from OpenShift.
@@ -1627,8 +1248,6 @@ type imageStreamDeleter struct {
 	streams imagev1client.ImageStreamsGetter
 }
 
-var _ ImageStreamDeleter = &imageStreamDeleter{}
-
 // NewImageStreamDeleter creates a new imageStreamDeleter.
 func NewImageStreamDeleter(streams imagev1client.ImageStreamsGetter) ImageStreamDeleter {
 	return &imageStreamDeleter{
@@ -1640,8 +1259,8 @@ func (p *imageStreamDeleter) GetImageStream(stream *imagev1.ImageStream) (*image
 	return p.streams.ImageStreams(stream.Namespace).Get(context.TODO(), stream.Name, metav1.GetOptions{})
 }
 
-func (p *imageStreamDeleter) UpdateImageStream(stream *imagev1.ImageStream) (*imagev1.ImageStream, error) {
-	klog.V(4).Infof("Updating ImageStream %s", getName(stream))
+func (p *imageStreamDeleter) UpdateImageStream(stream *imagev1.ImageStream, deletedItems int) (*imagev1.ImageStream, error) {
+	klog.V(4).Infof("Updating ImageStream %s/%s", stream.Namespace, stream.Name)
 	is, err := p.streams.ImageStreams(stream.Namespace).UpdateStatus(context.TODO(), stream, metav1.UpdateOptions{})
 	if err == nil {
 		klog.V(5).Infof("Updated ImageStream: %#v", is)
@@ -1649,14 +1268,8 @@ func (p *imageStreamDeleter) UpdateImageStream(stream *imagev1.ImageStream) (*im
 	return is, err
 }
 
-// NotifyImageStreamPrune shows notification about updated image stream.
-func (p *imageStreamDeleter) NotifyImageStreamPrune(stream *imagev1.ImageStream, updatedTags []string, deletedTags []string) {
-	return
-}
-
 // deleteFromRegistry uses registryClient to send a DELETE request to the
-// provided url. It attempts an https request first; if that fails, it fails
-// back to http.
+// provided url.
 func deleteFromRegistry(registryClient *http.Client, url string) error {
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
@@ -1670,10 +1283,8 @@ func deleteFromRegistry(registryClient *http.Client, url string) error {
 	}
 	defer resp.Body.Close()
 
-	// TODO: investigate why we're getting non-existent layers, for now we're logging
-	// them out and continue working
 	if resp.StatusCode == http.StatusNotFound {
-		klog.Warningf("Unable to prune layer %s, returned %v", url, resp.Status)
+		klog.V(4).Infof("Unable to delete layer %s, returned %v", url, resp.Status)
 		return nil
 	}
 
@@ -1697,60 +1308,113 @@ func deleteFromRegistry(registryClient *http.Client, url string) error {
 	return err
 }
 
-// layerLinkDeleter removes a repository layer link from the registry.
-type layerLinkDeleter struct{}
-
-var _ LayerLinkDeleter = &layerLinkDeleter{}
-
-// NewLayerLinkDeleter creates a new layerLinkDeleter.
-func NewLayerLinkDeleter() LayerLinkDeleter {
-	return &layerLinkDeleter{}
+// remoteLayerLinkDeleter removes a repository layer link from the registry.
+type remoteLayerLinkDeleter struct {
+	registryClient *http.Client
+	registryURL    *url.URL
 }
 
-func (p *layerLinkDeleter) DeleteLayerLink(registryClient *http.Client, registryURL *url.URL, repoName, linkName string) error {
-	klog.V(4).Infof("Deleting layer link %s from repository %s/%s", linkName, registryURL.Host, repoName)
-	return deleteFromRegistry(registryClient, fmt.Sprintf("%s/v2/%s/blobs/%s", registryURL.String(), repoName, linkName))
-}
-
-// blobDeleter removes a blob from the registry.
-type blobDeleter struct{}
-
-var _ BlobDeleter = &blobDeleter{}
-
-// NewBlobDeleter creates a new blobDeleter.
-func NewBlobDeleter() BlobDeleter {
-	return &blobDeleter{}
-}
-
-func (p *blobDeleter) DeleteBlob(registryClient *http.Client, registryURL *url.URL, blob string) error {
-	klog.V(4).Infof("Deleting blob %s from registry %s", blob, registryURL.Host)
-	return deleteFromRegistry(registryClient, fmt.Sprintf("%s/admin/blobs/%s", registryURL.String(), blob))
-}
-
-// manifestDeleter deletes repository manifest data from the registry.
-type manifestDeleter struct{}
-
-var _ ManifestDeleter = &manifestDeleter{}
-
-// NewManifestDeleter creates a new manifestDeleter.
-func NewManifestDeleter() ManifestDeleter {
-	return &manifestDeleter{}
-}
-
-func (p *manifestDeleter) DeleteManifest(registryClient *http.Client, registryURL *url.URL, repoName, manifest string) error {
-	klog.V(4).Infof("Deleting manifest %s from repository %s/%s", manifest, registryURL.Host, repoName)
-	return deleteFromRegistry(registryClient, fmt.Sprintf("%s/v2/%s/manifests/%s", registryURL.String(), repoName, manifest))
-}
-
-func makeISTag(namespace, name, tag string) *imagev1.ImageStreamTag {
-	return &imagev1.ImageStreamTag{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      imageutil.JoinImageStreamTag(name, tag),
-		},
+func NewLayerLinkDeleter(registryClient *http.Client, registryURL *url.URL) LayerLinkDeleter {
+	return &remoteLayerLinkDeleter{
+		registryClient: registryClient,
+		registryURL:    registryURL,
 	}
 }
 
-func makeISTagWithStream(is *imagev1.ImageStream, tag string) *imagev1.ImageStreamTag {
-	return makeISTag(is.Namespace, is.Name, tag)
+func (p *remoteLayerLinkDeleter) DeleteLayerLink(repoName, linkName string) error {
+	klog.V(4).Infof("Deleting layer link %s from repository %s/%s", linkName, p.registryURL.Host, repoName)
+	return deleteFromRegistry(p.registryClient, fmt.Sprintf("%s/v2/%s/blobs/%s", p.registryURL.String(), repoName, linkName))
+}
+
+// collectingLayerLinkDeleter gathers information about which layers it has
+// deleted and does not attempt to delete the same layer link twice.
+type collectingLayerLinkDeleter struct {
+	LayerLinkDeleter
+
+	mutex   sync.Mutex
+	deleted map[string]bool
+	count   int
+}
+
+func newCollectingLayerLinkDeleter(deleter LayerLinkDeleter) *collectingLayerLinkDeleter {
+	return &collectingLayerLinkDeleter{
+		LayerLinkDeleter: deleter,
+		deleted:          make(map[string]bool),
+	}
+}
+
+func (p *collectingLayerLinkDeleter) isDeleted(repoName, linkName string) bool {
+	key := fmt.Sprintf("%s@%s", repoName, linkName)
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	return p.deleted[key]
+}
+
+func (p *collectingLayerLinkDeleter) markAsDeleted(repoName, linkName string) {
+	key := fmt.Sprintf("%s@%s", repoName, linkName)
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	p.deleted[key] = true
+	p.count++
+}
+
+func (p *collectingLayerLinkDeleter) DeletedLayerLinkCount() int {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	return p.count
+}
+
+func (p *collectingLayerLinkDeleter) DeleteLayerLink(repoName, linkName string) error {
+	if p.isDeleted(repoName, linkName) {
+		return nil
+	}
+
+	err := p.LayerLinkDeleter.DeleteLayerLink(repoName, linkName)
+	if err != nil {
+		return err
+	}
+
+	p.markAsDeleted(repoName, linkName)
+
+	return nil
+}
+
+// manifestDeleter deletes repository manifest data from the registry.
+type remoteManifestDeleter struct {
+	registryClient *http.Client
+	registryURL    *url.URL
+}
+
+// NewManifestDeleter creates a new manifestDeleter.
+func NewManifestDeleter(registryClient *http.Client, registryURL *url.URL) ManifestDeleter {
+	return &remoteManifestDeleter{
+		registryClient: registryClient,
+		registryURL:    registryURL,
+	}
+}
+
+func (p *remoteManifestDeleter) DeleteManifest(repoName, manifest string) error {
+	klog.V(4).Infof("Deleting manifest %s from repository %s/%s", manifest, p.registryURL.Host, repoName)
+	return deleteFromRegistry(p.registryClient, fmt.Sprintf("%s/v2/%s/manifests/%s", p.registryURL.String(), repoName, manifest))
+}
+
+// blobDeleter removes a blob from the registry.
+type blobDeleter struct {
+	registryClient *http.Client
+	registryURL    *url.URL
+}
+
+// NewBlobDeleter creates a new blobDeleter.
+func NewBlobDeleter(registryClient *http.Client, registryURL *url.URL) BlobDeleter {
+	return &blobDeleter{
+		registryClient: registryClient,
+		registryURL:    registryURL,
+	}
+}
+
+func (p *blobDeleter) DeleteBlob(blob string) error {
+	klog.V(4).Infof("Deleting blob %s from registry %s", blob, p.registryURL.Host)
+	return deleteFromRegistry(p.registryClient, fmt.Sprintf("%s/admin/blobs/%s", p.registryURL.String(), blob))
 }
