@@ -59,6 +59,9 @@ var (
 		# gather information with a specific local folder to copy to
 		  oc adm must-gather --dest-dir=/local/directory
 
+		# gather audit information
+		  oc adm must-gather -- /usr/bin/gather_audit_logs
+
 		# gather information using multiple plug-in images
 		  oc adm must-gather --image=quay.io/kubevirt/must-gather --image=quay.io/openshift/origin-must-gather
 
