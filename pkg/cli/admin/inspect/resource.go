@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -25,42 +24,14 @@ const (
 	operatorResourceDataKey = "/cluster-scoped-resources/operator.openshift.io"
 )
 
-func ParallelInspectResource(infos []*resource.Info, context *resourceContext, o *InspectOptions) []error {
-	if len(infos) == 0 {
-		return []error{}
-	}
-
-	errCh := make(chan error, len(infos))
-	wg := sync.WaitGroup{}
-	for i := range infos {
-		info := infos[i]
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			err := InspectResource(info, context, o)
-			if err != nil {
-				errCh <- err
-			}
-		}()
-	}
-	wg.Wait()
-	allErrs := []error{}
-	close(errCh)
-	for err := range errCh {
-		allErrs = append(allErrs, err)
-	}
-
-	return allErrs
-}
-
 // InspectResource receives an object to gather debugging data for, and a context to keep track of
 // already-seen objects when following related-object reference chains.
 func InspectResource(info *resource.Info, context *resourceContext, o *InspectOptions) error {
-	if context.visited(infoToContextKey(info)) {
+	if context.visited.Has(infoToContextKey(info)) {
 		klog.V(1).Infof("Skipping previously-inspected resource: %q ...", infoToContextKey(info))
 		return nil
 	}
+	context.visited.Insert(infoToContextKey(info))
 
 	switch info.ResourceMapping().Resource.GroupResource() {
 	case configv1.GroupVersion.WithResource("clusteroperators").GroupResource():
@@ -98,9 +69,8 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 			errs = append(errs, err)
 		}
 		resourcesToCollect := namespaceResourcesToCollect()
-		allResourceInfosToCollect := []*resource.Info{}
 		for _, resource := range resourcesToCollect {
-			if context.visited(resourceToContextKey(resource, info.Name)) {
+			if context.visited.Has(resourceToContextKey(resource, info.Name)) {
 				continue
 			}
 			resourceInfos, err := groupResourceToInfos(o.configFlags, resource, info.Name)
@@ -108,11 +78,14 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 				errs = append(errs, err)
 				continue
 			}
-			allResourceInfosToCollect = append(allResourceInfosToCollect, resourceInfos...)
+			for _, resourceInfo := range resourceInfos {
+				if err := InspectResource(resourceInfo, context, o); err != nil {
+					errs = append(errs, err)
+					continue
+				}
+			}
 		}
 
-		gatherErrs := ParallelInspectResource(allResourceInfosToCollect, context, o)
-		errs = append(errs, gatherErrs...)
 		return errors.NewAggregate(errs)
 
 	case corev1.SchemeGroupVersion.WithResource("secrets").GroupResource():
@@ -154,9 +127,8 @@ func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstruct
 	}
 
 	errs := []error{}
-	allRelatedInfos := []*resource.Info{}
 	for _, relatedRef := range relatedObjReferences {
-		if context.peekVisited(objectRefToContextKey(relatedRef)) {
+		if context.visited.Has(objectRefToContextKey(relatedRef)) {
 			continue
 		}
 
@@ -165,11 +137,15 @@ func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstruct
 			errs = append(errs, fmt.Errorf("skipping gathering %s due to error: %v", objectReferenceToString(relatedRef), err))
 			continue
 		}
-		allRelatedInfos = append(allRelatedInfos, relatedInfos...)
+
+		for _, relatedInfo := range relatedInfos {
+			if err := InspectResource(relatedInfo, context, o); err != nil {
+				errs = append(errs, fmt.Errorf("skipping gathering %s due to error: %v", objectReferenceToString(relatedRef), err))
+				continue
+			}
+		}
 	}
 
-	gatherErrs := ParallelInspectResource(allRelatedInfos, context, o)
-	errs = append(errs, gatherErrs...)
 	return errors.NewAggregate(errs)
 }
 
