@@ -518,6 +518,14 @@ func (o *MustGatherOptions) newClusterRoleBinding(ns string) *rbacv1.ClusterRole
 // - copy: no-op container we can exec into
 func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 	zero := int64(0)
+
+	nodeSelector := map[string]string{
+		corev1.LabelOSStable: "linux",
+	}
+	if node == "" {
+		nodeSelector["node-role.kubernetes.io/master"] = ""
+	}
+
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "must-gather-",
@@ -565,7 +573,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 					},
 				},
 			},
-			NodeSelector:                  map[string]string{corev1.LabelOSStable: "linux"},
+			NodeSelector:                  nodeSelector,
 			TerminationGracePeriodSeconds: &zero,
 			Tolerations: []corev1.Toleration{
 				{
