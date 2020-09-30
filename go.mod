@@ -87,10 +87,10 @@ replace (
 
 	k8s.io/api => k8s.io/api v0.18.8
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.8
-	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery oc-4.5-kubernetes-1.18.8
+	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20200901135529-35b3b777bafb
 	k8s.io/apiserver => k8s.io/apiserver v0.18.8
-	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime oc-4.5-kubernetes-1.18.8
-	k8s.io/client-go => github.com/openshift/kubernetes-client-go oc-4.5-kubernetes-1.18.8
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200901135805-0f26b2b88b2a
+	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20200930122355-10d931a453f4
 	k8s.io/cloud-provider => k8s.io/cloud-provider v0.18.8
 	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.18.8
 	k8s.io/code-generator => k8s.io/code-generator v0.18.8
@@ -101,9 +101,9 @@ replace (
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.18.8
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.18.8
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.18.8
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl oc-4.5-kubernetes-1.18.8
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200924120439-0d9ed9662075
 	k8s.io/kubelet => k8s.io/kubelet v0.18.8
-	k8s.io/kubernetes => github.com/openshift/kubernetes oc-4.5-kubernetes-1.18.8
+	k8s.io/kubernetes => github.com/openshift/kubernetes v1.19.0-alpha.0.0.20200902151225-04f3b9118703
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.8
 	k8s.io/metrics => k8s.io/metrics v0.18.8
 	k8s.io/node-api => k8s.io/node-api v0.18.8
