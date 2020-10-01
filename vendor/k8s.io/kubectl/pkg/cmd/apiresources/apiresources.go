@@ -72,6 +72,7 @@ type APIResourceOptions struct {
 // groupResource contains the APIGroup and APIResource
 type groupResource struct {
 	APIGroup    string
+	APIVersion  string
 	APIResource metav1.APIResource
 }
 
@@ -185,6 +186,7 @@ func (o *APIResourceOptions) RunAPIResources(cmd *cobra.Command, f cmdutil.Facto
 			}
 			resources = append(resources, groupResource{
 				APIGroup:    gv.Group,
+				APIVersion: gv.Version,
 				APIResource: resource,
 			})
 		}
@@ -208,20 +210,22 @@ func (o *APIResourceOptions) RunAPIResources(cmd *cobra.Command, f cmdutil.Facto
 				errs = append(errs, err)
 			}
 		case "wide":
-			if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%s\t%v\n",
+			if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%v\t%s\t%v\n",
 				r.APIResource.Name,
 				strings.Join(r.APIResource.ShortNames, ","),
 				r.APIGroup,
+				r.APIVersion,
 				r.APIResource.Namespaced,
 				r.APIResource.Kind,
 				r.APIResource.Verbs); err != nil {
 				errs = append(errs, err)
 			}
 		case "":
-			if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%s\n",
+			if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%v\t%s\n",
 				r.APIResource.Name,
 				strings.Join(r.APIResource.ShortNames, ","),
 				r.APIGroup,
+				r.APIVersion,
 				r.APIResource.Namespaced,
 				r.APIResource.Kind); err != nil {
 				errs = append(errs, err)
@@ -236,7 +240,7 @@ func (o *APIResourceOptions) RunAPIResources(cmd *cobra.Command, f cmdutil.Facto
 }
 
 func printContextHeaders(out io.Writer, output string) error {
-	columnNames := []string{"NAME", "SHORTNAMES", "APIGROUP", "NAMESPACED", "KIND"}
+	columnNames := []string{"NAME", "SHORTNAMES", "APIGROUP", "APIVERSION", "NAMESPACED", "KIND"}
 	if output == "wide" {
 		columnNames = append(columnNames, "VERBS")
 	}
