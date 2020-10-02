@@ -631,8 +631,8 @@ github.com/openshift/kubernetes-cli-runtime v0.0.0-20200114162348-c8810ef308ee h
 github.com/openshift/kubernetes-cli-runtime v0.0.0-20200114162348-c8810ef308ee/go.mod h1:1E5iQpMODZq2lMWLUJELwRu2MLWIzwvMgDBpn3Y81Qo=
 github.com/openshift/kubernetes-client-go v0.0.0-20191211181558-5dcabadb2b45 h1:jHJuv5QzUaLdx50lkvTYcZqM59xNhV6insW6K0EAduQ=
 github.com/openshift/kubernetes-client-go v0.0.0-20191211181558-5dcabadb2b45/go.mod h1:TYgR6EUHs6k45hb6KWjVD6jFZvJV4gHDikv/It0xz+k=
-github.com/openshift/kubernetes-kubectl v0.0.0-20200514121803-1a063728c98c h1:OXoXztgMiZAJoLwOK+jqof44Uzf05ZE7R+NRnsIcz6g=
-github.com/openshift/kubernetes-kubectl v0.0.0-20200514121803-1a063728c98c/go.mod h1:jIPrUAW656Vzn9wZCCe0PC+oTcu56u2HgFD21Xbfk1s=
+github.com/openshift/kubernetes-kubectl v0.0.0-20201002111530-ee4f9a309095 h1:1xgalvw/N0YDVBucD02JqkvejEez0v1dhBqt5u7Xd70=
+github.com/openshift/kubernetes-kubectl v0.0.0-20201002111530-ee4f9a309095/go.mod h1:jIPrUAW656Vzn9wZCCe0PC+oTcu56u2HgFD21Xbfk1s=
 github.com/openshift/library-go v0.0.0-20200921144613-67f7770bf823 h1:v1Q8DQSkJhxQYA356jV5QSO9Jd91Oy7olY8Ds4jQZZE=
 github.com/openshift/library-go v0.0.0-20200921144613-67f7770bf823/go.mod h1:x072xQzqjl4BYII7ytMIh8fSgELnxBGqgUiGWYkZ8CI=
 github.com/openzipkin/zipkin-go v0.1.6/go.mod h1:QgAqvLzwWbR/WpD4A3cGpPtJrZXNIiJc5AZX7/PBEpw=
