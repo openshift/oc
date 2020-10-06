@@ -210,7 +210,7 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	for _, filename := range o.Filenames {
-		mappings, err := parseFile(filename, overlap, o.In, opts.ExpandWildcard)
+		mappings, err := ParseMappingFile(filename, overlap, o.In, opts.ExpandWildcard)
 		if err != nil {
 			return err
 		}

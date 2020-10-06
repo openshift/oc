@@ -48,7 +48,12 @@ var (
 
 		A mapping.txt file is also created that is compatible with "oc image mirror". This may be used to further
 		customize the mirroring configuration, but should not be needed in normal circumstances.
-	`)
+
+		Mirroring into an airgapped environment requires two steps: mirroring from the catalog to local files,
+		and then again from local files into the airgapped registry. See examples ofr the "--remap" flag for more
+		details.
+		`)
+
 	mirrorExample = templates.Examples(`
 		# Mirror an operator-registry image and its contents to a registry
 		oc adm catalog mirror quay.io/my/image:latest myregistry.com
@@ -62,6 +67,13 @@ var (
 		# Edit the mirroring mappings and mirror with "oc image mirror" manually
 		oc adm catalog mirror --manifests-only quay.io/my/image:latest myregistry.com
 		oc image mirror -f manifests/mapping.txt
+
+		# Perform an airgapped mirror in two steps:
+		# mirror the contents of a catalog to local files and save mapping file in ./to-local
+		oc adm catalog mirror file://my-catalog:latest file://operators --to-manifests=./to-local
+
+		# mirror the contents of a catalog from local files into a target registry using previously calculated mapping file
+		oc adm catalog mirror file://my-catalog:latest my-airgapped-registry:5000 --mapping=./rh-ops-manifests/mapping.txt
 	`)
 )
 
@@ -75,9 +87,11 @@ type MirrorCatalogOptions struct {
 	*IndexImageMirrorerOptions
 	genericclioptions.IOStreams
 
-	DryRun       bool
-	ManifestOnly bool
-	DatabasePath string
+	DryRun         bool
+	ManifestOnly   bool
+	DatabasePath   string
+	RemappingFiles []string
+	Remap          map[imagesource.TypedImageReference]imagesource.TypedImageReference
 
 	FromFileDir string
 	FileDir     string
@@ -122,6 +136,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	o.ParallelOptions.Bind(flags)
 
 	flags.StringVar(&o.ManifestDir, "to-manifests", "", "Local path to store manifests.")
+	flags.StringArrayVar(&o.RemappingFiles, "remap", []string{}, "Specify a file that contains SRC=DEST mappings which will be used to remap prior to mirroring. If mirror normally computes A=C and remap maps A=B, the output mapping will be B=C")
 	flags.StringVar(&o.DatabasePath, "path", "", "Specify an in-container to local path mapping for the database.")
 	flags.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Print the actions that would be taken and exit without writing to the destinations.")
 	flags.BoolVar(&o.ManifestOnly, "manifests-only", o.ManifestOnly, "Calculate the manifests required for mirroring, but do not actually mirror image content.")
@@ -159,6 +174,24 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 
 	if o.ManifestDir == "" {
 		o.ManifestDir = o.SourceRef.Ref.Name + "-manifests"
+	}
+
+	opts := &imagesource.Options{
+		FileDir:  o.FileDir,
+		Insecure: o.SecurityOptions.Insecure,
+	}
+	o.Remap = map[imagesource.TypedImageReference]imagesource.TypedImageReference{}
+	for _, f := range o.RemappingFiles {
+		mappings, err := imgmirror.ParseMappingFile(f, map[string]string{}, o.In, opts.ExpandWildcard)
+		if err != nil {
+			return err
+		}
+		for _, m := range mappings {
+			if val, ok := o.Remap[m.Source]; ok {
+				return fmt.Errorf("failed to map %s to %s because it is already mapped to %s", m.Source, m.Destination, val)
+			}
+			o.Remap[m.Source] = m.Destination
+		}
 	}
 
 	if err := os.MkdirAll(o.ManifestDir, os.ModePerm); err != nil {
@@ -254,6 +287,12 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			a.FilterOptions = o.FilterOptions
 			a.ParallelOptions = o.ParallelOptions
 			a.KeepManifestList = true
+
+			// remap from an intermediate registry
+			if ref, ok := o.Remap[fromRef]; ok {
+				fromRef = ref
+			}
+
 			a.Mappings = []imgmirror.Mapping{{
 				Source:      fromRef,
 				Destination: toRef,
@@ -357,10 +396,10 @@ func (o *MirrorCatalogOptions) Run() error {
 		fmt.Fprintf(o.IOStreams.ErrOut, "errors during mirroring. the full contents of the catalog may not have been mirrored: %s\n", err.Error())
 	}
 
-	return WriteManifests(o.IOStreams.Out, o.SourceRef.Ref.Name, o.ManifestDir, o.IcspScope, mapping)
+	return WriteManifests(o.IOStreams.Out, o.SourceRef.Ref.Name, o.ManifestDir, o.IcspScope, mapping, o.Remap)
 }
 
-func WriteManifests(out io.Writer, name, dir, icspScope string, mapping map[string]Target) error {
+func WriteManifests(out io.Writer, name, dir, icspScope string, mapping map[string]Target, remap map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
 	f, err := os.Create(filepath.Join(dir, "mapping.txt"))
 	if err != nil {
 		return err
@@ -371,7 +410,7 @@ func WriteManifests(out io.Writer, name, dir, icspScope string, mapping map[stri
 		}
 	}()
 
-	if err := writeToMapping(f, mapping); err != nil {
+	if err := writeToMapping(f, mapping, remap); err != nil {
 		return err
 	}
 
@@ -387,9 +426,16 @@ func WriteManifests(out io.Writer, name, dir, icspScope string, mapping map[stri
 	return nil
 }
 
-func writeToMapping(w io.StringWriter, mapping map[string]Target) error {
+func writeToMapping(w io.StringWriter, mapping map[string]Target, remap map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
 	for k, v := range mapping {
-		if _, err := w.WriteString(fmt.Sprintf("%s=%s\n", k, v.WithTag)); err != nil {
+		fromRef, err := imagesource.ParseReference(k)
+		if err != nil {
+			continue
+		}
+		if ref, ok := remap[fromRef]; ok {
+			fromRef = ref
+		}
+		if _, err := w.WriteString(fmt.Sprintf("%s=%s\n", fromRef.String(), v.WithTag)); err != nil {
 			return err
 		}
 	}

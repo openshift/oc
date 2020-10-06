@@ -549,6 +549,54 @@ func TestMappingForImages(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "image to file",
+			args: args{
+				images: map[string]struct{}{
+					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
+					"docker.io/my/image2:tag": {},
+				},
+				dest: imagesource.TypedImageReference{
+					Type: imagesource.DestinationFile,
+					Ref:  mustParseRef(t, "operators"),
+				},
+				maxComponents: 2,
+			},
+			wantMapping: map[string]Target{
+				"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {
+					WithDigest: "file://operators/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de",
+					WithTag:    "file://operators/my/image:a1d77056",
+				},
+				"docker.io/my/image2:tag": {
+					WithDigest: "",
+					WithTag:    "file://operators/my/image2:tag",
+				},
+			},
+		},
+		{
+			name: "image to s3",
+			args: args{
+				images: map[string]struct{}{
+					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
+					"docker.io/my/image2:tag": {},
+				},
+				dest: imagesource.TypedImageReference{
+					Type: imagesource.DestinationS3,
+					Ref:  mustParseRef(t, "operators"),
+				},
+				maxComponents: 2,
+			},
+			wantMapping: map[string]Target{
+				"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {
+					WithDigest: "s3://operators/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de",
+					WithTag:    "s3://operators/my/image:a1d77056",
+				},
+				"docker.io/my/image2:tag": {
+					WithDigest: "",
+					WithTag:    "s3://operators/my/image2:tag",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

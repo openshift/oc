@@ -85,7 +85,7 @@ func parseArgs(args []string, overlap map[string]string, expandFn func(s imageso
 	return mappings, nil
 }
 
-func parseFile(filename string, overlap map[string]string, in io.Reader, expandFn func(s imagesource.TypedImageReference) ([]imagesource.TypedImageReference, error)) ([]Mapping, error) {
+func ParseMappingFile(filename string, overlap map[string]string, in io.Reader, expandFn func(s imagesource.TypedImageReference) ([]imagesource.TypedImageReference, error)) ([]Mapping, error) {
 	var fileMappings []Mapping
 	if filename != "-" {
 		f, err := os.Open(filename)

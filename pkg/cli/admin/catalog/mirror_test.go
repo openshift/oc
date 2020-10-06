@@ -9,12 +9,15 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
 func TestWriteToMapping(t *testing.T) {
 	tests := []struct {
 		name    string
 		mapping map[string]Target
+		remap   map[imagesource.TypedImageReference]imagesource.TypedImageReference
 		wantErr bool
 		want    []string
 	}{
@@ -55,12 +58,38 @@ func TestWriteToMapping(t *testing.T) {
 				"quay.io/halkyonio/operator:v0.1.8=quay.io/olmtest/halkyonio-operator:v0.1.8",
 			},
 		},
+		{
+			name: "remap",
+			mapping: map[string]Target{
+				"docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4": {
+					WithDigest: "quay.io/olmtest/strimzi-operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+					WithTag:    "quay.io/olmtest/strimzi-operator:2b13d275",
+				},
+				"quay.io/halkyonio/operator:v0.1.8": {
+					WithDigest: "",
+					WithTag:    "quay.io/olmtest/halkyonio-operator:v0.1.8",
+				},
+			},
+			remap: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+				{
+					Type: imagesource.DestinationRegistry,
+					Ref:  mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"),
+				}: {
+					Type: imagesource.DestinationFile,
+					Ref:  mustParseRef(t, "operators/strimzi/operator:2b13d275"),
+				},
+			},
+			want: []string{
+				"file://operators/strimzi/operator:2b13d275=quay.io/olmtest/strimzi-operator:2b13d275",
+				"quay.io/halkyonio/operator:v0.1.8=quay.io/olmtest/halkyonio-operator:v0.1.8",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			if err := writeToMapping(&buf, tt.mapping); (err != nil) != tt.wantErr {
+			if err := writeToMapping(&buf, tt.mapping, tt.remap); (err != nil) != tt.wantErr {
 				t.Errorf("writeToMapping() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			got := strings.Split(buf.String(), "\n")

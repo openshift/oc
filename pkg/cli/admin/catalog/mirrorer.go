@@ -131,17 +131,22 @@ func imagesFromDb(file string) (map[string]struct{}, error) {
 }
 
 func mappingForImages(images map[string]struct{}, dest imagesource.TypedImageReference, maxComponents int) (mapping map[string]Target, errs []error) {
-	domain := dest.Ref.Registry
-
-	// handle bare repository targets
-	if !strings.Contains(dest.String(), "/") {
-		domain = dest.String()
-	}
-
 	destComponents := make([]string, 0)
-	for _, s := range strings.Split(strings.TrimPrefix(dest.String(), domain), "/") {
-		if s != "" {
-			destComponents = append(destComponents, s)
+	var domain string
+	if dest.Type != imagesource.DestinationRegistry {
+		domain = dest.String()
+	} else {
+		domain = dest.Ref.Registry
+
+		// handle bare repository targets
+		if !strings.Contains(dest.String(), "/") {
+			domain = dest.String()
+		}
+
+		for _, s := range strings.Split(strings.TrimPrefix(dest.String(), domain), "/") {
+			if s != "" {
+				destComponents = append(destComponents, s)
+			}
 		}
 	}
 
