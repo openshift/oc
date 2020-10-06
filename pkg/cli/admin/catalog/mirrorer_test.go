@@ -48,6 +48,9 @@ func TestMirror(t *testing.T) {
 				Dest:              mustParse(t, "localhost:5000"),
 			},
 			want: map[string]Target{
+				"quay.io/example/image:tag": {
+					WithTag:    "localhost:5000/example/image:tag",
+				},
 				"quay.io/test/prometheus.0.14.0:latest": {
 					WithTag: "localhost:5000/test/prometheus.0.14.0:latest",
 				},
@@ -94,6 +97,9 @@ func TestMirror(t *testing.T) {
 				Dest:              mustParse(t, "localhost:5000/org"),
 			},
 			want: map[string]Target{
+				"quay.io/example/image:tag": {
+					WithTag:    "localhost:5000/org/example-image:tag",
+				},
 				"quay.io/test/prometheus.0.14.0:latest": {
 					WithTag: "localhost:5000/org/test-prometheus.0.14.0:latest",
 				},
@@ -140,6 +146,9 @@ func TestMirror(t *testing.T) {
 				Dest:              mustParse(t, "quay.io/org"),
 			},
 			want: map[string]Target{
+				"quay.io/example/image:tag": {
+					WithTag:    "quay.io/org/example-image:tag",
+				},
 				"quay.io/test/prometheus.0.14.0:latest": {
 					WithTag: "quay.io/org/test-prometheus.0.14.0:latest",
 				},

@@ -84,6 +84,8 @@ func (b *IndexImageMirrorer) Mirror() (map[string]Target, error) {
 	if err != nil {
 		return nil, err
 	}
+	// add index itself for mirroring
+	images[b.Source.String()] = struct{}{}
 
 	var errs = make([]error, 0)
 	mapping, mapErrs := mappingForImages(images, b.Dest, b.MaxPathComponents)

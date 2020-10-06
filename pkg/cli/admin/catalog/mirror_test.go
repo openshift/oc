@@ -3,6 +3,7 @@ package catalog
 import (
 	"bytes"
 	"fmt"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	"os"
 	"reflect"
 	"strings"
@@ -242,6 +243,84 @@ spec:
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("generateICSP() got = %v, want %v, diff = %v", string(got), string(tt.want), cmp.Diff(got, tt.want))
+			}
+		})
+	}
+}
+
+func TestGenerateCatalogSource(t *testing.T) {
+	type args struct {
+		source  imagesource.TypedImageReference
+		mapping map[string]Target
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "generates catalogsource",
+			args: args{
+				source: imagesource.TypedImageReference{
+					Type: imagesource.DestinationRegistry,
+					Ref:  mustParseRef(t, "quay.io/the/index:1"),
+				},
+				mapping: map[string]Target{
+					"quay.io/the/index:1": {
+						WithDigest: "",
+						WithTag:    "quay.io/the/index:1",
+					},
+				},
+			},
+			want: []byte(
+				`apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: index
+  namespace: openshift-marketplace
+spec:
+  image: quay.io/the/index:1
+  sourceType: grpc
+`,
+			),
+		},
+		{
+			name: "generates catalogsource with digest",
+			args: args{
+				source: imagesource.TypedImageReference{
+					Type: imagesource.DestinationRegistry,
+					Ref:  mustParseRef(t, "quay.io/the/index:1"),
+				},
+				mapping: map[string]Target{
+					"quay.io/the/index:1": {
+						WithDigest: "quay.io/the/index@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+						WithTag:    "quay.io/the/index:1",
+					},
+				},
+			},
+			want: []byte(
+				`apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: index
+  namespace: openshift-marketplace
+spec:
+  image: quay.io/the/index:1
+  sourceType: grpc
+`,
+			),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := generateCatalogSource(tt.args.source, tt.args.mapping)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("generateCatalogSource() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("generateCatalogSource() got = %v, want %v, diff = %v", string(got), string(tt.want), cmp.Diff(got, tt.want))
 			}
 		})
 	}
