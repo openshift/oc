@@ -159,7 +159,7 @@ func (o *MustGatherOptions) completeImages() error {
 		}
 		o.Images = append(o.Images, image)
 	}
-	o.log("Using must-gather plugin-in image: %s", strings.Join(o.Images, ", "))
+	o.log("Using must-gather plug-in image: %s", strings.Join(o.Images, ", "))
 	return nil
 }
 
