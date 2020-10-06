@@ -130,7 +130,7 @@ func NewRelease(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 
 	// properties of the release
 	flags.StringVar(&o.Name, "name", o.Name, "The name of the release. Will default to the current time.")
-	flags.StringSliceVar(&o.PreviousVersions, "previous", o.PreviousVersions, "A list of semantic versions that should preceed this version in the release manifest.")
+	flags.StringSliceVar(&o.PreviousVersions, "previous", o.PreviousVersions, "A list of semantic versions that should precede this version in the release manifest.")
 	flags.StringVar(&o.ReleaseMetadata, "metadata", o.ReleaseMetadata, "A JSON object to attach as the metadata for the release manifest.")
 	flags.BoolVar(&o.ForceManifest, "release-manifest", o.ForceManifest, "If true, a release manifest will be created using --name as the semantic version.")
 
