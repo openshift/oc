@@ -357,10 +357,10 @@ func (o *MirrorCatalogOptions) Run() error {
 		fmt.Fprintf(o.IOStreams.ErrOut, "errors during mirroring. the full contents of the catalog may not have been mirrored: %s\n", err.Error())
 	}
 
-	return WriteManifests(o.IOStreams.Out, o.SourceRef.Ref.Name, o.ManifestDir, o.IcspScope, mapping)
+	return WriteManifests(o.IOStreams.Out, o.SourceRef, o.ManifestDir, o.IcspScope, mapping)
 }
 
-func WriteManifests(out io.Writer, name, dir, icspScope string, mapping map[string]Target) error {
+func WriteManifests(out io.Writer, source imagesource.TypedImageReference, dir, icspScope string, mapping map[string]Target) error {
 	f, err := os.Create(filepath.Join(dir, "mapping.txt"))
 	if err != nil {
 		return err
@@ -375,7 +375,7 @@ func WriteManifests(out io.Writer, name, dir, icspScope string, mapping map[stri
 		return err
 	}
 
-	icsp, err := generateICSP(out, name, icspScope, mapping)
+	icsp, err := generateICSP(out, source.Ref.Name, icspScope, mapping)
 	if err != nil {
 		return err
 	}
@@ -383,6 +383,15 @@ func WriteManifests(out io.Writer, name, dir, icspScope string, mapping map[stri
 	if err := ioutil.WriteFile(filepath.Join(dir, "imageContentSourcePolicy.yaml"), icsp, os.ModePerm); err != nil {
 		return fmt.Errorf("error writing ImageContentSourcePolicy")
 	}
+
+	catalogSource, err := generateCatalogSource(source, mapping)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(filepath.Join(dir, "catalogCource.yaml"), catalogSource, os.ModePerm); err != nil {
+		return fmt.Errorf("error writing CatalogSource")
+	}
+
 	fmt.Fprintf(out, "wrote mirroring manifests to %s\n", dir)
 	return nil
 }
@@ -395,6 +404,33 @@ func writeToMapping(w io.StringWriter, mapping map[string]Target) error {
 	}
 
 	return nil
+}
+
+func generateCatalogSource(source imagesource.TypedImageReference, mapping map[string]Target) ([]byte, error) {
+	dest, ok := mapping[source.String()]
+	if !ok {
+		return nil, fmt.Errorf("no mapping found for index image")
+	}
+	unstructuredObj := unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "operators.coreos.com/v1alpha1",
+			"kind": "CatalogSource",
+			"metadata": map[string]interface{}{
+				"name": source.Ref.Name,
+				"namespace": "openshift-marketplace",
+			},
+			"spec": map[string]interface{}{
+				"sourceType": "grpc",
+				"image": dest.WithTag,
+			},
+		},
+	}
+	csExample, err := yaml.Marshal(unstructuredObj.Object)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal CatalogSource yaml: %v", err)
+	}
+
+	return csExample, nil
 }
 
 func generateICSP(out io.Writer, name string, icspScope string, mapping map[string]Target) ([]byte, error) {
