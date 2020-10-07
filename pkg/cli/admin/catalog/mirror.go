@@ -42,7 +42,7 @@ var (
 
 		By default, the database is extracted to a temporary directory, but can be saved locally via flags.
 
-		An ImageContentSourcePolicy is written to a file that can be adedd to a cluster with access to the target
+		An ImageContentSourcePolicy is written to a file that can be added to a cluster with access to the target
 		registry. This will configure the cluster to pull from the mirrors instead of the locations referenced in
 		the operator manifests.
 
@@ -157,6 +157,16 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	}
 	o.DestRef = destRef
 
+	// do not modify image names which storing in file://
+	// they will be mirrored again into a real registry from the same set of manifests, so renaming will get lost
+	if o.DestRef.Type == imagesource.DestinationFile {
+		o.MaxPathComponents = 0
+	}
+
+	if o.MaxPathComponents == 1 {
+		return fmt.Errorf("maxPathComponents must be 0 (no limit) or greater than 1")
+	}
+
 	if o.ManifestDir == "" {
 		o.ManifestDir = o.SourceRef.Ref.Name + "-manifests"
 	}
@@ -232,21 +242,8 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	fmt.Fprintf(o.IOStreams.Out, "using database path mapping: %s\n", o.DatabasePath)
 
 	var mirrorer ImageMirrorerFunc
-	mirrorer = func(mapping map[string]Target) error {
+	mirrorer = func(mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
 		for from, to := range mapping {
-			fromRef, err := imagesource.ParseReference(from)
-			if err != nil {
-				fmt.Fprintf(o.IOStreams.ErrOut, "couldn't parse %s, skipping mirror: %v\n", from, err)
-				continue
-			}
-
-			// Mirroring happens with a tag so that the images are not GCd from the target registry
-			toRef, err := imagesource.ParseDestinationReference(to.WithTag)
-			if err != nil {
-				fmt.Fprintf(o.IOStreams.ErrOut, "couldn't parse %s, skipping mirror: %v\n", to, err)
-				continue
-			}
-
 			a := imgmirror.NewMirrorImageOptions(o.IOStreams)
 			a.SkipMissing = true
 			a.DryRun = o.DryRun
@@ -255,8 +252,8 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			a.ParallelOptions = o.ParallelOptions
 			a.KeepManifestList = true
 			a.Mappings = []imgmirror.Mapping{{
-				Source:      fromRef,
-				Destination: toRef,
+				Source:      from,
+				Destination: to,
 			}}
 			if err := a.Validate(); err != nil {
 				fmt.Fprintf(o.IOStreams.ErrOut, "error configuring image mirroring: %v\n", err)
@@ -269,7 +266,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	}
 
 	if o.ManifestOnly {
-		mirrorer = func(mapping map[string]Target) error {
+		mirrorer = func(mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
 			return nil
 		}
 	}
@@ -357,10 +354,10 @@ func (o *MirrorCatalogOptions) Run() error {
 		fmt.Fprintf(o.IOStreams.ErrOut, "errors during mirroring. the full contents of the catalog may not have been mirrored: %s\n", err.Error())
 	}
 
-	return WriteManifests(o.IOStreams.Out, o.SourceRef, o.ManifestDir, o.IcspScope, mapping)
+	return WriteManifests(o.IOStreams.Out, o.SourceRef, o.DestRef, o.ManifestDir, o.IcspScope, mapping)
 }
 
-func WriteManifests(out io.Writer, source imagesource.TypedImageReference, dir, icspScope string, mapping map[string]Target) error {
+func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference, dir, icspScope string, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
 	f, err := os.Create(filepath.Join(dir, "mapping.txt"))
 	if err != nil {
 		return err
@@ -373,6 +370,15 @@ func WriteManifests(out io.Writer, source imagesource.TypedImageReference, dir, 
 
 	if err := writeToMapping(f, mapping); err != nil {
 		return err
+	}
+
+	defer func() {
+		fmt.Fprintf(out, "wrote mirroring manifests to %s\n", dir)
+	}()
+
+	if dest.Type != imagesource.DestinationRegistry {
+		fmt.Fprintf(out, "mirroring to %s, skipping ICSP and CatalogSource creation\n", dest.Type)
+		return nil
 	}
 
 	icsp, err := generateICSP(out, source.Ref.Name, icspScope, mapping)
@@ -388,17 +394,19 @@ func WriteManifests(out io.Writer, source imagesource.TypedImageReference, dir, 
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(dir, "catalogCource.yaml"), catalogSource, os.ModePerm); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "catalogSource.yaml"), catalogSource, os.ModePerm); err != nil {
 		return fmt.Errorf("error writing CatalogSource")
 	}
 
-	fmt.Fprintf(out, "wrote mirroring manifests to %s\n", dir)
 	return nil
 }
 
-func writeToMapping(w io.StringWriter, mapping map[string]Target) error {
+func writeToMapping(w io.StringWriter, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
 	for k, v := range mapping {
-		if _, err := w.WriteString(fmt.Sprintf("%s=%s\n", k, v.WithTag)); err != nil {
+		to := v
+		// render with a tag when mirroring so that the target registry doesn't GC the image
+		to.Ref.ID = ""
+		if _, err := w.WriteString(fmt.Sprintf("%s=%s\n", k.String(), to.String())); err != nil {
 			return err
 		}
 	}
@@ -406,22 +414,22 @@ func writeToMapping(w io.StringWriter, mapping map[string]Target) error {
 	return nil
 }
 
-func generateCatalogSource(source imagesource.TypedImageReference, mapping map[string]Target) ([]byte, error) {
-	dest, ok := mapping[source.String()]
+func generateCatalogSource(source imagesource.TypedImageReference, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) ([]byte, error) {
+	dest, ok := mapping[source]
 	if !ok {
 		return nil, fmt.Errorf("no mapping found for index image")
 	}
 	unstructuredObj := unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "operators.coreos.com/v1alpha1",
-			"kind": "CatalogSource",
+			"kind":       "CatalogSource",
 			"metadata": map[string]interface{}{
-				"name": source.Ref.Name,
+				"name":      source.Ref.Name,
 				"namespace": "openshift-marketplace",
 			},
 			"spec": map[string]interface{}{
 				"sourceType": "grpc",
-				"image": dest.WithTag,
+				"image":      dest.String(),
 			},
 		},
 	}
@@ -433,7 +441,7 @@ func generateCatalogSource(source imagesource.TypedImageReference, mapping map[s
 	return csExample, nil
 }
 
-func generateICSP(out io.Writer, name string, icspScope string, mapping map[string]Target) ([]byte, error) {
+func generateICSP(out io.Writer, name string, icspScope string, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) ([]byte, error) {
 	icsp := operatorv1alpha1.ImageContentSourcePolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: operatorv1alpha1.GroupVersion.String(),
@@ -448,24 +456,14 @@ func generateICSP(out io.Writer, name string, icspScope string, mapping map[stri
 
 	registryMapping := map[string]string{}
 	for k, v := range mapping {
-		if len(v.WithDigest) == 0 {
+		if len(v.Ref.ID) == 0 {
 			fmt.Fprintf(out, "no digest mapping available for %s, skip writing to ImageContentSourcePolicy\n", k)
 			continue
 		}
-		fromRef, err := imagesource.ParseReference(k)
-		if err != nil {
-			fmt.Fprintf(out, "error parsing source reference for %s, skip writing to ImageContentSourcePolicy\n", v)
-			continue
-		}
-		toRef, err := imagesource.ParseReference(v.WithDigest)
-		if err != nil {
-			fmt.Fprintf(out, "error parsing target reference for %s, skip writing to ImageContentSourcePolicy\n", v)
-			continue
-		}
 		if icspScope == "registry" {
-			registryMapping[fromRef.Ref.Registry] = toRef.Ref.Registry
+			registryMapping[k.Ref.Registry] = v.Ref.Registry
 		} else {
-			registryMapping[fromRef.Ref.AsRepository().String()] = toRef.Ref.AsRepository().String()
+			registryMapping[k.Ref.AsRepository().String()] = v.Ref.AsRepository().String()
 		}
 	}
 	for key := range registryMapping {
