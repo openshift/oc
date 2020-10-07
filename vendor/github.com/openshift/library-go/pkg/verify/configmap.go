@@ -70,7 +70,7 @@ func GetSignaturesAsConfigmap(digest string, signatures [][]byte) (*corev1.Confi
 // It returns an error if the data is not valid, or no verifier if a config map wth the required
 // annotation is not found. See the verify package for more details on the algorithm for verification.
 // If the annotation is set, a verifier or error is always returned.
-func NewFromManifests(manifests []manifest.Manifest, clientBuilder sigstore.HTTPClient) (*ReleaseVerifier, error) {
+func NewFromManifests(manifests []manifest.Manifest, clientBuilder sigstore.HTTPClient) (Interface, error) {
 	for _, manifest := range manifests {
 		configMap, err := util.ReadConfigMap(manifest.Raw)
 
@@ -124,7 +124,7 @@ func NewFromManifests(manifests []manifest.Manifest, clientBuilder sigstore.HTTP
 // The returned verifier will require that any new release image will only be considered verified
 // if each provided public key has signed the release image digest. The signature may be in any
 // store and the lookup order is internally defined.
-func newFromConfigMapData(src string, data map[string]string, clientBuilder sigstore.HTTPClient) (*ReleaseVerifier, error) {
+func newFromConfigMapData(src string, data map[string]string, clientBuilder sigstore.HTTPClient) (Interface, error) {
 	verifiers := make(map[string]openpgp.EntityList)
 	var stores []store.Store
 	for k, v := range data {
