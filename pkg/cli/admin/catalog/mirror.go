@@ -243,24 +243,27 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 
 	var mirrorer ImageMirrorerFunc
 	mirrorer = func(mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
+		mappings := []imgmirror.Mapping{}
 		for from, to := range mapping {
-			a := imgmirror.NewMirrorImageOptions(o.IOStreams)
-			a.SkipMissing = true
-			a.DryRun = o.DryRun
-			a.SecurityOptions = o.SecurityOptions
-			a.FilterOptions = o.FilterOptions
-			a.ParallelOptions = o.ParallelOptions
-			a.KeepManifestList = true
-			a.Mappings = []imgmirror.Mapping{{
+			mappings = append(mappings, imgmirror.Mapping{
 				Source:      from,
 				Destination: to,
-			}}
-			if err := a.Validate(); err != nil {
-				fmt.Fprintf(o.IOStreams.ErrOut, "error configuring image mirroring: %v\n", err)
-			}
-			if err := a.Run(); err != nil {
-				fmt.Fprintf(o.IOStreams.ErrOut, "error mirroring image: %v\n", err)
-			}
+			})
+		}
+		a := imgmirror.NewMirrorImageOptions(o.IOStreams)
+		a.SkipMissing = true
+		a.ContinueOnError = true
+		a.DryRun = o.DryRun
+		a.SecurityOptions = o.SecurityOptions
+		a.FilterOptions = o.FilterOptions
+		a.ParallelOptions = o.ParallelOptions
+		a.KeepManifestList = true
+		a.Mappings = mappings
+		if err := a.Validate(); err != nil {
+			fmt.Fprintf(o.IOStreams.ErrOut, "error configuring image mirroring: %v\n", err)
+		}
+		if err := a.Run(); err != nil {
+			fmt.Fprintf(o.IOStreams.ErrOut, "error mirroring image: %v\n", err)
 		}
 		return nil
 	}
