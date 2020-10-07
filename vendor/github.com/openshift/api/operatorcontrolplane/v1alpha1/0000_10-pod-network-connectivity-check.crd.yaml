@@ -11,7 +11,7 @@ spec:
     listKind: PodNetworkConnectivityCheckList
     plural: podnetworkconnectivitychecks
     singular: podnetworkconnectivitycheck
-  scope: ""
+  scope: Namespaced
   versions:
   - name: v1alpha1
     served: true

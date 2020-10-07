@@ -400,7 +400,7 @@ github.com/opencontainers/image-spec/specs-go/v1
 # github.com/opencontainers/runc v1.0.0-rc91.0.20200707015106-819fcc687efb
 github.com/opencontainers/runc/libcontainer/system
 github.com/opencontainers/runc/libcontainer/user
-# github.com/openshift/api v0.0.0-20200922074107-8c5a4702c21a
+# github.com/openshift/api v0.0.0-20201005153912-821561a7f2a2
 ## explicit
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -464,7 +464,7 @@ github.com/openshift/build-machinery-go/make/targets/golang
 github.com/openshift/build-machinery-go/make/targets/openshift
 github.com/openshift/build-machinery-go/make/targets/openshift/operator
 github.com/openshift/build-machinery-go/scripts
-# github.com/openshift/client-go v0.0.0-20200827190008-3062137373b5
+# github.com/openshift/client-go v0.0.0-20200929181438-91d71ef2122c
 ## explicit
 github.com/openshift/client-go/apps/clientset/versioned
 github.com/openshift/client-go/apps/clientset/versioned/fake
@@ -527,7 +527,7 @@ github.com/openshift/client-go/user/clientset/versioned/fake
 github.com/openshift/client-go/user/clientset/versioned/scheme
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
-# github.com/openshift/library-go v0.0.0-20200921120329-c803a7b7bb2c
+# github.com/openshift/library-go v0.0.0-20201006230840-f360b9835cc8
 ## explicit
 github.com/openshift/library-go/pkg/apps/appsserialization
 github.com/openshift/library-go/pkg/apps/appsutil
@@ -567,6 +567,7 @@ github.com/openshift/library-go/pkg/verify
 github.com/openshift/library-go/pkg/verify/store
 github.com/openshift/library-go/pkg/verify/store/configmap
 github.com/openshift/library-go/pkg/verify/store/parallel
+github.com/openshift/library-go/pkg/verify/store/serial
 github.com/openshift/library-go/pkg/verify/store/sigstore
 github.com/openshift/library-go/pkg/verify/util
 # github.com/operator-framework/api v0.1.1
