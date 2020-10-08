@@ -662,6 +662,12 @@ spec:
                   Defaults to \"Normal\"."
                 type: string
                 default: Normal
+                enum:
+                - ""
+                - Normal
+                - Debug
+                - Trace
+                - TraceAll
               nodeSelector:
                 description: nodeSelector defines the node selection constraints for
                   the image pruner pod.

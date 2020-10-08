@@ -40,10 +40,10 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/mtrmac/gpgme v0.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
-	github.com/openshift/api v0.0.0-20200922074107-8c5a4702c21a
+	github.com/openshift/api v0.0.0-20200930075302-db52bc4ef99f
 	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
-	github.com/openshift/client-go v0.0.0-20200827190008-3062137373b5
-	github.com/openshift/library-go v0.0.0-20200921120329-c803a7b7bb2c
+	github.com/openshift/client-go v0.0.0-20200929181438-91d71ef2122c
+	github.com/openshift/library-go v0.0.0-20201007105531-fcceeb075980
 	github.com/operator-framework/operator-registry v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1

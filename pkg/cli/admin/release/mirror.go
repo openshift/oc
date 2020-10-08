@@ -512,6 +512,7 @@ func (o *MirrorOptions) Run() error {
 		klog.V(4).Infof("Verifying release authenticity: %v", imageVerifier)
 	} else {
 		fmt.Fprintf(o.ErrOut, "warning: No release authenticity verification is configured, all releases are considered unverified\n")
+		imageVerifier = verify.Reject
 	}
 	// verify the provided payload
 	ctx, cancelFn := context.WithCancel(context.Background())
