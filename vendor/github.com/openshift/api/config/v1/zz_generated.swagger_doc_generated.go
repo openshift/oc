@@ -443,7 +443,7 @@ var map_ClusterOperatorStatusCondition = map[string]string{
 	"status":             "status of the condition, one of True, False, Unknown.",
 	"lastTransitionTime": "lastTransitionTime is the time of the last update to the current status property.",
 	"reason":             "reason is the CamelCase reason for the condition's current status.",
-	"message":            "message provides additional information about the current condition. This is only to be consumed by humans.",
+	"message":            "message provides additional information about the current condition. This is only to be consumed by humans.  It may contain Line Feed characters (U+000A), which should be rendered as new lines.",
 }
 
 func (ClusterOperatorStatusCondition) SwaggerDoc() map[string]string {

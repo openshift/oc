@@ -40,10 +40,10 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/mtrmac/gpgme v0.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
-	github.com/openshift/api v0.0.0-20201005153912-821561a7f2a2
+	github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
 	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
-	github.com/openshift/client-go v0.0.0-20200929181438-91d71ef2122c
-	github.com/openshift/library-go v0.0.0-20201006230840-f360b9835cc8
+	github.com/openshift/client-go v0.0.0-20201020074620-f8fd44879f7c
+	github.com/openshift/library-go v0.0.0-20201022113156-a4ff9e1d2900
 	github.com/operator-framework/operator-registry v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
@@ -61,12 +61,12 @@ require (
 	golang.org/x/sys v0.0.0-20200622214017-ed371f2e16b4
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	gopkg.in/ldap.v2 v2.5.1
-	k8s.io/api v0.19.0
-	k8s.io/apimachinery v0.19.0
-	k8s.io/apiserver v0.19.0
+	k8s.io/api v0.19.2
+	k8s.io/apimachinery v0.19.2
+	k8s.io/apiserver v0.19.2
 	k8s.io/cli-runtime v0.19.0
-	k8s.io/client-go v0.19.0
-	k8s.io/component-base v0.19.0
+	k8s.io/client-go v0.19.2
+	k8s.io/component-base v0.19.2
 	k8s.io/klog/v2 v2.3.0
 	k8s.io/kubectl v0.19.0
 	k8s.io/kubernetes v1.19.0

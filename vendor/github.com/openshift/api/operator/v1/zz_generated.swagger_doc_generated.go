@@ -835,7 +835,7 @@ func (OpenShiftSDNConfig) SwaggerDoc() map[string]string {
 
 var map_ProxyConfig = map[string]string{
 	"":                   "ProxyConfig defines the configuration knobs for kubeproxy All of these are optional and have sensible defaults",
-	"iptablesSyncPeriod": "The period that iptables rules are refreshed. Default: 30s",
+	"iptablesSyncPeriod": "An internal kube-proxy parameter. In older releases of OCP, this sometimes needed to be adjusted in large clusters for performance reasons, but this is no longer necessary, and there is no reason to change this from the default value. Default: 30s",
 	"bindAddress":        "The address to \"bind\" on Defaults to 0.0.0.0",
 	"proxyArguments":     "Any additional arguments to pass to the kubeproxy process",
 }
