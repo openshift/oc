@@ -157,7 +157,7 @@ func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 
 	flags.BoolVar(&o.SkipRelease, "skip-release-image", o.SkipRelease, "Do not push the release image.")
 	flags.StringVar(&o.ToRelease, "to-release-image", o.ToRelease, "Specify an alternate locations for the release image instead as tag 'release' in --to.")
-	flags.BoolVar(&o.Overwrite, "overwrite", o.Overwrite, "Used with --apply-release-image-signature to update exisitng signature configmap.")
+	flags.BoolVar(&o.Overwrite, "overwrite", o.Overwrite, "Used with --apply-release-image-signature to update an existing signature configmap.")
 	return cmd
 }
 
