@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -55,6 +56,10 @@ var (
 
 		# Mirror an operator-registry image and its contents to a particular namespace in a registry
 		oc adm catalog mirror quay.io/my/image:latest myregistry.com/my-namespace
+
+		# Mirror to an airgapped registry by first mirroring to files
+		oc adm catalog mirror quay.io/my/image:latest file:///local/index
+		oc adm catalog mirror file:///local/index/my/image:latest my-airgapped-registry.com
 
 		# Configure a cluster to use a mirrored registry
 		oc apply -f manifests/imageContentSourcePolicy.yaml
@@ -157,7 +162,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	}
 	o.DestRef = destRef
 
-	// do not modify image names which storing in file://
+	// do not modify image names when storing in file://
 	// they will be mirrored again into a real registry from the same set of manifests, so renaming will get lost
 	if o.DestRef.Type == imagesource.DestinationFile {
 		o.MaxPathComponents = 0
@@ -168,7 +173,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	}
 
 	if o.ManifestDir == "" {
-		o.ManifestDir = o.SourceRef.Ref.Name + "-manifests"
+		o.ManifestDir = fmt.Sprintf("manifests-%s-%d", o.SourceRef.Ref.Name, time.Now().Unix())
 	}
 
 	if err := os.MkdirAll(o.ManifestDir, os.ModePerm); err != nil {
@@ -375,30 +380,33 @@ func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference,
 		return err
 	}
 
-	defer func() {
-		fmt.Fprintf(out, "wrote mirroring manifests to %s\n", dir)
-	}()
+	if dest.Type != imagesource.DestinationFile {
+		icsp, err := generateICSP(out, source.Ref.Name, icspScope, mapping)
+		if err != nil {
+			return err
+		}
 
-	if dest.Type != imagesource.DestinationRegistry {
-		fmt.Fprintf(out, "mirroring to %s, skipping ICSP and CatalogSource creation\n", dest.Type)
-		return nil
+		if err := ioutil.WriteFile(filepath.Join(dir, "imageContentSourcePolicy.yaml"), icsp, os.ModePerm); err != nil {
+			return fmt.Errorf("error writing ImageContentSourcePolicy")
+		}
+
+		catalogSource, err := generateCatalogSource(source, mapping)
+		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(filepath.Join(dir, "catalogSource.yaml"), catalogSource, os.ModePerm); err != nil {
+			return fmt.Errorf("error writing CatalogSource")
+		}
 	}
 
-	icsp, err := generateICSP(out, source.Ref.Name, icspScope, mapping)
-	if err != nil {
-		return err
-	}
+	fmt.Fprintf(out, "wrote mirroring manifests to %s\n", dir)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "imageContentSourcePolicy.yaml"), icsp, os.ModePerm); err != nil {
-		return fmt.Errorf("error writing ImageContentSourcePolicy")
-	}
-
-	catalogSource, err := generateCatalogSource(source, mapping)
-	if err != nil {
-		return err
-	}
-	if err := ioutil.WriteFile(filepath.Join(dir, "catalogSource.yaml"), catalogSource, os.ModePerm); err != nil {
-		return fmt.Errorf("error writing CatalogSource")
+	if dest.Type == imagesource.DestinationFile {
+		localIndexLocation, err := mount(source, dest, 0)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "\nTo upload local images to a registry, run:\n\n\toc adm catalog mirror %s REGISTRY/REPOSITORY\n", localIndexLocation)
 	}
 
 	return nil
@@ -407,7 +415,7 @@ func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference,
 func writeToMapping(w io.StringWriter, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
 	for k, v := range mapping {
 		to := v
-		// render with a tag when mirroring so that the target registry doesn't GC the image
+		// render with a tag when mirroring so that the target registry doesn't garbage collect the image
 		to.Ref.ID = ""
 		if _, err := w.WriteString(fmt.Sprintf("%s=%s\n", k.String(), to.String())); err != nil {
 			return err

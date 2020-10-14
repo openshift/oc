@@ -137,7 +137,6 @@ func mappingForImages(images map[string]struct{}, src, dest imagesource.TypedIma
 	}
 
 	mapping = map[imagesource.TypedImageReference]imagesource.TypedImageReference{}
-	//hasher := fnv.New32a()
 	for img := range images {
 		if img == "" {
 			continue
@@ -154,48 +153,6 @@ func mappingForImages(images map[string]struct{}, src, dest imagesource.TypedIma
 			errs = append(errs, err)
 			continue
 		}
-
-		//targetRef := parsed
-		//targetRef.Type = dest.Type
-		//
-		//// tag with hash of source ref if no tag given
-		//if len(targetRef.Ref.Tag) == 0 && len(targetRef.Ref.ID) > 0 {
-		//	hasher.Reset()
-		//	_, err = hasher.Write([]byte(targetRef.Ref.String()))
-		//	if err != nil {
-		//		errs = append(errs, fmt.Errorf("couldn't generate tag for image (%s), skipping mirror", img))
-		//		continue
-		//	}
-		//	targetRef.Ref.Tag = fmt.Sprintf("%x", hasher.Sum32())
-		//}
-		//
-		//// fill in default registry / tag if missing
-		//targetRef.Ref = targetRef.Ref.DockerClientDefaults()
-		//
-		//components := []string{}
-		//if len(dest.Ref.Namespace) > 0 {
-		//	components = append(components, dest.Ref.Namespace)
-		//}
-		//if len(dest.Ref.Name) > 0 {
-		//	components = append(components, strings.Split(dest.Ref.Name, "/")...)
-		//}
-		//if len(targetRef.Ref.Namespace) > 0 {
-		//	components = append(components, targetRef.Ref.Namespace)
-		//}
-		//if len(targetRef.Ref.Name) > 0 {
-		//	components = append(components, strings.Split(targetRef.Ref.Name, "/")...)
-		//}
-		//
-		//targetRef.Ref.Registry = dest.Ref.Registry
-		//targetRef.Ref.Namespace = components[0]
-		//if maxComponents > 1 && len(components) > maxComponents {
-		//	targetRef.Ref.Name = strings.Join(components[1:maxComponents-1], "/") + "/" + strings.Join(components[maxComponents-1:], "-")
-		//} else if maxComponents == 0 {
-		//	targetRef.Ref.Name = strings.Join(components[1:], "/")
-		//} else {
-		//	targetRef.Ref.Name = strings.Join(components[1:maxComponents], "/")
-		//}
-		//targetRef.Ref.Name = strings.TrimPrefix(targetRef.Ref.Name, "/")
 
 		// if src is a file store, assume all other references are in the same location on disk
 		if src.Type != imagesource.DestinationRegistry {
