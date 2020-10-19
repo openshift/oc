@@ -73,7 +73,8 @@ type LoginOptions struct {
 
 func NewLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
 	return &LoginOptions{
-		IOStreams: streams,
+		IOStreams:   streams,
+		CommandName: "oc",
 	}
 }
 
