@@ -47,12 +47,14 @@ func DigestCopy(dst io.ReaderFrom, src io.Reader) (layerDigest, blobDigest diges
 	// calculate the diffID as the sha256 sum of the layer contents
 	pr, pw := io.Pipe()
 	layerhash := algo.Hash()
-	ch := make(chan error)
+	ch := make(chan error, 1)
 	go func() {
 		defer close(ch)
 		gr, err := gzip.NewReader(pr)
 		if err != nil {
-			ch <- fmt.Errorf("unable to create gzip reader layer upload: %v", err)
+			err := fmt.Errorf("unable to create gzip reader layer upload: %v", err)
+			pr.CloseWithError(err)
+			ch <- err
 			return
 		}
 		if !gr.Header.ModTime.IsZero() {
