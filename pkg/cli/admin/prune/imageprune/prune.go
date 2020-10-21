@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
+	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"k8s.io/klog/v2"
 
 	kappsv1 "k8s.io/api/apps/v1"
@@ -749,7 +750,10 @@ func getImageBlobs(image *imagev1.Image) ([]string, error) {
 		return blobs, fmt.Errorf("failed to read metadata for image %s", image.Name)
 	}
 
-	if image.DockerImageManifestMediaType == schema2.MediaTypeManifest && len(dockerImage.ID) > 0 {
+	mediaTypeHasConfig := image.DockerImageManifestMediaType == schema2.MediaTypeManifest ||
+		image.DockerImageManifestMediaType == imagespecv1.MediaTypeImageManifest
+
+	if mediaTypeHasConfig && len(dockerImage.ID) > 0 {
 		configName := dockerImage.ID
 		blobs = append(blobs, configName)
 	}
