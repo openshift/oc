@@ -43,6 +43,7 @@ import (
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
+	"github.com/openshift/library-go/pkg/manifest"
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imageinfo "github.com/openshift/oc/pkg/cli/image/info"
@@ -124,6 +125,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 	flags.BoolVar(&o.Verify, "verify", o.Verify, "Generate bug listings from the changelogs in the git repositories extracted to this path.")
 
 	flags.BoolVar(&o.ShowContents, "contents", o.ShowContents, "Display the contents of a release.")
+	flags.StringVar(&o.OmitsAnnotation, "omits-annotation", o.OmitsAnnotation, "Display the manifests that omit a particular annotation.")
 	flags.BoolVar(&o.ShowCommit, "commits", o.ShowCommit, "Display information about the source an image was created with.")
 	flags.BoolVar(&o.ShowCommitURL, "commit-urls", o.ShowCommitURL, "Display a link (if possible) to the source code.")
 	flags.BoolVar(&o.ShowPullSpec, "pullspecs", o.ShowPullSpec, "Display the pull spec of each image instead of the digest.")
@@ -146,15 +148,16 @@ type InfoOptions struct {
 	From    string
 	FileDir string
 
-	Output        string
-	ImageFor      string
-	IncludeImages bool
-	ShowContents  bool
-	ShowCommit    bool
-	ShowCommitURL bool
-	ShowPullSpec  bool
-	ShowSize      bool
-	Verify        bool
+	Output          string
+	ImageFor        string
+	OmitsAnnotation string
+	IncludeImages   bool
+	ShowContents    bool
+	ShowCommit      bool
+	ShowCommitURL   bool
+	ShowPullSpec    bool
+	ShowSize        bool
+	Verify          bool
 
 	ChangelogDir string
 	BugsDir      string
@@ -387,6 +390,9 @@ func (o *InfoOptions) Validate() error {
 	if o.ShowContents {
 		count++
 	}
+	if len(o.OmitsAnnotation) > 0 {
+		count++
+	}
 	if o.ShowSize {
 		count++
 	}
@@ -522,6 +528,34 @@ func (o *InfoOptions) describeImage(release *ReleaseInfo) error {
 	if o.ShowContents {
 		_, err := io.Copy(o.Out, newContentStreamForRelease(release))
 		return err
+	}
+	if len(o.OmitsAnnotation) > 0 {
+		fileNames := make([]string, 0, len(release.ManifestFiles))
+		for name := range release.ManifestFiles {
+			fileNames = append(fileNames, name)
+		}
+
+		sort.Strings(fileNames)
+		for _, name := range fileNames {
+			manifests, err := manifest.ParseManifests(bytes.NewReader(release.ManifestFiles[name]))
+			if err != nil {
+				return err
+			}
+			for _, m := range manifests {
+				annotations := m.Obj.GetAnnotations()
+				found := false
+				for key := range annotations {
+					if key == o.OmitsAnnotation {
+						found = true
+						break
+					}
+				}
+				if !found {
+					fmt.Fprintf(o.Out, "%s: %s/%s\n", name, m.Obj.GetKind(), m.Obj.GetName())
+				}
+			}
+		}
+		return nil
 	}
 	output := strings.SplitN(o.Output, "=", 2)
 	switch output[0] {
