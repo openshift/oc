@@ -18,6 +18,8 @@ require (
 	github.com/bugsnag/panicwrap v1.2.0 // indirect
 	github.com/containers/image v0.0.0-00010101000000-000000000000
 	github.com/containers/storage v0.0.0-20190726081758-912de200380a // indirect
+	github.com/coreos/ign-converter v0.0.0-20200918193805-44d462f1c700
+	github.com/coreos/ignition v0.35.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v1.4.2-0.20200309214505-aa6a9891b09c
