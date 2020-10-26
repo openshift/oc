@@ -2,17 +2,17 @@ package catalog
 
 import (
 	"fmt"
-	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	"hash/fnv"
 	"strings"
 
 	"github.com/alicebob/sqlittle"
-	"github.com/docker/distribution/reference"
 	"k8s.io/apimachinery/pkg/util/errors"
+
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
 type Mirrorer interface {
-	Mirror() (map[string]Target, error)
+	Mirror() (map[imagesource.TypedImageReference]imagesource.TypedImageReference, error)
 }
 
 // DatabaseExtractor knows how to pull an index image and extract its database
@@ -26,22 +26,14 @@ func (f DatabaseExtractorFunc) Extract(from imagesource.TypedImageReference) (st
 	return f(from)
 }
 
-// Target determines the target to mirror to. We store both a tagged and digested target for different purposes.
-// the digest is used for configuring cri-o to pull mirrored images, and the tag is required when mirroring
-// to a registry so that the image does not get GC'd
-type Target struct {
-	WithDigest string
-	WithTag    string
-}
-
 // ImageMirrorer knows how to mirror an image from one registry to another
 type ImageMirrorer interface {
-	Mirror(mapping map[string]Target) error
+	Mirror(mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error
 }
 
-type ImageMirrorerFunc func(mapping map[string]Target) error
+type ImageMirrorerFunc func(mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error
 
-func (f ImageMirrorerFunc) Mirror(mapping map[string]Target) error {
+func (f ImageMirrorerFunc) Mirror(mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
 	return f(mapping)
 }
 
@@ -74,7 +66,7 @@ func NewIndexImageMirror(options ...ImageIndexMirrorOption) (*IndexImageMirrorer
 	}, nil
 }
 
-func (b *IndexImageMirrorer) Mirror() (map[string]Target, error) {
+func (b *IndexImageMirrorer) Mirror() (map[imagesource.TypedImageReference]imagesource.TypedImageReference, error) {
 	dbFile, err := b.DatabaseExtractor.Extract(b.Source)
 	if err != nil {
 		return nil, err
@@ -86,10 +78,16 @@ func (b *IndexImageMirrorer) Mirror() (map[string]Target, error) {
 	}
 
 	var errs = make([]error, 0)
-	mapping, mapErrs := mappingForImages(images, b.Dest, b.MaxPathComponents)
+	mapping, mapErrs := mappingForImages(images, b.Source, b.Dest, b.MaxPathComponents)
 	if len(mapErrs) > 0 {
 		errs = append(errs, mapErrs...)
 	}
+
+	mappedIndex, err := mount(b.Source, b.Dest, b.MaxPathComponents)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("unable to map index image to new location in dest"))
+	}
+	mapping[b.Source] = mappedIndex
 
 	if err := b.ImageMirrorer.Mirror(mapping); err != nil {
 		errs = append(errs, fmt.Errorf("mirroring failed: %s", err.Error()))
@@ -130,77 +128,98 @@ func imagesFromDb(file string) (map[string]struct{}, error) {
 	return images, nil
 }
 
-func mappingForImages(images map[string]struct{}, dest imagesource.TypedImageReference, maxComponents int) (mapping map[string]Target, errs []error) {
-	domain := dest.Ref.Registry
-
-	// handle bare repository targets
-	if !strings.Contains(dest.String(), "/") {
-		domain = dest.String()
+func mappingForImages(images map[string]struct{}, src, dest imagesource.TypedImageReference, maxComponents int) (mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference, errs []error) {
+	// don't do any name mangling when not mirroring to a real registry
+	// this allows us to assume the names are preserved when doing multi-hop mirrors that use a file or s3 as an
+	// intermediate step
+	if dest.Type != imagesource.DestinationRegistry {
+		maxComponents = 0
 	}
 
-	destComponents := make([]string, 0)
-	for _, s := range strings.Split(strings.TrimPrefix(dest.String(), domain), "/") {
-		if s != "" {
-			destComponents = append(destComponents, s)
-		}
-	}
-
-	mapping = map[string]Target{}
-	hasher := fnv.New32a()
+	mapping = map[imagesource.TypedImageReference]imagesource.TypedImageReference{}
 	for img := range images {
 		if img == "" {
 			continue
 		}
-		ref, err := reference.ParseNormalizedNamed(img)
+
+		parsed, err := imagesource.ParseReference(img)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("couldn't parse image for mirroring (%s), skipping mirror: %v", img, err))
 			continue
 		}
 
-		ref = reference.TagNameOnly(ref)
-
-		components := append(destComponents, strings.Split(reference.Path(ref), "/")...)
-		if len(components) < 2 {
-			errs = append(errs, fmt.Errorf("couldn't parse image path components for mirroring (%s), skipping mirror", img))
+		targetRef, err := mount(parsed, dest, maxComponents)
+		if err != nil {
+			errs = append(errs, err)
 			continue
 		}
 
-		// calculate a new path in the target registry, where only the first (max path components - 1) components are
-		// allowed, and the rest of the path components are collapsed into a single longer component
-		parts := []string{domain}
-		if maxComponents < 1 {
-			parts = append(parts, components...)
-		} else {
-			parts = append(parts, components[0:maxComponents-1]...)
-			parts = append(parts, strings.Join(components[maxComponents-1:], "-"))
-		}
-		name := strings.TrimSuffix(strings.Join(parts, "/"), "/")
-
-		var target Target
-		// if ref has a tag, generate a target with the same tag
-		if c, ok := ref.(reference.NamedTagged); ok {
-			target = Target{
-				WithTag: name + ":" + c.Tag(),
-			}
-		} else {
-			// Tag with the hash of the source ref
-			hasher.Reset()
-			_, err = hasher.Write([]byte(ref.String()))
+		// if src is a file store, assume all other references are in the same location on disk
+		if src.Type != imagesource.DestinationRegistry {
+			srcRef, err := mount(parsed, src, 0)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("couldn't generate tag for image (%s), skipping mirror", img))
+				errs = append(errs, err)
 				continue
 			}
-			target = Target{
-				WithTag: name + ":" + fmt.Sprintf("%x", hasher.Sum32()),
+			if len(parsed.Ref.Tag) == 0 {
+				srcRef.Ref.Tag = ""
 			}
+			mapping[srcRef] = targetRef
+			continue
 		}
 
-		// if ref has a digest, generate a target with digest as well
-		if c, ok := ref.(reference.Canonical); ok {
-			target.WithDigest = name + "@" + c.Digest().String()
+		// set docker defaults, but don't set default tag for digest refs
+		s := parsed
+		parsed.Ref = parsed.Ref.DockerClientDefaults()
+		if len(s.Ref.Tag) == 0 && len(s.Ref.ID) > 0 {
+			parsed.Ref.Tag = ""
 		}
-
-		mapping[ref.String()] = target
+		mapping[parsed] = targetRef
 	}
+	return
+}
+
+func mount(in, dest imagesource.TypedImageReference, maxComponents int) (out imagesource.TypedImageReference, err error) {
+	out = in
+	out.Type = dest.Type
+
+	hasher := fnv.New32a()
+	// tag with hash of source ref if no tag given
+	if len(out.Ref.Tag) == 0 && len(out.Ref.ID) > 0 {
+		hasher.Reset()
+		_, err = hasher.Write([]byte(out.Ref.String()))
+		if err != nil {
+			err = fmt.Errorf("couldn't generate tag for image (%s), skipping mirror", in.String())
+		}
+		out.Ref.Tag = fmt.Sprintf("%x", hasher.Sum32())
+	}
+
+	// fill in default registry / tag if missing
+	out.Ref = out.Ref.DockerClientDefaults()
+
+	components := []string{}
+	if len(dest.Ref.Namespace) > 0 {
+		components = append(components, dest.Ref.Namespace)
+	}
+	if len(dest.Ref.Name) > 0 {
+		components = append(components, strings.Split(dest.Ref.Name, "/")...)
+	}
+	if len(out.Ref.Namespace) > 0 {
+		components = append(components, out.Ref.Namespace)
+	}
+	if len(out.Ref.Name) > 0 {
+		components = append(components, strings.Split(out.Ref.Name, "/")...)
+	}
+
+	out.Ref.Registry = dest.Ref.Registry
+	out.Ref.Namespace = components[0]
+	if maxComponents > 1 && len(components) > maxComponents {
+		out.Ref.Name = strings.Join(components[1:maxComponents-1], "/") + "/" + strings.Join(components[maxComponents-1:], "-")
+	} else if maxComponents == 0 {
+		out.Ref.Name = strings.Join(components[1:], "/")
+	} else {
+		out.Ref.Name = strings.Join(components[1:maxComponents], "/")
+	}
+	out.Ref.Name = strings.TrimPrefix(out.Ref.Name, "/")
 	return
 }
