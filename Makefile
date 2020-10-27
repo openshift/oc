@@ -84,12 +84,17 @@ verify-imports:
 	hack/verify-imports.sh
 .PHONY: verify-imports
 
+generate-versioninfo:
+	SOURCE_GIT_TAG=$(SOURCE_GIT_TAG) hack/generate-versioninfo.sh
+.PHONY: generate-versioninfo
+
 cross-build-darwin-amd64:
 	+@GOOS=darwin GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_DARWIN)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/darwin_amd64
 .PHONY: cross-build-darwin-amd64
 
-cross-build-windows-amd64:
+cross-build-windows-amd64: generate-versioninfo
 	+@GOOS=windows GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_WINDOWS)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/windows_amd64
+	$(RM) cmd/oc/oc.syso
 .PHONY: cross-build-windows-amd64
 
 cross-build-linux-amd64:
@@ -113,6 +118,7 @@ cross-build: cross-build-darwin-amd64 cross-build-windows-amd64 cross-build-linu
 
 clean-cross-build:
 	$(RM) -r '$(CROSS_BUILD_BINDIR)'
+	$(RM) cmd/oc/oc.syso
 	if [ -d '$(OUTPUT_DIR)' ]; then rmdir --ignore-fail-on-non-empty '$(OUTPUT_DIR)'; fi
 .PHONY: clean-cross-build
 
