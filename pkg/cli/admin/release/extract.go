@@ -89,10 +89,10 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		`),
 		Example: templates.Examples(`
 			# Use git to check out the source code for the current cluster release to DIR
-			oc extract --git=DIR
+			oc adm release extract --git=DIR
 
 			# Extract cloud credential requests for AWS
-			oc extract --credentials-requests --cloud=aws
+			oc adm release extract --credentials-requests --cloud=aws
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
