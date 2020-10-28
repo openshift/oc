@@ -21,7 +21,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -240,7 +239,12 @@ func (o *CreateJobOptions) createJobFromCronJob(cronJob *batchv1beta1.CronJob) *
 			Annotations: annotations,
 			Labels:      cronJob.Spec.JobTemplate.Labels,
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(cronJob, appsv1.SchemeGroupVersion.WithKind("CronJob")),
+				{
+					APIVersion: batchv1beta1.SchemeGroupVersion.String(),
+					Kind:       cronJob.Kind,
+					Name:       cronJob.GetName(),
+					UID:        cronJob.GetUID(),
+				},
 			},
 		},
 		Spec: cronJob.Spec.JobTemplate.Spec,
