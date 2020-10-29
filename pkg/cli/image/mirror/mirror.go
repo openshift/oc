@@ -101,7 +101,7 @@ var (
 		# Copy all os/arch manifests of a multi-architecture image
 		# Run 'oc image info myregistry.com/myimage:latest' to see list of os/arch manifests that will be mirrored.
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
-			--filter-by-os=/*
+			--filter-by-os=.*
 	`)
 )
 
