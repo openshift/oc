@@ -155,7 +155,7 @@ func (o *MustGatherOptions) completeImages() error {
 		var err error
 		if image, err = o.resolveImageStreamTag("openshift", "must-gather", "latest"); err != nil {
 			o.log("%v\n", err)
-			image = "quay.io/openshift/origin-must-gather:latest"
+			image = "registry.redhat.io/openshift4/ose-must-gather:latest"
 		}
 		o.Images = append(o.Images, image)
 	}
