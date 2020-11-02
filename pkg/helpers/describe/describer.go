@@ -900,7 +900,6 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 	}
 
 	return tabbedString(func(out *tabwriter.Writer) error {
-		var hostName string
 		formatMeta(out, route.ObjectMeta)
 		if len(route.Spec.Host) > 0 {
 			formatString(out, "Requested Host", route.Spec.Host)
@@ -908,19 +907,7 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 				if route.Spec.Host != ingress.Host {
 					continue
 				}
-				hostName = ""
-				if len(ingress.RouterCanonicalHostname) > 0 {
-					hostName = fmt.Sprintf(" (host %s)", ingress.RouterCanonicalHostname)
-				}
-				switch status, condition := routedisplayhelpers.IngressConditionStatus(&ingress, routev1.RouteAdmitted); status {
-				case corev1.ConditionTrue:
-					fmt.Fprintf(out, "\t  exposed on router %s%s %s ago\n", ingress.RouterName, hostName, strings.ToLower(FormatRelativeTime(condition.LastTransitionTime.Time)))
-				case corev1.ConditionFalse:
-					fmt.Fprintf(out, "\t  rejected by router %s: %s%s (%s ago)\n", ingress.RouterName, hostName, condition.Reason, strings.ToLower(FormatRelativeTime(condition.LastTransitionTime.Time)))
-					if len(condition.Message) > 0 {
-						fmt.Fprintf(out, "\t    %s\n", condition.Message)
-					}
-				}
+				formatRouteIngress(out, true, ingress)
 			}
 		} else {
 			formatString(out, "Requested Host", "<auto>")
@@ -930,19 +917,7 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 			if route.Spec.Host == ingress.Host {
 				continue
 			}
-			hostName = ""
-			if len(ingress.RouterCanonicalHostname) > 0 {
-				hostName = fmt.Sprintf(" (host %s)", ingress.RouterCanonicalHostname)
-			}
-			switch status, condition := routedisplayhelpers.IngressConditionStatus(&ingress, routev1.RouteAdmitted); status {
-			case corev1.ConditionTrue:
-				fmt.Fprintf(out, "\t%s exposed on router %s %s%s ago\n", ingress.Host, ingress.RouterName, hostName, strings.ToLower(FormatRelativeTime(condition.LastTransitionTime.Time)))
-			case corev1.ConditionFalse:
-				fmt.Fprintf(out, "\trejected by router %s: %s%s (%s ago)\n", ingress.RouterName, hostName, condition.Reason, strings.ToLower(FormatRelativeTime(condition.LastTransitionTime.Time)))
-				if len(condition.Message) > 0 {
-					fmt.Fprintf(out, "\t  %s\n", condition.Message)
-				}
-			}
+			formatRouteIngress(out, false, ingress)
 		}
 		formatString(out, "Path", route.Spec.Path)
 
@@ -1006,6 +981,34 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 		}
 		return nil
 	})
+}
+
+func formatRouteIngress(out *tabwriter.Writer, short bool, ingress routev1.RouteIngress) {
+	hostName := ""
+	if len(ingress.RouterCanonicalHostname) > 0 {
+		hostName = fmt.Sprintf(" (host %s)", ingress.RouterCanonicalHostname)
+	}
+	switch status, condition := routedisplayhelpers.IngressConditionStatus(&ingress, routev1.RouteAdmitted); status {
+	case corev1.ConditionTrue:
+		fmt.Fprintf(out, "\t  ")
+		if !short {
+			fmt.Fprintf(out, "%s", ingress.Host)
+		}
+		fmt.Fprintf(out, " exposed on router %s%s", ingress.RouterName, hostName)
+		if condition.LastTransitionTime != nil {
+			fmt.Fprintf(out, " %s ago", strings.ToLower(FormatRelativeTime(condition.LastTransitionTime.Time)))
+		}
+		fmt.Fprintf(out, "\n")
+	case corev1.ConditionFalse:
+		fmt.Fprintf(out, "\trejected by router %s: %s%s", ingress.RouterName, hostName, condition.Reason)
+		if condition.LastTransitionTime != nil {
+			fmt.Fprintf(out, " (%s ago)", strings.ToLower(FormatRelativeTime(condition.LastTransitionTime.Time)))
+		}
+		fmt.Fprintf(out, "\n")
+		if len(condition.Message) > 0 {
+			fmt.Fprintf(out, "\t  %s\n", condition.Message)
+		}
+	}
 }
 
 // ProjectDescriber generates information about a Project
