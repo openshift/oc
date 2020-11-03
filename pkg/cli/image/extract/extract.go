@@ -201,7 +201,7 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 			}
 			mappings = append(mappings, Mapping{
 				Image: image,
-				From:  strings.TrimPrefix(arg, "/"),
+				From:  path.Clean(arg),
 				To:    ".",
 			})
 		}
@@ -216,7 +216,7 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 				return nil, fmt.Errorf("--paths must be of the form SRC:DST")
 			}
 			if len(mapping.From) > 0 {
-				mapping.From = strings.TrimPrefix(mapping.From, "/")
+				mapping.From = path.Clean(mapping.From)
 			}
 
 			toPath := mapping.To
@@ -382,9 +382,10 @@ func (o *ExtractOptions) Run() error {
 					case strings.HasSuffix(mapping.From, "/"):
 						alter = append(alter, newCopyFromDirectory(mapping.From))
 					default:
-						name, parent := path.Base(mapping.From), path.Dir(mapping.From)
-						if name == "." || parent == "." {
-							return fmt.Errorf("unexpected directory from mapping %s", mapping.From)
+						name := path.Base(mapping.From)
+						parent := strings.TrimPrefix(path.Dir(mapping.From), "/") // container filesystems are relative
+						if parent != "" && !strings.HasSuffix(parent, "/") {
+							parent = parent + "/"
 						}
 						alter = append(alter, newCopyFromPattern(parent, name))
 					}
@@ -592,9 +593,6 @@ type copyFromPattern struct {
 }
 
 func newCopyFromPattern(dir, name string) archive.AlterHeader {
-	if !strings.HasSuffix(dir, "/") {
-		dir = dir + "/"
-	}
 	return &copyFromPattern{Base: dir, Name: name}
 }
 
