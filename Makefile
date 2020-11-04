@@ -1,6 +1,10 @@
 all: build
 .PHONY: all
 
+ifdef OS_GIT_VERSION
+SOURCE_GIT_TAG := ${OS_GIT_VERSION}
+endif
+
 # Include the library makefile
 include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 	golang.mk \
