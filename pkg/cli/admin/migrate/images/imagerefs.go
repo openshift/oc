@@ -17,7 +17,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/util/templates"
-	"k8s.io/kubernetes/pkg/credentialprovider"
 
 	buildv1 "github.com/openshift/api/build/v1"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -25,6 +24,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/reference"
 	imageref "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/admin/migrate"
+	"github.com/openshift/oc/pkg/helpers/image/credentialprovider"
 )
 
 var (
