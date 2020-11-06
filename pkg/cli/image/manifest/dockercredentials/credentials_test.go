@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/kubernetes/pkg/credentialprovider"
+	"github.com/openshift/oc/pkg/helpers/image/credentialprovider"
 )
 
 type mockKeyring struct {
