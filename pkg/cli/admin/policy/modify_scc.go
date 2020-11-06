@@ -16,7 +16,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
-	rbacv1helpers "k8s.io/kubernetes/pkg/apis/rbac/v1"
 
 	"github.com/openshift/api/security"
 )
@@ -233,7 +232,13 @@ func (o *SCCModificationOptions) AddSCC() error {
 		// this is ok because we know exactly how we want to be serialized
 		TypeMeta:   metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "ClusterRole"},
 		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(RBACNamesFmt, o.SCCName)},
-		Rules:      []rbacv1.PolicyRule{rbacv1helpers.NewRule("use").Groups(security.GroupName).Resources("securitycontextconstraints").Names(o.SCCName).RuleOrDie()},
+		Rules: []rbacv1.PolicyRule{
+			{
+				Verbs:     []string{"use"},
+				APIGroups: []string{security.GroupName},
+				Resources: []string{"securitycontextconstraints"},
+			},
+		},
 	}
 
 	if _, err := o.RbacClient.ClusterRoles().Get(context.TODO(), clusterRole.Name, metav1.GetOptions{}); err != nil && kapierrors.IsNotFound(err) {
