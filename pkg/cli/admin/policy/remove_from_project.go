@@ -15,7 +15,6 @@ import (
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
-	rbacv1helpers "k8s.io/kubernetes/pkg/apis/rbac/v1"
 
 	"github.com/openshift/library-go/pkg/authorization/authorizationutil"
 )
@@ -154,11 +153,11 @@ func (o *RemoveFromProjectOptions) Run() error {
 	for _, currBinding := range roleBindings.Items {
 		originalSubjects := make([]rbacv1.Subject, len(currBinding.Subjects))
 		copy(originalSubjects, currBinding.Subjects)
-		oldUsers, oldGroups, oldSAs, oldOthers := rbacv1helpers.SubjectsStrings(originalSubjects)
+		oldUsers, oldGroups, oldSAs, oldOthers := subjectsStrings(originalSubjects)
 		oldUsersSet, oldGroupsSet, oldSAsSet, oldOtherSet := sets.NewString(oldUsers...), sets.NewString(oldGroups...), sets.NewString(oldSAs...), sets.NewString(oldOthers...)
 
 		currBinding.Subjects, _ = removeSubjects(currBinding.Subjects, subjectsToRemove)
-		newUsers, newGroups, newSAs, newOthers := rbacv1helpers.SubjectsStrings(currBinding.Subjects)
+		newUsers, newGroups, newSAs, newOthers := subjectsStrings(currBinding.Subjects)
 		newUsersSet, newGroupsSet, newSAsSet, newOtherSet := sets.NewString(newUsers...), sets.NewString(newGroups...), sets.NewString(newSAs...), sets.NewString(newOthers...)
 
 		if len(currBinding.Subjects) == len(originalSubjects) {
@@ -216,6 +215,31 @@ func (o *RemoveFromProjectOptions) Run() error {
 	}
 
 	return nil
+}
+
+func subjectsStrings(subjects []rbacv1.Subject) ([]string, []string, []string, []string) {
+	users := []string{}
+	groups := []string{}
+	sas := []string{}
+	others := []string{}
+
+	for _, subject := range subjects {
+		switch subject.Kind {
+		case rbacv1.ServiceAccountKind:
+			sas = append(sas, fmt.Sprintf("%s/%s", subject.Namespace, subject.Name))
+
+		case rbacv1.UserKind:
+			users = append(users, subject.Name)
+
+		case rbacv1.GroupKind:
+			groups = append(groups, subject.Name)
+
+		default:
+			others = append(others, fmt.Sprintf("%s/%s/%s", subject.Kind, subject.Namespace, subject.Name))
+		}
+	}
+
+	return users, groups, sas, others
 }
 
 type roleBindingSorter []rbacv1.RoleBinding

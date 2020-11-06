@@ -14,7 +14,6 @@ import (
 	fakekubeclient "k8s.io/client-go/kubernetes/fake"
 	fakerbacv1 "k8s.io/client-go/kubernetes/typed/rbac/v1/fake"
 	clientgotesting "k8s.io/client-go/testing"
-	rbacv1helpers "k8s.io/kubernetes/pkg/apis/rbac/v1"
 )
 
 func TestModifySCC(t *testing.T) {
@@ -29,7 +28,14 @@ func TestModifySCC(t *testing.T) {
 	}{
 		"add-user-to-empty": {
 			expectedCR: &rbacv1.ClusterRole{
-				Rules: []rbacv1.PolicyRule{rbacv1helpers.NewRule("use").Groups("security.openshift.io").Resources("securitycontextconstraints").Names(sccName).RuleOrDie()},
+				Rules: []rbacv1.PolicyRule{
+					{
+						Verbs:         []string{"use"},
+						APIGroups:     []string{"security.openshift.io"},
+						Resources:     []string{"securitycontextconstraints"},
+						ResourceNames: []string{sccName},
+					},
+				},
 			},
 			startingCRB: &rbacv1.ClusterRoleBinding{},
 			subjects:    []rbacv1.Subject{{Name: "one", Kind: "User"}, {Name: "two", Kind: "User"}},
@@ -38,6 +44,7 @@ func TestModifySCC(t *testing.T) {
 			},
 			remove: false,
 		},
+
 		"add-user-to-existing": {
 			startingCR:  &rbacv1.ClusterRole{},
 			startingCRB: &rbacv1.ClusterRoleBinding{Subjects: []rbacv1.Subject{{Kind: "User", Name: "one"}}},
@@ -59,7 +66,14 @@ func TestModifySCC(t *testing.T) {
 
 		"add-sa-to-empty": {
 			expectedCR: &rbacv1.ClusterRole{
-				Rules: []rbacv1.PolicyRule{rbacv1helpers.NewRule("use").Groups("security.openshift.io").Resources("securitycontextconstraints").Names(sccName).RuleOrDie()},
+				Rules: []rbacv1.PolicyRule{
+					{
+						Verbs:         []string{"use"},
+						APIGroups:     []string{"security.openshift.io"},
+						Resources:     []string{"securitycontextconstraints"},
+						ResourceNames: []string{sccName},
+					},
+				},
 			},
 			startingCRB: &rbacv1.ClusterRoleBinding{},
 			subjects:    []rbacv1.Subject{{Namespace: "a", Name: "one", Kind: "ServiceAccount"}, {Namespace: "b", Name: "two", Kind: "ServiceAccount"}},
@@ -89,7 +103,14 @@ func TestModifySCC(t *testing.T) {
 
 		"add-group-to-empty": {
 			expectedCR: &rbacv1.ClusterRole{
-				Rules: []rbacv1.PolicyRule{rbacv1helpers.NewRule("use").Groups("security.openshift.io").Resources("securitycontextconstraints").Names(sccName).RuleOrDie()},
+				Rules: []rbacv1.PolicyRule{
+					{
+						Verbs:         []string{"use"},
+						APIGroups:     []string{"security.openshift.io"},
+						Resources:     []string{"securitycontextconstraints"},
+						ResourceNames: []string{sccName},
+					},
+				},
 			},
 			startingCRB: &rbacv1.ClusterRoleBinding{},
 			subjects:    []rbacv1.Subject{{Name: "one", Kind: "Group"}, {Name: "two", Kind: "Group"}},
