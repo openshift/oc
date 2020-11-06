@@ -69,7 +69,7 @@ oc: build
 update: update-generated-completions
 .PHONY: update
 
-verify: verify-cli-conventions verify-generated-completions verify-imports
+verify: verify-cli-conventions verify-generated-completions
 .PHONY: verify
 
 verify-cli-conventions:
@@ -83,10 +83,6 @@ update-generated-completions: build
 verify-generated-completions: build
 	hack/verify-generated-completions.sh
 .PHONY: verify-generated-completions
-
-verify-imports:
-	hack/verify-imports.sh
-.PHONY: verify-imports
 
 generate-versioninfo:
 	SOURCE_GIT_TAG=$(SOURCE_GIT_TAG) hack/generate-versioninfo.sh
