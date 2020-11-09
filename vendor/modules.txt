@@ -400,7 +400,7 @@ github.com/opencontainers/image-spec/specs-go/v1
 # github.com/opencontainers/runc v1.0.0-rc91.0.20200707015106-819fcc687efb
 github.com/opencontainers/runc/libcontainer/system
 github.com/opencontainers/runc/libcontainer/user
-# github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
+# github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267 => github.com/alvaroaleman/api v0.0.0-20201109165148-6d5eebc3a6f4
 ## explicit
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -1319,6 +1319,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 sigs.k8s.io/yaml
 # vbom.ml/util v0.0.0-20180919145318-efcd4e0f9787
 vbom.ml/util/sortorder
+# github.com/openshift/api => github.com/alvaroaleman/api v0.0.0-20201109165148-6d5eebc3a6f4
 # github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 # github.com/containers/image => github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d

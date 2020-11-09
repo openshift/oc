@@ -2,6 +2,8 @@ module github.com/openshift/oc
 
 go 1.14
 
+replace github.com/openshift/api => github.com/alvaroaleman/api v0.0.0-20201109165148-6d5eebc3a6f4
+
 require (
 	github.com/AaronO/go-git-http v0.0.0-20161214145340-1d9485b3a98f
 	github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd
