@@ -1554,6 +1554,93 @@ func TestImagePruning(t *testing.T) {
 				`buildconfig/bc1 namespace=foo: invalid ImageStreamImage reference "bad:isi":` +
 				` expected exactly one @ in the isimage name "bad:isi"]`,
 		},
+
+		{
+			name:             "schema 2 image blobs are pruned",
+			keepTagRevisions: keepTagRevisions(0),
+			images:           Images(imagetest.ImageWithLayers("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000", &imagetest.Config1, "layer1", "layer2")),
+			streams: Streams(
+				imagetest.Stream(registryHost, "foo", "bar", []imagev1.NamedTagEventList{
+					imagetest.Tag("latest",
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+					),
+				}),
+			),
+			expectedImageDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000000"},
+			expectedLayerLinkDeletions: []string{
+				"foo/bar|layer1",
+				"foo/bar|layer2",
+				"foo/bar|" + imagetest.Config1,
+			},
+			expectedManifestLinkDeletions: []string{
+				"foo/bar|sha256:0000000000000000000000000000000000000000000000000000000000000000",
+			},
+			expectedBlobDeletions: []string{
+				"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+				"layer1",
+				"layer2",
+				imagetest.Config1,
+			},
+			expectedStreamUpdates: []string{
+				"foo/bar:latest",
+				"foo/bar|latest|0|sha256:0000000000000000000000000000000000000000000000000000000000000000",
+			},
+		},
+
+		{
+			name:             "oci image blobs are pruned",
+			keepTagRevisions: keepTagRevisions(0),
+			images:           Images(imagetest.OCIImageWithLayers("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000", imagetest.Config1, "layer1", "layer2")),
+			streams: Streams(
+				imagetest.Stream(registryHost, "foo", "bar", []imagev1.NamedTagEventList{
+					imagetest.Tag("latest",
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+					),
+				}),
+			),
+			expectedImageDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000000"},
+			expectedLayerLinkDeletions: []string{
+				"foo/bar|layer1",
+				"foo/bar|layer2",
+				"foo/bar|" + imagetest.Config1,
+			},
+			expectedManifestLinkDeletions: []string{
+				"foo/bar|sha256:0000000000000000000000000000000000000000000000000000000000000000",
+			},
+			expectedBlobDeletions: []string{
+				"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+				"layer1",
+				"layer2",
+				imagetest.Config1,
+			},
+			expectedStreamUpdates: []string{
+				"foo/bar:latest",
+				"foo/bar|latest|0|sha256:0000000000000000000000000000000000000000000000000000000000000000",
+			},
+		},
+
+		{
+			name:             "blobs are not deleted if there are oci images that still use them",
+			keepTagRevisions: keepTagRevisions(1),
+			images: Images(
+				imagetest.OCIImageWithLayers("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001", imagetest.Config1, "layer1", "layer2"),
+				imagetest.ImageWithLayers("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000", &imagetest.Config1, "layer1", "layer2"),
+			),
+			streams: Streams(
+				imagetest.Stream(registryHost, "foo", "bar", []imagev1.NamedTagEventList{
+					imagetest.Tag("latest",
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+					),
+				}),
+			),
+			expectedImageDeletions:        []string{"sha256:0000000000000000000000000000000000000000000000000000000000000000"},
+			expectedManifestLinkDeletions: []string{"foo/bar|sha256:0000000000000000000000000000000000000000000000000000000000000000"},
+			expectedBlobDeletions:         []string{"sha256:0000000000000000000000000000000000000000000000000000000000000000"},
+			expectedStreamUpdates: []string{
+				"foo/bar|latest|1|sha256:0000000000000000000000000000000000000000000000000000000000000000",
+			},
+		},
 	}
 
 	// we need to install OpenShift API types to kubectl's scheme for GetReference to work

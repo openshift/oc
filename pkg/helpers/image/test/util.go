@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
+	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	kappsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -69,7 +70,7 @@ func Image(id, ref string) imagev1.Image {
 	return AgedImage(id, ref, 120)
 }
 
-// Image returns a default test image referencing the given layers.
+// ImageWithLayers returns a default test image referencing the given layers.
 func ImageWithLayers(id, ref string, configName *string, layers ...string) imagev1.Image {
 	image := imagev1.Image{
 		ObjectMeta: metav1.ObjectMeta{
@@ -100,6 +101,13 @@ func ImageWithLayers(id, ref string, configName *string, layers ...string) image
 		image.DockerImageLayers = append(image.DockerImageLayers, imagev1.ImageLayer{Name: layer})
 	}
 
+	return image
+}
+
+// OCIImageWithLayers returns an OCI image referencing the given layers.
+func OCIImageWithLayers(id, ref string, configName string, layers ...string) imagev1.Image {
+	image := ImageWithLayers(id, ref, &configName, layers...)
+	image.DockerImageManifestMediaType = imagespecv1.MediaTypeImageManifest
 	return image
 }
 
