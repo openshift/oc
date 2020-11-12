@@ -771,11 +771,20 @@ func (o *MirrorOptions) Run() error {
 	}
 
 	fmt.Fprintf(o.Out, "\nSuccess\nUpdate image:  %s\n", to)
+	var toList []string
 	if len(o.To) > 0 {
-		if hasPrefix {
-			fmt.Fprintf(o.Out, "Mirror prefix: %s\n", o.To)
-		} else {
-			fmt.Fprintf(o.Out, "Mirrored to: %s\n", o.To)
+		toList = append(toList, o.To)
+	}
+	if len(o.ToRelease) > 0 {
+		toList = append(toList, o.ToRelease)
+	}
+	if len(toList) > 0 {
+		for _, t := range toList {
+			if hasPrefix {
+				fmt.Fprintf(o.Out, "Mirror prefix: %s\n", t)
+			} else {
+				fmt.Fprintf(o.Out, "Mirrored to: %s\n", t)
+			}
 		}
 	}
 	if toDisk {
@@ -784,9 +793,9 @@ func (o *MirrorOptions) Run() error {
 		} else {
 			fmt.Fprintf(o.Out, "\nTo upload local images to a registry, run:\n\n    oc image mirror 'file://%s*' REGISTRY/REPOSITORY\n\n", to)
 		}
-	} else if len(o.To) > 0 {
+	} else if len(toList) > 0 {
 		if o.PrintImageContentInstructions {
-			if err := printImageContentInstructions(o.Out, o.From, o.To, o.ReleaseImageSignatureToDir, repositories); err != nil {
+			if err := printImageContentInstructions(o.Out, o.From, toList, o.ReleaseImageSignatureToDir, repositories); err != nil {
 				return fmt.Errorf("Error creating mirror usage instructions: %v", err)
 			}
 		}
@@ -815,47 +824,49 @@ func (o *MirrorOptions) Run() error {
 
 // printImageContentInstructions provides examples to the user for using the new repository mirror
 // https://github.com/openshift/installer/blob/master/docs/dev/alternative_release_image_sources.md
-func printImageContentInstructions(out io.Writer, from, to string, signatureToDir string, repositories map[string]struct{}) error {
+func printImageContentInstructions(out io.Writer, from string, toList []string, signatureToDir string, repositories map[string]struct{}) error {
 	type installConfigSubsection struct {
 		ImageContentSources []operatorv1alpha1.RepositoryDigestMirrors `json:"imageContentSources"`
 	}
 
 	var sources []operatorv1alpha1.RepositoryDigestMirrors
 
-	mirrorRef, err := imagesource.ParseReference(to)
-	if err != nil {
-		return fmt.Errorf("Unable to parse image reference '%s': %v", to, err)
-	}
-	if mirrorRef.Type != imagesource.DestinationRegistry {
-		return nil
-	}
-	mirrorRepo := mirrorRef.Ref.AsRepository().String()
-
-	if len(from) != 0 {
-		sourceRef, err := imagesource.ParseReference(from)
+	for _, to := range toList {
+		mirrorRef, err := imagesource.ParseReference(to)
 		if err != nil {
-			return fmt.Errorf("Unable to parse image reference '%s': %v", from, err)
+			return fmt.Errorf("Unable to parse image reference '%s': %v", to, err)
 		}
-		if sourceRef.Type != imagesource.DestinationRegistry {
+		if mirrorRef.Type != imagesource.DestinationRegistry {
 			return nil
 		}
-		sourceRepo := sourceRef.Ref.AsRepository().String()
-		repositories[sourceRepo] = struct{}{}
-	}
+		mirrorRepo := mirrorRef.Ref.AsRepository().String()
 
-	if len(repositories) == 0 {
-		return nil
-	}
+		if len(from) != 0 {
+			sourceRef, err := imagesource.ParseReference(from)
+			if err != nil {
+				return fmt.Errorf("Unable to parse image reference '%s': %v", from, err)
+			}
+			if sourceRef.Type != imagesource.DestinationRegistry {
+				return nil
+			}
+			sourceRepo := sourceRef.Ref.AsRepository().String()
+			repositories[sourceRepo] = struct{}{}
+		}
 
-	for repository := range repositories {
-		sources = append(sources, operatorv1alpha1.RepositoryDigestMirrors{
-			Source:  repository,
-			Mirrors: []string{mirrorRepo},
+		if len(repositories) == 0 {
+			return nil
+		}
+
+		for repository := range repositories {
+			sources = append(sources, operatorv1alpha1.RepositoryDigestMirrors{
+				Source:  repository,
+				Mirrors: []string{mirrorRepo},
+			})
+		}
+		sort.Slice(sources, func(i, j int) bool {
+			return sources[i].Source < sources[j].Source
 		})
 	}
-	sort.Slice(sources, func(i, j int) bool {
-		return sources[i].Source < sources[j].Source
-	})
 
 	// Create and display install-config.yaml example
 	imageContentSources := installConfigSubsection{
