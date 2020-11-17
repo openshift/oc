@@ -26,16 +26,16 @@ type fileDriver struct {
 	BaseDir string
 }
 
-func (d *fileDriver) Repository(ctx context.Context, server *url.URL, repoName string, insecure bool) (distribution.Repository, error) {
+func (d *fileDriver) Repository(ctx context.Context, server *url.URL, repoName string, insecure bool) (distribution.Repository, distribution.ManifestService, error) {
 	klog.V(3).Infof("Repository %s %s", server, repoName)
 
 	ref, err := reference.Parse(repoName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	named, ok := ref.(reference.Named)
 	if !ok {
-		return nil, fmt.Errorf("%s is not a valid repository name", repoName)
+		return nil, nil, fmt.Errorf("%s is not a valid repository name", repoName)
 	}
 
 	repo := &fileRepository{
@@ -43,7 +43,12 @@ func (d *fileDriver) Repository(ctx context.Context, server *url.URL, repoName s
 		repoPath: repoPathForName(repoName),
 		basePath: d.BaseDir,
 	}
-	return repo, nil
+
+	manifests, err := repo.Manifests(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to get local manifest service: %v", err)
+	}
+	return repo, manifests, nil
 }
 
 func repoPathForName(repoName string) string {

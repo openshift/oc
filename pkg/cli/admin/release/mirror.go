@@ -195,8 +195,7 @@ type MirrorOptions struct {
 	ReleaseImageICSPToDir      string
 	Overwrite                  bool
 
-	DryRun                        bool
-	PrintImageContentInstructions bool
+	DryRun bool
 
 	ImageClientFn  func() (imageclient.Interface, string, error)
 	CoreV1ClientFn func() (corev1client.ConfigMapInterface, error)
@@ -226,8 +225,11 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 	}
 	o.From = args[0]
 
-	if err := o.SecurityOptions.Complete(f, ""); err != nil {
+	if err := o.SecurityOptions.Complete(f); err != nil {
 		return err
+	}
+	if !o.SecurityOptions.LookupClusterICSP && len(o.SecurityOptions.ICSPFile) == 0 {
+		o.SecurityOptions.TryAlternativeSources = true
 	}
 
 	o.ImageClientFn = func() (imageclient.Interface, string, error) {
@@ -563,7 +565,7 @@ func (o *MirrorOptions) Run() error {
 		// if the source ref is a file type, provide a function that checks the local file store for a given manifest
 		// before continuing, to allow mirroring an entire release to disk in a single file://REPO.
 		if srcRef.Type == imagesource.DestinationFile {
-			if _, manifests, err := (&imagesource.Options{FileDir: o.FromDir}).Repository(context.TODO(), srcRef); err == nil {
+			if _, manifests, err := (&imagesource.Options{FileDir: o.FromDir}).RepositoryWithManifests(context.TODO(), srcRef); err == nil {
 				sourceFn = func(ref imagesource.TypedImageReference) imagesource.TypedImageReference {
 					if ref.Type == imagesource.DestinationFile || len(ref.Ref.ID) == 0 {
 						return ref
@@ -610,7 +612,6 @@ func (o *MirrorOptions) Run() error {
 	repositories := make(map[string]struct{})
 
 	// build the mapping list for mirroring and rewrite if necessary
-	//userGivenRef := srcRef.Ref.AsRepository()
 	for i := range is.Spec.Tags {
 		tag := &is.Spec.Tags[i]
 		if tag.From == nil || tag.From.Kind != "DockerImage" {
@@ -624,10 +625,6 @@ func (o *MirrorOptions) Run() error {
 			return fmt.Errorf("image-references should only contain pointers to images by digest: %s", tag.From.Name)
 		}
 
-		opts := mirror.NewMirrorImageOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
-		opts.SecurityOptions = o.SecurityOptions
-		opts.ParallelOptions = o.ParallelOptions
-		opts.FileDir = o.ToDir
 		// Allow mirror refs to be sourced locally
 		srcMirrorRef := imagesource.TypedImageReference{Ref: from, Type: imagesource.DestinationRegistry}
 		srcMirrorRef = sourceFn(srcMirrorRef)
@@ -821,6 +818,7 @@ func (o *MirrorOptions) Run() error {
 		if len(o.ReleaseImageICSPToDir) == 0 {
 			o.ReleaseImageICSPToDir = configFilesBaseDir
 		}
+
 		if err := o.printImageContentInstructions(repositories, toList, releaseDigest); err != nil {
 			return fmt.Errorf("Error creating mirror usage instructions: %v", err)
 		}
@@ -863,27 +861,29 @@ func (o *MirrorOptions) printImageContentInstructions(repositories map[string]st
 
 	var sources []operatorv1alpha1.RepositoryDigestMirrors
 
+	var mirrorRef imagesource.TypedImageReference
+	var err error
 	for _, to := range toList {
-		mirrorRef, err := imagesource.ParseReference(to)
+		mirrorRef, err = imagesource.ParseReference(to)
 		if err != nil {
 			return fmt.Errorf("Unable to parse image reference '%s': %v", to, err)
-	if mirrorRef.Type != imagesource.DestinationRegistry {
-		return nil
-	}
-	mirrorRepo := mirrorRef.Ref.AsRepository().String()
-
-	if len(o.From) != 0 {
-		sourceRef, err := imagesource.ParseReference(o.From)
-		if err != nil {
-			return fmt.Errorf("Unable to parse image reference '%s': %v", o.From, err)
 		}
+		if mirrorRef.Type != imagesource.DestinationRegistry {
+			return nil
+		}
+		mirrorRepo := mirrorRef.Ref.AsRepository().String()
+
+		if len(o.From) != 0 {
+			sourceRef, err := imagesource.ParseReference(o.From)
+			if err != nil {
+				return fmt.Errorf("Unable to parse image reference '%s': %v", o.From, err)
+			}
 			if sourceRef.Type != imagesource.DestinationRegistry {
 				return nil
 			}
 			sourceRepo := sourceRef.Ref.AsRepository().String()
 			repositories[sourceRepo] = struct{}{}
 		}
-
 		if len(repositories) == 0 {
 			return nil
 		}
@@ -898,7 +898,6 @@ func (o *MirrorOptions) printImageContentInstructions(repositories map[string]st
 			return sources[i].Source < sources[j].Source
 		})
 	}
-}
 
 	// Create and display install-config.yaml example
 	imageContentSources := installConfigSubsection{
@@ -911,6 +910,7 @@ func (o *MirrorOptions) printImageContentInstructions(repositories map[string]st
 	fmt.Fprintf(o.Out, string(installConfigExample))
 
 	// Create and display ImageContentSourcePolicy
+	// last mirrorRef will be used to name icsp
 	mirrorRepoStripped := strings.FieldsFunc(mirrorRef.Ref.Name, func(r rune) bool { return strings.ContainsRune(" .:/", r) })
 	icspName := strings.Join(mirrorRepoStripped[:], "-")
 

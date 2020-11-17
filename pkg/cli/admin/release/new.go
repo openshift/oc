@@ -246,6 +246,12 @@ func (o *NewOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 			o.Namespace = namespace
 		}
 	}
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
+	if !o.SecurityOptions.LookupClusterICSP && len(o.SecurityOptions.ICSPFile) == 0 {
+		o.SecurityOptions.TryAlternativeSources = true
+	}
 	return nil
 }
 

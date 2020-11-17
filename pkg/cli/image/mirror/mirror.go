@@ -26,7 +26,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
@@ -143,7 +142,7 @@ func NewMirrorImageOptions(streams genericclioptions.IOStreams) *MirrorImageOpti
 }
 
 // NewCommandMirrorImage copies images from one location to another.
-func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMirrorImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMirrorImageOptions(streams)
 
 	cmd := &cobra.Command{
@@ -152,16 +151,16 @@ func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 		Long:    mirrorDesc,
 		Example: mirrorExample,
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
 
 	flag := cmd.Flags()
-	o.SecurityOptions.Bind(flag)
 	o.FilterOptions.Bind(flag)
 	o.ParallelOptions.Bind(flag)
+	o.SecurityOptions.Bind(flag)
 
 	flag.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Print the actions that would be taken and exit without writing to the destinations.")
 	flag.BoolVar(&o.ContinueOnError, "continue-on-error", o.ContinueOnError, "If an error occurs, keep going and attempt to mirror as much as possible.")
@@ -179,8 +178,12 @@ func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *MirrorImageOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
+		return err
+	}
+
+	if err := o.SecurityOptions.Complete(f); err != nil {
 		return err
 	}
 
@@ -188,14 +191,14 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 		o.KeepManifestList = true
 	}
 
-	registryContext, err := o.SecurityOptions.Context(imagereference.DockerImageReference{})
-	if err != nil {
-		return err
-	}
-
 	dir := o.FileDir
 	if len(o.FromFileDir) > 0 {
 		dir = o.FromFileDir
+	}
+
+	registryContext, err := o.SecurityOptions.Context()
+	if err != nil {
+		return err
 	}
 
 	opts := &imagesource.Options{
@@ -232,7 +235,7 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (o *MirrorImageOptions) Repository(ctx context.Context, regContext *registryclient.Context, ref imagesource.TypedImageReference, source bool) (distribution.Repository, distribution.ManifestService, error) {
+func (o *MirrorImageOptions) RepositoryWithManifests(ctx context.Context, regContext *registryclient.Context, ref imagesource.TypedImageReference, source bool) (distribution.Repository, distribution.ManifestService, error) {
 	dir := o.FileDir
 	if len(o.FromFileDir) > 0 && source {
 		dir = o.FromFileDir
@@ -245,7 +248,7 @@ func (o *MirrorImageOptions) Repository(ctx context.Context, regContext *registr
 		AttemptS3BucketCopy: o.AttemptS3BucketCopy,
 		RegistryContext:     regContext,
 	}
-	return opts.Repository(ctx, ref)
+	return opts.RepositoryWithManifests(ctx, ref)
 }
 
 func (o *MirrorImageOptions) Validate() error {
@@ -433,12 +436,12 @@ type contextKey struct {
 
 func (o *MirrorImageOptions) plan() (*plan, error) {
 	ctx := apirequest.NewContext()
-	context, err := o.SecurityOptions.Context(imagereference.DockerImageReference{})
+	regContext, err := o.SecurityOptions.Context()
 	if err != nil {
 		return nil, err
 	}
-	fromContext := context.Copy()
-	toContext := context.Copy().WithActions("pull", "push")
+	fromContext := regContext.Copy()
+	toContext := regContext.Copy().WithActions("pull", "push")
 	toContexts := make(map[contextKey]*registryclient.Context)
 
 	tree := buildTargetTree(o.Mappings)
@@ -466,11 +469,12 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 	for name := range tree {
 		src := tree[name]
 		q.Queue(func(_ workqueue.Work) {
-			srcRepo, manifests, err := o.Repository(ctx, fromContext, src.ref, true)
+			newImageRef, srcRepo, manifests, err := o.SecurityOptions.PreferredImageSource(src.ref.Ref, fromContext)
 			if err != nil {
 				plan.AddError(retrieverError{err: fmt.Errorf("unable to connect to %s: %v", src.ref, err), src: src.ref})
 				return
 			}
+			src.ref.Ref = newImageRef
 
 			rq := registryWorkers[name.registry]
 			rq.Batch(func(w workqueue.Work) {
@@ -501,6 +505,7 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 			rq.Queue(func(w workqueue.Work) {
 				for key := range src.digests {
 					srcDigestString, pushTargets := key, src.digests[key]
+
 					w.Parallel(func() {
 						// load the manifest
 						srcDigest := godigest.Digest(srcDigestString)
@@ -531,17 +536,19 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 						}
 
 						for _, dst := range pushTargets {
+
 							var toRepo distribution.Repository
 							var toManifests distribution.ManifestService
 							var err error
 							if o.DryRun {
 								toRepo, err = imagesource.NewDryRun(dst.ref)
 							} else {
-								toRepo, toManifests, err = o.Repository(ctx, toContexts[contextKeyForReference(dst.ref)], dst.ref, false)
-							}
-							if err != nil {
-								plan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to connect to %s: %v", dst.ref, err)})
-								continue
+								newImageRef, toRepo, toManifests, err = o.SecurityOptions.PreferredImageSource(dst.ref.Ref, toContexts[contextKeyForReference(dst.ref)])
+								if err != nil {
+									plan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("unable to connect to %s: %v", dst.ref, err)})
+									continue
+								}
+								dst.ref.Ref = newImageRef
 							}
 
 							canonicalTo := toRepo.Named()

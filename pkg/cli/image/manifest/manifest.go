@@ -164,6 +164,7 @@ func AllManifests(ctx context.Context, from imagereference.DockerImageReference,
 	if err != nil {
 		return nil, nil, "", err
 	}
+
 	return ManifestsFromList(ctx, srcDigest, srcManifest, manifests, from)
 }
 

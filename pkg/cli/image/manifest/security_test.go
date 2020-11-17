@@ -7,18 +7,15 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
-	operatorv1alpha1client "github.com/openshift/client-go/operator/clientset/versioned/typed/operator/v1alpha1"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func securityOpts(icspList []operatorv1alpha1.ImageContentSourcePolicy, icspFile string) *SecurityOptions {
+func lookupAlternate(icspList []operatorv1alpha1.ImageContentSourcePolicy, icspFile string) *SecurityOptions {
 	return &SecurityOptions{
-		Insecure:                     true,
-		SkipVerification:             true,
-		ImageContentSourcePolicyFile: icspFile,
-		ImageContentSourcePolicyList: icspList,
-		CachedContext:                nil,
+		ICSPFile:          icspFile,
+		ICSPList:          icspList,
+		LookupClusterICSP: false,
 	}
 }
 
@@ -165,17 +162,13 @@ func TestAlternativeImageSources(t *testing.T) {
 			icspList:             nil,
 			icspFile:             "",
 			image:                "quay.io/ocp-test/release:4.5",
-			imageSourcesExpected: []string{},
+			imageSourcesExpected: []string{"quay.io/ocp-test/release"},
 		},
 	}
 	for _, tt := range tests {
 		imageRef, err := imagereference.Parse(tt.image)
 		if err != nil {
 			t.Errorf("parsing image reference error = %v", err)
-		}
-		secOpts := securityOpts(tt.icspList, tt.icspFile)
-		secOpts.ICSPClientFn = func() (operatorv1alpha1client.ImageContentSourcePolicyInterface, error) {
-			return nil, nil
 		}
 		var expectedRefs []imagereference.DockerImageReference
 		for _, expected := range tt.imageSourcesExpected {
@@ -186,14 +179,14 @@ func TestAlternativeImageSources(t *testing.T) {
 			expectedRefs = append(expectedRefs, expectedRef)
 		}
 
+		a := lookupAlternate(tt.icspList, tt.icspFile)
 		if len(tt.icspFile) > 0 {
-			err := secOpts.AddImageSourcePoliciesFromFile(tt.image)
+			err := a.AddImageSourcePoliciesFromFile()
 			if err != nil {
 				t.Errorf("add ICSP from file error = %v", err)
 			}
 		}
-		a := &addAlternativeImageSources{}
-		altSources, err := a.AddImageSources(imageRef, secOpts.ImageContentSourcePolicyList)
+		altSources, err := a.AddImageSources(imageRef)
 		if err != nil {
 			t.Errorf("registry client Context error = %v", err)
 		}

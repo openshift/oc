@@ -31,12 +31,10 @@ func getImageManifestByIDFromRegistry(registry *url.URL, repositoryName, imageID
 	if err != nil {
 		return nil, err
 	}
-
-	manifests, err := repo.Manifests(ctx, nil)
+	manifests, err := repo.Manifests(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	manifest, err := manifests.Get(ctx, godigest.Digest(imageID))
 	if err != nil {
 		return nil, err

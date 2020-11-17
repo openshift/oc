@@ -3,7 +3,6 @@ package imagesource
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	"github.com/docker/distribution"
 	"github.com/openshift/library-go/pkg/image/registryclient"
@@ -19,72 +18,34 @@ type Options struct {
 }
 
 // Repository retrieves the appropriate repository implementation and ManifestService for the given typed reference.
-func (o *Options) Repository(ctx context.Context, ref TypedImageReference) (distribution.Repository, distribution.ManifestService, error) {
-	o.RegistryContext.RepositoryRetriever = &registryContext{o.RegistryContext}
+func (o *Options) RepositoryWithManifests(ctx context.Context, ref TypedImageReference) (distribution.Repository, distribution.ManifestService, error) {
 	switch ref.Type {
 	case DestinationRegistry:
 		repo, err := o.RegistryContext.Repository(ctx, ref.Ref.DockerClientDefaults().RegistryURL(), ref.Ref.RepositoryName(), o.Insecure)
 		if err != nil {
 			return nil, nil, err
 		}
-		manifests, err := repo.Manifests(context.TODO())
+		manifests, err := repo.Manifests(ctx)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to get local manifest service: %v", err)
 		}
 		return repo, manifests, nil
+
 	case DestinationFile:
 		driver := &fileDriver{
 			BaseDir: o.FileDir,
 		}
-		repo, err := driver.Repository(ctx, ref.Ref.DockerClientDefaults().RegistryURL(), ref.Ref.RepositoryName(), o.Insecure)
-		if err != nil {
-			return nil, nil, err
-		}
-		return repo, nil, nil
+		return driver.Repository(ctx, ref.Ref.DockerClientDefaults().RegistryURL(), ref.Ref.RepositoryName(), o.Insecure)
 	case DestinationS3:
 		driver := &s3Driver{
 			Creds:    o.RegistryContext.Credentials,
 			CopyFrom: o.AttemptS3BucketCopy,
 		}
 		url := ref.Ref.DockerClientDefaults().RegistryURL()
-		repo, err := driver.Repository(ctx, url, ref.Ref.RepositoryName(), o.Insecure)
-		if err != nil {
-			return nil, nil, err
-		}
-		return repo, nil, nil
+		return driver.Repository(ctx, url, ref.Ref.RepositoryName(), o.Insecure)
 	default:
 		return nil, nil, fmt.Errorf("unrecognized image reference type %s", ref.Type)
 	}
-}
-
-type registryContext struct {
-	*registryclient.Context
-}
-
-func (c *registryContext) Repository(ctx context.Context, registry *url.URL, repoName string, insecure bool) (distribution.Repository, error) {
-	var repo distribution.Repository
-	var err error
-	if len(c.ImageSources) == 0 {
-		repo, err = c.Repository(ctx, registry, repoName, insecure)
-		if err != nil {
-			return nil, err
-		}
-	}
-	for _, ics := range c.ImageSources {
-		repo, err = c.Repository(ctx, ics.RegistryURL(), ics.RepositoryName(), insecure)
-		if err != nil {
-			continue
-		}
-
-		// it would be nice to simply return ManifestService here, as we'll need it, but this will not satifsy library-go's RepositoryRetriever interface
-		_, err := repo.Manifests(context.TODO())
-		if err != nil {
-			err = fmt.Errorf("unable to get local manifest service: %v", err)
-			continue
-		}
-		break
-	}
-	return repo, nil
 }
 
 // ExpandWildcard expands the provided typed reference (which is known to have an expansion)
@@ -96,7 +57,7 @@ func (o *Options) ExpandWildcard(ref TypedImageReference) ([]TypedImageReference
 	}
 
 	// lookup tags that match the search
-	repo, _, err := o.Repository(context.Background(), ref)
+	repo, _, err := o.RepositoryWithManifests(context.Background(), ref)
 	if err != nil {
 		return nil, err
 	}

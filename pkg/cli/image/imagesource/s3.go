@@ -106,23 +106,23 @@ func (d *s3Driver) newObject(server *url.URL, region string, insecure bool, secu
 	return s3obj, nil
 }
 
-func (d *s3Driver) Repository(ctx context.Context, server *url.URL, repoName string, insecure bool) (distribution.Repository, error) {
+func (d *s3Driver) Repository(ctx context.Context, server *url.URL, repoName string, insecure bool) (distribution.Repository, distribution.ManifestService, error) {
 	parts := strings.SplitN(repoName, "/", 3)
 	if len(parts) < 3 {
-		return nil, fmt.Errorf("you must pass a three segment repository name for s3 uploads, where the first segment is the region and the second segment is the bucket")
+		return nil, nil, fmt.Errorf("you must pass a three segment repository name for s3 uploads, where the first segment is the region and the second segment is the bucket")
 	}
 	s3obj, err := d.newObject(server, parts[0], insecure, &url.URL{Scheme: server.Scheme, Host: server.Host, Path: "/" + repoName})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ref, err := reference.Parse(parts[2])
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	named, ok := ref.(reference.Named)
 	if !ok {
-		return nil, fmt.Errorf("%s is not a valid repository name", parts[2])
+		return nil, nil, fmt.Errorf("%s is not a valid repository name", parts[2])
 	}
 
 	repo := &s3Repository{
@@ -132,7 +132,11 @@ func (d *s3Driver) Repository(ctx context.Context, server *url.URL, repoName str
 		repoName: named,
 		copyFrom: d.CopyFrom,
 	}
-	return repo, nil
+	manifests, err := repo.Manifests(context.TODO())
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to get local manifest service: %v", err)
+	}
+	return repo, manifests, nil
 }
 
 type s3Repository struct {

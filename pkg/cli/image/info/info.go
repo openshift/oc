@@ -38,7 +38,7 @@ func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
 	}
 }
 
-func NewInfo(streams genericclioptions.IOStreams) *cobra.Command {
+func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewInfoOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "info IMAGE [...]",
@@ -68,7 +68,7 @@ func NewInfo(streams genericclioptions.IOStreams) *cobra.Command {
 
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(cmd, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -94,11 +94,14 @@ type InfoOptions struct {
 	Output string
 }
 
-func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("info expects at least one argument, an image pull spec")
 	}
 	o.Images = args
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -110,7 +113,7 @@ func (o *InfoOptions) Run() error {
 	if len(o.Images) == 0 {
 		return fmt.Errorf("must specify one or more images as arguments")
 	}
-	regContext, err := o.SecurityOptions.Context(imagereference.DockerImageReference{})
+	regContext, err := o.SecurityOptions.Context()
 	if err != nil {
 		return err
 	}
@@ -364,14 +367,9 @@ type ImageRetriever struct {
 
 func (o *ImageRetriever) Run() error {
 	ctx := context.Background()
-	fromContext, err := o.SecurityOptions.Context(imagereference.DockerImageReference{})
+	fromContext, err := o.SecurityOptions.Context()
 	if err != nil {
 		return err
-	}
-	fromOptions := &imagesource.Options{
-		FileDir:         o.FileDir,
-		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: fromContext,
 	}
 
 	callbackFn := o.ImageMetadataCallback
@@ -388,10 +386,12 @@ func (o *ImageRetriever) Run() error {
 			name := key
 			from := o.Image[key]
 			q.Try(func() error {
-				repo, manifests, err := fromOptions.Repository(ctx, from)
+				var newImageRef imagereference.DockerImageReference
+				newImageRef, repo, manifests, err := o.SecurityOptions.PreferredImageSource(from.Ref, fromContext)
 				if err != nil {
 					return callbackFn(name, nil, fmt.Errorf("unable to connect to image repository %s: %v", from, err))
 				}
+				from.Ref = newImageRef
 
 				allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from.Ref, manifests, repo)
 				if err != nil {

@@ -292,24 +292,28 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		}
 	}
 
-	// load release image
+	// load the release image
 	dir := o.Directory
+	infoOptions := NewInfoOptions(o.IOStreams)
+	infoOptions.SecurityOptions = o.SecurityOptions
+	infoOptions.FileDir = o.FileDir
+
 	var releaseFromRefErr error
 	targetRelease := targetReleaseInfo{}
-	if len(o.SecurityOptions.ImageContentSourcePolicyFile) > 0 {
-		o.SecurityOptions.AddImageSourcePoliciesFromFile(o.From)
-		releaseFromImageSources, err := o.InfoOptions.LoadReleaseInfo(o.From, false, true, o.SecurityOptions.ImageContentSourcePolicyFile)
+	if len(o.SecurityOptions.ICSPFile) > 0 {
+		o.SecurityOptions.AddImageSourcePoliciesFromFile()
+		releaseFromImageSources, err := infoOptions.LoadReleaseInfo(o.From, false, true, o.SecurityOptions.ICSPFile)
 		if err != nil {
-			return fmt.Errorf("could not load release %s from icsp file %s: %v", o.From, o.SecurityOptions.ImageContentSourcePolicyFile, err)
+			return fmt.Errorf("could not load release %s from icsp file %s: %v", o.From, o.SecurityOptions.ICSPFile, err)
 		}
 		targetRelease, err = o.setReleaseLookup(releaseFromImageSources, targets, currentOS, willArchive)
 		if err != nil {
 			// if icsp-file set, then return error if lookup from icsp fails
-			return fmt.Errorf("failed lookup of release %s from icsp file %s: %v", o.From, o.SecurityOptions.ImageContentSourcePolicyFile, err)
+			return fmt.Errorf("failed lookup of release %s from icsp file %s: %v", o.From, o.SecurityOptions.ICSPFile, err)
 		}
 	} else {
 		// This will be tried first, if no ImageContentSourcePolicyFile passed
-		releaseFromRef, loadReleaseFromRefErr := o.InfoOptions.LoadReleaseInfo(o.From, false, false, "")
+		releaseFromRef, loadReleaseFromRefErr := infoOptions.LoadReleaseInfo(o.From, false, false, "")
 		if loadReleaseFromRefErr == nil {
 			targetRelease, releaseFromRefErr = o.setReleaseLookup(releaseFromRef, targets, currentOS, willArchive)
 			// This will be returned if further lookup fails
@@ -317,7 +321,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 				// If there's an error, now look for other imageSources - icsp and/or the user-passed image registry/repo/name
 				klog.V(2).Infof("Failed lookup of release from its reference: %v", releaseFromRefErr)
 				// now try other sources
-				releaseFromImageSources, err := o.InfoOptions.LoadReleaseInfo(o.From, false, true, "")
+				releaseFromImageSources, err := infoOptions.LoadReleaseInfo(o.From, false, true, "")
 				if err != nil {
 					return err
 				}
@@ -330,7 +334,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		} else {
 			klog.V(2).Infof("Failed to load release info from image reference: %v", loadReleaseFromRefErr)
 			// now try other sources
-			releaseFromImageSources, err := o.InfoOptions.LoadReleaseInfo(o.From, false, true, "")
+			releaseFromImageSources, err := infoOptions.LoadReleaseInfo(o.From, false, true, "")
 			if err != nil {
 				return err
 			}

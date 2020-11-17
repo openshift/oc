@@ -25,6 +25,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
+	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"github.com/openshift/oc/pkg/cli/image/archive"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
@@ -304,7 +305,7 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 		return err
 	}
 
-	if err := o.SecurityOptions.Complete(f, ""); err != nil {
+	if err := o.SecurityOptions.Complete(f); err != nil {
 		return err
 	}
 
@@ -321,28 +322,25 @@ func (o *ExtractOptions) Validate() error {
 func (o *ExtractOptions) Run() error {
 	ctx := context.Background()
 	var err error
-	fromContext, err := o.SecurityOptions.Context(o.Mappings[0].ImageRef.Ref)
+	fromContext, err := o.SecurityOptions.Context()
 	if err != nil {
 		return err
-	}
-	fromOptions := &imagesource.Options{
-		FileDir:         o.FileDir,
-		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: fromContext,
 	}
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	q := workqueue.New(o.ParallelOptions.MaxPerRegistry, stopCh)
 	return q.Try(func(q workqueue.Try) {
+		var repo distribution.Repository
 		for i := range o.Mappings {
 			mapping := o.Mappings[i]
 			from := mapping.ImageRef
 			q.Try(func() error {
-				repo, _, err := fromOptions.Repository(ctx, from)
-				if err != nil || repo == nil {
-					return fmt.Errorf("unable to connect to image repository %s: %v", from, err)
+				var newImageRef imagereference.DockerImageReference
+				newImageRef, repo, _, err = o.SecurityOptions.PreferredImageSource(from.Ref, fromContext)
+				if err != nil {
+					return err
 				}
-
+				from.Ref = newImageRef
 				srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {
@@ -355,14 +353,17 @@ func (o *ExtractOptions) Run() error {
 					}
 					return fmt.Errorf("unable to read image %s: %v", from, err)
 				}
+
 				contentDigest, err := registryclient.ContentDigestForManifest(srcManifest, location.Manifest.Algorithm())
 				if err != nil {
 					return err
 				}
+
 				imageConfig, layers, err := imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), location)
 				if err != nil {
-					return err
+					return fmt.Errorf("unable to parse image %s: %v", from, err)
 				}
+
 				if mapping.ConditionFn != nil {
 					ok, err := mapping.ConditionFn(&mapping, location.Manifest, imageConfig)
 					if err != nil {

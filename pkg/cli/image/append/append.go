@@ -107,7 +107,7 @@ func NewAppendImageOptions(streams genericclioptions.IOStreams) *AppendImageOpti
 }
 
 // New creates a new command
-func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAppendImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewAppendImageOptions(streams)
 
 	cmd := &cobra.Command{
@@ -116,7 +116,7 @@ func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
 		Long:    desc,
 		Example: example,
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -145,11 +145,13 @@ func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-func (o *AppendImageOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *AppendImageOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
 		return err
 	}
-
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
 	for _, arg := range args {
 		if arg == "-" {
 			if o.LayerStream != nil {
@@ -210,30 +212,22 @@ func (o *AppendImageOptions) Run() error {
 	}
 
 	ctx := context.Background()
-	fromContext, err := o.SecurityOptions.Context(from.Ref)
+	if len(o.FromFileDir) > 0 {
+		o.SecurityOptions.FileDir = o.FromFileDir
+	}
+
+	fromContext, err := o.SecurityOptions.Context()
 	if err != nil {
 		return err
-	}
-	fromOptions := &imagesource.Options{
-		FileDir:         o.FileDir,
-		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: fromContext,
-	}
-	if len(o.FromFileDir) > 0 {
-		fromOptions.FileDir = o.FromFileDir
 	}
 
 	toContext := fromContext.Copy().WithActions("pull", "push")
-	toOptions := &imagesource.Options{
-		FileDir:         o.FileDir,
-		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: toContext,
-	}
 
-	toRepo, toManifests, err := toOptions.Repository(ctx, to)
+	newImageRef, toRepo, toManifests, err := o.SecurityOptions.PreferredImageSource(to.Ref, fromContext)
 	if err != nil {
 		return err
 	}
+	to.Ref = newImageRef
 	var (
 		base              *dockerv1client.DockerImageConfig
 		baseDigest        digest.Digest
@@ -244,10 +238,11 @@ func (o *AppendImageOptions) Run() error {
 		manifestLocation  imagemanifest.ManifestLocation
 	)
 	if from != nil {
-		repo, _, err := toOptions.Repository(ctx, *from)
+		newFromRef, repo, _, err := o.SecurityOptions.PreferredImageSource(from.Ref, toContext)
 		if err != nil {
 			return err
 		}
+		from.Ref = newFromRef
 		srcManifest, manifestLocation, err = imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 		if err != nil {
 			return fmt.Errorf("unable to read image %s: %v", from, err)

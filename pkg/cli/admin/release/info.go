@@ -367,8 +367,11 @@ func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 		o.From = o.Images[0]
 		o.Images = o.Images[1:]
 	}
-	if err = o.SecurityOptions.Complete(f, ""); err != nil {
+	if err := o.SecurityOptions.Complete(f); err != nil {
 		return err
+	}
+	if !o.SecurityOptions.LookupClusterICSP && len(o.SecurityOptions.ICSPFile) == 0 {
+		o.SecurityOptions.TryAlternativeSources = true
 	}
 	return nil
 }
@@ -738,6 +741,7 @@ func (i *ReleaseInfo) Platform() string {
 }
 
 func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool, setImageSourcePrefix bool, icspFile string) (*ReleaseInfo, error) {
+	replacedRef := false
 	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FileDir = o.FileDir
@@ -746,68 +750,19 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool, setImag
 		return nil, err
 	}
 
-	fromContext, err := opts.SecurityOptions.Context(ref.Ref)
+	fromContext, err := opts.SecurityOptions.Context()
 	if err != nil {
 		return nil, err
 	}
-	sourceOpts := &imagesource.Options{
-		FileDir:         o.FileDir,
-		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: fromContext,
-	}
+
 	if setImageSourcePrefix {
-		if len(icspFile) > 0 {
-			opts.SecurityOptions.ImageContentSourcePolicyFile = icspFile
-			err := opts.SecurityOptions.AddImageSourcePoliciesFromFile(image)
-			if err != nil {
-				return nil, err
-			}
-			altSources, err := fromContext.AddImageSources(ref.Ref, opts.SecurityOptions.ImageContentSourcePolicyList)
-			if err != nil {
-				return nil, err
-			}
-			sourceOpts.RegistryContext.ImageSources = altSources
-		} else {
-			// now try to look for ICSPs from cluster
-			// only look for ICSP if release lookup from image reference fails
-			// such as when working with mirrored registry
-			if err := opts.SecurityOptions.AddICSPsFromCluster(); err != nil {
-				return nil, err
-			}
-			altSources, err := fromContext.AddImageSources(ref.Ref, opts.SecurityOptions.ImageContentSourcePolicyList)
-			if err != nil {
-				return nil, err
-			}
-			sourceOpts.RegistryContext.ImageSources = altSources
-		}
-
-		// Try alternative image sources rather than only the single reference source
-		// imageSources is a slice of 'registry/repo/name' from ImageContentSourcePolicies
-		var err error
-		imageRef, err := imagereference.Parse(image)
+		newRef, _, _, err := opts.SecurityOptions.PreferredImageSource(ref.Ref, fromContext)
 		if err != nil {
 			return nil, err
 		}
-		for _, icsRef := range sourceOpts.RegistryContext.ImageSources {
-			icsRef.ID = imageRef.ID
-			icsRef.Tag = imageRef.Tag
-			ref, err = imagesource.ParseReference(icsRef.String())
-			if err != nil {
-				return nil, err
-			}
-			if _, _, err = sourceOpts.Repository(context.TODO(), ref); err == nil {
-				image = icsRef.String()
-				break
-			}
-		}
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	ref, err = imagesource.ParseReference(image)
-	if err != nil {
-		return nil, err
+		replacedRef = true
+		image = newRef.String()
+		ref.Ref = newRef
 	}
 
 	verifier := imagemanifest.NewVerifier()
@@ -850,54 +805,22 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool, setImag
 				errs = append(errs, err)
 				return true, nil
 			}
-			if setImageSourcePrefix {
-				userGivenRef := ref.Ref.AsRepository()
-				imageSet := false
+			if replacedRef {
+				sourceOpts := &imagesource.Options{FileDir: opts.FileDir, Insecure: opts.SecurityOptions.Insecure, RegistryContext: fromContext}
 				for _, tag := range is.Spec.Tags {
-					// If useImageContentSources true, try every one of imageSources rather than it's single reference.
-					// imagereference.Parse returns the digest ID of each component in the release image-reference.
 					// If can't get digest ID, skip this tag, this happens when user has built a payload by
 					// replacing component images in the release with a new image
 					// imageSources is slice of 'registry/repo/name' determined from ICSP
-					for _, icsRef := range fromContext.ImageSources {
-						tagRef, err := imagereference.Parse(tag.From.Name)
-						// if err != nil, skip this tag
-						if err == nil {
-							icsRef.ID = tagRef.ID
-							srcRef, err := imagesource.ParseReference(icsRef.String())
-							if err != nil {
-								return true, err
-							}
-							if _, _, err = sourceOpts.Repository(context.TODO(), srcRef); err == nil {
-								tag.From.Name = icsRef.String()
-								imageSet = true
-								// ignore error, if there's an error don't substitute
-								break
-							}
+					tagRef, err := imagereference.Parse(tag.From.Name)
+					// if err != nil, skip this tag
+					if err == nil {
+						ref.Ref.ID = tagRef.ID
+						srcRef, err := imagesource.ParseReference(ref.String())
+						if err != nil {
+							return true, err
 						}
-					}
-					if !imageSet {
-						// if user passed the flag to use an iCSP file but no image was set from this ICSP file, error
-						if len(o.SecurityOptions.ImageContentSourcePolicyFile) > 0 {
-							return false, fmt.Errorf("could not find image source from ImageContentSourceFile %v", o.SecurityOptions.ImageContentSourcePolicyFile)
-						}
-						// Now try the registry/repo passed from the user.  If the image does not exist,
-						// proceed with the release info from the release image-references, from readReleaseImageReference above
-						tagRef, err := imagereference.Parse(tag.From.Name)
-						// if err != nil, skip this tag
-						if err == nil {
-							userGivenRef.ID = tagRef.ID
-							userGivenTypedRef, err := imagesource.ParseReference(userGivenRef.String())
-							if err != nil {
-								return true, err
-							}
-							// If the user-given registry/repo/name:digest exists, replace with that, if not keep the
-							// is.Spec.Tag from release image-reference
-							// if userGivenImage:digestID exists, set that.  If not, return original error
-							if _, _, err = sourceOpts.Repository(context.TODO(), userGivenTypedRef); err == nil {
-								// ignore error, if there's an error don't substitute
-								tag.From.Name = userGivenRef.String()
-							}
+						if _, _, err = sourceOpts.RepositoryWithManifests(context.TODO(), srcRef); err == nil {
+							tag.From.Name = ref.String()
 						}
 					}
 				}
