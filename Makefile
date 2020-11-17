@@ -93,7 +93,7 @@ generate-versioninfo:
 .PHONY: generate-versioninfo
 
 cross-build-darwin-amd64:
-	+@GOOS=darwin GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_DARWIN)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/darwin_amd64
+	+@GOOS=darwin CGO_ENABLED=1 GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_DARWIN)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/darwin_amd64
 .PHONY: cross-build-darwin-amd64
 
 cross-build-windows-amd64: generate-versioninfo
