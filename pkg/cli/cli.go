@@ -14,10 +14,10 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/diff"
 
+	kubecmd "k8s.io/kubectl/pkg/cmd"
 	"k8s.io/kubectl/pkg/cmd/plugin"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
-	kubecmd "k8s.io/kubernetes/pkg/kubectl/cmd"
 
 	"github.com/openshift/oc/pkg/cli/admin"
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
