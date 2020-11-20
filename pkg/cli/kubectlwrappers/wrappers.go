@@ -39,7 +39,6 @@ import (
 	kwait "k8s.io/kubectl/pkg/cmd/wait"
 	"k8s.io/kubectl/pkg/util/templates"
 	kcmdauth "k8s.io/kubernetes/pkg/kubectl/cmd/auth"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/convert"
 
 	"github.com/openshift/oc/pkg/cli/create"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
@@ -209,11 +208,6 @@ func NewCmdApply(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 // NewCmdExplain is a wrapper for the Kubernetes cli explain command
 func NewCmdExplain(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(explain.NewCmdExplain("oc", f, streams)))
-}
-
-// NewCmdConvert is a wrapper for the Kubernetes cli convert command
-func NewCmdConvert(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(convert.NewCmdConvert(f, streams)))
 }
 
 // NewCmdEdit is a wrapper for the Kubernetes cli edit command
