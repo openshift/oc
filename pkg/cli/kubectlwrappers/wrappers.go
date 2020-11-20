@@ -14,6 +14,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/apiresources"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	"k8s.io/kubectl/pkg/cmd/attach"
+	kcmdauth "k8s.io/kubectl/pkg/cmd/auth"
 	"k8s.io/kubectl/pkg/cmd/autoscale"
 	"k8s.io/kubectl/pkg/cmd/clusterinfo"
 	"k8s.io/kubectl/pkg/cmd/completion"
@@ -38,7 +39,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	kwait "k8s.io/kubectl/pkg/cmd/wait"
 	"k8s.io/kubectl/pkg/util/templates"
-	kcmdauth "k8s.io/kubernetes/pkg/kubectl/cmd/auth"
 
 	"github.com/openshift/oc/pkg/cli/create"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/sets"
-	kcmd "k8s.io/kubernetes/pkg/kubectl/cmd"
+	kcmd "k8s.io/kubectl/pkg/cmd"
 )
 
 // MissingCommands is the list of commands we're already missing.
