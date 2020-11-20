@@ -220,7 +220,6 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 				observe.NewCmdObserve(f, ioStreams),
 				policy.NewCmdPolicy(f, ioStreams),
 				kubectlwrappers.NewCmdAuth(f, ioStreams),
-				kubectlwrappers.NewCmdConvert(f, ioStreams),
 				image.NewCmdImage(f, ioStreams),
 				registry.NewCmd(f, ioStreams),
 				idle.NewCmdIdle(f, ioStreams),
