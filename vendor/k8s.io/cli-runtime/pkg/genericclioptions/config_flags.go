@@ -27,7 +27,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/cli-runtime/pkg/genericclioptions/openshiftpatch"
 	"k8s.io/client-go/discovery"
 	diskcached "k8s.io/client-go/discovery/cached/disk"
 	"k8s.io/client-go/rest"
@@ -106,6 +105,9 @@ type ConfigFlags struct {
 	// propagate the config to the places that need it, rather than
 	// loading the config multiple times
 	usePersistentConfig bool
+	// Allows increasing burst used for discovery, this is useful
+	// in clusters with many registered resources
+	discoveryBurst int
 }
 
 // ToRESTConfig implements RESTClientGetter.
@@ -225,7 +227,7 @@ func (f *ConfigFlags) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, e
 	// The more groups you have, the more discovery requests you need to make.
 	// given 25 groups (our groups + a few custom resources) with one-ish version each, discovery needs to make 50 requests
 	// double it just so we don't end up here again for a while.  This config is only used for discovery.
-	config.Burst = 100
+	config.Burst = f.discoveryBurst
 
 	cacheDir := defaultCacheDir
 
@@ -255,13 +257,7 @@ func (f *ConfigFlags) ToRESTMapper() (meta.RESTMapper, error) {
 // AddFlags binds client configuration flags to a given flagset
 func (f *ConfigFlags) AddFlags(flags *pflag.FlagSet) {
 	if f.KubeConfig != nil {
-		if !openshiftpatch.IsOC {
-			flags.StringVar(f.KubeConfig, "kubeconfig", *f.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-		} else {
-			flags.StringVar(f.KubeConfig, "kubeconfig", *f.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-			flags.StringVar(f.KubeConfig, OpenShiftKubeConfigFlagName, *f.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-			flags.MarkDeprecated(OpenShiftKubeConfigFlagName, "use --kubeconfig instead")
-		}
+		flags.StringVar(f.KubeConfig, "kubeconfig", *f.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
 	}
 	if f.CacheDir != nil {
 		flags.StringVar(f.CacheDir, flagCacheDir, *f.CacheDir, "Default cache directory")
@@ -327,6 +323,12 @@ func (f *ConfigFlags) WithDeprecatedPasswordFlag() *ConfigFlags {
 	return f
 }
 
+// WithDiscoveryBurst sets the RESTClient burst for discovery.
+func (f *ConfigFlags) WithDiscoveryBurst(discoveryBurst int) *ConfigFlags {
+	f.discoveryBurst = discoveryBurst
+	return f
+}
+
 // NewConfigFlags returns ConfigFlags with default values set
 func NewConfigFlags(usePersistentConfig bool) *ConfigFlags {
 	impersonateGroup := []string{}
@@ -352,6 +354,10 @@ func NewConfigFlags(usePersistentConfig bool) *ConfigFlags {
 		ImpersonateGroup: &impersonateGroup,
 
 		usePersistentConfig: usePersistentConfig,
+		// The more groups you have, the more discovery requests you need to make.
+		// given 25 groups (our groups + a few custom resources) with one-ish version each, discovery needs to make 50 requests
+		// double it just so we don't end up here again for a while.  This config is only used for discovery.
+		discoveryBurst: 100,
 	}
 }
 
