@@ -86,6 +86,11 @@ replace (
 	// yet provides the same fix.
 	github.com/docker/docker => github.com/docker/docker v1.4.2-0.20191121165722-d1d5f6476656
 
+	// Temporary prebase beta.2 pins
+	github.com/openshift/api => github.com/openshift/api prebase-1.20.0-beta.2
+	github.com/openshift/client-go => github.com/openshift/client-go prebase-1.20.0-beta.2
+	github.com/openshift/library-go => github.com/openshift/library-go prebase-1.20.0-beta.2
+
 	k8s.io/api => k8s.io/api v0.20.0-beta.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.0-beta.2
 	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery oc-4.7-kubernetes-1.20.0-beta.2
