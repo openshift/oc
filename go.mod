@@ -62,15 +62,15 @@ require (
 	golang.org/x/sys v0.0.0-20200622214017-ed371f2e16b4
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	gopkg.in/ldap.v2 v2.5.1
-	k8s.io/api v0.19.2
-	k8s.io/apimachinery v0.19.2
-	k8s.io/apiserver v0.19.2
-	k8s.io/cli-runtime v0.19.0
-	k8s.io/client-go v0.19.2
-	k8s.io/component-base v0.19.2
+	k8s.io/api v0.20.0-beta.2
+	k8s.io/apimachinery v0.20.0-beta.2
+	k8s.io/apiserver v0.20.0-beta.2
+	k8s.io/cli-runtime v0.20.0-beta.2
+	k8s.io/client-go v0.20.0-beta.2
+	k8s.io/component-base v0.20.0-beta.2
 	k8s.io/klog/v2 v2.3.0
-	k8s.io/kubectl v0.19.0
-	k8s.io/kubernetes v1.19.0
+	k8s.io/kubectl v0.20.0-beta.2
+	k8s.io/kubernetes v0.20.0-beta.2
 	k8s.io/utils v0.0.0-20200729134348-d5654de09c73
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/yaml v1.2.0
@@ -86,29 +86,32 @@ replace (
 	// yet provides the same fix.
 	github.com/docker/docker => github.com/docker/docker v1.4.2-0.20191121165722-d1d5f6476656
 
-	k8s.io/api => k8s.io/api v0.19.0
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.19.0
-	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20200831185207-c0eb43ac4a3e
-	k8s.io/apiserver => k8s.io/apiserver v0.19.0
-	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20200831185531-852eec47b608
-	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20200908071752-9409de4c95e0
-	k8s.io/cloud-provider => k8s.io/cloud-provider v0.19.0
-	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.19.0
-	k8s.io/code-generator => k8s.io/code-generator v0.19.0
-	k8s.io/component-base => k8s.io/component-base v0.19.0
-	k8s.io/cri-api => k8s.io/cri-api v0.19.0
-	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.19.0
-	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.19.0
-	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.19.0
-	k8s.io/kube-proxy => k8s.io/kube-proxy v0.19.0
-	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.19.0
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20200922135455-1f5b2cd472a9
-	k8s.io/kubelet => k8s.io/kubelet v0.19.0
-	k8s.io/kubernetes => github.com/openshift/kubernetes v1.20.0-alpha.0.0.20200922142336-4700daee7399
-	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.19.0
-	k8s.io/metrics => k8s.io/metrics v0.19.0
-	k8s.io/node-api => k8s.io/node-api v0.19.0
-	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.19.0
-	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.19.0
-	k8s.io/sample-controller => k8s.io/sample-controller v0.19.0
+	k8s.io/api => k8s.io/api v0.20.0-beta.2
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.0-beta.2
+	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery oc-4.7-kubernetes-1.20.0-beta.2
+	k8s.io/apiserver => k8s.io/apiserver v0.20.0-beta.2
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime oc-4.7-kubernetes-1.20.0-beta.2
+	k8s.io/client-go => github.com/openshift/kubernetes-client-go oc-4.7-kubernetes-1.20.0-beta.2
+	k8s.io/cloud-provider => k8s.io/cloud-provider v0.20.0-beta.2
+	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.20.0-beta.2
+	k8s.io/code-generator => k8s.io/code-generator v0.20.0-beta.2
+	k8s.io/component-base => k8s.io/component-base v0.20.0-beta.2
+	k8s.io/component-helpers => k8s.io/component-helpers v0.20.0-beta.2
+	k8s.io/controller-manager => k8s.io/controller-manager v0.20.0-beta.2
+	k8s.io/cri-api => k8s.io/cri-api v0.20.0-beta.2
+	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.20.0-beta.2
+	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.20.0-beta.2
+	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.20.0-beta.2
+	k8s.io/kube-proxy => k8s.io/kube-proxy v0.20.0-beta.2
+	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.20.0-beta.2
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl oc-4.7-kubernetes-1.20.0-beta.2
+	k8s.io/kubelet => k8s.io/kubelet v0.20.0-beta.2
+	k8s.io/kubernetes => github.com/openshift/kubernetes oc-4.7-kubernetes-1.20.0-beta.2
+	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.20.0-beta.2
+	k8s.io/metrics => k8s.io/metrics v0.20.0-beta.2
+	k8s.io/mount-utils => k8s.io/mount-utils v0.20.0-beta.2
+	k8s.io/node-api => k8s.io/node-api v0.20.0-beta.2
+	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.20.0-beta.2
+	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.20.0-beta.2
+	k8s.io/sample-controller => k8s.io/sample-controller v0.20.0-beta.2
 )
