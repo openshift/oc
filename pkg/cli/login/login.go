@@ -17,7 +17,6 @@ import (
 	"k8s.io/kubectl/pkg/util/term"
 
 	"github.com/openshift/oc/pkg/helpers/flagtypes"
-	kubeconfiglib "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/tokencmd"
 )
 
@@ -140,7 +139,9 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 
 	o.DefaultNamespace, _, _ = f.ToRawKubeConfigLoader().Namespace()
 
-	o.PathOptions = kubeconfiglib.NewPathOptions(cmd)
+	o.PathOptions = kclientcmd.NewDefaultPathOptions()
+	// we need to set explicit path if one was specified, since NewDefaultPathOptions doesn't do it for us
+	o.PathOptions.LoadingRules.ExplicitPath = kcmdutil.GetFlagString(cmd, kclientcmd.RecommendedConfigPathFlag)
 
 	return nil
 }

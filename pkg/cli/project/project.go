@@ -70,7 +70,8 @@ var (
 
 func NewProjectOptions(streams genericclioptions.IOStreams) *ProjectOptions {
 	return &ProjectOptions{
-		IOStreams: streams,
+		IOStreams:   streams,
+		PathOptions: kclientcmd.NewDefaultPathOptions(),
 	}
 }
 
@@ -83,7 +84,6 @@ func NewCmdProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cob
 		Long:    projectLong,
 		Example: projectExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			o.PathOptions = kclientcmd.NewDefaultPathOptions()
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -115,6 +115,9 @@ func (o *ProjectOptions) Complete(f genericclioptions.RESTClientGetter, cmd *cob
 	if o.Context != "" {
 		o.Config.CurrentContext = o.Context
 	}
+
+	// we need to set explicit path if one was specified, since NewDefaultPathOptions doesn't do it for us
+	o.PathOptions.LoadingRules.ExplicitPath = kcmdutil.GetFlagString(cmd, kclientcmd.RecommendedConfigPathFlag)
 
 	o.RESTConfig, err = f.ToRESTConfig()
 	if err != nil {

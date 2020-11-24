@@ -20,7 +20,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	oauthv1client "github.com/openshift/client-go/oauth/clientset/versioned/typed/oauth/v1"
-	kubeconfiglib "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/project"
 )
 
@@ -94,7 +93,9 @@ func (o *LogoutOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 		return err
 	}
 
-	o.PathOptions = kubeconfiglib.NewPathOptions(cmd)
+	o.PathOptions = kclientcmd.NewDefaultPathOptions()
+	// we need to set explicit path if one was specified, since NewDefaultPathOptions doesn't do it for us
+	o.PathOptions.LoadingRules.ExplicitPath = kcmdutil.GetFlagString(cmd, kclientcmd.RecommendedConfigPathFlag)
 
 	return nil
 }
