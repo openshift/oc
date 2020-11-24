@@ -12,13 +12,13 @@ import (
 
 	"github.com/MakeNowJust/heredoc"
 
-	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
-	"github.com/openshift/oc/pkg/helpers/originkubeconfignames"
-
 	kapierrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	restclient "k8s.io/client-go/rest"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
+	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 )
 
 const (
@@ -58,7 +58,7 @@ func TestNormalizeServerURL(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Logf("evaluating test: normalize %s -> %s", test.originalServerURL, test.normalizedServerURL)
-		normalized, err := originkubeconfignames.NormalizeServerURL(test.originalServerURL)
+		normalized, err := cliconfig.NormalizeServerURL(test.originalServerURL)
 		if err != nil {
 			t.Errorf("unexpected error normalizing %s: %s", test.originalServerURL, err)
 		}
