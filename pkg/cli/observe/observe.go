@@ -104,7 +104,7 @@ var (
 		    touch inventory
 		    cut -f 1-1 -d ' ' inventory
 
-		    $ oc observe nodes -a '{ .status.addresses[0].address }' \
+		    $ oc observe nodes --template '{ .status.addresses[0].address }' \
 		      --names ./known_nodes.sh \
 		      --delete ./remove_from_inventory.sh \
 		      -- ./add_to_inventory.sh
@@ -130,10 +130,10 @@ var (
 		oc observe services
 
 		# Observe changes to services, including the clusterIP and invoke a script for each
-		oc observe services -a '{ .spec.clusterIP }' -- register_dns.sh
+		oc observe services --template '{ .spec.clusterIP }' -- register_dns.sh
 
 		# Observe changes to services filtered by a label selector
-		oc observe namespaces -l regist-dns=true -a '{ .spec.clusterIP }' -- register_dns.sh
+		oc observe namespaces -l regist-dns=true --template '{ .spec.clusterIP }' -- register_dns.sh
 	`)
 )
 
@@ -692,7 +692,7 @@ func (o *ObserveOptions) next(deltaType cache.DeltaType, obj runtime.Object, out
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", o.objectEnvVar, string(output)))
 		}
 		if len(o.typeEnvVar) > 0 {
-			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", o.typeEnvVar, string(outType)))
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", o.typeEnvVar, outType))
 		}
 		err := measureCommandDuration(execDurations, cmd.Run, outType)
 		out.Flush()
