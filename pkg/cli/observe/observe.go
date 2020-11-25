@@ -295,7 +295,7 @@ func (o *ObserveOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	o.mapping = mapping
 	o.includeNamespace = mapping.Scope.Name() == meta.RESTScopeNamespace.Name()
 
-	o.client, err = f.ClientForMapping(mapping)
+	o.client, err = f.UnstructuredClientForMapping(mapping)
 	if err != nil {
 		return err
 	}
