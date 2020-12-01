@@ -170,6 +170,7 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 
 // RunLogin contains all the necessary functionality for the OpenShift cli login command
 func (o LoginOptions) Run() error {
+	panic("Running oc login without --config option")
 	if err := o.GatherInfo(); err != nil {
 		return err
 	}
