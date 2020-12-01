@@ -9,13 +9,13 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	projectv1 "github.com/openshift/api/project/v1"
 	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	ocproject "github.com/openshift/oc/pkg/cli/project"
-	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 )
 
 // RequestProjectOptions contains all the options for running the RequestProject cli command.
@@ -108,7 +108,7 @@ func (o *RequestProjectOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command,
 
 	if !o.SkipConfigWrite {
 		o.ProjectOptions = ocproject.NewProjectOptions(o.IOStreams)
-		o.ProjectOptions.PathOptions = cliconfig.NewPathOptions(cmd)
+		o.ProjectOptions.PathOptions = kclientcmd.NewDefaultPathOptions()
 		if err := o.ProjectOptions.Complete(f, cmd, []string{""}); err != nil {
 			return err
 		}

@@ -19,7 +19,6 @@ import (
 	projectv1 "github.com/openshift/api/project/v1"
 	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	ocproject "github.com/openshift/oc/pkg/cli/project"
-	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	clientcfg "github.com/openshift/oc/pkg/helpers/originkubeconfignames"
 )
 
@@ -84,7 +83,7 @@ func NewCmdProjects(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 }
 
 func (o *ProjectsOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
-	o.PathOptions = cliconfig.NewPathOptions(cmd)
+	o.PathOptions = kclientcmd.NewDefaultPathOptions()
 	o.Args = args
 
 	var err error
