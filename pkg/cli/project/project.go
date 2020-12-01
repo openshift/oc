@@ -84,7 +84,7 @@ func NewCmdProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cob
 		Long:    projectLong,
 		Example: projectExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			o.PathOptions = cliconfig.NewPathOptions(cmd)
+			o.PathOptions = kclientcmd.NewDefaultPathOptions()
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
 		},
