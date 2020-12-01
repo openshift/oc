@@ -840,7 +840,6 @@ func printImageContentInstructions(out io.Writer, from string, toList []string, 
 			return nil
 		}
 		mirrorRepo := mirrorRef.Ref.AsRepository().String()
-
 		if len(from) != 0 {
 			sourceRef, err := imagesource.ParseReference(from)
 			if err != nil {
@@ -863,10 +862,10 @@ func printImageContentInstructions(out io.Writer, from string, toList []string, 
 				Mirrors: []string{mirrorRepo},
 			})
 		}
-		sort.Slice(sources, func(i, j int) bool {
-			return sources[i].Source < sources[j].Source
-		})
 	}
+	// de-duplicate sources
+	uniqueSources := dedupeSortSources(sources)
+	sources = uniqueSources
 
 	// Create and display install-config.yaml example
 	imageContentSources := installConfigSubsection{
@@ -928,4 +927,40 @@ func (o *MirrorOptions) HTTPClient() (*http.Client, error) {
 	return &http.Client{
 		Transport: transport,
 	}, nil
+}
+
+func dedupeSortSources(sources []operatorv1alpha1.RepositoryDigestMirrors) []operatorv1alpha1.RepositoryDigestMirrors {
+	unique := make(map[string][]string)
+	var uniqueSources []operatorv1alpha1.RepositoryDigestMirrors
+	for _, s := range sources {
+		if mirrors, ok := unique[s.Source]; ok {
+			for _, m := range s.Mirrors {
+				if !contains(mirrors, m) {
+					mirrors = append(mirrors, m)
+				}
+			}
+			unique[s.Source] = mirrors
+		} else {
+			unique[s.Source] = s.Mirrors
+		}
+	}
+	for s, m := range unique {
+		uniqueSources = append(uniqueSources, operatorv1alpha1.RepositoryDigestMirrors{
+			Source:  s,
+			Mirrors: m,
+		})
+	}
+	sort.Slice(uniqueSources, func(i, j int) bool {
+		return uniqueSources[i].Source < sources[j].Source
+	})
+	return uniqueSources
+}
+
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+	return false
 }
