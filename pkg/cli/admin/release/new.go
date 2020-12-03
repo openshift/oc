@@ -45,6 +45,8 @@ import (
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 )
 
+const profileAnnotationPrefix = "include.release.openshift.io/"
+
 func NewNewOptions(streams genericclioptions.IOStreams) *NewOptions {
 	return &NewOptions{
 		IOStreams:       streams,
@@ -736,6 +738,24 @@ func (o *NewOptions) Run() error {
 				}
 				if s, ok := m["apiVersion"].(string); !ok || s == "" {
 					return fmt.Errorf("%s: manifests must contain Kubernetes API objects with 'kind' and 'apiVersion' set: %s", filename, s)
+				}
+				metadata, ok := m["metadata"].(map[string]interface{})
+				if !ok || metadata == nil {
+					return fmt.Errorf("%s: missing metadata; manifests must set at least one profile annotation", filename)
+				}
+				annotations, ok := metadata["annotations"].(map[string]interface{})
+				if !ok || annotations == nil {
+					return fmt.Errorf("%s: missing annotations; manifests must set at least one profile annotation", filename)
+				}
+				hasProfileAnnotation := false
+				for key := range annotations {
+					if strings.HasPrefix(key, profileAnnotationPrefix) {
+						hasProfileAnnotation = true
+						break
+					}
+				}
+				if !hasProfileAnnotation {
+					return fmt.Errorf("%s: missing profile annotation; manifests must set at least one profile annotation", filename)
 				}
 				break
 			}
