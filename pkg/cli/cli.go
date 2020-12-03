@@ -28,6 +28,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/expose"
 	"github.com/openshift/oc/pkg/cli/extract"
 	"github.com/openshift/oc/pkg/cli/idle"
+	"github.com/openshift/oc/pkg/cli/ignition"
 	"github.com/openshift/oc/pkg/cli/image"
 	"github.com/openshift/oc/pkg/cli/importimage"
 	"github.com/openshift/oc/pkg/cli/kubectlwrappers"
@@ -224,6 +225,7 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 				image.NewCmdImage(f, ioStreams),
 				registry.NewCmd(f, ioStreams),
 				idle.NewCmdIdle(f, ioStreams),
+				ignition.NewCmdIgnition(ioStreams),
 				kubectlwrappers.NewCmdApiVersions(f, ioStreams),
 				kubectlwrappers.NewCmdApiResources(f, ioStreams),
 				kubectlwrappers.NewCmdClusterInfo(f, ioStreams),
