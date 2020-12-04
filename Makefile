@@ -14,8 +14,8 @@ include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 )
 
 GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
-                   -X k8s.io/component-base/version.gitMinor="19" \
-                   -X k8s.io/component-base/version.gitVersion="v1.19.0" \
+                   -X k8s.io/component-base/version.gitMinor="20" \
+                   -X k8s.io/component-base/version.gitVersion="v1.20.0-beta.2-6-g99ac8bc" \
                    -X k8s.io/component-base/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
                    -X k8s.io/component-base/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
                    -X k8s.io/component-base/version.gitTreeState="clean" \
@@ -69,7 +69,7 @@ oc: build
 update: update-generated-completions
 .PHONY: update
 
-verify: verify-cli-conventions verify-generated-completions verify-imports
+verify: verify-cli-conventions verify-generated-completions
 .PHONY: verify
 
 verify-cli-conventions:
@@ -83,10 +83,6 @@ update-generated-completions: build
 verify-generated-completions: build
 	hack/verify-generated-completions.sh
 .PHONY: verify-generated-completions
-
-verify-imports:
-	hack/verify-imports.sh
-.PHONY: verify-imports
 
 generate-versioninfo:
 	SOURCE_GIT_TAG=$(SOURCE_GIT_TAG) hack/generate-versioninfo.sh

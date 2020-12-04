@@ -2,10 +2,10 @@ package createbootstrapprojecttemplate
 
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	rbacv1helpers "k8s.io/kubernetes/pkg/apis/rbac/v1"
 
 	"github.com/openshift/api/annotations"
 	projectv1 "github.com/openshift/api/project/v1"
@@ -55,7 +55,20 @@ func DefaultTemplate() *templatev1.Template {
 	}
 	ret.Objects = append(ret.Objects, runtime.RawExtension{Raw: objBytes})
 
-	binding := rbacv1helpers.NewRoleBindingForClusterRole(AdminRoleName, ns).Users("${" + ProjectAdminUserParam + "}").BindingOrDie()
+	binding := rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      AdminRoleName,
+			Namespace: ns,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     AdminRoleName,
+		},
+		Subjects: []rbacv1.Subject{
+			{Kind: rbacv1.UserKind, APIGroup: rbacv1.GroupName, Name: "${" + ProjectAdminUserParam + "}"},
+		},
+	}
 	objBytes, err = runtime.Encode(codec, &binding)
 	if err != nil {
 		panic(err)

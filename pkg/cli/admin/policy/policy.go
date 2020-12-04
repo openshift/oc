@@ -15,7 +15,6 @@ import (
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
-	rbacv1helpers "k8s.io/kubernetes/pkg/apis/rbac/v1"
 
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
@@ -137,10 +136,18 @@ func newRoleBindingAbstraction(rbacClient rbacv1client.RbacV1Interface, name str
 	r := roleBindingAbstraction{rbacClient: rbacClient}
 	if len(namespace) > 0 {
 		switch roleKind {
-		case "Role":
-			r.roleBinding = &(rbacv1helpers.NewRoleBinding(roleName, namespace).RoleBinding)
-		case "ClusterRole":
-			r.roleBinding = &(rbacv1helpers.NewRoleBindingForClusterRole(roleName, namespace).RoleBinding)
+		case "Role", "ClusterRole":
+			r.roleBinding = &rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      roleName,
+					Namespace: namespace,
+				},
+				RoleRef: rbacv1.RoleRef{
+					APIGroup: rbacv1.GroupName,
+					Kind:     roleKind,
+					Name:     roleName,
+				},
+			}
 		default:
 			return nil, fmt.Errorf("Unknown Role Kind: %q", roleKind)
 		}
@@ -151,7 +158,14 @@ func newRoleBindingAbstraction(rbacClient rbacv1client.RbacV1Interface, name str
 		if roleKind != "ClusterRole" {
 			return nil, fmt.Errorf("Cluster Role Bindings can only reference Cluster Roles")
 		}
-		r.clusterRoleBinding = &(rbacv1helpers.NewClusterBinding(roleName).ClusterRoleBinding)
+		r.clusterRoleBinding = &rbacv1.ClusterRoleBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: roleName},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "ClusterRole",
+				Name:     roleName,
+			},
+		}
 		if name != roleName {
 			r.clusterRoleBinding.Name = name
 		}

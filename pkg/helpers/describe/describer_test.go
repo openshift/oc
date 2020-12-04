@@ -54,6 +54,7 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&oauthv1.OAuthAccessToken{}),                      // normal users don't ever look at these
 	reflect.TypeOf(&oauthv1.OAuthAuthorizeToken{}),                   // normal users don't ever look at these
 	reflect.TypeOf(&oauthv1.OAuthClientAuthorization{}),              // normal users don't ever look at these
+	reflect.TypeOf(&oauthv1.UserOAuthAccessToken{}),                  // UserOAuthAccessToken is a virtual resource to mirror OAuthAccessTokens
 	reflect.TypeOf(&projectv1.ProjectRequest{}),                      // normal users don't ever look at these
 	reflect.TypeOf(&templatev1.TemplateInstance{}),                   // normal users don't ever look at these
 	reflect.TypeOf(&templatev1.BrokerTemplateInstance{}),             // normal users don't ever look at these
