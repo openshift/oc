@@ -58,8 +58,13 @@ const configFilesBaseDir = "config"
 // signature file name.
 const maxDigestHashLen = 16
 
-// signatureFileNameFmt defines format of the release image signature file name
+// signatureFileNameFmt defines format of the release image signature file name.
 const signatureFileNameFmt = "signature-%s-%s.yaml"
+
+// archMap maps Go architecture strings to OpenShift supported values for any that differ.
+var archMap = map[string]string{
+	"amd64": "x86_64",
+}
 
 // NewMirrorOptions creates the options for mirroring a release.
 func NewMirrorOptions(streams genericclioptions.IOStreams) *MirrorOptions {
@@ -404,6 +409,7 @@ func (o *MirrorOptions) Run() error {
 
 	var toDisk bool
 	var version string
+	var archExt string
 	if strings.Contains(dst, "${component}") {
 		format := strings.Replace(dst, "${component}", replaceComponentMarker, -1)
 		format = strings.Replace(format, "${version}", replaceVersionMarker, -1)
@@ -418,6 +424,7 @@ func (o *MirrorOptions) Run() error {
 			}
 			value := strings.Replace(dst, "${component}", name, -1)
 			value = strings.Replace(value, "${version}", version, -1)
+			value = value + archExt
 			ref, err := imagesource.ParseReference(value)
 			if err != nil {
 				klog.Fatalf("requested component %q could not be injected into %s: %v", name, dst, err)
@@ -439,9 +446,9 @@ func (o *MirrorOptions) Run() error {
 		targetFn = func(name string) imagesource.TypedImageReference {
 			copied := ref
 			if len(name) > 0 {
-				copied.Ref.Tag = fmt.Sprintf("%s-%s", version, name)
+				copied.Ref.Tag = fmt.Sprintf("%s%s-%s", version, archExt, name)
 			} else {
-				copied.Ref.Tag = version
+				copied.Ref.Tag = fmt.Sprintf("%s%s", version, archExt)
 			}
 			return copied
 		}
@@ -464,6 +471,7 @@ func (o *MirrorOptions) Run() error {
 	if is == nil {
 		o.ImageStream = &imagev1.ImageStream{}
 		is = o.ImageStream
+
 		// load image references
 		buf := &bytes.Buffer{}
 		extractOpts := NewExtractOptions(genericclioptions.IOStreams{Out: buf, ErrOut: o.ErrOut}, true)
@@ -472,6 +480,15 @@ func (o *MirrorOptions) Run() error {
 		extractOpts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig) {
 			releaseDigest = contentDigest.String()
 			verifier.Verify(dgst, contentDigest)
+			if config != nil {
+				if val, ok := archMap[config.Architecture]; ok {
+					archExt = "-" + val
+				} else {
+					archExt = "=" + config.Architecture
+				}
+			} else {
+				fmt.Fprintf(o.ErrOut, "warning: Unable to retrieve image release architecture\n")
+			}
 		}
 		extractOpts.FileDir = o.FromDir
 		extractOpts.From = o.From
