@@ -23,7 +23,6 @@ import (
 	projectv1 "github.com/openshift/api/project/v1"
 	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
-	clientcfg "github.com/openshift/oc/pkg/helpers/originkubeconfignames"
 	"github.com/openshift/oc/pkg/helpers/project"
 )
 
@@ -71,7 +70,8 @@ var (
 
 func NewProjectOptions(streams genericclioptions.IOStreams) *ProjectOptions {
 	return &ProjectOptions{
-		IOStreams: streams,
+		IOStreams:   streams,
+		PathOptions: kclientcmd.NewDefaultPathOptions(),
 	}
 }
 
@@ -84,7 +84,6 @@ func NewCmdProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cob
 		Long:    projectLong,
 		Example: projectExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			o.PathOptions = kclientcmd.NewDefaultPathOptions()
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -116,6 +115,9 @@ func (o *ProjectOptions) Complete(f genericclioptions.RESTClientGetter, cmd *cob
 	if o.Context != "" {
 		o.Config.CurrentContext = o.Context
 	}
+
+	// we need to set explicit path if one was specified, since NewDefaultPathOptions doesn't do it for us
+	o.PathOptions.LoadingRules.ExplicitPath = kcmdutil.GetFlagString(cmd, kclientcmd.RecommendedConfigPathFlag)
 
 	o.RESTConfig, err = f.ToRESTConfig()
 	if err != nil {
@@ -191,7 +193,7 @@ func (o ProjectOptions) Run() error {
 				return nil
 			}
 
-			defaultContextName := clientcfg.GetContextNickname(currentContext.Namespace, currentContext.Cluster, currentContext.AuthInfo)
+			defaultContextName := cliconfig.GetContextNickname(currentContext.Namespace, currentContext.Cluster, currentContext.AuthInfo)
 			// if they specified a project name and got a generated context, then only show the information they care about.  They won't recognize
 			// a context name they didn't choose
 			if config.CurrentContext == defaultContextName {
@@ -296,7 +298,7 @@ func (o ProjectOptions) Run() error {
 
 	// calculate what name we'd generate for the context.  If the context has the same name, don't drop it into the output, because the user won't
 	// recognize the name since they didn't choose it.
-	defaultContextName := clientcfg.GetContextNickname(namespaceInUse, config.Contexts[contextInUse].Cluster, config.Contexts[contextInUse].AuthInfo)
+	defaultContextName := cliconfig.GetContextNickname(namespaceInUse, config.Contexts[contextInUse].Cluster, config.Contexts[contextInUse].AuthInfo)
 
 	switch {
 	// if there is no namespace, then the only information we can provide is the context and server

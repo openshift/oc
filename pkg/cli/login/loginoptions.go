@@ -25,7 +25,6 @@ import (
 	"github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/motd"
-	"github.com/openshift/oc/pkg/helpers/originkubeconfignames"
 	"github.com/openshift/oc/pkg/helpers/project"
 	loginutil "github.com/openshift/oc/pkg/helpers/project"
 	"github.com/openshift/oc/pkg/helpers/term"
@@ -118,7 +117,7 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	}
 
 	// normalize the provided server to a format expected by config
-	serverNormalized, err := originkubeconfignames.NormalizeServerURL(o.Server)
+	serverNormalized, err := cliconfig.NormalizeServerURL(o.Server)
 	if err != nil {
 		return nil, err
 	}
