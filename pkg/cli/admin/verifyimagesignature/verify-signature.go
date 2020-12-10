@@ -261,7 +261,9 @@ func (o *VerifyImageSignatureOptions) getImageManifest(img *imagev1.Image) ([]by
 			registryURL.Scheme = ""
 		}
 	}
-	return getImageManifestByIDFromRegistry(registryURL, parsed.RepositoryName(), img.Name, o.CurrentUser, o.CurrentUserToken, o.Insecure)
+	// when using in-cluster auth, the username is just user + token, compare
+	// https://github.com/openshift/oc/blob/9f54c1d4f68c8530ac9466c655a4e55eb04a1459/pkg/cli/registry/login/login.go#L208
+	return getImageManifestByIDFromRegistry(registryURL, parsed.RepositoryName(), img.Name, "user", o.CurrentUserToken, o.Insecure)
 }
 
 // verifySignature takes policy, image and the image signature blob and verifies that the
