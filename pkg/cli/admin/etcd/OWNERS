@@ -1,0 +1,9 @@
+reviewers:
+  - hexfusion
+  - lilic
+  - marun
+approvers:
+  - hexfusion
+  - lilic
+  - marun
+component: "oc"
