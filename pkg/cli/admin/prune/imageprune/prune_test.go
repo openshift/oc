@@ -77,6 +77,7 @@ func TestImagePruning(t *testing.T) {
 		deployments                          kappsv1.DeploymentList
 		dcs                                  appsv1.DeploymentConfigList
 		rss                                  kappsv1.ReplicaSetList
+		sss                                  kappsv1.StatefulSetList
 		limits                               map[string][]*corev1.LimitRange
 		imageDeleterErr                      error
 		imageStreamDeleterErr                error
@@ -1641,6 +1642,37 @@ func TestImagePruning(t *testing.T) {
 				"foo/bar|latest|1|sha256:0000000000000000000000000000000000000000000000000000000000000000",
 			},
 		},
+
+		{
+			name:             "referenced by statefulset - don't prune",
+			keepTagRevisions: keepTagRevisions(0),
+			images: Images(
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000002", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000002"),
+			),
+			streams: Streams(
+				imagetest.Stream(registryHost, "foo", "bar", []imagev1.NamedTagEventList{
+					imagetest.Tag("latest",
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000002", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000002"),
+					),
+				}),
+			),
+			sss: imagetest.SSList(
+				imagetest.StatefulSet("foo", "rc1", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+				imagetest.StatefulSet("foo", "rc2", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000002"),
+			),
+			expectedImageDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
+			expectedStreamUpdates: []string{
+				"foo/bar|latest|1|sha256:0000000000000000000000000000000000000000000000000000000000000001",
+			},
+			expectedManifestLinkDeletions: []string{
+				"foo/bar|sha256:0000000000000000000000000000000000000000000000000000000000000001",
+			},
+			expectedBlobDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
+		},
 	}
 
 	// we need to install OpenShift API types to kubectl's scheme for GetReference to work
@@ -1661,6 +1693,7 @@ func TestImagePruning(t *testing.T) {
 				Deployments: &test.deployments,
 				DCs:         &test.dcs,
 				RSs:         &test.rss,
+				SSs:         &test.sss,
 				LimitRanges: test.limits,
 			}
 			if test.pruneOverSizeLimit != nil {

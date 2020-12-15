@@ -287,6 +287,29 @@ func DS(namespace, name string, containerImages ...string) kappsv1.DaemonSet {
 	}
 }
 
+// SSList turns the given stateful sets into StatefulSetList.
+func SSList(ss ...kappsv1.StatefulSet) kappsv1.StatefulSetList {
+	return kappsv1.StatefulSetList{
+		Items: ss,
+	}
+}
+
+// StatefulSet creates and returns a StatefulSet object.
+func StatefulSet(namespace, name string, containerImages ...string) kappsv1.StatefulSet {
+	return kappsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+			SelfLink:  "/apis/apps/v1/deployments/" + name,
+		},
+		Spec: kappsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: PodSpecInternal(containerImages...),
+			},
+		},
+	}
+}
+
 // DeploymentList turns the given deployments into DeploymentList.
 func DeploymentList(deployments ...kappsv1.Deployment) kappsv1.DeploymentList {
 	return kappsv1.DeploymentList{

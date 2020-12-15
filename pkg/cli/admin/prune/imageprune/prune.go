@@ -247,6 +247,8 @@ type PrunerOptions struct {
 	DCs *appsv1.DeploymentConfigList
 	// RSs is the entire list of replica sets across all namespaces in the cluster.
 	RSs *kappsv1.ReplicaSetList
+	// SSs is the entire list of statefulsets across all namespaces in the cluster.
+	SSs *kappsv1.StatefulSetList
 	// LimitRanges is a map of LimitRanges across namespaces, being keys in this map.
 	LimitRanges map[string][]*corev1.LimitRange
 	// DryRun indicates that no changes will be made to the cluster and nothing
@@ -401,7 +403,22 @@ func (p *pruner) analyzeImageStreamsReferences(options PrunerOptions) kerrors.Ag
 	errs = append(errs, p.analyzeReferencesFromDaemonSets(options.DSs)...)
 	errs = append(errs, p.analyzeReferencesFromBuilds(options.Builds)...)
 	errs = append(errs, p.analyzeReferencesFromBuildConfigs(options.BCs)...)
+	errs = append(errs, p.analyzeReferencesFromStatefulSets(options.SSs)...)
 	return kerrors.NewAggregate(errs)
+}
+
+func (p *pruner) analyzeReferencesFromStatefulSets(statefulsets *kappsv1.StatefulSetList) []error {
+	var errs []error
+	for _, sset := range statefulsets.Items {
+		ref := resourceReference{
+			Resource:  "statefulset",
+			Namespace: sset.Namespace,
+			Name:      sset.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &sset.Spec.Template.Spec)...)
+	}
+	return errs
 }
 
 // analyzeImageReference analyzes which ImageStreamImage or ImageStreamTag is
