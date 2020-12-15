@@ -2120,6 +2120,9 @@ func TestRegistryPruning(t *testing.T) {
 				Deployments:      &kappsv1.DeploymentList{},
 				DCs:              &appsv1.DeploymentConfigList{},
 				RSs:              &kappsv1.ReplicaSetList{},
+				SSs:              &kappsv1.StatefulSetList{},
+				Jobs:             &batchv1.JobList{},
+				CronJobs:         &batchv1beta1.CronJobList{},
 			}
 			p, err := NewPruner(options)
 			if err != nil {
@@ -2182,6 +2185,9 @@ func TestImageWithStrongAndWeakRefsIsNotPruned(t *testing.T) {
 	deployments := imagetest.DeploymentList()
 	dcs := imagetest.DCList()
 	rss := imagetest.RSList()
+	sss := imagetest.SSList()
+	jobs := imagetest.JobList()
+	cjs := imagetest.CronJobList()
 
 	options := PrunerOptions{
 		Images:      images,
@@ -2194,6 +2200,9 @@ func TestImageWithStrongAndWeakRefsIsNotPruned(t *testing.T) {
 		Deployments: &deployments,
 		DCs:         &dcs,
 		RSs:         &rss,
+		SSs:         &sss,
+		Jobs:        &jobs,
+		CronJobs:    &cjs,
 	}
 	keepYoungerThan := 24 * time.Hour
 	keepTagRevisions := 2
