@@ -10,6 +10,7 @@ import (
 
 	kappsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -283,6 +284,33 @@ func DS(namespace, name string, containerImages ...string) kappsv1.DaemonSet {
 		Spec: kappsv1.DaemonSetSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: PodSpecInternal(containerImages...),
+			},
+		},
+	}
+}
+
+// CronJobList turns the given stateful sets into JobList.
+func CronJobList(cjs ...batchv1beta1.CronJob) batchv1beta1.CronJobList {
+	return batchv1beta1.CronJobList{
+		Items: cjs,
+	}
+}
+
+// CronJob creates and returns a CronJob object.
+func CronJob(namespace, name string, containerImages ...string) batchv1beta1.CronJob {
+	return batchv1beta1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+			SelfLink:  "/apis/apps/v1/deployments/" + name,
+		},
+		Spec: batchv1beta1.CronJobSpec{
+			JobTemplate: batchv1beta1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: PodSpecInternal(containerImages...),
+					},
+				},
 			},
 		},
 	}
