@@ -9,6 +9,7 @@ import (
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	kappsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -280,6 +281,29 @@ func DS(namespace, name string, containerImages ...string) kappsv1.DaemonSet {
 			SelfLink:  "/apis/apps/v1/daemonsets/" + name,
 		},
 		Spec: kappsv1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: PodSpecInternal(containerImages...),
+			},
+		},
+	}
+}
+
+// JobList turns the given stateful sets into JobList.
+func JobList(jobs ...batchv1.Job) batchv1.JobList {
+	return batchv1.JobList{
+		Items: jobs,
+	}
+}
+
+// Job creates and returns a Job object.
+func Job(namespace, name string, containerImages ...string) batchv1.Job {
+	return batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+			SelfLink:  "/apis/apps/v1/deployments/" + name,
+		},
+		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: PodSpecInternal(containerImages...),
 			},

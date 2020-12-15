@@ -373,6 +373,11 @@ func (o PruneImagesOptions) Run() error {
 		return err
 	}
 
+	allJobs, err := o.KubeClient.BatchV1().Jobs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
 	limitRangesList, err := o.KubeClient.CoreV1().LimitRanges(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -469,6 +474,7 @@ func (o PruneImagesOptions) Run() error {
 		DCs:                allDCs,
 		RSs:                allRSs,
 		SSs:                allSSs,
+		Jobs:               allJobs,
 		LimitRanges:        limitRangesMap,
 		DryRun:             o.Confirm == false,
 		PruneRegistry:      o.PruneRegistry,

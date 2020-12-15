@@ -15,6 +15,7 @@ import (
 	"time"
 
 	kappsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -78,6 +79,7 @@ func TestImagePruning(t *testing.T) {
 		dcs                                  appsv1.DeploymentConfigList
 		rss                                  kappsv1.ReplicaSetList
 		sss                                  kappsv1.StatefulSetList
+		jobs                                 batchv1.JobList
 		limits                               map[string][]*corev1.LimitRange
 		imageDeleterErr                      error
 		imageStreamDeleterErr                error
@@ -1673,6 +1675,34 @@ func TestImagePruning(t *testing.T) {
 			},
 			expectedBlobDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
 		},
+
+		{
+			name:             "referenced by job - don't prune",
+			keepTagRevisions: keepTagRevisions(0),
+			images: Images(
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+			),
+			streams: Streams(
+				imagetest.Stream(registryHost, "foo", "bar", []imagev1.NamedTagEventList{
+					imagetest.Tag("latest",
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+					),
+				}),
+			),
+			jobs: imagetest.JobList(
+				imagetest.Job("foo", "rc1", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+			),
+			expectedImageDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
+			expectedStreamUpdates: []string{
+				"foo/bar|latest|1|sha256:0000000000000000000000000000000000000000000000000000000000000001",
+			},
+			expectedManifestLinkDeletions: []string{
+				"foo/bar|sha256:0000000000000000000000000000000000000000000000000000000000000001",
+			},
+			expectedBlobDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
+		},
 	}
 
 	// we need to install OpenShift API types to kubectl's scheme for GetReference to work
@@ -1694,6 +1724,7 @@ func TestImagePruning(t *testing.T) {
 				DCs:         &test.dcs,
 				RSs:         &test.rss,
 				SSs:         &test.sss,
+				Jobs:        &test.jobs,
 				LimitRanges: test.limits,
 			}
 			if test.pruneOverSizeLimit != nil {

@@ -17,6 +17,7 @@ import (
 	"k8s.io/klog/v2"
 
 	kappsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrapi "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -249,6 +250,8 @@ type PrunerOptions struct {
 	RSs *kappsv1.ReplicaSetList
 	// SSs is the entire list of statefulsets across all namespaces in the cluster.
 	SSs *kappsv1.StatefulSetList
+	// Jobs is the entire list of jobs across all namespaces in the cluster.
+	Jobs *batchv1.JobList
 	// LimitRanges is a map of LimitRanges across namespaces, being keys in this map.
 	LimitRanges map[string][]*corev1.LimitRange
 	// DryRun indicates that no changes will be made to the cluster and nothing
@@ -404,7 +407,22 @@ func (p *pruner) analyzeImageStreamsReferences(options PrunerOptions) kerrors.Ag
 	errs = append(errs, p.analyzeReferencesFromBuilds(options.Builds)...)
 	errs = append(errs, p.analyzeReferencesFromBuildConfigs(options.BCs)...)
 	errs = append(errs, p.analyzeReferencesFromStatefulSets(options.SSs)...)
+	errs = append(errs, p.analyzeReferencesFromJobs(options.Jobs)...)
 	return kerrors.NewAggregate(errs)
+}
+
+func (p *pruner) analyzeReferencesFromJobs(jobs *batchv1.JobList) []error {
+	var errs []error
+	for _, job := range jobs.Items {
+		ref := resourceReference{
+			Resource:  "job",
+			Namespace: job.Namespace,
+			Name:      job.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &job.Spec.Template.Spec)...)
+	}
+	return errs
 }
 
 func (p *pruner) analyzeReferencesFromStatefulSets(statefulsets *kappsv1.StatefulSetList) []error {
