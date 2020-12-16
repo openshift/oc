@@ -95,11 +95,17 @@ var (
 
 		# Copy specific os/arch manifest of a multi-architecture image
 		# Run 'oc image info myregistry.com/myimage:latest' to see available os/arch for multi-arch images
+		# Note that with multi-arch images, this results in a new manifest list digest that includes only
+		# the filtered manifests.
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--filter-by-os=os/arch
 
 		# Copy all os/arch manifests of a multi-architecture image
 		# Run 'oc image info myregistry.com/myimage:latest' to see list of os/arch manifests that will be mirrored.
+		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+			--keep-manifest-list=true
+
+		# Note the above command is equivalent to
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--filter-by-os=.*
 	`)
@@ -168,7 +174,7 @@ func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 	flag.BoolVar(&o.SkipMount, "skip-mount", o.SkipMount, "Always push layers instead of cross-mounting them")
 	flag.BoolVar(&o.SkipMultipleScopes, "skip-multiple-scopes", o.SkipMultipleScopes, "Some registries do not support multiple scopes passed to the registry login.")
 	flag.BoolVar(&o.Force, "force", o.Force, "Attempt to write all layers and manifests even if they exist in the remote repository.")
-	flag.BoolVar(&o.KeepManifestList, "keep-manifest-list", o.KeepManifestList, "If an image is part of a manifest list, always mirror the list even if only one image is found. The default is to mirror the specific image unless unless --filter-by-os is '.*'.")
+	flag.BoolVar(&o.KeepManifestList, "keep-manifest-list", o.KeepManifestList, "If an image is part of a manifest list, always mirror the list even if only one image is found. The default is to mirror the specific image unless unless --filter-by-os is passed. This flag is equivalent to setting --filter-by-os to '.*' since you cannot preserve the manifest list digest while filtering out any of the manifests included in the list.")
 	flag.IntVar(&o.MaxRegistry, "max-registry", o.MaxRegistry, "Number of concurrent registries to connect to at any one time.")
 	flag.StringSliceVar(&o.AttemptS3BucketCopy, "s3-source-bucket", o.AttemptS3BucketCopy, "A list of bucket/path locations on S3 that may contain already uploaded blobs. Add [store] to the end to use the container image registry path convention.")
 	flag.StringSliceVarP(&o.Filenames, "filename", "f", o.Filenames, "One or more files to read SRC=DST or SRC DST [DST ...] mappings from.")
@@ -179,6 +185,10 @@ func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 }
 
 func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
+	if o.KeepManifestList && len(o.FilterOptions.FilterByOS) == 0 {
+		o.FilterOptions.FilterByOS = ".*"
+	}
+
 	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
 		return err
 	}
@@ -246,6 +256,9 @@ func (o *MirrorImageOptions) Repository(ctx context.Context, context *registrycl
 }
 
 func (o *MirrorImageOptions) Validate() error {
+	if o.KeepManifestList && len(o.FilterOptions.FilterByOS) > 0 && !o.FilterOptions.IsWildcardFilter() {
+		return fmt.Errorf("--keep-manifest-list=true cannot be passed with --filter-by-os, unless --filter-by-os=.*")
+	}
 	return o.FilterOptions.Validate()
 }
 
