@@ -217,8 +217,12 @@ func mount(in, dest imagesource.TypedImageReference, maxComponents int) (out ima
 		out.Ref.Name = strings.Join(components[1:maxComponents-1], "/") + "/" + strings.Join(components[maxComponents-1:], "-")
 	} else if maxComponents == 0 {
 		out.Ref.Name = strings.Join(components[1:], "/")
-	} else {
+	} else if len(components) > 1 {
 		out.Ref.Name = strings.Join(components[1:maxComponents], "/")
+	} else {
+		// only one component, make it the name, not the namespace
+		out.Ref.Name = in.Ref.Name
+		out.Ref.Namespace = ""
 	}
 	out.Ref.Name = strings.TrimPrefix(out.Ref.Name, "/")
 	return
