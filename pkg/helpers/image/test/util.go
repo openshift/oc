@@ -302,7 +302,7 @@ func CronJob(namespace, name string, containerImages ...string) batchv1beta1.Cro
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
-			SelfLink:  "/apis/apps/v1/deployments/" + name,
+			SelfLink:  "/apis/batch/v1beta1/cronjobs/" + name,
 		},
 		Spec: batchv1beta1.CronJobSpec{
 			JobTemplate: batchv1beta1.JobTemplateSpec{
@@ -329,7 +329,7 @@ func Job(namespace, name string, containerImages ...string) batchv1.Job {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
-			SelfLink:  "/apis/apps/v1/deployments/" + name,
+			SelfLink:  "/apis/batch/v1/jobs/" + name,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
@@ -339,8 +339,8 @@ func Job(namespace, name string, containerImages ...string) batchv1.Job {
 	}
 }
 
-// SSList turns the given stateful sets into StatefulSetList.
-func SSList(ss ...kappsv1.StatefulSet) kappsv1.StatefulSetList {
+// SSetList turns the given stateful sets into StatefulSetList.
+func SSetList(ss ...kappsv1.StatefulSet) kappsv1.StatefulSetList {
 	return kappsv1.StatefulSetList{
 		Items: ss,
 	}
@@ -352,7 +352,7 @@ func StatefulSet(namespace, name string, containerImages ...string) kappsv1.Stat
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
-			SelfLink:  "/apis/apps/v1/deployments/" + name,
+			SelfLink:  "/apis/apps/v1/statefulsets/" + name,
 		},
 		Spec: kappsv1.StatefulSetSpec{
 			Template: corev1.PodTemplateSpec{

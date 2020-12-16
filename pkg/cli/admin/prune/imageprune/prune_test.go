@@ -79,7 +79,7 @@ func TestImagePruning(t *testing.T) {
 		deployments                          kappsv1.DeploymentList
 		dcs                                  appsv1.DeploymentConfigList
 		rss                                  kappsv1.ReplicaSetList
-		sss                                  kappsv1.StatefulSetList
+		ssets                                kappsv1.StatefulSetList
 		jobs                                 batchv1.JobList
 		cronjobs                             batchv1beta1.CronJobList
 		limits                               map[string][]*corev1.LimitRange
@@ -1664,7 +1664,7 @@ func TestImagePruning(t *testing.T) {
 					),
 				}),
 			),
-			sss: imagetest.SSList(
+			ssets: imagetest.SSetList(
 				imagetest.StatefulSet("foo", "rc1", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
 				imagetest.StatefulSet("foo", "rc2", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000002"),
 			),
@@ -1753,7 +1753,7 @@ func TestImagePruning(t *testing.T) {
 				Deployments: &test.deployments,
 				DCs:         &test.dcs,
 				RSs:         &test.rss,
-				SSs:         &test.sss,
+				SSets:       &test.ssets,
 				Jobs:        &test.jobs,
 				CronJobs:    &test.cronjobs,
 				LimitRanges: test.limits,
@@ -2120,7 +2120,7 @@ func TestRegistryPruning(t *testing.T) {
 				Deployments:      &kappsv1.DeploymentList{},
 				DCs:              &appsv1.DeploymentConfigList{},
 				RSs:              &kappsv1.ReplicaSetList{},
-				SSs:              &kappsv1.StatefulSetList{},
+				SSets:            &kappsv1.StatefulSetList{},
 				Jobs:             &batchv1.JobList{},
 				CronJobs:         &batchv1beta1.CronJobList{},
 			}
@@ -2185,7 +2185,7 @@ func TestImageWithStrongAndWeakRefsIsNotPruned(t *testing.T) {
 	deployments := imagetest.DeploymentList()
 	dcs := imagetest.DCList()
 	rss := imagetest.RSList()
-	sss := imagetest.SSList()
+	ssets := imagetest.SSetList()
 	jobs := imagetest.JobList()
 	cjs := imagetest.CronJobList()
 
@@ -2200,7 +2200,7 @@ func TestImageWithStrongAndWeakRefsIsNotPruned(t *testing.T) {
 		Deployments: &deployments,
 		DCs:         &dcs,
 		RSs:         &rss,
-		SSs:         &sss,
+		SSets:       &ssets,
 		Jobs:        &jobs,
 		CronJobs:    &cjs,
 	}

@@ -249,8 +249,8 @@ type PrunerOptions struct {
 	DCs *appsv1.DeploymentConfigList
 	// RSs is the entire list of replica sets across all namespaces in the cluster.
 	RSs *kappsv1.ReplicaSetList
-	// SSs is the entire list of statefulsets across all namespaces in the cluster.
-	SSs *kappsv1.StatefulSetList
+	// SSets is the entire list of statefulsets across all namespaces in the cluster.
+	SSets *kappsv1.StatefulSetList
 	// Jobs is the entire list of jobs across all namespaces in the cluster.
 	Jobs *batchv1.JobList
 	// CronJobs is the entire list of cron jobs across all namespaces in the cluster.
@@ -409,7 +409,7 @@ func (p *pruner) analyzeImageStreamsReferences(options PrunerOptions) kerrors.Ag
 	errs = append(errs, p.analyzeReferencesFromDaemonSets(options.DSs)...)
 	errs = append(errs, p.analyzeReferencesFromBuilds(options.Builds)...)
 	errs = append(errs, p.analyzeReferencesFromBuildConfigs(options.BCs)...)
-	errs = append(errs, p.analyzeReferencesFromStatefulSets(options.SSs)...)
+	errs = append(errs, p.analyzeReferencesFromStatefulSets(options.SSets)...)
 	errs = append(errs, p.analyzeReferencesFromJobs(options.Jobs)...)
 	errs = append(errs, p.analyzeReferencesFromCronJobs(options.CronJobs)...)
 	return kerrors.NewAggregate(errs)
