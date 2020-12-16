@@ -176,6 +176,11 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		o.ManifestDir = fmt.Sprintf("manifests-%s-%d", o.SourceRef.Ref.Name, time.Now().Unix())
 	}
 
+	allmanifests := imagemanifest.FilterOptions{FilterByOS: ".*"}
+	if err := allmanifests.Validate(); err != nil {
+		return err
+	}
+
 	if err := os.MkdirAll(o.ManifestDir, os.ModePerm); err != nil {
 		return err
 	}
@@ -260,7 +265,11 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		a.ContinueOnError = true
 		a.DryRun = o.DryRun
 		a.SecurityOptions = o.SecurityOptions
-		a.FilterOptions = o.FilterOptions
+		// because images in the catalog are statically referenced by digest,
+		// we do not allow filtering for mirroring. this may change if sparse manifestlists are allowed
+		// by registries, or if multi-arch management moves into images that can be rewritten on mirror (i.e. the bundle
+		// images themselves, not the images referenced inside of the bundle images).
+		a.FilterOptions = allmanifests
 		a.ParallelOptions = o.ParallelOptions
 		a.KeepManifestList = true
 		a.Mappings = mappings
