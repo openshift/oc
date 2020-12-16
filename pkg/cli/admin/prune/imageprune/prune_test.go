@@ -96,6 +96,50 @@ func TestImagePruning(t *testing.T) {
 		expectedErrorString                  string
 	}{
 		{
+			name:             "should not prune old tag revision, still in use",
+			keepTagRevisions: keepTagRevisions(1),
+			images: Images(
+				imagetest.Image(
+					"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+					registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+				),
+				imagetest.Image(
+					"sha256:0000000000000000000000000000000000000000000000000000000000000001",
+					registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001",
+				),
+			),
+			streams: Streams(
+				imagetest.Stream(
+					registryHost,
+					"namespace",
+					"name",
+					[]imagev1.NamedTagEventList{
+						imagetest.Tag(
+							"latest",
+							imagetest.TagEvent(
+								"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+								registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+							),
+							imagetest.TagEvent(
+								"sha256:0000000000000000000000000000000000000000000000000000000000000001",
+								registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001",
+							),
+						),
+					},
+				),
+			),
+			pods: imagetest.PodList(
+				imagetest.Pod(
+					"namespace",
+					"pod1",
+					corev1.PodRunning,
+					registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001",
+				),
+			),
+			expectedImageDeletions: []string{},
+		},
+
+		{
 			name:             "1 pod - phase pending - don't prune",
 			keepTagRevisions: keepTagRevisions(0),
 			images:           Images(imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000")),

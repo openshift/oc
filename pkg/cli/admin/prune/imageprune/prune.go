@@ -46,16 +46,6 @@ func (r imageStreamTagReference) String() string {
 	return fmt.Sprintf("%s/%s:%s", r.Namespace, r.Name, r.Tag)
 }
 
-type imageStreamImageReference struct {
-	Namespace string
-	Name      string
-	Digest    string
-}
-
-func (r imageStreamImageReference) String() string {
-	return fmt.Sprintf("%s/%s@%s", r.Namespace, r.Name, r.Digest)
-}
-
 type resourceReference struct {
 	Resource  string
 	Namespace string
@@ -276,7 +266,7 @@ type Pruner interface {
 // pruner is an object that knows how to prune a data set
 type pruner struct {
 	usedTags   map[imageStreamTagReference][]resourceReference
-	usedImages map[imageStreamImageReference][]resourceReference
+	usedImages map[string][]resourceReference
 
 	images       map[string]*imagev1.Image
 	imageStreams map[string]*imagev1.ImageStream
@@ -390,7 +380,7 @@ func NewPruner(options PrunerOptions) (Pruner, kerrors.Aggregate) {
 
 func (p *pruner) analyzeImageStreamsReferences(options PrunerOptions) kerrors.Aggregate {
 	p.usedTags = map[imageStreamTagReference][]resourceReference{}
-	p.usedImages = map[imageStreamImageReference][]resourceReference{}
+	p.usedImages = map[string][]resourceReference{}
 
 	var errs []error
 	errs = append(errs, p.analyzeReferencesFromPods(options.Pods)...)
@@ -446,13 +436,8 @@ func (p *pruner) analyzeImageReference(referrer resourceReference, subreferrer s
 		return nil
 	}
 
-	isimage := imageStreamImageReference{
-		Namespace: ref.Namespace,
-		Name:      ref.Name,
-		Digest:    ref.ID,
-	}
-	klog.V(4).Infof("%s: %sgot reference to ImageStreamImage %s (registry name is %s)", referrer, logPrefix, isimage, ref.Registry)
-	p.usedImages[isimage] = append(p.usedImages[isimage], referrer)
+	klog.V(4).Infof("%s: %sgot reference to ImageStreamImage %s (registry name is %s)", referrer, logPrefix, ref.ID, ref.Registry)
+	p.usedImages[ref.ID] = append(p.usedImages[ref.ID], referrer)
 	return nil
 }
 
@@ -510,7 +495,7 @@ func (p *pruner) analyzeReferencesFromBuildStrategy(referrer resourceReference, 
 		}
 
 	case "ImageStreamImage":
-		name, id, err := imageutil.ParseImageStreamImageName(from.Name)
+		_, id, err := imageutil.ParseImageStreamImageName(from.Name)
 		if err != nil {
 			if !p.ignoreInvalidRefs {
 				return []error{newErrBadReferenceTo(referrer, "", "ImageStreamImage", from.Name, err)}
@@ -519,16 +504,8 @@ func (p *pruner) analyzeReferencesFromBuildStrategy(referrer resourceReference, 
 			return nil
 		}
 
-		isimage := imageStreamImageReference{
-			Namespace: from.Namespace,
-			Name:      name,
-			Digest:    id,
-		}
-		if isimage.Namespace == "" {
-			isimage.Namespace = referrer.Namespace
-		}
-		klog.V(4).Infof("%s: got reference to ImageStreamImage %s", referrer, isimage)
-		p.usedImages[isimage] = append(p.usedImages[isimage], referrer)
+		klog.V(4).Infof("%s: got reference to ImageStreamImage %s", referrer, id)
+		p.usedImages[id] = append(p.usedImages[id], referrer)
 
 	case "ImageStreamTag":
 		name, tag, err := imageutil.ParseImageStreamTagName(from.Name)
@@ -881,12 +858,7 @@ func (p *pruner) pruneImageStreamTag(is *imagev1.ImageStream, tagEventList image
 			}
 		}
 
-		isimage := imageStreamImageReference{
-			Namespace: is.Namespace,
-			Name:      is.Name,
-			Digest:    item.Image,
-		}
-		if usedBy := p.usedImages[isimage]; len(usedBy) > 0 {
+		if usedBy := p.usedImages[item.Image]; len(usedBy) > 0 {
 			klog.V(4).Infof("imagestream %s/%s: tag %s: revision %d: keeping %s because image is used by %s", is.Namespace, is.Name, tagEventList.Tag, rev+1, item.Image, referencesSample(usedBy))
 			filteredItems = append(filteredItems, item)
 			continue
