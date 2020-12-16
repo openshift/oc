@@ -491,6 +491,29 @@ func TestMappingForImages(t *testing.T) {
 			},
 		},
 		{
+			name: "namespaceless image to registry",
+			args: args{
+				images: map[string]struct{}{
+					"registry.access.redhat.com/ubi8-minimal@sha256:9285da611437622492f9ef4229877efe302589f1401bbd4052e9bb261b3d4387": {},
+				},
+				src:           mustParseRef(t, "registry.access.redhat.com/ubi8-minimal@sha256:9285da611437622492f9ef4229877efe302589f1401bbd4052e9bb261b3d4387"),
+				dest:          mustParseRef(t, "quay.io"),
+				maxComponents: 2,
+			},
+			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+				mustParseRef(t, "registry.access.redhat.com/ubi8-minimal@sha256:9285da611437622492f9ef4229877efe302589f1401bbd4052e9bb261b3d4387"): {
+					Type: imagesource.DestinationRegistry,
+					Ref: reference.DockerImageReference{
+						Registry:  "quay.io",
+						Namespace: "",
+						Name:      "ubi8-minimal",
+						Tag:       "51f124fa",
+						ID:        "sha256:9285da611437622492f9ef4229877efe302589f1401bbd4052e9bb261b3d4387",
+					},
+				},
+			},
+		},
+		{
 			name: "untagged image to registry",
 			args: args{
 				images: map[string]struct{}{
@@ -932,7 +955,7 @@ func TestMappingForImages(t *testing.T) {
 					continue
 				}
 				if w != v {
-					t.Errorf("incorrect mapping for %s - have %s, want %s", k, w, v)
+					t.Errorf("incorrect mapping for %s - have %#v, want %#v", k, w, v)
 				}
 			}
 			for k, v := range gotMapping {
