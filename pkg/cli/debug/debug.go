@@ -798,7 +798,9 @@ func (o *DebugOptions) createPod(pod *corev1.Pod) (*corev1.Pod, error) {
 	// create the pod
 	created, err := o.CoreClient.Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err == nil || !kapierrors.IsAlreadyExists(err) {
-		return created, err
+		if err = o.checkStatusForFailure(created); err == nil {
+			return created, err
+		}
 	}
 
 	// only continue if the pod has the right annotations
@@ -814,7 +816,31 @@ func (o *DebugOptions) createPod(pod *corev1.Pod) (*corev1.Pod, error) {
 	if err := o.CoreClient.Pods(namespace).Delete(context.TODO(), name, *metav1.NewDeleteOptions(0)); err != nil && !kapierrors.IsNotFound(err) {
 		return nil, fmt.Errorf("unable to delete existing debug pod %q: %v", name, err)
 	}
-	return o.CoreClient.Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	debugPod, err := o.CoreClient.Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if err = o.checkStatusForFailure(debugPod); err != nil {
+		return nil, err
+	}
+	return debugPod, nil
+}
+
+// checkStatusForFailures checks for early pod failures - such as node affinity errors that will be best caught here to exit early
+func (o *DebugOptions) checkStatusForFailure(pod *corev1.Pod) error {
+	p, err := o.CoreClient.Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	if p.Status.Phase == corev1.PodFailed {
+		switch {
+		case len(p.Status.Message) != 0, len(p.Status.Reason) != 0:
+			return fmt.Errorf("debug pod failed: %s %s", p.Status.Reason, p.Status.Message)
+		default:
+			return fmt.Errorf("debug pod failed")
+		}
+	}
+	return nil
 }
 
 func containerForName(pod *corev1.Pod, name string) *corev1.Container {
