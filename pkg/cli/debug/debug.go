@@ -505,14 +505,30 @@ func (o *DebugOptions) RunDebug() error {
 			return false, nil
 		}
 
+		notifyFn := func(pod *corev1.Pod, container corev1.ContainerStatus) error {
+			// TODO: instead of reporting to the user a message, accumulate a certain amount of time in
+			// the error state, then exit early
+			if o.Attach.Quiet {
+				return nil
+			}
+			if container.State.Waiting != nil {
+				switch container.State.Waiting.Reason {
+				case "CreateContainerError", "ImagePullBackOff":
+					fmt.Fprintf(o.Attach.ErrOut, "warning: Container %s is unable to start due to an error: %s\n", container.Name, container.State.Waiting.Message)
+				}
+			}
+			return nil
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 		defer cancel()
-		containerRunningEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient))
+		containerRunningEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient, notifyFn))
 		if err == nil {
 			klog.V(4).Infof("Stopped waiting for pod: %s %#v", containerRunningEvent.Type, containerRunningEvent.Object)
 		} else {
 			klog.V(4).Infof("Stopped waiting for pod: %v", err)
 		}
+
 		switch {
 		// api didn't error right away but the pod wasn't even created
 		case kapierrors.IsNotFound(err):
