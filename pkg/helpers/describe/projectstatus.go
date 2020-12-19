@@ -546,14 +546,14 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 
 		switch {
 		case !d.Suggest && ((len(errorMarkers) > 0 && errorSuggestions > 0) || len(warningMarkers) > 0 || len(infoMarkers) > 0):
-			fmt.Fprintf(out, "%s identified, use 'oc status --suggest' to see details.\n", markerString)
+			fmt.Fprintf(out, "%s identified, use 'arvan paas status --suggest' to see details.\n", markerString)
 
 		case (len(services) == 0) && (len(standaloneDCs) == 0) && (len(standaloneImages) == 0):
 			fmt.Fprintln(out, "You have no services, deployment configs, or build configs.")
-			fmt.Fprintf(out, "Run 'oc new-app' to create an application.\n")
+			fmt.Fprintf(out, "Run 'arvan paas new-app' to create an application.\n")
 
 		default:
-			fmt.Fprintf(out, "View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.\n")
+			fmt.Fprintf(out, "View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.\n")
 		}
 
 		return nil

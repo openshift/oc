@@ -2059,7 +2059,7 @@ func TestNewAppListAndSearch(t *testing.T) {
 						AsSearch: true,
 					}},
 			},
-			expectedOutput: "Image streams (oc new-app --image-stream=<image-stream> [--code=<source>])\n-----\nruby\n  Project: default\n  Tags:    latest\n\n",
+			expectedOutput: "Image streams (arvan paas new-app --image-stream=<image-stream> [--code=<source>])\n-----\nruby\n  Project: default\n  Tags:    latest\n\n",
 		},
 		{
 			name: "list, no oldversion",
@@ -2069,7 +2069,7 @@ func TestNewAppListAndSearch(t *testing.T) {
 						AsList: true,
 					}},
 			},
-			expectedOutput: "Image streams (oc new-app --image-stream=<image-stream> [--code=<source>])\n-----\nruby\n  Project: default\n  Tags:    latest\n\n",
+			expectedOutput: "Image streams (arvan paas new-app --image-stream=<image-stream> [--code=<source>])\n-----\nruby\n  Project: default\n  Tags:    latest\n\n",
 		},
 	}
 	for _, test := range tests {

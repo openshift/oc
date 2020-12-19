@@ -48,19 +48,19 @@ var (
 
 	rollbackExample = templates.Examples(`
 		# Perform a rollback to the last successfully completed deployment for a deploymentconfig
-		oc rollback frontend
+		arvan paas rollback frontend
 
 		# See what a rollback to version 3 will look like, but don't perform the rollback
-		oc rollback frontend --to-version=3 --dry-run
+		arvan paas rollback frontend --to-version=3 --dry-run
 
 		# Perform a rollback to a specific deployment
-		oc rollback frontend-2
+		arvan paas rollback frontend-2
 
 		# Perform the rollback manually by piping the JSON of the new config back to oc
-		oc rollback frontend -o json | oc replace dc/frontend -f -
+		arvan paas rollback frontend -o json | arvan paas replace dc/frontend -f -
 
 		# Print the updated deployment configuration in JSON format instead of performing the rollback
-		oc rollback frontend -o json`)
+		arvan paas rollback frontend -o json`)
 )
 
 // RollbackOptions contains all the necessary state to perform a rollback.
@@ -267,7 +267,7 @@ func (o *RollbackOptions) Run() error {
 			disabled = append(disabled, trigger.ImageChangeParams.From.Name)
 		}
 		if len(disabled) > 0 {
-			reenable := fmt.Sprintf("oc set triggers dc/%s --auto", rolledback.Name)
+			reenable := fmt.Sprintf("arvan paas set triggers dc/%s --auto", rolledback.Name)
 			successMessage = fmt.Sprintf("%s\nWarning: the following images triggers were disabled: %s\n  You can re-enable them with: %s", successMessage, strings.Join(disabled, ","), reenable)
 		}
 	}

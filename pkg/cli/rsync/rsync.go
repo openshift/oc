@@ -47,10 +47,10 @@ var (
 
 	rsyncExample = templates.Examples(`
 		# Synchronize a local directory with a pod directory
-		oc rsync ./local/dir/ POD:/remote/dir
+		arvan paas rsync ./local/dir/ POD:/remote/dir
 
 		# Synchronize a pod directory with a local directory
-		oc rsync POD:/remote/dir/ ./local/dir
+		arvan paas rsync POD:/remote/dir/ ./local/dir
 	`)
 
 	rsyncDefaultFlags = []string{"--archive", "--no-owner", "--no-group", "--omit-dir-times", "--numeric-ids"}

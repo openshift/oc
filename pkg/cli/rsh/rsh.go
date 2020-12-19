@@ -38,25 +38,25 @@ var (
 		the shell (or command) will be executed. By default its value is the same as the TERM
 		variable from the local environment; if not set, 'xterm' is used.
 
-		Note, some containers may not include a shell - use 'oc exec' if you need to run commands
+		Note, some containers may not include a shell - use 'arvan paas exec' if you need to run commands
 		directly.`)
 
 	rshExample = templates.Examples(`
 		# Open a shell session on the first container in pod 'foo'
-		oc rsh foo
+		arvan paas rsh foo
 
 		# Open a shell session on the first container in pod 'foo' and namespace 'bar'
-		# (Note that oc client specific arguments must come before the resource name and its arguments)
-		oc rsh -n bar foo
+		# (Note that arvan paas client specific arguments must come before the resource name and its arguments)
+		arvan paas rsh -n bar foo
 
 		# Run the command 'cat /etc/resolv.conf' inside pod 'foo'
-		oc rsh foo cat /etc/resolv.conf
+		arvan paas rsh foo cat /etc/resolv.conf
 
 		# See the configuration of your internal registry
-		oc rsh dc/docker-registry cat config.yml
+		arvan paas rsh dc/docker-registry cat config.yml
 
 		# Open a shell session on the container named 'index' inside a pod of your job
-		oc rsh -c index job/sheduled
+		arvan paas rsh -c index job/sheduled
 	`)
 )
 

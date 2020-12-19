@@ -89,28 +89,28 @@ var (
 
 	debugExample = templates.Examples(`
 		# Debug a currently running deployment by creating a new pod
-		oc debug deploy/test
+		arvan paas debug deploy/test
 
 		# Debug a node as an administrator
-		oc debug node/master-1
+		arvan paas debug node/master-1
 
 		# Launch a shell in a pod using the provided image stream tag
-		oc debug istag/mysql:latest -n openshift
+		arvan paas debug istag/mysql:latest -n openshift
 
 		# Test running a job as a non-root user
-		oc debug job/test --as-user=1000000
+		arvan paas debug job/test --as-user=1000000
 
 		# Debug a specific failing container by running the env command in the 'second' container
-		oc debug daemonset/test -c second -- /bin/env
+		arvan paas debug daemonset/test -c second -- /bin/env
 
 		# See the pod that would be created to debug
-		oc debug mypod-9xbc -o yaml
+		arvan paas debug mypod-9xbc -o yaml
 
 		# Debug a resource but launch the debug pod in another namespace.
 		# Note: Not all resources can be debugged using --to-namespace without modification. For example,
 		# volumes and serviceaccounts are namespace-dependent. Add '-o yaml' to output the debug pod definition
-		# to disk.  If necessary, edit the definition then run 'oc debug -f -' or run without --to-namespace.
-		oc debug mypod-9xbc --to-namespace testns
+		# to disk.  If necessary, edit the definition then run 'arvan paas debug -f -' or run without --to-namespace.
+		arvan paas debug mypod-9xbc --to-namespace testns
 	`)
 )
 

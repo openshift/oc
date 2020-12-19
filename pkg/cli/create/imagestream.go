@@ -32,7 +32,7 @@ var (
 
 	imageStreamExample = templates.Examples(`
 		# Create a new image stream
-		oc create imagestream mysql
+		arvan paas create imagestream mysql
 	`)
 )
 

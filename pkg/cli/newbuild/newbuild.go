@@ -42,31 +42,31 @@ var (
 	newBuildExample = templates.Examples(`
 		# Create a build config based on the source code in the current git repository (with a public
 		# remote) and a Docker image
-		oc new-build . --docker-image=repo/langimage
+		arvan paas new-build . --docker-image=repo/langimage
 
 		# Create a NodeJS build config based on the provided [image]~[source code] combination
-		oc new-build centos/nodejs-8-centos7~https://github.com/sclorg/nodejs-ex.git
+		arvan paas new-build centos/nodejs-8-centos7~https://github.com/sclorg/nodejs-ex.git
 
 		# Create a build config from a remote repository using its beta2 branch
-		oc new-build https://github.com/openshift/ruby-hello-world#beta2
+		arvan paas new-build https://github.com/openshift/ruby-hello-world#beta2
 
 		# Create a build config using a Dockerfile specified as an argument
-		oc new-build -D $'FROM centos:7\nRUN yum install -y httpd'
+		arvan paas new-build -D $'FROM centos:7\nRUN yum install -y httpd'
 
 		# Create a build config from a remote repository and add custom environment variables
-		oc new-build https://github.com/openshift/ruby-hello-world -e RACK_ENV=development
+		arvan paas new-build https://github.com/openshift/ruby-hello-world -e RACK_ENV=development
 
 		# Create a build config from a remote private repository and specify which existing secret to use
-		oc new-build https://github.com/youruser/yourgitrepo --source-secret=yoursecret
+		arvan paas new-build https://github.com/youruser/yourgitrepo --source-secret=yoursecret
 
 		# Create a build config from a remote repository and inject the npmrc into a build
-		oc new-build https://github.com/openshift/ruby-hello-world --build-secret npmrc:.npmrc
+		arvan paas new-build https://github.com/openshift/ruby-hello-world --build-secret npmrc:.npmrc
 
 		# Create a build config from a remote repository and inject environment data into a build
-		oc new-build https://github.com/openshift/ruby-hello-world --build-config-map env:config
+		arvan paas new-build https://github.com/openshift/ruby-hello-world --build-config-map env:config
 
 		# Create a build config that gets its input from a remote repository and another Docker image
-		oc new-build https://github.com/openshift/ruby-hello-world --source-image=openshift/jenkins-1-centos7 --source-image-path=/var/lib/jenkins:tmp
+		arvan paas new-build https://github.com/openshift/ruby-hello-world --source-image=openshift/jenkins-1-centos7 --source-image-path=/var/lib/jenkins:tmp
 	`)
 
 	newBuildNoInput = `You must specify one or more images, image streams, or source code locations to create a build.
@@ -74,13 +74,13 @@ var (
 To build from an existing image stream tag or Docker image, provide the name of the image and
 the source code location:
 
-  oc new-build centos/nodejs-8-centos7~https://github.com/sclorg/nodejs-ex.git
+  arvan paas new-build centos/nodejs-8-centos7~https://github.com/sclorg/nodejs-ex.git
 
 If you only specify the source repository location (local or remote), the command will look at
 the repo to determine the type, and then look for a matching image on your server or on the
 default container image registry.
 
-  oc new-build https://github.com/sclorg/nodejs-ex.git
+  arvan paas new-build https://github.com/sclorg/nodejs-ex.git
 
 will look for an image called "nodejs" in your current project, the 'openshift' project, or
 on the Docker Hub.
@@ -232,7 +232,7 @@ func (o *BuildOptions) RunNewBuild() error {
 			}
 			if len(t.Spec.Triggers) > 0 && t.Spec.Source.Binary == nil {
 				fmt.Fprintf(out, "%sBuild configuration %q created and build triggered.\n", indent, t.Name)
-				fmt.Fprintf(out, "%sRun 'oc logs -f buildconfig/%s' to stream the build progress.\n", indent, t.Name)
+				fmt.Fprintf(out, "%sRun 'arvan paas logs -f buildconfig/%s' to stream the build progress.\n", indent, t.Name)
 			}
 		}
 	}

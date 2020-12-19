@@ -64,10 +64,10 @@ var (
 
 	example = templates.Examples(`
 		# Remove the entrypoint on the mysql:latest image
-		oc image append --from mysql:latest --to myregistry.com/myimage:latest --image '{"Entrypoint":null}'
+		arvan paas image append --from mysql:latest --to myregistry.com/myimage:latest --image '{"Entrypoint":null}'
 
 		# Add a new layer to the image
-		oc image append --from mysql:latest --to myregistry.com/myimage:latest layer.tar.gz
+		arvan paas image append --from mysql:latest --to myregistry.com/myimage:latest layer.tar.gz
 	`)
 )
 

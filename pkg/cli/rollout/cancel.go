@@ -56,7 +56,7 @@ var (
 
 	rolloutCancelExample = templates.Examples(`
 		# Cancel the in-progress deployment based on 'nginx'
-  		oc rollout cancel dc/nginx`)
+  		arvan paas rollout cancel dc/nginx`)
 )
 
 func NewRolloutCancelOptions(streams genericclioptions.IOStreams) *CancelOptions {

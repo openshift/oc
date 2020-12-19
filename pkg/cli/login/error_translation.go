@@ -17,7 +17,7 @@ const (
 
 	certificateAuthorityUnknownMsg = "The server uses a certificate signed by unknown authority. You may need to use the --certificate-authority flag to provide the path to a certificate file for the certificate authority, or --insecure-skip-tls-verify to bypass the certificate check and use insecure connections."
 	notConfiguredMsg               = `The client is not configured. You need to run the login command in order to create a default config for your server and credentials:
-  oc login
+  arvan paas login
 You can also run this command again providing the path to a config file directly, either through the --config flag of the KUBECONFIG environment variable.
 `
 	tlsOversizedRecordMsg = `Unable to connect to %[2]s using TLS: %[1]s.

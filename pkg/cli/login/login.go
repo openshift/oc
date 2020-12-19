@@ -36,13 +36,13 @@ var (
 
 	loginExample = templates.Examples(`
 		# Log in interactively
-		oc login
+		arvan paas login
 
 		# Log in to the given server with the given certificate authority file
-		oc login localhost:8443 --certificate-authority=/path/to/cert.crt
+		arvan paas login localhost:8443 --certificate-authority=/path/to/cert.crt
 
 		# Log in to the given server with the given credentials (will not prompt interactively)
-		oc login localhost:8443 --username=myuser --password=mypass
+		arvan paas login localhost:8443 --username=myuser --password=mypass
 	`)
 )
 
@@ -182,7 +182,7 @@ func (o LoginOptions) Run() error {
 	}
 
 	if newFileCreated {
-		fmt.Fprintf(o.Out, "Welcome! See 'oc help' to get started.\n")
+		fmt.Fprintf(o.Out, "Welcome! See 'arvan paas help' to get started.\n")
 	}
 	return nil
 }

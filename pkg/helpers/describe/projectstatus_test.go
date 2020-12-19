@@ -89,7 +89,7 @@ func TestProjectStatus(t *testing.T) {
 				"In project example on server https://example.com:8443\n",
 				"svc/empty-service",
 				"<initializing>:5432",
-				"View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.",
+				"View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.",
 			},
 		},
 		"service with RC": {
@@ -105,7 +105,7 @@ func TestProjectStatus(t *testing.T) {
 				"svc/database-rc",
 				"rc/database-rc-1 runs mysql",
 				"0/1 pods growing to 1",
-				"View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.",
+				"View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.",
 			},
 		},
 		"external name service": {
@@ -119,7 +119,7 @@ func TestProjectStatus(t *testing.T) {
 			Contains: []string{
 				"In project example on server https://example.com:8443\n",
 				"svc/external-name-service - external.com",
-				"View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.",
+				"View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.",
 			},
 		},
 		"rc with unmountable and missing secrets": {
@@ -162,7 +162,7 @@ func TestProjectStatus(t *testing.T) {
 				"In project example on server https://example.com:8443\n",
 				"svc/frontend-app",
 				"pod/frontend-app-1-bjwh8 runs openshift/ruby-hello-world",
-				"View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.",
+				"View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.",
 			},
 		},
 		"build chains": {
@@ -219,7 +219,7 @@ func TestProjectStatus(t *testing.T) {
 				"on docker.io/centos/ruby-25-centos7:latest",
 				"not built yet",
 				"deployment #1 waiting on image or update",
-				"View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.",
+				"View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.",
 			},
 		},
 		"unpushable build": {
@@ -279,7 +279,7 @@ func TestProjectStatus(t *testing.T) {
 				"on docker.io/centos/ruby-25-centos7:latest",
 				"build #1 running for about a minute",
 				"deployment #1 waiting on image or update",
-				"View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.",
+				"View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.",
 			},
 			Time: mustParseTime("2015-04-06T21:20:03Z"),
 		},
@@ -299,7 +299,7 @@ func TestProjectStatus(t *testing.T) {
 				"on docker.io/centos/ruby-25-centos7:latest",
 				"build #1 running for about a minute",
 				"- 7a4f354: Prepare v1 Template types (Roy Programmer <someguy@outhere.com>)",
-				"View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.",
+				"View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.",
 			},
 			Time: mustParseTime("2015-04-06T21:20:03Z"),
 		},
@@ -330,7 +330,7 @@ func TestProjectStatus(t *testing.T) {
 				"* The image trigger for dc/frontend will have no effect because is/origin-ruby-sample does not exist",
 				"* route/frontend was not accepted by router \"other\":  (HostAlreadyClaimed)",
 				"* dc/database has no readiness probe to verify pods are ready to accept traffic or ensure deployment is successful.",
-				"View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.",
+				"View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.",
 			},
 			Time: mustParseTime("2015-04-07T04:12:25Z"),
 		},
@@ -379,7 +379,7 @@ func TestProjectStatus(t *testing.T) {
 			Contains: []string{
 				`container "ruby-helloworld" in pod/frontend-app-1-bjwh8 has restarted 8 times`,
 				`pod/gitlab-ce-1-lc411 is crash-looping`,
-				`oc logs -p gitlab-ce-1-lc411 -c gitlab-ce`, // verifies we print the log command
+				`arvan paas logs -p gitlab-ce-1-lc411 -c gitlab-ce`, // verifies we print the log command
 				`policycommand example default`,             // verifies that we print the help command
 			},
 		},
@@ -394,7 +394,7 @@ func TestProjectStatus(t *testing.T) {
 			Contains: []string{
 				// If there was a warning we wouldn't get the following message. Since we ignore cross-namespace
 				// links by default, there should be no warning here.
-				`View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.`,
+				`View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.`,
 			},
 		},
 		"monopod": {
@@ -422,7 +422,7 @@ func TestProjectStatus(t *testing.T) {
 			Contains: []string{
 				"In project example on server https://example.com:8443\n",
 				"dc/simple-deployment deploys docker.io/openshift/deployment-example:v1",
-				`View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.`,
+				`View details with 'arvan paas describe <resource>/<name>' or list resources with 'arvan paas get all'.`,
 			},
 		},
 		"deployment with unavailable pods": {
@@ -531,7 +531,7 @@ func TestProjectStatus(t *testing.T) {
 				RouteClient:                 routeClient,
 				Server:                      "https://example.com:8443",
 				Suggest:                     true,
-				LogsCommandName:             "oc logs -p",
+				LogsCommandName:             "arvan paas logs -p",
 				SecurityPolicyCommandFormat: "policycommand %s %s",
 				RESTMapper:                  testrestmapper.TestOnlyStaticRESTMapper(scheme.Scheme),
 			}
@@ -595,7 +595,7 @@ func TestProjectStatusErrors(t *testing.T) {
 			RouteClient:                 routeClient,
 			Server:                      "https://example.com:8443",
 			Suggest:                     true,
-			LogsCommandName:             "oc logs -p",
+			LogsCommandName:             "arvan paas logs -p",
 			SecurityPolicyCommandFormat: "policycommand %s %s",
 		}
 		_, err := d.Describe("example", "")

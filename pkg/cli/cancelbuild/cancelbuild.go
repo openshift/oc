@@ -43,19 +43,19 @@ var (
 
 	cancelBuildExample = templates.Examples(`
 		# Cancel the build with the given name
-		oc cancel-build ruby-build-2
+		arvan paas cancel-build ruby-build-2
 
 		# Cancel the named build and print the build logs
-		oc cancel-build ruby-build-2 --dump-logs
+		arvan paas cancel-build ruby-build-2 --dump-logs
 
 		# Cancel the named build and create a new one with the same parameters
-		oc cancel-build ruby-build-2 --restart
+		arvan paas cancel-build ruby-build-2 --restart
 
 		# Cancel multiple builds
-		oc cancel-build ruby-build-1 ruby-build-2 ruby-build-3
+		arvan paas cancel-build ruby-build-1 ruby-build-2 ruby-build-3
 
 		# Cancel all builds created from 'ruby-build' build configuration that are in 'new' state
-		oc cancel-build bc/ruby-build --state=new
+		arvan paas cancel-build bc/ruby-build --state=new
 	`)
 )
 

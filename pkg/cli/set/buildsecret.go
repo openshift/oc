@@ -40,16 +40,16 @@ var (
 
 	buildSecretExample = templates.Examples(`
 		# Clear push secret on a build config
-		oc set build-secret --push --remove bc/mybuild
+		arvan paas set build-secret --push --remove bc/mybuild
 
 		# Set the pull secret on a build config
-		oc set build-secret --pull bc/mybuild mysecret
+		arvan paas set build-secret --pull bc/mybuild mysecret
 
 		# Set the push and pull secret on a build config
-		oc set build-secret --push --pull bc/mybuild mysecret
+		arvan paas set build-secret --push --pull bc/mybuild mysecret
 
 		# Set the source secret on a set of build configs matching a selector
-		oc set build-secret --source -l app=myapp gitsecret`)
+		arvan paas set build-secret --source -l app=myapp gitsecret`)
 )
 
 type BuildSecretOptions struct {

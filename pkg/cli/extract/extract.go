@@ -38,16 +38,16 @@ var (
 
 	extractExample = templates.Examples(`
 		# extract the secret "test" to the current directory
-		oc extract secret/test
+		arvan paas extract secret/test
 
 		# extract the config map "nginx" to the /tmp directory
-		oc extract configmap/nginx --to=/tmp
+		arvan paas extract configmap/nginx --to=/tmp
 
 		# extract the config map "nginx" to STDOUT
-		oc extract configmap/nginx --to=-
+		arvan paas extract configmap/nginx --to=-
 
 		# extract only the key "nginx.conf" from config map "nginx" to the /tmp directory
-		oc extract configmap/nginx --to=/tmp --keys=nginx.conf
+		arvan paas extract configmap/nginx --to=/tmp --keys=nginx.conf
 	`)
 )
 

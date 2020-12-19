@@ -107,7 +107,7 @@ var (
 	completionLong = templates.LongDesc(`
 		Output shell completion code for the specified shell (bash or zsh).
 		The shell code must be evaluated to provide interactive
-		completion of oc commands.  This can be done by sourcing it from
+		completion of arvan paas commands.  This can be done by sourcing it from
 		the .bash_profile.
 
 		Note for zsh users: [1] zsh completions are only supported in versions of zsh >= 5.2`)

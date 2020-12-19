@@ -44,11 +44,11 @@ var (
 
 	newServiceAccountTokenExamples = templates.Examples(`
 		# Generate a new token for service account 'default'
-		oc serviceaccounts new-token 'default'
+		arvan paas serviceaccounts new-token 'default'
 
 		# Generate a new token for service account 'default' and apply
 		# labels 'foo' and 'bar' to the new token for identification
-		oc serviceaccounts new-token 'default' --labels foo=foo-value,bar=bar-value
+		arvan paas serviceaccounts new-token 'default' --labels foo=foo-value,bar=bar-value
 	`)
 )
 

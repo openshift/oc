@@ -39,7 +39,7 @@ var (
 		see the 'tag' command.`)
 
 	importImageExample = templates.Examples(`
-		oc import-image mystream
+		arvan paas import-image mystream
 	`)
 )
 

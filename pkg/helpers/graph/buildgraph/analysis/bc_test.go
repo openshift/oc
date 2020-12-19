@@ -116,7 +116,7 @@ func TestImageStreamTagMissing(t *testing.T) {
 		if got, expected1, expected2 := marker.Key, MissingImageStreamImageWarning, MissingImageStreamTagWarning; got != expected1 && got != expected2 {
 			t.Fatalf("expected marker key %q or %q, got %q", expected1, expected2, got)
 		} else {
-			if strings.Contains(marker.Suggestion.String(), "oc start-build") {
+			if strings.Contains(marker.Suggestion.String(), "arvan paas start-build") {
 				actualImportOrBuild++
 			}
 			if strings.Contains(marker.Suggestion.String(), "needs to be imported.") {
@@ -230,7 +230,7 @@ func TestLatestBuildFailed(t *testing.T) {
 	if got, expected := markers[0].Key, LatestBuildFailedErr; got != expected {
 		t.Fatalf("expected marker key %q, got %q", expected, got)
 	}
-	if !strings.Contains(markers[0].Suggestion.String(), "oc logs -f bc/ruby-hello-world") {
-		t.Fatalf("expected oc logs -f bc/ruby-hello-world, got %s", markers[0].Suggestion.String())
+	if !strings.Contains(markers[0].Suggestion.String(), "arvan paas logs -f bc/ruby-hello-world") {
+		t.Fatalf("expected arvan paas logs -f bc/ruby-hello-world, got %s", markers[0].Suggestion.String())
 	}
 }

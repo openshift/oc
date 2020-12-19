@@ -56,7 +56,7 @@ var (
 	rolloutRetryExample = templates.Examples(`
 		# Retry the latest failed deployment based on 'frontend'
 		# The deployer pod and any hook pods are deleted for the latest failed deployment
-		oc rollout retry dc/frontend
+		arvan paas rollout retry dc/frontend
 `)
 )
 
@@ -170,7 +170,7 @@ func (o RetryOptions) Run() error {
 		rc, err := o.Clientset.CoreV1().ReplicationControllers(config.Namespace).Get(context.TODO(), latestDeploymentName, metav1.GetOptions{})
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				allErrs = append(allErrs, kcmdutil.AddSourceToErr("retrying", info.Source, fmt.Errorf("unable to find the latest rollout (#%d).\nYou can start a new rollout with 'oc rollout latest dc/%s'.", config.Status.LatestVersion, config.Name)))
+				allErrs = append(allErrs, kcmdutil.AddSourceToErr("retrying", info.Source, fmt.Errorf("unable to find the latest rollout (#%d).\nYou can start a new rollout with 'arvan paas rollout latest dc/%s'.", config.Status.LatestVersion, config.Name)))
 				continue
 			}
 			allErrs = append(allErrs, kcmdutil.AddSourceToErr("retrying", info.Source, fmt.Errorf("unable to fetch replication controller %q", config.Name)))
@@ -181,9 +181,9 @@ func (o RetryOptions) Run() error {
 			message := fmt.Sprintf("rollout #%d is %s; only failed deployments can be retried.\n", config.Status.LatestVersion,
 				strings.ToLower(appsutil.AnnotationFor(rc, appsv1.DeploymentStatusAnnotation)))
 			if appsutil.IsCompleteDeployment(rc) {
-				message += fmt.Sprintf("You can start a new deployment with 'oc rollout latest dc/%s'.", config.Name)
+				message += fmt.Sprintf("You can start a new deployment with 'arvan paas rollout latest dc/%s'.", config.Name)
 			} else {
-				message += fmt.Sprintf("Optionally, you can cancel this deployment with 'oc rollout cancel dc/%s'.", config.Name)
+				message += fmt.Sprintf("Optionally, you can cancel this deployment with 'arvan paas rollout cancel dc/%s'.", config.Name)
 			}
 			allErrs = append(allErrs, kcmdutil.AddSourceToErr("retrying", info.Source, errors.New(message)))
 			continue

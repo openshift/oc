@@ -36,7 +36,7 @@ func (s *DeploymentConfigStatusViewer) Status(obj runtime.Unstructured, desiredR
 			return fmt.Sprintf("Deployment config %q waiting on image update\n", config.Name), false, nil
 
 		case len(config.Spec.Triggers) == 0:
-			return "", true, fmt.Errorf("Deployment config %q waiting on manual update (use 'oc rollout latest %s')", config.Name, config.Name)
+			return "", true, fmt.Errorf("Deployment config %q waiting on manual update (use 'arvan paas rollout latest %s')", config.Name, config.Name)
 		}
 	}
 

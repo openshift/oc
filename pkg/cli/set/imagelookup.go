@@ -38,9 +38,9 @@ var (
 		Once lookup is enabled, simply reference the image stream tag in the image field of the object.
 		For example:
 
-				$ oc import-image mysql:latest --confirm
-				$ oc set image-lookup mysql
-				$ oc run mysql --image=mysql
+				$ arvan paas import-image mysql:latest --confirm
+				$ arvan paas set image-lookup mysql
+				$ arvan paas run mysql --image=mysql
 
 		will import the latest MySQL image from the DockerHub, set that image stream to handle the
 		"mysql" name within the project, and then launch a deployment that points to the image we
@@ -51,9 +51,9 @@ var (
 		namespace for any image that matches, regardless of whether the image stream has lookup
 		enabled.
 
-				$ oc run mysql --image=myregistry:5000/test/mysql:v1
-				$ oc tag --source=docker myregistry:5000/test/mysql:v1 mysql:v1
-				$ oc set image-lookup deploy/mysql
+				$ arvan paas run mysql --image=myregistry:5000/test/mysql:v1
+				$ arvan paas tag --source=docker myregistry:5000/test/mysql:v1 mysql:v1
+				$ arvan paas set image-lookup deploy/mysql
 
 		Which should trigger a deployment pointing to the imported mysql:v1 tag.
 
@@ -61,22 +61,22 @@ var (
 
 	imageLookupExample = templates.Examples(`
 		# Print all of the image streams and whether they resolve local names
-		oc set image-lookup
+		arvan paas set image-lookup
 
 		# Use local name lookup on image stream mysql
-		oc set image-lookup mysql
+		arvan paas set image-lookup mysql
 
 		# Force a deployment to use local name lookup
-		oc set image-lookup deploy/mysql
+		arvan paas set image-lookup deploy/mysql
 
 		# Show the current status of the deployment lookup
-		oc set image-lookup deploy/mysql --list
+		arvan paas set image-lookup deploy/mysql --list
 
 		# Disable local name lookup on image stream mysql
-		oc set image-lookup mysql --enabled=false
+		arvan paas set image-lookup mysql --enabled=false
 
 		# Set local name lookup on all image streams
-		oc set image-lookup --all`)
+		arvan paas set image-lookup --all`)
 )
 
 const alphaResolveNamesAnnotation = "alpha.image.policy.openshift.io/resolve-names"

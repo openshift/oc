@@ -63,19 +63,19 @@ var (
 
 	tagExample = templates.Examples(`
 		# Tag the current image for the image stream 'openshift/ruby' and tag '2.0' into the image stream 'yourproject/ruby with tag 'tip'.
-		oc tag openshift/ruby:2.0 yourproject/ruby:tip
+		arvan paas tag openshift/ruby:2.0 yourproject/ruby:tip
 
 		# Tag a specific image.
-		oc tag openshift/ruby@sha256:6b646fa6bf5e5e4c7fa41056c27910e679c03ebe7f93e361e6515a9da7e258cc yourproject/ruby:tip
+		arvan paas tag openshift/ruby@sha256:6b646fa6bf5e5e4c7fa41056c27910e679c03ebe7f93e361e6515a9da7e258cc yourproject/ruby:tip
 
 		# Tag an external container image.
-		oc tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip
+		arvan paas tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip
 
 		# Tag an external container image and request pullthrough for it.
-		oc tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip --reference-policy=local
+		arvan paas tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip --reference-policy=local
 
 		# Remove the specified spec tag from an image stream.
-		oc tag openshift/origin-control-plane:latest -d`)
+		arvan paas tag openshift/origin-control-plane:latest -d`)
 )
 
 const (

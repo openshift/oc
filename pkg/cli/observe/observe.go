@@ -67,11 +67,11 @@ var (
 
 		    $ cat set_owner.sh
 		    #!/bin/sh
-		    if [[ "$(oc get namespace "$1" --template='{{ .metadata.annotations.owner }}')" == "" ]]; then
-		      oc annotate namespace "$1" owner=bob
+		    if [[ "$(arvan paas get namespace "$1" --template='{{ .metadata.annotations.owner }}')" == "" ]]; then
+		      arvan paas annotate namespace "$1" owner=bob
 		    fi
 
-		    $ oc observe namespaces -- ./set_owner.sh
+		    $ arvan paas observe namespaces -- ./set_owner.sh
 
 		The set_owner.sh script is invoked with a single argument (the namespace name)
 		for each namespace. This simple script ensures that any user without the
@@ -104,7 +104,7 @@ var (
 		    touch inventory
 		    cut -f 1-1 -d ' ' inventory
 
-		    $ oc observe nodes --template '{ .status.addresses[0].address }' \
+		    $ arvan paas observe nodes --template '{ .status.addresses[0].address }' \
 		      --names ./known_nodes.sh \
 		      --delete ./remove_from_inventory.sh \
 		      -- ./add_to_inventory.sh
@@ -127,13 +127,13 @@ var (
 
 	observeExample = templates.Examples(`
 		# Observe changes to services
-		oc observe services
+		arvan paas observe services
 
 		# Observe changes to services, including the clusterIP and invoke a script for each
-		oc observe services --template '{ .spec.clusterIP }' -- register_dns.sh
+		arvan paas observe services --template '{ .spec.clusterIP }' -- register_dns.sh
 
 		# Observe changes to services filtered by a label selector
-		oc observe namespaces -l regist-dns=true --template '{ .spec.clusterIP }' -- register_dns.sh
+		arvan paas observe namespaces -l regist-dns=true --template '{ .spec.clusterIP }' -- register_dns.sh
 	`)
 )
 

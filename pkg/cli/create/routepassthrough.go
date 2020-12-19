@@ -26,11 +26,11 @@ var (
 
 	passthroughRouteExample = templates.Examples(`
 		# Create a passthrough route named "my-route" that exposes the frontend service.
-		oc create route passthrough my-route --service=frontend
+		arvan paas create route passthrough my-route --service=frontend
 
 		# Create a passthrough route that exposes the frontend service and specify
 		# a hostname. If the route name is omitted, the service name will be re-used.
-		oc create route passthrough --service=frontend --hostname=www.example.com
+		arvan paas create route passthrough --service=frontend --hostname=www.example.com
 	`)
 )
 

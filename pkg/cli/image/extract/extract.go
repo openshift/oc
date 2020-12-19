@@ -61,25 +61,25 @@ var (
 
 	example = templates.Examples(`
 		# Extract the busybox image into the current directory
-		oc image extract docker.io/library/busybox:latest
+		arvan paas image extract docker.io/library/busybox:latest
 
 		# Extract the busybox image to a temp directory (must exist)
-		oc image extract docker.io/library/busybox:latest --path /:/tmp/busybox
+		arvan paas image extract docker.io/library/busybox:latest --path /:/tmp/busybox
 
 		# Extract a single file from the image into the current directory
-		oc image extract docker.io/library/centos:7 --path /bin/bash:.
+		arvan paas image extract docker.io/library/centos:7 --path /bin/bash:.
 
 		# Extract all .repo files from the image's /etc/yum.repos.d/ folder.
-		oc image extract docker.io/library/centos:7 --path /etc/yum.repos.d/*.repo:.
+		arvan paas image extract docker.io/library/centos:7 --path /etc/yum.repos.d/*.repo:.
 
 		# Extract the last layer in the image
-		oc image extract docker.io/library/centos:7[-1]
+		arvan paas image extract docker.io/library/centos:7[-1]
 
 		# Extract the first three layers of the image
-		oc image extract docker.io/library/centos:7[:3]
+		arvan paas image extract docker.io/library/centos:7[:3]
 
 		# Extract the last three layers of the image
-		oc image extract docker.io/library/centos:7[-3:]
+		arvan paas image extract docker.io/library/centos:7[-3:]
 	`)
 )
 

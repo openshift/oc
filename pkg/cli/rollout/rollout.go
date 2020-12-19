@@ -62,10 +62,10 @@ var (
 
 	rolloutHistoryExample = templates.Examples(`
 		# View the rollout history of a deployment
-		oc rollout history dc/nginx
+		arvan paas rollout history dc/nginx
 
 	  # View the details of deployment revision 3
-		oc rollout history dc/nginx --revision=3`)
+		arvan paas rollout history dc/nginx --revision=3`)
 )
 
 // NewCmdRolloutHistory is a wrapper for the Kubernetes cli rollout history command
@@ -82,13 +82,13 @@ var (
     Mark the provided resource as paused
 
     Paused resources will not be reconciled by a controller.
-    Use \"oc rollout resume\" to resume a paused resource.`)
+    Use \"arvan paas rollout resume\" to resume a paused resource.`)
 
 	rolloutPauseExample = templates.Examples(`
     # Mark the nginx deployment as paused. Any current state of
     # the deployment will continue its function, new updates to the deployment will not
     # have an effect as long as the deployment is paused.
-    oc rollout pause dc/nginx`)
+    arvan paas rollout pause dc/nginx`)
 )
 
 // NewCmdRolloutPause is a wrapper for the Kubernetes cli rollout pause command
@@ -109,7 +109,7 @@ var (
 
 	rolloutResumeExample = templates.Examples(`
     # Resume an already paused deployment
-    oc rollout resume dc/nginx`)
+    arvan paas rollout resume dc/nginx`)
 )
 
 // NewCmdRolloutResume is a wrapper for the Kubernetes cli rollout resume command
@@ -135,7 +135,7 @@ var (
     Any image triggers present in the rolled back configuration will be disabled
     with a warning. This is to help prevent your rolled back deployment from being
     replaced by a triggered deployment soon after your rollback. To re-enable the
-    triggers, use the 'oc set triggers --auto' command.
+    triggers, use the 'arvan paas set triggers --auto' command.
 
     If you would like to review the outcome of the rollback, pass '--dry-run' to print
     a human-readable representation of the updated deployment configuration instead of
@@ -144,10 +144,10 @@ var (
 
 	rolloutUndoExample = templates.Examples(`
     # Rollback to the previous deployment
-    oc rollout undo dc/nginx
+    arvan paas rollout undo dc/nginx
 
     # Rollback to deployment revision 3. The replication controller for that version must exist.
-    oc rollout undo dc/nginx --to-revision=3`)
+    arvan paas rollout undo dc/nginx --to-revision=3`)
 )
 
 // NewCmdRolloutUndo is a wrapper for the Kubernetes cli rollout undo command
@@ -165,7 +165,7 @@ var (
 
 	rolloutStatusExample = templates.Examples(`
 		# Watch the status of the latest rollout
-		oc rollout status dc/nginx`)
+		arvan paas rollout status dc/nginx`)
 )
 
 // NewCmdRolloutStatus is a wrapper for the Kubernetes cli rollout status command

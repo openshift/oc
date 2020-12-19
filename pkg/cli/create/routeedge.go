@@ -31,11 +31,11 @@ var (
 
 	edgeRouteExample = templates.Examples(`
 		# Create an edge route named "my-route" that exposes frontend service.
-		oc create route edge my-route --service=frontend
+		arvan paas create route edge my-route --service=frontend
 
 		# Create an edge route that exposes the frontend service and specify a path.
 		# If the route name is omitted, the service name will be re-used.
-		oc create route edge --service=frontend --path /assets
+		arvan paas create route edge --service=frontend --path /assets
 	`)
 )
 

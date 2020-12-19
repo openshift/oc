@@ -63,7 +63,7 @@ var (
 
 	dockerGCExample = templates.Examples(`
 		# Perform garbage collection with the default settings
-		oc ex dockergc
+		arvan paas ex dockergc
 	`)
 )
 

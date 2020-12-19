@@ -30,7 +30,7 @@ var (
 
 	userExample = templates.Examples(`
 		# Create a user with the username "ajones" and the display name "Adam Jones"
-		oc create user ajones --full-name="Adam Jones"
+		arvan paas create user ajones --full-name="Adam Jones"
 	`)
 )
 

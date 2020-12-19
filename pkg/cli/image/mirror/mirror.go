@@ -64,49 +64,49 @@ var (
 
 	mirrorExample = templates.Examples(`
 		# Copy image to another tag
-		oc image mirror myregistry.com/myimage:latest myregistry.com/myimage:stable
+		arvan paas image mirror myregistry.com/myimage:latest myregistry.com/myimage:stable
 
 		# Copy image to another registry
-		oc image mirror myregistry.com/myimage:latest docker.io/myrepository/myimage:stable
+		arvan paas image mirror myregistry.com/myimage:latest docker.io/myrepository/myimage:stable
 
 		# Copy all tags starting with mysql to the destination repository
-		oc image mirror myregistry.com/myimage:mysql* docker.io/myrepository/myimage
+		arvan paas image mirror myregistry.com/myimage:mysql* docker.io/myrepository/myimage
 
 		# Copy image to disk, creating a directory structure that can be served as a registry
-		oc image mirror myregistry.com/myimage:latest file://myrepository/myimage:latest
+		arvan paas image mirror myregistry.com/myimage:latest file://myrepository/myimage:latest
 
 		# Copy image to S3 (pull from <bucket>.s3.amazonaws.com/image:latest)
-		oc image mirror myregistry.com/myimage:latest s3://s3.amazonaws.com/<region>/<bucket>/image:latest
+		arvan paas image mirror myregistry.com/myimage:latest s3://s3.amazonaws.com/<region>/<bucket>/image:latest
 
 		# Copy image to S3 without setting a tag (pull via @<digest>)
-		oc image mirror myregistry.com/myimage:latest s3://s3.amazonaws.com/<region>/<bucket>/image
+		arvan paas image mirror myregistry.com/myimage:latest s3://s3.amazonaws.com/<region>/<bucket>/image
 
 		# Copy image to multiple locations
-		oc image mirror myregistry.com/myimage:latest docker.io/myrepository/myimage:stable \
+		arvan paas image mirror myregistry.com/myimage:latest docker.io/myrepository/myimage:stable \
 			docker.io/myrepository/myimage:dev
 
 		# Copy multiple images
-		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+		arvan paas image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			myregistry.com/myimage:new=myregistry.com/other:target
 
 		# Copy manifest list of a multi-architecture image, even if only a single image is found.
-		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+		arvan paas image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--keep-manifest-list=true
 
 		# Copy specific os/arch manifest of a multi-architecture image
-		# Run 'oc image info myregistry.com/myimage:latest' to see available os/arch for multi-arch images
+		# Run 'arvan paas image info myregistry.com/myimage:latest' to see available os/arch for multi-arch images
 		# Note that with multi-arch images, this results in a new manifest list digest that includes only
 		# the filtered manifests.
-		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+		arvan paas image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--filter-by-os=os/arch
 
 		# Copy all os/arch manifests of a multi-architecture image
-		# Run 'oc image info myregistry.com/myimage:latest' to see list of os/arch manifests that will be mirrored.
-		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+		# Run 'arvan paas image info myregistry.com/myimage:latest' to see list of os/arch manifests that will be mirrored.
+		arvan paas image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--keep-manifest-list=true
 
 		# Note the above command is equivalent to
-		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+		arvan paas image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--filter-by-os=.*
 	`)
 )

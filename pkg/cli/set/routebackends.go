@@ -39,7 +39,7 @@ var (
 		When setting backends, the first backend is the primary and the other backends are
 		considered alternates. For example:
 
-		    $ oc set route-backends web prod=99 canary=1
+		    $ arvan paas set route-backends web prod=99 canary=1
 
 		will set the primary backend to service "prod" with a weight of 99 and the first
 		alternate backend to service "canary" with a weight of 1. This means 99%% of traffic will
@@ -54,22 +54,22 @@ var (
 
 	backendsExample = templates.Examples(`
 		# Print the backends on the route 'web'
-		oc set route-backends web
+		arvan paas set route-backends web
 
 		# Set two backend services on route 'web' with 2/3rds of traffic going to 'a'
-		oc set route-backends web a=2 b=1
+		arvan paas set route-backends web a=2 b=1
 
 		# Increase the traffic percentage going to b by 10%% relative to a
-		oc set route-backends web --adjust b=+10%%
+		arvan paas set route-backends web --adjust b=+10%%
 
 		# Set traffic percentage going to b to 10%% of the traffic going to a
-		oc set route-backends web --adjust b=10%%
+		arvan paas set route-backends web --adjust b=10%%
 
 		# Set weight of b to 10
-		oc set route-backends web --adjust b=10
+		arvan paas set route-backends web --adjust b=10
 
 		# Set the weight to all backends to zero
-		oc set route-backends web --zero
+		arvan paas set route-backends web --zero
 	`)
 )
 

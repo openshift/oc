@@ -36,7 +36,7 @@ var (
 
 	createKubeconfigExamples = templates.Examples(`
 		# Create a kubeconfig file for service account 'default'
-		oc serviceaccounts create-kubeconfig 'default' > default.kubeconfig
+		arvan paas serviceaccounts create-kubeconfig 'default' > default.kubeconfig
 	`)
 )
 

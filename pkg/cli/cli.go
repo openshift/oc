@@ -32,7 +32,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/importimage"
 	"github.com/openshift/oc/pkg/cli/kubectlwrappers"
 	"github.com/openshift/oc/pkg/cli/login"
-	"github.com/openshift/oc/pkg/cli/logout"
 	"github.com/openshift/oc/pkg/cli/logs"
 	"github.com/openshift/oc/pkg/cli/newapp"
 	"github.com/openshift/oc/pkg/cli/newbuild"
@@ -56,7 +55,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/status"
 	"github.com/openshift/oc/pkg/cli/tag"
 	"github.com/openshift/oc/pkg/cli/version"
-	"github.com/openshift/oc/pkg/cli/whoami"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/openshift/oc/pkg/helpers/term"
 )
@@ -212,7 +210,6 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 		{
 			Message: "Advanced Commands:",
 			Commands: []*cobra.Command{
-				admin.NewCommandAdmin(f, ioStreams),
 				kubectlwrappers.NewCmdReplace(f, ioStreams),
 				kubectlwrappers.NewCmdPatch(f, ioStreams),
 				process.NewCmdProcess(f, ioStreams),
@@ -228,15 +225,6 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 				kubectlwrappers.NewCmdClusterInfo(f, ioStreams),
 				diff.NewCmdDiff(f, ioStreams),
 				kubectlwrappers.NewCmdKustomize(ioStreams),
-			},
-		},
-		{
-			Message: "Settings Commands:",
-			Commands: []*cobra.Command{
-				logout.NewCmdLogout(f, ioStreams),
-				kubectlwrappers.NewCmdConfig(f, ioStreams),
-				whoami.NewCmdWhoAmI(f, ioStreams),
-				kubectlwrappers.NewCmdCompletion(ioStreams),
 			},
 		},
 	}

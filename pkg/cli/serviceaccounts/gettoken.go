@@ -34,7 +34,7 @@ var (
 
 	getServiceAccountTokenExamples = templates.Examples(`
 		# Get the service account token from service account 'default'
-		oc serviceaccounts get-token 'default'
+		arvan paas serviceaccounts get-token 'default'
 	`)
 )
 

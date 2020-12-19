@@ -109,7 +109,7 @@ func routePortMarker(g osgraph.Graph, f osgraph.Namer, routeNode *routegraph.Rou
 					f.ResourceName(routeNode), routePort, f.ResourceName(svcNode)),
 			}
 			if len(svcNode.Spec.Ports) == 1 {
-				marker.Suggestion = osgraph.Suggestion(fmt.Sprintf("oc patch %s -p '{\"spec\":{\"port\":{\"targetPort\": %d}}}'", f.ResourceName(routeNode), svcNode.Spec.Ports[0].TargetPort.IntValue()))
+				marker.Suggestion = osgraph.Suggestion(fmt.Sprintf("arvan paas patch %s -p '{\"spec\":{\"port\":{\"targetPort\": %d}}}'", f.ResourceName(routeNode), svcNode.Spec.Ports[0].TargetPort.IntValue()))
 			}
 
 			return marker
@@ -132,7 +132,7 @@ func routePortMarker(g osgraph.Graph, f osgraph.Namer, routeNode *routegraph.Rou
 				f.ResourceName(routeNode), routePortString, f.ResourceName(svcNode)),
 		}
 		if len(svcNode.Spec.Ports) == 1 {
-			marker.Suggestion = osgraph.Suggestion(fmt.Sprintf("oc patch %s -p '{\"spec\":{\"port\":{\"targetPort\": %d}}}'", f.ResourceName(routeNode), svcNode.Spec.Ports[0].TargetPort.IntValue()))
+			marker.Suggestion = osgraph.Suggestion(fmt.Sprintf("arvan paas patch %s -p '{\"spec\":{\"port\":{\"targetPort\": %d}}}'", f.ResourceName(routeNode), svcNode.Spec.Ports[0].TargetPort.IntValue()))
 		}
 
 		return marker
@@ -153,7 +153,7 @@ func FindMissingTLSTerminationType(g osgraph.Graph, f osgraph.Namer) []osgraph.M
 				Severity:   osgraph.ErrorSeverity,
 				Key:        MissingTLSTerminationTypeErr,
 				Message:    fmt.Sprintf("%s has a TLS configuration but no termination type specified.", f.ResourceName(routeNode)),
-				Suggestion: osgraph.Suggestion(fmt.Sprintf("oc patch %s -p '{\"spec\":{\"tls\":{\"termination\":\"<type>\"}}}' (replace <type> with a valid termination type: edge, passthrough, reencrypt)", f.ResourceName(routeNode)))})
+				Suggestion: osgraph.Suggestion(fmt.Sprintf("arvan paas patch %s -p '{\"spec\":{\"tls\":{\"termination\":\"<type>\"}}}' (replace <type> with a valid termination type: edge, passthrough, reencrypt)", f.ResourceName(routeNode)))})
 		}
 	}
 

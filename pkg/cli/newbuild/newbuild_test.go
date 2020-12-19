@@ -28,7 +28,7 @@ func TestNewBuildRun(t *testing.T) {
 		{
 			name:        "no input",
 			config:      &newcmd.AppConfig{},
-			expectedErr: ocnewapp.UsageError("oc new-build", newBuildNoInput).Error(),
+			expectedErr: ocnewapp.UsageError("arvan paas new-build", newBuildNoInput).Error(),
 		},
 		{
 			name: "no matches",
@@ -38,7 +38,7 @@ func TestNewBuildRun(t *testing.T) {
 				},
 			},
 			expectedErr: heredoc.Doc(`
-				The 'oc new-build' command will match arguments to the following types:
+				The 'arvan paas new-build' command will match arguments to the following types:
 
 				  1. Images tagged into image streams in the current project or the 'openshift' project
 				     - if you don't specify a tag, we'll add ':latest'
@@ -47,7 +47,7 @@ func TestNewBuildRun(t *testing.T) {
 
 				--allow-missing-images can be used to force the use of an image that was not matched
 
-				See 'oc new-build -h' for examples.`),
+				See 'arvan paas new-build -h' for examples.`),
 			expectedActions: []testAction{
 				{verb: "list", resource: "imagestreams"},
 				{verb: "list", resource: "templates"},
@@ -60,7 +60,7 @@ func TestNewBuildRun(t *testing.T) {
 			Action: configcmd.BulkAction{
 				IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
 			},
-			CommandPath: "oc new-build",
+			CommandPath: "arvan paas new-build",
 			CommandName: "new-build",
 		},
 	}

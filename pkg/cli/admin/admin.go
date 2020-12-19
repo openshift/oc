@@ -99,8 +99,8 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 					migrateetcd.NewCmdMigrateTTLs(f, streams),
 					migratehpa.NewCmdMigrateLegacyHPA(f, streams),
 					migratetemplateinstances.NewCmdMigrateTemplateInstances(f, streams),
-				),
-			},
+			),
+				},
 		},
 		{
 			Message: "Configuration:",

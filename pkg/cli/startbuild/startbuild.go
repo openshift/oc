@@ -69,24 +69,24 @@ var (
 
 	startBuildExample = templates.Examples(`
 		# Starts build from build config "hello-world"
-		oc start-build hello-world
+		arvan paas start-build hello-world
 
 		# Starts build from a previous build "hello-world-1"
-		oc start-build --from-build=hello-world-1
+		arvan paas start-build --from-build=hello-world-1
 
 		# Use the contents of a directory as build input
-		oc start-build hello-world --from-dir=src/
+		arvan paas start-build hello-world --from-dir=src/
 
 		# Send the contents of a Git repository to the server from tag 'v2'
-		oc start-build hello-world --from-repo=../hello-world --commit=v2
+		arvan paas start-build hello-world --from-repo=../hello-world --commit=v2
 
 		# Start a new build for build config "hello-world" and watch the logs until the build
 		# completes or fails.
-		oc start-build hello-world --follow
+		arvan paas start-build hello-world --follow
 
 		# Start a new build for build config "hello-world" and wait until the build completes. It
 		# exits with a non-zero return code if the build fails.
-		oc start-build hello-world --wait
+		arvan paas start-build hello-world --wait
 	`)
 )
 
@@ -253,7 +253,7 @@ func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 		return nil
 
 	case len(args) != 1 && len(buildName) == 0:
-		return kcmdutil.UsageErrorf(cmd, "Must pass a name of a build config or specify build name with '--from-build' flag.\nUse \"oc get buildconfig\" to list all available build configs.")
+		return kcmdutil.UsageErrorf(cmd, "Must pass a name of a build config or specify build name with '--from-build' flag.\nUse \"arvan paas get buildconfig\" to list all available build configs.")
 	}
 
 	clientConfig, err := f.ToRESTConfig()
@@ -476,7 +476,7 @@ func (o *StartBuildOptions) Run() error {
 	if o.Follow {
 		err = o.streamBuildLogs(newBuild)
 		if err != nil {
-			fmt.Fprintf(o.ErrOut, "Failed to stream the build logs - to view the logs, run oc logs build/%s\nError: %v\n", newBuild.Name, err)
+			fmt.Fprintf(o.ErrOut, "Failed to stream the build logs - to view the logs, run arvan paas logs build/%s\nError: %v\n", newBuild.Name, err)
 		}
 	}
 

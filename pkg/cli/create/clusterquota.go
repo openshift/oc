@@ -30,7 +30,7 @@ var (
 
 	clusterQuotaExample = templates.Examples(`
 		# Create a cluster resource quota limited to 10 pods
-		oc create clusterresourcequota limit-bob --project-annotation-selector=openshift.io/requester=user-bob --hard=pods=10
+		arvan paas create clusterresourcequota limit-bob --project-annotation-selector=openshift.io/requester=user-bob --hard=pods=10
 	`)
 )
 

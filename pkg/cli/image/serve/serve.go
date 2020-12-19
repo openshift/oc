@@ -33,7 +33,7 @@ func NewServe(streams genericclioptions.IOStreams) *cobra.Command {
 			Serve a container registry
 
 			This command will start an HTTP or HTTPS server that hosts a local directory of mirrored
-			images. Use the 'oc image mirror --dir=DIR SRC=DST' command to populate that directory.
+			images. Use the 'arvan paas image mirror --dir=DIR SRC=DST' command to populate that directory.
 			The directory must have a 'v2' folder that contains repository sub directories.
 
 			No authentication or authorization checks are performed and the source directory should

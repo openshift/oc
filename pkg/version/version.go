@@ -97,7 +97,7 @@ func ExtractVersion() (version.Info, string, error) {
 	if len(releaseName) == 0 {
 		// the binary has been altered, but the replaced release name is empty which is incorrect
 		// the oc binary will not be pinned to Release Metadata:Version
-		return version.Info{}, "", fmt.Errorf("oc version was incorrectly replaced during extract")
+		return version.Info{}, "", fmt.Errorf("arvan paas version was incorrectly replaced during extract")
 	}
 	return Get(), releaseName, nil
 }

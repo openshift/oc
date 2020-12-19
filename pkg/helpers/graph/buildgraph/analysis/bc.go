@@ -66,7 +66,7 @@ bc:
 						Key:      MissingRequiredRegistryErr,
 						Message: fmt.Sprintf("%s is pushing to %s, but the administrator has not configured the integrated container image registry.",
 							f.ResourceName(bcNode), f.ResourceName(istNode)),
-						Suggestion: osgraph.Suggestion("oc adm registry -h"),
+						Suggestion: osgraph.Suggestion("arvan paas adm registry -h"),
 					})
 
 					continue bc
@@ -170,7 +170,7 @@ func multiBCStartBuildSuggestion(bcNodes []*buildgraph.BuildConfigNode) string {
 	}
 	for i, bcNode := range bcNodes {
 		// use of f.ResourceName(bcNode) will produce a string like  oc start-build BuildConfig|example/ruby-hello-world
-		ret = ret + fmt.Sprintf("oc start-build %s", bcNode.BuildConfig.GetName())
+		ret = ret + fmt.Sprintf("arvan paas start-build %s", bcNode.BuildConfig.GetName())
 		if i < (len(bcNodes) - 1) {
 			ret = ret + ", "
 		}
@@ -223,7 +223,7 @@ func findPendingTagMarkers(istNode *imagegraph.ImageStreamTagNode, g osgraph.Gra
 				Severity:   osgraph.ErrorSeverity,
 				Key:        LatestBuildFailedErr,
 				Message:    fmt.Sprintf("%s has failed.", f.ResourceName(latestBuild)),
-				Suggestion: osgraph.Suggestion(fmt.Sprintf("Inspect the build failure with 'oc logs -f bc/%s'", bcNode.BuildConfig.GetName())),
+				Suggestion: osgraph.Suggestion(fmt.Sprintf("Inspect the build failure with 'arvan paas logs -f bc/%s'", bcNode.BuildConfig.GetName())),
 			})
 		default:
 			// Do nothing when latest build is new, pending, or running.
@@ -286,10 +286,10 @@ func getImageStreamTagSuggestion(g osgraph.Graph, f osgraph.Namer, tagNode *imag
 		bcs = append(bcs, f.ResourceName(bcNode))
 	}
 	if len(bcs) == 1 {
-		return osgraph.Suggestion(fmt.Sprintf("oc start-build %s", bcs[0]))
+		return osgraph.Suggestion(fmt.Sprintf("arvan paas start-build %s", bcs[0]))
 	}
 	if len(bcs) > 0 {
-		return osgraph.Suggestion(fmt.Sprintf("`oc start-build` with one of these: %s.", strings.Join(bcs[:], ",")))
+		return osgraph.Suggestion(fmt.Sprintf("`arvan paas start-build` with one of these: %s.", strings.Join(bcs[:], ",")))
 	}
 	return osgraph.Suggestion(fmt.Sprintf("%s needs to be imported.", f.ResourceName(tagNode)))
 }
@@ -312,7 +312,7 @@ func getImageStreamImageSuggestion(imageID string, imageStream *imagev1.ImageStr
 	// check the images stream to see if any import images are in flight or have failed
 	annotation, ok := imageStream.Annotations[imagev1.DockerImageRepositoryCheckAnnotation]
 	if !ok {
-		return osgraph.Suggestion(fmt.Sprintf("`oc import-image %s --from=` where `--from` specifies an image with hexadecimal ID %s", imageStream.GetName(), imageID))
+		return osgraph.Suggestion(fmt.Sprintf("`arvan paas import-image %s --from=` where `--from` specifies an image with hexadecimal ID %s", imageStream.GetName(), imageID))
 	}
 
 	if checkTime, err := time.Parse(time.RFC3339, annotation); err == nil {
@@ -323,13 +323,13 @@ func getImageStreamImageSuggestion(imageID string, imageStream *imagev1.ImageStr
 		compareTime := checkTime.Add(5 * time.Minute)
 		currentTime, _ := time.Parse(time.RFC3339, metav1.Now().UTC().Format(time.RFC3339))
 		if compareTime.Before(currentTime) {
-			return osgraph.Suggestion(fmt.Sprintf("`oc import-image %s --from=` where `--from` specifies an image with hexadecimal ID %s", imageStream.GetName(), imageID))
+			return osgraph.Suggestion(fmt.Sprintf("`arvan paas import-image %s --from=` where `--from` specifies an image with hexadecimal ID %s", imageStream.GetName(), imageID))
 		}
 
-		return osgraph.Suggestion(fmt.Sprintf("`oc import-image %s --from=` with hexadecimal ID %s possibly in progress", imageStream.GetName(), imageID))
+		return osgraph.Suggestion(fmt.Sprintf("`arvan paas import-image %s --from=` with hexadecimal ID %s possibly in progress", imageStream.GetName(), imageID))
 
 	}
-	return osgraph.Suggestion(fmt.Sprintf("Possible error occurred with `oc import-image %s --from=` with hexadecimal ID %s; inspect images stream annotations", imageStream.GetName(), imageID))
+	return osgraph.Suggestion(fmt.Sprintf("Possible error occurred with `arvan paas import-image %s --from=` with hexadecimal ID %s; inspect images stream annotations", imageStream.GetName(), imageID))
 }
 
 // validImageStreamImage will cycle through the imageStream.Status.Tags.[]TagEvent.DockerImageReference and  determine whether an image with the hexadecimal image id

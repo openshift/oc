@@ -62,29 +62,29 @@ var (
 
 	triggersExample = templates.Examples(`
 		# Print the triggers on the deployment config 'myapp'
-		oc set triggers dc/myapp
+		arvan paas set triggers dc/myapp
 
 		# Set all triggers to manual
-		oc set triggers dc/myapp --manual
+		arvan paas set triggers dc/myapp --manual
 
 		# Enable all automatic triggers
-		oc set triggers dc/myapp --auto
+		arvan paas set triggers dc/myapp --auto
 
 		# Reset the GitHub webhook on a build to a new, generated secret
-		oc set triggers bc/webapp --from-github
-		oc set triggers bc/webapp --from-webhook
+		arvan paas set triggers bc/webapp --from-github
+		arvan paas set triggers bc/webapp --from-webhook
 
 		# Remove all triggers
-		oc set triggers bc/webapp --remove-all
+		arvan paas set triggers bc/webapp --remove-all
 
 		# Stop triggering on config change
-		oc set triggers dc/myapp --from-config --remove
+		arvan paas set triggers dc/myapp --from-config --remove
 
 		# Add an image trigger to a build config
-		oc set triggers bc/webapp --from-image=namespace1/image:latest
+		arvan paas set triggers bc/webapp --from-image=namespace1/image:latest
 
 		# Add an image trigger to a stateful set on the main container
-		oc set triggers statefulset/db --from-image=namespace1/image:latest -c main
+		arvan paas set triggers statefulset/db --from-image=namespace1/image:latest -c main
 	`)
 )
 

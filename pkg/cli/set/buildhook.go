@@ -42,13 +42,13 @@ var (
 
 	buildHookExample = templates.Examples(`
 		# Clear post-commit hook on a build config
-		oc set build-hook bc/mybuild --post-commit --remove
+		arvan paas set build-hook bc/mybuild --post-commit --remove
 
 		# Set the post-commit hook to execute a test suite using a new entrypoint
-		oc set build-hook bc/mybuild --post-commit --command -- /bin/bash -c /var/lib/test-image.sh
+		arvan paas set build-hook bc/mybuild --post-commit --command -- /bin/bash -c /var/lib/test-image.sh
 
 		# Set the post-commit hook to execute a shell script
-		oc set build-hook bc/mybuild --post-commit --script="/var/lib/test-image.sh param1 param2 && /var/lib/done.sh"
+		arvan paas set build-hook bc/mybuild --post-commit --script="/var/lib/test-image.sh param1 param2 && /var/lib/done.sh"
 	`)
 )
 

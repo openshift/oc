@@ -32,7 +32,7 @@ var (
 
 	identityExample = templates.Examples(`
 		# Create an identity with identity provider "acme_ldap" and the identity provider username "adamjones"
-		oc create identity acme_ldap:adamjones
+		arvan paas create identity acme_ldap:adamjones
 	`)
 )
 

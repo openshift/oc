@@ -31,21 +31,21 @@ var (
 
 		This command will show services, deployment configs, build configurations, and active deployments.
 		If you have any misconfigured components information about them will be shown. For more information
-		about individual items, use the describe command (e.g. oc describe buildconfig,
-		oc describe deploymentconfig, oc describe service).
+		about individual items, use the describe command (e.g. arvan paas describe buildconfig,
+		arvan paas describe deploymentconfig, arvan paas describe service).
 
 		You can specify an output format of "-o dot" to have this command output the generated status
 		graph in DOT format that is suitable for use by the "dot" command.`)
 
 	statusExample = templates.Examples(`
 		# See an overview of the current project.
-		oc status
+		arvan paas status
 
 		# Export the overview of the current project in an svg file.
-		oc status -o dot | dot -T svg -o project.svg
+		arvan paas status -o dot | dot -T svg -o project.svg
 
 		# See an overview of the current project including details for any identified issues.
-		oc --suggest`)
+		arvan paas --suggest`)
 )
 
 // StatusOptions contains all the necessary options for the Openshift cli status command.
@@ -99,7 +99,7 @@ func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	}
 
 	o.logsCommandName = fmt.Sprintf("%s logs", cmd.Parent().CommandPath())
-	o.securityPolicyCommandFormat = "oc adm policy add-scc-to-user anyuid -n %s -z %s"
+	o.securityPolicyCommandFormat = "arvan paas adm policy add-scc-to-user anyuid -n %s -z %s"
 	o.setProbeCommandName = fmt.Sprintf("%s set probe", cmd.Parent().CommandPath())
 
 	clientConfig, err := f.ToRESTConfig()

@@ -51,35 +51,35 @@ var (
 
 	envExample = templates.Examples(`
 		# Update deployment config 'myapp' with a new environment variable
-		oc set env dc/myapp STORAGE_DIR=/local
+		arvan paas set env dc/myapp STORAGE_DIR=/local
 
 		# List the environment variables defined on a build config 'sample-build'
-		oc set env bc/sample-build --list
+		arvan paas set env bc/sample-build --list
 
 		# List the environment variables defined on all pods
-		oc set env pods --all --list
+		arvan paas set env pods --all --list
 
 		# Output modified build config in YAML
-		oc set env bc/sample-build STORAGE_DIR=/data -o yaml
+		arvan paas set env bc/sample-build STORAGE_DIR=/data -o yaml
 
 		# Update all containers in all replication controllers in the project to have ENV=prod
-		oc set env rc --all ENV=prod
+		arvan paas set env rc --all ENV=prod
 
 		# Import environment from a secret
-		oc set env --from=secret/mysecret dc/myapp
+		arvan paas set env --from=secret/mysecret dc/myapp
 
 		# Import environment from a config map with a prefix
-		oc set env --from=configmap/myconfigmap --prefix=MYSQL_ dc/myapp
+		arvan paas set env --from=configmap/myconfigmap --prefix=MYSQL_ dc/myapp
 
 		# Remove the environment variable ENV from container 'c1' in all deployment configs
-		oc set env dc --all --containers="c1" ENV-
+		arvan paas set env dc --all --containers="c1" ENV-
 
 		# Remove the environment variable ENV from a deployment config definition on disk and
 		# update the deployment config on the server
-		oc set env -f dc.json ENV-
+		arvan paas set env -f dc.json ENV-
 
 		# Set some of the local shell environment into a deployment config on the server
-		oc set env | grep RAILS_ | oc env -e - dc/myapp
+		arvan paas set env | grep RAILS_ | arvan paas env -e - dc/myapp
 	`)
 )
 

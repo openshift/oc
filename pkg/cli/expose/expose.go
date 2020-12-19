@@ -28,27 +28,27 @@ var (
 
 	exposeExample = templates.Examples(`
 		# Create a route based on service nginx. The new route will re-use nginx's labels
-		oc expose service nginx
+		arvan paas expose service nginx
 
 		# Create a route and specify your own label and route name
-		oc expose service nginx -l name=myroute --name=fromdowntown
+		arvan paas expose service nginx -l name=myroute --name=fromdowntown
 
 		# Create a route and specify a hostname
-		oc expose service nginx --hostname=www.example.com
+		arvan paas expose service nginx --hostname=www.example.com
 
 		# Create a route with wildcard
-		oc expose service nginx --hostname=x.example.com --wildcard-policy=Subdomain
+		arvan paas expose service nginx --hostname=x.example.com --wildcard-policy=Subdomain
 		This would be equivalent to *.example.com. NOTE: only hosts are matched by the wildcard, subdomains would not be included.
 
 		# Expose a deployment configuration as a service and use the specified port
-		oc expose dc ruby-hello-world --port=8080
+		arvan paas expose dc ruby-hello-world --port=8080
 
 		# Expose a service as a route in the specified path
-		oc expose service nginx --path=/nginx
+		arvan paas expose service nginx --path=/nginx
 
 		# Expose a service using different generators
-		oc expose service nginx --name=exposed-svc --port=12201 --protocol="TCP" --generator="service/v2"
-		oc expose service nginx --name=my-route --port=12201 --generator="route/v1"
+		arvan paas expose service nginx --name=exposed-svc --port=12201 --protocol="TCP" --generator="service/v2"
+		arvan paas expose service nginx --name=my-route --port=12201 --generator="route/v1"
 
 		Exposing a service using the "route/v1" generator (default) will create a new exposed route with the "--name" provided
 		(or the name of the service otherwise). You may not specify a "--protocol" or "--target-port" option when using this generator.

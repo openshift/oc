@@ -50,14 +50,14 @@ var (
 
 	deploymentHookExample = templates.Examples(`
 		# Clear pre and post hooks on a deployment config
-		oc set deployment-hook dc/myapp --remove --pre --post
+		arvan paas set deployment-hook dc/myapp --remove --pre --post
 
 		# Set the pre deployment hook to execute a db migration command for an application
 		# using the data volume from the application
-		oc set deployment-hook dc/myapp --pre --volumes=data -- /var/lib/migrate-db.sh
+		arvan paas set deployment-hook dc/myapp --pre --volumes=data -- /var/lib/migrate-db.sh
 
 		# Set a mid deployment hook along with additional environment variables
-		oc set deployment-hook dc/myapp --mid --volumes=data -e VAR1=value1 -e VAR2=value2 -- /var/lib/prepare-deploy.sh
+		arvan paas set deployment-hook dc/myapp --mid --volumes=data -e VAR1=value1 -e VAR2=value2 -- /var/lib/prepare-deploy.sh
 	`)
 )
 

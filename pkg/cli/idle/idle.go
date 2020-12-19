@@ -52,7 +52,7 @@ var (
 
 	idleExample = templates.Examples(`
 		# Idle the scalable controllers associated with the services listed in to-idle.txt
-		$ oc idle --resource-names-file to-idle.txt
+		$ arvan paas idle --resource-names-file to-idle.txt
 	`)
 )
 
@@ -305,7 +305,7 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 
 		endpoints, isEndpoints := info.Object.(*corev1.Endpoints)
 		if !isEndpoints {
-			return fmt.Errorf("you must specify endpoints, not %v (view available endpoints with \"oc get endpoints\").", info.Mapping.Resource)
+			return fmt.Errorf("you must specify endpoints, not %v (view available endpoints with \"arvan paas get endpoints\").", info.Mapping.Resource)
 		}
 
 		endpointsName := types.NamespacedName{
@@ -648,7 +648,7 @@ func (o *IdleOptions) RunIdle() error {
 			if len(info.scaleRefs) == 0 {
 				fmt.Fprintf(o.ErrOut, "error: unable to mark the service %q as idled.\n", serviceName.String())
 				fmt.Fprintf(o.ErrOut, "Make sure that the service is not already marked as idled and that it is associated with resources that can be scaled.\n")
-				fmt.Fprintf(o.ErrOut, "See 'oc idle -h' for help and examples.\n")
+				fmt.Fprintf(o.ErrOut, "See 'arvan paas idle -h' for help and examples.\n")
 				hadError = true
 				continue
 			}

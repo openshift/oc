@@ -89,7 +89,7 @@ func TestMissingLivenessProbes(t *testing.T) {
 
 	kubeedges.AddAllExposedPodEdges(g)
 
-	markers := FindMissingLivenessProbes(g, osgraph.DefaultNamer, "oc set probe")
+	markers := FindMissingLivenessProbes(g, osgraph.DefaultNamer, "arvan paas set probe")
 	if e, a := 1, len(markers); e != a {
 		t.Fatalf("expected %v, got %v", e, a)
 	}

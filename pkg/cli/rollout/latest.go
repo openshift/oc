@@ -30,17 +30,17 @@ var (
 		Start a new rollout for a deployment config with the latest state from its triggers
 
 		This command is appropriate for running manual rollouts. If you want full control over
-		running new rollouts, use "oc set triggers --manual" to disable all triggers in your
+		running new rollouts, use "arvan paas set triggers --manual" to disable all triggers in your
 		deployment config and then whenever you want to run a new deployment process, use this
 		command in order to pick up the latest images found in the cluster that are pointed by
 		your image change triggers.`)
 
 	rolloutLatestExample = templates.Examples(`
 		# Start a new rollout based on the latest images defined in the image change triggers.
-		oc rollout latest dc/nginx
+		arvan paas rollout latest dc/nginx
 
 		# Print the rolled out deployment config
-		oc rollout latest dc/nginx -o json`)
+		arvan paas rollout latest dc/nginx -o json`)
 )
 
 // RolloutLatestOptions holds all the options for the `rollout latest` command.

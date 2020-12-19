@@ -26,7 +26,7 @@ var (
 
 	deploymentConfigExample = templates.Examples(`
 		# Create an nginx deployment config named my-nginx
-		oc create deploymentconfig my-nginx --image=nginx
+		arvan paas create deploymentconfig my-nginx --image=nginx
 	`)
 )
 

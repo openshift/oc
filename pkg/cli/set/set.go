@@ -81,19 +81,19 @@ Update existing container image(s) of resources.`)
 
 	setImageExample = ktemplates.Examples(`
 	  # Set a deployment configs's nginx container image to 'nginx:1.9.1', and its busybox container image to 'busybox'.
-	  oc set image dc/nginx busybox=busybox nginx=nginx:1.9.1
+	  arvan paas set image dc/nginx busybox=busybox nginx=nginx:1.9.1
 
 	  # Set a deployment configs's app container image to the image referenced by the imagestream tag 'openshift/ruby:2.3'.
-	  oc set image dc/myapp app=openshift/ruby:2.3 --source=imagestreamtag
+	  arvan paas set image dc/myapp app=openshift/ruby:2.3 --source=imagestreamtag
 
 	  # Update all deployments' and rc's nginx container's image to 'nginx:1.9.1'
-	  oc set image deployments,rc nginx=nginx:1.9.1 --all
+	  arvan paas set image deployments,rc nginx=nginx:1.9.1 --all
 
 	  # Update image of all containers of daemonset abc to 'nginx:1.9.1'
-	  oc set image daemonset abc *=nginx:1.9.1
+	  arvan paas set image daemonset abc *=nginx:1.9.1
 
 	  # Print result (in yaml format) of updating nginx container image from local file, without hitting the server
-	  oc set image -f path/to/file.yaml nginx=nginx:1.9.1 --local -o yaml`)
+	  arvan paas set image -f path/to/file.yaml nginx=nginx:1.9.1 --local -o yaml`)
 )
 
 // NewCmdImage is a wrapper for the Kubernetes CLI set image command
@@ -117,20 +117,20 @@ Possible resources include (case insensitive):
 	setResourcesExample = ktemplates.Examples(`
 # Set a deployments nginx container cpu limits to "200m and memory to 512Mi"
 
-oc set resources deployment nginx -c=nginx --limits=cpu=200m,memory=512Mi
+arvan paas set resources deployment nginx -c=nginx --limits=cpu=200m,memory=512Mi
 
 
 # Set the resource request and limits for all containers in nginx
 
-oc set resources deployment nginx --limits=cpu=200m,memory=512Mi --requests=cpu=100m,memory=256Mi
+arvan paas set resources deployment nginx --limits=cpu=200m,memory=512Mi --requests=cpu=100m,memory=256Mi
 
 # Remove the resource requests for resources on containers in nginx
 
-oc set resources deployment nginx --limits=cpu=0,memory=0 --requests=cpu=0,memory=0
+arvan paas set resources deployment nginx --limits=cpu=0,memory=0 --requests=cpu=0,memory=0
 
 # Print the result (in yaml format) of updating nginx container limits from a local, without hitting the server
 
-oc set resources -f path/to/file.yaml --limits=cpu=200m,memory=512Mi --local -o yaml`)
+arvan paas set resources -f path/to/file.yaml --limits=cpu=200m,memory=512Mi --local -o yaml`)
 )
 
 // NewCmdResources is a wrapper for the Kubernetes CLI set resources command
@@ -147,14 +147,14 @@ var (
 Set the selector on a resource. Note that the new selector will overwrite the old selector if the resource had one prior to the invocation
 of 'set selector'.
 
-A selector must begin with a letter or number, and may contain letters, numbers, hyphens, dots, and underscores, up to oc characters.
+A selector must begin with a letter or number, and may contain letters, numbers, hyphens, dots, and underscores, up to arvan paas characters.
 If --resource-version is specified, then updates will use this resource version, otherwise the existing resource-version will be used.
 Note: currently selectors can only be set on Service objects.`)
 
 	setSelectorExample = ktemplates.Examples(`
 # set the labels and selector before creating a deployment/service pair.
-oc create service clusterip my-svc --clusterip="None" -o yaml --dry-run | oc set selector --local -f - 'environment=qa' -o yaml | oc create -f -
-oc create deployment my-dep -o yaml --dry-run | oc label --local -f - environment=qa -o yaml | oc create -f -`)
+arvan paas create service clusterip my-svc --clusterip="None" -o yaml --dry-run | arvan paas set selector --local -f - 'environment=qa' -o yaml | arvan paas create -f -
+arvan paas create deployment my-dep -o yaml --dry-run | arvan paas label --local -f - environment=qa -o yaml | arvan paas create -f -`)
 )
 
 // NewCmdSelector is a wrapper for the Kubernetes CLI set selector command
@@ -173,10 +173,10 @@ Update ServiceAccount of pod template resources.
 
 	setServiceaccountExample = ktemplates.Examples(`
 # Set Deployment nginx-deployment's ServiceAccount to serviceaccount1
-oc set serviceaccount deployment nginx-deployment serviceaccount1
+arvan paas set serviceaccount deployment nginx-deployment serviceaccount1
 
 # Print the result (in yaml format) of updated nginx deployment with serviceaccount from local file, without hitting apiserver
-oc set sa -f nginx-deployment.yaml serviceaccount1 --local --dry-run -o yaml
+arvan paas set sa -f nginx-deployment.yaml serviceaccount1 --local --dry-run -o yaml
 `)
 )
 
@@ -195,13 +195,13 @@ Update User, Group or ServiceAccount in a RoleBinding/ClusterRoleBinding.`)
 
 	setSubjectExample = ktemplates.Examples(`
 # Update a ClusterRoleBinding for serviceaccount1
-oc set subject clusterrolebinding admin --serviceaccount=namespace:serviceaccount1
+arvan paas set subject clusterrolebinding admin --serviceaccount=namespace:serviceaccount1
 
 # Update a RoleBinding for user1, user2, and group1
-oc set subject rolebinding admin --user=user1 --user=user2 --group=group1
+arvan paas set subject rolebinding admin --user=user1 --user=user2 --group=group1
 
 # Print the result (in yaml format) of updating rolebinding subjects from a local, without hitting the server
-oc create rolebinding admin --role=admin --user=admin -o yaml --dry-run | oc set subject --local -f - --user=foo -o yaml`)
+arvan paas create rolebinding admin --role=admin --user=admin -o yaml --dry-run | arvan paas set subject --local -f - --user=foo -o yaml`)
 )
 
 // NewCmdSubject is a wrapper for the Kubernetes CLI set subject command

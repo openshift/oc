@@ -45,16 +45,16 @@ var (
 
 	dataExample = templates.Examples(`
 		# Set the 'password' key of a secret
-		oc set data secret/foo password=this_is_secret
+		arvan paas set data secret/foo password=this_is_secret
 
 		# Remove the 'password' key from a secret
-		oc set data secret/foo password-
+		arvan paas set data secret/foo password-
 
 		# Update the 'haproxy.conf' key of a config map from a file on disk
-		oc set data configmap/bar --from-file=../haproxy.conf
+		arvan paas set data configmap/bar --from-file=../haproxy.conf
 
 		# Update a secret with the contents of a directory, one key per file
-		oc set data secret/foo --from-file=secret-dir
+		arvan paas set data secret/foo --from-file=secret-dir
 	`)
 )
 

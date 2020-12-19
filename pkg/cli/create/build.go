@@ -31,7 +31,7 @@ var (
 
 	buildExample = templates.Examples(`
 		# Create a new build
-		oc create build myapp
+		arvan paas create build myapp
 	`)
 )
 

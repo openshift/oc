@@ -30,12 +30,12 @@ var (
 
 	reencryptRouteExample = templates.Examples(`
 		# Create a route named "my-route" that exposes the frontend service:
-		oc create route reencrypt my-route --service=frontend --dest-ca-cert cert.cert
+		arvan paas create route reencrypt my-route --service=frontend --dest-ca-cert cert.cert
 
 		# Create a reencrypt route that exposes the frontend service, letting the
 		# route name default to the service name and the destination CA certificate
 		# default to the service CA:
-		oc create route reencrypt --service=frontend
+		arvan paas create route reencrypt --service=frontend
 	`)
 )
 

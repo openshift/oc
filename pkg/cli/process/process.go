@@ -56,25 +56,25 @@ var (
 
 	processExample = templates.Examples(`
 		# Convert template.json file into resource list and pass to create
-		oc process -f template.json | oc create -f -
+		arvan paas process -f template.json | arvan paas create -f -
 
 		# Process a file locally instead of contacting the server
-		oc process -f template.json --local -o yaml
+		arvan paas process -f template.json --local -o yaml
 
 		# Process template while passing a user-defined label
-		oc process -f template.json -l name=mytemplate
+		arvan paas process -f template.json -l name=mytemplate
 
 		# Convert stored template into resource list
-		oc process foo
+		arvan paas process foo
 
 		# Convert stored template into resource list by setting/overriding parameter values
-		oc process foo PARM1=VALUE1 PARM2=VALUE2
+		arvan paas process foo PARM1=VALUE1 PARM2=VALUE2
 
 		# Convert template stored in different namespace into a resource list
-		oc process openshift//foo
+		arvan paas process openshift//foo
 
 		# Convert template.json into resource list
-		cat template.json | oc process -f -
+		cat template.json | arvan paas process -f -
 	`)
 )
 

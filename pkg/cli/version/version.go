@@ -38,11 +38,11 @@ var (
 	`)
 	versionExample = templates.Examples(`
 		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version information for the current context.
-		oc version
+		arvan paas version
 		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version numbers for the current context.
-		oc version --short
+		arvan paas version --short
 		# Print the OpenShift client version information for the current context.
-		oc version --client
+		arvan paas version --client
 	`)
 )
 
@@ -77,7 +77,7 @@ func NewCmdVersion(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *co
 	}
 	cmd.Flags().BoolVar(&o.ClientOnly, "client", o.ClientOnly, "Client version only (no server required).")
 	cmd.Flags().BoolVar(&o.Short, "short", o.Short, "Print just the version number. (default)")
-	cmd.Flags().MarkDeprecated("short", "This flag is deprecated and will be removed in future. Use 'oc version' instead.")
+	cmd.Flags().MarkDeprecated("short", "This flag is deprecated and will be removed in future. Use 'arvan paas version' instead.")
 	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "One of 'yaml' or 'json'.")
 	return cmd
 }

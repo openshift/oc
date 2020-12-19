@@ -59,13 +59,13 @@ var (
 
 	example = templates.Examples(`
 		# Log in to the integrated registry
-		oc registry login
+		arvan paas registry login
 
 		# Log in as the default service account in the current namespace
-		oc registry login -z default
+		arvan paas registry login -z default
 
 		# Log in to a different registry using BASIC auth credentials
-		oc registry login --registry quay.io --auth-basic=USER:PASS
+		arvan paas registry login --registry quay.io --auth-basic=USER:PASS
 	`)
 )
 

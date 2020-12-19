@@ -61,10 +61,10 @@ var (
 
 	projectExample = templates.Examples(`
 		# Switch to 'myapp' project
-		oc project myapp
+		arvan paas project myapp
 
 		# Display the project currently in use
-		oc project
+		arvan paas project
 	`)
 )
 

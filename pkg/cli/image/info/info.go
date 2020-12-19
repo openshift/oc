@@ -54,16 +54,16 @@ func NewInfo(streams genericclioptions.IOStreams) *cobra.Command {
 		`),
 		Example: templates.Examples(`
 			# Show information about an image
-			oc image info quay.io/openshift/cli:latest
+			arvan paas image info quay.io/openshift/cli:latest
 
 			# Show information about images matching a wildcard
-			oc image info quay.io/openshift/cli:4.*
+			arvan paas image info quay.io/openshift/cli:4.*
 
 			# Show information about a file mirrored to disk under DIR
-			oc image info --dir=DIR file://library/busybox:latest
+			arvan paas image info --dir=DIR file://library/busybox:latest
 
 			# Select which image from a multi-OS image to show
-			oc image info library/busybox:latest --filter-by-os=linux/arm64
+			arvan paas image info library/busybox:latest --filter-by-os=linux/arm64
 
 		`),
 		Run: func(cmd *cobra.Command, args []string) {

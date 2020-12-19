@@ -41,7 +41,7 @@ func FindHPASpecsMissingCPUTargets(graph osgraph.Graph, namer osgraph.Namer) []o
 				Severity:   osgraph.ErrorSeverity,
 				Key:        HPAMissingCPUTargetError,
 				Message:    fmt.Sprintf("%s is missing a CPU utilization target", namer.ResourceName(node)),
-				Suggestion: osgraph.Suggestion(fmt.Sprintf(`oc patch %s -p '{"spec":{"targetCPUUtilizationPercentage": 80}}'`, namer.ResourceName(node))),
+				Suggestion: osgraph.Suggestion(fmt.Sprintf(`arvan paas patch %s -p '{"spec":{"targetCPUUtilizationPercentage": 80}}'`, namer.ResourceName(node))),
 			})
 		}
 	}

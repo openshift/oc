@@ -58,7 +58,7 @@ func NoProjectsExistMessage(canRequestProjects bool) string {
 	}
 	return fmt.Sprintf(`You don't have any projects. You can try to create a new project, by running
 
-    oc new-project <projectname>
+    arvan paas new-project <projectname>
 
 `)
 }

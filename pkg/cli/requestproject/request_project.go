@@ -45,10 +45,10 @@ var (
 
 	requestProjectExample = templates.Examples(`
 		# Create a new project with minimal information
-		oc new-project web-team-dev
+		arvan paas new-project web-team-dev
 
 		# Create a new project with a display name and description
-		oc new-project web-team-dev --display-name="Web Team Development" --description="Development project for the web team."`)
+		arvan paas new-project web-team-dev --display-name="Web Team Development" --description="Development project for the web team."`)
 )
 
 // RequestProject next steps.
@@ -56,7 +56,7 @@ const (
 	requestProjectNewAppOutput = `
 You can add applications to this project with the 'new-app' command. For example, try:
 
-    oc new-app rails-postgresql-example
+    arvan paas new-app rails-postgresql-example
 
 to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
 
@@ -67,7 +67,7 @@ to build a new example application in Ruby. Or use kubectl to deploy a simple Ku
 
 To switch to this project and start adding applications, use:
 
-    oc project %[2]s
+    arvan paas project %[2]s
 `
 )
 

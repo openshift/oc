@@ -33,7 +33,7 @@ var (
 
 	example = templates.Examples(`
 		# Display information about the integrated registry
-		oc registry info
+		arvan paas registry info
 	`)
 )
 

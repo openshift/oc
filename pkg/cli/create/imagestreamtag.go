@@ -37,7 +37,7 @@ var (
 
 	imageStreamTagExample = templates.Examples(`
 		# Create a new image stream tag based on an image on a remote registry
-		oc create imagestreamtag mysql:latest --from-image=myregistry.local/mysql/mysql:5.0
+		arvan paas create imagestreamtag mysql:latest --from-image=myregistry.local/mysql/mysql:5.0
 	`)
 )
 

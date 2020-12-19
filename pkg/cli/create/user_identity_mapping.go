@@ -28,7 +28,7 @@ var (
 
 	userIdentityMappingExample = templates.Examples(`
 		# Map the identity "acme_ldap:adamjones" to the user "ajones"
-		oc create useridentitymapping acme_ldap:adamjones ajones
+		arvan paas create useridentitymapping acme_ldap:adamjones ajones
 	`)
 )
 

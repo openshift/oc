@@ -168,7 +168,7 @@ func genMarkdown(command *cobra.Command, parent, docsDir string) {
 
 	out.WriteString(`
 # HISTORY
-June 2016, Ported from the Kubernetes man-doc generator
+June 2016, Ported from the Kubernetes man-darvan paas generator
 `)
 
 	final := mangen.Render(out.Bytes())

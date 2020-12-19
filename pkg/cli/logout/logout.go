@@ -46,12 +46,12 @@ var (
 		are typically managed by other programs. Instead, you can delete your config file to remove
 		the local copy of that certificate or the record of your server login.
 
-		After logging out, if you want to log back into the server use 'oc login'.
+		After logging out, if you want to log back into the server use 'arvan paas login'.
 	`)
 
 	logoutExample = templates.Examples(`
 		# Logout
-		oc logout
+		arvan paas logout
 	`)
 )
 
