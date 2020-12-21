@@ -484,7 +484,7 @@ func (o *MirrorOptions) Run() error {
 				if val, ok := archMap[config.Architecture]; ok {
 					archExt = "-" + val
 				} else {
-					archExt = "=" + config.Architecture
+					archExt = "-" + config.Architecture
 				}
 			} else {
 				fmt.Fprintf(o.ErrOut, "warning: Unable to retrieve image release architecture\n")
