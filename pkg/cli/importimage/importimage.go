@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -187,7 +188,14 @@ func (o *ImportImageOptions) Run() error {
 		return err
 	}
 
-	result, err := o.imageClient.ImageStreamImports(isi.Namespace).Create(context.TODO(), isi, metav1.CreateOptions{})
+	result := &imagev1.ImageStreamImport{}
+	err = o.imageClient.RESTClient().Post().
+		Namespace(isi.Namespace).
+		Resource(imagev1.Resource("imagestreamimports").Resource).
+		Body(isi).
+		Timeout(5 * time.Minute).
+		Do(context.TODO()).
+		Into(result)
 	if err != nil {
 		return err
 	}
