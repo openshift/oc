@@ -42,7 +42,7 @@ var (
 
 		By default, the database is extracted to a temporary directory, but can be saved locally via flags.
 
-		An ImageContentSourcePolicy is written to a file that can be adedd to a cluster with access to the target
+		An ImageContentSourcePolicy is written to a file that can be added to a cluster with access to the target
 		registry. This will configure the cluster to pull from the mirrors instead of the locations referenced in
 		the operator manifests.
 
