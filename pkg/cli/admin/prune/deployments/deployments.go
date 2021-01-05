@@ -23,9 +23,9 @@ import (
 
 var (
 	deploymentsLongDesc = templates.LongDesc(`
-		Prune old completed and failed deployments
+		Prune old completed and failed deployment configs
 
-		By default, the prune operation performs a dry run making no changes to the deployments.
+		By default, the prune operation performs a dry run making no changes to the deployment configs.
 		A --confirm flag is needed for changes to be effective.
 	`)
 
@@ -68,7 +68,7 @@ func NewCmdPruneDeployments(f kcmdutil.Factory, streams genericclioptions.IOStre
 	o := NewPruneDeploymentsOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "deployments",
-		Short:   "Remove old completed and failed deployments",
+		Short:   "Remove old completed and failed deployment configs",
 		Long:    deploymentsLongDesc,
 		Example: deploymentsExample,
 		Run: func(cmd *cobra.Command, args []string) {
