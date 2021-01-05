@@ -193,7 +193,7 @@ func (o *ImportImageOptions) Run() error {
 		Namespace(isi.Namespace).
 		Resource(imagev1.Resource("imagestreamimports").Resource).
 		Body(isi).
-		Timeout(time.Minute).
+		Timeout(time.Hour).
 		Do(context.TODO()).
 		Into(result)
 	if err != nil {
