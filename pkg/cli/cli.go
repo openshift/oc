@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/kubectl/pkg/cmd/diff"
 
 	kubecmd "k8s.io/kubectl/pkg/cmd"
 	"k8s.io/kubectl/pkg/cmd/plugin"
@@ -226,7 +225,7 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 				kubectlwrappers.NewCmdApiVersions(f, ioStreams),
 				kubectlwrappers.NewCmdApiResources(f, ioStreams),
 				kubectlwrappers.NewCmdClusterInfo(f, ioStreams),
-				diff.NewCmdDiff(f, ioStreams),
+				kubectlwrappers.NewCmdDiff(f, ioStreams),
 				kubectlwrappers.NewCmdKustomize(ioStreams),
 			},
 		},
