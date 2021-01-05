@@ -39,7 +39,7 @@ var (
 		Any image triggers present in the rolled back configuration will be disabled
 		with a warning. This is to help prevent your rolled back deployment from being
 		replaced by a triggered deployment soon after your rollback. To re-enable the
-		triggers, use the 'deploy' command.
+		triggers, use the 'set triggers' command.
 
 		If you would like to review the outcome of the rollback, pass '--dry-run' to print
 		a human-readable representation of the updated deployment configuration instead of
