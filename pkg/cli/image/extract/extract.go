@@ -188,7 +188,7 @@ type Mapping struct {
 	ConditionFn func(m *Mapping, dgst digest.Digest, imageConfig *dockerv1client.DockerImageConfig) (bool, error)
 }
 
-func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping, error) {
+func parseMappings(images, paths, files []string, fileDir string, requireEmpty bool) ([]Mapping, error) {
 	layerFilter := regexp.MustCompile(`^(.*)\[([^\]]*)\](.*)$`)
 
 	var mappings []Mapping
@@ -199,10 +199,14 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 			if strings.HasSuffix(arg, "/") {
 				return nil, fmt.Errorf("invalid file: %s must not end with a slash", arg)
 			}
+			to := "."
+			if len(fileDir) > 0 {
+				to = fileDir
+			}
 			mappings = append(mappings, Mapping{
 				Image: image,
 				From:  strings.TrimPrefix(arg, "/"),
-				To:    ".",
+				To:    to,
 			})
 		}
 
@@ -219,6 +223,9 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 				mapping.From = strings.TrimPrefix(mapping.From, "/")
 			}
 
+			if len(fileDir) > 0 {
+				mapping.To = fileDir
+			}
 			toPath := mapping.To
 			if len(toPath) == 0 {
 				toPath = "."
@@ -300,7 +307,7 @@ func (o *ExtractOptions) Complete(cmd *cobra.Command, args []string) error {
 	}
 
 	var err error
-	o.Mappings, err = parseMappings(args, o.Paths, o.Files, !o.Confirm && !o.DryRun)
+	o.Mappings, err = parseMappings(args, o.Paths, o.Files, o.FileDir, !o.Confirm && !o.DryRun)
 	if err != nil {
 		return err
 	}
