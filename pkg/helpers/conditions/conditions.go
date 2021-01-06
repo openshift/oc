@@ -17,9 +17,11 @@ import (
 var ErrContainerTerminated = fmt.Errorf("container terminated")
 var ErrNonZeroExitCode = fmt.Errorf("non-zero exit code from debug container")
 
+type PodWaitNotifyFunc func(pod *corev1.Pod, container corev1.ContainerStatus) error
+
 // PodContainerRunning returns false until the named container has ContainerStatus running (at least once),
 // and will return an error if the pod is deleted, runs to completion, or the container pod is not available.
-func PodContainerRunning(containerName string, coreClient corev1client.CoreV1Interface) watchtools.ConditionFunc {
+func PodContainerRunning(containerName string, coreClient corev1client.CoreV1Interface, notifyFn PodWaitNotifyFunc) watchtools.ConditionFunc {
 	return func(event watch.Event) (bool, error) {
 		switch event.Type {
 		case watch.Deleted:
@@ -29,46 +31,42 @@ func PodContainerRunning(containerName string, coreClient corev1client.CoreV1Int
 		case *corev1.Pod:
 			switch t.Status.Phase {
 			case corev1.PodRunning, corev1.PodPending:
-				for _, s := range t.Status.ContainerStatuses {
-					if s.State.Waiting != nil {
-						// Return error here if pod is pending and container status indicates a failure
-						// otherwise, user would have to wait the timeout period (15 min)
-						// for pod to exit.
-						if s.State.Waiting.Reason == "CreateContainerError" || s.State.Waiting.Reason == "ImagePullBackOff" {
-							return false, fmt.Errorf(s.State.Waiting.Message)
+				// notify the caller about any containers that are in waiting status
+				if notifyFn != nil {
+					for _, s := range t.Status.InitContainerStatuses {
+						if s.State.Waiting == nil {
+							continue
 						}
+						if err := notifyFn(t, s); err != nil {
+							return false, err
+						}
+						// only the first waiting init container is relevant
+						break
+					}
+					for _, s := range t.Status.ContainerStatuses {
+						if s.Name != containerName {
+							continue
+						}
+						if s.State.Waiting != nil {
+							if err := notifyFn(t, s); err != nil {
+								return false, err
+							}
+						}
+						break
 					}
 				}
-				// until the pod is marked as running, we we have to loop
-				if t.Status.Phase == corev1.PodPending {
-					return false, nil
-				}
 			case corev1.PodFailed, corev1.PodSucceeded:
-				for _, s := range t.Status.ContainerStatuses {
-					if s.State.Terminated != nil {
-						exitCode := s.State.Terminated.ExitCode
-						if exitCode != 0 {
-							// User will get more information about non-zero exit code from pod logs retrieval
-							// in debug.go.  Here we mark the non-zero exit to separate success logs
-							// from failed container logs.
-							return false, ErrNonZeroExitCode
-						}
+				// If the pod is terminal, exit if any container has a non-zero exit code, otherwise return a generic
+				// completion
+				for _, s := range append(append([]corev1.ContainerStatus{}, t.Status.InitContainerStatuses...), t.Status.ContainerStatuses...) {
+					if s.State.Terminated != nil && s.State.Terminated.ExitCode != 0 {
+						return false, ErrNonZeroExitCode
 					}
 				}
 				return false, krun.ErrPodCompleted
-			default:
-				return false, nil
 			}
-			for _, s := range t.Status.ContainerStatuses {
-				if s.Name != containerName {
-					continue
-				}
-				if s.State.Terminated != nil {
-					return false, ErrContainerTerminated
-				}
-				return s.State.Running != nil, nil
-			}
-			for _, s := range t.Status.InitContainerStatuses {
+
+			for _, s := range append(append([]corev1.ContainerStatus{}, t.Status.InitContainerStatuses...), t.Status.ContainerStatuses...) {
 				if s.Name != containerName {
 					continue
 				}
