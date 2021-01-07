@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/docker/distribution"
@@ -36,11 +37,29 @@ func (hbu *httpBlobUpload) handleErrorResponse(resp *http.Response) error {
 }
 
 func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
-	req, err := http.NewRequest("PATCH", hbu.location, ioutil.NopCloser(r))
+	tmpfile, err := ioutil.TempFile("", "tmp-blob-*")
+	if err != nil {
+		return 0, err
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := io.Copy(tmpfile, r); err != nil {
+		tmpfile.Close()
+		return 0, err
+	}
+	if _, err := tmpfile.Seek(0, io.SeekStart); err != nil {
+		tmpfile.Close()
+		return 0, err
+	}
+
+	req, err := http.NewRequest("PATCH", hbu.location, tmpfile)
 	if err != nil {
 		return 0, err
 	}
 	defer req.Body.Close()
+	req.GetBody = func() (io.ReadCloser, error) {
+		return os.Open(tmpfile.Name())
+	}
 
 	resp, err := hbu.client.Do(req)
 	if err != nil {
