@@ -124,8 +124,17 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	flags := cmd.Flags()
 
 	o.SecurityOptions.Bind(flags)
-	o.FilterOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
+
+	// Images referenced by catalogs must have all variants mirrored. FilterByOs will only apply to the initial index
+	// image, to indicate which arch should be used to extract the catalog db (the database inside should be the same
+	// for all arches, so this flag should never need to be set explicitly for standard workflows).
+	// this flag is renamed to make it clear that the underlying images are not filtered
+	flags.StringVar(&o.FilterOptions.FilterByOS, "index-filter-by-os", o.FilterOptions.FilterByOS, "A regular expression to control which index image is picked when multiple variants are available. Images will be passed as '<platform>/<architecture>[/<variant>]'. This does not apply to images referenced by the index.")
+
+	// the old flag name is kept for backwards-compatibility.
+	// if both old and new are specified, the value of the flag coming later will be used.
+	flags.StringVar(&o.FilterOptions.FilterByOS, "filter-by-os", o.FilterOptions.FilterByOS, "Use --index-filter-by-os instead. A regular expression to control which index image is picked when multiple variants are available. Images will be passed as '<platform>/<architecture>[/<variant>]'. This does not apply to images referenced by the index.")
 
 	flags.StringVar(&o.ManifestDir, "to-manifests", "", "Local path to store manifests.")
 	flags.StringVar(&o.DatabasePath, "path", "", "Specify an in-container to local path mapping for the database.")
@@ -145,8 +154,10 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	src := args[0]
 	dest := args[1]
 
-	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
-		return err
+	// default to linux/amd64 for index image, which we generally expect to exist
+	pattern := o.FilterOptions.FilterByOS
+	if len(pattern) == 0 {
+		o.FilterOptions.FilterByOS = "linux/amd64"
 	}
 	if err := o.FilterOptions.Validate(); err != nil {
 		return err
