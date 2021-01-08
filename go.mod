@@ -13,6 +13,7 @@ require (
 	github.com/aws/aws-sdk-go v1.35.24
 	github.com/bitly/go-simplejson v0.5.0 // indirect
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/bshuster-repo/logrus-logstash-hook v0.4.1 // indirect
 	github.com/bugsnag/bugsnag-go v1.5.3 // indirect
 	github.com/bugsnag/panicwrap v1.2.0 // indirect
@@ -41,10 +42,10 @@ require (
 	github.com/mtrmac/gpgme v0.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
-	github.com/openshift/api v0.0.0-20201119144013-9f0856e7c657
+	github.com/openshift/api v0.0.0-20201216151826-78a19e96f9eb
 	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
-	github.com/openshift/client-go v0.0.0-20201119144744-148025d790a9
-	github.com/openshift/library-go v0.0.0-20201022113156-a4ff9e1d2900
+	github.com/openshift/client-go v0.0.0-20201214125552-e615e336eb49
+	github.com/openshift/library-go v0.0.0-20210106214821-c4d0b9c8d55f
 	github.com/operator-framework/operator-registry v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
@@ -62,14 +63,14 @@ require (
 	golang.org/x/sys v0.0.0-20201112073958-5cba982894dd
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	gopkg.in/ldap.v2 v2.5.1
-	k8s.io/api v0.20.0-beta.2
-	k8s.io/apimachinery v0.20.0-beta.2
-	k8s.io/apiserver v0.20.0-beta.2
-	k8s.io/cli-runtime v0.20.0-beta.2
-	k8s.io/client-go v0.20.0-beta.2
-	k8s.io/component-base v0.20.0-beta.2
+	k8s.io/api v0.20.1
+	k8s.io/apimachinery v0.20.1
+	k8s.io/apiserver v0.20.1
+	k8s.io/cli-runtime v0.20.1
+	k8s.io/client-go v0.20.1
+	k8s.io/component-base v0.20.1
 	k8s.io/klog/v2 v2.4.0
-	k8s.io/kubectl v0.20.0-beta.2
+	k8s.io/kubectl v0.20.1
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/yaml v1.2.0
@@ -85,37 +86,8 @@ replace (
 	// yet provides the same fix.
 	github.com/docker/docker => github.com/docker/docker v1.4.2-0.20191121165722-d1d5f6476656
 
-	// Temporary prebase beta.2 pins
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20201119144013-9f0856e7c657
-	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20201119144744-148025d790a9
-	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20201119162840-a8387fdfa05b
-
-	k8s.io/api => k8s.io/api v0.20.0-beta.2
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.0-beta.2
-	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20201119164651-a0d1e1af7af8
-	k8s.io/apiserver => k8s.io/apiserver v0.20.0-beta.2
-	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20201120205941-cafce159b165
-	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20201119165025-c1570ba06fef
-	k8s.io/cloud-provider => k8s.io/cloud-provider v0.20.0-beta.2
-	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.20.0-beta.2
-	k8s.io/code-generator => k8s.io/code-generator v0.20.0-beta.2
-	k8s.io/component-base => k8s.io/component-base v0.20.0-beta.2
-	k8s.io/component-helpers => k8s.io/component-helpers v0.20.0-beta.2
-	k8s.io/controller-manager => k8s.io/controller-manager v0.20.0-beta.2
-	k8s.io/cri-api => k8s.io/cri-api v0.20.0-beta.2
-	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.20.0-beta.2
-	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.20.0-beta.2
-	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.20.0-beta.2
-	k8s.io/kube-proxy => k8s.io/kube-proxy v0.20.0-beta.2
-	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.20.0-beta.2
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20201120182004-53f855031220
-	k8s.io/kubelet => k8s.io/kubelet v0.20.0-beta.2
-	k8s.io/kubernetes => github.com/openshift/kubernetes v1.20.0-beta.2.0.20201120184952-99ac8bcc32c6
-	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.20.0-beta.2
-	k8s.io/metrics => k8s.io/metrics v0.20.0-beta.2
-	k8s.io/mount-utils => k8s.io/mount-utils v0.20.0-beta.2
-	k8s.io/node-api => k8s.io/node-api v0.20.0-beta.2
-	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.20.0-beta.2
-	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.20.0-beta.2
-	k8s.io/sample-controller => k8s.io/sample-controller v0.20.0-beta.2
+	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20210108114224-194a87c5b03a
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210108114725-2ff6add1e911
+	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20210108114446-0829bdd68114
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20210108115031-c0d78c0aeda3
 )
