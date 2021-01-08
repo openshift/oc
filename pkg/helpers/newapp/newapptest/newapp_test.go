@@ -2491,7 +2491,7 @@ func (c *NewAppFakeImageStreams) Patch(ctx context.Context, name string, pt ktyp
 	return c.proxy.Patch(ctx, name, pt, data, opts, subresources...)
 }
 
-func (c *NewAppFakeImageStreams) Secrets(ctx context.Context, imageStreamName string, opts metav1.GetOptions) (result *corev1.SecretList, err error) {
+func (c *NewAppFakeImageStreams) Secrets(ctx context.Context, imageStreamName string, opts metav1.GetOptions) (result *imagev1.SecretList, err error) {
 	return c.proxy.Secrets(ctx, imageStreamName, opts)
 }
 
