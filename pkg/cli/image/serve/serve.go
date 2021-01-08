@@ -95,6 +95,7 @@ func (o *ServeOptions) Run() error {
 			w.Header().Set("Docker-Distribution-API-Version", "2.0")
 		}
 		if req.Method == "GET" {
+			klog.Infof("GET %s %s", req.RemoteAddr, req.URL.Path)
 			switch path.Base(path.Dir(req.URL.Path)) {
 			case "blobs":
 				w.Header().Set("Content-Type", "application/octet-stream")
