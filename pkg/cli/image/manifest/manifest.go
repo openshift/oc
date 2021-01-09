@@ -411,7 +411,7 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 			if err != nil {
 				return nil, nil, "", err
 			}
-			klog.Warningf("Chose %s/%s manifest from the list.\nTo include the manifest list digest: %s, use --keep-manifest-list=true", t.Manifests[0].Platform.OS, t.Manifests[0].Platform.Architecture, srcDigest)
+			klog.Warningf("Chose %s/%s manifest from the manifest list.", t.Manifests[0].Platform.OS, t.Manifests[0].Platform.Architecture)
 			return srcManifests, srcManifests[0], manifestDigest, nil
 		default:
 			return append(srcManifests, manifestList), manifestList, manifestDigest, nil
