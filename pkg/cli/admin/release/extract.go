@@ -337,6 +337,7 @@ func (o *ExtractOptions) Run() error {
 			if err != nil {
 				return false, errors.Wrapf(err, "error parsing %s", hdr.Name)
 			}
+			credRequestManifests := []manifest.Manifest{}
 			for _, m := range ms {
 				if m.GVK != credentialsRequestGVK {
 					continue
@@ -350,8 +351,12 @@ func (o *ExtractOptions) Run() error {
 						continue
 					}
 				}
-				o.Manifests = append(o.Manifests, m)
+				credRequestManifests = append(credRequestManifests, m)
 			}
+			if len(credRequestManifests) == 0 {
+				return true, nil
+			}
+
 			out := o.Out
 			if len(o.Directory) > 0 {
 				out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
@@ -359,7 +364,7 @@ func (o *ExtractOptions) Run() error {
 					return false, errors.Wrapf(err, "error creating manifest in %s", hdr.Name)
 				}
 			}
-			for _, m := range o.Manifests {
+			for _, m := range credRequestManifests {
 				yamlBytes, err := yaml.JSONToYAML(m.Raw)
 				if err != nil {
 					return false, errors.Wrapf(err, "error serializing manifest in %s", hdr.Name)
