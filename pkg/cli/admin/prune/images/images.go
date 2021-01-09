@@ -368,6 +368,21 @@ func (o PruneImagesOptions) Run() error {
 		fmt.Fprintf(o.ErrOut, "Failed to list replicasets: %v\n - * Make sure to update clusterRoleBindings.\n", err)
 	}
 
+	allSSets, err := o.KubeClient.AppsV1().StatefulSets(o.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	allJobs, err := o.KubeClient.BatchV1().Jobs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	allCronJobs, err := o.KubeClient.BatchV1beta1().CronJobs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
 	limitRangesList, err := o.KubeClient.CoreV1().LimitRanges(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -463,6 +478,9 @@ func (o PruneImagesOptions) Run() error {
 		Deployments:        allDeployments,
 		DCs:                allDCs,
 		RSs:                allRSs,
+		SSets:              allSSets,
+		Jobs:               allJobs,
+		CronJobs:           allCronJobs,
 		LimitRanges:        limitRangesMap,
 		DryRun:             o.Confirm == false,
 		PruneRegistry:      o.PruneRegistry,

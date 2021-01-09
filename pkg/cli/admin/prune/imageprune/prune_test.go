@@ -15,6 +15,8 @@ import (
 	"time"
 
 	kappsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -77,6 +79,9 @@ func TestImagePruning(t *testing.T) {
 		deployments                          kappsv1.DeploymentList
 		dcs                                  appsv1.DeploymentConfigList
 		rss                                  kappsv1.ReplicaSetList
+		ssets                                kappsv1.StatefulSetList
+		jobs                                 batchv1.JobList
+		cronjobs                             batchv1beta1.CronJobList
 		limits                               map[string][]*corev1.LimitRange
 		imageDeleterErr                      error
 		imageStreamDeleterErr                error
@@ -1641,6 +1646,93 @@ func TestImagePruning(t *testing.T) {
 				"foo/bar|latest|1|sha256:0000000000000000000000000000000000000000000000000000000000000000",
 			},
 		},
+
+		{
+			name:             "referenced by statefulset - don't prune",
+			keepTagRevisions: keepTagRevisions(0),
+			images: Images(
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000002", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000002"),
+			),
+			streams: Streams(
+				imagetest.Stream(registryHost, "foo", "bar", []imagev1.NamedTagEventList{
+					imagetest.Tag("latest",
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000002", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000002"),
+					),
+				}),
+			),
+			ssets: imagetest.SSetList(
+				imagetest.StatefulSet("foo", "rc1", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+				imagetest.StatefulSet("foo", "rc2", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000002"),
+			),
+			expectedImageDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
+			expectedStreamUpdates: []string{
+				"foo/bar|latest|1|sha256:0000000000000000000000000000000000000000000000000000000000000001",
+			},
+			expectedManifestLinkDeletions: []string{
+				"foo/bar|sha256:0000000000000000000000000000000000000000000000000000000000000001",
+			},
+			expectedBlobDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
+		},
+
+		{
+			name:             "referenced by job - don't prune",
+			keepTagRevisions: keepTagRevisions(0),
+			images: Images(
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+			),
+			streams: Streams(
+				imagetest.Stream(registryHost, "foo", "bar", []imagev1.NamedTagEventList{
+					imagetest.Tag("latest",
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+					),
+				}),
+			),
+			jobs: imagetest.JobList(
+				imagetest.Job("foo", "rc1", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+			),
+			expectedImageDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
+			expectedStreamUpdates: []string{
+				"foo/bar|latest|1|sha256:0000000000000000000000000000000000000000000000000000000000000001",
+			},
+			expectedManifestLinkDeletions: []string{
+				"foo/bar|sha256:0000000000000000000000000000000000000000000000000000000000000001",
+			},
+			expectedBlobDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
+		},
+
+		{
+			name:             "referenced by cronjob - don't prune",
+			keepTagRevisions: keepTagRevisions(0),
+			images: Images(
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+				imagetest.Image("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+			),
+			streams: Streams(
+				imagetest.Stream(registryHost, "foo", "bar", []imagev1.NamedTagEventList{
+					imagetest.Tag("latest",
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000000", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+						imagetest.TagEvent("sha256:0000000000000000000000000000000000000000000000000000000000000001", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000001"),
+					),
+				}),
+			),
+			cronjobs: imagetest.CronJobList(
+				imagetest.CronJob("foo", "rc1", registryHost+"/foo/bar@sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+			),
+			expectedImageDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
+			expectedStreamUpdates: []string{
+				"foo/bar|latest|1|sha256:0000000000000000000000000000000000000000000000000000000000000001",
+			},
+			expectedManifestLinkDeletions: []string{
+				"foo/bar|sha256:0000000000000000000000000000000000000000000000000000000000000001",
+			},
+			expectedBlobDeletions: []string{"sha256:0000000000000000000000000000000000000000000000000000000000000001"},
+		},
 	}
 
 	// we need to install OpenShift API types to kubectl's scheme for GetReference to work
@@ -1661,6 +1753,9 @@ func TestImagePruning(t *testing.T) {
 				Deployments: &test.deployments,
 				DCs:         &test.dcs,
 				RSs:         &test.rss,
+				SSets:       &test.ssets,
+				Jobs:        &test.jobs,
+				CronJobs:    &test.cronjobs,
 				LimitRanges: test.limits,
 			}
 			if test.pruneOverSizeLimit != nil {
@@ -2025,6 +2120,9 @@ func TestRegistryPruning(t *testing.T) {
 				Deployments:      &kappsv1.DeploymentList{},
 				DCs:              &appsv1.DeploymentConfigList{},
 				RSs:              &kappsv1.ReplicaSetList{},
+				SSets:            &kappsv1.StatefulSetList{},
+				Jobs:             &batchv1.JobList{},
+				CronJobs:         &batchv1beta1.CronJobList{},
 			}
 			p, err := NewPruner(options)
 			if err != nil {
@@ -2087,6 +2185,9 @@ func TestImageWithStrongAndWeakRefsIsNotPruned(t *testing.T) {
 	deployments := imagetest.DeploymentList()
 	dcs := imagetest.DCList()
 	rss := imagetest.RSList()
+	ssets := imagetest.SSetList()
+	jobs := imagetest.JobList()
+	cjs := imagetest.CronJobList()
 
 	options := PrunerOptions{
 		Images:      images,
@@ -2099,6 +2200,9 @@ func TestImageWithStrongAndWeakRefsIsNotPruned(t *testing.T) {
 		Deployments: &deployments,
 		DCs:         &dcs,
 		RSs:         &rss,
+		SSets:       &ssets,
+		Jobs:        &jobs,
+		CronJobs:    &cjs,
 	}
 	keepYoungerThan := 24 * time.Hour
 	keepTagRevisions := 2

@@ -17,6 +17,8 @@ import (
 	"k8s.io/klog/v2"
 
 	kappsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	kerrapi "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -247,6 +249,12 @@ type PrunerOptions struct {
 	DCs *appsv1.DeploymentConfigList
 	// RSs is the entire list of replica sets across all namespaces in the cluster.
 	RSs *kappsv1.ReplicaSetList
+	// SSets is the entire list of statefulsets across all namespaces in the cluster.
+	SSets *kappsv1.StatefulSetList
+	// Jobs is the entire list of jobs across all namespaces in the cluster.
+	Jobs *batchv1.JobList
+	// CronJobs is the entire list of cron jobs across all namespaces in the cluster.
+	CronJobs *batchv1beta1.CronJobList
 	// LimitRanges is a map of LimitRanges across namespaces, being keys in this map.
 	LimitRanges map[string][]*corev1.LimitRange
 	// DryRun indicates that no changes will be made to the cluster and nothing
@@ -401,7 +409,52 @@ func (p *pruner) analyzeImageStreamsReferences(options PrunerOptions) kerrors.Ag
 	errs = append(errs, p.analyzeReferencesFromDaemonSets(options.DSs)...)
 	errs = append(errs, p.analyzeReferencesFromBuilds(options.Builds)...)
 	errs = append(errs, p.analyzeReferencesFromBuildConfigs(options.BCs)...)
+	errs = append(errs, p.analyzeReferencesFromStatefulSets(options.SSets)...)
+	errs = append(errs, p.analyzeReferencesFromJobs(options.Jobs)...)
+	errs = append(errs, p.analyzeReferencesFromCronJobs(options.CronJobs)...)
 	return kerrors.NewAggregate(errs)
+}
+
+func (p *pruner) analyzeReferencesFromCronJobs(cronjobs *batchv1beta1.CronJobList) []error {
+	var errs []error
+	for _, cj := range cronjobs.Items {
+		ref := resourceReference{
+			Resource:  "cronjob",
+			Namespace: cj.Namespace,
+			Name:      cj.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &cj.Spec.JobTemplate.Spec.Template.Spec)...)
+	}
+	return errs
+}
+
+func (p *pruner) analyzeReferencesFromJobs(jobs *batchv1.JobList) []error {
+	var errs []error
+	for _, job := range jobs.Items {
+		ref := resourceReference{
+			Resource:  "job",
+			Namespace: job.Namespace,
+			Name:      job.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &job.Spec.Template.Spec)...)
+	}
+	return errs
+}
+
+func (p *pruner) analyzeReferencesFromStatefulSets(statefulsets *kappsv1.StatefulSetList) []error {
+	var errs []error
+	for _, sset := range statefulsets.Items {
+		ref := resourceReference{
+			Resource:  "statefulset",
+			Namespace: sset.Namespace,
+			Name:      sset.Name,
+		}
+		klog.V(4).Infof("Examining %s", ref)
+		errs = append(errs, p.analyzeReferencesFromPodSpec(ref, &sset.Spec.Template.Spec)...)
+	}
+	return errs
 }
 
 // analyzeImageReference analyzes which ImageStreamImage or ImageStreamTag is
