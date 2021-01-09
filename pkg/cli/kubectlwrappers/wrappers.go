@@ -23,6 +23,7 @@ import (
 	kcreate "k8s.io/kubectl/pkg/cmd/create"
 	"k8s.io/kubectl/pkg/cmd/delete"
 	"k8s.io/kubectl/pkg/cmd/describe"
+	"k8s.io/kubectl/pkg/cmd/diff"
 	"k8s.io/kubectl/pkg/cmd/edit"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	"k8s.io/kubectl/pkg/cmd/explain"
@@ -253,4 +254,8 @@ func NewCmdApiVersions(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 
 func NewCmdKustomize(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(kustomize.NewCmdKustomize(streams)))
+}
+
+func NewCmdDiff(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(diff.NewCmdDiff(f, streams)))
 }
