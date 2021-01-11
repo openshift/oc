@@ -230,16 +230,16 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 		if image.Status.Status != metav1.StatusSuccess {
 			klog.V(4).Infof("image import failed: %#v", image)
 			switch image.Status.Reason {
-			case metav1.StatusReasonInternalError:
+			case metav1.StatusReasonInternalError, metav1.StatusReasonUnauthorized:
 				// try to find the cause of the internal error
 				if image.Status.Details != nil && len(image.Status.Details.Causes) > 0 {
 					for _, c := range image.Status.Details.Causes {
-						klog.Warningf("container image registry lookup failed: %s", c.Message)
+						klog.Warningf("container image remote registry lookup failed: %s", c.Message)
 					}
 				} else {
-					klog.Warningf("container image registry lookup failed: %s", image.Status.Message)
+					klog.Warningf("container image remote registry lookup failed: %s", image.Status.Message)
 				}
-			case metav1.StatusReasonInvalid, metav1.StatusReasonUnauthorized, metav1.StatusReasonNotFound:
+			case metav1.StatusReasonInvalid, metav1.StatusReasonNotFound:
 			default:
 				errs = append(errs, fmt.Errorf("can't look up container image %q: %s", term, image.Status.Message))
 			}
