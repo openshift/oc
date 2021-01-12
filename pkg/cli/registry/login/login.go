@@ -204,6 +204,30 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 	default:
 		if len(cfg.BearerToken) == 0 {
 			return fmt.Errorf("no token is currently in use for this session")
+		} else if len(o.HostPort) > 0 {
+			// check that any registry passed matches any config being used
+			// otherwise, bearertoken from valid kubeconfig can be recorded as credentials for any given registry,
+			// in absence of basic auth.
+			ns, _, err := f.ToRawKubeConfigLoader().Namespace()
+			if err != nil {
+				return err
+			}
+
+			client, err := imageclient.NewForConfig(cfg)
+			if err != nil {
+				return err
+			}
+			registry, internal, err := findPublicHostname(client, ns, "openshift")
+			if err != nil {
+				return err
+			}
+			if len(registry) > 0 {
+				if ref, err := reference.Parse(registry); err == nil {
+					if internal && o.HostPort != ref.Registry {
+						return fmt.Errorf("Registry hostname passed: %s does not match internal registry hostname found: %s\n", o.HostPort, ref)
+					}
+				}
+			}
 		}
 		o.Credentials = newCredentials("user", cfg.BearerToken)
 	}
