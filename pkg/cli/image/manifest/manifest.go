@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/docker/distribution/manifest/ocischema"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
@@ -211,6 +213,7 @@ type FilterFunc func(*manifestlist.ManifestDescriptor, bool) bool
 var PreferManifestList = distribution.WithManifestMediaTypes([]string{
 	manifestlist.MediaTypeManifestList,
 	schema2.MediaTypeManifest,
+	imagespecv1.MediaTypeImageManifest,
 })
 
 // AllManifests returns all non-list manifests, the list manifest (if any), the digest the from refers to, or an error.
@@ -298,6 +301,29 @@ func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifes
 	switch t := srcManifest.(type) {
 	case *schema2.DeserializedManifest:
 		if t.Config.MediaType != schema2.MediaTypeImageConfig {
+			return nil, nil, fmt.Errorf("%s does not have the expected image configuration media type: %s", location, t.Config.MediaType)
+		}
+		configJSON, err := blobs.Get(ctx, t.Config.Digest)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot retrieve image configuration for %s: %v", location, err)
+		}
+		klog.V(4).Infof("Raw image config json:\n%s", string(configJSON))
+		config := &dockerv1client.DockerImageConfig{}
+		if err := json.Unmarshal(configJSON, &config); err != nil {
+			return nil, nil, fmt.Errorf("unable to parse image configuration: %v", err)
+		}
+
+		base := config
+		layers := t.Layers
+		base.Size = 0
+		for _, layer := range t.Layers {
+			base.Size += layer.Size
+		}
+
+		return base, layers, nil
+
+	case *ocischema.DeserializedManifest:
+		if t.Config.MediaType != imagespecv1.MediaTypeImageConfig {
 			return nil, nil, fmt.Errorf("%s does not have the expected image configuration media type: %s", location, t.Config.MediaType)
 		}
 		configJSON, err := blobs.Get(ctx, t.Config.Digest)
