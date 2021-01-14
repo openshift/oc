@@ -3,7 +3,7 @@ package catalog
 import (
 	"bytes"
 	"fmt"
-	"github.com/openshift/library-go/pkg/image/reference"
+	imgref "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	"os"
 	"reflect"
@@ -25,7 +25,7 @@ func TestWriteToMapping(t *testing.T) {
 			mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 				mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
 					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
+					Ref: imgref.DockerImageReference{
 						Registry:  "quay.io",
 						Namespace: "olmtest",
 						Name:      "halkyonio-operator",
@@ -41,7 +41,7 @@ func TestWriteToMapping(t *testing.T) {
 			mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 				mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
 					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
+					Ref: imgref.DockerImageReference{
 						Registry:  "quay.io",
 						Namespace: "olmtest",
 						Name:      "strimzi-operator",
@@ -57,7 +57,7 @@ func TestWriteToMapping(t *testing.T) {
 			mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 				mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
 					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
+					Ref: imgref.DockerImageReference{
 						Registry:  "quay.io",
 						Namespace: "olmtest",
 						Name:      "strimzi-operator",
@@ -67,7 +67,7 @@ func TestWriteToMapping(t *testing.T) {
 				},
 				mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
 					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
+					Ref: imgref.DockerImageReference{
 						Registry:  "quay.io",
 						Namespace: "olmtest",
 						Name:      "halkyonio-operator",
@@ -116,7 +116,7 @@ func TestGenerateICSP(t *testing.T) {
 				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
 						Type: imagesource.DestinationRegistry,
-						Ref: reference.DockerImageReference{
+						Ref: imgref.DockerImageReference{
 							Registry:  "quay.io",
 							Namespace: "halkyonio",
 							Name:      "operator",
@@ -144,7 +144,7 @@ spec:
 				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
 						Type: imagesource.DestinationRegistry,
-						Ref: reference.DockerImageReference{
+						Ref: imgref.DockerImageReference{
 							Registry:  "quay.io",
 							Namespace: "halkyonio",
 							Name:      "operator",
@@ -171,7 +171,7 @@ spec:
 				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
 						Type: imagesource.DestinationRegistry,
-						Ref: reference.DockerImageReference{
+						Ref: imgref.DockerImageReference{
 							Registry:  "quay.io",
 							Namespace: "olmtest",
 							Name:      "strimzi-operator",
@@ -202,7 +202,7 @@ spec:
 				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
 						Type: imagesource.DestinationRegistry,
-						Ref: reference.DockerImageReference{
+						Ref: imgref.DockerImageReference{
 							Registry:  "quay.io",
 							Namespace: "olmtest",
 							Name:      "strimzi-operator",
@@ -232,7 +232,7 @@ spec:
 				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
 						Type: imagesource.DestinationRegistry,
-						Ref: reference.DockerImageReference{
+						Ref: imgref.DockerImageReference{
 							Registry:  "quay.io",
 							Namespace: "olmtest",
 							Name:      "strimzi-operator",
@@ -242,7 +242,7 @@ spec:
 					},
 					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
 						Type: imagesource.DestinationRegistry,
-						Ref: reference.DockerImageReference{
+						Ref: imgref.DockerImageReference{
 							Registry:  "quay.io",
 							Namespace: "olmtest",
 							Name:      "halkyonio-operator",
@@ -273,7 +273,7 @@ spec:
 				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
 						Type: imagesource.DestinationRegistry,
-						Ref: reference.DockerImageReference{
+						Ref: imgref.DockerImageReference{
 							Registry:  "quay.io",
 							Namespace: "olmtest",
 							Name:      "strimzi-operator",
@@ -283,7 +283,7 @@ spec:
 					},
 					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
 						Type: imagesource.DestinationRegistry,
-						Ref: reference.DockerImageReference{
+						Ref: imgref.DockerImageReference{
 							Registry:  "quay.io",
 							Namespace: "olmtest",
 							Name:      "halkyonio-operator",
@@ -339,7 +339,7 @@ func TestGenerateCatalogSource(t *testing.T) {
 				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 					mustParseRef(t, "quay.io/the/index:1"): {
 						Type: imagesource.DestinationRegistry,
-						Ref: reference.DockerImageReference{
+						Ref: imgref.DockerImageReference{
 							Registry:  "quay.io",
 							Namespace: "the",
 							Name:      "index",
@@ -368,7 +368,7 @@ spec:
 				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 					mustParseRef(t, "quay.io/the/index:1"): {
 						Type: imagesource.DestinationRegistry,
-						Ref: reference.DockerImageReference{
+						Ref: imgref.DockerImageReference{
 							Registry:  "quay.io",
 							Namespace: "the",
 							Name:      "index",

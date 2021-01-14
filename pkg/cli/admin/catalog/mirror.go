@@ -3,6 +3,7 @@ package catalog
 import (
 	"bytes"
 	"fmt"
+	"github.com/openshift/oc/pkg/cli/admin/catalog/internal"
 	"io"
 	"io/ioutil"
 	"os"
@@ -156,7 +157,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		return err
 	}
 	o.SourceRef = srcRef
-	destRef, err := imagesource.ParseReference(dest)
+	destRef, err := internal.ParseTargetReference(dest)
 	if err != nil {
 		return err
 	}

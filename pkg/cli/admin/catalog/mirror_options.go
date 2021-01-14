@@ -27,7 +27,7 @@ func (o *IndexImageMirrorerOptions) Validate() error {
 		return fmt.Errorf("source image required")
 	}
 
-	if o.Dest.String() == "" {
+	if o.Dest.Ref.RegistryURL().Hostname() == "" {
 		return fmt.Errorf("destination registry required")
 	}
 
