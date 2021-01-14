@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/docker/distribution"
@@ -20,6 +21,7 @@ import (
 	godigest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
@@ -698,33 +700,33 @@ func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob d
 		options = append(options, WithDescriptor(blob))
 	}
 
-	w, err := c.to.Create(ctx, options...)
-	// no-op
-	if err == ErrAlreadyExists {
-		klog.V(5).Infof("Blob already exists %#v", blob)
-		return nil
-	}
-
-	// mount successful
-	if ebm, ok := err.(distribution.ErrBlobMounted); ok {
-		klog.V(5).Infof("Blob mounted %#v", blob)
-		if ebm.From.Digest() != blob.Digest {
-			return fmt.Errorf("unable to push %s: tried to mount blob %s source and got back a different digest %s", c.fromRef, blob.Digest, ebm.From.Digest())
+	copyfn := func() error {
+		w, err := c.to.Create(ctx, options...)
+		// no-op
+		if err == ErrAlreadyExists {
+			klog.V(5).Infof("Blob already exists %#v", blob)
+			return nil
 		}
-		fmt.Fprintf(errOut, "mounted: %s %s %s\n", c.toRef, blob.Digest, units.BytesSize(float64(blob.Size)))
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("unable to upload blob %s to %s: %v", blob.Digest, c.toRef, err)
-	}
 
-	if len(expectMount) > 0 {
-		fmt.Fprintf(errOut, "warning: Expected to mount %s from %s/%s but mount was ignored\n", blob.Digest, c.parent.parent.name, expectMount)
-	}
-
-	err = func() error {
-		klog.V(5).Infof("Uploading blob %s (%v)", blob.Digest, blob.URLs)
+		// mount successful
+		if ebm, ok := err.(distribution.ErrBlobMounted); ok {
+			klog.V(5).Infof("Blob mounted %#v", blob)
+			if ebm.From.Digest() != blob.Digest {
+				return fmt.Errorf("unable to push %s: tried to mount blob %s source and got back a different digest %s", c.fromRef, blob.Digest, ebm.From.Digest())
+			}
+			fmt.Fprintf(errOut, "mounted: %s %s %s\n", c.toRef, blob.Digest, units.BytesSize(float64(blob.Size)))
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("unable to upload blob %s to %s: %v", blob.Digest, c.toRef, err)
+		}
 		defer w.Cancel(ctx)
+
+		if len(expectMount) > 0 {
+			fmt.Fprintf(errOut, "warning: Expected to mount %s from %s/%s but mount was ignored\n", blob.Digest, c.parent.parent.name, expectMount)
+		}
+
+		klog.V(5).Infof("Uploading blob %s (%v)", blob.Digest, blob.URLs)
 		r, err := from.Open(ctx, blob)
 		if err != nil {
 			return fmt.Errorf("unable to open source layer %s to copy to %s: %v", blob.Digest, c.toRef, err)
@@ -735,6 +737,7 @@ func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob d
 
 		n, err := w.ReadFrom(r)
 		if err != nil {
+			klog.V(6).Infof("unable to copy layer %s to %s: %v", blob.Digest, c.toRef, err)
 			return fmt.Errorf("unable to copy layer %s to %s: %v", blob.Digest, c.toRef, err)
 		}
 		if n != blob.Size {
@@ -745,11 +748,15 @@ func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob d
 		}
 		plan.BytesCopied(n)
 		return nil
-	}()
-	if err != nil {
-		return err
 	}
-	return nil
+
+	return retry.OnError(
+		retry.DefaultRetry,
+		func(err error) bool {
+			return strings.Contains(err.Error(), "REFUSED_STREAM")
+		},
+		copyfn,
+	)
 }
 
 // descriptorBlobSource abstracts copying blob contents from either a blob service or
