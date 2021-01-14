@@ -68,6 +68,11 @@ var (
 
 		# Add a new layer to the image
 		oc image append --from mysql:latest --to myregistry.com/myimage:latest layer.tar.gz
+
+		# Add a new layer to a multi-architecture image for an os/arch that is different from the system's os/arch
+		# Note: Wildcard filter is not supported with append. Pass a single os/arch to append.
+		oc image append --from docker.io/library/busybox:latest --filter-by-os=linux/s390x --to myregistry.com/myimage:latest layer.tar.gz
+
 	`)
 )
 
