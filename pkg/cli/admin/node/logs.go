@@ -46,13 +46,13 @@ var (
 
 	logsExample = templates.Examples(`
 		# Show kubelet logs from all masters
-		oc adm node-logs node-logs --role master -u kubelet
+		oc adm node-logs --role master -u kubelet
 
 		# See what logs are available in masters in /var/logs
-		oc adm node-logs node-logs --role master --path=/
+		oc adm node-logs --role master --path=/
 
 		# Display cron log file from all masters
-		oc adm node-logs node-logs --role master --path=cron
+		oc adm node-logs --role master --path=cron
 	`)
 )
 
