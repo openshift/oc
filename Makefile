@@ -92,8 +92,8 @@ generate-versioninfo:
 	SOURCE_GIT_TAG=$(SOURCE_GIT_TAG) hack/generate-versioninfo.sh
 .PHONY: generate-versioninfo
 
-cross-build-darwin-amd64:
-	+@GOOS=darwin CGO_ENABLED=1 GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_DARWIN)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/darwin_amd64
+cross-build-darwin-amd64: GO_LD_FLAGS="$(GO_LD_FLAGS)  -extld=o64-clang"
+	+@GOOS=darwin CC=o64-clang CXX=o64-clang++ CGO_ENABLED=1 GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_DARWIN)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/darwin_amd64
 .PHONY: cross-build-darwin-amd64
 
 cross-build-windows-amd64: generate-versioninfo
