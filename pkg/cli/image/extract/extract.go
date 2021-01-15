@@ -346,7 +346,7 @@ func (o *ExtractOptions) Run() error {
 						return imagemanifest.NewImageForbidden(msg, err)
 					}
 					if imagemanifest.IsImageNotFound(err) {
-						msg := fmt.Sprintf("image %q does not exist", from)
+						msg := fmt.Sprintf("image %q not found: %s", from, err.Error())
 						return imagemanifest.NewImageNotFound(msg, err)
 					}
 					return fmt.Errorf("unable to read image %s: %v", from, err)

@@ -400,7 +400,7 @@ func (o *ImageRetriever) Run() error {
 						return callbackFn(name, nil, imagemanifest.NewImageForbidden(msg, err))
 					}
 					if imagemanifest.IsImageNotFound(err) {
-						msg := fmt.Sprintf("image %q does not exist", from)
+						msg := fmt.Sprintf("image %q not found: %s", from, err.Error())
 						return callbackFn(name, nil, imagemanifest.NewImageNotFound(msg, err))
 					}
 					return callbackFn(name, nil, fmt.Errorf("unable to read image %s: %v", from, err))

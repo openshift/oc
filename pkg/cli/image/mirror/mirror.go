@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/docker/distribution/manifest/ocischema"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
@@ -595,6 +596,7 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 									switch srcManifest.(type) {
 									case *schema2.DeserializedManifest:
 									case *schema1.SignedManifest:
+									case *ocischema.DeserializedManifest:
 									case *manifestlist.DeserializedManifestList:
 										// we do not need to upload layers in a manifestlist
 										continue
