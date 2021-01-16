@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -123,8 +124,17 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	flags := cmd.Flags()
 
 	o.SecurityOptions.Bind(flags)
-	o.FilterOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
+
+	// Images referenced by catalogs must have all variants mirrored. FilterByOs will only apply to the initial index
+	// image, to indicate which arch should be used to extract the catalog db (the database inside should be the same
+	// for all arches, so this flag should never need to be set explicitly for standard workflows).
+	// this flag is renamed to make it clear that the underlying images are not filtered
+	flags.StringVar(&o.FilterOptions.FilterByOS, "index-filter-by-os", o.FilterOptions.FilterByOS, "A regular expression to control which index image is picked when multiple variants are available. Images will be passed as '<platform>/<architecture>[/<variant>]'. This does not apply to images referenced by the index.")
+
+	// the old flag name is kept for backwards-compatibility.
+	// if both old and new are specified, the value of the flag coming later will be used.
+	flags.StringVar(&o.FilterOptions.FilterByOS, "filter-by-os", o.FilterOptions.FilterByOS, "Use --index-filter-by-os instead. A regular expression to control which index image is picked when multiple variants are available. Images will be passed as '<platform>/<architecture>[/<variant>]'. This does not apply to images referenced by the index.")
 
 	flags.StringVar(&o.ManifestDir, "to-manifests", "", "Local path to store manifests.")
 	flags.StringVar(&o.DatabasePath, "path", "", "Specify an in-container to local path mapping for the database.")
@@ -144,8 +154,10 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	src := args[0]
 	dest := args[1]
 
-	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
-		return err
+	// default to linux/arm64 for index image, which we generally expect to exist
+	pattern := o.FilterOptions.FilterByOS
+	if len(pattern) == 0 {
+		o.FilterOptions.FilterByOS = regexp.QuoteMeta(fmt.Sprintf("%s/%s", "linux", "amd64"))
 	}
 	if err := o.FilterOptions.Validate(); err != nil {
 		return err
@@ -174,6 +186,11 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 
 	if o.ManifestDir == "" {
 		o.ManifestDir = fmt.Sprintf("manifests-%s-%d", o.SourceRef.Ref.Name, time.Now().Unix())
+	}
+
+	allmanifests := imagemanifest.FilterOptions{FilterByOS: ".*"}
+	if err := allmanifests.Validate(); err != nil {
+		return err
 	}
 
 	if err := os.MkdirAll(o.ManifestDir, os.ModePerm); err != nil {
@@ -260,7 +277,11 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		a.ContinueOnError = true
 		a.DryRun = o.DryRun
 		a.SecurityOptions = o.SecurityOptions
-		a.FilterOptions = o.FilterOptions
+		// because images in the catalog are statically referenced by digest,
+		// we do not allow filtering for mirroring. this may change if sparse manifestlists are allowed
+		// by registries, or if multi-arch management moves into images that can be rewritten on mirror (i.e. the bundle
+		// images themselves, not the images referenced inside of the bundle images).
+		a.FilterOptions = allmanifests
 		a.ParallelOptions = o.ParallelOptions
 		a.KeepManifestList = true
 		a.Mappings = mappings
