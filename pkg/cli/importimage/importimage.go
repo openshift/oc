@@ -39,7 +39,23 @@ var (
 		see the 'tag' command.`)
 
 	importImageExample = templates.Examples(`
+		# Import tag latest into a new image stream.
+		oc import-image mystream --from=registry.io/repo/image:latest --confirm
+
+		# Update imported data for tag latest in an already existing image stream.
 		oc import-image mystream
+
+		# Update imported data for tag stable in an already existing image stream.
+		oc import-image mystream:stable
+
+		# Update imported data for all tags in an existing image stream.
+		oc import-image mystream --all
+
+		# Import all tags into a new image stream.
+		oc import-image mystream --from=registry.io/repo/image --all --confirm
+
+		# Import all tags into a new image stream using a custom timeout.
+		oc --request-timeout=5m import-image mystream --from=registry.io/repo/image --all --confirm
 	`)
 )
 
