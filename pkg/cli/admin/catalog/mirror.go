@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -135,6 +134,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	// the old flag name is kept for backwards-compatibility.
 	// if both old and new are specified, the value of the flag coming later will be used.
 	flags.StringVar(&o.FilterOptions.FilterByOS, "filter-by-os", o.FilterOptions.FilterByOS, "Use --index-filter-by-os instead. A regular expression to control which index image is picked when multiple variants are available. Images will be passed as '<platform>/<architecture>[/<variant>]'. This does not apply to images referenced by the index.")
+	_ = flags.MarkDeprecated("filter-by-os", "use --index-filter-by-os instead")
 
 	flags.StringVar(&o.ManifestDir, "to-manifests", "", "Local path to store manifests.")
 	flags.StringVar(&o.DatabasePath, "path", "", "Specify an in-container to local path mapping for the database.")
@@ -154,10 +154,10 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	src := args[0]
 	dest := args[1]
 
-	// default to linux/arm64 for index image, which we generally expect to exist
+	// default to linux/amd64 for index image, which we generally expect to exist
 	pattern := o.FilterOptions.FilterByOS
 	if len(pattern) == 0 {
-		o.FilterOptions.FilterByOS = regexp.QuoteMeta(fmt.Sprintf("%s/%s", "linux", "amd64"))
+		o.FilterOptions.FilterByOS = "linux/amd64"
 	}
 	if err := o.FilterOptions.Validate(); err != nil {
 		return err
