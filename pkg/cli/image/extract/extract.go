@@ -387,10 +387,13 @@ func (o *ExtractOptions) Run() error {
 						alter = append(alter, newCopyFromDirectory(mapping.From))
 					default:
 						name, parent := path.Base(mapping.From), path.Dir(mapping.From)
-						if name == "." || parent == "." {
+						if name != "." && parent == "." {
+							alter = append(alter, newCopyFromPattern(parent, name, true))
+						} else if name == "." || parent == "." {
 							return fmt.Errorf("unexpected directory from mapping %s", mapping.From)
+						} else {
+							alter = append(alter, newCopyFromPattern(parent, name, false))
 						}
-						alter = append(alter, newCopyFromPattern(parent, name))
 					}
 				}
 
@@ -591,30 +594,55 @@ func (n *copyFromDirectory) Alter(hdr *tar.Header) (bool, error) {
 }
 
 type copyFromPattern struct {
-	Base string
-	Name string
+	Base    string
+	Name    string
+	RootDir bool
 }
 
-func newCopyFromPattern(dir, name string) archive.AlterHeader {
+func newCopyFromPattern(dir, name string, rootDir bool) archive.AlterHeader {
+	if rootDir {
+		return &copyFromPattern{Name: name, RootDir: true}
+	}
 	if !strings.HasSuffix(dir, "/") {
 		dir = dir + "/"
 	}
-	return &copyFromPattern{Base: dir, Name: name}
+	return &copyFromPattern{Base: dir, Name: name, RootDir: false}
 }
 
 func (n *copyFromPattern) Alter(hdr *tar.Header) (bool, error) {
-	if !changeTarEntryParent(hdr, n.Base) {
-		return false, nil
-	}
-	matchName := hdr.Name
-	if i := strings.Index(matchName, "/"); i != -1 {
-		matchName = matchName[:i]
+	var matchName string
+	if n.RootDir {
+		if !changeTarEntryName(hdr, n.Name) {
+			return false, nil
+		}
+		matchName = hdr.Name
+	} else {
+		if !changeTarEntryParent(hdr, n.Base) {
+			return false, nil
+		}
+		matchName = hdr.Name
+		if i := strings.Index(matchName, "/"); i != -1 {
+			matchName = matchName[:i]
+		}
 	}
 	if ok, err := path.Match(n.Name, matchName); !ok || err != nil {
 		klog.V(5).Infof("Excluded %s due to filter %s", hdr.Name, n.Name)
 		return false, err
 	}
 	return true, nil
+}
+
+func changeTarEntryName(hdr *tar.Header, name string) bool {
+	if hdr.Name != name {
+		klog.V(5).Infof("Exclude %s due to name mismatch", hdr.Name)
+		return false
+	}
+	if hdr.Typeflag != tar.TypeReg {
+		klog.V(5).Infof("Exclude %s due to not being a file", hdr.Name)
+		return false
+	}
+	klog.V(5).Infof("Updated name %s", hdr.Name)
+	return true
 }
 
 func changeTarEntryParent(hdr *tar.Header, from string) bool {
