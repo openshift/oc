@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -91,7 +92,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringSliceVar(&o.ImageStreams, "image-stream", o.ImageStreams, "Specify an image stream (namespace/name:tag) containing a must-gather plugin image to run.")
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
-	cmd.Flags().Int64Var(&o.Timeout, "timeout", 600, "The length of time to gather data, in seconds. Defaults to 10 minutes.")
+	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	cmd.Flags().MarkHidden("keep")
 
@@ -103,6 +104,7 @@ func NewMustGatherOptions(streams genericclioptions.IOStreams) *MustGatherOption
 		SourceDir: "/must-gather/",
 		IOStreams: streams,
 		LogOut:    newPrefixWriter(streams.Out, "[must-gather      ] OUT"),
+		Timeout:   10 * time.Minute,
 	}
 }
 
@@ -122,6 +124,21 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 		o.Command = args[i:]
 	} else {
 		o.Command = args
+	}
+	if len(o.timeoutStr) > 0 {
+		if strings.ContainsAny(o.timeoutStr, "smh") {
+			o.Timeout, err = time.ParseDuration(o.timeoutStr)
+			if err != nil {
+				return fmt.Errorf(`invalid argument %q for "--timeout" flag: %v`, o.timeoutStr, err)
+			}
+		} else {
+			fmt.Fprint(o.ErrOut, "Flag --timeout's value in seconds has been deprecated, use duration like 5s, 2m, or 3h, instead\n")
+			i, err := strconv.ParseInt(o.timeoutStr, 0, 64)
+			if err != nil {
+				return fmt.Errorf(`invalid argument %q for "--timeout" flag: %v`, o.timeoutStr, err)
+			}
+			o.Timeout = time.Duration(i) * time.Second
+		}
 	}
 	if len(o.DestDir) == 0 {
 		o.DestDir = fmt.Sprintf("must-gather.local.%06d", rand.Int63())
@@ -211,7 +228,8 @@ type MustGatherOptions struct {
 	Images       []string
 	ImageStreams []string
 	Command      []string
-	Timeout      int64
+	Timeout      time.Duration
+	timeoutStr   string
 	Keep         bool
 
 	RsyncRshCmd string
@@ -452,7 +470,7 @@ func newPrefixWriter(out io.Writer, prefix string) io.Writer {
 }
 
 func (o *MustGatherOptions) waitForGatherToComplete(pod *corev1.Pod) error {
-	return wait.PollImmediate(10*time.Second, time.Duration(o.Timeout)*time.Second, func() (bool, error) {
+	return wait.PollImmediate(10*time.Second, o.Timeout, func() (bool, error) {
 		return o.isGatherDone(pod)
 	})
 }
@@ -489,7 +507,7 @@ func (o *MustGatherOptions) isGatherDone(pod *corev1.Pod) (bool, error) {
 }
 
 func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error {
-	return wait.PollImmediate(10*time.Second, time.Duration(o.Timeout)*time.Second, func() (bool, error) {
+	return wait.PollImmediate(10*time.Second, o.Timeout, func() (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err == nil {
 			if len(pod.Status.ContainerStatuses) == 0 {
