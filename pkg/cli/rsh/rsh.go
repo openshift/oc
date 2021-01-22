@@ -65,7 +65,6 @@ type RshOptions struct {
 	ForceTTY   bool
 	DisableTTY bool
 	Executable string
-	Timeout    int
 	*exec.ExecOptions
 }
 
@@ -73,7 +72,6 @@ func NewRshOptions(streams genericclioptions.IOStreams) *RshOptions {
 	return &RshOptions{
 		ForceTTY:   false,
 		DisableTTY: false,
-		Timeout:    10,
 		Executable: DefaultShell,
 		ExecOptions: &exec.ExecOptions{
 			StreamOptions: exec.StreamOptions{
@@ -108,8 +106,6 @@ func NewCmdRsh(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 	cmd.Flags().BoolVarP(&o.ForceTTY, "tty", "t", o.ForceTTY, "Force a pseudo-terminal to be allocated")
 	cmd.Flags().BoolVarP(&o.DisableTTY, "no-tty", "T", o.DisableTTY, "Disable pseudo-terminal allocation")
 	cmd.Flags().StringVar(&o.Executable, "shell", o.Executable, "Path to the shell command")
-	cmd.Flags().IntVar(&o.Timeout, "timeout", o.Timeout, "Request timeout for obtaining a pod from the server; defaults to 10 seconds")
-	cmd.Flags().MarkDeprecated("timeout", "use --request-timeout, instead.")
 	cmd.Flags().StringVarP(&o.ContainerName, "container", "c", o.ContainerName, "Container name; defaults to first container")
 	// For consistencty with rsh API (https://linux.die.net/man/1/rsh) we don't
 	// allow '--' and we need this flag enabled explicitly, otherwise two things
