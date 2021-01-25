@@ -67,7 +67,7 @@ to build a new example application in Ruby. Or use kubectl to deploy a simple Ku
 
 To switch to this project and start adding applications, use:
 
-    oc project %[2]s
+    oc project %[1]s
 `
 )
 
