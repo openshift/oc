@@ -386,8 +386,9 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 		Namespace:   pod.Namespace,
 		ResourceArg: pod.Name,
 		Options: &corev1.PodLogOptions{
-			Follow:    true,
-			Container: pod.Spec.Containers[0].Name,
+			Follow:     true,
+			Container:  pod.Spec.Containers[0].Name,
+			Timestamps: true,
 		},
 		RESTClientGetter: o.RESTClientGetter,
 		Object:           pod,
