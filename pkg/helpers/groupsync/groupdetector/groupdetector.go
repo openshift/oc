@@ -20,7 +20,7 @@ type GroupBasedDetector struct {
 func (l *GroupBasedDetector) Exists(ldapGroupUID string) (bool, error) {
 	group, err := l.groupGetter.GroupEntryFor(ldapGroupUID)
 	if ldapquery.IsQueryOutOfBoundsError(err) || ldapquery.IsEntryNotFoundError(err) || ldapquery.IsNoSuchObjectError(err) {
-		return false, nil
+		return false, err
 	}
 	if err != nil {
 		return false, err
