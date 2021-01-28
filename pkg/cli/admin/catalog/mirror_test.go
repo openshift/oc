@@ -3,6 +3,8 @@ package catalog
 import (
 	"bytes"
 	"fmt"
+	imgref "github.com/openshift/library-go/pkg/image/reference"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	"os"
 	"reflect"
 	"strings"
@@ -14,40 +16,64 @@ import (
 func TestWriteToMapping(t *testing.T) {
 	tests := []struct {
 		name    string
-		mapping map[string]Target
+		mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference
 		wantErr bool
 		want    []string
 	}{
 		{
 			name: "src is tagged",
-			mapping: map[string]Target{
-				"quay.io/halkyonio/operator:v0.1.8": {
-					WithDigest: "",
-					WithTag:    "quay.io/olmtest/halkyonio-operator:v0.1.8",
+			mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+				mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "quay.io",
+						Namespace: "olmtest",
+						Name:      "halkyonio-operator",
+						Tag:       "v0.1.8",
+						ID:        "",
+					},
 				},
 			},
 			want: []string{"quay.io/halkyonio/operator:v0.1.8=quay.io/olmtest/halkyonio-operator:v0.1.8"},
 		},
 		{
 			name: "src has digest",
-			mapping: map[string]Target{
-				"docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4": {
-					WithDigest: "quay.io/olmtest/strimzi-operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
-					WithTag:    "quay.io/olmtest/strimzi-operator:2b13d275",
+			mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+				mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "quay.io",
+						Namespace: "olmtest",
+						Name:      "strimzi-operator",
+						Tag:       "2b13d275",
+						ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+					},
 				},
 			},
 			want: []string{"docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4=quay.io/olmtest/strimzi-operator:2b13d275"},
 		},
 		{
 			name: "multiple",
-			mapping: map[string]Target{
-				"docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4": {
-					WithDigest: "quay.io/olmtest/strimzi-operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
-					WithTag:    "quay.io/olmtest/strimzi-operator:2b13d275",
+			mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+				mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "quay.io",
+						Namespace: "olmtest",
+						Name:      "strimzi-operator",
+						Tag:       "2b13d275",
+						ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+					},
 				},
-				"quay.io/halkyonio/operator:v0.1.8": {
-					WithDigest: "",
-					WithTag:    "quay.io/olmtest/halkyonio-operator:v0.1.8",
+				mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "quay.io",
+						Namespace: "olmtest",
+						Name:      "halkyonio-operator",
+						Tag:       "v0.1.8",
+						ID:        "",
+					},
 				},
 			},
 			want: []string{
@@ -75,7 +101,7 @@ func TestGenerateICSP(t *testing.T) {
 	type args struct {
 		name    string
 		scope   string
-		mapping map[string]Target
+		mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference
 	}
 	tests := []struct {
 		name    string
@@ -87,10 +113,16 @@ func TestGenerateICSP(t *testing.T) {
 			name: "src is tagged - skip mirror",
 			args: args{
 				name: "catalog",
-				mapping: map[string]Target{
-					"quay.io/halkyonio/operator:v0.1.8": {
-						WithDigest: "",
-						WithTag:    "quay.io/olmtest/halkyonio-operator:v0.1.8",
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: imgref.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "halkyonio",
+							Name:      "operator",
+							Tag:       "v0.1.8",
+							ID:        "",
+						},
 					},
 				},
 			},
@@ -109,10 +141,16 @@ spec:
 			args: args{
 				name:  "catalog",
 				scope: "registry",
-				mapping: map[string]Target{
-					"quay.io/halkyonio/operator:v0.1.8": {
-						WithDigest: "",
-						WithTag:    "quay.io/olmtest/halkyonio-operator:v0.1.8",
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: imgref.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "halkyonio",
+							Name:      "operator",
+							Tag:       "v0.1.8",
+							ID:        "",
+						},
 					},
 				},
 			},
@@ -130,10 +168,16 @@ spec:
 			name: "src has digest",
 			args: args{
 				name: "catalog",
-				mapping: map[string]Target{
-					"docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4": {
-						WithDigest: "quay.io/olmtest/strimzi-operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
-						WithTag:    "quay.io/olmtest/strimzi-operator:2b13d275",
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: imgref.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "strimzi-operator",
+							Tag:       "2b13d275",
+							ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+						},
 					},
 				},
 			},
@@ -155,10 +199,16 @@ spec:
 			args: args{
 				name:  "catalog",
 				scope: "registry",
-				mapping: map[string]Target{
-					"docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4": {
-						WithDigest: "quay.io/olmtest/strimzi-operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
-						WithTag:    "quay.io/olmtest/strimzi-operator:2b13d275",
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: imgref.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "strimzi-operator",
+							Tag:       "2b13d275",
+							ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+						},
 					},
 				},
 			},
@@ -179,14 +229,26 @@ spec:
 			name: "multiple",
 			args: args{
 				name: "catalog",
-				mapping: map[string]Target{
-					"docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4": {
-						WithDigest: "quay.io/olmtest/strimzi-operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
-						WithTag:    "quay.io/olmtest/strimzi-operator:2b13d275",
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: imgref.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "strimzi-operator",
+							Tag:       "2b13d275",
+							ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+						},
 					},
-					"quay.io/halkyonio/operator:v0.1.8": {
-						WithDigest: "",
-						WithTag:    "quay.io/olmtest/halkyonio-operator:v0.1.8",
+					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: imgref.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "halkyonio-operator",
+							Tag:       "v0.1.8",
+							ID:        "",
+						},
 					},
 				},
 			},
@@ -208,14 +270,26 @@ spec:
 			args: args{
 				name:  "catalog",
 				scope: "registry",
-				mapping: map[string]Target{
-					"docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4": {
-						WithDigest: "quay.io/olmtest/strimzi-operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
-						WithTag:    "quay.io/olmtest/strimzi-operator:2b13d275",
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: imgref.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "strimzi-operator",
+							Tag:       "2b13d275",
+							ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+						},
 					},
-					"quay.io/halkyonio/operator:v0.1.8": {
-						WithDigest: "",
-						WithTag:    "quay.io/olmtest/halkyonio-operator:v0.1.8",
+					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: imgref.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "halkyonio-operator",
+							Tag:       "v0.1.8",
+							ID:        "",
+						},
 					},
 				},
 			},
@@ -242,6 +316,90 @@ spec:
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("generateICSP() got = %v, want %v, diff = %v", string(got), string(tt.want), cmp.Diff(got, tt.want))
+			}
+		})
+	}
+}
+
+func TestGenerateCatalogSource(t *testing.T) {
+	type args struct {
+		source  imagesource.TypedImageReference
+		mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "generates catalogsource",
+			args: args{
+				source: mustParseRef(t, "quay.io/the/index:1"),
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "quay.io/the/index:1"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: imgref.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "the",
+							Name:      "index",
+							Tag:       "1",
+							ID:        "",
+						},
+					},
+				},
+			},
+			want: []byte(
+				`apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: index
+  namespace: openshift-marketplace
+spec:
+  image: quay.io/the/index:1
+  sourceType: grpc
+`,
+			),
+		},
+		{
+			name: "generates catalogsource with digest",
+			args: args{
+				source: mustParseRef(t, "quay.io/the/index:1"),
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "quay.io/the/index:1"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: imgref.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "the",
+							Name:      "index",
+							Tag:       "1",
+							ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+						},
+					},
+				},
+			},
+			want: []byte(
+				`apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: index
+  namespace: openshift-marketplace
+spec:
+  image: quay.io/the/index@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4
+  sourceType: grpc
+`,
+			),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := generateCatalogSource(tt.args.source, tt.args.mapping)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("generateCatalogSource() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("generateCatalogSource() got = %v, want %v, diff = %v", string(got), string(tt.want), cmp.Diff(got, tt.want))
 			}
 		})
 	}
