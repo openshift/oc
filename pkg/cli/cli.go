@@ -137,7 +137,7 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 		BashCompletionFunction: bashCompletionFunc,
 	}
 
-	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDiscoveryBurst(250)
 	kubeConfigFlags.AddFlags(cmds.PersistentFlags())
 	matchVersionKubeConfigFlags := kcmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	matchVersionKubeConfigFlags.AddFlags(cmds.PersistentFlags())

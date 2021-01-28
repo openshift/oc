@@ -709,8 +709,8 @@ github.com/openshift/kubernetes v1.20.0-alpha.0.0.20200922142336-4700daee7399 h1
 github.com/openshift/kubernetes v1.20.0-alpha.0.0.20200922142336-4700daee7399/go.mod h1:x69S+ac/gzGEdzef1ufK9EgagCSjwydOE2KNF2oZq38=
 github.com/openshift/kubernetes-apimachinery v0.0.0-20200831185207-c0eb43ac4a3e h1:MIBVcjAca5reJznepFNe/lyKdPOB3M1EWcys5WyTIbc=
 github.com/openshift/kubernetes-apimachinery v0.0.0-20200831185207-c0eb43ac4a3e/go.mod h1:DnPGDnARWFvYa3pMHgSxtbZb7gpzzAZ1pTfaUNDVlmA=
-github.com/openshift/kubernetes-cli-runtime v0.0.0-20200831185531-852eec47b608 h1:kp4Xt6cA+5qLeV9a3ueDE7BTNvCncsc5JhQ6zenvHAk=
-github.com/openshift/kubernetes-cli-runtime v0.0.0-20200831185531-852eec47b608/go.mod h1:tun9l0eUklT8IHIM0jors17KmUjcrAxn0myoBYwuNuo=
+github.com/openshift/kubernetes-cli-runtime v0.0.0-20210125121314-594734579c86 h1:FrKOh9nL90rCndoOjJLS2wF/o3yo4ozsb2xyqBFKwNo=
+github.com/openshift/kubernetes-cli-runtime v0.0.0-20210125121314-594734579c86/go.mod h1:tun9l0eUklT8IHIM0jors17KmUjcrAxn0myoBYwuNuo=
 github.com/openshift/kubernetes-client-go v0.0.0-20200908071752-9409de4c95e0 h1:49T9u/ZmUDXsrw5qsvmk3wrypnzg1krce0bwwgbsJjM=
 github.com/openshift/kubernetes-client-go v0.0.0-20200908071752-9409de4c95e0/go.mod h1:H9E/VT95blcFQnlyShFgnFT9ZnJOAceiUHM3MlRC+mU=
 github.com/openshift/kubernetes-kubectl v0.0.0-20200922135455-1f5b2cd472a9 h1:SkyIk+q8BRoOx4YdpYhQDvkwaPlCFsuLNfZP1m+y58Y=
