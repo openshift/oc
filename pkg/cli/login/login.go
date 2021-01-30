@@ -36,7 +36,7 @@ var (
 
 	loginExample = templates.Examples(`
 		# Log in interactively
-		oc login
+		oc login --username=myuser
 
 		# Log in to the given server with the given certificate authority file
 		oc login localhost:8443 --certificate-authority=/path/to/cert.crt
@@ -80,8 +80,8 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	}
 
 	// Login is the only command that can negotiate a session token against the auth server using basic auth
-	cmds.Flags().StringVarP(&o.Username, "username", "u", o.Username, "Username, will prompt if not provided")
-	cmds.Flags().StringVarP(&o.Password, "password", "p", o.Password, "Password, will prompt if not provided")
+	cmds.Flags().StringVarP(&o.Username, "username", "u", o.Username, "Username for server")
+	cmds.Flags().StringVarP(&o.Password, "password", "p", o.Password, "Password for server")
 
 	return cmds
 }
