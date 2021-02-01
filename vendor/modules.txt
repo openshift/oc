@@ -955,7 +955,7 @@ k8s.io/cli-runtime/pkg/kustomize/k8sdeps/transformer/patch
 k8s.io/cli-runtime/pkg/kustomize/k8sdeps/validator
 k8s.io/cli-runtime/pkg/printers
 k8s.io/cli-runtime/pkg/resource
-# k8s.io/client-go v0.19.0 => github.com/openshift/kubernetes-client-go v0.0.0-20200908071752-9409de4c95e0
+# k8s.io/client-go v0.19.0 => github.com/openshift/kubernetes-client-go v0.0.0-20210201105259-af4545bae698
 ## explicit
 k8s.io/client-go/discovery
 k8s.io/client-go/discovery/cached/disk
@@ -1328,7 +1328,7 @@ vbom.ml/util/sortorder
 # k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20200831185207-c0eb43ac4a3e
 # k8s.io/apiserver => k8s.io/apiserver v0.19.0
 # k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210125121314-594734579c86
-# k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20200908071752-9409de4c95e0
+# k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20210201105259-af4545bae698
 # k8s.io/cloud-provider => k8s.io/cloud-provider v0.19.0
 # k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.19.0
 # k8s.io/code-generator => k8s.io/code-generator v0.19.0
