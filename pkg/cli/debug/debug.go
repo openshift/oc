@@ -138,7 +138,7 @@ type DebugOptions struct {
 	AsRoot             bool
 	AsNonRoot          bool
 	AsUser             int64
-	KeepLabels         bool // TODO: evaluate selecting the right labels automatically
+	KeepLabels         bool
 	KeepAnnotations    bool
 	KeepLiveness       bool
 	KeepReadiness      bool
@@ -213,6 +213,7 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	cmd.Flags().BoolVarP(&o.DisableTTY, "no-tty", "T", o.DisableTTY, "Disable pseudo-terminal allocation")
 	cmd.Flags().StringVarP(&o.Attach.ContainerName, "container", "c", o.Attach.ContainerName, "Container name; defaults to first container")
 	cmd.Flags().BoolVar(&o.KeepAnnotations, "keep-annotations", o.KeepAnnotations, "If true, keep the original pod annotations")
+	cmd.Flags().BoolVar(&o.KeepLabels, "keep-labels", o.KeepLabels, "If true, keep the original pod labels")
 	cmd.Flags().BoolVar(&o.KeepLiveness, "keep-liveness", o.KeepLiveness, "If true, keep the original pod liveness probes")
 	cmd.Flags().BoolVar(&o.KeepInitContainers, "keep-init-containers", o.KeepInitContainers, "Run the init containers for the pod. Defaults to true.")
 	cmd.Flags().BoolVar(&o.KeepReadiness, "keep-readiness", o.KeepReadiness, "If true, keep the original pod readiness probes")
