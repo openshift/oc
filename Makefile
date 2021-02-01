@@ -84,6 +84,10 @@ verify-generated-completions: build
 	hack/verify-generated-completions.sh
 .PHONY: verify-generated-completions
 
+generate-docs:
+	go run ./tools/gendocs
+.PHONY: generate-docs
+
 generate-versioninfo:
 	SOURCE_GIT_TAG=$(SOURCE_GIT_TAG) hack/generate-versioninfo.sh
 .PHONY: generate-versioninfo
