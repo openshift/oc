@@ -69,6 +69,20 @@ var (
 		# Add a new layer to the image
 		oc image append --from mysql:latest --to myregistry.com/myimage:latest layer.tar.gz
 
+		# Add a new layer to the image and store the result on disk
+		# This results in $(pwd)/v2/mysql/blobs,manifests
+		oc image append --from mysql:latest --to file://mysql:local layer.tar.gz
+
+		# Add a new layer to the image and store the result on disk in a designated directory
+		# This will result in $(pwd)/mysql-local/v2/mysql/blobs,manifests
+		oc image append --from mysql:latest --to file://mysql:local --dir mysql-local layer.tar.gz
+
+		# Add a new layer to an image that is stored on disk (~/mysql-local/v2/image exists)
+		oc image append --from-dir ~/mysql-local --to myregistry.com/myimage:latest layer.tar.gz
+
+		# Add a new layer to an image that was mirrored to the current directory on disk ($(pwd)/v2/image exists)
+		oc image append --from-dir v2 --to myregistry.com/myimage:latest layer.tar.gz
+
 		# Add a new layer to a multi-architecture image for an os/arch that is different from the system's os/arch
 		# Note: Wildcard filter is not supported with append. Pass a single os/arch to append.
 		oc image append --from docker.io/library/busybox:latest --filter-by-os=linux/s390x --to myregistry.com/myimage:latest layer.tar.gz
@@ -224,6 +238,7 @@ func (o *AppendImageOptions) Run() error {
 		Insecure:        o.SecurityOptions.Insecure,
 		RegistryContext: fromContext,
 	}
+
 	if len(o.FromFileDir) > 0 {
 		fromOptions.FileDir = o.FromFileDir
 	}
