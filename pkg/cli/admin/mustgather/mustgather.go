@@ -226,7 +226,7 @@ func (o *MustGatherOptions) Validate() error {
 func (o *MustGatherOptions) Run() error {
 	var err error
 
-	// create namespace
+	// create namespace ...
 	ns, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "openshift-must-gather-",
@@ -245,13 +245,14 @@ func (o *MustGatherOptions) Run() error {
 	if !o.Keep {
 		defer func() {
 			if err := o.Client.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
-				fmt.Printf("%v", err)
+				fmt.Printf("%v\n", err)
 				return
 			}
 			o.PrinterDeleted.PrintObj(ns, o.LogOut)
 		}()
 	}
 
+	// ... cluster role binding ...
 	clusterRoleBinding, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), o.newClusterRoleBinding(ns.Name), metav1.CreateOptions{})
 	if err != nil {
 		return err
@@ -260,14 +261,14 @@ func (o *MustGatherOptions) Run() error {
 	if !o.Keep {
 		defer func() {
 			if err := o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), clusterRoleBinding.Name, metav1.DeleteOptions{}); err != nil {
-				fmt.Printf("%v", err)
+				fmt.Printf("%v\n", err)
 				return
 			}
 			o.PrinterDeleted.PrintObj(clusterRoleBinding, o.LogOut)
 		}()
 	}
 
-	// create pods
+	// ... and finally must-gather pod
 	var pods []*corev1.Pod
 	for _, image := range o.Images {
 		pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image), metav1.CreateOptions{})
@@ -277,6 +278,15 @@ func (o *MustGatherOptions) Run() error {
 		o.log("pod for plug-in image %s created", image)
 		pods = append(pods, pod)
 	}
+
+	// log timestamps...
+	if err := os.MkdirAll(o.DestDir, os.ModePerm); err != nil {
+		return err
+	}
+	if err := o.logTimestamp(); err != nil {
+		return err
+	}
+	defer o.logTimestamp()
 
 	var wg sync.WaitGroup
 	wg.Add(len(pods))
@@ -341,11 +351,20 @@ func (o *MustGatherOptions) log(format string, a ...interface{}) {
 	fmt.Fprintf(o.LogOut, format+"\n", a...)
 }
 
+func (o *MustGatherOptions) logTimestamp() error {
+	f, err := os.OpenFile(path.Join(o.DestDir, "timestamp"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteString(fmt.Sprintf("%v\n", time.Now()))
+	return err
+}
+
 func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	streams := o.IOStreams
 	streams.Out = newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name))
 	destDir := path.Join(o.DestDir, regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.ContainerStatuses[0].ImageID, "-"))
-	if err := os.MkdirAll(destDir, 0775); err != nil {
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
 	}
 	rsyncOptions := &rsync.RsyncOptions{
@@ -367,8 +386,9 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 		Namespace:   pod.Namespace,
 		ResourceArg: pod.Name,
 		Options: &corev1.PodLogOptions{
-			Follow:    true,
-			Container: pod.Spec.Containers[0].Name,
+			Follow:     true,
+			Container:  pod.Spec.Containers[0].Name,
+			Timestamps: true,
 		},
 		RESTClientGetter: o.RESTClientGetter,
 		Object:           pod,
