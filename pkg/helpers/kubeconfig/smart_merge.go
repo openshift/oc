@@ -66,6 +66,9 @@ func CreateConfig(namespace, userName string, clientCfg *restclient.Config) (*cl
 	if len(credentials.ClientKey) == 0 {
 		credentials.ClientKeyData = clientCfg.TLSClientConfig.KeyData
 	}
+	credentials.Impersonate = clientCfg.Impersonate.UserName
+	credentials.ImpersonateGroups = clientCfg.Impersonate.Groups
+	credentials.ImpersonateUserExtra = clientCfg.Impersonate.Extra
 	config.AuthInfos[userName] = credentials
 
 	cluster := clientcmdapi.NewCluster()
