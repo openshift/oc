@@ -44,7 +44,7 @@ RPM_EXTRAFLAGS := \
 	--define 'dist .el7' \
 	--define 'release 1'
 
-IMAGE_REGISTRY :=registry.svc.ci.openshift.org
+IMAGE_REGISTRY :=registry.ci.openshift.org
 
 # This will call a macro called "build-image" which will generate image specific targets based on the parameters:
 # $1 - target name
