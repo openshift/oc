@@ -138,7 +138,7 @@ github.com/containerd/containerd/sys
 # github.com/containerd/continuity v0.0.0-20210208174643-50096c924a4e
 github.com/containerd/continuity/fs
 github.com/containerd/continuity/sysx
-# github.com/containers/image v0.0.0-00010101000000-000000000000 => github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d
+# github.com/containers/image v3.0.2+incompatible
 ## explicit
 github.com/containers/image/docker/policyconfiguration
 github.com/containers/image/docker/reference
@@ -1365,7 +1365,6 @@ sigs.k8s.io/structured-merge-diff/v4/value
 sigs.k8s.io/yaml
 # github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
-# github.com/containers/image => github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d
 # github.com/openshift/api => github.com/soltysh/api v0.0.0-20210329125043-97dfec49c179
 # github.com/openshift/client-go => github.com/soltysh/client-go v0.0.0-20210329131047-e53d4b5c79d3
 # github.com/openshift/library-go => github.com/soltysh/library-go v0.0.0-20210329143525-072267446dd3

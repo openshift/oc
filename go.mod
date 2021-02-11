@@ -11,8 +11,7 @@ require (
 	github.com/apcera/gssapi v0.0.0-00010101000000-000000000000
 	github.com/aws/aws-sdk-go v1.35.24
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/boltdb/bolt v1.3.1 // indirect
-	github.com/containers/image v0.0.0-00010101000000-000000000000
+	github.com/containers/image v3.0.2+incompatible
 	github.com/containers/storage v0.0.0-20190726081758-912de200380a // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/distribution v2.7.1+incompatible
@@ -78,7 +77,6 @@ require (
 replace (
 	github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
 	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
-	github.com/containers/image => github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d
 	// temporary pins to latest commit from soltysh/k8s-1.21 branches
 	github.com/openshift/api => github.com/soltysh/api v0.0.0-20210329125043-97dfec49c179
 	github.com/openshift/client-go => github.com/soltysh/client-go v0.0.0-20210329131047-e53d4b5c79d3
