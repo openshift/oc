@@ -17,6 +17,13 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
+	configclient "github.com/openshift/client-go/config/clientset/versioned"
+	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
+	"github.com/openshift/library-go/pkg/image/imageutil"
+	imagereference "github.com/openshift/library-go/pkg/image/reference"
+	"github.com/openshift/library-go/pkg/operator/resource/retry"
+	"github.com/openshift/oc/pkg/cli/admin/inspect"
+	"github.com/openshift/oc/pkg/cli/rsync"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,14 +39,6 @@ import (
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
-
-	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
-	"github.com/openshift/library-go/pkg/image/imageutil"
-	imagereference "github.com/openshift/library-go/pkg/image/reference"
-	"github.com/openshift/library-go/pkg/operator/resource/retry"
-
-	"github.com/openshift/oc/pkg/cli/admin/inspect"
-	"github.com/openshift/oc/pkg/cli/rsync"
 )
 
 var (
@@ -104,6 +103,7 @@ func NewMustGatherOptions(streams genericclioptions.IOStreams) *MustGatherOption
 		SourceDir: "/must-gather/",
 		IOStreams: streams,
 		LogOut:    newPrefixWriter(streams.Out, "[must-gather      ] OUT"),
+		RawOut:    streams.Out,
 		Timeout:   10 * time.Minute,
 	}
 }
@@ -115,6 +115,9 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 		return err
 	}
 	if o.Client, err = kubernetes.NewForConfig(o.Config); err != nil {
+		return err
+	}
+	if o.ConfigClient, err = configclient.NewForConfig(o.Config); err != nil {
 		return err
 	}
 	if o.ImageClient, err = imagev1client.NewForConfig(o.Config); err != nil {
@@ -219,6 +222,7 @@ type MustGatherOptions struct {
 
 	Config           *rest.Config
 	Client           kubernetes.Interface
+	ConfigClient     configclient.Interface
 	ImageClient      imagev1client.ImageV1Interface
 	RESTClientGetter genericclioptions.RESTClientGetter
 
@@ -237,6 +241,8 @@ type MustGatherOptions struct {
 	PrinterCreated printers.ResourcePrinter
 	PrinterDeleted printers.ResourcePrinter
 	LogOut         io.Writer
+	// RawOut is used for printing information we're looking to have copy/pasted into bugs
+	RawOut io.Writer
 }
 
 func (o *MustGatherOptions) Validate() error {
@@ -256,6 +262,13 @@ func (o *MustGatherOptions) Run() error {
 			return
 		}
 		o.BackupGathering(context.TODO())
+	}()
+
+	// print at both the beginning and at the end.  This information is important enough to be in both spots.
+	o.PrintBasicClusterState(context.TODO())
+	defer func() {
+		fmt.Fprintf(o.RawOut, "\n\n")
+		o.PrintBasicClusterState(context.TODO())
 	}()
 
 	// create namespace ...
