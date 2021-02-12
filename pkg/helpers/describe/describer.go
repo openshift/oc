@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -878,7 +879,8 @@ type RouteDescriber struct {
 
 type routeEndpointInfo struct {
 	*corev1.Endpoints
-	Err error
+	Err        error
+	TargetPort *intstr.IntOrString
 }
 
 // Describe returns the description of a route
@@ -891,12 +893,16 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 	backends := append([]routev1.RouteTargetReference{route.Spec.To}, route.Spec.AlternateBackends...)
 	totalWeight := int32(0)
 	endpoints := make(map[string]routeEndpointInfo)
+	port := &intstr.IntOrString{}
+	if route.Spec.Port != nil {
+		port = &route.Spec.Port.TargetPort
+	}
 	for _, backend := range backends {
 		if backend.Weight != nil {
 			totalWeight += *backend.Weight
 		}
 		ep, endpointsErr := d.kubeClient.CoreV1().Endpoints(namespace).Get(context.TODO(), backend.Name, metav1.GetOptions{})
-		endpoints[backend.Name] = routeEndpointInfo{ep, endpointsErr}
+		endpoints[backend.Name] = routeEndpointInfo{ep, endpointsErr, port}
 	}
 
 	return tabbedString(func(out *tabwriter.Writer) error {
@@ -965,6 +971,13 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 			for i := range endpoints.Subsets {
 				ss := &endpoints.Subsets[i]
 				for p := range ss.Ports {
+					// If the route specifies a target port, filter endpoints accordingly,
+					// rather than display all endpoints for a route's target service(s).
+					if info.TargetPort != nil {
+						if info.TargetPort.String() != ss.Ports[p].Name && int32(info.TargetPort.IntValue()) != ss.Ports[p].Port {
+							continue
+						}
+					}
 					for a := range ss.Addresses {
 						if len(list) < max {
 							list = append(list, fmt.Sprintf("%s:%d", ss.Addresses[a].IP, ss.Ports[p].Port))
