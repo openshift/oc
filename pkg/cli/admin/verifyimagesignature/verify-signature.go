@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containers/image/docker/policyconfiguration"
-	"github.com/containers/image/docker/reference"
-	"github.com/containers/image/signature"
-	sigtypes "github.com/containers/image/types"
+	"github.com/containers/image/v5/docker/policyconfiguration"
+	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/signature"
+	sigtypes "github.com/containers/image/v5/types"
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
