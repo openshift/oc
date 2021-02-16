@@ -106,6 +106,7 @@ type MirrorCatalogOptions struct {
 	DryRun       bool
 	ManifestOnly bool
 	IndexPath    string
+	TempDir      bool
 
 	FromFileDir string
 	FileDir     string
@@ -142,6 +143,9 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
+		},
+		PostRun: func(c *cobra.Command, args []string) {
+			kcmdutil.CheckErr(o.PostRun())
 		},
 	}
 	flags := cmd.Flags()
@@ -282,6 +286,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			return err
 		}
 		o.IndexPath = indexLocation + ":" + tmpdir
+		o.TempDir = true
 	} else {
 		dir := strings.Split(o.IndexPath, ":")
 		if len(dir) < 2 {
@@ -585,7 +590,21 @@ func aggregateICSPs(icsps [][]byte) []byte {
 	return aggregation
 }
 
-func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference, dir, icspScope string, maxICSPSize int, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
+func (o *MirrorCatalogOptions) PostRun() error {
+	// If we have NOT set --path, the TempDir is set to true and we will delete
+	// Temporary folder.
+	if o.TempDir {
+		dir := strings.Split(o.IndexPath, ":")
+		if err := os.RemoveAll(dir[1]); err != nil {
+			return fmt.Errorf("unable to delete dir %s", dir[1])
+		}
+		fmt.Fprintf(o.IOStreams.Out, "deleted dir %s\n", dir[1])
+		return nil
+	}
+	return nil
+}
+
+func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference, dir, icspScope string, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
 	f, err := os.Create(filepath.Join(dir, "mapping.txt"))
 	if err != nil {
 		return err
