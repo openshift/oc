@@ -2,8 +2,10 @@ FROM registry.ci.openshift.org/ocp/4.8:cli
 RUN INSTALL_PKGS="\
   bash-completion \
   bc \
+  bcc-tools \
   bind-utils \
   blktrace \
+  conntrack-tools \
   crash \
   e2fsprogs \
   ethtool \
