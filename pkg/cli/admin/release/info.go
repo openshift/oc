@@ -834,9 +834,9 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	if retrieveImages {
 		var lock sync.Mutex
 		release.Images = make(map[string]*Image)
+		images := make(map[string]imagesource.TypedImageReference)
 		r := &imageinfo.ImageRetriever{
 			FileDir:         opts.FileDir,
-			Image:           make(map[string]imagesource.TypedImageReference),
 			SecurityOptions: o.SecurityOptions,
 			ParallelOptions: o.ParallelOptions,
 			ImageMetadataCallback: func(name string, image *imageinfo.Image, err error) error {
@@ -863,9 +863,9 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 				release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q has an invalid reference: %v", tag.Name, err))
 				continue
 			}
-			r.Image[tag.Name] = imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
+			images[tag.Name] = imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
 		}
-		if err := r.Run(); err != nil {
+		if _, err := r.Images(context.TODO(), images); err != nil {
 			return nil, err
 		}
 	}

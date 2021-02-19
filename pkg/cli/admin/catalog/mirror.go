@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -200,10 +201,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	// try to get the index db location label from src, from pkg/image/info
 	var image *info.Image
 	retriever := &info.ImageRetriever{
-		FileDir: o.FileDir,
-		Image: map[string]imagesource.TypedImageReference{
-			src: srcRef,
-		},
+		FileDir:         o.FileDir,
 		SecurityOptions: o.SecurityOptions,
 		ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
 			filtered := make(map[digest.Digest]distribution.Manifest)
@@ -236,7 +234,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			return nil
 		},
 	}
-	if err := retriever.Run(); err != nil {
+	if _, err := retriever.Image(context.TODO(), srcRef); err != nil {
 		return err
 	}
 	indexLocation, ok := image.Config.Config.Labels[IndexLocationLabelKey]
