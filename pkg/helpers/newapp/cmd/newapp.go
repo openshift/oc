@@ -8,7 +8,6 @@ import (
 	"io"
 	"reflect"
 	"strings"
-	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	v1 "k8s.io/api/apps/v1"
@@ -30,15 +29,17 @@ import (
 	appsv1 "github.com/openshift/api/apps/v1"
 	authv1 "github.com/openshift/api/authorization/v1"
 	buildv1 "github.com/openshift/api/build/v1"
+	"github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
 	imagev1typedclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	routev1typedclient "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	templatev1typedclient "github.com/openshift/client-go/template/clientset/versioned/typed/template/v1"
 	"github.com/openshift/library-go/pkg/build/buildutil"
-	dockerregistry "github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	"github.com/openshift/library-go/pkg/image/reference"
 	ometa "github.com/openshift/library-go/pkg/image/referencemutator"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
+	"github.com/openshift/oc/pkg/cli/image/info"
 	"github.com/openshift/oc/pkg/helpers/env"
 	utilenv "github.com/openshift/oc/pkg/helpers/env"
 	"github.com/openshift/oc/pkg/helpers/newapp"
@@ -209,10 +210,38 @@ func NewAppConfig() *AppConfig {
 }
 
 func (c *AppConfig) DockerRegistrySearcher() app.Searcher {
-	return app.DockerRegistrySearcher{
-		Client:        dockerregistry.NewClient(30*time.Second, true),
-		AllowInsecure: c.InsecureRegistry,
+	r := NewImageRegistrySearcher()
+	r.ImageRetriever.SecurityOptions.Insecure = c.InsecureRegistry
+	return app.DockerRegistrySearcher{Client: r}
+}
+
+type ImageRegistrySearcher struct {
+	info.ImageRetriever
+}
+
+func NewImageRegistrySearcher() *ImageRegistrySearcher {
+	return &ImageRegistrySearcher{}
+}
+
+func (s *ImageRegistrySearcher) Image(ref reference.DockerImageReference) (*docker10.DockerImage, error) {
+	info, err := s.ImageRetriever.Image(context.TODO(), imagesource.TypedImageReference{
+		Type: imagesource.DestinationRegistry,
+		Ref:  ref,
+	})
+	if err != nil {
+		return nil, err
 	}
+	image := &docker10.DockerImage{
+		ID:              info.Config.ID,
+		Parent:          info.Config.Parent,
+		Created:         metav1.Time{Time: info.Config.Created},
+		Author:          info.Config.Author,
+		Architecture:    info.Config.Architecture,
+		Size:            info.Config.Size,
+		Config:          info.Config.Config,
+		ContainerConfig: info.Config.ContainerConfig,
+	}
+	return image, nil
 }
 
 func (c *AppConfig) ensureDockerSearch() {

@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	githttp "github.com/AaronO/go-git-http"
 	"github.com/AaronO/go-git-http/auth"
@@ -46,7 +45,6 @@ import (
 	fakeroutev1client "github.com/openshift/client-go/route/clientset/versioned/fake"
 	faketemplatev1client "github.com/openshift/client-go/template/clientset/versioned/fake"
 	"github.com/openshift/library-go/pkg/git"
-	dockerregistry "github.com/openshift/library-go/pkg/image/dockerv1client"
 	newappapp "github.com/openshift/oc/pkg/cli/newapp"
 	"github.com/openshift/oc/pkg/helpers/newapp"
 	"github.com/openshift/oc/pkg/helpers/newapp/app"
@@ -153,7 +151,7 @@ func TestNewAppResolve(t *testing.T) {
 					Value: "mysql:invalid",
 					Resolver: app.UniqueExactOrInexactMatchResolver{
 						Searcher: app.DockerRegistrySearcher{
-							Client: dockerregistry.NewClient(10*time.Second, true),
+							Client: cmd.NewImageRegistrySearcher(),
 						},
 					},
 				})},
@@ -216,7 +214,7 @@ func TestNewAppDetectSource(t *testing.T) {
 	defer os.RemoveAll(gitLocalDir)
 
 	dockerSearcher := app.DockerRegistrySearcher{
-		Client: dockerregistry.NewClient(10*time.Second, true),
+		Client: cmd.NewImageRegistrySearcher(),
 	}
 	mocks := MockSourceRepositories(t, gitLocalDir)
 	tests := []struct {
@@ -331,7 +329,7 @@ func (r *ExactMatchDirectTagDockerSearcher) Search(precise bool, terms ...string
 func TestNewAppRunAll(t *testing.T) {
 	skipExternalGit(t)
 	dockerSearcher := app.DockerRegistrySearcher{
-		Client: dockerregistry.NewClient(10*time.Second, true),
+		Client: cmd.NewImageRegistrySearcher(),
 	}
 	failImageClient := fakeimagev1client.NewSimpleClientset()
 	failImageClient.AddReactor("get", "images", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
@@ -1797,7 +1795,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 func TestNewAppNewBuildEnvVars(t *testing.T) {
 	skipExternalGit(t)
 	dockerSearcher := app.DockerRegistrySearcher{
-		Client: dockerregistry.NewClient(10*time.Second, true),
+		Client: cmd.NewImageRegistrySearcher(),
 	}
 
 	okTemplateClient := faketemplatev1client.NewSimpleClientset()
@@ -1872,7 +1870,7 @@ func TestNewAppNewBuildEnvVars(t *testing.T) {
 func TestNewAppBuildConfigEnvVarsAndSecrets(t *testing.T) {
 	skipExternalGit(t)
 	dockerSearcher := app.DockerRegistrySearcher{
-		Client: dockerregistry.NewClient(10*time.Second, true),
+		Client: cmd.NewImageRegistrySearcher(),
 	}
 	okTemplateClient := faketemplatev1client.NewSimpleClientset()
 	okImageClient := fakeimagev1client.NewSimpleClientset()
@@ -2374,7 +2372,7 @@ func PrepareAppConfig(config *cmd.AppConfig) (stdout, stderr *bytes.Buffer) {
 	}
 	if config.DockerSearcher == nil {
 		config.DockerSearcher = app.DockerRegistrySearcher{
-			Client: dockerregistry.NewClient(10*time.Second, true),
+			Client: cmd.NewImageRegistrySearcher(),
 		}
 	}
 	config.ImageStreamByAnnotationSearcher = fakeImageStreamSearcher()
