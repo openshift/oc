@@ -147,7 +147,12 @@ func ReadSpecificDockerConfigJSONFile(filePath string) (cfg DockerConfig, err er
 	if contents, err = ioutil.ReadFile(filePath); err != nil {
 		return nil, err
 	}
-	return readDockerConfigJSONFileFromBytes(contents)
+
+	cfg, err = readDockerConfigJSONFileFromBytes(contents)
+	if err != nil {
+		return nil, fmt.Errorf("invalid config: %q: %w", filePath, err)
+	}
+	return cfg, nil
 }
 
 // ReadDockerConfigFile read a docker config file from default path
