@@ -765,6 +765,11 @@ func (in *CommonSpec) DeepCopyInto(out *CommonSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.MountTrustedCA != nil {
+		in, out := &in.MountTrustedCA, &out.MountTrustedCA
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
