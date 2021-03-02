@@ -28,6 +28,16 @@ workstation, install them with:
 dnf install krb5-devel
 ```
 
+You also need that /bin/sh is a symplink to /bin/bash. On Debian systems it’s a symlink to /bin/dash and building of oc fails:
+
+```
+$ make oc
+/bin/sh: 1: set: Illegal option -o pipefail
+vendor/github.com/openshift/build-machinery-go/make/targets/golang/../../lib/golang.mk:22: *** go is required with minimal version "1.14.4", detected version "1.15.8". You can override this check by using make GO_REQUIRED_MIN_VERSION:=. Arrêt.
+```
+
+Making /bin/sh a symlink to /bin/bash solves the issue.
+
 ## Testing
 
 All PRs will have to pass a series of automated tests starting from go tools
