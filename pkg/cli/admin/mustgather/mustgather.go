@@ -297,9 +297,16 @@ func (o *MustGatherOptions) Run() error {
 			o.PrinterDeleted.PrintObj(ns, o.LogOut)
 		}()
 	}
-
+	// ... service account ...
+	//use custom SA to not to rely on kube-controller-manager's default
+	serviceAccount, err := o.Client.CoreV1().ServiceAccounts(ns.Name).Create(context.TODO(),
+		&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{GenerateName: "openshift-must-gather-"}},
+		metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
 	// ... cluster role binding ...
-	clusterRoleBinding, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), o.newClusterRoleBinding(ns.Name), metav1.CreateOptions{})
+	clusterRoleBinding, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), o.newClusterRoleBinding(ns.Name, serviceAccount.Name), metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -323,7 +330,7 @@ func (o *MustGatherOptions) Run() error {
 			return err
 		}
 
-		pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image), metav1.CreateOptions{})
+		pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image, serviceAccount.Name), metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -562,7 +569,7 @@ func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error
 	})
 }
 
-func (o *MustGatherOptions) newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
+func (o *MustGatherOptions) newClusterRoleBinding(ns, sa string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "must-gather-",
@@ -578,7 +585,7 @@ func (o *MustGatherOptions) newClusterRoleBinding(ns string) *rbacv1.ClusterRole
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
-				Name:      "default",
+				Name:      sa,
 				Namespace: ns,
 			},
 		},
@@ -588,7 +595,7 @@ func (o *MustGatherOptions) newClusterRoleBinding(ns string) *rbacv1.ClusterRole
 // newPod creates a pod with 2 containers with a shared volume mount:
 // - gather: init containers that run gather command
 // - copy: no-op container we can exec into
-func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
+func (o *MustGatherOptions) newPod(node, image, serviceAccount string) *corev1.Pod {
 	zero := int64(0)
 
 	nodeSelector := map[string]string{
@@ -606,8 +613,9 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 			},
 		},
 		Spec: corev1.PodSpec{
-			NodeName:      node,
-			RestartPolicy: corev1.RestartPolicyNever,
+			NodeName:           node,
+			ServiceAccountName: serviceAccount,
+			RestartPolicy:      corev1.RestartPolicyNever,
 			Volumes: []corev1.Volume{
 				{
 					Name: "must-gather-output",
