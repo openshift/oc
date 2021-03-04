@@ -25,6 +25,7 @@ func namespaceResourcesToCollect() []schema.GroupResource {
 		{Resource: "endpoints"},
 		{Resource: "endpointslices"},
 		{Resource: "persistentvolumeclaims"},
+		{Resource: "poddisruptionbudgets"},
 		{Resource: "secrets"},
 	}
 }
