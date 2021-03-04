@@ -133,8 +133,6 @@ github.com/blang/semver
 ## explicit
 # github.com/bugsnag/panicwrap v1.2.0
 ## explicit
-# github.com/certifi/gocertifi v0.0.0-20180905225744-ee1a9a0726d2
-github.com/certifi/gocertifi
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
 # github.com/chai2010/gettext-go v0.0.0-20160711120539-c6fed771bfd5
@@ -263,8 +261,6 @@ github.com/fsouza/go-dockerclient
 github.com/fvbommel/sortorder
 # github.com/garyburd/redigo v1.6.0
 ## explicit
-# github.com/getsentry/raven-go v0.0.0-20190513200303-c977f96e1095
-github.com/getsentry/raven-go
 # github.com/ghodss/yaml v1.0.0
 ## explicit
 github.com/ghodss/yaml
@@ -558,7 +554,7 @@ github.com/openshift/client-go/user/clientset/versioned/fake
 github.com/openshift/client-go/user/clientset/versioned/scheme
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
-# github.com/openshift/library-go v0.0.0-20210219155623-0260bfd7946b
+# github.com/openshift/library-go v0.0.0-20210219155623-0260bfd7946b => /home/somalley/code/gowork/src/github.com/openshift/library-go
 ## explicit
 github.com/openshift/library-go/pkg/apps/appsserialization
 github.com/openshift/library-go/pkg/apps/appsutil
@@ -580,6 +576,7 @@ github.com/openshift/library-go/pkg/image/internal/reference
 github.com/openshift/library-go/pkg/image/reference
 github.com/openshift/library-go/pkg/image/referencemutator
 github.com/openshift/library-go/pkg/image/registryclient
+github.com/openshift/library-go/pkg/image/strategy
 github.com/openshift/library-go/pkg/image/trigger
 github.com/openshift/library-go/pkg/legacyapi/legacygroupification
 github.com/openshift/library-go/pkg/manifest
@@ -1355,6 +1352,7 @@ sigs.k8s.io/yaml
 # github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 # github.com/containers/image => github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d
+# github.com/openshift/library-go => /home/somalley/code/gowork/src/github.com/openshift/library-go
 # k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20210108114224-194a87c5b03a
 # k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210108114725-2ff6add1e911
 # k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20210108114446-0829bdd68114

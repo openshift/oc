@@ -26,6 +26,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/opencontainers/go-digest"
+	imagereference "github.com/openshift/library-go/pkg/image/reference"
 )
 
 // RepositoryRetriever fetches a Docker distribution.Repository.
@@ -33,6 +34,13 @@ type RepositoryRetriever interface {
 	// Repository returns a properly authenticated distribution.Repository for the given registry, repository
 	// name, and insecure toleration behavior.
 	Repository(ctx context.Context, registry *url.URL, repoName string, insecure bool) (distribution.Repository, error)
+}
+
+// AlternateRepositoryStrategy retrieves possible image sources for an image reference.
+// See package strategy for implementation
+type AlternateRepositoryStrategy interface {
+	FirstRequest(ctx context.Context, locator imagereference.DockerImageReference) (alternateSources []imagereference.DockerImageReference, err error)
+	WithAlternateSources(ctx context.Context, locator imagereference.DockerImageReference, reason error) (alternateSources []imagereference.DockerImageReference, err error)
 }
 
 // ErrNotV2Registry is returned when the server does not report itself as a V2 Docker registry
@@ -70,15 +78,16 @@ type transportCache struct {
 }
 
 type Context struct {
-	Transport         http.RoundTripper
-	InsecureTransport http.RoundTripper
-	Challenges        challenge.Manager
-	Scopes            []auth.Scope
-	Actions           []string
-	Retries           int
-	Credentials       auth.CredentialStore
-	RequestModifiers  []transport.RequestModifier
-	Limiter           *rate.Limiter
+	Transport                   http.RoundTripper
+	InsecureTransport           http.RoundTripper
+	Challenges                  challenge.Manager
+	Scopes                      []auth.Scope
+	Actions                     []string
+	Retries                     int
+	Credentials                 auth.CredentialStore
+	RequestModifiers            []transport.RequestModifier
+	Limiter                     *rate.Limiter
+	AlternateRepositoryStrategy AlternateRepositoryStrategy
 
 	DisableDigestVerification bool
 
@@ -92,14 +101,15 @@ func (c *Context) Copy() *Context {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	copied := &Context{
-		Transport:         c.Transport,
-		InsecureTransport: c.InsecureTransport,
-		Challenges:        c.Challenges,
-		Scopes:            c.Scopes,
-		Actions:           c.Actions,
-		Retries:           c.Retries,
-		Credentials:       c.Credentials,
-		Limiter:           c.Limiter,
+		Transport:                   c.Transport,
+		InsecureTransport:           c.InsecureTransport,
+		Challenges:                  c.Challenges,
+		Scopes:                      c.Scopes,
+		Actions:                     c.Actions,
+		Retries:                     c.Retries,
+		Credentials:                 c.Credentials,
+		Limiter:                     c.Limiter,
+		AlternateRepositoryStrategy: c.AlternateRepositoryStrategy,
 
 		DisableDigestVerification: c.DisableDigestVerification,
 
@@ -134,6 +144,11 @@ func (c *Context) WithActions(actions ...string) *Context {
 
 func (c *Context) WithCredentials(credentials auth.CredentialStore) *Context {
 	c.Credentials = credentials
+	return c
+}
+
+func (c *Context) WithAlternateRepositoryStrategy(alternateRepositoryStrategy AlternateRepositoryStrategy) *Context {
+	c.AlternateRepositoryStrategy = alternateRepositoryStrategy
 	return c
 }
 
@@ -200,6 +215,14 @@ func (c *Context) Ping(ctx context.Context, registry *url.URL, insecure bool) (h
 }
 
 func (c *Context) Repository(ctx context.Context, registry *url.URL, repoName string, insecure bool) (distribution.Repository, error) {
+	retryRepo, err := c.repository(ctx, registry, repoName, insecure)
+	if err != nil {
+		return nil, err
+	}
+	return retryRepo.Repository, nil
+}
+
+func (c *Context) repository(ctx context.Context, registry *url.URL, repoName string, insecure bool) (*retryRepository, error) {
 	named, err := reference.WithName(repoName)
 	if err != nil {
 		return nil, err
@@ -224,6 +247,47 @@ func (c *Context) Repository(ctx context.Context, registry *url.URL, repoName st
 		limiter = rate.NewLimiter(rate.Limit(5), 5)
 	}
 	return NewLimitedRetryRepository(repo, c.Retries, limiter), nil
+}
+
+// RepositoryWithAlternateReference returns a a valid repository and ref, it gathers alternate sources then returns first repo, ref, or error
+func (c *Context) RepositoryWithAlternateReference(ctx context.Context, locator imagereference.DockerImageReference, insecure bool) (distribution.Repository, imagereference.DockerImageReference, error) {
+	// try mirrors first
+	var (
+		sources []imagereference.DockerImageReference
+		altRepo distribution.Repository
+		altRef  imagereference.DockerImageReference
+		err     error
+	)
+	if c.AlternateRepositoryStrategy != nil {
+		sources, err = c.AlternateRepositoryStrategy.FirstRequest(ctx, locator)
+		if err != nil {
+			return nil, locator, err
+		}
+		if sources == nil {
+			sources, err = c.AlternateRepositoryStrategy.WithAlternateSources(ctx, locator, err)
+			if err != nil {
+				return nil, locator, err
+			}
+		}
+		for _, s := range sources {
+			klog.Infof("LOCATOR: %s && SOURCE: %s", locator.String(), s.String())
+			altRepo, altRef, err = c.repoForRef(ctx, locator, s, insecure)
+			if err != nil {
+				klog.V(4).Infof("skipping alternative image ref %s: %v", altRef.String(), err)
+				continue
+			}
+			if altRepo == nil {
+				continue
+			}
+			return altRepo, altRef, nil
+		}
+
+	}
+	repo, err := c.repository(ctx, locator.DockerClientDefaults().RegistryURL(), locator.RepositoryName(), insecure)
+	if err != nil {
+		return nil, locator, fmt.Errorf("failed to find a valid Repository for %s: %v", locator.String(), err)
+	}
+	return repo, locator, nil
 }
 
 func (c *Context) ping(registry url.URL, insecure bool, transport http.RoundTripper) (*url.URL, error) {
@@ -352,6 +416,37 @@ func (c *Context) repositoryTransport(t http.RoundTripper, registry *url.URL, re
 	return c.cachedTransport(t, c.scopes(repoName))
 }
 
+func (c *Context) repoForRef(ctx context.Context, locator imagereference.DockerImageReference, altRef imagereference.DockerImageReference, insecure bool) (distribution.Repository, imagereference.DockerImageReference, error) {
+	altRepo, err := c.Repository(ctx, altRef.DockerClientDefaults().RegistryURL(), altRef.RepositoryName(), insecure)
+	if err != nil {
+		return nil, altRef, err
+	}
+	if altRepo == nil {
+		return altRepo, altRef, fmt.Errorf("did not find valid Repository for %s", altRef.String())
+	}
+	manifests, err := altRepo.Manifests(ctx)
+	if err != nil {
+		return nil, altRef, err
+	}
+	// If passed an ID, use that, if not then try to get from tag
+	if len(locator.ID) == 0 {
+		if _, err = manifests.Get(ctx, "", distribution.WithTag(locator.Tag)); err != nil {
+			return nil, altRef, err
+		}
+		altRef.Tag = locator.Tag
+	} else {
+		dgst, err := digest.Parse(locator.ID)
+		if err != nil {
+			return nil, altRef, err
+		}
+		if _, err = manifests.Get(ctx, dgst); err != nil {
+			return nil, altRef, err
+		}
+		altRef.ID = string(dgst)
+	}
+	return altRepo, altRef, nil
+}
+
 var nowFn = time.Now
 
 type retryRepository struct {
@@ -360,11 +455,13 @@ type retryRepository struct {
 	limiter *rate.Limiter
 	retries int
 	sleepFn func(time.Duration)
+
+	lock sync.Mutex
 }
 
 // NewLimitedRetryRepository wraps a distribution.Repository with helpers that will retry temporary failures
 // over a limited time window and duration, and also obeys a rate limit.
-func NewLimitedRetryRepository(repo distribution.Repository, retries int, limiter *rate.Limiter) distribution.Repository {
+func NewLimitedRetryRepository(repo distribution.Repository, retries int, limiter *rate.Limiter) *retryRepository {
 	return &retryRepository{
 		Repository: repo,
 

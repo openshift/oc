@@ -24,7 +24,7 @@ type Options struct {
 func (o *Options) RepositoryWithAlternateRef(ctx context.Context, ref TypedImageReference) (distribution.Repository, imagereference.DockerImageReference, error) {
 	switch ref.Type {
 	case DestinationRegistry:
-		return o.RegistryContext.RepositoryWithAlternateReference(ctx, ref.Ref)
+		return o.RegistryContext.RepositoryWithAlternateReference(ctx, ref.Ref, o.Insecure)
 	default:
 		return nil, ref.Ref, fmt.Errorf("unexpected type for call to RepositoryWithAlternateRef %s, call Repository instead", ref.Type)
 	}
