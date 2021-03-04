@@ -389,14 +389,17 @@ func (o *MustGatherOptions) Run() error {
 	for i := range errCh {
 		errs = append(errs, i)
 	}
-	if len(errs) == 0 {
-		// If we didn't have an error during collection, then we don't need to do our backup collection.
-		runBackCollection = false
+	// force backup collection for testing
+	if false {
+		if len(errs) == 0 {
+			// If we didn't have an error during collection, then we don't need to do our backup collection.
+			runBackCollection = false
 
-	} else if len(o.Command) > 0 {
-		// If we had errors, but the user specified a command, he probably just typoed the command.
-		// If the command was specified, don't run the backup collection.
-		runBackCollection = false
+		} else if len(o.Command) > 0 {
+			// If we had errors, but the user specified a command, he probably just typoed the command.
+			// If the command was specified, don't run the backup collection.
+			runBackCollection = false
+		}
 	}
 
 	// now gather all the events into a single file and produce a unified file
