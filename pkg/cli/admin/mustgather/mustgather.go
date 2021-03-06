@@ -256,6 +256,14 @@ func (o *MustGatherOptions) Validate() error {
 func (o *MustGatherOptions) Run() error {
 	var err error
 
+	runBackCollection := true
+	defer func() {
+		if !runBackCollection {
+			return
+		}
+		o.BackupGathering(context.TODO())
+	}()
+
 	// print at both the beginning and at the end.  This information is important enough to be in both spots.
 	o.PrintBasicClusterState(context.TODO())
 	defer func() {
@@ -380,6 +388,15 @@ func (o *MustGatherOptions) Run() error {
 	var errs []error
 	for i := range errCh {
 		errs = append(errs, i)
+	}
+	if len(errs) == 0 {
+		// If we didn't have an error during collection, then we don't need to do our backup collection.
+		runBackCollection = false
+
+	} else if len(o.Command) > 0 {
+		// If we had errors, but the user specified a command, he probably just typoed the command.
+		// If the command was specified, don't run the backup collection.
+		runBackCollection = false
 	}
 
 	// now gather all the events into a single file and produce a unified file
@@ -643,4 +660,24 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 	}
 
 	return ret
+}
+
+// BackupGathering is called if the full must-gather has an error.  This is useful for making sure we get *something*
+// no matter what has failed.  It should be focused on universal openshift failures.
+func (o *MustGatherOptions) BackupGathering(ctx context.Context) {
+	inspectOptions := inspect.NewInspectOptions(o.IOStreams)
+	inspectOptions.RESTConfig = rest.CopyConfig(o.Config)
+	inspectOptions.DestDir = o.DestDir
+	if err := inspectOptions.Complete([]string{"clusteroperators.v1.config.openshift.io"}); err != nil {
+		fmt.Fprintf(o.ErrOut, "error completing backup collection: %v", err)
+		return
+	}
+	if err := inspectOptions.Validate(); err != nil {
+		fmt.Fprintf(o.ErrOut, "error validating backup collection: %v", err)
+		return
+	}
+	if err := inspectOptions.Run(); err != nil {
+		fmt.Fprintf(o.ErrOut, "error running backup collection: %v", err)
+		return
+	}
 }

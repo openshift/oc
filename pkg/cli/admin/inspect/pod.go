@@ -55,7 +55,7 @@ func (o *InspectOptions) gatherContainerInfo(destDir string, pod *corev1.Pod, co
 	if err := o.gatherContainerAllLogs(path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
 		return err
 	}
-	if len(o.restConfig.BearerToken) > 0 {
+	if len(o.RESTConfig.BearerToken) > 0 {
 		// token authentication is vulnerable to replays if the token is sent to a potentially untrustworthy source.
 		klog.V(1).Infof("        Skipping container endpoint collection for pod %q container %q: Using token authentication\n", pod.Name, container.Name)
 		return nil
@@ -136,7 +136,7 @@ func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod,
 	hasVersionPath := false
 
 	// determine if a /version endpoint exists
-	paths, err := getAvailablePodEndpoints(o.podUrlGetter, pod, o.restConfig, metricsPort)
+	paths, err := getAvailablePodEndpoints(o.podUrlGetter, pod, o.RESTConfig, metricsPort)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (o *InspectOptions) gatherContainerVersion(destDir string, pod *corev1.Pod,
 		return nil
 	}
 
-	result, err := o.podUrlGetter.Get("/version", pod, o.restConfig, metricsPort)
+	result, err := o.podUrlGetter.Get("/version", pod, o.RESTConfig, metricsPort)
 
 	return o.fileWriter.WriteFromSource(path.Join(destDir, "version.json"), &TextWriterSource{Text: result})
 }
@@ -167,7 +167,7 @@ func (o *InspectOptions) gatherContainerDebug(destDir string, pod *corev1.Pod, d
 
 	for _, endpoint := range endpoints {
 		// we need a token in order to access the /debug endpoint
-		result, err := o.podUrlGetter.Get("/debug/pprof/"+endpoint, pod, o.restConfig, debugPort)
+		result, err := o.podUrlGetter.Get("/debug/pprof/"+endpoint, pod, o.RESTConfig, debugPort)
 		if err != nil {
 			return err
 		}
@@ -187,7 +187,7 @@ func (o *InspectOptions) gatherContainerMetrics(destDir string, pod *corev1.Pod,
 	}
 
 	// we need a token in order to access the /metrics endpoint
-	result, err := o.podUrlGetter.Get("/metrics", pod, o.restConfig, metricsPort)
+	result, err := o.podUrlGetter.Get("/metrics", pod, o.RESTConfig, metricsPort)
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod,
 		return err
 	}
 
-	paths, err := getAvailablePodEndpoints(o.podUrlGetter, pod, o.restConfig, metricsPort)
+	paths, err := getAvailablePodEndpoints(o.podUrlGetter, pod, o.RESTConfig, metricsPort)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func (o *InspectOptions) gatherContainerHealthz(destDir string, pod *corev1.Pod,
 		return fmt.Errorf("unable to find any available /healthz paths hosted in pod %q", pod.Name)
 	}
 
-	err = o.podUrlGetter.ForwardRequests(pod, o.restConfig, metricsPort, func(restClient rest.Interface) error {
+	err = o.podUrlGetter.ForwardRequests(pod, o.RESTConfig, metricsPort, func(restClient rest.Interface) error {
 		for _, healthzPath := range healthzPaths {
 			ioCloser, err := restClient.Get().RequestURI(path.Join("/", healthzPath)).Stream(context.TODO())
 			if err != nil {
