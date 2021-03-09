@@ -179,6 +179,8 @@ func (s *LDAPGroupSyncer) makeOpenShiftGroup(ldapGroupUID string, usernames []st
 	// overwrite Group Users data
 	group.Users = usernames
 	group.Annotations[LDAPSyncTimeAnnotation] = ISO8601(time.Now())
+	group.APIVersion = userv1.GroupVersion.String()
+	group.Kind = "Group"
 
 	return group, nil
 }
