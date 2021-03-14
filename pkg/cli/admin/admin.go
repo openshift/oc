@@ -31,6 +31,7 @@ import (
 	migratetemplateinstances "github.com/openshift/oc/pkg/cli/admin/migrate/templateinstances"
 	"github.com/openshift/oc/pkg/cli/admin/mustgather"
 	"github.com/openshift/oc/pkg/cli/admin/network"
+	"github.com/openshift/oc/pkg/cli/admin/networktools"
 	"github.com/openshift/oc/pkg/cli/admin/node"
 	"github.com/openshift/oc/pkg/cli/admin/policy"
 	"github.com/openshift/oc/pkg/cli/admin/project"
@@ -112,6 +113,12 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 				createlogintemplate.NewCommandCreateLoginTemplate(f, streams),
 				createproviderselectiontemplate.NewCommandCreateProviderSelectionTemplate(f, streams),
 				createerrortemplate.NewCommandCreateErrorTemplate(f, streams),
+			},
+		},
+		{
+			Message: "Network Debugging:",
+			Commands: []*cobra.Command{
+				networktools.NewCmdNetworkTools(f, streams),
 			},
 		},
 	}
