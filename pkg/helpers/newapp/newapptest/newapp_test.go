@@ -292,7 +292,7 @@ func (r *ExactMatchDockerSearcher) Search(precise bool, terms ...string) (app.Co
 			Value:       value,
 			Name:        value,
 			Argument:    fmt.Sprintf("--docker-image=%q", value),
-			Description: fmt.Sprintf("Docker image %q", value),
+			Description: fmt.Sprintf("Container image %q", value),
 			Score:       0.0,
 		})
 	}
@@ -317,7 +317,7 @@ func (r *ExactMatchDirectTagDockerSearcher) Search(precise bool, terms ...string
 			Value:       value,
 			Name:        value,
 			Argument:    fmt.Sprintf("--docker-image=%q", value),
-			Description: fmt.Sprintf("Docker image %q", value),
+			Description: fmt.Sprintf("Container image %q", value),
 			Score:       0.0,
 			DockerImage: &dockerv10.DockerImage{},
 			Meta:        map[string]string{"direct-tag": "1"},
