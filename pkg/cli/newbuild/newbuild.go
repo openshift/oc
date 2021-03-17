@@ -6,6 +6,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,7 +43,7 @@ var (
 	newBuildExample = templates.Examples(`
 		# Create a build config based on the source code in the current git repository (with a public
 		# remote) and a container image
-		oc new-build . --docker-image=repo/langimage
+		oc new-build . --image=repo/langimage
 
 		# Create a NodeJS build config based on the provided [image]~[source code] combination
 		oc new-build centos/nodejs-8-centos7~https://github.com/sclorg/nodejs-ex.git
@@ -124,7 +125,8 @@ func NewCmdNewBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 
 	cmd.Flags().StringSliceVar(&o.Config.SourceRepositories, "code", o.Config.SourceRepositories, "Source code in the build configuration.")
 	cmd.Flags().StringSliceVarP(&o.Config.ImageStreams, "image-stream", "i", o.Config.ImageStreams, "Name of an image stream to to use as a builder.")
-	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "docker-image", o.Config.DockerImages, "Name of a container image to use as a builder.")
+	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "image", o.Config.DockerImages, "Name of a container image to use as a builder.")
+	cmd.Flags().SetNormalizeFunc(newapp.AliasFlags)
 	cmd.Flags().StringSliceVar(&o.Config.ConfigMaps, "build-config-map", o.Config.ConfigMaps, "ConfigMap and destination to use as an input for the build.")
 	cmd.Flags().StringSliceVar(&o.Config.Secrets, "build-secret", o.Config.Secrets, "Secret and destination to use as an input for the build.")
 	cmd.Flags().StringVar(&o.Config.SourceSecret, "source-secret", o.Config.SourceSecret, "The name of an existing secret that should be used for cloning a private git repository.")

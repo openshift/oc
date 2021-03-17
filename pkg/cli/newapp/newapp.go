@@ -85,7 +85,7 @@ var (
 		oc new-app --list
 
 		# Create an application based on the source code in the current git repository (with a public remote) and a container image
-		oc new-app . --docker-image=registry/repo/langimage
+		oc new-app . --image=registry/repo/langimage
 
 		# Create an application myapp with Docker based build strategy expecting binary input
 		oc new-app  --strategy=docker --binary --name myapp
@@ -97,7 +97,7 @@ var (
 		oc new-app mysql MYSQL_USER=user MYSQL_PASSWORD=pass MYSQL_DATABASE=testdb -l db=mysql
 
 		# Use a MySQL image in a private registry to create an app and override application artifacts' names
-		oc new-app --docker-image=myregistry.com/mycompany/mysql --name=private
+		oc new-app --image=myregistry.com/mycompany/mysql --name=private
 
 		# Create an application from a remote repository using its beta4 branch
 		oc new-app https://github.com/openshift/ruby-hello-world#beta4
@@ -117,7 +117,7 @@ var (
 		# Search all templates, image streams, and container images for the ones that match "ruby"
 		oc new-app --search ruby
 
-		# Search for "ruby", but only in stored templates (--template, --image-stream and --docker-image
+		# Search for "ruby", but only in stored templates (--template, --image-stream and --image
 		# can be used to filter search results)
 		oc new-app --search --template=ruby
 
@@ -136,7 +136,7 @@ To search templates, image streams, and container images that match the argument
   oc new-app -S php
   oc new-app -S --template=rails
   oc new-app -S --image-stream=mysql
-  oc new-app -S --docker-image=registry.access.redhat.com/ubi8/python-38
+  oc new-app -S --image=registry.access.redhat.com/ubi8/python-38
 
 For details on how to use the results from those searches to provide images, image streams, templates, or source code locations as inputs into 'oc new-app', use:
 
@@ -269,7 +269,8 @@ func NewCmdNewApplication(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringSliceVar(&o.Config.SourceRepositories, "code", o.Config.SourceRepositories, "Source code to use to build this application.")
 	cmd.Flags().StringVar(&o.Config.ContextDir, "context-dir", o.Config.ContextDir, "Context directory to be used for the build.")
 	cmd.Flags().StringSliceVarP(&o.Config.ImageStreams, "image-stream", "i", o.Config.ImageStreams, "Name of an image stream to use in the app.")
-	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "docker-image", o.Config.DockerImages, "Name of a container image to include in the app.  Note:  not specifying a registry or repository means defaults in place for client image pulls are employed.")
+	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "image", o.Config.DockerImages, "Name of a container image to include in the app.  Note:  not specifying a registry or repository means defaults in place for client image pulls are employed.")
+	cmd.Flags().SetNormalizeFunc(newapp.AliasFlags)
 	cmd.Flags().StringSliceVar(&o.Config.Templates, "template", o.Config.Templates, "Name of a stored template to use in the app.")
 	cmd.Flags().StringSliceVarP(&o.Config.TemplateFiles, "file", "f", o.Config.TemplateFiles, "Path to a template file to use for the app.")
 	cmd.MarkFlagFilename("file", "yaml", "yml", "json")
@@ -1156,7 +1157,7 @@ func printHumanReadableQueryResult(r *newcmd.QueryResult, out io.Writer) error {
 	}
 
 	if len(dockerImages) > 0 {
-		fmt.Fprintf(out, "container images (oc new-app --docker-image=<docker-image> [--code=<source>])\n")
+		fmt.Fprintf(out, "container images (oc new-app --image=<image> [--code=<source>])\n")
 		fmt.Fprintln(out, "-----")
 		for _, match := range dockerImages {
 			image := match.DockerImage
@@ -1216,4 +1217,13 @@ func CheckGitInstalled(w io.Writer) {
 	if !git.IsGitInstalled() {
 		fmt.Fprintf(w, "warning: Cannot find git. Ensure that it is installed and in your path. Git is required to work with git repositories.\n")
 	}
+}
+
+// AliasFlags is a function to handle backwards compatibility with old flags
+func AliasFlags(f *pflag.FlagSet, name string) pflag.NormalizedName {
+	switch name {
+	case "docker-image":
+		name = "image"
+	}
+	return pflag.NormalizedName(name)
 }
