@@ -144,7 +144,7 @@ func (r DockerClientSearcher) Search(precise bool, terms ...string) (ComponentMa
 
 			updated := &ComponentMatch{
 				Value:       match.Value,
-				Argument:    fmt.Sprintf("--docker-image=%q", match.Value),
+				Argument:    fmt.Sprintf("--image=%q", match.Value),
 				Name:        match.Value,
 				Description: descriptionFor(dockerImage, match.Value, ref.Registry, ""),
 				Score:       match.Score,
@@ -329,7 +329,7 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 
 		match := &ComponentMatch{
 			Value:       term,
-			Argument:    fmt.Sprintf("--docker-image=%q", term),
+			Argument:    fmt.Sprintf("--image=%q", term),
 			Name:        term,
 			Description: descriptionFor(dockerImage, term, ref.Registry, ref.Tag),
 			Score:       0,
@@ -389,7 +389,7 @@ func (r DockerRegistrySearcher) Search(precise bool, terms ...string) (Component
 
 		match := &ComponentMatch{
 			Value:       term,
-			Argument:    fmt.Sprintf("--docker-image=%q", term),
+			Argument:    fmt.Sprintf("--image=%q", term),
 			Name:        term,
 			Description: descriptionFor(image, term, ref.Registry, ref.Tag),
 			Score:       0,
