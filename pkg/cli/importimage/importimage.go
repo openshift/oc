@@ -115,12 +115,12 @@ func NewCmdImportImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 
 	o.PrintFlags.AddFlags(cmd)
 
-	cmd.Flags().StringVar(&o.From, "from", o.From, "A Docker image repository to import images from")
+	cmd.Flags().StringVar(&o.From, "from", o.From, "A container image repository to import images from")
 	cmd.Flags().BoolVar(&o.Confirm, "confirm", o.Confirm, "If true, allow the image stream import location to be set or changed")
 	cmd.Flags().BoolVar(&o.All, "all", o.All, "If true, import all tags from the provided source on creation or if --from is specified")
 	cmd.Flags().StringVar(&o.ReferencePolicy, "reference-policy", o.ReferencePolicy, "Allow to request pullthrough for external image when set to 'local'. Defaults to 'source'.")
 	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Fetch information about images without creating or updating an image stream.")
-	cmd.Flags().BoolVar(&o.Scheduled, "scheduled", o.Scheduled, "Set each imported Docker image to be periodically imported from a remote repository. Defaults to false.")
+	cmd.Flags().BoolVar(&o.Scheduled, "scheduled", o.Scheduled, "Set each imported container image to be periodically imported from a remote repository. Defaults to false.")
 	cmd.Flags().BoolVar(&o.Insecure, "insecure", o.Insecure, "If true, allow importing from registries that have invalid HTTPS certificates or are hosted via HTTP. This flag will take precedence over the insecure annotation.")
 
 	return cmd
@@ -170,7 +170,7 @@ func (o *ImportImageOptions) parseImageReference() error {
 	targetRef, err := reference.Parse(o.Target)
 	switch {
 	case err != nil:
-		return fmt.Errorf("the image name must be a valid Docker image pull spec or reference to an image stream (e.g. myregistry/myteam/image:tag)")
+		return fmt.Errorf("the image name must be a valid container image pull spec or reference to an image stream (e.g. myregistry/myteam/image:tag)")
 	case len(targetRef.ID) > 0:
 		return fmt.Errorf("to import images by ID, use the 'tag' command")
 	case len(targetRef.Tag) != 0 && o.All:

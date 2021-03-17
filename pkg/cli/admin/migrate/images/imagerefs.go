@@ -29,9 +29,9 @@ import (
 
 var (
 	internalMigrateImagesLong = templates.LongDesc(`
-		Migrate references to Docker images
+		Migrate references to container images
 
-		This command updates embedded Docker image references on the server in place. By default it
+		This command updates embedded container image references on the server in place. By default it
 		will update image streams and images, and may be used to update resources with a pod template
 		(deployments, replication controllers, daemon sets).
 
@@ -94,7 +94,7 @@ func NewCmdMigrateImageReferences(f kcmdutil.Factory, streams genericclioptions.
 	o := NewMigrateImageReferenceOptions(streams)
 	cmd := &cobra.Command{
 		Use:        "image-references REGISTRY/NAME=REGISTRY/NAME [...]",
-		Short:      "Update embedded Docker image references",
+		Short:      "Update embedded container image references",
 		Long:       internalMigrateImagesLong,
 		Example:    internalMigrateImagesExample,
 		Deprecated: "migration of content is managed automatically in OpenShift 4.x",
@@ -397,7 +397,7 @@ func ParseMapping(s string) (ImageReferenceMapping, error) {
 // ImageReferenceMappings provide a convenience method for transforming an input reference
 type ImageReferenceMappings []ImageReferenceMapping
 
-// MapReference transforms the provided Docker image reference if any mapping matches the
+// MapReference transforms the provided container image reference if any mapping matches the
 // input. If the reference cannot be parsed, it will not be modified.
 func (m ImageReferenceMappings) MapReference(in string) string {
 	ref, err := reference.Parse(in)

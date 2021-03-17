@@ -84,7 +84,7 @@ var (
 		# List all local templates and image streams that can be used to create an app
 		oc new-app --list
 
-		# Create an application based on the source code in the current git repository (with a public remote) and a Docker image
+		# Create an application based on the source code in the current git repository (with a public remote) and a container image
 		oc new-app . --docker-image=registry/repo/langimage
 
 		# Create an application myapp with Docker based build strategy expecting binary input
@@ -114,7 +114,7 @@ var (
 		# Create an application based on a template file, explicitly setting a parameter value
 		oc new-app --file=./example/myapp/template.json --param=MYSQL_USER=admin
 
-		# Search all templates, image streams, and Docker images for the ones that match "ruby"
+		# Search all templates, image streams, and container images for the ones that match "ruby"
 		oc new-app --search ruby
 
 		# Search for "ruby", but only in stored templates (--template, --image-stream and --docker-image
@@ -131,7 +131,7 @@ To list all local templates and image streams, use:
 
   oc new-app -L
 
-To search templates, image streams, and Docker images that match the arguments provided, use:
+To search templates, image streams, and container images that match the arguments provided, use:
 
   oc new-app -S php
   oc new-app -S --template=rails
@@ -269,7 +269,7 @@ func NewCmdNewApplication(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringSliceVar(&o.Config.SourceRepositories, "code", o.Config.SourceRepositories, "Source code to use to build this application.")
 	cmd.Flags().StringVar(&o.Config.ContextDir, "context-dir", o.Config.ContextDir, "Context directory to be used for the build.")
 	cmd.Flags().StringSliceVarP(&o.Config.ImageStreams, "image-stream", "i", o.Config.ImageStreams, "Name of an image stream to use in the app.")
-	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "docker-image", o.Config.DockerImages, "Name of a Docker image to include in the app.  Note:  not specifying a registry or repository means defaults in place for client image pulls are employed.")
+	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "docker-image", o.Config.DockerImages, "Name of a container image to include in the app.  Note:  not specifying a registry or repository means defaults in place for client image pulls are employed.")
 	cmd.Flags().StringSliceVar(&o.Config.Templates, "template", o.Config.Templates, "Name of a stored template to use in the app.")
 	cmd.Flags().StringSliceVarP(&o.Config.TemplateFiles, "file", "f", o.Config.TemplateFiles, "Path to a template file to use for the app.")
 	cmd.MarkFlagFilename("file", "yaml", "yml", "json")
@@ -287,10 +287,10 @@ func NewCmdNewApplication(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().Var(&o.Config.Strategy, "strategy", "Specify the build strategy to use if you don't want to detect (docker|pipeline|source). NOTICE: the pipeline strategy is deprecated; consider using Jenkinsfiles directly on Jenkins or OpenShift Pipelines.")
 	cmd.Flags().StringP("labels", "l", "", "Label to set in all resources for this application.")
 	cmd.Flags().BoolVar(&o.Config.IgnoreUnknownParameters, "ignore-unknown-parameters", o.Config.IgnoreUnknownParameters, "If true, will not stop processing if a provided parameter does not exist in the template.")
-	cmd.Flags().BoolVar(&o.Config.InsecureRegistry, "insecure-registry", o.Config.InsecureRegistry, "If true, indicates that the referenced Docker images are on insecure registries and should bypass certificate checking")
+	cmd.Flags().BoolVar(&o.Config.InsecureRegistry, "insecure-registry", o.Config.InsecureRegistry, "If true, indicates that the referenced container images are on insecure registries and should bypass certificate checking")
 	cmd.Flags().BoolVarP(&o.Config.AsList, "list", "L", o.Config.AsList, "List all local templates and image streams that can be used to create.")
-	cmd.Flags().BoolVarP(&o.Config.AsSearch, "search", "S", o.Config.AsSearch, "Search all templates, image streams, and Docker images that match the arguments provided.")
-	cmd.Flags().BoolVar(&o.Config.AllowMissingImages, "allow-missing-images", o.Config.AllowMissingImages, "If true, indicates that referenced Docker images that cannot be found locally or in a registry should still be used.")
+	cmd.Flags().BoolVarP(&o.Config.AsSearch, "search", "S", o.Config.AsSearch, "Search all templates, image streams, and container images that match the arguments provided.")
+	cmd.Flags().BoolVar(&o.Config.AllowMissingImages, "allow-missing-images", o.Config.AllowMissingImages, "If true, indicates that referenced container images that cannot be found locally or in a registry should still be used.")
 	cmd.Flags().BoolVar(&o.Config.AllowMissingImageStreamTags, "allow-missing-imagestream-tags", o.Config.AllowMissingImageStreamTags, "If true, indicates that image stream tags that don't exist should still be used.")
 	cmd.Flags().BoolVar(&o.Config.AllowSecretUse, "grant-install-rights", o.Config.AllowSecretUse, "If true, a component that requires access to your account may use your token to install software into your project. Only grant images you trust the right to run with your token.")
 	cmd.Flags().StringVar(&o.Config.SourceSecret, "source-secret", o.Config.SourceSecret, "The name of an existing secret that should be used for cloning a private git repository.")
@@ -996,7 +996,7 @@ func TransformRunError(err error, commandPath string, groups ErrorGroups, config
 				groups.Add(
 					"multiple-matches",
 					heredoc.Docf(`
-						The argument %[1]q could apply to the following Docker images, OpenShift image streams, or templates:
+						The argument %[1]q could apply to the following container images, OpenShift image streams, or templates:
 
 						%[2]sTo view a full list of matches, use 'oc new-app -S %[1]s'`, t.Value, buf.String(),
 					),
@@ -1015,7 +1015,7 @@ func TransformRunError(err error, commandPath string, groups ErrorGroups, config
 		groups.Add(
 			"multiple-matches",
 			heredoc.Docf(`
-					The argument %[1]q could apply to the following Docker images, OpenShift image streams, or templates:
+					The argument %[1]q could apply to the following container images, OpenShift image streams, or templates:
 
 					%[2]s`, t.Value, buf.String(),
 			),
@@ -1033,7 +1033,7 @@ func TransformRunError(err error, commandPath string, groups ErrorGroups, config
 		groups.Add(
 			"partial-match",
 			heredoc.Docf(`
-					The argument %[1]q only partially matched the following Docker image, OpenShift image stream, or template:
+					The argument %[1]q only partially matched the following container image, OpenShift image stream, or template:
 
 					%[2]s`, t.Value, buf.String(),
 			),
@@ -1156,7 +1156,7 @@ func printHumanReadableQueryResult(r *newcmd.QueryResult, out io.Writer) error {
 	}
 
 	if len(dockerImages) > 0 {
-		fmt.Fprintf(out, "Docker images (oc new-app --docker-image=<docker-image> [--code=<source>])\n")
+		fmt.Fprintf(out, "container images (oc new-app --docker-image=<docker-image> [--code=<source>])\n")
 		fmt.Fprintln(out, "-----")
 		for _, match := range dockerImages {
 			image := match.DockerImage

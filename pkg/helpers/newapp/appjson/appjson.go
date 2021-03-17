@@ -193,7 +193,7 @@ func (g *Generator) Generate(body []byte) (*templatev1.Template, error) {
 		baseImage = appJSON.Image
 	}
 	if len(baseImage) == 0 {
-		return nil, fmt.Errorf("Docker image required: provide an --image flag or 'image' key in app.json")
+		return nil, fmt.Errorf("container image required: provide an --image flag or 'image' key in app.json")
 	}
 
 	fakeDockerfile := heredoc.Docf(`
