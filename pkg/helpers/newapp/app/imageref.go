@@ -230,11 +230,13 @@ func (r *ImageRef) SuggestName() (string, bool) {
 	if r == nil {
 		return "", false
 	}
-	if len(r.ObjectName) > 0 {
-		return r.ObjectName, true
-	}
+	// if ImageStream already exists, its name should
+	// have higher preference than object name
 	if r.Stream != nil {
 		return r.Stream.Name, true
+	}
+	if len(r.ObjectName) > 0 {
+		return r.ObjectName, true
 	}
 	if len(r.Reference.Name) > 0 {
 		return r.Reference.Name, true
@@ -244,13 +246,9 @@ func (r *ImageRef) SuggestName() (string, bool) {
 
 // SuggestNamespace suggests a namespace for an image reference
 func (r *ImageRef) SuggestNamespace() string {
-	if r == nil {
-		return ""
-	}
-	if len(r.ObjectName) > 0 {
-		return ""
-	}
-	if r.Stream != nil {
+	// if ImageStream already exists, it's namespace should have
+	// priority over object namespace
+	if r != nil && r.Stream != nil {
 		return r.Stream.Namespace
 	}
 	return ""
