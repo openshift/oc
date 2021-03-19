@@ -1,6 +1,6 @@
 module github.com/openshift/oc
 
-go 1.14
+go 1.15
 
 require (
 	github.com/AaronO/go-git-http v0.0.0-20161214145340-1d9485b3a98f
@@ -72,26 +72,32 @@ require (
 	google.golang.org/grpc v1.35.0 // indirect
 	gopkg.in/ldap.v2 v2.5.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
-	k8s.io/api v0.20.1
-	k8s.io/apimachinery v0.20.4
-	k8s.io/apiserver v0.20.1
-	k8s.io/cli-runtime v0.20.1
-	k8s.io/client-go v0.20.1
-	k8s.io/component-base v0.20.1
-	k8s.io/klog/v2 v2.4.0
-	k8s.io/kubectl v0.20.1
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
+	k8s.io/api v0.21.0-beta.1
+	k8s.io/apimachinery v0.21.0-beta.1
+	k8s.io/apiserver v0.21.0-beta.1
+	k8s.io/client-go v0.21.0-beta.1
+	k8s.io/cli-runtime v0.21.0-beta.1
+	k8s.io/component-base v0.21.0-beta.1
+	k8s.io/klog/v2 v2.8.0
+	k8s.io/kubectl v0.21.0-beta.1
+	k8s.io/utils master
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/yaml v1.2.0
 )
 
 replace (
+	// temporary pins to latest commit
+	github.com/openshift/api => github.com/soltysh/api k8s-1.21
+	github.com/openshift/build-machinery-go => github.com/openshift/build-machinery-go 0da259a2c3590f4e1adef1afec473a9a02c4ae6b
+	github.com/openshift/client-go => github.com/openshift/client-go ebc401615f47f2661176e59bd1bbb31288badf9c
+	github.com/openshift/library-go => github.com/openshift/library-go 323ad8a8f7d8965a3784bf56fb12e1bd942ae633
+
 	github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
 	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 	github.com/containers/image => github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d
 
-	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20210108114224-194a87c5b03a
-	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210108114725-2ff6add1e911
-	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20210108114446-0829bdd68114
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20210108115031-c0d78c0aeda3
+	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery oc-4.8-kubernetes-1.21.0-beta.1
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime oc-4.8-kubernetes-1.21.0-beta.1
+	k8s.io/client-go => github.com/openshift/kubernetes-client-go oc-4.8-kubernetes-1.21.0-beta.1
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl oc-4.8-kubernetes-1.21.0-beta.1
 )
