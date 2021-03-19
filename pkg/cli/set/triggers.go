@@ -15,7 +15,6 @@ import (
 	kappsv1beta1 "k8s.io/api/apps/v1beta1"
 	kappsv1beta2 "k8s.io/api/apps/v1beta2"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
-	batchv2alpha1 "k8s.io/api/batch/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -809,7 +808,7 @@ func (t *TriggerDefinition) Apply(obj runtime.Object) error {
 	case *extensionsv1beta1.DaemonSet, *kappsv1beta2.DaemonSet, *kappsv1.DaemonSet,
 		*extensionsv1beta1.Deployment, *kappsv1beta1.Deployment, *kappsv1beta2.Deployment, *kappsv1.Deployment,
 		*kappsv1beta1.StatefulSet, *kappsv1beta2.StatefulSet, *kappsv1.StatefulSet,
-		*batchv1beta1.CronJob, *batchv2alpha1.CronJob:
+		*batchv1beta1.CronJob:
 
 		if len(t.GitHubWebHooks) > 0 {
 			return fmt.Errorf("does not support GitHub web hooks")
@@ -1043,7 +1042,7 @@ func UpdateTriggersForObject(obj runtime.Object, fn func(*TriggerDefinition) err
 	case *extensionsv1beta1.DaemonSet, *kappsv1beta2.DaemonSet, *kappsv1.DaemonSet,
 		*extensionsv1beta1.Deployment, *kappsv1beta1.Deployment, *kappsv1beta2.Deployment, *kappsv1.Deployment,
 		*kappsv1beta1.StatefulSet, *kappsv1beta2.StatefulSet, *kappsv1.StatefulSet,
-		*batchv1beta1.CronJob, *batchv2alpha1.CronJob:
+		*batchv1beta1.CronJob:
 		triggers, err := NewAnnotationTriggers(obj)
 		if err != nil {
 			return false, err
