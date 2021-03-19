@@ -72,26 +72,31 @@ require (
 	google.golang.org/grpc v1.35.0 // indirect
 	gopkg.in/ldap.v2 v2.5.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
-	k8s.io/api v0.20.1
-	k8s.io/apimachinery v0.20.4
-	k8s.io/apiserver v0.20.1
-	k8s.io/cli-runtime v0.20.1
-	k8s.io/client-go v0.20.1
-	k8s.io/component-base v0.20.1
-	k8s.io/klog/v2 v2.4.0
-	k8s.io/kubectl v0.20.1
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
+	k8s.io/api v0.21.0-beta.1
+	k8s.io/apimachinery v0.21.0-beta.1
+	k8s.io/apiserver v0.21.0-beta.1
+	k8s.io/client-go v0.21.0-beta.1
+	k8s.io/cli-runtime v0.21.0-beta.1
+	k8s.io/component-base v0.21.0-beta.1
+	k8s.io/klog/v2 v2.8.0
+	k8s.io/kubectl v0.21.0-beta.1
+	k8s.io/utils master
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/yaml v1.2.0
 )
 
 replace (
+	// temporary pins to latest commit from soltysh/k8s-1.21 branches
+	github.com/openshift/api => github.com/soltysh/api 97dfec49c1791ecd05cb9cca193aa7f08a9e0f5b
+	github.com/openshift/client-go => github.com/soltysh/client-go e53d4b5c79d3df0d348bc93dbc87c0e7a88b8f4c
+	github.com/openshift/library-go => github.com/soltysh/library-go 072267446dd3589e5d6660e13d7f4972d6d5cfdf
 	github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
 	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 	github.com/containers/image => github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d
 
-	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20210108114224-194a87c5b03a
-	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210108114725-2ff6add1e911
-	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20210108114446-0829bdd68114
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20210108115031-c0d78c0aeda3
+	// temporary pins to latest commit from oc-4.8-kubernetes-1.21.0-beta.1 branches
+	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery c39220d4515a11333ce68ac0fa67d5470420e098
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime bd1440067d42a23b1c8ec0d8fdadb39dbbbc6271
+	k8s.io/client-go => github.com/openshift/kubernetes-client-go 0e99c560fb6e74540d86104c8a6a56280274aa5a
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl f85b080fa3cae567aaf12b7b145588e0c14d75b9
 )
