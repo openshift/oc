@@ -34,6 +34,8 @@ RUN INSTALL_PKGS="\
   vim-enhanced \
   wget \
   xfsprogs \
+  fio \
+  stress-ng \
   " && \
   yum -y install $INSTALL_PKGS && rpm -V --nosize --nofiledigest --nomtime --nomode $INSTALL_PKGS && yum clean all && rm -rf /var/cache/*
   # Disabled until they are buildable on s390x
