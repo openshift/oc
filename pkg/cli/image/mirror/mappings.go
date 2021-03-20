@@ -17,6 +17,10 @@ import (
 // ErrAlreadyExists may be returned by the blob Create function to indicate that the blob already exists.
 var ErrAlreadyExists = fmt.Errorf("blob already exists in the target location")
 
+// As length of mappings increases, so does Authorization Header size, and this causes upload failures with
+// registries that have a header size limit (quay.io)
+var maxLenMappings = 10
+
 type Mapping struct {
 	Source      imagesource.TypedImageReference
 	Destination imagesource.TypedImageReference
@@ -169,47 +173,69 @@ func (d *destinations) mergeIntoDigests(srcDigest digest.Digest, target pushTarg
 
 type targetTree map[key]*destinations
 
-func buildTargetTree(mappings []Mapping) targetTree {
-	tree := make(targetTree)
-	for _, m := range mappings {
-		srcKey := key{t: m.Source.Type, registry: m.Source.Ref.Registry, repository: m.Source.Ref.RepositoryName()}
-		dstKey := key{t: m.Destination.Type, registry: m.Destination.Ref.Registry, repository: m.Destination.Ref.RepositoryName()}
+func buildTargetTrees(mappings []Mapping) []targetTree {
+	var trees []targetTree
+	// split targetTrees into groups of 10
+	splitMappings := split(mappings, maxLenMappings)
+	for _, splitm := range splitMappings {
+		tree := make(targetTree)
+		for _, m := range splitm {
+			srcKey := key{t: m.Source.Type, registry: m.Source.Ref.Registry, repository: m.Source.Ref.RepositoryName()}
+			dstKey := key{t: m.Destination.Type, registry: m.Destination.Ref.Registry, repository: m.Destination.Ref.RepositoryName()}
 
-		src, ok := tree[srcKey]
-		if !ok {
-			src = &destinations{}
-			src.ref = imagesource.TypedImageReference{Ref: m.Source.Ref.AsRepository(), Type: m.Source.Type}
-			src.digests = make(map[string]pushTargets)
-			src.tags = make(map[string]pushTargets)
-			tree[srcKey] = src
-		}
-
-		var current pushTargets
-		if id := m.Source.Ref.ID; len(id) > 0 {
-			current = src.digests[m.Source.Ref.ID]
-			if current == nil {
-				current = make(pushTargets)
-				src.digests[m.Source.Ref.ID] = current
+			src, ok := tree[srcKey]
+			if !ok {
+				src = &destinations{}
+				src.ref = imagesource.TypedImageReference{Ref: m.Source.Ref.AsRepository(), Type: m.Source.Type}
+				src.digests = make(map[string]pushTargets)
+				src.tags = make(map[string]pushTargets)
+				tree[srcKey] = src
 			}
-		} else {
-			tag := m.Source.Ref.Tag
-			current = src.tags[tag]
-			if current == nil {
-				current = make(pushTargets)
-				src.tags[tag] = current
-			}
-		}
 
-		dst, ok := current[dstKey]
-		if !ok {
-			dst.ref = imagesource.TypedImageReference{Ref: m.Destination.Ref.AsRepository(), Type: m.Destination.Type}
+			var current pushTargets
+			if id := m.Source.Ref.ID; len(id) > 0 {
+				current = src.digests[m.Source.Ref.ID]
+				if current == nil {
+					current = make(pushTargets)
+					src.digests[m.Source.Ref.ID] = current
+				}
+			} else {
+				tag := m.Source.Ref.Tag
+				current = src.tags[tag]
+				if current == nil {
+					current = make(pushTargets)
+					src.tags[tag] = current
+				}
+			}
+
+			dst, ok := current[dstKey]
+			if !ok {
+				dst.ref = imagesource.TypedImageReference{Ref: m.Destination.Ref.AsRepository(), Type: m.Destination.Type}
+			}
+			if len(m.Destination.Ref.Tag) > 0 {
+				dst.tags = append(dst.tags, m.Destination.Ref.Tag)
+			}
+			current[dstKey] = dst
 		}
-		if len(m.Destination.Ref.Tag) > 0 {
-			dst.tags = append(dst.tags, m.Destination.Ref.Tag)
-		}
-		current[dstKey] = dst
+		trees = append(trees, tree)
 	}
-	return tree
+	return trees
+}
+
+func split(mappings []Mapping, size int) [][]Mapping {
+	var splitMappings [][]Mapping
+	for i := 0; i < len(mappings); i += size {
+		m := mappings[i:min(i+size, len(mappings))]
+		splitMappings = append(splitMappings, m)
+	}
+	return splitMappings
+}
+
+func min(a, b int) int {
+	if a <= b {
+		return a
+	}
+	return b
 }
 
 func addDockerRegistryScopes(scopes map[contextKey]map[string]bool, targets map[string]pushTargets, srcKey key) {
