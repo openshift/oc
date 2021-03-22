@@ -1,5 +1,3 @@
-ifndef _YAML_PATCH_MK_
-_YAML_PATCH_MK_ := defined
 self_dir :=$(dir $(lastword $(MAKEFILE_LIST)))
 
 YAML_PATCH ?=$(PERMANENT_TMP_GOPATH)/bin/yaml-patch
@@ -32,4 +30,3 @@ include $(addprefix $(self_dir), \
 	../../lib/golang.mk \
 	../../lib/tmp.mk \
 )
-endif

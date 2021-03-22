@@ -3,10 +3,6 @@ all
 build
 clean
 clean-binaries
-clean-yaml-patch
-clean-yq
-ensure-yaml-patch
-ensure-yq
 help
 image-ocp-openshift-apiserver-operator
 images
@@ -19,7 +15,6 @@ update-codegen
 update-deps-overrides
 update-generated
 update-gofmt
-update-profile-manifests
 verify
 verify-bindata
 verify-codegen
@@ -28,4 +23,3 @@ verify-generated
 verify-gofmt
 verify-golint
 verify-govet
-verify-profile-manifests

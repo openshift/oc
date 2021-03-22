@@ -85,13 +85,12 @@ require (
 )
 
 replace (
-
 	github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
 	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 	github.com/containers/image => github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d
+
 	// temporary pins to latest commit
 	github.com/openshift/api => github.com/soltysh/api v0.0.0-20210316153846-386aa1218e56
-	github.com/openshift/build-machinery-go => github.com/openshift/build-machinery-go v0.0.0-20210209125900-0da259a2c359
 	github.com/openshift/client-go => github.com/soltysh/client-go v0.0.0-20210316153111-877e687f9318
 	github.com/openshift/library-go => github.com/soltysh/library-go v0.0.0-20210316155610-db3fcf358b0d
 
