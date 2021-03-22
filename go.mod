@@ -88,9 +88,9 @@ require (
 replace (
 	// temporary pins to latest commit
 	github.com/openshift/api => github.com/soltysh/api k8s-1.21
-	github.com/openshift/build-machinery-go => github.com/openshift/build-machinery-go 0da259a2c3590f4e1adef1afec473a9a02c4ae6b
-	github.com/openshift/client-go => github.com/openshift/client-go ebc401615f47f2661176e59bd1bbb31288badf9c
-	github.com/openshift/library-go => github.com/openshift/library-go 323ad8a8f7d8965a3784bf56fb12e1bd942ae633
+	github.com/openshift/client-go => github.com/soltysh/client-go k8s-1.21
+	github.com/openshift/library-go => github.com/soltysh/library-go k8s-1.21
+	github.com/openshift/build-machinery-go => github.com/openshift/build-machinery-go release-4.8
 
 	github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
 	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
