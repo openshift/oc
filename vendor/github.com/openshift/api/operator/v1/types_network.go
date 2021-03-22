@@ -60,6 +60,16 @@ type NetworkSpec struct {
 	// 'false' and multiple network support is enabled.
 	DisableMultiNetwork *bool `json:"disableMultiNetwork,omitempty"`
 
+	// useMultiNetworkPolicy enables a controller which allows for
+	// MultiNetworkPolicy objects to be used on additional networks as
+	// created by Multus CNI. MultiNetworkPolicy are similar to NetworkPolicy
+	// objects, but NetworkPolicy objects only apply to the primary interface.
+	// With MultiNetworkPolicy, you can control the traffic that a pod can receive
+	// over the secondary interfaces. If unset, this property defaults to 'false'
+	// and MultiNetworkPolicy objects are ignored. If 'disableMultiNetwork' is
+	// 'true' then the value of this field is ignored.
+	UseMultiNetworkPolicy *bool `json:"useMultiNetworkPolicy,omitempty"`
+
 	// deployKubeProxy specifies whether or not a standalone kube-proxy should
 	// be deployed by the operator. Some network providers include kube-proxy
 	// or similar functionality. If unset, the plugin will attempt to select
@@ -80,6 +90,13 @@ type NetworkSpec struct {
 	// If not specified, sensible defaults will be chosen by OpenShift directly.
 	// Not consumed by all network providers - currently only openshift-sdn.
 	KubeProxyConfig *ProxyConfig `json:"kubeProxyConfig,omitempty"`
+
+	// exportNetworkFlows enables and configures the export of network flow metadata from the pod network
+	// by using protocols NetFlow, SFlow or IPFIX. Currently only supported on OVN-Kubernetes plugin.
+	// If unset, flows will not be exported to any collector.
+	// +optional
+	// +kubebuilder:validation:MinProperties=1
+	ExportNetworkFlows *ExportNetworkFlows `json:"exportNetworkFlows,omitempty"`
 }
 
 // ClusterNetworkEntry is a subnet from which to allocate PodIPs. A network of size
@@ -338,6 +355,40 @@ type HybridOverlayConfig struct {
 
 type IPsecConfig struct {
 }
+
+type ExportNetworkFlows struct {
+	// netFlow defines the NetFlow configuration.
+	// +optional
+	NetFlow *NetFlowConfig `json:"netFlow,omitempty"`
+	// sFlow defines the SFlow configuration.
+	// +optional
+	SFlow *SFlowConfig `json:"sFlow,omitempty"`
+	// ipfix defines IPFIX configuration.
+	// +optional
+	IPFIX *IPFIXConfig `json:"ipfix,omitempty"`
+}
+
+type NetFlowConfig struct {
+	// netFlow defines the NetFlow collectors that will consume the flow data exported from OVS.
+	// It is a list of strings formatted as ip:port
+	// +kubebuilder:validation:MinItems=1
+	Collectors []IPPort `json:"collectors,omitempty"`
+}
+
+type SFlowConfig struct {
+	// sFlowCollectors is list of strings formatted as ip:port
+	// +kubebuilder:validation:MinItems=1
+	Collectors []IPPort `json:"collectors,omitempty"`
+}
+
+type IPFIXConfig struct {
+	// ipfixCollectors is list of strings formatted as ip:port
+	// +kubebuilder:validation:MinItems=1
+	Collectors []IPPort `json:"collectors,omitempty"`
+}
+
+// +kubebuilder:validation:Pattern=`^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5]):[0-9]+$`
+type IPPort string
 
 // NetworkType describes the network plugin type to configure
 type NetworkType string

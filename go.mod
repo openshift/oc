@@ -31,6 +31,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
 	github.com/golang/mock v1.4.3 // indirect
+	github.com/golangplus/bytes v1.0.0 // indirect
 	github.com/gonum/diff v0.0.0-20181124234638-500114f11e71 // indirect
 	github.com/gonum/graph v0.0.0-20170401004347-50b27dea7ebb
 	github.com/gonum/integrate v0.0.0-20181209220457-a422b5c0fdf2 // indirect
@@ -44,7 +45,7 @@ require (
 	github.com/mtrmac/gpgme v0.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
-	github.com/openshift/api v0.0.0-20201216151826-78a19e96f9eb
+	github.com/openshift/api v0.0.0-20210105115604-44119421ec6b
 	github.com/openshift/build-machinery-go v0.0.0-20200917070002-f171684f77ab
 	github.com/openshift/client-go v0.0.0-20201214125552-e615e336eb49
 	github.com/openshift/library-go v0.0.0-20210219155623-0260bfd7946b
@@ -62,12 +63,10 @@ require (
 	github.com/yvasiyarov/go-metrics v0.0.0-20150112132944-c25f46c4b940 // indirect
 	github.com/yvasiyarov/gorelic v0.0.7 // indirect
 	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20160601141957-9c099fbc30e9 // indirect
-	golang.org/x/crypto v0.0.0-20210218145215-b8e89b74b9df
-	golang.org/x/sys v0.0.0-20210219172841-57ea560cfca1
-	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
+	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+	golang.org/x/sys v0.0.0-20210225134936-a50acf3fe073
 	golang.org/x/text v0.3.5 // indirect
-	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
-	golang.org/x/tools v0.1.0 // indirect
+	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
 	google.golang.org/genproto v0.0.0-20210219173056-d891e3cb3b5b // indirect
 	google.golang.org/grpc v1.35.0 // indirect
 	gopkg.in/ldap.v2 v2.5.1
@@ -75,29 +74,29 @@ require (
 	k8s.io/api v0.21.0-beta.1
 	k8s.io/apimachinery v0.21.0-beta.1
 	k8s.io/apiserver v0.21.0-beta.1
-	k8s.io/client-go v0.21.0-beta.1
 	k8s.io/cli-runtime v0.21.0-beta.1
+	k8s.io/client-go v0.21.0-beta.1
 	k8s.io/component-base v0.21.0-beta.1
 	k8s.io/klog/v2 v2.8.0
 	k8s.io/kubectl v0.21.0-beta.1
-	k8s.io/utils master
+	k8s.io/utils v0.0.0-20210305010621-2afb4311ab10
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/yaml v1.2.0
 )
 
 replace (
-	// temporary pins to latest commit
-	github.com/openshift/api => github.com/soltysh/api k8s-1.21
-	github.com/openshift/client-go => github.com/soltysh/client-go k8s-1.21
-	github.com/openshift/library-go => github.com/soltysh/library-go k8s-1.21
-	github.com/openshift/build-machinery-go => github.com/openshift/build-machinery-go release-4.8
 
 	github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
 	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 	github.com/containers/image => github.com/openshift/containers-image v0.0.0-20190130162819-76de87591e9d
+	// temporary pins to latest commit
+	github.com/openshift/api => github.com/soltysh/api v0.0.0-20210316153846-386aa1218e56
+	github.com/openshift/build-machinery-go => github.com/openshift/build-machinery-go v0.0.0-20210209125900-0da259a2c359
+	github.com/openshift/client-go => github.com/soltysh/client-go v0.0.0-20210316153111-877e687f9318
+	github.com/openshift/library-go => github.com/soltysh/library-go v0.0.0-20210316155610-db3fcf358b0d
 
-	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery oc-4.8-kubernetes-1.21.0-beta.1
-	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime oc-4.8-kubernetes-1.21.0-beta.1
-	k8s.io/client-go => github.com/openshift/kubernetes-client-go oc-4.8-kubernetes-1.21.0-beta.1
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl oc-4.8-kubernetes-1.21.0-beta.1
+	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20210318140035-c39220d4515a
+	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210318140803-8cc557ab4520
+	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20210318140334-0e99c560fb6e
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20210318140951-b779d9bf37c4
 )
