@@ -285,6 +285,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		a.ParallelOptions = o.ParallelOptions
 		a.KeepManifestList = true
 		a.Mappings = mappings
+		a.SkipMultipleScopes = true
 		if err := a.Validate(); err != nil {
 			fmt.Fprintf(o.IOStreams.ErrOut, "error configuring image mirroring: %v\n", err)
 		}
