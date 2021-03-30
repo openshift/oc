@@ -575,7 +575,8 @@ func TestExtractTarStream(t *testing.T) {
 	go func() {
 		err := createTestTar(testFiles, writer)
 		if err != nil {
-			t.Fatalf("Error creating tar stream: %v", err)
+			t.Errorf("Error creating tar stream: %v", err)
+			return
 		}
 		writer.CloseWithError(err)
 	}()
