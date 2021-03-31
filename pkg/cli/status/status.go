@@ -45,7 +45,7 @@ var (
 		oc status -o dot | dot -T svg -o project.svg
 
 		# See an overview of the current project including details for any identified issues.
-		oc --suggest`)
+		oc status --suggest`)
 )
 
 // StatusOptions contains all the necessary options for the Openshift cli status command.
