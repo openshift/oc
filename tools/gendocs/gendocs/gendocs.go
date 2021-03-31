@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -76,6 +77,11 @@ func extractExamples(cmd *cobra.Command) Examples {
 	if cmd.HasExample() {
 		o := &unstructured.Unstructured{
 			Object: make(map[string]interface{}),
+		}
+		if strings.HasPrefix(cmd.CommandPath(), "oc adm") {
+			o.Object["isAdminCommand"] = true
+		} else {
+			o.Object["isAdminCommand"] = false
 		}
 		o.Object["name"] = cmd.Name()
 		o.Object["fullName"] = cmd.CommandPath()

@@ -44,7 +44,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	outFile := outDir + "oc_by_example_content.adoc"
+	outFile := outDir + "oc-by-example-content.adoc"
 	out := os.Stdout
 	cmd := cli.NewOcCommand(&bytes.Buffer{}, out, ioutil.Discard)
 
