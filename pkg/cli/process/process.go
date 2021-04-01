@@ -206,7 +206,7 @@ func (o *ProcessOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	}
 
 	o.usageErrorFn = func(format string, args ...interface{}) error {
-		return kcmdutil.UsageErrorf(cmd, format, args)
+		return kcmdutil.UsageErrorf(cmd, format, args...)
 	}
 
 	o.paramValuesProvided = cmd.Flag("param").Changed
