@@ -80,8 +80,7 @@ func NewRshOptions(streams genericclioptions.IOStreams) *RshOptions {
 				Stdin:     true,
 			},
 
-			ParentCommandName: "oc",
-			Executor:          &exec.DefaultRemoteExecutor{},
+			Executor: &exec.DefaultRemoteExecutor{},
 		},
 	}
 }
@@ -167,13 +166,6 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 	} else {
 		o.Command = []string{o.Executable}
 	}
-
-	fullCmdName := ""
-	cmdParent := cmd.Parent()
-	if cmdParent != nil {
-		fullCmdName = cmdParent.CommandPath()
-	}
-	o.EnableSuggestedCmdUsage = len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe")
 
 	return nil
 }

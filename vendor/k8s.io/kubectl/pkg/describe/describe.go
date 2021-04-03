@@ -42,6 +42,7 @@ import (
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -200,6 +201,7 @@ func describerMap(clientConfig *rest.Config) (map[schema.GroupKind]ResourceDescr
 		{Group: corev1.GroupName, Kind: "ConfigMap"}:                              &ConfigMapDescriber{c},
 		{Group: corev1.GroupName, Kind: "PriorityClass"}:                          &PriorityClassDescriber{c},
 		{Group: discoveryv1beta1.GroupName, Kind: "EndpointSlice"}:                &EndpointSliceDescriber{c},
+		{Group: discoveryv1.GroupName, Kind: "EndpointSlice"}:                     &EndpointSliceDescriber{c},
 		{Group: extensionsv1beta1.GroupName, Kind: "ReplicaSet"}:                  &ReplicaSetDescriber{c},
 		{Group: extensionsv1beta1.GroupName, Kind: "NetworkPolicy"}:               &NetworkPolicyDescriber{c},
 		{Group: extensionsv1beta1.GroupName, Kind: "PodSecurityPolicy"}:           &PodSecurityPolicyDescriber{c},
@@ -525,26 +527,26 @@ func DescribeResourceQuotas(quotas *corev1.ResourceQuotaList, w PrefixWriter) {
 	}
 	sort.Sort(SortableResourceQuotas(quotas.Items))
 
-	w.Write(LEVEL_0, "Resource Quotas")
+	w.Write(LEVEL_0, "Resource Quotas\n")
 	for _, q := range quotas.Items {
-		w.Write(LEVEL_0, "\n Name:\t%s\n", q.Name)
+		w.Write(LEVEL_1, "Name:\t%s\n", q.Name)
 		if len(q.Spec.Scopes) > 0 {
 			scopes := make([]string, 0, len(q.Spec.Scopes))
 			for _, scope := range q.Spec.Scopes {
 				scopes = append(scopes, string(scope))
 			}
 			sort.Strings(scopes)
-			w.Write(LEVEL_0, " Scopes:\t%s\n", strings.Join(scopes, ", "))
+			w.Write(LEVEL_1, "Scopes:\t%s\n", strings.Join(scopes, ", "))
 			for _, scope := range scopes {
 				helpText := helpTextForResourceQuotaScope(corev1.ResourceQuotaScope(scope))
 				if len(helpText) > 0 {
-					w.Write(LEVEL_0, "  * %s\n", helpText)
+					w.Write(LEVEL_1, "* %s\n", helpText)
 				}
 			}
 		}
 
-		w.Write(LEVEL_0, " Resource\tUsed\tHard\n")
-		w.Write(LEVEL_0, " --------\t---\t---\n")
+		w.Write(LEVEL_1, "Resource\tUsed\tHard\n")
+		w.Write(LEVEL_1, "--------\t---\t---\n")
 
 		resources := make([]corev1.ResourceName, 0, len(q.Status.Hard))
 		for resource := range q.Status.Hard {
@@ -555,7 +557,7 @@ func DescribeResourceQuotas(quotas *corev1.ResourceQuotaList, w PrefixWriter) {
 		for _, resource := range resources {
 			hardQuantity := q.Status.Hard[resource]
 			usedQuantity := q.Status.Used[resource]
-			w.Write(LEVEL_0, " %s\t%s\t%s\n", string(resource), usedQuantity.String(), hardQuantity.String())
+			w.Write(LEVEL_1, "%s\t%s\t%s\n", string(resource), usedQuantity.String(), hardQuantity.String())
 		}
 	}
 }
@@ -1070,7 +1072,6 @@ func printEphemeralVolumeSource(ephemeral *corev1.EphemeralVolumeSource, w Prefi
 				Spec:       ephemeral.VolumeClaimTemplate.Spec,
 			}, false /* not a full PVC */)
 	}
-	w.Write(LEVEL_2, "ReadOnly:\t%v\n", ephemeral.ReadOnly)
 }
 
 func printRBDVolumeSource(rbd *corev1.RBDVolumeSource, w PrefixWriter) {
@@ -2160,6 +2161,9 @@ func describeJob(job *batchv1.Job, events *corev1.EventList) (string, error) {
 		} else {
 			w.Write(LEVEL_0, "Completions:\t<unset>\n")
 		}
+		if job.Spec.CompletionMode != nil {
+			w.Write(LEVEL_0, "Completion Mode:\t%s\n", job.Spec.CompletionMode)
+		}
 		if job.Status.StartTime != nil {
 			w.Write(LEVEL_0, "Start Time:\t%s\n", job.Status.StartTime.Time.Format(time.RFC1123Z))
 		}
@@ -2173,12 +2177,31 @@ func describeJob(job *batchv1.Job, events *corev1.EventList) (string, error) {
 			w.Write(LEVEL_0, "Active Deadline Seconds:\t%ds\n", *job.Spec.ActiveDeadlineSeconds)
 		}
 		w.Write(LEVEL_0, "Pods Statuses:\t%d Running / %d Succeeded / %d Failed\n", job.Status.Active, job.Status.Succeeded, job.Status.Failed)
+		if job.Spec.CompletionMode != nil && *job.Spec.CompletionMode == batchv1.IndexedCompletion {
+			w.Write(LEVEL_0, "Completed Indexes:\t%s\n", capIndexesListOrNone(job.Status.CompletedIndexes, 50))
+		}
 		DescribePodTemplate(&job.Spec.Template, w)
 		if events != nil {
 			DescribeEvents(events, w)
 		}
 		return nil
 	})
+}
+
+func capIndexesListOrNone(indexes string, softLimit int) string {
+	if len(indexes) == 0 {
+		return "<none>"
+	}
+	ix := softLimit
+	for ; ix < len(indexes); ix++ {
+		if indexes[ix] == ',' {
+			break
+		}
+	}
+	if ix >= len(indexes) {
+		return indexes
+	}
+	return indexes[:ix+1] + "..."
 }
 
 // CronJobDescriber generates information about a cron job and the jobs it has created.
@@ -2859,22 +2882,112 @@ type EndpointSliceDescriber struct {
 }
 
 func (d *EndpointSliceDescriber) Describe(namespace, name string, describerSettings DescriberSettings) (string, error) {
-	c := d.DiscoveryV1beta1().EndpointSlices(namespace)
+	var events *corev1.EventList
+	// try endpointslice/v1 first (v1.21) and fallback to v1beta1 if error occurs
 
-	eps, err := c.Get(context.TODO(), name, metav1.GetOptions{})
+	epsV1, err := d.DiscoveryV1().EndpointSlices(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err == nil {
+		if describerSettings.ShowEvents {
+			events, _ = d.CoreV1().Events(namespace).Search(scheme.Scheme, epsV1)
+		}
+		return describeEndpointSliceV1(epsV1, events)
+	}
+
+	epsV1beta1, err := d.DiscoveryV1beta1().EndpointSlices(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
-	var events *corev1.EventList
 	if describerSettings.ShowEvents {
-		events, _ = d.CoreV1().Events(namespace).Search(scheme.Scheme, eps)
+		events, _ = d.CoreV1().Events(namespace).Search(scheme.Scheme, epsV1beta1)
 	}
 
-	return describeEndpointSlice(eps, events)
+	return describeEndpointSliceV1beta1(epsV1beta1, events)
 }
 
-func describeEndpointSlice(eps *discoveryv1beta1.EndpointSlice, events *corev1.EventList) (string, error) {
+func describeEndpointSliceV1(eps *discoveryv1.EndpointSlice, events *corev1.EventList) (string, error) {
+	return tabbedString(func(out io.Writer) error {
+		w := NewPrefixWriter(out)
+		w.Write(LEVEL_0, "Name:\t%s\n", eps.Name)
+		w.Write(LEVEL_0, "Namespace:\t%s\n", eps.Namespace)
+		printLabelsMultiline(w, "Labels", eps.Labels)
+		printAnnotationsMultiline(w, "Annotations", eps.Annotations)
+
+		w.Write(LEVEL_0, "AddressType:\t%s\n", string(eps.AddressType))
+
+		if len(eps.Ports) == 0 {
+			w.Write(LEVEL_0, "Ports: <unset>\n")
+		} else {
+			w.Write(LEVEL_0, "Ports:\n")
+			w.Write(LEVEL_1, "Name\tPort\tProtocol\n")
+			w.Write(LEVEL_1, "----\t----\t--------\n")
+			for _, port := range eps.Ports {
+				portName := "<unset>"
+				if port.Name != nil && len(*port.Name) > 0 {
+					portName = *port.Name
+				}
+
+				portNum := "<unset>"
+				if port.Port != nil {
+					portNum = strconv.Itoa(int(*port.Port))
+				}
+
+				w.Write(LEVEL_1, "%s\t%s\t%s\n", portName, portNum, *port.Protocol)
+			}
+		}
+
+		if len(eps.Endpoints) == 0 {
+			w.Write(LEVEL_0, "Endpoints: <none>\n")
+		} else {
+			w.Write(LEVEL_0, "Endpoints:\n")
+			for i := range eps.Endpoints {
+				endpoint := &eps.Endpoints[i]
+
+				addressesString := strings.Join(endpoint.Addresses, ", ")
+				if len(addressesString) == 0 {
+					addressesString = "<none>"
+				}
+				w.Write(LEVEL_1, "- Addresses:\t%s\n", addressesString)
+
+				w.Write(LEVEL_2, "Conditions:\n")
+				readyText := "<unset>"
+				if endpoint.Conditions.Ready != nil {
+					readyText = strconv.FormatBool(*endpoint.Conditions.Ready)
+				}
+				w.Write(LEVEL_3, "Ready:\t%s\n", readyText)
+
+				hostnameText := "<unset>"
+				if endpoint.Hostname != nil {
+					hostnameText = *endpoint.Hostname
+				}
+				w.Write(LEVEL_2, "Hostname:\t%s\n", hostnameText)
+
+				if endpoint.TargetRef != nil {
+					w.Write(LEVEL_2, "TargetRef:\t%s/%s\n", endpoint.TargetRef.Kind, endpoint.TargetRef.Name)
+				}
+
+				nodeNameText := "<unset>"
+				if endpoint.NodeName != nil {
+					nodeNameText = *endpoint.NodeName
+				}
+				w.Write(LEVEL_2, "NodeName:\t%s\n", nodeNameText)
+
+				zoneText := "<unset>"
+				if endpoint.NodeName != nil {
+					zoneText = *endpoint.Zone
+				}
+				w.Write(LEVEL_2, "Zone:\t%s\n", zoneText)
+			}
+		}
+
+		if events != nil {
+			DescribeEvents(events, w)
+		}
+		return nil
+	})
+}
+
+func describeEndpointSliceV1beta1(eps *discoveryv1beta1.EndpointSlice, events *corev1.EventList) (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := NewPrefixWriter(out)
 		w.Write(LEVEL_0, "Name:\t%s\n", eps.Name)
@@ -3929,7 +4042,7 @@ func (dd *DeploymentDescriber) Describe(namespace, name string, describerSetting
 		events, _ = dd.client.CoreV1().Events(namespace).Search(scheme.Scheme, d)
 	}
 
-	return describeDeployment(d, selector, d, events, dd)
+	return describeDeployment(d, selector, d.DeepCopy(), events, dd)
 }
 
 func describeDeployment(d *appsv1.Deployment, selector labels.Selector, internalDeployment *appsv1.Deployment, events *corev1.EventList, dd *DeploymentDescriber) (string, error) {
