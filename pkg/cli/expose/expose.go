@@ -19,26 +19,26 @@ import (
 
 var (
 	exposeLong = templates.LongDesc(`
-		Expose containers internally as services or externally via routes
+		Expose containers internally as services or externally via routes.
 
-		There is also the ability to expose a deployment configuration, replication controller, service, or pod
-		as a new service on a specified port. If no labels are specified, the new object will re-use the
+		There is also the ability to expose a deployment config, replication controller, service, or pod
+		as a new service on a specified port. If no labels are specified, the new object will reuse the
 		labels from the object it exposes.
 	`)
 
 	exposeExample = templates.Examples(`
-		# Create a route based on service nginx. The new route will re-use nginx's labels
+		# Create a route based on service nginx. The new route will reuse nginx's labels
 		oc expose service nginx
 
 		# Create a route and specify your own label and route name
 		oc expose service nginx -l name=myroute --name=fromdowntown
 
-		# Create a route and specify a hostname
+		# Create a route and specify a host name
 		oc expose service nginx --hostname=www.example.com
 
-		# Create a route with wildcard
+		# Create a route with a wildcard
 		oc expose service nginx --hostname=x.example.com --wildcard-policy=Subdomain
-		This would be equivalent to *.example.com. NOTE: only hosts are matched by the wildcard, subdomains would not be included.
+		# This would be equivalent to *.example.com. NOTE: only hosts are matched by the wildcard; subdomains would not be included
 
 		# Expose a deployment configuration as a service and use the specified port
 		oc expose dc ruby-hello-world --port=8080
@@ -50,8 +50,8 @@ var (
 		oc expose service nginx --name=exposed-svc --port=12201 --protocol="TCP" --generator="service/v2"
 		oc expose service nginx --name=my-route --port=12201 --generator="route/v1"
 
-		Exposing a service using the "route/v1" generator (default) will create a new exposed route with the "--name" provided
-		(or the name of the service otherwise). You may not specify a "--protocol" or "--target-port" option when using this generator.
+		# Exposing a service using the "route/v1" generator (default) will create a new exposed route with the "--name" provided
+		# (or the name of the service otherwise). You may not specify a "--protocol" or "--target-port" option when using this generator
 	`)
 )
 

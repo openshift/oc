@@ -19,7 +19,7 @@ import (
 
 var (
 	reencryptRouteLong = templates.LongDesc(`
-		Create a route that uses reencrypt TLS termination
+		Create a route that uses reencrypt TLS termination.
 
 		Specify the service (either just its name or using type/name syntax) that the
 		generated route should expose using the --service flag. You may also specify
@@ -29,12 +29,12 @@ var (
 	`)
 
 	reencryptRouteExample = templates.Examples(`
-		# Create a route named "my-route" that exposes the frontend service:
+		# Create a route named "my-route" that exposes the frontend service
 		oc create route reencrypt my-route --service=frontend --dest-ca-cert cert.cert
 
 		# Create a reencrypt route that exposes the frontend service, letting the
 		# route name default to the service name and the destination CA certificate
-		# default to the service CA:
+		# default to the service CA
 		oc create route reencrypt --service=frontend
 	`)
 )

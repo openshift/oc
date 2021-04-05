@@ -31,7 +31,7 @@ const BuildChainRecommendedCommandName = "build-chain"
 
 var (
 	buildChainLong = templates.LongDesc(`
-		Output the inputs and dependencies of your builds
+		Output the inputs and dependencies of your builds.
 
 		Supported formats for the generated graph are dot and a human-readable output.
 		Tag and namespace are optional and if they are not specified, 'latest' and the
@@ -42,10 +42,10 @@ var (
 		# Build the dependency tree for the 'latest' tag in <image-stream>
 		oc adm build-chain <image-stream>
 
-		# Build the dependency tree for 'v2' tag in dot format and visualize it via the dot utility
+		# Build the dependency tree for the 'v2' tag in dot format and visualize it via the dot utility
 		oc adm build-chain <image-stream>:v2 -o dot | dot -T svg -o deps.svg
 
-		# Build the dependency tree across all namespaces for the specified image stream tag found in 'test' namespace
+		# Build the dependency tree across all namespaces for the specified image stream tag found in the 'test' namespace
 		oc adm build-chain <image-stream> -n test --all
 	`)
 )

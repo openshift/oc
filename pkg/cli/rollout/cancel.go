@@ -46,7 +46,7 @@ type CancelOptions struct {
 
 var (
 	rolloutCancelLong = templates.LongDesc(`
-		Cancel the in-progress deployment
+		Cancel the in-progress deployment.
 
 		Running this command will cause the current in-progress deployment to be
 		cancelled, but keep in mind that this is a best-effort operation and may take
@@ -73,7 +73,7 @@ func NewCmdRolloutCancel(f kcmdutil.Factory, streams genericclioptions.IOStreams
 		Use:     "cancel (TYPE NAME | TYPE/NAME) [flags]",
 		Long:    rolloutCancelLong,
 		Example: rolloutCancelExample,
-		Short:   "cancel the in-progress deployment",
+		Short:   "Cancel the in-progress deployment",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())

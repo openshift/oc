@@ -40,7 +40,7 @@ import (
 
 var (
 	observeLong = templates.LongDesc(`
-		Observe changes to resources and take action on them
+		Observe changes to resources and take action on them.
 
 		This command assists in building scripted reactions to changes that occur in
 		Kubernetes or OpenShift resources. This is frequently referred to as a
@@ -57,7 +57,7 @@ var (
 		* Send an email alert whenever a node reports 'NotReady'
 		* Watch for the 'FailedScheduling' event and write an IRC message
 		* Dynamically provision persistent volumes when a new PVC is created
-		* Delete pods that have reached successful completion after a period of time.
+		* Delete pods that have reached successful completion after a period of time
 
 		The simplest pattern is maintaining an invariant on an object - for instance,
 		"every namespace should have an annotation that indicates its owner". If the
@@ -86,7 +86,7 @@ var (
 		server - any resources returned by --names that are not found on the server
 		will be passed to your --delete command.
 
-		For example, you may wish to ensure that every node that is added to Kubernetes
+		For example, you may want to ensure that every node that is added to Kubernetes
 		is added to your cluster inventory along with its IP:
 
 		    $ cat add_to_inventory.sh

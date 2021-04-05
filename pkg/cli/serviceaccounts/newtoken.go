@@ -26,7 +26,7 @@ import (
 const (
 	NewServiceAccountTokenRecommendedName = "new-token"
 
-	newServiceAccountTokenShort = `Generate a new token for a service account.`
+	newServiceAccountTokenShort = `Generate a new token for a service account`
 
 	newServiceAccountTokenUsage = `%s SA-NAME`
 )

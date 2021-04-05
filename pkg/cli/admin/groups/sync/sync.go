@@ -35,10 +35,10 @@ const SyncRecommendedName = "sync"
 
 var (
 	syncLong = templates.LongDesc(`
-		Sync OpenShift Groups with records from an external provider.
+		Sync OpenShift groups with records from an external provider.
 
-		In order to sync OpenShift Group records with those from an external provider, determine which Groups you wish
-		to sync and where their records live. For instance, all or some groups may be selected from the current Groups
+		In order to sync OpenShift group records with those from an external provider, determine which groups you want
+		to sync and where their records live. For instance, all or some groups may be selected from the current groups
 		stored in OpenShift that have been synced previously, or similarly all or some groups may be selected from those
 		stored on an LDAP server. The path to a sync configuration file is required in order to describe how data is
 		requested from the external record store and migrated to OpenShift records. Default behavior is to do a dry-run
@@ -47,19 +47,19 @@ var (
 	`)
 
 	syncExamples = templates.Examples(`
-		# Sync all groups from an LDAP server
+		# Sync all groups with an LDAP server
 		oc adm groups sync --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-		# Sync all groups except the ones from the blacklist file from an LDAP server
+		# Sync all groups except the ones from the blacklist file with an LDAP server
 		oc adm groups sync --blacklist=/path/to/blacklist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
 		# Sync specific groups specified in a whitelist file with an LDAP server
 		oc adm groups sync --whitelist=/path/to/whitelist.txt --sync-config=/path/to/sync-config.yaml --confirm
 
-		# Sync all OpenShift Groups that have been synced previously with an LDAP server
+		# Sync all OpenShift groups that have been synced previously with an LDAP server
 		oc adm groups sync --type=openshift --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-		# Sync specific OpenShift Groups if they have been synced previously with an LDAP server
+		# Sync specific OpenShift groups if they have been synced previously with an LDAP server
 		oc adm groups sync groups/group1 groups/group2 groups/group3 --sync-config=/path/to/sync-config.yaml --confirm
 	`)
 )
@@ -119,7 +119,7 @@ func NewCmdSync(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 	o := NewSyncOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "sync [--type=TYPE] [WHITELIST] [--whitelist=WHITELIST-FILE] --sync-config=CONFIG-FILE [--confirm]",
-		Short:   "Sync OpenShift groups with records from an external provider.",
+		Short:   "Sync OpenShift groups with records from an external provider",
 		Long:    syncLong,
 		Example: syncExamples,
 		Run: func(c *cobra.Command, args []string) {

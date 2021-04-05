@@ -30,7 +30,7 @@ import (
 
 var (
 	probeLong = templates.LongDesc(`
-		Set or remove a liveness, readiness or startup probe from a pod or pod template
+		Set or remove a liveness, readiness or startup probe from a pod or pod template.
 
 		Each container in a pod may define one or more probes that are used for general health
 		checking. A liveness probe is checked periodically to ensure the container is still healthy:

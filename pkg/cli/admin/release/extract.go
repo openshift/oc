@@ -63,7 +63,7 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		Use:   "extract",
 		Short: "Extract the contents of an update payload to disk",
 		Long: templates.LongDesc(`
-			Extract the contents of a release image to disk
+			Extract the contents of a release image to disk.
 
 			Extracts the contents of an OpenShift release image to disk for inspection or
 			debugging. Update images contain manifests and metadata about the operators that
@@ -75,7 +75,7 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 			--command for either 'oc' or 'openshift-install' will extract the binaries directly.
 			You may pass a PGP private key file with --signing-key which will create an ASCII
 			armored sha256sum.txt.asc file describing the content that was extracted that is
-			signed by the key. For more advanced signing use the generated sha256sum.txt and an
+			signed by the key. For more advanced signing, use the generated sha256sum.txt and an
 			external tool like gpg.
 
 			The --credentials-requests flag filters extracted manifests to only cloud credential

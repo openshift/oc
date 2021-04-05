@@ -19,10 +19,10 @@ import (
 
 var (
 	routeLong = templates.LongDesc(`
-		Expose containers externally via secured routes
+		Expose containers externally via secured routes.
 
 		Three types of secured routes are supported: edge, passthrough, and reencrypt.
-		If you wish to create unsecured routes, see "oc expose -h"
+		If you want to create unsecured routes, see "oc expose -h".
 	`)
 )
 

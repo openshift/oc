@@ -36,7 +36,7 @@ type RequestProjectOptions struct {
 // RequestProject command description.
 var (
 	requestProjectLong = templates.LongDesc(`
-		Create a new project for yourself
+		Create a new project for yourself.
 
 		If your administrator allows self-service, this command will create a new project for you and assign you
 		as the project admin.

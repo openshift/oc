@@ -23,7 +23,7 @@ import (
 
 var (
 	imageStreamTagLong = templates.LongDesc(`
-		Create a new image stream tag
+		Create a new image stream tag.
 
 		Image streams tags allow you to track, tag, and import images from other registries. They also
 		define an access controlled destination that you can push images to. An image stream tag can
@@ -36,7 +36,7 @@ var (
 	`)
 
 	imageStreamTagExample = templates.Examples(`
-		# Create a new image stream tag based on an image on a remote registry
+		# Create a new image stream tag based on an image in a remote registry
 		oc create imagestreamtag mysql:latest --from-image=myregistry.local/mysql/mysql:5.0
 	`)
 )
@@ -63,7 +63,7 @@ func NewCmdCreateImageStreamTag(f genericclioptions.RESTClientGetter, streams ge
 	}
 	cmd := &cobra.Command{
 		Use:     "imagestreamtag NAME",
-		Short:   "Create a new image stream tag.",
+		Short:   "Create a new image stream tag",
 		Long:    imageStreamTagLong,
 		Example: imageStreamTagExample,
 		Run: func(cmd *cobra.Command, args []string) {

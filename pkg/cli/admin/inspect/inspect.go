@@ -46,13 +46,13 @@ var (
 		# Collect debugging data for the "openshift-apiserver" clusteroperator
 		oc adm inspect clusteroperator/openshift-apiserver
 
-		# Collect debugging data for the "openshift-apiserver" and "kube-apiserver" clusteroperator
+		# Collect debugging data for the "openshift-apiserver" and "kube-apiserver" clusteroperators
 		oc adm inspect clusteroperator/openshift-apiserver clusteroperator/kube-apiserver
 
 		# Collect debugging data for all clusteroperators
 		oc adm inspect clusteroperator
 
-		# Collect debugging data for all clusteroperator and clusterversions
+		# Collect debugging data for all clusteroperators and clusterversions
 		oc adm inspect clusteroperators,clusterversions
 	`)
 )

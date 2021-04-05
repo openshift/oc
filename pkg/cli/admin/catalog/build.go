@@ -30,7 +30,7 @@ var (
 		Extracts the contents of a collection of operator manifests to disk, and builds them into
 		an operator registry catalog image.
 
-		The base image used for the catalog should match the target version of ocp. This can be set manually with
+		The base image used for the catalog should match the target version of OCP. This can be set manually with
 		the '--from' flag. If '--from' references a release image, the base image will be selected from the release. If
 		omitted, the base image will be inferred from the current cluster.
 
@@ -38,19 +38,19 @@ var (
 		overridden with '--filter-by-os'.
 	`)
 	buildExample = templates.Examples(`
-		# Build an operator catalog from an appregistry repo and store in a file.
+		# Build an operator catalog from an appregistry repo and store in a file
 		oc adm catalog build --appregistry-org=redhat-operators --to=file://offline/redhat-operators:4.3
 
-		# Build an operator catalog from an appregistry repo and mirror to a registry.
+		# Build an operator catalog from an appregistry repo and mirror to a registry
 		oc adm catalog build --appregistry-org=redhat-operators --to=quay.io/my/redhat-operators:4.3
 
-		# Build an operator catalog by inferring a base image from a target ocp release
+		# Build an operator catalog by inferring a base image from a target OCP release
 		oc adm catalog build --appregistry-org=redhat-operators --to=quay.io/my/redhat-operators:4.3 --from=quay.io/openshift-release-dev/ocp-release:4.3.0
 
 		# Build an operator catalog by explicitly providing a base image
 		oc adm catalog build --appregistry-org=redhat-operators --to=quay.io/my/redhat-operators:4.3 --from=quay.io/openshift/origin-operator-registry:4.4
 
-		# Build an operator catalog for a specific target architecture. Assumes you are logged in via 'oc login'.
+		# Build an operator catalog for a specific target architecture. Assumes you are logged in via 'oc login'
 		oc adm catalog build --appregistry-org=redhat-operators --to=file://offline/redhat-operators:4.3 --filter-by-os='linux/s390x'
 	`)
 )
@@ -170,7 +170,7 @@ func NewBuildImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cob
 	o := NewBuildImageOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "build",
-		Short:   "build an operator-registry catalog",
+		Short:   "Build an operator-registry catalog",
 		Long:    buildLong,
 		Example: buildExample,
 		Run: func(cmd *cobra.Command, args []string) {

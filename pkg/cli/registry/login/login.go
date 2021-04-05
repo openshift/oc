@@ -34,7 +34,7 @@ import (
 
 var (
 	desc = templates.LongDesc(`
-		Login to the OpenShift integrated registry.
+		Log in to the OpenShift integrated registry.
 
 		This logs your local Docker client into the OpenShift integrated registry using the
 		external registry name (if configured by your administrator). You may also log in
@@ -53,7 +53,7 @@ var (
 		the current namespace or the openshift namespace and use the status fields that
 		indicate the registry hostnames. If no image stream is found or if you do not have
 		permission to view image streams you will have to pass the --registry flag with the
-		desired hostname.
+		desired host name.
 
 		You may also pass the --registry flag to login to the integrated registry but with a
 		custom DNS name, or to an external registry. Note that in absence of --auth-basic=USER:PASSWORD,
@@ -118,7 +118,7 @@ func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams
 
 	cmd := &cobra.Command{
 		Use:     "login ",
-		Short:   "Login to the integrated registry",
+		Short:   "Log in to the integrated registry",
 		Long:    desc,
 		Example: example,
 		Run: func(c *cobra.Command, args []string) {

@@ -23,30 +23,30 @@ import (
 
 var (
 	extractLong = templates.LongDesc(`
-		Extract files out of secrets and config maps
+		Extract files out of secrets and config maps.
 
 		The extract command makes it easy to download the contents of a config map or secret into a directory.
 		Each key in the config map or secret is created as a separate file with the name of the key, as it
 		is when you mount a secret or config map into a container.
 
-		You may extract the contents of a secret or config map to standard out by passing '-' to --to. The
-		names of each key will be written to stdandard error.
+		You may extract the contents of a secret or config map to standard out by passing '-' to the --to option. The
+		names of each key will be written to standard error.
 
 		You can limit which keys are extracted with the --keys=NAME flag, or set the directory to extract to
 		with --to=DIRECTORY.
 	`)
 
 	extractExample = templates.Examples(`
-		# extract the secret "test" to the current directory
+		# Extract the secret "test" to the current directory
 		oc extract secret/test
 
-		# extract the config map "nginx" to the /tmp directory
+		# Extract the config map "nginx" to the /tmp directory
 		oc extract configmap/nginx --to=/tmp
 
-		# extract the config map "nginx" to STDOUT
+		# Extract the config map "nginx" to STDOUT
 		oc extract configmap/nginx --to=-
 
-		# extract only the key "nginx.conf" from config map "nginx" to the /tmp directory
+		# Extract only the key "nginx.conf" from config map "nginx" to the /tmp directory
 		oc extract configmap/nginx --to=/tmp --keys=nginx.conf
 	`)
 )

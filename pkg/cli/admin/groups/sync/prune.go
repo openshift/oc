@@ -21,10 +21,10 @@ import (
 
 var (
 	pruneLong = templates.LongDesc(`
-		Prune OpenShift Groups referencing missing records on from an external provider.
+		Prune OpenShift groups referencing missing records from an external provider.
 
-		In order to prune OpenShift Group records using those from an external provider, determine which Groups you wish
-		to prune. For instance, all or some groups may be selected from the current Groups stored in OpenShift that have
+		In order to prune OpenShift group records using those from an external provider, determine which groups you want
+		to prune. For instance, all or some groups may be selected from the current groups stored in OpenShift that have
 		been synced previously. Any combination of a literal whitelist, a whitelist file and a blacklist file is supported.
 		The path to a sync configuration file that was used for syncing the groups in question is required in order to
 		describe how data is requested from the external record store. Default behavior is to indicate all OpenShift groups
@@ -80,7 +80,7 @@ func NewCmdPruneGroups(name, fullName string, f kcmdutil.Factory, streams generi
 	o := NewPruneOptions(streams)
 	cmd := &cobra.Command{
 		Use:     fmt.Sprintf("%s [WHITELIST] [--whitelist=WHITELIST-FILE] [--blacklist=BLACKLIST-FILE] --sync-config=CONFIG-SOURCE", name),
-		Short:   "Remove old OpenShift groups referencing missing records on an external provider",
+		Short:   "Remove old OpenShift groups referencing missing records from an external provider",
 		Long:    pruneLong,
 		Example: fmt.Sprintf(pruneExamples, fullName),
 		Run: func(cmd *cobra.Command, args []string) {

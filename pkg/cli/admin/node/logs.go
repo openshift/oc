@@ -29,7 +29,7 @@ import (
 
 var (
 	logsLong = templates.LongDesc(`
-		Display and filter node logs
+		Display and filter node logs.
 
 		This command retrieves logs for the node. The default mode is to query the
 		systemd journal on supported operating systems, which allows searching, time

@@ -96,11 +96,11 @@ func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 			that must be applied to a cluster to use the mirror, but you may opt to rewrite the
 			update to point to the new location and lose the cryptographic integrity of the update.
 
-			Creates a release image signature ConfigMap that can be saved to a directory, applied
+			Creates a release image signature config map that can be saved to a directory, applied
 			directly to a connected cluster, or both.
 
 			The common use for this command is to mirror a specific OpenShift release version to
-			a private registry and create a signature ConfigMap for use in a disconnected or
+			a private registry and create a signature config map for use in a disconnected or
 			offline context. The command copies all images that are part of a release into the
 			target repository and then prints the correct information to give to OpenShift to use
 			that content offline. An alternate mode is to specify --to-image-stream, which imports
@@ -111,13 +111,13 @@ func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 			that can be used to upload the release to another registry.
 
 			You may use --apply-release-image-signature, --release-image-signature-to-dir, or both
-			to control the handling of the signature ConfigMap. Option
-			--apply-release-image-signature will apply the ConfigMap directly to a connected
+			to control the handling of the signature config map. Option
+			--apply-release-image-signature will apply the config map directly to a connected
 			cluster while --release-image-signature-to-dir specifies an export target directory. If
 			--release-image-signature-to-dir is not specified but --to-dir is,
 			--release-image-signature-to-dir defaults to a 'config' subdirectory of --to-dir.
 			The --overwrite option only applies when --apply-release-image-signature is specified
-			and indicates to update an exisiting ConfigMap if one is found. A ConfigMap written to a
+			and indicates to update an exisiting config map if one is found. A config map written to a
 			directory will always replace onethat already exists.
 		`),
 		Example: templates.Examples(`

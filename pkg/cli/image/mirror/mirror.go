@@ -92,19 +92,19 @@ var (
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			myregistry.com/myimage:new=myregistry.com/other:target
 
-		# Copy manifest list of a multi-architecture image, even if only a single image is found.
+		# Copy manifest list of a multi-architecture image, even if only a single image is found
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--keep-manifest-list=true
 
 		# Copy specific os/arch manifest of a multi-architecture image
 		# Run 'oc image info myregistry.com/myimage:latest' to see available os/arch for multi-arch images
 		# Note that with multi-arch images, this results in a new manifest list digest that includes only
-		# the filtered manifests.
+		# the filtered manifests
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--filter-by-os=os/arch
 
 		# Copy all os/arch manifests of a multi-architecture image
-		# Run 'oc image info myregistry.com/myimage:latest' to see list of os/arch manifests that will be mirrored.
+		# Run 'oc image info myregistry.com/myimage:latest' to see list of os/arch manifests that will be mirrored
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--keep-manifest-list=true
 

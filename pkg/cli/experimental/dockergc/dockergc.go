@@ -50,7 +50,7 @@ type dockerGCConfigCmdOptions struct {
 
 var (
 	dockerGCLong = templates.LongDesc(`
-		Perform garbage collection to free space in docker storage
+		Perform garbage collection to free space in docker storage.
 
 		If the OpenShift node is configured to use a container runtime other than docker,
 		docker will still be used to do builds.  However OpenShift itself may not

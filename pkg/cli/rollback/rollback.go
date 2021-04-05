@@ -27,9 +27,9 @@ import (
 
 var (
 	rollbackLong = templates.LongDesc(`
-		Revert an application back to a previous deployment
+		Revert an application back to a previous deployment.
 
-		When you run this command your deployment configuration will be updated to
+		When you run this command, your deployment configuration will be updated to
 		match a previous deployment. By default only the pod and container
 		configuration will be changed and scaling or trigger settings will be left as-
 		is. Note that environment variables and volumes are included in rollbacks, so
@@ -41,16 +41,16 @@ var (
 		replaced by a triggered deployment soon after your rollback. To re-enable the
 		triggers, use the 'set triggers' command.
 
-		If you would like to review the outcome of the rollback, pass '--dry-run' to print
+		If you want to review the outcome of the rollback, pass '--dry-run' to print
 		a human-readable representation of the updated deployment configuration instead of
-		executing the rollback. This is useful if you're not quite sure what the outcome
+		executing the rollback. This is useful if you're not sure what the outcome
 		will be.`)
 
 	rollbackExample = templates.Examples(`
-		# Perform a rollback to the last successfully completed deployment for a deploymentconfig
+		# Perform a rollback to the last successfully completed deployment for a deployment config
 		oc rollback frontend
 
-		# See what a rollback to version 3 will look like, but don't perform the rollback
+		# See what a rollback to version 3 will look like, but do not perform the rollback
 		oc rollback frontend --to-version=3 --dry-run
 
 		# Perform a rollback to a specific deployment

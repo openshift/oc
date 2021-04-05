@@ -35,7 +35,7 @@ const CancelBuildRecommendedCommandName = "cancel-build"
 
 var (
 	cancelBuildLong = templates.LongDesc(`
-		Cancel running, pending, or new builds
+		Cancel running, pending, or new builds.
 
 		This command requests a graceful shutdown of the build. There may be a delay between requesting
 		the build and the time the build is terminated.
@@ -54,7 +54,7 @@ var (
 		# Cancel multiple builds
 		oc cancel-build ruby-build-1 ruby-build-2 ruby-build-3
 
-		# Cancel all builds created from 'ruby-build' build configuration that are in 'new' state
+		# Cancel all builds created from the 'ruby-build' build config that are in the 'new' state
 		oc cancel-build bc/ruby-build --state=new
 	`)
 )

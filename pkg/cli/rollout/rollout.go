@@ -12,7 +12,7 @@ import (
 
 var (
 	rolloutLong = templates.LongDesc(`
-		Start a new rollout, view its status or history, rollback to a previous revision of your app
+		Start a new rollout, view its status or history, rollback to a previous revision of your app.
 
 		This command allows you to control a deployment config. Each individual rollout is exposed
 		as a replication controller, and the deployment process manages scaling down old replication
@@ -79,7 +79,7 @@ func NewCmdRolloutHistory(f kcmdutil.Factory, streams genericclioptions.IOStream
 
 var (
 	rolloutPauseLong = templates.LongDesc(`
-    Mark the provided resource as paused
+    Mark the provided resource as paused.
 
     Paused resources will not be reconciled by a controller.
     Use \"oc rollout resume\" to resume a paused resource.`)
@@ -87,7 +87,7 @@ var (
 	rolloutPauseExample = templates.Examples(`
     # Mark the nginx deployment as paused. Any current state of
     # the deployment will continue its function, new updates to the deployment will not
-    # have an effect as long as the deployment is paused.
+    # have an effect as long as the deployment is paused
     oc rollout pause dc/nginx`)
 )
 
@@ -102,7 +102,7 @@ func NewCmdRolloutPause(f kcmdutil.Factory, streams genericclioptions.IOStreams)
 
 var (
 	rolloutResumeLong = templates.LongDesc(`
-    Resume a paused resource
+    Resume a paused resource.
 
     Paused resources will not be reconciled by a controller. By resuming a
     resource, we allow it to be reconciled again.`)
@@ -123,7 +123,7 @@ func NewCmdRolloutResume(f kcmdutil.Factory, streams genericclioptions.IOStreams
 
 var (
 	rolloutUndoLong = templates.LongDesc(`
-    Revert an application back to a previous deployment
+    Revert an application back to a previous deployment.
 
     When you run this command your deployment configuration will be updated to
     match a previous deployment. By default only the pod and container
@@ -143,10 +143,10 @@ var (
     will be.`)
 
 	rolloutUndoExample = templates.Examples(`
-    # Rollback to the previous deployment
+    # Roll back to the previous deployment
     oc rollout undo dc/nginx
 
-    # Rollback to deployment revision 3. The replication controller for that version must exist.
+    # Roll back to deployment revision 3. The replication controller for that version must exist
     oc rollout undo dc/nginx --to-revision=3`)
 )
 

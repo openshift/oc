@@ -21,7 +21,7 @@ import (
 
 var (
 	buildsLongDesc = templates.LongDesc(`
-		Prune old completed and failed builds
+		Prune old completed and failed builds.
 
 		By default, the prune operation performs a dry run making no changes to internal registry. A
 		--confirm flag is needed for changes to be effective.
@@ -29,7 +29,7 @@ var (
 
 	buildsExample = templates.Examples(`
 		# Dry run deleting older completed and failed builds and also including
-		# all builds whose associated BuildConfig no longer exists
+		# all builds whose associated build config no longer exists
 		oc adm prune builds --orphans
 
 		# To actually perform the prune operation, the confirm flag must be appended

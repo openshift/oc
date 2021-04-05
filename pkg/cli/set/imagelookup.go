@@ -26,7 +26,7 @@ import (
 
 var (
 	imageLookupLong = templates.LongDesc(`
-		Use an image stream from pods and other objects
+		Use an image stream from pods and other objects.
 
 		Image streams make it easy to tag images, track changes from other registries, and centralize
 		access control to images. Local name lookup allows an image stream to be the source of

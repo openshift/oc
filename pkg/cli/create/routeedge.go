@@ -23,18 +23,18 @@ import (
 
 var (
 	edgeRouteLong = templates.LongDesc(`
-		Create a route that uses edge TLS termination
+		Create a route that uses edge TLS termination.
 
 		Specify the service (either just its name or using type/name syntax) that the
 		generated route should expose via the --service flag.
 	`)
 
 	edgeRouteExample = templates.Examples(`
-		# Create an edge route named "my-route" that exposes frontend service.
+		# Create an edge route named "my-route" that exposes the frontend service
 		oc create route edge my-route --service=frontend
 
-		# Create an edge route that exposes the frontend service and specify a path.
-		# If the route name is omitted, the service name will be re-used.
+		# Create an edge route that exposes the frontend service and specify a path
+		# If the route name is omitted, the service name will be used
 		oc create route edge --service=frontend --path /assets
 	`)
 )

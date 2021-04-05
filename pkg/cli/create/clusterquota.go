@@ -25,7 +25,7 @@ var (
 	clusterQuotaLong = templates.LongDesc(`
 		Create a cluster resource quota that controls certain resources.
 
-		Cluster resource quota objects defined quota restrictions that span multiple projects based on label selectors.
+		Cluster resource quota objects define quota restrictions that span multiple projects based on label selectors.
 	`)
 
 	clusterQuotaExample = templates.Examples(`
@@ -58,7 +58,7 @@ func NewCmdCreateClusterQuota(f genericclioptions.RESTClientGetter, streams gene
 	o := NewCreateClusterQuotaOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "clusterresourcequota NAME --project-label-selector=key=value [--hard=RESOURCE=QUANTITY]...",
-		Short:   "Create cluster resource quota resource.",
+		Short:   "Create a cluster resource quota",
 		Long:    clusterQuotaLong,
 		Example: clusterQuotaExample,
 		Run: func(cmd *cobra.Command, args []string) {

@@ -26,10 +26,10 @@ const NewBuildRecommendedCommandName = "new-build"
 
 var (
 	newBuildLong = templates.LongDesc(`
-		Create a new build by specifying source code
+		Create a new build by specifying source code.
 
 		This command will try to create a build configuration for your application using images and
-		code that has a public repository. It will lookup the images on the local Docker installation
+		code that has a public repository. It will look up the images on the local Docker installation
 		(if available), a container image registry, or an image stream.
 
 		If you specify a source code URL, it will set up a build that takes your source code and converts

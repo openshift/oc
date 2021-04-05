@@ -27,10 +27,10 @@ import (
 )
 
 var (
-	subjectReviewLong = templates.LongDesc(`Check whether a User, Service Account or a Group can create a Pod.
-		It returns a list of Security Context Constraints that will admit the resource.
-		If User is specified but not Groups, it is interpreted as "What if User is not a member of any groups".
-		If User and Groups are empty, then the check is performed using the current user
+	subjectReviewLong = templates.LongDesc(`Check whether a user, service account or group can create a pod.
+		It returns a list of security context constraints that will admit the resource.
+		If user is specified but not groups, it is interpreted as "what if the user is not a member of any groups".
+		If user and groups are empty, then the check is performed using the current user.
 	`)
 	subjectReviewExamples = templates.Examples(`# Check whether user bob can create a pod specified in myresource.yaml
 		oc adm policy scc-subject-review -u bob -f myresource.yaml
@@ -38,7 +38,7 @@ var (
 		# Check whether user bob who belongs to projectAdmin group can create a pod specified in myresource.yaml
 		oc adm policy scc-subject-review -u bob -g projectAdmin -f myresource.yaml
 
-		# Check whether ServiceAccount specified in podTemplateSpec in myresourcewithsa.yaml can create the Pod
+		# Check whether a service account specified in the pod template spec in myresourcewithsa.yaml can create the pod
 		oc adm policy scc-subject-review -f myresourcewithsa.yaml
 	`)
 )
@@ -76,7 +76,7 @@ func NewCmdSccSubjectReview(f kcmdutil.Factory, streams genericclioptions.IOStre
 	cmd := &cobra.Command{
 		Use:     "scc-subject-review",
 		Long:    subjectReviewLong,
-		Short:   "Check whether a user or a ServiceAccount can create a Pod.",
+		Short:   "Check whether a user or a service account can create a pod",
 		Example: subjectReviewExamples,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args, cmd))

@@ -18,13 +18,13 @@ import (
 
 var (
 	unlinkSecretLong = templates.LongDesc(`
-		Unlink (detach) secrets from a service account
+		Unlink (detach) secrets from a service account.
 
 		If a secret is no longer valid for a pod, build or image pull, you may unlink it from a service account.
 	`)
 
 	unlinkSecretExample = templates.Examples(`
-		# Unlink a secret currently associated with a service account:
+		# Unlink a secret currently associated with a service account
 		oc secrets unlink serviceaccount-name secret-name another-secret-name ...
 	`)
 )
@@ -52,7 +52,7 @@ func NewCmdUnlinkSecret(f kcmdutil.Factory, streams genericclioptions.IOStreams)
 
 	cmd := &cobra.Command{
 		Use:     "unlink serviceaccount-name secret-name [another-secret-name] ...",
-		Short:   "Detach secrets from a ServiceAccount",
+		Short:   "Detach secrets from a service account",
 		Long:    unlinkSecretLong,
 		Example: unlinkSecretExample,
 		Run: func(c *cobra.Command, args []string) {

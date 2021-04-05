@@ -27,7 +27,7 @@ import (
 
 var (
 	statusLong = templates.LongDesc(`
-		Show a high level overview of the current project
+		Show a high level overview of the current project.
 
 		This command will show services, deployment configs, build configurations, and active deployments.
 		If you have any misconfigured components information about them will be shown. For more information
@@ -38,13 +38,13 @@ var (
 		graph in DOT format that is suitable for use by the "dot" command.`)
 
 	statusExample = templates.Examples(`
-		# See an overview of the current project.
+		# See an overview of the current project
 		oc status
 
-		# Export the overview of the current project in an svg file.
+		# Export the overview of the current project in an svg file
 		oc status -o dot | dot -T svg -o project.svg
 
-		# See an overview of the current project including details for any identified issues.
+		# See an overview of the current project including details for any identified issues
 		oc status --suggest`)
 )
 

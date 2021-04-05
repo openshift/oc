@@ -36,7 +36,7 @@ import (
 
 var (
 	envLong = templates.LongDesc(`
-		Update environment variables on a pod template or a build config
+		Update environment variables on a pod template or a build config.
 
 		List environment variable definitions in one or more pods, pod templates or build
 		configuration.
