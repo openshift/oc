@@ -9,6 +9,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util/templates"
 )
 
 type CreateBootstrapProjectTemplateOptions struct {
@@ -22,6 +23,11 @@ type CreateBootstrapProjectTemplateOptions struct {
 	genericclioptions.IOStreams
 }
 
+var createBootstrapProjectTemplateExample = templates.Examples(`
+	# Output a bootstrap project template in YAML format to stdout
+	oc adm create-bootstrap-project-template -o yaml
+`)
+
 func NewCreateBootstrapProjectTemplateOptions(streams genericclioptions.IOStreams) *CreateBootstrapProjectTemplateOptions {
 	return &CreateBootstrapProjectTemplateOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("created").WithTypeSetter(scheme.Scheme).WithDefaultOutput("json"),
@@ -33,8 +39,9 @@ func NewCreateBootstrapProjectTemplateOptions(streams genericclioptions.IOStream
 func NewCommandCreateBootstrapProjectTemplate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCreateBootstrapProjectTemplateOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "create-bootstrap-project-template",
-		Short: "Create a bootstrap project template",
+		Use:     "create-bootstrap-project-template",
+		Short:   "Create a bootstrap project template",
+		Example: createBootstrapProjectTemplateExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(args))
 			kcmdutil.CheckErr(o.Validate())

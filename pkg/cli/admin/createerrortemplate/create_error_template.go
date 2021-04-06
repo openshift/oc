@@ -26,6 +26,11 @@ var errorLongDescription = templates.LongDesc(`
 		        error: templates/error.html
 		`)
 
+var errorExample = templates.Examples(`
+	# Output a template for the error page to stdout
+	oc adm create-error-template
+`)
+
 type CreateErrorTemplateOptions struct {
 	genericclioptions.IOStreams
 }
@@ -39,9 +44,10 @@ func NewCreateErrorTemplateOptions(streams genericclioptions.IOStreams) *CreateE
 func NewCommandCreateErrorTemplate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCreateErrorTemplateOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "create-error-template",
-		Short: "Create an error page template",
-		Long:  errorLongDescription,
+		Use:     "create-error-template",
+		Short:   "Create an error page template",
+		Long:    errorLongDescription,
+		Example: errorExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Validate(args))
 			kcmdutil.CheckErr(o.Run())

@@ -52,6 +52,11 @@ var newProjectLong = templates.LongDesc(`
 	an admin user (and role, if you want to use a non-default admin role), and a node selector
 	to restrict which nodes pods in this project can be scheduled to.`)
 
+var newProjectExample = templates.Examples(`
+	# Create a new project using a node selector
+	oc adm new-project myproject --node-selector='type=user-node,region=east'
+`)
+
 func NewNewProjectOptions(streams genericclioptions.IOStreams) *NewProjectOptions {
 	return &NewProjectOptions{
 		AdminRole: "admin",
@@ -63,9 +68,10 @@ func NewNewProjectOptions(streams genericclioptions.IOStreams) *NewProjectOption
 func NewCmdNewProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewNewProjectOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "new-project NAME [--display-name=DISPLAYNAME] [--description=DESCRIPTION]",
-		Short: "Create a new project",
-		Long:  newProjectLong,
+		Use:     "new-project NAME [--display-name=DISPLAYNAME] [--description=DESCRIPTION]",
+		Short:   "Create a new project",
+		Long:    newProjectLong,
+		Example: newProjectExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
