@@ -36,11 +36,11 @@ var (
 	`)
 
 	addRoleToUserLongDesc = templates.LongDesc(`
-		Add a role to users or service accounts for the current project
+		Add a role to users or service accounts for the current project.
 
-		This command allows you to grant a user access to specific resources and actions within the current project, by assigning them to a role. It creates or modifies a RoleBinding referencing the specified role adding the user(s) or serviceaccount(s) to the list of subjects. The command does not require that the matching role or user/serviceaccount resources exist and will create the binding successfully even when the role or user/serviceaccount do not exist or when the user does not have access to view them.
+		This command allows you to grant a user access to specific resources and actions within the current project, by assigning them to a role. It creates or modifies a role binding referencing the specified role adding the user(s) or service account(s) to the list of subjects. The command does not require that the matching role or user/service account resources exist and will create the binding successfully even when the role or user/service account do not exist or when the user does not have access to view them.
 
-		If the --rolebinding-name argument is supplied, it will look for an existing rolebinding with that name. The role on the matching rolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used. When --role-namespace argument is specified as a non-empty value, it MUST match the current namespace. When role-namespace is specified, the rolebinding will reference a namespaced Role. Otherwise, the rolebinding will reference a ClusterRole resource.
+		If the --rolebinding-name argument is supplied, it will look for an existing role binding with that name. The role on the matching role binding MUST match the role name supplied to the command. If no role binding name is given, a default name will be used. When --role-namespace argument is specified as a non-empty value, it MUST match the current namespace. When role-namespace is specified, the role binding will reference a namespaced role. Otherwise, the role binding will reference a cluster role resource.
 
 		To learn more, see information about RBAC and policy, or use the 'get' and 'describe' commands on the following resources: 'clusterroles', 'clusterrolebindings', 'roles', 'rolebindings', 'users', 'groups', and 'serviceaccounts'.
 	`)
@@ -48,9 +48,9 @@ var (
 	addRoleToGroupLongDesc = templates.LongDesc(`
 		Add a role to groups for the current project
 
-		This command allows you to grant a group access to specific resources and actions within the current project, by assigning them to a role. It creates or modifies a RoleBinding referencing the specified role adding the group(s) to the list of subjects. The command does not require that the matching role or group resources exist and will create the binding successfully even when the role or group do not exist or when the user does not have access to view them.
+		This command allows you to grant a group access to specific resources and actions within the current project, by assigning them to a role. It creates or modifies a role binding referencing the specified role adding the group(s) to the list of subjects. The command does not require that the matching role or group resources exist and will create the binding successfully even when the role or group do not exist or when the user does not have access to view them.
 
-		If the --rolebinding-name argument is supplied, it will look for an existing rolebinding with that name. The role on the matching rolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used. When --role-namespace argument is specified as a non-empty value, it MUST match the current namespace. When role-namespace is specified, the rolebinding will reference a namespaced Role. Otherwise, the rolebinding will reference a ClusterRole resource.
+		If the --rolebinding-name argument is supplied, it will look for an existing role binding with that name. The role on the matching role binding MUST match the role name supplied to the command. If no role binding name is given, a default name will be used. When --role-namespace argument is specified as a non-empty value, it MUST match the current namespace. When role-namespace is specified, the role binding will reference a namespaced role. Otherwise, the role binding will reference a cluster role resource.
 
 		To learn more, see information about RBAC and policy, or use the 'get' and 'describe' commands on the following resources: 'clusterroles', 'clusterrolebindings', 'roles', 'rolebindings', 'users', 'groups', and 'serviceaccounts'.
 	`)
@@ -58,9 +58,9 @@ var (
 	addClusterRoleToUserLongDesc = templates.LongDesc(`
 		Add a role to users or service accounts across all projects
 
-		This command allows you to grant a user access to specific resources and actions within the cluster, by assigning them to a role. It creates or modifies a ClusterRoleBinding referencing the specified ClusterRole, adding the user(s) or serviceaccount(s) to the list of subjects. This command does not require that the matching cluster role or user/serviceaccount resources exist and will create the binding successfully even when the role or user/serviceaccount do not exist or when the user does not have access to view them.
+		This command allows you to grant a user access to specific resources and actions within the cluster, by assigning them to a role. It creates or modifies a cluster role binding referencing the specified cluster role, adding the user(s) or service account(s) to the list of subjects. This command does not require that the matching cluster role or user/service account resources exist and will create the binding successfully even when the role or user/service account do not exist or when the user does not have access to view them.
 
-		If the --rolebinding-name argument is supplied, it will look for an existing clusterrolebinding with that name. The role on the matching clusterrolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used.
+		If the --rolebinding-name argument is supplied, it will look for an existing cluster role binding with that name. The role on the matching cluster role binding MUST match the role name supplied to the command. If no role binding name is given, a default name will be used.
 
 		To learn more, see information about RBAC and policy, or use the 'get' and 'describe' commands on the following resources: 'clusterroles', 'clusterrolebindings', 'roles', 'rolebindings', 'users', 'groups', and 'serviceaccounts'.
 	`)
@@ -68,9 +68,9 @@ var (
 	addClusterRoleToGroupLongDesc = templates.LongDesc(`
 		Add a role to groups for the current project
 
-		This command creates or modifies a ClusterRoleBinding with the named cluster role by adding the named group(s) to the list of subjects. The command does not require the matching role or group resources exist and will create the binding successfully even when the role or group do not exist or when the user does not have access to view them.
+		This command creates or modifies a cluster role binding with the named cluster role by adding the named group(s) to the list of subjects. The command does not require the matching role or group resources exist and will create the binding successfully even when the role or group do not exist or when the user does not have access to view them.
 
-		If the --rolebinding-name argument is supplied, it will look for an existing clusterrolebinding with that name. The role on the matching clusterrolebinding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used.
+		If the --rolebinding-name argument is supplied, it will look for an existing cluster role binding with that name. The role on the matching cluster role binding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used.
 	`)
 )
 
@@ -137,7 +137,7 @@ func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams
 	o.SANames = []string{}
 	cmd := &cobra.Command{
 		Use:     "add-role-to-user ROLE (USER | -z SERVICEACCOUNT) [USER ...]",
-		Short:   "Add a role to users or serviceaccounts for the current project",
+		Short:   "Add a role to users or service accounts for the current project",
 		Long:    addRoleToUserLongDesc,
 		Example: addRoleToUserExample,
 		Run: func(cmd *cobra.Command, args []string) {

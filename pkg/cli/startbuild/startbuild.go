@@ -51,7 +51,7 @@ import (
 
 var (
 	startBuildLong = templates.LongDesc(`
-		Start a build
+		Start a build.
 
 		This command starts a new build for the provided build config or copies an existing build using
 		--from-build=<name>. Pass the --follow flag to see output from the build.
@@ -81,11 +81,11 @@ var (
 		oc start-build hello-world --from-repo=../hello-world --commit=v2
 
 		# Start a new build for build config "hello-world" and watch the logs until the build
-		# completes or fails.
+		# completes or fails
 		oc start-build hello-world --follow
 
 		# Start a new build for build config "hello-world" and wait until the build completes. It
-		# exits with a non-zero return code if the build fails.
+		# exits with a non-zero return code if the build fails
 		oc start-build hello-world --wait
 	`)
 )

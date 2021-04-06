@@ -24,7 +24,7 @@ import (
 
 var (
 	buildHookLong = templates.LongDesc(`
-		Set or remove a build hook on a build config
+		Set or remove a build hook on a build config.
 
 		Build hooks allow behavior to be injected into the build process.
 

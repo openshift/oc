@@ -63,7 +63,7 @@ func NewRelease(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		Use:   "new [SRC=DST ...]",
 		Short: "Create a new OpenShift release",
 		Long: templates.LongDesc(`
-			Build a new OpenShift release image that will update a cluster
+			Build a new OpenShift release image that will update a cluster.
 
 			OpenShift uses long-running active management processes called "operators" to
 			keep the cluster running and manage component lifecycle. This command
@@ -77,7 +77,7 @@ func NewRelease(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 			cluster version operator when it is time to perform an update. Manifest files are
 			renamed to '0000_70_<image_name>_<filename>' by default, and an operator author that
 			needs to provide a global-ordered file (before or after other operators) should
-			prepend '0000_NN_<component>_' to their filename, which instructs the release builder
+			prepend '0000_NN_<component>_' to their file name, which instructs the release builder
 			to not assign a component prefix. Only images in the input that have the image label
 			'io.openshift.release.operator=true' will have manifests loaded.
 

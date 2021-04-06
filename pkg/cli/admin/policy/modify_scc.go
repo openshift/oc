@@ -29,7 +29,7 @@ var (
 		# Add the 'restricted' security context constraint to user1 and user2
 		oc adm policy add-scc-to-user restricted user1 user2
 
-		# Add the 'privileged' security context constraint to the service account serviceaccount1 in the current namespace
+		# Add the 'privileged' security context constraint to serviceaccount1 in the current namespace
 		oc adm policy add-scc-to-user privileged -z serviceaccount1
 	`)
 
@@ -70,8 +70,8 @@ func NewCmdAddSCCToGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams
 	o := NewSCCModificationOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "add-scc-to-group SCC GROUP [GROUP ...]",
-		Short:   "Add security context constraint to groups",
-		Long:    `Add security context constraint to groups`,
+		Short:   "Add a security context constraint to groups",
+		Long:    `Add a security context constraint to groups.`,
 		Example: addSCCToGroupExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteGroups(f, cmd, args))
@@ -89,8 +89,8 @@ func NewCmdAddSCCToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
 		Use:     "add-scc-to-user SCC (USER | -z SERVICEACCOUNT) [USER ...]",
-		Short:   "Add security context constraint to users or a service account",
-		Long:    `Add security context constraint to users or a service account`,
+		Short:   "Add a security context constraint to users or a service account",
+		Long:    `Add a security context constraint to users or a service account.`,
 		Example: addSCCToUserExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUsers(f, cmd, args))
@@ -109,8 +109,8 @@ func NewCmdRemoveSCCFromGroup(f kcmdutil.Factory, streams genericclioptions.IOSt
 	o := NewSCCModificationOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "remove-scc-from-group SCC GROUP [GROUP ...]",
-		Short: "Remove group from scc",
-		Long:  `Remove group from scc`,
+		Short: "Remove a group from a security context constraint",
+		Long:  `Remove a group from a security context constraint.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteGroups(f, cmd, args))
 			kcmdutil.CheckErr(o.RemoveSCC())
@@ -127,8 +127,8 @@ func NewCmdRemoveSCCFromUser(f kcmdutil.Factory, streams genericclioptions.IOStr
 	o.SANames = []string{}
 	cmd := &cobra.Command{
 		Use:   "remove-scc-from-user SCC USER [USER ...]",
-		Short: "Remove user from scc",
-		Long:  `Remove user from scc`,
+		Short: "Remove a user from a security context constraint",
+		Long:  `Remove a user from a security context constraint.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUsers(f, cmd, args))
 			kcmdutil.CheckErr(o.RemoveSCC())

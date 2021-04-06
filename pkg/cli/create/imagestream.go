@@ -18,7 +18,7 @@ import (
 
 var (
 	imageStreamLong = templates.LongDesc(`
-		Create a new image stream
+		Create a new image stream.
 
 		Image streams allow you to track, tag, and import images from other registries. They also define an
 		access controlled destination that you can push images to. An image stream can reference images
@@ -51,7 +51,7 @@ func NewCmdCreateImageStream(f genericclioptions.RESTClientGetter, streams gener
 	}
 	cmd := &cobra.Command{
 		Use:     "imagestream NAME",
-		Short:   "Create a new empty image stream.",
+		Short:   "Create a new empty image stream",
 		Long:    imageStreamLong,
 		Example: imageStreamExample,
 		Run: func(cmd *cobra.Command, args []string) {

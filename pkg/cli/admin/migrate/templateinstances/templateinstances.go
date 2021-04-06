@@ -41,9 +41,9 @@ var (
 	}
 
 	internalMigrateTemplateInstancesLong = templates.LongDesc(fmt.Sprintf(`
-		Migrate Template Instances to refer to new API groups
+		Migrate template instances to refer to new API groups.
 
-		This command locates and updates every Template Instance which refers to a particular
+		This command locates and updates every template instance which refers to a particular
 		group-version-kind to refer to some other, equivalent group-version-kind.
 
 		The following transformations will occur:
@@ -90,7 +90,7 @@ func NewCmdMigrateTemplateInstances(f kcmdutil.Factory, streams genericclioption
 	o := NewMigrateTemplateInstancesOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "template-instances",
-		Short:   "Update TemplateInstances to point to the latest group-version-kinds",
+		Short:   "Update template instances to point to the latest group-version-kinds",
 		Long:    internalMigrateTemplateInstancesLong,
 		Example: internalMigrateTemplateInstancesExample,
 		Run: func(cmd *cobra.Command, args []string) {

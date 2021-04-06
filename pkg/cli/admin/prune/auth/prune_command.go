@@ -44,8 +44,8 @@ func NewCmdPruneAuth(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 	o := NewPruneAuthOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "auth",
-		Short: "Removes references to the specified roles, clusterroles, users, and groups.",
-		Long:  "Removes references to the specified roles, clusterroles, users, and groups.  Other types are ignored",
+		Short: "Removes references to the specified roles, clusterroles, users, and groups",
+		Long:  "Removes references to the specified roles, clusterroles, users, and groups.  Other types are ignored.",
 
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

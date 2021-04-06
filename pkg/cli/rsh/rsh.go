@@ -24,7 +24,7 @@ var (
 	rshUsageErrStr = fmt.Sprintf("expected '%s'.\nPOD or TYPE/NAME is a required argument for the rsh command", rshUsageStr)
 
 	rshLong = templates.LongDesc(`
-		Open a remote shell session to a container
+		Open a remote shell session to a container.
 
 		This command will attempt to start a shell session in a pod for the specified resource.
 		It works with pods, deployment configs, deployments, jobs, daemon sets, replication controllers
@@ -91,7 +91,7 @@ func NewCmdRsh(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 	cmd := &cobra.Command{
 		Use:                   rshUsageStr,
 		DisableFlagsInUseLine: true,
-		Short:                 "Start a shell session in a container.",
+		Short:                 "Start a shell session in a container",
 		Long:                  rshLong,
 		Example:               rshExample,
 		Run: func(cmd *cobra.Command, args []string) {

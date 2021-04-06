@@ -22,7 +22,7 @@ import (
 
 var (
 	logsLong = templates.LongDesc(`
-		Print the logs for a resource
+		Print the logs for a resource.
 
 		Supported resources are builds, build configs (bc), deployment configs (dc), and pods.
 		When a pod is specified and has more than one container, the container name should be
@@ -34,21 +34,21 @@ var (
 	`)
 
 	logsExample = templates.Examples(`
-		# Start streaming the logs of the most recent build of the openldap build config.
+		# Start streaming the logs of the most recent build of the openldap build config
 		oc logs -f bc/openldap
 
-		# Start streaming the logs of the latest deployment of the mysql deployment config.
+		# Start streaming the logs of the latest deployment of the mysql deployment config
 		oc logs -f dc/mysql
 
 		# Get the logs of the first deployment for the mysql deployment config. Note that logs
 		# from older deployments may not exist either because the deployment was successful
-		# or due to deployment pruning or manual deletion of the deployment.
+		# or due to deployment pruning or manual deletion of the deployment
 		oc logs --version=1 dc/mysql
 
-		# Return a snapshot of ruby-container logs from pod backend.
+		# Return a snapshot of ruby-container logs from pod backend
 		oc logs backend -c ruby-container
 
-		# Start streaming of ruby-container logs from pod backend.
+		# Start streaming of ruby-container logs from pod backend
 		oc logs -f pod/backend -c ruby-container
 	`)
 )

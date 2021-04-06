@@ -26,7 +26,7 @@ import (
 
 var (
 	deploymentHookLong = templates.LongDesc(`
-		Set or remove a deployment hook on a deployment config
+		Set or remove a deployment hook on a deployment config.
 
 		Deployment configs allow hooks to execute at different points in the lifecycle of the
 		deployment, depending on the deployment strategy.

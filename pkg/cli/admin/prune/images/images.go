@@ -52,7 +52,7 @@ const registryURLNotReachable = `(?:operation|connection) timed out|no such host
 
 var (
 	imagesLongDesc = templates.LongDesc(`
-		Remove image stream tags, images, and image layers by age or usage
+		Remove image stream tags, images, and image layers by age or usage.
 
 		This command removes historical image stream tags, unused images, and unreferenced image
 		layers from the integrated registry. By default, all images are considered as candidates.
@@ -81,14 +81,14 @@ var (
 			--insecure-skip-tls-verify or allowed for insecure connection)`)
 
 	imagesExample = templates.Examples(`
-	  # See, what the prune command would delete if only images and their referrers were more than an hour old
-	  # and obsoleted by 3 newer revisions under the same tag were considered.
+	  # See what the prune command would delete if only images and their referrers were more than an hour old
+	  # and obsoleted by 3 newer revisions under the same tag were considered
 	  oc adm prune images --keep-tag-revisions=3 --keep-younger-than=60m
 
 	  # To actually perform the prune operation, the confirm flag must be appended
 	  oc adm prune images --keep-tag-revisions=3 --keep-younger-than=60m --confirm
 
-	  # See, what the prune command would delete if we're interested in removing images
+	  # See what the prune command would delete if we are interested in removing images
 	  # exceeding currently set limit ranges ('openshift.io/Image')
 	  oc adm prune images --prune-over-size-limit
 

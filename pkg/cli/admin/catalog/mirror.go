@@ -44,7 +44,7 @@ var (
 
 		By default, the database is extracted to a temporary directory, but can be saved locally via flags.
 
-		An ImageContentSourcePolicy is written to a file that can be added to a cluster with access to the target
+		An image content source policy is written to a file that can be added to a cluster with access to the target
 		registry. This will configure the cluster to pull from the mirrors instead of the locations referenced in
 		the operator manifests.
 
@@ -112,7 +112,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 
 	cmd := &cobra.Command{
 		Use:     "mirror SRC DEST",
-		Short:   "mirror an operator-registry catalog",
+		Short:   "Mirror an operator-registry catalog",
 		Long:    mirrorLong,
 		Example: mirrorExample,
 		Run: func(cmd *cobra.Command, args []string) {

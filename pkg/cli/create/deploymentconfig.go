@@ -21,7 +21,7 @@ var (
 	deploymentConfigLong = templates.LongDesc(`
 		Create a deployment config that uses a given image.
 
-		Deployment configs define the template for a pod and manages deploying new images or configuration changes.
+		Deployment configs define the template for a pod and manage deploying new images or configuration changes.
 	`)
 
 	deploymentConfigExample = templates.Examples(`
@@ -46,7 +46,7 @@ func NewCmdCreateDeploymentConfig(f genericclioptions.RESTClientGetter, streams 
 	}
 	cmd := &cobra.Command{
 		Use:     "deploymentconfig NAME --image=IMAGE -- [COMMAND] [args...]",
-		Short:   "Create deployment config with default options that uses a given image.",
+		Short:   "Create a deployment config with default options that uses a given image",
 		Long:    deploymentConfigLong,
 		Example: deploymentConfigExample,
 		Run: func(cmd *cobra.Command, args []string) {

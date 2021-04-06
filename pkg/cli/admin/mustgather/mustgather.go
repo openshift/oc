@@ -43,7 +43,7 @@ import (
 
 var (
 	mustGatherLong = templates.LongDesc(`
-		Launch a pod to gather debugging information
+		Launch a pod to gather debugging information.
 
 		This command will launch a pod in a temporary namespace on your cluster that gathers
 		debugging information and then downloads the gathered information.
@@ -52,22 +52,22 @@ var (
 	`)
 
 	mustGatherExample = templates.Examples(`
-		# gather information using the default plug-in image and command, writing into ./must-gather.local.<rand>
+		# Gather information using the default plug-in image and command, writing into ./must-gather.local.<rand>
 		  oc adm must-gather
 
-		# gather information with a specific local folder to copy to
+		# Gather information with a specific local folder to copy to
 		  oc adm must-gather --dest-dir=/local/directory
 
-		# gather audit information
+		# Gather audit information
 		  oc adm must-gather -- /usr/bin/gather_audit_logs
 
-		# gather information using multiple plug-in images
+		# Gather information using multiple plug-in images
 		  oc adm must-gather --image=quay.io/kubevirt/must-gather --image=quay.io/openshift/origin-must-gather
 
-		# gather information using a specific image stream plug-in
+		# Gather information using a specific image stream plug-in
 		  oc adm must-gather --image-stream=openshift/must-gather:latest
 
-		# gather information using a specific image, command, and pod-dir
+		# Gather information using a specific image, command, and pod-dir
 		  oc adm must-gather --image=my/image:tag --source-dir=/pod/directory -- myspecial-command.sh
 	`)
 )

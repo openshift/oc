@@ -29,7 +29,7 @@ import (
 
 var (
 	dataLong = templates.LongDesc(`
-		Add, update, or remove data keys from secrets and config maps
+		Add, update, or remove data keys from secrets and config maps.
 
 		Secrets and config maps allow users to store keys and values that can be passed into
 		pods or loaded by other Kubernetes resources. This command lets you set or remove keys

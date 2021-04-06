@@ -23,7 +23,7 @@ var (
 		Typically, identities are automatically mapped to users during login. If automatic
 		mapping is disabled (by using the "lookup" mapping method), or a mapping needs to
 		be manually established between an identity and a user, this command can be used
-		to create a useridentitymapping object.
+		to create a user identity mapping object.
 	`)
 
 	userIdentityMappingExample = templates.Examples(`
@@ -52,7 +52,7 @@ func NewCmdCreateUserIdentityMapping(f genericclioptions.RESTClientGetter, strea
 	o := NewCreateUserIdentityMappingOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "useridentitymapping <IDENTITY_NAME> <USER_NAME>",
-		Short:   "Manually map an identity to a user.",
+		Short:   "Manually map an identity to a user",
 		Long:    userIdentityMappingLong,
 		Example: userIdentityMappingExample,
 		Run: func(cmd *cobra.Command, args []string) {

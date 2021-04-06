@@ -26,7 +26,7 @@ var (
 		creation is disabled (by using the "lookup" mapping method), identities must
 		be created manually.
 
-		Corresponding user and useridentitymapping objects must also be created
+		Corresponding user and user identity mapping objects must also be created
 		to allow logging in with the created identity.
 	`)
 
@@ -52,7 +52,7 @@ func NewCmdCreateIdentity(f genericclioptions.RESTClientGetter, streams genericc
 	}
 	cmd := &cobra.Command{
 		Use:     "identity <PROVIDER_NAME>:<PROVIDER_USER_NAME>",
-		Short:   "Manually create an identity (only needed if automatic creation is disabled).",
+		Short:   "Manually create an identity (only needed if automatic creation is disabled)",
 		Long:    identityLong,
 		Example: identityExample,
 		Run: func(cmd *cobra.Command, args []string) {

@@ -26,7 +26,7 @@ import (
 
 var (
 	buildSecretLong = templates.LongDesc(`
-		Set or remove a build secret on a build config
+		Set or remove a build secret on a build config.
 
 		A build config can reference a secret to push or pull images from private registries or
 		to access private source repositories.
@@ -39,7 +39,7 @@ var (
 		be selected with the --all flag.`)
 
 	buildSecretExample = templates.Examples(`
-		# Clear push secret on a build config
+		# Clear the push secret on a build config
 		oc set build-secret --push --remove bc/mybuild
 
 		# Set the pull secret on a build config

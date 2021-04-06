@@ -64,10 +64,10 @@ const RoutePollTimeout = 5 * time.Second
 
 var (
 	newAppLong = templates.LongDesc(`
-		Create a new application by specifying source code, templates, and/or images
+		Create a new application by specifying source code, templates, and/or images.
 
 		This command will try to build up the components of an application using images, templates,
-		or code that has a public repository. It will lookup the images on the local Docker installation
+		or code that has a public repository. It will look up the images on the local Docker installation
 		(if available), a container image registry, an integrated image stream, or stored templates.
 
 		If you specify a source code URL, it will set up a build that takes your source code and converts
@@ -121,7 +121,7 @@ var (
 		# can be used to filter search results)
 		oc new-app --search --template=ruby
 
-		# Search for "ruby" in stored templates and print the output as an YAML
+		# Search for "ruby" in stored templates and print the output as YAML
 		oc new-app --search --template=ruby --output=yaml
 	`)
 

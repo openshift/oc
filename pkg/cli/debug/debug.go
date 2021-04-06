@@ -62,7 +62,7 @@ const (
 
 var (
 	debugLong = templates.LongDesc(`
-		Launch a command shell to debug a running application
+		Launch a command shell to debug a running application.
 
 		When debugging images and setup problems, it's useful to get an exact copy of a running
 		pod configuration and troubleshoot with a shell. Since a pod that is failing may not be
@@ -110,10 +110,10 @@ var (
 		# See the pod that would be created to debug
 		oc debug mypod-9xbc -o yaml
 
-		# Debug a resource but launch the debug pod in another namespace.
+		# Debug a resource but launch the debug pod in another namespace
 		# Note: Not all resources can be debugged using --to-namespace without modification. For example,
-		# volumes and serviceaccounts are namespace-dependent. Add '-o yaml' to output the debug pod definition
-		# to disk.  If necessary, edit the definition then run 'oc debug -f -' or run without --to-namespace.
+		# volumes and service accounts are namespace-dependent. Add '-o yaml' to output the debug pod definition
+		# to disk.  If necessary, edit the definition then run 'oc debug -f -' or run without --to-namespace
 		oc debug mypod-9xbc --to-namespace testns
 	`)
 )

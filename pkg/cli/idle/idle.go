@@ -39,7 +39,7 @@ import (
 
 var (
 	idleLong = templates.LongDesc(`
-		Idle scalable resources
+		Idle scalable resources.
 
 		Idling discovers the scalable resources (such as deployment configs and replication controllers)
 		associated with a series of services by examining the endpoints of the service.

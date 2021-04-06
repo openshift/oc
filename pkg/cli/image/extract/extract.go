@@ -34,9 +34,9 @@ import (
 
 var (
 	desc = templates.LongDesc(`
-		Extract the contents of an image to disk
+		Extract the contents of an image to disk.
 
-		Download an image or parts of an image to the filesystem. Allows users to access the
+		Download an image or parts of an image to the file system. Allows users to access the
 		contents of images without requiring a container runtime engine running.
 
 		Unless the --path flag is passed, image contents will be extracted into the current directory.
@@ -69,7 +69,7 @@ var (
 		oc image extract docker.io/library/busybox:latest --path /:/tmp/busybox
 
 		# Extract the busybox image into the current directory for linux/s390x platform
-		# Note: Wildcard filter is not supported with extract. Pass a single os/arch to extract.
+		# Note: Wildcard filter is not supported with extract. Pass a single os/arch to extract
 		oc image extract docker.io/library/busybox:latest --filter-by-os=linux/s390x
 
 		# Extract a single file from the image into the current directory
@@ -79,15 +79,15 @@ var (
 		oc image extract docker.io/library/centos:7 --path /etc/yum.repos.d/*.repo:.
 
 		# Extract all .repo files from the image's /etc/yum.repos.d/ folder into a designated directory (must exist)
-		# this results in /tmp/yum.repos.d/*.repo on local system
+		# This results in /tmp/yum.repos.d/*.repo on local system
 		oc image extract docker.io/library/centos:7 --path /etc/yum.repos.d/*.repo:/tmp/yum.repos.d
 
 		# Extract an image stored on disk into the current directory ($(pwd)/v2/busybox/blobs,manifests exists)
-		# --confirm is required because current directory is not empty
+		# --confirm is required because the current directory is not empty
 		oc image extract file://busybox:local --confirm
 
 		# Extract an image stored on disk in a directory other than $(pwd)/v2 into the current directory
-		# --confirm is required because current directory is not empty ($(pwd)/busybox-mirror-dir/v2/busybox exists)
+		# --confirm is required because the current directory is not empty ($(pwd)/busybox-mirror-dir/v2/busybox exists)
 		oc image extract file://busybox:local --dir busybox-mirror-dir --confirm
 
 		# Extract an image stored on disk in a directory other than $(pwd)/v2 into a designated directory (must exist)
@@ -161,7 +161,7 @@ func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "extract",
-		Short:   "Copy files from an image to the filesystem",
+		Short:   "Copy files from an image to the file system",
 		Long:    desc,
 		Example: example,
 		Run: func(c *cobra.Command, args []string) {

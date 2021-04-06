@@ -27,7 +27,7 @@ import (
 
 var (
 	rolloutLatestLong = templates.LongDesc(`
-		Start a new rollout for a deployment config with the latest state from its triggers
+		Start a new rollout for a deployment config with the latest state from its triggers.
 
 		This command is appropriate for running manual rollouts. If you want full control over
 		running new rollouts, use "oc set triggers --manual" to disable all triggers in your
@@ -36,7 +36,7 @@ var (
 		your image change triggers.`)
 
 	rolloutLatestExample = templates.Examples(`
-		# Start a new rollout based on the latest images defined in the image change triggers.
+		# Start a new rollout based on the latest images defined in the image change triggers
 		oc rollout latest dc/nginx
 
 		# Print the rolled out deployment config

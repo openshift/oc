@@ -17,19 +17,19 @@ import (
 
 var (
 	linkSecretLong = templates.LongDesc(`
-		Link secrets to a service account
+		Link secrets to a service account.
 
 		Linking a secret enables a service account to automatically use that secret for some forms of authentication.
 	`)
 
 	linkSecretExample = templates.Examples(`
-		# Add an image pull secret to a service account to automatically use it for pulling pod images:
+		# Add an image pull secret to a service account to automatically use it for pulling pod images
 		oc secrets link serviceaccount-name pull-secret --for=pull
 
-		# Add an image pull secret to a service account to automatically use it for both pulling and pushing build images:
+		# Add an image pull secret to a service account to automatically use it for both pulling and pushing build images
 		oc secrets link builder builder-image-secret --for=pull,mount
 
-		# If the cluster's serviceAccountConfig is operating with limitSecretReferences: True, secrets must be added to the pod's service account whitelist in order to be available to the pod:
+		# If the cluster's serviceAccountConfig is operating with limitSecretReferences: True, secrets must be added to the pod's service account whitelist in order to be available to the pod
 		oc secrets link pod-sa pod-secret
 	`)
 )
@@ -55,7 +55,7 @@ func NewCmdLinkSecret(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 
 	cmd := &cobra.Command{
 		Use:     "link serviceaccounts-name secret-name [another-secret-name]...",
-		Short:   "Link secrets to a ServiceAccount",
+		Short:   "Link secrets to a service account",
 		Long:    linkSecretLong,
 		Example: linkSecretExample,
 		Run: func(c *cobra.Command, args []string) {

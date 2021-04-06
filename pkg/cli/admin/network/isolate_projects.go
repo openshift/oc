@@ -17,7 +17,7 @@ import (
 
 var (
 	isolateProjectsNetworkLong = templates.LongDesc(`
-		Isolate project network
+		Isolate project network.
 
 		Allows projects to isolate their network from other projects when using the %[1]s network plugin.
 	`)

@@ -23,7 +23,7 @@ import (
 
 var (
 	buildLong = templates.LongDesc(`
-		Create a new build
+		Create a new build.
 
 		Builds create container images from source code or Dockerfiles. A build can pull source
 		code from Git or accept a Dockerfile that pulls the source content.

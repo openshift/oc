@@ -35,14 +35,14 @@ const (
 
 var (
 	topImagesLong = templates.LongDesc(`
-		Show usage statistics for Images
+		Show usage statistics for images.
 
-		This command analyzes all the Images managed by the platform and presents current
+		This command analyzes all the images managed by the platform and presents current
 		usage statistics.
 	`)
 
 	topImagesExample = templates.Examples(`
-		# Show usage statistics for Images
+		# Show usage statistics for images
 		oc adm top images
 	`)
 )
@@ -67,7 +67,7 @@ func NewCmdTopImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 	o := NewTopImagesOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "images",
-		Short:   "Show usage statistics for Images",
+		Short:   "Show usage statistics for images",
 		Long:    topImagesLong,
 		Example: topImagesExample,
 		Run: func(cmd *cobra.Command, args []string) {

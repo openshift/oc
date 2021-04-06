@@ -19,7 +19,7 @@ const JoinProjectsNetworkCommandName = "join-projects"
 
 var (
 	joinProjectsNetworkLong = templates.LongDesc(`
-		Join project network
+		Join project network.
 
 		Allows projects to join existing project network when using the %[1]s network plugin.
 	`)

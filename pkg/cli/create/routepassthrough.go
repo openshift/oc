@@ -18,18 +18,18 @@ import (
 
 var (
 	passthroughRouteLong = templates.LongDesc(`
-		Create a route that uses passthrough TLS termination
+		Create a route that uses passthrough TLS termination.
 
 		Specify the service (either just its name or using type/name syntax) that the
 		generated route should expose via the --service flag.
 	`)
 
 	passthroughRouteExample = templates.Examples(`
-		# Create a passthrough route named "my-route" that exposes the frontend service.
+		# Create a passthrough route named "my-route" that exposes the frontend service
 		oc create route passthrough my-route --service=frontend
 
 		# Create a passthrough route that exposes the frontend service and specify
-		# a hostname. If the route name is omitted, the service name will be re-used.
+		# a host name. If the route name is omitted, the service name will be used
 		oc create route passthrough --service=frontend --hostname=www.example.com
 	`)
 )

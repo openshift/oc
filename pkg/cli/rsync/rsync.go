@@ -30,7 +30,7 @@ const (
 
 var (
 	rsyncLong = templates.LongDesc(`
-		Copy local files to or from a pod container
+		Copy local files to or from a pod container.
 
 		This command will copy local files to or from a remote container.
 		It only copies the changed files using the rsync command from your OS.
@@ -115,7 +115,7 @@ func NewCmdRsync(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 
 	cmd := &cobra.Command{
 		Use:     "rsync SOURCE DESTINATION",
-		Short:   "Copy files between local filesystem and a pod",
+		Short:   "Copy files between a local file system and a pod",
 		Long:    rsyncLong,
 		Example: rsyncExample,
 		Run: func(c *cobra.Command, args []string) {

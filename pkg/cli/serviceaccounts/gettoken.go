@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	getServiceAccountTokenShort = `Get a token assigned to a service account.`
+	getServiceAccountTokenShort = `Get a token assigned to a service account`
 )
 
 var (

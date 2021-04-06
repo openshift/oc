@@ -107,7 +107,7 @@ func NewCmdImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 
 var (
 	setResourcesLong = ktemplates.LongDesc(`
-Specify compute resource requirements (cpu, memory) for any resource that defines a pod template. If a pod is successfully schedualed it is guaranteed the amount of resource requested, but may burst up to its specified limits.
+Specify compute resource requirements (cpu, memory) for any resource that defines a pod template. If a pod is successfully scheduled, it is guaranteed the amount of resource requested, but may burst up to its specified limits.
 
 For each compute resource, if a limit is specified and a request is omitted, the request will default to the limit.
 
@@ -115,21 +115,16 @@ Possible resources include (case insensitive):
 "ReplicationController", "Deployment", "DaemonSet", "Job", "ReplicaSet", "DeploymentConfigs"`)
 
 	setResourcesExample = ktemplates.Examples(`
-# Set a deployments nginx container cpu limits to "200m and memory to 512Mi"
-
+# Set a deployments nginx container CPU limits to "200m and memory to 512Mi"
 oc set resources deployment nginx -c=nginx --limits=cpu=200m,memory=512Mi
 
-
 # Set the resource request and limits for all containers in nginx
-
 oc set resources deployment nginx --limits=cpu=200m,memory=512Mi --requests=cpu=100m,memory=256Mi
 
 # Remove the resource requests for resources on containers in nginx
-
 oc set resources deployment nginx --limits=cpu=0,memory=0 --requests=cpu=0,memory=0
 
-# Print the result (in yaml format) of updating nginx container limits from a local, without hitting the server
-
+# Print the result (in YAML format) of updating nginx container limits locally, without hitting the server
 oc set resources -f path/to/file.yaml --limits=cpu=200m,memory=512Mi --local -o yaml`)
 )
 
@@ -149,10 +144,10 @@ of 'set selector'.
 
 A selector must begin with a letter or number, and may contain letters, numbers, hyphens, dots, and underscores, up to oc characters.
 If --resource-version is specified, then updates will use this resource version, otherwise the existing resource-version will be used.
-Note: currently selectors can only be set on Service objects.`)
+Note: currently selectors can only be set on service objects.`)
 
 	setSelectorExample = ktemplates.Examples(`
-# set the labels and selector before creating a deployment/service pair.
+# Set the labels and selector before creating a deployment/service pair.
 oc create service clusterip my-svc --clusterip="None" -o yaml --dry-run | oc set selector --local -f - 'environment=qa' -o yaml | oc create -f -
 oc create deployment my-dep -o yaml --dry-run | oc label --local -f - environment=qa -o yaml | oc create -f -`)
 )
@@ -172,10 +167,10 @@ Update ServiceAccount of pod template resources.
 `)
 
 	setServiceaccountExample = ktemplates.Examples(`
-# Set Deployment nginx-deployment's ServiceAccount to serviceaccount1
+# Set deployment nginx-deployment's service account to serviceaccount1
 oc set serviceaccount deployment nginx-deployment serviceaccount1
 
-# Print the result (in yaml format) of updated nginx deployment with serviceaccount from local file, without hitting apiserver
+# Print the result (in YAML format) of updated nginx deployment with service account from a local file, without hitting the API server
 oc set sa -f nginx-deployment.yaml serviceaccount1 --local --dry-run -o yaml
 `)
 )
@@ -191,16 +186,16 @@ func NewCmdServiceAccount(f kcmdutil.Factory, streams genericclioptions.IOStream
 
 var (
 	setSubjectLong = ktemplates.LongDesc(`
-Update User, Group or ServiceAccount in a RoleBinding/ClusterRoleBinding.`)
+Update user, group or service account in a role binding or cluster role binding.`)
 
 	setSubjectExample = ktemplates.Examples(`
-# Update a ClusterRoleBinding for serviceaccount1
+# Update a cluster role binding for serviceaccount1
 oc set subject clusterrolebinding admin --serviceaccount=namespace:serviceaccount1
 
-# Update a RoleBinding for user1, user2, and group1
+# Update a role binding for user1, user2, and group1
 oc set subject rolebinding admin --user=user1 --user=user2 --group=group1
 
-# Print the result (in yaml format) of updating rolebinding subjects from a local, without hitting the server
+# Print the result (in YAML format) of updating role binding subjects locally, without hitting the server
 oc create rolebinding admin --role=admin --user=admin -o yaml --dry-run | oc set subject --local -f - --user=foo -o yaml`)
 )
 

@@ -21,11 +21,11 @@ import (
 
 var (
 	desc = templates.LongDesc(`
-		Display information about the integrated registry
+		Display information about the integrated registry.
 
 		This command exposes information about the integrated registry, if configured.
 		Use --check to verify your local client can access the registry. If the adminstrator
-		has not configured a public hostname for the registry then this command may fail when
+		has not configured a public host name for the registry then this command may fail when
 		run outside of the server.
 
 		Experimental: This command is under active development and may change without notice.
@@ -61,7 +61,7 @@ func NewRegistryInfoCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams)
 
 	cmd := &cobra.Command{
 		Use:     "info ",
-		Short:   "Print info about the integrated registry",
+		Short:   "Print information about the integrated registry",
 		Long:    desc,
 		Example: example,
 		Run: func(c *cobra.Command, args []string) {

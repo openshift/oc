@@ -42,7 +42,7 @@ import (
 
 var (
 	triggersLong = templates.LongDesc(`
-		Set or remove triggers
+		Set or remove triggers.
 
 		Build configs, deployment configs, and most Kubernetes workload objects may have a set of triggers
 		that result in a new deployment or build being created when an image changes. This command enables

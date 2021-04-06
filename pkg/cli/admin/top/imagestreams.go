@@ -28,14 +28,14 @@ const TopImageStreamsRecommendedName = "imagestreams"
 
 var (
 	topImageStreamsLong = templates.LongDesc(`
-		Show usage statistics for ImageStreams
+		Show usage statistics for image streams.
 
-		This command analyzes all the ImageStreams managed by the platform and presents current
+		This command analyzes all the image streams managed by the platform and presents current
 		usage statistics.
 	`)
 
 	topImageStreamsExample = templates.Examples(`
-		# Show usage statistics for ImageStreams
+		# Show usage statistics for image streams
 		oc adm top imagestreams
 	`)
 )
@@ -59,7 +59,7 @@ func NewCmdTopImageStreams(f kcmdutil.Factory, streams genericclioptions.IOStrea
 	o := NewTopImageStreamsOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "imagestreams",
-		Short:   "Show usage statistics for ImageStreams",
+		Short:   "Show usage statistics for image streams",
 		Long:    topImageStreamsLong,
 		Example: topImageStreamsExample,
 		Run: func(cmd *cobra.Command, args []string) {

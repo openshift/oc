@@ -26,7 +26,7 @@ import (
 
 var (
 	importImageLong = templates.LongDesc(`
-		Import the latest image information from a tag in a container image registry
+		Import the latest image information from a tag in a container image registry.
 
 		Image streams allow you to control which images are rolled out to your builds
 		and applications. This command fetches the latest version of an image from a
@@ -35,26 +35,26 @@ var (
 		entries. When importing an image, only the image metadata is copied, not the
 		image contents.
 
-		If you wish to change the image stream tag or provide more advanced options,
+		If you want to change the image stream tag or provide more advanced options,
 		see the 'tag' command.`)
 
 	importImageExample = templates.Examples(`
-		# Import tag latest into a new image stream.
+		# Import tag latest into a new image stream
 		oc import-image mystream --from=registry.io/repo/image:latest --confirm
 
-		# Update imported data for tag latest in an already existing image stream.
+		# Update imported data for tag latest in an already existing image stream
 		oc import-image mystream
 
-		# Update imported data for tag stable in an already existing image stream.
+		# Update imported data for tag stable in an already existing image stream
 		oc import-image mystream:stable
 
-		# Update imported data for all tags in an existing image stream.
+		# Update imported data for all tags in an existing image stream
 		oc import-image mystream --all
 
-		# Import all tags into a new image stream.
+		# Import all tags into a new image stream
 		oc import-image mystream --from=registry.io/repo/image --all --confirm
 
-		# Import all tags into a new image stream using a custom timeout.
+		# Import all tags into a new image stream using a custom timeout
 		oc --request-timeout=5m import-image mystream --from=registry.io/repo/image --all --confirm
 	`)
 )
@@ -103,7 +103,7 @@ func NewCmdImportImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 
 	cmd := &cobra.Command{
 		Use:     "import-image IMAGESTREAM[:TAG]",
-		Short:   "Imports images from a container image registry",
+		Short:   "Import images from a container image registry",
 		Long:    importImageLong,
 		Example: importImageExample,
 		Run: func(cmd *cobra.Command, args []string) {

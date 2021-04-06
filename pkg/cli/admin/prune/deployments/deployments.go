@@ -23,7 +23,7 @@ import (
 
 var (
 	deploymentsLongDesc = templates.LongDesc(`
-		Prune old completed and failed deployment configs
+		Prune old completed and failed deployment configs.
 
 		By default, the prune operation performs a dry run making no changes to the deployment configs.
 		A --confirm flag is needed for changes to be effective.

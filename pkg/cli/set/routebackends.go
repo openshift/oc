@@ -29,7 +29,7 @@ import (
 
 var (
 	backendsLong = templates.LongDesc(`
-		Set and adjust route backends
+		Set and adjust route backends.
 
 		Routes may have one or more optional backend services with weights controlling how much
 		traffic flows to each service. Traffic is assigned proportional to the combined weights

@@ -16,7 +16,7 @@ import (
 
 var (
 	makeGlobalProjectsNetworkLong = templates.LongDesc(`
-		Make project network global
+		Make project network global.
 
 		Allows projects to access all pods in the cluster and vice versa when using the %[1]s network plugin.
 	`)

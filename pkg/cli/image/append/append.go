@@ -38,7 +38,7 @@ import (
 
 var (
 	desc = templates.LongDesc(`
-		Add layers to container images
+		Add layers to container images.
 
 		Modifies an existing image by adding layers or changing configuration and then pushes that
 		image to a remote registry. Any inherited layers are streamed from registry to registry
@@ -84,7 +84,7 @@ var (
 		oc image append --from-dir v2 --to myregistry.com/myimage:latest layer.tar.gz
 
 		# Add a new layer to a multi-architecture image for an os/arch that is different from the system's os/arch
-		# Note: Wildcard filter is not supported with append. Pass a single os/arch to append.
+		# Note: Wildcard filter is not supported with append. Pass a single os/arch to append
 		oc image append --from docker.io/library/busybox:latest --filter-by-os=linux/s390x --to myregistry.com/myimage:latest layer.tar.gz
 
 	`)

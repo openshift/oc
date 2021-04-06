@@ -37,11 +37,13 @@ var (
 		Pass --client to print only the OpenShift client version.
 	`)
 	versionExample = templates.Examples(`
-		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version information for the current context.
+		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version information for the current context
 		oc version
-		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version numbers for the current context.
+
+		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version numbers for the current context
 		oc version --short
-		# Print the OpenShift client version information for the current context.
+
+		# Print the OpenShift client version information for the current context
 		oc version --client
 	`)
 )

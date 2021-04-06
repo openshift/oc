@@ -44,7 +44,7 @@ func NewInfo(streams genericclioptions.IOStreams) *cobra.Command {
 		Use:   "info IMAGE [...]",
 		Short: "Display information about an image",
 		Long: templates.LongDesc(`
-			Show information about an image in a remote image registry
+			Show information about an image in a remote image registry.
 
 			This command will retrieve metadata about container images in a remote image
 			registry. You may specify images by tag or digest and specify multiple at a

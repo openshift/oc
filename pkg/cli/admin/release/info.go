@@ -63,7 +63,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 		Use:   "info IMAGE [--changes-from=IMAGE] [--verify|--commits|--pullspecs]",
 		Short: "Display information about a release",
 		Long: templates.LongDesc(`
-			Show information about an OpenShift release
+			Show information about an OpenShift release.
 
 			This command retrieves, verifies, and formats the information describing an OpenShift update.
 			Updates are delivered as container images with metadata describing the component images and

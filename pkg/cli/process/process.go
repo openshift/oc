@@ -40,7 +40,7 @@ import (
 
 var (
 	processLong = templates.LongDesc(`
-		Process template into a list of resources specified in filename or stdin
+		Process template into a list of resources specified in a file name or stdin.
 
 		Templates allow parameterization of resources prior to being sent to the server for creation or
 		update. Templates have "parameters", which may either be generated on creation or set by the user,
@@ -55,7 +55,7 @@ var (
 	`)
 
 	processExample = templates.Examples(`
-		# Convert template.json file into resource list and pass to create
+		# Convert the template.json file into a resource list and pass to create
 		oc process -f template.json | oc create -f -
 
 		# Process a file locally instead of contacting the server
@@ -64,16 +64,16 @@ var (
 		# Process template while passing a user-defined label
 		oc process -f template.json -l name=mytemplate
 
-		# Convert stored template into resource list
+		# Convert a stored template into a resource list
 		oc process foo
 
-		# Convert stored template into resource list by setting/overriding parameter values
+		# Convert a stored template into a resource list by setting/overriding parameter values
 		oc process foo PARM1=VALUE1 PARM2=VALUE2
 
-		# Convert template stored in different namespace into a resource list
+		# Convert a template stored in different namespace into a resource list
 		oc process openshift//foo
 
-		# Convert template.json into resource list
+		# Convert template.json into a resource list
 		cat template.json | oc process -f -
 	`)
 )

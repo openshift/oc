@@ -40,7 +40,7 @@ const (
 
 var (
 	volumeLong = templates.LongDesc(`
-		Update volumes on a pod template
+		Update volumes on a pod template.
 
 		This command can add, update or remove volumes from containers for any object
 		that has a pod template (deployment configs, replication controllers, or pods).
