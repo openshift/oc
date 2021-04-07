@@ -1,18 +1,21 @@
-:toc: macro
-:toc-title:
+// NOTE: The contents of this file are auto-generated
 
-toc::[]
+[id="openshift-cli_{context}"]
+= OpenShift CLI (oc) commands
 
 {{range .items}}
+
+{{if .isAdminCommand}}ifdef::openshift-enterprise,openshift-origin[] {{end}}
+
 == {{.fullName}}
 {{.description}}
 
-====
-
-[options="nowrap"]
+.Example usage
+[source,terminal,options="nowrap"]
 ----
 {{.examples}}
 ----
-====
+
+{{if .isAdminCommand}}endif::openshift-enterprise,openshift-origin[] {{end}}
 
 {{end}}
