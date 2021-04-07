@@ -62,15 +62,21 @@ var (
 
 		For advanced configuration, or to manage the contents of your config file, use the 'config'
 		command.`)
+
+	projectsExample = templates.Examples(`
+		# List all projects
+		oc projects
+	`)
 )
 
 // NewCmdProjects implements the OpenShift cli rollback command
 func NewCmdProjects(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewProjectsOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "projects",
-		Short: "Display existing projects",
-		Long:  projectsLong,
+		Use:     "projects",
+		Short:   "Display existing projects",
+		Long:    projectsLong,
+		Example: projectsExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

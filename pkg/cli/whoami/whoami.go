@@ -31,6 +31,11 @@ var whoamiLong = templates.LongDesc(`
 	or an empty string.  Other flags support returning the currently used token or the
 	user context.`)
 
+var whoamiExample = templates.Examples(`
+	# Display the currently authenticated user
+	oc whoami
+`)
+
 type WhoAmIOptions struct {
 	UserInterface userv1typedclient.UserV1Interface
 
@@ -56,9 +61,10 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 	o := NewWhoAmIOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:   "whoami",
-		Short: "Return information about the current session",
-		Long:  whoamiLong,
+		Use:     "whoami",
+		Short:   "Return information about the current session",
+		Long:    whoamiLong,
+		Example: whoamiExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f))
 			kcmdutil.CheckErr(o.Validate())
