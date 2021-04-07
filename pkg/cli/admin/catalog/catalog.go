@@ -15,8 +15,7 @@ var catalogCmd = &cobra.Command{
 			This tool is used to extract and mirror the contents of catalogs for Operator
 			Lifecycle Manager.
 
-			The subcommands allow you to build catalog images from a source (such as appregistry) 
-			and mirror its content across registries.
+			The subcommands allow you to mirror catalog content across registries.
 			`),
 }
 
