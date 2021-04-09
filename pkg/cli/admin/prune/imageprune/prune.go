@@ -589,7 +589,7 @@ func (p *pruner) analyzeReferencesFromBuildStrategy(referrer resourceReference, 
 			if !p.ignoreInvalidRefs {
 				return []error{newErrBadReferenceTo(referrer, "", "ImageStreamTag", from.Name, err)}
 			}
-			klog.V(1).Infof("%s: failed to parse ImageStreamTag name %q: %v", referrer, from.Name, err)
+			klog.V(1).Infof("%s: failed to parse ImageStreamTag name %q: %v - skipping", referrer, from.Name, err)
 			return nil
 		}
 
@@ -1120,7 +1120,10 @@ func (p *pruner) pruneImage(image *imagev1.Image, usedImages map[string]bool, co
 	}
 
 	if stats.DeletedBlobs > 0 || failures == 0 {
-		if err := imageDeleter.DeleteImage(image); err != nil {
+		err := imageDeleter.DeleteImage(image)
+		if kerrapi.IsNotFound(err) {
+			klog.V(4).Infof("image %s: the image does not exist anymore", image.Name)
+		} else if err != nil {
 			errs = append(errs, fmt.Errorf("failed to delete image %s: %v", image.Name, err))
 		} else {
 			stats.DeletedImages++
