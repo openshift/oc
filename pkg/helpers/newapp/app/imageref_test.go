@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	buildv1 "github.com/openshift/api/build/v1"
@@ -85,6 +86,35 @@ func TestBuildConfigOutput(t *testing.T) {
 		if !imageChangeTrigger {
 			t.Errorf("expecting image change trigger in build config")
 		}
+	}
+}
+
+func TestImageStreamRefNaming(t *testing.T) {
+	objectName := "object"
+	streamName := "stream"
+	streamNamespace := "anotherNamespace"
+
+	imageRef := &ImageRef{
+		ObjectName: objectName,
+		Stream: &imagev1.ImageStream{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      streamName,
+				Namespace: streamNamespace,
+			},
+		},
+	}
+
+	suggestedName, ok := imageRef.SuggestName()
+	if !ok {
+		t.Fatalf("failed to procure name for stream")
+	}
+	suggestedNamespace := imageRef.SuggestNamespace()
+
+	if suggestedName != streamName {
+		t.Errorf("suggested name %v is different from expected %v", suggestedName, streamName)
+	}
+	if suggestedNamespace != streamNamespace {
+		t.Errorf("suggested namespace %v is different from expected %v", suggestedNamespace, streamNamespace)
 	}
 }
 
