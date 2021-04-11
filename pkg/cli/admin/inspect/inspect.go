@@ -61,7 +61,7 @@ type InspectOptions struct {
 	printFlags  *genericclioptions.PrintFlags
 	configFlags *genericclioptions.ConfigFlags
 
-	restConfig      *rest.Config
+	RESTConfig      *rest.Config
 	kubeClient      kubernetes.Interface
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
@@ -79,7 +79,7 @@ type InspectOptions struct {
 	sinceTimestamp metav1.Time
 
 	// directory where all gathered data will be stored
-	destDir string
+	DestDir string
 	// whether or not to allow writes to an existing and populated base directory
 	overwrite bool
 
@@ -104,13 +104,13 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 		Long:    inspectLong,
 		Example: inspectExample,
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Complete(args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
 
-	cmd.Flags().StringVar(&o.destDir, "dest-dir", o.destDir, "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/inspect.local.<rand>")
+	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Root directory used for storing all gathered cluster operator data. Defaults to $(PWD)/inspect.local.<rand>")
 	cmd.Flags().StringVar(&o.eventFile, "events-file", o.eventFile, "A path to an events.json file to create a HTML page from")
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 	cmd.Flags().StringVar(&o.sinceTime, "since-time", o.sinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Only one of since-time / since may be used.")
@@ -120,7 +120,7 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *InspectOptions) Complete(args []string) error {
 	o.args = args
 
 	if len(o.eventFile) > 0 {
@@ -128,20 +128,20 @@ func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 	}
 
 	var err error
-	o.restConfig, err = o.configFlags.ToRESTConfig()
+	o.RESTConfig, err = o.configFlags.ToRESTConfig()
 	if err != nil {
 		return err
 	}
 	// we make lots and lots of client calls, don't slow down artificially.
-	o.restConfig.QPS = 999999
-	o.restConfig.Burst = 999999
+	o.RESTConfig.QPS = 999999
+	o.RESTConfig.Burst = 999999
 
-	o.kubeClient, err = kubernetes.NewForConfig(o.restConfig)
+	o.kubeClient, err = kubernetes.NewForConfig(o.RESTConfig)
 	if err != nil {
 		return err
 	}
 
-	o.dynamicClient, err = dynamic.NewForConfig(o.restConfig)
+	o.dynamicClient, err = dynamic.NewForConfig(o.RESTConfig)
 	if err != nil {
 		return err
 	}
@@ -179,14 +179,14 @@ func (o *InspectOptions) Complete(cmd *cobra.Command, args []string) error {
 
 	o.builder = resource.NewBuilder(o.configFlags)
 
-	if len(o.destDir) == 0 {
-		o.destDir = fmt.Sprintf("inspect.local.%06d", rand.Int63())
+	if len(o.DestDir) == 0 {
+		o.DestDir = fmt.Sprintf("inspect.local.%06d", rand.Int63())
 	}
 	return nil
 }
 
 func (o *InspectOptions) Validate() error {
-	if len(o.destDir) == 0 {
+	if len(o.DestDir) == 0 {
 		return fmt.Errorf("--dest-dir must not be empty")
 	}
 	if len(o.sinceTime) > 0 && o.since != 0 {
@@ -197,7 +197,7 @@ func (o *InspectOptions) Validate() error {
 
 func (o *InspectOptions) Run() error {
 	if len(o.eventFile) > 0 {
-		return createEventFilterPageFromFile(o.eventFile, o.destDir)
+		return createEventFilterPageFromFile(o.eventFile, o.DestDir)
 	}
 	r := o.builder.
 		Unstructured().
@@ -217,7 +217,7 @@ func (o *InspectOptions) Run() error {
 	}
 
 	// ensure destination path exists
-	if err := os.MkdirAll(o.destDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(o.DestDir, os.ModePerm); err != nil {
 		return err
 	}
 
@@ -237,11 +237,11 @@ func (o *InspectOptions) Run() error {
 	}
 
 	// now gather all the events into a single file and produce a unified file
-	if err := CreateEventFilterPage(o.destDir); err != nil {
+	if err := CreateEventFilterPage(o.DestDir); err != nil {
 		allErrs = append(allErrs, err)
 	}
 
-	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.destDir)
+	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.DestDir)
 	if len(allErrs) > 0 {
 		return fmt.Errorf("errors ocurred while gathering data:\n    %v", errors.NewAggregate(allErrs))
 	}
@@ -333,12 +333,12 @@ func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourc
 	return nil
 }
 
-// ensureDirectoryViable returns an error if destDir:
+// ensureDirectoryViable returns an error if DestDir:
 // 1. already exists AND is a file (not a directory)
 // 2. already exists AND is NOT empty, unless overwrite was passed
 // 3. an IO error occurs
 func (o *InspectOptions) ensureDirectoryViable() error {
-	baseDirInfo, err := os.Stat(o.destDir)
+	baseDirInfo, err := os.Stat(o.DestDir)
 	if err != nil && os.IsNotExist(err) {
 		// no error, directory simply does not exist yet
 		return nil
@@ -348,20 +348,20 @@ func (o *InspectOptions) ensureDirectoryViable() error {
 	}
 
 	if !baseDirInfo.IsDir() {
-		return fmt.Errorf("%q exists and is a file", o.destDir)
+		return fmt.Errorf("%q exists and is a file", o.DestDir)
 	}
-	files, err := ioutil.ReadDir(o.destDir)
+	files, err := ioutil.ReadDir(o.DestDir)
 	if err != nil {
 		return err
 	}
 	if len(files) > 0 && !o.overwrite {
-		return fmt.Errorf("%q exists and is not empty. Pass --overwrite to allow data overwrites", o.destDir)
+		return fmt.Errorf("%q exists and is not empty. Pass --overwrite to allow data overwrites", o.DestDir)
 	}
 	return nil
 }
 
 func (o *InspectOptions) logTimestamp() error {
-	f, err := os.OpenFile(path.Join(o.destDir, "timestamp"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	f, err := os.OpenFile(path.Join(o.DestDir, "timestamp"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}

@@ -70,13 +70,15 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 
 	klog.V(1).Infof("    Gathering pod data for namespace %q...\n", namespace)
 	// gather specific pod data
-	for _, pod := range resourcesToStore[corev1.SchemeGroupVersion.WithResource("pods")].(*unstructured.UnstructuredList).Items {
-		klog.V(1).Infof("        Gathering data for pod %q\n", pod.GetName())
-		structuredPod := &corev1.Pod{}
-		runtime.DefaultUnstructuredConverter.FromUnstructured(pod.Object, structuredPod)
-		if err := o.gatherPodData(path.Join(destDir, "/pods/"+pod.GetName()), namespace, structuredPod); err != nil {
-			errs = append(errs, err)
-			continue
+	if pods := resourcesToStore[corev1.SchemeGroupVersion.WithResource("pods")]; pods != nil {
+		for _, pod := range pods.(*unstructured.UnstructuredList).Items {
+			klog.V(1).Infof("        Gathering data for pod %q\n", pod.GetName())
+			structuredPod := &corev1.Pod{}
+			runtime.DefaultUnstructuredConverter.FromUnstructured(pod.Object, structuredPod)
+			if err := o.gatherPodData(path.Join(destDir, "/pods/"+pod.GetName()), namespace, structuredPod); err != nil {
+				errs = append(errs, err)
+				continue
+			}
 		}
 	}
 
