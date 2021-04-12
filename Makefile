@@ -88,6 +88,10 @@ generate-docs:
 	go run ./tools/gendocs
 .PHONY: generate-docs
 
+generate-docs-admin:
+	go run ./tools/gendocs-admin
+.PHONY: generate-docs-admin
+
 generate-versioninfo:
 	SOURCE_GIT_TAG=$(SOURCE_GIT_TAG) hack/generate-versioninfo.sh
 .PHONY: generate-versioninfo

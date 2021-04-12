@@ -1,6 +1,7 @@
 /oc
 /clicheck
 /gendocs
+/gendocs-admin
 /genman
 /_output
 .idea/

@@ -1,4 +1,4 @@
-package gendocs
+package gendocsadmin
 
 import (
 	"bytes"
@@ -25,9 +25,9 @@ func (x Examples) Less(i, j int) bool {
 	return xi < xj
 }
 
-func GenDocs(cmd *cobra.Command, filename string) error {
+func GenDocsAdmin(cmd *cobra.Command, filename string) error {
 	out := new(bytes.Buffer)
-	templateFile, err := filepath.Abs("hack/clibyexample/template")
+	templateFile, err := filepath.Abs("hack/clibyexample/template-admin")
 	if err != nil {
 		return err
 	}
@@ -72,10 +72,10 @@ func extractExamples(cmd *cobra.Command) Examples {
 		if len(c.Deprecated) > 0 {
 			continue
 		}
-		if strings.HasPrefix(c.CommandPath(), "oc adm") {
-			continue
-		} else {
+ 		if strings.HasPrefix(c.CommandPath(), "oc adm") {
 			objs = append(objs, extractExamples(c)...)
+		} else {
+			continue
 		}
 	}
 	if cmd.HasExample() {
