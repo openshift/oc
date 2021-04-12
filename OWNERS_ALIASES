@@ -14,3 +14,9 @@ aliases:
     - ecordell
   catalog-reviewers:
     - ecordell
+  build-reviewers:
+    - adambkaplan
+    - gabemontero
+    - coreydaley
+  build-approvers:
+    - adambkaplan
