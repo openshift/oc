@@ -2,7 +2,7 @@
 ROOTDIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # Used to populate version variable in main package.
-VERSION=$(shell git describe --match 'v[0-9]*' --dirty='.m' --always)
+VERSION=$(shell git describe --match 'openshift-clients-[0-9]*' --dirty='.m' --always)
 REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi)
 
 
