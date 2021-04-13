@@ -427,7 +427,7 @@ github.com/opencontainers/image-spec/specs-go/v1
 github.com/opencontainers/runc/libcontainer/user
 # github.com/opencontainers/runtime-spec v1.0.3-0.20200520003142-237cc4f519e2
 github.com/opencontainers/runtime-spec/specs-go
-# github.com/openshift/api v0.0.0-20210105115604-44119421ec6b => github.com/soltysh/api v0.0.0-20210329125043-97dfec49c179
+# github.com/openshift/api v0.0.0-20210331193751-3acddb19d360 => github.com/soltysh/api v0.0.0-20210329125043-97dfec49c179
 ## explicit
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -493,7 +493,7 @@ github.com/openshift/build-machinery-go/make/targets/golang
 github.com/openshift/build-machinery-go/make/targets/openshift
 github.com/openshift/build-machinery-go/make/targets/openshift/operator
 github.com/openshift/build-machinery-go/scripts
-# github.com/openshift/client-go v0.0.0-20201214125552-e615e336eb49 => github.com/soltysh/client-go v0.0.0-20210329131047-e53d4b5c79d3
+# github.com/openshift/client-go v0.0.0-20210331195552-cf6c2669e01f => github.com/soltysh/client-go v0.0.0-20210329131047-e53d4b5c79d3
 ## explicit
 github.com/openshift/client-go/apps/clientset/versioned
 github.com/openshift/client-go/apps/clientset/versioned/fake
@@ -556,7 +556,7 @@ github.com/openshift/client-go/user/clientset/versioned/fake
 github.com/openshift/client-go/user/clientset/versioned/scheme
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
-# github.com/openshift/library-go v0.0.0-20210219155623-0260bfd7946b => github.com/soltysh/library-go v0.0.0-20210329143525-072267446dd3
+# github.com/openshift/library-go v0.0.0-20210219155623-0260bfd7946b => /home/somalley/code/gowork/src/github.com/openshift/library-go
 ## explicit
 github.com/openshift/library-go/pkg/apps/appsserialization
 github.com/openshift/library-go/pkg/apps/appsutil
@@ -578,6 +578,7 @@ github.com/openshift/library-go/pkg/image/internal/reference
 github.com/openshift/library-go/pkg/image/reference
 github.com/openshift/library-go/pkg/image/referencemutator
 github.com/openshift/library-go/pkg/image/registryclient
+github.com/openshift/library-go/pkg/image/strategy
 github.com/openshift/library-go/pkg/image/trigger
 github.com/openshift/library-go/pkg/legacyapi/legacygroupification
 github.com/openshift/library-go/pkg/manifest
@@ -1384,7 +1385,7 @@ sigs.k8s.io/yaml
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 # github.com/openshift/api => github.com/soltysh/api v0.0.0-20210329125043-97dfec49c179
 # github.com/openshift/client-go => github.com/soltysh/client-go v0.0.0-20210329131047-e53d4b5c79d3
-# github.com/openshift/library-go => github.com/soltysh/library-go v0.0.0-20210329143525-072267446dd3
+# github.com/openshift/library-go => /home/somalley/code/gowork/src/github.com/openshift/library-go
 # k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20210318140035-c39220d4515a
 # k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210323194726-bd1440067d42
 # k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20210318140334-0e99c560fb6e
