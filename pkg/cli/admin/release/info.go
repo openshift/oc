@@ -367,7 +367,15 @@ func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 		o.From = o.Images[0]
 		o.Images = o.Images[1:]
 	}
-	o.SecurityOptions.LookupAlternate = true
+
+	if cmd.Flags().Changed("lookup-cluster-icsp") && !o.SecurityOptions.LookupClusterICSP {
+		o.SecurityOptions.LookupClusterICSP = false
+	} else if len(o.SecurityOptions.ICSPFile) == 0 {
+		o.SecurityOptions.LookupClusterICSP = true
+	}
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -753,15 +761,11 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 		Insecure:        o.SecurityOptions.Insecure,
 		RegistryContext: regContext,
 	}
-	repo, err := sourceOpts.RepositoryWithLocation(ctx, ref)
+	newRef, _, err := sourceOpts.RepositoryWithLocation(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
-	newRef := repo.Ref()
-	newRef.ID = ref.Ref.ID
-	newRef.Tag = ref.Ref.Tag
 	image = newRef.String()
-	updatedRef := ref.Ref != newRef
 	ref.Ref = newRef
 	verifier := imagemanifest.NewVerifier()
 	opts := extract.NewExtractOptions(o.IOStreams)
@@ -800,7 +804,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 				return true, nil
 			}
 			release.RawMetadata[hdr.Name] = data
-			is, err := readReleaseImageReferences(data, updatedRef, newRef)
+			is, err := readReleaseImageReferences(regContext, data, newRef, opts.SecurityOptions.Insecure)
 			if err != nil {
 				errs = append(errs, err)
 				return true, nil

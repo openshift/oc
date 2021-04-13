@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"regexp"
 	"runtime"
 	"sync"
@@ -22,15 +21,12 @@ import (
 
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
-	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
-	"github.com/openshift/library-go/pkg/image/strategy"
-	"github.com/openshift/oc/pkg/cli/image/manifest/dockercredentials"
 	"github.com/openshift/oc/pkg/helpers/image/dockerlayer/add"
 )
 
@@ -40,38 +36,6 @@ type ParallelOptions struct {
 
 func (o *ParallelOptions) Bind(flags *pflag.FlagSet) {
 	flags.IntVar(&o.MaxPerRegistry, "max-per-registry", o.MaxPerRegistry, "Number of concurrent requests allowed per registry.")
-}
-
-type SecurityOptions struct {
-	RegistryConfig   string
-	Insecure         bool
-	SkipVerification bool
-	LookupAlternate  bool
-
-	CachedContext *registryclient.Context
-}
-
-func (o *SecurityOptions) Bind(flags *pflag.FlagSet) {
-	flags.StringVarP(&o.RegistryConfig, "registry-config", "a", o.RegistryConfig, "Path to your registry credentials (defaults to ~/.docker/config.json)")
-	flags.BoolVar(&o.Insecure, "insecure", o.Insecure, "Allow push and pull operations to registries to be made over HTTP")
-	flags.BoolVar(&o.SkipVerification, "skip-verification", o.SkipVerification, "Skip verifying the integrity of the retrieved content. This is not recommended, but may be necessary when importing images from older image registries. Only bypass verification if the registry is known to be trustworthy.")
-}
-
-// ReferentialHTTPClient returns an http.Client that is appropriate for accessing
-// blobs referenced outside of the registry (due to the present of the URLs attribute
-// in the manifest reference for a layer).
-func (o *SecurityOptions) ReferentialHTTPClient() (*http.Client, error) {
-	ctx, err := o.Context()
-	if err != nil {
-		return nil, err
-	}
-	client := &http.Client{}
-	if o.Insecure {
-		client.Transport = ctx.InsecureTransport
-	} else {
-		client.Transport = ctx.Transport
-	}
-	return client, nil
 }
 
 type Verifier interface {
@@ -101,42 +65,6 @@ func (v *verifier) Verified() bool {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	return !v.hadError
-}
-
-func (o *SecurityOptions) Context() (*registryclient.Context, error) {
-	if o.CachedContext != nil {
-		return o.CachedContext, nil
-	}
-	context, err := o.NewContext()
-	if err == nil {
-		o.CachedContext = context
-		o.CachedContext.Retries = 3
-	}
-	return context, err
-}
-
-func (o *SecurityOptions) NewContext() (*registryclient.Context, error) {
-	rt, err := rest.TransportFor(&rest.Config{})
-	if err != nil {
-		return nil, err
-	}
-	insecureRT, err := rest.TransportFor(&rest.Config{TLSClientConfig: rest.TLSClientConfig{Insecure: true}})
-	if err != nil {
-		return nil, err
-	}
-	creds := dockercredentials.NewLocal()
-	if len(o.RegistryConfig) > 0 {
-		creds, err = dockercredentials.NewFromFile(o.RegistryConfig)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load --registry-config: %v", err)
-		}
-	}
-	context := registryclient.NewContext(rt, insecureRT).WithCredentials(creds)
-	if o.LookupAlternate {
-		context = context.WithAlternateBlobSourceStrategy(strategy.NewSimpleLookupICSPStrategy("", nil))
-	}
-	context.DisableDigestVerification = o.SkipVerification
-	return context, nil
 }
 
 // FilterOptions assist in filtering out unneeded manifests from ManifestList objects.
@@ -222,32 +150,33 @@ var PreferManifestList = distribution.WithManifestMediaTypes([]string{
 })
 
 // AllManifests returns all non-list manifests, the list manifest (if any), the digest the from refers to, or an error.
-func AllManifests(ctx context.Context, from imagereference.DockerImageReference, repo distribution.Repository) (map[digest.Digest]distribution.Manifest, *manifestlist.DeserializedManifestList, digest.Digest, error) {
+func AllManifests(ctx context.Context, from imagereference.DockerImageReference, repo distribution.Repository) (imagereference.DockerImageReference, map[digest.Digest]distribution.Manifest, *manifestlist.DeserializedManifestList, digest.Digest, error) {
 	var srcDigest digest.Digest
 	if len(from.ID) > 0 {
 		srcDigest = digest.Digest(from.ID)
 	} else if len(from.Tag) > 0 {
 		desc, err := repo.Tags(ctx).Get(ctx, from.Tag)
 		if err != nil {
-			return nil, nil, "", err
+			return from, nil, nil, "", err
 		}
 		srcDigest = desc.Digest
 	} else {
-		return nil, nil, "", fmt.Errorf("no tag or digest specified")
+		return from, nil, nil, "", fmt.Errorf("no tag or digest specified")
 	}
 	manifests, err := repo.Manifests(ctx)
 	if err != nil {
-		return nil, nil, "", err
+		return from, nil, nil, "", err
 	}
-	srcManifest, err := manifests.Get(ctx, srcDigest, PreferManifestList)
+	srcManifest, ref, err := manifests.(registryclient.ManifestWithLocationService).GetWithLocation(ctx, srcDigest, PreferManifestList)
 	if err != nil {
-		return nil, nil, "", err
+		return from, nil, nil, "", err
 	}
 	if srcManifest == nil {
-		return nil, nil, "", fmt.Errorf("srcManifest for ref %s is nil", from.String())
+		return from, nil, nil, "", fmt.Errorf("srcManifest for ref %s is nil", from.String())
 	}
 
-	return ManifestsFromList(ctx, srcDigest, srcManifest, manifests, from)
+	dMap, ml, dgst, err := ManifestsFromList(ctx, srcDigest, srcManifest, manifests, ref)
+	return ref, dMap, ml, dgst, err
 }
 
 type ManifestLocation struct {
@@ -267,44 +196,44 @@ func (m ManifestLocation) String() string {
 }
 
 // FirstManifest returns the first manifest at the request location that matches the filter function.
-func FirstManifest(ctx context.Context, from imagereference.DockerImageReference, repo distribution.Repository, filterFn FilterFunc) (distribution.Manifest, ManifestLocation, error) {
+func FirstManifest(ctx context.Context, from imagereference.DockerImageReference, repo registryclient.RepositoryWithLocation, filterFn FilterFunc) (imagereference.DockerImageReference, distribution.Manifest, ManifestLocation, error) {
 	var srcDigest digest.Digest
 	if len(from.ID) > 0 {
 		srcDigest = digest.Digest(from.ID)
 	} else if len(from.Tag) > 0 {
 		desc, err := repo.Tags(ctx).Get(ctx, from.Tag)
 		if err != nil {
-			return nil, ManifestLocation{}, err
+			return from, nil, ManifestLocation{}, err
 		}
 		srcDigest = desc.Digest
 	} else {
-		return nil, ManifestLocation{}, fmt.Errorf("no tag or digest specified")
+		return from, nil, ManifestLocation{}, fmt.Errorf("no tag or digest specified")
 	}
 	manifests, err := repo.Manifests(ctx)
 	if err != nil {
-		return nil, ManifestLocation{}, err
+		return from, nil, ManifestLocation{}, err
 	}
-	srcManifest, err := manifests.Get(ctx, srcDigest, PreferManifestList)
+	srcManifest, ref, err := manifests.(registryclient.ManifestWithLocationService).GetWithLocation(ctx, srcDigest, PreferManifestList)
 	if err != nil {
-		return nil, ManifestLocation{}, err
+		return from, nil, ManifestLocation{}, err
 	}
 
 	if srcManifest == nil {
-		return nil, ManifestLocation{}, fmt.Errorf("manifest for %s is nil", from.String())
+		return from, nil, ManifestLocation{}, fmt.Errorf("manifest for %s is nil", from.String())
 	}
 	originalSrcDigest := srcDigest
-	srcManifests, srcManifest, srcDigest, err := ProcessManifestList(ctx, srcDigest, srcManifest, manifests, from, filterFn, false)
+	srcManifests, srcManifest, srcDigest, err := ProcessManifestList(ctx, srcDigest, srcManifest, manifests, ref, filterFn, false)
 	if err != nil {
-		return nil, ManifestLocation{}, err
+		return from, nil, ManifestLocation{}, err
 	}
 	if len(srcManifests) == 0 {
-		return nil, ManifestLocation{}, fmt.Errorf("filtered all images from manifest list")
+		return from, nil, ManifestLocation{}, fmt.Errorf("filtered all images from manifest list")
 	}
 
 	if srcDigest != originalSrcDigest {
-		return srcManifest, ManifestLocation{Manifest: srcDigest, ManifestList: originalSrcDigest}, nil
+		return from, srcManifest, ManifestLocation{Manifest: srcDigest, ManifestList: originalSrcDigest}, nil
 	}
-	return srcManifest, ManifestLocation{Manifest: srcDigest}, nil
+	return ref, srcManifest, ManifestLocation{Manifest: srcDigest}, nil
 }
 
 // ManifestToImageConfig takes an image manifest and converts it into a structured object.

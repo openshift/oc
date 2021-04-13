@@ -151,7 +151,7 @@ func NewMirrorImageOptions(streams genericclioptions.IOStreams) *MirrorImageOpti
 }
 
 // NewCommandMirrorImage copies images from one location to another.
-func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMirrorImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMirrorImageOptions(streams)
 
 	cmd := &cobra.Command{
@@ -160,7 +160,7 @@ func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 		Long:    mirrorDesc,
 		Example: mirrorExample,
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -187,7 +187,7 @@ func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *MirrorImageOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if o.KeepManifestList && len(o.FilterOptions.FilterByOS) == 0 {
 		o.FilterOptions.FilterByOS = ".*"
 	}
@@ -196,18 +196,22 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if o.FilterOptions.IsWildcardFilter() {
-		o.KeepManifestList = true
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
 	}
 
-	registryContext, err := o.SecurityOptions.Context()
-	if err != nil {
-		return err
+	if o.FilterOptions.IsWildcardFilter() {
+		o.KeepManifestList = true
 	}
 
 	dir := o.FileDir
 	if len(o.FromFileDir) > 0 {
 		dir = o.FromFileDir
+	}
+
+	registryContext, err := o.SecurityOptions.Context()
+	if err != nil {
+		return err
 	}
 
 	opts := &imagesource.Options{
@@ -243,7 +247,7 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (o *MirrorImageOptions) Repository(ctx context.Context, context *registryclient.Context, ref imagesource.TypedImageReference, source bool) (distribution.Repository, error) {
+func (o *MirrorImageOptions) Repository(ctx context.Context, regContext *registryclient.Context, ref imagesource.TypedImageReference, source bool) (distribution.Repository, error) {
 	dir := o.FileDir
 	if len(o.FromFileDir) > 0 && source {
 		dir = o.FromFileDir
@@ -253,7 +257,7 @@ func (o *MirrorImageOptions) Repository(ctx context.Context, context *registrycl
 		FileDir:             dir,
 		Insecure:            o.SecurityOptions.Insecure,
 		AttemptS3BucketCopy: o.AttemptS3BucketCopy,
-		RegistryContext:     context,
+		RegistryContext:     regContext,
 	}
 	return opts.Repository(ctx, ref)
 }

@@ -38,7 +38,7 @@ func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
 	}
 }
 
-func NewInfo(streams genericclioptions.IOStreams) *cobra.Command {
+func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewInfoOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "info IMAGE [...]",
@@ -68,7 +68,7 @@ func NewInfo(streams genericclioptions.IOStreams) *cobra.Command {
 
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(cmd, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -94,11 +94,14 @@ type InfoOptions struct {
 	Output string
 }
 
-func (o *InfoOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("info expects at least one argument, an image pull spec")
 	}
 	o.Images = args
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -403,12 +406,12 @@ func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource
 			name := key
 			from := refs[key]
 			q.Try(func() error {
-				repo, err := fromOptions.RepositoryWithLocation(ctx, from)
+				newRef, repo, err := fromOptions.RepositoryWithLocation(ctx, from)
 				if err != nil {
 					return callbackFn(name, nil, fmt.Errorf("unable to connect to image repository %s: %v", from, err))
 				}
-				from.Ref = repo.Ref()
-				allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
+				from.Ref = newRef
+				newRef, allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {
 						msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
@@ -421,6 +424,7 @@ func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource
 					return callbackFn(name, nil, fmt.Errorf("unable to read image %s: %v", from, err))
 				}
 
+				from.Ref = newRef
 				if o.ManifestListCallback != nil && manifestList != nil {
 					allManifests, err = o.ManifestListCallback(name, manifestList, allManifests)
 					if err != nil {
@@ -441,7 +445,7 @@ func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource
 					imageConfig, layers, manifestErr := imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), imagemanifest.ManifestLocation{ManifestList: listDigest, Manifest: srcDigest})
 					mediaType, _, _ := srcManifest.Payload()
 					if err := callbackFn(name, &Image{
-						Name:          from.Ref.Exact(),
+						Name:          newRef.Exact(),
 						Ref:           from,
 						MediaType:     mediaType,
 						Digest:        srcDigest,

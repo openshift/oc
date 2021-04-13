@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/docker/distribution"
+	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"k8s.io/klog/v2"
 )
@@ -18,13 +19,18 @@ type Options struct {
 }
 
 // RepositoryWithLocation retrieves the appropriate repository implementation and imageReference for the given typed reference.
-func (o *Options) RepositoryWithLocation(ctx context.Context, ref TypedImageReference) (registryclient.RepositoryWithLocation, error) {
-	switch ref.Type {
-	case DestinationRegistry:
-		return o.RegistryContext.Repository(ctx, ref.Ref.DockerClientDefaults().RegistryURL(), ref.Ref.RepositoryName(), o.Insecure)
-	default:
-		return nil, fmt.Errorf("expected image reference of type registry %s, use o.Repository instead.", ref.Type)
+func (o *Options) RepositoryWithLocation(ctx context.Context, ref TypedImageReference) (imagereference.DockerImageReference, registryclient.RepositoryWithLocation, error) {
+	if ref.Type == DestinationRegistry {
+		repo, err := o.RegistryContext.Repository(ctx, ref.Ref.DockerClientDefaults().RegistryURL(), ref.Ref.RepositoryName(), o.Insecure)
+		if err != nil {
+			return ref.Ref, nil, err
+		}
+		newRef := repo.Ref()
+		newRef.ID = ref.Ref.ID
+		newRef.Tag = ref.Ref.Tag
+		return newRef, repo, nil
 	}
+	return ref.Ref, nil, fmt.Errorf("expected image reference of type registry %s, use o.Repository instead.", ref.Type)
 }
 
 // Repository retrieves the appropriate repository implementation for the given typed reference.

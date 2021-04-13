@@ -126,7 +126,7 @@ func NewAppendImageOptions(streams genericclioptions.IOStreams) *AppendImageOpti
 }
 
 // New creates a new command
-func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAppendImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewAppendImageOptions(streams)
 
 	cmd := &cobra.Command{
@@ -135,7 +135,7 @@ func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
 		Long:    desc,
 		Example: example,
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -164,11 +164,13 @@ func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-func (o *AppendImageOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *AppendImageOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
 		return err
 	}
-
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
 	for _, arg := range args {
 		if arg == "-" {
 			if o.LayerStream != nil {
@@ -267,17 +269,19 @@ func (o *AppendImageOptions) Run() error {
 		fromRepo          distribution.Repository
 	)
 	if from != nil {
-		repo, err := fromOptions.RepositoryWithLocation(ctx, *from)
+		newRef, repo, err := fromOptions.RepositoryWithLocation(ctx, *from)
 		if err != nil {
 			return err
 		}
 		fromRepo = repo
-		from.Ref = repo.Ref()
+		from.Ref = newRef
 
-		srcManifest, manifestLocation, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+		newRef, srcManifest, manifestLocation, err := imagemanifest.FirstManifest(ctx, from.Ref, fromRepo.(registryclient.RepositoryWithLocation), o.FilterOptions.Include)
 		if err != nil {
 			return fmt.Errorf("unable to read image %s: %v", from, err)
 		}
+
+		from.Ref = newRef
 		base, layers, err = imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), manifestLocation)
 		if err != nil {
 			return fmt.Errorf("unable to parse image %s: %v", from, err)

@@ -246,8 +246,15 @@ func (o *NewOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 			o.Namespace = namespace
 		}
 	}
+	if cmd.Flags().Changed("lookup-cluster-icsp") && !o.SecurityOptions.LookupClusterICSP {
+		o.SecurityOptions.LookupClusterICSP = false
+	} else if len(o.SecurityOptions.ICSPFile) == 0 {
+		o.SecurityOptions.LookupClusterICSP = true
+	}
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
 
-	o.SecurityOptions.LookupAlternate = true
 	return nil
 }
 
@@ -443,7 +450,7 @@ func (o *NewOptions) Run() error {
 			fmt.Fprintf(o.ErrOut, "warning: %v\n", err)
 		}
 
-		inputIS, err := readReleaseImageReferences(imageReferencesData, false, ref.Ref)
+		inputIS, err := readReleaseImageReferences(nil, imageReferencesData, ref.Ref, false)
 		if err != nil {
 			return fmt.Errorf("unable to load image-references from release contents: %v", err)
 		}

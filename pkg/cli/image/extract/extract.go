@@ -156,7 +156,7 @@ func NewExtractOptions(streams genericclioptions.IOStreams) *ExtractOptions {
 }
 
 // New creates a new command
-func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
+func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewExtractOptions(streams)
 
 	cmd := &cobra.Command{
@@ -165,7 +165,7 @@ func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
 		Long:    desc,
 		Example: example,
 		Run: func(c *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(c, args))
+			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -307,7 +307,7 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 	return mappings, nil
 }
 
-func (o *ExtractOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
 		return err
 	}
@@ -325,6 +325,11 @@ func (o *ExtractOptions) Complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -355,11 +360,11 @@ func (o *ExtractOptions) Run() error {
 			mapping := o.Mappings[i]
 			from := mapping.ImageRef
 			q.Try(func() error {
-				repo, err := fromOptions.RepositoryWithLocation(ctx, from)
+				newRef, repo, err := fromOptions.RepositoryWithLocation(ctx, from)
 				if err != nil {
 					return fmt.Errorf("unable to connect to image repository %s: %v", from.String(), err)
 				}
-				srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+				newRef, srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {
 						msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from.Ref.String())
@@ -372,10 +377,12 @@ func (o *ExtractOptions) Run() error {
 					return fmt.Errorf("unable to read image %s: %v", from, err)
 				}
 
+				from.Ref = newRef
 				contentDigest, err := registryclient.ContentDigestForManifest(srcManifest, location.Manifest.Algorithm())
 				if err != nil {
 					return err
 				}
+				_, repo, err = fromOptions.RepositoryWithLocation(ctx, from)
 
 				imageConfig, layers, err := imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), location)
 				if err != nil {
@@ -485,7 +492,7 @@ func (o *ExtractOptions) Run() error {
 						if byEntry != nil {
 							cont, err := layerByEntry(r, options, info, byEntry, o.AllLayers, alreadySeen)
 							if err != nil {
-								err = fmt.Errorf("unable to iterate over layer %s from %s: %v", layer.Digest, from, err)
+								err = fmt.Errorf("HERERERER unable to iterate over layer %s from %s: %v", layer.Digest, from, err)
 							}
 							return cont, err
 						}

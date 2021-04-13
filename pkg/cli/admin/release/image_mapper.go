@@ -2,6 +2,7 @@ package release
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,8 +13,10 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
+	"github.com/opencontainers/go-digest"
 	imageapi "github.com/openshift/api/image/v1"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
+	registryclient "github.com/openshift/library-go/pkg/image/registryclient"
 	"k8s.io/klog/v2"
 )
 
@@ -103,10 +106,11 @@ func parseImageStream(path string) (*imageapi.ImageStream, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to read release image info from release contents: %v", err)
 	}
-	return readReleaseImageReferences(data, false, imagereference.DockerImageReference{})
+	return readReleaseImageReferences(nil, data, imagereference.DockerImageReference{}, false)
 }
 
-func readReleaseImageReferences(data []byte, replacedRef bool, newRef imagereference.DockerImageReference) (*imageapi.ImageStream, error) {
+func readReleaseImageReferences(regContext *registryclient.Context, data []byte, newRef imagereference.DockerImageReference, insecure bool) (*imageapi.ImageStream, error) {
+	ctx := context.Background()
 	is := &imageapi.ImageStream{}
 	if err := yaml.Unmarshal(data, &is); err != nil {
 		return nil, fmt.Errorf("unable to load release image-references: %v", err)
@@ -114,15 +118,32 @@ func readReleaseImageReferences(data []byte, replacedRef bool, newRef imagerefer
 	if is.Kind != "ImageStream" || is.APIVersion != "image.openshift.io/v1" {
 		return nil, fmt.Errorf("unrecognized image-references in release payload")
 	}
+
+	if regContext == nil {
+		return is, nil
+	}
 	tagRef, err := imagereference.Parse(is.Spec.Tags[0].From.Name)
 	if err != nil {
 		return nil, err
 	}
-	// if !replacedRef and tagRef matches newRef then don't update image-references
-	// if refs don't match, still need to update image-references
-	if !replacedRef && tagRef.Registry == newRef.Registry && tagRef.Namespace == newRef.Namespace {
-		return is, nil
+	// Only want to use the replaced reference if the tagRef is not accessible.
+	// With mirrored release, you would want to use the user-passed, ex: use localhost:5000 not the tagRef: quay.io/openshift-release-dev/ocp-*-art-dev
+	// However, with a nightly release (ex: registry.ci.openshift.org) you want to use the tagRef: quay.io/openshift-release-dev/ocp-*-art-dev
+	// and not the user-passed registry.ci.openshift.org.
+	// If tagRef is accessible, return without replacing with the newRef.
+	repo, err := regContext.RepositoryForRef(ctx, tagRef, insecure)
+	if err == nil {
+		manifests, err := repo.Manifests(ctx)
+		if err == nil {
+			dgst := digest.Digest(tagRef.ID)
+			_, err = manifests.Get(ctx, dgst)
+		}
+		if err == nil {
+			return is, nil
+		}
 	}
+	klog.V(4).Infof("Could not access image tag reference: %s, %v. Will try with replaced reference: %s", tagRef.AsRepository().String(), err, newRef.AsRepository().String())
+
 	// ensure image reference tags are updated with preferred image reference, update when:
 	// 1) mirrored release, extract from the mirrored release name ex: private:5000/release as opposed to quay.io/openshift-release-dev
 	for i, tag := range is.Spec.Tags {

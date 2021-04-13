@@ -173,7 +173,14 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 		return fmt.Errorf("you may only specify a single image via --from or argument")
 	}
 	o.From = args[0]
-	o.SecurityOptions.LookupAlternate = true
+	if cmd.Flags().Changed("lookup-cluster-icsp") && !o.SecurityOptions.LookupClusterICSP {
+		o.SecurityOptions.LookupClusterICSP = false
+	} else if len(o.SecurityOptions.ICSPFile) == 0 {
+		o.SecurityOptions.LookupClusterICSP = true
+	}
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
 
 	return nil
 }

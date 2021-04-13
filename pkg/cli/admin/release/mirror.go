@@ -230,6 +230,15 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 	}
 	o.From = args[0]
 
+	if cmd.Flags().Changed("lookup-cluster-icsp") && !o.SecurityOptions.LookupClusterICSP {
+		o.SecurityOptions.LookupClusterICSP = false
+	} else if len(o.SecurityOptions.ICSPFile) == 0 {
+		o.SecurityOptions.LookupClusterICSP = true
+	}
+	if err := o.SecurityOptions.Complete(f); err != nil {
+		return err
+	}
+
 	o.ImageClientFn = func() (imageclient.Interface, string, error) {
 		cfg, err := f.ToRESTConfig()
 		if err != nil {
@@ -257,8 +266,6 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 		client := coreClient.ConfigMaps(configmap.NamespaceLabelConfigMap)
 		return client, nil
 	}
-
-	o.SecurityOptions.LookupAlternate = true
 
 	return nil
 }
