@@ -67,6 +67,7 @@ func NewCmdTopImageStreams(f kcmdutil.Factory, streams genericclioptions.IOStrea
 			kcmdutil.CheckErr(o.Validate(cmd))
 			kcmdutil.CheckErr(o.Run())
 		},
+		Aliases: []string{"imagestreams", "is"},
 	}
 
 	return cmd
