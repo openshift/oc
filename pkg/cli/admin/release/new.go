@@ -810,6 +810,24 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 				continue
 			}
 
+			statusRef := findStatusTagEvents(inputIS.Status.Tags, ref.Name)
+
+			if ref.Generation != nil {
+				generation := *ref.Generation
+				if statusRef != nil && len(statusRef.Items) > 0 {
+					newest := statusRef.Items[0]
+					// spec tags that are waiting for import should prevent release building,
+					if generation > newest.Generation {
+						return fmt.Errorf("the tag %q in the source input stream has not been imported yet", statusRef.Tag)
+					}
+					// status tags that are newer should be chosen over the spec tag, otherwise we
+					// process them here depending on the type of tag
+					if generation < newest.Generation {
+						continue
+					}
+				}
+			}
+
 			if ref.From != nil && ref.From.Kind == "DockerImage" {
 				switch from, err := imagereference.Parse(ref.From.Name); {
 				case err != nil:
@@ -828,26 +846,23 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 					covered.Insert(ref.Name)
 
 				case len(from.Tag) > 0:
-					tag := findStatusTagEvents(inputIS.Status.Tags, ref.Name)
-					if tag == nil {
+					if statusRef == nil {
+						klog.V(2).Infof("Can't use spec tag %q because the image has not been imported and all we have is a tag", ref.Name)
 						continue
 					}
-					if len(tag.Items) == 0 {
-						for _, condition := range tag.Conditions {
+					if len(statusRef.Items) == 0 {
+						for _, condition := range statusRef.Conditions {
 							if condition.Type == imageapi.ImportSuccess && condition.Status != metav1.StatusSuccess {
-								return fmt.Errorf("the tag %q in the source input stream has not been imported yet", tag.Tag)
+								return fmt.Errorf("the tag %q in the source input stream has not been imported yet", statusRef.Tag)
 							}
 						}
 						continue
 					}
-					if ref.Generation != nil && *ref.Generation != tag.Items[0].Generation {
-						return fmt.Errorf("the tag %q in the source input stream has not been imported yet", tag.Tag)
-					}
-					if len(tag.Items[0].Image) == 0 {
-						return fmt.Errorf("the tag %q in the source input stream has no image id", tag.Tag)
+					if len(statusRef.Items[0].Image) == 0 {
+						return fmt.Errorf("the tag %q in the source input stream has no image id", statusRef.Tag)
 					}
 
-					source := externalFn(tag.Items[0].DockerImageReference, tag.Items[0].Image)
+					source := externalFn(statusRef.Items[0].DockerImageReference, statusRef.Items[0].Image)
 					ref := ref.DeepCopy()
 					ref.From = &corev1.ObjectReference{Kind: "DockerImage", Name: source}
 					is.Spec.Tags = append(is.Spec.Tags, *ref)
@@ -855,7 +870,7 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 				}
 				continue
 			}
-			// TODO: support ImageStreamTag and ImageStreamImage
+			// all other type of tags are skipped, because we will pull directly from status tags
 		}
 
 		for _, tag := range inputIS.Status.Tags {
