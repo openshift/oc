@@ -53,7 +53,7 @@ func inspectRouteInfo(info *resource.Info, o *InspectOptions) error {
 	}
 
 	// save the current object to disk
-	dirPath := dirPathForInfo(o.destDir, info)
+	dirPath := dirPathForInfo(o.DestDir, info)
 	filename := filenameForInfo(info)
 	// ensure destination path exists
 	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {

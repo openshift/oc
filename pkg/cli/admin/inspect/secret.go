@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"fmt"
 	"os"
 	"path"
 
@@ -54,7 +55,7 @@ func inspectSecretInfo(info *resource.Info, o *InspectOptions) error {
 	}
 
 	// save the current object to disk
-	dirPath := dirPathForInfo(o.destDir, info)
+	dirPath := dirPathForInfo(o.DestDir, info)
 	filename := filenameForInfo(info)
 	// ensure destination path exists
 	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
@@ -73,12 +74,12 @@ var publicSecretKeys = sets.NewString(
 )
 
 func elideSecret(secret *corev1.Secret) {
-	for k := range secret.Data {
+	for k, v := range secret.Data {
 		// some secrets keys are safe to include because know their content.
 		if publicSecretKeys.Has(k) {
 			continue
 		}
-		secret.Data[k] = []byte{}
+		secret.Data[k] = []byte(fmt.Sprintf("%d bytes long", len(v)))
 	}
 
 	if _, ok := secret.Annotations["openshift.io/token-secret.value"]; ok {
