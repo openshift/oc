@@ -85,6 +85,7 @@ type InspectOptions struct {
 
 	genericclioptions.IOStreams
 	eventFile string
+	withDebug bool
 }
 
 func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
@@ -115,6 +116,7 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 	cmd.Flags().StringVar(&o.sinceTime, "since-time", o.sinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Only one of since-time / since may be used.")
 	cmd.Flags().DurationVar(&o.since, "since", o.since, "Only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Only one of since-time / since may be used.")
+	cmd.Flags().BoolVar(&o.withDebug, "with-debug", false, "If present, try to capture profiles and heap from debugging endpoints (if available).")
 
 	o.configFlags.AddFlags(cmd.Flags())
 	return cmd
