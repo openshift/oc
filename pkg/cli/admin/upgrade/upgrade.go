@@ -3,6 +3,7 @@ package upgrade
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -12,7 +13,7 @@ import (
 	"github.com/blang/semver"
 	"github.com/spf13/cobra"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -150,7 +151,7 @@ func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 func (o *Options) Run() error {
 	cv, err := o.Client.ConfigV1().ClusterVersions().Get(context.TODO(), "version", metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return fmt.Errorf("No cluster version information available - you must be connected to an OpenShift version 4 server to fetch the current version")
 		}
 		return err
@@ -449,14 +450,20 @@ func findCondition(conditions []configv1.ClusterOperatorStatusCondition, name co
 }
 
 func checkForUpgrade(cv *configv1.ClusterVersion) error {
+	results := []string{}
 	if c := findCondition(cv.Status.Conditions, "Invalid"); c != nil && c.Status == configv1.ConditionTrue {
-		return fmt.Errorf("the cluster version object is invalid, you must correct the invalid state first.\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
+		results = append(results, fmt.Sprintf("the cluster version object is invalid, you must correct the invalid state first:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message))
 	}
 	if c := findCondition(cv.Status.Conditions, configv1.OperatorDegraded); c != nil && c.Status == configv1.ConditionTrue {
-		return fmt.Errorf("the cluster is experiencing an upgrade-blocking error\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
+		results = append(results, fmt.Sprintf("the cluster is experiencing an upgrade-blocking error:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message))
 	}
 	if c := findCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue {
-		return fmt.Errorf("already upgrading.\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
+		results = append(results, fmt.Sprintf("the cluster is already upgrading:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message))
 	}
-	return nil
+
+	if len(results) == 0 {
+		return nil
+	}
+
+	return errors.New(strings.Join(results, ""))
 }
