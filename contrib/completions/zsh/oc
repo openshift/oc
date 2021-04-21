@@ -6789,6 +6789,12 @@ _oc_adm_top()
     commands=()
     commands+=("images")
     commands+=("imagestreams")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("imagestreams")
+        aliashash["imagestreams"]="imagestreams"
+        command_aliases+=("is")
+        aliashash["is"]="imagestreams"
+    fi
     commands+=("node")
     if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
         command_aliases+=("no")
