@@ -820,11 +820,10 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 					if generation > newest.Generation {
 						return fmt.Errorf("the tag %q in the source input stream has not been imported yet", statusRef.Tag)
 					}
-					// status tags that are newer should be chosen over the spec tag, otherwise we
-					// process them here depending on the type of tag
-					if generation < newest.Generation {
-						continue
-					}
+					// status tags should be used over spec tags because a push to a status tag can happen right after a
+					// spec tag was imported, so the status tag items have two images at generation N. Status tags always
+					// win except when the latest status tag hasn't been imported, which means "wait"
+					continue
 				}
 			}
 
