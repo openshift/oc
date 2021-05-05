@@ -746,8 +746,12 @@ github.com/soltysh/api v0.0.0-20210329125043-97dfec49c179 h1:A9IqSWz8m9G1RbLJx2j
 github.com/soltysh/api v0.0.0-20210329125043-97dfec49c179/go.mod h1:dZ4kytOo3svxJHNYd0J55hwe/6IQG5gAUHUE0F3Jkio=
 github.com/soltysh/client-go v0.0.0-20210329131047-e53d4b5c79d3 h1:D0nYNGWfWlhkguMtWa8XyF8pMcZRH37zboh34bvs+Ms=
 github.com/soltysh/client-go v0.0.0-20210329131047-e53d4b5c79d3/go.mod h1:khyjHEjWI0OiW5RY1M8N6YCnFAZ986nw7p2OqSufH2A=
+github.com/soltysh/client-go v0.0.0-20210503124028-ac0910aac9fa h1:MGuxyHrOVJZduGzTtypHOuht0Bii5wXJxCKSH2T0RMY=
+github.com/soltysh/client-go v0.0.0-20210503124028-ac0910aac9fa/go.mod h1:paYWYEElECE2HDrFR0j9HzSnz3qHYd8mwVyc60VZP44=
 github.com/soltysh/library-go v0.0.0-20210329143525-072267446dd3 h1:JwIGY81TlonJjYIKwK2gxbTkqg8iYOiN+udRpD3jihQ=
 github.com/soltysh/library-go v0.0.0-20210329143525-072267446dd3/go.mod h1:lwiTZ+1U938RDJPWuIp5aN+eDP2rn9UV91bRvMoWfYA=
+github.com/soltysh/library-go v0.0.0-20210430084706-e555322cb708 h1:ZTgN/ZDoQMwQTXDPaI+vNNKCDIxHNcNGDt6ObEmyy1Q=
+github.com/soltysh/library-go v0.0.0-20210430084706-e555322cb708/go.mod h1:pnz961veImKsbn7pQcuFbcVpCQosYiC1fUOjzEDeOLU=
 github.com/sony/gobreaker v0.4.1/go.mod h1:ZKptC7FHNvhBz7dN2LGjPVBz2sZJmc0/PkyDJOjmxWY=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
