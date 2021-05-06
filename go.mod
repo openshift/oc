@@ -8,7 +8,6 @@ require (
 	github.com/RangelReale/osincli v0.0.0-20160924135400-fababb0555f2
 	github.com/alexbrainman/sspi v0.0.0-20180613141037-e580b900e9f5
 	github.com/alicebob/sqlittle v1.4.0
-	github.com/apcera/gssapi v0.0.0-00010101000000-000000000000
 	github.com/aws/aws-sdk-go v1.35.24
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/containers/image/v5 v5.10.2
@@ -28,6 +27,7 @@ require (
 	github.com/gonum/mathext v0.0.0-20181121095525-8a4bf007ea55 // indirect
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b // indirect
 	github.com/google/go-cmp v0.5.4
+	github.com/jcmturner/gokrb5/v8 v8.4.2
 	github.com/magefile/mage v1.11.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
@@ -70,7 +70,6 @@ require (
 
 replace (
 	github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
-	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 	// temporary pins to latest commit from soltysh/k8s-1.21 branches
 	github.com/openshift/api => github.com/soltysh/api v0.0.0-20210329125043-97dfec49c179
 	github.com/openshift/client-go => github.com/soltysh/client-go v0.0.0-20210503124028-ac0910aac9fa
