@@ -606,8 +606,12 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 			},
 		},
 		Spec: corev1.PodSpec{
-			NodeName:      node,
-			RestartPolicy: corev1.RestartPolicyNever,
+			NodeName: node,
+			// This pod is ok to be OOMKilled but not preempted. Following the conventions mentioned at:
+			// https://github.com/openshift/enhancements/blob/master/CONVENTIONS.md#priority-classes
+			// so setting priority class to system-cluster-critical
+			PriorityClassName: "system-cluster-critical",
+			RestartPolicy:     corev1.RestartPolicyNever,
 			Volumes: []corev1.Volume{
 				{
 					Name: "must-gather-output",
