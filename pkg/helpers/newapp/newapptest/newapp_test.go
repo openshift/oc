@@ -759,7 +759,7 @@ func TestNewAppRunAll(t *testing.T) {
 				Resolvers: cmd.Resolvers{
 					DockerSearcher: app.DockerClientSearcher{
 						Client: &apptest.FakeDockerClient{
-							Images: []docker.APIImages{{RepoTags: []string{"centos/ruby-27-centos7"}}},
+							Images: []docker.APIImages{{RepoTags: []string{"quay.io/centos7/ruby-27-centos7"}}},
 							Image:  dockerBuilderImage(),
 						},
 						Insecure: true,
