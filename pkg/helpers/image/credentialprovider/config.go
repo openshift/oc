@@ -147,6 +147,7 @@ func ReadSpecificDockerConfigJSONFile(filePath string) (cfg DockerConfig, err er
 	if contents, err = ioutil.ReadFile(filePath); err != nil {
 		return nil, err
 	}
+	klog.V(4).Infof("start to read Docker Config JSON file: %s", filePath)
 	return readDockerConfigJSONFileFromBytes(contents)
 }
 
