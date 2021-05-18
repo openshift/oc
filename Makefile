@@ -89,7 +89,7 @@ generate-docs:
 .PHONY: generate-docs
 
 generate-docs-admin:
-	go run ./tools/gendocs-admin
+	go run ./tools/gendocs --admin
 .PHONY: generate-docs-admin
 
 generate-versioninfo:
