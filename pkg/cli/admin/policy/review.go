@@ -39,16 +39,16 @@ var (
 	`)
 	reviewExamples = templates.Examples(`# Check whether service accounts sa1 and sa2 can admit a pod with a template pod spec specified in my_resource.yaml
 		# Service Account specified in myresource.yaml file is ignored
-		oc adm policy scc-review -z sa1,sa2 -f my_resource.yaml
+		oc policy scc-review -z sa1,sa2 -f my_resource.yaml
 
 		# Check whether service accounts system:serviceaccount:bob:default can admit a pod with a template pod spec specified in my_resource.yaml
-		oc adm policy scc-review -z system:serviceaccount:bob:default -f my_resource.yaml
+		oc policy scc-review -z system:serviceaccount:bob:default -f my_resource.yaml
 
 		# Check whether the service account specified in my_resource_with_sa.yaml can admit the pod
-		oc adm policy scc-review -f my_resource_with_sa.yaml
+		oc policy scc-review -f my_resource_with_sa.yaml
 
 		# Check whether the default service account can admit the pod; default is taken since no service account is defined in myresource_with_no_sa.yaml
-		oc adm policy scc-review -f myresource_with_no_sa.yaml
+		oc policy scc-review -f myresource_with_no_sa.yaml
 	`)
 )
 

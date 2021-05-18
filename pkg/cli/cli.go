@@ -19,7 +19,6 @@ import (
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/oc/pkg/cli/admin"
-	"github.com/openshift/oc/pkg/cli/admin/buildchain"
 	"github.com/openshift/oc/pkg/cli/cancelbuild"
 	"github.com/openshift/oc/pkg/cli/debug"
 	"github.com/openshift/oc/pkg/cli/deployer"
@@ -315,7 +314,6 @@ func newExperimentalCommand(f kcmdutil.Factory, ioStreams genericclioptions.IOSt
 	}
 
 	experimental.AddCommand(dockergc.NewCmdDockerGCConfig(f, ioStreams))
-	experimental.AddCommand(buildchain.NewCmdBuildChain(f, ioStreams))
 	experimental.AddCommand(options.NewCmdOptions(ioStreams))
 
 	return experimental
