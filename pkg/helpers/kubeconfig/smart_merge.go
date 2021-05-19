@@ -58,6 +58,9 @@ func CreateConfig(namespace, userName string, clientCfg *restclient.Config) (*cl
 
 	credentials := clientcmdapi.NewAuthInfo()
 	credentials.Token = clientCfg.BearerToken
+	credentials.TokenFile = clientCfg.BearerTokenFile
+	credentials.AuthProvider = clientCfg.AuthProvider
+	credentials.Exec = clientCfg.ExecProvider
 	credentials.ClientCertificate = clientCfg.TLSClientConfig.CertFile
 	if len(credentials.ClientCertificate) == 0 {
 		credentials.ClientCertificateData = clientCfg.TLSClientConfig.CertData
