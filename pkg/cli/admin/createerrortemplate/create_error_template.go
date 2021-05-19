@@ -74,9 +74,11 @@ func (o *CreateErrorTemplateOptions) Run() error {
 const ErrorPageTemplateExample = `<!DOCTYPE html>
 <!--
 
-This template can be modified and used to customize the error page. To replace
-the error page, set master configuration option oauthConfig.templates.error to
-the path of the template file.
+This template can be modified and used to customize the error page for identity
+providers that use redirects (OIDC-based and RequestHeader). The template does
+not have effect on identity providers that use direct password authentication
+(LDAP, HTPasswd, etc.). To replace the error page, set master configuration
+option oauthConfig.templates.error to the path of the template file.
 
 oauthConfig:
   templates:
