@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"github.com/openshift/oc/pkg/cli"
 	"github.com/openshift/oc/tools/gendocs/gendocs"
 )
+
+var admin = flag.Bool("admin", false, "Generate admin commands docs")
 
 func OutDir(path string) (string, error) {
 	outDir, err := filepath.Abs(path)
@@ -31,9 +34,10 @@ func OutDir(path string) (string, error) {
 
 func main() {
 	path := "docs/generated/"
-	if len(os.Args) == 2 {
-		path = os.Args[1]
-	} else if len(os.Args) > 2 {
+	flag.Parse()
+	if flag.NArg() == 1 {
+		path = flag.Arg(0)
+	} else if flag.NArg() > 1 {
 		fmt.Fprintf(os.Stderr, "usage: %s [output directory]\n", os.Args[0])
 		os.Exit(1)
 	}
@@ -44,11 +48,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	outFile := outDir + "oc-by-example-content.adoc"
 	out := os.Stdout
 	cmd := cli.NewOcCommand(&bytes.Buffer{}, out, ioutil.Discard)
 
-	if err := gendocs.GenDocs(cmd, outFile); err != nil {
+	outFile := filepath.Join(outDir, "oc-by-example-content.adoc")
+	if *admin {
+		outFile = filepath.Join(outDir, "oc-adm-by-example-content.adoc")
+	}
+
+	if err := gendocs.GenDocs(cmd, outFile, *admin); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to generate docs: %v\n", err)
 		os.Exit(1)
 	}

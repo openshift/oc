@@ -29,10 +29,10 @@ import (
 var (
 	addRoleToUserExample = templates.Examples(`
 		# Add the 'view' role to user1 for the current project
-		oc adm policy add-role-to-user view user1
+		oc policy add-role-to-user view user1
 
 		# Add the 'edit' role to serviceaccount1 for the current project
-		oc adm policy add-role-to-user edit -z serviceaccount1
+		oc policy add-role-to-user edit -z serviceaccount1
 	`)
 
 	addRoleToUserLongDesc = templates.LongDesc(`
