@@ -8,7 +8,6 @@ require (
 	github.com/RangelReale/osincli v0.0.0-20160924135400-fababb0555f2
 	github.com/alexbrainman/sspi v0.0.0-20180613141037-e580b900e9f5
 	github.com/alicebob/sqlittle v1.4.0
-	github.com/apcera/gssapi v0.0.0-00010101000000-000000000000
 	github.com/aws/aws-sdk-go v1.35.24
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/containers/image/v5 v5.10.2
@@ -28,6 +27,7 @@ require (
 	github.com/gonum/mathext v0.0.0-20181121095525-8a4bf007ea55 // indirect
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b // indirect
 	github.com/google/go-cmp v0.5.4
+	github.com/jcmturner/gokrb5/v8 v8.4.2
 	github.com/magefile/mage v1.11.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
@@ -35,9 +35,9 @@ require (
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
-	github.com/openshift/api v0.0.0-20210105115604-44119421ec6b
+	github.com/openshift/api v0.0.0-20210423140644-156ca80f8d83
 	github.com/openshift/build-machinery-go v0.0.0-20210209125900-0da259a2c359
-	github.com/openshift/client-go v0.0.0-20201214125552-e615e336eb49
+	github.com/openshift/client-go v0.0.0
 	github.com/openshift/library-go v0.0.0-20210219155623-0260bfd7946b
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.9.0
@@ -70,11 +70,10 @@ require (
 
 replace (
 	github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.7
-	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 	// temporary pins to latest commit from soltysh/k8s-1.21 branches
 	github.com/openshift/api => github.com/soltysh/api v0.0.0-20210329125043-97dfec49c179
-	github.com/openshift/client-go => github.com/soltysh/client-go v0.0.0-20210329131047-e53d4b5c79d3
-	github.com/openshift/library-go => github.com/soltysh/library-go v0.0.0-20210329143525-072267446dd3
+	github.com/openshift/client-go => github.com/soltysh/client-go v0.0.0-20210503124028-ac0910aac9fa
+	github.com/openshift/library-go => github.com/soltysh/library-go v0.0.0-20210430084706-e555322cb708
 
 	// temporary pins to latest commit from oc-4.8-kubernetes-1.21.0-beta.1 branches
 	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20210318140035-c39220d4515a

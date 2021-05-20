@@ -85,10 +85,7 @@ func NewRequestTokenOptions(clientCfg *restclient.Config, reader io.Reader, defa
 	// the SPNEGO ones must come before basic auth
 	var handlers []ChallengeHandler
 
-	if GSSAPIEnabled() {
-		klog.V(6).Info("GSSAPI Enabled")
-		handlers = append(handlers, NewNegotiateChallengeHandler(NewGSSAPINegotiator(defaultUsername)))
-	}
+	handlers = append(handlers, NewNegotiateChallengeHandler(NewGSSAPINegotiator(defaultUsername)))
 
 	if SSPIEnabled() {
 		klog.V(6).Info("SSPI Enabled")
