@@ -95,12 +95,16 @@ var MissingDescriberGroupCoverageExceptions = []schema.GroupVersion{
 	{Group: "kubecontrolplane.config.openshift.io", Version: "v1"},
 	{Group: "openshiftcontrolplane.config.openshift.io", Version: "v1"},
 
+	{Group: "controlplane.operator.openshift.io", Version: "v1alpha1"},
+	{Group: "imageregistry.operator.openshift.io", Version: "v1"},
 	{Group: "operator.openshift.io", Version: "v1alpha1"},
 	{Group: "operator.openshift.io", Version: "v1"},
 	{Group: "network.operator.openshift.io", Version: "v1"},
-	{Group: "controlplane.operator.openshift.io", Version: "v1alpha1"},
 	{Group: "samples.operator.openshift.io", Version: "v1"},
-	{Group: "imageregistry.operator.openshift.io", Version: "v1"},
+
+	{Group: "cloud.network.openshift.io", Version: "v1"},
+
+	{Group: "apiserver.openshift.io", Version: "v1"},
 
 	{Group: "helm.openshift.io", Version: "v1beta1"},
 }
