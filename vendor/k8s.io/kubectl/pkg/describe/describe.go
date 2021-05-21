@@ -47,11 +47,13 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -215,6 +217,7 @@ func describerMap(clientConfig *rest.Config) (map[schema.GroupKind]ResourceDescr
 		{Group: networkingv1.GroupName, Kind: "IngressClass"}:                     &IngressClassDescriber{c},
 		{Group: batchv1.GroupName, Kind: "Job"}:                                   &JobDescriber{c},
 		{Group: batchv1.GroupName, Kind: "CronJob"}:                               &CronJobDescriber{c},
+		{Group: batchv1beta1.GroupName, Kind: "CronJob"}:                          &CronJobDescriber{c},
 		{Group: appsv1.GroupName, Kind: "StatefulSet"}:                            &StatefulSetDescriber{c},
 		{Group: appsv1.GroupName, Kind: "Deployment"}:                             &DeploymentDescriber{c},
 		{Group: appsv1.GroupName, Kind: "DaemonSet"}:                              &DaemonSetDescriber{c},
@@ -223,6 +226,7 @@ func describerMap(clientConfig *rest.Config) (map[schema.GroupKind]ResourceDescr
 		{Group: storagev1.GroupName, Kind: "StorageClass"}:                        &StorageClassDescriber{c},
 		{Group: storagev1.GroupName, Kind: "CSINode"}:                             &CSINodeDescriber{c},
 		{Group: policyv1beta1.GroupName, Kind: "PodDisruptionBudget"}:             &PodDisruptionBudgetDescriber{c},
+		{Group: policyv1.GroupName, Kind: "PodDisruptionBudget"}:                  &PodDisruptionBudgetDescriber{c},
 		{Group: rbacv1.GroupName, Kind: "Role"}:                                   &RoleDescriber{c},
 		{Group: rbacv1.GroupName, Kind: "ClusterRole"}:                            &ClusterRoleDescriber{c},
 		{Group: rbacv1.GroupName, Kind: "RoleBinding"}:                            &RoleBindingDescriber{c},
@@ -2162,7 +2166,7 @@ func describeJob(job *batchv1.Job, events *corev1.EventList) (string, error) {
 			w.Write(LEVEL_0, "Completions:\t<unset>\n")
 		}
 		if job.Spec.CompletionMode != nil {
-			w.Write(LEVEL_0, "Completion Mode:\t%s\n", job.Spec.CompletionMode)
+			w.Write(LEVEL_0, "Completion Mode:\t%s\n", *job.Spec.CompletionMode)
 		}
 		if job.Status.StartTime != nil {
 			w.Write(LEVEL_0, "Start Time:\t%s\n", job.Status.StartTime.Time.Format(time.RFC1123Z))
@@ -2210,19 +2214,28 @@ type CronJobDescriber struct {
 }
 
 func (d *CronJobDescriber) Describe(namespace, name string, describerSettings DescriberSettings) (string, error) {
-	cronJob, err := d.client.BatchV1beta1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	var events *corev1.EventList
+
+	cronJob, err := d.client.BatchV1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err == nil {
+		if describerSettings.ShowEvents {
+			events, _ = d.client.CoreV1().Events(namespace).Search(scheme.Scheme, cronJob)
+		}
+		return describeCronJob(cronJob, events)
+	}
+
+	// TODO: drop this condition when beta disappears in 1.25
+	cronJobBeta, err := d.client.BatchV1beta1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
-
-	var events *corev1.EventList
 	if describerSettings.ShowEvents {
 		events, _ = d.client.CoreV1().Events(namespace).Search(scheme.Scheme, cronJob)
 	}
-	return describeCronJob(cronJob, events)
+	return describeCronJobBeta(cronJobBeta, events)
 }
 
-func describeCronJob(cronJob *batchv1beta1.CronJob, events *corev1.EventList) (string, error) {
+func describeCronJob(cronJob *batchv1.CronJob, events *corev1.EventList) (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := NewPrefixWriter(out)
 		w.Write(LEVEL_0, "Name:\t%s\n", cronJob.Name)
@@ -2261,7 +2274,72 @@ func describeCronJob(cronJob *batchv1beta1.CronJob, events *corev1.EventList) (s
 	})
 }
 
-func describeJobTemplate(jobTemplate batchv1beta1.JobTemplateSpec, w PrefixWriter) {
+func describeJobTemplate(jobTemplate batchv1.JobTemplateSpec, w PrefixWriter) {
+	if jobTemplate.Spec.Selector != nil {
+		if selector, err := metav1.LabelSelectorAsSelector(jobTemplate.Spec.Selector); err == nil {
+			w.Write(LEVEL_0, "Selector:\t%s\n", selector)
+		} else {
+			w.Write(LEVEL_0, "Selector:\tFailed to get selector: %s\n", err)
+		}
+	} else {
+		w.Write(LEVEL_0, "Selector:\t<unset>\n")
+	}
+	if jobTemplate.Spec.Parallelism != nil {
+		w.Write(LEVEL_0, "Parallelism:\t%d\n", *jobTemplate.Spec.Parallelism)
+	} else {
+		w.Write(LEVEL_0, "Parallelism:\t<unset>\n")
+	}
+	if jobTemplate.Spec.Completions != nil {
+		w.Write(LEVEL_0, "Completions:\t%d\n", *jobTemplate.Spec.Completions)
+	} else {
+		w.Write(LEVEL_0, "Completions:\t<unset>\n")
+	}
+	if jobTemplate.Spec.ActiveDeadlineSeconds != nil {
+		w.Write(LEVEL_0, "Active Deadline Seconds:\t%ds\n", *jobTemplate.Spec.ActiveDeadlineSeconds)
+	}
+	DescribePodTemplate(&jobTemplate.Spec.Template, w)
+}
+
+func describeCronJobBeta(cronJob *batchv1beta1.CronJob, events *corev1.EventList) (string, error) {
+	return tabbedString(func(out io.Writer) error {
+		w := NewPrefixWriter(out)
+		w.Write(LEVEL_0, "Name:\t%s\n", cronJob.Name)
+		w.Write(LEVEL_0, "Namespace:\t%s\n", cronJob.Namespace)
+		printLabelsMultiline(w, "Labels", cronJob.Labels)
+		printAnnotationsMultiline(w, "Annotations", cronJob.Annotations)
+		w.Write(LEVEL_0, "Schedule:\t%s\n", cronJob.Spec.Schedule)
+		w.Write(LEVEL_0, "Concurrency Policy:\t%s\n", cronJob.Spec.ConcurrencyPolicy)
+		w.Write(LEVEL_0, "Suspend:\t%s\n", printBoolPtr(cronJob.Spec.Suspend))
+		if cronJob.Spec.SuccessfulJobsHistoryLimit != nil {
+			w.Write(LEVEL_0, "Successful Job History Limit:\t%d\n", *cronJob.Spec.SuccessfulJobsHistoryLimit)
+		} else {
+			w.Write(LEVEL_0, "Successful Job History Limit:\t<unset>\n")
+		}
+		if cronJob.Spec.FailedJobsHistoryLimit != nil {
+			w.Write(LEVEL_0, "Failed Job History Limit:\t%d\n", *cronJob.Spec.FailedJobsHistoryLimit)
+		} else {
+			w.Write(LEVEL_0, "Failed Job History Limit:\t<unset>\n")
+		}
+		if cronJob.Spec.StartingDeadlineSeconds != nil {
+			w.Write(LEVEL_0, "Starting Deadline Seconds:\t%ds\n", *cronJob.Spec.StartingDeadlineSeconds)
+		} else {
+			w.Write(LEVEL_0, "Starting Deadline Seconds:\t<unset>\n")
+		}
+		describeJobTemplateBeta(cronJob.Spec.JobTemplate, w)
+		if cronJob.Status.LastScheduleTime != nil {
+			w.Write(LEVEL_0, "Last Schedule Time:\t%s\n", cronJob.Status.LastScheduleTime.Time.Format(time.RFC1123Z))
+		} else {
+			w.Write(LEVEL_0, "Last Schedule Time:\t<unset>\n")
+		}
+		printActiveJobs(w, "Active Jobs", cronJob.Status.Active)
+		if events != nil {
+			DescribeEvents(events, w)
+		}
+		return nil
+	})
+}
+
+func describeJobTemplateBeta(jobTemplate batchv1beta1.JobTemplateSpec, w PrefixWriter) {
 	if jobTemplate.Spec.Selector != nil {
 		if selector, err := metav1.LabelSelectorAsSelector(jobTemplate.Spec.Selector); err == nil {
 			w.Write(LEVEL_0, "Selector:\t%s\n", selector)
@@ -2478,7 +2556,11 @@ func (i *IngressDescriber) describeBackendV1(ns string, backend *networkingv1.In
 	}
 	if backend.Resource != nil {
 		ic := backend.Resource
-		return fmt.Sprintf("APIGroup: %v, Kind: %v, Name: %v", *ic.APIGroup, ic.Kind, ic.Name)
+		apiGroup := "<none>"
+		if ic.APIGroup != nil {
+			apiGroup = fmt.Sprintf("%v", *ic.APIGroup)
+		}
+		return fmt.Sprintf("APIGroup: %v, Kind: %v, Name: %v", apiGroup, ic.Kind, ic.Name)
 	}
 	return ""
 }
@@ -2973,7 +3055,7 @@ func describeEndpointSliceV1(eps *discoveryv1.EndpointSlice, events *corev1.Even
 				w.Write(LEVEL_2, "NodeName:\t%s\n", nodeNameText)
 
 				zoneText := "<unset>"
-				if endpoint.NodeName != nil {
+				if endpoint.Zone != nil {
 					zoneText = *endpoint.Zone
 				}
 				w.Write(LEVEL_2, "Zone:\t%s\n", zoneText)
@@ -3885,7 +3967,7 @@ func describeHorizontalPodAutoscalerV1(hpa *autoscalingv1.HorizontalPodAutoscale
 
 func describeNodeResource(nodeNonTerminatedPodsList *corev1.PodList, node *corev1.Node, w PrefixWriter) {
 	w.Write(LEVEL_0, "Non-terminated Pods:\t(%d in total)\n", len(nodeNonTerminatedPodsList.Items))
-	w.Write(LEVEL_1, "Namespace\tName\t\tCPU Requests\tCPU Limits\tMemory Requests\tMemory Limits\tAGE\n")
+	w.Write(LEVEL_1, "Namespace\tName\t\tCPU Requests\tCPU Limits\tMemory Requests\tMemory Limits\tAge\n")
 	w.Write(LEVEL_1, "---------\t----\t\t------------\t----------\t---------------\t-------------\t---\n")
 	allocatable := node.Status.Capacity
 	if len(node.Status.Allocatable) > 0 {
@@ -4457,20 +4539,67 @@ type PodDisruptionBudgetDescriber struct {
 }
 
 func (p *PodDisruptionBudgetDescriber) Describe(namespace, name string, describerSettings DescriberSettings) (string, error) {
-	pdb, err := p.PolicyV1beta1().PodDisruptionBudgets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return "", err
+	var (
+		pdbv1      *policyv1.PodDisruptionBudget
+		pdbv1beta1 *policyv1beta1.PodDisruptionBudget
+		err        error
+	)
+
+	pdbv1, err = p.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err == nil {
+		var events *corev1.EventList
+		if describerSettings.ShowEvents {
+			events, _ = p.CoreV1().Events(namespace).Search(scheme.Scheme, pdbv1)
+		}
+		return describePodDisruptionBudgetV1(pdbv1, events)
 	}
 
-	var events *corev1.EventList
-	if describerSettings.ShowEvents {
-		events, _ = p.CoreV1().Events(namespace).Search(scheme.Scheme, pdb)
+	// try falling back to v1beta1 in NotFound error cases
+	if apierrors.IsNotFound(err) {
+		pdbv1beta1, err = p.PolicyV1beta1().PodDisruptionBudgets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	}
+	if err == nil {
+		var events *corev1.EventList
+		if describerSettings.ShowEvents {
+			events, _ = p.CoreV1().Events(namespace).Search(scheme.Scheme, pdbv1beta1)
+		}
+		return describePodDisruptionBudgetV1beta1(pdbv1beta1, events)
 	}
 
-	return describePodDisruptionBudget(pdb, events)
+	return "", err
 }
 
-func describePodDisruptionBudget(pdb *policyv1beta1.PodDisruptionBudget, events *corev1.EventList) (string, error) {
+func describePodDisruptionBudgetV1(pdb *policyv1.PodDisruptionBudget, events *corev1.EventList) (string, error) {
+	return tabbedString(func(out io.Writer) error {
+		w := NewPrefixWriter(out)
+		w.Write(LEVEL_0, "Name:\t%s\n", pdb.Name)
+		w.Write(LEVEL_0, "Namespace:\t%s\n", pdb.Namespace)
+
+		if pdb.Spec.MinAvailable != nil {
+			w.Write(LEVEL_0, "Min available:\t%s\n", pdb.Spec.MinAvailable.String())
+		} else if pdb.Spec.MaxUnavailable != nil {
+			w.Write(LEVEL_0, "Max unavailable:\t%s\n", pdb.Spec.MaxUnavailable.String())
+		}
+
+		if pdb.Spec.Selector != nil {
+			w.Write(LEVEL_0, "Selector:\t%s\n", metav1.FormatLabelSelector(pdb.Spec.Selector))
+		} else {
+			w.Write(LEVEL_0, "Selector:\t<unset>\n")
+		}
+		w.Write(LEVEL_0, "Status:\n")
+		w.Write(LEVEL_2, "Allowed disruptions:\t%d\n", pdb.Status.DisruptionsAllowed)
+		w.Write(LEVEL_2, "Current:\t%d\n", pdb.Status.CurrentHealthy)
+		w.Write(LEVEL_2, "Desired:\t%d\n", pdb.Status.DesiredHealthy)
+		w.Write(LEVEL_2, "Total:\t%d\n", pdb.Status.ExpectedPods)
+		if events != nil {
+			DescribeEvents(events, w)
+		}
+
+		return nil
+	})
+}
+
+func describePodDisruptionBudgetV1beta1(pdb *policyv1beta1.PodDisruptionBudget, events *corev1.EventList) (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := NewPrefixWriter(out)
 		w.Write(LEVEL_0, "Name:\t%s\n", pdb.Name)
