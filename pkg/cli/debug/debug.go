@@ -1144,9 +1144,8 @@ func (o *DebugOptions) resolveImageStreamTag(namespace, name, tag string) (strin
 		return "", err
 	}
 	var image string
-	var ok bool
-	if image, ok = imageutil.ResolveLatestTaggedImage(imageStream, tag); !ok {
-		return "", fmt.Errorf("unable to resolve the imagestream tag %s/%s:%s", namespace, name, tag)
+	if image, _, _, _, err = imageutil.ResolveRecentPullSpecForTag(imageStream, tag, false); err != nil {
+		return "", fmt.Errorf("unable to resolve the imagestream tag %s/%s:%s: %v", namespace, name, tag, err)
 	}
 	return image, nil
 }
