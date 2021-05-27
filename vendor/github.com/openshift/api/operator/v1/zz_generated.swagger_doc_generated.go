@@ -396,7 +396,7 @@ func (DNSList) SwaggerDoc() map[string]string {
 var map_DNSNodePlacement = map[string]string{
 	"":             "DNSNodePlacement describes the node scheduling configuration for DNS pods.",
 	"nodeSelector": "nodeSelector is the node selector applied to DNS pods.\n\nIf empty, the default is used, which is currently the following:\n\n  kubernetes.io/os: linux\n\nThis default is subject to change.\n\nIf set, the specified selector is used and replaces the default.",
-	"tolerations":  "tolerations is a list of tolerations applied to DNS pods.\n\nThe default is an empty list.  This default is subject to change.\n\nSee https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/",
+	"tolerations":  "tolerations is a list of tolerations applied to DNS pods.\n\nIf empty, the DNS operator sets a toleration for the \"node-role.kubernetes.io/master\" taint.  This default is subject to change.  Specifying tolerations without including a toleration for the \"node-role.kubernetes.io/master\" taint may be risky as it could lead to an outage if all worker nodes become unavailable.\n\nNote that the daemon controller adds some tolerations as well.  See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/",
 }
 
 func (DNSNodePlacement) SwaggerDoc() map[string]string {
