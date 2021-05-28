@@ -223,7 +223,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 				fmt.Fprintf(w, "  %s\t%s\n", imagemanifest.PlatformSpecString(manifest.Platform), manifest.Digest)
 			}
 			w.Flush()
-			return nil, fmt.Errorf("the image is a manifest list and contains multiple images - use --filter-by-os to select from:\n\n%s\n", buf.String())
+			return nil, fmt.Errorf("the image is a manifest list and contains multiple images - use --index-filter-by-os to select from:\n\n%s\n", buf.String())
 		},
 
 		ImageMetadataCallback: func(from string, i *info.Image, err error) error {
