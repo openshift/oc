@@ -49,8 +49,8 @@ func TestMakeOpenShiftGroup(t *testing.T) {
 			expectedGroup: &userv1.Group{
 				TypeMeta: metav1.TypeMeta{Kind: "Group", APIVersion: userv1.GroupVersion.String()},
 				ObjectMeta: metav1.ObjectMeta{Name: "zulu",
-				Annotations: map[string]string{LDAPURLAnnotation: "test-host:port", LDAPUIDAnnotation: "alfa"},
-				Labels:      map[string]string{LDAPHostLabel: "test-host"}},
+					Annotations: map[string]string{LDAPURLAnnotation: "test-host:port", LDAPUIDAnnotation: "alfa"},
+					Labels:      map[string]string{LDAPHostLabel: "test-host"}},
 				Users: []string{"valerie"}},
 		},
 		"replaced good": {
@@ -59,8 +59,8 @@ func TestMakeOpenShiftGroup(t *testing.T) {
 			expectedGroup: &userv1.Group{
 				TypeMeta: metav1.TypeMeta{Kind: "Group", APIVersion: userv1.GroupVersion.String()},
 				ObjectMeta: metav1.ObjectMeta{Name: "zulu",
-				Annotations: map[string]string{LDAPURLAnnotation: "test-host:port", LDAPUIDAnnotation: "alfa"},
-				Labels:      map[string]string{LDAPHostLabel: "test-host"}},
+					Annotations: map[string]string{LDAPURLAnnotation: "test-host:port", LDAPUIDAnnotation: "alfa"},
+					Labels:      map[string]string{LDAPHostLabel: "test-host"}},
 				Users: []string{"valerie"}},
 			startingGroups: []runtime.Object{
 				&userv1.Group{ObjectMeta: metav1.ObjectMeta{Name: "zulu",
