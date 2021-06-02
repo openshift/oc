@@ -46,7 +46,9 @@ func TestMakeOpenShiftGroup(t *testing.T) {
 		"good": {
 			ldapGroupUID: "alfa",
 			usernames:    []string{"valerie"},
-			expectedGroup: &userv1.Group{ObjectMeta: metav1.ObjectMeta{Name: "zulu",
+			expectedGroup: &userv1.Group{
+				TypeMeta: metav1.TypeMeta{Kind: "Group", APIVersion: userv1.GroupVersion.String()},
+				ObjectMeta: metav1.ObjectMeta{Name: "zulu",
 				Annotations: map[string]string{LDAPURLAnnotation: "test-host:port", LDAPUIDAnnotation: "alfa"},
 				Labels:      map[string]string{LDAPHostLabel: "test-host"}},
 				Users: []string{"valerie"}},
@@ -54,7 +56,9 @@ func TestMakeOpenShiftGroup(t *testing.T) {
 		"replaced good": {
 			ldapGroupUID: "alfa",
 			usernames:    []string{"valerie"},
-			expectedGroup: &userv1.Group{ObjectMeta: metav1.ObjectMeta{Name: "zulu",
+			expectedGroup: &userv1.Group{
+				TypeMeta: metav1.TypeMeta{Kind: "Group", APIVersion: userv1.GroupVersion.String()},
+				ObjectMeta: metav1.ObjectMeta{Name: "zulu",
 				Annotations: map[string]string{LDAPURLAnnotation: "test-host:port", LDAPUIDAnnotation: "alfa"},
 				Labels:      map[string]string{LDAPHostLabel: "test-host"}},
 				Users: []string{"valerie"}},
@@ -271,6 +275,7 @@ func extractActualGroups(tc *fakeuserv1client.FakeUserV1) []*userv1.Group {
 func newDefaultOpenShiftGroups(host string) []*userv1.Group {
 	return []*userv1.Group{
 		{
+			TypeMeta: metav1.TypeMeta{Kind: "Group", APIVersion: userv1.GroupVersion.String()},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "os" + Group1UID,
 				Annotations: map[string]string{
@@ -284,6 +289,7 @@ func newDefaultOpenShiftGroups(host string) []*userv1.Group {
 			Users: []string{Member1UID, Member2UID},
 		},
 		{
+			TypeMeta: metav1.TypeMeta{Kind: "Group", APIVersion: userv1.GroupVersion.String()},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "os" + Group2UID,
 				Annotations: map[string]string{
@@ -297,6 +303,7 @@ func newDefaultOpenShiftGroups(host string) []*userv1.Group {
 			Users: []string{Member2UID, Member3UID},
 		},
 		{
+			TypeMeta: metav1.TypeMeta{Kind: "Group", APIVersion: userv1.GroupVersion.String()},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "os" + Group3UID,
 				Annotations: map[string]string{
