@@ -54,6 +54,9 @@ IMAGE_REGISTRY :=registry.ci.openshift.org
 $(call build-image,ocp-cli,$(IMAGE_REGISTRY)/ocp/4.2:cli,./images/cli/Dockerfile.rhel,.)
 
 $(call build-image,ocp-cli-artifacts,$(IMAGE_REGISTRY)/ocp/4.2:cli-artifacts,./images/cli-artifacts/Dockerfile.rhel,.)
+
+$(call verify-golang-versions,images/cli/Dockerfile.rhel)
+
 image-ocp-cli-artifacts: image-ocp-cli
 
 $(call build-image,ocp-deployer,$(IMAGE_REGISTRY)/ocp/4.2:deployer,./images/deployer/Dockerfile.rhel,.)
