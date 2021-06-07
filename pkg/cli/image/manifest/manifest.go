@@ -18,6 +18,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
 	v2 "github.com/docker/distribution/registry/api/v2"
+	"github.com/docker/distribution/registry/client/transport"
 
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
@@ -127,7 +128,8 @@ func (o *SecurityOptions) NewContext() (*registryclient.Context, error) {
 			return nil, fmt.Errorf("unable to load --registry-config: %v", err)
 		}
 	}
-	context := registryclient.NewContext(rt, insecureRT).WithCredentials(creds)
+	context := registryclient.NewContext(rt, insecureRT).WithCredentials(creds).
+		WithRequestModifiers(transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{rest.DefaultKubernetesUserAgent()}}))
 	context.DisableDigestVerification = o.SkipVerification
 	return context, nil
 }
