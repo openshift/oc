@@ -1045,6 +1045,12 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 						SecurityContext: &corev1.SecurityContext{
 							Privileged: &isTrue,
 							RunAsUser:  &zero,
+							SELinuxOptions: &corev1.SELinuxOptions{
+								User:  "unconfined_u",
+								Role:  "unconfined_r",
+								Type:  "unconfined_t",
+								Level: "s0-s0:c0.c1023",
+							},
 						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
