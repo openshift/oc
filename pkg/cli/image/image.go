@@ -35,7 +35,7 @@ func NewCmdImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 		{
 			Message: "View or copy images:",
 			Commands: []*cobra.Command{
-				info.NewInfo(streams),
+				info.NewInfo(f, streams),
 				mirror.NewCmdMirrorImage(streams),
 			},
 		},
