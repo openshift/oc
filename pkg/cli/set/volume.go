@@ -34,8 +34,7 @@ import (
 )
 
 const (
-	volumePrefix    = "volume-"
-	storageAnnClass = "volume.beta.kubernetes.io/storage-class"
+	volumePrefix = "volume-"
 )
 
 var (
@@ -634,9 +633,8 @@ func (a *AddVolumeOptions) createClaim() *corev1.PersistentVolumeClaim {
 		},
 	}
 	if a.ClassChanged {
-		pvc.Annotations = map[string]string{
-			storageAnnClass: a.ClaimClass,
-		}
+		claimClass := a.ClaimClass
+		pvc.Spec.StorageClassName = &claimClass
 	}
 	return pvc
 }
