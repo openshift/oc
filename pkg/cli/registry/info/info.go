@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -184,7 +186,8 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.ErrOut, "info: Registry does not have a public hostname\n")
 		}
 		url := &url.URL{Host: host}
-		c := registryclient.NewContext(http.DefaultTransport, http.DefaultTransport)
+		c := registryclient.NewContext(http.DefaultTransport, http.DefaultTransport).
+			WithRequestModifiers(transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{rest.DefaultKubernetesUserAgent()}}))
 		_, src, err := c.Ping(ctx, url, false)
 		if err != nil {
 			return fmt.Errorf("registry could not be contacted at %s: %v", url.Host, err)
