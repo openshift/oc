@@ -87,6 +87,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	}
 
 	cmd.Flags().StringVar(&o.NodeName, "node-name", o.NodeName, "Set a specific node to use - by default a random master will be used")
+	cmd.Flags().BoolVar(&o.HostNetwork, "host", o.HostNetwork, "Run must-gather pods as hostNetwork: true - relevant if a specific command and image needs to capture host-level data")
 	cmd.Flags().StringSliceVar(&o.Images, "image", o.Images, "Specify a must-gather plugin image to run. If not specified, OpenShift's default must-gather image will be used.")
 	cmd.Flags().StringSliceVar(&o.ImageStreams, "image-stream", o.ImageStreams, "Specify an image stream (namespace/name:tag) containing a must-gather plugin image to run.")
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
@@ -226,6 +227,7 @@ type MustGatherOptions struct {
 	RESTClientGetter genericclioptions.RESTClientGetter
 
 	NodeName     string
+	HostNetwork  bool
 	DestDir      string
 	SourceDir    string
 	Images       []string
@@ -648,6 +650,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 					},
 				},
 			},
+			HostNetwork:                   o.HostNetwork,
 			NodeSelector:                  nodeSelector,
 			TerminationGracePeriodSeconds: &zero,
 			Tolerations: []corev1.Toleration{
