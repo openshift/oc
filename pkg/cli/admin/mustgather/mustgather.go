@@ -87,6 +87,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	}
 
 	cmd.Flags().StringVar(&o.NodeName, "node-name", o.NodeName, "Set a specific node to use - by default a random master will be used")
+	cmd.Flags().StringVar(&o.NodeSelector, "node-selector", o.NodeSelector, "Set a specific node selector to use - only relevant when specifying a specific command and image which needs to capture data on a set of cluster nodes simultaneously")
 	cmd.Flags().BoolVar(&o.HostNetwork, "host", o.HostNetwork, "Run must-gather pods as hostNetwork: true - relevant if a specific command and image needs to capture host-level data")
 	cmd.Flags().StringSliceVar(&o.Images, "image", o.Images, "Specify a must-gather plugin image to run. If not specified, OpenShift's default must-gather image will be used.")
 	cmd.Flags().StringSliceVar(&o.ImageStreams, "image-stream", o.ImageStreams, "Specify an image stream (namespace/name:tag) containing a must-gather plugin image to run.")
@@ -227,6 +228,7 @@ type MustGatherOptions struct {
 	RESTClientGetter genericclioptions.RESTClientGetter
 
 	NodeName     string
+	NodeSelector string
 	HostNetwork  bool
 	DestDir      string
 	SourceDir    string
@@ -323,13 +325,29 @@ func (o *MustGatherOptions) Run() error {
 			o.log("unable to parse image reference %s: %v", image, err)
 			return err
 		}
-
-		pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image), metav1.CreateOptions{})
-		if err != nil {
-			return err
+		if o.NodeSelector != "" {
+			nodes, err := o.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+				LabelSelector: o.NodeSelector,
+			})
+			if err != nil {
+				return err
+			}
+			for _, node := range nodes.Items {
+				pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(node.Name, image), metav1.CreateOptions{})
+				if err != nil {
+					return err
+				}
+				o.log("pod: %s on node: %s for plug-in image %s created", pod.Name, node.Name, image)
+				pods = append(pods, pod)
+			}
+		} else {
+			pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image), metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
+			o.log("pod for plug-in image %s created", image)
+			pods = append(pods, pod)
 		}
-		o.log("pod for plug-in image %s created", image)
-		pods = append(pods, pod)
 	}
 
 	// log timestamps...
