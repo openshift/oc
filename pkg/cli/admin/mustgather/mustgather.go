@@ -646,6 +646,24 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					// always force disk flush to ensure that all data gathered is accessible in the copy container
 					Command: []string{"/bin/bash", "-c", "/usr/bin/gather; sync"},
+					Env: []corev1.EnvVar{
+						{
+							Name: "NODE_NAME",
+							ValueFrom: &corev1.EnvVarSource{
+								FieldRef: &corev1.ObjectFieldSelector{
+									FieldPath: "spec.nodeName",
+								},
+							},
+						},
+						{
+							Name: "POD_NAME",
+							ValueFrom: &corev1.EnvVarSource{
+								FieldRef: &corev1.ObjectFieldSelector{
+									FieldPath: "metadata.name",
+								},
+							},
+						},
+					},
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "must-gather-output",
