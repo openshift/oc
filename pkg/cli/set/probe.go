@@ -63,10 +63,10 @@ var (
 		oc set probe rc/mysql --readiness --open-tcp=3306
 
 		# Set an HTTP startup probe for port 8080 and path /healthz over HTTP on the pod IP
-		oc probe dc/webapp --startup --get-url=http://:8080/healthz
+		oc set probe dc/webapp --startup --get-url=http://:8080/healthz
 
 		# Set an HTTP readiness probe for port 8080 and path /healthz over HTTP on the pod IP
-		oc probe dc/webapp --readiness --get-url=http://:8080/healthz
+		oc set probe dc/webapp --readiness --get-url=http://:8080/healthz
 
 		# Set an HTTP readiness probe over HTTPS on 127.0.0.1 for a hostNetwork pod
 		oc set probe dc/router --readiness --get-url=https://127.0.0.1:1936/stats
