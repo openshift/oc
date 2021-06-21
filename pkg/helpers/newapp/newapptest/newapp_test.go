@@ -515,7 +515,7 @@ func TestNewAppRunAll(t *testing.T) {
 			},
 			checkPort: "8080",
 			expected: map[string][]string{
-				"imageStream": {"ruby-hello-world", "ruby-27-centos7"},
+				"imageStream": {"ruby-hello-world", "ruby-27"},
 				"buildConfig": {"ruby-hello-world"},
 				"deployment":  {"ruby-hello-world"},
 				"service":     {"ruby-hello-world"},
@@ -741,7 +741,7 @@ func TestNewAppRunAll(t *testing.T) {
 				OriginNamespace: "default",
 			},
 			expected: map[string][]string{
-				"imageStream": {"ruby-hello-world", "ruby-27-centos7"},
+				"imageStream": {"ruby-hello-world", "ruby-27"},
 				"buildConfig": {"ruby-hello-world"},
 				"deployment":  {"ruby-hello-world"},
 				"service":     {"ruby-hello-world"},
@@ -759,7 +759,7 @@ func TestNewAppRunAll(t *testing.T) {
 				Resolvers: cmd.Resolvers{
 					DockerSearcher: app.DockerClientSearcher{
 						Client: &apptest.FakeDockerClient{
-							Images: []docker.APIImages{{RepoTags: []string{"quay.io/centos7/ruby-27-centos7"}}},
+							Images: []docker.APIImages{{RepoTags: []string{"registry.access.redhat.com/ubi8/ruby-27"}}},
 							Image:  dockerBuilderImage(),
 						},
 						Insecure: true,
@@ -1267,7 +1267,7 @@ func TestNewAppRunBuilds(t *testing.T) {
 			},
 			expected: map[string][]string{
 				"buildConfig": {"ruby-hello-world"},
-				"imageStream": {"mongodb-34-centos7", "ruby-27-centos7", "ruby-hello-world"},
+				"imageStream": {"mongodb-34-centos7", "ruby-27", "ruby-hello-world"},
 			},
 			checkResult: func(res *cmd.AppResult) error {
 				var bc *buildv1.BuildConfig
