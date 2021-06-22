@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -16,6 +17,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/errors"
+	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -25,6 +28,7 @@ import (
 	"github.com/alicebob/sqlittle"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/joelanford/ignore"
 	"github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
 
@@ -40,10 +44,10 @@ var (
 	mirrorLong = templates.LongDesc(`
 		Mirrors the contents of a catalog into a registry.
 
-		This command will pull down an image containing a catalog database, extract it to disk, query it to find
+		This command will pull down an image containing a catalog, extract it to disk, query it to find
 		all of the images used in the manifests, and then mirror them to a target registry.
 
-		By default, the database is extracted to a temporary directory, but can be saved locally via flags.
+		By default, the catalog files are extracted to a temporary directory, but can be saved locally via flags.
 
 		An image content source policy is written to a file that can be added to a cluster with access to the target
 		registry. This will configure the cluster to pull from the mirrors instead of the locations referenced in
@@ -76,7 +80,8 @@ var (
 )
 
 const (
-	IndexLocationLabelKey = "operators.operatorframework.io.index.database.v1"
+	DatabaseLocationLabelKey = "operators.operatorframework.io.index.database.v1"
+	ConfigsLocationLabelKey  = "operators.operatorframework.io.index.configs.v1"
 )
 
 func init() {
@@ -89,7 +94,7 @@ type MirrorCatalogOptions struct {
 
 	DryRun       bool
 	ManifestOnly bool
-	DatabasePath string
+	IndexPath    string
 
 	FromFileDir string
 	FileDir     string
@@ -134,7 +139,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	o.ParallelOptions.Bind(flags)
 
 	// Images referenced by catalogs must have all variants mirrored. FilterByOs will only apply to the initial index
-	// image, to indicate which arch should be used to extract the catalog db (the database inside should be the same
+	// image, to indicate which arch should be used to extract the catalog index (the index inside should be the same
 	// for all arches, so this flag should never need to be set explicitly for standard workflows).
 	// this flag is renamed to make it clear that the underlying images are not filtered
 	flags.StringVar(&o.FilterOptions.FilterByOS, "index-filter-by-os", o.FilterOptions.FilterByOS, "A regular expression to control which index image is picked when multiple variants are available. Images will be passed as '<platform>/<architecture>[/<variant>]'. This does not apply to images referenced by the index.")
@@ -145,7 +150,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	_ = flags.MarkDeprecated("filter-by-os", "use --index-filter-by-os instead")
 
 	flags.StringVar(&o.ManifestDir, "to-manifests", "", "Local path to store manifests.")
-	flags.StringVar(&o.DatabasePath, "path", "", "Specify an in-container to local path mapping for the database.")
+	flags.StringVar(&o.IndexPath, "path", "", "Specify an in-container to local path mapping for the index file(s).")
 	flags.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Print the actions that would be taken and exit without writing to the destinations.")
 	flags.BoolVar(&o.ManifestOnly, "manifests-only", o.ManifestOnly, "Calculate the manifests required for mirroring, but do not actually mirror image content.")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
@@ -245,21 +250,27 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	if _, err := retriever.Image(context.TODO(), srcRef); err != nil {
 		return err
 	}
-	indexLocation, ok := image.Config.Config.Labels[IndexLocationLabelKey]
-	if ok {
+
+	indexLocation := "/"
+	if dcLocation, ok := image.Config.Config.Labels[ConfigsLocationLabelKey]; ok {
+		if !strings.HasSuffix(dcLocation, "/") {
+			dcLocation += "/"
+		}
+		indexLocation = dcLocation
+		fmt.Fprintf(o.IOStreams.Out, "src image has index label for declarative configs path: %s\n", indexLocation)
+	} else if dbLocation, ok := image.Config.Config.Labels[DatabaseLocationLabelKey]; ok {
+		indexLocation = dbLocation
 		fmt.Fprintf(o.IOStreams.Out, "src image has index label for database path: %s\n", indexLocation)
-	} else {
-		indexLocation = "/"
 	}
 
-	if o.DatabasePath == "" {
+	if o.IndexPath == "" {
 		tmpdir, err := ioutil.TempDir("", "")
 		if err != nil {
 			return err
 		}
-		o.DatabasePath = indexLocation + ":" + tmpdir
+		o.IndexPath = indexLocation + ":" + tmpdir
 	} else {
-		dir := strings.Split(o.DatabasePath, ":")
+		dir := strings.Split(o.IndexPath, ":")
 		if len(dir) < 2 {
 			return fmt.Errorf("invalid path")
 		}
@@ -267,7 +278,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			return err
 		}
 	}
-	fmt.Fprintf(o.IOStreams.Out, "using database path mapping: %s\n", o.DatabasePath)
+	fmt.Fprintf(o.IOStreams.Out, "using index path mapping: %s\n", o.IndexPath)
 
 	var mirrorer ImageMirrorerFunc
 	mirrorer = func(mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
@@ -307,8 +318,19 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		}
 	}
 	o.ImageMirrorer = mirrorer
+	if _, ok := image.Config.Config.Labels[ConfigsLocationLabelKey]; ok {
+		o.IndexExtractor = o.newDeclcfgExtractor(cmd)
+		o.RelatedImagesParser = &declcfgRelatedImagesParser{}
+	} else {
+		o.IndexExtractor = o.newSqliteExtractor(cmd)
+		o.RelatedImagesParser = &sqliteRelatedImagesParser{}
+	}
 
-	var extractor DatabaseExtractorFunc = func(from imagesource.TypedImageReference) (string, error) {
+	return nil
+}
+
+func (o *MirrorCatalogOptions) newSqliteExtractor(cmd *cobra.Command) IndexExtractor {
+	return IndexExtractorFunc(func(from imagesource.TypedImageReference) (string, error) {
 		e := imgextract.NewExtractOptions(o.IOStreams)
 		e.SecurityOptions = o.SecurityOptions
 		e.FilterOptions = o.FilterOptions
@@ -317,7 +339,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		if len(o.FromFileDir) > 0 {
 			e.FileDir = o.FromFileDir
 		}
-		e.Paths = []string{o.DatabasePath}
+		e.Paths = []string{o.IndexPath}
 		e.Confirm = true
 		if err := e.Complete(cmd, []string{o.SourceRef.String()}); err != nil {
 			return "", err
@@ -356,15 +378,136 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			return "", err
 		}
 		return "", fmt.Errorf("no database file found in %s", e.Mappings[0].To)
-	}
-	o.DatabaseExtractor = extractor
+	})
+}
 
-	return nil
+func (o *MirrorCatalogOptions) newDeclcfgExtractor(cmd *cobra.Command) IndexExtractor {
+	return IndexExtractorFunc(func(from imagesource.TypedImageReference) (string, error) {
+		e := imgextract.NewExtractOptions(o.IOStreams)
+		e.SecurityOptions = o.SecurityOptions
+		e.FilterOptions = o.FilterOptions
+		e.ParallelOptions = o.ParallelOptions
+		e.FileDir = o.FileDir
+		if len(o.FromFileDir) > 0 {
+			e.FileDir = o.FromFileDir
+		}
+		e.Paths = []string{o.IndexPath}
+		e.Confirm = true
+		if err := e.Complete(cmd, []string{o.SourceRef.String()}); err != nil {
+			return "", err
+		}
+		if err := e.Validate(); err != nil {
+			return "", err
+		}
+		if err := e.Run(); err != nil {
+			return "", err
+		}
+		if len(e.Mappings) < 1 {
+			return "", fmt.Errorf("couldn't extract declarative configs")
+		}
+
+		fmt.Fprintf(o.IOStreams.Out, "wrote declarative configs to %s\n", e.Mappings[0].To)
+		fmt.Fprintf(o.IOStreams.Out, "using declarative configs at: %s\n", e.Mappings[0].To)
+		return e.Mappings[0].To, nil
+	})
+}
+
+type sqliteRelatedImagesParser struct{}
+
+func (_ sqliteRelatedImagesParser) Parse(file string) (map[string]struct{}, error) {
+	db, err := sqlittle.Open(file)
+	if err != nil {
+		return nil, err
+	}
+
+	// get all images
+	var images = make(map[string]struct{}, 0)
+	var errs = make([]error, 0)
+	reader := func(r sqlittle.Row) {
+		var image string
+		if err := r.Scan(&image); err != nil {
+			errs = append(errs, err)
+			return
+		}
+		if image != "" {
+			images[image] = struct{}{}
+		}
+	}
+	if err := db.Select("related_image", reader, "image"); err != nil {
+		errs = append(errs, err)
+		return nil, errors.NewAggregate(errs)
+	}
+
+	// get all bundlepaths
+	if err := db.Select("operatorbundle", reader, "bundlepath"); err != nil {
+		errs = append(errs, err)
+		return nil, errors.NewAggregate(errs)
+	}
+	return images, nil
+}
+
+type declcfgMeta struct {
+	Schema        string                `json:"schema"`
+	Image         string                `json:"image"`
+	RelatedImages []declcfgRelatedImage `json:"relatedImages,omitempty"`
+}
+
+type declcfgRelatedImage struct {
+	Name  string `json:"name"`
+	Image string `json:"image"`
+}
+
+type declcfgRelatedImagesParser struct{}
+
+func (_ declcfgRelatedImagesParser) Parse(root string) (map[string]struct{}, error) {
+	rootFS := os.DirFS(root)
+
+	matcher, err := ignore.NewMatcher(rootFS, ".indexignore")
+	if err != nil {
+		return nil, err
+	}
+
+	relatedImages := map[string]struct{}{}
+	if err := fs.WalkDir(rootFS, ".", func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || matcher.Match(path, false) {
+			return nil
+		}
+		f, err := rootFS.Open(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		dec := utilyaml.NewYAMLOrJSONDecoder(f, 4096)
+		for {
+			var blob declcfgMeta
+			if err := dec.Decode(&blob); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+			if blob.Schema != "olm.bundle" {
+				continue
+			}
+			relatedImages[blob.Image] = struct{}{}
+			for _, ri := range blob.RelatedImages {
+				relatedImages[ri.Image] = struct{}{}
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	delete(relatedImages, "")
+	return relatedImages, nil
 }
 
 func (o *MirrorCatalogOptions) Validate() error {
-	if o.DatabasePath == "" {
-		return fmt.Errorf("must specify path for database")
+	if o.IndexPath == "" {
+		return fmt.Errorf("must specify path for index")
 	}
 	if o.ManifestDir == "" {
 		return fmt.Errorf("must specify path for manifests")

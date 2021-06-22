@@ -8,7 +8,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
-func existingExtractor(dir string) DatabaseExtractorFunc {
+func existingExtractor(dir string) IndexExtractorFunc {
 	return func(from imagesource.TypedImageReference) (s string, e error) {
 		return dir, nil
 	}
@@ -26,12 +26,358 @@ func mustParse(t *testing.T, img string) imagesource.TypedImageReference {
 	return imgRef
 }
 
+func wantRelatedAndBundleImages(t *testing.T) map[imagesource.TypedImageReference]imagesource.TypedImageReference {
+	return map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+		mustParseRef(t, "quay.io/example/image:tag"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "example",
+				Name:      "image",
+				Tag:       "tag",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.14.0:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "test",
+				Name:      "prometheus.0.14.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "coreos",
+				Name:      "etcd-operator",
+				Tag:       "b56e2636",
+				ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
+			},
+		},
+		mustParseRef(t, "quay.io/test/etcd.0.9.0:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "test",
+				Name:      "etcd.0.9.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "coreos",
+				Name:      "prometheus-operator",
+				Tag:       "7f39d12d",
+				ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "coreos",
+				Name:      "prometheus-operator",
+				Tag:       "1ebe036a",
+				ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.22.2:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "test",
+				Name:      "prometheus.0.22.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "coreos",
+				Name:      "etcd-operator",
+				Tag:       "2f1eb95",
+				ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "coreos",
+				Name:      "prometheus-operator",
+				Tag:       "76771fef",
+				ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
+			},
+		},
+		mustParseRef(t, "quay.io/test/etcd.0.9.2:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "test",
+				Name:      "etcd.0.9.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.15.0:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "test",
+				Name:      "prometheus.0.15.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+	}
+}
+
+func wantSingleRegistryNamespace (t *testing.T) map[imagesource.TypedImageReference]imagesource.TypedImageReference {
+	return map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+		mustParseRef(t, "quay.io/example/image:tag"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "example-image",
+				Tag:       "tag",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.14.0:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "test-prometheus.0.14.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "coreos-etcd-operator",
+				Tag:       "b56e2636",
+				ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
+			},
+		},
+		mustParseRef(t, "quay.io/test/etcd.0.9.0:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "test-etcd.0.9.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "coreos-prometheus-operator",
+				Tag:       "7f39d12d",
+				ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "coreos-prometheus-operator",
+				Tag:       "1ebe036a",
+				ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.22.2:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "test-prometheus.0.22.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "coreos-etcd-operator",
+				Tag:       "2f1eb95",
+				ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "coreos-prometheus-operator",
+				Tag:       "76771fef",
+				ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
+			},
+		},
+		mustParseRef(t, "quay.io/test/etcd.0.9.2:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "test-etcd.0.9.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.15.0:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "org",
+				Name:      "test-prometheus.0.15.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+	}
+}
+
+func wantSingleQuayNamespace(t *testing.T) map[imagesource.TypedImageReference]imagesource.TypedImageReference {
+	return map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+		mustParseRef(t, "quay.io/example/image:tag"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "example-image",
+				Tag:       "tag",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.14.0:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "test-prometheus.0.14.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "coreos-etcd-operator",
+				Tag:       "b56e2636",
+				ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
+			},
+		},
+		mustParseRef(t, "quay.io/test/etcd.0.9.0:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "test-etcd.0.9.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "coreos-prometheus-operator",
+				Tag:       "7f39d12d",
+				ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "coreos-prometheus-operator",
+				Tag:       "1ebe036a",
+				ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.22.2:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "test-prometheus.0.22.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "coreos-etcd-operator",
+				Tag:       "2f1eb95",
+				ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "coreos-prometheus-operator",
+				Tag:       "76771fef",
+				ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
+			},
+		},
+		mustParseRef(t, "quay.io/test/etcd.0.9.2:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "test-etcd.0.9.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.15.0:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "quay.io",
+				Namespace: "org",
+				Name:      "test-prometheus.0.15.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+	}
+}
+
 func TestMirror(t *testing.T) {
 	type fields struct {
-		ImageMirrorer     ImageMirrorerFunc
-		DatabaseExtractor DatabaseExtractorFunc
-		Source            imagesource.TypedImageReference
-		Dest              imagesource.TypedImageReference
+		ImageMirrorer  ImageMirrorerFunc
+		IndexExtractor IndexExtractorFunc
+		RelatedImagesParser RelatedImagesParser
+		Source         imagesource.TypedImageReference
+		Dest           imagesource.TypedImageReference
 	}
 	tests := []struct {
 		name    string
@@ -40,374 +386,78 @@ func TestMirror(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "maps related images and bundle images",
+			name: "sqlite maps related images and bundle images",
 			fields: fields{
-				ImageMirrorer:     noopMirror,
-				DatabaseExtractor: existingExtractor("testdata/test.db"),
-				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParse(t, "localhost:5000"),
+				ImageMirrorer:  noopMirror,
+				IndexExtractor: existingExtractor("testdata/test.db"),
+				RelatedImagesParser: &sqliteRelatedImagesParser{},
+				Source:         mustParse(t, "quay.io/example/image:tag"),
+				Dest:           mustParse(t, "localhost:5000"),
 			},
-			want: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
-				mustParseRef(t, "quay.io/example/image:tag"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "example",
-						Name:      "image",
-						Tag:       "tag",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.14.0:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "test",
-						Name:      "prometheus.0.14.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "coreos",
-						Name:      "etcd-operator",
-						Tag:       "b56e2636",
-						ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
-					},
-				},
-				mustParseRef(t, "quay.io/test/etcd.0.9.0:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "test",
-						Name:      "etcd.0.9.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "coreos",
-						Name:      "prometheus-operator",
-						Tag:       "7f39d12d",
-						ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "coreos",
-						Name:      "prometheus-operator",
-						Tag:       "1ebe036a",
-						ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.22.2:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "test",
-						Name:      "prometheus.0.22.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "coreos",
-						Name:      "etcd-operator",
-						Tag:       "2f1eb95",
-						ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "coreos",
-						Name:      "prometheus-operator",
-						Tag:       "76771fef",
-						ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
-					},
-				},
-				mustParseRef(t, "quay.io/test/etcd.0.9.2:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "test",
-						Name:      "etcd.0.9.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.15.0:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "test",
-						Name:      "prometheus.0.15.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-			},
+			want: wantRelatedAndBundleImages(t),
 		},
 		{
-			name: "maps into a single registry namespace",
+			name: "sqlite maps into a single registry namespace",
 			fields: fields{
-				ImageMirrorer:     noopMirror,
-				DatabaseExtractor: existingExtractor("testdata/test.db"),
-				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParse(t, "localhost:5000/org"),
+				ImageMirrorer:  noopMirror,
+				IndexExtractor: existingExtractor("testdata/test.db"),
+				RelatedImagesParser: &sqliteRelatedImagesParser{},
+				Source:         mustParse(t, "quay.io/example/image:tag"),
+				Dest:           mustParse(t, "localhost:5000/org"),
 			},
-			want: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
-				mustParseRef(t, "quay.io/example/image:tag"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "example-image",
-						Tag:       "tag",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.14.0:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "test-prometheus.0.14.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "coreos-etcd-operator",
-						Tag:       "b56e2636",
-						ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
-					},
-				},
-				mustParseRef(t, "quay.io/test/etcd.0.9.0:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "test-etcd.0.9.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "coreos-prometheus-operator",
-						Tag:       "7f39d12d",
-						ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "coreos-prometheus-operator",
-						Tag:       "1ebe036a",
-						ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.22.2:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "test-prometheus.0.22.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "coreos-etcd-operator",
-						Tag:       "2f1eb95",
-						ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "coreos-prometheus-operator",
-						Tag:       "76771fef",
-						ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
-					},
-				},
-				mustParseRef(t, "quay.io/test/etcd.0.9.2:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "test-etcd.0.9.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.15.0:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "org",
-						Name:      "test-prometheus.0.15.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-			},
+			want: wantSingleRegistryNamespace(t),
 		},
 		{
-			name: "maps into a single quay namespace",
+			name: "sqlite maps into a single quay namespace",
 			fields: fields{
-				ImageMirrorer:     noopMirror,
-				DatabaseExtractor: existingExtractor("testdata/test.db"),
-				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParse(t, "quay.io/org"),
+				ImageMirrorer:  noopMirror,
+				IndexExtractor: existingExtractor("testdata/test.db"),
+				RelatedImagesParser: &sqliteRelatedImagesParser{},
+				Source:         mustParse(t, "quay.io/example/image:tag"),
+				Dest:           mustParse(t, "quay.io/org"),
 			},
-			want: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
-				mustParseRef(t, "quay.io/example/image:tag"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "example-image",
-						Tag:       "tag",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.14.0:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "test-prometheus.0.14.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "coreos-etcd-operator",
-						Tag:       "b56e2636",
-						ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
-					},
-				},
-				mustParseRef(t, "quay.io/test/etcd.0.9.0:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "test-etcd.0.9.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "coreos-prometheus-operator",
-						Tag:       "7f39d12d",
-						ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "coreos-prometheus-operator",
-						Tag:       "1ebe036a",
-						ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.22.2:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "test-prometheus.0.22.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "coreos-etcd-operator",
-						Tag:       "2f1eb95",
-						ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "coreos-prometheus-operator",
-						Tag:       "76771fef",
-						ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
-					},
-				},
-				mustParseRef(t, "quay.io/test/etcd.0.9.2:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "test-etcd.0.9.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.15.0:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "quay.io",
-						Namespace: "org",
-						Name:      "test-prometheus.0.15.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
+			want: wantSingleQuayNamespace(t),
+		},
+		{
+			name: "delccfg maps related images and bundle images",
+			fields: fields{
+				ImageMirrorer:  noopMirror,
+				IndexExtractor: existingExtractor("testdata/test-declcfg"),
+				RelatedImagesParser: &declcfgRelatedImagesParser{},
+				Source:         mustParse(t, "quay.io/example/image:tag"),
+				Dest:           mustParse(t, "localhost:5000"),
 			},
+			want: wantRelatedAndBundleImages(t),
+		},
+		{
+			name: "declcfg maps into a single registry namespace",
+			fields: fields{
+				ImageMirrorer:  noopMirror,
+				IndexExtractor: existingExtractor("testdata/test-declcfg"),
+				RelatedImagesParser: &declcfgRelatedImagesParser{},
+				Source:         mustParse(t, "quay.io/example/image:tag"),
+				Dest:           mustParse(t, "localhost:5000/org"),
+			},
+			want: wantSingleRegistryNamespace(t),
+		},
+		{
+			name: "declcfg maps into a single quay namespace",
+			fields: fields{
+				ImageMirrorer:       noopMirror,
+				IndexExtractor:      existingExtractor("testdata/test-declcfg"),
+				RelatedImagesParser: &declcfgRelatedImagesParser{},
+				Source:              mustParse(t, "quay.io/example/image:tag"),
+				Dest:                mustParse(t, "quay.io/org"),
+			},
+			want: wantSingleQuayNamespace(t),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &IndexImageMirrorer{
 				ImageMirrorer:     tt.fields.ImageMirrorer,
-				DatabaseExtractor: tt.fields.DatabaseExtractor,
+				IndexExtractor:    tt.fields.IndexExtractor,
+				RelatedImagesParser: tt.fields.RelatedImagesParser,
 				Source:            tt.fields.Source,
 				Dest:              tt.fields.Dest,
 				MaxPathComponents: 2,
@@ -453,12 +503,306 @@ func mustParseRef(t *testing.T, ref string) imagesource.TypedImageReference {
 	return parsed
 }
 
+func wantToFile(t *testing.T) map[imagesource.TypedImageReference]imagesource.TypedImageReference {
+	return map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+		mustParseRef(t, "quay.io/example/image:tag"):             mustParseRef(t, "file://local/index/example/image:tag"),
+		mustParseRef(t, "quay.io/test/prometheus.0.14.0:latest"): mustParseRef(t, "file://local/index/example/image/test/prometheus.0.14.0:latest"),
+		mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8"): {
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/coreos/etcd-operator",
+				Tag:       "b56e2636",
+				ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
+			},
+		},
+		mustParseRef(t, "quay.io/test/etcd.0.9.0:latest"): {
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/test/etcd.0.9.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d"): {
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/coreos/prometheus-operator",
+				Tag:       "7f39d12d",
+				ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf"): {
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/coreos/prometheus-operator",
+				Tag:       "1ebe036a",
+				ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.22.2:latest"): {
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/test/prometheus.0.22.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2"): {
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/coreos/etcd-operator",
+				Tag:       "2f1eb95",
+				ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
+			},
+		},
+		mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731"): {
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/coreos/prometheus-operator",
+				Tag:       "76771fef",
+				ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
+			},
+		},
+		mustParseRef(t, "quay.io/test/etcd.0.9.2:latest"): {
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/test/etcd.0.9.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "quay.io/test/prometheus.0.15.0:latest"): {
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/test/prometheus.0.15.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+	}
+}
+
+func wantFromFile(t *testing.T) map[imagesource.TypedImageReference]imagesource.TypedImageReference {
+	return map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+		mustParseRef(t, "file://local/index/example/image:tag"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "local",
+				Name:      "index-example-image",
+				Tag:       "tag",
+				ID:        "",
+			},
+		},
+		mustParseRef(t, "file://local/index/example/image/test/prometheus.0.14.0:latest"): {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "test",
+				Name:      "prometheus.0.14.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		{
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/coreos/etcd-operator",
+				Tag:       "",
+				ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
+			},
+		}: {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "coreos",
+				Name:      "etcd-operator",
+				Tag:       "b56e2636",
+				ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
+			},
+		},
+		{
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/test/etcd.0.9.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		}: {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "test",
+				Name:      "etcd.0.9.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		{
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/coreos/prometheus-operator",
+				Tag:       "",
+				ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
+			},
+		}: {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "coreos",
+				Name:      "prometheus-operator",
+				Tag:       "7f39d12d",
+				ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
+			},
+		},
+		{
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/coreos/prometheus-operator",
+				Tag:       "",
+				ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
+			},
+		}: {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "coreos",
+				Name:      "prometheus-operator",
+				Tag:       "1ebe036a",
+				ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
+			},
+		},
+		{
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/test/prometheus.0.22.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		}: {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "test",
+				Name:      "prometheus.0.22.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		{
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/coreos/etcd-operator",
+				Tag:       "",
+				ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
+			},
+		}: {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "coreos",
+				Name:      "etcd-operator",
+				Tag:       "2f1eb95",
+				ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
+			},
+		},
+		{
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/coreos/prometheus-operator",
+				Tag:       "",
+				ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
+			},
+		}: {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "coreos",
+				Name:      "prometheus-operator",
+				Tag:       "76771fef",
+				ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
+			},
+		},
+		{
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/test/etcd.0.9.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		}: {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "test",
+				Name:      "etcd.0.9.2",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+		{
+			Type: imagesource.DestinationFile,
+			Ref: reference.DockerImageReference{
+				Registry:  "",
+				Namespace: "local",
+				Name:      "index/example/image/test/prometheus.0.15.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		}: {
+			Type: imagesource.DestinationRegistry,
+			Ref: reference.DockerImageReference{
+				Registry:  "localhost:5000",
+				Namespace: "test",
+				Name:      "prometheus.0.15.0",
+				Tag:       "latest",
+				ID:        "",
+			},
+		},
+	}
+}
+
 // airgap mirror is two step: first to a file, second from a file
 // this test ensures the assumptions around mapping to/from files are correct
 func TestAirGapMirror(t *testing.T) {
 	type fields struct {
 		ImageMirrorer     ImageMirrorerFunc
-		DatabaseExtractor DatabaseExtractorFunc
+		IndexExtractor IndexExtractorFunc
+		RelatedImagesParser RelatedImagesParser
 		Source            imagesource.TypedImageReference
 		Dest              imagesource.TypedImageReference
 	}
@@ -471,302 +815,32 @@ func TestAirGapMirror(t *testing.T) {
 		wantFromFile map[imagesource.TypedImageReference]imagesource.TypedImageReference
 	}{
 		{
-			name:       "maps to and from an intermediate file",
+			name:       "sqlite maps to and from an intermediate file",
 			fileSource: mustParseRef(t, "file:///local/index/example/image:tag"),
 			fileDest:   mustParseRef(t, "file:///local/index"),
 			fields: fields{
 				ImageMirrorer:     noopMirror,
-				DatabaseExtractor: existingExtractor("testdata/test.db"),
+				IndexExtractor: existingExtractor("testdata/test.db"),
+				RelatedImagesParser: &sqliteRelatedImagesParser{},
 				Source:            mustParse(t, "quay.io/example/image:tag"),
 				Dest:              mustParse(t, "localhost:5000"),
 			},
-			wantToFile: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
-				mustParseRef(t, "quay.io/example/image:tag"):             mustParseRef(t, "file://local/index/example/image:tag"),
-				mustParseRef(t, "quay.io/test/prometheus.0.14.0:latest"): mustParseRef(t, "file://local/index/example/image/test/prometheus.0.14.0:latest"),
-				mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8"): {
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/coreos/etcd-operator",
-						Tag:       "b56e2636",
-						ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
-					},
-				},
-				mustParseRef(t, "quay.io/test/etcd.0.9.0:latest"): {
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/test/etcd.0.9.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d"): {
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/coreos/prometheus-operator",
-						Tag:       "7f39d12d",
-						ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf"): {
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/coreos/prometheus-operator",
-						Tag:       "1ebe036a",
-						ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.22.2:latest"): {
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/test/prometheus.0.22.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2"): {
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/coreos/etcd-operator",
-						Tag:       "2f1eb95",
-						ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
-					},
-				},
-				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731"): {
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/coreos/prometheus-operator",
-						Tag:       "76771fef",
-						ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
-					},
-				},
-				mustParseRef(t, "quay.io/test/etcd.0.9.2:latest"): {
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/test/etcd.0.9.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "quay.io/test/prometheus.0.15.0:latest"): {
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/test/prometheus.0.15.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
+			wantToFile: wantToFile(t),
+			wantFromFile: wantFromFile(t),
+		},
+		{
+			name:       "declcfg maps to and from an intermediate file",
+			fileSource: mustParseRef(t, "file:///local/index/example/image:tag"),
+			fileDest:   mustParseRef(t, "file:///local/index"),
+			fields: fields{
+				ImageMirrorer:     noopMirror,
+				IndexExtractor: existingExtractor("testdata/test-declcfg"),
+				RelatedImagesParser: &declcfgRelatedImagesParser{},
+				Source:            mustParse(t, "quay.io/example/image:tag"),
+				Dest:              mustParse(t, "localhost:5000"),
 			},
-			wantFromFile: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
-				mustParseRef(t, "file://local/index/example/image:tag"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "local",
-						Name:      "index-example-image",
-						Tag:       "tag",
-						ID:        "",
-					},
-				},
-				mustParseRef(t, "file://local/index/example/image/test/prometheus.0.14.0:latest"): {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "test",
-						Name:      "prometheus.0.14.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				{
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/coreos/etcd-operator",
-						Tag:       "",
-						ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
-					},
-				}: {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "coreos",
-						Name:      "etcd-operator",
-						Tag:       "b56e2636",
-						ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
-					},
-				},
-				{
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/test/etcd.0.9.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				}: {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "test",
-						Name:      "etcd.0.9.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				{
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/coreos/prometheus-operator",
-						Tag:       "",
-						ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
-					},
-				}: {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "coreos",
-						Name:      "prometheus-operator",
-						Tag:       "7f39d12d",
-						ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
-					},
-				},
-				{
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/coreos/prometheus-operator",
-						Tag:       "",
-						ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
-					},
-				}: {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "coreos",
-						Name:      "prometheus-operator",
-						Tag:       "1ebe036a",
-						ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
-					},
-				},
-				{
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/test/prometheus.0.22.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				}: {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "test",
-						Name:      "prometheus.0.22.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				{
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/coreos/etcd-operator",
-						Tag:       "",
-						ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
-					},
-				}: {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "coreos",
-						Name:      "etcd-operator",
-						Tag:       "2f1eb95",
-						ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
-					},
-				},
-				{
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/coreos/prometheus-operator",
-						Tag:       "",
-						ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
-					},
-				}: {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "coreos",
-						Name:      "prometheus-operator",
-						Tag:       "76771fef",
-						ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
-					},
-				},
-				{
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/test/etcd.0.9.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				}: {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "test",
-						Name:      "etcd.0.9.2",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-				{
-					Type: imagesource.DestinationFile,
-					Ref: reference.DockerImageReference{
-						Registry:  "",
-						Namespace: "local",
-						Name:      "index/example/image/test/prometheus.0.15.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				}: {
-					Type: imagesource.DestinationRegistry,
-					Ref: reference.DockerImageReference{
-						Registry:  "localhost:5000",
-						Namespace: "test",
-						Name:      "prometheus.0.15.0",
-						Tag:       "latest",
-						ID:        "",
-					},
-				},
-			},
+			wantToFile: wantToFile(t),
+			wantFromFile: wantFromFile(t),
 		},
 	}
 	for _, tt := range tests {
@@ -774,7 +848,8 @@ func TestAirGapMirror(t *testing.T) {
 			// first mirror to file
 			b := &IndexImageMirrorer{
 				ImageMirrorer:     tt.fields.ImageMirrorer,
-				DatabaseExtractor: tt.fields.DatabaseExtractor,
+				IndexExtractor:    tt.fields.IndexExtractor,
+				RelatedImagesParser: tt.fields.RelatedImagesParser,
 				Source:            tt.fields.Source,
 				Dest:              tt.fileDest,
 				MaxPathComponents: 0,
@@ -808,7 +883,8 @@ func TestAirGapMirror(t *testing.T) {
 			// then mirror from file
 			b = &IndexImageMirrorer{
 				ImageMirrorer:     tt.fields.ImageMirrorer,
-				DatabaseExtractor: tt.fields.DatabaseExtractor,
+				IndexExtractor:    tt.fields.IndexExtractor,
+				RelatedImagesParser: tt.fields.RelatedImagesParser,
 				Source:            tt.fileSource,
 				Dest:              tt.fields.Dest,
 				MaxPathComponents: 2,
