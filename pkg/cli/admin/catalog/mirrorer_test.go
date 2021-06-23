@@ -141,7 +141,7 @@ func wantRelatedAndBundleImages(t *testing.T) map[imagesource.TypedImageReferenc
 	}
 }
 
-func wantSingleRegistryNamespace (t *testing.T) map[imagesource.TypedImageReference]imagesource.TypedImageReference {
+func wantSingleRegistryNamespace(t *testing.T) map[imagesource.TypedImageReference]imagesource.TypedImageReference {
 	return map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 		mustParseRef(t, "quay.io/example/image:tag"): {
 			Type: imagesource.DestinationRegistry,
@@ -373,11 +373,11 @@ func wantSingleQuayNamespace(t *testing.T) map[imagesource.TypedImageReference]i
 
 func TestMirror(t *testing.T) {
 	type fields struct {
-		ImageMirrorer  ImageMirrorerFunc
-		IndexExtractor IndexExtractorFunc
+		ImageMirrorer       ImageMirrorerFunc
+		IndexExtractor      IndexExtractorFunc
 		RelatedImagesParser RelatedImagesParser
-		Source         imagesource.TypedImageReference
-		Dest           imagesource.TypedImageReference
+		Source              imagesource.TypedImageReference
+		Dest                imagesource.TypedImageReference
 	}
 	tests := []struct {
 		name    string
@@ -388,55 +388,55 @@ func TestMirror(t *testing.T) {
 		{
 			name: "sqlite maps related images and bundle images",
 			fields: fields{
-				ImageMirrorer:  noopMirror,
-				IndexExtractor: existingExtractor("testdata/test.db"),
+				ImageMirrorer:       noopMirror,
+				IndexExtractor:      existingExtractor("testdata/test.db"),
 				RelatedImagesParser: &sqliteRelatedImagesParser{},
-				Source:         mustParse(t, "quay.io/example/image:tag"),
-				Dest:           mustParse(t, "localhost:5000"),
+				Source:              mustParse(t, "quay.io/example/image:tag"),
+				Dest:                mustParse(t, "localhost:5000"),
 			},
 			want: wantRelatedAndBundleImages(t),
 		},
 		{
 			name: "sqlite maps into a single registry namespace",
 			fields: fields{
-				ImageMirrorer:  noopMirror,
-				IndexExtractor: existingExtractor("testdata/test.db"),
+				ImageMirrorer:       noopMirror,
+				IndexExtractor:      existingExtractor("testdata/test.db"),
 				RelatedImagesParser: &sqliteRelatedImagesParser{},
-				Source:         mustParse(t, "quay.io/example/image:tag"),
-				Dest:           mustParse(t, "localhost:5000/org"),
+				Source:              mustParse(t, "quay.io/example/image:tag"),
+				Dest:                mustParse(t, "localhost:5000/org"),
 			},
 			want: wantSingleRegistryNamespace(t),
 		},
 		{
 			name: "sqlite maps into a single quay namespace",
 			fields: fields{
-				ImageMirrorer:  noopMirror,
-				IndexExtractor: existingExtractor("testdata/test.db"),
+				ImageMirrorer:       noopMirror,
+				IndexExtractor:      existingExtractor("testdata/test.db"),
 				RelatedImagesParser: &sqliteRelatedImagesParser{},
-				Source:         mustParse(t, "quay.io/example/image:tag"),
-				Dest:           mustParse(t, "quay.io/org"),
+				Source:              mustParse(t, "quay.io/example/image:tag"),
+				Dest:                mustParse(t, "quay.io/org"),
 			},
 			want: wantSingleQuayNamespace(t),
 		},
 		{
 			name: "delccfg maps related images and bundle images",
 			fields: fields{
-				ImageMirrorer:  noopMirror,
-				IndexExtractor: existingExtractor("testdata/test-declcfg"),
+				ImageMirrorer:       noopMirror,
+				IndexExtractor:      existingExtractor("testdata/test-declcfg"),
 				RelatedImagesParser: &declcfgRelatedImagesParser{},
-				Source:         mustParse(t, "quay.io/example/image:tag"),
-				Dest:           mustParse(t, "localhost:5000"),
+				Source:              mustParse(t, "quay.io/example/image:tag"),
+				Dest:                mustParse(t, "localhost:5000"),
 			},
 			want: wantRelatedAndBundleImages(t),
 		},
 		{
 			name: "declcfg maps into a single registry namespace",
 			fields: fields{
-				ImageMirrorer:  noopMirror,
-				IndexExtractor: existingExtractor("testdata/test-declcfg"),
+				ImageMirrorer:       noopMirror,
+				IndexExtractor:      existingExtractor("testdata/test-declcfg"),
 				RelatedImagesParser: &declcfgRelatedImagesParser{},
-				Source:         mustParse(t, "quay.io/example/image:tag"),
-				Dest:           mustParse(t, "localhost:5000/org"),
+				Source:              mustParse(t, "quay.io/example/image:tag"),
+				Dest:                mustParse(t, "localhost:5000/org"),
 			},
 			want: wantSingleRegistryNamespace(t),
 		},
@@ -455,12 +455,12 @@ func TestMirror(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &IndexImageMirrorer{
-				ImageMirrorer:     tt.fields.ImageMirrorer,
-				IndexExtractor:    tt.fields.IndexExtractor,
+				ImageMirrorer:       tt.fields.ImageMirrorer,
+				IndexExtractor:      tt.fields.IndexExtractor,
 				RelatedImagesParser: tt.fields.RelatedImagesParser,
-				Source:            tt.fields.Source,
-				Dest:              tt.fields.Dest,
-				MaxPathComponents: 2,
+				Source:              tt.fields.Source,
+				Dest:                tt.fields.Dest,
+				MaxPathComponents:   2,
 			}
 			got, err := b.Mirror()
 			if tt.wantErr != nil && tt.wantErr != err {
@@ -800,11 +800,11 @@ func wantFromFile(t *testing.T) map[imagesource.TypedImageReference]imagesource.
 // this test ensures the assumptions around mapping to/from files are correct
 func TestAirGapMirror(t *testing.T) {
 	type fields struct {
-		ImageMirrorer     ImageMirrorerFunc
-		IndexExtractor IndexExtractorFunc
+		ImageMirrorer       ImageMirrorerFunc
+		IndexExtractor      IndexExtractorFunc
 		RelatedImagesParser RelatedImagesParser
-		Source            imagesource.TypedImageReference
-		Dest              imagesource.TypedImageReference
+		Source              imagesource.TypedImageReference
+		Dest                imagesource.TypedImageReference
 	}
 	tests := []struct {
 		name         string
@@ -819,13 +819,13 @@ func TestAirGapMirror(t *testing.T) {
 			fileSource: mustParseRef(t, "file:///local/index/example/image:tag"),
 			fileDest:   mustParseRef(t, "file:///local/index"),
 			fields: fields{
-				ImageMirrorer:     noopMirror,
-				IndexExtractor: existingExtractor("testdata/test.db"),
+				ImageMirrorer:       noopMirror,
+				IndexExtractor:      existingExtractor("testdata/test.db"),
 				RelatedImagesParser: &sqliteRelatedImagesParser{},
-				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParse(t, "localhost:5000"),
+				Source:              mustParse(t, "quay.io/example/image:tag"),
+				Dest:                mustParse(t, "localhost:5000"),
 			},
-			wantToFile: wantToFile(t),
+			wantToFile:   wantToFile(t),
 			wantFromFile: wantFromFile(t),
 		},
 		{
@@ -833,13 +833,13 @@ func TestAirGapMirror(t *testing.T) {
 			fileSource: mustParseRef(t, "file:///local/index/example/image:tag"),
 			fileDest:   mustParseRef(t, "file:///local/index"),
 			fields: fields{
-				ImageMirrorer:     noopMirror,
-				IndexExtractor: existingExtractor("testdata/test-declcfg"),
+				ImageMirrorer:       noopMirror,
+				IndexExtractor:      existingExtractor("testdata/test-declcfg"),
 				RelatedImagesParser: &declcfgRelatedImagesParser{},
-				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParse(t, "localhost:5000"),
+				Source:              mustParse(t, "quay.io/example/image:tag"),
+				Dest:                mustParse(t, "localhost:5000"),
 			},
-			wantToFile: wantToFile(t),
+			wantToFile:   wantToFile(t),
 			wantFromFile: wantFromFile(t),
 		},
 	}
@@ -847,12 +847,12 @@ func TestAirGapMirror(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// first mirror to file
 			b := &IndexImageMirrorer{
-				ImageMirrorer:     tt.fields.ImageMirrorer,
-				IndexExtractor:    tt.fields.IndexExtractor,
+				ImageMirrorer:       tt.fields.ImageMirrorer,
+				IndexExtractor:      tt.fields.IndexExtractor,
 				RelatedImagesParser: tt.fields.RelatedImagesParser,
-				Source:            tt.fields.Source,
-				Dest:              tt.fileDest,
-				MaxPathComponents: 0,
+				Source:              tt.fields.Source,
+				Dest:                tt.fileDest,
+				MaxPathComponents:   0,
 			}
 			gotToFile, err := b.Mirror()
 			if err != nil {
@@ -882,12 +882,12 @@ func TestAirGapMirror(t *testing.T) {
 
 			// then mirror from file
 			b = &IndexImageMirrorer{
-				ImageMirrorer:     tt.fields.ImageMirrorer,
-				IndexExtractor:    tt.fields.IndexExtractor,
+				ImageMirrorer:       tt.fields.ImageMirrorer,
+				IndexExtractor:      tt.fields.IndexExtractor,
 				RelatedImagesParser: tt.fields.RelatedImagesParser,
-				Source:            tt.fileSource,
-				Dest:              tt.fields.Dest,
-				MaxPathComponents: 2,
+				Source:              tt.fileSource,
+				Dest:                tt.fields.Dest,
+				MaxPathComponents:   2,
 			}
 			gotFromFile, err := b.Mirror()
 			if err != nil {
