@@ -489,9 +489,6 @@ func (_ declcfgRelatedImagesParser) Parse(root string) (map[string]struct{}, err
 				}
 				return err
 			}
-			if blob.Schema != "olm.bundle" {
-				continue
-			}
 			relatedImages[blob.Image] = struct{}{}
 			for _, ri := range blob.RelatedImages {
 				relatedImages[ri.Image] = struct{}{}
