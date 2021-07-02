@@ -13,23 +13,24 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/homedir"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imageclient "github.com/openshift/client-go/image/clientset/versioned"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 var (
@@ -284,7 +285,8 @@ func (o *LoginOptions) Run() error {
 		if err != nil {
 			return err
 		}
-		c := registryclient.NewContext(http.DefaultTransport, insecureRT).WithCredentials(creds)
+		c := registryclient.NewContext(http.DefaultTransport, insecureRT).WithCredentials(creds).
+			WithRequestModifiers(transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{rest.DefaultKubernetesUserAgent()}}))
 		if _, err := c.Repository(ctx, url, "does_not_exist", o.Insecure); err != nil {
 			return fmt.Errorf("unable to check your credentials - pass --skip-check to bypass this error: %v", err)
 		}
