@@ -433,6 +433,7 @@ func describeSourceStrategy(s *buildv1.SourceBuildStrategy, out *tabwriter.Write
 	if s.ForcePull {
 		formatString(out, "Force Pull", "yes")
 	}
+	describeBuildVolumes(out, s.Volumes)
 }
 
 func describeDockerStrategy(s *buildv1.DockerBuildStrategy, out *tabwriter.Writer) {
@@ -451,6 +452,7 @@ func describeDockerStrategy(s *buildv1.DockerBuildStrategy, out *tabwriter.Write
 	if s.ForcePull {
 		formatString(out, "Force Pull", "true")
 	}
+	describeBuildVolumes(out, s.Volumes)
 }
 
 func describeCustomStrategy(s *buildv1.CustomBuildStrategy, out *tabwriter.Writer) {
@@ -541,6 +543,33 @@ func describeBuildTriggers(triggers []buildv1.BuildTriggerPolicy, name, namespac
 				fmt.Fprintf(w, fmt.Sprintf("\t%s:\t%v\n", "AllowEnv", *trigger.AllowEnv))
 			}
 		}
+	}
+}
+
+// describeBuildVolumes returns the description of a slice of build volumes
+func describeBuildVolumes(w *tabwriter.Writer, volumes []buildv1.BuildVolume) {
+	if len(volumes) == 0 {
+		formatString(w, "Volumes", "<none>")
+		return
+	}
+	formatString(w, "Volumes", " ")
+	fmt.Fprint(w, "\tName\tSource Type\tSource\tMounts\n")
+	for _, v := range volumes {
+		var sourceName string
+		switch v.Source.Type {
+		case buildv1.BuildVolumeSourceTypeSecret:
+			sourceName = v.Source.Secret.SecretName
+		case buildv1.BuildVolumeSourceTypeConfigMap:
+			sourceName = v.Source.ConfigMap.Name
+		default:
+			sourceName = fmt.Sprintf("<InvalidSourceType: %q>", v.Source.Type)
+		}
+
+		var mounts []string
+		for _, m := range v.Mounts {
+			mounts = append(mounts, m.DestinationPath)
+		}
+		fmt.Fprintf(w, "\t%s\t%s\t%s\t%s\n", v.Name, v.Source.Type, sourceName, strings.Join(mounts, "\n\t\t\t\t"))
 	}
 }
 
