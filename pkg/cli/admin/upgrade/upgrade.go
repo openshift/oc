@@ -22,6 +22,8 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
+
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
 )
 
 func NewOptions(streams genericclioptions.IOStreams) *Options {
@@ -83,6 +85,9 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 	flags.BoolVar(&o.Force, "force", o.Force, "Forcefully upgrade the cluster even when upgrade release image validation fails and the cluster is reporting errors.")
 	flags.BoolVar(&o.AllowExplicitUpgrade, "allow-explicit-upgrade", o.AllowExplicitUpgrade, "Upgrade even if the upgrade target is not listed in the available versions list.")
 	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade even if an upgrade is in process or a cluster error is blocking the update.")
+
+	cmd.AddCommand(channel.New(f, streams))
+
 	return cmd
 }
 
@@ -326,6 +331,19 @@ func (o *Options) Run() error {
 
 		if c := findCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
 			fmt.Fprintf(o.Out, "Upgradeable=False\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
+		}
+
+		if cv.Spec.Channel != "" {
+			if cv.Spec.Upstream == "" {
+				fmt.Fprint(o.Out, "Upstream is unset, so the cluster will use an appropriate default.\n")
+			} else {
+				fmt.Fprintf(o.Out, "Upstream: %s\n", cv.Spec.Upstream)
+			}
+			if len(cv.Status.Desired.Channels) > 0 {
+				fmt.Fprintf(o.Out, "Channel: %s (available channels: %s)\n", cv.Spec.Channel, strings.Join(cv.Status.Desired.Channels, ", "))
+			} else {
+				fmt.Fprintf(o.Out, "Channel: %s\n", cv.Spec.Channel)
+			}
 		}
 
 		if len(cv.Status.AvailableUpdates) > 0 {
