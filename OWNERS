@@ -1,11 +1,5 @@
 reviewers:
-  - deads2k
-  - mfojtik
-  - smarterclayton
-  - soltysh
+  - root-approvers
 approvers:
-  - deads2k
-  - mfojtik
-  - smarterclayton
-  - soltysh
+  - root-approvers
 component: "oc"
