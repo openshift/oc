@@ -16,7 +16,6 @@ import (
 
 	kappsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
-	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -81,7 +80,7 @@ func TestImagePruning(t *testing.T) {
 		rss                                  kappsv1.ReplicaSetList
 		ssets                                kappsv1.StatefulSetList
 		jobs                                 batchv1.JobList
-		cronjobs                             batchv1beta1.CronJobList
+		cronjobs                             batchv1.CronJobList
 		limits                               map[string][]*corev1.LimitRange
 		imageDeleterErr                      error
 		imageStreamDeleterErr                error
@@ -2122,7 +2121,7 @@ func TestRegistryPruning(t *testing.T) {
 				RSs:              &kappsv1.ReplicaSetList{},
 				SSets:            &kappsv1.StatefulSetList{},
 				Jobs:             &batchv1.JobList{},
-				CronJobs:         &batchv1beta1.CronJobList{},
+				CronJobs:         &batchv1.CronJobList{},
 			}
 			p, err := NewPruner(options)
 			if err != nil {
