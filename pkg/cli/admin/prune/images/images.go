@@ -378,7 +378,7 @@ func (o PruneImagesOptions) Run() error {
 		return err
 	}
 
-	allCronJobs, err := o.KubeClient.BatchV1beta1().CronJobs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
+	allCronJobs, err := o.KubeClient.BatchV1().CronJobs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

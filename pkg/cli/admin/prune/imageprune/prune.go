@@ -18,7 +18,6 @@ import (
 
 	kappsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
-	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	kerrapi "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -254,7 +253,7 @@ type PrunerOptions struct {
 	// Jobs is the entire list of jobs across all namespaces in the cluster.
 	Jobs *batchv1.JobList
 	// CronJobs is the entire list of cron jobs across all namespaces in the cluster.
-	CronJobs *batchv1beta1.CronJobList
+	CronJobs *batchv1.CronJobList
 	// LimitRanges is a map of LimitRanges across namespaces, being keys in this map.
 	LimitRanges map[string][]*corev1.LimitRange
 	// DryRun indicates that no changes will be made to the cluster and nothing
@@ -415,7 +414,7 @@ func (p *pruner) analyzeImageStreamsReferences(options PrunerOptions) kerrors.Ag
 	return kerrors.NewAggregate(errs)
 }
 
-func (p *pruner) analyzeReferencesFromCronJobs(cronjobs *batchv1beta1.CronJobList) []error {
+func (p *pruner) analyzeReferencesFromCronJobs(cronjobs *batchv1.CronJobList) []error {
 	var errs []error
 	for _, cj := range cronjobs.Items {
 		ref := resourceReference{
