@@ -3,6 +3,8 @@ package describe
 import (
 	"bytes"
 	"fmt"
+	v1 "github.com/openshift/api/quota/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"reflect"
 	"regexp"
 	"strings"
@@ -524,6 +526,87 @@ func TestDescribeImage(t *testing.T) {
 		tt := tests[i]
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			out, err := DescribeImage(&tt.image, tt.image.Name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, match := range tt.want {
+				if got := out; !regexp.MustCompile(match).MatchString(got) {
+					t.Errorf("%s\nshould contain %q", got, match)
+				}
+			}
+		})
+	}
+}
+
+func TestDescribeClusterQuota(t *testing.T) {
+	testStatus := &corev1.ResourceQuotaStatus{
+		Hard: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceCPU:            resource.MustParse("1"),
+			corev1.ResourceLimitsCPU:      resource.MustParse("2"),
+			corev1.ResourceLimitsMemory:   resource.MustParse("2G"),
+			corev1.ResourceMemory:         resource.MustParse("1G"),
+			corev1.ResourceRequestsCPU:    resource.MustParse("1"),
+			corev1.ResourceRequestsMemory: resource.MustParse("1G"),
+			corev1.ResourcePods:           resource.MustParse("1000"),
+		},
+		Used: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceCPU:            resource.MustParse("300m"),
+			corev1.ResourceLimitsCPU:      resource.MustParse("1"),
+			corev1.ResourceLimitsMemory:   resource.MustParse("0G"),
+			corev1.ResourceMemory:         resource.MustParse("100M"),
+			corev1.ResourceRequestsCPU:    resource.MustParse("500m"),
+			corev1.ResourceRequestsMemory: resource.MustParse("1000Ki"),
+			corev1.ResourcePods:           resource.MustParse("20"),
+		},
+	}
+
+	tests := []struct {
+		quota v1.ClusterResourceQuota
+		want  []string
+	}{
+		{
+			quota: v1.ClusterResourceQuota{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+				Spec: v1.ClusterResourceQuotaSpec{
+					Selector: v1.ClusterResourceQuotaSelector{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "test",
+							},
+						},
+					},
+				},
+				Status: v1.ClusterResourceQuotaStatus{
+					Namespaces: []v1.ResourceQuotaStatusByNamespace{
+						{
+							Namespace: "test",
+							Status:    *testStatus.DeepCopy(),
+						},
+					},
+					Total: *testStatus.DeepCopy(),
+				},
+			},
+			want: []string{
+				"Name:\\s+test",
+				"Namespace Selector:\\s+\\[\"test\"\\]",
+				"Label Selector:\\s+app=test",
+				"Resource\\s+Used\\s+Hard",
+				"cpu\\s+300m\\s+1",
+				"limits.cpu\\s+1\\s+2",
+				"limits.memory\\s+0\\s+2G",
+				"memory\\s+100M\\s+1G",
+				"pods\\s+20\\s+1k",
+				"requests.cpu\\s+500m\\s+1",
+				"requests.memory\\s+1024k\\s+1G",
+			},
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			out, err := DescribeClusterQuota(&tt.quota)
 			if err != nil {
 				t.Fatal(err)
 			}
