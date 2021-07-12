@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -85,6 +86,12 @@ func (o *CreatePassthroughRouteOptions) Run() error {
 	route, err := route.UnsecuredRoute(o.CreateRouteSubcommandOptions.CoreClient, o.CreateRouteSubcommandOptions.Namespace, o.CreateRouteSubcommandOptions.Name, serviceName, o.Port, false)
 	if err != nil {
 		return err
+	}
+
+	// If the namespace is not the default, add it. This makes sure it will eventually
+	// appear in the manifest if the dry-run is enabled.
+	if o.CreateRouteSubcommandOptions.Namespace != corev1.NamespaceDefault {
+		route.Namespace = o.CreateRouteSubcommandOptions.Namespace
 	}
 
 	if len(o.WildcardPolicy) > 0 {

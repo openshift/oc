@@ -104,6 +104,12 @@ func (o *CreateEdgeRouteOptions) Run() error {
 		return err
 	}
 
+	// If the namespace is not the default, add it. This makes sure it will eventually
+	// appear in the manifest if the dry-run is enabled.
+	if o.CreateRouteSubcommandOptions.Namespace != corev1.NamespaceDefault {
+		route.Namespace = o.CreateRouteSubcommandOptions.Namespace
+	}
+
 	if len(o.WildcardPolicy) > 0 {
 		route.Spec.WildcardPolicy = routev1.WildcardPolicyType(o.WildcardPolicy)
 	}
