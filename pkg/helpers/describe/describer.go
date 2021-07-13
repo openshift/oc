@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1758,10 +1759,13 @@ func DescribeClusterQuota(quota *quotav1.ClusterResourceQuota) (string, error) {
 
 		msg := "%v\t%v\t%v\n"
 		for i := range resources {
-			resource := resources[i]
-			hardQuantity := quota.Status.Total.Hard[resource]
-			usedQuantity := quota.Status.Total.Used[resource]
-			fmt.Fprintf(out, msg, resource, usedQuantity.String(), hardQuantity.String())
+			resourceName := resources[i]
+			hardQuantity := quota.Status.Total.Hard[resourceName]
+			usedQuantity := quota.Status.Total.Used[resourceName]
+			if hardQuantity.Format != usedQuantity.Format {
+				usedQuantity = *resource.NewQuantity(usedQuantity.Value(), hardQuantity.Format)
+			}
+			fmt.Fprintf(out, msg, resourceName, usedQuantity.String(), hardQuantity.String())
 		}
 		return nil
 	})
