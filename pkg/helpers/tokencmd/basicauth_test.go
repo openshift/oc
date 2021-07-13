@@ -79,7 +79,7 @@ func TestHandleChallenge(t *testing.T) {
 
 		"interactive challenge with default user": {
 			Handler: &BasicChallengeHandler{
-				Host:     "myhost",
+				Host:     "https://myhost",
 				Reader:   bytes.NewBufferString("mypassword\n"),
 				Username: "myuser",
 				Password: "",
@@ -91,7 +91,8 @@ func TestHandleChallenge(t *testing.T) {
 					ExpectedHeaders:   http.Header{AUTHORIZATION: []string{getBasicHeader("myuser", "mypassword")}},
 					ExpectedHandled:   true,
 					ExpectedErr:       nil,
-					ExpectedPrompt: `Authentication required for myhost (myrealm)
+					ExpectedPrompt: `Authentication required for https://myhost (myrealm)
+Default console URL: https://console-openshift-console.apps.myhost
 Username: myuser
 Password: `,
 				},
@@ -328,6 +329,54 @@ func TestBasicRealm(t *testing.T) {
 		}
 		if realm != tc.ExpectedRealm {
 			t.Errorf("%s: Expected realm=%q, got %q", k, tc.ExpectedRealm, realm)
+		}
+	}
+}
+
+func TestGuessConsoleURL(t *testing.T) {
+	testCases := map[string]struct {
+		host        string
+		ExpectedURL string
+		ExpectedErr string
+	}{
+		"api": {
+			host:        "https://api.cluster.domain.com:6443",
+			ExpectedURL: "https://console-openshift-console.apps.cluster.domain.com",
+		},
+		"api-without-prefix": {
+			host:        "https://cluster.domain.com:6443",
+			ExpectedURL: "https://console-openshift-console.apps.cluster.domain.com",
+		},
+		"api-with-path": {
+			host:        "https://api.cluster.domain.com:6443/path/test",
+			ExpectedURL: "https://console-openshift-console.apps.cluster.domain.com",
+		},
+		"no-port": {
+			host:        "https://api.cluster.domain.com",
+			ExpectedURL: "https://console-openshift-console.apps.cluster.domain.com",
+		},
+		"simple": {
+			host:        "https://cluster.domain",
+			ExpectedURL: "https://console-openshift-console.apps.cluster.domain",
+		},
+		"invalid": {
+			host:        "cluster",
+			ExpectedErr: "could not parse host: cluster",
+		},
+	}
+
+	for k, tc := range testCases {
+		consoleURL, err := guessConsoleURL(tc.host)
+		if err != nil {
+			if tc.ExpectedErr == "" {
+				t.Errorf("%s: Unexpected error=%v", k, err)
+			} else if err.Error() != tc.ExpectedErr {
+				t.Errorf("%s: Expected err=%v, got %v", k, tc.ExpectedErr, err)
+			}
+
+		}
+		if consoleURL != tc.ExpectedURL {
+			t.Errorf("%s: Expected consoleURL=%v, got %v", k, tc.ExpectedURL, consoleURL)
 		}
 	}
 }
