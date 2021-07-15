@@ -3,21 +3,14 @@ package describe
 import (
 	"bytes"
 	"fmt"
-	v1 "github.com/openshift/api/quota/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
 	"text/tabwriter"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes/fake"
-	kubernetesscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
+	v1 "github.com/openshift/api/quota/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/openshift/api"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -30,6 +23,13 @@ import (
 	projectv1 "github.com/openshift/api/project/v1"
 	securityv1 "github.com/openshift/api/security/v1"
 	templatev1 "github.com/openshift/api/template/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes/fake"
+	kubernetesscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 )
 
 type describeClient struct {
@@ -612,6 +612,112 @@ func TestDescribeClusterQuota(t *testing.T) {
 			}
 			for _, match := range tt.want {
 				if got := out; !regexp.MustCompile(match).MatchString(got) {
+					t.Errorf("%s\nshould contain %q", got, match)
+				}
+			}
+		})
+	}
+}
+
+func Test_describeBuildVolumes(t *testing.T) {
+	var InvalidSourceType buildv1.BuildVolumeSourceType = "InvalidType"
+	tests := []struct {
+		name    string
+		volumes []buildv1.BuildVolume
+		want    []string
+	}{
+		{
+			name: "invalid source type",
+			volumes: []buildv1.BuildVolume{
+				{
+					Name: "my-secret-volume",
+					Source: buildv1.BuildVolumeSource{
+						Type: InvalidSourceType,
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: "my-secret",
+						},
+					},
+					Mounts: []buildv1.BuildVolumeMount{
+						{
+							DestinationPath: "/my/secret/destination/path",
+						},
+						{
+							DestinationPath: "/my/secret/destination/path/two",
+						},
+					},
+				},
+			},
+			want: []string{
+				"<InvalidSourceType: \"InvalidType\">",
+			},
+		},
+		{
+			name: "secret build volume",
+			volumes: []buildv1.BuildVolume{
+				{
+					Name: "my-secret-volume",
+					Source: buildv1.BuildVolumeSource{
+						Type: buildv1.BuildVolumeSourceTypeSecret,
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: "my-secret",
+						},
+					},
+					Mounts: []buildv1.BuildVolumeMount{
+						{
+							DestinationPath: "/my/secret/destination/path",
+						},
+						{
+							DestinationPath: "/my/secret/destination/path/two",
+						},
+					},
+				},
+			},
+			want: []string{
+				"my-secret-volume",
+				"my-secret",
+				"/my/secret/destination/path",
+				"/my/secret/destination/path/two",
+			},
+		},
+		{
+			name: "config map build volume",
+			volumes: []buildv1.BuildVolume{
+				{
+					Name: "my-configmap-volume",
+					Source: buildv1.BuildVolumeSource{
+						Type: buildv1.BuildVolumeSourceTypeConfigMap,
+						ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "my-configmap",
+							},
+						},
+					},
+					Mounts: []buildv1.BuildVolumeMount{
+						{
+							DestinationPath: "/my/configmap/destination/path",
+						},
+						{
+							DestinationPath: "/my/configmap/destination/path/two",
+						},
+					},
+				},
+			},
+			want: []string{
+				"my-configmap-volume",
+				"my-configmap",
+				"/my/configmap/destination/path",
+				"/my/configmap/destination/path/two",
+			},
+		},
+	}
+	for _, tt := range tests {
+		var b bytes.Buffer
+		out := tabwriter.NewWriter(&b, 0, 8, 0, '\t', 0)
+		t.Run(tt.name, func(t *testing.T) {
+			describeBuildVolumes(out, tt.volumes)
+			out.Flush()
+			for _, match := range tt.want {
+				if got := b.String(); !regexp.MustCompile(match).MatchString(got) {
 					t.Errorf("%s\nshould contain %q", got, match)
 				}
 			}
