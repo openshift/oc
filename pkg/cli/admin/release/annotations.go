@@ -16,6 +16,10 @@ const (
 	// This LABEL is set on images to indicate the manifest digest that was used
 	// as the base layer for the release image (usually the cluster-version-operator).
 	annotationReleaseBaseImageDigest = "io.openshift.release.base-image-digest"
+	// This is an annotation set on extracted Credentials Request manifests to indicate
+	// release version that can be consumed by ccoctl tool to create required credentials
+	// infrastructure in the cloud provider
+	annotationReleaseVersion = "io.openshift.release.version"
 	// This LABEL is a comma-delimited list of key=version pairs that can be consumed
 	// by other manifests within the payload to hardcode version strings. Version must
 	// be a semantic version with no build label (+ is not allowed) and key must be
