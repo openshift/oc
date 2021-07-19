@@ -19,7 +19,6 @@ import (
 
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
-	"github.com/openshift/library-go/pkg/image/imageutil"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/operator/resource/retry"
 	"github.com/openshift/oc/pkg/cli/admin/inspect"
@@ -72,13 +71,7 @@ func NewSOSReportCommand(f kcmdutil.Factory, streams genericclioptions.IOStreams
 	}
 
 	cmd.Flags().StringVar(&o.NodeName, "node-name", o.NodeName, "Set a specific node to use - by default a random master will be used")
-	// cmd.Flags().StringSliceVar(&o.Images, "image", o.Images, "Specify a must-gather plugin image to run. If not specified, OpenShift's default must-gather image will be used.")
-	// cmd.Flags().StringSliceVar(&o.ImageStreams, "image-stream", o.ImageStreams, "Specify an image stream (namespace/name:tag) containing a must-gather plugin image to run.")
-	// cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
-	// cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
-	// cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
-	// cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
-	cmd.Flags().MarkHidden("keep")
+	cmd.Flags().StringSliceVar(&o.Images, "image", o.Images, "Specify a must-gather plugin image to run. If not specified, OpenShift's default must-gather image will be used.")
 
 	return cmd
 }
@@ -90,6 +83,7 @@ func NewSOSReportOptions(streams genericclioptions.IOStreams) *SOSReportOptions 
 		LogOut:    newPrefixWriter(streams.Out, "[sosreport      ] OUT"),
 		RawOut:    streams.Out,
 		Timeout:   10 * time.Minute,
+		Images:    []string{"registry.redhat.io/rhel8/support-tools:8.4-10"},
 	}
 }
 
@@ -129,10 +123,8 @@ func (o *SOSReportOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args
 		}
 	}
 	if len(o.DestDir) == 0 {
-		o.DestDir = fmt.Sprintf("must-gather.local.%06d", rand.Int63())
-	}
-	if err := o.completeImages(); err != nil {
-		return err
+		// TODO: Add node-name to the directory-name
+		o.DestDir = fmt.Sprintf("sosreport.%06d", rand.Int63())
 	}
 	o.PrinterCreated, err = printers.NewTypeSetter(scheme.Scheme).WrapToPrinter(&printers.NamePrinter{Operation: "created"}, nil)
 	if err != nil {
@@ -144,61 +136,6 @@ func (o *SOSReportOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args
 	}
 	o.RsyncRshCmd = rsync.DefaultRsyncRemoteShellToUse(cmd)
 	return nil
-}
-
-func (o *SOSReportOptions) completeImages() error {
-	for _, imageStream := range o.ImageStreams {
-		if image, err := o.resolveImageStreamTagString(imageStream); err == nil {
-			o.Images = append(o.Images, image)
-		} else {
-			return fmt.Errorf("unable to resolve image stream '%v': %v", imageStream, err)
-		}
-	}
-	if len(o.Images) == 0 {
-		var image string
-		var err error
-		if image, err = o.resolveImageStreamTag("openshift", "sosreport", "latest"); err != nil {
-			o.log("%v\n", err)
-			image = "registry.redhat.io/rhel8/support-tools:8.4-10"
-		}
-		o.Images = append(o.Images, image)
-	}
-	o.log("Using the SOSReport image: %s", strings.Join(o.Images, ", "))
-	return nil
-}
-
-func (o *SOSReportOptions) resolveImageStreamTagString(s string) (string, error) {
-	namespace, name, tag := parseImageStreamTagString(s)
-	if len(namespace) == 0 {
-		return "", fmt.Errorf("expected namespace/name:tag")
-	}
-	return o.resolveImageStreamTag(namespace, name, tag)
-}
-
-func parseImageStreamTagString(s string) (string, string, string) {
-	var namespace, nameAndTag string
-	parts := strings.SplitN(s, "/", 2)
-	switch len(parts) {
-	case 2:
-		namespace = parts[0]
-		nameAndTag = parts[1]
-	case 1:
-		nameAndTag = parts[0]
-	}
-	name, tag, _ := imageutil.SplitImageStreamTag(nameAndTag)
-	return namespace, name, tag
-}
-
-func (o *SOSReportOptions) resolveImageStreamTag(namespace, name, tag string) (string, error) {
-	imageStream, err := o.ImageClient.ImageStreams(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return "", err
-	}
-	var image string
-	if image, _, _, _, err = imageutil.ResolveRecentPullSpecForTag(imageStream, tag, false); err != nil {
-		return "", fmt.Errorf("unable to resolve the imagestream tag %s/%s:%s: %v", namespace, name, tag, err)
-	}
-	return image, nil
 }
 
 type SOSReportOptions struct {
@@ -274,24 +211,8 @@ func (o *SOSReportOptions) Run() error {
 			o.PrinterDeleted.PrintObj(ns, o.LogOut)
 		}()
 	}
-	// TODO Replace this with a Role-Binding that has access
-	// ... cluster role binding ...
-	clusterRoleBinding, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), o.newClusterRoleBinding(ns.Name), metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	o.PrinterCreated.PrintObj(clusterRoleBinding, o.LogOut)
-	if !o.Keep {
-		defer func() {
-			if err := o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), clusterRoleBinding.Name, metav1.DeleteOptions{}); err != nil {
-				fmt.Printf("%v\n", err)
-				return
-			}
-			o.PrinterDeleted.PrintObj(clusterRoleBinding, o.LogOut)
-		}()
-	}
 
-	// ... and finally must-gather pod
+	// ... and finally collection pod
 	var pods []*corev1.Pod
 	for _, image := range o.Images {
 		_, err := imagereference.Parse(image)
@@ -324,37 +245,40 @@ func (o *SOSReportOptions) Run() error {
 		go func(pod *corev1.Pod) {
 			defer wg.Done()
 
+			containerName := "sosreport"
+
 			log := newPodOutLogger(o.Out, pod.Name)
 
 			// wait for gather container to be running (gather is running)
-			if err := o.waitForGatherContainerRunning(pod); err != nil {
+			if err := o.waitForContainerRunning(pod, containerName); err != nil {
 				log("gather did not start: %s", err)
 				errCh <- fmt.Errorf("gather did not start for pod %s: %s", pod.Name, err)
 				return
 			}
 			// stream gather container logs
-			if err := o.getGatherContainerLogs(pod); err != nil {
+			if err := o.getContainerLogs(pod, containerName); err != nil {
 				log("gather logs unavailable: %v", err)
 			}
 
 			// wait for pod to be running (gather has completed)
-			log("waiting for gather to complete")
-			if err := o.waitForCollectionToComplete(pod, "sosreport"); err != nil {
+			log("waiting for collection to complete")
+			// TODO: Replace 'sosreport' with containername variable and pass to other waitForContainer function to clean up code
+			if err := o.waitForCollectionToComplete(pod, containerName); err != nil {
 				log("gather never finished: %v", err)
 				errCh <- fmt.Errorf("gather never finished for pod %s: %s", pod.Name, err)
 				return
 			}
 
 			// copy the gathered files into the local destination dir
-			log("downloading gather output")
+			log("downloading sosreport output")
 			pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
 			if err != nil {
-				log("gather output not downloaded: %v\n", err)
+				log("sosreport not downloaded: %v\n", err)
 				errCh <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
 				return
 			}
 			if err := o.copyFilesFromPod(pod); err != nil {
-				log("gather output not downloaded: %v\n", err)
+				log("sosreport not downloaded: %v\n", err)
 				errCh <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
 				return
 			}
@@ -376,12 +300,8 @@ func (o *SOSReportOptions) Run() error {
 		runBackCollection = false
 	}
 
-	// now gather all the events into a single file and produce a unified file
-	if err := inspect.CreateEventFilterPage(o.DestDir); err != nil {
-		errs = append(errs, err)
-	}
-
 	return errors.NewAggregate(errs)
+
 }
 
 func newPodOutLogger(out io.Writer, podName string) func(string, ...interface{}) {
@@ -432,14 +352,14 @@ func (o *SOSReportOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	return err
 }
 
-func (o *SOSReportOptions) getGatherContainerLogs(pod *corev1.Pod) error {
+func (o *SOSReportOptions) getContainerLogs(pod *corev1.Pod, containerName string) error {
 	since2s := int64(2)
 	opts := &logs.LogsOptions{
 		Namespace:   pod.Namespace,
 		ResourceArg: pod.Name,
 		Options: &corev1.PodLogOptions{
 			Follow:     true,
-			Container:  pod.Spec.Containers[0].Name,
+			Container:  containerName,
 			Timestamps: true,
 		},
 		RESTClientGetter: o.RESTClientGetter,
@@ -450,8 +370,8 @@ func (o *SOSReportOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 	}
 
 	for {
-		// gather script might take longer than the default API server time,
-		// so we should check if the gather script still runs and re-run logs
+		// collection script might take longer than the default API server time,
+		// so we should check if the collection script still runs and re-run logs
 		// thus we run this in a loop
 		if err := opts.RunLogs(); err != nil {
 			return err
@@ -459,7 +379,7 @@ func (o *SOSReportOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 
 		// to ensure we don't print all of history set since to past 2 seconds
 		opts.Options.(*corev1.PodLogOptions).SinceSeconds = &since2s
-		if done, _ := o.isGatherDone(pod); done {
+		if done, _ := o.isCollectionDone(pod, containerName); done {
 			return nil
 		}
 		klog.V(4).Infof("lost logs, re-trying...")
@@ -514,15 +434,19 @@ func (o *SOSReportOptions) isCollectionDone(pod *corev1.Pod, containerName strin
 	return false, nil
 }
 
-// TODO Rename to remove the 'gather'
-func (o *SOSReportOptions) waitForGatherContainerRunning(pod *corev1.Pod) error {
+func (o *SOSReportOptions) waitForContainerRunning(pod *corev1.Pod, containerName string) error {
 	return wait.PollImmediate(10*time.Second, o.Timeout, func() (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err == nil {
 			if len(pod.Status.ContainerStatuses) == 0 {
 				return false, nil
 			}
-			state := pod.Status.ContainerStatuses[0].State
+
+			state, err := getContainerState(pod, containerName)
+			if err != nil {
+				return false, err
+			}
+
 			if state.Waiting != nil {
 				switch state.Waiting.Reason {
 				case "ErrImagePull", "ImagePullBackOff", "InvalidImageName":
@@ -540,10 +464,24 @@ func (o *SOSReportOptions) waitForGatherContainerRunning(pod *corev1.Pod) error 
 	})
 }
 
+func getContainerState(pod *corev1.Pod, containerName string) (state *corev1.ContainerState, err error) {
+
+	for _, containerStatuses := range pod.Status.ContainerStatuses {
+		if containerStatuses.Name == containerName {
+			state = &containerStatuses.State
+			break
+		}
+	}
+	if state == nil {
+		return nil, fmt.Errorf("no container [%s] found in pod [%s]", containerName, pod.Name)
+	}
+	return state, nil
+}
+
 func (o *SOSReportOptions) newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "must-gather-",
+			GenerateName: "sosreport-",
 			Annotations: map[string]string{
 				"oc.openshift.io/command": "oc adm sos",
 			},
