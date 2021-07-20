@@ -374,6 +374,9 @@ func (o *MirrorCatalogOptions) Validate() error {
 	default:
 		return fmt.Errorf("invalid icsp-scope %s", o.IcspScope)
 	}
+	if o.MaxICSPSize <= 0 {
+		return fmt.Errorf("max-icsp-size must be greater than 0")
+	}
 	return nil
 }
 
@@ -536,18 +539,21 @@ func generateICSP(out io.Writer, name string, byteLimit int, registryMapping map
 	}
 
 	for key := range registryMapping {
-		icsp.Spec.RepositoryDigestMirrors = append(icsp.Spec.RepositoryDigestMirrors, operatorv1alpha1.RepositoryDigestMirrors{
+		repositoryDigestMirror := operatorv1alpha1.RepositoryDigestMirrors{
 			Source:  key,
 			Mirrors: []string{registryMapping[key]},
-		})
+		}
+		icsp.Spec.RepositoryDigestMirrors = append(icsp.Spec.RepositoryDigestMirrors, repositoryDigestMirror)
 		y, err := yaml.Marshal(icsp)
 		if err != nil {
 			return nil, fmt.Errorf("unable to marshal ImageContentSourcePolicy yaml: %v", err)
 		}
 
 		if len(y) > byteLimit {
-			if lenMirrors := len(icsp.Spec.RepositoryDigestMirrors); lenMirrors > 0 {
+			if lenMirrors := len(icsp.Spec.RepositoryDigestMirrors); lenMirrors > 1 {
 				icsp.Spec.RepositoryDigestMirrors = icsp.Spec.RepositoryDigestMirrors[:lenMirrors-1]
+			} else {
+				return nil, fmt.Errorf("unable to add mirror %v to ICSP with the max-icsp-size set to %d", repositoryDigestMirror, byteLimit)
 			}
 			break
 		}
