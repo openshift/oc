@@ -68,6 +68,7 @@ var longExistingOperators = []string{
 	"network",
 	"openshift-apiserver",
 	"openshift-controller-manager",
+	"cloud-controller-manager",
 	"operator-lifecycle-manager",
 	"service-ca",
 	"storage",
