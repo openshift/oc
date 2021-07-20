@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -380,6 +381,12 @@ func (o *MustGatherOptions) Run() error {
 				errCh <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
 				return
 			}
+			// copy the must-gather pod logs into the local destination dir
+			if err := o.copyLogsFromPod(pod); err != nil {
+				log("must gather pod logs not downloaded: %v\n", err)
+				errCh <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
+				return
+			}
 		}(pod)
 	}
 	wg.Wait()
@@ -424,6 +431,28 @@ func (o *MustGatherOptions) logTimestamp() error {
 	}
 	_, err = f.WriteString(fmt.Sprintf("%v\n", time.Now()))
 	return err
+}
+
+func (o *MustGatherOptions) copyLogsFromPod(pod *corev1.Pod) error {
+	podLogOpts := corev1.PodLogOptions{
+		Follow:    true,
+		Container: pod.Spec.Containers[0].Name,
+	}
+	podLogs, err := o.Client.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts).DoRaw(context.TODO())
+	if err != nil {
+		return err
+	}
+	streams := o.IOStreams
+	streams.Out = newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name))
+	destDir := path.Join(o.DestDir, regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.ContainerStatuses[0].ImageID, "-"))
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+	outfile := path.Join(destDir, pod.Name) + ".log"
+	if err = ioutil.WriteFile(outfile, podLogs, os.ModePerm); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
