@@ -26,6 +26,7 @@ require (
 	github.com/gonum/mathext v0.0.0-20181121095525-8a4bf007ea55 // indirect
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b // indirect
 	github.com/google/go-cmp v0.5.4
+	github.com/jcmturner/gokrb5/v8 v8.4.2
 	github.com/magefile/mage v1.11.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
