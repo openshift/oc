@@ -45,8 +45,8 @@ func TestNewAppDefaultFlags(t *testing.T) {
 			flagName:   "image-stream",
 			defaultVal: "[" + strings.Join(config.ImageStreams, ",") + "]",
 		},
-		"docker-image": {
-			flagName:   "docker-image",
+		"image": {
+			flagName:   "image",
 			defaultVal: "[" + strings.Join(config.DockerImages, ",") + "]",
 		},
 		"template": {

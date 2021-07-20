@@ -291,8 +291,8 @@ func (r *ExactMatchDockerSearcher) Search(precise bool, terms ...string) (app.Co
 		matches = append(matches, &app.ComponentMatch{
 			Value:       value,
 			Name:        value,
-			Argument:    fmt.Sprintf("--docker-image=%q", value),
-			Description: fmt.Sprintf("Docker image %q", value),
+			Argument:    fmt.Sprintf("--image=%q", value),
+			Description: fmt.Sprintf("Container image %q", value),
 			Score:       0.0,
 		})
 	}
@@ -316,8 +316,8 @@ func (r *ExactMatchDirectTagDockerSearcher) Search(precise bool, terms ...string
 		matches = append(matches, &app.ComponentMatch{
 			Value:       value,
 			Name:        value,
-			Argument:    fmt.Sprintf("--docker-image=%q", value),
-			Description: fmt.Sprintf("Docker image %q", value),
+			Argument:    fmt.Sprintf("--image=%q", value),
+			Description: fmt.Sprintf("Container image %q", value),
 			Score:       0.0,
 			DockerImage: &dockerv10.DockerImage{},
 			Meta:        map[string]string{"direct-tag": "1"},
@@ -1576,7 +1576,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 		checkOutput func(stdout, stderr io.Reader) error
 	}{
 		{
-			name: "successful build with warning that output docker-image may trigger input ImageStream change; legacy ImageStream without tags",
+			name: "successful build with warning that output image may trigger input ImageStream change; legacy ImageStream without tags",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
 					OutputDocker: true,
@@ -1677,7 +1677,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 			},
 		},
 		{
-			name: "successful build with warning that output docker-image may trigger input ImageStream change",
+			name: "successful build with warning that output image may trigger input ImageStream change",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
 					OutputDocker: true,
@@ -1709,7 +1709,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 			},
 		},
 		{
-			name: "successful build with warning that output docker-image may trigger input ImageStream change; latest variation",
+			name: "successful build with warning that output image may trigger input ImageStream change; latest variation",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
 					OutputDocker: true,

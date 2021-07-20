@@ -299,7 +299,7 @@ func AddComponentInputsToRefBuilder(b *app.ReferenceBuilder, r *Resolvers, c *Co
 		return err
 	}
 	b.AddComponents(c.DockerImages, func(input *app.ComponentInput) app.ComponentReference {
-		input.Argument = fmt.Sprintf("--docker-image=%q", input.From)
+		input.Argument = fmt.Sprintf("--image=%q", input.From)
 		input.Searcher = r.DockerSearcher
 		if r.DockerSearcher != nil {
 			resolver := app.PerfectMatchWeightedResolver{}
