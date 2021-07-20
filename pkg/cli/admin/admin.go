@@ -36,6 +36,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/project"
 	"github.com/openshift/oc/pkg/cli/admin/prune"
 	"github.com/openshift/oc/pkg/cli/admin/release"
+	"github.com/openshift/oc/pkg/cli/admin/sosreport"
 	"github.com/openshift/oc/pkg/cli/admin/top"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade"
 	"github.com/openshift/oc/pkg/cli/admin/verifyimagesignature"
@@ -66,6 +67,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 				top.NewCommandTop(f, streams),
 				mustgather.NewMustGatherCommand(f, streams),
 				inspect.NewCmdInspect(streams),
+				sosreport.NewSOSReportCommand(f, streams),
 			},
 		},
 		{
