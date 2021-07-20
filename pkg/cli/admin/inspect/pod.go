@@ -50,6 +50,10 @@ func (o *InspectOptions) gatherContainerInfo(destDir string, pod *corev1.Pod, co
 		return err
 	}
 
+	if err := o.gatherContainerDebug(path.Join(destDir, "/"+container.Name, "/debug"), pod, &container); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -76,6 +80,31 @@ func filterContainerLogsErrors(err error) error {
 		return nil
 	}
 	return err
+}
+
+func (o *InspectOptions) gatherContainerDebug(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+	if !o.withDebug {
+		return nil
+	}
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+	port := &RemoteContainerPort{
+		Protocol: "https",
+		Port:     container.Ports[0].ContainerPort,
+	}
+	endpoints := []string{"heap", "profile", "trace"}
+	for _, endpoint := range endpoints {
+		// we need a token in order to access the /debug endpoint
+		result, err := o.podUrlGetter.Get("/debug/pprof/"+endpoint, pod, o.RESTConfig, port)
+		if err != nil {
+			return err
+		}
+		if err := o.fileWriter.WriteFromSource(path.Join(destDir, endpoint), &TextWriterSource{Text: result}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, container *corev1.Container) error {
