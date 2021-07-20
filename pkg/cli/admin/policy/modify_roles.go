@@ -239,7 +239,7 @@ func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericclioptions.IO
 	}
 
 	cmd.Flags().StringVar(&o.RoleBindingName, "rolebinding-name", o.RoleBindingName, "Name of the rolebinding to modify or create. If left empty creates a new rolebindo.RoleBindingNameg with a default name")
-	cmd.Flags().StringSliceVarP(&o.SANames, "serviceaccount", "z", o.SANames, "service account in the current namespace to use o.SANamess a user")
+	cmd.Flags().StringSliceVarP(&o.SANames, "serviceaccount", "z", o.SANames, "service account in the current namespace to use as a user")
 
 	kcmdutil.AddDryRunFlag(cmd)
 	o.PrintFlags.AddFlags(cmd)
