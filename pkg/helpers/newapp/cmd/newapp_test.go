@@ -457,6 +457,51 @@ func TestBuildPipelinesWithUnresolvedImage(t *testing.T) {
 	}
 }
 
+func TestBuildPipelinesWithSSHGitURL(t *testing.T) {
+	sshURL := "ssh://git@github.com:22/user/repo.git"
+	sourceRepo, err := app.NewSourceRepository(sshURL, newapp.StrategyDocker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refs := app.ComponentReferences{
+		app.ComponentReference(&app.ComponentInput{
+			Value:         "ruby",
+			Uses:          sourceRepo,
+			ExpectToBuild: true,
+			ResolvedMatch: &app.ComponentMatch{
+				Value: "ruby",
+			},
+		}),
+	}
+
+	a := AppConfig{}
+	a.Out = &bytes.Buffer{}
+	group, err := a.buildPipelines(refs, app.Environment{}, app.Environment{})
+	if err != nil {
+		t.Error(err)
+	}
+	gitLocationOK := false
+	for _, p := range group {
+		if p.Build != nil {
+			bc, err := p.Build.BuildConfig()
+			if err != nil {
+				t.Error(err)
+			}
+			if bc.Spec.Source.Git == nil {
+				continue
+			}
+			if bc.Spec.Source.Git.URI == sshURL {
+				gitLocationOK = true
+				break
+			}
+		}
+	}
+	if !gitLocationOK {
+		t.Error("ssh git location not preserved")
+	}
+
+}
+
 func TestBuildOutputCycleResilience(t *testing.T) {
 
 	config := &AppConfig{}
