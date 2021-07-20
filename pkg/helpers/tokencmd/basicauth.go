@@ -4,7 +4,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -87,6 +89,10 @@ func (c *BasicChallengeHandler) HandleChallenge(requestURL string, headers http.
 		} else {
 			fmt.Fprintf(w, "Authentication required for %s\n", c.Host)
 		}
+		consoleURL, err := guessConsoleURL(c.Host)
+		if err == nil {
+			fmt.Fprintf(w, "Default console URL: %s\n", consoleURL)
+		}
 		fmt.Fprintf(w, "Username: %s\n", username)
 		if missingPassword {
 			password = term.PromptForPasswordString(c.Reader, w, "Password: ")
@@ -139,4 +145,28 @@ func basicRealm(headers http.Header) (bool, string) {
 }
 func getBasicHeader(username, password string) string {
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
+}
+
+// we don't know the real console URL since we are not authenticated yet, so guess the default one
+func guessConsoleURL(host string) (string, error) {
+	u, err := url.Parse(host)
+	if err != nil {
+		return "", err
+	}
+	if u.Host == "" {
+		return "", fmt.Errorf("could not parse host: %v", host)
+	}
+
+	result, _, err := net.SplitHostPort(u.Host)
+	if err != nil {
+		result = u.Host
+	}
+
+	result = strings.TrimPrefix(result, "api.")
+	result = fmt.Sprintf("console-openshift-console.apps.%v", result)
+
+	return (&url.URL{
+		Scheme: u.Scheme,
+		Host:   result,
+	}).String(), nil
 }

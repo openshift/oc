@@ -247,6 +247,10 @@ func (s *sspiNegotiator) getPassword(domain, username string) (string, error) {
 		} else {
 			fmt.Fprintf(s.writer, "Authentication required for %s\n", s.host)
 		}
+		consoleURL, err := guessConsoleURL(s.host)
+		if err == nil {
+			fmt.Fprintf(s.writer, "Default console URL: %s\n", consoleURL)
+		}
 		fmt.Fprintf(s.writer, "Username: %s\n", username)
 		// empty password from prompt is ok
 		// we do not need to worry about being stuck in a prompt loop because ClientContext.Update
