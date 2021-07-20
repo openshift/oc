@@ -58,6 +58,10 @@ import (
 const (
 	debugPodAnnotationSourceContainer = "debug.openshift.io/source-container"
 	debugPodAnnotationSourceResource  = "debug.openshift.io/source-resource"
+	// containerResourcesAnnotationPrefix contains resource annotation prefix that will be used by CRI-O to set cpu shares
+	containerResourcesAnnotationPrefix = "resources.workload.openshift.io/"
+	// podWorkloadTargetAnnotationPrefix contains the prefix for the pod workload target annotation
+	podWorkloadTargetAnnotationPrefix = "target.workload.openshift.io/"
 )
 
 var (
@@ -805,6 +809,14 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	}
 
 	clearHostPorts(pod)
+
+	// keep workload annotations
+	for k, v := range pod.Annotations {
+		if strings.HasPrefix(k, containerResourcesAnnotationPrefix) ||
+			strings.HasPrefix(k, podWorkloadTargetAnnotationPrefix) {
+			annotations[k] = v
+		}
+	}
 
 	// reset the pod
 	if pod.Annotations == nil || !o.KeepAnnotations {
