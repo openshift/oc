@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -993,6 +994,10 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 				var labels map[string]string
 				if imageConfig.Config != nil {
 					labels = imageConfig.Config.Labels
+					// when user provides an override, the platform spec of the release payload will be passed to extract and
+					// used to set the os/arch of the override image if it is a manifestList.  This is an unsupported release configuration.
+					opts.FilterOptions.FilterByOS = fmt.Sprintf("^%s/%s$", imageConfig.OS, imageConfig.Architecture)
+					opts.FilterOptions.OSFilter = regexp.MustCompile(opts.FilterOptions.FilterByOS)
 				}
 				if tag.Annotations == nil {
 					tag.Annotations = make(map[string]string)

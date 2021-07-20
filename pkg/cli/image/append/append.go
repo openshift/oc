@@ -17,6 +17,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client"
@@ -30,6 +31,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
+	imageinfo "github.com/openshift/oc/pkg/cli/image/info"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
 	"github.com/openshift/oc/pkg/helpers/image/dockerlayer"
@@ -276,6 +278,13 @@ func (o *AppendImageOptions) Run() error {
 		srcManifest, manifestLocation, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 		if err != nil {
 			return fmt.Errorf("unable to read image %s: %v", from, err)
+		}
+		if _, ok := srcManifest.(*manifestlist.DeserializedManifestList); ok {
+			// If type is a ManifestList here, did not filter to single manifest from manifest list
+			// print os/arch options for this image as a convenience and error
+			if _, err = imageinfo.FilterManifestList(from.String(), srcManifest.(*manifestlist.DeserializedManifestList), nil, o.FilterOptions); err != nil {
+				return err
+			}
 		}
 		base, layers, err = imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), manifestLocation)
 		if err != nil {
