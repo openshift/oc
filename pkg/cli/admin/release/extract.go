@@ -351,6 +351,21 @@ func (o *ExtractOptions) Run() error {
 						continue
 					}
 				}
+
+				// set release version annotation
+				infoOpts := NewInfoOptions(o.IOStreams)
+				release, err := infoOpts.LoadReleaseInfo(o.From, false)
+				if err != nil {
+					return false, errors.Wrapf(err, "error loading release info")
+				}
+
+				a := m.Obj.GetAnnotations()
+				if a == nil {
+					a = make(map[string]string)
+				}
+				a[annotationReleaseVersion] = release.Metadata.Version
+				m.Obj.SetAnnotations(a)
+
 				credRequestManifests = append(credRequestManifests, m)
 			}
 			if len(credRequestManifests) == 0 {
@@ -365,7 +380,7 @@ func (o *ExtractOptions) Run() error {
 				}
 			}
 			for _, m := range credRequestManifests {
-				yamlBytes, err := yaml.JSONToYAML(m.Raw)
+				yamlBytes, err := yaml.Marshal(m.Obj)
 				if err != nil {
 					return false, errors.Wrapf(err, "error serializing manifest in %s", hdr.Name)
 				}
