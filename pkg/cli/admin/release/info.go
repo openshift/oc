@@ -1200,6 +1200,7 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 		fmt.Fprintf(w, "  Version:\t%s\n", m.Version)
 		if len(m.Previous) > 0 {
 			fmt.Fprintf(w, "  Upgrades:\t%s\n", strings.Join(sortSemanticVersions(m.Previous), ", "))
+			fmt.Fprint(w, "    Upgrades from these versions were expected when the release image was built, but may not be currently recommended for a cluster by its configured update service.\n")
 		} else {
 			fmt.Fprintf(w, "  Upgrades:\t<none>\n")
 		}
