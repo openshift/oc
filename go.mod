@@ -26,6 +26,7 @@ require (
 	github.com/gonum/mathext v0.0.0-20181121095525-8a4bf007ea55 // indirect
 	github.com/gonum/stat v0.0.0-20181125101827-41a0da705a5b // indirect
 	github.com/google/go-cmp v0.5.4
+	github.com/joelanford/ignore v0.0.0-20210610194209-63d4919d8fb2
 	github.com/magefile/mage v1.11.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
@@ -46,8 +47,8 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
-	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
-	golang.org/x/sys v0.0.0-20210225134936-a50acf3fe073
+	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
+	golang.org/x/sys v0.0.0-20210324051608-47abb6519492
 	golang.org/x/text v0.3.5 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
 	google.golang.org/genproto v0.0.0-20210219173056-d891e3cb3b5b // indirect
