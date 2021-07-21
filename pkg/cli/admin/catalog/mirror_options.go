@@ -8,8 +8,9 @@ import (
 )
 
 type IndexImageMirrorerOptions struct {
-	ImageMirrorer     ImageMirrorer
-	DatabaseExtractor DatabaseExtractor
+	ImageMirrorer       ImageMirrorer
+	IndexExtractor      IndexExtractor
+	RelatedImagesParser RelatedImagesParser
 
 	Source, Dest      imagesource.TypedImageReference
 	ManifestDir       string
@@ -20,8 +21,11 @@ func (o *IndexImageMirrorerOptions) Validate() error {
 	if o.ImageMirrorer == nil {
 		return fmt.Errorf("can't mirror without a mirrorer configured")
 	}
-	if o.DatabaseExtractor == nil {
+	if o.IndexExtractor == nil {
 		return fmt.Errorf("can't mirror without a database extractor configured")
+	}
+	if o.RelatedImagesParser == nil {
+		return fmt.Errorf("can't mirror without a related images parser")
 	}
 	if o.Source.String() == "" {
 		return fmt.Errorf("source image required")
@@ -61,8 +65,11 @@ func (c *IndexImageMirrorerOptions) ToOption() ImageIndexMirrorOption {
 		if c.ImageMirrorer != nil {
 			o.ImageMirrorer = c.ImageMirrorer
 		}
-		if c.DatabaseExtractor != nil {
-			o.DatabaseExtractor = c.DatabaseExtractor
+		if c.IndexExtractor != nil {
+			o.IndexExtractor = c.IndexExtractor
+		}
+		if c.RelatedImagesParser != nil {
+			o.RelatedImagesParser = c.RelatedImagesParser
 		}
 		if len(c.Source.String()) != 0 {
 			o.Source = c.Source
@@ -93,9 +100,15 @@ func WithMirrorer(i ImageMirrorer) ImageIndexMirrorOption {
 	}
 }
 
-func WithExtractor(e DatabaseExtractor) ImageIndexMirrorOption {
+func WithExtractor(e IndexExtractor) ImageIndexMirrorOption {
 	return func(o *IndexImageMirrorerOptions) {
-		o.DatabaseExtractor = e
+		o.IndexExtractor = e
+	}
+}
+
+func WithRelatedImagesParser(e RelatedImagesParser) ImageIndexMirrorOption {
+	return func(o *IndexImageMirrorerOptions) {
+		o.RelatedImagesParser = e
 	}
 }
 

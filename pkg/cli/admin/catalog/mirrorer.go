@@ -5,7 +5,6 @@ import (
 	"hash/fnv"
 	"strings"
 
-	"github.com/alicebob/sqlittle"
 	"k8s.io/apimachinery/pkg/util/errors"
 
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
@@ -15,15 +14,25 @@ type Mirrorer interface {
 	Mirror() (map[imagesource.TypedImageReference]imagesource.TypedImageReference, error)
 }
 
-// DatabaseExtractor knows how to pull an index image and extract its database
-type DatabaseExtractor interface {
+// IndexExtractor knows how to pull an index image and extract its index file(s)
+type IndexExtractor interface {
 	Extract(from imagesource.TypedImageReference) (string, error)
 }
 
-type DatabaseExtractorFunc func(from imagesource.TypedImageReference) (string, error)
+type IndexExtractorFunc func(from imagesource.TypedImageReference) (string, error)
 
-func (f DatabaseExtractorFunc) Extract(from imagesource.TypedImageReference) (string, error) {
+func (f IndexExtractorFunc) Extract(from imagesource.TypedImageReference) (string, error) {
 	return f(from)
+}
+
+type RelatedImagesParser interface {
+	Parse(path string) (map[string]struct{}, error)
+}
+
+type RelatedImagesParserFunc func(path string) (map[string]struct{}, error)
+
+func (f RelatedImagesParserFunc) Parse(path string) (map[string]struct{}, error) {
+	return f(path)
 }
 
 // ImageMirrorer knows how to mirror an image from one registry to another
@@ -38,8 +47,9 @@ func (f ImageMirrorerFunc) Mirror(mapping map[imagesource.TypedImageReference]im
 }
 
 type IndexImageMirrorer struct {
-	ImageMirrorer     ImageMirrorer
-	DatabaseExtractor DatabaseExtractor
+	ImageMirrorer       ImageMirrorer
+	IndexExtractor      IndexExtractor
+	RelatedImagesParser RelatedImagesParser
 
 	// options
 	Source, Dest      imagesource.TypedImageReference
@@ -58,23 +68,24 @@ func NewIndexImageMirror(options ...ImageIndexMirrorOption) (*IndexImageMirrorer
 		return nil, err
 	}
 	return &IndexImageMirrorer{
-		ImageMirrorer:     config.ImageMirrorer,
-		DatabaseExtractor: config.DatabaseExtractor,
-		Source:            config.Source,
-		Dest:              config.Dest,
-		MaxPathComponents: config.MaxPathComponents,
+		ImageMirrorer:       config.ImageMirrorer,
+		IndexExtractor:      config.IndexExtractor,
+		RelatedImagesParser: config.RelatedImagesParser,
+		Source:              config.Source,
+		Dest:                config.Dest,
+		MaxPathComponents:   config.MaxPathComponents,
 	}, nil
 }
 
 func (b *IndexImageMirrorer) Mirror() (map[imagesource.TypedImageReference]imagesource.TypedImageReference, error) {
-	dbFile, err := b.DatabaseExtractor.Extract(b.Source)
+	catalogPath, err := b.IndexExtractor.Extract(b.Source)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("extract catalog files: %v", err)
 	}
 
-	images, err := imagesFromDb(dbFile)
+	images, err := b.RelatedImagesParser.Parse(catalogPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse related images: %v", err)
 	}
 
 	var errs = make([]error, 0)
@@ -94,38 +105,6 @@ func (b *IndexImageMirrorer) Mirror() (map[imagesource.TypedImageReference]image
 	}
 
 	return mapping, errors.NewAggregate(errs)
-}
-
-func imagesFromDb(file string) (map[string]struct{}, error) {
-	db, err := sqlittle.Open(file)
-	if err != nil {
-		return nil, err
-	}
-
-	// get all images
-	var images = make(map[string]struct{}, 0)
-	var errs = make([]error, 0)
-	reader := func(r sqlittle.Row) {
-		var image string
-		if err := r.Scan(&image); err != nil {
-			errs = append(errs, err)
-			return
-		}
-		if image != "" {
-			images[image] = struct{}{}
-		}
-	}
-	if err := db.Select("related_image", reader, "image"); err != nil {
-		errs = append(errs, err)
-		return nil, errors.NewAggregate(errs)
-	}
-
-	// get all bundlepaths
-	if err := db.Select("operatorbundle", reader, "bundlepath"); err != nil {
-		errs = append(errs, err)
-		return nil, errors.NewAggregate(errs)
-	}
-	return images, nil
 }
 
 func mappingForImages(images map[string]struct{}, src, dest imagesource.TypedImageReference, maxComponents int) (mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference, errs []error) {
