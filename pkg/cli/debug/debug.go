@@ -794,6 +794,14 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 		container.SecurityContext.RunAsNonRoot = nil
 	}
 
+	// if DebugOptions set container.SecurityContext.RunAsNonRoot to nil,
+	// pod.Spec.SecurityContext.runAsNonRoot should be nil also.
+	if container.SecurityContext.RunAsNonRoot == nil &&
+		pod.Spec.SecurityContext != nil &&
+		*pod.Spec.SecurityContext.RunAsNonRoot {
+		pod.Spec.SecurityContext.RunAsNonRoot = nil
+	}
+
 	switch {
 	case o.OneContainer:
 		pod.Spec.InitContainers = nil
