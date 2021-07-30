@@ -220,7 +220,7 @@ func NewCmdEdit(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 func NewCmdConfig(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	pathOptions := kclientcmd.NewDefaultPathOptions()
 
-	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(config.NewCmdConfig(f, pathOptions, streams)))
+	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(config.NewCmdConfig(pathOptions, streams)))
 }
 
 // NewCmdCp is a wrapper for the Kubernetes cli cp command
@@ -241,7 +241,7 @@ func NewCmdPlugin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 	// when executing a plugin. Order matters here, we want to first see if a user
 	// has prefixed their plugin with "oc-", before defaulting to upstream behavior.
 	plugin.ValidPluginFilenamePrefixes = []string{"oc", "kubectl"}
-	return plugin.NewCmdPlugin(f, streams)
+	return plugin.NewCmdPlugin(streams)
 }
 
 func NewCmdApiResources(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
