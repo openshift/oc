@@ -1166,6 +1166,7 @@ _oc_adm_config_delete-cluster()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -1224,6 +1225,7 @@ _oc_adm_config_delete-context()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -1522,6 +1524,7 @@ _oc_adm_config_rename-context()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -1910,6 +1913,7 @@ _oc_adm_config_use-context()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -2135,6 +2139,7 @@ _oc_adm_cordon()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -2404,6 +2409,10 @@ _oc_adm_drain()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--chunk-size=")
+    two_word_flags+=("--chunk-size")
+    local_nonpersistent_flags+=("--chunk-size")
+    local_nonpersistent_flags+=("--chunk-size=")
     flags+=("--delete-emptydir-data")
     local_nonpersistent_flags+=("--delete-emptydir-data")
     flags+=("--disable-eviction")
@@ -2479,6 +2488,7 @@ _oc_adm_drain()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -6414,7 +6424,7 @@ _oc_adm_taint()
 
     must_have_one_flag=()
     must_have_one_noun=()
-    must_have_one_noun+=("node")
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -6603,6 +6613,7 @@ _oc_adm_top_node()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -6626,6 +6637,10 @@ _oc_adm_top_pod()
     local_nonpersistent_flags+=("-A")
     flags+=("--containers")
     local_nonpersistent_flags+=("--containers")
+    flags+=("--field-selector=")
+    two_word_flags+=("--field-selector")
+    local_nonpersistent_flags+=("--field-selector")
+    local_nonpersistent_flags+=("--field-selector=")
     flags+=("--no-headers")
     local_nonpersistent_flags+=("--no-headers")
     flags+=("--selector=")
@@ -6681,6 +6696,7 @@ _oc_adm_top_pod()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -6827,6 +6843,7 @@ _oc_adm_uncordon()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -7144,6 +7161,10 @@ _oc_annotate()
 
     flags+=("--all")
     local_nonpersistent_flags+=("--all")
+    flags+=("--all-namespaces")
+    flags+=("-A")
+    local_nonpersistent_flags+=("--all-namespaces")
+    local_nonpersistent_flags+=("-A")
     flags+=("--allow-missing-template-keys")
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
@@ -7184,8 +7205,6 @@ _oc_annotate()
     local_nonpersistent_flags+=("-o")
     flags+=("--overwrite")
     local_nonpersistent_flags+=("--overwrite")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -7249,6 +7268,7 @@ _oc_annotate()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -7434,8 +7454,6 @@ _oc_apply_edit-last-applied()
     local_nonpersistent_flags+=("--output")
     local_nonpersistent_flags+=("--output=")
     local_nonpersistent_flags+=("-o")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -7491,6 +7509,7 @@ _oc_apply_edit-last-applied()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -7671,6 +7690,7 @@ _oc_apply_view-last-applied()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -7743,8 +7763,6 @@ _oc_apply()
     two_word_flags+=("--prune-whitelist")
     local_nonpersistent_flags+=("--prune-whitelist")
     local_nonpersistent_flags+=("--prune-whitelist=")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -7894,6 +7912,7 @@ _oc_attach()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -8191,8 +8210,6 @@ _oc_autoscale()
     local_nonpersistent_flags+=("--output")
     local_nonpersistent_flags+=("--output=")
     local_nonpersistent_flags+=("-o")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -8249,11 +8266,8 @@ _oc_autoscale()
     must_have_one_flag=()
     must_have_one_flag+=("--max=")
     must_have_one_noun=()
-    must_have_one_noun+=("deployment")
     must_have_one_noun+=("deploymentconfig")
-    must_have_one_noun+=("replicaset")
-    must_have_one_noun+=("replicationcontroller")
-    must_have_one_noun+=("statefulset")
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -8649,6 +8663,7 @@ _oc_config_delete-cluster()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -8707,6 +8722,7 @@ _oc_config_delete-context()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -9005,6 +9021,7 @@ _oc_config_rename-context()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -9393,6 +9410,7 @@ _oc_config_use-context()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -9618,6 +9636,7 @@ _oc_cp()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -9960,7 +9979,7 @@ _oc_create_clusterrolebinding()
     flags+=("--clusterrole=")
     two_word_flags+=("--clusterrole")
     flags_with_completion+=("--clusterrole")
-    flags_completion+=("__kubectl_get_resource_clusterrole")
+    flags_completion+=("__oc_handle_go_custom_completion")
     local_nonpersistent_flags+=("--clusterrole")
     local_nonpersistent_flags+=("--clusterrole=")
     flags+=("--dry-run")
@@ -13015,8 +13034,6 @@ _oc_create()
     two_word_flags+=("--raw")
     local_nonpersistent_flags+=("--raw")
     local_nonpersistent_flags+=("--raw=")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -13362,6 +13379,7 @@ _oc_delete()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -13383,6 +13401,10 @@ _oc_describe()
     flags+=("-A")
     local_nonpersistent_flags+=("--all-namespaces")
     local_nonpersistent_flags+=("-A")
+    flags+=("--chunk-size=")
+    two_word_flags+=("--chunk-size")
+    local_nonpersistent_flags+=("--chunk-size")
+    local_nonpersistent_flags+=("--chunk-size=")
     flags+=("--filename=")
     two_word_flags+=("--filename")
     flags_with_completion+=("--filename")
@@ -13452,6 +13474,7 @@ _oc_describe()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -13591,8 +13614,6 @@ _oc_edit()
     local_nonpersistent_flags+=("-o")
     flags+=("--output-patch")
     local_nonpersistent_flags+=("--output-patch")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -13652,6 +13673,7 @@ _oc_edit()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -13932,6 +13954,7 @@ _oc_exec()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -14089,8 +14112,6 @@ _oc_expose()
     two_word_flags+=("--protocol")
     local_nonpersistent_flags+=("--protocol")
     local_nonpersistent_flags+=("--protocol=")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -14166,11 +14187,7 @@ _oc_expose()
 
     must_have_one_flag=()
     must_have_one_noun=()
-    must_have_one_noun+=("deployment")
-    must_have_one_noun+=("pod")
-    must_have_one_noun+=("replicaset")
-    must_have_one_noun+=("replicationcontroller")
-    must_have_one_noun+=("service")
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -14393,6 +14410,7 @@ _oc_get()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -15176,6 +15194,8 @@ _oc_kustomize()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--as-current-user")
+    local_nonpersistent_flags+=("--as-current-user")
     flags+=("--enable-alpha-plugins")
     local_nonpersistent_flags+=("--enable-alpha-plugins")
     flags+=("--enable-helm")
@@ -15276,6 +15296,10 @@ _oc_label()
 
     flags+=("--all")
     local_nonpersistent_flags+=("--all")
+    flags+=("--all-namespaces")
+    flags+=("-A")
+    local_nonpersistent_flags+=("--all-namespaces")
+    local_nonpersistent_flags+=("-A")
     flags+=("--allow-missing-template-keys")
     local_nonpersistent_flags+=("--allow-missing-template-keys")
     flags+=("--dry-run")
@@ -15316,8 +15340,6 @@ _oc_label()
     local_nonpersistent_flags+=("-o")
     flags+=("--overwrite")
     local_nonpersistent_flags+=("--overwrite")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -15381,6 +15403,7 @@ _oc_label()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -16320,8 +16343,6 @@ _oc_patch()
     two_word_flags+=("--patch-file")
     local_nonpersistent_flags+=("--patch-file")
     local_nonpersistent_flags+=("--patch-file=")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -16379,6 +16400,7 @@ _oc_patch()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -17419,6 +17441,7 @@ _oc_port-forward()
 
     must_have_one_flag=()
     must_have_one_noun=()
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -18382,10 +18405,8 @@ _oc_rollout_history()
 
     must_have_one_flag=()
     must_have_one_noun=()
-    must_have_one_noun+=("daemonset")
-    must_have_one_noun+=("deployment")
     must_have_one_noun+=("deploymentconfig")
-    must_have_one_noun+=("statefulset")
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -18562,8 +18583,8 @@ _oc_rollout_pause()
 
     must_have_one_flag=()
     must_have_one_noun=()
-    must_have_one_noun+=("deployment")
     must_have_one_noun+=("deploymentconfig")
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -18662,9 +18683,7 @@ _oc_rollout_restart()
 
     must_have_one_flag=()
     must_have_one_noun=()
-    must_have_one_noun+=("daemonset")
-    must_have_one_noun+=("deployment")
-    must_have_one_noun+=("statefulset")
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -18763,8 +18782,8 @@ _oc_rollout_resume()
 
     must_have_one_flag=()
     must_have_one_noun=()
-    must_have_one_noun+=("deployment")
     must_have_one_noun+=("deploymentconfig")
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -18949,9 +18968,7 @@ _oc_rollout_status()
 
     must_have_one_flag=()
     must_have_one_noun=()
-    must_have_one_noun+=("daemonset")
-    must_have_one_noun+=("deployment")
-    must_have_one_noun+=("statefulset")
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -19052,10 +19069,8 @@ _oc_rollout_undo()
 
     must_have_one_flag=()
     must_have_one_noun=()
-    must_have_one_noun+=("daemonset")
-    must_have_one_noun+=("deployment")
     must_have_one_noun+=("deploymentconfig")
-    must_have_one_noun+=("statefulset")
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -19408,8 +19423,6 @@ _oc_run()
     flags+=("-q")
     local_nonpersistent_flags+=("--quiet")
     local_nonpersistent_flags+=("-q")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -19535,8 +19548,6 @@ _oc_scale()
     local_nonpersistent_flags+=("--output")
     local_nonpersistent_flags+=("--output=")
     local_nonpersistent_flags+=("-o")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -19609,11 +19620,8 @@ _oc_scale()
     must_have_one_flag=()
     must_have_one_flag+=("--replicas=")
     must_have_one_noun=()
-    must_have_one_noun+=("deployment")
     must_have_one_noun+=("deploymentconfig")
-    must_have_one_noun+=("replicaset")
-    must_have_one_noun+=("replicationcontroller")
-    must_have_one_noun+=("statefulset")
+    has_completion_function=1
     noun_aliases=()
 }
 
@@ -20724,8 +20732,6 @@ _oc_set_image()
     local_nonpersistent_flags+=("--output")
     local_nonpersistent_flags+=("--output=")
     local_nonpersistent_flags+=("-o")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -21108,8 +21114,6 @@ _oc_set_resources()
     local_nonpersistent_flags+=("--output")
     local_nonpersistent_flags+=("--output=")
     local_nonpersistent_flags+=("-o")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -21330,8 +21334,6 @@ _oc_set_selector()
     local_nonpersistent_flags+=("--output")
     local_nonpersistent_flags+=("--output=")
     local_nonpersistent_flags+=("-o")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
@@ -21440,8 +21442,6 @@ _oc_set_serviceaccount()
     local_nonpersistent_flags+=("--output")
     local_nonpersistent_flags+=("--output=")
     local_nonpersistent_flags+=("-o")
-    flags+=("--record")
-    local_nonpersistent_flags+=("--record")
     flags+=("--recursive")
     flags+=("-R")
     local_nonpersistent_flags+=("--recursive")
