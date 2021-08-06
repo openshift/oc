@@ -97,6 +97,14 @@ func NewCmdLogs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 // resource a user requested to view its logs and creates the appropriate logOptions
 // object for it.
 func (o *LogsOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
+	config, err := f.ToRESTConfig()
+	if err != nil {
+		return err
+	}
+	o.Client, err = buildv1client.NewForConfig(config)
+	if err != nil {
+		return err
+	}
 	return o.LogsOptions.Complete(f, cmd, args)
 }
 
