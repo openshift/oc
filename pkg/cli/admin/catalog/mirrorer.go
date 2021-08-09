@@ -208,7 +208,12 @@ func mount(in, dest imagesource.TypedImageReference, maxComponents int) (out ima
 	} else if maxComponents == 0 {
 		out.Ref.Name = strings.Join(components[1:], "/")
 	} else if len(components) > 1 {
-		out.Ref.Name = strings.Join(components[1:maxComponents], "/")
+		endIndex := maxComponents
+		if endIndex > len(components) {
+			endIndex = len(components)
+		}
+
+		out.Ref.Name = strings.Join(components[1:endIndex], "/")
 	} else {
 		// only one component, make it the name, not the namespace
 		out.Ref.Name = in.Ref.Name
