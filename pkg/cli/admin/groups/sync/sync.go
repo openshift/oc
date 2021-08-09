@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	userv1 "github.com/openshift/api/user/v1"
 	"io/ioutil"
 	"strings"
 
@@ -12,6 +11,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	kerrs "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -24,7 +25,7 @@ import (
 	legacyconfigv1 "github.com/openshift/api/legacyconfig/v1"
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	"github.com/openshift/library-go/pkg/security/ldapclient"
-	"github.com/openshift/oc/pkg/helpers/groupsync"
+	syncgroups "github.com/openshift/oc/pkg/helpers/groupsync"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"
 	"github.com/openshift/oc/pkg/helpers/groupsync/ldap"
 	"github.com/openshift/oc/pkg/helpers/groupsync/syncerror"
@@ -408,12 +409,23 @@ func (o *SyncOptions) Run() error {
 	// Now we run the Syncer and report any errors
 	openshiftGroups, syncErrors := syncer.Sync()
 	if !o.Confirm {
-		items := make([]userv1.Group, len(openshiftGroups))
-		for _, group := range openshiftGroups {
-			items = append(items, *group)
+		list := &unstructured.UnstructuredList{
+			Object: map[string]interface{}{
+				"kind":       "List",
+				"apiVersion": "v1",
+				"metadata":   map[string]interface{}{},
+			},
 		}
-		groupList := &userv1.GroupList{Items: items}
-		if err := o.Printer.PrintObj(groupList, o.Out); err != nil {
+
+		for _, item := range openshiftGroups {
+			unstructuredItem, err := runtime.DefaultUnstructuredConverter.ToUnstructured(item)
+			if err != nil {
+				return err
+			}
+			list.Items = append(list.Items, unstructured.Unstructured{Object: unstructuredItem})
+		}
+
+		if err := o.Printer.PrintObj(list, o.Out); err != nil {
 			return err
 		}
 	}
