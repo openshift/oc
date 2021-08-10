@@ -78,7 +78,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("one or more errors ocurred while gathering pod-specific data for namespace: %s\n\n    %v", namespace, errors.NewAggregate(errs))
+		return fmt.Errorf("one or more errors occurred while gathering pod-specific data for namespace: %s\n\n    %v", namespace, errors.NewAggregate(errs))
 	}
 	return nil
 }

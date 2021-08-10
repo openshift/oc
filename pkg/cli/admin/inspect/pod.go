@@ -56,7 +56,7 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("one or more errors ocurred while gathering container data for pod %s:\n\n    %v", pod.Name, errors.NewAggregate(errs))
+		return fmt.Errorf("one or more errors occurred while gathering container data for pod %s:\n\n    %v", pod.Name, errors.NewAggregate(errs))
 	}
 	return nil
 }

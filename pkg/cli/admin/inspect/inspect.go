@@ -191,7 +191,7 @@ func (o *InspectOptions) Run() error {
 	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.destDir)
 
 	if len(allErrs) > 0 {
-		return fmt.Errorf("errors ocurred while gathering data:\n    %v", errors.NewAggregate(allErrs))
+		return fmt.Errorf("errors occurred while gathering data:\n    %v", errors.NewAggregate(allErrs))
 	}
 
 	return nil
@@ -235,7 +235,7 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("one or more errors ocurred while gathering config.openshift.io resource data:\n\n    %v", errors.NewAggregate(errs))
+		return fmt.Errorf("one or more errors occurred while gathering config.openshift.io resource data:\n\n    %v", errors.NewAggregate(errs))
 	}
 	return nil
 }
@@ -276,7 +276,7 @@ func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourc
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("one or more errors ocurred while gathering operator.openshift.io resource data:\n\n    %v", errors.NewAggregate(errs))
+		return fmt.Errorf("one or more errors occurred while gathering operator.openshift.io resource data:\n\n    %v", errors.NewAggregate(errs))
 	}
 	return nil
 }
