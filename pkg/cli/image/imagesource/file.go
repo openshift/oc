@@ -148,7 +148,7 @@ type fileManifestService struct {
 
 // Exists returns true if the manifest exists.
 func (s *fileManifestService) Exists(ctx context.Context, dgst godigest.Digest) (bool, error) {
-	path := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "manifests", dgst.String())
+	path := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "manifests")
 	fi, err := os.Lstat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -164,7 +164,7 @@ func (s *fileManifestService) Exists(ctx context.Context, dgst godigest.Digest) 
 
 // Get retrieves the manifest specified by the given digest
 func (s *fileManifestService) Get(ctx context.Context, dgst godigest.Digest, options ...distribution.ManifestServiceOption) (distribution.Manifest, error) {
-	path := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "manifests", dgst.String())
+	path := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "manifests")
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -226,19 +226,19 @@ func (s *fileManifestService) Put(ctx context.Context, manifest distribution.Man
 		return "", err
 	}
 	dgst := godigest.FromBytes(payload)
-	path := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "blobs", dgst.String())
+	path := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "blobs")
 	if err := atomicWrite(path, payload); err != nil {
 		return "", err
 	}
 
 	// set tags and manifests
-	manifestPath := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "manifests", dgst.String())
+	manifestPath := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "manifests")
 	if err := atomicLink(manifestPath, path); err != nil {
 		return "", err
 	}
 	for _, option := range options {
 		if opt, ok := option.(distribution.WithTagOption); ok {
-			tagPath := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "manifests", opt.Tag)
+			tagPath := filepath.Join(generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "manifests"), opt.Tag)
 			if err := atomicSymlink(tagPath, dgst.String()); err != nil {
 				return "", err
 			}
@@ -258,7 +258,7 @@ type fileBlobStore struct {
 }
 
 func (s *fileBlobStore) Stat(ctx context.Context, dgst godigest.Digest) (distribution.Descriptor, error) {
-	path := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "blobs", dgst.String())
+	path := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "blobs")
 	fi, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -280,12 +280,12 @@ func (s *fileBlobStore) Delete(ctx context.Context, dgst godigest.Digest) error 
 }
 
 func (s *fileBlobStore) Get(ctx context.Context, dgst godigest.Digest) ([]byte, error) {
-	path := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "blobs", dgst.String())
+	path := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "blobs")
 	return ioutil.ReadFile(path)
 }
 
 func (s *fileBlobStore) Open(ctx context.Context, dgst godigest.Digest) (distribution.ReadSeekCloser, error) {
-	path := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "blobs", dgst.String())
+	path := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "blobs")
 	return os.Open(path)
 }
 
@@ -295,7 +295,7 @@ func (s *fileBlobStore) ServeBlob(ctx context.Context, w http.ResponseWriter, r 
 
 func (s *fileBlobStore) Put(ctx context.Context, mediaType string, payload []byte) (distribution.Descriptor, error) {
 	dgst := godigest.FromBytes(payload)
-	path := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "blobs", dgst.String())
+	path := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "blobs")
 	if err := atomicWrite(path, payload); err != nil {
 		return distribution.Descriptor{}, err
 	}
@@ -324,10 +324,10 @@ func (s *fileBlobStore) Create(ctx context.Context, options ...distribution.Blob
 	}
 
 	d := opts.Mount.Stat.Digest
-	path := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "blobs", d.String())
+	path := generateDigestPath(d.String(), s.r.basePath, "v2", s.r.repoPath, "blobs")
 	if opts.Mount.ShouldMount {
 		repoPath := repoPathForName(opts.Mount.From.Name())
-		sourcePath := filepath.Join(s.r.basePath, "v2", repoPath, "blobs", d.String())
+		sourcePath := generateDigestPath(d.String(), s.r.basePath, "v2", repoPath, "blobs")
 		klog.V(5).Infof("Try mount from %s to %s", sourcePath, path)
 		if fi, err := os.Stat(sourcePath); err == nil && !fi.IsDir() {
 			if err := atomicLink(path, sourcePath); err != nil {
@@ -412,7 +412,7 @@ func (w *fileWriter) ReadFrom(r io.Reader) (int64, error) {
 		}
 		name := w.f.Name()
 		w.f = nil
-		path := filepath.Join(w.path, blobDigest.String())
+		path := generateDigestPath(blobDigest.String(), w.path)
 		if err := os.Rename(name, path); err != nil {
 			return 0, err
 		}
