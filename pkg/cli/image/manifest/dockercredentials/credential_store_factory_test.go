@@ -1,10 +1,10 @@
 package dockercredentials
 
 import (
+	imageTypes "github.com/containers/image/v5/types"
+
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"testing"
-
-	"github.com/openshift/oc/pkg/helpers/image/credentialprovider"
 )
 
 func Test_CredentialStoreFactory(t *testing.T) {
@@ -30,7 +30,7 @@ func Test_CredentialStoreFactory(t *testing.T) {
 	for _, image := range invalidImages {
 		store := credentialStoreFactory{
 			authResolver: &AuthResolver{
-				authConfigs: map[string]credentialprovider.DockerConfigEntry{
+				credentials: map[string]imageTypes.DockerAuthConfig{
 					image: {Username: "local_user", Password: "local_pass"},
 				},
 			},

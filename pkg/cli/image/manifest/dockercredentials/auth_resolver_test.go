@@ -2,20 +2,19 @@ package dockercredentials
 
 import (
 	"github.com/containers/image/v5/docker/reference"
+	imageTypes "github.com/containers/image/v5/types"
 	"testing"
-
-	"github.com/openshift/oc/pkg/helpers/image/credentialprovider"
 )
 
 func Test_AuthResolver(t *testing.T) {
-	fn := func(host string, entry credentialprovider.DockerConfigEntry) AuthResolver {
+	fn := func(host string, entry imageTypes.DockerAuthConfig) AuthResolver {
 		return AuthResolver{
-			map[string]credentialprovider.DockerConfigEntry{
+			map[string]imageTypes.DockerAuthConfig{
 				host: entry,
 			},
 		}
 	}
-	def := credentialprovider.DockerConfigEntry{
+	def := imageTypes.DockerAuthConfig{
 		Username: "local_user",
 		Password: "local_pass",
 	}
