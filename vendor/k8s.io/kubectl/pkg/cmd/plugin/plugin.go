@@ -34,36 +34,39 @@ import (
 )
 
 var (
-	pluginLong = templates.LongDesc(`
+	pluginLong = templates.LongDesc(i18n.T(`
 		Provides utilities for interacting with plugins.
 
 		Plugins provide extended functionality that is not part of the major command-line distribution.
-		Please refer to the documentation and examples for more information about how write your own plugins.`)
+		Please refer to the documentation and examples for more information about how write your own plugins.
 
-	pluginListLong = templates.LongDesc(`
+		The easiest way to discover and install plugins is via the kubernetes sub-project krew.
+		To install krew, visit [krew.sigs.k8s.io](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)`))
+
+	pluginListLong = templates.LongDesc(i18n.T(`
 		List all available plugin files on a user's PATH.
 
 		Available plugin files are those that are:
 		- executable
 		- anywhere on the user's PATH
 		- begin with "kubectl-"
-`)
+`))
 
 	ValidPluginFilenamePrefixes = []string{"kubectl"}
 )
 
-func NewCmdPlugin(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPlugin(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                   "plugin [flags]",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Provides utilities for interacting with plugins."),
+		Short:                 i18n.T("Provides utilities for interacting with plugins"),
 		Long:                  pluginLong,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.DefaultSubCommandRun(streams.ErrOut)(cmd, args)
 		},
 	}
 
-	cmd.AddCommand(NewCmdPluginList(f, streams))
+	cmd.AddCommand(NewCmdPluginList(streams))
 	return cmd
 }
 
@@ -77,14 +80,14 @@ type PluginListOptions struct {
 }
 
 // NewCmdPluginList provides a way to list all plugin executables visible to kubectl
-func NewCmdPluginList(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPluginList(streams genericclioptions.IOStreams) *cobra.Command {
 	o := &PluginListOptions{
 		IOStreams: streams,
 	}
 
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "list all visible plugin executables on a user's PATH",
+		Short: i18n.T("List all visible plugin executables on a user's PATH"),
 		Long:  pluginListLong,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd))
@@ -99,7 +102,7 @@ func NewCmdPluginList(f cmdutil.Factory, streams genericclioptions.IOStreams) *c
 func (o *PluginListOptions) Complete(cmd *cobra.Command) error {
 	o.Verifier = &CommandOverrideVerifier{
 		root:        cmd.Root(),
-		seenPlugins: make(map[string]string, 0),
+		seenPlugins: make(map[string]string),
 	}
 
 	o.PluginPaths = filepath.SplitList(os.Getenv("PATH"))
@@ -113,10 +116,14 @@ func (o *PluginListOptions) Run() error {
 	pluginWarnings := 0
 
 	for _, dir := range uniquePathsList(o.PluginPaths) {
+		if len(strings.TrimSpace(dir)) == 0 {
+			continue
+		}
+
 		files, err := ioutil.ReadDir(dir)
 		if err != nil {
 			if _, ok := err.(*os.PathError); ok {
-				fmt.Fprintf(o.ErrOut, "Unable read directory %q from your PATH: %v. Skipping...", dir, err)
+				fmt.Fprintf(o.ErrOut, "Unable to read directory %q from your PATH: %v. Skipping...\n", dir, err)
 				continue
 			}
 
@@ -133,7 +140,7 @@ func (o *PluginListOptions) Run() error {
 			}
 
 			if isFirstFile {
-				fmt.Fprintf(o.ErrOut, "The following compatible plugins are available:\n\n")
+				fmt.Fprintf(o.Out, "The following compatible plugins are available:\n\n")
 				pluginsFound = true
 				isFirstFile = false
 			}
@@ -165,7 +172,6 @@ func (o *PluginListOptions) Run() error {
 		}
 	}
 	if len(pluginErrors) > 0 {
-		fmt.Fprintln(o.ErrOut)
 		errs := bytes.NewBuffer(nil)
 		for _, e := range pluginErrors {
 			fmt.Fprintln(errs, e)

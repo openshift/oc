@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -22,7 +23,7 @@ import (
 	projectv1 "github.com/openshift/api/project/v1"
 	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
-	clientcfg "github.com/openshift/oc/pkg/helpers/originkubeconfignames"
+	"github.com/openshift/oc/pkg/helpers/project"
 )
 
 type ProjectOptions struct {
@@ -35,6 +36,8 @@ type ProjectOptions struct {
 	ProjectOnly  bool
 	DisplayShort bool
 
+	Context string
+
 	// SkipAccessValidation means that if a specific name is requested, don't bother checking for access to the project
 	SkipAccessValidation bool
 
@@ -43,7 +46,7 @@ type ProjectOptions struct {
 
 var (
 	projectLong = templates.LongDesc(`
-		Switch to another project and make it the default in your configuration
+		Switch to another project and make it the default in your configuration.
 
 		If no project was specified on the command line, display information about the current active
 		project. Since you can use this command to connect to projects on different servers, you will
@@ -53,33 +56,35 @@ var (
 		name, this command will accept that context name instead.
 
 		For advanced configuration, or to manage the contents of your config file, use the 'config'
-		command.`)
+		command.
+	`)
 
 	projectExample = templates.Examples(`
-		# Switch to 'myapp' project
-		%[1]s project myapp
+		# Switch to the 'myapp' project
+		oc project myapp
 
 		# Display the project currently in use
-		%[1]s project`)
+		oc project
+	`)
 )
 
 func NewProjectOptions(streams genericclioptions.IOStreams) *ProjectOptions {
 	return &ProjectOptions{
-		IOStreams: streams,
+		IOStreams:   streams,
+		PathOptions: kclientcmd.NewDefaultPathOptions(),
 	}
 }
 
 // NewCmdProject implements the OpenShift cli rollback command
-func NewCmdProject(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewProjectOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "project [NAME]",
 		Short:   "Switch to another project",
 		Long:    projectLong,
-		Example: fmt.Sprintf(projectExample, fullName),
+		Example: projectExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			o.PathOptions = cliconfig.NewPathOptions(cmd)
-			kcmdutil.CheckErr(o.Complete(f, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
@@ -88,7 +93,7 @@ func NewCmdProject(fullName string, f kcmdutil.Factory, streams genericclioption
 	return cmd
 }
 
-func (o *ProjectOptions) Complete(f genericclioptions.RESTClientGetter, args []string) error {
+func (o *ProjectOptions) Complete(f genericclioptions.RESTClientGetter, cmd *cobra.Command, args []string) error {
 	switch argsLength := len(args); {
 	case argsLength > 1:
 		return errors.New("Only one argument is supported (project name or context name).")
@@ -97,10 +102,22 @@ func (o *ProjectOptions) Complete(f genericclioptions.RESTClientGetter, args []s
 	}
 
 	var err error
+	o.Context, err = cmd.Flags().GetString("context")
+	if err != nil {
+		return fmt.Errorf("unable to get value for --context flag: %v", err)
+	}
+
 	o.Config, err = f.ToRawKubeConfigLoader().RawConfig()
 	if err != nil {
 		return err
 	}
+
+	if o.Context != "" {
+		o.Config.CurrentContext = o.Context
+	}
+
+	// we need to set explicit path if one was specified, since NewDefaultPathOptions doesn't do it for us
+	o.PathOptions.LoadingRules.ExplicitPath = kcmdutil.GetFlagString(cmd, kclientcmd.RecommendedConfigPathFlag)
 
 	o.RESTConfig, err = f.ToRESTConfig()
 	if err != nil {
@@ -165,10 +182,8 @@ func (o ProjectOptions) Run() error {
 			}
 
 			switch err := ConfirmProjectAccess(currentProject, client, kubeclient); {
-			case kapierrors.IsForbidden(err):
-				return fmt.Errorf("you do not have rights to view project %q.", currentProject)
-			case kapierrors.IsNotFound(err):
-				return fmt.Errorf("the project %q specified in your config does not exist.", currentProject)
+			case kapierrors.IsForbidden(err), kapierrors.IsNotFound(err):
+				return fmt.Errorf("you do not have rights to view project %q specified in your config or the project doesn't exist", currentProject)
 			case err != nil:
 				return err
 			}
@@ -178,7 +193,7 @@ func (o ProjectOptions) Run() error {
 				return nil
 			}
 
-			defaultContextName := clientcfg.GetContextNickname(currentContext.Namespace, currentContext.Cluster, currentContext.AuthInfo)
+			defaultContextName := cliconfig.GetContextNickname(currentContext.Namespace, currentContext.Cluster, currentContext.AuthInfo)
 			// if they specified a project name and got a generated context, then only show the information they care about.  They won't recognize
 			// a context name they didn't choose
 			if config.CurrentContext == defaultContextName {
@@ -199,14 +214,14 @@ func (o ProjectOptions) Run() error {
 	// We have an argument that can be either a context or project
 	argument := o.ProjectName
 
-	contextInUse := ""
-	namespaceInUse := ""
+	var contextInUse, namespaceInUse, userNameInUse string
 
 	// Check if argument is an existing context, if so just set it as the context in use.
 	// If not a context then we will try to handle it as a project.
 	if context, contextExists := o.GetContextFromName(argument); contextExists {
 		contextInUse = argument
 		namespaceInUse = context.Namespace
+		userNameInUse = context.AuthInfo
 
 		config.CurrentContext = argument
 	} else {
@@ -249,8 +264,15 @@ func (o ProjectOptions) Run() error {
 			}
 		}
 		projectName := argument
+		if len(userNameInUse) == 0 {
+			user, err := project.WhoAmI(o.RESTConfig)
+			if err != nil {
+				return fmt.Errorf("unable to default to a user name: %v", err)
+			}
+			userNameInUse = user.Name
+		}
 
-		kubeconfig, err := cliconfig.CreateConfig(projectName, o.RESTConfig)
+		kubeconfig, err := cliconfig.CreateConfig(projectName, userNameInUse, o.RESTConfig)
 		if err != nil {
 			return err
 		}
@@ -276,7 +298,7 @@ func (o ProjectOptions) Run() error {
 
 	// calculate what name we'd generate for the context.  If the context has the same name, don't drop it into the output, because the user won't
 	// recognize the name since they didn't choose it.
-	defaultContextName := clientcfg.GetContextNickname(namespaceInUse, config.Contexts[contextInUse].Cluster, config.Contexts[contextInUse].AuthInfo)
+	defaultContextName := cliconfig.GetContextNickname(namespaceInUse, config.Contexts[contextInUse].Cluster, config.Contexts[contextInUse].AuthInfo)
 
 	switch {
 	// if there is no namespace, then the only information we can provide is the context and server
@@ -311,13 +333,13 @@ func (o *ProjectOptions) GetContextFromName(contextName string) (*clientcmdapi.C
 }
 
 func ConfirmProjectAccess(currentProject string, projectClient projectv1client.ProjectV1Interface, kClient corev1client.CoreV1Interface) error {
-	_, projectErr := projectClient.Projects().Get(currentProject, metav1.GetOptions{})
+	_, projectErr := projectClient.Projects().Get(context.TODO(), currentProject, metav1.GetOptions{})
 	if !kapierrors.IsNotFound(projectErr) && !kapierrors.IsForbidden(projectErr) {
 		return projectErr
 	}
 
 	// at this point we know the error is a not found or forbidden, but we'll test namespaces just in case we're running on kube
-	if _, err := kClient.Namespaces().Get(currentProject, metav1.GetOptions{}); err == nil {
+	if _, err := kClient.Namespaces().Get(context.TODO(), currentProject, metav1.GetOptions{}); err == nil {
 		return nil
 	}
 
@@ -326,7 +348,7 @@ func ConfirmProjectAccess(currentProject string, projectClient projectv1client.P
 }
 
 func GetProjects(projectClient projectv1client.ProjectV1Interface, kClient corev1client.CoreV1Interface) ([]projectv1.Project, error) {
-	projects, err := projectClient.Projects().List(metav1.ListOptions{})
+	projects, err := projectClient.Projects().List(context.TODO(), metav1.ListOptions{})
 	if err == nil {
 		return projects.Items, nil
 	}
@@ -335,7 +357,7 @@ func GetProjects(projectClient projectv1client.ProjectV1Interface, kClient corev
 		return nil, err
 	}
 
-	namespaces, err := kClient.Namespaces().List(metav1.ListOptions{})
+	namespaces, err := kClient.Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

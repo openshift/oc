@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -32,7 +33,7 @@ type (
 		// REMOVED: use remap instead
 		//UIDMaps          []idtools.IDMap
 		//GIDMaps          []idtools.IDMap
-		ChownOpts        *idtools.IDPair
+		ChownOpts        *idtools.Identity
 		IncludeSourceDir bool
 		// WhiteoutFormat is the expected on disk format for whiteout files.
 		// This format will be converted to the standard format on pack
@@ -69,11 +70,11 @@ type AlterHeader interface {
 }
 
 type RemapIDs struct {
-	mappings *idtools.IDMappings
+	mappings *idtools.IdentityMapping
 }
 
 func (r RemapIDs) Alter(hdr *tar.Header) (bool, error) {
-	ids, err := r.mappings.ToHost(idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid})
+	ids, err := r.mappings.ToHost(idtools.Identity{UID: hdr.Uid, GID: hdr.Gid})
 	hdr.Uid, hdr.Gid = ids.UID, ids.GID
 	return true, err
 }
@@ -108,6 +109,8 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 		options.ExcludePatterns = []string{}
 	}
 	// idMappings := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
+
+	currentUser, _ := user.Current()
 
 	aufsTempdir := ""
 	aufsHardlinks := make(map[string]*tar.Header)
@@ -167,7 +170,7 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 			parentPath := filepath.Join(dest, parent)
 
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = system.MkdirAll(parentPath, 0600, "")
+				err = system.MkdirAll(parentPath, 0600)
 				if err != nil {
 					return 0, err
 				}
@@ -188,7 +191,7 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 					}
 					defer os.RemoveAll(aufsTempdir)
 				}
-				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr, options.Chown, options.ChownOpts, options.InUserNS); err != nil {
+				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr, options.Chown, options.ChownOpts, options.InUserNS, currentUser); err != nil {
 					return 0, err
 				}
 			}
@@ -280,7 +283,7 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 			// 	return 0, err
 			// }
 
-			if err := createTarFile(path, dest, srcHdr, srcData, options.Chown, options.ChownOpts, options.InUserNS); err != nil {
+			if err := createTarFile(path, dest, srcHdr, srcData, options.Chown, options.ChownOpts, options.InUserNS, currentUser); err != nil {
 				return 0, err
 			}
 
@@ -303,7 +306,7 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 	return size, nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.IDPair, inUserns bool) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.Identity, inUserns bool, currentUser *user.User) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -382,7 +385,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	// Lchown is not supported on Windows.
 	if Lchown && runtime.GOOS != "windows" {
 		if chownOpts == nil {
-			chownOpts = &idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
+			chownOpts = &idtools.Identity{UID: hdr.Uid, GID: hdr.Gid}
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
 			return err
@@ -391,6 +394,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 
 	var errors []string
 	for key, value := range hdr.Xattrs {
+		// exclude security.capability unless you're root, Lsetxattr only works
+		// for linux based systems so that's fine
+		if key == "security.capability" && currentUser != nil && currentUser.Username != "root" {
+			continue
+		}
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
 			if err == syscall.ENOTSUP {
 				// We ignore errors here because not all graphdrivers support

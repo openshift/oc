@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/openshift/library-go/pkg/git"
 	"github.com/openshift/oc/pkg/helpers/newapp"

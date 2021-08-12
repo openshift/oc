@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -24,20 +24,20 @@ func NewServeOptions(streams genericclioptions.IOStreams) *ServeOptions {
 	}
 }
 
-func New(parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewServe(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewServeOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "serve IMAGE",
 		Short: "Serve a container registry from images mirrored to disk",
 		Long: templates.LongDesc(`
-			Serve a container registry
+			Serve a container registry.
 
 			This command will start an HTTP or HTTPS server that hosts a local directory of mirrored
 			images. Use the 'oc image mirror --dir=DIR SRC=DST' command to populate that directory.
 			The directory must have a 'v2' folder that contains repository sub directories.
 
 			No authentication or authorization checks are performed and the source directory should
-			only include content you wish network users to see.
+			only include content you want network users to see.
 
 			Experimental: This command is under active development and may change without notice.
 		`),
@@ -95,6 +95,7 @@ func (o *ServeOptions) Run() error {
 			w.Header().Set("Docker-Distribution-API-Version", "2.0")
 		}
 		if req.Method == "GET" {
+			klog.Infof("GET %s %s", req.RemoteAddr, req.URL.Path)
 			switch path.Base(path.Dir(req.URL.Path)) {
 			case "blobs":
 				w.Header().Set("Content-Type", "application/octet-stream")

@@ -16,9 +16,8 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/logs"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/kubernetes/pkg/api/legacyscheme"
 
 	"github.com/openshift/api/apps"
 	"github.com/openshift/api/authorization"
@@ -37,6 +36,9 @@ import (
 	"github.com/openshift/oc/pkg/cli"
 	"github.com/openshift/oc/pkg/helpers/legacy"
 	"github.com/openshift/oc/pkg/version"
+
+	// Import to initialize client auth plugins.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 func injectLoglevelFlag(flags *pflag.FlagSet) {
@@ -85,22 +87,6 @@ func main() {
 	utilruntime.Must(template.Install(scheme.Scheme))
 	utilruntime.Must(user.Install(scheme.Scheme))
 	legacy.InstallExternalLegacyAll(scheme.Scheme)
-
-	// the legacyscheme is used in kubectl convert and get, so we need to
-	// explicitly install all types there too
-	utilruntime.Must(apps.Install(legacyscheme.Scheme))
-	utilruntime.Must(authorization.Install(legacyscheme.Scheme))
-	utilruntime.Must(build.Install(legacyscheme.Scheme))
-	utilruntime.Must(image.Install(legacyscheme.Scheme))
-	utilruntime.Must(network.Install(legacyscheme.Scheme))
-	utilruntime.Must(oauth.Install(legacyscheme.Scheme))
-	utilruntime.Must(project.Install(legacyscheme.Scheme))
-	utilruntime.Must(installNonCRDQuota(legacyscheme.Scheme))
-	utilruntime.Must(route.Install(legacyscheme.Scheme))
-	utilruntime.Must(installNonCRDSecurity(legacyscheme.Scheme))
-	utilruntime.Must(template.Install(legacyscheme.Scheme))
-	utilruntime.Must(user.Install(legacyscheme.Scheme))
-	legacy.InstallExternalLegacyAll(legacyscheme.Scheme)
 
 	basename := filepath.Base(os.Args[0])
 	command := cli.CommandFor(basename)

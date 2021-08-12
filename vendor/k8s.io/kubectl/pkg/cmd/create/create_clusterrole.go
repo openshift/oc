@@ -17,6 +17,7 @@ limitations under the License.
 package create
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -27,31 +28,33 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cliflag "k8s.io/component-base/cli/flag"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
 var (
 	clusterRoleLong = templates.LongDesc(i18n.T(`
-		Create a ClusterRole.`))
+		Create a cluster role.`))
 
 	clusterRoleExample = templates.Examples(i18n.T(`
-		# Create a ClusterRole named "pod-reader" that allows user to perform "get", "watch" and "list" on pods
+		# Create a cluster role named "pod-reader" that allows user to perform "get", "watch" and "list" on pods
 		kubectl create clusterrole pod-reader --verb=get,list,watch --resource=pods
 
-		# Create a ClusterRole named "pod-reader" with ResourceName specified
+		# Create a cluster role named "pod-reader" with ResourceName specified
 		kubectl create clusterrole pod-reader --verb=get --resource=pods --resource-name=readablepod --resource-name=anotherpod
 
-		# Create a ClusterRole named "foo" with API Group specified
+		# Create a cluster role named "foo" with API Group specified
 		kubectl create clusterrole foo --verb=get,list,watch --resource=rs.extensions
 
-		# Create a ClusterRole named "foo" with SubResource specified
+		# Create a cluster role named "foo" with SubResource specified
 		kubectl create clusterrole foo --verb=get,list,watch --resource=pods,pods/status
 
-		# Create a ClusterRole name "foo" with NonResourceURL specified
+		# Create a cluster role name "foo" with NonResourceURL specified
 		kubectl create clusterrole "foo" --verb=get --non-resource-url=/logs/*
 
-		# Create a ClusterRole name "monitoring" with AggregationRule specified
+		# Create a cluster role name "monitoring" with AggregationRule specified
 		kubectl create clusterrole monitoring --aggregation-rule="rbac.example.com/aggregate-to-monitoring=true"`))
 
 	// Valid nonResource verb list for validation.
@@ -63,6 +66,7 @@ type CreateClusterRoleOptions struct {
 	*CreateRoleOptions
 	NonResourceURLs []string
 	AggregationRule map[string]string
+	FieldManager    string
 }
 
 // NewCmdCreateClusterRole initializes and returns new ClusterRoles command
@@ -72,9 +76,9 @@ func NewCmdCreateClusterRole(f cmdutil.Factory, ioStreams genericclioptions.IOSt
 		AggregationRule:   map[string]string{},
 	}
 	cmd := &cobra.Command{
-		Use:                   "clusterrole NAME --verb=verb --resource=resource.group [--resource-name=resourcename] [--dry-run]",
+		Use:                   "clusterrole NAME --verb=verb --resource=resource.group [--resource-name=resourcename] [--dry-run=server|client|none]",
 		DisableFlagsInUseLine: true,
-		Short:                 clusterRoleLong,
+		Short:                 i18n.T("Create a cluster role"),
 		Long:                  clusterRoleLong,
 		Example:               clusterRoleExample,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -94,6 +98,7 @@ func NewCmdCreateClusterRole(f cmdutil.Factory, ioStreams genericclioptions.IOSt
 	cmd.Flags().StringSlice("resource", []string{}, "Resource that the rule applies to")
 	cmd.Flags().StringArrayVar(&c.ResourceNames, "resource-name", c.ResourceNames, "Resource in the white list that the rule applies to, repeat this flag for multiple items")
 	cmd.Flags().Var(cliflag.NewMapStringString(&c.AggregationRule), "aggregation-rule", "An aggregation label selector for combining ClusterRoles.")
+	cmdutil.AddFieldManagerFlagVar(cmd, &c.FieldManager, "kubectl-create")
 
 	return cmd
 }
@@ -138,7 +143,7 @@ func (c *CreateClusterRoleOptions) Validate() error {
 	if len(c.Resources) > 0 {
 		for _, v := range c.Verbs {
 			if !arrayContains(validResourceVerbs, v) {
-				return fmt.Errorf("invalid verb: '%s'", v)
+				fmt.Fprintf(c.ErrOut, "Warning: '%s' is not a standard resource verb\n", v)
 			}
 		}
 		if err := c.validateResource(); err != nil {
@@ -198,9 +203,23 @@ func (c *CreateClusterRoleOptions) RunCreateRole() error {
 		}
 	}
 
+	if err := util.CreateOrUpdateAnnotation(c.CreateAnnotation, clusterRole, scheme.DefaultJSONEncoder()); err != nil {
+		return err
+	}
+
 	// Create ClusterRole.
-	if !c.DryRun {
-		clusterRole, err = c.Client.ClusterRoles().Create(clusterRole)
+	if c.DryRunStrategy != cmdutil.DryRunClient {
+		createOptions := metav1.CreateOptions{}
+		if c.FieldManager != "" {
+			createOptions.FieldManager = c.FieldManager
+		}
+		if c.DryRunStrategy == cmdutil.DryRunServer {
+			if err := c.DryRunVerifier.HasSupport(clusterRole.GroupVersionKind()); err != nil {
+				return err
+			}
+			createOptions.DryRun = []string{metav1.DryRunAll}
+		}
+		clusterRole, err = c.Client.ClusterRoles().Create(context.TODO(), clusterRole, createOptions)
 		if err != nil {
 			return err
 		}

@@ -1,11 +1,15 @@
 package logout
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -16,9 +20,10 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	oauthv1client "github.com/openshift/client-go/oauth/clientset/versioned/typed/oauth/v1"
-	kubeconfiglib "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/project"
 )
+
+const sha256Prefix = "sha256~"
 
 type LogoutOptions struct {
 	StartingKubeConfig *kclientcmdapi.Config
@@ -31,7 +36,7 @@ type LogoutOptions struct {
 
 var (
 	logoutLong = templates.LongDesc(`
-		Log out of the active session out by clearing saved tokens
+		Log out of the active session out by clearing saved tokens.
 
 		An authentication token is stored in the config file after login - this command will delete
 		that token on the server, and then remove the token from the configuration file.
@@ -41,11 +46,13 @@ var (
 		are typically managed by other programs. Instead, you can delete your config file to remove
 		the local copy of that certificate or the record of your server login.
 
-		After logging out, if you want to log back into the server use '%[1]s'.`)
+		After logging out, if you want to log back into the server use 'oc login'.
+	`)
 
 	logoutExample = templates.Examples(`
-	  # Logout
-	  %[1]s`)
+		# Log out
+		oc logout
+	`)
 )
 
 func NewLogoutOptions(streams genericclioptions.IOStreams) *LogoutOptions {
@@ -55,13 +62,13 @@ func NewLogoutOptions(streams genericclioptions.IOStreams) *LogoutOptions {
 }
 
 // NewCmdLogout implements the OpenShift cli logout command
-func NewCmdLogout(name, fullName, ocLoginFullCommand string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogout(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewLogoutOptions(streams)
 	cmds := &cobra.Command{
-		Use:     name,
+		Use:     "logout",
 		Short:   "End the current server session",
-		Long:    fmt.Sprintf(logoutLong, ocLoginFullCommand),
-		Example: fmt.Sprintf(logoutExample, fullName),
+		Long:    logoutLong,
+		Example: logoutExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate(args))
@@ -86,7 +93,9 @@ func (o *LogoutOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 		return err
 	}
 
-	o.PathOptions = kubeconfiglib.NewPathOptions(cmd)
+	o.PathOptions = kclientcmd.NewDefaultPathOptions()
+	// we need to set explicit path if one was specified, since NewDefaultPathOptions doesn't do it for us
+	o.PathOptions.LoadingRules.ExplicitPath = kcmdutil.GetFlagString(cmd, kclientcmd.RecommendedConfigPathFlag)
 
 	return nil
 }
@@ -109,6 +118,7 @@ func (o LogoutOptions) Validate(args []string) error {
 
 func (o LogoutOptions) RunLogout() error {
 	token := o.Config.BearerToken
+	tokenName := o.Config.BearerToken
 
 	client, err := oauthv1client.NewForConfig(o.Config)
 	if err != nil {
@@ -120,7 +130,11 @@ func (o LogoutOptions) RunLogout() error {
 		return err
 	}
 
-	if err := client.OAuthAccessTokens().Delete(token, &metav1.DeleteOptions{}); err != nil {
+	if strings.HasPrefix(tokenName, sha256Prefix) {
+		tokenName = tokenToObjectName(tokenName)
+	}
+
+	if err := client.OAuthAccessTokens().Delete(context.TODO(), tokenName, metav1.DeleteOptions{}); err != nil {
 		klog.V(1).Infof("%v", err)
 	}
 
@@ -144,6 +158,13 @@ func deleteTokenFromConfig(config kclientcmdapi.Config, pathOptions *kclientcmd.
 			// don't break, its possible that more than one user stanza has the same token.
 		}
 	}
-
 	return kclientcmd.ModifyConfig(pathOptions, config, true)
+}
+
+// tokenToObjectName returns the oauthaccesstokens object name for the given raw token,
+// i.e. the sha256 hash prefixed with "sha256~".
+func tokenToObjectName(token string) string {
+	name := strings.TrimPrefix(token, sha256Prefix)
+	h := sha256.Sum256([]byte(name))
+	return sha256Prefix + base64.RawURLEncoding.EncodeToString(h[0:])
 }

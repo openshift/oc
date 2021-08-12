@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -20,21 +21,21 @@ import (
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 )
 
-const PruneDeploymentsRecommendedName = "deployments"
-
 var (
 	deploymentsLongDesc = templates.LongDesc(`
-		Prune old completed and failed deployments
+		Prune old completed and failed deployment configs.
 
-		By default, the prune operation performs a dry run making no changes to the deployments.
-		A --confirm flag is needed for changes to be effective.`)
+		By default, the prune operation performs a dry run making no changes to the deployment configs.
+		A --confirm flag is needed for changes to be effective.
+	`)
 
 	deploymentsExample = templates.Examples(`
 		# Dry run deleting all but the last complete deployment for every deployment config
-	  %[1]s %[2]s --keep-complete=1
+		oc adm prune deployments --keep-complete=1
 
-	  # To actually perform the prune operation, the confirm flag must be appended
-	  %[1]s %[2]s --keep-complete=1 --confirm`)
+		 # To actually perform the prune operation, the confirm flag must be appended
+		oc adm prune deployments --keep-complete=1 --confirm
+	`)
 )
 
 // PruneDeploymentsOptions holds all the required options for pruning deployments.
@@ -63,13 +64,13 @@ func NewPruneDeploymentsOptions(streams genericclioptions.IOStreams) *PruneDeplo
 }
 
 // NewCmdPruneDeployments implements the OpenShift cli prune deployments command.
-func NewCmdPruneDeployments(f kcmdutil.Factory, parentName, name string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneDeployments(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewPruneDeploymentsOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
-		Short:   "Remove old completed and failed deployments",
+		Use:     "deployments",
+		Short:   "Remove old completed and failed deployment configs",
 		Long:    deploymentsLongDesc,
-		Example: fmt.Sprintf(deploymentsExample, parentName, name),
+		Example: deploymentsExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -134,7 +135,7 @@ func (o PruneDeploymentsOptions) Validate() error {
 
 // Run contains all the necessary functionality for the OpenShift cli prune deployments command.
 func (o PruneDeploymentsOptions) Run() error {
-	deploymentConfigList, err := o.AppsClient.DeploymentConfigs(o.Namespace).List(metav1.ListOptions{})
+	deploymentConfigList, err := o.AppsClient.DeploymentConfigs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -143,7 +144,7 @@ func (o PruneDeploymentsOptions) Run() error {
 		deploymentConfigs = append(deploymentConfigs, &deploymentConfigList.Items[i])
 	}
 
-	deploymentList, err := o.KubeClient.ReplicationControllers(o.Namespace).List(metav1.ListOptions{})
+	deploymentList, err := o.KubeClient.ReplicationControllers(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

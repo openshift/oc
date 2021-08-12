@@ -72,7 +72,8 @@ func TestDirectoryViable(t *testing.T) {
 				defer test.teardown(dirName)
 			}
 
-			err = ensureDirectoryViable(dirName, test.allowOverride)
+			o := InspectOptions{DestDir: dirName, overwrite: test.allowOverride}
+			err = o.ensureDirectoryViable()
 			if !errorFuzzyEquals(err, test.expectedErr) {
 				t.Fatalf("unexpected error: expecting %v, but got %v", test.expectedErr, err)
 			}

@@ -1,6 +1,7 @@
 package recreate
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,7 +20,6 @@ import (
 	"k8s.io/client-go/scale"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	imageclienttyped "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 
@@ -229,7 +229,7 @@ func (s *RecreateDeploymentStrategy) scaleAndWait(deployment *corev1.Replication
 	// In case the cache is not fully synced, retry the scaling.
 	err := wait.PollImmediate(1*time.Second, retryTimeout, func() (bool, error) {
 		updateScaleErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			curScale, err := s.scaleClient.Scales(deployment.Namespace).Get(kapi.Resource("replicationcontrollers"), deployment.Name)
+			curScale, err := s.scaleClient.Scales(deployment.Namespace).Get(context.TODO(), corev1.Resource("replicationcontrollers"), deployment.Name, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -239,7 +239,7 @@ func (s *RecreateDeploymentStrategy) scaleAndWait(deployment *corev1.Replication
 			}
 			curScaleCopy := curScale.DeepCopy()
 			curScaleCopy.Spec.Replicas = int32(replicas)
-			_, scaleErr := s.scaleClient.Scales(deployment.Namespace).Update(kapi.Resource("replicationcontrollers"), curScaleCopy)
+			_, scaleErr := s.scaleClient.Scales(deployment.Namespace).Update(context.TODO(), corev1.Resource("replicationcontrollers"), curScaleCopy, metav1.UpdateOptions{})
 			return scaleErr
 		})
 		// FIXME: The error admission returns here should be 503 (come back later) or similar.
@@ -255,14 +255,14 @@ func (s *RecreateDeploymentStrategy) scaleAndWait(deployment *corev1.Replication
 	if !alreadyScaled {
 		// FIXME: This should really be a watch, however the scaler client does not implement the watch interface atm.
 		err = wait.PollImmediate(1*time.Second, retryTimeout, func() (bool, error) {
-			curScale, err := s.scaleClient.Scales(deployment.Namespace).Get(kapi.Resource("replicationcontrollers"), deployment.Name)
+			curScale, err := s.scaleClient.Scales(deployment.Namespace).Get(context.TODO(), corev1.Resource("replicationcontrollers"), deployment.Name, metav1.GetOptions{})
 			if err != nil {
 				return false, err
 			}
 			return curScale.Status.Replicas == int32(replicas), nil
 		})
 	}
-	return s.rcClient.ReplicationControllers(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
+	return s.rcClient.ReplicationControllers(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
 }
 
 // hasRunningPod returns true if there is at least one pod in non-terminal state.
@@ -289,7 +289,7 @@ func hasRunningPod(pods []corev1.Pod) bool {
 func (s *RecreateDeploymentStrategy) waitForTerminatedPods(rc *corev1.ReplicationController, timeout time.Duration) {
 	// Decode the config from the deployment.
 	err := wait.PollImmediate(1*time.Second, timeout, func() (bool, error) {
-		podList, err := s.podClient.Pods(rc.Namespace).List(metav1.ListOptions{
+		podList, err := s.podClient.Pods(rc.Namespace).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: labels.SelectorFromValidatedSet(labels.Set(rc.Spec.Selector)).String(),
 		})
 		if err != nil {

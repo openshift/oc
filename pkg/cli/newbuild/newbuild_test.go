@@ -28,7 +28,7 @@ func TestNewBuildRun(t *testing.T) {
 		{
 			name:        "no input",
 			config:      &newcmd.AppConfig{},
-			expectedErr: ocnewapp.UsageError("oc new-build", newBuildNoInput, "oc", "new-build").Error(),
+			expectedErr: ocnewapp.UsageError("oc new-build", newBuildNoInput).Error(),
 		},
 		{
 			name: "no matches",
@@ -61,7 +61,6 @@ func TestNewBuildRun(t *testing.T) {
 				IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
 			},
 			CommandPath: "oc new-build",
-			BaseName:    "oc",
 			CommandName: "new-build",
 		},
 	}

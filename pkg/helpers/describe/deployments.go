@@ -1,6 +1,7 @@
 package describe
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sort"
@@ -16,9 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/describe"
-	"k8s.io/kubectl/pkg/describe/versioned"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/kubernetes/pkg/apis/autoscaling"
 
 	"github.com/openshift/api/apps"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -70,7 +69,7 @@ func (d *DeploymentConfigDescriber) Describe(namespace, name string, settings de
 		deploymentConfig = d.config
 	} else {
 		var err error
-		deploymentConfig, err = d.appsClient.DeploymentConfigs(namespace).Get(name, metav1.GetOptions{})
+		deploymentConfig, err = d.appsClient.DeploymentConfigs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		}
@@ -84,7 +83,7 @@ func (d *DeploymentConfigDescriber) Describe(namespace, name string, settings de
 		)
 
 		if d.config == nil {
-			if rcs, err := d.kubeClient.CoreV1().ReplicationControllers(namespace).List(metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(deploymentConfig.Name).String()}); err == nil {
+			if rcs, err := d.kubeClient.CoreV1().ReplicationControllers(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(deploymentConfig.Name).String()}); err == nil {
 				deploymentsHistory = make([]*corev1.ReplicationController, 0, len(rcs.Items))
 				for i := range rcs.Items {
 					deploymentsHistory = append(deploymentsHistory, &rcs.Items[i])
@@ -155,8 +154,8 @@ func (d *DeploymentConfigDescriber) Describe(namespace, name string, settings de
 					latestDeploymentEvents.Items = append(latestDeploymentEvents.Items, events.Items[i-1])
 				}
 				fmt.Fprintln(out)
-				pw := versioned.NewPrefixWriter(out)
-				versioned.DescribeEvents(latestDeploymentEvents, pw)
+				pw := describe.NewPrefixWriter(out)
+				describe.DescribeEvents(latestDeploymentEvents, pw)
 			}
 		}
 		return nil
@@ -317,14 +316,14 @@ func printDeploymentConfigSpec(kc kubernetes.Interface, dc appsv1.DeploymentConf
 
 	// Pod template
 	fmt.Fprintf(w, "Template:\n")
-	versioned.DescribePodTemplate(spec.Template, versioned.NewPrefixWriter(w))
+	describe.DescribePodTemplate(spec.Template, describe.NewPrefixWriter(w))
 
 	return nil
 }
 
 // TODO: Move this upstream
 func printAutoscalingInfo(res []schema.GroupResource, namespace, name string, kclient kubernetes.Interface, w *tabwriter.Writer) {
-	hpaList, err := kclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(metav1.ListOptions{LabelSelector: labels.Everything().String()})
+	hpaList, err := kclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Everything().String()})
 	if err != nil {
 		return
 	}
@@ -340,57 +339,15 @@ func printAutoscalingInfo(res []schema.GroupResource, namespace, name string, kc
 
 	for _, hpa := range scaledBy {
 		fmt.Fprintf(w, "Autoscaling:\tbetween %d and %d replicas", *hpa.Spec.MinReplicas, hpa.Spec.MaxReplicas)
-		// TODO: Replace this with external HPA
-		legacyHpa := &autoscaling.HorizontalPodAutoscaler{}
-		if err := scheme.Scheme.Convert(&hpa, legacyHpa, nil); err != nil {
-			panic(err)
-		}
-		targetDescriptions := formatHPATargets(legacyHpa)
-		if len(targetDescriptions) == 1 {
-			fmt.Fprintf(w, " targeting %s\n", targetDescriptions[0])
+		if hpa.Spec.TargetCPUUtilizationPercentage != nil {
+			fmt.Fprintf(w, " targeting %d%% CPU over all the pods\n", *hpa.Spec.TargetCPUUtilizationPercentage)
 		} else {
-			fmt.Fprintf(w, "\n")
-			for _, description := range targetDescriptions {
-				// NB(directxman12): we should *not* use the wording "triggered at" here.
-				// The HPA is *not* threshold-based.  Rather, it "aims" for a particular load,
-				// quasi-constantly scaling the replica count by the ratio of current to target.
-				fmt.Fprintf(w, "\t  targeting %s\n", description)
-			}
+			fmt.Fprint(w, " (default autoscaling policy)\n")
 		}
 		// TODO: Print a warning in case of multiple hpas.
 		// Related oc status PR: https://github.com/openshift/origin/pull/7799
 		break
 	}
-}
-
-// formatHPATargets formats a list of HPA targets in human readable form.  It functions similarly to the
-// upstream describer and printer, except that it doesn't include status information, so it's more compact.
-func formatHPATargets(hpa *autoscaling.HorizontalPodAutoscaler) []string {
-	descriptions := make([]string, len(hpa.Spec.Metrics))
-	for i, metricSpec := range hpa.Spec.Metrics {
-		switch metricSpec.Type {
-		case autoscaling.PodsMetricSourceType:
-			descriptions[i] = fmt.Sprintf("%s %s average per pod", metricSpec.Pods.Target.AverageValue.String(), metricSpec.Pods.Metric.Name)
-		case autoscaling.ObjectMetricSourceType:
-			// TODO: it'd probably be more accurate if we put the group in here too,
-			// but it might be a bit to verbose to read at a glance
-			// TODO: we might want to use the resource name here instead of the kind?
-			targetObjDesc := fmt.Sprintf("%s %s", metricSpec.Object.Target.Type, metricSpec.Object.Metric.Name)
-			descriptions[i] = fmt.Sprintf("%s %s on %s", metricSpec.Object.Target.Value.String(), metricSpec.Object.Metric.Name, targetObjDesc)
-		case autoscaling.ResourceMetricSourceType:
-			if metricSpec.Resource.Target.AverageValue != nil {
-				descriptions[i] = fmt.Sprintf("%s %s average per pod", metricSpec.Resource.Target.AverageValue.String(), metricSpec.Resource.Name)
-			} else if metricSpec.Resource.Target.AverageUtilization != nil {
-				descriptions[i] = fmt.Sprintf("%d%% %s average per pod", *metricSpec.Resource.Target.AverageUtilization, metricSpec.Resource.Name)
-			} else {
-				descriptions[i] = "<unset resource metric>"
-			}
-		default:
-			descriptions[i] = "<unknown metric type>"
-		}
-	}
-
-	return descriptions
 }
 
 func printDeploymentRc(deployment *corev1.ReplicationController, kubeClient kubernetes.Interface, w io.Writer, header string, verbose bool) error {
@@ -401,7 +358,7 @@ func printDeploymentRc(deployment *corev1.ReplicationController, kubeClient kube
 	if verbose {
 		fmt.Fprintf(w, "\tName:\t%s\n", deployment.Name)
 	}
-	timeAt := strings.ToLower(formatRelativeTime(deployment.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(deployment.CreationTimestamp.Time))
 	fmt.Fprintf(w, "\tCreated:\t%s ago\n", timeAt)
 	fmt.Fprintf(w, "\tStatus:\t%s\n", appsutil.DeploymentStatusFor(deployment))
 	if deployment.Spec.Replicas != nil {
@@ -423,7 +380,7 @@ func printDeploymentRc(deployment *corev1.ReplicationController, kubeClient kube
 
 func getPodStatusForDeployment(deployment *corev1.ReplicationController, kubeClient kubernetes.Interface) (running, waiting, succeeded, failed int,
 	err error) {
-	rcPods, err := kubeClient.CoreV1().Pods(deployment.Namespace).List(metav1.ListOptions{LabelSelector: labels.Set(deployment.Spec.Selector).AsSelector().String()})
+	rcPods, err := kubeClient.CoreV1().Pods(deployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Set(deployment.Spec.Selector).AsSelector().String()})
 	if err != nil {
 		return
 	}
@@ -461,21 +418,21 @@ func NewLatestDeploymentsDescriber(client appstypedclient.AppsV1Interface, kclie
 func (d *LatestDeploymentsDescriber) Describe(namespace, name string) (string, error) {
 	var f formatter
 
-	config, err := d.appsClient.DeploymentConfigs(namespace).Get(name, metav1.GetOptions{})
+	config, err := d.appsClient.DeploymentConfigs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
 	var deployments []corev1.ReplicationController
 	if d.count == -1 || d.count > 1 {
-		list, err := d.kubeClient.CoreV1().ReplicationControllers(namespace).List(metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()})
+		list, err := d.kubeClient.CoreV1().ReplicationControllers(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()})
 		if err != nil && !kerrors.IsNotFound(err) {
 			return "", err
 		}
 		deployments = list.Items
 	} else {
 		deploymentName := appsutil.LatestDeploymentNameForConfig(config)
-		deployment, err := d.kubeClient.CoreV1().ReplicationControllers(config.Namespace).Get(deploymentName, metav1.GetOptions{})
+		deployment, err := d.kubeClient.CoreV1().ReplicationControllers(config.Namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			return "", err
 		}

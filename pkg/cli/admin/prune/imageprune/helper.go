@@ -8,14 +8,9 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
-	corev1 "k8s.io/api/core/v1"
-	kmeta "k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	ref "k8s.io/client-go/tools/reference"
-	"k8s.io/kubectl/pkg/scheme"
 
 	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/openshift/library-go/pkg/image/reference"
@@ -42,13 +37,12 @@ func (ba isByAge) Less(i, j int) bool {
 
 // DetermineRegistryHost returns registry host embedded in a pull-spec of the latest unmanaged image or the
 // latest imagestream from the provided lists. If no such pull-spec is found, error is returned.
-func DetermineRegistryHost(images *imagev1.ImageList, imageStreams *imagev1.ImageStreamList) (string, error) {
+func DetermineRegistryHost(images map[string]*imagev1.Image, imageStreams *imagev1.ImageStreamList) (string, error) {
 	var pullSpec string
 	var managedImages []*imagev1.Image
 
 	// 1st try to determine registry url from a pull spec of the youngest managed image
-	for i := range images.Items {
-		image := &images.Items[i]
+	for _, image := range images {
 		if image.Annotations[imagev1.ManagedByOpenShiftAnnotation] != "true" {
 			continue
 		}
@@ -216,89 +210,28 @@ func (rp *retryPath) Error() string { return rp.err.Error() }
 // ErrBadReference denotes an invalid reference to image, imagestreamtag or imagestreamimage stored in a
 // particular object. The object is identified by kind, namespace and name.
 type ErrBadReference struct {
-	kind       string
-	namespace  string
-	name       string
-	targetKind string
-	reference  string
-	reason     string
+	referrer    resourceReference
+	subreferrer string
+	targetKind  string
+	reference   string
+	err         error
 }
 
-func newErrBadReferenceToImage(reference string, obj *corev1.ObjectReference, reason string) error {
-	kind := "<UnknownType>"
-	namespace := ""
-	name := "<unknown-name>"
-	if obj != nil {
-		kind = obj.Kind
-		namespace = obj.Namespace
-		name = obj.Name
-	}
-
+func newErrBadReferenceTo(referrer resourceReference, subreferrer string, targetKind string, reference string, err error) error {
 	return &ErrBadReference{
-		kind:      kind,
-		namespace: namespace,
-		name:      name,
-		reference: reference,
-		reason:    reason,
-	}
-}
-
-func newErrBadReferenceTo(targetKind, reference string, obj *corev1.ObjectReference, reason string) error {
-	return &ErrBadReference{
-		kind:       obj.Kind,
-		namespace:  obj.Namespace,
-		name:       obj.Name,
-		targetKind: targetKind,
-		reference:  reference,
-		reason:     reason,
+		referrer:    referrer,
+		subreferrer: subreferrer,
+		targetKind:  targetKind,
+		reference:   reference,
+		err:         err,
 	}
 }
 
 func (e *ErrBadReference) Error() string {
-	return e.String()
-}
+	r := e.referrer.String()
+	if e.subreferrer != "" {
+		r += ": " + e.subreferrer
+	}
 
-func (e *ErrBadReference) String() string {
-	name := e.name
-	if len(e.namespace) > 0 {
-		name = e.namespace + "/" + name
-	}
-	targetKind := "container image"
-	if len(e.targetKind) > 0 {
-		targetKind = e.targetKind
-	}
-	return fmt.Sprintf("%s[%s]: invalid %s reference %q: %s", e.kind, name, targetKind, e.reference, e.reason)
-}
-
-func getName(obj runtime.Object) string {
-	accessor, err := kmeta.Accessor(obj)
-	if err != nil {
-		klog.V(4).Infof("Error getting accessor for %#v", obj)
-		return "<unknown>"
-	}
-	ns := accessor.GetNamespace()
-	if len(ns) == 0 {
-		return accessor.GetName()
-	}
-	return fmt.Sprintf("%s/%s", ns, accessor.GetName())
-}
-
-func getKindName(obj *corev1.ObjectReference) string {
-	if obj == nil {
-		return "unknown object"
-	}
-	name := obj.Name
-	if len(obj.Namespace) > 0 {
-		name = obj.Namespace + "/" + name
-	}
-	return fmt.Sprintf("%s[%s]", obj.Kind, name)
-}
-
-func getRef(obj runtime.Object) *corev1.ObjectReference {
-	ref, err := ref.GetReference(scheme.Scheme, obj)
-	if err != nil {
-		klog.Errorf("failed to get reference to object %T: %v", obj, err)
-		return nil
-	}
-	return ref
+	return fmt.Sprintf("%s: invalid %s reference %q: %v", r, e.targetKind, e.reference, e.err)
 }

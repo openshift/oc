@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -21,7 +22,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
@@ -46,17 +46,17 @@ type CancelOptions struct {
 
 var (
 	rolloutCancelLong = templates.LongDesc(`
-Cancel the in-progress deployment
+		Cancel the in-progress deployment.
 
-Running this command will cause the current in-progress deployment to be
-cancelled, but keep in mind that this is a best-effort operation and may take
-some time to complete. It’s possible the deployment will partially or totally
-complete before the cancellation is effective. In such a case an appropriate
-event will be emitted.`)
+		Running this command will cause the current in-progress deployment to be
+		cancelled, but keep in mind that this is a best-effort operation and may take
+		some time to complete. It’s possible the deployment will partially or totally
+		complete before the cancellation is effective. In such a case an appropriate
+		event will be emitted.`)
 
 	rolloutCancelExample = templates.Examples(`
-	# Cancel the in-progress deployment based on 'nginx'
-  %[1]s rollout cancel dc/nginx`)
+		# Cancel the in-progress deployment based on 'nginx'
+  		oc rollout cancel dc/nginx`)
 )
 
 func NewRolloutCancelOptions(streams genericclioptions.IOStreams) *CancelOptions {
@@ -66,14 +66,14 @@ func NewRolloutCancelOptions(streams genericclioptions.IOStreams) *CancelOptions
 	}
 }
 
-func NewCmdRolloutCancel(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutCancel(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRolloutCancelOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "cancel (TYPE NAME | TYPE/NAME) [flags]",
 		Long:    rolloutCancelLong,
-		Example: fmt.Sprintf(rolloutCancelExample, fullName),
-		Short:   "cancel the in-progress deployment",
+		Example: rolloutCancelExample,
+		Short:   "Cancel the in-progress deployment",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
@@ -153,7 +153,7 @@ func (o CancelOptions) Run() error {
 			allErrs = append(allErrs, kcmdutil.AddSourceToErr("cancelling", info.Source, fmt.Errorf("unable to cancel paused deployment %s/%s", config.Namespace, config.Name)))
 		}
 
-		mapping, err := o.Mapper.RESTMapping(kapi.Kind("ReplicationController"))
+		mapping, err := o.Mapper.RESTMapping(corev1.SchemeGroupVersion.WithKind("ReplicationController").GroupKind())
 		if err != nil {
 			return err
 		}
@@ -187,8 +187,8 @@ func (o CancelOptions) Run() error {
 				return false
 			}
 
-			if _, err := o.KubeClient.CoreV1().ReplicationControllers(rc.Namespace).Patch(rc.Name, types.StrategicMergePatchType,
-				patches[0].Patch); err != nil {
+			if _, err := o.KubeClient.CoreV1().ReplicationControllers(rc.Namespace).Patch(context.TODO(), rc.Name, types.StrategicMergePatchType,
+				patches[0].Patch, metav1.PatchOptions{}); err != nil {
 				allErrs = append(allErrs, kcmdutil.AddSourceToErr("cancelling", info.Source, err))
 				return false
 			}
@@ -227,7 +227,7 @@ func (o CancelOptions) Run() error {
 }
 
 func (o CancelOptions) forEachControllerInConfig(namespace, name string, mutateFunc func(*corev1.ReplicationController) bool) ([]*corev1.ReplicationController, bool, error) {
-	deploymentList, err := o.KubeClient.CoreV1().ReplicationControllers(namespace).List(metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()})
+	deploymentList, err := o.KubeClient.CoreV1().ReplicationControllers(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()})
 	if err != nil {
 		return nil, false, err
 	}

@@ -18,9 +18,11 @@ package logs
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"sync"
 	"time"
 
@@ -44,6 +46,10 @@ const (
 )
 
 var (
+	logsLong = templates.LongDesc(i18n.T(`
+		Print the logs for a container in a pod or specified resource. 
+		If the pod has only one container, the container name is optional.`))
+
 	logsExample = templates.Examples(i18n.T(`
 		# Return snapshot logs from pod nginx with only one container
 		kubectl logs nginx
@@ -52,7 +58,7 @@ var (
 		kubectl logs nginx --all-containers=true
 
 		# Return snapshot logs from all containers in pods defined by label app=nginx
-		kubectl logs -lapp=nginx --all-containers=true
+		kubectl logs -l app=nginx --all-containers=true
 
 		# Return snapshot of previous terminated ruby container logs from pod web-1
 		kubectl logs -p -c ruby web-1
@@ -61,7 +67,7 @@ var (
 		kubectl logs -f -c ruby web-1
 
 		# Begin streaming the logs from all containers in pods defined by label app=nginx
-		kubectl logs -f -lapp=nginx --all-containers=true
+		kubectl logs -f -l app=nginx --all-containers=true
 
 		# Display only the most recent 20 lines of output in pod nginx
 		kubectl logs --tail=20 nginx
@@ -111,6 +117,7 @@ type LogsOptions struct {
 	ContainerNameSpecified bool
 	Selector               string
 	MaxFollowConcurrency   int
+	Prefix                 bool
 
 	Object           runtime.Object
 	GetPodTimeout    time.Duration
@@ -120,6 +127,8 @@ type LogsOptions struct {
 	genericclioptions.IOStreams
 
 	TailSpecified bool
+
+	containerNameFromRefSpecRegexp *regexp.Regexp
 }
 
 func NewLogsOptions(streams genericclioptions.IOStreams, allContainers bool) *LogsOptions {
@@ -128,6 +137,8 @@ func NewLogsOptions(streams genericclioptions.IOStreams, allContainers bool) *Lo
 		AllContainers:        allContainers,
 		Tail:                 -1,
 		MaxFollowConcurrency: 5,
+
+		containerNameFromRefSpecRegexp: regexp.MustCompile(`spec\.(?:initContainers|containers|ephemeralContainers){(.+)}`),
 	}
 }
 
@@ -139,14 +150,20 @@ func NewCmdLogs(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 		Use:                   logsUsageStr,
 		DisableFlagsInUseLine: true,
 		Short:                 i18n.T("Print the logs for a container in a pod"),
-		Long:                  "Print the logs for a container in a pod or specified resource. If the pod has only one container, the container name is optional.",
+		Long:                  logsLong,
 		Example:               logsExample,
+		ValidArgsFunction:     util.PodResourceNameAndContainerCompletionFunc(f),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.RunLogs())
 		},
 	}
+	o.AddFlags(cmd)
+	return cmd
+}
+
+func (o *LogsOptions) AddFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&o.AllContainers, "all-containers", o.AllContainers, "Get all containers' logs in the pod(s).")
 	cmd.Flags().BoolVarP(&o.Follow, "follow", "f", o.Follow, "Specify if the logs should be streamed.")
 	cmd.Flags().BoolVar(&o.Timestamps, "timestamps", o.Timestamps, "Include timestamps on each line in the log output")
@@ -162,7 +179,7 @@ func NewCmdLogs(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 	cmdutil.AddPodRunningTimeoutFlag(cmd, defaultPodLogsTimeout)
 	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "Selector (label query) to filter on.")
 	cmd.Flags().IntVar(&o.MaxFollowConcurrency, "max-log-requests", o.MaxFollowConcurrency, "Specify maximum number of concurrent logs to follow when using by a selector. Defaults to 5.")
-	return cmd
+	cmd.Flags().BoolVar(&o.Prefix, "prefix", o.Prefix, "Prefix each log line with the log source (pod name and container name)")
 }
 
 func (o *LogsOptions) ToLogOptions() (*corev1.PodLogOptions, error) {
@@ -263,6 +280,9 @@ func (o *LogsOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []str
 			return errors.New("expected a resource")
 		}
 		o.Object = infos[0].Object
+		if o.Selector != "" && len(o.Object.(*corev1.PodList).Items) == 0 {
+			fmt.Fprintf(o.ErrOut, "No resources found in %s namespace.\n", o.Namespace)
+		}
 	}
 
 	return nil
@@ -321,14 +341,15 @@ func (o LogsOptions) RunLogs() error {
 	return o.sequentialConsumeRequest(requests)
 }
 
-func (o LogsOptions) parallelConsumeRequest(requests []rest.ResponseWrapper) error {
+func (o LogsOptions) parallelConsumeRequest(requests map[corev1.ObjectReference]rest.ResponseWrapper) error {
 	reader, writer := io.Pipe()
 	wg := &sync.WaitGroup{}
 	wg.Add(len(requests))
-	for _, request := range requests {
-		go func(request rest.ResponseWrapper) {
+	for objRef, request := range requests {
+		go func(objRef corev1.ObjectReference, request rest.ResponseWrapper) {
 			defer wg.Done()
-			if err := o.ConsumeRequestFn(request, writer); err != nil {
+			out := o.addPrefixIfNeeded(objRef, writer)
+			if err := o.ConsumeRequestFn(request, out); err != nil {
 				if !o.IgnoreLogErrors {
 					writer.CloseWithError(err)
 
@@ -339,7 +360,7 @@ func (o LogsOptions) parallelConsumeRequest(requests []rest.ResponseWrapper) err
 				fmt.Fprintf(writer, "error: %v\n", err)
 			}
 
-		}(request)
+		}(objRef, request)
 	}
 
 	go func() {
@@ -351,14 +372,40 @@ func (o LogsOptions) parallelConsumeRequest(requests []rest.ResponseWrapper) err
 	return err
 }
 
-func (o LogsOptions) sequentialConsumeRequest(requests []rest.ResponseWrapper) error {
-	for _, request := range requests {
-		if err := o.ConsumeRequestFn(request, o.Out); err != nil {
-			return err
+func (o LogsOptions) sequentialConsumeRequest(requests map[corev1.ObjectReference]rest.ResponseWrapper) error {
+	for objRef, request := range requests {
+		out := o.addPrefixIfNeeded(objRef, o.Out)
+		if err := o.ConsumeRequestFn(request, out); err != nil {
+			if !o.IgnoreLogErrors {
+				return err
+			}
+
+			fmt.Fprintf(o.Out, "error: %v\n", err)
 		}
 	}
 
 	return nil
+}
+
+func (o LogsOptions) addPrefixIfNeeded(ref corev1.ObjectReference, writer io.Writer) io.Writer {
+	if !o.Prefix || ref.FieldPath == "" || ref.Name == "" {
+		return writer
+	}
+
+	// We rely on ref.FieldPath to contain a reference to a container
+	// including a container name (not an index) so we can get a container name
+	// without making an extra API request.
+	var containerName string
+	containerNameMatches := o.containerNameFromRefSpecRegexp.FindStringSubmatch(ref.FieldPath)
+	if len(containerNameMatches) == 2 {
+		containerName = containerNameMatches[1]
+	}
+
+	prefix := fmt.Sprintf("[pod/%s/%s] ", ref.Name, containerName)
+	return &prefixingWriter{
+		prefix: []byte(prefix),
+		writer: writer,
+	}
 }
 
 // DefaultConsumeRequest reads the data from request and writes into
@@ -370,7 +417,7 @@ func (o LogsOptions) sequentialConsumeRequest(requests []rest.ResponseWrapper) e
 // Because the function is defined to read from request until io.EOF, it does
 // not treat an io.EOF as an error to be reported.
 func DefaultConsumeRequest(request rest.ResponseWrapper, out io.Writer) error {
-	readCloser, err := request.Stream()
+	readCloser, err := request.Stream(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -390,4 +437,26 @@ func DefaultConsumeRequest(request rest.ResponseWrapper, out io.Writer) error {
 			return nil
 		}
 	}
+}
+
+type prefixingWriter struct {
+	prefix []byte
+	writer io.Writer
+}
+
+func (pw *prefixingWriter) Write(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	// Perform an "atomic" write of a prefix and p to make sure that it doesn't interleave
+	// sub-line when used concurrently with io.PipeWrite.
+	n, err := pw.writer.Write(append(pw.prefix, p...))
+	if n > len(p) {
+		// To comply with the io.Writer interface requirements we must
+		// return a number of bytes written from p (0 <= n <= len(p)),
+		// so we are ignoring the length of the prefix here.
+		return len(p), err
+	}
+	return n, err
 }

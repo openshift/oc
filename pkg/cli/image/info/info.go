@@ -8,6 +8,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -37,13 +38,13 @@ func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
 	}
 }
 
-func NewInfo(parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewInfo(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewInfoOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "info IMAGE [...]",
 		Short: "Display information about an image",
 		Long: templates.LongDesc(`
-			Show information about an image in a remote image registry
+			Show information about an image in a remote image registry.
 
 			This command will retrieve metadata about container images in a remote image
 			registry. You may specify images by tag or digest and specify multiple at a
@@ -51,21 +52,21 @@ func NewInfo(parentName string, streams genericclioptions.IOStreams) *cobra.Comm
 
 			Images in manifest list format will be shown for your current operating system.
 			To see the image for a particular OS use the --filter-by-os=OS/ARCH flag.
-			`),
+		`),
 		Example: templates.Examples(`
 			# Show information about an image
-			%[1]s quay.io/openshift/cli:latest
+			oc image info quay.io/openshift/cli:latest
 
 			# Show information about images matching a wildcard
-			%[1]s quay.io/openshift/cli:4.*
+			oc image info quay.io/openshift/cli:4.*
 
 			# Show information about a file mirrored to disk under DIR
-			%[1]s --dir=DIR file://library/busybox:latest
+			oc image info --dir=DIR file://library/busybox:latest
 
 			# Select which image from a multi-OS image to show
-			%[1]s library/busybox:latest --filter-by-os=linux/arm64
+			oc image info library/busybox:latest --filter-by-os=linux/arm64
 
-			`),
+		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -111,14 +112,14 @@ func (o *InfoOptions) Run() error {
 	}
 
 	// cache the context
-	context, err := o.SecurityOptions.Context()
+	registryContext, err := o.SecurityOptions.Context()
 	if err != nil {
 		return err
 	}
 	opts := &imagesource.Options{
 		FileDir:         o.FileDir,
 		Insecure:        o.SecurityOptions.Insecure,
-		RegistryContext: context,
+		RegistryContext: registryContext,
 	}
 
 	hadError := false
@@ -134,10 +135,7 @@ func (o *InfoOptions) Run() error {
 
 			var image *Image
 			retriever := &ImageRetriever{
-				FileDir: o.FileDir,
-				Image: map[string]imagesource.TypedImageReference{
-					location: src,
-				},
+				FileDir:         o.FileDir,
 				SecurityOptions: o.SecurityOptions,
 				ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
 					filtered := make(map[digest.Digest]distribution.Manifest)
@@ -170,7 +168,7 @@ func (o *InfoOptions) Run() error {
 					return nil
 				},
 			}
-			if err := retriever.Run(); err != nil {
+			if _, err := retriever.Image(context.TODO(), src); err != nil {
 				return err
 			}
 
@@ -348,7 +346,6 @@ func writeTabSection(out io.Writer, fn func(w io.Writer)) {
 
 type ImageRetriever struct {
 	FileDir         string
-	Image           map[string]imagesource.TypedImageReference
 	SecurityOptions imagemanifest.SecurityOptions
 	ParallelOptions imagemanifest.ParallelOptions
 	// ImageMetadataCallback is invoked once per image retrieved, and may be called in parallel if
@@ -362,11 +359,21 @@ type ImageRetriever struct {
 	ManifestListCallback func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error)
 }
 
-func (o *ImageRetriever) Run() error {
-	ctx := context.Background()
+// Image returns a single image matching ref.
+func (o *ImageRetriever) Image(ctx context.Context, ref imagesource.TypedImageReference) (*Image, error) {
+	images, err := o.Images(ctx, map[string]imagesource.TypedImageReference{"": ref})
+	if err != nil {
+		return nil, err
+	}
+	return images[""], nil
+}
+
+// Images invokes the retriever as specified and returns both the result of callbacks and a map
+// of images invoked. It takes a value receiver because it mutates the original object.
+func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource.TypedImageReference) (map[string]*Image, error) {
 	fromContext, err := o.SecurityOptions.Context()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fromOptions := &imagesource.Options{
 		FileDir:         o.FileDir,
@@ -374,19 +381,27 @@ func (o *ImageRetriever) Run() error {
 		RegistryContext: fromContext,
 	}
 
-	callbackFn := o.ImageMetadataCallback
-	if callbackFn == nil {
-		callbackFn = func(_ string, _ *Image, err error) error {
-			return err
+	var lock sync.Mutex
+	images := make(map[string]*Image)
+	callbackFn := func(name string, image *Image, err error) error {
+		if o.ImageMetadataCallback != nil {
+			if err := o.ImageMetadataCallback(name, image, err); err != nil {
+				return err
+			}
 		}
+		lock.Lock()
+		defer lock.Unlock()
+		images[name] = image
+		return err
 	}
+
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	q := workqueue.New(o.ParallelOptions.MaxPerRegistry, stopCh)
-	return q.Try(func(q workqueue.Try) {
-		for key := range o.Image {
+	return images, q.Try(func(q workqueue.Try) {
+		for key := range refs {
 			name := key
-			from := o.Image[key]
+			from := refs[key]
 			q.Try(func() error {
 				repo, err := fromOptions.Repository(ctx, from)
 				if err != nil {
@@ -396,21 +411,11 @@ func (o *ImageRetriever) Run() error {
 				allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {
-						var msg string
-						if len(o.Image) == 1 {
-							msg = "image does not exist or you don't have permission to access the repository"
-						} else {
-							msg = fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
-						}
+						msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
 						return callbackFn(name, nil, imagemanifest.NewImageForbidden(msg, err))
 					}
 					if imagemanifest.IsImageNotFound(err) {
-						var msg string
-						if len(o.Image) == 1 {
-							msg = "image does not exist"
-						} else {
-							msg = fmt.Sprintf("image %q does not exist", from)
-						}
+						msg := fmt.Sprintf("image %q not found: %s", from, err.Error())
 						return callbackFn(name, nil, imagemanifest.NewImageNotFound(msg, err))
 					}
 					return callbackFn(name, nil, fmt.Errorf("unable to read image %s: %v", from, err))

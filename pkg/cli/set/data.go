@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -8,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -28,7 +29,7 @@ import (
 
 var (
 	dataLong = templates.LongDesc(`
-		Add, update, or remove data keys from secrets and config maps
+		Add, update, or remove data keys from secrets and config maps.
 
 		Secrets and config maps allow users to store keys and values that can be passed into
 		pods or loaded by other Kubernetes resources. This command lets you set or remove keys
@@ -43,17 +44,18 @@ var (
 		Experimental: This command is under active development and may change without notice.`)
 
 	dataExample = templates.Examples(`
-	  # Set the 'password' key of a secret
-	  %[1]s data secret/foo password=this_is_secret
+		# Set the 'password' key of a secret
+		oc set data secret/foo password=this_is_secret
 
-	  # Remove the 'password' key from a secret
-	  %[1]s data secret/foo password-
+		# Remove the 'password' key from a secret
+		oc set data secret/foo password-
 
-	  # Update the 'haproxy.conf' key of a config map from a file on disk
-	  %[1]s data configmap/bar --from-file=../haproxy.conf
+		# Update the 'haproxy.conf' key of a config map from a file on disk
+		oc set data configmap/bar --from-file=../haproxy.conf
 
-	  # Update a secret with the contents of a directory, one key per file
-	  %[1]s data secret/foo --from-file=secret-dir`)
+		# Update a secret with the contents of a directory, one key per file
+		oc set data secret/foo --from-file=secret-dir
+	`)
 )
 
 type DataOptions struct {
@@ -82,7 +84,7 @@ type DataOptions struct {
 	UpdateDataForObject func(obj runtime.Object, fn func(data map[string][]byte) error) (bool, error)
 	Command             []string
 	Resources           []string
-	DryRun              bool
+	DryRunStrategy      kcmdutil.DryRunStrategy
 
 	FlagSet func(string) bool
 
@@ -98,13 +100,13 @@ func NewDataOptions(streams genericclioptions.IOStreams) *DataOptions {
 }
 
 // NewCmdData implements the set data command
-func NewCmdData(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdData(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewDataOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "data RESOURCE/NAME [KEY=VALUE|KEY- ...] [--from-file=file|dir|key=path]",
 		Short:   "Update the data within a config map or secret",
 		Long:    dataLong,
-		Example: fmt.Sprintf(dataExample, fullName),
+		Example: dataExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -158,10 +160,12 @@ func (o *DataOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 	o.Builder = f.NewBuilder
 	o.UpdateDataForObject = updateDataForObject
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -268,7 +272,7 @@ func (o *DataOptions) Run() error {
 			return nil
 		})
 		if valid && !changed {
-			if o.Local || o.DryRun {
+			if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 				if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 					allErrs = append(allErrs, err)
 				}
@@ -292,14 +296,14 @@ func (o *DataOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, err)
 			continue

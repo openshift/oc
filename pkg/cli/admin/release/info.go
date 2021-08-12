@@ -3,6 +3,7 @@ package release
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,10 +27,11 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -49,18 +51,19 @@ import (
 
 func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
 	return &InfoOptions{
-		IOStreams:       streams,
-		ParallelOptions: imagemanifest.ParallelOptions{MaxPerRegistry: 4},
+		IOStreams:              streams,
+		KubeTemplatePrintFlags: *genericclioptions.NewKubeTemplatePrintFlags(),
+		ParallelOptions:        imagemanifest.ParallelOptions{MaxPerRegistry: 4},
 	}
 }
 
-func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewInfoOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "info IMAGE [--changes-from=IMAGE] [--verify|--commits|--pullspecs]",
 		Short: "Display information about a release",
 		Long: templates.LongDesc(`
-			Show information about an OpenShift release
+			Show information about an OpenShift release.
 
 			This command retrieves, verifies, and formats the information describing an OpenShift update.
 			Updates are delivered as container images with metadata describing the component images and
@@ -93,18 +96,18 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 		`),
 		Example: templates.Examples(`
 			# Show information about the cluster's current release
-			%[1]s
+			oc adm release info
 
 			# Show the source code that comprises a release
-			%[1]s 4.2.2 --commit-urls
+			oc adm release info 4.2.2 --commit-urls
 
 			# Show the source code difference between two releases
-			%[1]s 4.2.0 4.2.2 --commits
+			oc adm release info 4.2.0 4.2.2 --commits
 
 			# Show where the images referenced by the release are located
-			%[1]s quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
+			oc adm release info quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
 
-			`),
+		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -114,6 +117,7 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 	flags := cmd.Flags()
 	o.SecurityOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
+	o.KubeTemplatePrintFlags.AddFlags(cmd)
 
 	flags.StringVar(&o.From, "changes-from", o.From, "Show changes from this image to the requested image.")
 
@@ -125,16 +129,18 @@ func NewInfo(f kcmdutil.Factory, parentName string, streams genericclioptions.IO
 	flags.BoolVar(&o.ShowPullSpec, "pullspecs", o.ShowPullSpec, "Display the pull spec of each image instead of the digest.")
 	flags.BoolVar(&o.ShowSize, "size", o.ShowSize, "Display the size of each image including overlap.")
 	flags.StringVar(&o.ImageFor, "image-for", o.ImageFor, "Print the pull spec of the specified image or an error if it does not exist.")
-	flags.StringVarP(&o.Output, "output", "o", o.Output, "Display the release info in an alternative format: digest|json|name|pullspec.")
+	flags.StringVarP(&o.Output, "output", "o", o.Output, "Display the release info in an alternative format: digest|json|name|pullspec|template|jsonpath.")
 	flags.StringVar(&o.ChangelogDir, "changelog", o.ChangelogDir, "Generate changelog output from the git directories extracted to this path.")
 	flags.StringVar(&o.BugsDir, "bugs", o.BugsDir, "Generate bug listings from the changelogs in the git repositories extracted to this path.")
 	flags.BoolVar(&o.IncludeImages, "include-images", o.IncludeImages, "When displaying JSON output of a release output the images the release references.")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
+	flags.BoolVar(&o.SkipBugCheck, "skip-bug-check", o.SkipBugCheck, "Do not check bug statuses when running generating bug listing with --output=name")
 	return cmd
 }
 
 type InfoOptions struct {
 	genericclioptions.IOStreams
+	genericclioptions.KubeTemplatePrintFlags
 
 	Images  []string
 	From    string
@@ -152,6 +158,7 @@ type InfoOptions struct {
 
 	ChangelogDir string
 	BugsDir      string
+	SkipBugCheck bool
 
 	ParallelOptions imagemanifest.ParallelOptions
 	SecurityOptions imagemanifest.SecurityOptions
@@ -286,10 +293,11 @@ func replaceClusterSemanticArgs(f kcmdutil.Factory, args []string, semanticArgs 
 	if err != nil {
 		return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
 	}
-	cv, err := client.ConfigV1().ClusterVersions().Get("version", metav1.GetOptions{})
+	cv, err := client.ConfigV1().ClusterVersions().Get(context.TODO(), "version", metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return args, fmt.Errorf("you must be connected to an OpenShift 4.x server to fetch the current version")
+		if errors.IsNotFound(err) || errors.ReasonForError(err) == metav1.StatusReasonUnknown {
+			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
+			return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server")
 		}
 		return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
 	}
@@ -391,9 +399,15 @@ func (o *InfoOptions) Validate() error {
 	if len(o.ImageFor) > 0 && len(o.Output) > 0 {
 		return fmt.Errorf("--output and --image-for may not both be specified")
 	}
+	if o.SkipBugCheck && len(o.BugsDir) == 0 {
+		return fmt.Errorf("--skip-bug-check requires --bugs")
+	}
+	if o.SkipBugCheck && o.Output != "name" {
+		return fmt.Errorf("--skip-bug-check requires --output to be set to 'name'")
+	}
 	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 {
 		if len(o.From) == 0 {
-			return fmt.Errorf("--changelog/--bugs require --from")
+			return fmt.Errorf("--changelog/--bugs require --changes-from")
 		}
 	}
 	if len(o.ChangelogDir) > 0 && len(o.BugsDir) > 0 {
@@ -411,10 +425,9 @@ func (o *InfoOptions) Validate() error {
 			return fmt.Errorf("--output is not supported for this mode")
 		}
 	default:
-		switch o.Output {
-		case "", "json", "pullspec", "digest", "name":
-		default:
-			return fmt.Errorf("--output only supports 'name', 'json', 'pullspec', or 'digest'")
+		output := strings.SplitN(o.Output, "=", 2)[0]
+		if len(output) > 0 && !stringArrContains(o.allowedFormats(), output) {
+			return fmt.Errorf("--output only supports %s", strings.Join(o.allowedFormats(), ", "))
 		}
 	}
 
@@ -459,7 +472,7 @@ func (o *InfoOptions) Run() error {
 			return err
 		}
 		if len(o.BugsDir) > 0 {
-			return describeBugs(o.Out, o.ErrOut, diff, o.BugsDir, o.Output)
+			return describeBugs(o.Out, o.ErrOut, diff, o.BugsDir, o.Output, o.SkipBugCheck)
 		}
 		if len(o.ChangelogDir) > 0 {
 			return describeChangelog(o.Out, o.ErrOut, diff, o.ChangelogDir)
@@ -488,6 +501,12 @@ func (o *InfoOptions) Run() error {
 	return exitErr
 }
 
+func (opt *InfoOptions) allowedFormats() []string {
+	formats := []string{"json", "pullspec", "digest", "name"}
+	formats = append(formats, opt.KubeTemplatePrintFlags.AllowedFormats()...)
+	return formats
+}
+
 func diffContents(a, b string, out io.Writer) error {
 	fmt.Fprintf(out, `To see the differences between these releases, run:
 
@@ -504,7 +523,8 @@ func (o *InfoOptions) describeImage(release *ReleaseInfo) error {
 		_, err := io.Copy(o.Out, newContentStreamForRelease(release))
 		return err
 	}
-	switch o.Output {
+	output := strings.SplitN(o.Output, "=", 2)
+	switch output[0] {
 	case "json":
 		data, err := json.MarshalIndent(release, "", "  ")
 		if err != nil {
@@ -539,7 +559,18 @@ func (o *InfoOptions) describeImage(release *ReleaseInfo) error {
 		return nil
 	case "":
 	default:
-		return fmt.Errorf("output mode only supports 'name', 'json', 'pullspec', or 'digest'")
+		p, err := o.KubeTemplatePrintFlags.ToPrinter(o.Output)
+		if genericclioptions.IsNoCompatiblePrinterError(err) {
+			return fmt.Errorf("output mode only supports %s", strings.Join(o.allowedFormats(), ", "))
+		}
+		if err != nil {
+			return err
+		}
+		data, err := json.MarshalIndent(release, "", "  ")
+		if err != nil {
+			return err
+		}
+		return p.PrintObj(&runtime.Unknown{Raw: data}, o.Out)
 	}
 	if len(o.ImageFor) > 0 {
 		spec, err := findImageSpec(release.References, o.ImageFor, release.Image)
@@ -657,7 +688,10 @@ type ReleaseInfo struct {
 	Metadata   *CincinnatiMetadata               `json:"metadata"`
 	References *imageapi.ImageStream             `json:"references"`
 
-	ComponentVersions map[string]string `json:"versions"`
+	// This field is deprecated, does not contain display names. Is replaced by
+	// ComponentVersions.
+	DeprecatedComponentVersions map[string]string `json:"versions"`
+	ComponentVersions           ComponentVersions `json:"displayVersions"`
 
 	Images map[string]*Image `json:"images"`
 
@@ -707,7 +741,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	}
 
 	verifier := imagemanifest.NewVerifier()
-	opts := extract.NewOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FileDir = o.FileDir
 
@@ -800,9 +834,9 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	if retrieveImages {
 		var lock sync.Mutex
 		release.Images = make(map[string]*Image)
+		images := make(map[string]imagesource.TypedImageReference)
 		r := &imageinfo.ImageRetriever{
 			FileDir:         opts.FileDir,
-			Image:           make(map[string]imagesource.TypedImageReference),
 			SecurityOptions: o.SecurityOptions,
 			ParallelOptions: o.ParallelOptions,
 			ImageMetadataCallback: func(name string, image *imageinfo.Image, err error) error {
@@ -829,9 +863,9 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 				release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q has an invalid reference: %v", tag.Name, err))
 				continue
 			}
-			r.Image[tag.Name] = imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
+			images[tag.Name] = imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
 		}
-		if err := r.Run(); err != nil {
+		if _, err := r.Images(context.TODO(), images); err != nil {
 			return nil, err
 		}
 	}
@@ -849,15 +883,16 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	return release, nil
 }
 
-func readComponentVersions(is *imageapi.ImageStream) (map[string]string, []error) {
+func readComponentVersions(is *imageapi.ImageStream) (ComponentVersions, []error) {
 	var errs []error
 	combined := make(map[string]sets.String)
+	combinedDisplayNames := make(map[string]sets.String)
 	for _, tag := range is.Spec.Tags {
 		versions, ok := tag.Annotations[annotationBuildVersions]
 		if !ok {
 			continue
 		}
-		all, err := parseComponentVersionsLabel(versions)
+		all, err := parseComponentVersionsLabel(versions, tag.Annotations[annotationBuildVersionsDisplayNames])
 		if err != nil {
 			errs = append(errs, fmt.Errorf("the referenced image %s had an invalid version annotation: %v", tag.Name, err))
 		}
@@ -867,20 +902,58 @@ func readComponentVersions(is *imageapi.ImageStream) (map[string]string, []error
 				existing = sets.NewString()
 				combined[k] = existing
 			}
-			existing.Insert(v)
+			existing.Insert(v.Version)
+
+			existingDisplayName, ok := combinedDisplayNames[k]
+			if !ok {
+				existingDisplayName = sets.NewString()
+				combinedDisplayNames[k] = existingDisplayName
+			}
+			existingDisplayName.Insert(v.DisplayName)
 		}
 	}
-	out := make(map[string]string)
-	var multiples []string
-	for k, v := range combined {
+
+	multiples := sets.NewString()
+	var out ComponentVersions
+	var keys []string
+	for k := range combined {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := combined[k]
 		if v.Len() > 1 {
-			multiples = append(multiples, k)
+			multiples = multiples.Insert(k)
 		}
-		out[k], _ = v.PopAny()
+		if _, ok := out[k]; ok {
+			continue
+		}
+		version := v.List()[0]
+		if out == nil {
+			out = make(ComponentVersions)
+		}
+		out[k] = ComponentVersion{Version: version}
 	}
+	for _, k := range keys {
+		v, ok := combinedDisplayNames[k]
+		if !ok {
+			continue
+		}
+		if v.Len() > 1 {
+			multiples = multiples.Insert(k)
+		}
+		version, ok := out[k]
+		if !ok {
+			continue
+		}
+		if len(version.DisplayName) == 0 {
+			version.DisplayName = v.List()[0]
+		}
+		out[k] = version
+	}
+
 	if len(multiples) > 0 {
-		sort.Strings(multiples)
-		errs = append(errs, fmt.Errorf("multiple versions reported for the following component(s): %v", strings.Join(multiples, ",  ")))
+		errs = append(errs, fmt.Errorf("multiple versions or display names reported for the following component(s): %v", strings.Join(multiples.List(), ",  ")))
 	}
 	return out, errs
 }
@@ -1131,23 +1204,37 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 			fmt.Fprintf(w, "  Upgrades:\t<none>\n")
 		}
 		var keys []string
-		for k := range m.Metadata {
+		for k, v := range m.Metadata {
+			switch t := v.(type) {
+			case string:
+				if len(t) == 0 {
+					continue
+				}
+			case []interface{}:
+				if len(t) == 0 {
+					continue
+				}
+			case map[string]interface{}:
+				if len(t) == 0 {
+					continue
+				}
+			}
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		writeTabSection(w, func(w io.Writer) {
+			fmt.Fprintf(w, "  Metadata:\n")
 			for _, k := range keys {
-				fmt.Fprintf(w, "  Metadata:\n")
-				fmt.Fprintf(w, "    %s:\t%s\n", k, m.Metadata[k])
+				fmt.Fprintf(w, "    %s:\t%v\n", k, m.Metadata[k])
 			}
 		})
 	}
 	if len(release.ComponentVersions) > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "Component Versions:\n")
-		keys := orderedKeys(release.ComponentVersions)
+		keys := release.ComponentVersions.OrderedKeys()
 		for _, key := range keys {
-			fmt.Fprintf(w, "  %s\t%s\n", componentName(key), release.ComponentVersions[key])
+			fmt.Fprintf(w, "  %s\t%s\t%s\n", key, release.ComponentVersions[key].Version, release.ComponentVersions[key].DisplayName)
 		}
 	}
 	writeTabSection(w, func(w io.Writer) {
@@ -1336,6 +1423,13 @@ func digestOrRef(ref string) string {
 	return ref
 }
 
+// replaceUnsafeInput prevents HTML blocks from being started in markdown for external
+// inputs, but allows entities and quotes
+var replaceUnsafeInput = strings.NewReplacer(
+	`<`, "&lt;",
+	`>`, "&gt;",
+)
+
 func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) error {
 	if diff.To.Digest == diff.From.Digest {
 		return fmt.Errorf("releases are identical")
@@ -1356,16 +1450,16 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 	fmt.Fprintln(out)
 	fmt.Fprintf(out, "## Changes from %s\n\n", diff.From.PreferredName())
 
-	if keys := orderedKeys(diff.To.ComponentVersions); len(keys) > 0 {
+	if keys := diff.To.ComponentVersions.OrderedKeys(); len(keys) > 0 {
 		fmt.Fprintf(out, "### Components\n\n")
 		for _, key := range keys {
 			version := diff.To.ComponentVersions[key]
 			old, ok := diff.From.ComponentVersions[key]
 			if !ok || old == version {
-				fmt.Fprintf(out, "* %s %s\n", componentName(key), version)
+				fmt.Fprintf(out, "* %s %s\n", componentDisplayName(key, version.DisplayName), version)
 				continue
 			}
-			fmt.Fprintf(out, "* %s upgraded from %s to %s\n", componentName(key), old, version)
+			fmt.Fprintf(out, "* %s upgraded from %s to %s\n", componentDisplayName(key, version.DisplayName), old, version)
 		}
 		fmt.Fprintln(out)
 		fmt.Fprintln(out)
@@ -1431,37 +1525,28 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 				fmt.Fprintf(out, "### %s\n\n", strings.Join(change.ImagesAffected, ", "))
 			}
 			for _, commit := range commits {
-				var suffix string
+				fmt.Fprintf(out, "*")
+				for i, bug := range commit.Bugs {
+					if i == 0 {
+						fmt.Fprintf(out, " [Bug %d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
+					} else {
+						fmt.Fprintf(out, ", [%d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
+					}
+				}
+				if len(commit.Bugs) > 0 {
+					fmt.Fprintf(out, ":")
+				}
+				fmt.Fprintf(out, " %s", replaceUnsafeInput.Replace(commit.Subject))
 				switch {
 				case commit.PullRequest > 0:
-					suffix = fmt.Sprintf("[#%d](%s)", commit.PullRequest, fmt.Sprintf("https://%s%s/pull/%d", u.Host, u.Path, commit.PullRequest))
+					fmt.Fprintf(out, " [#%d](%s)", commit.PullRequest, fmt.Sprintf("https://%s%s/pull/%d", u.Host, u.Path, commit.PullRequest))
 				case u.Host == "github.com":
 					commit := commit.Commit[:8]
-					suffix = fmt.Sprintf("[%s](%s)", commit, fmt.Sprintf("https://%s%s/commit/%s", u.Host, u.Path, commit))
+					fmt.Fprintf(out, " [%s](%s)", commit, fmt.Sprintf("https://%s%s/commit/%s", u.Host, u.Path, commit))
 				default:
-					suffix = commit.Commit[:8]
+					fmt.Fprintf(out, " %s", commit.Commit[:8])
 				}
-				switch {
-				case len(commit.Bugs) > 0:
-					for i, bug := range commit.Bugs {
-						if i == 0 {
-							fmt.Fprintf(out, "* [Bug %d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
-						} else {
-							fmt.Fprintf(out, ", [%d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
-						}
-						fmt.Fprintf(out,
-							": %s %s\n",
-							commit.Subject,
-							suffix,
-						)
-					}
-				default:
-					fmt.Fprintf(out,
-						"* %s %s\n",
-						commit.Subject,
-						suffix,
-					)
-				}
+				fmt.Fprintf(out, "\n")
 			}
 			if u.Host == "github.com" {
 				fmt.Fprintf(out, "* [Full changelog](%s)\n\n", fmt.Sprintf("https://%s%s/compare/%s...%s", u.Host, u.Path, change.From, change.To))
@@ -1477,7 +1562,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 	return nil
 }
 
-func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format string) error {
+func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format string, skipBugCheck bool) error {
 	if diff.To.Digest == diff.From.Digest {
 		return fmt.Errorf("releases are identical")
 	}
@@ -1502,40 +1587,43 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 	}
 
 	bugs := make(map[int]BugInfo)
-
-	u, err := url.Parse("https://bugzilla.redhat.com/rest/bug")
-	if err != nil {
-		return err
-	}
-	client := http.DefaultClient
-	allBugIDs := bugIDs.List()
-	for len(allBugIDs) > 0 {
-		var next []int
-		if len(allBugIDs) > 10 {
-			next = allBugIDs[:10]
-			allBugIDs = allBugIDs[10:]
-		} else {
-			next = allBugIDs
-			allBugIDs = nil
-		}
-
-		bugList, err := retrieveBugs(client, u, next, 2)
-		if err != nil {
-
-		}
-		for _, bug := range bugList.Bugs {
-			bugs[bug.ID] = bug
-		}
-	}
-
 	var valid []int
-	for _, id := range bugIDs.List() {
-		if _, ok := bugs[id]; !ok {
-			fmt.Fprintf(errOut, "error: Bug %d was not retrieved\n", id)
-			hasError = true
-			continue
+	if skipBugCheck {
+		valid = bugIDs.List()
+	} else {
+		u, err := url.Parse("https://bugzilla.redhat.com/rest/bug")
+		if err != nil {
+			return err
 		}
-		valid = append(valid, id)
+		client := http.DefaultClient
+		allBugIDs := bugIDs.List()
+		for len(allBugIDs) > 0 {
+			var next []int
+			if len(allBugIDs) > 10 {
+				next = allBugIDs[:10]
+				allBugIDs = allBugIDs[10:]
+			} else {
+				next = allBugIDs
+				allBugIDs = nil
+			}
+
+			bugList, err := retrieveBugs(client, u, next, 2)
+			if err != nil {
+
+			}
+			for _, bug := range bugList.Bugs {
+				bugs[bug.ID] = bug
+			}
+		}
+
+		for _, id := range bugIDs.List() {
+			if _, ok := bugs[id]; !ok {
+				fmt.Fprintf(errOut, "error: Bug %d was not retrieved\n", id)
+				hasError = true
+				continue
+			}
+			valid = append(valid, id)
+		}
 	}
 
 	if len(valid) > 0 {
@@ -1706,6 +1794,10 @@ func releaseDiffContentChanges(diff *ReleaseDiff) ([]CodeChange, []ImageChange, 
 		oldRepo, newRepo := from.Annotations[annotationBuildSourceLocation], to.Annotations[annotationBuildSourceLocation]
 		oldCommit, newCommit := from.Annotations[annotationBuildSourceCommit], to.Annotations[annotationBuildSourceCommit]
 
+		if len(newRepo) == 0 || len(oldRepo) == 0 {
+			continue
+		}
+
 		var alternateRepos []string
 		if len(oldRepo) > 0 && oldRepo != newRepo {
 			alternateRepos = append(alternateRepos, oldRepo)
@@ -1763,7 +1855,10 @@ func refToShortDescription(ref *imageapi.TagReference) string {
 	return ref.Name
 }
 
-func componentName(key string) string {
+func componentDisplayName(key, displayName string) string {
+	if len(displayName) > 0 {
+		return displayName
+	}
 	parts := strings.Split(key, "-")
 	for i, part := range parts {
 		if len(part) > 0 {

@@ -10,6 +10,9 @@ import (
 
 // ClusterVersion is the configuration for the ClusterVersionOperator. This is where
 // parameters related to automatic updates can be set.
+//
+// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
+// +openshift:compatibility-gen:level=1
 type ClusterVersion struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -84,7 +87,7 @@ type ClusterVersionStatus struct {
 	// with the information available, which may be an image or a tag.
 	// +kubebuilder:validation:Required
 	// +required
-	Desired Update `json:"desired"`
+	Desired Release `json:"desired"`
 
 	// history contains a list of the most recent versions applied to the cluster.
 	// This value may be empty during cluster startup, and then will be updated
@@ -127,7 +130,7 @@ type ClusterVersionStatus struct {
 	// +nullable
 	// +kubebuilder:validation:Required
 	// +required
-	AvailableUpdates []Update `json:"availableUpdates"`
+	AvailableUpdates []Release `json:"availableUpdates"`
 }
 
 // UpdateState is a constant representing whether an update was successfully
@@ -157,6 +160,7 @@ type UpdateHistory struct {
 	// +kubebuilder:validation:Required
 	// +required
 	StartedTime metav1.Time `json:"startedTime"`
+
 	// completionTime, if set, is when the update was fully applied. The update
 	// that is currently being applied will have a null completion time.
 	// Completion time will always be set for entries that are not the current
@@ -172,13 +176,17 @@ type UpdateHistory struct {
 	//
 	// +optional
 	Version string `json:"version"`
+
 	// image is a container image location that contains the update. This value
 	// is always populated.
 	// +kubebuilder:validation:Required
 	// +required
 	Image string `json:"image"`
+
 	// verified indicates whether the provided update was properly verified
 	// before it was installed. If this is false the cluster may not be trusted.
+	// Verified does not cover upgradeable checks that depend on the cluster
+	// state at the time when the update target was accepted.
 	// +kubebuilder:validation:Required
 	// +required
 	Verified bool `json:"verified"`
@@ -221,8 +229,7 @@ type ComponentOverride struct {
 // URL is a thin wrapper around string that ensures the string is a valid URL.
 type URL string
 
-// Update represents a release of the ClusterVersionOperator, referenced by the
-// Image member.
+// Update represents an administrator update request.
 // +k8s:deepcopy-gen=true
 type Update struct {
 	// version is a semantic versioning identifying the update version. When this
@@ -230,25 +237,51 @@ type Update struct {
 	//
 	// +optional
 	Version string `json:"version"`
+
 	// image is a container image location that contains the update. When this
 	// field is part of spec, image is optional if version is specified and the
 	// availableUpdates field contains a matching version.
 	//
 	// +optional
 	Image string `json:"image"`
+
 	// force allows an administrator to update to an image that has failed
-	// verification, does not appear in the availableUpdates list, or otherwise
-	// would be blocked by normal protections on update. This option should only
+	// verification or upgradeable checks. This option should only
 	// be used when the authenticity of the provided image has been verified out
 	// of band because the provided image will run with full administrative access
 	// to the cluster. Do not use this flag with images that comes from unknown
 	// or potentially malicious sources.
 	//
-	// This flag does not override other forms of consistency checking that are
-	// required before a new update is deployed.
-	//
 	// +optional
 	Force bool `json:"force"`
+}
+
+// Release represents an OpenShift release image and associated metadata.
+// +k8s:deepcopy-gen=true
+type Release struct {
+	// version is a semantic versioning identifying the update version. When this
+	// field is part of spec, version is optional if image is specified.
+	// +required
+	Version string `json:"version"`
+
+	// image is a container image location that contains the update. When this
+	// field is part of spec, image is optional if version is specified and the
+	// availableUpdates field contains a matching version.
+	// +required
+	Image string `json:"image"`
+
+	// url contains information about this release. This URL is set by
+	// the 'url' metadata property on a release or the metadata returned by
+	// the update API and should be displayed as a link in user
+	// interfaces. The URL field may not be set for test or nightly
+	// releases.
+	// +optional
+	URL URL `json:"url,omitempty"`
+
+	// channels is the set of Cincinnati channels to which the release
+	// currently belongs.
+	// +optional
+	Channels []string `json:"channels,omitempty"`
 }
 
 // RetrievedUpdates reports whether available updates have been retrieved from
@@ -258,7 +291,10 @@ type Update struct {
 const RetrievedUpdates ClusterStatusConditionType = "RetrievedUpdates"
 
 // ClusterVersionList is a list of ClusterVersion resources.
+//
+// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +openshift:compatibility-gen:level=1
 type ClusterVersionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`

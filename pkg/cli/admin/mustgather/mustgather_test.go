@@ -32,7 +32,7 @@ func TestImagesAndImageStreams(t *testing.T) {
 		},
 		{
 			name:           "DefaultNoMustGatherImageStream",
-			expectedImages: []string{"quay.io/openshift/origin-must-gather:latest"},
+			expectedImages: []string{"registry.redhat.io/openshift4/ose-must-gather:latest"},
 		},
 		{
 			name:           "MultipleImages",

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	userv1 "github.com/openshift/api/user/v1"
 	"io/ioutil"
 	"strings"
 
@@ -11,8 +12,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	kerrs "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -35,31 +34,33 @@ const SyncRecommendedName = "sync"
 
 var (
 	syncLong = templates.LongDesc(`
-    Sync OpenShift Groups with records from an external provider.
+		Sync OpenShift groups with records from an external provider.
 
-    In order to sync OpenShift Group records with those from an external provider, determine which Groups you wish
-    to sync and where their records live. For instance, all or some groups may be selected from the current Groups
-    stored in OpenShift that have been synced previously, or similarly all or some groups may be selected from those
-    stored on an LDAP server. The path to a sync configuration file is required in order to describe how data is
-    requested from the external record store and migrated to OpenShift records. Default behavior is to do a dry-run
-    without changing OpenShift records. Passing '--confirm' will sync all groups from the LDAP server returned by the
-    LDAP query templates.`)
+		In order to sync OpenShift group records with those from an external provider, determine which groups you want
+		to sync and where their records live. For instance, all or some groups may be selected from the current groups
+		stored in OpenShift that have been synced previously, or similarly all or some groups may be selected from those
+		stored on an LDAP server. The path to a sync configuration file is required in order to describe how data is
+		requested from the external record store and migrated to OpenShift records. Default behavior is to do a dry-run
+		without changing OpenShift records. Passing '--confirm' will sync all groups from the LDAP server returned by the
+		LDAP query templates.
+	`)
 
 	syncExamples = templates.Examples(`
-    # Sync all groups from an LDAP server
-    %[1]s --sync-config=/path/to/ldap-sync-config.yaml --confirm
+		# Sync all groups with an LDAP server
+		oc adm groups sync --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-    # Sync all groups except the ones from the blacklist file from an LDAP server
-    %[1]s --blacklist=/path/to/blacklist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
+		# Sync all groups except the ones from the blacklist file with an LDAP server
+		oc adm groups sync --blacklist=/path/to/blacklist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-    # Sync specific groups specified in a whitelist file with an LDAP server
-    %[1]s --whitelist=/path/to/whitelist.txt --sync-config=/path/to/sync-config.yaml --confirm
+		# Sync specific groups specified in a whitelist file with an LDAP server
+		oc adm groups sync --whitelist=/path/to/whitelist.txt --sync-config=/path/to/sync-config.yaml --confirm
 
-    # Sync all OpenShift Groups that have been synced previously with an LDAP server
-    %[1]s --type=openshift --sync-config=/path/to/ldap-sync-config.yaml --confirm
+		# Sync all OpenShift groups that have been synced previously with an LDAP server
+		oc adm groups sync --type=openshift --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-    # Sync specific OpenShift Groups if they have been synced previously with an LDAP server
-    %[1]s groups/group1 groups/group2 groups/group3 --sync-config=/path/to/sync-config.yaml --confirm`)
+		# Sync specific OpenShift groups if they have been synced previously with an LDAP server
+		oc adm groups sync groups/group1 groups/group2 groups/group3 --sync-config=/path/to/sync-config.yaml --confirm
+	`)
 )
 
 // GroupSyncSource determines the source of the groups to be synced
@@ -113,13 +114,13 @@ func NewSyncOptions(streams genericclioptions.IOStreams) *SyncOptions {
 	}
 }
 
-func NewCmdSync(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSync(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewSyncOptions(streams)
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s [--type=TYPE] [WHITELIST] [--whitelist=WHITELIST-FILE] --sync-config=CONFIG-FILE [--confirm]", name),
-		Short:   "Sync OpenShift groups with records from an external provider.",
+		Use:     "sync [--type=TYPE] [WHITELIST] [--whitelist=WHITELIST-FILE] --sync-config=CONFIG-FILE [--confirm]",
+		Short:   "Sync OpenShift groups with records from an external provider",
 		Long:    syncLong,
-		Example: fmt.Sprintf(syncExamples, fullName),
+		Example: syncExamples,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -137,6 +138,8 @@ func NewCmdSync(name, fullName string, f kcmdutil.Factory, streams genericcliopt
 	cmd.MarkFlagFilename("sync-config", "yaml", "yml")
 	cmd.Flags().StringVar(&o.Type, "type", o.Type, "which groups white- and blacklist entries refer to: "+strings.Join(AllowedSourceTypes, ","))
 	cmd.Flags().BoolVar(&o.Confirm, "confirm", o.Confirm, "if true, modify OpenShift groups; if false, display results of a dry-run")
+
+	o.PrintFlags.AddFlags(cmd)
 
 	return cmd
 }
@@ -405,22 +408,12 @@ func (o *SyncOptions) Run() error {
 	// Now we run the Syncer and report any errors
 	openshiftGroups, syncErrors := syncer.Sync()
 	if !o.Confirm {
-		list := &unstructured.UnstructuredList{
-			Object: map[string]interface{}{
-				"kind":       "List",
-				"apiVersion": "v1",
-				"metadata":   map[string]interface{}{},
-			},
+		items := make([]userv1.Group, len(openshiftGroups))
+		for _, group := range openshiftGroups {
+			items = append(items, *group)
 		}
-		for _, item := range openshiftGroups {
-			unstructuredItem, err := runtime.DefaultUnstructuredConverter.ToUnstructured(item)
-			if err != nil {
-				return err
-			}
-			list.Items = append(list.Items, unstructured.Unstructured{Object: unstructuredItem})
-		}
-
-		if err := o.Printer.PrintObj(list, o.Out); err != nil {
+		groupList := &userv1.GroupList{Items: items}
+		if err := o.Printer.PrintObj(groupList, o.Out); err != nil {
 			return err
 		}
 	}

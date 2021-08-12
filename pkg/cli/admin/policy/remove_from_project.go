@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -14,14 +15,8 @@ import (
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
-	rbacv1helpers "k8s.io/kubernetes/pkg/apis/rbac/v1"
 
 	"github.com/openshift/library-go/pkg/authorization/authorizationutil"
-)
-
-const (
-	RemoveGroupRecommendedName = "remove-group"
-	RemoveUserRecommendedName  = "remove-user"
 )
 
 type RemoveFromProjectOptions struct {
@@ -35,7 +30,7 @@ type RemoveFromProjectOptions struct {
 	Groups []string
 	Users  []string
 
-	DryRun bool
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	Output string
 
@@ -50,10 +45,10 @@ func NewRemoveFromProjectOptions(streams genericclioptions.IOStreams) *RemoveFro
 }
 
 // NewCmdRemoveGroupFromProject implements the OpenShift cli remove-group command
-func NewCmdRemoveGroupFromProject(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveGroupFromProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRemoveFromProjectOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name + " GROUP [GROUP ...]",
+		Use:   "remove-group GROUP [GROUP ...]",
 		Short: "Remove group from the current project",
 		Long:  `Remove group from the current project`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -69,10 +64,10 @@ func NewCmdRemoveGroupFromProject(name, fullName string, f kcmdutil.Factory, str
 }
 
 // NewCmdRemoveUserFromProject implements the OpenShift cli remove-user command
-func NewCmdRemoveUserFromProject(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveUserFromProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRemoveFromProjectOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name + " USER [USER ...]",
+		Use:   "remove-user USER [USER ...]",
 		Short: "Remove user from the current project",
 		Long:  `Remove user from the current project`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -93,13 +88,15 @@ func (o *RemoveFromProjectOptions) Complete(f kcmdutil.Factory, cmd *cobra.Comma
 	}
 
 	o.Output = kcmdutil.GetFlagString(cmd, "output")
-	o.DryRun = kcmdutil.GetFlagBool(cmd, "dry-run")
-
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
-	}
 
 	var err error
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
+
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -127,7 +124,7 @@ func (o *RemoveFromProjectOptions) Validate(f kcmdutil.Factory, cmd *cobra.Comma
 }
 
 func (o *RemoveFromProjectOptions) Run() error {
-	roleBindings, err := o.Client.RoleBindings(o.BindingNamespace).List(metav1.ListOptions{})
+	roleBindings, err := o.Client.RoleBindings(o.BindingNamespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -139,8 +136,8 @@ func (o *RemoveFromProjectOptions) Run() error {
 	sasRemoved := sets.String{}
 	othersRemoved := sets.String{}
 	dryRunText := ""
-	if o.DryRun {
-		dryRunText = " (dry run)"
+	if o.DryRunStrategy == kcmdutil.DryRunClient {
+		dryRunText = " (dry client run)"
 	}
 
 	updatedBindings := &rbacv1.RoleBindingList{
@@ -156,11 +153,11 @@ func (o *RemoveFromProjectOptions) Run() error {
 	for _, currBinding := range roleBindings.Items {
 		originalSubjects := make([]rbacv1.Subject, len(currBinding.Subjects))
 		copy(originalSubjects, currBinding.Subjects)
-		oldUsers, oldGroups, oldSAs, oldOthers := rbacv1helpers.SubjectsStrings(originalSubjects)
+		oldUsers, oldGroups, oldSAs, oldOthers := subjectsStrings(originalSubjects)
 		oldUsersSet, oldGroupsSet, oldSAsSet, oldOtherSet := sets.NewString(oldUsers...), sets.NewString(oldGroups...), sets.NewString(oldSAs...), sets.NewString(oldOthers...)
 
 		currBinding.Subjects, _ = removeSubjects(currBinding.Subjects, subjectsToRemove)
-		newUsers, newGroups, newSAs, newOthers := rbacv1helpers.SubjectsStrings(currBinding.Subjects)
+		newUsers, newGroups, newSAs, newOthers := subjectsStrings(currBinding.Subjects)
 		newUsersSet, newGroupsSet, newSAsSet, newOtherSet := sets.NewString(newUsers...), sets.NewString(newGroups...), sets.NewString(newSAs...), sets.NewString(newOthers...)
 
 		if len(currBinding.Subjects) == len(originalSubjects) {
@@ -172,11 +169,11 @@ func (o *RemoveFromProjectOptions) Run() error {
 			continue
 		}
 
-		if !o.DryRun {
+		if o.DryRunStrategy != kcmdutil.DryRunClient {
 			if len(currBinding.Subjects) > 0 {
-				_, err = o.Client.RoleBindings(o.BindingNamespace).Update(&currBinding)
+				_, err = o.Client.RoleBindings(o.BindingNamespace).Update(context.TODO(), &currBinding, metav1.UpdateOptions{})
 			} else {
-				err = o.Client.RoleBindings(o.BindingNamespace).Delete(currBinding.Name, &metav1.DeleteOptions{})
+				err = o.Client.RoleBindings(o.BindingNamespace).Delete(context.TODO(), currBinding.Name, metav1.DeleteOptions{})
 			}
 			if err != nil {
 				return err
@@ -218,6 +215,31 @@ func (o *RemoveFromProjectOptions) Run() error {
 	}
 
 	return nil
+}
+
+func subjectsStrings(subjects []rbacv1.Subject) ([]string, []string, []string, []string) {
+	users := []string{}
+	groups := []string{}
+	sas := []string{}
+	others := []string{}
+
+	for _, subject := range subjects {
+		switch subject.Kind {
+		case rbacv1.ServiceAccountKind:
+			sas = append(sas, fmt.Sprintf("%s/%s", subject.Namespace, subject.Name))
+
+		case rbacv1.UserKind:
+			users = append(users, subject.Name)
+
+		case rbacv1.GroupKind:
+			groups = append(groups, subject.Name)
+
+		default:
+			others = append(others, fmt.Sprintf("%s/%s/%s", subject.Kind, subject.Namespace, subject.Name))
+		}
+	}
+
+	return users, groups, sas, others
 }
 
 type roleBindingSorter []rbacv1.RoleBinding

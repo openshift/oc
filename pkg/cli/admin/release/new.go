@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,7 +24,7 @@ import (
 	"github.com/ghodss/yaml"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,17 +53,17 @@ func NewNewOptions(streams genericclioptions.IOStreams) *NewOptions {
 		// We strongly control the set of allowed component versions to prevent confusion
 		// about what component versions may be used for. Changing this list requires
 		// approval from the release architects.
-		AllowedComponents: []string{"kubernetes"},
+		AllowedComponents: []string{"kubernetes", "machine-os"},
 	}
 }
 
-func NewRelease(f kcmdutil.Factory, parentName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRelease(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewNewOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "new [SRC=DST ...]",
 		Short: "Create a new OpenShift release",
 		Long: templates.LongDesc(`
-			Build a new OpenShift release image that will update a cluster
+			Build a new OpenShift release image that will update a cluster.
 
 			OpenShift uses long-running active management processes called "operators" to
 			keep the cluster running and manage component lifecycle. This command
@@ -76,7 +77,7 @@ func NewRelease(f kcmdutil.Factory, parentName string, streams genericclioptions
 			cluster version operator when it is time to perform an update. Manifest files are
 			renamed to '0000_70_<image_name>_<filename>' by default, and an operator author that
 			needs to provide a global-ordered file (before or after other operators) should
-			prepend '0000_NN_<component>_' to their filename, which instructs the release builder
+			prepend '0000_NN_<component>_' to their file name, which instructs the release builder
 			to not assign a component prefix. Only images in the input that have the image label
 			'io.openshift.release.operator=true' will have manifests loaded.
 
@@ -92,21 +93,21 @@ func NewRelease(f kcmdutil.Factory, parentName string, streams genericclioptions
 			will override the default cluster-version-operator image with one pulled from
 			registry.example.com.
 		`),
-		Example: templates.Examples(fmt.Sprintf(`
+		Example: templates.Examples(`
 			# Create a release from the latest origin images and push to a DockerHub repo
-			%[1]s new --from-image-stream=4.1 -n origin --to-image docker.io/mycompany/myrepo:latest
+			oc adm release new --from-image-stream=4.1 -n origin --to-image docker.io/mycompany/myrepo:latest
 
 			# Create a new release with updated metadata from a previous release
-			%[1]s new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 --name 4.1.1 \
+			oc adm release new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 --name 4.1.1 \
 				--previous 4.1.0 --metadata ... --to-image docker.io/mycompany/myrepo:latest
 
 			# Create a new release and override a single image
-			%[1]s new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 \
+			oc adm release new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 \
 				cli=docker.io/mycompany/cli:latest --to-image docker.io/mycompany/myrepo:latest
 
 			# Run a verification pass to ensure the release can be reproduced
-			%[1]s new --from-release registry.svc.ci.openshift.org/origin/release:v4.1
-				`, parentName)),
+			oc adm release new --from-release registry.svc.ci.openshift.org/origin/release:v4.1
+		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -125,10 +126,11 @@ func NewRelease(f kcmdutil.Factory, parentName string, streams genericclioptions
 	flags.StringVar(&o.FromReleaseImage, "from-release", o.FromReleaseImage, "Use an existing release image as input.")
 	flags.StringVar(&o.ReferenceMode, "reference-mode", o.ReferenceMode, "By default, the image reference from an image stream points to the public registry for the stream and the image digest. Pass 'source' to build references to the originating image.")
 	flags.StringVar(&o.ExtraComponentVersions, "component-versions", o.ExtraComponentVersions, "Supply additional version strings to the release in key=value[,key=value] form.")
+	flags.StringVar(&o.ExtraComponentVersionsDisplayNames, "component-versions-display-names", o.ExtraComponentVersionsDisplayNames, "Supply additional version display names to the release in key=value[,key=value] form.")
 
 	// properties of the release
 	flags.StringVar(&o.Name, "name", o.Name, "The name of the release. Will default to the current time.")
-	flags.StringSliceVar(&o.PreviousVersions, "previous", o.PreviousVersions, "A list of semantic versions that should preceed this version in the release manifest.")
+	flags.StringSliceVar(&o.PreviousVersions, "previous", o.PreviousVersions, "A list of semantic versions that should precede this version in the release manifest.")
 	flags.StringVar(&o.ReleaseMetadata, "metadata", o.ReleaseMetadata, "A JSON object to attach as the metadata for the release manifest.")
 	flags.BoolVar(&o.ForceManifest, "release-manifest", o.ForceManifest, "If true, a release manifest will be created using --name as the semantic version.")
 
@@ -175,8 +177,9 @@ type NewOptions struct {
 	Namespace           string
 	ReferenceMode       string
 
-	ExtraComponentVersions string
-	AllowedComponents      []string
+	ExtraComponentVersions             string
+	ExtraComponentVersionsDisplayNames string
+	AllowedComponents                  []string
 
 	Exclude       []string
 	AlwaysInclude []string
@@ -334,7 +337,7 @@ func (o *NewOptions) Run() error {
 	defer o.cleanup()
 
 	// check parameters
-	extraComponentVersions, err := parseComponentVersionsLabel(o.ExtraComponentVersions)
+	extraComponentVersions, err := parseComponentVersionsLabel(o.ExtraComponentVersions, o.ExtraComponentVersionsDisplayNames)
 	if err != nil {
 		return fmt.Errorf("--component-versions is invalid: %v", err)
 	}
@@ -354,6 +357,7 @@ func (o *NewOptions) Run() error {
 		len(o.PreviousVersions) > 0 ||
 		len(o.ToImageBase) > 0 ||
 		len(o.ExtraComponentVersions) > 0 ||
+		len(o.ExtraComponentVersionsDisplayNames) > 0 ||
 		len(o.Mappings) > 0 ||
 		len(o.Exclude) > 0 ||
 		len(o.AlwaysInclude) > 0
@@ -386,7 +390,8 @@ func (o *NewOptions) Run() error {
 		var imageReferencesData, releaseMetadata []byte
 
 		buf := &bytes.Buffer{}
-		extractOpts := extract.NewOptions(genericclioptions.IOStreams{Out: buf, ErrOut: o.ErrOut})
+		extractOpts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: buf, ErrOut: o.ErrOut})
+		extractOpts.ParallelOptions = o.ParallelOptions
 		extractOpts.SecurityOptions = o.SecurityOptions
 		extractOpts.OnlyFiles = true
 		extractOpts.Mappings = []extract.Mapping{
@@ -542,7 +547,7 @@ func (o *NewOptions) Run() error {
 			inputIS = is
 
 		} else {
-			is, err := o.ImageClient.ImageV1().ImageStreams(o.Namespace).Get(o.FromImageStream, metav1.GetOptions{})
+			is, err := o.ImageClient.ImageV1().ImageStreams(o.Namespace).Get(context.TODO(), o.FromImageStream, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -805,6 +810,23 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 				continue
 			}
 
+			statusRef := findStatusTagEvents(inputIS.Status.Tags, ref.Name)
+
+			if ref.Generation != nil {
+				generation := *ref.Generation
+				if statusRef != nil && len(statusRef.Items) > 0 {
+					newest := statusRef.Items[0]
+					// spec tags that are waiting for import should prevent release building,
+					if generation > newest.Generation {
+						return fmt.Errorf("the tag %q in the source input stream has not been imported yet", statusRef.Tag)
+					}
+					// status tags should be used over spec tags because a push to a status tag can happen right after a
+					// spec tag was imported, so the status tag items have two images at generation N. Status tags always
+					// win except when the latest status tag hasn't been imported, which means "wait"
+					continue
+				}
+			}
+
 			if ref.From != nil && ref.From.Kind == "DockerImage" {
 				switch from, err := imagereference.Parse(ref.From.Name); {
 				case err != nil:
@@ -823,26 +845,23 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 					covered.Insert(ref.Name)
 
 				case len(from.Tag) > 0:
-					tag := findStatusTagEvents(inputIS.Status.Tags, ref.Name)
-					if tag == nil {
+					if statusRef == nil {
+						klog.V(2).Infof("Can't use spec tag %q because the image has not been imported and all we have is a tag", ref.Name)
 						continue
 					}
-					if len(tag.Items) == 0 {
-						for _, condition := range tag.Conditions {
+					if len(statusRef.Items) == 0 {
+						for _, condition := range statusRef.Conditions {
 							if condition.Type == imageapi.ImportSuccess && condition.Status != metav1.StatusSuccess {
-								return fmt.Errorf("the tag %q in the source input stream has not been imported yet", tag.Tag)
+								return fmt.Errorf("the tag %q in the source input stream has not been imported yet", statusRef.Tag)
 							}
 						}
 						continue
 					}
-					if ref.Generation != nil && *ref.Generation != tag.Items[0].Generation {
-						return fmt.Errorf("the tag %q in the source input stream has not been imported yet", tag.Tag)
-					}
-					if len(tag.Items[0].Image) == 0 {
-						return fmt.Errorf("the tag %q in the source input stream has no image id", tag.Tag)
+					if len(statusRef.Items[0].Image) == 0 {
+						return fmt.Errorf("the tag %q in the source input stream has no image id", statusRef.Tag)
 					}
 
-					source := externalFn(tag.Items[0].DockerImageReference, tag.Items[0].Image)
+					source := externalFn(statusRef.Items[0].DockerImageReference, statusRef.Items[0].Image)
 					ref := ref.DeepCopy()
 					ref.From = &corev1.ObjectReference{Kind: "DockerImage", Name: source}
 					is.Spec.Tags = append(is.Spec.Tags, *ref)
@@ -850,7 +869,7 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 				}
 				continue
 			}
-			// TODO: support ImageStreamTag and ImageStreamImage
+			// all other type of tags are skipped, because we will pull directly from status tags
 		}
 
 		for _, tag := range inputIS.Status.Tags {
@@ -921,10 +940,10 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 
 	verifier := imagemanifest.NewVerifier()
 	var lock sync.Mutex
-	opts := extract.NewOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
 	opts.OnlyFiles = true
-	opts.ParallelOptions = o.ParallelOptions
 	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig) {
 		verifier.Verify(dgst, contentDigest)
 
@@ -983,9 +1002,9 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 				tag.Annotations[annotationBuildSourceLocation] = labels[annotationBuildSourceLocation]
 
 				if versions := labels[annotationBuildVersions]; len(versions) > 0 {
-					components, err := parseComponentVersionsLabel(versions)
+					components, err := parseComponentVersionsLabel(versions, labels[annotationBuildVersionsDisplayNames])
 					if err != nil {
-						return false, fmt.Errorf("tag %q has an invalid %s label: %v", tag.Name, annotationBuildVersions, err)
+						return false, fmt.Errorf("tag %q has an invalid %s or %s label: %v", tag.Name, annotationBuildVersions, annotationBuildVersionsDisplayNames, err)
 					}
 					// TODO: eventually this can be relaxed
 					for component := range components {
@@ -994,6 +1013,7 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 						}
 					}
 					tag.Annotations[annotationBuildVersions] = versions
+					tag.Annotations[annotationBuildVersionsDisplayNames] = labels[annotationBuildVersionsDisplayNames]
 				}
 
 				if len(labels[annotationReleaseOperator]) == 0 {
@@ -1048,6 +1068,7 @@ func (o *NewOptions) mirrorImages(is *imageapi.ImageStream) error {
 	opts.ImageStream = copied
 	opts.To = o.Mirror
 	opts.SkipRelease = true
+	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
 
 	if err := opts.Run(); err != nil {
@@ -1072,7 +1093,7 @@ func (o *NewOptions) mirrorImages(is *imageapi.ImageStream) error {
 			tag.From.Name = value
 		}
 	}
-	if klog.V(4) {
+	if klog.V(4).Enabled() {
 		data, _ := json.MarshalIndent(is, "", "  ")
 		klog.Infof("Image references updated to:\n%s", string(data))
 	}
@@ -1178,6 +1199,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 
 		verifier := imagemanifest.NewVerifier()
 		options := imageappend.NewAppendImageOptions(genericclioptions.IOStreams{Out: ioutil.Discard, ErrOut: o.ErrOut})
+		options.ParallelOptions = o.ParallelOptions
 		options.SecurityOptions = o.SecurityOptions
 		options.DryRun = o.DryRun
 		options.From = toImageBase
@@ -1210,7 +1232,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 		options.LayerStream = r
 		options.To = toRef.Exact()
 		if err := options.Run(); err != nil {
-			return err
+			return fmt.Errorf("failed to push image %s: %v", toRef.Exact(), err)
 		}
 		if !verifier.Verified() {
 			err := fmt.Errorf("the base image failed content verification and may have been tampered with")

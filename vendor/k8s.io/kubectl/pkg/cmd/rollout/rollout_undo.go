@@ -20,13 +20,14 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"k8s.io/kubectl/pkg/polymorphichelpers"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -39,7 +40,8 @@ type UndoOptions struct {
 
 	Builder          func() *resource.Builder
 	ToRevision       int64
-	DryRun           bool
+	DryRunStrategy   cmdutil.DryRunStrategy
+	DryRunVerifier   *resource.DryRunVerifier
 	Resources        []string
 	Namespace        string
 	EnforceNamespace bool
@@ -50,18 +52,18 @@ type UndoOptions struct {
 }
 
 var (
-	undoLong = templates.LongDesc(`
-		Rollback to a previous rollout.`)
+	undoLong = templates.LongDesc(i18n.T(`
+		Roll back to a previous rollout.`))
 
 	undoExample = templates.Examples(`
-		# Rollback to the previous deployment
+		# Roll back to the previous deployment
 		kubectl rollout undo deployment/abc
 
-		# Rollback to daemonset revision 3
+		# Roll back to daemonset revision 3
 		kubectl rollout undo daemonset/abc --to-revision=3
 
-		# Rollback to the previous deployment with dry-run
-		kubectl rollout undo --dry-run=true deployment/abc`)
+		# Roll back to the previous deployment with dry-run
+		kubectl rollout undo --dry-run=server deployment/abc`)
 )
 
 // NewRolloutUndoOptions returns an initialized UndoOptions instance
@@ -85,12 +87,12 @@ func NewCmdRolloutUndo(f cmdutil.Factory, streams genericclioptions.IOStreams) *
 		Short:                 i18n.T("Undo a previous rollout"),
 		Long:                  undoLong,
 		Example:               undoExample,
+		ValidArgsFunction:     util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.RunUndo())
 		},
-		ValidArgs: validArgs,
 	}
 
 	cmd.Flags().Int64Var(&o.ToRevision, "to-revision", o.ToRevision, "The revision to rollback to. Default to 0 (last revision).")
@@ -101,21 +103,27 @@ func NewCmdRolloutUndo(f cmdutil.Factory, streams genericclioptions.IOStreams) *
 	return cmd
 }
 
-// Complete completes al the required options
+// Complete completes all the required options
 func (o *UndoOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	o.Resources = args
-	o.DryRun = cmdutil.GetDryRunFlag(cmd)
-
 	var err error
+	o.DryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+	dynamicClient, err := f.DynamicClient()
+	if err != nil {
+		return err
+	}
+	o.DryRunVerifier = resource.NewDryRunVerifier(dynamicClient, f.OpenAPIGetter())
+
 	if o.Namespace, o.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace(); err != nil {
 		return err
 	}
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
 		o.PrintFlags.NamePrintFlags.Operation = operation
-		if o.DryRun {
-			o.PrintFlags.Complete("%s (dry run)")
-		}
+		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 		return o.PrintFlags.ToPrinter()
 	}
 
@@ -156,7 +164,12 @@ func (o *UndoOptions) RunUndo() error {
 			return err
 		}
 
-		result, err := rollbacker.Rollback(info.Object, nil, o.ToRevision, o.DryRun)
+		if o.DryRunStrategy == cmdutil.DryRunServer {
+			if err := o.DryRunVerifier.HasSupport(info.Mapping.GroupVersionKind); err != nil {
+				return err
+			}
+		}
+		result, err := rollbacker.Rollback(info.Object, nil, o.ToRevision, o.DryRunStrategy)
 		if err != nil {
 			return err
 		}

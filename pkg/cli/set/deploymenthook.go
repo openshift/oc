@@ -1,10 +1,11 @@
 package set
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +26,7 @@ import (
 
 var (
 	deploymentHookLong = templates.LongDesc(`
-		Set or remove a deployment hook on a deployment config
+		Set or remove a deployment hook on a deployment config.
 
 		Deployment configs allow hooks to execute at different points in the lifecycle of the
 		deployment, depending on the deployment strategy.
@@ -49,14 +50,15 @@ var (
 
 	deploymentHookExample = templates.Examples(`
 		# Clear pre and post hooks on a deployment config
-	  %[1]s deployment-hook dc/myapp --remove --pre --post
+		oc set deployment-hook dc/myapp --remove --pre --post
 
-	  # Set the pre deployment hook to execute a db migration command for an application
-	  # using the data volume from the application
-	  %[1]s deployment-hook dc/myapp --pre --volumes=data -- /var/lib/migrate-db.sh
+		# Set the pre deployment hook to execute a db migration command for an application
+		# using the data volume from the application
+		oc set deployment-hook dc/myapp --pre --volumes=data -- /var/lib/migrate-db.sh
 
-	  # Set a mid deployment hook along with additional environment variables
-	  %[1]s deployment-hook dc/myapp --mid --volumes=data -e VAR1=value1 -e VAR2=value2 -- /var/lib/prepare-deploy.sh`)
+		# Set a mid deployment hook along with additional environment variables
+		oc set deployment-hook dc/myapp --mid --volumes=data -e VAR1=value1 -e VAR2=value2 -- /var/lib/prepare-deploy.sh
+	`)
 )
 
 type DeploymentHookOptions struct {
@@ -82,7 +84,7 @@ type DeploymentHookOptions struct {
 	Volumes           []string
 	Namespace         string
 	ExplicitNamespace bool
-	DryRun            bool
+	DryRunStrategy    kcmdutil.DryRunStrategy
 	FailurePolicy     appsv1.LifecycleHookFailurePolicy
 
 	resource.FilenameOptions
@@ -98,13 +100,13 @@ func NewDeploymentHookOptions(streams genericclioptions.IOStreams) *DeploymentHo
 }
 
 // NewCmdDeploymentHook implements the set deployment-hook command
-func NewCmdDeploymentHook(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDeploymentHook(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewDeploymentHookOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "deployment-hook DEPLOYMENTCONFIG --pre|--post|--mid -- CMD",
 		Short:   "Update a deployment hook on a deployment config",
 		Long:    deploymentHookLong,
-		Example: fmt.Sprintf(deploymentHookExample, fullName),
+		Example: deploymentHookExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -121,10 +123,6 @@ func NewCmdDeploymentHook(fullName string, f kcmdutil.Factory, streams genericcl
 	cmd.Flags().BoolVar(&o.Mid, "mid", o.Mid, "Set or remove a mid deployment hook")
 	cmd.Flags().BoolVar(&o.Post, "post", o.Post, "Set or remove a post deployment hook")
 	cmd.Flags().StringArrayVarP(&o.Environment, "environment", "e", o.Environment, "Environment variable to use in the deployment hook pod")
-	// TODO: remove shorthand 'v' in 3.12
-	// this is done to trick pflag into allowing the duplicate registration.  The local value here wins
-	cmd.Flags().StringSliceVarP(&o.Volumes, "v", "v", o.Volumes, "Volumes from the pod template to use in the deployment hook pod")
-	cmd.Flags().MarkShorthandDeprecated("v", "Use --volumes instead.")
 	cmd.Flags().StringSliceVar(&o.Volumes, "volumes", o.Volumes, "Volumes from the pod template to use in the deployment hook pod")
 	cmd.Flags().StringVar(&o.FailurePolicyStr, "failure-policy", o.FailurePolicyStr, "The failure policy for the deployment hook. Valid values are: abort,retry,ignore")
 	cmd.Flags().BoolVar(&o.Local, "local", o.Local, "If true, set deployment hook will NOT contact api-server but run locally.")
@@ -151,16 +149,18 @@ func (o *DeploymentHookOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command,
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+
 	o.Mapper, err = f.ToRESTMapper()
 	if err != nil {
 		return err
 	}
 	o.Builder = f.NewBuilder
 
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
-	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -284,14 +284,14 @@ func (o *DeploymentHookOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch deployment hook: %v\n", err))
 			continue

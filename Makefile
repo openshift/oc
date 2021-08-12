@@ -1,19 +1,28 @@
 all: build
 .PHONY: all
 
+ifdef OS_GIT_VERSION
+SOURCE_GIT_TAG := ${OS_GIT_VERSION}
+endif
+
 # Include the library makefile
-include $(addprefix ./vendor/github.com/openshift/library-go/alpha-build-machinery/make/, \
+include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 	golang.mk \
 	targets/openshift/images.mk \
 	targets/openshift/rpm.mk \
+	targets/openshift/deps-gomod.mk \
 )
 
-GO_LD_EXTRAFLAGS :=-X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitMajor="1" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitMinor="16" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitVersion="v1.16.0-7-gab72ed5" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-                   -X github.com/openshift/oc/vendor/k8s.io/kubernetes/pkg/version.gitTreeState="clean"
+GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
+                   -X k8s.io/component-base/version.gitMinor="21" \
+                   -X k8s.io/component-base/version.gitVersion="v0.21.0-beta.1" \
+                   -X k8s.io/component-base/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
+                   -X k8s.io/component-base/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+                   -X k8s.io/component-base/version.gitTreeState="clean" \
+                   -X k8s.io/client-go/pkg/version.gitVersion="$(SOURCE_GIT_TAG)" \
+                   -X k8s.io/client-go/pkg/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
+                   -X k8s.io/client-go/pkg/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+                   -X k8s.io/client-go/pkg/version.gitTreeState="$(SOURCE_GIT_TREE_STATE)"
 
 GO_BUILD_PACKAGES :=$(strip \
 	./cmd/... \
@@ -35,7 +44,7 @@ RPM_EXTRAFLAGS := \
 	--define 'dist .el7' \
 	--define 'release 1'
 
-IMAGE_REGISTRY :=registry.svc.ci.openshift.org
+IMAGE_REGISTRY :=registry.ci.openshift.org
 
 # This will call a macro called "build-image" which will generate image specific targets based on the parameters:
 # $1 - target name
@@ -45,6 +54,9 @@ IMAGE_REGISTRY :=registry.svc.ci.openshift.org
 $(call build-image,ocp-cli,$(IMAGE_REGISTRY)/ocp/4.2:cli,./images/cli/Dockerfile.rhel,.)
 
 $(call build-image,ocp-cli-artifacts,$(IMAGE_REGISTRY)/ocp/4.2:cli-artifacts,./images/cli-artifacts/Dockerfile.rhel,.)
+
+$(call verify-golang-versions,images/cli/Dockerfile.rhel)
+
 image-ocp-cli-artifacts: image-ocp-cli
 
 $(call build-image,ocp-deployer,$(IMAGE_REGISTRY)/ocp/4.2:deployer,./images/deployer/Dockerfile.rhel,.)
@@ -52,6 +64,10 @@ image-ocp-deployer: image-ocp-cli
 
 $(call build-image,ocp-recycler,$(IMAGE_REGISTRY)/ocp/4.2:recycler,./images/recycler/Dockerfile.rhel,.)
 image-ocp-recycler: image-ocp-cli
+
+oc: GO_BUILD_PACKAGES :=./cmd/oc
+oc: build
+.PHONY: oc
 
 update: update-generated-completions
 .PHONY: update
@@ -71,13 +87,25 @@ verify-generated-completions: build
 	hack/verify-generated-completions.sh
 .PHONY: verify-generated-completions
 
+generate-docs:
+	go run ./tools/gendocs
+.PHONY: generate-docs
+
+generate-docs-admin:
+	go run ./tools/gendocs --admin
+.PHONY: generate-docs-admin
+
+generate-versioninfo:
+	SOURCE_GIT_TAG=$(SOURCE_GIT_TAG) hack/generate-versioninfo.sh
+.PHONY: generate-versioninfo
 
 cross-build-darwin-amd64:
 	+@GOOS=darwin GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_DARWIN)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/darwin_amd64
 .PHONY: cross-build-darwin-amd64
 
-cross-build-windows-amd64:
+cross-build-windows-amd64: generate-versioninfo
 	+@GOOS=windows GOARCH=amd64 $(MAKE) --no-print-directory build GO_BUILD_PACKAGES:=./cmd/oc GO_BUILD_FLAGS:="$(GO_BUILD_FLAGS_WINDOWS)" GO_BUILD_BINDIR:=$(CROSS_BUILD_BINDIR)/windows_amd64
+	$(RM) cmd/oc/oc.syso
 .PHONY: cross-build-windows-amd64
 
 cross-build-linux-amd64:
@@ -101,6 +129,7 @@ cross-build: cross-build-darwin-amd64 cross-build-windows-amd64 cross-build-linu
 
 clean-cross-build:
 	$(RM) -r '$(CROSS_BUILD_BINDIR)'
+	$(RM) cmd/oc/oc.syso
 	if [ -d '$(OUTPUT_DIR)' ]; then rmdir --ignore-fail-on-non-empty '$(OUTPUT_DIR)'; fi
 .PHONY: clean-cross-build
 

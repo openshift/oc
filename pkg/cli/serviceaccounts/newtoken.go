@@ -19,7 +19,6 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/generate"
 	"k8s.io/kubectl/pkg/util/templates"
-	sautil "k8s.io/kubernetes/pkg/serviceaccount"
 
 	"github.com/openshift/oc/pkg/helpers/term"
 )
@@ -27,28 +26,30 @@ import (
 const (
 	NewServiceAccountTokenRecommendedName = "new-token"
 
-	newServiceAccountTokenShort = `Generate a new token for a service account.`
+	newServiceAccountTokenShort = `Generate a new token for a service account`
 
 	newServiceAccountTokenUsage = `%s SA-NAME`
 )
 
 var (
 	newServiceAccountTokenLong = templates.LongDesc(`
-    Generate a new token for a service account.
+		Generate a new token for a service account.
 
-    Service account API tokens are used by service accounts to authenticate to the API.
-    This command will generate a new token, which could be used to compartmentalize service
-    account actions by executing them with distinct tokens, to rotate out pre-existing token
-    on the service account, or for use by an external client. If a label is provided, it will
-    be applied to any created token so that tokens created with this command can be idenitifed.`)
+		Service account API tokens are used by service accounts to authenticate to the API.
+		This command will generate a new token, which could be used to compartmentalize service
+		account actions by executing them with distinct tokens, to rotate out pre-existing token
+		on the service account, or for use by an external client. If a label is provided, it will
+		be applied to any created token so that tokens created with this command can be idenitifed.
+	`)
 
 	newServiceAccountTokenExamples = templates.Examples(`
-    # Generate a new token for service account 'default'
-    %[1]s 'default'
+		# Generate a new token for service account 'default'
+		oc serviceaccounts new-token 'default'
 
-    # Generate a new token for service account 'default' and apply
-    # labels 'foo' and 'bar' to the new token for identification
-    # %[1]s 'default' --labels foo=foo-value,bar=bar-value`)
+		# Generate a new token for service account 'default' and apply
+		# labels 'foo' and 'bar' to the new token for identification
+		oc serviceaccounts new-token 'default' --labels foo=foo-value,bar=bar-value
+	`)
 )
 
 type ServiceAccountTokenOptions struct {
@@ -70,15 +71,15 @@ func NewServiceAccountTokenOptions(streams genericclioptions.IOStreams) *Service
 	}
 }
 
-func NewCommandNewServiceAccountToken(name, fullname string, f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandNewServiceAccountToken(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	options := NewServiceAccountTokenOptions(streams)
 
 	var requestedLabels string
 	newServiceAccountTokenCommand := &cobra.Command{
-		Use:     fmt.Sprintf(newServiceAccountTokenUsage, name),
+		Use:     "new-token",
 		Short:   newServiceAccountTokenShort,
 		Long:    newServiceAccountTokenLong,
-		Example: fmt.Sprintf(newServiceAccountTokenExamples, fullname),
+		Example: newServiceAccountTokenExamples,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(options.Complete(args, requestedLabels, f, cmd))
 			cmdutil.CheckErr(options.Validate())
@@ -147,7 +148,7 @@ func (o *ServiceAccountTokenOptions) Validate() error {
 
 // Run creates a new token secret, waits for the service account token controller to fulfill it, then adds the token to the service account
 func (o *ServiceAccountTokenOptions) Run() error {
-	serviceAccount, err := o.SAClient.Get(o.SAName, metav1.GetOptions{})
+	serviceAccount, err := o.SAClient.Get(context.TODO(), o.SAName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -165,7 +166,7 @@ func (o *ServiceAccountTokenOptions) Run() error {
 		Data: map[string][]byte{},
 	}
 
-	persistedToken, err := o.SecretsClient.Create(tokenSecret)
+	persistedToken, err := o.SecretsClient.Create(context.TODO(), tokenSecret, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -201,7 +202,7 @@ func waitForToken(token *corev1.Secret, serviceAccount *corev1.ServiceAccount, t
 		TimeoutSeconds:  &timeoutSeconds,
 	}
 
-	watcher, err := client.Watch(options)
+	watcher, err := client.Watch(context.TODO(), options)
 	if err != nil {
 		return nil, fmt.Errorf("could not begin watch for token: %v", err)
 	}
@@ -224,7 +225,7 @@ func waitForToken(token *corev1.Secret, serviceAccount *corev1.ServiceAccount, t
 
 		switch event.Type {
 		case watch.Modified:
-			if sautil.IsServiceAccountToken(eventToken, serviceAccount) {
+			if isServiceAccountToken(eventToken, serviceAccount) {
 				return true, nil
 			}
 		case watch.Deleted:

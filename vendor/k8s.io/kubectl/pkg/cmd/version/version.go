@@ -28,10 +28,10 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/component-base/version"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
-	"k8s.io/kubectl/pkg/version"
 )
 
 // Version is a struct for version information
@@ -71,7 +71,7 @@ func NewCmdVersion(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *co
 	cmd := &cobra.Command{
 		Use:     "version",
 		Short:   i18n.T("Print the client and server version information"),
-		Long:    "Print the client and server version information for the current context",
+		Long:    i18n.T("Print the client and server version information for the current context."),
 		Example: versionExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd))
@@ -79,8 +79,8 @@ func NewCmdVersion(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *co
 			cmdutil.CheckErr(o.Run())
 		},
 	}
-	cmd.Flags().BoolVar(&o.ClientOnly, "client", o.ClientOnly, "Client version only (no server required).")
-	cmd.Flags().BoolVar(&o.Short, "short", o.Short, "Print just the version number.")
+	cmd.Flags().BoolVar(&o.ClientOnly, "client", o.ClientOnly, "If true, shows client version only (no server required).")
+	cmd.Flags().BoolVar(&o.Short, "short", o.Short, "If true, print just the version number.")
 	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "One of 'yaml' or 'json'.")
 	return cmd
 }
@@ -156,6 +156,12 @@ func (o *Options) Run() error {
 		// There is a bug in the program if we hit this case.
 		// However, we follow a policy of never panicking.
 		return fmt.Errorf("VersionOptions were not validated: --output=%q should have been rejected", o.Output)
+	}
+
+	if serverVersion != nil {
+		if err := printVersionSkewWarning(o.ErrOut, clientVersion, *serverVersion); err != nil {
+			return err
+		}
 	}
 
 	return serverErr

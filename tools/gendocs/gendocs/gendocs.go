@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -24,9 +25,13 @@ func (x Examples) Less(i, j int) bool {
 	return xi < xj
 }
 
-func GenDocs(cmd *cobra.Command, filename string) error {
+func GenDocs(cmd *cobra.Command, filename string, admin bool) error {
 	out := new(bytes.Buffer)
-	templateFile, err := filepath.Abs("hack/clibyexample/template")
+	templatePath := "hack/clibyexample/template"
+	if admin {
+		templatePath = "hack/clibyexample/template-admin"
+	}
+	templateFile, err := filepath.Abs(templatePath)
 	if err != nil {
 		return err
 	}
@@ -38,7 +43,7 @@ func GenDocs(cmd *cobra.Command, filename string) error {
 	output := &unstructured.UnstructuredList{}
 	output.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("List"))
 
-	examples := extractExamples(cmd)
+	examples := extractExamples(cmd, admin)
 	for i := range examples {
 		output.Items = append(output.Items, *examples[i])
 	}
@@ -65,13 +70,19 @@ func GenDocs(cmd *cobra.Command, filename string) error {
 	return nil
 }
 
-func extractExamples(cmd *cobra.Command) Examples {
+func extractExamples(cmd *cobra.Command, admin bool) Examples {
 	objs := Examples{}
 	for _, c := range cmd.Commands() {
 		if len(c.Deprecated) > 0 {
 			continue
 		}
-		objs = append(objs, extractExamples(c)...)
+		if strings.HasPrefix(c.CommandPath(), "oc adm") && !admin {
+			continue
+		} else if !strings.HasPrefix(c.CommandPath(), "oc adm") && admin {
+			continue
+		} else {
+			objs = append(objs, extractExamples(c, admin)...)
+		}
 	}
 	if cmd.HasExample() {
 		o := &unstructured.Unstructured{

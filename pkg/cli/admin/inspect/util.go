@@ -1,17 +1,31 @@
 package inspect
 
 import (
+	"bytes"
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"html/template"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
 	"path"
+	"path/filepath"
+	"sort"
+	"strings"
 
+	configv1 "github.com/openshift/api/config/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
-
-	configv1 "github.com/openshift/api/config/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // resourceContext is used to keep track of previously seen objects
@@ -134,4 +148,133 @@ func filenameForInfo(info *resource.Info) string {
 	}
 
 	return info.Name + ".yaml"
+}
+
+// getAllEventsRecursive returns a union (not deconflicted) or all events under a directory
+func getAllEventsRecursive(rootDir string) (*corev1.EventList, error) {
+	// now gather all the events into a single file and produce a unified file
+	eventLists := &corev1.EventList{}
+	err := filepath.Walk(rootDir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.Name() != "events.yaml" {
+				return nil
+			}
+			eventBytes, err := ioutil.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			events, err := readEvents(eventBytes)
+			if err != nil {
+				return err
+			}
+			eventLists.Items = append(eventLists.Items, events.Items...)
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	return eventLists, nil
+}
+
+func createEventFilterPageFromFile(eventFile string, rootDir string) error {
+	var jsonStream io.Reader
+	var err error
+
+	if strings.HasPrefix(eventFile, "https://") || strings.HasPrefix(eventFile, "http://") {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		resp, err := client.Get(eventFile)
+		if err != nil {
+			return err
+		}
+		jsonStream = resp.Body
+		defer resp.Body.Close()
+	} else {
+		jsonStream, err = os.Open(eventFile)
+		if err != nil {
+			return err
+		}
+	}
+
+	decoder := json.NewDecoder(jsonStream)
+	var events corev1.EventList
+	if err := decoder.Decode(&events); err != nil {
+		return err
+	}
+	return createEventFilterPage(&events, rootDir)
+}
+
+func createEventFilterPage(events *corev1.EventList, rootDir string) error {
+	sort.Slice(events.Items, func(i, j int) bool {
+		return events.Items[i].LastTimestamp.Time.Before(events.Items[j].LastTimestamp.Time)
+	})
+
+	t := template.Must(template.New("events").Funcs(template.FuncMap{
+		"formatTime": func(created, firstSeen, lastSeen metav1.Time, count int32) template.HTML {
+			countMsg := ""
+			if count > 1 {
+				countMsg = fmt.Sprintf(" <small>(x%d)</small>", count)
+			}
+			if lastSeen.IsZero() {
+				lastSeen = created
+			}
+			return template.HTML(fmt.Sprintf(`<time datetime="%s" title="First Seen: %s">%s</time>%s`, lastSeen.String(), firstSeen.Format("15:04:05"), lastSeen.Format("15:04:05"), countMsg))
+		},
+		"formatReason": func(r string) template.HTML {
+			switch {
+			case strings.Contains(strings.ToLower(r), "fail"),
+				strings.Contains(strings.ToLower(r), "error"),
+				strings.Contains(strings.ToLower(r), "kill"),
+				strings.Contains(strings.ToLower(r), "backoff"):
+				return template.HTML(`<p class="text-danger">` + r + `</p>`)
+			case strings.Contains(strings.ToLower(r), "notready"),
+				strings.Contains(strings.ToLower(r), "unhealthy"),
+				strings.Contains(strings.ToLower(r), "missing"):
+				return template.HTML(`<p class="text-warning">` + r + `</p>`)
+			}
+			return template.HTML(`<p class="text-muted">` + r + `</p>`)
+		},
+	}).Parse(eventHTMLPage))
+
+	out := bytes.NewBuffer([]byte{})
+	if err := t.Execute(out, events); err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(filepath.Join(rootDir, "event-filter.html"), out.Bytes(), 0644)
+}
+
+// CreateEventFilterPage reads all events in rootDir recursively, produces a single file, and produces a webpage
+// that can be viewed locally to filter the events.
+func CreateEventFilterPage(rootDir string) error {
+	events, err := getAllEventsRecursive(rootDir)
+	if err != nil {
+		return err
+	}
+	return createEventFilterPage(events, rootDir)
+}
+
+var (
+	coreScheme = runtime.NewScheme()
+	coreCodecs = serializer.NewCodecFactory(coreScheme)
+)
+
+func init() {
+	if err := corev1.AddToScheme(coreScheme); err != nil {
+		panic(err)
+	}
+}
+
+func readEvents(objBytes []byte) (*corev1.EventList, error) {
+	requiredObj, err := runtime.Decode(coreCodecs.UniversalDecoder(corev1.SchemeGroupVersion), objBytes)
+	if err != nil {
+		return nil, err
+	}
+	return requiredObj.(*corev1.EventList), nil
 }

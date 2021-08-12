@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
@@ -25,19 +27,20 @@ import (
 )
 
 var (
-	subjectReviewLong = templates.LongDesc(`Check whether a User, Service Account or a Group can create a Pod.
-	It returns a list of Security Context Constraints that will admit the resource.
-	If User is specified but not Groups, it is interpreted as "What if User is not a member of any groups".
-	If User and Groups are empty, then the check is performed using the current user
+	subjectReviewLong = templates.LongDesc(`Check whether a user, service account or group can create a pod.
+		It returns a list of security context constraints that will admit the resource.
+		If user is specified but not groups, it is interpreted as "what if the user is not a member of any groups".
+		If user and groups are empty, then the check is performed using the current user.
 	`)
 	subjectReviewExamples = templates.Examples(`# Check whether user bob can create a pod specified in myresource.yaml
-	$ %[1]s -u bob -f myresource.yaml
+		oc policy scc-subject-review -u bob -f myresource.yaml
 
-	# Check whether user bob who belongs to projectAdmin group can create a pod specified in myresource.yaml
-	$ %[1]s -u bob -g projectAdmin -f myresource.yaml
+		# Check whether user bob who belongs to projectAdmin group can create a pod specified in myresource.yaml
+		oc policy scc-subject-review -u bob -g projectAdmin -f myresource.yaml
 
-	# Check whether ServiceAccount specified in podTemplateSpec in myresourcewithsa.yaml can create the Pod
-	$  %[1]s -f myresourcewithsa.yaml `)
+		# Check whether a service account specified in the pod template spec in myresourcewithsa.yaml can create the pod
+		oc policy scc-subject-review -f myresourcewithsa.yaml
+	`)
 )
 
 const SubjectReviewRecommendedName = "scc-subject-review"
@@ -68,13 +71,13 @@ func NewSCCSubjectReviewOptions(streams genericclioptions.IOStreams) *SCCSubject
 	}
 }
 
-func NewCmdSccSubjectReview(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSccSubjectReview(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewSCCSubjectReviewOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
+		Use:     "scc-subject-review",
 		Long:    subjectReviewLong,
-		Short:   "Check whether a user or a ServiceAccount can create a Pod.",
-		Example: fmt.Sprintf(subjectReviewExamples, fullName, fullName),
+		Short:   "Check whether a user or a service account can create a pod",
+		Example: subjectReviewExamples,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args, cmd))
 			kcmdutil.CheckErr(o.Run(args))
@@ -199,7 +202,7 @@ func (o *SCCSubjectReviewOptions) pspSubjectReview(userOrSA string, podTemplateS
 			Groups:   o.Groups,
 		},
 	}
-	return o.sccSubjectReviewClient.PodSecurityPolicySubjectReviews(o.namespace).Create(podSecurityPolicySubjectReview)
+	return o.sccSubjectReviewClient.PodSecurityPolicySubjectReviews(o.namespace).Create(context.TODO(), podSecurityPolicySubjectReview, metav1.CreateOptions{})
 }
 
 func (o *SCCSubjectReviewOptions) pspSelfSubjectReview(podTemplateSpec *corev1.PodTemplateSpec) (*securityv1.PodSecurityPolicySelfSubjectReview, error) {
@@ -208,7 +211,7 @@ func (o *SCCSubjectReviewOptions) pspSelfSubjectReview(podTemplateSpec *corev1.P
 			Template: *podTemplateSpec,
 		},
 	}
-	return o.sccSubjectReviewClient.PodSecurityPolicySelfSubjectReviews(o.namespace).Create(podSecurityPolicySelfSubjectReview)
+	return o.sccSubjectReviewClient.PodSecurityPolicySelfSubjectReviews(o.namespace).Create(context.TODO(), podSecurityPolicySelfSubjectReview, metav1.CreateOptions{})
 }
 
 func subjectReviewHumanPrinter(info *resource.Info, obj runtime.Object, noHeaders *bool, out io.Writer) error {

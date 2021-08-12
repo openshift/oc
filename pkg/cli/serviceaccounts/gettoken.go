@@ -1,43 +1,41 @@
 package serviceaccounts
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
-	sautil "k8s.io/kubernetes/pkg/serviceaccount"
 
 	"github.com/openshift/oc/pkg/helpers/term"
 )
 
 const (
-	GetServiceAccountTokenRecommendedName = "get-token"
-
-	getServiceAccountTokenShort = `Get a token assigned to a service account.`
-
-	getServiceAccountTokenUsage = `%s SA-NAME`
+	getServiceAccountTokenShort = `Get a token assigned to a service account`
 )
 
 var (
 	getServiceAccountTokenLong = templates.LongDesc(`
-    Get a token assigned to a service account.
+		Get a token assigned to a service account.
 
-    If the service account has multiple tokens, the first token found will be returned.
+		If the service account has multiple tokens, the first token found will be returned.
 
-    Service account API tokens are used by service accounts to authenticate to the API.
-    Client actions using a service account token will be executed as if the service account
-    itself were making the actions.`)
+		Service account API tokens are used by service accounts to authenticate to the API.
+		Client actions using a service account token will be executed as if the service account
+		itself were making the actions.
+	`)
 
 	getServiceAccountTokenExamples = templates.Examples(`
-    # Get the service account token from service account 'default'
-    %[1]s 'default'`)
+		# Get the service account token from service account 'default'
+		oc serviceaccounts get-token 'default'
+	`)
 )
 
 type GetServiceAccountTokenOptions struct {
@@ -54,14 +52,14 @@ func NewGetServiceAccountTokenOptions(streams genericclioptions.IOStreams) *GetS
 	}
 }
 
-func NewCommandGetServiceAccountToken(name, fullname string, f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandGetServiceAccountToken(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	options := NewGetServiceAccountTokenOptions(streams)
 
 	getServiceAccountTokenCommand := &cobra.Command{
-		Use:     fmt.Sprintf(getServiceAccountTokenUsage, name),
+		Use:     "get-token NAME",
 		Short:   getServiceAccountTokenShort,
 		Long:    getServiceAccountTokenLong,
-		Example: fmt.Sprintf(getServiceAccountTokenExamples, fullname),
+		Example: getServiceAccountTokenExamples,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(options.Complete(args, f, cmd))
 			cmdutil.CheckErr(options.Validate())
@@ -114,19 +112,19 @@ func (o *GetServiceAccountTokenOptions) Validate() error {
 }
 
 func (o *GetServiceAccountTokenOptions) Run() error {
-	serviceAccount, err := o.SAClient.Get(o.SAName, metav1.GetOptions{})
+	serviceAccount, err := o.SAClient.Get(context.TODO(), o.SAName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, reference := range serviceAccount.Secrets {
-		secret, err := o.SecretsClient.Get(reference.Name, metav1.GetOptions{})
+		secret, err := o.SecretsClient.Get(context.TODO(), reference.Name, metav1.GetOptions{})
 		if err != nil {
 			continue
 		}
 
-		if sautil.IsServiceAccountToken(secret, serviceAccount) {
-			token, exists := secret.Data[kapi.ServiceAccountTokenKey]
+		if isServiceAccountToken(secret, serviceAccount) {
+			token, exists := secret.Data[corev1.ServiceAccountTokenKey]
 			if !exists {
 				return fmt.Errorf("service account token %q for service account %q did not contain token data", secret.Name, serviceAccount.Name)
 			}

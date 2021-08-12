@@ -14,7 +14,7 @@ import (
 
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	krand "k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (

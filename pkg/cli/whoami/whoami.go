@@ -1,6 +1,7 @@
 package whoami
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -19,7 +20,6 @@ import (
 )
 
 const (
-	WhoAmIRecommendedCommandName        = "whoami"
 	openShiftConfigManagedNamespaceName = "openshift-config-managed"
 	consolePublicConfigMap              = "console-public"
 )
@@ -30,6 +30,11 @@ var whoamiLong = templates.LongDesc(`
 	The default options for this command will return the currently authenticated user name
 	or an empty string.  Other flags support returning the currently used token or the
 	user context.`)
+
+var whoamiExample = templates.Examples(`
+	# Display the currently authenticated user
+	oc whoami
+`)
 
 type WhoAmIOptions struct {
 	UserInterface userv1typedclient.UserV1Interface
@@ -52,13 +57,14 @@ func NewWhoAmIOptions(streams genericclioptions.IOStreams) *WhoAmIOptions {
 	}
 }
 
-func NewCmdWhoAmI(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdWhoAmI(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewWhoAmIOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:   name,
-		Short: "Return information about the current session",
-		Long:  whoamiLong,
+		Use:     "whoami",
+		Short:   "Return information about the current session",
+		Long:    whoamiLong,
+		Example: whoamiExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f))
 			kcmdutil.CheckErr(o.Validate())
@@ -75,7 +81,7 @@ func NewCmdWhoAmI(name, fullName string, f kcmdutil.Factory, streams genericclio
 }
 
 func (o WhoAmIOptions) WhoAmI() (*userv1.User, error) {
-	me, err := o.UserInterface.Users().Get("~", metav1.GetOptions{})
+	me, err := o.UserInterface.Users().Get(context.TODO(), "~", metav1.GetOptions{})
 	if err == nil {
 		fmt.Fprintf(o.Out, "%s\n", me.Name)
 	}
@@ -113,7 +119,7 @@ func (o *WhoAmIOptions) Validate() error {
 }
 
 func (o *WhoAmIOptions) getWebConsoleUrl() (string, error) {
-	consolePublicConfig, err := o.KubeClient.CoreV1().ConfigMaps(openShiftConfigManagedNamespaceName).Get(consolePublicConfigMap, metav1.GetOptions{})
+	consolePublicConfig, err := o.KubeClient.CoreV1().ConfigMaps(openShiftConfigManagedNamespaceName).Get(context.TODO(), consolePublicConfigMap, metav1.GetOptions{})
 	// This means the command was run against 3.x server
 	if errors.IsNotFound(err) {
 		return o.ClientConfig.Host, nil

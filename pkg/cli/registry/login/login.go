@@ -2,6 +2,7 @@ package login
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,28 +13,29 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/homedir"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imageclient "github.com/openshift/client-go/image/clientset/versioned"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 var (
 	desc = templates.LongDesc(`
-		Login to the OpenShift integrated registry.
+		Log in to the OpenShift integrated registry.
 
 		This logs your local Docker client into the OpenShift integrated registry using the
 		external registry name (if configured by your administrator). You may also log in
@@ -43,30 +45,34 @@ var (
 
 		As an advanced option you may specify the credentials to login with using --auth-basic
 		with USER:PASSWORD. This may not be used with the -z flag.
-		
-		You may specify an alternate file to write credentials to with --to instead of 
-		.docker/config.json in your home directory. If you pass --to=- the file will be 
+
+		You may specify an alternate file to write credentials to with --to instead of
+		.docker/config.json in your home directory. If you pass --to=- the file will be
 		written to standard output.
 
 		To detect the registry hostname the client will attempt to find an image stream in
 		the current namespace or the openshift namespace and use the status fields that
 		indicate the registry hostnames. If no image stream is found or if you do not have
-		permission to view image streams you will have to pass the --registry flag with the 
-		desired hostname.
+		permission to view image streams you will have to pass the --registry flag with the
+		desired host name.
+
+		You may also pass the --registry flag to login to the integrated registry but with a
+		custom DNS name, or to an external registry. Note that in absence of --auth-basic=USER:PASSWORD,
+		the authentication token from the connected kubeconfig file will be recorded as the auth entry
+		in the credentials file (defaults to Docker config.json) for the passed registry value.
 
 		Experimental: This command is under active development and may change without notice.`)
 
 	example = templates.Examples(`
-# Log in to the integrated registry
-%[1]s
+		# Log in to the integrated registry
+		oc registry login
 
-# Log in as the default service account in the current namespace
-%[1]s -z default
+		# Log in as the default service account in the current namespace
+		oc registry login -z default
 
-# Log in to a different registry using BASIC auth credentials
-%[1]s --registry quay.io --auth-basic=USER:PASS
-
-`)
+		# Log in to different registry using BASIC auth credentials
+		oc registry login --registry quay.io/myregistry --auth-basic=USER:PASS
+	`)
 )
 
 type Credentials struct {
@@ -108,14 +114,14 @@ func NewRegistryLoginOptions(streams genericclioptions.IOStreams) *LoginOptions 
 }
 
 // New logs you in to a container image registry locally.
-func NewRegistryLoginCmd(name string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRegistryLoginOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "login ",
-		Short:   "Login to the integrated registry",
+		Short:   "Log in to the integrated registry",
 		Long:    desc,
-		Example: fmt.Sprintf(example, name+" login"),
+		Example: example,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -125,8 +131,8 @@ func NewRegistryLoginCmd(name string, f kcmdutil.Factory, streams genericcliopti
 
 	flag := cmd.Flags()
 	flag.StringVar(&o.AuthBasic, "auth-basic", o.AuthBasic, "Provide credentials in the form 'user:password' to authenticate (advanced)")
-	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the Docker config.json your credentials will be stored in.")
-	flag.StringVar(&o.ConfigFile, "to", o.ConfigFile, "The location of the Docker config.json your credentials will be stored in.")
+	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the file your credentials will be stored in. Default is Docker config.json")
+	flag.StringVar(&o.ConfigFile, "to", o.ConfigFile, "The location of the file your credentials will be stored in. Default is Docker config.json")
 	flag.StringVarP(&o.ServiceAccount, "service-account", "z", o.ServiceAccount, "Log in as the specified service account name in the specified namespace.")
 	flag.StringVar(&o.HostPort, "registry", o.HostPort, "An alternate domain name and port to use for the registry, defaults to the cluster's configured external hostname.")
 	flag.BoolVar(&o.SkipCheck, "skip-check", o.SkipCheck, "Skip checking the credentials against the registry.")
@@ -162,7 +168,7 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 		if err != nil {
 			return err
 		}
-		sa, err := client.CoreV1().ServiceAccounts(ns).Get(o.ServiceAccount, metav1.GetOptions{})
+		sa, err := client.CoreV1().ServiceAccounts(ns).Get(context.TODO(), o.ServiceAccount, metav1.GetOptions{})
 		if err != nil {
 			if kerrors.IsNotFound(err) {
 				return fmt.Errorf("the service account %s does not exist in namespace %s", o.ServiceAccount, ns)
@@ -171,7 +177,7 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 		}
 		var lastErr error
 		for _, ref := range sa.Secrets {
-			secret, err := client.CoreV1().Secrets(ns).Get(ref.Name, metav1.GetOptions{})
+			secret, err := client.CoreV1().Secrets(ns).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 			if err != nil {
 				lastErr = err
 				continue
@@ -245,7 +251,7 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 
 func findPublicHostname(client *imageclient.Clientset, namespaces ...string) (name string, internal bool, err error) {
 	for _, ns := range namespaces {
-		imageStreams, err := client.ImageV1().ImageStreams(ns).List(metav1.ListOptions{})
+		imageStreams, err := client.ImageV1().ImageStreams(ns).List(context.TODO(), metav1.ListOptions{})
 		if kerrors.IsUnauthorized(err) {
 			return "", false, err
 		}
@@ -284,7 +290,8 @@ func (o *LoginOptions) Run() error {
 		if err != nil {
 			return err
 		}
-		c := registryclient.NewContext(http.DefaultTransport, insecureRT).WithCredentials(creds)
+		c := registryclient.NewContext(http.DefaultTransport, insecureRT).WithCredentials(creds).
+			WithRequestModifiers(transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{rest.DefaultKubernetesUserAgent()}}))
 		if _, err := c.Repository(ctx, url, "does_not_exist", o.Insecure); err != nil {
 			return fmt.Errorf("unable to check your credentials - pass --skip-check to bypass this error: %v", err)
 		}

@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // git is a wrapper to invoke git safely, similar to
@@ -81,6 +81,21 @@ func (g *git) parent() *git {
 
 func (g *git) basename() string {
 	return filepath.Base(g.path)
+}
+
+func (g *git) VerifyCommit(repo, commit string) (bool, error) {
+	_, err := g.exec("rev-parse", commit)
+	if err == nil {
+		return true, nil
+	}
+
+	// try to fetch by URL
+	klog.V(4).Infof("failed to find commit, fetching: %v", err)
+	if err := ensureFetchedRemoteForRepo(g, repo); err != nil {
+		return false, err
+	}
+	_, err = g.exec("rev-parse", commit)
+	return err == nil, nil
 }
 
 func (g *git) CheckoutCommit(repo, commit string) error {
@@ -181,7 +196,7 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		}
 	}
 
-	if klog.V(5) {
+	if klog.V(5).Enabled() {
 		klog.Infof("Got commit info:\n%s", strconv.Quote(out))
 	}
 
@@ -209,7 +224,7 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		msg := records[3]
 		msg = rePrefix.ReplaceAllString(strings.TrimSpace(msg), "")
 		if m := reBug.FindStringSubmatch(msg); m != nil {
-			mergeCommit.Subject = msg[len(m[0]):]
+			msg = msg[len(m[0]):]
 			for _, part := range strings.Split(m[1], ",") {
 				for _, subpart := range strings.Split(part, " ") {
 					subpart = strings.TrimSpace(subpart)
@@ -224,12 +239,10 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 					mergeCommit.Bugs = append(mergeCommit.Bugs, bug)
 				}
 			}
-		} else {
-			mergeCommit.Subject = msg
 		}
 		sort.Ints(mergeCommit.Bugs)
-		mergeCommit.Subject = strings.TrimSpace(mergeCommit.Subject)
-		mergeCommit.Subject = strings.SplitN(mergeCommit.Subject, "\n", 2)[0]
+		msg = strings.TrimSpace(msg)
+		msg = strings.SplitN(msg, "\n", 2)[0]
 
 		mergeMsg := records[2]
 		if m := rePR.FindStringSubmatch(mergeMsg); m != nil {
@@ -241,10 +254,11 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 			klog.V(2).Infof("Omitted commit %s which has no pull-request", mergeCommit.Commit)
 			continue
 		}
-		if len(mergeCommit.Subject) == 0 {
-			mergeCommit.Subject = "Merge"
+		if len(msg) == 0 {
+			msg = "Merge"
 		}
 
+		mergeCommit.Subject = msg
 		commits = append(commits, mergeCommit)
 	}
 

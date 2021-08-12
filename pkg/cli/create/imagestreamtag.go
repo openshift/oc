@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imagev1 "github.com/openshift/api/image/v1"
@@ -18,11 +21,9 @@ import (
 	utilenv "github.com/openshift/oc/pkg/helpers/env"
 )
 
-const ImageStreamTagRecommendedName = "imagestreamtag"
-
 var (
 	imageStreamTagLong = templates.LongDesc(`
-		Create a new image stream tag
+		Create a new image stream tag.
 
 		Image streams tags allow you to track, tag, and import images from other registries. They also
 		define an access controlled destination that you can push images to. An image stream tag can
@@ -31,12 +32,13 @@ var (
 
 		If --resolve-local is passed, the image stream will be used as the source when pods reference
 		it by name. For example, if stream 'mysql' resolves local names, a pod that points to
-		'mysql:latest' will use the image the image stream points to under the "latest" tag.`)
+		'mysql:latest' will use the image the image stream points to under the "latest" tag.
+	`)
 
 	imageStreamTagExample = templates.Examples(`
-		# Create a new image stream tag based on an image on a remote registry
-		%[1]s mysql:latest --from-image=myregistry.local/mysql/mysql:5.0
-		`)
+		# Create a new image stream tag based on an image in a remote registry
+		oc create imagestreamtag mysql:latest --from-image=myregistry.local/mysql/mysql:5.0
+	`)
 )
 
 type CreateImageStreamTagOptions struct {
@@ -55,15 +57,15 @@ type CreateImageStreamTagOptions struct {
 }
 
 // NewCmdCreateImageStreamTag is a command to create a new image stream tag.
-func NewCmdCreateImageStreamTag(name, fullName string, f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateImageStreamTag(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreateImageStreamTagOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     name + " NAME",
-		Short:   "Create a new image stream tag.",
+		Use:     "imagestreamtag NAME",
+		Short:   "Create a new image stream tag",
 		Long:    imageStreamTagLong,
-		Example: fmt.Sprintf(imageStreamTagExample, fullName),
+		Example: imageStreamTagExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
 			cmdutil.CheckErr(o.Run())
@@ -79,7 +81,7 @@ func NewCmdCreateImageStreamTag(name, fullName string, f genericclioptions.RESTC
 	cmd.Flags().StringVar(&o.ReferencePolicyStr, "reference-policy", o.ReferencePolicyStr, "If set to 'Local', referenced images will be pulled from the integrated registry. Ignored when reference is true.")
 	cmd.Flags().BoolVar(&o.Reference, "reference", o.Reference, "If true, the tag value will be used whenever the image stream tag is referenced.")
 
-	o.CreateSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateSubcommandOptions.AddFlags(cmd)
 	cmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -174,8 +176,12 @@ func (o *CreateImageStreamTagOptions) Run() error {
 		}
 	}
 
-	if !o.CreateSubcommandOptions.DryRun {
-		isTag, err = o.Client.ImageStreamTags(o.CreateSubcommandOptions.Namespace).Create(isTag)
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, isTag, scheme.DefaultJSONEncoder()); err != nil {
+		return err
+	}
+
+	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
+		isTag, err = o.Client.ImageStreamTags(o.CreateSubcommandOptions.Namespace).Create(context.TODO(), isTag, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

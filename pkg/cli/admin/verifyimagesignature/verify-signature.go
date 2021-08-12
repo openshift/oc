@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containers/image/docker/policyconfiguration"
-	"github.com/containers/image/docker/reference"
-	"github.com/containers/image/signature"
-	sigtypes "github.com/containers/image/types"
+	"github.com/containers/image/v5/docker/policyconfiguration"
+	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/signature"
+	sigtypes "github.com/containers/image/v5/types"
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
@@ -37,15 +37,15 @@ var (
 	with the identity (pull spec) of the given image.
 	By default, this command will use the public GPG keyring located in "$GNUPGHOME/.gnupg/pubring.gpg"
 
-	By default, this command will not save the result of the verification back to the image object, to do so
-	user have to specify the "--save" flag. Note that to modify the image signature verification status,
-	user have to have permissions to edit an image object (usually an "image-auditor" role).
+	By default, this command will not save the result of the verification back to the image object; to do so
+	the user must specify the "--save" flag. Note that to modify the image signature verification status,
+	the user must have permissions to edit an image object (usually an "image-auditor" role).
 
 	Note that using the "--save" flag on already verified image together with invalid GPG
 	key or invalid expected identity will cause the saved verification status to be removed
 	and the image will become "unverified".
 
-	If this command is outside the cluster, users have to specify the "--registry-url" parameter
+	If this command is outside the cluster, users must specify the "--registry-url" parameter
 	with the public URL of image registry.
 
 	To remove all verifications, users can use the "--remove-all" flag.
@@ -53,25 +53,21 @@ var (
 
 	verifyImageSignatureExample = templates.Examples(`
 	# Verify the image signature and identity using the local GPG keychain
-	%[1]s sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
+	oc adm verify-image-signature sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
 			--expected-identity=registry.local:5000/foo/bar:v1
 
 	# Verify the image signature and identity using the local GPG keychain and save the status
-	%[1]s sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
+	oc adm verify-image-signature sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
 			--expected-identity=registry.local:5000/foo/bar:v1 --save
 
 	# Verify the image signature and identity via exposed registry route
-	%[1]s sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
+	oc adm verify-image-signature sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 \
 			--expected-identity=registry.local:5000/foo/bar:v1 \
 			--registry-url=docker-registry.foo.com
 
 	# Remove all signature verifications from the image
-	%[1]s sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 --remove-all
+	oc adm verify-image-signature sha256:c841e9b64e4579bd56c794bdd7c36e1c257110fd2404bebbb8b613e4935228c4 --remove-all
 	`)
-)
-
-const (
-	VerifyRecommendedName = "verify-image-signature"
 )
 
 type VerifyImageSignatureOptions struct {
@@ -101,13 +97,13 @@ func NewVerifyImageSignatureOptions(streams genericclioptions.IOStreams) *Verify
 	}
 }
 
-func NewCmdVerifyImageSignature(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVerifyImageSignature(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewVerifyImageSignatureOptions(streams)
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s IMAGE --expected-identity=EXPECTED_IDENTITY [--save]", VerifyRecommendedName),
+		Use:     "verify-image-signature IMAGE --expected-identity=EXPECTED_IDENTITY [--save]",
 		Short:   "Verify the image identity contained in the image signature",
 		Long:    verifyImageSignatureLongDesc,
-		Example: fmt.Sprintf(verifyImageSignatureExample, fullName),
+		Example: verifyImageSignatureExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -167,7 +163,7 @@ func (o *VerifyImageSignatureOptions) Complete(f kcmdutil.Factory, cmd *cobra.Co
 	// We need the current user name so we can record it into an verification condition and
 	// we need a bearer token so we can fetch the manifest from the registry.
 	// TODO: Add support for external registries (currently only integrated registry will
-	if me, err := userClient.Users().Get("~", metav1.GetOptions{}); err != nil {
+	if me, err := userClient.Users().Get(context.TODO(), "~", metav1.GetOptions{}); err != nil {
 		return err
 	} else {
 		o.CurrentUser = me.Name
@@ -185,7 +181,7 @@ func (o *VerifyImageSignatureOptions) Complete(f kcmdutil.Factory, cmd *cobra.Co
 }
 
 func (o VerifyImageSignatureOptions) Run() error {
-	img, err := o.ImageClient.Images().Get(o.InputImage, metav1.GetOptions{})
+	img, err := o.ImageClient.Images().Get(context.TODO(), o.InputImage, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -243,7 +239,7 @@ func (o VerifyImageSignatureOptions) Run() error {
 	}
 
 	if o.Save || o.RemoveAll {
-		_, err := o.ImageClient.Images().Update(img)
+		_, err := o.ImageClient.Images().Update(context.TODO(), img, metav1.UpdateOptions{})
 		return err
 	} else {
 		fmt.Fprintf(o.Out, "Neither --save nor --remove-all were passed, image %q not updated to %v\n", o.InputImage, img)
@@ -265,7 +261,9 @@ func (o *VerifyImageSignatureOptions) getImageManifest(img *imagev1.Image) ([]by
 			registryURL.Scheme = ""
 		}
 	}
-	return getImageManifestByIDFromRegistry(registryURL, parsed.RepositoryName(), img.Name, o.CurrentUser, o.CurrentUserToken, o.Insecure)
+	// when using in-cluster auth, the username is just user + token, compare
+	// https://github.com/openshift/oc/blob/9f54c1d4f68c8530ac9466c655a4e55eb04a1459/pkg/cli/registry/login/login.go#L208
+	return getImageManifestByIDFromRegistry(registryURL, parsed.RepositoryName(), img.Name, "user", o.CurrentUserToken, o.Insecure)
 }
 
 // verifySignature takes policy, image and the image signature blob and verifies that the
@@ -278,7 +276,7 @@ func (o *VerifyImageSignatureOptions) verifySignature(pc *signature.PolicyContex
 	if err != nil {
 		return "", fmt.Errorf("failed to get image %q manifest: %v", img.Name, err)
 	}
-	allowed, err := pc.IsRunningImageAllowed(newUnparsedImage(o.ExpectedIdentity, sigBlob, manifest))
+	allowed, err := pc.IsRunningImageAllowed(context.TODO(), newUnparsedImage(o.ExpectedIdentity, sigBlob, manifest))
 	if !allowed && err == nil {
 		return "", errors.New("signature rejected but no error set")
 	}
@@ -394,16 +392,16 @@ func (ref dummyDockerReference) PolicyConfigurationNamespaces() []string {
 	return policyconfiguration.DockerReferenceNamespaces(ref.ref)
 }
 
-func (ref dummyDockerReference) NewImage(ctx *sigtypes.SystemContext) (sigtypes.Image, error) {
+func (ref dummyDockerReference) NewImage(context.Context, *sigtypes.SystemContext) (sigtypes.ImageCloser, error) {
 	panic("Unimplemented")
 }
-func (ref dummyDockerReference) NewImageSource(ctx *sigtypes.SystemContext, requestedManifestMIMETypes []string) (sigtypes.ImageSource, error) {
+func (ref dummyDockerReference) NewImageSource(context.Context, *sigtypes.SystemContext) (sigtypes.ImageSource, error) {
 	panic("Unimplemented")
 }
-func (ref dummyDockerReference) NewImageDestination(ctx *sigtypes.SystemContext) (sigtypes.ImageDestination, error) {
+func (ref dummyDockerReference) NewImageDestination(context.Context, *sigtypes.SystemContext) (sigtypes.ImageDestination, error) {
 	panic("Unimplemented")
 }
-func (ref dummyDockerReference) DeleteImage(ctx *sigtypes.SystemContext) error {
+func (ref dummyDockerReference) DeleteImage(context.Context, *sigtypes.SystemContext) error {
 	panic("Unimplemented")
 }
 
@@ -433,7 +431,7 @@ func (ui *unparsedImage) Close() error {
 }
 
 // Manifest is like ImageSource.GetManifest, but the result is cached; it is OK to call this however often you need.
-func (ui *unparsedImage) Manifest() ([]byte, string, error) {
+func (ui *unparsedImage) Manifest(context.Context) ([]byte, string, error) {
 	return ui.manifest, "", nil
 }
 

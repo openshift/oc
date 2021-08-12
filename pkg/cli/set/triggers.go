@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -8,13 +9,12 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	kappsv1 "k8s.io/api/apps/v1"
 	kappsv1beta1 "k8s.io/api/apps/v1beta1"
 	kappsv1beta2 "k8s.io/api/apps/v1beta2"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
-	batchv2alpha1 "k8s.io/api/batch/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -42,7 +42,7 @@ import (
 
 var (
 	triggersLong = templates.LongDesc(`
-		Set or remove triggers
+		Set or remove triggers.
 
 		Build configs, deployment configs, and most Kubernetes workload objects may have a set of triggers
 		that result in a new deployment or build being created when an image changes. This command enables
@@ -60,30 +60,31 @@ var (
 		trigger for a build config will only trigger the first build.`)
 
 	triggersExample = templates.Examples(`
-	  # Print the triggers on the deployment config 'myapp'
-	  %[1]s triggers dc/myapp
+		# Print the triggers on the deployment config 'myapp'
+		oc set triggers dc/myapp
 
-	  # Set all triggers to manual
-	  %[1]s triggers dc/myapp --manual
+		# Set all triggers to manual
+		oc set triggers dc/myapp --manual
 
-	  # Enable all automatic triggers
-	  %[1]s triggers dc/myapp --auto
+		# Enable all automatic triggers
+		oc set triggers dc/myapp --auto
 
-	  # Reset the GitHub webhook on a build to a new, generated secret
-	  %[1]s triggers bc/webapp --from-github
-	  %[1]s triggers bc/webapp --from-webhook
+		# Reset the GitHub webhook on a build to a new, generated secret
+		oc set triggers bc/webapp --from-github
+		oc set triggers bc/webapp --from-webhook
 
-	  # Remove all triggers
-	  %[1]s triggers bc/webapp --remove-all
+		# Remove all triggers
+		oc set triggers bc/webapp --remove-all
 
-	  # Stop triggering on config change
-	  %[1]s triggers dc/myapp --from-config --remove
+		# Stop triggering on config change
+		oc set triggers dc/myapp --from-config --remove
 
-	  # Add an image trigger to a build config
-	  %[1]s triggers bc/webapp --from-image=namespace1/image:latest
+		# Add an image trigger to a build config
+		oc set triggers bc/webapp --from-image=namespace1/image:latest
 
-	  # Add an image trigger to a stateful set on the main container
-	  %[1]s triggers statefulset/db --from-image=namespace1/image:latest -c main`)
+		# Add an image trigger to a stateful set on the main container
+		oc set triggers statefulset/db --from-image=namespace1/image:latest -c main
+	`)
 )
 
 type TriggersOptions struct {
@@ -114,7 +115,7 @@ type TriggersOptions struct {
 	Builder           func() *resource.Builder
 	Namespace         string
 	ExplicitNamespace bool
-	DryRun            bool
+	DryRunStrategy    kcmdutil.DryRunStrategy
 	Args              []string
 
 	resource.FilenameOptions
@@ -129,13 +130,13 @@ func NewTriggersOptions(streams genericclioptions.IOStreams) *TriggersOptions {
 }
 
 // NewCmdTriggers implements the set triggers command
-func NewCmdTriggers(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTriggers(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewTriggersOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "triggers RESOURCE/NAME [--from-config|--from-image|--from-github|--from-webhook] [--auto|--manual]",
 		Short:   "Update the triggers on one or more objects",
 		Long:    triggersLong,
-		Example: fmt.Sprintf(triggersExample, fullName),
+		Example: triggersExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -214,12 +215,13 @@ func (o *TriggersOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 	}
 
 	o.Args = args
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
 	o.Builder = f.NewBuilder
 
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
-	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -333,14 +335,14 @@ func (o *TriggersOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch build hook: %v\n", err))
 			continue
@@ -806,7 +808,7 @@ func (t *TriggerDefinition) Apply(obj runtime.Object) error {
 	case *extensionsv1beta1.DaemonSet, *kappsv1beta2.DaemonSet, *kappsv1.DaemonSet,
 		*extensionsv1beta1.Deployment, *kappsv1beta1.Deployment, *kappsv1beta2.Deployment, *kappsv1.Deployment,
 		*kappsv1beta1.StatefulSet, *kappsv1beta2.StatefulSet, *kappsv1.StatefulSet,
-		*batchv1beta1.CronJob, *batchv2alpha1.CronJob:
+		*batchv1beta1.CronJob:
 
 		if len(t.GitHubWebHooks) > 0 {
 			return fmt.Errorf("does not support GitHub web hooks")
@@ -1040,7 +1042,7 @@ func UpdateTriggersForObject(obj runtime.Object, fn func(*TriggerDefinition) err
 	case *extensionsv1beta1.DaemonSet, *kappsv1beta2.DaemonSet, *kappsv1.DaemonSet,
 		*extensionsv1beta1.Deployment, *kappsv1beta1.Deployment, *kappsv1beta2.Deployment, *kappsv1.Deployment,
 		*kappsv1beta1.StatefulSet, *kappsv1beta2.StatefulSet, *kappsv1.StatefulSet,
-		*batchv1beta1.CronJob, *batchv2alpha1.CronJob:
+		*batchv1beta1.CronJob:
 		triggers, err := NewAnnotationTriggers(obj)
 		if err != nil {
 			return false, err

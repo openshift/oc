@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
 )
 
 // ignoreConnectionErrors is a wrapper for condition function that will cause to retry on all errors like
@@ -23,6 +24,7 @@ func ignoreConnectionErrors(lastError *error, fn ConditionWithContextFunc) Condi
 			return false, err
 		default:
 			*lastError = err
+			klog.V(4).Infof("Retrying connection error %v ...", err)
 			return false, nil
 		}
 	}

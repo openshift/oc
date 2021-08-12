@@ -1,13 +1,14 @@
 package set
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +29,7 @@ import (
 
 var (
 	backendsLong = templates.LongDesc(`
-		Set and adjust route backends
+		Set and adjust route backends.
 
 		Routes may have one or more optional backend services with weights controlling how much
 		traffic flows to each service. Traffic is assigned proportional to the combined weights
@@ -38,7 +39,7 @@ var (
 		When setting backends, the first backend is the primary and the other backends are
 		considered alternates. For example:
 
-		    $ %[1]s route-backends web prod=99 canary=1
+		    $ oc set route-backends web prod=99 canary=1
 
 		will set the primary backend to service "prod" with a weight of 99 and the first
 		alternate backend to service "canary" with a weight of 1. This means 99%% of traffic will
@@ -53,22 +54,23 @@ var (
 
 	backendsExample = templates.Examples(`
 		# Print the backends on the route 'web'
-	  %[1]s route-backends web
+		oc set route-backends web
 
-	  # Set two backend services on route 'web' with 2/3rds of traffic going to 'a'
-	  %[1]s route-backends web a=2 b=1
+		# Set two backend services on route 'web' with 2/3rds of traffic going to 'a'
+		oc set route-backends web a=2 b=1
 
-	  # Increase the traffic percentage going to b by 10%% relative to a
-	  %[1]s route-backends web --adjust b=+10%%
+		# Increase the traffic percentage going to b by 10%% relative to a
+		oc set route-backends web --adjust b=+10%%
 
-	  # Set traffic percentage going to b to 10%% of the traffic going to a
-	  %[1]s route-backends web --adjust b=10%%
+		# Set traffic percentage going to b to 10%% of the traffic going to a
+		oc set route-backends web --adjust b=10%%
 
-	  # Set weight of b to 10
-	  %[1]s route-backends web --adjust b=10
+		# Set weight of b to 10
+		oc set route-backends web --adjust b=10
 
-	  # Set the weight to all backends to zero
-	  %[1]s route-backends web --zero`)
+		# Set the weight to all backends to zero
+		oc set route-backends web --zero
+	`)
 )
 
 type BackendsOptions struct {
@@ -86,7 +88,7 @@ type BackendsOptions struct {
 	Builder           func() *resource.Builder
 	Namespace         string
 	ExplicitNamespace bool
-	DryRun            bool
+	DryRunStrategy    kcmdutil.DryRunStrategy
 	Resources         []string
 
 	resource.FilenameOptions
@@ -101,13 +103,13 @@ func NewBackendsOptions(streams genericclioptions.IOStreams) *BackendsOptions {
 }
 
 // NewCmdRouteBackends implements the set route-backends command
-func NewCmdRouteBackends(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRouteBackends(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewBackendsOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "route-backends ROUTENAME [--zero|--equal] [--adjust] SERVICE=WEIGHT[%] [...]",
 		Short:   "Update the backends for a route",
-		Long:    fmt.Sprintf(backendsLong, fullName),
-		Example: fmt.Sprintf(backendsExample, fullName),
+		Long:    backendsLong,
+		Example: backendsExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -151,16 +153,17 @@ func (o *BackendsOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 
 	o.PrintTable = o.Transform.Empty()
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
 	o.Mapper, err = f.ToRESTMapper()
 	if err != nil {
 		return err
 	}
 	o.Builder = f.NewBuilder
 
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
-	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -238,14 +241,14 @@ func (o *BackendsOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch route backends: %v\n", err))
 			continue

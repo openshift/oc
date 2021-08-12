@@ -29,6 +29,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -48,19 +49,21 @@ type RestartOptions struct {
 
 	resource.FilenameOptions
 	genericclioptions.IOStreams
+
+	fieldManager string
 }
 
 var (
-	restartLong = templates.LongDesc(`
+	restartLong = templates.LongDesc(i18n.T(`
 		Restart a resource.
 
-	        Resource will be rollout restarted.`)
+	        Resource rollout will be restarted.`))
 
 	restartExample = templates.Examples(`
 		# Restart a deployment
 		kubectl rollout restart deployment/nginx
 
-		# Restart a daemonset
+		# Restart a daemon set
 		kubectl rollout restart daemonset/abc`)
 )
 
@@ -84,16 +87,17 @@ func NewCmdRolloutRestart(f cmdutil.Factory, streams genericclioptions.IOStreams
 		Short:                 i18n.T("Restart a resource"),
 		Long:                  restartLong,
 		Example:               restartExample,
+		ValidArgsFunction:     util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.RunRestart())
 		},
-		ValidArgs: validArgs,
 	}
 
 	usage := "identifying the resource to get from a server."
 	cmdutil.AddFilenameOptionFlags(cmd, &o.FilenameOptions, usage)
+	cmdutil.AddFieldManagerFlagVar(cmd, &o.fieldManager, "kubectl-rollout")
 	o.PrintFlags.AddFlags(cmd)
 	return cmd
 }
@@ -169,7 +173,9 @@ func (o RestartOptions) RunRestart() error {
 			allErrs = append(allErrs, fmt.Errorf("failed to create patch for %v: empty patch", info.Name))
 		}
 
-		obj, err := resource.NewHelper(info.Client, info.Mapping).Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patch.Patch, nil)
+		obj, err := resource.NewHelper(info.Client, info.Mapping).
+			WithFieldManager(o.fieldManager).
+			Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patch.Patch, nil)
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch: %v", err))
 			continue

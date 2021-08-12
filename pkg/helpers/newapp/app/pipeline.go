@@ -1,25 +1,26 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"sort"
 	"strings"
 
 	kappsv1 "k8s.io/api/apps/v1"
+	kappsv1beta1 "k8s.io/api/apps/v1beta1"
 	kappsv1beta2 "k8s.io/api/apps/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kuval "k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/apis/core/validation"
 
 	"github.com/openshift/api/apps"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -28,7 +29,6 @@ import (
 	"github.com/openshift/api/image"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
-	routev1 "github.com/openshift/api/route/v1"
 	imagev1typedclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/helpers/legacy"
@@ -176,19 +176,20 @@ type Pipeline struct {
 	Name string
 	From string
 
-	InputImage *ImageRef
-	Build      *BuildRef
-	Image      *ImageRef
-	Deployment *DeploymentConfigRef
-	Labels     map[string]string
+	InputImage       *ImageRef
+	Build            *BuildRef
+	Image            *ImageRef
+	Deployment       *DeploymentRef
+	DeploymentConfig *DeploymentConfigRef
+	Labels           map[string]string
 }
 
-// NeedsDeployment sets the pipeline for deployment.
-func (p *Pipeline) NeedsDeployment(env Environment, labels map[string]string, asTest bool) error {
+// NeedsDeploymentConfig sets the pipeline for deploymentconfig.
+func (p *Pipeline) NeedsDeploymentConfig(env Environment, labels map[string]string, asTest bool) error {
 	if p.Deployment != nil {
 		return nil
 	}
-	p.Deployment = &DeploymentConfigRef{
+	p.DeploymentConfig = &DeploymentConfigRef{
 		Name: p.Name,
 		Images: []*ImageRef{
 			p.Image,
@@ -196,6 +197,22 @@ func (p *Pipeline) NeedsDeployment(env Environment, labels map[string]string, as
 		Env:    env,
 		Labels: labels,
 		AsTest: asTest,
+	}
+	return nil
+}
+
+// NeedsDeployment sets the pipeline for deployment.
+func (p *Pipeline) NeedsDeployment(env Environment, labels map[string]string, asTest bool) error {
+	if p.Deployment != nil {
+		return nil
+	}
+	p.Deployment = &DeploymentRef{
+		Name: p.Name,
+		Images: []*ImageRef{
+			p.Image,
+		},
+		Env:    env,
+		Labels: labels,
 	}
 	return nil
 }
@@ -258,7 +275,16 @@ func (p *Pipeline) Objects(accept, objectAccept Acceptor) (Objects, error) {
 		}
 	}
 	if p.Deployment != nil && accept.Accept(p.Deployment) {
-		dc, err := p.Deployment.DeploymentConfig()
+		dc, err := p.Deployment.Deployment()
+		if err != nil {
+			return nil, err
+		}
+		if objectAccept.Accept(dc) {
+			objects = append(objects, dc)
+		}
+	}
+	if p.DeploymentConfig != nil && accept.Accept(p.DeploymentConfig) {
+		dc, err := p.DeploymentConfig.DeploymentConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -274,17 +300,17 @@ type PipelineGroup []*Pipeline
 
 // Reduce squashes all common components from the pipelines.
 func (g PipelineGroup) Reduce() error {
-	var deployment *DeploymentConfigRef
+	var deploymentConfig *DeploymentConfigRef
 	for _, p := range g {
-		if p.Deployment == nil || p.Deployment == deployment {
+		if p.DeploymentConfig == nil || p.DeploymentConfig == deploymentConfig {
 			continue
 		}
-		if deployment == nil {
-			deployment = p.Deployment
+		if deploymentConfig == nil {
+			deploymentConfig = p.DeploymentConfig
 		} else {
-			deployment.Images = append(deployment.Images, p.Deployment.Images...)
-			deployment.Env = NewEnvironment(deployment.Env, p.Deployment.Env)
-			p.Deployment = deployment
+			deploymentConfig.Images = append(deploymentConfig.Images, p.DeploymentConfig.Images...)
+			deploymentConfig.Env = NewEnvironment(deploymentConfig.Env, p.DeploymentConfig.Env)
+			p.DeploymentConfig = deploymentConfig
 		}
 	}
 	return nil
@@ -313,7 +339,7 @@ func MakeSimpleName(name string) string {
 var invalidServiceChars = regexp.MustCompile("[^-a-z0-9]")
 
 func makeValidServiceName(name string) (string, string) {
-	if len(validation.ValidateServiceName(name, false)) == 0 {
+	if len(apimachineryvalidation.NameIsDNSSubdomain(name, false)) == 0 {
 		return name, ""
 	}
 	name = MakeSimpleName(name)
@@ -398,6 +424,26 @@ func AddServices(objects Objects, firstPortOnly bool) Objects {
 			if svc != nil {
 				svcs = append(svcs, svc)
 			}
+		case *kappsv1.Deployment:
+			svc := addService(t.Spec.Template.Spec.Containers, t.ObjectMeta, t.Spec.Template.Labels, firstPortOnly)
+			if svc != nil {
+				svcs = append(svcs, svc)
+			}
+		case *extensionsv1beta1.Deployment:
+			svc := addService(t.Spec.Template.Spec.Containers, t.ObjectMeta, t.Spec.Template.Labels, firstPortOnly)
+			if svc != nil {
+				svcs = append(svcs, svc)
+			}
+		case *kappsv1beta1.Deployment:
+			svc := addService(t.Spec.Template.Spec.Containers, t.ObjectMeta, t.Spec.Template.Labels, firstPortOnly)
+			if svc != nil {
+				svcs = append(svcs, svc)
+			}
+		case *kappsv1beta2.Deployment:
+			svc := addService(t.Spec.Template.Spec.Containers, t.ObjectMeta, t.Spec.Template.Labels, firstPortOnly)
+			if svc != nil {
+				svcs = append(svcs, svc)
+			}
 		case *kappsv1.DaemonSet:
 			svc := addService(t.Spec.Template.Spec.Containers, t.ObjectMeta, t.Spec.Template.Labels, firstPortOnly)
 			if svc != nil {
@@ -430,28 +476,6 @@ func addService(containers []corev1.Container, objectMeta metav1.ObjectMeta, sel
 	svc := GenerateService(objectMeta, selector)
 	svc.Spec.Ports = ports
 	return svc
-}
-
-// AddRoutes sets up routes for the provided objects.
-func AddRoutes(objects Objects) Objects {
-	routes := []runtime.Object{}
-	for _, o := range objects {
-		switch t := o.(type) {
-		case *kapi.Service:
-			routes = append(routes, &routev1.Route{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   t.Name,
-					Labels: t.Labels,
-				},
-				Spec: routev1.RouteSpec{
-					To: routev1.RouteTargetReference{
-						Name: t.Name,
-					},
-				},
-			})
-		}
-	}
-	return append(objects, routes...)
 }
 
 type acceptNew struct{}
@@ -534,7 +558,7 @@ func (a *acceptNonExistentImageStream) Accept(from interface{}) bool {
 	if len(is.Namespace) > 0 {
 		namespace = is.Namespace
 	}
-	imgstrm, err := a.getter.ImageStreams(namespace).Get(is.Name, metav1.GetOptions{})
+	imgstrm, err := a.getter.ImageStreams(namespace).Get(context.TODO(), is.Name, metav1.GetOptions{})
 	if err == nil && imgstrm != nil {
 		klog.V(4).Infof("acceptor determined that imagestream %s in namespace %s exists so don't accept: %#v", is.Name, namespace, imgstrm)
 		return false
@@ -583,7 +607,7 @@ func (a *acceptNonExistentImageStreamTag) Accept(from interface{}) bool {
 	if len(ist.Namespace) > 0 {
 		namespace = ist.Namespace
 	}
-	tag, err := a.getter.ImageStreamTags(namespace).Get(ist.Name, metav1.GetOptions{})
+	tag, err := a.getter.ImageStreamTags(namespace).Get(context.TODO(), ist.Name, metav1.GetOptions{})
 	if err == nil && tag != nil {
 		klog.V(4).Infof("acceptor determined that imagestreamtag %s in namespace %s exists so don't accept: %#v", ist.Name, namespace, tag)
 		return false

@@ -1,6 +1,7 @@
 package buildchain
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -12,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -30,21 +31,23 @@ const BuildChainRecommendedCommandName = "build-chain"
 
 var (
 	buildChainLong = templates.LongDesc(`
-		Output the inputs and dependencies of your builds
+		Output the inputs and dependencies of your builds.
 
 		Supported formats for the generated graph are dot and a human-readable output.
 		Tag and namespace are optional and if they are not specified, 'latest' and the
-		default namespace will be used respectively.`)
+		default namespace will be used respectively.
+	`)
 
 	buildChainExample = templates.Examples(`
 		# Build the dependency tree for the 'latest' tag in <image-stream>
-	  %[1]s <image-stream>
+		oc adm build-chain <image-stream>
 
-	  # Build the dependency tree for 'v2' tag in dot format and visualize it via the dot utility
-	  %[1]s <image-stream>:v2 -o dot | dot -T svg -o deps.svg
+		# Build the dependency tree for the 'v2' tag in dot format and visualize it via the dot utility
+		oc adm build-chain <image-stream>:v2 -o dot | dot -T svg -o deps.svg
 
-	  # Build the dependency tree across all namespaces for the specified image stream tag found in 'test' namespace
-	  %[1]s <image-stream> -n test --all`)
+		# Build the dependency tree across all namespaces for the specified image stream tag found in the 'test' namespace
+		oc adm build-chain <image-stream> -n test --all
+	`)
 )
 
 // BuildChainOptions contains all the options needed for build-chain
@@ -65,7 +68,7 @@ type BuildChainOptions struct {
 }
 
 // NewCmdBuildChain implements the OpenShift experimental build-chain command
-func NewCmdBuildChain(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdBuildChain(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	options := &BuildChainOptions{
 		namespaces: sets.NewString(),
 	}
@@ -73,7 +76,7 @@ func NewCmdBuildChain(name, fullName string, f kcmdutil.Factory, streams generic
 		Use:     "build-chain IMAGESTREAMTAG",
 		Short:   "Output the inputs and dependencies of your builds",
 		Long:    buildChainLong,
-		Example: fmt.Sprintf(buildChainExample, fullName),
+		Example: buildChainExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(options.Complete(f, cmd, args, streams.Out))
 			kcmdutil.CheckErr(options.Validate())
@@ -132,7 +135,7 @@ func (o *BuildChainOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	// Setup namespace
 	if o.allNamespaces {
 		// TODO: Handle different uses of build-chain; user and admin
-		projectList, err := o.projectClient.Projects().List(metav1.ListOptions{})
+		projectList, err := o.projectClient.Projects().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return err
 		}
@@ -196,7 +199,7 @@ func (o *BuildChainOptions) RunBuildChain() error {
 	if err != nil {
 		if _, isNotFoundErr := err.(describe.NotFoundErr); isNotFoundErr {
 			// Try to get the imageStreamTag via a direct GET
-			if _, getErr := o.imageClient.ImageStreamTags(o.defaultNamespace).Get(o.name, metav1.GetOptions{}); getErr != nil {
+			if _, getErr := o.imageClient.ImageStreamTags(o.defaultNamespace).Get(context.TODO(), o.name, metav1.GetOptions{}); getErr != nil {
 				return getErr
 			}
 			fmt.Printf("Image stream tag %q in %q doesn't have any dependencies.\n", o.name, o.defaultNamespace)

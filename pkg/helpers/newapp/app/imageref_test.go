@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	buildv1 "github.com/openshift/api/build/v1"
@@ -13,7 +14,7 @@ import (
 	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/helpers/newapp"
-	"github.com/openshift/source-to-image/pkg/scm/git"
+	"github.com/openshift/oc/pkg/helpers/source-to-image/git"
 )
 
 func TestBuildConfigOutput(t *testing.T) {
@@ -85,6 +86,35 @@ func TestBuildConfigOutput(t *testing.T) {
 		if !imageChangeTrigger {
 			t.Errorf("expecting image change trigger in build config")
 		}
+	}
+}
+
+func TestImageStreamRefNaming(t *testing.T) {
+	objectName := "object"
+	streamName := "stream"
+	streamNamespace := "anotherNamespace"
+
+	imageRef := &ImageRef{
+		ObjectName: objectName,
+		Stream: &imagev1.ImageStream{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      streamName,
+				Namespace: streamNamespace,
+			},
+		},
+	}
+
+	suggestedName, ok := imageRef.SuggestName()
+	if !ok {
+		t.Fatalf("failed to procure name for stream")
+	}
+	suggestedNamespace := imageRef.SuggestNamespace()
+
+	if suggestedName != streamName {
+		t.Errorf("suggested name %v is different from expected %v", suggestedName, streamName)
+	}
+	if suggestedNamespace != streamNamespace {
+		t.Errorf("suggested namespace %v is different from expected %v", suggestedNamespace, streamNamespace)
 	}
 }
 
@@ -212,7 +242,7 @@ func TestImageRefDeployableContainerPorts(t *testing.T) {
 		if test.noConfig {
 			imageRef.Info.Config = nil
 		}
-		container, _, err := imageRef.DeployableContainer()
+		container, _, err := imageRef.DeployableContainer(false)
 		if err != nil && !test.expectError {
 			t.Errorf("%s: unexpected error: %v", test.name, err)
 			continue

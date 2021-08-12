@@ -1,6 +1,7 @@
 package deployer
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -127,10 +128,10 @@ func NewDeployer(kubeClient kubernetes.Interface, images imageclientv1.Interface
 		errOut: errOut,
 		until:  until,
 		getDeployment: func(namespace, name string) (*corev1.ReplicationController, error) {
-			return kubeClient.CoreV1().ReplicationControllers(namespace).Get(name, metav1.GetOptions{})
+			return kubeClient.CoreV1().ReplicationControllers(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		},
 		getDeployments: func(namespace, configName string) (*corev1.ReplicationControllerList, error) {
-			return kubeClient.CoreV1().ReplicationControllers(namespace).List(metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(configName).
+			return kubeClient.CoreV1().ReplicationControllers(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(configName).
 				String()})
 		},
 		scaler: kscale.NewScaler(appsutil.NewReplicationControllerScaleClient(kubeClient)),
@@ -245,7 +246,7 @@ func (d *Deployer) Deploy(namespace, rcName string) error {
 		}
 		// Scale the deployment down to zero.
 		retryWaitParams := kscale.NewRetryParams(1*time.Second, 120*time.Second)
-		if err := d.scaler.Scale(candidate.Namespace, candidate.Name, uint(0), &kscale.ScalePrecondition{Size: -1, ResourceVersion: ""}, retryWaitParams, retryWaitParams, corev1.SchemeGroupVersion.WithResource("replicationcontrollers")); err != nil {
+		if err := d.scaler.Scale(candidate.Namespace, candidate.Name, uint(0), &kscale.ScalePrecondition{Size: -1, ResourceVersion: ""}, retryWaitParams, retryWaitParams, corev1.SchemeGroupVersion.WithResource("replicationcontrollers"), false); err != nil {
 			fmt.Fprintf(d.errOut, "error: Couldn't scale down prior deployment %s: %v\n", appsutil.LabelForDeployment(candidate), err)
 		} else {
 			fmt.Fprintf(d.out, "--> Scaled older deployment %s down\n", candidate.Name)

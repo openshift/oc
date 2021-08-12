@@ -28,11 +28,11 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
-	"k8s.io/kubectl/pkg/util/printers"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
@@ -47,13 +47,13 @@ type GetContextsOptions struct {
 }
 
 var (
-	getContextsLong = templates.LongDesc(`Displays one or many contexts from the kubeconfig file.`)
+	getContextsLong = templates.LongDesc(i18n.T(`Display one or many contexts from the kubeconfig file.`))
 
 	getContextsExample = templates.Examples(`
 		# List all the contexts in your kubeconfig file
 		kubectl config get-contexts
 
-		# Describe one context in your kubeconfig file.
+		# Describe one context in your kubeconfig file
 		kubectl config get-contexts my-context`)
 )
 
@@ -73,16 +73,7 @@ func NewCmdConfigGetContexts(streams genericclioptions.IOStreams, configAccess c
 		Long:                  getContextsLong,
 		Example:               getContextsExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			validOutputTypes := sets.NewString("", "json", "yaml", "wide", "name", "custom-columns", "custom-columns-file", "go-template", "go-template-file", "jsonpath", "jsonpath-file")
-			supportedOutputTypes := sets.NewString("", "name")
-			outputFormat := cmdutil.GetFlagString(cmd, "output")
-			if !validOutputTypes.Has(outputFormat) {
-				cmdutil.CheckErr(fmt.Errorf("output must be one of '' or 'name': %v", outputFormat))
-			}
-			if !supportedOutputTypes.Has(outputFormat) {
-				fmt.Fprintf(options.Out, "--output %v is not available in kubectl config get-contexts; resetting to default output format\n", outputFormat)
-				cmd.Flags().Set("output", "")
-			}
+			cmdutil.CheckErr(options.Validate(cmd))
 			cmdutil.CheckErr(options.Complete(cmd, args))
 			cmdutil.CheckErr(options.RunGetContexts())
 		},
@@ -105,6 +96,21 @@ func (o *GetContextsOptions) Complete(cmd *cobra.Command, args []string) error {
 		o.showHeaders = false
 	}
 
+	return nil
+}
+
+// Validate ensures the of output format
+func (o *GetContextsOptions) Validate(cmd *cobra.Command) error {
+	validOutputTypes := sets.NewString("", "json", "yaml", "wide", "name", "custom-columns", "custom-columns-file", "go-template", "go-template-file", "jsonpath", "jsonpath-file")
+	supportedOutputTypes := sets.NewString("", "name")
+	outputFormat := cmdutil.GetFlagString(cmd, "output")
+	if !validOutputTypes.Has(outputFormat) {
+		return fmt.Errorf("output must be one of '' or 'name': %v", outputFormat)
+	}
+	if !supportedOutputTypes.Has(outputFormat) {
+		cmd.Flags().Set("output", "")
+		return fmt.Errorf("--output %v is not available in kubectl config get-contexts; resetting to default output format", outputFormat)
+	}
 	return nil
 }
 

@@ -44,7 +44,7 @@ func TestHandleChallenge(t *testing.T) {
 					ExpectedCanHandle: true,
 					ExpectedHeaders:   nil,
 					ExpectedHandled:   false,
-					ExpectedErr:       nil,
+					ExpectedErr:       NewBasicAuthNoUsernameError(),
 					ExpectedPrompt:    "",
 				},
 			},
@@ -94,34 +94,6 @@ func TestHandleChallenge(t *testing.T) {
 					ExpectedPrompt: `Authentication required for myhost (myrealm)
 Username: myuser
 Password: `,
-				},
-			},
-		},
-
-		"interactive challenge": {
-			Handler: &BasicChallengeHandler{
-				Host:     "myhost",
-				Reader:   bytes.NewBufferString("myuser\nmypassword\n"),
-				Username: "",
-				Password: "",
-			},
-			Challenges: []Challenge{
-				{
-					Headers:           basicChallenge,
-					ExpectedCanHandle: true,
-					ExpectedHeaders:   http.Header{AUTHORIZATION: []string{getBasicHeader("myuser", "mypassword")}},
-					ExpectedHandled:   true,
-					ExpectedErr:       nil,
-					ExpectedPrompt: `Authentication required for myhost (myrealm)
-Username: Password: `,
-				},
-				{
-					Headers:           basicChallenge,
-					ExpectedCanHandle: true,
-					ExpectedHeaders:   nil,
-					ExpectedHandled:   false,
-					ExpectedErr:       nil,
-					ExpectedPrompt:    ``,
 				},
 			},
 		},
@@ -185,9 +157,7 @@ Username: Password: `,
 					ExpectedHeaders:   nil,
 					ExpectedHandled:   false,
 					ExpectedErr:       errors.New("username system:admin is invalid for basic auth"),
-					ExpectedPrompt: `Authentication required for myhost (myrealm)
-Username: system:admin
-Password: `,
+					ExpectedPrompt:    "",
 				},
 			},
 		},

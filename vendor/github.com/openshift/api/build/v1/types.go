@@ -15,6 +15,9 @@ import (
 
 // Build encapsulates the inputs needed to produce a new deployable image, as well as
 // the status of the execution and a reference to the Pod which executed the build.
+//
+// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
+// +openshift:compatibility-gen:level=1
 type Build struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -23,6 +26,7 @@ type Build struct {
 	Spec BuildSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 
 	// status is the current status of the build.
+	// +optional
 	Status BuildStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
@@ -34,7 +38,7 @@ type BuildSpec struct {
 
 	// triggeredBy describes which triggers started the most recent update to the
 	// build configuration and contains information about those triggers.
-	TriggeredBy []BuildTriggerCause `json:"triggeredBy" protobuf:"bytes,2,rep,name=triggeredBy"`
+	TriggeredBy []BuildTriggerCause `json:"triggeredBy,omitempty" protobuf:"bytes,2,rep,name=triggeredBy"`
 }
 
 // OptionalNodeSelector is a map that may also be left nil to distinguish between set and unset.
@@ -83,7 +87,18 @@ type CommonSpec struct {
 	// If nil, it can be overridden by default build nodeselector values for the cluster.
 	// If set to an empty map or a map with any values, default build nodeselector values
 	// are ignored.
+	// +optional
 	NodeSelector OptionalNodeSelector `json:"nodeSelector" protobuf:"bytes,9,name=nodeSelector"`
+
+	// mountTrustedCA bind mounts the cluster's trusted certificate authorities, as defined in
+	// the cluster's proxy configuration, into the build. This lets processes within a build trust
+	// components signed by custom PKI certificate authorities, such as private artifact
+	// repositories and HTTPS proxies.
+	//
+	// When this field is set to true, the contents of `/etc/pki/ca-trust` within the build are
+	// managed by the build container, and any changes to this directory or its subdirectories (for
+	// example - within a Dockerfile `RUN` instruction) are not persisted in the build's output image.
+	MountTrustedCA *bool `json:"mountTrustedCA,omitempty" protobuf:"varint,10,opt,name=mountTrustedCA"`
 }
 
 // BuildTriggerCause holds information about a triggered build. It is used for
@@ -218,6 +233,11 @@ type BuildStatus struct {
 
 	// logSnippet is the last few lines of the build log.  This value is only set for builds that failed.
 	LogSnippet string `json:"logSnippet,omitempty" protobuf:"bytes,12,opt,name=logSnippet"`
+
+	// Conditions represents the latest available observations of a build's current state.
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	Conditions []BuildCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,13,rep,name=conditions"`
 }
 
 // StageInfo contains details about a build stage.
@@ -331,6 +351,24 @@ const (
 	BuildPhaseCancelled BuildPhase = "Cancelled"
 )
 
+type BuildConditionType string
+
+// BuildCondition describes the state of a build at a certain point.
+type BuildCondition struct {
+	// Type of build condition.
+	Type BuildConditionType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=BuildConditionType"`
+	// Status of the condition, one of True, False, Unknown.
+	Status corev1.ConditionStatus `json:"status" protobuf:"bytes,2,opt,name=status,casttype=k8s.io/kubernetes/pkg/api/v1.ConditionStatus"`
+	// The last time this condition was updated.
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty" protobuf:"bytes,6,opt,name=lastUpdateTime"`
+	// The last time the condition transitioned from one status to another.
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+	// The reason for the condition's last transition.
+	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
+	// A human readable message indicating details about the transition.
+	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+}
+
 // StatusReason is a brief CamelCase string that describes a temporary or
 // permanent build error condition, meant for machine parsing and tidy display
 // in the CLI.
@@ -375,7 +413,8 @@ const (
 type BuildSource struct {
 	// type of build input to accept
 	// +k8s:conversion-gen=false
-	Type BuildSourceType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=BuildSourceType"`
+	// +optional
+	Type BuildSourceType `json:"type,omitempty" protobuf:"bytes,1,opt,name=type,casttype=BuildSourceType"`
 
 	// binary builds accept a binary as their input. The binary is generally assumed to be a tar,
 	// gzipped tar, or zip file depending on the strategy. For container image builds, this is the build
@@ -439,13 +478,13 @@ type ImageSource struct {
 	// does not reference an image source it is ignored. This field and paths may both be set, in which case
 	// the contents will be used twice.
 	// +optional
-	As []string `json:"as" protobuf:"bytes,4,rep,name=as"`
+	As []string `json:"as,omitempty" protobuf:"bytes,4,rep,name=as"`
 
 	// paths is a list of source and destination paths to copy from the image. This content will be copied
 	// into the build context prior to starting the build. If no paths are set, the build context will
 	// not be altered.
 	// +optional
-	Paths []ImageSourcePath `json:"paths" protobuf:"bytes,2,rep,name=paths"`
+	Paths []ImageSourcePath `json:"paths,omitempty" protobuf:"bytes,2,rep,name=paths"`
 
 	// pullSecret is a reference to a secret to be used to pull the image from a registry
 	// If the image is pulled from the OpenShift registry, this field does not need to be set.
@@ -578,7 +617,8 @@ type SourceControlUser struct {
 type BuildStrategy struct {
 	// type is the kind of build strategy.
 	// +k8s:conversion-gen=false
-	Type BuildStrategyType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=BuildStrategyType"`
+	// +optional
+	Type BuildStrategyType `json:"type,omitempty" protobuf:"bytes,1,opt,name=type,casttype=BuildStrategyType"`
 
 	// dockerStrategy holds the parameters to the container image build strategy.
 	DockerStrategy *DockerBuildStrategy `json:"dockerStrategy,omitempty" protobuf:"bytes,2,opt,name=dockerStrategy"`
@@ -590,6 +630,7 @@ type BuildStrategy struct {
 	CustomStrategy *CustomBuildStrategy `json:"customStrategy,omitempty" protobuf:"bytes,4,opt,name=customStrategy"`
 
 	// JenkinsPipelineStrategy holds the parameters to the Jenkins Pipeline build strategy.
+	// Deprecated: use OpenShift Pipelines
 	JenkinsPipelineStrategy *JenkinsPipelineBuildStrategy `json:"jenkinsPipelineStrategy,omitempty" protobuf:"bytes,5,opt,name=jenkinsPipelineStrategy"`
 }
 
@@ -665,9 +706,9 @@ const (
 
 // DockerBuildStrategy defines input parameters specific to container image build.
 type DockerBuildStrategy struct {
-	// from is reference to an DockerImage, ImageStreamTag, or ImageStreamImage from which
-	// the container image should be pulled
-	// the resulting image will be used in the FROM line of the Dockerfile for this build.
+	// from is a reference to an DockerImage, ImageStreamTag, or ImageStreamImage which overrides
+	// the FROM image in the Dockerfile for the build. If the Dockerfile uses multi-stage builds,
+	// this will replace the image in the last FROM directive of the file.
 	From *corev1.ObjectReference `json:"from,omitempty" protobuf:"bytes,1,opt,name=from"`
 
 	// pullSecret is the name of a Secret that would be used for setting up
@@ -687,10 +728,13 @@ type DockerBuildStrategy struct {
 
 	// dockerfilePath is the path of the Dockerfile that will be used to build the container image,
 	// relative to the root of the context (contextDir).
+	// Defaults to `Dockerfile` if unset.
 	DockerfilePath string `json:"dockerfilePath,omitempty" protobuf:"bytes,6,opt,name=dockerfilePath"`
 
 	// buildArgs contains build arguments that will be resolved in the Dockerfile.  See
 	// https://docs.docker.com/engine/reference/builder/#/arg for more details.
+	// NOTE: Only the 'name' and 'value' fields are supported. Any settings on the 'valueFrom' field
+	// are ignored.
 	BuildArgs []corev1.EnvVar `json:"buildArgs,omitempty" protobuf:"bytes,7,rep,name=buildArgs"`
 
 	// imageOptimizationPolicy describes what optimizations the system can use when building images
@@ -701,6 +745,15 @@ type DockerBuildStrategy struct {
 	// policy. An additional experimental policy 'SkipLayersAndWarn' is the same as
 	// 'SkipLayers' but simply warns if compatibility cannot be preserved.
 	ImageOptimizationPolicy *ImageOptimizationPolicy `json:"imageOptimizationPolicy,omitempty" protobuf:"bytes,8,opt,name=imageOptimizationPolicy,casttype=ImageOptimizationPolicy"`
+
+	// volumes is a list of input volumes that can be mounted into the builds runtime environment.
+	// Only a subset of Kubernetes Volume sources are supported by builds.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes
+	// +listType=map
+	// +listMapKey=name
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Volumes []BuildVolume `json:"volumes,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,9,opt,name=volumes"`
 }
 
 // SourceBuildStrategy defines input parameters specific to an Source build.
@@ -732,9 +785,18 @@ type SourceBuildStrategy struct {
 	// deprecated json field, do not reuse: runtimeArtifacts
 	// +k8s:protobuf-deprecated=runtimeArtifacts,8
 
+	// volumes is a list of input volumes that can be mounted into the builds runtime environment.
+	// Only a subset of Kubernetes Volume sources are supported by builds.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes
+	// +listType=map
+	// +listMapKey=name
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Volumes []BuildVolume `json:"volumes,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,9,opt,name=volumes"`
 }
 
 // JenkinsPipelineBuildStrategy holds parameters specific to a Jenkins Pipeline build.
+// Deprecated: use OpenShift Pipelines
 type JenkinsPipelineBuildStrategy struct {
 	// JenkinsfilePath is the optional path of the Jenkinsfile that will be used to configure the pipeline
 	// relative to the root of the context (contextDir). If both JenkinsfilePath & Jenkinsfile are
@@ -872,6 +934,9 @@ type ImageLabel struct {
 // Build configurations define a build process for new container images. There are three types of builds possible - a container image build using a Dockerfile, a Source-to-Image build that uses a specially prepared base image that accepts source code that it can make runnable, and a custom build that can run // arbitrary container images as a base and accept the build parameters. Builds run on the cluster and on completion are pushed to the container image registry specified in the "output" section. A build can be triggered via a webhook, when the base image changes, or when a user manually requests a new build be // created.
 //
 // Each build created by a build configuration is numbered and refers back to its parent configuration. Multiple builds can be triggered at once. Builds that do not have "output" set can be used to test code or run a verification build.
+//
+// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
+// +openshift:compatibility-gen:level=1
 type BuildConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -880,6 +945,7 @@ type BuildConfig struct {
 	// to trigger them.
 	Spec BuildConfigSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 	// status holds any relevant information about a build config
+	// +optional
 	Status BuildConfigStatus `json:"status" protobuf:"bytes,3,opt,name=status"`
 }
 
@@ -889,7 +955,8 @@ type BuildConfigSpec struct {
 	//triggers determine how new Builds can be launched from a BuildConfig. If
 	//no triggers are defined, a new build can only occur as a result of an
 	//explicit client build creation.
-	Triggers []BuildTriggerPolicy `json:"triggers" protobuf:"bytes,1,rep,name=triggers"`
+	// +optional
+	Triggers []BuildTriggerPolicy `json:"triggers,omitempty" protobuf:"bytes,1,rep,name=triggers"`
 
 	// RunPolicy describes how the new build created from this build
 	// configuration will be scheduled for execution.
@@ -933,6 +1000,11 @@ const (
 type BuildConfigStatus struct {
 	// lastVersion is used to inform about number of last triggered build.
 	LastVersion int64 `json:"lastVersion" protobuf:"varint,1,opt,name=lastVersion"`
+
+	// ImageChangeTriggers captures the runtime state of any ImageChangeTrigger specified in the BuildConfigSpec,
+	// including the value reconciled by the OpenShift APIServer for the lastTriggeredImageID. There is a single entry
+	// in this array for each image change trigger in spec. Each trigger status references the ImageStreamTag that acts as the source of the trigger.
+	ImageChangeTriggers []ImageChangeTriggerStatus `json:"imageChangeTriggers,omitempty" protobuf:"bytes,2,rep,name=imageChangeTriggers"`
 }
 
 // SecretLocalReference contains information that points to the local secret being used
@@ -962,6 +1034,8 @@ type WebHookTrigger struct {
 type ImageChangeTrigger struct {
 	// lastTriggeredImageID is used internally by the ImageChangeController to save last
 	// used image ID for build
+	// This field is deprecated and will be removed in a future release.
+	// Deprecated
 	LastTriggeredImageID string `json:"lastTriggeredImageID,omitempty" protobuf:"bytes,1,opt,name=lastTriggeredImageID"`
 
 	// from is a reference to an ImageStreamTag that will trigger a build when updated
@@ -974,9 +1048,57 @@ type ImageChangeTrigger struct {
 	Paused bool `json:"paused,omitempty" protobuf:"varint,3,opt,name=paused"`
 }
 
+// ImageStreamTagReference references the ImageStreamTag in an image change trigger by namespace and name.
+type ImageStreamTagReference struct {
+	// namespace is the namespace where the ImageStreamTag for an ImageChangeTrigger is located
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,1,opt,name=namespace"`
+
+	// name is the name of the ImageStreamTag for an ImageChangeTrigger
+	Name string `json:"name,omitempty" protobuf:"bytes,2,opt,name=name"`
+}
+
+// ImageChangeTriggerStatus tracks the latest resolved status of the associated ImageChangeTrigger policy
+// specified in the BuildConfigSpec.Triggers struct.
+type ImageChangeTriggerStatus struct {
+	// lastTriggeredImageID represents the sha/id of the ImageStreamTag when a Build for this BuildConfig was started.
+	// The lastTriggeredImageID is updated each time a Build for this BuildConfig is started, even if this ImageStreamTag is not the reason the Build is started.
+	LastTriggeredImageID string `json:"lastTriggeredImageID,omitempty" protobuf:"bytes,1,opt,name=lastTriggeredImageID"`
+
+	// from is the ImageStreamTag that is the source of the trigger.
+	From ImageStreamTagReference `json:"from,omitempty" protobuf:"bytes,2,opt,name=from"`
+
+	// lastTriggerTime is the last time this particular ImageStreamTag triggered a Build to start.
+	// This field is only updated when this trigger specifically started a Build.
+	LastTriggerTime metav1.Time `json:"lastTriggerTime,omitempty" protobuf:"bytes,3,opt,name=lastTriggerTime"`
+}
+
 // BuildTriggerPolicy describes a policy for a single trigger that results in a new Build.
 type BuildTriggerPolicy struct {
-	// type is the type of build trigger
+	// type is the type of build trigger. Valid values:
+	//
+	// - GitHub
+	// GitHubWebHookBuildTriggerType represents a trigger that launches builds on
+	// GitHub webhook invocations
+	//
+	// - Generic
+	// GenericWebHookBuildTriggerType represents a trigger that launches builds on
+	// generic webhook invocations
+	//
+	// - GitLab
+	// GitLabWebHookBuildTriggerType represents a trigger that launches builds on
+	// GitLab webhook invocations
+	//
+	// - Bitbucket
+	// BitbucketWebHookBuildTriggerType represents a trigger that launches builds on
+	// Bitbucket webhook invocations
+	//
+	// - ImageChange
+	// ImageChangeBuildTriggerType represents a trigger that launches builds on
+	// availability of a new version of an image
+	//
+	// - ConfigChange
+	// ConfigChangeBuildTriggerType will trigger a build on an initial build config creation
+	// WARNING: In the future the behavior will change to trigger a build on any config change
 	Type BuildTriggerType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=BuildTriggerType"`
 
 	// github contains the parameters for a GitHub webhook type of trigger
@@ -1031,6 +1153,9 @@ const (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BuildList is a collection of Builds.
+//
+// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
+// +openshift:compatibility-gen:level=1
 type BuildList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -1042,6 +1167,9 @@ type BuildList struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BuildConfigList is a collection of BuildConfigs.
+//
+// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
+// +openshift:compatibility-gen:level=1
 type BuildConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -1087,6 +1215,9 @@ type GitRefInfo struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BuildLog is the (unused) resource associated with the build log redirector
+//
+// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
+// +openshift:compatibility-gen:level=1
 type BuildLog struct {
 	metav1.TypeMeta `json:",inline"`
 }
@@ -1110,6 +1241,9 @@ type SourceStrategyOptions struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BuildRequest is the resource used to pass parameters to build generator
+//
+// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
+// +openshift:compatibility-gen:level=1
 type BuildRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -1136,7 +1270,7 @@ type BuildRequest struct {
 
 	// triggeredBy describes which triggers started the most recent update to the
 	// build configuration and contains information about those triggers.
-	TriggeredBy []BuildTriggerCause `json:"triggeredBy" protobuf:"bytes,8,rep,name=triggeredBy"`
+	TriggeredBy []BuildTriggerCause `json:"triggeredBy,omitempty" protobuf:"bytes,8,rep,name=triggeredBy"`
 
 	// DockerStrategyOptions contains additional docker-strategy specific options for the build
 	DockerStrategyOptions *DockerStrategyOptions `json:"dockerStrategyOptions,omitempty" protobuf:"bytes,9,opt,name=dockerStrategyOptions"`
@@ -1148,6 +1282,9 @@ type BuildRequest struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BinaryBuildRequestOptions are the options required to fully speficy a binary build request
+//
+// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
+// +openshift:compatibility-gen:level=1
 type BinaryBuildRequestOptions struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -1179,6 +1316,9 @@ type BinaryBuildRequestOptions struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BuildLogOptions is the REST options for a build log
+//
+// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
+// +openshift:compatibility-gen:level=1
 type BuildLogOptions struct {
 	metav1.TypeMeta `json:",inline"`
 
@@ -1217,6 +1357,15 @@ type BuildLogOptions struct {
 
 	// version of the build for which to view logs.
 	Version *int64 `json:"version,omitempty" protobuf:"varint,10,opt,name=version"`
+
+	// insecureSkipTLSVerifyBackend indicates that the apiserver should not confirm the validity of the
+	// serving certificate of the backend it is connecting to.  This will make the HTTPS connection between the apiserver
+	// and the backend insecure. This means the apiserver cannot verify the log data it is receiving came from the real
+	// kubelet.  If the kubelet is configured to verify the apiserver's TLS credentials, it does not mean the
+	// connection to the real kubelet is vulnerable to a man in the middle attack (e.g. an attacker could not intercept
+	// the actual log data coming from the real kubelet).
+	// +optional
+	InsecureSkipTLSVerifyBackend bool `json:"insecureSkipTLSVerifyBackend,omitempty" protobuf:"varint,11,opt,name=insecureSkipTLSVerifyBackend"`
 }
 
 // SecretSpec specifies a secret to be included in a build pod and its corresponding mount point
@@ -1226,4 +1375,70 @@ type SecretSpec struct {
 
 	// mountPath is the path at which to mount the secret
 	MountPath string `json:"mountPath" protobuf:"bytes,2,opt,name=mountPath"`
+}
+
+// BuildVolume describes a volume that is made available to build pods,
+// such that it can be mounted into buildah's runtime environment.
+// Only a subset of Kubernetes Volume sources are supported.
+type BuildVolume struct {
+	// name is a unique identifier for this BuildVolume.
+	// It must conform to the Kubernetes DNS label standard and be unique within the pod.
+	// Names that collide with those added by the build controller will result in a
+	// failed build with an error message detailing which name caused the error.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+	// +required
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+
+	// source represents the location and type of the mounted volume.
+	// +required
+	Source BuildVolumeSource `json:"source" protobuf:"bytes,2,opt,name=source"`
+
+	// mounts represents the location of the volume in the image build container
+	// +required
+	// +listType=map
+	// +listMapKey=destinationPath
+	// +patchMergeKey=destinationPath
+	// +patchStrategy=merge
+	Mounts []BuildVolumeMount `json:"mounts" patchStrategy:"merge" patchMergeKey:"destinationPath" protobuf:"bytes,3,opt,name=mounts"`
+}
+
+// BuildVolumeSourceType represents a build volume source type
+type BuildVolumeSourceType string
+
+const (
+	// BuildVolumeSourceTypeSecret is the Secret build source volume type
+	BuildVolumeSourceTypeSecret BuildVolumeSourceType = "Secret"
+
+	// BuildVolumeSourceTypeConfigmap is the ConfigMap build source volume type
+	BuildVolumeSourceTypeConfigMap BuildVolumeSourceType = "ConfigMap"
+)
+
+// BuildVolumeSource represents the source of a volume to mount
+// Only one of its supported types may be specified at any given time.
+type BuildVolumeSource struct {
+
+	// type is the BuildVolumeSourceType for the volume source.
+	// Type must match the populated volume source.
+	// Valid types are: Secret, ConfigMap
+	Type BuildVolumeSourceType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=BuildVolumeSourceType"`
+
+	// secret represents a Secret that should populate this volume.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes#secret
+	// +optional
+	Secret *corev1.SecretVolumeSource `json:"secret,omitempty" protobuf:"bytes,2,opt,name=secret"`
+
+	// configMap represents a ConfigMap that should populate this volume
+	// +optional
+	ConfigMap *corev1.ConfigMapVolumeSource `json:"configMap,omitempty" protobuf:"bytes,3,opt,name=configMap"`
+}
+
+// BuildVolumeMount describes the mounting of a Volume within buildah's runtime environment.
+type BuildVolumeMount struct {
+	// destinationPath is the path within the buildah runtime environment at which the volume should be mounted.
+	// The transient mount within the build image and the backing volume will both be mounted read only.
+	// Must be an absolute path, must not contain '..' or ':', and must not collide with a destination path generated
+	// by the builder process
+	// Paths that collide with those added by the build controller will result in a
+	// failed build with an error message detailing which path caused the error.
+	DestinationPath string `json:"destinationPath" protobuf:"bytes,1,opt,name=destinationPath"`
 }

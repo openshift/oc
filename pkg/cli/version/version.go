@@ -1,6 +1,7 @@
 package version
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -13,7 +14,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	kversion "k8s.io/kubectl/pkg/cmd/version"
 	"k8s.io/kubectl/pkg/util/i18n"
@@ -32,15 +33,19 @@ type Version struct {
 
 var (
 	versionLong = templates.LongDesc(`
-        Print the OpenShift client, kube-apiserver, and openshift-apiserver versions for the current context.
-        Pass --client to print only the OpenShift client version.`)
+		Print the OpenShift client, kube-apiserver, and openshift-apiserver versions for the current context.
+		Pass --client to print only the OpenShift client version.
+	`)
 	versionExample = templates.Examples(`
-        # Print the OpenShift client, kube-apiserver, and openshift-apiserver version information for the current context.
-        %[1]s version
-        # Print the OpenShift client, kube-apiserver, and openshift-apiserver version numbers for the current context.
-        %[1]s version --short
-        # Print the OpenShift client version information for the current context.
-        %[1]s version --client`)
+		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version information for the current context
+		oc version
+
+		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version numbers for the current context
+		oc version --short
+
+		# Print the OpenShift client version information for the current context
+		oc version --client
+	`)
 )
 
 type VersionOptions struct {
@@ -59,13 +64,13 @@ func NewVersionOptions(ioStreams genericclioptions.IOStreams) *VersionOptions {
 
 // NewCmdVersion is copied from upstream NewCmdVersion with addition of OpenShift Server version info.
 // OpenShift Server version is output only if logged in to a cluster as an admin user.
-func NewCmdVersion(fullName string, f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVersion(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
 	o := NewVersionOptions(ioStreams)
 	cmd := &cobra.Command{
 		Use:     "version",
 		Short:   i18n.T("Print the client and server version information"),
 		Long:    "Print the client and server version information for the current context",
-		Example: fmt.Sprintf(versionExample, fullName),
+		Example: versionExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.Complete(f, cmd))
@@ -129,7 +134,7 @@ func (o *VersionOptions) Run() error {
 		}
 		if o.oClient != nil {
 			var clusterOperator *configv1.ClusterOperator
-			clusterOperator, serverErr = o.oClient.ClusterOperators().Get("openshift-apiserver", metav1.GetOptions{})
+			clusterOperator, serverErr = o.oClient.ClusterOperators().Get(context.TODO(), "openshift-apiserver", metav1.GetOptions{})
 			// error here indicates logged in as non-admin, log and move on
 			if serverErr != nil {
 				switch {

@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -36,15 +36,16 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	cmdwait "k8s.io/kubectl/pkg/cmd/wait"
 	"k8s.io/kubectl/pkg/rawhttp"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
 var (
 	deleteLong = templates.LongDesc(i18n.T(`
-		Delete resources by filenames, stdin, resources and names, or by resources and label selector.
+		Delete resources by file names, stdin, resources and names, or by resources and label selector.
 
-		JSON and YAML formats are accepted. Only one type of the arguments may be specified: filenames,
+		JSON and YAML formats are accepted. Only one type of argument may be specified: file names,
 		resources and names, or resources and label selector.
 
 		Some resources, such as pods, support graceful deletion. These resources define a default period
@@ -52,8 +53,9 @@ var (
 		the --grace-period flag, or pass --now to set a grace-period of 1. Because these resources often
 		represent entities in the cluster, deletion may not be acknowledged immediately. If the node
 		hosting a pod is down or cannot reach the API server, termination may take significantly longer
-		than the grace period. To force delete a resource, you must pass a grace period of 0 and specify
-		the --force flag.
+		than the grace period. To force delete a resource, you must specify the --force flag.
+		Note: only a subset of resources support graceful deletion. In absence of the support,
+		the --grace-period flag is ignored.
 
 		IMPORTANT: Force deleting pods does not wait for confirmation that the pod's processes have been
 		terminated, which can leave those processes running until the node detects the deletion and
@@ -62,7 +64,7 @@ var (
 		multiple processes running on different machines using the same identification which may lead
 		to data corruption or inconsistency. Only force delete pods when you are sure the pod is
 		terminated, or if your application can tolerate multiple copies of the same pod running at once.
-		Also, if you force delete pods the scheduler may place new pods on those nodes before the node
+		Also, if you force delete pods, the scheduler may place new pods on those nodes before the node
 		has released those resources and causing those pods to be evicted immediately.
 
 		Note that the delete command does NOT do resource version checks, so if someone submits an
@@ -70,26 +72,26 @@ var (
 		rest of the resource.`))
 
 	deleteExample = templates.Examples(i18n.T(`
-		# Delete a pod using the type and name specified in pod.json.
+		# Delete a pod using the type and name specified in pod.json
 		kubectl delete -f ./pod.json
 
-		# Delete resources from a directory containing kustomization.yaml - e.g. dir/kustomization.yaml.
+		# Delete resources from a directory containing kustomization.yaml - e.g. dir/kustomization.yaml
 		kubectl delete -k dir
 
-		# Delete a pod based on the type and name in the JSON passed into stdin.
+		# Delete a pod based on the type and name in the JSON passed into stdin
 		cat pod.json | kubectl delete -f -
 
 		# Delete pods and services with same names "baz" and "foo"
 		kubectl delete pod,service baz foo
 
-		# Delete pods and services with label name=myLabel.
+		# Delete pods and services with label name=myLabel
 		kubectl delete pods,services -l name=myLabel
 
 		# Delete a pod with minimal delay
 		kubectl delete pod foo --now
 
 		# Force delete a pod on a dead node
-		kubectl delete pod foo --grace-period=0 --force
+		kubectl delete pod foo --force
 
 		# Delete all pods
 		kubectl delete pods --all`))
@@ -102,8 +104,8 @@ type DeleteOptions struct {
 	FieldSelector       string
 	DeleteAll           bool
 	DeleteAllNamespaces bool
+	CascadingStrategy   metav1.DeletionPropagation
 	IgnoreNotFound      bool
-	Cascade             bool
 	DeleteNow           bool
 	ForceDeletion       bool
 	WaitForDeletion     bool
@@ -113,6 +115,9 @@ type DeleteOptions struct {
 
 	GracePeriod int
 	Timeout     time.Duration
+
+	DryRunStrategy cmdutil.DryRunStrategy
+	DryRunVerifier *resource.DryRunVerifier
 
 	Output string
 
@@ -129,11 +134,13 @@ func NewCmdDelete(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	cmd := &cobra.Command{
 		Use:                   "delete ([-f FILENAME] | [-k DIRECTORY] | TYPE [(NAME | -l label | --all)])",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Delete resources by filenames, stdin, resources and names, or by resources and label selector"),
+		Short:                 i18n.T("Delete resources by file names, stdin, resources and names, or by resources and label selector"),
 		Long:                  deleteLong,
 		Example:               deleteExample,
+		ValidArgsFunction:     util.ResourceTypeAndNameCompletionFunc(f),
 		Run: func(cmd *cobra.Command, args []string) {
-			o := deleteFlags.ToOptions(nil, streams)
+			o, err := deleteFlags.ToOptions(nil, streams)
+			cmdutil.CheckErr(err)
 			cmdutil.CheckErr(o.Complete(f, args, cmd))
 			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.RunDelete(f))
@@ -142,8 +149,8 @@ func NewCmdDelete(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	}
 
 	deleteFlags.AddFlags(cmd)
+	cmdutil.AddDryRunFlag(cmd)
 
-	cmdutil.AddIncludeUninitializedFlag(cmd)
 	return cmd
 }
 
@@ -172,6 +179,19 @@ func (o *DeleteOptions) Complete(f cmdutil.Factory, args []string, cmd *cobra.Co
 		// into --grace-period=1. Users may provide --force to bypass this conversion.
 		o.GracePeriod = 1
 	}
+	if o.ForceDeletion && o.GracePeriod < 0 {
+		o.GracePeriod = 0
+	}
+
+	o.DryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+	dynamicClient, err := f.DynamicClient()
+	if err != nil {
+		return err
+	}
+	o.DryRunVerifier = resource.NewDryRunVerifier(dynamicClient, f.OpenAPIGetter())
 
 	if len(o.Raw) == 0 {
 		r := f.NewBuilder().
@@ -221,8 +241,8 @@ func (o *DeleteOptions) Validate() error {
 	switch {
 	case o.GracePeriod == 0 && o.ForceDeletion:
 		fmt.Fprintf(o.ErrOut, "warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.\n")
-	case o.ForceDeletion:
-		fmt.Fprintf(o.ErrOut, "warning: --force is ignored because --grace-period is not 0.\n")
+	case o.GracePeriod > 0 && o.ForceDeletion:
+		return fmt.Errorf("--force and --grace-period greater than 0 cannot be specified together")
 	}
 
 	if len(o.Raw) > 0 {
@@ -281,15 +301,23 @@ func (o *DeleteOptions) DeleteResult(r *resource.Result) error {
 		if o.GracePeriod >= 0 {
 			options = metav1.NewDeleteOptions(int64(o.GracePeriod))
 		}
-		policy := metav1.DeletePropagationBackground
-		if !o.Cascade {
-			policy = metav1.DeletePropagationOrphan
-		}
-		options.PropagationPolicy = &policy
+		options.PropagationPolicy = &o.CascadingStrategy
 
 		if warnClusterScope && info.Mapping.Scope.Name() == meta.RESTScopeNameRoot {
 			fmt.Fprintf(o.ErrOut, "warning: deleting cluster-scoped resources, not scoped to the provided namespace\n")
 			warnClusterScope = false
+		}
+
+		if o.DryRunStrategy == cmdutil.DryRunClient {
+			if !o.Quiet {
+				o.PrintObj(info)
+			}
+			return nil
+		}
+		if o.DryRunStrategy == cmdutil.DryRunServer {
+			if err := o.DryRunVerifier.HasSupport(info.Mapping.GroupVersionKind); err != nil {
+				return err
+			}
 		}
 		response, err := o.deleteResource(info, options)
 		if err != nil {
@@ -330,6 +358,11 @@ func (o *DeleteOptions) DeleteResult(r *resource.Result) error {
 		return nil
 	}
 
+	// If we are dry-running, then we don't want to wait
+	if o.DryRunStrategy != cmdutil.DryRunNone {
+		return nil
+	}
+
 	effectiveTimeout := o.Timeout
 	if effectiveTimeout == 0 {
 		// if we requested to wait forever, set it to a week.
@@ -356,7 +389,10 @@ func (o *DeleteOptions) DeleteResult(r *resource.Result) error {
 }
 
 func (o *DeleteOptions) deleteResource(info *resource.Info, deleteOptions *metav1.DeleteOptions) (runtime.Object, error) {
-	deleteResponse, err := resource.NewHelper(info.Client, info.Mapping).DeleteWithOptions(info.Namespace, info.Name, deleteOptions)
+	deleteResponse, err := resource.
+		NewHelper(info.Client, info.Mapping).
+		DryRun(o.DryRunStrategy == cmdutil.DryRunServer).
+		DeleteWithOptions(info.Namespace, info.Name, deleteOptions)
 	if err != nil {
 		return nil, cmdutil.AddSourceToErr("deleting", info.Source, err)
 	}
@@ -379,6 +415,13 @@ func (o *DeleteOptions) PrintObj(info *resource.Info) {
 
 	if o.GracePeriod == 0 {
 		operation = "force deleted"
+	}
+
+	switch o.DryRunStrategy {
+	case cmdutil.DryRunClient:
+		operation = fmt.Sprintf("%s (dry run)", operation)
+	case cmdutil.DryRunServer:
+		operation = fmt.Sprintf("%s (server dry run)", operation)
 	}
 
 	if o.Output == "name" {

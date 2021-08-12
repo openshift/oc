@@ -1,6 +1,7 @@
 package importimage
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -25,7 +26,7 @@ import (
 
 var (
 	importImageLong = templates.LongDesc(`
-		Import the latest image information from a tag in a container image registry
+		Import the latest image information from a tag in a container image registry.
 
 		Image streams allow you to control which images are rolled out to your builds
 		and applications. This command fetches the latest version of an image from a
@@ -34,12 +35,28 @@ var (
 		entries. When importing an image, only the image metadata is copied, not the
 		image contents.
 
-		If you wish to change the image stream tag or provide more advanced options,
+		If you want to change the image stream tag or provide more advanced options,
 		see the 'tag' command.`)
 
 	importImageExample = templates.Examples(`
-	  %[1]s import-image mystream
-		`)
+		# Import tag latest into a new image stream
+		oc import-image mystream --from=registry.io/repo/image:latest --confirm
+
+		# Update imported data for tag latest in an already existing image stream
+		oc import-image mystream
+
+		# Update imported data for tag stable in an already existing image stream
+		oc import-image mystream:stable
+
+		# Update imported data for all tags in an existing image stream
+		oc import-image mystream --all
+
+		# Import all tags into a new image stream
+		oc import-image mystream --from=registry.io/repo/image --all --confirm
+
+		# Import all tags into a new image stream using a custom timeout
+		oc --request-timeout=5m import-image mystream --from=registry.io/repo/image --all --confirm
+	`)
 )
 
 // ImageImportOptions contains all the necessary information to perform an import.
@@ -72,7 +89,7 @@ type ImportImageOptions struct {
 	genericclioptions.IOStreams
 }
 
-func NewImportImageOptions(name string, streams genericclioptions.IOStreams) *ImportImageOptions {
+func NewImportImageOptions(streams genericclioptions.IOStreams) *ImportImageOptions {
 	return &ImportImageOptions{
 		PrintFlags:      genericclioptions.NewPrintFlags("imported"),
 		IOStreams:       streams,
@@ -81,14 +98,14 @@ func NewImportImageOptions(name string, streams genericclioptions.IOStreams) *Im
 }
 
 // NewCmdImportImage implements the OpenShift cli import-image command.
-func NewCmdImportImage(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewImportImageOptions(fullName, streams)
+func NewCmdImportImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewImportImageOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "import-image IMAGESTREAM[:TAG]",
-		Short:   "Imports images from a container image registry",
+		Short:   "Import images from a container image registry",
 		Long:    importImageLong,
-		Example: fmt.Sprintf(importImageExample, fullName),
+		Example: importImageExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -186,7 +203,7 @@ func (o *ImportImageOptions) Run() error {
 		return err
 	}
 
-	result, err := o.imageClient.ImageStreamImports(isi.Namespace).Create(isi)
+	result, err := o.imageClient.ImageStreamImports(isi.Namespace).Create(context.TODO(), isi, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -274,7 +291,7 @@ func (e importError) Error() string {
 
 func (o *ImportImageOptions) createImageImport() (*imagev1.ImageStream, *imagev1.ImageStreamImport, error) {
 	var isi *imagev1.ImageStreamImport
-	stream, err := o.isClient.Get(o.Name, metav1.GetOptions{})
+	stream, err := o.isClient.Get(context.TODO(), o.Name, metav1.GetOptions{})
 	// no stream, try creating one
 	if err != nil {
 		if !errors.IsNotFound(err) {

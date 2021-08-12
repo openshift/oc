@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/url"
@@ -8,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -29,7 +30,7 @@ import (
 
 var (
 	probeLong = templates.LongDesc(`
-		Set or remove a liveness or readiness probe from a pod or pod template
+		Set or remove a liveness, readiness or startup probe from a pod or pod template.
 
 		Each container in a pod may define one or more probes that are used for general health
 		checking. A liveness probe is checked periodically to ensure the container is still healthy:
@@ -37,6 +38,8 @@ var (
 		flag for each container, which controls whether the container's ports are included in the list
 		of endpoints for a service and whether a deployment can proceed. A readiness check should
 		indicate when your container is ready to accept incoming traffic or begin handling work.
+		A startup probe allows additional startup time for a container before a liveness probe
+		is started.
 		Setting both liveness and readiness probes for each container is highly recommended.
 
 		The three probe types are:
@@ -50,23 +53,27 @@ var (
 		to fail.`)
 
 	probeExample = templates.Examples(`
-	  # Clear both readiness and liveness probes off all containers
-	  %[1]s probe dc/myapp --remove --readiness --liveness
+		# Clear both readiness and liveness probes off all containers
+		oc set probe dc/myapp --remove --readiness --liveness
 
-	  # Set an exec action as a liveness probe to run 'echo ok'
-	  %[1]s probe dc/myapp --liveness -- echo ok
+		# Set an exec action as a liveness probe to run 'echo ok'
+		oc set probe dc/myapp --liveness -- echo ok
 
-	  # Set a readiness probe to try to open a TCP socket on 3306
-	  %[1]s probe rc/mysql --readiness --open-tcp=3306
+		# Set a readiness probe to try to open a TCP socket on 3306
+		oc set probe rc/mysql --readiness --open-tcp=3306
 
-	  # Set an HTTP readiness probe for port 8080 and path /healthz over HTTP on the pod IP
-	  %[1]s probe dc/webapp --readiness --get-url=http://:8080/healthz
+		# Set an HTTP startup probe for port 8080 and path /healthz over HTTP on the pod IP
+		oc set probe dc/webapp --startup --get-url=http://:8080/healthz
 
-	  # Set an HTTP readiness probe over HTTPS on 127.0.0.1 for a hostNetwork pod
-	  %[1]s probe dc/router --readiness --get-url=https://127.0.0.1:1936/stats
+		# Set an HTTP readiness probe for port 8080 and path /healthz over HTTP on the pod IP
+		oc set probe dc/webapp --readiness --get-url=http://:8080/healthz
 
-	  # Set only the initial-delay-seconds field on all deployments
-	  %[1]s probe dc --all --readiness --initial-delay-seconds=30`)
+		# Set an HTTP readiness probe over HTTPS on 127.0.0.1 for a hostNetwork pod
+		oc set probe dc/router --readiness --get-url=https://127.0.0.1:1936/stats
+
+		# Set only the initial-delay-seconds field on all deployments
+		oc set probe dc --all --readiness --initial-delay-seconds=30
+	`)
 )
 
 type ProbeOptions struct {
@@ -77,6 +84,7 @@ type ProbeOptions struct {
 	All               bool
 	Readiness         bool
 	Liveness          bool
+	Startup           bool
 	Remove            bool
 	Local             bool
 	OpenTCPSocket     string
@@ -92,7 +100,7 @@ type ProbeOptions struct {
 	UpdatePodSpecForObject polymorphichelpers.UpdatePodSpecForObjectFunc
 	Command                []string
 	Resources              []string
-	DryRun                 bool
+	DryRunStrategy         kcmdutil.DryRunStrategy
 
 	FlagSet       func(string) bool
 	HTTPGetAction *corev1.HTTPGetAction
@@ -123,13 +131,13 @@ func NewProbeOptions(streams genericclioptions.IOStreams) *ProbeOptions {
 }
 
 // NewCmdProbe implements the set probe command
-func NewCmdProbe(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProbe(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewProbeOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "probe RESOURCE/NAME --readiness|--liveness [flags] (--get-url=URL|--open-tcp=PORT|-- CMD)",
 		Short:   "Update a probe on a pod template",
 		Long:    probeLong,
-		Example: fmt.Sprintf(probeExample, fullName),
+		Example: probeExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -144,6 +152,7 @@ func NewCmdProbe(fullName string, f kcmdutil.Factory, streams genericclioptions.
 	cmd.Flags().BoolVar(&o.Remove, "remove", o.Remove, "If true, remove the specified probe(s).")
 	cmd.Flags().BoolVar(&o.Readiness, "readiness", o.Readiness, "Set or remove a readiness probe to indicate when this container should receive traffic")
 	cmd.Flags().BoolVar(&o.Liveness, "liveness", o.Liveness, "Set or remove a liveness probe to verify this container is running")
+	cmd.Flags().BoolVar(&o.Startup, "startup", o.Startup, "Set or remove a startup probe to verify this container is running")
 	cmd.Flags().BoolVar(&o.Local, "local", o.Local, "If true, set image will NOT contact api-server but run locally.")
 	cmd.Flags().StringVar(&o.OpenTCPSocket, "open-tcp", o.OpenTCPSocket, "A port number or port name to attempt to open via TCP.")
 	cmd.Flags().StringVar(&o.HTTPGet, "get-url", o.HTTPGet, "A URL to perform an HTTP GET on (you can omit the host, have a string port, or omit the scheme.")
@@ -183,10 +192,11 @@ func (o *ProbeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 	o.Builder = f.NewBuilder
 	o.UpdatePodSpecForObject = polymorphichelpers.UpdatePodSpecForObjectFn
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -235,7 +245,7 @@ func (o *ProbeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 			Scheme: corev1.URIScheme(strings.ToUpper(url.Scheme)),
 			Host:   host,
 			Port:   intOrString(port),
-			Path:   url.Path,
+			Path:   url.RequestURI(),
 		}
 	}
 
@@ -243,8 +253,8 @@ func (o *ProbeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 }
 
 func (o *ProbeOptions) Validate() error {
-	if !o.Readiness && !o.Liveness {
-		return fmt.Errorf("you must specify one of --readiness, --liveness or both")
+	if !o.Readiness && !o.Liveness && !o.Startup {
+		return fmt.Errorf("you must specify at least one of --readiness, --liveness, --startup")
 	}
 	count := 0
 	if o.Command != nil {
@@ -345,14 +355,14 @@ func (o *ProbeOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, err)
 			continue
@@ -374,6 +384,9 @@ func (o *ProbeOptions) updateContainer(container *corev1.Container) {
 		if o.Liveness {
 			container.LivenessProbe = nil
 		}
+		if o.Startup {
+			container.StartupProbe = nil
+		}
 		return
 	}
 	if o.Readiness {
@@ -387,6 +400,12 @@ func (o *ProbeOptions) updateContainer(container *corev1.Container) {
 			container.LivenessProbe = &corev1.Probe{}
 		}
 		o.updateProbe(container.LivenessProbe)
+	}
+	if o.Startup {
+		if container.StartupProbe == nil {
+			container.StartupProbe = &corev1.Probe{}
+		}
+		o.updateProbe(container.StartupProbe)
 	}
 }
 

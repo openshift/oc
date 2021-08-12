@@ -2,6 +2,7 @@ package deploymentconfigs
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"sort"
 	"text/tabwriter"
@@ -10,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/kubectl/pkg/describe/versioned"
+	"k8s.io/kubectl/pkg/describe"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -32,7 +33,7 @@ var _ polymorphichelpers.HistoryViewer = &DeploymentConfigHistoryViewer{}
 // ViewHistory returns a description of all the history it can find for a deployment config.
 func (h *DeploymentConfigHistoryViewer) ViewHistory(namespace, name string, revision int64) (string, error) {
 	opts := metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()}
-	deploymentList, err := h.rn.ReplicationControllers(namespace).List(opts)
+	deploymentList, err := h.rn.ReplicationControllers(namespace).List(context.TODO(), opts)
 	if err != nil {
 		return "", err
 	}
@@ -66,7 +67,7 @@ func (h *DeploymentConfigHistoryViewer) ViewHistory(namespace, name string, revi
 
 		buf := bytes.NewBuffer([]byte{})
 
-		versioned.DescribePodTemplate(desired, versioned.NewPrefixWriter(buf))
+		describe.DescribePodTemplate(desired, describe.NewPrefixWriter(buf))
 		return buf.String(), nil
 	}
 

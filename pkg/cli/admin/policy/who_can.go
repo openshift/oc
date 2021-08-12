@@ -2,6 +2,7 @@ package policy
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -14,9 +15,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/kubernetes/pkg/printers"
 
 	authorizationv1 "github.com/openshift/api/authorization/v1"
 	authorizationv1typedclient "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
@@ -49,10 +50,10 @@ func NewWhoCanOptions(streams genericclioptions.IOStreams) *WhoCanOptions {
 }
 
 // NewCmdWhoCan implements the OpenShift cli who-can command
-func NewCmdWhoCan(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdWhoCan(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewWhoCanOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name + " VERB RESOURCE [NAME]",
+		Use:   "who-can VERB RESOURCE [NAME]",
 		Short: "List who can perform the specified action on a resource",
 		Long:  "List who can perform the specified action on a resource",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -139,9 +140,9 @@ func (o *WhoCanOptions) run() error {
 	resourceAccessReviewResponse := &authorizationv1.ResourceAccessReviewResponse{}
 	var err error
 	if o.allNamespaces {
-		resourceAccessReviewResponse, err = o.client.ResourceAccessReviews().Create(&authorizationv1.ResourceAccessReview{Action: authorizationAttributes})
+		resourceAccessReviewResponse, err = o.client.ResourceAccessReviews().Create(context.TODO(), &authorizationv1.ResourceAccessReview{Action: authorizationAttributes}, metav1.CreateOptions{})
 	} else {
-		resourceAccessReviewResponse, err = o.client.LocalResourceAccessReviews(o.bindingNamespace).Create(&authorizationv1.LocalResourceAccessReview{Action: authorizationAttributes})
+		resourceAccessReviewResponse, err = o.client.LocalResourceAccessReviews(o.bindingNamespace).Create(context.TODO(), &authorizationv1.LocalResourceAccessReview{Action: authorizationAttributes}, metav1.CreateOptions{})
 	}
 
 	if err != nil {

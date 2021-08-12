@@ -1,31 +1,13 @@
 package describe
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
-
-	kappsv1 "k8s.io/api/apps/v1"
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	kapierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/kubernetes"
-	kappsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
-	autoscalingv1client "k8s.io/client-go/kubernetes/typed/autoscaling/v1"
-	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/kubectl/pkg/scheme"
-	deployutil "k8s.io/kubernetes/pkg/controller/deployment/util"
 
 	"github.com/openshift/api/annotations"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -39,6 +21,7 @@ import (
 	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
+	deployutil "github.com/openshift/oc/pkg/helpers/deployment"
 	loginerrors "github.com/openshift/oc/pkg/helpers/errors"
 	appsedges "github.com/openshift/oc/pkg/helpers/graph/appsgraph"
 	appsanalysis "github.com/openshift/oc/pkg/helpers/graph/appsgraph/analysis"
@@ -58,6 +41,22 @@ import (
 	routegraph "github.com/openshift/oc/pkg/helpers/graph/routegraph/nodes"
 	"github.com/openshift/oc/pkg/helpers/parallel"
 	routedisplayhelpers "github.com/openshift/oc/pkg/helpers/route"
+	kappsv1 "k8s.io/api/apps/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	kapierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/kubernetes"
+	kappsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
+	autoscalingv1client "k8s.io/client-go/kubernetes/typed/autoscaling/v1"
+	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 const ForbiddenListWarning = "Forbidden"
@@ -76,8 +75,6 @@ type ProjectStatusDescriber struct {
 	Server        string
 	Suggest       bool
 
-	// root command used when calling this command
-	CommandBaseName    string
 	RequestedNamespace string
 	CurrentNamespace   string
 
@@ -198,13 +195,13 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 	allNamespaces := namespace == metav1.NamespaceAll
 	var project *projectv1.Project
 	if !allNamespaces {
-		p, err := d.ProjectClient.Projects().Get(namespace, metav1.GetOptions{})
+		p, err := d.ProjectClient.Projects().Get(context.TODO(), namespace, metav1.GetOptions{})
 		if err != nil {
 			// a forbidden error here (without a --namespace value) means that
 			// the user has not created any projects, and is therefore using a
 			// default namespace that they cannot list projects from.
 			if kapierrors.IsForbidden(err) && len(d.RequestedNamespace) == 0 && len(d.CurrentNamespace) == 0 {
-				return loginerrors.NoProjectsExistMessage(d.CanRequestProjects, d.CommandBaseName), nil
+				return loginerrors.NoProjectsExistMessage(d.CanRequestProjects), nil
 			}
 			if !kapierrors.IsNotFound(err) {
 				return "", err
@@ -549,14 +546,14 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 
 		switch {
 		case !d.Suggest && ((len(errorMarkers) > 0 && errorSuggestions > 0) || len(warningMarkers) > 0 || len(infoMarkers) > 0):
-			fmt.Fprintf(out, "%s identified, use '%s status --suggest' to see details.\n", markerString, d.CommandBaseName)
+			fmt.Fprintf(out, "%s identified, use 'oc status --suggest' to see details.\n", markerString)
 
 		case (len(services) == 0) && (len(standaloneDCs) == 0) && (len(standaloneImages) == 0):
 			fmt.Fprintln(out, "You have no services, deployment configs, or build configs.")
-			fmt.Fprintf(out, "Run '%[1]s new-app' to create an application.\n", d.CommandBaseName)
+			fmt.Fprintf(out, "Run 'oc new-app' to create an application.\n")
 
 		default:
-			fmt.Fprintf(out, "View details with '%[1]s describe <resource>/<name>' or list everything with '%[1]s get all'.\n", d.CommandBaseName)
+			fmt.Fprintf(out, "View details with 'oc describe <resource>/<name>' or list resources with 'oc get all'.\n")
 		}
 
 		return nil
@@ -963,7 +960,10 @@ func describeStandaloneJob(f formatter, node graphview.Job) []string {
 }
 
 func describeJobStatus(job *batchv1.Job) string {
-	timeAt := strings.ToLower(formatRelativeTime(job.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(job.CreationTimestamp.Time))
+	if job.Spec.Completions == nil {
+		return ""
+	}
 	return fmt.Sprintf("created %s ago %d/%d completed %d running", timeAt, job.Status.Succeeded, *job.Spec.Completions, job.Status.Active)
 }
 
@@ -1273,7 +1273,7 @@ func describeBuildPhase(build *buildv1.Build, t *metav1.Time, parentName string,
 	if t.IsZero() {
 		time = "<unknown>"
 	} else {
-		time = strings.ToLower(formatRelativeTime(t.Time))
+		time = strings.ToLower(FormatRelativeTime(t.Time))
 	}
 	buildIdentification := fmt.Sprintf("build/%s", build.Name)
 	prefix := parentName + "-"
@@ -1385,7 +1385,7 @@ func describeDeployments(f formatter, dNode *kubegraph.DeploymentNode, activeDep
 }
 
 func describeDeploymentStatus(rs *kappsv1.ReplicaSet, revision int64, first bool, restartCount int32) string {
-	timeAt := strings.ToLower(formatRelativeTime(rs.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(rs.CreationTimestamp.Time))
 	replicaSetRevision, _ := deployutil.Revision(rs)
 	if replicaSetRevision == revision {
 		return fmt.Sprintf("deployment #%d running for %s%s", replicaSetRevision, timeAt, describePodSummaryInline(rs.Status.ReadyReplicas, rs.Status.Replicas, *rs.Spec.Replicas, false, restartCount))
@@ -1434,7 +1434,7 @@ func describeDeploymentConfigDeployments(f formatter, dcNode *appsgraph.Deployme
 }
 
 func describeDeploymentConfigDeploymentStatus(rc *corev1.ReplicationController, first, test bool, restartCount int32) string {
-	timeAt := strings.ToLower(formatRelativeTime(rc.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(rc.CreationTimestamp.Time))
 	status := appsutil.DeploymentStatusFor(rc)
 	version := appsutil.DeploymentVersionFor(rc)
 	maybeCancelling := ""
@@ -1468,29 +1468,29 @@ func describeDeploymentConfigDeploymentStatus(rc *corev1.ReplicationController, 
 }
 
 func describeDeploymentConfigRolloutStatus(d *kappsv1.Deployment) string {
-	timeAt := strings.ToLower(formatRelativeTime(d.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(d.CreationTimestamp.Time))
 	return fmt.Sprintf("created %s ago%s", timeAt, describePodSummaryInline(int32(d.Status.Replicas), int32(d.Status.Replicas), *d.Spec.Replicas, false, 0))
 }
 
 func describeStatefulSetStatus(p *kappsv1.StatefulSet) string {
-	timeAt := strings.ToLower(formatRelativeTime(p.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(p.CreationTimestamp.Time))
 	// TODO: Replace first argument in describePodSummaryInline with ReadyReplicas once that's a thing for pet sets.
 	return fmt.Sprintf("created %s ago%s", timeAt, describePodSummaryInline(int32(p.Status.Replicas), int32(p.Status.Replicas), *p.Spec.Replicas, false, 0))
 }
 
 func describeDaemonSetStatus(ds *kappsv1.DaemonSet) string {
-	timeAt := strings.ToLower(formatRelativeTime(ds.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(ds.CreationTimestamp.Time))
 	replicaSetRevision := ds.Generation
 	return fmt.Sprintf("generation #%d running for %s%s", replicaSetRevision, timeAt, describePodSummaryInline(ds.Status.NumberReady, ds.Status.NumberAvailable, ds.Status.DesiredNumberScheduled, false, 0))
 }
 
 func describeRCStatus(rc *corev1.ReplicationController) string {
-	timeAt := strings.ToLower(formatRelativeTime(rc.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(rc.CreationTimestamp.Time))
 	return fmt.Sprintf("rc/%s created %s ago%s", rc.Name, timeAt, describePodSummaryInline(rc.Status.ReadyReplicas, rc.Status.Replicas, *rc.Spec.Replicas, false, 0))
 }
 
 func describeRSStatus(rs *kappsv1.ReplicaSet) string {
-	timeAt := strings.ToLower(formatRelativeTime(rs.CreationTimestamp.Time))
+	timeAt := strings.ToLower(FormatRelativeTime(rs.CreationTimestamp.Time))
 	return fmt.Sprintf("rs/%s created %s ago%s", rs.Name, timeAt, describePodSummaryInline(rs.Status.ReadyReplicas, rs.Status.Replicas, *rs.Spec.Replicas, false, 0))
 }
 
@@ -1655,7 +1655,7 @@ type rcLoader struct {
 }
 
 func (l *rcLoader) Load() error {
-	list, err := l.lister.ReplicationControllers(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.ReplicationControllers(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1679,7 +1679,7 @@ type serviceLoader struct {
 }
 
 func (l *serviceLoader) Load() error {
-	list, err := l.lister.Services(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Services(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1703,7 +1703,7 @@ type podLoader struct {
 }
 
 func (l *podLoader) Load() error {
-	list, err := l.lister.Pods(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Pods(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1727,7 +1727,7 @@ type jobLoader struct {
 }
 
 func (l *jobLoader) Load() error {
-	list, err := l.lister.Jobs(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Jobs(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1751,7 +1751,7 @@ type statefulSetLoader struct {
 }
 
 func (l *statefulSetLoader) Load() error {
-	list, err := l.lister.StatefulSets(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.StatefulSets(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1775,7 +1775,7 @@ type horizontalPodAutoscalerLoader struct {
 }
 
 func (l *horizontalPodAutoscalerLoader) Load() error {
-	list, err := l.lister.HorizontalPodAutoscalers(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.HorizontalPodAutoscalers(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1799,7 +1799,7 @@ type deploymentLoader struct {
 }
 
 func (l *deploymentLoader) Load() error {
-	list, err := l.lister.Deployments(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Deployments(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1823,7 +1823,7 @@ type daemonsetLoader struct {
 }
 
 func (l *daemonsetLoader) Load() error {
-	list, err := l.lister.DaemonSets(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.DaemonSets(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1847,7 +1847,7 @@ type replicasetLoader struct {
 }
 
 func (l *replicasetLoader) Load() error {
-	list, err := l.lister.ReplicaSets(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.ReplicaSets(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1871,7 +1871,7 @@ type serviceAccountLoader struct {
 }
 
 func (l *serviceAccountLoader) Load() error {
-	list, err := l.lister.ServiceAccounts(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.ServiceAccounts(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1895,7 +1895,7 @@ type secretLoader struct {
 }
 
 func (l *secretLoader) Load() error {
-	list, err := l.lister.Secrets(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Secrets(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1919,7 +1919,7 @@ type pvcLoader struct {
 }
 
 func (l *pvcLoader) Load() error {
-	list, err := l.lister.PersistentVolumeClaims(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.PersistentVolumeClaims(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1943,7 +1943,7 @@ type isLoader struct {
 }
 
 func (l *isLoader) Load() error {
-	list, err := l.lister.ImageStreams(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.ImageStreams(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1968,7 +1968,7 @@ type dcLoader struct {
 }
 
 func (l *dcLoader) Load() error {
-	list, err := l.lister.DeploymentConfigs(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.DeploymentConfigs(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1979,11 +1979,7 @@ func (l *dcLoader) Load() error {
 
 func (l *dcLoader) AddToGraph(g osgraph.Graph) error {
 	for i := range l.items {
-		internalConfig := &appsv1.DeploymentConfig{}
-		if err := scheme.Scheme.Convert(&l.items[i], internalConfig, nil); err != nil {
-			return err
-		}
-		appsgraph.EnsureDeploymentConfigNode(g, internalConfig)
+		appsgraph.EnsureDeploymentConfigNode(g, &l.items[i])
 	}
 
 	return nil
@@ -1996,7 +1992,7 @@ type bcLoader struct {
 }
 
 func (l *bcLoader) Load() error {
-	list, err := l.lister.BuildConfigs(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.BuildConfigs(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -2020,7 +2016,7 @@ type buildLoader struct {
 }
 
 func (l *buildLoader) Load() error {
-	list, err := l.lister.Builds(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Builds(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -2047,7 +2043,7 @@ type routeLoader struct {
 }
 
 func (l *routeLoader) Load() error {
-	list, err := l.lister.Routes(l.namespace).List(metav1.ListOptions{})
+	list, err := l.lister.Routes(l.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

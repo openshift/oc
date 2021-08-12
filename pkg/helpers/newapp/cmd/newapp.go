@@ -1,20 +1,23 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"reflect"
 	"strings"
-	"time"
 
-	"github.com/fsouza/go-dockerclient"
-	"k8s.io/klog"
+	docker "github.com/fsouza/go-dockerclient"
+	v1 "k8s.io/api/apps/v1"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
+	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -22,21 +25,21 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/scheme"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/apis/core/validation"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	authv1 "github.com/openshift/api/authorization/v1"
 	buildv1 "github.com/openshift/api/build/v1"
+	"github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
 	imagev1typedclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	routev1typedclient "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	templatev1typedclient "github.com/openshift/client-go/template/clientset/versioned/typed/template/v1"
 	"github.com/openshift/library-go/pkg/build/buildutil"
-	dockerregistry "github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	"github.com/openshift/library-go/pkg/image/reference"
 	ometa "github.com/openshift/library-go/pkg/image/referencemutator"
+	"github.com/openshift/oc/pkg/cli/image/imagesource"
+	"github.com/openshift/oc/pkg/cli/image/info"
 	"github.com/openshift/oc/pkg/helpers/env"
 	utilenv "github.com/openshift/oc/pkg/helpers/env"
 	"github.com/openshift/oc/pkg/helpers/newapp"
@@ -92,6 +95,7 @@ type GenerationInputs struct {
 	AllowMissingImageStreamTags bool
 
 	Deploy           bool
+	DeploymentConfig bool
 	AsTestDeployment bool
 
 	AllowGenerationErrors bool
@@ -171,7 +175,7 @@ var ErrNoInputs = errors.New("no inputs provided")
 
 // AppResult contains the results of an application
 type AppResult struct {
-	List *kapi.List
+	List *metainternalversion.List
 
 	Name      string
 	HasSource bool
@@ -183,7 +187,7 @@ type AppResult struct {
 // QueryResult contains the results of a query (search or list)
 type QueryResult struct {
 	Matches app.ComponentMatches
-	List    *kapi.List
+	List    *metainternalversion.List
 }
 
 // NewAppConfig returns a new AppConfig, but you must set your typer, mapper, and clientMapper after the command has been run
@@ -206,10 +210,38 @@ func NewAppConfig() *AppConfig {
 }
 
 func (c *AppConfig) DockerRegistrySearcher() app.Searcher {
-	return app.DockerRegistrySearcher{
-		Client:        dockerregistry.NewClient(30*time.Second, true),
-		AllowInsecure: c.InsecureRegistry,
+	r := NewImageRegistrySearcher()
+	r.ImageRetriever.SecurityOptions.Insecure = c.InsecureRegistry
+	return app.DockerRegistrySearcher{Client: r}
+}
+
+type ImageRegistrySearcher struct {
+	info.ImageRetriever
+}
+
+func NewImageRegistrySearcher() *ImageRegistrySearcher {
+	return &ImageRegistrySearcher{}
+}
+
+func (s *ImageRegistrySearcher) Image(ref reference.DockerImageReference) (*docker10.DockerImage, error) {
+	info, err := s.ImageRetriever.Image(context.TODO(), imagesource.TypedImageReference{
+		Type: imagesource.DestinationRegistry,
+		Ref:  ref,
+	})
+	if err != nil {
+		return nil, err
 	}
+	image := &docker10.DockerImage{
+		ID:              info.Config.ID,
+		Parent:          info.Config.Parent,
+		Created:         metav1.Time{Time: info.Config.Created},
+		Author:          info.Config.Author,
+		Architecture:    info.Config.Architecture,
+		Size:            info.Config.Size,
+		Config:          info.Config.Config,
+		ContainerConfig: info.Config.ContainerConfig,
+	}
+	return image, nil
 }
 
 func (c *AppConfig) ensureDockerSearch() {
@@ -396,7 +428,7 @@ func validateEnforcedName(name string) error {
 	// up to 63 characters is nominally possible, however "-1" gets added on the
 	// end later for the deployment controller.  Deduct 5 from 63 to at least
 	// cover us up to -9999.
-	if reasons := validation.ValidateServiceName(name, false); (len(reasons) != 0 || len(name) > 58) && !app.IsParameterizableValue(name) {
+	if reasons := apimachineryvalidation.NameIsDNS1035Label(name, false); (len(reasons) != 0 || len(name) > 58) && !app.IsParameterizableValue(name) {
 		return fmt.Errorf("invalid name: %s. Must be an a lower case alphanumeric (a-z, and 0-9) string with a maximum length of 58 characters, where the first character is a letter (a-z), and the '-' character is allowed anywhere except the first or last character.", name)
 	}
 	return nil
@@ -488,8 +520,14 @@ func (c *AppConfig) buildPipelines(components app.ComponentReferences, environme
 				}
 			}
 			if c.Deploy {
-				if err := pipeline.NeedsDeployment(environment, c.Labels, c.AsTestDeployment); err != nil {
-					return nil, fmt.Errorf("can't set up a deployment for %q: %v", refInput, err)
+				if c.DeploymentConfig {
+					if err := pipeline.NeedsDeploymentConfig(environment, c.Labels, c.AsTestDeployment); err != nil {
+						return nil, fmt.Errorf("can't set up a deployment config for %q: %v", refInput, err)
+					}
+				} else {
+					if err := pipeline.NeedsDeployment(environment, c.Labels, c.AsTestDeployment); err != nil {
+						return nil, fmt.Errorf("can't set up a deployment for %q: %v", refInput, err)
+					}
 				}
 			}
 			if c.NoOutput {
@@ -498,6 +536,7 @@ func (c *AppConfig) buildPipelines(components app.ComponentReferences, environme
 			if refInput.Uses != nil && refInput.Uses.GetStrategy() == newapp.StrategyPipeline {
 				pipeline.Build.Output = nil
 				pipeline.Deployment = nil
+				pipeline.DeploymentConfig = nil
 				pipeline.Image = nil
 				pipeline.InputImage = nil
 			}
@@ -642,7 +681,7 @@ func (c *AppConfig) installComponents(components app.ComponentReferences, env ap
 
 	serviceAccountName := "installer"
 	if token != nil && token.ServiceAccount {
-		if _, err := c.KubeClient.CoreV1().ServiceAccounts(c.OriginNamespace).Get(serviceAccountName, metav1.GetOptions{}); err != nil {
+		if _, err := c.KubeClient.CoreV1().ServiceAccounts(c.OriginNamespace).Get(context.TODO(), serviceAccountName, metav1.GetOptions{}); err != nil {
 			if kerrors.IsNotFound(err) {
 				objects = append(objects,
 					// create a new service account
@@ -761,7 +800,7 @@ func (c *AppConfig) RunQuery() (*QueryResult, error) {
 
 	return &QueryResult{
 		Matches: matches,
-		List:    &kapi.List{Items: objects},
+		List:    &metainternalversion.List{Items: objects},
 	}, nil
 }
 
@@ -872,7 +911,7 @@ func (c *AppConfig) Run() (*AppResult, error) {
 	}
 	if len(installables) > 0 {
 		return &AppResult{
-			List:      &kapi.List{Items: installables},
+			List:      &metainternalversion.List{Items: installables},
 			Name:      name,
 			Namespace: c.OriginNamespace,
 
@@ -963,6 +1002,10 @@ func (c *AppConfig) Run() (*AppResult, error) {
 				name = pipeline.Deployment.Name
 				break
 			}
+			if pipeline.DeploymentConfig != nil {
+				name = pipeline.DeploymentConfig.Name
+				break
+			}
 		}
 	}
 	if len(name) == 0 {
@@ -974,7 +1017,7 @@ func (c *AppConfig) Run() (*AppResult, error) {
 		}
 	}
 	if len(c.SourceSecret) > 0 {
-		if len(validation.ValidateSecretName(c.SourceSecret, false)) != 0 {
+		if len(apimachineryvalidation.NameIsDNSSubdomain(c.SourceSecret, false)) != 0 {
 			return nil, fmt.Errorf("source secret name %q is invalid", c.SourceSecret)
 		}
 		for _, obj := range objects {
@@ -986,7 +1029,7 @@ func (c *AppConfig) Run() (*AppResult, error) {
 		}
 	}
 	if len(c.PushSecret) > 0 {
-		if len(validation.ValidateSecretName(c.PushSecret, false)) != 0 {
+		if len(apimachineryvalidation.NameIsDNSSubdomain(c.PushSecret, false)) != 0 {
 			return nil, fmt.Errorf("push secret name %q is invalid", c.PushSecret)
 		}
 		for _, obj := range objects {
@@ -999,7 +1042,7 @@ func (c *AppConfig) Run() (*AppResult, error) {
 	}
 
 	return &AppResult{
-		List:      &kapi.List{Items: objects},
+		List:      &metainternalversion.List{Items: objects},
 		Name:      name,
 		HasSource: len(repositories) != 0,
 		Namespace: c.OriginNamespace,
@@ -1050,7 +1093,7 @@ func (c *AppConfig) crossStreamCircularTagReference(stream *imagev1.ImageStream,
 			if !ok {
 				return false
 			}
-			stream, err := c.ImageClient.ImageStreams(tagRef.From.Namespace).Get(fromstream, metav1.GetOptions{})
+			stream, err := c.ImageClient.ImageStreams(tagRef.From.Namespace).Get(context.TODO(), fromstream, metav1.GetOptions{})
 			if err != nil && !kerrors.IsNotFound(err) {
 				return false
 			}
@@ -1098,7 +1141,7 @@ func (c *AppConfig) crossStreamInputToOutputTagReference(instream, outstream *im
 			if !ok {
 				return false
 			}
-			instream, err := c.ImageClient.ImageStreams(tagRef.From.Namespace).Get(fromstream, metav1.GetOptions{})
+			instream, err := c.ImageClient.ImageStreams(tagRef.From.Namespace).Get(context.TODO(), fromstream, metav1.GetOptions{})
 			if err != nil && !kerrors.IsNotFound(err) {
 				return false
 			}
@@ -1180,7 +1223,7 @@ func (c *AppConfig) followRefToDockerImage(ref *corev1.ObjectReference, isContex
 		// when new-build is being used, so scan objects being created for it.
 		if isContext = c.findImageStreamInObjectList(objects, isName, isNS); isContext == nil {
 			var err error
-			isContext, err = c.ImageClient.ImageStreams(isNS).Get(isName, metav1.GetOptions{})
+			isContext, err = c.ImageClient.ImageStreams(isNS).Get(context.TODO(), isName, metav1.GetOptions{})
 			if err != nil {
 				return nil, fmt.Errorf("Unable to check for circular build input/outputs: %v", err)
 			}
@@ -1271,7 +1314,7 @@ func (c *AppConfig) removeRedundantTags(objects app.Objects) (app.Objects, error
 func (c *AppConfig) checkCircularReferences(objects app.Objects) error {
 	for i, obj := range objects {
 
-		if klog.V(5) {
+		if klog.V(5).Enabled() {
 			json, _ := json.MarshalIndent(obj, "", "\t")
 			klog.Infof("\n\nCycle check input object %v:\n%v\n", i, string(json))
 		}
@@ -1327,11 +1370,11 @@ func (c *AppConfig) checkCircularReferences(objects app.Objects) error {
 					if len(onamespace) == 0 {
 						onamespace = c.OriginNamespace
 					}
-					istream, err := c.ImageClient.ImageStreams(inamespace).Get(iname, metav1.GetOptions{})
+					istream, err := c.ImageClient.ImageStreams(inamespace).Get(context.TODO(), iname, metav1.GetOptions{})
 					if istream == nil || kerrors.IsNotFound(err) {
 						istream = c.findImageStreamInObjectList(objects, iname, inamespace)
 					}
-					ostream, err := c.ImageClient.ImageStreams(onamespace).Get(oname, metav1.GetOptions{})
+					ostream, err := c.ImageClient.ImageStreams(onamespace).Get(context.TODO(), oname, metav1.GetOptions{})
 					if ostream == nil || kerrors.IsNotFound(err) {
 						ostream = c.findImageStreamInObjectList(objects, oname, onamespace)
 					}
@@ -1442,12 +1485,26 @@ func AddObjectAnnotations(obj runtime.Object, annotations map[string]string) err
 	accessor.SetAnnotations(metaAnnotations)
 
 	switch objType := obj.(type) {
+	case *v1.Deployment:
+		if err := addDeploymentNestedAnnotations(objType, annotations); err != nil {
+			return fmt.Errorf("unable to add nested annotations to %s/%s: %v", obj.GetObjectKind().GroupVersionKind(), accessor.GetName(), err)
+		}
 	case *appsv1.DeploymentConfig:
 		if err := addDeploymentConfigNestedAnnotations(objType, annotations); err != nil {
 			return fmt.Errorf("unable to add nested annotations to %s/%s: %v", obj.GetObjectKind().GroupVersionKind(), accessor.GetName(), err)
 		}
 	}
 
+	return nil
+}
+
+func addDeploymentNestedAnnotations(obj *v1.Deployment, annotations map[string]string) error {
+	if obj.Spec.Template.Annotations == nil {
+		obj.Spec.Template.Annotations = make(map[string]string)
+	}
+	for k, v := range annotations {
+		obj.Spec.Template.Annotations[k] = v
+	}
 	return nil
 }
 

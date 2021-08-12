@@ -1,0 +1,19 @@
+// NOTE: The contents of this file are auto-generated
+// This template is for admin ('oc adm ...') commands
+// Uses 'source,bash' for proper syntax highlighting for comments in examples
+
+[id="openshift-cli-admin_{context}"]
+= OpenShift CLI (oc) administrator commands
+
+{{range .items}}
+
+== {{.fullName}}
+{{.description}}
+
+.Example usage
+[source,bash,options="nowrap"]
+----
+{{.examples}}
+----
+
+{{end}}

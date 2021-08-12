@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -10,12 +11,12 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
+	"github.com/openshift/api/image/docker10"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
-	dockerregistry "github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	"github.com/openshift/library-go/pkg/image/reference"
 	imagehelpers "github.com/openshift/oc/pkg/helpers/image"
@@ -131,18 +132,16 @@ func (r DockerClientSearcher) Search(precise bool, terms ...string) (ComponentMa
 				continue
 			}
 
-			image, err := r.Client.InspectImage(match.Value)
+			in, err := r.Client.InspectImage(match.Value)
 			if err != nil {
 				if err != docker.ErrNoSuchImage {
 					errs = append(errs, err)
 				}
 				continue
 			}
-			dockerImage := &dockerv10.DockerImage{}
-			if err := dockerregistry.ImageScheme.Convert(image, dockerImage, nil); err != nil {
-				errs = append(errs, err)
-				continue
-			}
+
+			dockerImage := dockerImageToInternalDockerImage(in)
+
 			updated := &ComponentMatch{
 				Value:       match.Value,
 				Argument:    fmt.Sprintf("--docker-image=%q", match.Value),
@@ -162,6 +161,68 @@ func (r DockerClientSearcher) Search(precise bool, terms ...string) (ComponentMa
 	}
 
 	return componentMatches, errs
+}
+
+func dockerImageToInternalDockerImage(in *docker.Image) *docker10.DockerImage {
+	if in == nil {
+		return nil
+	}
+	dockerImage := &dockerv10.DockerImage{
+		ID:            in.ID,
+		Parent:        in.Parent,
+		Comment:       in.Comment,
+		Created:       metav1.Time{Time: in.Created},
+		Container:     in.Container,
+		DockerVersion: in.DockerVersion,
+		Author:        in.Author,
+		Architecture:  in.Architecture,
+		Size:          in.Size,
+	}
+	dockerImage.ContainerConfig = *dockerConfigToInternalDockerConfig(&in.ContainerConfig)
+	dockerImage.Config = dockerConfigToInternalDockerConfig(in.Config)
+	return dockerImage
+}
+
+func dockerConfigToInternalDockerConfig(in *docker.Config) *docker10.DockerConfig {
+	if in == nil {
+		return nil
+	}
+	var exposedPorts map[string]struct{}
+	for k, v := range in.ExposedPorts {
+		if exposedPorts == nil {
+			exposedPorts = make(map[string]struct{})
+		}
+		exposedPorts[string(k)] = v
+	}
+	return &docker10.DockerConfig{
+		Hostname:        in.Hostname,
+		Domainname:      in.Domainname,
+		User:            in.User,
+		Memory:          in.Memory,
+		MemorySwap:      in.MemorySwap,
+		CPUShares:       in.CPUShares,
+		CPUSet:          in.CPUSet,
+		AttachStdin:     in.AttachStdin,
+		AttachStdout:    in.AttachStdout,
+		AttachStderr:    in.AttachStderr,
+		PortSpecs:       in.PortSpecs,
+		ExposedPorts:    exposedPorts,
+		Tty:             in.Tty,
+		OpenStdin:       in.OpenStdin,
+		StdinOnce:       in.StdinOnce,
+		Env:             in.Env,
+		Cmd:             in.Cmd,
+		DNS:             in.DNS,
+		Image:           in.Image,
+		Volumes:         in.Volumes,
+		VolumesFrom:     in.VolumesFrom,
+		WorkingDir:      in.WorkingDir,
+		Entrypoint:      in.Entrypoint,
+		NetworkDisabled: in.NetworkDisabled,
+		SecurityOpts:    in.SecurityOpts,
+		OnBuild:         in.OnBuild,
+		Labels:          in.Labels,
+	}
 }
 
 // MissingImageSearcher always returns an exact match for the item being searched for.
@@ -215,7 +276,7 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 		})
 	}
 	isi.Name = "newapp"
-	result, err := s.Client.Create(isi)
+	result, err := s.Client.Create(context.TODO(), isi, metav1.CreateOptions{})
 	if err != nil {
 		if err == imagehelpers.ErrImageStreamImportUnsupported && s.Fallback != nil {
 			return s.Fallback.Search(precise, terms...)
@@ -229,16 +290,16 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 		if image.Status.Status != metav1.StatusSuccess {
 			klog.V(4).Infof("image import failed: %#v", image)
 			switch image.Status.Reason {
-			case metav1.StatusReasonInternalError:
+			case metav1.StatusReasonInternalError, metav1.StatusReasonUnauthorized:
 				// try to find the cause of the internal error
 				if image.Status.Details != nil && len(image.Status.Details.Causes) > 0 {
 					for _, c := range image.Status.Details.Causes {
-						klog.Warningf("container image registry lookup failed: %s", c.Message)
+						klog.Warningf("container image remote registry lookup failed: %s", c.Message)
 					}
 				} else {
-					klog.Warningf("container image registry lookup failed: %s", image.Status.Message)
+					klog.Warningf("container image remote registry lookup failed: %s", image.Status.Message)
 				}
-			case metav1.StatusReasonInvalid, metav1.StatusReasonUnauthorized, metav1.StatusReasonNotFound:
+			case metav1.StatusReasonInvalid, metav1.StatusReasonNotFound:
 			default:
 				errs = append(errs, fmt.Errorf("can't look up container image %q: %s", term, image.Status.Message))
 			}
@@ -283,13 +344,16 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 	return componentMatches, errs
 }
 
+type RegistryImageClient interface {
+	Image(image reference.DockerImageReference) (*dockerv10.DockerImage, error)
+}
+
 // DockerRegistrySearcher searches for images in a given container image registry.
 // Notice that it only matches exact searches - so a search for "rub" will
 // not return images with the name "ruby".
 // TODO: replace ImageByTag to allow partial matches
 type DockerRegistrySearcher struct {
-	Client        dockerregistry.Client
-	AllowInsecure bool
+	Client RegistryImageClient
 }
 
 func (r DockerRegistrySearcher) Type() string {
@@ -305,61 +369,32 @@ func (r DockerRegistrySearcher) Search(precise bool, terms ...string) (Component
 			ref reference.DockerImageReference
 			err error
 		)
-		if term != "*" {
-			ref, err = reference.Parse(term)
-			if err != nil {
-				continue
-			}
-		} else {
-			ref = reference.DockerImageReference{Name: term}
+		if term == "*" {
+			continue
+		}
+		ref, err = reference.Parse(term)
+		if err != nil {
+			continue
 		}
 
-		klog.V(4).Infof("checking container image registry for %q, allow-insecure=%v", ref.String(), r.AllowInsecure)
-		connection, err := r.Client.Connect(ref.Registry, r.AllowInsecure)
+		ref = ref.DockerClientDefaults()
+		klog.V(4).Infof("checking container image registry for %q", ref.String())
+		image, err := r.Client.Image(ref)
 		if err != nil {
-			if dockerregistry.IsRegistryNotFound(err) {
-				errs = append(errs, err)
-				continue
-			}
 			errs = append(errs, fmt.Errorf("can't connect to %q: %v", ref.Registry, err))
 			continue
 		}
 
-		image, err := connection.ImageByTag(ref.Namespace, ref.Name, ref.Tag)
-		if err != nil {
-			if dockerregistry.IsNotFound(err) {
-				if dockerregistry.IsTagNotFound(err) {
-					klog.V(4).Infof("tag not found: %v", err)
-				}
-				continue
-			}
-			errs = append(errs, fmt.Errorf("can't connect to %q: %v", ref.Registry, err))
-			continue
-		}
-
-		if len(ref.Tag) == 0 {
-			ref.Tag = imagev1.DefaultImageTag
-		}
-		if len(ref.Registry) == 0 {
-			ref.Registry = "Docker Hub"
-		}
 		klog.V(4).Infof("found image: %#v", image)
-
-		dockerImage := &dockerv10.DockerImage{}
-		if err = dockerregistry.ImageScheme.Convert(&image.Image, dockerImage, nil); err != nil {
-			errs = append(errs, err)
-			continue
-		}
 
 		match := &ComponentMatch{
 			Value:       term,
 			Argument:    fmt.Sprintf("--docker-image=%q", term),
 			Name:        term,
-			Description: descriptionFor(dockerImage, term, ref.Registry, ref.Tag),
+			Description: descriptionFor(image, term, ref.Registry, ref.Tag),
 			Score:       0,
-			DockerImage: dockerImage,
+			DockerImage: image,
 			ImageTag:    ref.Tag,
-			Insecure:    r.AllowInsecure,
 			Meta:        map[string]string{"registry": ref.Registry},
 		}
 		klog.V(2).Infof("Adding %s as component match for %q with score %v", match.Description, term, match.Score)

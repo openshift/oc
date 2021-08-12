@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	configv1 "github.com/openshift/api/config/v1"
 )
@@ -42,17 +42,17 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 		// first, gather config.openshift.io resource data
 		errs := []error{}
-		if err := o.gatherConfigResourceData(path.Join(o.destDir, "/cluster-scoped-resources/config.openshift.io"), context); err != nil {
+		if err := o.gatherConfigResourceData(path.Join(o.DestDir, "/cluster-scoped-resources/config.openshift.io"), context); err != nil {
 			errs = append(errs, err)
 		}
 
 		// then, gather operator.openshift.io resource data
-		if err := o.gatherOperatorResourceData(path.Join(o.destDir, "/cluster-scoped-resources/operator.openshift.io"), context); err != nil {
+		if err := o.gatherOperatorResourceData(path.Join(o.DestDir, "/cluster-scoped-resources/operator.openshift.io"), context); err != nil {
 			errs = append(errs, err)
 		}
 
 		// save clusteroperator resources to disk
-		if err := gatherClusterOperatorResource(o.destDir, unstr, o.fileWriter); err != nil {
+		if err := gatherClusterOperatorResource(o.DestDir, unstr, o.fileWriter); err != nil {
 			errs = append(errs, err)
 		}
 
@@ -65,7 +65,7 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 	case corev1.SchemeGroupVersion.WithResource("namespaces").GroupResource():
 		errs := []error{}
-		if err := o.gatherNamespaceData(o.destDir, info.Name); err != nil {
+		if err := o.gatherNamespaceData(o.DestDir, info.Name); err != nil {
 			errs = append(errs, err)
 		}
 		resourcesToCollect := namespaceResourcesToCollect()
@@ -109,7 +109,7 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 		}
 
 		// save the current object to disk
-		dirPath := dirPathForInfo(o.destDir, info)
+		dirPath := dirPathForInfo(o.DestDir, info)
 		filename := filenameForInfo(info)
 		// ensure destination path exists
 		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {

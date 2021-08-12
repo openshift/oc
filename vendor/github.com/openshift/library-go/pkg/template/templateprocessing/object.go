@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // visitObjectStrings recursively visits all string fields in the object and calls the

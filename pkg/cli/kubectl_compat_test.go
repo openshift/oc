@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/sets"
-	kcmd "k8s.io/kubernetes/pkg/kubectl/cmd"
+	kcmd "k8s.io/kubectl/pkg/cmd"
 )
 
 // MissingCommands is the list of commands we're already missing.
@@ -34,7 +34,7 @@ var MissingCommands = sets.NewString(
 var WhitelistedCommands = sets.NewString()
 
 func TestKubectlCompatibility(t *testing.T) {
-	oc := NewOcCommand("oc", "oc", &bytes.Buffer{}, ioutil.Discard, ioutil.Discard)
+	oc := NewOcCommand(&bytes.Buffer{}, ioutil.Discard, ioutil.Discard)
 	kubectl := kcmd.NewKubectlCommand(nil, ioutil.Discard, ioutil.Discard)
 
 kubectlLoop:
@@ -64,7 +64,7 @@ kubectlLoop:
 // --validate flags.  Based on that we can reasonably assume we got them in the kube commands since they
 // all share the same registration.
 func TestValidateDisabled(t *testing.T) {
-	oc := NewOcCommand("oc", "oc", &bytes.Buffer{}, ioutil.Discard, ioutil.Discard)
+	oc := NewOcCommand(&bytes.Buffer{}, ioutil.Discard, ioutil.Discard)
 	kubectl := kcmd.NewKubectlCommand(nil, ioutil.Discard, ioutil.Discard)
 
 	for _, kubecmd := range kubectl.Commands() {

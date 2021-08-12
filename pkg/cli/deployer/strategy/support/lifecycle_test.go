@@ -14,6 +14,7 @@ import (
 	"github.com/openshift/library-go/pkg/build/naming"
 
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,7 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	clientgotesting "k8s.io/client-go/testing"
-	kapihelper "k8s.io/kubernetes/pkg/apis/core/helper"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 
@@ -516,7 +516,7 @@ func TestHookExecutor_makeHookPod(t *testing.T) {
 		}
 		// Copy the ActiveDeadlineSeconds the deployer pod is running for 5 seconds already
 		test.expected.Spec.ActiveDeadlineSeconds = pod.Spec.ActiveDeadlineSeconds
-		if !kapihelper.Semantic.DeepEqual(pod, test.expected) {
+		if !apiequality.Semantic.DeepEqual(pod, test.expected) {
 			t.Errorf("unexpected pod diff: %v", diff.ObjectReflectDiff(pod, test.expected))
 		}
 	}

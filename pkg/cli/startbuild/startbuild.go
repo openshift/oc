@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,14 +14,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
-	"github.com/openshift/source-to-image/pkg/tar"
-	s2ifs "github.com/openshift/source-to-image/pkg/util/fs"
+	s2ifs "github.com/openshift/oc/pkg/helpers/source-to-image/fs"
+	"github.com/openshift/oc/pkg/helpers/source-to-image/tar"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -49,7 +51,7 @@ import (
 
 var (
 	startBuildLong = templates.LongDesc(`
-		Start a build
+		Start a build.
 
 		This command starts a new build for the provided build config or copies an existing build using
 		--from-build=<name>. Pass the --follow flag to see output from the build.
@@ -67,24 +69,25 @@ var (
 
 	startBuildExample = templates.Examples(`
 		# Starts build from build config "hello-world"
-	  %[1]s start-build hello-world
+		oc start-build hello-world
 
-	  # Starts build from a previous build "hello-world-1"
-	  %[1]s start-build --from-build=hello-world-1
+		# Starts build from a previous build "hello-world-1"
+		oc start-build --from-build=hello-world-1
 
-	  # Use the contents of a directory as build input
-	  %[1]s start-build hello-world --from-dir=src/
+		# Use the contents of a directory as build input
+		oc start-build hello-world --from-dir=src/
 
-	  # Send the contents of a Git repository to the server from tag 'v2'
-	  %[1]s start-build hello-world --from-repo=../hello-world --commit=v2
+		# Send the contents of a Git repository to the server from tag 'v2'
+		oc start-build hello-world --from-repo=../hello-world --commit=v2
 
-	  # Start a new build for build config "hello-world" and watch the logs until the build
-	  # completes or fails.
-	  %[1]s start-build hello-world --follow
+		# Start a new build for build config "hello-world" and watch the logs until the build
+		# completes or fails
+		oc start-build hello-world --follow
 
-	  # Start a new build for build config "hello-world" and wait until the build completes. It
-	  # exits with a non-zero return code if the build fails.
-	  %[1]s start-build hello-world --wait`)
+		# Start a new build for build config "hello-world" and wait until the build completes. It
+		# exits with a non-zero return code if the build fails
+		oc start-build hello-world --wait
+	`)
 )
 
 type StartBuildOptions struct {
@@ -98,11 +101,12 @@ type StartBuildOptions struct {
 	FromWebhook  string
 	ListWebhooks string
 
-	Commit      string
-	FromFile    string
-	FromDir     string
-	FromRepo    string
-	FromArchive string
+	Commit        string
+	FromFile      string
+	FromDir       string
+	FromRepo      string
+	FromArchive   string
+	ExcludeRegExp string
 
 	Env  []string
 	Args []string
@@ -141,17 +145,17 @@ func NewStartBuildOptions(streams genericclioptions.IOStreams) *StartBuildOption
 }
 
 // NewCmdStartBuild implements the OpenShift cli start-build command
-func NewCmdStartBuild(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdStartBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewStartBuildOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:        "start-build (BUILDCONFIG | --from-build=BUILD)",
 		Short:      "Start a new build",
 		Long:       startBuildLong,
-		Example:    fmt.Sprintf(startBuildExample, fullName),
+		Example:    startBuildExample,
 		SuggestFor: []string{"build", "builds"},
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(f, cmd, fullName, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -171,6 +175,7 @@ func NewCmdStartBuild(fullName string, f kcmdutil.Factory, streams genericcliopt
 	cmd.Flags().StringVar(&o.FromArchive, "from-archive", o.FromArchive, "An archive (tar, tar.gz, zip) to be extracted before the build and used as the binary input.")
 	cmd.Flags().StringVar(&o.FromRepo, "from-repo", o.FromRepo, "The path to a local source code repository to use as the binary input for a build.")
 	cmd.Flags().StringVar(&o.Commit, "commit", o.Commit, "Specify the source code commit identifier the build should use; requires a build based on a Git repository")
+	cmd.Flags().StringVarP(&o.ExcludeRegExp, "exclude", "", tar.DefaultExclusionPattern.String(), "When using the --from-dir option: regular expression for selecting files from the source tree to exclude from the build; the default excludes the '.git' directory (see https://golang.org/pkg/regexp for syntax, but note that \"\" will be interpreted as allow all files and exclude no files)")
 
 	cmd.Flags().StringVar(&o.ListWebhooks, "list-webhooks", o.ListWebhooks, "List the webhooks for the specified build config or build; accepts 'all', 'generic', or 'github'")
 	cmd.Flags().StringVar(&o.FromWebhook, "from-webhook", o.FromWebhook, "Specify a generic webhook URL for an existing build config to trigger")
@@ -182,7 +187,7 @@ func NewCmdStartBuild(fullName string, f kcmdutil.Factory, streams genericcliopt
 	return cmd
 }
 
-func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, cmdFullName string, args []string) error {
+func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	var err error
 	o.Git = git.NewRepository()
 	o.ClientConfig, err = f.ToRESTConfig()
@@ -218,6 +223,10 @@ func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, cmd
 		return fmt.Errorf("only one of --from-file, --from-repo, --from-archive or --from-dir may be specified")
 	}
 
+	if cmd.Flags().Lookup("exclude").Changed && len(o.FromDir) == 0 {
+		return fmt.Errorf("the --exclude flag is only supported with --from-dir")
+	}
+
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -244,7 +253,7 @@ func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, cmd
 		return nil
 
 	case len(args) != 1 && len(buildName) == 0:
-		return kcmdutil.UsageErrorf(cmd, "Must pass a name of a build config or specify build name with '--from-build' flag.\nUse \"%s get bc\" to list all available build configs.", cmdFullName)
+		return kcmdutil.UsageErrorf(cmd, "Must pass a name of a build config or specify build name with '--from-build' flag.\nUse \"oc get buildconfig\" to list all available build configs.")
 	}
 
 	clientConfig, err := f.ToRESTConfig()
@@ -290,7 +299,7 @@ func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, cmd
 
 	// when listing webhooks, allow --from-build to lookup a build config
 	if build.Resource("builds") == resource && len(o.ListWebhooks) > 0 {
-		build, err := o.BuildClient.Builds(o.Namespace).Get(name, metav1.GetOptions{})
+		build, err := o.BuildClient.Builds(o.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -431,14 +440,14 @@ func (o *StartBuildOptions) Run() error {
 			fmt.Fprintf(o.ErrOut, "WARNING: Specifying build arguments with binary builds is not supported.\n")
 		}
 		instantiateClient := buildclientmanual.NewBuildInstantiateBinaryClient(o.BuildClient.RESTClient(), o.Namespace)
-		if newBuild, err = streamPathToBuild(o.Git, o.In, o.ErrOut, instantiateClient, o.FromDir, o.FromFile, o.FromRepo, request); err != nil {
+		if newBuild, err = streamPathToBuild(o.Git, o.In, o.ErrOut, instantiateClient, o.FromDir, o.FromFile, o.FromRepo, o.ExcludeRegExp, request); err != nil {
 			if kerrors.IsAlreadyExists(err) {
 				return transformIsAlreadyExistsError(err, o.Name)
 			}
 			return err
 		}
 	case len(o.FromBuild) > 0:
-		if newBuild, err = o.BuildClient.Builds(o.Namespace).Clone(request.Name, request); err != nil {
+		if newBuild, err = o.BuildClient.Builds(o.Namespace).Clone(context.TODO(), request.Name, request, metav1.CreateOptions{}); err != nil {
 			if isInvalidSourceInputsError(err) {
 				return fmt.Errorf("build %s/%s has no valid source inputs and '--from-build' cannot be used for binary builds", o.Namespace, o.Name)
 			}
@@ -448,7 +457,7 @@ func (o *StartBuildOptions) Run() error {
 			return err
 		}
 	default:
-		if newBuild, err = o.BuildClient.BuildConfigs(o.Namespace).Instantiate(request.Name, request); err != nil {
+		if newBuild, err = o.BuildClient.BuildConfigs(o.Namespace).Instantiate(context.TODO(), request.Name, request, metav1.CreateOptions{}); err != nil {
 			if isInvalidSourceInputsError(err) {
 				return fmt.Errorf("build configuration %s/%s has no valid source inputs, if this is a binary build you must specify one of '--from-dir', '--from-repo', or '--from-file'", o.Namespace, o.Name)
 			}
@@ -485,7 +494,7 @@ func (o *StartBuildOptions) streamBuildLogs(build *buildv1.Build) error {
 	}
 	var err error
 	for {
-		rd, logErr := o.BuildLogClient.Logs(build.Name, opts).Stream()
+		rd, logErr := o.BuildLogClient.Logs(build.Name, opts).Stream(context.TODO())
 		if logErr != nil {
 			err = ocerrors.NewError("unable to stream the build logs").WithCause(logErr)
 			klog.V(4).Infof("Error: %v", err)
@@ -506,7 +515,7 @@ func (o *StartBuildOptions) streamBuildLogs(build *buildv1.Build) error {
 
 // RunListBuildWebHooks prints the webhooks for the provided build config.
 func (o *StartBuildOptions) RunListBuildWebHooks() error {
-	config, err := o.BuildClient.BuildConfigs(o.Namespace).Get(o.Name, metav1.GetOptions{})
+	config, err := o.BuildClient.BuildConfigs(o.Namespace).Get(context.TODO(), o.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -535,7 +544,7 @@ func (o *StartBuildOptions) RunListBuildWebHooks() error {
 	return nil
 }
 
-func streamPathToBuild(repo git.Repository, in io.Reader, out io.Writer, client buildclientmanual.BuildInstantiateBinaryInterface, fromDir, fromFile, fromRepo string, options *buildv1.BinaryBuildRequestOptions) (*buildv1.Build, error) {
+func streamPathToBuild(repo git.Repository, in io.Reader, out io.Writer, client buildclientmanual.BuildInstantiateBinaryInterface, fromDir, fromFile, fromRepo string, excludeRegExp string, options *buildv1.BinaryBuildRequestOptions) (*buildv1.Build, error) {
 	asDir, asFile, asRepo := len(fromDir) > 0, len(fromFile) > 0, len(fromRepo) > 0
 
 	if asRepo && !git.IsGitInstalled() {
@@ -646,7 +655,7 @@ func streamPathToBuild(repo git.Repository, in io.Reader, out io.Writer, client 
 				// We only want to grab the contents of the specified commit, with
 				// submodules included
 				cloneOptions := []string{"--recursive"}
-				if verbose := klog.V(3); !verbose {
+				if !klog.V(3).Enabled() {
 					cloneOptions = append(cloneOptions, "--quiet")
 				}
 
@@ -670,10 +679,17 @@ func streamPathToBuild(repo git.Repository, in io.Reader, out io.Writer, client 
 				fmt.Fprintf(out, "Uploading directory %q as binary input for the build ...\n", clean)
 			}
 
+			re, err := regexp.Compile(excludeRegExp)
+			if err != nil {
+				return nil, err
+			}
+
 			pr, pw := io.Pipe()
 			go func() {
 				w := gzip.NewWriter(pw)
-				if err := tar.New(s2ifs.NewFileSystem()).CreateTarStream(path, false, w); err != nil {
+				t := tar.New(s2ifs.NewFileSystem())
+				t.SetExclusionPattern(re)
+				if err := t.CreateTarStream(path, false, w); err != nil {
 					pw.CloseWithError(err)
 				} else {
 					w.Close()
@@ -927,7 +943,7 @@ func WaitForBuildComplete(c buildv1client.BuildInterface, name string) error {
 			b.Status.Phase == buildv1.BuildPhaseError
 	}
 	for {
-		list, err := c.List(metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String()})
+		list, err := c.List(context.TODO(), metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String()})
 		if err != nil {
 			return err
 		}
@@ -941,7 +957,7 @@ func WaitForBuildComplete(c buildv1client.BuildInterface, name string) error {
 		}
 
 		rv := list.ResourceVersion
-		w, err := c.Watch(metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String(), ResourceVersion: rv})
+		w, err := c.Watch(context.TODO(), metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String(), ResourceVersion: rv})
 		if err != nil {
 			return err
 		}

@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -9,24 +10,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	userv1 "github.com/openshift/api/user/v1"
 	userv1client "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 )
 
-const UserIdentityMappingRecommendedName = "useridentitymapping"
-
 var (
 	userIdentityMappingLong = templates.LongDesc(`
 		Typically, identities are automatically mapped to users during login. If automatic
 		mapping is disabled (by using the "lookup" mapping method), or a mapping needs to
 		be manually established between an identity and a user, this command can be used
-		to create a useridentitymapping object.`)
+		to create a user identity mapping object.
+	`)
 
 	userIdentityMappingExample = templates.Examples(`
 		# Map the identity "acme_ldap:adamjones" to the user "ajones"
-  	%[1]s acme_ldap:adamjones ajones`)
+		oc create useridentitymapping acme_ldap:adamjones ajones
+	`)
 )
 
 type CreateUserIdentityMappingOptions struct {
@@ -45,20 +48,20 @@ func NewCreateUserIdentityMappingOptions(streams genericclioptions.IOStreams) *C
 }
 
 // NewCmdCreateUserIdentityMapping is a macro command to create a new identity
-func NewCmdCreateUserIdentityMapping(name, fullName string, f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateUserIdentityMapping(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCreateUserIdentityMappingOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name + " <IDENTITY_NAME> <USER_NAME>",
-		Short:   "Manually map an identity to a user.",
+		Use:     "useridentitymapping <IDENTITY_NAME> <USER_NAME>",
+		Short:   "Manually map an identity to a user",
 		Long:    userIdentityMappingLong,
-		Example: fmt.Sprintf(userIdentityMappingExample, fullName),
+		Example: userIdentityMappingExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
 
-	o.CreateSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateSubcommandOptions.AddFlags(cmd)
 	cmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -86,15 +89,19 @@ func (o *CreateUserIdentityMappingOptions) Complete(cmd *cobra.Command, f generi
 		return err
 	}
 
+	// we can't use Complete from CreateSubcommandOptions b/c it requires exactly one name
+	// and create useridentitymapping requires exactly two
 	o.CreateSubcommandOptions.Namespace, o.CreateSubcommandOptions.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return err
 	}
 
-	o.CreateSubcommandOptions.DryRun = cmdutil.GetDryRunFlag(cmd)
-	if o.CreateSubcommandOptions.DryRun {
-		o.CreateSubcommandOptions.PrintFlags.Complete("%s (dry run)")
+	o.CreateSubcommandOptions.DryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+
+	cmdutil.PrintFlagsWithDryRunStrategy(o.CreateSubcommandOptions.PrintFlags, o.CreateSubcommandOptions.DryRunStrategy)
 	o.CreateSubcommandOptions.Printer, err = o.CreateSubcommandOptions.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -111,9 +118,13 @@ func (o *CreateUserIdentityMappingOptions) Run() error {
 		User:     corev1.ObjectReference{Name: o.User},
 	}
 
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, mapping, scheme.DefaultJSONEncoder()); err != nil {
+		return err
+	}
+
 	var err error
-	if !o.CreateSubcommandOptions.DryRun {
-		mapping, err = o.UserIdentityMappingClient.UserIdentityMappings().Create(mapping)
+	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
+		mapping, err = o.UserIdentityMappingClient.UserIdentityMappings().Create(context.TODO(), mapping, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

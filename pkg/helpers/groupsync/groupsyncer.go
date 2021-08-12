@@ -1,19 +1,21 @@
 package syncgroups
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"time"
 
 	"gopkg.in/ldap.v2"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	userv1 "github.com/openshift/api/user/v1"
 	userv1client "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
+	"github.com/openshift/library-go/pkg/security/ldapquery"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"
 )
 
@@ -84,6 +86,10 @@ func (s *LDAPGroupSyncer) Sync() ([]*userv1.Group, []error) {
 		// update the OpenShift Group corresponding to this record
 		openshiftGroup, err := s.makeOpenShiftGroup(ldapGroupUID, usernames)
 		if err != nil {
+			if ldapquery.IsQueryOutOfBoundsError(err) {
+				fmt.Fprintf(s.Err, "%s\n", err.Error())
+				continue
+			}
 			fmt.Fprintf(s.Err, "Error building OpenShift group for LDAP group %q: %v.\n", ldapGroupUID, err)
 			errors = append(errors, err)
 			continue
@@ -121,11 +127,11 @@ func (s *LDAPGroupSyncer) determineUsernames(members []*ldap.Entry) ([]string, e
 // updateOpenShiftGroup creates the OpenShift Group in etcd
 func (s *LDAPGroupSyncer) updateOpenShiftGroup(openshiftGroup *userv1.Group) error {
 	if len(openshiftGroup.UID) > 0 {
-		_, err := s.GroupClient.Update(openshiftGroup)
+		_, err := s.GroupClient.Update(context.TODO(), openshiftGroup, metav1.UpdateOptions{})
 		return err
 	}
 
-	_, err := s.GroupClient.Create(openshiftGroup)
+	_, err := s.GroupClient.Create(context.TODO(), openshiftGroup, metav1.CreateOptions{})
 	return err
 }
 
@@ -140,7 +146,7 @@ func (s *LDAPGroupSyncer) makeOpenShiftGroup(ldapGroupUID string, usernames []st
 		return nil, err
 	}
 
-	group, err := s.GroupClient.Get(groupName, metav1.GetOptions{})
+	group, err := s.GroupClient.Get(context.TODO(), groupName, metav1.GetOptions{})
 	if kapierrors.IsNotFound(err) {
 		group = &userv1.Group{}
 		group.Name = groupName
@@ -173,6 +179,8 @@ func (s *LDAPGroupSyncer) makeOpenShiftGroup(ldapGroupUID string, usernames []st
 	// overwrite Group Users data
 	group.Users = usernames
 	group.Annotations[LDAPSyncTimeAnnotation] = ISO8601(time.Now())
+	group.APIVersion = userv1.GroupVersion.String()
+	group.Kind = "Group"
 
 	return group, nil
 }

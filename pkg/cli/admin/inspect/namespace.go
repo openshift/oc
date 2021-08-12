@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -11,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // TODO someone may later choose to use discovery information to determine what to collect
@@ -19,10 +20,13 @@ func namespaceResourcesToCollect() []schema.GroupResource {
 	return []schema.GroupResource{
 		// this is actually a group which collects most useful things
 		{Resource: "all"},
-		{Resource: "events"},
 		{Resource: "configmaps"},
-		{Resource: "secrets"},
+		{Resource: "events"},
+		{Resource: "endpoints"},
+		{Resource: "endpointslices"},
 		{Resource: "persistentvolumeclaims"},
+		{Resource: "poddisruptionbudgets"},
+		{Resource: "secrets"},
 	}
 }
 
@@ -36,7 +40,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 		return err
 	}
 
-	ns, err := o.kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	ns, err := o.kubeClient.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
 	if err != nil { // If we can't get the namespace we need to exit out
 		return err
 	}
@@ -58,7 +62,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 
 	// collect specific resource information for namespace
 	for gvr := range resourcesTypesToStore {
-		list, err := o.dynamicClient.Resource(gvr).Namespace(namespace).List(metav1.ListOptions{})
+		list, err := o.dynamicClient.Resource(gvr).Namespace(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -67,13 +71,15 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 
 	klog.V(1).Infof("    Gathering pod data for namespace %q...\n", namespace)
 	// gather specific pod data
-	for _, pod := range resourcesToStore[corev1.SchemeGroupVersion.WithResource("pods")].(*unstructured.UnstructuredList).Items {
-		klog.V(1).Infof("        Gathering data for pod %q\n", pod.GetName())
-		structuredPod := &corev1.Pod{}
-		runtime.DefaultUnstructuredConverter.FromUnstructured(pod.Object, structuredPod)
-		if err := o.gatherPodData(path.Join(destDir, "/pods/"+pod.GetName()), namespace, structuredPod); err != nil {
-			errs = append(errs, err)
-			continue
+	if pods := resourcesToStore[corev1.SchemeGroupVersion.WithResource("pods")]; pods != nil {
+		for _, pod := range pods.(*unstructured.UnstructuredList).Items {
+			klog.V(1).Infof("        Gathering data for pod %q\n", pod.GetName())
+			structuredPod := &corev1.Pod{}
+			runtime.DefaultUnstructuredConverter.FromUnstructured(pod.Object, structuredPod)
+			if err := o.gatherPodData(path.Join(destDir, "/pods/"+pod.GetName()), namespace, structuredPod); err != nil {
+				errs = append(errs, err)
+				continue
+			}
 		}
 	}
 

@@ -1,12 +1,14 @@
 package status
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/gonum/graph/encoding/dot"
 	"github.com/spf13/cobra"
 
+	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
@@ -23,30 +25,27 @@ import (
 	loginutil "github.com/openshift/oc/pkg/helpers/project"
 )
 
-// StatusRecommendedName is the recommended command name.
-const StatusRecommendedName = "status"
-
 var (
 	statusLong = templates.LongDesc(`
-		Show a high level overview of the current project
+		Show a high level overview of the current project.
 
 		This command will show services, deployment configs, build configurations, and active deployments.
 		If you have any misconfigured components information about them will be shown. For more information
-		about individual items, use the describe command (e.g. %[1]s describe buildConfig,
-		%[1]s describe deploymentConfig, %[1]s describe service).
+		about individual items, use the describe command (e.g. oc describe buildconfig,
+		oc describe deploymentconfig, oc describe service).
 
 		You can specify an output format of "-o dot" to have this command output the generated status
 		graph in DOT format that is suitable for use by the "dot" command.`)
 
 	statusExample = templates.Examples(`
-		# See an overview of the current project.
-	  %[1]s
+		# See an overview of the current project
+		oc status
 
-	  # Export the overview of the current project in an svg file.
-	  %[1]s -o dot | dot -T svg -o project.svg
+		# Export the overview of the current project in an svg file
+		oc status -o dot | dot -T svg -o project.svg
 
-	  # See an overview of the current project including details for any identified issues.
-	  %[1]s --suggest`)
+		# See an overview of the current project including details for any identified issues
+		oc status --suggest`)
 )
 
 // StatusOptions contains all the necessary options for the Openshift cli status command.
@@ -73,27 +72,20 @@ func NewStatusOptions(streams genericclioptions.IOStreams) *StatusOptions {
 
 // NewCmdStatus implements the OpenShift cli status command.
 // baseCLIName is the path from root cmd to the parent of this cmd.
-func NewCmdStatus(name, baseCLIName, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdStatus(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewStatusOptions(streams)
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s [-o dot | --suggest ]", StatusRecommendedName),
+		Use:     "status [-o dot | --suggest ]",
 		Short:   "Show an overview of the current project",
-		Long:    fmt.Sprintf(statusLong, baseCLIName),
-		Example: fmt.Sprintf(statusExample, fullName),
+		Long:    statusLong,
+		Example: statusExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(f, cmd, baseCLIName, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.RunStatus())
 		},
 	}
 	cmd.Flags().StringVarP(&o.outputFormat, "output", "o", o.outputFormat, "Output format. One of: dot.")
-	// TODO: remove verbose in 3.12
-	// this is done to trick pflag into allowing the duplicate registration.  The local value here wins
-	cmd.Flags().BoolVarP(&o.suggest, "v", "v", o.suggest, "See details for resolving issues.")
-	cmd.Flags().MarkShorthandDeprecated("v", "Use --suggest instead.  Will be dropped in a future release")
-	cmd.Flags().BoolVar(&o.suggest, "verbose", o.suggest, "See details for resolving issues.")
-	cmd.Flags().MarkDeprecated("verbose", "Use --suggest instead.")
-	cmd.Flags().MarkHidden("verbose")
 	cmd.Flags().BoolVar(&o.suggest, "suggest", o.suggest, "See details for resolving issues.")
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If true, display status for all namespaces (must have cluster admin)")
 
@@ -101,7 +93,7 @@ func NewCmdStatus(name, baseCLIName, fullName string, f kcmdutil.Factory, stream
 }
 
 // Complete completes the options for the Openshift cli status command.
-func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, baseCLIName string, args []string) error {
+func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return kcmdutil.UsageErrorf(cmd, "no arguments should be provided")
 	}
@@ -155,11 +147,14 @@ func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, baseCLI
 		if err != nil {
 			return err
 		}
+		_, err = projectClient.Projects().Get(context.TODO(), namespace, metav1.GetOptions{})
+		switch {
+		case kapierrors.IsForbidden(err), kapierrors.IsNotFound(err):
+			return fmt.Errorf("you do not have rights to view project %q specified in your config or the project doesn't exist", namespace)
+		case err != nil:
+			return err
+		}
 		o.namespace = namespace
-	}
-
-	if baseCLIName == "" {
-		baseCLIName = "oc"
 	}
 
 	currentNamespace := ""
@@ -181,7 +176,6 @@ func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, baseCLI
 		Suggest:       o.suggest,
 		Server:        clientConfig.Host,
 
-		CommandBaseName:    baseCLIName,
 		RequestedNamespace: nsFlag,
 		CurrentNamespace:   currentNamespace,
 

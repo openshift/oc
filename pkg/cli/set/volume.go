@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -33,13 +34,12 @@ import (
 )
 
 const (
-	volumePrefix    = "volume-"
-	storageAnnClass = "volume.beta.kubernetes.io/storage-class"
+	volumePrefix = "volume-"
 )
 
 var (
 	volumeLong = templates.LongDesc(`
-		Update volumes on a pod template
+		Update volumes on a pod template.
 
 		This command can add, update or remove volumes from containers for any object
 		that has a pod template (deployment configs, replication controllers, or pods).
@@ -68,32 +68,33 @@ var (
 		For descriptions on other volume types, see https://docs.openshift.com`)
 
 	volumeExample = templates.Examples(`
-	  # List volumes defined on all deployment configs in the current project
-	  %[1]s volume dc --all
+		# List volumes defined on all deployment configs in the current project
+		oc set volume dc --all
 
-	  # Add a new empty dir volume to deployment config (dc) 'myapp' mounted under
-	  # /var/lib/myapp
-	  %[1]s volume dc/myapp --add --mount-path=/var/lib/myapp
+		# Add a new empty dir volume to deployment config (dc) 'myapp' mounted under
+		# /var/lib/myapp
+		oc set volume dc/myapp --add --mount-path=/var/lib/myapp
 
-	  # Use an existing persistent volume claim (pvc) to overwrite an existing volume 'v1'
-	  %[1]s volume dc/myapp --add --name=v1 -t pvc --claim-name=pvc1 --overwrite
+		# Use an existing persistent volume claim (pvc) to overwrite an existing volume 'v1'
+		oc set volume dc/myapp --add --name=v1 -t pvc --claim-name=pvc1 --overwrite
 
-	  # Remove volume 'v1' from deployment config 'myapp'
-	  %[1]s volume dc/myapp --remove --name=v1
+		# Remove volume 'v1' from deployment config 'myapp'
+		oc set volume dc/myapp --remove --name=v1
 
-	  # Create a new persistent volume claim that overwrites an existing volume 'v1'
-	  %[1]s volume dc/myapp --add --name=v1 -t pvc --claim-size=1G --overwrite
+		# Create a new persistent volume claim that overwrites an existing volume 'v1'
+		oc set volume dc/myapp --add --name=v1 -t pvc --claim-size=1G --overwrite
 
-	  # Change the mount point for volume 'v1' to /data
-	  %[1]s volume dc/myapp --add --name=v1 -m /data --overwrite
+		# Change the mount point for volume 'v1' to /data
+		oc set volume dc/myapp --add --name=v1 -m /data --overwrite
 
-	  # Modify the deployment config by removing volume mount "v1" from container "c1"
-	  # (and by removing the volume "v1" if no other containers have volume mounts that reference it)
-	  %[1]s volume dc/myapp --remove --name=v1 --containers=c1
+		# Modify the deployment config by removing volume mount "v1" from container "c1"
+		# (and by removing the volume "v1" if no other containers have volume mounts that reference it)
+		oc set volume dc/myapp --remove --name=v1 --containers=c1
 
-	  # Add new volume based on a more complex volume source (AWS EBS, GCE PD,
-	  # Ceph, Gluster, NFS, ISCSI, ...)
-	  %[1]s volume dc/myapp --add -m /data --source=<json-string>`)
+		# Add new volume based on a more complex volume source (AWS EBS, GCE PD,
+		# Ceph, Gluster, NFS, ISCSI, ...)
+		oc set volume dc/myapp --add -m /data --source=<json-string>
+	`)
 )
 
 type VolumeOptions struct {
@@ -116,13 +117,13 @@ type VolumeOptions struct {
 	List   bool
 
 	// Common optional params
-	Name       string
-	Containers string
-	Confirm    bool
-	Local      bool
-	Args       []string
-	Printer    printers.ResourcePrinter
-	DryRun     bool
+	Name           string
+	Containers     string
+	Confirm        bool
+	Local          bool
+	Args           []string
+	Printer        printers.ResourcePrinter
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	// Add op params
 	AddOpts *AddVolumeOptions
@@ -165,13 +166,13 @@ func NewVolumeOptions(streams genericclioptions.IOStreams) *VolumeOptions {
 	}
 }
 
-func NewCmdVolume(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVolume(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewVolumeOptions(streams)
 	cmd := &cobra.Command{
-		Use:     "volumes RESOURCE/NAME --add|--remove|--list",
+		Use:     "volumes RESOURCE/NAME --add|--remove",
 		Short:   "Update volumes on a pod template",
 		Long:    volumeLong,
-		Example: fmt.Sprintf(volumeExample, fullName),
+		Example: volumeExample,
 		Aliases: []string{"volume"},
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -185,7 +186,6 @@ func NewCmdVolume(fullName string, f kcmdutil.Factory, streams genericclioptions
 	cmd.Flags().BoolVar(&o.All, "all", o.All, "If true, select all resources in the namespace of the specified resource types")
 	cmd.Flags().BoolVar(&o.Add, "add", o.Add, "If true, add volume and/or volume mounts for containers")
 	cmd.Flags().BoolVar(&o.Remove, "remove", o.Remove, "If true, remove volume and/or volume mounts for containers")
-	cmd.Flags().BoolVar(&o.List, "list", o.List, "If true, list volumes and volume mounts for containers")
 	cmd.Flags().BoolVar(&o.Local, "local", o.Local, "If true, set image will NOT contact api-server but run locally.")
 	cmd.Flags().StringVar(&o.Name, "name", o.Name, "Name of the volume. If empty, auto generated for add operation")
 	cmd.Flags().StringVarP(&o.Containers, "containers", "c", o.Containers, "The names of containers in the selected pod templates to change - may use wildcards")
@@ -208,9 +208,6 @@ func NewCmdVolume(fullName string, f kcmdutil.Factory, streams genericclioptions
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
-
-	// deprecate --list option
-	cmd.Flags().MarkDeprecated("list", "Volumes and volume mounts can be listed by providing a resource with no additional options.")
 
 	return cmd
 }
@@ -360,10 +357,12 @@ func (o *VolumeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	o.AddOpts.TypeChanged = cmd.Flag("type").Changed
 	o.AddOpts.ClassChanged = cmd.Flag("claim-class").Changed
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
+
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -488,19 +487,20 @@ func (o *VolumeOptions) RunVolume() error {
 	if patchError != nil {
 		return patchError
 	}
-	if o.Local || o.DryRun {
+	if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 		for _, info := range infos {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				return err
 			}
 		}
+		return nil
 	}
 
 	allErrs := []error{}
 	for _, info := range updateInfos {
 		var obj runtime.Object
 		if len(info.ResourceVersion) == 0 {
-			obj, err = resource.NewHelper(info.Client, info.Mapping).Create(info.Namespace, false, info.Object, &metav1.CreateOptions{})
+			obj, err = resource.NewHelper(info.Client, info.Mapping).Create(info.Namespace, false, info.Object)
 		} else {
 			obj, err = resource.NewHelper(info.Client, info.Mapping).Replace(info.Namespace, info.Name, true, info.Object)
 		}
@@ -523,13 +523,6 @@ func (o *VolumeOptions) RunVolume() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
-			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
-				allErrs = append(allErrs, err)
-			}
-			continue
-		}
-
 		actual, err := resource.NewHelper(info.Client, info.Mapping).Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patch.Patch, &metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch volume update to pod template: %v\n", err))
@@ -545,7 +538,7 @@ func (o *VolumeOptions) RunVolume() error {
 
 func (o *VolumeOptions) getVolumeUpdatePatches(infos []*resource.Info, singleItemImplied bool) ([]*Patch, error) {
 	skipped := 0
-	patches := CalculatePatches(infos, scheme.DefaultJSONEncoder(), func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
 		transformed := false
 		ok, err := o.UpdatePodSpecForObject(info.Object, func(spec *corev1.PodSpec) error {
 			var e error
@@ -565,7 +558,7 @@ func (o *VolumeOptions) getVolumeUpdatePatches(infos []*resource.Info, singleIte
 		return transformed, err
 	})
 	if singleItemImplied && skipped == len(infos) {
-		patchError := fmt.Errorf("the %s %s is not a pod or does not have a pod template", infos[0].Mapping.Resource, infos[0].Name)
+		patchError := fmt.Errorf("the %s %s is not a pod or does not have a pod template", infos[0].Object.GetObjectKind().GroupVersionKind().Kind, infos[0].Name)
 		return patches, patchError
 	}
 	return patches, nil
@@ -640,9 +633,8 @@ func (a *AddVolumeOptions) createClaim() *corev1.PersistentVolumeClaim {
 		},
 	}
 	if a.ClassChanged {
-		pvc.Annotations = map[string]string{
-			storageAnnClass: a.ClaimClass,
-		}
+		claimClass := a.ClaimClass
+		pvc.Spec.StorageClassName = &claimClass
 	}
 	return pvc
 }
@@ -662,7 +654,7 @@ func (o *VolumeOptions) setVolumeMount(spec *corev1.PodSpec, info *resource.Info
 	opts := o.AddOpts
 	containers, _ := selectContainers(spec.Containers, o.Containers)
 	if len(containers) == 0 && o.Containers != "*" {
-		fmt.Fprintf(o.ErrOut, "warning: %s/%s does not have any containers matching %q\n", info.Mapping.Resource.Resource, info.Name, o.Containers)
+		fmt.Fprintf(o.ErrOut, "warning: %s/%s does not have any containers matching %q\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, o.Containers)
 		return nil
 	}
 
@@ -847,7 +839,7 @@ func (o *VolumeOptions) removeSpecificVolume(spec *corev1.PodSpec, containers, s
 func (o *VolumeOptions) removeVolumeFromSpec(spec *corev1.PodSpec, info *resource.Info) error {
 	containers, skippedContainers := selectContainers(spec.Containers, o.Containers)
 	if len(containers) == 0 && o.Containers != "*" {
-		fmt.Fprintf(o.ErrOut, "warning: %s/%s does not have any containers matching %q\n", info.Mapping.Resource.Resource, info.Name, o.Containers)
+		fmt.Fprintf(o.ErrOut, "warning: %s %s does not have any containers matching %q\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, o.Containers)
 		return nil
 	}
 
@@ -919,11 +911,11 @@ func describeVolumeSource(source *corev1.VolumeSource) string {
 func (o *VolumeOptions) listVolumeForSpec(spec *corev1.PodSpec, info *resource.Info) error {
 	containers, _ := selectContainers(spec.Containers, o.Containers)
 	if len(containers) == 0 && o.Containers != "*" {
-		fmt.Fprintf(o.ErrOut, "warning: %s/%s does not have any containers matching %q\n", info.Mapping.Resource.Resource, info.Name, o.Containers)
+		fmt.Fprintf(o.ErrOut, "warning: %s %s does not have any containers matching %q\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, o.Containers)
 		return nil
 	}
 
-	fmt.Fprintf(o.Out, "%s/%s\n", info.Mapping.Resource.Resource, info.Name)
+	fmt.Fprintf(o.Out, "%s %s\n", info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name)
 	checkName := (len(o.Name) > 0)
 	found := false
 	for _, vol := range spec.Volumes {
@@ -935,14 +927,14 @@ func (o *VolumeOptions) listVolumeForSpec(spec *corev1.PodSpec, info *resource.I
 		refInfo := ""
 		if vol.VolumeSource.PersistentVolumeClaim != nil {
 			claimName := vol.VolumeSource.PersistentVolumeClaim.ClaimName
-			claim, err := o.Client.CoreV1().PersistentVolumeClaims(info.Namespace).Get(claimName, metav1.GetOptions{})
+			claim, err := o.Client.CoreV1().PersistentVolumeClaims(info.Namespace).Get(context.TODO(), claimName, metav1.GetOptions{})
 			switch {
 			case err == nil:
 				refInfo = fmt.Sprintf("(%s)", describePersistentVolumeClaim(claim))
 			case apierrs.IsNotFound(err):
 				refInfo = "(does not exist)"
 			default:
-				fmt.Fprintf(o.ErrOut, "error: unable to retrieve persistent volume claim %s referenced in %s/%s: %v", claimName, info.Mapping.Resource.Resource, info.Name, err)
+				fmt.Fprintf(o.ErrOut, "error: unable to retrieve persistent volume claim %s referenced in %s %s: %v", claimName, info.Object.GetObjectKind().GroupVersionKind().Kind, info.Name, err)
 			}
 		}
 		if len(refInfo) > 0 {

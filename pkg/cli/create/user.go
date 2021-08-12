@@ -1,20 +1,20 @@
 package create
 
 import (
-	"fmt"
+	"context"
 
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	userv1 "github.com/openshift/api/user/v1"
 	userv1client "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 )
-
-const UserRecommendedName = "user"
 
 var (
 	userLong = templates.LongDesc(`
@@ -24,12 +24,14 @@ var (
 		creation is disabled (by using the "lookup" mapping method), users must
 		be created manually.
 
-		Corresponding identity and useridentitymapping objects must also be created
-		to allow logging in as the created user.`)
+		Corresponding identity and user identity mapping objects must also be created
+		to allow logging in as the created user.
+	`)
 
 	userExample = templates.Examples(`
 		# Create a user with the username "ajones" and the display name "Adam Jones"
-  	%[1]s ajones --full-name="Adam Jones"`)
+		oc create user ajones --full-name="Adam Jones"
+	`)
 )
 
 type CreateUserOptions struct {
@@ -41,15 +43,15 @@ type CreateUserOptions struct {
 }
 
 // NewCmdCreateUser is a macro command to create a new user
-func NewCmdCreateUser(name, fullName string, f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateUser(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreateUserOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     name + " USERNAME",
-		Short:   "Manually create a user (only needed if automatic creation is disabled).",
+		Use:     "user NAME",
+		Short:   "Manually create a user (only needed if automatic creation is disabled)",
 		Long:    userLong,
-		Example: fmt.Sprintf(userExample, fullName),
+		Example: userExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
 			cmdutil.CheckErr(o.Run())
@@ -57,7 +59,7 @@ func NewCmdCreateUser(name, fullName string, f genericclioptions.RESTClientGette
 	}
 	cmd.Flags().StringVar(&o.FullName, "full-name", o.FullName, "Display name of the user")
 
-	o.CreateSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateSubcommandOptions.AddFlags(cmd)
 	cmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -85,9 +87,14 @@ func (o *CreateUserOptions) Run() error {
 		},
 		FullName: o.FullName,
 	}
+
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, user, scheme.DefaultJSONEncoder()); err != nil {
+		return err
+	}
+
 	var err error
-	if !o.CreateSubcommandOptions.DryRun {
-		user, err = o.UserClient.Users().Create(user)
+	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
+		user, err = o.UserClient.Users().Create(context.TODO(), user, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

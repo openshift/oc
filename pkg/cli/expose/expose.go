@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -12,45 +13,46 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	"github.com/openshift/oc/pkg/cli/create/route"
 )
 
 var (
 	exposeLong = templates.LongDesc(`
-		Expose containers internally as services or externally via routes
+		Expose containers internally as services or externally via routes.
 
-		There is also the ability to expose a deployment configuration, replication controller, service, or pod
-		as a new service on a specified port. If no labels are specified, the new object will re-use the
-		labels from the object it exposes.`)
+		There is also the ability to expose a deployment config, replication controller, service, or pod
+		as a new service on a specified port. If no labels are specified, the new object will reuse the
+		labels from the object it exposes.
+	`)
 
 	exposeExample = templates.Examples(`
-		# Create a route based on service nginx. The new route will re-use nginx's labels
-	  %[1]s expose service nginx
+		# Create a route based on service nginx. The new route will reuse nginx's labels
+		oc expose service nginx
 
-	  # Create a route and specify your own label and route name
-	  %[1]s expose service nginx -l name=myroute --name=fromdowntown
+		# Create a route and specify your own label and route name
+		oc expose service nginx -l name=myroute --name=fromdowntown
 
-	  # Create a route and specify a hostname
-	  %[1]s expose service nginx --hostname=www.example.com
+		# Create a route and specify a host name
+		oc expose service nginx --hostname=www.example.com
 
-	  # Create a route with wildcard
-	  %[1]s expose service nginx --hostname=x.example.com --wildcard-policy=Subdomain
-	  This would be equivalent to *.example.com. NOTE: only hosts are matched by the wildcard, subdomains would not be included.
+		# Create a route with a wildcard
+		oc expose service nginx --hostname=x.example.com --wildcard-policy=Subdomain
+		# This would be equivalent to *.example.com. NOTE: only hosts are matched by the wildcard; subdomains would not be included
 
-	  # Expose a deployment configuration as a service and use the specified port
-	  %[1]s expose dc ruby-hello-world --port=8080
+		# Expose a deployment configuration as a service and use the specified port
+		oc expose dc ruby-hello-world --port=8080
 
-	  # Expose a service as a route in the specified path
-	  %[1]s expose service nginx --path=/nginx
+		# Expose a service as a route in the specified path
+		oc expose service nginx --path=/nginx
 
-	  # Expose a service using different generators
-	  %[1]s expose service nginx --name=exposed-svc --port=12201 --protocol="TCP" --generator="service/v2"
-	  %[1]s expose service nginx --name=my-route --port=12201 --generator="route/v1"
+		# Expose a service using different generators
+		oc expose service nginx --name=exposed-svc --port=12201 --protocol="TCP" --generator="service/v2"
+		oc expose service nginx --name=my-route --port=12201 --generator="route/v1"
 
-	  Exposing a service using the "route/v1" generator (default) will create a new exposed route with the "--name" provided
-	  (or the name of the service otherwise). You may not specify a "--protocol" or "--target-port" option when using this generator.`)
+		# Exposing a service using the "route/v1" generator (default) will create a new exposed route with the "--name" provided
+		# (or the name of the service otherwise). You may not specify a "--protocol" or "--target-port" option when using this generator
+	`)
 )
 
 type ExposeOptions struct {
@@ -74,13 +76,13 @@ func NewExposeOptions() *ExposeOptions {
 }
 
 // NewCmdExpose is a wrapper for the Kubernetes cli expose command
-func NewCmdExpose(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdExpose(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewExposeOptions()
 
 	cmd := expose.NewCmdExposeService(f, streams)
 	cmd.Short = "Expose a replicated application as a service or route"
 	cmd.Long = exposeLong
-	cmd.Example = fmt.Sprintf(exposeExample, fullName)
+	cmd.Example = exposeExample
 	// Default generator to an empty string so we can get more flexibility
 	// when setting defaults based on input resources
 	cmd.Flags().Set("generator", "")
@@ -159,8 +161,8 @@ func (o *ExposeOptions) Validate(cmd *cobra.Command) error {
 	info := infos[0]
 	mapping := info.ResourceMapping()
 
-	switch mapping.GroupVersionKind.GroupKind() {
-	case kapi.Kind("Service"):
+	switch mapping.Resource.GroupResource() {
+	case corev1.Resource("services"):
 		switch o.Generator {
 		case "service/v1", "service/v2":
 			// Set default protocol back for generating services

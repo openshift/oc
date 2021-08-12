@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kapihelper "k8s.io/kubernetes/pkg/apis/core/helper"
 
 	imagev1 "github.com/openshift/api/image/v1"
 	imagefake "github.com/openshift/client-go/image/clientset/versioned/fake"
@@ -621,7 +621,7 @@ func TestCreateImageImport(t *testing.T) {
 		if !listEqual(isi.Spec.Images, test.expectedImages) {
 			t.Errorf("%s: unexpected import images, expected %#v, got %#v", name, test.expectedImages, isi.Spec.Images)
 		}
-		if !kapihelper.Semantic.DeepEqual(isi.Spec.Repository, test.expectedRepository) {
+		if !apiequality.Semantic.DeepEqual(isi.Spec.Repository, test.expectedRepository) {
 			t.Errorf("%s: unexpected import repository, expected %#v, got %#v", name, test.expectedRepository, isi.Spec.Repository)
 		}
 	}
@@ -673,7 +673,7 @@ func listEqual(actual, expected []imagev1.ImageImportSpec) bool {
 	for _, a := range actual {
 		found := false
 		for _, e := range expected {
-			if kapihelper.Semantic.DeepEqual(a, e) {
+			if apiequality.Semantic.DeepEqual(a, e) {
 				found = true
 				break
 			}

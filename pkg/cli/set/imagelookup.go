@@ -1,11 +1,12 @@
 package set
 
 import (
+	"context"
 	"fmt"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +26,7 @@ import (
 
 var (
 	imageLookupLong = templates.LongDesc(`
-		Use an image stream from pods and other objects
+		Use an image stream from pods and other objects.
 
 		Image streams make it easy to tag images, track changes from other registries, and centralize
 		access control to images. Local name lookup allows an image stream to be the source of
@@ -37,9 +38,9 @@ var (
 		Once lookup is enabled, simply reference the image stream tag in the image field of the object.
 		For example:
 
-				$ %[2]s import-image mysql:latest --confirm
-				$ %[1]s image-lookup mysql
-				$ %[2]s run mysql --image=mysql
+				$ oc import-image mysql:latest --confirm
+				$ oc set image-lookup mysql
+				$ oc run mysql --image=mysql
 
 		will import the latest MySQL image from the DockerHub, set that image stream to handle the
 		"mysql" name within the project, and then launch a deployment that points to the image we
@@ -50,9 +51,9 @@ var (
 		namespace for any image that matches, regardless of whether the image stream has lookup
 		enabled.
 
-				$ %[2]s run mysql --image=myregistry:5000/test/mysql:v1
-				$ %[2]s tag --source=docker myregistry:5000/test/mysql:v1 mysql:v1
-				$ %[1]s image-lookup deploy/mysql
+				$ oc run mysql --image=myregistry:5000/test/mysql:v1
+				$ oc tag --source=docker myregistry:5000/test/mysql:v1 mysql:v1
+				$ oc set image-lookup deploy/mysql
 
 		Which should trigger a deployment pointing to the imported mysql:v1 tag.
 
@@ -60,22 +61,22 @@ var (
 
 	imageLookupExample = templates.Examples(`
 		# Print all of the image streams and whether they resolve local names
-		%[1]s image-lookup
+		oc set image-lookup
 
 		# Use local name lookup on image stream mysql
-		%[1]s image-lookup mysql
+		oc set image-lookup mysql
 
 		# Force a deployment to use local name lookup
-		%[1]s image-lookup deploy/mysql
+		oc set image-lookup deploy/mysql
 
 		# Show the current status of the deployment lookup
-		%[1]s image-lookup deploy/mysql --list
+		oc set image-lookup deploy/mysql --list
 
 		# Disable local name lookup on image stream mysql
-		%[1]s image-lookup mysql --enabled=false
+		oc set image-lookup mysql --enabled=false
 
 		# Set local name lookup on all image streams
-		%[1]s image-lookup --all`)
+		oc set image-lookup --all`)
 )
 
 const alphaResolveNamesAnnotation = "alpha.image.policy.openshift.io/resolve-names"
@@ -96,7 +97,7 @@ type ImageLookupOptions struct {
 	Builder           func() *resource.Builder
 	Namespace         string
 	ExplicitNamespace bool
-	DryRun            bool
+	DryRunStrategy    kcmdutil.DryRunStrategy
 	Args              []string
 
 	resource.FilenameOptions
@@ -112,13 +113,13 @@ func NewImageLookupOptions(streams genericclioptions.IOStreams) *ImageLookupOpti
 }
 
 // NewCmdImageLookup implements the set image-lookup command
-func NewCmdImageLookup(fullName, parentName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdImageLookup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewImageLookupOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "image-lookup STREAMNAME [...]",
 		Short:   "Change how images are resolved when deploying applications",
-		Long:    fmt.Sprintf(imageLookupLong, fullName, parentName),
-		Example: fmt.Sprintf(imageLookupExample, fullName),
+		Long:    imageLookupLong,
+		Example: imageLookupExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -147,19 +148,21 @@ func (o *ImageLookupOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, ar
 		return err
 	}
 
-	o.PrintTable = (o.PrintFlags.OutputFormat == nil && len(args) == 0 && !o.All) || o.List
+	o.PrintTable = ((o.PrintFlags.OutputFormat == nil || len(*o.PrintFlags.OutputFormat) == 0) && len(args) == 0 && !o.All) || o.List
 
 	o.Args = args
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+
 	o.Mapper, err = f.ToRESTMapper()
 	if err != nil {
 		return err
 	}
 	o.Builder = f.NewBuilder
 
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
-	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -202,7 +205,7 @@ func (o *ImageLookupOptions) Run() error {
 	case len(o.Args) == 0 && len(o.Filenames) == 0:
 		b = b.
 			LabelSelectorParam(o.Selector).
-			SelectAllParam(o.All).
+			SelectAllParam(true).
 			ResourceTypes("imagestreams")
 	case o.List:
 		b = b.
@@ -278,14 +281,14 @@ func (o *ImageLookupOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch image lookup: %v\n", err))
 			continue

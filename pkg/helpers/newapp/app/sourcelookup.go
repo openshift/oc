@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
-	s2iapi "github.com/openshift/source-to-image/pkg/api"
-	s2igit "github.com/openshift/source-to-image/pkg/scm/git"
+	s2iapi "github.com/openshift/oc/pkg/helpers/source-to-image/api"
+	s2igit "github.com/openshift/oc/pkg/helpers/source-to-image/git"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/kubernetes/pkg/apis/core/validation"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 
 	buildv1 "github.com/openshift/api/build/v1"
 	"github.com/openshift/library-go/pkg/git"
@@ -419,7 +419,7 @@ func (r *SourceRepository) AddBuildConfigMaps(configMaps []string) error {
 		if r.GetStrategy() == newapp.StrategyDocker && filepath.IsAbs(in.Destination) {
 			return fmt.Errorf("for the docker strategy, the configMap destination directory %q must be a relative path", in.Destination)
 		}
-		if len(validation.ValidateConfigMapName(in.Source, false)) != 0 {
+		if len(apimachineryvalidation.NameIsDNSSubdomain(in.Source, false)) != 0 {
 			return fmt.Errorf("the %q must be a valid configMap name", in.Source)
 		}
 		if configMapExists(in.Source) {
@@ -456,7 +456,7 @@ func (r *SourceRepository) AddBuildSecrets(secrets []string) error {
 		if r.GetStrategy() == newapp.StrategyDocker && filepath.IsAbs(in.Destination) {
 			return fmt.Errorf("for the docker strategy, the secret destination directory %q must be a relative path", in.Destination)
 		}
-		if len(validation.ValidateSecretName(in.Source, false)) != 0 {
+		if len(apimachineryvalidation.NameIsDNSSubdomain(in.Source, false)) != 0 {
 			return fmt.Errorf("the %q must be valid secret name", in.Source)
 		}
 		if secretExists(in.Source) {

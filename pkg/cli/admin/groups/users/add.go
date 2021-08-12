@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -18,32 +19,32 @@ import (
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 )
 
-const AddRecommendedName = "add-users"
-
 var (
 	addLong = templates.LongDesc(`
 		Add users to a group.
 
-		This command will append unique users to the list of members for a group.`)
+		This command will append unique users to the list of members for a group.
+	`)
 
 	addExample = templates.Examples(`
 		# Add user1 and user2 to my-group
-	%[1]s my-group user1 user2`)
+		oc adm groups add-users my-group user1 user2
+	`)
 )
 
 type AddUsersOptions struct {
 	GroupModificationOptions *GroupModificationOptions
 }
 
-func NewCmdAddUsers(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddUsers(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &AddUsersOptions{
 		GroupModificationOptions: NewGroupModificationOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     name + " GROUP USER [USER ...]",
+		Use:     "add-users GROUP USER [USER ...]",
 		Short:   "Add users to a group",
 		Long:    addLong,
-		Example: fmt.Sprintf(addExample, fullName),
+		Example: addExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
@@ -60,7 +61,7 @@ func (o *AddUsersOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 }
 
 func (o *AddUsersOptions) Run() error {
-	group, err := o.GroupModificationOptions.GroupClient.Groups().Get(o.GroupModificationOptions.Group, metav1.GetOptions{})
+	group, err := o.GroupModificationOptions.GroupClient.Groups().Get(context.TODO(), o.GroupModificationOptions.Group, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -74,8 +75,8 @@ func (o *AddUsersOptions) Run() error {
 		group.Users = append(group.Users, user)
 	}
 
-	if !o.GroupModificationOptions.DryRun {
-		group, err = o.GroupModificationOptions.GroupClient.Groups().Update(group)
+	if o.GroupModificationOptions.DryRunStrategy != kcmdutil.DryRunClient {
+		group, err = o.GroupModificationOptions.GroupClient.Groups().Update(context.TODO(), group, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -90,9 +91,9 @@ type GroupModificationOptions struct {
 
 	GroupClient userv1typedclient.GroupsGetter
 
-	Group  string
-	Users  []string
-	DryRun bool
+	Group          string
+	Users          []string
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	genericclioptions.IOStreams
 }
@@ -121,12 +122,14 @@ func (o *GroupModificationOptions) Complete(f kcmdutil.Factory, cmd *cobra.Comma
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
 		o.PrintFlags.NamePrintFlags.Operation = operation
-		if o.DryRun {
-			o.PrintFlags.Complete("%s (dry run)")
-		}
+		kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 		return o.PrintFlags.ToPrinter()
 	}
 

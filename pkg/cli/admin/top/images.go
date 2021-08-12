@@ -1,6 +1,7 @@
 package top
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sort"
@@ -29,20 +30,21 @@ import (
 )
 
 const (
-	TopImagesRecommendedName = "images"
-	maxImageIDLength         = 20
+	maxImageIDLength = 20
 )
 
 var (
 	topImagesLong = templates.LongDesc(`
-		Show usage statistics for Images
+		Show usage statistics for images.
 
-		This command analyzes all the Images managed by the platform and presents current
-		usage statistics.`)
+		This command analyzes all the images managed by the platform and presents current
+		usage statistics.
+	`)
 
 	topImagesExample = templates.Examples(`
-		# Show usage statistics for Images
-  	%[1]s %[2]s`)
+		# Show usage statistics for images
+		oc adm top images
+	`)
 )
 
 type TopImagesOptions struct {
@@ -61,13 +63,13 @@ func NewTopImagesOptions(streams genericclioptions.IOStreams) *TopImagesOptions 
 }
 
 // NewCmdTopImages implements the OpenShift cli top images command.
-func NewCmdTopImages(f kcmdutil.Factory, parentName, name string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTopImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewTopImagesOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
-		Short:   "Show usage statistics for Images",
+		Use:     "images",
+		Short:   "Show usage statistics for images",
 		Long:    topImagesLong,
-		Example: fmt.Sprintf(topImagesExample, parentName, name),
+		Example: topImagesExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate(cmd))
@@ -99,19 +101,19 @@ func (o *TopImagesOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args
 		namespace = metav1.NamespaceAll
 	}
 
-	allImages, err := imageClient.Images().List(metav1.ListOptions{})
+	allImages, err := imageClient.Images().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	o.Images = allImages
 
-	allStreams, err := imageClient.ImageStreams(namespace).List(metav1.ListOptions{})
+	allStreams, err := imageClient.ImageStreams(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	o.Streams = allStreams
 
-	allPods, err := kClient.Pods(namespace).List(metav1.ListOptions{})
+	allPods, err := kClient.Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

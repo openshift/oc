@@ -1,6 +1,7 @@
 package cancelbuild
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -34,26 +35,28 @@ const CancelBuildRecommendedCommandName = "cancel-build"
 
 var (
 	cancelBuildLong = templates.LongDesc(`
-		Cancel running, pending, or new builds
+		Cancel running, pending, or new builds.
 
 		This command requests a graceful shutdown of the build. There may be a delay between requesting
-		the build and the time the build is terminated.`)
+		the build and the time the build is terminated.
+	`)
 
 	cancelBuildExample = templates.Examples(`
-	  # Cancel the build with the given name
-	  %[1]s %[2]s ruby-build-2
+		# Cancel the build with the given name
+		oc cancel-build ruby-build-2
 
-	  # Cancel the named build and print the build logs
-	  %[1]s %[2]s ruby-build-2 --dump-logs
+		# Cancel the named build and print the build logs
+		oc cancel-build ruby-build-2 --dump-logs
 
-	  # Cancel the named build and create a new one with the same parameters
-	  %[1]s %[2]s ruby-build-2 --restart
+		# Cancel the named build and create a new one with the same parameters
+		oc cancel-build ruby-build-2 --restart
 
-	  # Cancel multiple builds
-	  %[1]s %[2]s ruby-build-1 ruby-build-2 ruby-build-3
+		# Cancel multiple builds
+		oc cancel-build ruby-build-1 ruby-build-2 ruby-build-3
 
-	  # Cancel all builds created from 'ruby-build' build configuration that are in 'new' state
-	  %[1]s %[2]s bc/ruby-build --state=new`)
+		# Cancel all builds created from the 'ruby-build' build config that are in the 'new' state
+		oc cancel-build bc/ruby-build --state=new
+	`)
 )
 
 // CancelBuildOptions contains all the options for running the CancelBuild cli command.
@@ -87,13 +90,13 @@ func NewCancelBuildOptions(streams genericclioptions.IOStreams) *CancelBuildOpti
 }
 
 // NewCmdCancelBuild implements the OpenShift cli cancel-build command
-func NewCmdCancelBuild(name, baseName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCancelBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCancelBuildOptions(streams)
 	cmd := &cobra.Command{
-		Use:        fmt.Sprintf("%s (BUILD | BUILDCONFIG)", name),
+		Use:        "cancel-build (BUILD | BUILDCONFIG)",
 		Short:      "Cancel running, pending, or new builds",
 		Long:       cancelBuildLong,
-		Example:    fmt.Sprintf(cancelBuildExample, baseName, name),
+		Example:    cancelBuildExample,
 		SuggestFor: []string{"builds", "stop-build"},
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -209,7 +212,7 @@ func labelValue(name string) string {
 // Optionally you can specify a filter function to select only builds that
 // matches your criteria.
 func buildConfigBuilds(c buildtv1client.BuildsGetter, namespace, name string, filterFunc buildFilter) ([]*buildv1.Build, error) {
-	result, err := c.Builds(namespace).List(metav1.ListOptions{LabelSelector: buildConfigSelector(name).String()})
+	result, err := c.Builds(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: buildConfigSelector(name).String()})
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +246,7 @@ func (o *CancelBuildOptions) Validate() error {
 func (o *CancelBuildOptions) RunCancelBuild() error {
 	var builds []*buildv1.Build
 	for _, name := range o.BuildNames {
-		build, err := o.BuildClient.Get(name, metav1.GetOptions{})
+		build, err := o.BuildClient.Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			o.ReportError(fmt.Errorf("build %s/%s not found", o.Namespace, name))
 			continue
@@ -270,7 +273,7 @@ func (o *CancelBuildOptions) RunCancelBuild() error {
 			}
 			logClient := buildclientv1.NewBuildLogClient(o.Client.RESTClient(), o.Namespace, scheme.Scheme)
 			opts := buildv1.BuildLogOptions{NoWait: true}
-			response, err := logClient.Logs(b.Name, opts).Do().Raw()
+			response, err := logClient.Logs(b.Name, opts).Do(context.TODO()).Raw()
 			if err != nil {
 				o.ReportError(fmt.Errorf("unable to fetch logs for %s/%s: %v", b.Namespace, b.Name, err))
 				continue
@@ -287,12 +290,12 @@ func (o *CancelBuildOptions) RunCancelBuild() error {
 			defer wg.Done()
 			err := wait.Poll(500*time.Millisecond, o.timeout, func() (bool, error) {
 				build.Status.Cancelled = true
-				_, err := o.BuildClient.Update(build)
+				_, err := o.BuildClient.Update(context.TODO(), build, metav1.UpdateOptions{})
 				switch {
 				case err == nil:
 					return true, nil
 				case kapierrors.IsConflict(err):
-					build, err = o.BuildClient.Get(build.Name, metav1.GetOptions{})
+					build, err = o.BuildClient.Get(context.TODO(), build.Name, metav1.GetOptions{})
 					return false, err
 				}
 				return true, err
@@ -314,7 +317,7 @@ func (o *CancelBuildOptions) RunCancelBuild() error {
 				timeout = timeout + (3 * time.Minute)
 			}
 			err = wait.Poll(500*time.Millisecond, timeout, func() (bool, error) {
-				updatedBuild, err := o.BuildClient.Get(build.Name, metav1.GetOptions{})
+				updatedBuild, err := o.BuildClient.Get(context.TODO(), build.Name, metav1.GetOptions{})
 				if err != nil {
 					return true, err
 				}
@@ -336,7 +339,7 @@ func (o *CancelBuildOptions) RunCancelBuild() error {
 	if o.Restart {
 		for _, b := range builds {
 			request := &buildv1.BuildRequest{ObjectMeta: metav1.ObjectMeta{Namespace: b.Namespace, Name: b.Name}}
-			build, err := o.BuildClient.Clone(request.Name, request)
+			build, err := o.BuildClient.Clone(context.TODO(), request.Name, request, metav1.CreateOptions{})
 			if err != nil {
 				o.ReportError(fmt.Errorf("build %s/%s failed to restart: %v", b.Namespace, b.Name, err))
 				continue

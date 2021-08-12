@@ -17,6 +17,7 @@ limitations under the License.
 package portforward
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -30,6 +31,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -59,12 +61,12 @@ type PortForwardOptions struct {
 
 var (
 	portforwardLong = templates.LongDesc(i18n.T(`
-                Forward one or more local ports to a pod. This command requires the node to have 'socat' installed.
+                Forward one or more local ports to a pod.
 
                 Use resource type/name such as deployment/mydeployment to select a pod. Resource type defaults to 'pod' if omitted.
 
                 If there are multiple pods matching the criteria, a pod will be selected automatically. The
-                forwarding session ends when the selected pod terminates, and rerun of the command is needed
+                forwarding session ends when the selected pod terminates, and a rerun of the command is needed
                 to resume forwarding.`))
 
 	portforwardExample = templates.Examples(i18n.T(`
@@ -74,8 +76,8 @@ var (
 		# Listen on ports 5000 and 6000 locally, forwarding data to/from ports 5000 and 6000 in a pod selected by the deployment
 		kubectl port-forward deployment/mydeployment 5000 6000
 
-		# Listen on ports 5000 and 6000 locally, forwarding data to/from ports 5000 and 6000 in a pod selected by the service
-		kubectl port-forward service/myservice 5000 6000
+		# Listen on port 8443 locally, forwarding to the targetPort of the service's port named "https" in a pod selected by the service
+		kubectl port-forward service/myservice 8443:https
 
 		# Listen on port 8888 locally, forwarding to 5000 in the pod
 		kubectl port-forward pod/mypod 8888:5000
@@ -107,16 +109,11 @@ func NewCmdPortForward(f cmdutil.Factory, streams genericclioptions.IOStreams) *
 		Short:                 i18n.T("Forward one or more local ports to a pod"),
 		Long:                  portforwardLong,
 		Example:               portforwardExample,
+		ValidArgsFunction:     util.ResourceNameCompletionFunc(f, "pod"),
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := opts.Complete(f, cmd, args); err != nil {
-				cmdutil.CheckErr(err)
-			}
-			if err := opts.Validate(); err != nil {
-				cmdutil.CheckErr(cmdutil.UsageErrorf(cmd, "%v", err.Error()))
-			}
-			if err := opts.RunPortForward(); err != nil {
-				cmdutil.CheckErr(err)
-			}
+			cmdutil.CheckErr(opts.Complete(f, cmd, args))
+			cmdutil.CheckErr(opts.Validate())
+			cmdutil.CheckErr(opts.RunPortForward())
 		},
 	}
 	cmdutil.AddPodRunningTimeoutFlag(cmd, defaultPodPortForwardWaitTimeout)
@@ -184,10 +181,13 @@ func translateServicePortToTargetPort(ports []string, svc corev1.Service, pod co
 			return nil, err
 		}
 
-		if int32(portnum) != containerPort {
-			translated = append(translated, fmt.Sprintf("%s:%d", localPort, containerPort))
+		// convert the resolved target port back to a string
+		remotePort = strconv.Itoa(int(containerPort))
+
+		if localPort != remotePort {
+			translated = append(translated, fmt.Sprintf("%s:%s", localPort, remotePort))
 		} else {
-			translated = append(translated, port)
+			translated = append(translated, remotePort)
 		}
 	}
 	return translated, nil
@@ -219,6 +219,73 @@ func convertPodNamedPortToNumber(ports []string, pod corev1.Pod) ([]string, erro
 	}
 
 	return converted, nil
+}
+
+func checkUDPPorts(udpOnlyPorts sets.Int, ports []string, obj metav1.Object) error {
+	for _, port := range ports {
+		_, remotePort := splitPort(port)
+		portNum, err := strconv.Atoi(remotePort)
+		if err != nil {
+			switch v := obj.(type) {
+			case *corev1.Service:
+				svcPort, err := util.LookupServicePortNumberByName(*v, remotePort)
+				if err != nil {
+					return err
+				}
+				portNum = int(svcPort)
+
+			case *corev1.Pod:
+				ctPort, err := util.LookupContainerPortNumberByName(*v, remotePort)
+				if err != nil {
+					return err
+				}
+				portNum = int(ctPort)
+
+			default:
+				return fmt.Errorf("unknown object: %v", obj)
+			}
+		}
+		if udpOnlyPorts.Has(portNum) {
+			return fmt.Errorf("UDP protocol is not supported for %s", remotePort)
+		}
+	}
+	return nil
+}
+
+// checkUDPPortInService returns an error if remote port in Service is a UDP port
+// TODO: remove this check after #47862 is solved
+func checkUDPPortInService(ports []string, svc *corev1.Service) error {
+	udpPorts := sets.NewInt()
+	tcpPorts := sets.NewInt()
+	for _, port := range svc.Spec.Ports {
+		portNum := int(port.Port)
+		switch port.Protocol {
+		case corev1.ProtocolUDP:
+			udpPorts.Insert(portNum)
+		case corev1.ProtocolTCP:
+			tcpPorts.Insert(portNum)
+		}
+	}
+	return checkUDPPorts(udpPorts.Difference(tcpPorts), ports, svc)
+}
+
+// checkUDPPortInPod returns an error if remote port in Pod is a UDP port
+// TODO: remove this check after #47862 is solved
+func checkUDPPortInPod(ports []string, pod *corev1.Pod) error {
+	udpPorts := sets.NewInt()
+	tcpPorts := sets.NewInt()
+	for _, ct := range pod.Spec.Containers {
+		for _, ctPort := range ct.Ports {
+			portNum := int(ctPort.ContainerPort)
+			switch ctPort.Protocol {
+			case corev1.ProtocolUDP:
+				udpPorts.Insert(portNum)
+			case corev1.ProtocolTCP:
+				tcpPorts.Insert(portNum)
+			}
+		}
+	}
+	return checkUDPPorts(udpPorts.Difference(tcpPorts), ports, pod)
 }
 
 // Complete completes all the required options for port-forward cmd.
@@ -261,11 +328,19 @@ func (o *PortForwardOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, arg
 	// handle service port mapping to target port if needed
 	switch t := obj.(type) {
 	case *corev1.Service:
+		err = checkUDPPortInService(args[1:], t)
+		if err != nil {
+			return err
+		}
 		o.Ports, err = translateServicePortToTargetPort(args[1:], *t, *forwardablePod)
 		if err != nil {
 			return err
 		}
 	default:
+		err = checkUDPPortInPod(args[1:], forwardablePod)
+		if err != nil {
+			return err
+		}
 		o.Ports, err = convertPodNamedPortToNumber(args[1:], *forwardablePod)
 		if err != nil {
 			return err
@@ -311,7 +386,7 @@ func (o PortForwardOptions) Validate() error {
 
 // RunPortForward implements all the necessary functionality for port-forward cmd.
 func (o PortForwardOptions) RunPortForward() error {
-	pod, err := o.PodClient.Pods(o.Namespace).Get(o.PodName, metav1.GetOptions{})
+	pod, err := o.PodClient.Pods(o.Namespace).Get(context.TODO(), o.PodName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

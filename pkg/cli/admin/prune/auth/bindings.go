@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"io"
+
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,7 +18,7 @@ import (
 func reapClusterBindings(removedSubject corev1.ObjectReference, c authv1client.AuthorizationV1Interface, out io.Writer) []error {
 	errors := []error{}
 
-	clusterBindings, err := c.ClusterRoleBindings().List(metav1.ListOptions{})
+	clusterBindings, err := c.ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return []error{err}
 	}
@@ -31,7 +33,7 @@ func reapClusterBindings(removedSubject corev1.ObjectReference, c authv1client.A
 			updatedBinding := binding
 			updatedBinding.Subjects = retainedSubjects
 			updatedBinding.UserNames, updatedBinding.GroupNames = stringSubjectsFor(binding.Namespace, retainedSubjects)
-			if _, err := c.ClusterRoleBindings().Update(&updatedBinding); err != nil && !kerrors.IsNotFound(err) {
+			if _, err := c.ClusterRoleBindings().Update(context.TODO(), &updatedBinding, metav1.UpdateOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
 				fmt.Fprintf(out, "clusterrolebinding.rbac.authorization.k8s.io/"+updatedBinding.Name+" updated\n")
@@ -45,7 +47,7 @@ func reapClusterBindings(removedSubject corev1.ObjectReference, c authv1client.A
 func reapNamespacedBindings(removedSubject corev1.ObjectReference, c authv1client.AuthorizationV1Interface, out io.Writer) []error {
 	errors := []error{}
 
-	namespacedBindings, err := c.RoleBindings(metav1.NamespaceAll).List(metav1.ListOptions{})
+	namespacedBindings, err := c.RoleBindings(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return []error{err}
 	}
@@ -60,7 +62,7 @@ func reapNamespacedBindings(removedSubject corev1.ObjectReference, c authv1clien
 			updatedBinding := binding
 			updatedBinding.Subjects = retainedSubjects
 			updatedBinding.UserNames, updatedBinding.GroupNames = stringSubjectsFor(binding.Namespace, retainedSubjects)
-			if _, err := c.RoleBindings(binding.Namespace).Update(&updatedBinding); err != nil && !kerrors.IsNotFound(err) {
+			if _, err := c.RoleBindings(binding.Namespace).Update(context.TODO(), &updatedBinding, metav1.UpdateOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
 				fmt.Fprintf(out, "rolebinding.rbac.authorization.k8s.io/"+updatedBinding.Name+" updated\n")

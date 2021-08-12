@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -626,16 +626,16 @@ func (t *migrateTracker) run() {
 			t.resourcesWithErrors.Insert((&groupResource).String())
 		case attemptResultIgnore:
 			t.ignored++
-			if klog.V(2) {
+			if klog.V(2).Enabled() {
 				t.report("ignored:", r.data.info, nil)
 			}
 		case attemptResultUnchanged:
 			t.unchanged++
-			if klog.V(2) {
+			if klog.V(2).Enabled() {
 				t.report("unchanged:", r.data.info, nil)
 			}
 		case attemptResultSuccess:
-			if klog.V(1) {
+			if klog.V(1).Enabled() {
 				if t.dryRun {
 					t.report("migrated (dry run):", r.data.info, nil)
 				} else {
@@ -707,7 +707,7 @@ func (t *migrateWorker) try(info *resource.Info, retries int) (attemptResult, er
 			}
 			if canRetry(err) {
 				if retries > 0 {
-					if bool(klog.V(1)) && err != ErrRecalculate {
+					if klog.V(1).Enabled() && err != ErrRecalculate {
 						// signal that we had to retry on this resource
 						t.results <- resultData{retry: true, data: workData{info: info, err: err}}
 					}

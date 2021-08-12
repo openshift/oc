@@ -1,12 +1,13 @@
 package tag
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -47,7 +48,7 @@ type TagOptions struct {
 
 var (
 	tagLong = templates.LongDesc(`
-		Tag existing images into image streams
+		Tag existing images into image streams.
 
 		The tag command allows you to take an existing tag or image from an image
 		stream, or a container image pull spec, and set it as the most recent image for a
@@ -61,20 +62,20 @@ var (
 		container images.`)
 
 	tagExample = templates.Examples(`
-		# Tag the current image for the image stream 'openshift/ruby' and tag '2.0' into the image stream 'yourproject/ruby with tag 'tip'.
-	  %[1]s tag openshift/ruby:2.0 yourproject/ruby:tip
+		# Tag the current image for the image stream 'openshift/ruby' and tag '2.0' into the image stream 'yourproject/ruby with tag 'tip'
+		oc tag openshift/ruby:2.0 yourproject/ruby:tip
 
-	  # Tag a specific image.
-	  %[1]s tag openshift/ruby@sha256:6b646fa6bf5e5e4c7fa41056c27910e679c03ebe7f93e361e6515a9da7e258cc yourproject/ruby:tip
+		# Tag a specific image
+		oc tag openshift/ruby@sha256:6b646fa6bf5e5e4c7fa41056c27910e679c03ebe7f93e361e6515a9da7e258cc yourproject/ruby:tip
 
-	  # Tag an external container image.
-	  %[1]s tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip
+		# Tag an external container image
+		oc tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip
 
-	  # Tag an external container image and request pullthrough for it.
-	  %[1]s tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip --reference-policy=local
+		# Tag an external container image and request pullthrough for it
+		oc tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip --reference-policy=local
 
-	  # Remove the specified spec tag from an image stream.
-	  %[1]s tag openshift/origin-control-plane:latest -d`)
+		# Remove the specified spec tag from an image stream
+		oc tag openshift/origin-control-plane:latest -d`)
 )
 
 const (
@@ -89,13 +90,13 @@ func NewTagOptions(streams genericclioptions.IOStreams) *TagOptions {
 }
 
 // NewCmdTag implements the OpenShift cli tag command.
-func NewCmdTag(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTag(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewTagOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "tag [--source=SOURCETYPE] SOURCE DEST [DEST ...]",
 		Short:   "Tag existing images into image streams",
 		Long:    tagLong,
-		Example: fmt.Sprintf(tagExample, fullName),
+		Example: tagExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -239,7 +240,7 @@ func (o *TagOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 			if len(srcNamespace) == 0 {
 				srcNamespace = o.namespace
 			}
-			is, err := o.client.ImageStreams(srcNamespace).Get(ref.Name, metav1.GetOptions{})
+			is, err := o.client.ImageStreams(srcNamespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -376,7 +377,7 @@ func (o TagOptions) Run() error {
 
 			if o.deleteTag {
 				// new server support
-				err := o.client.ImageStreamTags(o.destNamespace[i]).Delete(imageutil.JoinImageStreamTag(destName, destTag), &metav1.DeleteOptions{})
+				err := o.client.ImageStreamTags(o.destNamespace[i]).Delete(context.TODO(), imageutil.JoinImageStreamTag(destName, destTag), metav1.DeleteOptions{})
 				switch {
 				case err == nil:
 					fmt.Fprintf(o.Out, "Deleted tag %s/%s.\n", o.destNamespace[i], destNameAndTag)
@@ -390,7 +391,7 @@ func (o TagOptions) Run() error {
 				}
 
 				// try the old way
-				target, err := isc.Get(destName, metav1.GetOptions{})
+				target, err := isc.Get(context.TODO(), destName, metav1.GetOptions{})
 				if err != nil {
 					if !kerrors.IsNotFound(err) {
 						return err
@@ -416,7 +417,7 @@ func (o TagOptions) Run() error {
 				}
 				target.Spec.Tags = tags
 
-				if _, err = isc.Update(target); err != nil {
+				if _, err = isc.Update(context.TODO(), target, metav1.UpdateOptions{}); err != nil {
 					return err
 				}
 
@@ -431,6 +432,7 @@ func (o TagOptions) Run() error {
 					Namespace: o.destNamespace[i],
 				},
 				Tag: &imagev1.TagReference{
+					Name:      destTag,
 					Reference: o.referenceTag,
 					ImportPolicy: imagev1.TagImportPolicy{
 						Insecure:  o.insecureTag,
@@ -484,7 +486,7 @@ func (o TagOptions) Run() error {
 			}
 
 			// supported by new servers.
-			_, err := o.client.ImageStreamTags(o.destNamespace[i]).Update(istag)
+			_, err := o.client.ImageStreamTags(o.destNamespace[i]).Update(context.TODO(), istag, metav1.UpdateOptions{})
 			switch {
 			case err == nil:
 				fmt.Fprintln(o.Out, msg)
@@ -492,7 +494,7 @@ func (o TagOptions) Run() error {
 
 			case kerrors.IsMethodNotSupported(err), kerrors.IsForbidden(err), kerrors.IsNotFound(err):
 				// if we got one of these errors, it possible that a Create will do what we need.  Try that
-				_, err := o.client.ImageStreamTags(o.destNamespace[i]).Create(istag)
+				_, err := o.client.ImageStreamTags(o.destNamespace[i]).Create(context.TODO(), istag, metav1.CreateOptions{})
 				switch {
 				case err == nil:
 					fmt.Fprintln(o.Out, msg)
@@ -511,7 +513,7 @@ func (o TagOptions) Run() error {
 
 			}
 
-			target, err := isc.Get(destName, metav1.GetOptions{})
+			target, err := isc.Get(context.TODO(), destName, metav1.GetOptions{})
 			if kerrors.IsNotFound(err) {
 				target = &imagev1.ImageStream{
 					ObjectMeta: metav1.ObjectMeta{
@@ -533,21 +535,27 @@ func (o TagOptions) Run() error {
 					istag.Tag.Generation = nil
 				}
 			}
-			// update tag
+
+			// create or update tag
+			found := false
 			for i := range target.Spec.Tags {
-				t := target.Spec.Tags[i]
+				t := &target.Spec.Tags[i]
 				if t.Name == destTag {
-					t = *istag.Tag
+					*t = *istag.Tag
+					found = true
 					break
 				}
+			}
+			if !found {
+				target.Spec.Tags = append(target.Spec.Tags, *istag.Tag)
 			}
 
 			// Check the stream creation timestamp and make sure we will not
 			// create a new image stream while deleting.
 			if target.CreationTimestamp.IsZero() && !o.deleteTag {
-				_, err = isc.Create(target)
+				_, err = isc.Create(context.TODO(), target, metav1.CreateOptions{})
 			} else {
-				_, err = isc.Update(target)
+				_, err = isc.Update(context.TODO(), target, metav1.UpdateOptions{})
 			}
 			if err != nil {
 				return err

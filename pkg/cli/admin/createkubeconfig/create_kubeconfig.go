@@ -8,22 +8,19 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/cert"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/library-go/pkg/crypto"
 	"github.com/openshift/oc/pkg/helpers/kubeconfig"
-
-	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
-
-const CreateKubeConfigCommandName = "create-kubeconfig"
 
 var createKubeConfigLongDesc = templates.LongDesc(`
   Create's a .kubeconfig file at <--kubeconfig> that looks like this:
@@ -81,10 +78,10 @@ func NewCreateKubeConfigOptions(streams genericclioptions.IOStreams) *CreateKube
 	}
 }
 
-func NewCommandCreateKubeConfig(commandName string, fullName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateKubeConfig(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCreateKubeConfigOptions(streams)
 	cmd := &cobra.Command{
-		Use:   commandName,
+		Use:   "create-kubeconfig",
 		Short: "Create a basic .kubeconfig file from client certs",
 		Long:  createKubeConfigLongDesc,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -93,6 +90,7 @@ func NewCommandCreateKubeConfig(commandName string, fullName string, streams gen
 				kcmdutil.CheckErr(err)
 			}
 		},
+		Deprecated: "and will be removed in the future version",
 	}
 
 	cmd.Flags().StringVar(&o.APIServerURL, "master", o.APIServerURL, "The API server's URL.")

@@ -1,12 +1,15 @@
 package create
 
 import (
-	"fmt"
+	"context"
 
 	"github.com/spf13/cobra"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -15,18 +18,20 @@ import (
 
 var (
 	passthroughRouteLong = templates.LongDesc(`
-		Create a route that uses passthrough TLS termination
+		Create a route that uses passthrough TLS termination.
 
 		Specify the service (either just its name or using type/name syntax) that the
-		generated route should expose via the --service flag.`)
+		generated route should expose via the --service flag.
+	`)
 
 	passthroughRouteExample = templates.Examples(`
-		# Create a passthrough route named "my-route" that exposes the frontend service.
-	  %[1]s create route passthrough my-route --service=frontend
+		# Create a passthrough route named "my-route" that exposes the frontend service
+		oc create route passthrough my-route --service=frontend
 
-	  # Create a passthrough route that exposes the frontend service and specify
-	  # a hostname. If the route name is omitted, the service name will be re-used.
-	  %[1]s create route passthrough --service=frontend --hostname=www.example.com`)
+		# Create a passthrough route that exposes the frontend service and specify
+		# a host name. If the route name is omitted, the service name will be used
+		oc create route passthrough --service=frontend --hostname=www.example.com
+	`)
 )
 
 type CreatePassthroughRouteOptions struct {
@@ -40,7 +45,7 @@ type CreatePassthroughRouteOptions struct {
 }
 
 // NewCmdCreatePassthroughRoute is a macro command to create a passthrough route.
-func NewCmdCreatePassthroughRoute(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreatePassthroughRoute(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreatePassthroughRouteOptions{
 		CreateRouteSubcommandOptions: NewCreateRouteSubcommandOptions(streams),
 	}
@@ -48,7 +53,7 @@ func NewCmdCreatePassthroughRoute(fullName string, f kcmdutil.Factory, streams g
 		Use:     "passthrough [NAME] --service=SERVICE",
 		Short:   "Create a route that uses passthrough TLS termination",
 		Long:    passthroughRouteLong,
-		Example: fmt.Sprintf(passthroughRouteExample, fullName),
+		Example: passthroughRouteExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
@@ -62,7 +67,7 @@ func NewCmdCreatePassthroughRoute(fullName string, f kcmdutil.Factory, streams g
 	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WilcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
 	kcmdutil.AddValidateFlags(cmd)
-	o.CreateRouteSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateRouteSubcommandOptions.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -94,8 +99,12 @@ func (o *CreatePassthroughRouteOptions) Run() error {
 		route.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyType(o.InsecurePolicy)
 	}
 
-	if !o.CreateRouteSubcommandOptions.DryRun {
-		route, err = o.CreateRouteSubcommandOptions.Client.Routes(o.CreateRouteSubcommandOptions.Namespace).Create(route)
+	if err := util.CreateOrUpdateAnnotation(o.CreateRouteSubcommandOptions.CreateAnnotation, route, scheme.DefaultJSONEncoder()); err != nil {
+		return err
+	}
+
+	if o.CreateRouteSubcommandOptions.DryRunStrategy != kcmdutil.DryRunClient {
+		route, err = o.CreateRouteSubcommandOptions.Client.Routes(o.CreateRouteSubcommandOptions.Namespace).Create(context.TODO(), route, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

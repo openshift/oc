@@ -2,6 +2,7 @@ package idle
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,7 +39,7 @@ import (
 
 var (
 	idleLong = templates.LongDesc(`
-		Idle scalable resources
+		Idle scalable resources.
 
 		Idling discovers the scalable resources (such as deployment configs and replication controllers)
 		associated with a series of services by examining the endpoints of the service.
@@ -46,11 +47,13 @@ var (
 		are scaled down to zero replicas.
 
 		Upon receiving network traffic, the services (and any associated routes) will "wake up" the
-		associated resources by scaling them back up to their previous scale.`)
+		associated resources by scaling them back up to their previous scale.
+	`)
 
 	idleExample = templates.Examples(`
 		# Idle the scalable controllers associated with the services listed in to-idle.txt
-		$ %[1]s idle --resource-names-file to-idle.txt`)
+		$ oc idle --resource-names-file to-idle.txt
+	`)
 )
 
 type IdleOptions struct {
@@ -60,8 +63,6 @@ type IdleOptions struct {
 	selector      string
 	allNamespaces bool
 	resources     []string
-
-	cmdFullName string
 
 	ClientForMappingFn func(*meta.RESTMapping) (resource.RESTClient, error)
 	ClientConfig       *rest.Config
@@ -78,22 +79,21 @@ type IdleOptions struct {
 	genericclioptions.IOStreams
 }
 
-func NewIdleOptions(name string, streams genericclioptions.IOStreams) *IdleOptions {
+func NewIdleOptions(streams genericclioptions.IOStreams) *IdleOptions {
 	return &IdleOptions{
-		IOStreams:   streams,
-		cmdFullName: name,
+		IOStreams: streams,
 	}
 }
 
 // NewCmdIdle implements the OpenShift cli idle command
-func NewCmdIdle(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewIdleOptions(fullName, streams)
+func NewCmdIdle(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewIdleOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "idle (SERVICE_ENDPOINTS... | -l label | --all | --resource-names-file FILENAME)",
 		Short:   "Idle scalable resources",
 		Long:    idleLong,
-		Example: fmt.Sprintf(idleExample, fullName),
+		Example: idleExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.RunIdle())
@@ -228,6 +228,7 @@ func scanLinesFromFile(filename string) ([]string, error) {
 // with the scalable resources that it should unidle
 type idleUpdateInfo struct {
 	obj       *corev1.Endpoints
+	service   *corev1.Service
 	scaleRefs map[unidlingapi.CrossGroupObjectReference]struct{}
 }
 
@@ -241,7 +242,7 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 		if pod, ok := podsLoaded[ref]; ok {
 			return pod, nil
 		}
-		pod, err := o.ClientSet.CoreV1().Pods(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
+		pod, err := o.ClientSet.CoreV1().Pods(ref.Namespace).Get(context.TODO(), ref.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -280,7 +281,7 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 		}
 
 		var controller runtime.Object
-		controller, err = helper.Get(ref.namespace, ref.Name, false)
+		controller, err = helper.Get(ref.namespace, ref.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -305,7 +306,7 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 
 		endpoints, isEndpoints := info.Object.(*corev1.Endpoints)
 		if !isEndpoints {
-			return fmt.Errorf("you must specify endpoints, not %v (view available endpoints with \"%s get endpoints\").", info.Mapping.Resource, o.cmdFullName)
+			return fmt.Errorf("you must specify endpoints, not %v (view available endpoints with \"oc get endpoints\").", info.Mapping.Resource)
 		}
 
 		endpointsName := types.NamespacedName{
@@ -324,8 +325,14 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 			targetScaleRefs[ref] = endpointsName
 		}
 
+		svc, err := o.ClientSet.CoreV1().Services(endpoints.Namespace).Get(context.TODO(), endpoints.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("unable to get service %s/%s: %v", endpoints.Namespace, endpoints.Name, err)
+		}
+
 		idleInfo := idleUpdateInfo{
 			obj:       endpoints,
+			service:   svc,
 			scaleRefs: nonNamespacedScaleRefs,
 		}
 
@@ -558,7 +565,7 @@ type scaleInfo struct {
 // scalable resources to zero, and annotating the associated endpoints objects with the scalable resources to unidle
 // when they receive traffic.
 func (o *IdleOptions) RunIdle() error {
-	clusterNetwork, err := o.OperatorClient.OperatorV1().Networks().Get("cluster", metav1.GetOptions{})
+	clusterNetwork, err := o.OperatorClient.OperatorV1().Networks().Get(context.TODO(), "cluster", metav1.GetOptions{})
 	if err == nil {
 		sdnType := clusterNetwork.Spec.DefaultNetwork.Type
 
@@ -633,11 +640,56 @@ func (o *IdleOptions) RunIdle() error {
 		toScale[scaleRef] = scaleInfo{scale: scale, obj: obj, namespace: svcName.Namespace}
 	}
 
+	patchInfo := func(obj runtime.Object) (metav1.Object, []byte, *meta.RESTMapping, error) {
+		metadata, err := meta.Accessor(obj)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		gvks, _, err := scheme.Scheme.ObjectKinds(obj)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		// we need a versioned obj to properly marshal to JSON, so that we can compute the patch
+		mapping, err := o.Mapper.RESTMapping(gvks[0].GroupKind(), gvks[0].Version)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		oldData, err := json.Marshal(obj)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		return metadata, oldData, mapping, nil
+	}
+
+	patchObjWithIdleAnnotations := func(obj runtime.Object, refsWithScale []unidlingapi.RecordedScaleReference, time time.Time) error {
+		metadata, oldData, mapping, err := patchInfo(obj)
+		if err != nil {
+			return err
+		}
+		clientForMapping, err := o.ClientForMappingFn(mapping)
+		if err != nil {
+			return err
+		}
+		if err = setIdleAnnotations(metadata.GetAnnotations(), refsWithScale, time); err != nil {
+			return err
+		}
+		_, err = patchObj(obj, metadata, oldData, mapping, clientForMapping)
+		return err
+	}
+
 	// annotate the endpoints objects to indicate which scalable resources need to be unidled on traffic
 	for serviceName, info := range byService {
 		if info.obj.Annotations == nil {
 			info.obj.Annotations = make(map[string]string)
 		}
+		if info.service.Annotations == nil {
+			info.service.Annotations = make(map[string]string)
+		}
+
 		refsWithScale, err := pairScalesWithScaleRefs(serviceName, info.obj.Annotations, info.scaleRefs, replicas)
 		if err != nil {
 			fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
@@ -653,42 +705,13 @@ func (o *IdleOptions) RunIdle() error {
 				continue
 			}
 
-			metadata, err := meta.Accessor(info.obj)
-			if err != nil {
+			if err := patchObjWithIdleAnnotations(info.service, refsWithScale, nowTime); err != nil {
 				fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
 				hadError = true
 				continue
 			}
 
-			gvks, _, err := scheme.Scheme.ObjectKinds(info.obj)
-			if err != nil {
-				fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
-				hadError = true
-				continue
-			}
-			// we need a versioned obj to properly marshal to JSON, so that we can compute the patch
-			mapping, err := o.Mapper.RESTMapping(gvks[0].GroupKind(), gvks[0].Version)
-			if err != nil {
-				fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
-				hadError = true
-				continue
-			}
-
-			oldData, err := json.Marshal(info.obj)
-			if err != nil {
-				fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
-				hadError = true
-				continue
-			}
-
-			clientForMapping, err := o.ClientForMappingFn(mapping)
-
-			if err = setIdleAnnotations(info.obj.Annotations, refsWithScale, nowTime); err != nil {
-				fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
-				hadError = true
-				continue
-			}
-			if _, err := patchObj(info.obj, metadata, oldData, mapping, clientForMapping); err != nil {
+			if err := patchObjWithIdleAnnotations(info.obj, refsWithScale, nowTime); err != nil {
 				fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
 				hadError = true
 				continue

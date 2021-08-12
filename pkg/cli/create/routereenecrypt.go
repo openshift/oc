@@ -1,12 +1,15 @@
 package create
 
 import (
-	"fmt"
+	"context"
 
 	"github.com/spf13/cobra"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -16,19 +19,24 @@ import (
 
 var (
 	reencryptRouteLong = templates.LongDesc(`
-		Create a route that uses reencrypt TLS termination
+		Create a route that uses reencrypt TLS termination.
 
 		Specify the service (either just its name or using type/name syntax) that the
-		generated route should expose via the --service flag. A destination CA certificate
-		is needed for reencrypt routes, specify one with the --dest-ca-cert flag.`)
+		generated route should expose using the --service flag. You may also specify
+		a destination CA certificate using the --dest-ca-cert flag. If --dest-ca-cert
+		is omitted, the route will use the service CA, meaning the service must use
+		a serving certificate from the serving cert signer.
+	`)
 
 	reencryptRouteExample = templates.Examples(`
-		# Create a route named "my-route" that exposes the frontend service.
-	  %[1]s create route reencrypt my-route --service=frontend --dest-ca-cert cert.cert
+		# Create a route named "my-route" that exposes the frontend service
+		oc create route reencrypt my-route --service=frontend --dest-ca-cert cert.cert
 
-	  # Create a reencrypt route that exposes the frontend service and re-use
-	  # the service name as the route name.
-	  %[1]s create route reencrypt --service=frontend --dest-ca-cert cert.cert`)
+		# Create a reencrypt route that exposes the frontend service, letting the
+		# route name default to the service name and the destination CA certificate
+		# default to the service CA
+		oc create route reencrypt --service=frontend
+	`)
 )
 
 type CreateReencryptRouteOptions struct {
@@ -47,15 +55,15 @@ type CreateReencryptRouteOptions struct {
 }
 
 // NewCmdCreateReencryptRoute is a macro command to create a reencrypt route.
-func NewCmdCreateReencryptRoute(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateReencryptRoute(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreateReencryptRouteOptions{
 		CreateRouteSubcommandOptions: NewCreateRouteSubcommandOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     "reencrypt [NAME] --dest-ca-cert=FILENAME --service=SERVICE",
+		Use:     "reencrypt [NAME] --service=SERVICE",
 		Short:   "Create a route that uses reencrypt TLS termination",
 		Long:    reencryptRouteLong,
-		Example: fmt.Sprintf(reencryptRouteExample, fullName),
+		Example: reencryptRouteExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
@@ -74,12 +82,12 @@ func NewCmdCreateReencryptRoute(fullName string, f kcmdutil.Factory, streams gen
 	cmd.MarkFlagFilename("key")
 	cmd.Flags().StringVar(&o.CACert, "ca-cert", o.CACert, "Path to a CA certificate file.")
 	cmd.MarkFlagFilename("ca-cert")
-	cmd.Flags().StringVar(&o.DestCACert, "dest-ca-cert", o.DestCACert, "Path to a CA certificate file, used for securing the connection from the router to the destination.")
+	cmd.Flags().StringVar(&o.DestCACert, "dest-ca-cert", o.DestCACert, "Path to a CA certificate file, used for securing the connection from the router to the destination. Defaults to the Service CA.")
 	cmd.MarkFlagFilename("dest-ca-cert")
 	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WilcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
 	kcmdutil.AddValidateFlags(cmd)
-	o.CreateRouteSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateRouteSubcommandOptions.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -134,8 +142,12 @@ func (o *CreateReencryptRouteOptions) Run() error {
 		route.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyType(o.InsecurePolicy)
 	}
 
-	if !o.CreateRouteSubcommandOptions.DryRun {
-		route, err = o.CreateRouteSubcommandOptions.Client.Routes(o.CreateRouteSubcommandOptions.Namespace).Create(route)
+	if err := util.CreateOrUpdateAnnotation(o.CreateRouteSubcommandOptions.CreateAnnotation, route, scheme.DefaultJSONEncoder()); err != nil {
+		return err
+	}
+
+	if o.CreateRouteSubcommandOptions.DryRunStrategy != kcmdutil.DryRunClient {
+		route, err = o.CreateRouteSubcommandOptions.Client.Routes(o.CreateRouteSubcommandOptions.Namespace).Create(context.TODO(), route, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

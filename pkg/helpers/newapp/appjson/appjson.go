@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -270,12 +270,12 @@ func (g *Generator) Generate(body []byte) (*templatev1.Template, error) {
 			break
 		}
 
-		if err := pipeline.NeedsDeployment(nil, nil, false); err != nil {
+		if err := pipeline.NeedsDeploymentConfig(nil, nil, false); err != nil {
 			return nil, err
 		}
 
 		if cmd, ok := appJSON.Scripts["postdeploy"]; ok && primaryFormation == component {
-			pipeline.Deployment.PostHook = &app.DeploymentHook{Shell: cmd}
+			pipeline.DeploymentConfig.PostHook = &app.DeploymentConfigHook{Shell: cmd}
 			delete(appJSON.Scripts, "postdeploy")
 		}
 

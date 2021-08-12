@@ -1,6 +1,7 @@
 package bulk
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -17,11 +19,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 )
 
 type Runner interface {
-	Run(list *kapi.List, namespace string) []error
+	Run(list *metainternalversion.List, namespace string) []error
 }
 
 // AfterFunc takes an info and an error, and returns true if processing should stop.
@@ -55,7 +56,7 @@ type Bulk struct {
 // event a failure occurs. The contents of list will be updated to include the
 // version from the server.
 // For now, run will do a conversion from internal or versioned, to version, then to unstructured.
-func (b *Bulk) Run(list *kapi.List, namespace string) []error {
+func (b *Bulk) Run(list *metainternalversion.List, namespace string) []error {
 	after := b.After
 	if after == nil {
 		after = func(*unstructured.Unstructured, error) bool { return false }
@@ -191,7 +192,7 @@ func (c Creator) Create(obj *unstructured.Unstructured, namespace string) (*unst
 		namespace = ""
 	}
 
-	return c.Client.Resource(mapping.Resource).Namespace(namespace).Create(obj, metav1.CreateOptions{})
+	return c.Client.Resource(mapping.Resource).Namespace(namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
 }
 
 func NoOp(obj *unstructured.Unstructured, namespace string) (*unstructured.Unstructured, error) {
@@ -309,7 +310,7 @@ func (b BulkAction) WithMessage(action, individual string) Runner {
 	return b.WithMessageAndPrefix(action, individual, func(e error) string { return "error" })
 }
 
-func (b *BulkAction) Run(list *kapi.List, namespace string) []error {
+func (b *BulkAction) Run(list *metainternalversion.List, namespace string) []error {
 	run := b.Bulk
 
 	if b.Verbose() {

@@ -10,6 +10,9 @@ import (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// Compatibility level 4: No compatibility is provided, the API can change at any point for any reason. These capabilities should not be used by applications needing long term support.
+// +openshift:compatibility-gen:level=4
+// +openshift:compatibility-gen:internal
 type OpenShiftAPIServerConfig struct {
 	metav1.TypeMeta `json:",inline"`
 
@@ -155,6 +158,9 @@ type JenkinsPipelineConfig struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// Compatibility level 4: No compatibility is provided, the API can change at any point for any reason. These capabilities should not be used by applications needing long term support.
+// +openshift:compatibility-gen:level=4
+// +openshift:compatibility-gen:internal
 type OpenShiftControllerManagerConfig struct {
 	metav1.TypeMeta `json:",inline"`
 
@@ -253,6 +259,10 @@ type ImageImportControllerConfig struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BuildDefaultsConfig controls the default information for Builds
+//
+// Compatibility level 4: No compatibility is provided, the API can change at any point for any reason. These capabilities should not be used by applications needing long term support.
+// +openshift:compatibility-gen:level=4
+// +openshift:compatibility-gen:internal
 type BuildDefaultsConfig struct {
 	metav1.TypeMeta `json:",inline"`
 
@@ -300,11 +310,19 @@ type SourceStrategyDefaultsConfig struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BuildOverridesConfig controls override settings for builds
+//
+// Compatibility level 4: No compatibility is provided, the API can change at any point for any reason. These capabilities should not be used by applications needing long term support.
+// +openshift:compatibility-gen:level=4
+// +openshift:compatibility-gen:internal
 type BuildOverridesConfig struct {
 	metav1.TypeMeta `json:",inline"`
 
-	// forcePull indicates whether the build strategy should always be set to ForcePull=true
-	ForcePull bool `json:"forcePull"`
+	// forcePull overrides, if set, the equivalent value in the builds,
+	// i.e. false disables force pull for all builds,
+	// true enables force pull for all builds,
+	// independently of what each build specifies itself
+	// +optional
+	ForcePull *bool `json:"forcePull,omitempty"`
 
 	// imageLabels is a list of labels that are applied to the resulting image.
 	// If user provided a label in their Build/BuildConfig with the same name as one in this

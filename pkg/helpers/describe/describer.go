@@ -1,6 +1,7 @@
 package describe
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -9,21 +10,22 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/docker/go-units"
 	corev1 "k8s.io/api/core/v1"
 	kerrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/describe"
-	"k8s.io/kubectl/pkg/describe/versioned"
 	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api/annotations"
@@ -36,6 +38,7 @@ import (
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/openshift/api/network"
+	networkv1 "github.com/openshift/api/network/v1"
 	"github.com/openshift/api/oauth"
 	"github.com/openshift/api/project"
 	projectv1 "github.com/openshift/api/project/v1"
@@ -69,7 +72,7 @@ import (
 	routedisplayhelpers "github.com/openshift/oc/pkg/helpers/route"
 )
 
-func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host string) map[schema.GroupKind]describe.Describer {
+func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host string) map[schema.GroupKind]describe.ResourceDescriber {
 	// FIXME: This should use the client factory
 	// we can't fail and we can't log at a normal level because this is sometimes called with `nils` for help :(
 	kubeClient, err := kubernetes.NewForConfig(clientConfig)
@@ -125,13 +128,14 @@ func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host 
 		klog.V(1).Info(err)
 	}
 
-	m := map[schema.GroupKind]describe.Describer{
+	m := map[schema.GroupKind]describe.ResourceDescriber{
 		oapps.Kind("DeploymentConfig"):               &DeploymentConfigDescriber{appsClient, kubeClient, nil},
 		build.Kind("Build"):                          &BuildDescriber{buildClient, kclient},
 		build.Kind("BuildConfig"):                    &BuildConfigDescriber{buildClient, kclient, host},
 		image.Kind("Image"):                          &ImageDescriber{imageClient},
 		image.Kind("ImageStream"):                    &ImageStreamDescriber{imageClient},
 		image.Kind("ImageStreamTag"):                 &ImageStreamTagDescriber{imageClient},
+		image.Kind("ImageTag"):                       &ImageTagDescriber{imageClient},
 		image.Kind("ImageStreamImage"):               &ImageStreamImageDescriber{imageClient},
 		route.Kind("Route"):                          &RouteDescriber{routeClient, kclient},
 		project.Kind("Project"):                      &ProjectDescriber{projectClient, kclient},
@@ -164,7 +168,7 @@ func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host 
 }
 
 // DescriberFor returns a describer for a given kind of resource
-func DescriberFor(kind schema.GroupKind, clientConfig *rest.Config, kubeClient kubernetes.Interface, host string) (describe.Describer, bool) {
+func DescriberFor(kind schema.GroupKind, clientConfig *rest.Config, kubeClient kubernetes.Interface, host string) (describe.ResourceDescriber, bool) {
 	f, ok := describerMap(clientConfig, kubeClient, host)[kind]
 	if ok {
 		return f, true
@@ -186,7 +190,7 @@ func getBuildPodName(build *buildv1.Build) string {
 // Describe returns the description of a build
 func (d *BuildDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.buildClient.Builds(namespace)
-	buildObj, err := c.Get(name, metav1.GetOptions{})
+	buildObj, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -195,7 +199,7 @@ func (d *BuildDescriber) Describe(namespace, name string, settings describe.Desc
 		events = &corev1.EventList{}
 	}
 	// get also pod events and merge it all into one list for describe
-	if pod, err := d.kubeClient.CoreV1().Pods(namespace).Get(getBuildPodName(buildObj), metav1.GetOptions{}); err == nil {
+	if pod, err := d.kubeClient.CoreV1().Pods(namespace).Get(context.TODO(), getBuildPodName(buildObj), metav1.GetOptions{}); err == nil {
 		if podEvents, _ := d.kubeClient.CoreV1().Events(namespace).Search(scheme.Scheme, pod); podEvents != nil {
 			events.Items = append(events.Items, podEvents.Items...)
 		}
@@ -241,7 +245,7 @@ func (d *BuildDescriber) Describe(namespace, name string, settings describe.Desc
 			formatString(out, "Log Tail", buildObj.Status.LogSnippet)
 		}
 		if settings.ShowEvents {
-			versioned.DescribeEvents(events, versioned.NewPrefixWriter(out))
+			describe.DescribeEvents(events, describe.NewPrefixWriter(out))
 		}
 
 		return nil
@@ -429,6 +433,7 @@ func describeSourceStrategy(s *buildv1.SourceBuildStrategy, out *tabwriter.Write
 	if s.ForcePull {
 		formatString(out, "Force Pull", "yes")
 	}
+	describeBuildVolumes(out, s.Volumes)
 }
 
 func describeDockerStrategy(s *buildv1.DockerBuildStrategy, out *tabwriter.Writer) {
@@ -447,6 +452,7 @@ func describeDockerStrategy(s *buildv1.DockerBuildStrategy, out *tabwriter.Write
 	if s.ForcePull {
 		formatString(out, "Force Pull", "true")
 	}
+	describeBuildVolumes(out, s.Volumes)
 }
 
 func describeCustomStrategy(s *buildv1.CustomBuildStrategy, out *tabwriter.Writer) {
@@ -540,14 +546,41 @@ func describeBuildTriggers(triggers []buildv1.BuildTriggerPolicy, name, namespac
 	}
 }
 
+// describeBuildVolumes returns the description of a slice of build volumes
+func describeBuildVolumes(w *tabwriter.Writer, volumes []buildv1.BuildVolume) {
+	if len(volumes) == 0 {
+		formatString(w, "Volumes", "<none>")
+		return
+	}
+	formatString(w, "Volumes", " ")
+	fmt.Fprint(w, "\tName\tSource Type\tSource\tMounts\n")
+	for _, v := range volumes {
+		var sourceName string
+		switch v.Source.Type {
+		case buildv1.BuildVolumeSourceTypeSecret:
+			sourceName = v.Source.Secret.SecretName
+		case buildv1.BuildVolumeSourceTypeConfigMap:
+			sourceName = v.Source.ConfigMap.Name
+		default:
+			sourceName = fmt.Sprintf("<InvalidSourceType: %q>", v.Source.Type)
+		}
+
+		var mounts []string
+		for _, m := range v.Mounts {
+			mounts = append(mounts, m.DestinationPath)
+		}
+		fmt.Fprintf(w, "\t%s\t%s\t%s\t%s\n", v.Name, v.Source.Type, sourceName, strings.Join(mounts, "\n\t\t\t\t"))
+	}
+}
+
 // Describe returns the description of a buildConfig
 func (d *BuildConfigDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.buildClient.BuildConfigs(namespace)
-	buildConfig, err := c.Get(name, metav1.GetOptions{})
+	buildConfig, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
-	buildList, err := d.buildClient.Builds(namespace).List(metav1.ListOptions{})
+	buildList, err := d.buildClient.Builds(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -597,7 +630,7 @@ func (d *BuildConfigDescriber) Describe(namespace, name string, settings describ
 			events, _ := d.kubeClient.CoreV1().Events(namespace).Search(scheme.Scheme, buildConfig)
 			if events != nil {
 				fmt.Fprint(out, "\n")
-				versioned.DescribeEvents(events, versioned.NewPrefixWriter(out))
+				describe.DescribeEvents(events, describe.NewPrefixWriter(out))
 			}
 		}
 		return nil
@@ -611,7 +644,7 @@ type OAuthAccessTokenDescriber struct {
 
 func (d *OAuthAccessTokenDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.client.OAuthAccessTokens()
-	oAuthAccessToken, err := c.Get(name, metav1.GetOptions{})
+	oAuthAccessToken, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -643,7 +676,7 @@ type ImageDescriber struct {
 // Describe returns the description of an image
 func (d *ImageDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.Images()
-	image, err := c.Get(name, metav1.GetOptions{})
+	image, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -714,7 +747,7 @@ func DescribeImage(image *imagev1.Image, imageName string) (string, error) {
 				}
 			}
 		}
-		formatString(out, "Image Created", fmt.Sprintf("%s ago", formatRelativeTime(dockerImage.Created.Time)))
+		formatString(out, "Image Created", fmt.Sprintf("%s ago", FormatRelativeTime(dockerImage.Created.Time)))
 		formatString(out, "Author", dockerImage.Author)
 		formatString(out, "Arch", dockerImage.Architecture)
 
@@ -791,12 +824,36 @@ func (d *ImageStreamTagDescriber) Describe(namespace, name string, settings desc
 		// TODO use repo's preferred default, when that's coded
 		tag = imagev1.DefaultImageTag
 	}
-	imageStreamTag, err := c.Get(repo+":"+tag, metav1.GetOptions{})
+	imageStreamTag, err := c.Get(context.TODO(), repo+":"+tag, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
 	return DescribeImage(&imageStreamTag.Image, imageStreamTag.Image.Name)
+}
+
+// ImageTagDescriber generates information about a ImageTag (Image).
+type ImageTagDescriber struct {
+	c imageclient.ImageV1Interface
+}
+
+// Describe returns the description of an imageStreamTag
+func (d *ImageTagDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
+	c := d.c.ImageTags(namespace)
+	repo, tag, err := imageutil.ParseImageStreamTagName(name)
+	if err != nil {
+		return "", err
+	}
+	if len(tag) == 0 {
+		// TODO use repo's preferred default, when that's coded
+		tag = imagev1.DefaultImageTag
+	}
+	imageTag, err := c.Get(context.TODO(), repo+":"+tag, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	return DescribeImage(imageTag.Image, imageTag.Image.Name)
 }
 
 // ImageStreamImageDescriber generates information about a ImageStreamImage (Image).
@@ -807,7 +864,7 @@ type ImageStreamImageDescriber struct {
 // Describe returns the description of an imageStreamImage
 func (d *ImageStreamImageDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.ImageStreamImages(namespace)
-	imageStreamImage, err := c.Get(name, metav1.GetOptions{})
+	imageStreamImage, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -823,7 +880,7 @@ type ImageStreamDescriber struct {
 // Describe returns the description of an imageStream
 func (d *ImageStreamDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.ImageClient.ImageStreams(namespace)
-	imageStream, err := c.Get(name, metav1.GetOptions{})
+	imageStream, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -852,29 +909,33 @@ type RouteDescriber struct {
 
 type routeEndpointInfo struct {
 	*corev1.Endpoints
-	Err error
+	Err        error
+	TargetPort *intstr.IntOrString
 }
 
 // Describe returns the description of a route
 func (d *RouteDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.routeClient.Routes(namespace)
-	route, err := c.Get(name, metav1.GetOptions{})
+	route, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 	backends := append([]routev1.RouteTargetReference{route.Spec.To}, route.Spec.AlternateBackends...)
 	totalWeight := int32(0)
 	endpoints := make(map[string]routeEndpointInfo)
+	port := &intstr.IntOrString{}
+	if route.Spec.Port != nil {
+		port = &route.Spec.Port.TargetPort
+	}
 	for _, backend := range backends {
 		if backend.Weight != nil {
 			totalWeight += *backend.Weight
 		}
-		ep, endpointsErr := d.kubeClient.CoreV1().Endpoints(namespace).Get(backend.Name, metav1.GetOptions{})
-		endpoints[backend.Name] = routeEndpointInfo{ep, endpointsErr}
+		ep, endpointsErr := d.kubeClient.CoreV1().Endpoints(namespace).Get(context.TODO(), backend.Name, metav1.GetOptions{})
+		endpoints[backend.Name] = routeEndpointInfo{ep, endpointsErr, port}
 	}
 
 	return tabbedString(func(out *tabwriter.Writer) error {
-		var hostName string
 		formatMeta(out, route.ObjectMeta)
 		if len(route.Spec.Host) > 0 {
 			formatString(out, "Requested Host", route.Spec.Host)
@@ -882,19 +943,7 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 				if route.Spec.Host != ingress.Host {
 					continue
 				}
-				hostName = ""
-				if len(ingress.RouterCanonicalHostname) > 0 {
-					hostName = fmt.Sprintf(" (host %s)", ingress.RouterCanonicalHostname)
-				}
-				switch status, condition := routedisplayhelpers.IngressConditionStatus(&ingress, routev1.RouteAdmitted); status {
-				case corev1.ConditionTrue:
-					fmt.Fprintf(out, "\t  exposed on router %s%s %s ago\n", ingress.RouterName, hostName, strings.ToLower(formatRelativeTime(condition.LastTransitionTime.Time)))
-				case corev1.ConditionFalse:
-					fmt.Fprintf(out, "\t  rejected by router %s: %s%s (%s ago)\n", ingress.RouterName, hostName, condition.Reason, strings.ToLower(formatRelativeTime(condition.LastTransitionTime.Time)))
-					if len(condition.Message) > 0 {
-						fmt.Fprintf(out, "\t    %s\n", condition.Message)
-					}
-				}
+				formatRouteIngress(out, true, ingress)
 			}
 		} else {
 			formatString(out, "Requested Host", "<auto>")
@@ -904,19 +953,7 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 			if route.Spec.Host == ingress.Host {
 				continue
 			}
-			hostName = ""
-			if len(ingress.RouterCanonicalHostname) > 0 {
-				hostName = fmt.Sprintf(" (host %s)", ingress.RouterCanonicalHostname)
-			}
-			switch status, condition := routedisplayhelpers.IngressConditionStatus(&ingress, routev1.RouteAdmitted); status {
-			case corev1.ConditionTrue:
-				fmt.Fprintf(out, "\t%s exposed on router %s %s%s ago\n", ingress.Host, ingress.RouterName, hostName, strings.ToLower(formatRelativeTime(condition.LastTransitionTime.Time)))
-			case corev1.ConditionFalse:
-				fmt.Fprintf(out, "\trejected by router %s: %s%s (%s ago)\n", ingress.RouterName, hostName, condition.Reason, strings.ToLower(formatRelativeTime(condition.LastTransitionTime.Time)))
-				if len(condition.Message) > 0 {
-					fmt.Fprintf(out, "\t  %s\n", condition.Message)
-				}
-			}
+			formatRouteIngress(out, false, ingress)
 		}
 		formatString(out, "Path", route.Spec.Path)
 
@@ -964,6 +1001,13 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 			for i := range endpoints.Subsets {
 				ss := &endpoints.Subsets[i]
 				for p := range ss.Ports {
+					// If the route specifies a target port, filter endpoints accordingly,
+					// rather than display all endpoints for a route's target service(s).
+					if info.TargetPort != nil {
+						if info.TargetPort.String() != ss.Ports[p].Name && int32(info.TargetPort.IntValue()) != ss.Ports[p].Port {
+							continue
+						}
+					}
 					for a := range ss.Addresses {
 						if len(list) < max {
 							list = append(list, fmt.Sprintf("%s:%d", ss.Addresses[a].IP, ss.Ports[p].Port))
@@ -982,6 +1026,34 @@ func (d *RouteDescriber) Describe(namespace, name string, settings describe.Desc
 	})
 }
 
+func formatRouteIngress(out *tabwriter.Writer, short bool, ingress routev1.RouteIngress) {
+	hostName := ""
+	if len(ingress.RouterCanonicalHostname) > 0 {
+		hostName = fmt.Sprintf(" (host %s)", ingress.RouterCanonicalHostname)
+	}
+	switch status, condition := routedisplayhelpers.IngressConditionStatus(&ingress, routev1.RouteAdmitted); status {
+	case corev1.ConditionTrue:
+		fmt.Fprintf(out, "\t  ")
+		if !short {
+			fmt.Fprintf(out, "%s", ingress.Host)
+		}
+		fmt.Fprintf(out, " exposed on router %s%s", ingress.RouterName, hostName)
+		if condition.LastTransitionTime != nil {
+			fmt.Fprintf(out, " %s ago", strings.ToLower(FormatRelativeTime(condition.LastTransitionTime.Time)))
+		}
+		fmt.Fprintf(out, "\n")
+	case corev1.ConditionFalse:
+		fmt.Fprintf(out, "\trejected by router %s: %s%s", ingress.RouterName, hostName, condition.Reason)
+		if condition.LastTransitionTime != nil {
+			fmt.Fprintf(out, " (%s ago)", strings.ToLower(FormatRelativeTime(condition.LastTransitionTime.Time)))
+		}
+		fmt.Fprintf(out, "\n")
+		if len(condition.Message) > 0 {
+			fmt.Fprintf(out, "\t  %s\n", condition.Message)
+		}
+	}
+}
+
 // ProjectDescriber generates information about a Project
 type ProjectDescriber struct {
 	projectClient projectclient.ProjectV1Interface
@@ -991,17 +1063,17 @@ type ProjectDescriber struct {
 // Describe returns the description of a project
 func (d *ProjectDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	projectsClient := d.projectClient.Projects()
-	project, err := projectsClient.Get(name, metav1.GetOptions{})
+	project, err := projectsClient.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 	resourceQuotasClient := d.kubeClient.CoreV1().ResourceQuotas(name)
-	resourceQuotaList, err := resourceQuotasClient.List(metav1.ListOptions{})
+	resourceQuotaList, err := resourceQuotasClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return "", err
 	}
 	limitRangesClient := d.kubeClient.CoreV1().LimitRanges(name)
-	limitRangeList, err := limitRangesClient.List(metav1.ListOptions{})
+	limitRangeList, err := limitRangesClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1033,7 +1105,7 @@ func (d *ProjectDescriber) Describe(namespace, name string, settings describe.De
 				for resource := range resourceQuota.Status.Hard {
 					resources = append(resources, resource)
 				}
-				sort.Sort(versioned.SortableResourceNames(resources))
+				sort.Sort(describe.SortableResourceNames(resources))
 
 				msg := "\t%v\t%v\t%v\n"
 				for i := range resources {
@@ -1210,7 +1282,7 @@ func (d *TemplateDescriber) describeObjects(objects []runtime.RawExtension, out 
 // Describe returns the description of a template
 func (d *TemplateDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.templateClient.Templates(namespace)
-	template, err := c.Get(name, metav1.GetOptions{})
+	template, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1244,7 +1316,7 @@ type TemplateInstanceDescriber struct {
 // Describe returns the description of a template instance
 func (d *TemplateInstanceDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.templateClient.TemplateInstances(namespace)
-	templateInstance, err := c.Get(name, metav1.GetOptions{})
+	templateInstance, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1297,7 +1369,7 @@ func (d *TemplateInstanceDescriber) DescribeObjects(objects []templatev1.Templat
 // kinternalprinter.SecretDescriber#Describe could have been used here, but the formatting
 // is off when it prints the information and seems to not be easily fixable
 func (d *TemplateInstanceDescriber) DescribeParameters(template templatev1.Template, namespace, name string, out *tabwriter.Writer) {
-	secret, err := d.kubeClient.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
+	secret, err := d.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 
 	formatString(out, "Parameters", " ")
 
@@ -1335,7 +1407,7 @@ func (d *IdentityDescriber) Describe(namespace, name string, settings describe.D
 	userClient := d.c.Users()
 	identityClient := d.c.Identities()
 
-	identity, err := identityClient.Get(name, metav1.GetOptions{})
+	identity, err := identityClient.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1347,7 +1419,7 @@ func (d *IdentityDescriber) Describe(namespace, name string, settings describe.D
 			formatString(out, "User Name", identity.User.Name)
 			formatString(out, "User UID", identity.User.UID)
 		} else {
-			resolvedUser, err := userClient.Get(identity.User.Name, metav1.GetOptions{})
+			resolvedUser, err := userClient.Get(context.TODO(), identity.User.Name, metav1.GetOptions{})
 
 			nameValue := identity.User.Name
 			uidValue := string(identity.User.UID)
@@ -1382,7 +1454,7 @@ type UserIdentityMappingDescriber struct {
 func (d *UserIdentityMappingDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.UserIdentityMappings()
 
-	mapping, err := c.Get(name, metav1.GetOptions{})
+	mapping, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1406,7 +1478,7 @@ func (d *UserDescriber) Describe(namespace, name string, settings describe.Descr
 	userClient := d.c.Users()
 	identityClient := d.c.Identities()
 
-	user, err := userClient.Get(name, metav1.GetOptions{})
+	user, err := userClient.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1421,7 +1493,7 @@ func (d *UserDescriber) Describe(namespace, name string, settings describe.Descr
 			formatString(out, "Identities", "<none>")
 		} else {
 			for i, identity := range user.Identities {
-				resolvedIdentity, err := identityClient.Get(identity, metav1.GetOptions{})
+				resolvedIdentity, err := identityClient.Get(context.TODO(), identity, metav1.GetOptions{})
 
 				value := identity
 				if kerrs.IsNotFound(err) {
@@ -1452,7 +1524,7 @@ type GroupDescriber struct {
 
 // Describe returns the description of a group
 func (d *GroupDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	group, err := d.c.Groups().Get(name, metav1.GetOptions{})
+	group, err := d.c.Groups().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1500,7 +1572,7 @@ type RoleDescriber struct {
 // Describe returns the description of a role
 func (d *RoleDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.Roles(namespace)
-	role, err := c.Get(name, metav1.GetOptions{})
+	role, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1530,7 +1602,7 @@ type RoleBindingDescriber struct {
 // Describe returns the description of a roleBinding
 func (d *RoleBindingDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.RoleBindings(namespace)
-	roleBinding, err := c.Get(name, metav1.GetOptions{})
+	roleBinding, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1538,10 +1610,10 @@ func (d *RoleBindingDescriber) Describe(namespace, name string, settings describ
 	var role *authorizationv1.Role
 	if len(roleBinding.RoleRef.Namespace) == 0 {
 		var clusterRole *authorizationv1.ClusterRole
-		clusterRole, err = d.c.ClusterRoles().Get(roleBinding.RoleRef.Name, metav1.GetOptions{})
+		clusterRole, err = d.c.ClusterRoles().Get(context.TODO(), roleBinding.RoleRef.Name, metav1.GetOptions{})
 		role = authorizationhelpers.ToRole(clusterRole)
 	} else {
-		role, err = d.c.Roles(roleBinding.RoleRef.Namespace).Get(roleBinding.RoleRef.Name, metav1.GetOptions{})
+		role, err = d.c.Roles(roleBinding.RoleRef.Namespace).Get(context.TODO(), roleBinding.RoleRef.Name, metav1.GetOptions{})
 	}
 
 	return DescribeRoleBinding(roleBinding, role, err)
@@ -1585,7 +1657,7 @@ type ClusterRoleDescriber struct {
 // Describe returns the description of a role
 func (d *ClusterRoleDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.ClusterRoles()
-	role, err := c.Get(name, metav1.GetOptions{})
+	role, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1601,12 +1673,12 @@ type ClusterRoleBindingDescriber struct {
 // Describe returns the description of a roleBinding
 func (d *ClusterRoleBindingDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.ClusterRoleBindings()
-	roleBinding, err := c.Get(name, metav1.GetOptions{})
+	roleBinding, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
-	role, err := d.c.ClusterRoles().Get(roleBinding.RoleRef.Name, metav1.GetOptions{})
+	role, err := d.c.ClusterRoles().Get(context.TODO(), roleBinding.RoleRef.Name, metav1.GetOptions{})
 	return DescribeRoleBinding(authorizationhelpers.ToRoleBinding(roleBinding), authorizationhelpers.ToRole(role), err)
 }
 
@@ -1674,7 +1746,7 @@ type ClusterQuotaDescriber struct {
 }
 
 func (d *ClusterQuotaDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	quota, err := d.c.ClusterResourceQuotas().Get(name, metav1.GetOptions{})
+	quota, err := d.c.ClusterResourceQuotas().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1712,14 +1784,17 @@ func DescribeClusterQuota(quota *quotav1.ClusterResourceQuota) (string, error) {
 		for resource := range quota.Status.Total.Hard {
 			resources = append(resources, resource)
 		}
-		sort.Sort(versioned.SortableResourceNames(resources))
+		sort.Sort(describe.SortableResourceNames(resources))
 
 		msg := "%v\t%v\t%v\n"
 		for i := range resources {
-			resource := resources[i]
-			hardQuantity := quota.Status.Total.Hard[resource]
-			usedQuantity := quota.Status.Total.Used[resource]
-			fmt.Fprintf(out, msg, resource, usedQuantity.String(), hardQuantity.String())
+			resourceName := resources[i]
+			hardQuantity := quota.Status.Total.Hard[resourceName]
+			usedQuantity := quota.Status.Total.Used[resourceName]
+			if hardQuantity.Format != usedQuantity.Format {
+				usedQuantity = *resource.NewQuantity(usedQuantity.Value(), hardQuantity.Format)
+			}
+			fmt.Fprintf(out, msg, resourceName, usedQuantity.String(), hardQuantity.String())
 		}
 		return nil
 	})
@@ -1730,7 +1805,7 @@ type AppliedClusterQuotaDescriber struct {
 }
 
 func (d *AppliedClusterQuotaDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	quota, err := d.c.AppliedClusterResourceQuotas(namespace).Get(name, metav1.GetOptions{})
+	quota, err := d.c.AppliedClusterResourceQuotas(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1743,7 +1818,7 @@ type ClusterNetworkDescriber struct {
 
 // Describe returns the description of a ClusterNetwork
 func (d *ClusterNetworkDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	cn, err := d.c.ClusterNetworks().Get(name, metav1.GetOptions{})
+	cn, err := d.c.ClusterNetworks().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1767,7 +1842,7 @@ type HostSubnetDescriber struct {
 
 // Describe returns the description of a HostSubnet
 func (d *HostSubnetDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	hs, err := d.c.HostSubnets().Get(name, metav1.GetOptions{})
+	hs, err := d.c.HostSubnets().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1776,10 +1851,32 @@ func (d *HostSubnetDescriber) Describe(namespace, name string, settings describe
 		formatString(out, "Node", hs.Host)
 		formatString(out, "Node IP", hs.HostIP)
 		formatString(out, "Pod Subnet", hs.Subnet)
-		formatString(out, "Egress CIDRs", strings.Join(hs.EgressCIDRs, ", "))
-		formatString(out, "Egress IPs", strings.Join(hs.EgressIPs, ", "))
+		formatString(out, "Egress CIDRs", hostCIDRsJoin(hs.EgressCIDRs, ", "))
+		formatString(out, "Egress IPs", hostIPsJoin(hs.EgressIPs, ", "))
 		return nil
 	})
+}
+
+func hostCIDRsJoin(cidrs []networkv1.HostSubnetEgressCIDR, sep string) string {
+	var b strings.Builder
+	for i, c := range cidrs {
+		b.WriteString(string(c))
+		if i < len(cidrs)-1 {
+			b.WriteString(sep)
+		}
+	}
+	return b.String()
+}
+
+func hostIPsJoin(ips []networkv1.HostSubnetEgressIP, sep string) string {
+	var b strings.Builder
+	for i, c := range ips {
+		b.WriteString(string(c))
+		if i < len(ips)-1 {
+			b.WriteString(sep)
+		}
+	}
+	return b.String()
 }
 
 type NetNamespaceDescriber struct {
@@ -1788,7 +1885,7 @@ type NetNamespaceDescriber struct {
 
 // Describe returns the description of a NetNamespace
 func (d *NetNamespaceDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	netns, err := d.c.NetNamespaces().Get(name, metav1.GetOptions{})
+	netns, err := d.c.NetNamespaces().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1796,9 +1893,20 @@ func (d *NetNamespaceDescriber) Describe(namespace, name string, settings descri
 		formatMeta(out, netns.ObjectMeta)
 		formatString(out, "Name", netns.NetName)
 		formatString(out, "ID", netns.NetID)
-		formatString(out, "Egress IPs", strings.Join(netns.EgressIPs, ", "))
+		formatString(out, "Egress IPs", netIPsJoin(netns.EgressIPs, ", "))
 		return nil
 	})
+}
+
+func netIPsJoin(ips []networkv1.NetNamespaceEgressIP, sep string) string {
+	var b strings.Builder
+	for i, c := range ips {
+		b.WriteString(string(c))
+		if i < len(ips)-1 {
+			b.WriteString(sep)
+		}
+	}
+	return b.String()
 }
 
 type EgressNetworkPolicyDescriber struct {
@@ -1808,7 +1916,7 @@ type EgressNetworkPolicyDescriber struct {
 // Describe returns the description of an EgressNetworkPolicy
 func (d *EgressNetworkPolicyDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
 	c := d.c.EgressNetworkPolicies(namespace)
-	policy, err := c.Get(name, metav1.GetOptions{})
+	policy, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1831,7 +1939,7 @@ type RoleBindingRestrictionDescriber struct {
 
 // Describe returns the description of a RoleBindingRestriction.
 func (d *RoleBindingRestrictionDescriber) Describe(namespace, name string, settings describe.DescriberSettings) (string, error) {
-	rbr, err := d.c.RoleBindingRestrictions(namespace).Get(name, metav1.GetOptions{})
+	rbr, err := d.c.RoleBindingRestrictions(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -1892,7 +2000,7 @@ type SecurityContextConstraintsDescriber struct {
 }
 
 func (d *SecurityContextConstraintsDescriber) Describe(namespace, name string, s describe.DescriberSettings) (string, error) {
-	scc, err := d.c.SecurityContextConstraints().Get(name, metav1.GetOptions{})
+	scc, err := d.c.SecurityContextConstraints().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}

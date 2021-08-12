@@ -18,7 +18,6 @@ package testing
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -28,9 +27,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
@@ -49,6 +50,8 @@ import (
 	"k8s.io/kubectl/pkg/util/openapi"
 	openapitesting "k8s.io/kubectl/pkg/util/openapi/testing"
 	"k8s.io/kubectl/pkg/validation"
+
+	openapi_v2 "github.com/googleapis/gnostic/openapiv2"
 )
 
 // InternalType is the schema for internal type
@@ -126,6 +129,34 @@ func NewInternalType(kind, apiversion, name string) *InternalType {
 		APIVersion: apiversion,
 		Name:       name}
 	return &item
+}
+
+func convertInternalTypeToExternalType(in *InternalType, out *ExternalType, s conversion.Scope) error {
+	out.Kind = in.Kind
+	out.APIVersion = in.APIVersion
+	out.Name = in.Name
+	return nil
+}
+
+func convertInternalTypeToExternalType2(in *InternalType, out *ExternalType2, s conversion.Scope) error {
+	out.Kind = in.Kind
+	out.APIVersion = in.APIVersion
+	out.Name = in.Name
+	return nil
+}
+
+func convertExternalTypeToInternalType(in *ExternalType, out *InternalType, s conversion.Scope) error {
+	out.Kind = in.Kind
+	out.APIVersion = in.APIVersion
+	out.Name = in.Name
+	return nil
+}
+
+func convertExternalType2ToInternalType(in *ExternalType2, out *InternalType, s conversion.Scope) error {
+	out.Kind = in.Kind
+	out.APIVersion = in.APIVersion
+	out.Name = in.Name
+	return nil
 }
 
 // InternalNamespacedType schema for internal namespaced types
@@ -209,7 +240,37 @@ func NewInternalNamespacedType(kind, apiversion, name, namespace string) *Intern
 	return &item
 }
 
-var errInvalidVersion = errors.New("not a version")
+func convertInternalNamespacedTypeToExternalNamespacedType(in *InternalNamespacedType, out *ExternalNamespacedType, s conversion.Scope) error {
+	out.Kind = in.Kind
+	out.APIVersion = in.APIVersion
+	out.Name = in.Name
+	out.Namespace = in.Namespace
+	return nil
+}
+
+func convertInternalNamespacedTypeToExternalNamespacedType2(in *InternalNamespacedType, out *ExternalNamespacedType2, s conversion.Scope) error {
+	out.Kind = in.Kind
+	out.APIVersion = in.APIVersion
+	out.Name = in.Name
+	out.Namespace = in.Namespace
+	return nil
+}
+
+func convertExternalNamespacedTypeToInternalNamespacedType(in *ExternalNamespacedType, out *InternalNamespacedType, s conversion.Scope) error {
+	out.Kind = in.Kind
+	out.APIVersion = in.APIVersion
+	out.Name = in.Name
+	out.Namespace = in.Namespace
+	return nil
+}
+
+func convertExternalNamespacedType2ToInternalNamespacedType(in *ExternalNamespacedType2, out *InternalNamespacedType, s conversion.Scope) error {
+	out.Kind = in.Kind
+	out.APIVersion = in.APIVersion
+	out.Name = in.Name
+	out.Namespace = in.Namespace
+	return nil
+}
 
 // ValidVersion of API
 var ValidVersion = "v1"
@@ -230,17 +291,63 @@ func NewExternalScheme() (*runtime.Scheme, meta.RESTMapper, runtime.Codec) {
 	return scheme, mapper, codec
 }
 
+func registerConversions(s *runtime.Scheme) error {
+	if err := s.AddConversionFunc((*InternalType)(nil), (*ExternalType)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return convertInternalTypeToExternalType(a.(*InternalType), b.(*ExternalType), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*InternalType)(nil), (*ExternalType2)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return convertInternalTypeToExternalType2(a.(*InternalType), b.(*ExternalType2), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*ExternalType)(nil), (*InternalType)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return convertExternalTypeToInternalType(a.(*ExternalType), b.(*InternalType), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*ExternalType2)(nil), (*InternalType)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return convertExternalType2ToInternalType(a.(*ExternalType2), b.(*InternalType), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*InternalNamespacedType)(nil), (*ExternalNamespacedType)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return convertInternalNamespacedTypeToExternalNamespacedType(a.(*InternalNamespacedType), b.(*ExternalNamespacedType), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*InternalNamespacedType)(nil), (*ExternalNamespacedType2)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return convertInternalNamespacedTypeToExternalNamespacedType2(a.(*InternalNamespacedType), b.(*ExternalNamespacedType2), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*ExternalNamespacedType)(nil), (*InternalNamespacedType)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return convertExternalNamespacedTypeToInternalNamespacedType(a.(*ExternalNamespacedType), b.(*InternalNamespacedType), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*ExternalNamespacedType2)(nil), (*InternalNamespacedType)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return convertExternalNamespacedType2ToInternalNamespacedType(a.(*ExternalNamespacedType2), b.(*InternalNamespacedType), scope)
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 // AddToScheme adds required objects into scheme
 func AddToScheme(scheme *runtime.Scheme) (meta.RESTMapper, runtime.Codec) {
 	scheme.AddKnownTypeWithName(InternalGV.WithKind("Type"), &InternalType{})
 	scheme.AddKnownTypeWithName(UnlikelyGV.WithKind("Type"), &ExternalType{})
-	//This tests that kubectl will not confuse the external scheme with the internal scheme, even when they accidentally have versions of the same name.
+	// This tests that kubectl will not confuse the external scheme with the internal scheme, even when they accidentally have versions of the same name.
 	scheme.AddKnownTypeWithName(ValidVersionGV.WithKind("Type"), &ExternalType2{})
 
 	scheme.AddKnownTypeWithName(InternalGV.WithKind("NamespacedType"), &InternalNamespacedType{})
 	scheme.AddKnownTypeWithName(UnlikelyGV.WithKind("NamespacedType"), &ExternalNamespacedType{})
-	//This tests that kubectl will not confuse the external scheme with the internal scheme, even when they accidentally have versions of the same name.
+	// This tests that kubectl will not confuse the external scheme with the internal scheme, even when they accidentally have versions of the same name.
 	scheme.AddKnownTypeWithName(ValidVersionGV.WithKind("NamespacedType"), &ExternalNamespacedType2{})
+
+	utilruntime.Must(registerConversions(scheme))
 
 	codecs := serializer.NewCodecFactory(scheme)
 	codec := codecs.LegacyCodec(UnlikelyGV)
@@ -293,13 +400,14 @@ type TestFactory struct {
 
 	UnstructuredClientForMappingFunc resource.FakeClientFunc
 	OpenAPISchemaFunc                func() (openapi.Resources, error)
+	FakeOpenAPIGetter                discovery.OpenAPISchemaInterface
 }
 
 // NewTestFactory returns an initialized TestFactory instance
 func NewTestFactory() *TestFactory {
 	// specify an optionalClientConfig to explicitly use in testing
 	// to avoid polluting an existing user config.
-	tmpFile, err := ioutil.TempFile("", "cmdtests_temp")
+	tmpFile, err := ioutil.TempFile(os.TempDir(), "cmdtests_temp")
 	if err != nil {
 		panic(fmt.Sprintf("unable to create a fake client config: %v", err))
 	}
@@ -357,6 +465,25 @@ func (f *TestFactory) ClientForMapping(mapping *meta.RESTMapping) (resource.REST
 	return f.Client, nil
 }
 
+// PathOptions returns a new PathOptions with a temp file
+func (f *TestFactory) PathOptions() *clientcmd.PathOptions {
+	pathOptions := clientcmd.NewDefaultPathOptions()
+	pathOptions.GlobalFile = f.tempConfigFile.Name()
+	pathOptions.EnvVar = ""
+	return pathOptions
+}
+
+// PathOptionsWithConfig writes a config to a temp file and returns PathOptions
+func (f *TestFactory) PathOptionsWithConfig(config clientcmdapi.Config) (*clientcmd.PathOptions, error) {
+	pathOptions := f.PathOptions()
+	err := clientcmd.WriteToFile(config, pathOptions.GlobalFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return pathOptions, nil
+}
+
 // UnstructuredClientForMapping is used to get UnstructuredClient from a TestFactory
 func (f *TestFactory) UnstructuredClientForMapping(mapping *meta.RESTMapping) (resource.RESTClient, error) {
 	if f.UnstructuredClientForMappingFunc != nil {
@@ -376,6 +503,23 @@ func (f *TestFactory) OpenAPISchema() (openapi.Resources, error) {
 		return f.OpenAPISchemaFunc()
 	}
 	return openapitesting.EmptyResources{}, nil
+}
+
+type EmptyOpenAPI struct{}
+
+func (EmptyOpenAPI) OpenAPISchema() (*openapi_v2.Document, error) {
+	return &openapi_v2.Document{}, nil
+}
+
+func (f *TestFactory) OpenAPIGetter() discovery.OpenAPISchemaInterface {
+	if f.FakeOpenAPIGetter != nil {
+		return f.FakeOpenAPIGetter
+	}
+	client, err := f.ToDiscoveryClient()
+	if err != nil {
+		return EmptyOpenAPI{}
+	}
+	return client
 }
 
 // NewBuilder returns an initialized resource.Builder instance
@@ -410,7 +554,7 @@ func (f *TestFactory) KubernetesClientSet() (*kubernetes.Clientset, error) {
 	clientset.AutoscalingV1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
 	clientset.AutoscalingV2beta1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
 	clientset.BatchV1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
-	clientset.BatchV2alpha1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
+	clientset.CertificatesV1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
 	clientset.CertificatesV1beta1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
 	clientset.ExtensionsV1beta1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
 	clientset.RbacV1alpha1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
@@ -421,6 +565,7 @@ func (f *TestFactory) KubernetesClientSet() (*kubernetes.Clientset, error) {
 	clientset.AppsV1beta2().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
 	clientset.AppsV1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
 	clientset.PolicyV1beta1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
+	clientset.PolicyV1().RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
 	clientset.DiscoveryClient.RESTClient().(*restclient.RESTClient).Client = fakeClient.Client
 
 	return clientset, nil

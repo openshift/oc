@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -14,7 +15,6 @@ import (
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
-	rbacv1helpers "k8s.io/kubernetes/pkg/apis/rbac/v1"
 
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
@@ -32,10 +32,10 @@ var policyLong = ktemplates.LongDesc(`
 	and 'scc'.`)
 
 // NewCmdPolicy implements the OpenShift cli policy command
-func NewCmdPolicy(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPolicy(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
-		Use:   name,
+		Use:   "policy",
 		Short: "Manage cluster authorization and security policy",
 		Long:  policyLong,
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
@@ -45,43 +45,43 @@ func NewCmdPolicy(name, fullName string, f kcmdutil.Factory, streams genericclio
 		{
 			Message: "Discover:",
 			Commands: []*cobra.Command{
-				NewCmdWhoCan(WhoCanRecommendedName, fullName+" "+WhoCanRecommendedName, f, streams),
-				NewCmdSccSubjectReview(SubjectReviewRecommendedName, fullName+" "+SubjectReviewRecommendedName, f, streams),
-				NewCmdSccReview(ReviewRecommendedName, fullName+" "+ReviewRecommendedName, f, streams),
+				NewCmdWhoCan(f, streams),
+				NewCmdSccSubjectReview(f, streams),
+				NewCmdSccReview(f, streams),
 			},
 		},
 		{
 			Message: "Manage project membership:",
 			Commands: []*cobra.Command{
-				NewCmdRemoveUserFromProject(RemoveUserRecommendedName, fullName+" "+RemoveUserRecommendedName, f, streams),
-				NewCmdRemoveGroupFromProject(RemoveGroupRecommendedName, fullName+" "+RemoveGroupRecommendedName, f, streams),
+				NewCmdRemoveUserFromProject(f, streams),
+				NewCmdRemoveGroupFromProject(f, streams),
 			},
 		},
 		{
 			Message: "Assign roles to users and groups:",
 			Commands: []*cobra.Command{
-				NewCmdAddRoleToUser(AddRoleToUserRecommendedName, fullName+" "+AddRoleToUserRecommendedName, f, streams),
-				NewCmdAddRoleToGroup(AddRoleToGroupRecommendedName, fullName+" "+AddRoleToGroupRecommendedName, f, streams),
-				NewCmdRemoveRoleFromUser(RemoveRoleFromUserRecommendedName, fullName+" "+RemoveRoleFromUserRecommendedName, f, streams),
-				NewCmdRemoveRoleFromGroup(RemoveRoleFromGroupRecommendedName, fullName+" "+RemoveRoleFromGroupRecommendedName, f, streams),
+				NewCmdAddRoleToUser(f, streams),
+				NewCmdAddRoleToGroup(f, streams),
+				NewCmdRemoveRoleFromUser(f, streams),
+				NewCmdRemoveRoleFromGroup(f, streams),
 			},
 		},
 		{
 			Message: "Assign cluster roles to users and groups:",
 			Commands: []*cobra.Command{
-				NewCmdAddClusterRoleToUser(AddClusterRoleToUserRecommendedName, fullName+" "+AddClusterRoleToUserRecommendedName, f, streams),
-				NewCmdAddClusterRoleToGroup(AddClusterRoleToGroupRecommendedName, fullName+" "+AddClusterRoleToGroupRecommendedName, f, streams),
-				NewCmdRemoveClusterRoleFromUser(RemoveClusterRoleFromUserRecommendedName, fullName+" "+RemoveClusterRoleFromUserRecommendedName, f, streams),
-				NewCmdRemoveClusterRoleFromGroup(RemoveClusterRoleFromGroupRecommendedName, fullName+" "+RemoveClusterRoleFromGroupRecommendedName, f, streams),
+				NewCmdAddClusterRoleToUser(f, streams),
+				NewCmdAddClusterRoleToGroup(f, streams),
+				NewCmdRemoveClusterRoleFromUser(f, streams),
+				NewCmdRemoveClusterRoleFromGroup(f, streams),
 			},
 		},
 		{
 			Message: "Manage policy on pods and containers:",
 			Commands: []*cobra.Command{
-				NewCmdAddSCCToUser(AddSCCToUserRecommendedName, fullName+" "+AddSCCToUserRecommendedName, f, streams),
-				NewCmdAddSCCToGroup(AddSCCToGroupRecommendedName, fullName+" "+AddSCCToGroupRecommendedName, f, streams),
-				NewCmdRemoveSCCFromUser(RemoveSCCFromUserRecommendedName, fullName+" "+RemoveSCCFromUserRecommendedName, f, streams),
-				NewCmdRemoveSCCFromGroup(RemoveSCCFromGroupRecommendedName, fullName+" "+RemoveSCCFromGroupRecommendedName, f, streams),
+				NewCmdAddSCCToUser(f, streams),
+				NewCmdAddSCCToGroup(f, streams),
+				NewCmdRemoveSCCFromUser(f, streams),
+				NewCmdRemoveSCCFromGroup(f, streams),
 			},
 		},
 	}
@@ -95,7 +95,7 @@ func getUniqueName(rbacClient rbacv1client.RbacV1Interface, basename string, nam
 	existingNames := sets.String{}
 
 	if len(namespace) > 0 {
-		roleBindings, err := rbacClient.RoleBindings(namespace).List(metav1.ListOptions{})
+		roleBindings, err := rbacClient.RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil && !kapierrors.IsNotFound(err) {
 			return "", err
 		}
@@ -103,7 +103,7 @@ func getUniqueName(rbacClient rbacv1client.RbacV1Interface, basename string, nam
 			existingNames.Insert(currBinding.Name)
 		}
 	} else {
-		roleBindings, err := rbacClient.ClusterRoleBindings().List(metav1.ListOptions{})
+		roleBindings, err := rbacClient.ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil && !kapierrors.IsNotFound(err) {
 			return "", err
 		}
@@ -136,10 +136,18 @@ func newRoleBindingAbstraction(rbacClient rbacv1client.RbacV1Interface, name str
 	r := roleBindingAbstraction{rbacClient: rbacClient}
 	if len(namespace) > 0 {
 		switch roleKind {
-		case "Role":
-			r.roleBinding = &(rbacv1helpers.NewRoleBinding(roleName, namespace).RoleBinding)
-		case "ClusterRole":
-			r.roleBinding = &(rbacv1helpers.NewRoleBindingForClusterRole(roleName, namespace).RoleBinding)
+		case "Role", "ClusterRole":
+			r.roleBinding = &rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      roleName,
+					Namespace: namespace,
+				},
+				RoleRef: rbacv1.RoleRef{
+					APIGroup: rbacv1.GroupName,
+					Kind:     roleKind,
+					Name:     roleName,
+				},
+			}
 		default:
 			return nil, fmt.Errorf("Unknown Role Kind: %q", roleKind)
 		}
@@ -150,7 +158,14 @@ func newRoleBindingAbstraction(rbacClient rbacv1client.RbacV1Interface, name str
 		if roleKind != "ClusterRole" {
 			return nil, fmt.Errorf("Cluster Role Bindings can only reference Cluster Roles")
 		}
-		r.clusterRoleBinding = &(rbacv1helpers.NewClusterBinding(roleName).ClusterRoleBinding)
+		r.clusterRoleBinding = &rbacv1.ClusterRoleBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: roleName},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "ClusterRole",
+				Name:     roleName,
+			},
+		}
 		if name != roleName {
 			r.clusterRoleBinding.Name = name
 		}
@@ -162,9 +177,9 @@ func getRoleBindingAbstraction(rbacClient rbacv1client.RbacV1Interface, name str
 	var err error
 	r := roleBindingAbstraction{rbacClient: rbacClient}
 	if len(namespace) > 0 {
-		r.roleBinding, err = rbacClient.RoleBindings(namespace).Get(name, metav1.GetOptions{})
+		r.roleBinding, err = rbacClient.RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	} else {
-		r.clusterRoleBinding, err = rbacClient.ClusterRoleBindings().Get(name, metav1.GetOptions{})
+		r.clusterRoleBinding, err = rbacClient.ClusterRoleBindings().Get(context.TODO(), name, metav1.GetOptions{})
 	}
 	if err != nil {
 		return nil, err
@@ -176,7 +191,7 @@ func getRoleBindingAbstractionsForRole(rbacClient rbacv1client.RbacV1Interface, 
 	ret := make([]*roleBindingAbstraction, 0)
 	// see if we can find an existing binding that points to the role in question.
 	if len(namespace) > 0 {
-		roleBindings, err := rbacClient.RoleBindings(namespace).List(metav1.ListOptions{})
+		roleBindings, err := rbacClient.RoleBindings(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil && !kapierrors.IsNotFound(err) {
 			return nil, err
 		}
@@ -188,7 +203,7 @@ func getRoleBindingAbstractionsForRole(rbacClient rbacv1client.RbacV1Interface, 
 			}
 		}
 	} else {
-		clusterRoleBindings, err := rbacClient.ClusterRoleBindings().List(metav1.ListOptions{})
+		clusterRoleBindings, err := rbacClient.ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil && !kapierrors.IsNotFound(err) {
 			return nil, err
 		}
@@ -263,9 +278,9 @@ func (r roleBindingAbstraction) Object() runtime.Object {
 func (r roleBindingAbstraction) Create() error {
 	var err error
 	if r.roleBinding != nil {
-		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Create(r.roleBinding)
+		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Create(context.TODO(), r.roleBinding, metav1.CreateOptions{})
 	} else {
-		_, err = r.rbacClient.ClusterRoleBindings().Create(r.clusterRoleBinding)
+		_, err = r.rbacClient.ClusterRoleBindings().Create(context.TODO(), r.clusterRoleBinding, metav1.CreateOptions{})
 	}
 	return err
 }
@@ -273,9 +288,9 @@ func (r roleBindingAbstraction) Create() error {
 func (r roleBindingAbstraction) Update() error {
 	var err error
 	if r.roleBinding != nil {
-		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Update(r.roleBinding)
+		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Update(context.TODO(), r.roleBinding, metav1.UpdateOptions{})
 	} else {
-		_, err = r.rbacClient.ClusterRoleBindings().Update(r.clusterRoleBinding)
+		_, err = r.rbacClient.ClusterRoleBindings().Update(context.TODO(), r.clusterRoleBinding, metav1.UpdateOptions{})
 	}
 	return err
 }
@@ -283,9 +298,9 @@ func (r roleBindingAbstraction) Update() error {
 func (r roleBindingAbstraction) Delete() error {
 	var err error
 	if r.roleBinding != nil {
-		err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Delete(r.roleBinding.Name, &metav1.DeleteOptions{})
+		err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Delete(context.TODO(), r.roleBinding.Name, metav1.DeleteOptions{})
 	} else {
-		err = r.rbacClient.ClusterRoleBindings().Delete(r.clusterRoleBinding.Name, &metav1.DeleteOptions{})
+		err = r.rbacClient.ClusterRoleBindings().Delete(context.TODO(), r.clusterRoleBinding.Name, metav1.DeleteOptions{})
 	}
 	return err
 }

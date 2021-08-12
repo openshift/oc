@@ -27,7 +27,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,7 +46,7 @@ import (
 
 var (
 	replaceLong = templates.LongDesc(i18n.T(`
-		Replace a resource by filename or stdin.
+		Replace a resource by file name or stdin.
 
 		JSON and YAML formats are accepted. If replacing an existing resource, the
 		complete resource spec must be provided. This can be obtained by
@@ -54,10 +54,10 @@ var (
 		    $ kubectl get TYPE NAME -o yaml`))
 
 	replaceExample = templates.Examples(i18n.T(`
-		# Replace a pod using the data in pod.json.
+		# Replace a pod using the data in pod.json
 		kubectl replace -f ./pod.json
 
-		# Replace a pod based on the JSON passed into stdin.
+		# Replace a pod based on the JSON passed into stdin
 		cat pod.json | kubectl replace -f -
 
 		# Update a single-container pod's image version (tag) to v4
@@ -73,6 +73,9 @@ type ReplaceOptions struct {
 
 	DeleteFlags   *delete.DeleteFlags
 	DeleteOptions *delete.DeleteOptions
+
+	DryRunStrategy cmdutil.DryRunStrategy
+	DryRunVerifier *resource.DryRunVerifier
 
 	PrintObj func(obj runtime.Object) error
 
@@ -90,6 +93,8 @@ type ReplaceOptions struct {
 	Recorder genericclioptions.Recorder
 
 	genericclioptions.IOStreams
+
+	fieldManager string
 }
 
 func NewReplaceOptions(streams genericclioptions.IOStreams) *ReplaceOptions {
@@ -107,7 +112,7 @@ func NewCmdReplace(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 	cmd := &cobra.Command{
 		Use:                   "replace -f FILENAME",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Replace a resource by filename or stdin"),
+		Short:                 i18n.T("Replace a resource by file name or stdin"),
 		Long:                  replaceLong,
 		Example:               replaceExample,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -123,8 +128,10 @@ func NewCmdReplace(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 
 	cmdutil.AddValidateFlags(cmd)
 	cmdutil.AddApplyAnnotationFlags(cmd)
+	cmdutil.AddDryRunFlag(cmd)
 
 	cmd.Flags().StringVar(&o.Raw, "raw", o.Raw, "Raw URI to PUT to the server.  Uses the transport specified by the kubeconfig file.")
+	cmdutil.AddFieldManagerFlagVar(cmd, &o.fieldManager, "kubectl-replace")
 
 	return cmd
 }
@@ -141,6 +148,17 @@ func (o *ReplaceOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 	o.validate = cmdutil.GetFlagBool(cmd, "validate")
 	o.createAnnotation = cmdutil.GetFlagBool(cmd, cmdutil.ApplyAnnotationsFlag)
 
+	o.DryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+	dynamicClient, err := f.DynamicClient()
+	if err != nil {
+		return err
+	}
+	o.DryRunVerifier = resource.NewDryRunVerifier(dynamicClient, f.OpenAPIGetter())
+	cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
+
 	printer, err := o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -149,11 +167,10 @@ func (o *ReplaceOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 		return printer.PrintObj(obj, o.Out)
 	}
 
-	dynamicClient, err := f.DynamicClient()
+	deleteOpts, err := o.DeleteFlags.ToOptions(dynamicClient, o.IOStreams)
 	if err != nil {
 		return err
 	}
-	deleteOpts := o.DeleteFlags.ToOptions(dynamicClient, o.IOStreams)
 
 	//Replace will create a resource if it doesn't exist already, so ignore not found error
 	deleteOpts.IgnoreNotFound = true
@@ -264,8 +281,21 @@ func (o *ReplaceOptions) Run(f cmdutil.Factory) error {
 			klog.V(4).Infof("error recording current command: %v", err)
 		}
 
+		if o.DryRunStrategy == cmdutil.DryRunClient {
+			return o.PrintObj(info.Object)
+		}
+		if o.DryRunStrategy == cmdutil.DryRunServer {
+			if err := o.DryRunVerifier.HasSupport(info.Mapping.GroupVersionKind); err != nil {
+				return err
+			}
+		}
+
 		// Serialize the object with the annotation applied.
-		obj, err := resource.NewHelper(info.Client, info.Mapping).Replace(info.Namespace, info.Name, true, info.Object)
+		obj, err := resource.
+			NewHelper(info.Client, info.Mapping).
+			DryRun(o.DryRunStrategy == cmdutil.DryRunServer).
+			WithFieldManager(o.fieldManager).
+			Replace(info.Namespace, info.Name, true, info.Object)
 		if err != nil {
 			return cmdutil.AddSourceToErr("replacing", info.Source, err)
 		}
@@ -276,6 +306,7 @@ func (o *ReplaceOptions) Run(f cmdutil.Factory) error {
 }
 
 func (o *ReplaceOptions) forceReplace() error {
+	stdinInUse := false
 	for i, filename := range o.DeleteOptions.FilenameOptions.Filenames {
 		if filename == "-" {
 			tempDir, err := ioutil.TempDir("", "kubectl_replace_")
@@ -289,17 +320,21 @@ func (o *ReplaceOptions) forceReplace() error {
 				return err
 			}
 			o.DeleteOptions.FilenameOptions.Filenames[i] = tempFilename
+			stdinInUse = true
 		}
 	}
 
-	r := o.Builder().
+	b := o.Builder().
 		Unstructured().
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
 		ResourceTypeOrNameArgs(false, o.BuilderArgs...).RequireObject(false).
 		FilenameParam(o.EnforceNamespace, &o.DeleteOptions.FilenameOptions).
-		Flatten().
-		Do()
+		Flatten()
+	if stdinInUse {
+		b = b.StdinInUse()
+	}
+	r := b.Do()
 	if err := r.Err(); err != nil {
 		return err
 	}
@@ -328,14 +363,17 @@ func (o *ReplaceOptions) forceReplace() error {
 		return err
 	}
 
-	r = o.Builder().
+	b = o.Builder().
 		Unstructured().
 		Schema(o.Schema).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
 		FilenameParam(o.EnforceNamespace, &o.DeleteOptions.FilenameOptions).
-		Flatten().
-		Do()
+		Flatten()
+	if stdinInUse {
+		b = b.StdinInUse()
+	}
+	r = b.Do()
 	err = r.Err()
 	if err != nil {
 		return err
@@ -355,7 +393,9 @@ func (o *ReplaceOptions) forceReplace() error {
 			klog.V(4).Infof("error recording current command: %v", err)
 		}
 
-		obj, err := resource.NewHelper(info.Client, info.Mapping).Create(info.Namespace, true, info.Object, nil)
+		obj, err := resource.NewHelper(info.Client, info.Mapping).
+			WithFieldManager(o.fieldManager).
+			Create(info.Namespace, true, info.Object)
 		if err != nil {
 			return err
 		}

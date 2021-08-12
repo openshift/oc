@@ -24,7 +24,7 @@ import (
 	kubernetesscheme "k8s.io/client-go/kubernetes/scheme"
 	restclient "k8s.io/client-go/rest"
 	restfake "k8s.io/client-go/rest/fake"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api"
@@ -38,6 +38,42 @@ import (
 )
 
 var logLevel = flag.Int("loglevel", 0, "")
+
+func TestPruneWithoutImagesWithRegistryAccess(t *testing.T) {
+	pruneRegistry := true
+	opts := &PruneImagesOptions{
+		Namespace:     "foo",
+		AppsClient:    &fakeappsv1client.FakeAppsV1{Fake: &(fakeappsclient.NewSimpleClientset().Fake)},
+		BuildClient:   &fakebuildv1client.FakeBuildV1{Fake: &(fakebuildclient.NewSimpleClientset().Fake)},
+		ImageClient:   &fakeimagev1client.FakeImageV1{Fake: &(fakeimageclient.NewSimpleClientset().Fake)},
+		KubeClient:    fakekubernetes.NewSimpleClientset(),
+		Out:           ioutil.Discard,
+		ErrOut:        os.Stderr,
+		Confirm:       true,
+		PruneRegistry: &pruneRegistry,
+	}
+
+	if err := opts.Run(); err == nil {
+		t.Errorf("expected 'unable to find the remote registry host' error, nil received instead")
+	}
+}
+
+func TestPruneWithoutImagesNoRegistryAccess(t *testing.T) {
+	opts := &PruneImagesOptions{
+		Namespace:   "foo",
+		AppsClient:  &fakeappsv1client.FakeAppsV1{Fake: &(fakeappsclient.NewSimpleClientset().Fake)},
+		BuildClient: &fakebuildv1client.FakeBuildV1{Fake: &(fakebuildclient.NewSimpleClientset().Fake)},
+		ImageClient: &fakeimagev1client.FakeImageV1{Fake: &(fakeimageclient.NewSimpleClientset().Fake)},
+		KubeClient:  fakekubernetes.NewSimpleClientset(),
+		Out:         ioutil.Discard,
+		ErrOut:      os.Stderr,
+		Confirm:     true,
+	}
+
+	if err := opts.Run(); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+}
 
 func TestImagePruneNamespaced(t *testing.T) {
 	var level klog.Level
@@ -126,9 +162,9 @@ func TestImagePruneErrOnBadReference(t *testing.T) {
 			}
 		}
 		expBadRefErrors := sets.NewString(
-			`Pod[foo/pod1]: invalid container image reference "invalid image reference": invalid reference format`,
-			`BuildConfig[foo/bc1]: invalid ImageStreamImage reference "bar:invalid-digest": expected exactly one @ in the isimage name "bar:invalid-digest"`,
-			`Deployment[foo/dep1]: invalid container image reference "do not blame me": invalid reference format`)
+			`pod/pod1 namespace=foo: container app: invalid image reference "invalid image reference": invalid reference format`,
+			`buildconfig/bc1 namespace=foo: invalid ImageStreamImage reference "bar:invalid-digest": expected exactly one @ in the isimage name "bar:invalid-digest"`,
+			`deployment/dep1 namespace=foo: container app: invalid image reference "do not blame me": invalid reference format`)
 
 		if a, e := badRefErrors, expBadRefErrors; !a.Equal(e) {
 			t.Fatalf("got unexpected invalid reference errors: %s", diff.ObjectDiff(a, e))

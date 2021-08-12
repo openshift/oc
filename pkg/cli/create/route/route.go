@@ -1,6 +1,7 @@
 package route
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -23,7 +24,7 @@ func UnsecuredRoute(kc corev1client.CoreV1Interface, namespace, routeName, servi
 		routeName = serviceName
 	}
 
-	svc, err := kc.Services(namespace).Get(serviceName, metav1.GetOptions{})
+	svc, err := kc.Services(namespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 	if err != nil {
 		if len(portString) == 0 {
 			return nil, fmt.Errorf("you need to provide a route port via --port when exposing a non-existent service")

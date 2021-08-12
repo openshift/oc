@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -26,7 +27,7 @@ func reapForGroup(
 	errors = append(errors, reapNamespacedBindings(removedSubject, authorizationClient, out)...)
 
 	// Remove the group from sccs
-	sccs, err := securityClient.List(metav1.ListOptions{})
+	sccs, err := securityClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -40,7 +41,7 @@ func reapForGroup(
 		if len(retainedGroups) != len(scc.Groups) {
 			updatedSCC := scc
 			updatedSCC.Groups = retainedGroups
-			if _, err := securityClient.Update(&updatedSCC); err != nil && !kerrors.IsNotFound(err) {
+			if _, err := securityClient.Update(context.TODO(), &updatedSCC, metav1.UpdateOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
 				fmt.Fprintf(out, "securitycontextconstraints.security.openshift.io/"+updatedSCC.Name+" updated\n")

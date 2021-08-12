@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gopkg.in/ldap.v2"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/openshift/library-go/pkg/security/ldapclient"
 	"github.com/openshift/library-go/pkg/security/ldaputil"
@@ -205,7 +205,11 @@ func formatResult(results []*ldap.Entry) string {
 	for _, entry := range results {
 		names = append(names, entry.DN)
 	}
-	return "\t" + strings.Join(names[0:10], "\n\t")
+	len := len(names)
+	if len > 10 {
+		len = 10
+	}
+	return "\t" + strings.Join(names[0:len], "\n\t")
 }
 
 // QueryForEntries queries for LDAP with the given searchRequest

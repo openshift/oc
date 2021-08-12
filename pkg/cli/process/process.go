@@ -1,6 +1,7 @@
 package process
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math/rand"
@@ -39,7 +40,7 @@ import (
 
 var (
 	processLong = templates.LongDesc(`
-		Process template into a list of resources specified in filename or stdin
+		Process template into a list of resources specified in a file name or stdin.
 
 		Templates allow parameterization of resources prior to being sent to the server for creation or
 		update. Templates have "parameters", which may either be generated on creation or set by the user,
@@ -50,29 +51,31 @@ var (
 
 		Process resolves the template on the server, but you may pass --local to parameterize the template
 		locally. When running locally be aware that the version of your client tools will determine what
-		template transformations are supported, rather than the server.`)
+		template transformations are supported, rather than the server.
+	`)
 
 	processExample = templates.Examples(`
-		# Convert template.json file into resource list and pass to create
-	  %[1]s process -f template.json | %[1]s create -f -
+		# Convert the template.json file into a resource list and pass to create
+		oc process -f template.json | oc create -f -
 
-	  # Process a file locally instead of contacting the server
-	  %[1]s process -f template.json --local -o yaml
+		# Process a file locally instead of contacting the server
+		oc process -f template.json --local -o yaml
 
-	  # Process template while passing a user-defined label
-	  %[1]s process -f template.json -l name=mytemplate
+		# Process template while passing a user-defined label
+		oc process -f template.json -l name=mytemplate
 
-	  # Convert stored template into resource list
-	  %[1]s process foo
+		# Convert a stored template into a resource list
+		oc process foo
 
-	  # Convert stored template into resource list by setting/overriding parameter values
-	  %[1]s process foo PARM1=VALUE1 PARM2=VALUE2
+		# Convert a stored template into a resource list by setting/overriding parameter values
+		oc process foo PARM1=VALUE1 PARM2=VALUE2
 
-	  # Convert template stored in different namespace into a resource list
-	  %[1]s process openshift//foo
+		# Convert a template stored in different namespace into a resource list
+		oc process openshift//foo
 
-	  # Convert template.json into resource list
-	  cat template.json | %[1]s process -f -`)
+		# Convert template.json into a resource list
+		cat template.json | oc process -f -
+	`)
 )
 
 type ProcessOptions struct {
@@ -117,14 +120,14 @@ func NewProcessOptions(streams genericclioptions.IOStreams) *ProcessOptions {
 }
 
 // NewCmdProcess implements the OpenShift cli process command
-func NewCmdProcess(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProcess(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewProcessOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "process (TEMPLATE | -f FILENAME) [-p=KEY=VALUE]",
 		Short:   "Process a template into list of resources",
 		Long:    processLong,
-		Example: fmt.Sprintf(processExample, fullName),
+		Example: processExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate(cmd))
@@ -141,9 +144,8 @@ func NewCmdProcess(fullName string, f kcmdutil.Factory, streams genericclioption
 
 	// point to the original memory address shared between the jsonpath and go-template printer's TemplateArgument field
 	o.PrintFlags.TemplatePrinterFlags.TemplateArgument = o.PrintFlags.TemplatePrinterFlags.JSONPathPrintFlags.TemplateArgument
-	cmd.Flags().StringVarP(o.PrintFlags.TemplatePrinterFlags.TemplateArgument, "template", "t", *o.PrintFlags.TemplatePrinterFlags.TemplateArgument, "Template string or path to template file to use when -o=go-template, -o=go-template-file. The template format is golang templates [http://golang.org/pkg/text/template/#pkg-overview].")
+	cmd.Flags().StringVar(o.PrintFlags.TemplatePrinterFlags.TemplateArgument, "template", *o.PrintFlags.TemplatePrinterFlags.TemplateArgument, "Template string or path to template file to use when -o=go-template, -o=go-template-file. The template format is golang templates [http://golang.org/pkg/text/template/#pkg-overview].")
 	cmd.MarkFlagFilename("template")
-	cmd.Flags().MarkShorthandDeprecated("template", "-t is no longer supported and will be removed in the future. Use --template instead.")
 
 	cmd.Flags().StringVarP(&o.filename, "filename", "f", o.filename, "Filename or URL to file to read a template")
 	cmd.MarkFlagFilename("filename", "yaml", "yml", "json")
@@ -156,9 +158,6 @@ func NewCmdProcess(fullName string, f kcmdutil.Factory, streams genericclioption
 	cmd.Flags().StringVarP(&o.labels, "labels", "l", o.labels, "Label to set in all resources for this template")
 
 	cmd.Flags().BoolVar(&o.raw, "raw", o.raw, "If true, output the processed template instead of the template's objects. Implied by -o describe")
-
-	cmd.Flags().String("output-version", "", "Output the formatted object with the given version (default api-version).")
-	cmd.Flags().MarkDeprecated("output-version", "this flag is deprecated and will be removed in the future, this flag is ignored")
 
 	return cmd
 }
@@ -207,7 +206,7 @@ func (o *ProcessOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	}
 
 	o.usageErrorFn = func(format string, args ...interface{}) error {
-		return kcmdutil.UsageErrorf(cmd, format, args)
+		return kcmdutil.UsageErrorf(cmd, format, args...)
 	}
 
 	o.paramValuesProvided = cmd.Flag("param").Changed
@@ -343,7 +342,7 @@ func (o *ProcessOptions) RunProcess() error {
 			return fmt.Errorf("invalid value syntax %q", o.templateName)
 		}
 
-		templateObj, err := o.templateClient.Templates(sourceNamespace).Get(storedTemplate, metav1.GetOptions{})
+		templateObj, err := o.templateClient.Templates(sourceNamespace).Get(context.TODO(), storedTemplate, metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
 				return fmt.Errorf("template %q could not be found", storedTemplate)

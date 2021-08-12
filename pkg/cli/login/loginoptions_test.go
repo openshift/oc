@@ -3,6 +3,7 @@ package login
 import (
 	"crypto/tls"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,13 +12,13 @@ import (
 
 	"github.com/MakeNowJust/heredoc"
 
-	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
-	"github.com/openshift/oc/pkg/helpers/originkubeconfignames"
-
 	kapierrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	restclient "k8s.io/client-go/rest"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
+	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 )
 
 const (
@@ -57,7 +58,7 @@ func TestNormalizeServerURL(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Logf("evaluating test: normalize %s -> %s", test.originalServerURL, test.normalizedServerURL)
-		normalized, err := originkubeconfignames.NormalizeServerURL(test.originalServerURL)
+		normalized, err := cliconfig.NormalizeServerURL(test.originalServerURL)
 		if err != nil {
 			t.Errorf("unexpected error normalizing %s: %s", test.originalServerURL, err)
 		}
@@ -275,7 +276,7 @@ func TestPreserveErrTypeAuthInfo(t *testing.T) {
 	invoked := make(chan struct{}, 3)
 	oauthResponse := []byte{}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case invoked <- struct{}{}:
 			t.Logf("saw %s request for path: %s", r.Method, r.URL.String())
@@ -313,6 +314,9 @@ func TestPreserveErrTypeAuthInfo(t *testing.T) {
 
 		Config: &restclient.Config{
 			Host: server.URL,
+			TLSClientConfig: restclient.TLSClientConfig{
+				CAData: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}),
+			},
 		},
 
 		IOStreams: genericclioptions.NewTestIOStreamsDiscard(),

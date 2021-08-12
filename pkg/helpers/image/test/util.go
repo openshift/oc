@@ -6,8 +6,10 @@ import (
 
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
+	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	kappsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,13 +37,6 @@ var (
 const (
 	managedByOpenShiftAnnotation = "openshift.io/image.managed"
 )
-
-// ImageList turns the given images into ImageList.
-func ImageList(images ...imagev1.Image) imagev1.ImageList {
-	return imagev1.ImageList{
-		Items: images,
-	}
-}
 
 // AgedImage creates a test image with specified age.
 func AgedImage(id, ref string, ageInMinutes int64, layers ...string) imagev1.Image {
@@ -76,7 +71,7 @@ func Image(id, ref string) imagev1.Image {
 	return AgedImage(id, ref, 120)
 }
 
-// Image returns a default test image referencing the given layers.
+// ImageWithLayers returns a default test image referencing the given layers.
 func ImageWithLayers(id, ref string, configName *string, layers ...string) imagev1.Image {
 	image := imagev1.Image{
 		ObjectMeta: metav1.ObjectMeta{
@@ -107,6 +102,13 @@ func ImageWithLayers(id, ref string, configName *string, layers ...string) image
 		image.DockerImageLayers = append(image.DockerImageLayers, imagev1.ImageLayer{Name: layer})
 	}
 
+	return image
+}
+
+// OCIImageWithLayers returns an OCI image referencing the given layers.
+func OCIImageWithLayers(id, ref string, configName string, layers ...string) imagev1.Image {
+	image := ImageWithLayers(id, ref, &configName, layers...)
+	image.DockerImageManifestMediaType = imagespecv1.MediaTypeImageManifest
 	return image
 }
 
@@ -162,6 +164,7 @@ func PodSpecInternal(containerImages ...string) corev1.PodSpec {
 	}
 	for _, image := range containerImages {
 		container := corev1.Container{
+			Name:  "app",
 			Image: image,
 		}
 		spec.Containers = append(spec.Containers, container)
@@ -181,13 +184,6 @@ func PodSpec(containerImages ...string) corev1.PodSpec {
 		spec.Containers = append(spec.Containers, container)
 	}
 	return spec
-}
-
-// StreamList turns the given streams into StreamList.
-func StreamList(streams ...imagev1.ImageStream) imagev1.ImageStreamList {
-	return imagev1.ImageStreamList{
-		Items: streams,
-	}
 }
 
 // Stream creates and returns a test ImageStream object 1 minute old
@@ -285,6 +281,79 @@ func DS(namespace, name string, containerImages ...string) kappsv1.DaemonSet {
 			SelfLink:  "/apis/apps/v1/daemonsets/" + name,
 		},
 		Spec: kappsv1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: PodSpecInternal(containerImages...),
+			},
+		},
+	}
+}
+
+// CronJobList turns the given stateful sets into JobList.
+func CronJobList(cjs ...batchv1.CronJob) batchv1.CronJobList {
+	return batchv1.CronJobList{
+		Items: cjs,
+	}
+}
+
+// CronJob creates and returns a CronJob object.
+func CronJob(namespace, name string, containerImages ...string) batchv1.CronJob {
+	return batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+			SelfLink:  "/apis/batch/v1/cronjobs/" + name,
+		},
+		Spec: batchv1.CronJobSpec{
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: PodSpecInternal(containerImages...),
+					},
+				},
+			},
+		},
+	}
+}
+
+// JobList turns the given stateful sets into JobList.
+func JobList(jobs ...batchv1.Job) batchv1.JobList {
+	return batchv1.JobList{
+		Items: jobs,
+	}
+}
+
+// Job creates and returns a Job object.
+func Job(namespace, name string, containerImages ...string) batchv1.Job {
+	return batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+			SelfLink:  "/apis/batch/v1/jobs/" + name,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: PodSpecInternal(containerImages...),
+			},
+		},
+	}
+}
+
+// SSetList turns the given stateful sets into StatefulSetList.
+func SSetList(ss ...kappsv1.StatefulSet) kappsv1.StatefulSetList {
+	return kappsv1.StatefulSetList{
+		Items: ss,
+	}
+}
+
+// StatefulSet creates and returns a StatefulSet object.
+func StatefulSet(namespace, name string, containerImages ...string) kappsv1.StatefulSet {
+	return kappsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+			SelfLink:  "/apis/apps/v1/statefulsets/" + name,
+		},
+		Spec: kappsv1.StatefulSetSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: PodSpecInternal(containerImages...),
 			},

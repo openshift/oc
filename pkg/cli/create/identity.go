@@ -1,6 +1,7 @@
 package create
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -9,13 +10,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	userv1 "github.com/openshift/api/user/v1"
 	userv1client "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 )
-
-const IdentityRecommendedName = "identity"
 
 var (
 	identityLong = templates.LongDesc(`
@@ -25,12 +26,14 @@ var (
 		creation is disabled (by using the "lookup" mapping method), identities must
 		be created manually.
 
-		Corresponding user and useridentitymapping objects must also be created
-		to allow logging in with the created identity.`)
+		Corresponding user and user identity mapping objects must also be created
+		to allow logging in with the created identity.
+	`)
 
 	identityExample = templates.Examples(`
 		# Create an identity with identity provider "acme_ldap" and the identity provider username "adamjones"
-  	%[1]s acme_ldap:adamjones`)
+		oc create identity acme_ldap:adamjones
+	`)
 )
 
 type CreateIdentityOptions struct {
@@ -43,22 +46,22 @@ type CreateIdentityOptions struct {
 }
 
 // NewCmdCreateIdentity is a macro command to create a new identity
-func NewCmdCreateIdentity(name, fullName string, f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateIdentity(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreateIdentityOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
 	cmd := &cobra.Command{
-		Use:     name + " <PROVIDER_NAME>:<PROVIDER_USER_NAME>",
-		Short:   "Manually create an identity (only needed if automatic creation is disabled).",
+		Use:     "identity <PROVIDER_NAME>:<PROVIDER_USER_NAME>",
+		Short:   "Manually create an identity (only needed if automatic creation is disabled)",
 		Long:    identityLong,
-		Example: fmt.Sprintf(identityExample, fullName),
+		Example: identityExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
 
-	o.CreateSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateSubcommandOptions.AddFlags(cmd)
 	cmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -96,9 +99,13 @@ func (o *CreateIdentityOptions) Run() error {
 		ProviderUserName: o.ProviderUserName,
 	}
 
-	if !o.CreateSubcommandOptions.DryRun {
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, identity, scheme.DefaultJSONEncoder()); err != nil {
+		return err
+	}
+
+	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
 		var err error
-		identity, err = o.IdentityClient.Identities().Create(identity)
+		identity, err = o.IdentityClient.Identities().Create(context.TODO(), identity, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}

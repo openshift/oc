@@ -12,7 +12,7 @@ import (
 func TestLocalAndDryRunFlags(t *testing.T) {
 	tf := kcmdtesting.NewTestFactory().WithNamespace("test")
 	defer tf.Cleanup()
-	setCmd := NewCmdSet("", tf, genericclioptions.NewTestIOStreamsDiscard())
+	setCmd := NewCmdSet(tf, genericclioptions.NewTestIOStreamsDiscard())
 	ensureLocalAndDryRunFlagsOnChildren(t, setCmd, "")
 }
 

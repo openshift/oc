@@ -1,8 +1,6 @@
 package image
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -25,7 +23,7 @@ var (
 )
 
 // NewCmdImage exposes commands for modifying images.
-func NewCmdImage(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	image := &cobra.Command{
 		Use:   "image COMMAND",
 		Short: "Useful commands for managing images",
@@ -33,22 +31,20 @@ func NewCmdImage(fullName string, f kcmdutil.Factory, streams genericclioptions.
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 
-	name := fmt.Sprintf("%s image", fullName)
-
 	groups := ktemplates.CommandGroups{
 		{
 			Message: "View or copy images:",
 			Commands: []*cobra.Command{
-				info.NewInfo(name, streams),
-				mirror.NewCmdMirrorImage(name, streams),
+				info.NewInfo(streams),
+				mirror.NewCmdMirrorImage(streams),
 			},
 		},
 		{
 			Message: "Advanced commands:",
 			Commands: []*cobra.Command{
-				serve.New(name, streams),
-				append.NewCmdAppendImage(name, streams),
-				extract.New(name, streams),
+				serve.NewServe(streams),
+				append.NewCmdAppendImage(streams),
+				extract.NewExtract(streams),
 			},
 		},
 	}

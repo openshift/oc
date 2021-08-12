@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 	"runtime"
 	"sync"
@@ -12,17 +13,20 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/docker/distribution/manifest/ocischema"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
 	v2 "github.com/docker/distribution/registry/api/v2"
+	"github.com/docker/distribution/registry/client/transport"
 
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
+	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
@@ -50,6 +54,23 @@ func (o *SecurityOptions) Bind(flags *pflag.FlagSet) {
 	flags.StringVarP(&o.RegistryConfig, "registry-config", "a", o.RegistryConfig, "Path to your registry credentials (defaults to ~/.docker/config.json)")
 	flags.BoolVar(&o.Insecure, "insecure", o.Insecure, "Allow push and pull operations to registries to be made over HTTP")
 	flags.BoolVar(&o.SkipVerification, "skip-verification", o.SkipVerification, "Skip verifying the integrity of the retrieved content. This is not recommended, but may be necessary when importing images from older image registries. Only bypass verification if the registry is known to be trustworthy.")
+}
+
+// ReferentialHTTPClient returns an http.Client that is appropriate for accessing
+// blobs referenced outside of the registry (due to the present of the URLs attribute
+// in the manifest reference for a layer).
+func (o *SecurityOptions) ReferentialHTTPClient() (*http.Client, error) {
+	ctx, err := o.Context()
+	if err != nil {
+		return nil, err
+	}
+	client := &http.Client{}
+	if o.Insecure {
+		client.Transport = ctx.InsecureTransport
+	} else {
+		client.Transport = ctx.Transport
+	}
+	return client, nil
 }
 
 type Verifier interface {
@@ -109,7 +130,8 @@ func (o *SecurityOptions) NewContext() (*registryclient.Context, error) {
 			return nil, fmt.Errorf("unable to load --registry-config: %v", err)
 		}
 	}
-	context := registryclient.NewContext(rt, insecureRT).WithCredentials(creds)
+	context := registryclient.NewContext(rt, insecureRT).WithCredentials(creds).
+		WithRequestModifiers(transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{rest.DefaultKubernetesUserAgent()}}))
 	context.DisableDigestVerification = o.SkipVerification
 	return context, nil
 }
@@ -149,6 +171,15 @@ func (o *FilterOptions) Complete(flags *pflag.FlagSet) error {
 	return nil
 }
 
+// IsWildcardFilter returns true if the filter regex is set to a wildcard
+func (o *FilterOptions) IsWildcardFilter() bool {
+	wildcardFilter := ".*"
+	if o.FilterByOS == wildcardFilter {
+		return true
+	}
+	return false
+}
+
 // Include returns true if the provided manifest should be included, or the first image if the user didn't alter the
 // default selection and there is only one image.
 func (o *FilterOptions) Include(d *manifestlist.ManifestDescriptor, hasMultiple bool) bool {
@@ -184,6 +215,7 @@ type FilterFunc func(*manifestlist.ManifestDescriptor, bool) bool
 var PreferManifestList = distribution.WithManifestMediaTypes([]string{
 	manifestlist.MediaTypeManifestList,
 	schema2.MediaTypeManifest,
+	imagespecv1.MediaTypeImageManifest,
 })
 
 // AllManifests returns all non-list manifests, the list manifest (if any), the digest the from refers to, or an error.
@@ -252,7 +284,7 @@ func FirstManifest(ctx context.Context, from imagereference.DockerImageReference
 	}
 
 	originalSrcDigest := srcDigest
-	srcManifests, srcManifest, srcDigest, err := ProcessManifestList(ctx, srcDigest, srcManifest, manifests, from, filterFn)
+	srcManifests, srcManifest, srcDigest, err := ProcessManifestList(ctx, srcDigest, srcManifest, manifests, from, filterFn, false)
 	if err != nil {
 		return nil, ManifestLocation{}, err
 	}
@@ -292,8 +324,31 @@ func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifes
 
 		return base, layers, nil
 
+	case *ocischema.DeserializedManifest:
+		if t.Config.MediaType != imagespecv1.MediaTypeImageConfig {
+			return nil, nil, fmt.Errorf("%s does not have the expected image configuration media type: %s", location, t.Config.MediaType)
+		}
+		configJSON, err := blobs.Get(ctx, t.Config.Digest)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot retrieve image configuration for %s: %v", location, err)
+		}
+		klog.V(4).Infof("Raw image config json:\n%s", string(configJSON))
+		config := &dockerv1client.DockerImageConfig{}
+		if err := json.Unmarshal(configJSON, &config); err != nil {
+			return nil, nil, fmt.Errorf("unable to parse image configuration: %v", err)
+		}
+
+		base := config
+		layers := t.Layers
+		base.Size = 0
+		for _, layer := range t.Layers {
+			base.Size += layer.Size
+		}
+
+		return base, layers, nil
+
 	case *schema1.SignedManifest:
-		if klog.V(4) {
+		if klog.V(4).Enabled() {
 			_, configJSON, _ := srcManifest.Payload()
 			klog.Infof("Raw image config json:\n%s", string(configJSON))
 		}
@@ -330,7 +385,7 @@ func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifes
 	}
 }
 
-func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imagereference.DockerImageReference, filterFn FilterFunc) ([]distribution.Manifest, distribution.Manifest, digest.Digest, error) {
+func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imagereference.DockerImageReference, filterFn FilterFunc, keepManifestList bool) ([]distribution.Manifest, distribution.Manifest, digest.Digest, error) {
 	var srcManifests []distribution.Manifest
 	switch t := srcManifest.(type) {
 	case *manifestlist.DeserializedManifestList:
@@ -340,10 +395,10 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 		filtered := make([]manifestlist.ManifestDescriptor, 0, len(t.Manifests))
 		for _, manifest := range t.Manifests {
 			if !filterFn(&manifest, len(t.Manifests) > 1) {
-				klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, ref)
+				klog.V(5).Infof("Skipping image %s for %#v from %s", manifest.Digest, manifest.Platform, ref)
 				continue
 			}
-			klog.V(5).Infof("Including image for %#v from %s", manifest.Platform, ref)
+			klog.V(5).Infof("Including image %s for %#v from %s", manifest.Digest, manifest.Platform, ref)
 			filtered = append(filtered, manifest)
 		}
 
@@ -379,12 +434,12 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 		}
 
 		switch {
-		case len(srcManifests) == 1:
+		case len(srcManifests) == 1 && !keepManifestList:
 			manifestDigest, err := registryclient.ContentDigestForManifest(srcManifests[0], srcDigest.Algorithm())
 			if err != nil {
 				return nil, nil, "", err
 			}
-			klog.V(5).Infof("Used only one manifest from the list %s", srcDigest)
+			klog.Warningf("Chose %s/%s manifest from the manifest list.", t.Manifests[0].Platform.OS, t.Manifests[0].Platform.Architecture)
 			return srcManifests, srcManifests[0], manifestDigest, nil
 		default:
 			return append(srcManifests, manifestList), manifestList, manifestDigest, nil
@@ -419,7 +474,7 @@ func ManifestsFromList(ctx context.Context, srcDigest digest.Digest, srcManifest
 	}
 }
 
-// TDOO: remove when quay.io switches to v2 schema
+// TODO: Remove support for v2 schema in 4.9
 func PutManifestInCompatibleSchema(
 	ctx context.Context,
 	srcManifest distribution.Manifest,
@@ -436,6 +491,17 @@ func PutManifestInCompatibleSchema(
 	} else {
 		klog.V(5).Infof("Put manifest %s", ref)
 	}
+	switch t := srcManifest.(type) {
+	case *schema1.SignedManifest:
+		manifest, err := convertToSchema2(ctx, blobs, t)
+		if err != nil {
+			klog.V(2).Infof("Unable to convert manifest to schema2: %v", err)
+			return toManifests.Put(ctx, t, distribution.WithTag(tag))
+		}
+		klog.Infof("warning: Digests are not preserved with schema version 1 images. Support for schema version 1 images will be removed in a future release")
+		return toManifests.Put(ctx, manifest, options...)
+	}
+
 	toDigest, err := toManifests.Put(ctx, srcManifest, options...)
 	if err == nil {
 		return toDigest, nil
@@ -460,21 +526,66 @@ func PutManifestInCompatibleSchema(
 	klog.V(5).Infof("Registry reported invalid manifest error, attempting to convert to v2schema1 as ref %s", tagRef)
 	schema1Manifest, convertErr := convertToSchema1(ctx, blobs, configJSON, schema2Manifest, tagRef)
 	if convertErr != nil {
-		if klog.V(6) {
+		if klog.V(6).Enabled() {
 			_, data, _ := schema2Manifest.Payload()
 			klog.Infof("Input schema\n%s", string(data))
 		}
 		klog.V(2).Infof("Unable to convert manifest to schema1: %v", convertErr)
 		return toDigest, err
 	}
-	if klog.V(6) {
+	if klog.V(6).Enabled() {
 		_, data, _ := schema1Manifest.Payload()
 		klog.Infof("Converted to v2schema1\n%s", string(data))
 	}
 	return toManifests.Put(ctx, schema1Manifest, distribution.WithTag(tag))
 }
 
-// TDOO: remove when quay.io switches to v2 schema
+// convertToSchema2 attempts to build a v2 manifest from a v1 manifest, which requires reading blobs to get layer sizes.
+// Requires the destination layers already exist in the target repository.
+func convertToSchema2(ctx context.Context, blobs distribution.BlobService, srcManifest *schema1.SignedManifest) (distribution.Manifest, error) {
+	if klog.V(6).Enabled() {
+		klog.Infof("Up converting v1 schema image:\n%#v", srcManifest.Manifest)
+	}
+
+	config, layers, err := ManifestToImageConfig(ctx, srcManifest, blobs, ManifestLocation{})
+	if err != nil {
+		return nil, err
+	}
+	if klog.V(6).Enabled() {
+		klog.Infof("Resulting schema: %#v", config)
+	}
+	// create synthetic history
+	// TODO: create restored history?
+	if len(config.History) == 0 {
+		for i := len(config.History); i < len(layers); i++ {
+			config.History = append(config.History, dockerv1client.DockerConfigHistory{
+				Created: config.Created,
+			})
+		}
+	}
+
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		return nil, err
+	}
+	if klog.V(6).Enabled() {
+		klog.Infof("Resulting config.json:\n%s", string(configJSON))
+	}
+	b := schema2.NewManifestBuilder(blobs, schema2.MediaTypeImageConfig, configJSON)
+	for _, layer := range layers {
+		desc, err := blobs.Stat(ctx, layer.Digest)
+		if err != nil {
+			return nil, err
+		}
+		desc.MediaType = schema2.MediaTypeLayer
+		if err := b.AppendReference(desc); err != nil {
+			return nil, err
+		}
+	}
+	return b.Build(ctx)
+}
+
+// TODO: Remove support for v2 schema in 4.9
 func convertToSchema1(ctx context.Context, blobs distribution.BlobService, configJSON []byte, schema2Manifest *schema2.DeserializedManifest, ref reference.Named) (distribution.Manifest, error) {
 	if configJSON == nil {
 		targetDescriptor := schema2Manifest.Target()
@@ -488,7 +599,7 @@ func convertToSchema1(ctx context.Context, blobs distribution.BlobService, confi
 	if err != nil {
 		return nil, err
 	}
-	if klog.V(6) {
+	if klog.V(6).Enabled() {
 		klog.Infof("Down converting v2 schema image:\n%#v\n%s", schema2Manifest.Layers, configJSON)
 	}
 	builder := schema1.NewConfigManifestBuilder(blobs, trustKey, ref, configJSON)
@@ -509,7 +620,7 @@ var (
 	privateKey     libtrust.PrivateKey
 )
 
-// TDOO: remove when quay.io switches to v2 schema
+// TODO: Remove support for v2 schema in 4.9
 func loadPrivateKey() (libtrust.PrivateKey, error) {
 	privateKeyLock.Lock()
 	defer privateKeyLock.Unlock()

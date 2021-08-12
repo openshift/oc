@@ -1,11 +1,15 @@
 package cli
 
 import (
+	"k8s.io/klog/v2"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericclioptions/openshiftpatch"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kcmdset "k8s.io/kubectl/pkg/cmd/set"
-	describeversioned "k8s.io/kubectl/pkg/describe/versioned"
+	describeversioned "k8s.io/kubectl/pkg/describe"
 	"k8s.io/kubectl/pkg/generate/versioned"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 
@@ -17,12 +21,13 @@ import (
 func shimKubectlForOc() {
 	// we only need this change for `oc`.  `kubectl` should behave as close to `kubectl` as we can
 	// if we call this factory construction method, we want the openshift style config loading
-	kclientcmd.ErrEmptyConfig = genericclioptions.NewErrConfigurationMissing()
+	kclientcmd.ErrEmptyConfig = genericclioptions.ErrEmptyConfig
 	kcmdset.ParseDockerImageReferenceToStringFunc = clientcmd.ParseDockerImageReferenceToStringFunc
-	openshiftpatch.OAPIToGroupified = legacygroupification.OAPIToGroupified
-	openshiftpatch.OAPIToGroupifiedGVK = legacygroupification.OAPIToGroupifiedGVK
+	openshiftpatch.OAPIToGroupified = oAPIToGroupified
+	openshiftpatch.OAPIToGroupifiedGVK = oAPIToGroupifiedGVK
 	openshiftpatch.IsOAPIFn = legacygroupification.IsOAPI
 	openshiftpatch.IsOC = true
+	kclientcmd.UseModifyConfigLock = false
 
 	// update polymorphic helpers
 	polymorphichelpers.AttachablePodForObjectFn = originpolymorphichelpers.NewAttachablePodForObjectFn(polymorphichelpers.AttachablePodForObjectFn)
@@ -41,4 +46,20 @@ func shimKubectlForOc() {
 	// update some functions we inject
 	versioned.GeneratorFn = originpolymorphichelpers.NewGeneratorsFn(versioned.GeneratorFn)
 	describeversioned.DescriberFn = originpolymorphichelpers.NewDescriberFn(describeversioned.DescriberFn)
+}
+
+func oAPIToGroupified(uncast runtime.Object, gvk *schema.GroupVersionKind) {
+	before := gvk.Group
+	legacygroupification.OAPIToGroupified(uncast, gvk)
+	if before != gvk.Group {
+		klog.Warningf("Using non-groupfied API resources is deprecated and will be removed in a future release, update apiVersion to %q for your resource", gvk.GroupVersion())
+	}
+}
+
+func oAPIToGroupifiedGVK(gvk *schema.GroupVersionKind) {
+	before := gvk.Group
+	legacygroupification.OAPIToGroupifiedGVK(gvk)
+	if before != gvk.Group {
+		klog.Warningf("Using non-groupfied API resources is deprecated and will be removed in a future release, update apiVersion to %q for your resource", gvk.GroupVersion())
+	}
 }

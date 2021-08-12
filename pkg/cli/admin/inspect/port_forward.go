@@ -2,6 +2,7 @@ package inspect
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -116,6 +117,24 @@ type PortForwardURLGetter struct {
 
 func (c *PortForwardURLGetter) Get(urlPath string, pod *corev1.Pod, config *rest.Config, containerPort *RemoteContainerPort) (string, error) {
 	var result string
+
+	return result, c.ForwardRequests(pod, config, containerPort, func(restClient rest.Interface) error {
+		ioCloser, err := restClient.Get().RequestURI(urlPath).Stream(context.TODO())
+		if err != nil {
+			return err
+		}
+		defer ioCloser.Close()
+
+		data := bytes.NewBuffer(nil)
+		if _, err := io.Copy(data, ioCloser); err != nil {
+			return err
+		}
+		result = data.String()
+		return nil
+	})
+}
+
+func (c *PortForwardURLGetter) ForwardRequests(pod *corev1.Pod, config *rest.Config, containerPort *RemoteContainerPort, fn func(rest.Interface) error) error {
 	var lastErr error
 	forwarder := NewDefaultPortForwarder(config)
 
@@ -127,18 +146,12 @@ func (c *PortForwardURLGetter) Get(urlPath string, pod *corev1.Pod, config *rest
 			return
 		}
 
-		ioCloser, err := restClient.Get().RequestURI(urlPath).Stream()
-		if err != nil {
+		if err := fn(restClient); err != nil {
 			lastErr = err
 			return
 		}
-		defer ioCloser.Close()
-
-		data := bytes.NewBuffer(nil)
-		_, lastErr = io.Copy(data, ioCloser)
-		result = data.String()
 	}); err != nil {
-		return "", err
+		return err
 	}
-	return result, lastErr
+	return lastErr
 }

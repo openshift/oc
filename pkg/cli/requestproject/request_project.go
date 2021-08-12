@@ -1,6 +1,7 @@
 package requestproject
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -14,7 +15,6 @@ import (
 	projectv1 "github.com/openshift/api/project/v1"
 	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	ocproject "github.com/openshift/oc/pkg/cli/project"
-	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 )
 
 // RequestProjectOptions contains all the options for running the RequestProject cli command.
@@ -23,7 +23,6 @@ type RequestProjectOptions struct {
 	DisplayName string
 	Description string
 
-	Name   string
 	Server string
 
 	SkipConfigWrite bool
@@ -37,7 +36,7 @@ type RequestProjectOptions struct {
 // RequestProject command description.
 var (
 	requestProjectLong = templates.LongDesc(`
-		Create a new project for yourself
+		Create a new project for yourself.
 
 		If your administrator allows self-service, this command will create a new project for you and assign you
 		as the project admin.
@@ -46,10 +45,10 @@ var (
 
 	requestProjectExample = templates.Examples(`
 		# Create a new project with minimal information
-		%[1]s new-project web-team-dev
+		oc new-project web-team-dev
 
 		# Create a new project with a display name and description
-		%[1]s new-project web-team-dev --display-name="Web Team Development" --description="Development project for the web team."`)
+		oc new-project web-team-dev --display-name="Web Team Development" --description="Development project for the web team."`)
 )
 
 // RequestProject next steps.
@@ -57,36 +56,35 @@ const (
 	requestProjectNewAppOutput = `
 You can add applications to this project with the 'new-app' command. For example, try:
 
-    %[1]s new-app ruby~https://github.com/sclorg/ruby-ex.git
+    oc new-app rails-postgresql-example
 
-to build a new example application in Python. Or use kubectl to deploy a simple Kubernetes application:
+to build a new example application in Ruby. Or use kubectl to deploy a simple Kubernetes application:
 
-    kubectl create deployment hello-node --image=gcr.io/hello-minikube-zero-install/hello-node
+    kubectl create deployment hello-node --image=k8s.gcr.io/serve_hostname
 
 `
-	requestProjectSwitchProjectOutput = `Project %[2]q created on server %[3]q.
+	requestProjectSwitchProjectOutput = `Project %[1]q created on server %[2]q.
 
 To switch to this project and start adding applications, use:
 
-    %[1]s project %[2]s
+    oc project %[1]s
 `
 )
 
-func NewRequestProjectOptions(baseName string, streams genericclioptions.IOStreams) *RequestProjectOptions {
+func NewRequestProjectOptions(streams genericclioptions.IOStreams) *RequestProjectOptions {
 	return &RequestProjectOptions{
 		IOStreams: streams,
-		Name:      baseName,
 	}
 }
 
 // NewCmdRequestProject implement the OpenShift cli RequestProject command.
-func NewCmdRequestProject(baseName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewRequestProjectOptions(baseName, streams)
+func NewCmdRequestProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewRequestProjectOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "new-project NAME [--display-name=DISPLAYNAME] [--description=DESCRIPTION]",
 		Short:   "Request a new project",
 		Long:    requestProjectLong,
-		Example: fmt.Sprintf(requestProjectExample, baseName),
+		Example: requestProjectExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
@@ -109,8 +107,7 @@ func (o *RequestProjectOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command,
 
 	if !o.SkipConfigWrite {
 		o.ProjectOptions = ocproject.NewProjectOptions(o.IOStreams)
-		o.ProjectOptions.PathOptions = cliconfig.NewPathOptions(cmd)
-		if err := o.ProjectOptions.Complete(f, []string{""}); err != nil {
+		if err := o.ProjectOptions.Complete(f, cmd, []string{""}); err != nil {
 			return err
 		}
 	} else {
@@ -135,7 +132,7 @@ func (o *RequestProjectOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command,
 
 // Run implements all the necessary functionality for RequestProject.
 func (o *RequestProjectOptions) Run() error {
-	if err := o.Client.RESTClient().Get().Resource("projectrequests").Do().Into(&metav1.Status{}); err != nil {
+	if err := o.Client.RESTClient().Get().Resource("projectrequests").Do(context.TODO()).Into(&metav1.Status{}); err != nil {
 		return err
 	}
 
@@ -145,7 +142,7 @@ func (o *RequestProjectOptions) Run() error {
 	projectRequest.Description = o.Description
 	projectRequest.Annotations = make(map[string]string)
 
-	project, err := o.Client.ProjectRequests().Create(projectRequest)
+	project, err := o.Client.ProjectRequests().Create(context.TODO(), projectRequest, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -159,9 +156,9 @@ func (o *RequestProjectOptions) Run() error {
 			return err
 		}
 
-		fmt.Fprintf(o.Out, requestProjectNewAppOutput, o.Name)
+		fmt.Fprintf(o.Out, requestProjectNewAppOutput)
 	} else {
-		fmt.Fprintf(o.Out, requestProjectSwitchProjectOutput, o.Name, o.ProjectName, o.Server)
+		fmt.Fprintf(o.Out, requestProjectSwitchProjectOutput, o.ProjectName, o.Server)
 	}
 
 	return nil

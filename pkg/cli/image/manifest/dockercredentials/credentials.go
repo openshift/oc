@@ -9,10 +9,10 @@ import (
 
 	"github.com/docker/distribution/registry/client/auth"
 
-	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/credentialprovider"
+	"k8s.io/klog/v2"
 
 	"github.com/openshift/library-go/pkg/image/registryclient"
+	"github.com/openshift/oc/pkg/helpers/image/credentialprovider"
 )
 
 var (
@@ -34,7 +34,7 @@ func NewLocal() auth.CredentialStore {
 // NewFromFile creates a new credential store for the provided Docker config.json
 // authentication file.
 func NewFromFile(path string) (auth.CredentialStore, error) {
-	cfg, err := credentialprovider.ReadSpecificDockerConfigJsonFile(path)
+	cfg, err := credentialprovider.ReadSpecificDockerConfigJSONFile(path)
 	if err != nil {
 		return nil, err
 	}

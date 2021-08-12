@@ -1,10 +1,11 @@
 package set
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -25,7 +26,7 @@ import (
 
 var (
 	buildSecretLong = templates.LongDesc(`
-		Set or remove a build secret on a build config
+		Set or remove a build secret on a build config.
 
 		A build config can reference a secret to push or pull images from private registries or
 		to access private source repositories.
@@ -38,17 +39,17 @@ var (
 		be selected with the --all flag.`)
 
 	buildSecretExample = templates.Examples(`
-		# Clear push secret on a build config
-		%[1]s build-secret --push --remove bc/mybuild
+		# Clear the push secret on a build config
+		oc set build-secret --push --remove bc/mybuild
 
 		# Set the pull secret on a build config
-		%[1]s build-secret --pull bc/mybuild mysecret
+		oc set build-secret --pull bc/mybuild mysecret
 
 		# Set the push and pull secret on a build config
-		%[1]s build-secret --push --pull bc/mybuild mysecret
+		oc set build-secret --push --pull bc/mybuild mysecret
 
 		# Set the source secret on a set of build configs matching a selector
-		%[1]s build-secret --source -l app=myapp gitsecret`)
+		oc set build-secret --source -l app=myapp gitsecret`)
 )
 
 type BuildSecretOptions struct {
@@ -70,7 +71,7 @@ type BuildSecretOptions struct {
 	ExplicitNamespace bool
 	Resources         []string
 	SecretArg         string
-	DryRun            bool
+	DryRunStrategy    kcmdutil.DryRunStrategy
 
 	resource.FilenameOptions
 	genericclioptions.IOStreams
@@ -84,13 +85,13 @@ func NewBuildSecretOptions(streams genericclioptions.IOStreams) *BuildSecretOpti
 }
 
 // NewCmdBuildSecret implements the set build-secret command
-func NewCmdBuildSecret(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdBuildSecret(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewBuildSecretOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "build-secret BUILDCONFIG SECRETNAME",
 		Short:   "Update a build secret on a build config",
 		Long:    buildSecretLong,
-		Example: fmt.Sprintf(buildSecretExample, fullName),
+		Example: buildSecretExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -161,16 +162,18 @@ func (o *BuildSecretOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, ar
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
+
 	o.Mapper, err = f.ToRESTMapper()
 	if err != nil {
 		return err
 	}
 	o.Builder = f.NewBuilder
 
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
-	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -264,14 +267,14 @@ func (o *BuildSecretOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch secret  %v", err))
 			continue

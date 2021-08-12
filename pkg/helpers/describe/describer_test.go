@@ -9,23 +9,27 @@ import (
 	"testing"
 	"text/tabwriter"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
-	kubernetesscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
+	v1 "github.com/openshift/api/quota/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/openshift/api"
 	appsv1 "github.com/openshift/api/apps/v1"
 	authorizationv1 "github.com/openshift/api/authorization/v1"
 	buildv1 "github.com/openshift/api/build/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
+	dockerpre012 "github.com/openshift/api/image/dockerpre012"
 	imagev1 "github.com/openshift/api/image/v1"
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	projectv1 "github.com/openshift/api/project/v1"
 	securityv1 "github.com/openshift/api/security/v1"
 	templatev1 "github.com/openshift/api/template/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes/fake"
+	kubernetesscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 )
 
 type describeClient struct {
@@ -46,17 +50,21 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&appsv1.DeploymentLog{}),                          // normal users don't ever look at these
 	reflect.TypeOf(&appsv1.DeploymentLogOptions{}),                   // normal users don't ever look at these
 	reflect.TypeOf(&appsv1.DeploymentRequest{}),                      // normal users don't ever look at these
+	reflect.TypeOf(&dockerpre012.DockerImage{}),                      // not a top level resource
 	reflect.TypeOf(&dockerv10.DockerImage{}),                         // not a top level resource
 	reflect.TypeOf(&imagev1.ImageStreamImport{}),                     // normal users don't ever look at these
 	reflect.TypeOf(&oauthv1.OAuthAccessToken{}),                      // normal users don't ever look at these
 	reflect.TypeOf(&oauthv1.OAuthAuthorizeToken{}),                   // normal users don't ever look at these
 	reflect.TypeOf(&oauthv1.OAuthClientAuthorization{}),              // normal users don't ever look at these
+	reflect.TypeOf(&oauthv1.UserOAuthAccessToken{}),                  // UserOAuthAccessToken is a virtual resource to mirror OAuthAccessTokens
 	reflect.TypeOf(&projectv1.ProjectRequest{}),                      // normal users don't ever look at these
 	reflect.TypeOf(&templatev1.TemplateInstance{}),                   // normal users don't ever look at these
 	reflect.TypeOf(&templatev1.BrokerTemplateInstance{}),             // normal users don't ever look at these
 	reflect.TypeOf(&authorizationv1.IsPersonalSubjectAccessReview{}), // not a top level resource
 	// ATM image signature doesn't provide any human readable information
 	reflect.TypeOf(&imagev1.ImageSignature{}),
+	// we might want to add this in the future
+	reflect.TypeOf(&imagev1.ImageStreamLayers{}),
 
 	// these resources can't be "GET"ed, so you can't make a describer for them
 	reflect.TypeOf(&authorizationv1.SubjectAccessReviewResponse{}),
@@ -70,6 +78,7 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&securityv1.PodSecurityPolicySubjectReview{}),
 	reflect.TypeOf(&securityv1.PodSecurityPolicySelfSubjectReview{}),
 	reflect.TypeOf(&securityv1.PodSecurityPolicyReview{}),
+	reflect.TypeOf(&securityv1.RangeAllocation{}),
 	reflect.TypeOf(&oauthv1.OAuthRedirectReference{}),
 }
 
@@ -79,6 +88,27 @@ var DescriberCoverageExceptions = []reflect.Type{
 var MissingDescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&imagev1.ImageStreamMapping{}),
 	reflect.TypeOf(&oauthv1.OAuthClient{}),
+}
+
+var MissingDescriberGroupCoverageExceptions = []schema.GroupVersion{
+	{Group: "config.openshift.io", Version: "v1"},
+	{Group: "osin.config.openshift.io", Version: "v1"},
+	{Group: "servicecertsigner.config.openshift.io", Version: "v1alpha1"},
+	{Group: "kubecontrolplane.config.openshift.io", Version: "v1"},
+	{Group: "openshiftcontrolplane.config.openshift.io", Version: "v1"},
+
+	{Group: "controlplane.operator.openshift.io", Version: "v1alpha1"},
+	{Group: "imageregistry.operator.openshift.io", Version: "v1"},
+	{Group: "operator.openshift.io", Version: "v1alpha1"},
+	{Group: "operator.openshift.io", Version: "v1"},
+	{Group: "network.operator.openshift.io", Version: "v1"},
+	{Group: "samples.operator.openshift.io", Version: "v1"},
+
+	{Group: "cloud.network.openshift.io", Version: "v1"},
+
+	{Group: "apiserver.openshift.io", Version: "v1"},
+
+	{Group: "helm.openshift.io", Version: "v1beta1"},
 }
 
 func TestDescriberCoverage(t *testing.T) {
@@ -110,7 +140,13 @@ main:
 
 		_, ok := DescriberFor(gvk.GroupKind(), &rest.Config{}, fake.NewSimpleClientset(), "")
 		if !ok {
-			t.Errorf("missing describer for %v.  Check pkg/cmd/cli/describe/describer.go", apiType)
+			for _, exception := range MissingDescriberGroupCoverageExceptions {
+				if exception == gvk.GroupVersion() {
+					continue main
+				}
+			}
+
+			t.Errorf("missing describer for %v (%s).  Check pkg/cmd/cli/describe/describer.go", apiType, gvk)
 		}
 	}
 }
@@ -495,6 +531,193 @@ func TestDescribeImage(t *testing.T) {
 			}
 			for _, match := range tt.want {
 				if got := out; !regexp.MustCompile(match).MatchString(got) {
+					t.Errorf("%s\nshould contain %q", got, match)
+				}
+			}
+		})
+	}
+}
+
+func TestDescribeClusterQuota(t *testing.T) {
+	testStatus := &corev1.ResourceQuotaStatus{
+		Hard: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceCPU:            resource.MustParse("1"),
+			corev1.ResourceLimitsCPU:      resource.MustParse("2"),
+			corev1.ResourceLimitsMemory:   resource.MustParse("2G"),
+			corev1.ResourceMemory:         resource.MustParse("1G"),
+			corev1.ResourceRequestsCPU:    resource.MustParse("1"),
+			corev1.ResourceRequestsMemory: resource.MustParse("1G"),
+			corev1.ResourcePods:           resource.MustParse("1000"),
+		},
+		Used: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceCPU:            resource.MustParse("300m"),
+			corev1.ResourceLimitsCPU:      resource.MustParse("1"),
+			corev1.ResourceLimitsMemory:   resource.MustParse("0G"),
+			corev1.ResourceMemory:         resource.MustParse("100M"),
+			corev1.ResourceRequestsCPU:    resource.MustParse("500m"),
+			corev1.ResourceRequestsMemory: resource.MustParse("1000Ki"),
+			corev1.ResourcePods:           resource.MustParse("20"),
+		},
+	}
+
+	tests := []struct {
+		quota v1.ClusterResourceQuota
+		want  []string
+	}{
+		{
+			quota: v1.ClusterResourceQuota{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+				Spec: v1.ClusterResourceQuotaSpec{
+					Selector: v1.ClusterResourceQuotaSelector{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "test",
+							},
+						},
+					},
+				},
+				Status: v1.ClusterResourceQuotaStatus{
+					Namespaces: []v1.ResourceQuotaStatusByNamespace{
+						{
+							Namespace: "test",
+							Status:    *testStatus.DeepCopy(),
+						},
+					},
+					Total: *testStatus.DeepCopy(),
+				},
+			},
+			want: []string{
+				"Name:\\s+test",
+				"Namespace Selector:\\s+\\[\"test\"\\]",
+				"Label Selector:\\s+app=test",
+				"Resource\\s+Used\\s+Hard",
+				"cpu\\s+300m\\s+1",
+				"limits.cpu\\s+1\\s+2",
+				"limits.memory\\s+0\\s+2G",
+				"memory\\s+100M\\s+1G",
+				"pods\\s+20\\s+1k",
+				"requests.cpu\\s+500m\\s+1",
+				"requests.memory\\s+1024k\\s+1G",
+			},
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			out, err := DescribeClusterQuota(&tt.quota)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, match := range tt.want {
+				if got := out; !regexp.MustCompile(match).MatchString(got) {
+					t.Errorf("%s\nshould contain %q", got, match)
+				}
+			}
+		})
+	}
+}
+
+func Test_describeBuildVolumes(t *testing.T) {
+	var InvalidSourceType buildv1.BuildVolumeSourceType = "InvalidType"
+	tests := []struct {
+		name    string
+		volumes []buildv1.BuildVolume
+		want    []string
+	}{
+		{
+			name: "invalid source type",
+			volumes: []buildv1.BuildVolume{
+				{
+					Name: "my-secret-volume",
+					Source: buildv1.BuildVolumeSource{
+						Type: InvalidSourceType,
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: "my-secret",
+						},
+					},
+					Mounts: []buildv1.BuildVolumeMount{
+						{
+							DestinationPath: "/my/secret/destination/path",
+						},
+						{
+							DestinationPath: "/my/secret/destination/path/two",
+						},
+					},
+				},
+			},
+			want: []string{
+				"<InvalidSourceType: \"InvalidType\">",
+			},
+		},
+		{
+			name: "secret build volume",
+			volumes: []buildv1.BuildVolume{
+				{
+					Name: "my-secret-volume",
+					Source: buildv1.BuildVolumeSource{
+						Type: buildv1.BuildVolumeSourceTypeSecret,
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: "my-secret",
+						},
+					},
+					Mounts: []buildv1.BuildVolumeMount{
+						{
+							DestinationPath: "/my/secret/destination/path",
+						},
+						{
+							DestinationPath: "/my/secret/destination/path/two",
+						},
+					},
+				},
+			},
+			want: []string{
+				"my-secret-volume",
+				"my-secret",
+				"/my/secret/destination/path",
+				"/my/secret/destination/path/two",
+			},
+		},
+		{
+			name: "config map build volume",
+			volumes: []buildv1.BuildVolume{
+				{
+					Name: "my-configmap-volume",
+					Source: buildv1.BuildVolumeSource{
+						Type: buildv1.BuildVolumeSourceTypeConfigMap,
+						ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "my-configmap",
+							},
+						},
+					},
+					Mounts: []buildv1.BuildVolumeMount{
+						{
+							DestinationPath: "/my/configmap/destination/path",
+						},
+						{
+							DestinationPath: "/my/configmap/destination/path/two",
+						},
+					},
+				},
+			},
+			want: []string{
+				"my-configmap-volume",
+				"my-configmap",
+				"/my/configmap/destination/path",
+				"/my/configmap/destination/path/two",
+			},
+		},
+	}
+	for _, tt := range tests {
+		var b bytes.Buffer
+		out := tabwriter.NewWriter(&b, 0, 8, 0, '\t', 0)
+		t.Run(tt.name, func(t *testing.T) {
+			describeBuildVolumes(out, tt.volumes)
+			out.Flush()
+			for _, match := range tt.want {
+				if got := b.String(); !regexp.MustCompile(match).MatchString(got) {
 					t.Errorf("%s\nshould contain %q", got, match)
 				}
 			}

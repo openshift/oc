@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	"k8s.io/kubernetes/cmd/genutils"
 
 	"github.com/openshift/oc/pkg/cli"
 	mangen "github.com/openshift/oc/tools/genman/md2man"
@@ -23,7 +22,7 @@ func main() {
 	}
 
 	if strings.HasSuffix(os.Args[2], "oc") {
-		genCmdMan("oc", cli.NewOcCommand("oc", "oc", &bytes.Buffer{}, os.Stdout, ioutil.Discard))
+		genCmdMan("oc", cli.NewOcCommand(&bytes.Buffer{}, os.Stdout, ioutil.Discard))
 	} else {
 		fmt.Fprintf(os.Stderr, "Root command not specified (oc).")
 		os.Exit(1)
@@ -40,11 +39,23 @@ func genCmdMan(cmdName string, cmd *cobra.Command) {
 		os.Exit(1)
 	}
 
-	outDir, err := genutils.OutDir(path)
+	outDir, err := filepath.Abs(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to get output directory: %v\n", err)
 		os.Exit(1)
 	}
+
+	stat, err := os.Stat(outDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to get output directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	if !stat.IsDir() {
+		fmt.Fprintf(os.Stderr, "failed to get output directory: %v\n", err)
+		os.Exit(1)
+	}
+	outDir = outDir + "/"
 
 	// Set environment variables used by openshift so the output is consistent,
 	// regardless of where we run.

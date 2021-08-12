@@ -40,12 +40,12 @@ func NewPruneAuthOptions(streams genericclioptions.IOStreams) *PruneAuthOptions 
 }
 
 // NewCmdPruneRoles implements the OpenShift cli prune roles command.
-func NewCmdPruneAuth(f kcmdutil.Factory, name string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneAuth(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewPruneAuthOptions(streams)
 	cmd := &cobra.Command{
-		Use:   name,
-		Short: "Removes references to the specified roles, clusterroles, users, and groups.",
-		Long:  "Removes references to the specified roles, clusterroles, users, and groups.  Other types are ignored",
+		Use:   "auth",
+		Short: "Removes references to the specified roles, clusterroles, users, and groups",
+		Long:  "Removes references to the specified roles, clusterroles, users, and groups.  Other types are ignored.",
 
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))

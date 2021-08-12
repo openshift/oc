@@ -9,7 +9,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
@@ -30,7 +30,7 @@ const (
 
 var (
 	rsyncLong = templates.LongDesc(`
-		Copy local files to or from a pod container
+		Copy local files to or from a pod container.
 
 		This command will copy local files to or from a remote container.
 		It only copies the changed files using the rsync command from your OS.
@@ -43,14 +43,15 @@ var (
 
 		The following flags are passed to rsync by default:
 		--archive --no-owner --no-group --omit-dir-times --numeric-ids
-		`)
+	`)
 
 	rsyncExample = templates.Examples(`
-	  # Synchronize a local directory with a pod directory
-	  %[1]s ./local/dir/ POD:/remote/dir
+		# Synchronize a local directory with a pod directory
+		oc rsync ./local/dir/ POD:/remote/dir
 
-	  # Synchronize a pod directory with a local directory
-	  %[1]s POD:/remote/dir/ ./local/dir`)
+		# Synchronize a pod directory with a local directory
+		oc rsync POD:/remote/dir/ ./local/dir
+	`)
 
 	rsyncDefaultFlags = []string{"--archive", "--no-owner", "--no-group", "--omit-dir-times", "--numeric-ids"}
 )
@@ -109,14 +110,14 @@ func NewRsyncOptions(streams genericclioptions.IOStreams) *RsyncOptions {
 }
 
 // NewCmdRsync creates a new sync command
-func NewCmdRsync(name, parent string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRsync(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRsyncOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("%s SOURCE DESTINATION", name),
-		Short:   "Copy files between local filesystem and a pod",
+		Use:     "rsync SOURCE DESTINATION",
+		Short:   "Copy files between a local file system and a pod",
 		Long:    rsyncLong,
-		Example: fmt.Sprintf(rsyncExample, parent+" "+name),
+		Example: rsyncExample,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, c, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -130,8 +131,8 @@ func NewCmdRsync(name, parent string, f kcmdutil.Factory, streams genericcliopti
 	// Flags for rsync options, Must match rsync flag names
 	cmd.Flags().BoolVarP(&o.Quiet, "quiet", "q", false, "Suppress non-error messages")
 	cmd.Flags().BoolVar(&o.Delete, "delete", false, "If true, delete files not present in source")
-	cmd.Flags().StringSliceVar(&o.RsyncExclude, "exclude", nil, "If true, exclude files matching specified pattern")
-	cmd.Flags().StringSliceVar(&o.RsyncInclude, "include", nil, "If true, include files matching specified pattern")
+	cmd.Flags().StringSliceVar(&o.RsyncExclude, "exclude", nil, "When specified, exclude files matching pattern")
+	cmd.Flags().StringSliceVar(&o.RsyncInclude, "include", nil, "When specified, include files matching pattern")
 	cmd.Flags().BoolVar(&o.RsyncProgress, "progress", false, "If true, show progress during transfer")
 	cmd.Flags().BoolVar(&o.RsyncNoPerms, "no-perms", false, "If true, do not transfer permissions")
 	cmd.Flags().BoolVarP(&o.Watch, "watch", "w", false, "Watch directory for changes and resync automatically")

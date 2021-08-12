@@ -2,11 +2,12 @@ package rsync
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
 	"runtime"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -133,6 +134,6 @@ type podAPIChecker struct {
 
 // CheckPods will check if pods exists in the provided context
 func (p podAPIChecker) CheckPod() error {
-	_, err := p.client.CoreV1().Pods(p.namespace).Get(p.podName, metav1.GetOptions{})
+	_, err := p.client.CoreV1().Pods(p.namespace).Get(context.TODO(), p.podName, metav1.GetOptions{})
 	return err
 }

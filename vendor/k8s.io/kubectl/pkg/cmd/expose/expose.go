@@ -21,10 +21,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/unstructuredscheme"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,7 +31,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/dynamic"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/generate"
 	generateversioned "k8s.io/kubectl/pkg/generate/versioned"
@@ -44,9 +42,9 @@ import (
 )
 
 var (
-	exposeResources = `pod (po), service (svc), replicationcontroller (rc), deployment (deploy), replicaset (rs)`
+	exposeResources = i18n.T(`pod (po), service (svc), replicationcontroller (rc), deployment (deploy), replicaset (rs)`)
 
-	exposeLong = templates.LongDesc(`
+	exposeLong = templates.LongDesc(i18n.T(`
 		Expose a resource as a new Kubernetes service.
 
 		Looks up a deployment, service, replica set, replication controller or pod by name and uses the selector
@@ -58,13 +56,13 @@ var (
 
 		Possible resources include (case insensitive):
 
-		` + exposeResources)
+		`) + exposeResources)
 
 	exposeExample = templates.Examples(i18n.T(`
-		# Create a service for a replicated nginx, which serves on port 80 and connects to the containers on port 8000.
+		# Create a service for a replicated nginx, which serves on port 80 and connects to the containers on port 8000
 		kubectl expose rc nginx --port=80 --target-port=8000
 
-		# Create a service for a replication controller identified by type and name specified in "nginx-controller.yaml", which serves on port 80 and connects to the containers on port 8000.
+		# Create a service for a replication controller identified by type and name specified in "nginx-controller.yaml", which serves on port 80 and connects to the containers on port 8000
 		kubectl expose -f nginx-controller.yaml --port=80 --target-port=8000
 
 		# Create a service for a pod valid-pod, which serves on port 444 with the name "frontend"
@@ -76,10 +74,10 @@ var (
 		# Create a service for a replicated streaming application on port 4100 balancing UDP traffic and named 'video-stream'.
 		kubectl expose rc streamer --port=4100 --protocol=UDP --name=video-stream
 
-		# Create a service for a replicated nginx using replica set, which serves on port 80 and connects to the containers on port 8000.
+		# Create a service for a replicated nginx using replica set, which serves on port 80 and connects to the containers on port 8000
 		kubectl expose rs nginx --port=80 --target-port=8000
 
-		# Create a service for an nginx deployment, which serves on port 80 and connects to the containers on port 8000.
+		# Create a service for an nginx deployment, which serves on port 80 and connects to the containers on port 8000
 		kubectl expose deployment nginx --port=80 --target-port=8000`))
 )
 
@@ -89,8 +87,11 @@ type ExposeServiceOptions struct {
 	PrintFlags      *genericclioptions.PrintFlags
 	PrintObj        printers.ResourcePrinterFunc
 
-	DryRun           bool
+	DryRunStrategy   cmdutil.DryRunStrategy
+	DryRunVerifier   *resource.DryRunVerifier
 	EnforceNamespace bool
+
+	fieldManager string
 
 	Generators                func(string) map[string]generate.Generator
 	CanBeExposed              polymorphichelpers.CanBeExposedFunc
@@ -101,8 +102,8 @@ type ExposeServiceOptions struct {
 	Namespace string
 	Mapper    meta.RESTMapper
 
-	DynamicClient dynamic.Interface
-	Builder       *resource.Builder
+	Builder          *resource.Builder
+	ClientForMapping func(mapping *meta.RESTMapping) (resource.RESTClient, error)
 
 	Recorder genericclioptions.Recorder
 	genericclioptions.IOStreams
@@ -130,14 +131,14 @@ func NewCmdExposeService(f cmdutil.Factory, streams genericclioptions.IOStreams)
 	cmd := &cobra.Command{
 		Use:                   "expose (-f FILENAME | TYPE NAME) [--port=port] [--protocol=TCP|UDP|SCTP] [--target-port=number-or-name] [--name=name] [--external-ip=external-ip-of-service] [--type=type]",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Take a replication controller, service, deployment or pod and expose it as a new Kubernetes Service"),
+		Short:                 i18n.T("Take a replication controller, service, deployment or pod and expose it as a new Kubernetes service"),
 		Long:                  exposeLong,
 		Example:               exposeExample,
+		ValidArgsFunction:     util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd))
 			cmdutil.CheckErr(o.RunExpose(cmd, args))
 		},
-		ValidArgs: validArgs,
 	}
 
 	o.RecordFlags.AddFlags(cmd)
@@ -158,6 +159,7 @@ func NewCmdExposeService(f cmdutil.Factory, streams genericclioptions.IOStreams)
 	cmd.Flags().String("name", "", i18n.T("The name for the newly created object."))
 	cmd.Flags().String("session-affinity", "", i18n.T("If non-empty, set the session affinity for the service to this; legal values: 'None', 'ClientIP'"))
 	cmd.Flags().String("cluster-ip", "", i18n.T("ClusterIP to be assigned to the service. Leave empty to auto-allocate, or set to 'None' to create a headless service."))
+	cmdutil.AddFieldManagerFlagVar(cmd, &o.fieldManager, "kubectl-expose")
 
 	usage := "identifying the resource to expose a service"
 	cmdutil.AddFilenameOptionFlags(cmd, &o.FilenameOptions, usage)
@@ -167,11 +169,18 @@ func NewCmdExposeService(f cmdutil.Factory, streams genericclioptions.IOStreams)
 }
 
 func (o *ExposeServiceOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
-	o.DryRun = cmdutil.GetDryRunFlag(cmd)
-
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	var err error
+	o.DryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+	dynamicClient, err := f.DynamicClient()
+	if err != nil {
+		return err
+	}
+	o.DryRunVerifier = resource.NewDryRunVerifier(dynamicClient, f.OpenAPIGetter())
+
+	cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	printer, err := o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -184,13 +193,9 @@ func (o *ExposeServiceOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) e
 		return err
 	}
 
-	o.DynamicClient, err = f.DynamicClient()
-	if err != nil {
-		return err
-	}
-
 	o.Generators = generateversioned.GeneratorFn
 	o.Builder = f.NewBuilder()
+	o.ClientForMapping = f.ClientForMapping
 	o.CanBeExposed = polymorphichelpers.CanBeExposedFn
 	o.MapBasedSelectorForObject = polymorphichelpers.MapBasedSelectorForObjectFn
 	o.ProtocolsForObject = polymorphichelpers.ProtocolsForObjectFn
@@ -325,7 +330,10 @@ func (o *ExposeServiceOptions) RunExpose(cmd *cobra.Command, args []string) erro
 			klog.V(4).Infof("error recording current command: %v", err)
 		}
 
-		if o.DryRun {
+		if o.DryRunStrategy == cmdutil.DryRunClient {
+			if meta, err := meta.Accessor(object); err == nil && o.EnforceNamespace {
+				meta.SetNamespace(o.Namespace)
+			}
 			return o.PrintObj(object, o.Out)
 		}
 		if err := util.CreateOrUpdateAnnotation(cmdutil.GetFlagBool(cmd, cmdutil.ApplyAnnotationsFlag), object, scheme.DefaultJSONEncoder()); err != nil {
@@ -344,8 +352,21 @@ func (o *ExposeServiceOptions) RunExpose(cmd *cobra.Command, args []string) erro
 		if err != nil {
 			return err
 		}
+		if o.DryRunStrategy == cmdutil.DryRunServer {
+			if err := o.DryRunVerifier.HasSupport(objMapping.GroupVersionKind); err != nil {
+				return err
+			}
+		}
 		// Serialize the object with the annotation applied.
-		actualObject, err := o.DynamicClient.Resource(objMapping.Resource).Namespace(o.Namespace).Create(asUnstructured, metav1.CreateOptions{})
+		client, err := o.ClientForMapping(objMapping)
+		if err != nil {
+			return err
+		}
+		actualObject, err := resource.
+			NewHelper(client, objMapping).
+			DryRun(o.DryRunStrategy == cmdutil.DryRunServer).
+			WithFieldManager(o.fieldManager).
+			Create(o.Namespace, false, asUnstructured)
 		if err != nil {
 			return err
 		}

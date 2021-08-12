@@ -1,8 +1,8 @@
 package rollback
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"sort"
 	"strings"
 
@@ -27,9 +27,9 @@ import (
 
 var (
 	rollbackLong = templates.LongDesc(`
-		Revert an application back to a previous deployment
+		Revert an application back to a previous deployment.
 
-		When you run this command your deployment configuration will be updated to
+		When you run this command, your deployment configuration will be updated to
 		match a previous deployment. By default only the pod and container
 		configuration will be changed and scaling or trigger settings will be left as-
 		is. Note that environment variables and volumes are included in rollbacks, so
@@ -39,28 +39,28 @@ var (
 		Any image triggers present in the rolled back configuration will be disabled
 		with a warning. This is to help prevent your rolled back deployment from being
 		replaced by a triggered deployment soon after your rollback. To re-enable the
-		triggers, use the 'deploy' command.
+		triggers, use the 'set triggers' command.
 
-		If you would like to review the outcome of the rollback, pass '--dry-run' to print
+		If you want to review the outcome of the rollback, pass '--dry-run' to print
 		a human-readable representation of the updated deployment configuration instead of
-		executing the rollback. This is useful if you're not quite sure what the outcome
+		executing the rollback. This is useful if you're not sure what the outcome
 		will be.`)
 
 	rollbackExample = templates.Examples(`
-		# Perform a rollback to the last successfully completed deployment for a deploymentconfig
-	  %[1]s rollback frontend
+		# Perform a rollback to the last successfully completed deployment for a deployment config
+		oc rollback frontend
 
-	  # See what a rollback to version 3 will look like, but don't perform the rollback
-	  %[1]s rollback frontend --to-version=3 --dry-run
+		# See what a rollback to version 3 will look like, but do not perform the rollback
+		oc rollback frontend --to-version=3 --dry-run
 
-	  # Perform a rollback to a specific deployment
-	  %[1]s rollback frontend-2
+		# Perform a rollback to a specific deployment
+		oc rollback frontend-2
 
-	  # Perform the rollback manually by piping the JSON of the new config back to %[1]s
-	  %[1]s rollback frontend -o json | %[1]s replace dc/frontend -f -
+		# Perform the rollback manually by piping the JSON of the new config back to oc
+		oc rollback frontend -o json | oc replace dc/frontend -f -
 
-	  # Print the updated deployment configuration in JSON format instead of performing the rollback
-	  %[1]s rollback frontend -o json`)
+		# Print the updated deployment configuration in JSON format instead of performing the rollback
+		oc rollback frontend -o json`)
 )
 
 // RollbackOptions contains all the necessary state to perform a rollback.
@@ -98,44 +98,36 @@ func NewRollbackOptions(streams genericclioptions.IOStreams) *RollbackOptions {
 }
 
 // NewCmdRollback creates a CLI rollback command.
-func NewCmdRollback(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	opts := NewRollbackOptions(streams)
+func NewCmdRollback(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewRollbackOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "rollback (DEPLOYMENTCONFIG | DEPLOYMENT)",
 		Short:   "Revert part of an application back to a previous deployment",
 		Long:    rollbackLong,
-		Example: fmt.Sprintf(rollbackExample, fullName),
+		Example: rollbackExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := opts.Complete(f, cmd, args, streams.Out); err != nil {
-				kcmdutil.CheckErr(kcmdutil.UsageErrorf(cmd, err.Error()))
-			}
-
-			if err := opts.Validate(); err != nil {
-				kcmdutil.CheckErr(kcmdutil.UsageErrorf(cmd, err.Error()))
-			}
-
-			if err := opts.Run(); err != nil {
-				kcmdutil.CheckErr(err)
-			}
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			kcmdutil.CheckErr(o.Validate())
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 
-	opts.PrintFlags.AddFlags(cmd)
+	o.PrintFlags.AddFlags(cmd)
 
-	cmd.Flags().BoolVar(&opts.IncludeTriggers, "change-triggers", false, "If true, include the previous deployment's triggers in the rollback")
-	cmd.Flags().BoolVar(&opts.IncludeStrategy, "change-strategy", false, "If true, include the previous deployment's strategy in the rollback")
-	cmd.Flags().BoolVar(&opts.IncludeScalingSettings, "change-scaling-settings", false, "If true, include the previous deployment's replicationController replica count and selector in the rollback")
-	cmd.Flags().BoolVarP(&opts.DryRun, "dry-run", "d", false, "Instead of performing the rollback, describe what the rollback will look like in human-readable form")
+	cmd.Flags().BoolVar(&o.IncludeTriggers, "change-triggers", o.IncludeTriggers, "If true, include the previous deployment's triggers in the rollback")
+	cmd.Flags().BoolVar(&o.IncludeStrategy, "change-strategy", o.IncludeStrategy, "If true, include the previous deployment's strategy in the rollback")
+	cmd.Flags().BoolVar(&o.IncludeScalingSettings, "change-scaling-settings", o.IncludeScalingSettings, "If true, include the previous deployment's replicationController replica count and selector in the rollback")
+	cmd.Flags().BoolVarP(&o.DryRun, "dry-run", "d", false, "Instead of performing the rollback, describe what the rollback will look like in human-readable form")
 	cmd.MarkFlagFilename("template")
 
-	cmd.Flags().Int64Var(&opts.DesiredVersion, "to-version", opts.DesiredVersion, "A config version to rollback to. Specifying version 0 is the same as omitting a version (the version will be auto-detected). This option is ignored when specifying a deployment.")
+	cmd.Flags().Int64Var(&o.DesiredVersion, "to-version", o.DesiredVersion, "A config version to rollback to. Specifying version 0 is the same as omitting a version (the version will be auto-detected). This option is ignored when specifying a deployment.")
 
 	return cmd
 }
 
 // Complete turns a partially defined RollbackActions into a solvent structure
 // which can be validated and used for a rollback.
-func (o *RollbackOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string, out io.Writer) error {
+func (o *RollbackOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	// Extract basic flags.
 	if len(args) == 1 {
 		o.TargetName = args[0]
@@ -204,7 +196,7 @@ func (o *RollbackOptions) Run() error {
 	switch r := obj.(type) {
 	case *corev1.ReplicationController:
 		dcName := appsutil.DeploymentConfigNameFor(r)
-		dc, err := o.appsClient.DeploymentConfigs(r.Namespace).Get(dcName, metav1.GetOptions{})
+		dc, err := o.appsClient.DeploymentConfigs(r.Namespace).Get(context.TODO(), dcName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -247,7 +239,7 @@ func (o *RollbackOptions) Run() error {
 			IncludeReplicationMeta: o.IncludeScalingSettings,
 		},
 	}
-	newConfig, err := o.appsClient.DeploymentConfigs(o.Namespace).Rollback(configName, rollback)
+	newConfig, err := o.appsClient.DeploymentConfigs(o.Namespace).Rollback(context.TODO(), configName, rollback, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -262,7 +254,7 @@ func (o *RollbackOptions) Run() error {
 	}
 
 	// Perform a real rollback.
-	rolledback, err := o.appsClient.DeploymentConfigs(newConfig.Namespace).Update(newConfig)
+	rolledback, err := o.appsClient.DeploymentConfigs(newConfig.Namespace).Update(context.TODO(), newConfig, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -342,7 +334,7 @@ func (o *RollbackOptions) findResource(targetName string) (runtime.Object, *meta
 // version will be returned.
 func (o *RollbackOptions) findTargetDeployment(config *appsv1.DeploymentConfig, desiredVersion int64) (*corev1.ReplicationController, error) {
 	// Find deployments for the config sorted by version descending.
-	deploymentList, err := o.kubeClient.CoreV1().ReplicationControllers(config.Namespace).List(metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(config.Name).String()})
+	deploymentList, err := o.kubeClient.CoreV1().ReplicationControllers(config.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(config.Name).String()})
 	if err != nil {
 		return nil, err
 	}

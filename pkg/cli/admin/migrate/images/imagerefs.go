@@ -1,6 +1,7 @@
 package images
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -9,13 +10,13 @@ import (
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/util/templates"
-	"k8s.io/kubernetes/pkg/credentialprovider"
 
 	buildv1 "github.com/openshift/api/build/v1"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -23,6 +24,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/reference"
 	imageref "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/admin/migrate"
+	"github.com/openshift/oc/pkg/helpers/image/credentialprovider"
 )
 
 var (
@@ -52,23 +54,25 @@ var (
 		* secrets (docker)
 
 		Only images, imagestreams, and secrets are updated by default. Updating images and image
-		streams requires administrative privileges.`)
+		streams requires administrative privileges.
+	`)
 
 	internalMigrateImagesExample = templates.Examples(`
 		# Perform a dry-run of migrating all "docker.io" references to "myregistry.com"
-	  %[1]s docker.io/*=myregistry.com/*
+		oc adm migrate image-references docker.io/*=myregistry.com/*
 
-	  # To actually perform the migration, the confirm flag must be appended
-	  %[1]s docker.io/*=myregistry.com/* --confirm
+		# To actually perform the migration, the confirm flag must be appended
+		oc adm migrate image-references docker.io/*=myregistry.com/* --confirm
 
-	  # To see more details of what will be migrated, use the loglevel and output flags
-	  %[1]s docker.io/*=myregistry.com/* --loglevel=2 -o yaml
+		# To see more details of what will be migrated, use the loglevel and output flags
+		oc adm migrate image-references docker.io/*=myregistry.com/* --loglevel=2 -o yaml
 
-	  # Migrate from a service IP to an internal service DNS name
-	  %[1]s 172.30.1.54/*=registry.openshift.svc.cluster.local/*
+		# Migrate from a service IP to an internal service DNS name
+		oc adm migrate image-references 172.30.1.54/*=registry.openshift.svc.cluster.local/*
 
-	  # Migrate from a service IP to an internal service DNS name for all deployment configs and builds
-	  %[1]s 172.30.1.54/*=registry.openshift.svc.cluster.local/* --include=buildconfigs,deploymentconfigs`)
+		# Migrate from a service IP to an internal service DNS name for all deployment configs and builds
+		oc adm migrate image-references 172.30.1.54/*=registry.openshift.svc.cluster.local/* --include=buildconfigs,deploymentconfigs
+	`)
 )
 
 type MigrateImageReferenceOptions struct {
@@ -86,13 +90,13 @@ func NewMigrateImageReferenceOptions(streams genericclioptions.IOStreams) *Migra
 }
 
 // NewCmdMigrateImageReferences implements a MigrateImages command
-func NewCmdMigrateImageReferences(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMigrateImageReferences(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateImageReferenceOptions(streams)
 	cmd := &cobra.Command{
-		Use:        fmt.Sprintf("%s REGISTRY/NAME=REGISTRY/NAME [...]", name),
+		Use:        "image-references REGISTRY/NAME=REGISTRY/NAME [...]",
 		Short:      "Update embedded Docker image references",
 		Long:       internalMigrateImagesLong,
-		Example:    fmt.Sprintf(internalMigrateImagesExample, fullName),
+		Example:    internalMigrateImagesExample,
 		Deprecated: "migration of content is managed automatically in OpenShift 4.x",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -165,7 +169,7 @@ func (o *MigrateImageReferenceOptions) save(info *resource.Info, reporter migrat
 	case *imagev1.ImageStream:
 		// update status first so that a subsequent spec update won't pull incorrect values
 		if reporter.(imageChangeInfo).status {
-			updated, err := o.Client.ImageStreams(t.Namespace).UpdateStatus(t)
+			updated, err := o.Client.ImageStreams(t.Namespace).UpdateStatus(context.TODO(), t, metav1.UpdateOptions{})
 			if err != nil {
 				return migrate.DefaultRetriable(info, err)
 			}
@@ -173,7 +177,7 @@ func (o *MigrateImageReferenceOptions) save(info *resource.Info, reporter migrat
 			return migrate.ErrRecalculate
 		}
 		if reporter.(imageChangeInfo).spec {
-			updated, err := o.Client.ImageStreams(t.Namespace).Update(t)
+			updated, err := o.Client.ImageStreams(t.Namespace).Update(context.TODO(), t, metav1.UpdateOptions{})
 			if err != nil {
 				return migrate.DefaultRetriable(info, err)
 			}
@@ -234,7 +238,7 @@ func (o *MigrateImageReferenceOptions) transform(obj runtime.Object) (migrate.Re
 			t.Data[corev1.DockerConfigKey] = data
 			return migrate.ReporterBool(true), nil
 		case corev1.SecretTypeDockerConfigJson:
-			var v credentialprovider.DockerConfigJson
+			var v credentialprovider.DockerConfigJSON
 			if err := json.Unmarshal(t.Data[corev1.DockerConfigJsonKey], &v); err != nil {
 				return nil, err
 			}

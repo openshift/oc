@@ -16,9 +16,9 @@ type CreateSubcommandOptions struct {
 	// PrintFlags holds options necessary for obtaining a printer
 	PrintFlags *genericclioptions.PrintFlags
 	// Name of resource being created
-	Name string
-	// DryRun is true if the command should be simulated but not run against the server
-	DryRun bool
+	Name             string
+	DryRunStrategy   cmdutil.DryRunStrategy
+	CreateAnnotation bool
 
 	Namespace        string
 	EnforceNamespace bool
@@ -33,22 +33,29 @@ func NewCreateSubcommandOptions(ioStreams genericclioptions.IOStreams) *CreateSu
 	}
 }
 
+func (o *CreateSubcommandOptions) AddFlags(cmd *cobra.Command) {
+	o.PrintFlags.AddFlags(cmd)
+	cmdutil.AddApplyAnnotationVarFlags(cmd, &o.CreateAnnotation)
+}
+
 func (o *CreateSubcommandOptions) Complete(f genericclioptions.RESTClientGetter, cmd *cobra.Command, args []string) error {
 	name, err := NameFromCommandArgs(cmd, args)
 	if err != nil {
 		return err
 	}
-
 	o.Name = name
+
 	o.Namespace, o.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return err
 	}
 
-	o.DryRun = cmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+
+	cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err

@@ -1,6 +1,7 @@
 package serviceaccounts
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -14,32 +15,29 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
-	sautil "k8s.io/kubernetes/pkg/serviceaccount"
 )
 
 const (
-	CreateKubeconfigRecommendedName = "create-kubeconfig"
-
 	createKubeconfigShort = `Generate a kubeconfig file for a service account`
-
-	createKubeconfigUsage = `%s SA-NAME`
 )
 
 var (
 	createKubeconfigLong = templates.LongDesc(`
-    Generate a kubeconfig file that will utilize this service account.
+		Generate a kubeconfig file that will utilize this service account.
 
-    The kubeconfig file will reference the service account token and use the current server,
-    namespace, and cluster contact info. If the service account has multiple tokens, the
-    first token found will be returned. The generated file will be output to STDOUT.
+		The kubeconfig file will reference the service account token and use the current server,
+		namespace, and cluster contact info. If the service account has multiple tokens, the
+		first token found will be returned. The generated file will be output to STDOUT.
 
-    Service account API tokens are used by service accounts to authenticate to the API.
-    Client actions using a service account token will be executed as if the service account
-    itself were making the actions.`)
+		Service account API tokens are used by service accounts to authenticate to the API.
+		Client actions using a service account token will be executed as if the service account
+		itself were making the actions.
+	`)
 
 	createKubeconfigExamples = templates.Examples(`
-    # Create a kubeconfig file for service account 'default'
-    %[1]s 'default' > default.kubeconfig`)
+		# Create a kubeconfig file for service account 'default'
+		oc serviceaccounts create-kubeconfig 'default' > default.kubeconfig
+	`)
 )
 
 type CreateKubeconfigOptions struct {
@@ -48,6 +46,7 @@ type CreateKubeconfigOptions struct {
 	SecretsClient    corev1client.SecretInterface
 	RawConfig        clientcmdapi.Config
 	ContextNamespace string
+	Context          string
 
 	genericclioptions.IOStreams
 }
@@ -58,14 +57,14 @@ func NewCreateKubeconfigOptions(streams genericclioptions.IOStreams) *CreateKube
 	}
 }
 
-func NewCommandCreateKubeconfig(name, fullname string, f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateKubeconfig(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	options := NewCreateKubeconfigOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf(createKubeconfigUsage, name),
+		Use:     "create-kubeconfig NAME",
 		Short:   createKubeconfigShort,
 		Long:    createKubeconfigLong,
-		Example: fmt.Sprintf(createKubeconfigExamples, fullname),
+		Example: createKubeconfigExamples,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(options.Complete(args, f, cmd))
 			cmdutil.CheckErr(options.Validate())
@@ -80,6 +79,12 @@ func (o *CreateKubeconfigOptions) Complete(args []string, f cmdutil.Factory, cmd
 	if len(args) != 1 {
 		return cmdutil.UsageErrorf(cmd, fmt.Sprintf("expected one service account name as an argument, got %q", args))
 	}
+	context, err := cmd.Flags().GetString("context")
+	if err != nil {
+		return fmt.Errorf("unable to get value for --context flag: %v", err)
+	}
+
+	o.Context = context
 
 	o.SAName = args[0]
 
@@ -128,24 +133,31 @@ func (o *CreateKubeconfigOptions) Validate() error {
 }
 
 func (o *CreateKubeconfigOptions) Run() error {
-	serviceAccount, err := o.SAClient.Get(o.SAName, metav1.GetOptions{})
+	serviceAccount, err := o.SAClient.Get(context.TODO(), o.SAName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, reference := range serviceAccount.Secrets {
-		secret, err := o.SecretsClient.Get(reference.Name, metav1.GetOptions{})
+		secret, err := o.SecretsClient.Get(context.TODO(), reference.Name, metav1.GetOptions{})
 		if err != nil {
 			continue
 		}
 
-		if sautil.IsServiceAccountToken(secret, serviceAccount) {
+		if isServiceAccountToken(secret, serviceAccount) {
 			token, exists := secret.Data[corev1.ServiceAccountTokenKey]
 			if !exists {
 				return fmt.Errorf("service account token %q for service account %q did not contain token data", secret.Name, serviceAccount.Name)
 			}
 
+			// It's assumed o.RawConfig is only read here since MinifyConfig modifies
+			// the list of contexts and reduces it to a single context given by CurrentContext
+			// field. Thus, it's safe to modify cfg.CurrentContext here.
 			cfg := &o.RawConfig
+			if o.Context != "" {
+				cfg.CurrentContext = o.Context
+			}
+
 			if err := clientcmdapi.MinifyConfig(cfg); err != nil {
 				return fmt.Errorf("invalid configuration, unable to create new config file: %v", err)
 			}

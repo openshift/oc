@@ -1,6 +1,7 @@
 package builds
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -18,22 +19,22 @@ import (
 	buildv1client "github.com/openshift/client-go/build/clientset/versioned/typed/build/v1"
 )
 
-const PruneBuildsRecommendedName = "builds"
-
 var (
 	buildsLongDesc = templates.LongDesc(`
-		Prune old completed and failed builds
+		Prune old completed and failed builds.
 
 		By default, the prune operation performs a dry run making no changes to internal registry. A
-		--confirm flag is needed for changes to be effective.`)
+		--confirm flag is needed for changes to be effective.
+	`)
 
 	buildsExample = templates.Examples(`
 		# Dry run deleting older completed and failed builds and also including
-	  # all builds whose associated BuildConfig no longer exists
-	  %[1]s %[2]s --orphans
+		# all builds whose associated build config no longer exists
+		oc adm prune builds --orphans
 
-	  # To actually perform the prune operation, the confirm flag must be appended
-	  %[1]s %[2]s --orphans --confirm`)
+		# To actually perform the prune operation, the confirm flag must be appended
+		oc adm prune builds --orphans --confirm
+	`)
 )
 
 // PruneBuildsOptions holds all the required options for pruning builds.
@@ -62,13 +63,13 @@ func NewPruneBuildsOptions(streams genericclioptions.IOStreams) *PruneBuildsOpti
 }
 
 // NewCmdPruneBuilds implements the OpenShift cli prune builds command.
-func NewCmdPruneBuilds(f kcmdutil.Factory, parentName, name string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneBuilds(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewPruneBuildsOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
+		Use:     "builds",
 		Short:   "Remove old completed and failed builds",
 		Long:    buildsLongDesc,
-		Example: fmt.Sprintf(buildsExample, parentName, name),
+		Example: buildsExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -129,7 +130,7 @@ func (o PruneBuildsOptions) Validate() error {
 
 // Run contains all the necessary functionality for the OpenShift cli prune builds command.
 func (o PruneBuildsOptions) Run() error {
-	buildConfigList, err := o.BuildClient.BuildConfigs(o.Namespace).List(metav1.ListOptions{})
+	buildConfigList, err := o.BuildClient.BuildConfigs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -138,7 +139,7 @@ func (o PruneBuildsOptions) Run() error {
 		buildConfigs = append(buildConfigs, &buildConfigList.Items[i])
 	}
 
-	buildList, err := o.BuildClient.Builds(o.Namespace).List(metav1.ListOptions{})
+	buildList, err := o.BuildClient.Builds(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

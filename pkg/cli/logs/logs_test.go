@@ -7,12 +7,12 @@ import (
 
 	"github.com/spf13/pflag"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/logs"
 
-	appsv1 "github.com/openshift/api/apps/v1"
 	buildv1 "github.com/openshift/api/build/v1"
 	buildfake "github.com/openshift/client-go/build/clientset/versioned/fake"
 )
@@ -21,7 +21,7 @@ import (
 func TestLogsFlagParity(t *testing.T) {
 	streams := genericclioptions.NewTestIOStreamsDiscard()
 	kubeCmd := logs.NewCmdLogs(nil, streams)
-	originCmd := NewCmdLogs("oc", "logs", nil, streams)
+	originCmd := NewCmdLogs(nil, streams)
 
 	kubeCmd.LocalFlags().VisitAll(func(kubeFlag *pflag.Flag) {
 		originFlag := originCmd.LocalFlags().Lookup(kubeFlag.Name)
@@ -34,15 +34,6 @@ func TestLogsFlagParity(t *testing.T) {
 			t.Errorf("flag %v %v does not match %v", kubeFlag.Name, kubeFlag, originFlag)
 		}
 	})
-}
-
-type fakeWriter struct {
-	data []byte
-}
-
-func (f *fakeWriter) Write(p []byte) (n int, err error) {
-	f.data = p
-	return len(p), nil
 }
 
 func TestRunLogForPipelineStrategy(t *testing.T) {
@@ -89,15 +80,15 @@ func TestRunLogForPipelineStrategy(t *testing.T) {
 
 	for _, tc := range testCases {
 		o := &LogsOptions{
-			IOStreams: streams,
-			KubeLogOptions: &logs.LogsOptions{
+			LogsOptions: &logs.LogsOptions{
 				IOStreams: streams,
 				Object:    tc.o,
 				Namespace: "foo",
+				Options:   &corev1.PodLogOptions{},
 			},
 			Client: fakebc.BuildV1(),
 		}
-		if err := o.runLogPipeline(); err != nil {
+		if err := o.RunLog(); err != nil {
 			t.Errorf("%#v: RunLog error %v", tc.o, err)
 		}
 		if !strings.Contains(out.String(), "https://foo") {
@@ -105,71 +96,4 @@ func TestRunLogForPipelineStrategy(t *testing.T) {
 		}
 	}
 
-}
-
-func TestIsPipelineBuild(t *testing.T) {
-	testCases := []struct {
-		o          runtime.Object
-		isPipeline bool
-	}{
-		{
-			o: &buildv1.Build{
-				Spec: buildv1.BuildSpec{
-					CommonSpec: buildv1.CommonSpec{
-						Strategy: buildv1.BuildStrategy{
-							JenkinsPipelineStrategy: &buildv1.JenkinsPipelineBuildStrategy{},
-						},
-					},
-				},
-			},
-			isPipeline: true,
-		},
-		{
-			o: &buildv1.Build{
-				Spec: buildv1.BuildSpec{
-					CommonSpec: buildv1.CommonSpec{
-						Strategy: buildv1.BuildStrategy{
-							SourceStrategy: &buildv1.SourceBuildStrategy{},
-						},
-					},
-				},
-			},
-			isPipeline: false,
-		},
-		{
-			o: &buildv1.BuildConfig{
-				Spec: buildv1.BuildConfigSpec{
-					CommonSpec: buildv1.CommonSpec{
-						Strategy: buildv1.BuildStrategy{
-							JenkinsPipelineStrategy: &buildv1.JenkinsPipelineBuildStrategy{},
-						},
-					},
-				},
-			},
-			isPipeline: true,
-		},
-		{
-			o: &buildv1.BuildConfig{
-				Spec: buildv1.BuildConfigSpec{
-					CommonSpec: buildv1.CommonSpec{
-						Strategy: buildv1.BuildStrategy{
-							DockerStrategy: &buildv1.DockerBuildStrategy{},
-						},
-					},
-				},
-			},
-			isPipeline: false,
-		},
-		{
-			o:          &appsv1.DeploymentConfig{},
-			isPipeline: false,
-		},
-	}
-
-	for _, tc := range testCases {
-		isPipeline, _, _, _, _ := isPipelineBuild(tc.o)
-		if isPipeline != tc.isPipeline {
-			t.Errorf("%#v, unexpected results expected isPipeline %v returned isPipeline %v", tc.o, tc.isPipeline, isPipeline)
-		}
-	}
 }

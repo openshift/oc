@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -59,7 +60,7 @@ func resolveImagePullSpec(imageClient imagetypedclient.ImageV1Interface, source,
 	dockerImageReference := ""
 
 	if isImageStreamTag(source) {
-		if resolved, err := imageClient.ImageStreamTags(namespace).Get(image, metav1.GetOptions{}); err != nil {
+		if resolved, err := imageClient.ImageStreamTags(namespace).Get(context.TODO(), image, metav1.GetOptions{}); err != nil {
 			return "", fmt.Errorf("failed to get image stream tag %q: %v", image, err)
 		} else {
 			dockerImageReference = resolved.Image.DockerImageReference
@@ -67,7 +68,7 @@ func resolveImagePullSpec(imageClient imagetypedclient.ImageV1Interface, source,
 	}
 
 	if isImageStreamImage(source) {
-		if resolved, err := imageClient.ImageStreamImages(namespace).Get(image, metav1.GetOptions{}); err != nil {
+		if resolved, err := imageClient.ImageStreamImages(namespace).Get(context.TODO(), image, metav1.GetOptions{}); err != nil {
 			return "", fmt.Errorf("failed to get image stream image %q: %v", image, err)
 		} else {
 			dockerImageReference = resolved.Image.DockerImageReference

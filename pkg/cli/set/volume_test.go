@@ -257,9 +257,9 @@ func TestAddRemoveVolumeWithExistingClaim(t *testing.T) {
 
 func TestCreateClaim(t *testing.T) {
 	tests := []struct {
-		name          string
-		addOpts       *AddVolumeOptions
-		expAnnotation string
+		name     string
+		addOpts  *AddVolumeOptions
+		expClass string
 	}{
 		{
 			"Create ClaimClass with a value",
@@ -300,14 +300,20 @@ func TestCreateClaim(t *testing.T) {
 
 	for _, testCase := range tests {
 		pvc := testCase.addOpts.createClaim()
-		if testCase.addOpts.ClassChanged && len(pvc.Annotations) == 0 {
-			t.Errorf("%s: Expected storage class annotation", testCase.name)
-		} else if !testCase.addOpts.ClassChanged && len(pvc.Annotations) != 0 {
-			t.Errorf("%s: Unexpected storage class annotation", testCase.name)
-		}
 
-		if pvc.Annotations[storageAnnClass] != testCase.expAnnotation {
-			t.Errorf("%s: Expected storage annotated class to be \"%s\", but had \"%s\"", testCase.name, testCase.addOpts.ClaimClass, pvc.Annotations[storageAnnClass])
+		pvcClass := ""
+		if pvc.Spec.StorageClassName == nil {
+			if testCase.addOpts.ClassChanged {
+				t.Errorf("%s: Expected storage class", testCase.name)
+			}
+		} else {
+			if !testCase.addOpts.ClassChanged {
+				t.Errorf("%s: Unexpected storage class", testCase.name)
+			}
+			pvcClass = *pvc.Spec.StorageClassName
+		}
+		if pvcClass != testCase.expClass {
+			t.Errorf("%s: Expected storage class to be \"%s\", but had \"%s\"", testCase.name, testCase.addOpts.ClaimClass, pvcClass)
 		}
 	}
 }

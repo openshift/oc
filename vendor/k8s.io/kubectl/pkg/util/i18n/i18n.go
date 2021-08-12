@@ -19,16 +19,18 @@ package i18n
 import (
 	"archive/zip"
 	"bytes"
+	"embed"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 
-	"k8s.io/kubectl/pkg/generated"
-
 	"github.com/chai2010/gettext-go/gettext"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
+
+//go:embed translations
+var translations embed.FS
 
 var knownTranslations = map[string][]string{
 	"kubectl": {
@@ -41,6 +43,7 @@ var knownTranslations = map[string][]string{
 		"it_IT",
 		"de_DE",
 		"ko_KR",
+		"pt_BR",
 	},
 	// only used for unit tests.
 	"test": {
@@ -76,11 +79,9 @@ func findLanguage(root string, getLanguageFn func() string) string {
 	langStr := getLanguageFn()
 
 	translations := knownTranslations[root]
-	if translations != nil {
-		for ix := range translations {
-			if translations[ix] == langStr {
-				return langStr
-			}
+	for ix := range translations {
+		if translations[ix] == langStr {
+			return langStr
 		}
 	}
 	klog.V(3).Infof("Couldn't find translations for %s, using default", langStr)
@@ -113,7 +114,7 @@ func LoadTranslations(root string, getLanguageFn func() string) error {
 		if err != nil {
 			return err
 		}
-		data, err := generated.Asset(filename)
+		data, err := translations.ReadFile(filename)
 		if err != nil {
 			return err
 		}

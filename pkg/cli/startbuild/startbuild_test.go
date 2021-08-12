@@ -27,6 +27,7 @@ import (
 	"github.com/openshift/api"
 	buildv1 "github.com/openshift/api/build/v1"
 	buildclientmanual "github.com/openshift/oc/pkg/helpers/build/client/v1"
+	"github.com/openshift/oc/pkg/helpers/source-to-image/tar"
 )
 
 type FakeClientConfig struct {
@@ -258,7 +259,9 @@ func TestHttpBinary(t *testing.T) {
 			fromDir = server.URL + tc.urlPath
 		}
 
-		build, err := streamPathToBuild(nil, stdin, stdout, &FakeBuildConfigs{t: t, expectAsFile: tc.fromFile}, fromDir, fromFile, "", &options)
+		defaultExclusionPattern := tar.DefaultExclusionPattern.String()
+
+		build, err := streamPathToBuild(nil, stdin, stdout, &FakeBuildConfigs{t: t, expectAsFile: tc.fromFile}, fromDir, fromFile, "", defaultExclusionPattern, &options)
 
 		if len(tc.expectedError) > 0 {
 			if err == nil {

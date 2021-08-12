@@ -1,10 +1,11 @@
 package set
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +24,7 @@ import (
 
 var (
 	buildHookLong = templates.LongDesc(`
-		Set or remove a build hook on a build config
+		Set or remove a build hook on a build config.
 
 		Build hooks allow behavior to be injected into the build process.
 
@@ -36,17 +37,19 @@ var (
 
 		The command for a build hook may be specified as a shell script (with the --script argument),
 		as a new entrypoint command on the image with the --command argument, or as a set of
-		arguments to the image's entrypoint (default).`)
+		arguments to the image's entrypoint (default).
+	`)
 
 	buildHookExample = templates.Examples(`
 		# Clear post-commit hook on a build config
-	  %[1]s build-hook bc/mybuild --post-commit --remove
+		oc set build-hook bc/mybuild --post-commit --remove
 
-	  # Set the post-commit hook to execute a test suite using a new entrypoint
-	  %[1]s build-hook bc/mybuild --post-commit --command -- /bin/bash -c /var/lib/test-image.sh
+		# Set the post-commit hook to execute a test suite using a new entrypoint
+		oc set build-hook bc/mybuild --post-commit --command -- /bin/bash -c /var/lib/test-image.sh
 
-	  # Set the post-commit hook to execute a shell script
-	  %[1]s build-hook bc/mybuild --post-commit --script="/var/lib/test-image.sh param1 param2 && /var/lib/done.sh"`)
+		# Set the post-commit hook to execute a shell script
+		oc set build-hook bc/mybuild --post-commit --script="/var/lib/test-image.sh param1 param2 && /var/lib/done.sh"
+	`)
 )
 
 type BuildHookOptions struct {
@@ -68,7 +71,7 @@ type BuildHookOptions struct {
 	ExplicitNamespace bool
 	Command           []string
 	Resources         []string
-	DryRun            bool
+	DryRunStrategy    kcmdutil.DryRunStrategy
 
 	resource.FilenameOptions
 	genericclioptions.IOStreams
@@ -82,13 +85,13 @@ func NewBuildHookOptions(streams genericclioptions.IOStreams) *BuildHookOptions 
 }
 
 // NewCmdBuildHook implements the set build-hook command
-func NewCmdBuildHook(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdBuildHook(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewBuildHookOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "build-hook BUILDCONFIG --post-commit [--command] [--script] -- CMD",
 		Short:   "Update a build hook on a build config",
 		Long:    buildHookLong,
-		Example: fmt.Sprintf(buildHookExample, fullName),
+		Example: buildHookExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -133,10 +136,12 @@ func (o *BuildHookOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args
 	}
 	o.Builder = f.NewBuilder
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -232,14 +237,14 @@ func (o *BuildHookOptions) Run() error {
 			continue
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch build hook: %v\n", err))
 			continue

@@ -20,7 +20,6 @@ import (
 	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	ocproject "github.com/openshift/oc/pkg/cli/project"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
-	clientcfg "github.com/openshift/oc/pkg/helpers/originkubeconfignames"
 )
 
 type ProjectsOptions struct {
@@ -38,10 +37,9 @@ type ProjectsOptions struct {
 	genericclioptions.IOStreams
 }
 
-func NewProjectsOptions(name string, streams genericclioptions.IOStreams) *ProjectsOptions {
+func NewProjectsOptions(streams genericclioptions.IOStreams) *ProjectsOptions {
 	return &ProjectsOptions{
-		IOStreams:   streams,
-		CommandName: name,
+		IOStreams: streams,
 	}
 }
 
@@ -64,15 +62,21 @@ var (
 
 		For advanced configuration, or to manage the contents of your config file, use the 'config'
 		command.`)
+
+	projectsExample = templates.Examples(`
+		# List all projects
+		oc projects
+	`)
 )
 
 // NewCmdProjects implements the OpenShift cli rollback command
-func NewCmdProjects(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewProjectsOptions(fullName, streams)
+func NewCmdProjects(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewProjectsOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "projects",
-		Short: "Display existing projects",
-		Long:  projectsLong,
+		Use:     "projects",
+		Short:   "Display existing projects",
+		Long:    projectsLong,
+		Example: projectsExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -85,7 +89,7 @@ func NewCmdProjects(fullName string, f kcmdutil.Factory, streams genericclioptio
 }
 
 func (o *ProjectsOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
-	o.PathOptions = cliconfig.NewPathOptions(cmd)
+	o.PathOptions = kclientcmd.NewDefaultPathOptions()
 	o.Args = args
 
 	var err error
@@ -139,7 +143,7 @@ func (o ProjectsOptions) Run() error {
 
 	var defaultContextName string
 	if currentContext != nil {
-		defaultContextName = clientcfg.GetContextNickname(currentContext.Namespace, currentContext.Cluster, currentContext.AuthInfo)
+		defaultContextName = cliconfig.GetContextNickname(currentContext.Namespace, currentContext.Cluster, currentContext.AuthInfo)
 	}
 
 	var msg string

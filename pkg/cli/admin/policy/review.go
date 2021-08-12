@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
@@ -29,30 +31,28 @@ import (
 )
 
 var (
-	reviewLong = templates.LongDesc(`Checks which Service Account can create a Pod.
-	The Pod is inferred from the PodTemplateSpec in the provided resource.
-	If no Service Account is provided the one specified in podTemplateSpec.spec.serviceAccountName is used,
-	unless it is empty, in which case "default" is used.
-	If Service Accounts are provided the podTemplateSpec.spec.serviceAccountName is ignored.
+	reviewLong = templates.LongDesc(`Check which service account can create a pod.
+		The pod is inferred from the pod template spec in the provided resource.
+		If no service account is provided the one specified in podTemplateSpec.spec.serviceAccountName is used,
+		unless it is empty, in which case "default" is used.
+		If service accounts are provided, the podTemplateSpec.spec.serviceAccountName is ignored.
 	`)
-	reviewExamples = templates.Examples(`# Check whether Service Accounts sa1 and sa2 can admit a Pod with TemplatePodSpec specified in my_resource.yaml
-	# Service Account specified in myresource.yaml file is ignored
-	$ %[1]s -z sa1,sa2 -f my_resource.yaml
+	reviewExamples = templates.Examples(`# Check whether service accounts sa1 and sa2 can admit a pod with a template pod spec specified in my_resource.yaml
+		# Service Account specified in myresource.yaml file is ignored
+		oc policy scc-review -z sa1,sa2 -f my_resource.yaml
 
-	# Check whether Service Accounts system:serviceaccount:bob:default can admit a Pod with TemplatePodSpec specified in my_resource.yaml
-	$  %[1]s -z system:serviceaccount:bob:default -f my_resource.yaml
+		# Check whether service accounts system:serviceaccount:bob:default can admit a pod with a template pod spec specified in my_resource.yaml
+		oc policy scc-review -z system:serviceaccount:bob:default -f my_resource.yaml
 
-	# Check whether Service Account specified in my_resource_with_sa.yaml can admit the Pod
-	$ %[1]s -f my_resource_with_sa.yaml
+		# Check whether the service account specified in my_resource_with_sa.yaml can admit the pod
+		oc policy scc-review -f my_resource_with_sa.yaml
 
-	# Check whether default Service Account can admit the Pod, default is taken since no Service Account is defined in myresource_with_no_sa.yaml
-	$  %[1]s -f myresource_with_no_sa.yaml
+		# Check whether the default service account can admit the pod; default is taken since no service account is defined in myresource_with_no_sa.yaml
+		oc policy scc-review -f myresource_with_no_sa.yaml
 	`)
 )
 
 const (
-	ReviewRecommendedName = "scc-review"
-
 	tabWriterMinWidth = 0
 	tabWriterWidth    = 7
 	tabWriterPadding  = 3
@@ -85,13 +85,13 @@ func NewSCCReviewOptions(streams genericclioptions.IOStreams) *SCCReviewOptions 
 	}
 }
 
-func NewCmdSccReview(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSccReview(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewSCCReviewOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
-		Short:   "Checks which ServiceAccount can create a Pod",
+		Use:     "scc-review",
+		Short:   "Check which service account can create a pod",
 		Long:    reviewLong,
-		Example: fmt.Sprintf(reviewExamples, fullName),
+		Example: reviewExamples,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args, cmd))
 			kcmdutil.CheckErr(o.Run(args))
@@ -203,7 +203,7 @@ func (o *SCCReviewOptions) Run(args []string) error {
 				ServiceAccountNames: o.shortServiceAccountNames,
 			},
 		}
-		unversionedObj, err := o.client.PodSecurityPolicyReviews(o.namespace).Create(review)
+		unversionedObj, err := o.client.PodSecurityPolicyReviews(o.namespace).Create(context.TODO(), review, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("unable to compute Pod Security Policy Review for %q: %v", objectName, err)
 		}

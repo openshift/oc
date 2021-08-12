@@ -1,15 +1,18 @@
 package info
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
 
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -20,19 +23,20 @@ import (
 
 var (
 	desc = templates.LongDesc(`
-		Display information about the integrated registry
+		Display information about the integrated registry.
 
 		This command exposes information about the integrated registry, if configured.
 		Use --check to verify your local client can access the registry. If the adminstrator
-		has not configured a public hostname for the registry then this command may fail when
+		has not configured a public host name for the registry then this command may fail when
 		run outside of the server.
 
-		Experimental: This command is under active development and may change without notice.`)
+		Experimental: This command is under active development and may change without notice.
+	`)
 
 	example = templates.Examples(`
-# Display information about the integrated registry
-%[1]s
-`)
+		# Display information about the integrated registry
+		oc registry info
+	`)
 )
 
 type Options struct {
@@ -54,14 +58,14 @@ func NewRegistryInfoOptions(streams genericclioptions.IOStreams) *Options {
 }
 
 // New creates a command that displays info about the registry.
-func NewRegistryInfoCmd(name string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRegistryInfoCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRegistryInfoOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "info ",
-		Short:   "Print info about the integrated registry",
+		Short:   "Print information about the integrated registry",
 		Long:    desc,
-		Example: fmt.Sprintf(example, name+" info"),
+		Example: example,
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -116,7 +120,7 @@ func (i *RegistryInfo) HostPort() (string, bool) {
 
 func findRegistryInfo(client imageclient.Interface, namespaces ...string) (*RegistryInfo, error) {
 	for _, ns := range namespaces {
-		imageStreams, err := client.ImageV1().ImageStreams(ns).List(metav1.ListOptions{})
+		imageStreams, err := client.ImageV1().ImageStreams(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil || len(imageStreams.Items) == 0 {
 			continue
 		}
@@ -182,7 +186,8 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.ErrOut, "info: Registry does not have a public hostname\n")
 		}
 		url := &url.URL{Host: host}
-		c := registryclient.NewContext(http.DefaultTransport, http.DefaultTransport)
+		c := registryclient.NewContext(http.DefaultTransport, http.DefaultTransport).
+			WithRequestModifiers(transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{rest.DefaultKubernetesUserAgent()}}))
 		_, src, err := c.Ping(ctx, url, false)
 		if err != nil {
 			return fmt.Errorf("registry could not be contacted at %s: %v", url.Host, err)

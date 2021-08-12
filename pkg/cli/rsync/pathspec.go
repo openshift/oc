@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
-	kvalidation "k8s.io/kubernetes/pkg/apis/core/validation"
 )
 
 // PathSpec represents a path (remote or local) given as a source or destination
@@ -68,7 +68,7 @@ func parsePathSpec(path string) (*PathSpec, error) {
 			Path: path,
 		}, nil
 	}
-	if reasons := kvalidation.ValidatePodName(parts[0], false); len(reasons) != 0 {
+	if reasons := apimachineryvalidation.NameIsDNSSubdomain(parts[0], false); len(reasons) != 0 {
 		return nil, fmt.Errorf("invalid pod name %s: %s", parts[0], strings.Join(reasons, ", "))
 	}
 	return &PathSpec{

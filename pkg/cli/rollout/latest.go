@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -26,7 +27,7 @@ import (
 
 var (
 	rolloutLatestLong = templates.LongDesc(`
-		Start a new rollout for a deployment config with the latest state from its triggers
+		Start a new rollout for a deployment config with the latest state from its triggers.
 
 		This command is appropriate for running manual rollouts. If you want full control over
 		running new rollouts, use "oc set triggers --manual" to disable all triggers in your
@@ -35,11 +36,11 @@ var (
 		your image change triggers.`)
 
 	rolloutLatestExample = templates.Examples(`
-	# Start a new rollout based on the latest images defined in the image change triggers.
-	%[1]s rollout latest dc/nginx
+		# Start a new rollout based on the latest images defined in the image change triggers
+		oc rollout latest dc/nginx
 
-	# Print the rolled out deployment config
-	%[1]s rollout latest dc/nginx -o json`)
+		# Print the rolled out deployment config
+		oc rollout latest dc/nginx -o json`)
 )
 
 // RolloutLatestOptions holds all the options for the `rollout latest` command.
@@ -51,8 +52,8 @@ type RolloutLatestOptions struct {
 	mapper    meta.RESTMapper
 	Resource  string
 
-	DryRun bool
-	again  bool
+	DryRunStrategy kcmdutil.DryRunStrategy
+	again          bool
 
 	appsClient appsclient.DeploymentConfigsGetter
 	kubeClient kubernetes.Interface
@@ -70,14 +71,14 @@ func NewRolloutLatestOptions(streams genericclioptions.IOStreams) *RolloutLatest
 }
 
 // NewCmdRolloutLatest implements the oc rollout latest subcommand.
-func NewCmdRolloutLatest(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutLatest(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRolloutLatestOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "latest DEPLOYMENTCONFIG",
 		Short:   "Start a new rollout for a deployment config with the latest state from its triggers",
 		Long:    rolloutLatestLong,
-		Example: fmt.Sprintf(rolloutLatestExample, fullName),
+		Example: rolloutLatestExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.RunRolloutLatest())
@@ -105,10 +106,12 @@ func (o *RolloutLatestOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, 
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetFlagBool(cmd, "dry-run")
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 
 	if o.PrintFlags.OutputFormat != nil && *o.PrintFlags.OutputFormat == "revision" {
 		fmt.Fprintln(o.ErrOut, "--output=revision is deprecated. Use `--output=jsonpath={.status.latestVersion}` or `--output=go-template={{.status.latestVersion}}` instead")
@@ -175,7 +178,7 @@ func (o *RolloutLatestOptions) RunRolloutLatest() error {
 	}
 
 	deploymentName := appsutil.LatestDeploymentNameForConfigAndVersion(config.Name, config.Status.LatestVersion)
-	deployment, err := o.kubeClient.CoreV1().ReplicationControllers(config.Namespace).Get(deploymentName, metav1.GetOptions{})
+	deployment, err := o.kubeClient.CoreV1().ReplicationControllers(config.Namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 	switch {
 	case err == nil:
 		// Reject attempts to start a concurrent deployment.
@@ -188,20 +191,20 @@ func (o *RolloutLatestOptions) RunRolloutLatest() error {
 	}
 
 	dc := config
-	if !o.DryRun {
+	if o.DryRunStrategy != kcmdutil.DryRunClient {
 		request := &appsv1.DeploymentRequest{
 			Name:   config.Name,
 			Latest: !o.again,
 			Force:  true,
 		}
 
-		dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Instantiate(config.Name, request)
+		dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Instantiate(context.TODO(), config.Name, request, metav1.CreateOptions{})
 
 		// Pre 1.4 servers don't support the instantiate endpoint. Fallback to incrementing
 		// latestVersion on them.
 		if kerrors.IsNotFound(err) || kerrors.IsForbidden(err) {
 			config.Status.LatestVersion++
-			dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Update(config)
+			dc, err = o.appsClient.DeploymentConfigs(config.Namespace).Update(context.TODO(), config, metav1.UpdateOptions{})
 		}
 
 		if err != nil {

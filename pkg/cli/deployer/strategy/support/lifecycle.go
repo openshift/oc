@@ -20,7 +20,6 @@ import (
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	imageapiv1 "github.com/openshift/api/image/v1"
@@ -78,7 +77,7 @@ func NewHookExecutor(kubeClient kubernetes.Interface, imageClient imageclienttyp
 			Follow:     true,
 			Timestamps: false,
 		}
-		return executor.pods.Pods(pod.Namespace).GetLogs(pod.Name, opts).Stream()
+		return executor.pods.Pods(pod.Namespace).GetLogs(pod.Name, opts).Stream(context.TODO())
 	}
 	return executor
 }
@@ -96,17 +95,17 @@ func (e *hookExecutor) Execute(hook *appsv1.LifecycleHook, rc *corev1.Replicatio
 				tagEventMessages = append(tagEventMessages, fmt.Sprintf("image %q as %q", image, t.To.Name))
 			}
 		}
-		strategyutil.RecordConfigEvent(e.events, rc, kapi.EventTypeNormal, "Started",
+		strategyutil.RecordConfigEvent(e.events, rc, corev1.EventTypeNormal, "Started",
 			fmt.Sprintf("Running %s-hook (TagImages) %s for rc %s/%s", label, strings.Join(tagEventMessages, ","), rc.Namespace, rc.Name))
 		err = e.tagImages(hook, rc, suffix, label)
 	case hook.ExecNewPod != nil:
-		strategyutil.RecordConfigEvent(e.events, rc, kapi.EventTypeNormal, "Started",
+		strategyutil.RecordConfigEvent(e.events, rc, corev1.EventTypeNormal, "Started",
 			fmt.Sprintf("Running %s-hook (%q) for rc %s/%s", label, strings.Join(hook.ExecNewPod.Command, " "), rc.Namespace, rc.Name))
 		err = e.executeExecNewPod(hook, rc, suffix, label)
 	}
 
 	if err == nil {
-		strategyutil.RecordConfigEvent(e.events, rc, kapi.EventTypeNormal, "Completed",
+		strategyutil.RecordConfigEvent(e.events, rc, corev1.EventTypeNormal, "Completed",
 			fmt.Sprintf("The %s-hook for rc %s/%s completed successfully", label, rc.Namespace, rc.Name))
 		return nil
 	}
@@ -114,11 +113,11 @@ func (e *hookExecutor) Execute(hook *appsv1.LifecycleHook, rc *corev1.Replicatio
 	// Retry failures are treated the same as Abort.
 	switch hook.FailurePolicy {
 	case appsv1.LifecycleHookFailurePolicyAbort, appsv1.LifecycleHookFailurePolicyRetry:
-		strategyutil.RecordConfigEvent(e.events, rc, kapi.EventTypeWarning, "Failed",
+		strategyutil.RecordConfigEvent(e.events, rc, corev1.EventTypeWarning, "Failed",
 			fmt.Sprintf("The %s-hook failed: %v, aborting rollout of %s/%s", label, err, rc.Namespace, rc.Name))
 		return fmt.Errorf("the %s hook failed: %v, aborting rollout of %s/%s", label, err, rc.Namespace, rc.Name)
 	case appsv1.LifecycleHookFailurePolicyIgnore:
-		strategyutil.RecordConfigEvent(e.events, rc, kapi.EventTypeWarning, "Failed",
+		strategyutil.RecordConfigEvent(e.events, rc, corev1.EventTypeWarning, "Failed",
 			fmt.Sprintf("The %s-hook failed: %v (ignore), rollout of %s/%s will continue", label, err, rc.Namespace, rc.Name))
 		return nil
 	default:
@@ -153,7 +152,7 @@ func (e *hookExecutor) tagImages(hook *appsv1.LifecycleHook, rc *corev1.Replicat
 		if len(namespace) == 0 {
 			namespace = rc.Namespace
 		}
-		if _, err := e.tags.ImageStreamTags(namespace).Update(&imageapiv1.ImageStreamTag{
+		if _, err := e.tags.ImageStreamTags(namespace).Update(context.TODO(), &imageapiv1.ImageStreamTag{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      action.To.Name,
 				Namespace: namespace,
@@ -164,7 +163,7 @@ func (e *hookExecutor) tagImages(hook *appsv1.LifecycleHook, rc *corev1.Replicat
 					Name: value,
 				},
 			},
-		}); err != nil {
+		}, metav1.UpdateOptions{}); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -189,7 +188,7 @@ func (e *hookExecutor) executeExecNewPod(hook *appsv1.LifecycleHook, rc *corev1.
 		return err
 	}
 
-	deployerPod, err := e.pods.Pods(rc.Namespace).Get(appsutil.DeployerPodNameForDeployment(rc.Name), metav1.GetOptions{})
+	deployerPod, err := e.pods.Pods(rc.Namespace).Get(context.TODO(), appsutil.DeployerPodNameForDeployment(rc.Name), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -214,7 +213,7 @@ func (e *hookExecutor) executeExecNewPod(hook *appsv1.LifecycleHook, rc *corev1.
 	completed, created := false, false
 
 	// Try to create the pod.
-	pod, err := e.pods.Pods(rc.Namespace).Create(podSpec)
+	pod, err := e.pods.Pods(rc.Namespace).Create(context.TODO(), podSpec, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("couldn't create lifecycle pod for %s: %v", rc.Name, err)
@@ -236,11 +235,11 @@ func (e *hookExecutor) executeExecNewPod(hook *appsv1.LifecycleHook, rc *corev1.
 	listWatcher := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.FieldSelector = fields.OneTermEqualSelector("metadata.name", pod.Name).String()
-			return e.pods.Pods(pod.Namespace).List(options)
+			return e.pods.Pods(pod.Namespace).List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 			options.FieldSelector = fields.OneTermEqualSelector("metadata.name", pod.Name).String()
-			return e.pods.Pods(pod.Namespace).Watch(options)
+			return e.pods.Pods(pod.Namespace).Watch(context.TODO(), options)
 		},
 	}
 	// make sure that the pod exists and wasn't deleted early

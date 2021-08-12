@@ -11,8 +11,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-const CreateLoginTemplateCommand = "create-login-template"
-
 var longDescription = templates.LongDesc(`
 	Create a template for customizing the login page
 
@@ -29,6 +27,11 @@ var longDescription = templates.LongDesc(`
 	        login: templates/login.html
 	`)
 
+var loginExample = templates.Examples(`
+	# Output a template for the login page to stdout
+	oc adm create-login-template
+`)
+
 type CreateLoginTemplateOptions struct {
 	genericclioptions.IOStreams
 }
@@ -39,12 +42,13 @@ func NewCreateLoginTemplateOptions(streams genericclioptions.IOStreams) *CreateL
 	}
 }
 
-func NewCommandCreateLoginTemplate(f kcmdutil.Factory, commandName string, fullName string, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateLoginTemplate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCreateLoginTemplateOptions(streams)
 	cmd := &cobra.Command{
-		Use:   commandName,
-		Short: "Create a login template",
-		Long:  longDescription,
+		Use:     "create-login-template",
+		Short:   "Create a login template",
+		Long:    longDescription,
+		Example: loginExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Validate(args))
 			kcmdutil.CheckErr(o.Run())

@@ -18,12 +18,13 @@ package patch
 
 import (
 	"fmt"
+	"io/ioutil"
 	"reflect"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -38,6 +39,7 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -57,38 +59,41 @@ type PatchOptions struct {
 	Local     bool
 	PatchType string
 	Patch     string
+	PatchFile string
 
 	namespace                    string
 	enforceNamespace             bool
-	dryRun                       bool
+	dryRunStrategy               cmdutil.DryRunStrategy
+	dryRunVerifier               *resource.DryRunVerifier
 	outputFormat                 string
 	args                         []string
 	builder                      *resource.Builder
 	unstructuredClientForMapping func(mapping *meta.RESTMapping) (resource.RESTClient, error)
+	fieldManager                 string
 
 	genericclioptions.IOStreams
 }
 
 var (
 	patchLong = templates.LongDesc(i18n.T(`
-		Update field(s) of a resource using strategic merge patch, a JSON merge patch, or a JSON patch.
+		Update fields of a resource using strategic merge patch, a JSON merge patch, or a JSON patch.
 
 		JSON and YAML formats are accepted.`))
 
 	patchExample = templates.Examples(i18n.T(`
-		# Partially update a node using a strategic merge patch. Specify the patch as JSON.
+		# Partially update a node using a strategic merge patch, specifying the patch as JSON
 		kubectl patch node k8s-node-1 -p '{"spec":{"unschedulable":true}}'
 
-		# Partially update a node using a strategic merge patch. Specify the patch as YAML.
+		# Partially update a node using a strategic merge patch, specifying the patch as YAML
 		kubectl patch node k8s-node-1 -p $'spec:\n unschedulable: true'
 
-		# Partially update a node identified by the type and name specified in "node.json" using strategic merge patch.
+		# Partially update a node identified by the type and name specified in "node.json" using strategic merge patch
 		kubectl patch -f node.json -p '{"spec":{"unschedulable":true}}'
 
-		# Update a container's image; spec.containers[*].name is required because it's a merge key.
+		# Update a container's image; spec.containers[*].name is required because it's a merge key
 		kubectl patch pod valid-pod -p '{"spec":{"containers":[{"name":"kubernetes-serve-hostname","image":"new image"}]}}'
 
-		# Update a container's image using a json patch with positional arrays.
+		# Update a container's image using a JSON patch with positional arrays
 		kubectl patch pod valid-pod --type='json' -p='[{"op": "replace", "path": "/spec/containers/0/image", "value":"new image"}]'`))
 )
 
@@ -105,11 +110,12 @@ func NewCmdPatch(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobr
 	o := NewPatchOptions(ioStreams)
 
 	cmd := &cobra.Command{
-		Use:                   "patch (-f FILENAME | TYPE NAME) -p PATCH",
+		Use:                   "patch (-f FILENAME | TYPE NAME) [-p PATCH|--patch-file FILE]",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Update field(s) of a resource using strategic merge patch"),
+		Short:                 i18n.T("Update fields of a resource"),
 		Long:                  patchLong,
 		Example:               patchExample,
+		ValidArgsFunction:     util.ResourceTypeAndNameCompletionFunc(f),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Validate())
@@ -121,11 +127,12 @@ func NewCmdPatch(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobr
 	o.PrintFlags.AddFlags(cmd)
 
 	cmd.Flags().StringVarP(&o.Patch, "patch", "p", "", "The patch to be applied to the resource JSON file.")
-	cmd.MarkFlagRequired("patch")
+	cmd.Flags().StringVar(&o.PatchFile, "patch-file", "", "A file containing a patch to be applied to the resource.")
 	cmd.Flags().StringVar(&o.PatchType, "type", "strategic", fmt.Sprintf("The type of patch being provided; one of %v", sets.StringKeySet(patchTypes).List()))
 	cmdutil.AddDryRunFlag(cmd)
 	cmdutil.AddFilenameOptionFlags(cmd, &o.FilenameOptions, "identifying the resource to update")
 	cmd.Flags().BoolVar(&o.Local, "local", o.Local, "If true, patch will operate on the content of the file, not the server-side resource.")
+	cmdutil.AddFieldManagerFlagVar(cmd, &o.fieldManager, "kubectl-patch")
 
 	return cmd
 }
@@ -139,13 +146,14 @@ func (o *PatchOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []st
 	}
 
 	o.outputFormat = cmdutil.GetFlagString(cmd, "output")
-	o.dryRun = cmdutil.GetFlagBool(cmd, "dry-run")
+	o.dryRunStrategy, err = cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
+	}
 
+	cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.dryRunStrategy)
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
 		o.PrintFlags.NamePrintFlags.Operation = operation
-		if o.dryRun {
-			o.PrintFlags.Complete("%s (dry run)")
-		}
 
 		return o.PrintFlags.ToPrinter()
 	}
@@ -157,16 +165,27 @@ func (o *PatchOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []st
 	o.args = args
 	o.builder = f.NewBuilder()
 	o.unstructuredClientForMapping = f.UnstructuredClientForMapping
+	dynamicClient, err := f.DynamicClient()
+	if err != nil {
+		return err
+	}
+	o.dryRunVerifier = resource.NewDryRunVerifier(dynamicClient, f.OpenAPIGetter())
 
 	return nil
 }
 
 func (o *PatchOptions) Validate() error {
+	if len(o.Patch) > 0 && len(o.PatchFile) > 0 {
+		return fmt.Errorf("cannot specify --patch and --patch-file together")
+	}
+	if len(o.Patch) == 0 && len(o.PatchFile) == 0 {
+		return fmt.Errorf("must specify --patch or --patch-file containing the contents of the patch")
+	}
 	if o.Local && len(o.args) != 0 {
 		return fmt.Errorf("cannot specify --local and server resources")
 	}
-	if len(o.Patch) == 0 {
-		return fmt.Errorf("must specify -p to patch")
+	if o.Local && o.dryRunStrategy == cmdutil.DryRunServer {
+		return fmt.Errorf("cannot specify --local and --dry-run=server - did you mean --dry-run=client?")
 	}
 	if len(o.PatchType) != 0 {
 		if _, ok := patchTypes[strings.ToLower(o.PatchType)]; !ok {
@@ -183,7 +202,18 @@ func (o *PatchOptions) RunPatch() error {
 		patchType = patchTypes[strings.ToLower(o.PatchType)]
 	}
 
-	patchBytes, err := yaml.ToJSON([]byte(o.Patch))
+	var patchBytes []byte
+	if len(o.PatchFile) > 0 {
+		var err error
+		patchBytes, err = ioutil.ReadFile(o.PatchFile)
+		if err != nil {
+			return fmt.Errorf("unable to read patch file: %v", err)
+		}
+	} else {
+		patchBytes = []byte(o.Patch)
+	}
+
+	patchBytes, err := yaml.ToJSON(patchBytes)
 	if err != nil {
 		return fmt.Errorf("unable to parse %q: %v", o.Patch, err)
 	}
@@ -210,14 +240,22 @@ func (o *PatchOptions) RunPatch() error {
 		count++
 		name, namespace := info.Name, info.Namespace
 
-		if !o.Local && !o.dryRun {
+		if !o.Local && o.dryRunStrategy != cmdutil.DryRunClient {
 			mapping := info.ResourceMapping()
+			if o.dryRunStrategy == cmdutil.DryRunServer {
+				if err := o.dryRunVerifier.HasSupport(mapping.GroupVersionKind); err != nil {
+					return err
+				}
+			}
 			client, err := o.unstructuredClientForMapping(mapping)
 			if err != nil {
 				return err
 			}
 
-			helper := resource.NewHelper(client, mapping)
+			helper := resource.
+				NewHelper(client, mapping).
+				DryRun(o.dryRunStrategy == cmdutil.DryRunServer).
+				WithFieldManager(o.fieldManager)
 			patchedObj, err := helper.Patch(namespace, name, patchType, patchBytes, nil)
 			if err != nil {
 				return err
@@ -298,7 +336,7 @@ func getPatchedJSON(patchType types.PatchType, originalJS, patchJS []byte, gvk s
 		// get a typed object for this GVK if we need to apply a strategic merge patch
 		obj, err := creater.New(gvk)
 		if err != nil {
-			return nil, fmt.Errorf("cannot apply strategic merge patch for %s locally, try --type merge", gvk.String())
+			return nil, fmt.Errorf("strategic merge patch is not supported for %s locally, try --type merge", gvk.String())
 		}
 		return strategicpatch.StrategicMergePatch(originalJS, patchJS, obj)
 

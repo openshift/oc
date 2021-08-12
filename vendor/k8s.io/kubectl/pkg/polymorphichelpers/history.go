@@ -18,6 +18,7 @@ package polymorphichelpers
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"text/tabwriter"
@@ -35,7 +36,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientappsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/kubectl/pkg/apps"
-	describe "k8s.io/kubectl/pkg/describe/versioned"
+	"k8s.io/kubectl/pkg/describe"
 	deploymentutil "k8s.io/kubectl/pkg/util/deployment"
 	sliceutil "k8s.io/kubectl/pkg/util/slice"
 )
@@ -101,7 +102,7 @@ type DeploymentHistoryViewer struct {
 // TODO: this should be a describer
 func (h *DeploymentHistoryViewer) ViewHistory(namespace, name string, revision int64) (string, error) {
 	versionedAppsClient := h.c.AppsV1()
-	deployment, err := versionedAppsClient.Deployments(namespace).Get(name, metav1.GetOptions{})
+	deployment, err := versionedAppsClient.Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve deployment %s: %v", name, err)
 	}
@@ -182,6 +183,18 @@ func (h *DaemonSetHistoryViewer) ViewHistory(namespace, name string, revision in
 	if err != nil {
 		return "", err
 	}
+	return printHistory(history, revision, func(history *appsv1.ControllerRevision) (*corev1.PodTemplateSpec, error) {
+		dsOfHistory, err := applyDaemonSetHistory(ds, history)
+		if err != nil {
+			return nil, err
+		}
+		return &dsOfHistory.Spec.Template, err
+	})
+}
+
+// printHistory returns the podTemplate of the given revision if it is non-zero
+// else returns the overall revisions
+func printHistory(history []*appsv1.ControllerRevision, revision int64, getPodTemplate func(history *appsv1.ControllerRevision) (*corev1.PodTemplateSpec, error)) (string, error) {
 	historyInfo := make(map[int64]*appsv1.ControllerRevision)
 	for _, history := range history {
 		// TODO: for now we assume revisions don't overlap, we may need to handle it
@@ -197,11 +210,11 @@ func (h *DaemonSetHistoryViewer) ViewHistory(namespace, name string, revision in
 		if !ok {
 			return "", fmt.Errorf("unable to find the specified revision")
 		}
-		dsOfHistory, err := applyDaemonSetHistory(ds, history)
+		podTemplate, err := getPodTemplate(history)
 		if err != nil {
 			return "", fmt.Errorf("unable to parse history %s", history.Name)
 		}
-		return printTemplate(&dsOfHistory.Spec.Template)
+		return printTemplate(podTemplate)
 	}
 
 	// Print an overview of all Revisions
@@ -232,28 +245,17 @@ type StatefulSetHistoryViewer struct {
 
 // ViewHistory returns a list of the revision history of a statefulset
 // TODO: this should be a describer
-// TODO: needs to implement detailed revision view
 func (h *StatefulSetHistoryViewer) ViewHistory(namespace, name string, revision int64) (string, error) {
-	_, history, err := statefulSetHistory(h.c.AppsV1(), namespace, name)
+	sts, history, err := statefulSetHistory(h.c.AppsV1(), namespace, name)
 	if err != nil {
 		return "", err
 	}
-
-	if len(history) <= 0 {
-		return "No rollout history found.", nil
-	}
-	revisions := make([]int64, len(history))
-	for _, revision := range history {
-		revisions = append(revisions, revision.Revision)
-	}
-	sliceutil.SortInts64(revisions)
-
-	return tabbedString(func(out io.Writer) error {
-		fmt.Fprintf(out, "REVISION\n")
-		for _, r := range revisions {
-			fmt.Fprintf(out, "%d\n", r)
+	return printHistory(history, revision, func(history *appsv1.ControllerRevision) (*corev1.PodTemplateSpec, error) {
+		stsOfHistory, err := applyStatefulSetHistory(sts, history)
+		if err != nil {
+			return nil, err
 		}
-		return nil
+		return &stsOfHistory.Spec.Template, err
 	})
 }
 
@@ -265,7 +267,7 @@ func controlledHistoryV1(
 	selector labels.Selector,
 	accessor metav1.Object) ([]*appsv1.ControllerRevision, error) {
 	var result []*appsv1.ControllerRevision
-	historyList, err := apps.ControllerRevisions(namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
+	historyList, err := apps.ControllerRevisions(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +288,7 @@ func controlledHistory(
 	selector labels.Selector,
 	accessor metav1.Object) ([]*appsv1.ControllerRevision, error) {
 	var result []*appsv1.ControllerRevision
-	historyList, err := apps.ControllerRevisions(namespace).List(metav1.ListOptions{LabelSelector: selector.String()})
+	historyList, err := apps.ControllerRevisions(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +306,7 @@ func controlledHistory(
 func daemonSetHistory(
 	apps clientappsv1.AppsV1Interface,
 	namespace, name string) (*appsv1.DaemonSet, []*appsv1.ControllerRevision, error) {
-	ds, err := apps.DaemonSets(namespace).Get(name, metav1.GetOptions{})
+	ds, err := apps.DaemonSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to retrieve DaemonSet %s: %v", name, err)
 	}
@@ -327,7 +329,7 @@ func daemonSetHistory(
 func statefulSetHistory(
 	apps clientappsv1.AppsV1Interface,
 	namespace, name string) (*appsv1.StatefulSet, []*appsv1.ControllerRevision, error) {
-	sts, err := apps.StatefulSets(namespace).Get(name, metav1.GetOptions{})
+	sts, err := apps.StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to retrieve Statefulset %s: %s", name, err.Error())
 	}
@@ -348,20 +350,38 @@ func statefulSetHistory(
 
 // applyDaemonSetHistory returns a specific revision of DaemonSet by applying the given history to a copy of the given DaemonSet
 func applyDaemonSetHistory(ds *appsv1.DaemonSet, history *appsv1.ControllerRevision) (*appsv1.DaemonSet, error) {
-	clone := ds.DeepCopy()
-	cloneBytes, err := json.Marshal(clone)
+	dsBytes, err := json.Marshal(ds)
 	if err != nil {
 		return nil, err
 	}
-	patched, err := strategicpatch.StrategicMergePatch(cloneBytes, history.Data.Raw, clone)
+	patched, err := strategicpatch.StrategicMergePatch(dsBytes, history.Data.Raw, ds)
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(patched, clone)
+	result := &appsv1.DaemonSet{}
+	err = json.Unmarshal(patched, result)
 	if err != nil {
 		return nil, err
 	}
-	return clone, nil
+	return result, nil
+}
+
+// applyStatefulSetHistory returns a specific revision of StatefulSet by applying the given history to a copy of the given StatefulSet
+func applyStatefulSetHistory(sts *appsv1.StatefulSet, history *appsv1.ControllerRevision) (*appsv1.StatefulSet, error) {
+	stsBytes, err := json.Marshal(sts)
+	if err != nil {
+		return nil, err
+	}
+	patched, err := strategicpatch.StrategicMergePatch(stsBytes, history.Data.Raw, sts)
+	if err != nil {
+		return nil, err
+	}
+	result := &appsv1.StatefulSet{}
+	err = json.Unmarshal(patched, result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // TODO: copied here until this becomes a describer

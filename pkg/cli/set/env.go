@@ -1,6 +1,7 @@
 package set
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,7 +36,7 @@ import (
 
 var (
 	envLong = templates.LongDesc(`
-		Update environment variables on a pod template or a build config
+		Update environment variables on a pod template or a build config.
 
 		List environment variable definitions in one or more pods, pod templates or build
 		configuration.
@@ -49,36 +50,37 @@ var (
 		syntax.`)
 
 	envExample = templates.Examples(`
-	  # Update deployment config 'myapp' with a new environment variable
-	  %[1]s env dc/myapp STORAGE_DIR=/local
+		# Update deployment config 'myapp' with a new environment variable
+		oc set env dc/myapp STORAGE_DIR=/local
 
-	  # List the environment variables defined on a build config 'sample-build'
-	  %[1]s env bc/sample-build --list
+		# List the environment variables defined on a build config 'sample-build'
+		oc set env bc/sample-build --list
 
-	  # List the environment variables defined on all pods
-	  %[1]s env pods --all --list
+		# List the environment variables defined on all pods
+		oc set env pods --all --list
 
-	  # Output modified build config in YAML
-	  %[1]s env bc/sample-build STORAGE_DIR=/data -o yaml
+		# Output modified build config in YAML
+		oc set env bc/sample-build STORAGE_DIR=/data -o yaml
 
-	  # Update all containers in all replication controllers in the project to have ENV=prod
-	  %[1]s env rc --all ENV=prod
+		# Update all containers in all replication controllers in the project to have ENV=prod
+		oc set env rc --all ENV=prod
 
-	  # Import environment from a secret
-	  %[1]s env --from=secret/mysecret dc/myapp
+		# Import environment from a secret
+		oc set env --from=secret/mysecret dc/myapp
 
-	  # Import environment from a config map with a prefix
-	  %[1]s env --from=configmap/myconfigmap --prefix=MYSQL_ dc/myapp
+		# Import environment from a config map with a prefix
+		oc set env --from=configmap/myconfigmap --prefix=MYSQL_ dc/myapp
 
-	  # Remove the environment variable ENV from container 'c1' in all deployment configs
-	  %[1]s env dc --all --containers="c1" ENV-
+		# Remove the environment variable ENV from container 'c1' in all deployment configs
+		oc set env dc --all --containers="c1" ENV-
 
-	  # Remove the environment variable ENV from a deployment config definition on disk and
-	  # update the deployment config on the server
-	  %[1]s env -f dc.json ENV-
+		# Remove the environment variable ENV from a deployment config definition on disk and
+		# update the deployment config on the server
+		oc set env -f dc.json ENV-
 
-	  # Set some of the local shell environment into a deployment config on the server
-	  env | grep RAILS_ | %[1]s env -e - dc/myapp`)
+		# Set some of the local shell environment into a deployment config on the server
+		oc set env | grep RAILS_ | oc env -e - dc/myapp
+	`)
 )
 
 type EnvOptions struct {
@@ -88,12 +90,12 @@ type EnvOptions struct {
 	EnvArgs   []string
 	Resources []string
 
-	All       bool
-	Resolve   bool
-	List      bool
-	Local     bool
-	Overwrite bool
-	DryRun    bool
+	All            bool
+	Resolve        bool
+	List           bool
+	Local          bool
+	Overwrite      bool
+	DryRunStrategy kcmdutil.DryRunStrategy
 
 	ResourceVersion   string
 	ContainerSelector string
@@ -126,13 +128,13 @@ func NewEnvOptions(streams genericclioptions.IOStreams) *EnvOptions {
 }
 
 // NewCmdEnv implements the OpenShift cli env command
-func NewCmdEnv(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdEnv(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewEnvOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "env RESOURCE/NAME KEY_1=VAL_1 ... KEY_N=VAL_N",
 		Short:   "Update environment variables on a pod template",
 		Long:    envLong,
-		Example: fmt.Sprintf(envExample, fullName),
+		Example: envExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.RunEnv())
@@ -197,10 +199,11 @@ func (o *EnvOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 		return err
 	}
 
-	o.DryRun = kcmdutil.GetDryRunFlag(cmd)
-	if o.DryRun {
-		o.PrintFlags.Complete("%s (dry run)")
+	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return err
 	}
+	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	if err != nil {
 		return err
@@ -463,7 +466,7 @@ updates:
 			}
 		}
 
-		if o.Local || o.DryRun {
+		if o.Local || o.DryRunStrategy == kcmdutil.DryRunClient {
 			if err := o.Printer.PrintObj(info.Object, o.Out); err != nil {
 				allErrs = append(allErrs, err)
 			}
@@ -481,7 +484,7 @@ updates:
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(info.Name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to set env: %v\n", err))
 			continue

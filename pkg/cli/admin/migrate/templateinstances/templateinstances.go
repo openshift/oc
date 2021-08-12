@@ -1,6 +1,7 @@
 package templateinstances
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -39,9 +41,9 @@ var (
 	}
 
 	internalMigrateTemplateInstancesLong = templates.LongDesc(fmt.Sprintf(`
-		Migrate Template Instances to refer to new API groups
+		Migrate template instances to refer to new API groups.
 
-		This command locates and updates every Template Instance which refers to a particular
+		This command locates and updates every template instance which refers to a particular
 		group-version-kind to refer to some other, equivalent group-version-kind.
 
 		The following transformations will occur:
@@ -50,10 +52,11 @@ var (
 
 	internalMigrateTemplateInstancesExample = templates.Examples(`
 		# Perform a dry-run of updating all objects
-	  %[1]s
+		oc adm migrate template-instances
 
-	  # To actually perform the update, the confirm flag must be appended
-	  %[1]s --confirm`)
+		# To actually perform the update, the confirm flag must be appended
+		oc adm migrate template-instances --confirm
+	`)
 )
 
 func prettyPrintMigrations(versionKinds map[apiType]apiType) string {
@@ -83,15 +86,15 @@ func NewMigrateTemplateInstancesOptions(streams genericclioptions.IOStreams) *Mi
 }
 
 // NewCmdMigrateTemplateInstancesAPI implements a MigrateTemplateInstances command
-func NewCmdMigrateTemplateInstances(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMigrateTemplateInstances(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMigrateTemplateInstancesOptions(streams)
 	cmd := &cobra.Command{
-		Use:     name,
-		Short:   "Update TemplateInstances to point to the latest group-version-kinds",
+		Use:     "template-instances",
+		Short:   "Update template instances to point to the latest group-version-kinds",
 		Long:    internalMigrateTemplateInstancesLong,
-		Example: fmt.Sprintf(internalMigrateTemplateInstancesExample, fullName),
+		Example: internalMigrateTemplateInstancesExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(name, f, cmd, args))
+			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
@@ -101,9 +104,9 @@ func NewCmdMigrateTemplateInstances(name, fullName string, f kcmdutil.Factory, s
 	return cmd
 }
 
-func (o *MigrateTemplateInstancesOptions) Complete(name string, f kcmdutil.Factory, c *cobra.Command, args []string) error {
+func (o *MigrateTemplateInstancesOptions) Complete(f kcmdutil.Factory, c *cobra.Command, args []string) error {
 	if len(args) != 0 {
-		return fmt.Errorf("%s takes no positional arguments", name)
+		return fmt.Errorf("oc adm migrate template-instances takes no positional arguments")
 	}
 
 	o.ResourceOptions.SaveFn = o.save
@@ -168,6 +171,6 @@ func (o *MigrateTemplateInstancesOptions) save(info *resource.Info, reporter mig
 		return fmt.Errorf("unrecognized object %#v", info.Object)
 	}
 
-	_, err := o.templateClient.TemplateInstances(templateInstance.Namespace).UpdateStatus(templateInstance)
+	_, err := o.templateClient.TemplateInstances(templateInstance.Namespace).UpdateStatus(context.TODO(), templateInstance, metav1.UpdateOptions{})
 	return migrate.DefaultRetriable(info, err)
 }

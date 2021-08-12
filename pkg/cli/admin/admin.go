@@ -49,10 +49,10 @@ var adminLong = ktemplates.LongDesc(`
 
 	Actions for administering an OpenShift cluster are exposed here.`)
 
-func NewCommandAdmin(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	// Main command
 	cmds := &cobra.Command{
-		Use:   name,
+		Use:   "adm",
 		Short: "Tools for managing a cluster",
 		Long:  fmt.Sprintf(adminLong),
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
@@ -62,79 +62,78 @@ func NewCommandAdmin(name, fullName string, f kcmdutil.Factory, streams genericc
 		{
 			Message: "Cluster Management:",
 			Commands: []*cobra.Command{
-				upgrade.New(f, fullName, streams),
-				top.NewCommandTop(top.TopRecommendedName, fullName+" "+top.TopRecommendedName, f, streams),
+				upgrade.New(f, streams),
+				top.NewCommandTop(f, streams),
 				mustgather.NewMustGatherCommand(f, streams),
-				inspect.NewCmdInspect(streams, fullName),
+				inspect.NewCmdInspect(streams),
 			},
 		},
 		{
 			Message: "Node Management:",
 			Commands: []*cobra.Command{
-				cmdutil.ReplaceCommandName("kubectl", fullName, drain.NewCmdDrain(f, streams)),
-				cmdutil.ReplaceCommandName("kubectl", fullName, ktemplates.Normalize(drain.NewCmdCordon(f, streams))),
-				cmdutil.ReplaceCommandName("kubectl", fullName, ktemplates.Normalize(drain.NewCmdUncordon(f, streams))),
-				cmdutil.ReplaceCommandName("kubectl", fullName, ktemplates.Normalize(taint.NewCmdTaint(f, streams))),
-				node.NewCmdLogs(fullName, f, streams),
+				cmdutil.ReplaceCommandName("kubectl", "oc adm", drain.NewCmdDrain(f, streams)),
+				cmdutil.ReplaceCommandName("kubectl", "oc adm", ktemplates.Normalize(drain.NewCmdCordon(f, streams))),
+				cmdutil.ReplaceCommandName("kubectl", "oc adm", ktemplates.Normalize(drain.NewCmdUncordon(f, streams))),
+				cmdutil.ReplaceCommandName("kubectl", "oc adm", ktemplates.Normalize(taint.NewCmdTaint(f, streams))),
+				node.NewCmdLogs(f, streams),
 			},
 		},
 		{
 			Message: "Security and Policy:",
 			Commands: []*cobra.Command{
-				project.NewCmdNewProject(project.NewProjectRecommendedName, fullName+" "+project.NewProjectRecommendedName, f, streams),
-				policy.NewCmdPolicy(policy.PolicyRecommendedName, fullName+" "+policy.PolicyRecommendedName, f, streams),
-				groups.NewCmdGroups(groups.GroupsRecommendedName, fullName+" "+groups.GroupsRecommendedName, f, streams),
+				project.NewCmdNewProject(f, streams),
+				policy.NewCmdPolicy(f, streams),
+				groups.NewCmdGroups(f, streams),
 				withShortDescription(certificates.NewCmdCertificate(f, streams), "Approve or reject certificate requests"),
-				network.NewCmdPodNetwork(network.PodNetworkCommandName, fullName+" "+network.PodNetworkCommandName, f, streams),
+				network.NewCmdPodNetwork(f, streams),
 			},
 		},
 		{
 			Message: "Maintenance:",
 			Commands: []*cobra.Command{
-				prune.NewCommandPrune(prune.PruneRecommendedName, fullName+" "+prune.PruneRecommendedName, f, streams),
-				migrate.NewCommandMigrate(
-					migrate.MigrateRecommendedName, fullName+" "+migrate.MigrateRecommendedName, f, streams,
+				prune.NewCommandPrune(f, streams),
+				migrate.NewCommandMigrate(f, streams,
 					// Migration commands
-					migrateimages.NewCmdMigrateImageReferences("image-references", fullName+" "+migrate.MigrateRecommendedName+" image-references", f, streams),
-					migratestorage.NewCmdMigrateAPIStorage("storage", fullName+" "+migrate.MigrateRecommendedName+" storage", f, streams),
-					migrateetcd.NewCmdMigrateTTLs("etcd-ttl", fullName+" "+migrate.MigrateRecommendedName+" etcd-ttl", f, streams),
-					migratehpa.NewCmdMigrateLegacyHPA("legacy-hpa", fullName+" "+migrate.MigrateRecommendedName+" legacy-hpa", f, streams),
-					migratetemplateinstances.NewCmdMigrateTemplateInstances("template-instances", fullName+" "+migrate.MigrateRecommendedName+" template-instances", f, streams),
+					migrateimages.NewCmdMigrateImageReferences(f, streams),
+					migratestorage.NewCmdMigrateAPIStorage(f, streams),
+					migrateetcd.NewCmdMigrateTTLs(f, streams),
+					migratehpa.NewCmdMigrateLegacyHPA(f, streams),
+					migratetemplateinstances.NewCmdMigrateTemplateInstances(f, streams),
 				),
 			},
 		},
 		{
 			Message: "Configuration:",
 			Commands: []*cobra.Command{
-				createkubeconfig.NewCommandCreateKubeConfig(createkubeconfig.CreateKubeConfigCommandName, fullName+" "+createkubeconfig.CreateKubeConfigCommandName, streams),
+				createkubeconfig.NewCommandCreateKubeConfig(streams),
 
-				createbootstrapprojecttemplate.NewCommandCreateBootstrapProjectTemplate(f, createbootstrapprojecttemplate.CreateBootstrapProjectTemplateCommand, fullName+" "+createbootstrapprojecttemplate.CreateBootstrapProjectTemplateCommand, streams),
+				createbootstrapprojecttemplate.NewCommandCreateBootstrapProjectTemplate(f, streams),
 
-				createlogintemplate.NewCommandCreateLoginTemplate(f, createlogintemplate.CreateLoginTemplateCommand, fullName+" "+createlogintemplate.CreateLoginTemplateCommand, streams),
-				createproviderselectiontemplate.NewCommandCreateProviderSelectionTemplate(f, createproviderselectiontemplate.CreateProviderSelectionTemplateCommand, fullName+" "+createproviderselectiontemplate.CreateProviderSelectionTemplateCommand, streams),
-				createerrortemplate.NewCommandCreateErrorTemplate(f, createerrortemplate.CreateErrorTemplateCommand, fullName+" "+createerrortemplate.CreateErrorTemplateCommand, streams),
+				createlogintemplate.NewCommandCreateLoginTemplate(f, streams),
+				createproviderselectiontemplate.NewCommandCreateProviderSelectionTemplate(f, streams),
+				createerrortemplate.NewCommandCreateErrorTemplate(f, streams),
 			},
 		},
 	}
 
-	cmds.AddCommand(cert.NewCmdCert(cert.CertRecommendedName, fullName+" "+cert.CertRecommendedName, streams))
+	cmds.AddCommand(cert.NewCmdCert(streams))
 
 	groups.Add(cmds)
 	cmdutil.ActsAsRootCommand(cmds, []string{"options"}, groups...)
 
 	cmds.AddCommand(
-		release.NewCmd(f, fullName, streams),
-		buildchain.NewCmdBuildChain(name, fullName+" "+buildchain.BuildChainRecommendedCommandName, f, streams),
-		verifyimagesignature.NewCmdVerifyImageSignature(name, fullName+" "+verifyimagesignature.VerifyRecommendedName, f, streams),
+		release.NewCmd(f, streams),
+		buildchain.NewCmdBuildChain(f, streams),
+		verifyimagesignature.NewCmdVerifyImageSignature(f, streams),
 
 		// part of every root command
-		kubectlwrappers.NewCmdConfig(fullName, "config", f, streams),
-		kubectlwrappers.NewCmdCompletion(fullName, streams),
+		kubectlwrappers.NewCmdConfig(f, streams),
+		kubectlwrappers.NewCmdCompletion(streams),
 
 		// hidden
 		options.NewCmdOptions(streams),
 	)
-	catalog.AddCommand(streams, cmds)
+	catalog.AddCommand(f, streams, cmds)
 
 	return cmds
 }

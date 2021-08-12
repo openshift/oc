@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -23,30 +23,32 @@ import (
 
 var (
 	extractLong = templates.LongDesc(`
-		Extract files out of secrets and config maps
+		Extract files out of secrets and config maps.
 
 		The extract command makes it easy to download the contents of a config map or secret into a directory.
 		Each key in the config map or secret is created as a separate file with the name of the key, as it
 		is when you mount a secret or config map into a container.
 
-		You may extract the contents of a secret or config map to standard out by passing '-' to --to. The
-		names of each key will be written to stdandard error.
+		You may extract the contents of a secret or config map to standard out by passing '-' to the --to option. The
+		names of each key will be written to standard error.
 
 		You can limit which keys are extracted with the --keys=NAME flag, or set the directory to extract to
-		with --to=DIRECTORY.`)
+		with --to=DIRECTORY.
+	`)
 
 	extractExample = templates.Examples(`
-		# extract the secret "test" to the current directory
-	  %[1]s extract secret/test
+		# Extract the secret "test" to the current directory
+		oc extract secret/test
 
-	  # extract the config map "nginx" to the /tmp directory
-	  %[1]s extract configmap/nginx --to=/tmp
+		# Extract the config map "nginx" to the /tmp directory
+		oc extract configmap/nginx --to=/tmp
 
-		# extract the config map "nginx" to STDOUT
-	  %[1]s extract configmap/nginx --to=-
+		# Extract the config map "nginx" to STDOUT
+		oc extract configmap/nginx --to=-
 
-	  # extract only the key "nginx.conf" from config map "nginx" to the /tmp directory
-	  %[1]s extract configmap/nginx --to=/tmp --keys=nginx.conf`)
+		# Extract only the key "nginx.conf" from config map "nginx" to the /tmp directory
+		oc extract configmap/nginx --to=/tmp --keys=nginx.conf
+	`)
 )
 
 type ExtractOptions struct {
@@ -72,14 +74,14 @@ func NewExtractOptions(targetDirectory string, streams genericclioptions.IOStrea
 	}
 }
 
-func NewCmdExtract(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewExtractOptions(".", streams)
 
 	cmd := &cobra.Command{
 		Use:     "extract RESOURCE/NAME [--to=DIRECTORY] [--keys=KEY ...]",
 		Short:   "Extract secrets or config maps to disk",
 		Long:    extractLong,
-		Example: fmt.Sprintf(extractExample, fullName),
+		Example: extractExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
 
 	templatev1 "github.com/openshift/api/template/v1"
@@ -55,7 +56,7 @@ func (r TemplateSearcher) Search(precise bool, terms ...string) (ComponentMatche
 			}
 			checkedNamespaces.Insert(namespace)
 
-			templates, err := r.Client.Templates(namespace).List(metav1.ListOptions{})
+			templates, err := r.Client.Templates(namespace).List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
 				if errors.IsNotFound(err) || errors.IsForbidden(err) {
 					continue

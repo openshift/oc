@@ -1,15 +1,19 @@
 package create
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
-	kapi "k8s.io/kubernetes/pkg/apis/core"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openshift/oc/pkg/cli/create/route"
@@ -19,18 +23,20 @@ import (
 
 var (
 	edgeRouteLong = templates.LongDesc(`
-		Create a route that uses edge TLS termination
+		Create a route that uses edge TLS termination.
 
 		Specify the service (either just its name or using type/name syntax) that the
-		generated route should expose via the --service flag.`)
+		generated route should expose via the --service flag.
+	`)
 
 	edgeRouteExample = templates.Examples(`
-		# Create an edge route named "my-route" that exposes frontend service.
-	  %[1]s create route edge my-route --service=frontend
+		# Create an edge route named "my-route" that exposes the frontend service
+		oc create route edge my-route --service=frontend
 
-	  # Create an edge route that exposes the frontend service and specify a path.
-	  # If the route name is omitted, the service name will be re-used.
-	  %[1]s create route edge --service=frontend --path /assets`)
+		# Create an edge route that exposes the frontend service and specify a path
+		# If the route name is omitted, the service name will be used
+		oc create route edge --service=frontend --path /assets
+	`)
 )
 
 type CreateEdgeRouteOptions struct {
@@ -48,7 +54,7 @@ type CreateEdgeRouteOptions struct {
 }
 
 // NewCmdCreateEdgeRoute is a macro command to create an edge route.
-func NewCmdCreateEdgeRoute(fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateEdgeRoute(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := &CreateEdgeRouteOptions{
 		CreateRouteSubcommandOptions: NewCreateRouteSubcommandOptions(streams),
 	}
@@ -56,7 +62,7 @@ func NewCmdCreateEdgeRoute(fullName string, f kcmdutil.Factory, streams genericc
 		Use:     "edge [NAME] --service=SERVICE",
 		Short:   "Create a route that uses edge TLS termination",
 		Long:    edgeRouteLong,
-		Example: fmt.Sprintf(edgeRouteExample, fullName),
+		Example: edgeRouteExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
@@ -78,7 +84,7 @@ func NewCmdCreateEdgeRoute(fullName string, f kcmdutil.Factory, streams genericc
 	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WilcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
 	kcmdutil.AddValidateFlags(cmd)
-	o.CreateRouteSubcommandOptions.PrintFlags.AddFlags(cmd)
+	o.CreateRouteSubcommandOptions.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
 
 	return cmd
@@ -127,8 +133,12 @@ func (o *CreateEdgeRouteOptions) Run() error {
 		route.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyType(o.InsecurePolicy)
 	}
 
-	if !o.CreateRouteSubcommandOptions.DryRun {
-		route, err = o.CreateRouteSubcommandOptions.Client.Routes(o.CreateRouteSubcommandOptions.Namespace).Create(route)
+	if err := util.CreateOrUpdateAnnotation(o.CreateRouteSubcommandOptions.CreateAnnotation, route, scheme.DefaultJSONEncoder()); err != nil {
+		return err
+	}
+
+	if o.CreateRouteSubcommandOptions.DryRunStrategy != kcmdutil.DryRunClient {
+		route, err = o.CreateRouteSubcommandOptions.Client.Routes(o.CreateRouteSubcommandOptions.Namespace).Create(context.TODO(), route, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -141,11 +151,11 @@ func resolveServiceName(mapper meta.RESTMapper, resource string) (string, error)
 	if len(resource) == 0 {
 		return "", fmt.Errorf("you need to provide a service name via --service")
 	}
-	rType, name, err := cmdutil.ResolveResource(kapi.Resource("services"), resource, mapper)
+	rType, name, err := cmdutil.ResolveResource(corev1.Resource("services"), resource, mapper)
 	if err != nil {
 		return "", err
 	}
-	if rType != kapi.Resource("services") {
+	if rType != corev1.Resource("services") {
 		return "", fmt.Errorf("cannot expose %v as routes", rType)
 	}
 	return name, nil
