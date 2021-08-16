@@ -38,9 +38,9 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 		Use:   "upgrade --to=VERSION",
 		Short: "Upgrade a cluster",
 		Long: templates.LongDesc(`
-			Upgrade the cluster to a newer version
+			Check on upgrade status or upgrade the cluster to a newer version
 
-			This command will request that the cluster begin an upgrade. If no arguments are passed
+			This command assists with cluster upgrades. If no arguments are passed
 			the command will retrieve the current version info and display whether an upgrade is
 			in progress or whether any errors might prevent an upgrade, as well as show the suggested
 			updates available to the cluster. Information about compatible updates is periodically
@@ -363,7 +363,7 @@ func (o *Options) Run() error {
 			if c := findCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
 				fmt.Fprintf(o.ErrOut, "warning: Cannot display available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, c.Message)
 			} else {
-				fmt.Fprintf(o.Out, "No updates available. You may force an upgrade to a specific release image, but doing so may not be supported and result in downtime or data loss.\n")
+				fmt.Fprintf(o.Out, "No updates available. You may force an upgrade to a specific release image, but doing so may not be supported and may result in downtime or data loss.\n")
 			}
 		}
 
