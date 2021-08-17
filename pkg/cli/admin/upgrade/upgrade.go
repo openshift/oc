@@ -28,6 +28,13 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
 )
 
+const (
+	// clusterStatusFailing is set on the ClusterVersion status when a cluster
+	// cannot reach the desired state. It is considered more serious than Degraded
+	// and indicates the cluster is not healthy.
+	clusterStatusFailing = configv1.ClusterStatusConditionType("Failing")
+)
+
 var upgradeExample = templates.Examples(`
 	# Review the available cluster updates
 	oc adm upgrade
@@ -340,15 +347,12 @@ func (o *Options) Run() error {
 		return nil
 
 	default:
-		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorDegraded); c != nil && c.Status == configv1.ConditionTrue {
-			prefix := "No upgrade is possible due to an error"
-			if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue && len(c.Message) > 0 {
-				prefix = c.Message
+		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil {
+			if c.Status != configv1.ConditionFalse {
+				fmt.Fprintf(o.Out, "%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 			}
-			if len(c.Message) > 0 {
-				return fmt.Errorf("%s:\n\n  Reason: %s\n  Message: %s\n\n", prefix, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-			}
-			return fmt.Errorf("The cluster can't be upgraded, see `oc describe clusterversion`")
+		} else {
+			fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", clusterStatusFailing)
 		}
 
 		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && len(c.Message) > 0 {
@@ -358,12 +362,12 @@ func (o *Options) Run() error {
 				fmt.Fprintln(o.Out, c.Message)
 			}
 		} else {
-			fmt.Fprintln(o.ErrOut, "warning: No current status info, see `oc describe clusterversion` for more details")
+			fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", configv1.OperatorProgressing)
 		}
 		fmt.Fprintln(o.Out)
 
 		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
-			fmt.Fprintf(o.Out, "Upgradeable=False\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+			fmt.Fprintf(o.Out, "%s=%s\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 		}
 
 		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "ReleaseAccepted"); c != nil && c.Status != configv1.ConditionTrue {
@@ -560,20 +564,27 @@ func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorSta
 func checkForUpgrade(cv *configv1.ClusterVersion) error {
 	results := []string{}
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "Invalid"); c != nil && c.Status == configv1.ConditionTrue {
-		results = append(results, fmt.Sprintf("the cluster version object is invalid, you must correct the invalid state first:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
+		results = append(results, fmt.Sprintf("the cluster version object is invalid, you must correct the invalid state first:\n\n  Reason: %s\n  Message: %s", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
-	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorDegraded); c != nil && c.Status == configv1.ConditionTrue {
-		results = append(results, fmt.Sprintf("the cluster is experiencing an upgrade-blocking error:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
+	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil && c.Status == configv1.ConditionTrue {
+		target := cv.Status.Desired.Version
+		if target == "" {
+			target = cv.Status.Desired.Image
+			if target == "" {
+				target = "ClusterVersion status.desired has neither a version nor image; please open a bug"
+			}
+		}
+		results = append(results, fmt.Sprintf("the cluster is experiencing an error reconciling %q:\n\n  Reason: %s\n  Message: %s", target, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue {
-		results = append(results, fmt.Sprintf("the cluster is already upgrading:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
+		results = append(results, fmt.Sprintf("the cluster is already upgrading:\n\n  Reason: %s\n  Message: %s", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
 
 	if len(results) == 0 {
 		return nil
 	}
 
-	return errors.New(strings.Join(results, ""))
+	return errors.New(strings.Join(results, "\n\n"))
 }
 
 // targetMatch returns true if the target release matches the target
