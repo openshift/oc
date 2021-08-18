@@ -347,7 +347,7 @@ func (o *Options) Run() error {
 		}
 
 		if len(cv.Status.AvailableUpdates) > 0 {
-			fmt.Fprintf(o.Out, "Updates:\n\n")
+			fmt.Fprintf(o.Out, "Available Updates:\n\n")
 			w := tabwriter.NewWriter(o.Out, 0, 2, 1, ' ', 0)
 			fmt.Fprintf(w, "VERSION\tIMAGE\n")
 			// TODO: add metadata about version
