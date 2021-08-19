@@ -84,7 +84,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 				project.NewCmdNewProject(f, streams),
 				policy.NewCmdPolicy(f, streams),
 				groups.NewCmdGroups(f, streams),
-				withShortDescription(certificates.NewCmdCertificate(f, streams), "Approve or reject certificate requests"),
+				withShortDescription(cmdutil.ReplaceCommandName("kubectl", "oc adm", ktemplates.Normalize(certificates.NewCmdCertificate(f, streams))), "Approve or reject certificate requests"),
 				network.NewCmdPodNetwork(f, streams),
 			},
 		},
