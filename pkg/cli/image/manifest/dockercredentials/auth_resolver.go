@@ -67,6 +67,7 @@ func NewAuthResolver(authFilePath string) (*AuthResolver, error) {
 	}, nil
 }
 
+// TODO: switch this for imageAuth.GetCredentials or imageAuth.GetAllCredentials once we remove REGISTRY_AUTH_PREFERENCE env variable
 // original: https://github.com/containers/image/blob/main/pkg/docker/config/config.go
 // findAuthentication looks for auth of registry in path. If ref is
 // not nil, then it will be taken into account when looking up the

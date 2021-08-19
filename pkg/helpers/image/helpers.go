@@ -144,7 +144,7 @@ var (
 func GetRegistryAuthConfigPreference() RegistryAuthConfigPreference {
 	// TODO: docker default is deprecated and will be changed to podman in 4.12
 	result := DockerPreference // default to docker
-	if authPreference := os.Getenv("REGISTRY_AUTH_PREFERENCE"); authPreference == string(DockerPreference) || authPreference == string(PodmanPreference) {
+	if authPreference := strings.ToLower(os.Getenv("REGISTRY_AUTH_PREFERENCE")); authPreference == string(DockerPreference) || authPreference == string(PodmanPreference) {
 		result = RegistryAuthConfigPreference(authPreference)
 	} else {
 		// TODO: remove once deprecated in 4.12

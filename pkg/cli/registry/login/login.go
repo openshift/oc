@@ -1,18 +1,16 @@
 package login
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/containers/image/v5/pkg/docker/config"
+	imageTypes "github.com/containers/image/v5/types"
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
@@ -23,13 +21,13 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/homedir"
-	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imageclient "github.com/openshift/client-go/image/clientset/versioned"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
+	"github.com/openshift/oc/pkg/helpers/image"
 )
 
 var (
@@ -93,12 +91,11 @@ func (c Credentials) Empty() bool {
 }
 
 type LoginOptions struct {
-	ConfigFile      string
-	Credentials     Credentials
-	HostPort        string
-	SkipCheck       bool
-	Insecure        bool
-	CreateDirectory bool
+	ConfigFile  string
+	Credentials Credentials
+	HostPort    string
+	SkipCheck   bool
+	Insecure    bool
 
 	AuthBasic      string
 	ServiceAccount string
@@ -130,8 +127,9 @@ func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams
 
 	flag := cmd.Flags()
 	flag.StringVar(&o.AuthBasic, "auth-basic", o.AuthBasic, "Provide credentials in the form 'user:password' to authenticate (advanced)")
-	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the file your credentials will be stored in. Default is Docker config.json")
-	flag.StringVar(&o.ConfigFile, "to", o.ConfigFile, "The location of the file your credentials will be stored in. Default is Docker config.json")
+	// TODO: fix priority and deprecation notice in 4.12
+	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Default is Docker config.json (deprecated). Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker or podman.")
+	flag.StringVar(&o.ConfigFile, "to", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Default is Docker config.json (deprecated). Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker or podman.")
 	flag.StringVarP(&o.ServiceAccount, "service-account", "z", o.ServiceAccount, "Log in as the specified service account name in the specified namespace.")
 	flag.StringVar(&o.HostPort, "registry", o.HostPort, "An alternate domain name and port to use for the registry, defaults to the cluster's configured external hostname.")
 	flag.BoolVar(&o.SkipCheck, "skip-check", o.SkipCheck, "Skip checking the credentials against the registry.")
@@ -240,9 +238,12 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 	}
 
 	if len(o.ConfigFile) == 0 {
-		home := homedir.HomeDir()
-		o.ConfigFile = filepath.Join(home, ".docker", "config.json")
-		o.CreateDirectory = true
+		if authFile := os.Getenv("REGISTRY_AUTH_FILE"); authFile != "" {
+			o.ConfigFile = authFile
+		} else if image.GetRegistryAuthConfigPreference() == image.DockerPreference {
+			home := homedir.HomeDir()
+			o.ConfigFile = filepath.Join(home, ".docker", "config.json")
+		}
 	}
 
 	return nil
@@ -273,9 +274,6 @@ func (o *LoginOptions) Validate() error {
 	if o.Credentials.Empty() {
 		return fmt.Errorf("Unable to determine registry credentials, please specify a service account or log into the cluster.")
 	}
-	if len(o.ConfigFile) == 0 {
-		return fmt.Errorf("Specify a file to write credentials to with --to")
-	}
 	return nil
 }
 
@@ -283,76 +281,23 @@ func (o *LoginOptions) Run() error {
 	if !o.SkipCheck {
 		ctx := apirequest.NewContext()
 		creds := registryclient.NewBasicCredentials()
-		url := &url.URL{Host: o.HostPort}
-		creds.Add(url, o.Credentials.Username, o.Credentials.Password)
+		hostPortURL := &url.URL{Host: o.HostPort}
+		creds.Add(hostPortURL, o.Credentials.Username, o.Credentials.Password)
 		insecureRT, err := rest.TransportFor(&rest.Config{TLSClientConfig: rest.TLSClientConfig{Insecure: true}, UserAgent: rest.DefaultKubernetesUserAgent()})
 		if err != nil {
 			return err
 		}
 		c := registryclient.NewContext(http.DefaultTransport, insecureRT).WithCredentials(creds)
-		if _, err := c.Repository(ctx, url, "does_not_exist", o.Insecure); err != nil {
+		if _, err := c.Repository(ctx, hostPortURL, "does_not_exist", o.Insecure); err != nil {
 			return fmt.Errorf("unable to check your credentials - pass --skip-check to bypass this error: %v", err)
 		}
 	}
 
-	filename := o.ConfigFile
-	var contents []byte
-	if filename != "-" {
-		data, err := ioutil.ReadFile(filename)
-		if err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		contents = data
-	}
-	if len(contents) == 0 {
-		contents = []byte("{}")
-	}
-
-	cfg := make(map[string]interface{})
-	if err := json.Unmarshal(contents, &cfg); err != nil {
-		return fmt.Errorf("unable to parse existing credentials %s: %v", filename, err)
-	}
-
-	obj, ok := cfg["auths"]
-	if !ok {
-		obj = make(map[string]interface{})
-		cfg["auths"] = obj
-	}
-	auths, ok := obj.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("the specified config file %s does not appear to be in the correct Docker config.json format: have 'auths' key of type %T", filename, obj)
-	}
-	auths[o.HostPort] = map[string]interface{}{
-		"auth": o.Credentials.Auth,
-	}
-	contents, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
+	ctx := &imageTypes.SystemContext{AuthFilePath: o.ConfigFile}
+	if err := config.SetAuthentication(ctx, o.HostPort, o.Credentials.Username, o.Credentials.Password); err != nil {
 		return err
 	}
 
-	if o.ConfigFile == "-" {
-		fmt.Fprintln(o.Out, string(contents))
-		return nil
-	}
-
-	if o.CreateDirectory {
-		dir := filepath.Dir(filename)
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			klog.V(2).Infof("Unable to create nested directories: %v", err)
-		}
-	}
-
-	f, err := os.OpenFile(filename, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if _, err := io.Copy(f, bytes.NewReader(contents)); err != nil {
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
 	fmt.Fprintf(o.Out, "Saved credentials for %s\n", o.HostPort)
 	return nil
 }
