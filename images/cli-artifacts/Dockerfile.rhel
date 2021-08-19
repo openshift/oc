@@ -9,6 +9,7 @@ FROM registry.ci.openshift.org/ocp/4.9:cli
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/darwin_amd64/oc /usr/share/openshift/mac/oc
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/windows_amd64/oc.exe /usr/share/openshift/windows/oc.exe
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_amd64/oc /usr/share/openshift/linux_amd64/oc
+COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_amd64/oc /usr/bin/
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_arm64/oc /usr/share/openshift/linux_arm64/oc
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_ppc64le/oc /usr/share/openshift/linux_ppc64le/oc
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_s390x/oc /usr/share/openshift/linux_s390x/oc
