@@ -42,7 +42,7 @@ func TestNewBuildRun(t *testing.T) {
 
 				  1. Images tagged into image streams in the current project or the 'openshift' project
 				     - if you don't specify a tag, we'll add ':latest'
-				  2. Images in the Docker Hub, on remote registries, or on the local Docker engine
+				  2. Images in the container registry, on remote registries, or on the local container engine
 				  3. Git repository URLs or local paths that point to Git repositories
 
 				--allow-missing-images can be used to force the use of an image that was not matched

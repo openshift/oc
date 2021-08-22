@@ -29,7 +29,7 @@ var (
 		Create a new build by specifying source code.
 
 		This command will try to create a build configuration for your application using images and
-		code that has a public repository. It will look up the images on the local Docker installation
+		code that has a public repository. It will look up the images on the local container storage
 		(if available), a container image registry, or an image stream.
 
 		If you specify a source code URL, it will set up a build that takes your source code and converts
@@ -41,8 +41,8 @@ var (
 
 	newBuildExample = templates.Examples(`
 		# Create a build config based on the source code in the current git repository (with a public
-		# remote) and a Docker image
-		oc new-build . --docker-image=repo/langimage
+		# remote) and a container image
+		oc new-build . --image=repo/langimage
 
 		# Create a NodeJS build config based on the provided [image]~[source code] combination
 		oc new-build centos/nodejs-8-centos7~https://github.com/sclorg/nodejs-ex.git
@@ -65,13 +65,13 @@ var (
 		# Create a build config from a remote repository and inject environment data into a build
 		oc new-build https://github.com/openshift/ruby-hello-world --build-config-map env:config
 
-		# Create a build config that gets its input from a remote repository and another Docker image
+		# Create a build config that gets its input from a remote repository and another container image
 		oc new-build https://github.com/openshift/ruby-hello-world --source-image=openshift/jenkins-1-centos7 --source-image-path=/var/lib/jenkins:tmp
 	`)
 
 	newBuildNoInput = `You must specify one or more images, image streams, or source code locations to create a build.
 
-To build from an existing image stream tag or Docker image, provide the name of the image and
+To build from an existing image stream tag or container image, provide the name of the image and
 the source code location:
 
   oc new-build centos/nodejs-8-centos7~https://github.com/sclorg/nodejs-ex.git
@@ -83,7 +83,7 @@ default container image registry.
   oc new-build https://github.com/sclorg/nodejs-ex.git
 
 will look for an image called "nodejs" in your current project, the 'openshift' project, or
-on the Docker Hub.
+on the configured container registries.
 `
 )
 
@@ -124,13 +124,15 @@ func NewCmdNewBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 
 	cmd.Flags().StringSliceVar(&o.Config.SourceRepositories, "code", o.Config.SourceRepositories, "Source code in the build configuration.")
 	cmd.Flags().StringSliceVarP(&o.Config.ImageStreams, "image-stream", "i", o.Config.ImageStreams, "Name of an image stream to to use as a builder.")
-	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "docker-image", o.Config.DockerImages, "Name of a Docker image to use as a builder.")
+	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "image", o.Config.DockerImages, "Name of a container image to use as a builder.")
+	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "docker-image", o.Config.DockerImages, "Name of a container image to use as a builder.")
+	cmd.Flags().MarkDeprecated("docker-image", "Deprecated flag use --image")
 	cmd.Flags().StringSliceVar(&o.Config.ConfigMaps, "build-config-map", o.Config.ConfigMaps, "ConfigMap and destination to use as an input for the build.")
 	cmd.Flags().StringSliceVar(&o.Config.Secrets, "build-secret", o.Config.Secrets, "Secret and destination to use as an input for the build.")
 	cmd.Flags().StringVar(&o.Config.SourceSecret, "source-secret", o.Config.SourceSecret, "The name of an existing secret that should be used for cloning a private git repository.")
 	cmd.Flags().StringVar(&o.Config.PushSecret, "push-secret", o.Config.PushSecret, "The name of an existing secret that should be used for pushing the output image.")
 	cmd.Flags().StringVar(&o.Config.Name, "name", o.Config.Name, "Set name to use for generated build artifacts.")
-	cmd.Flags().StringVar(&o.Config.To, "to", o.Config.To, "Push built images to this image stream tag (or Docker image repository if --to-docker is set).")
+	cmd.Flags().StringVar(&o.Config.To, "to", o.Config.To, "Push built images to this image stream tag (or container image repository if --to-docker is set).")
 	cmd.Flags().BoolVar(&o.Config.OutputDocker, "to-docker", o.Config.OutputDocker, "If true, have the build output push to a Docker repository.")
 	cmd.Flags().StringArrayVar(&o.Config.BuildEnvironment, "build-env", o.Config.BuildEnvironment, "Specify a key-value pair for an environment variable to set into resulting image.")
 	cmd.Flags().MarkHidden("build-env")
@@ -145,8 +147,8 @@ func NewCmdNewBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 	cmd.Flags().StringArrayVar(&o.Config.BuildArgs, "build-arg", o.Config.BuildArgs, "Specify a key-value pair to pass to Docker during the build.")
 	cmd.Flags().BoolVar(&o.Config.BinaryBuild, "binary", o.Config.BinaryBuild, "Instead of expecting a source URL, set the build to expect binary contents. Will disable triggers.")
 	cmd.Flags().StringP("labels", "l", "", "Label to set in all generated resources.")
-	cmd.Flags().BoolVar(&o.Config.InsecureRegistry, "insecure-registry", o.Config.InsecureRegistry, "If true, indicates that the referenced Docker images are on insecure registries and should bypass certificate checking")
-	cmd.Flags().BoolVar(&o.Config.AllowMissingImages, "allow-missing-images", o.Config.AllowMissingImages, "If true, indicates that referenced Docker images that cannot be found locally or in a registry should still be used.")
+	cmd.Flags().BoolVar(&o.Config.InsecureRegistry, "insecure-registry", o.Config.InsecureRegistry, "If true, indicates that the referenced container images are on insecure registries and should bypass certificate checking")
+	cmd.Flags().BoolVar(&o.Config.AllowMissingImages, "allow-missing-images", o.Config.AllowMissingImages, "If true, indicates that referenced container images that cannot be found locally or in a registry should still be used.")
 	cmd.Flags().BoolVar(&o.Config.AllowMissingImageStreamTags, "allow-missing-imagestream-tags", o.Config.AllowMissingImageStreamTags, "If true, indicates that image stream tags that don't exist should still be used.")
 	cmd.Flags().StringVar(&o.Config.ContextDir, "context-dir", o.Config.ContextDir, "Context directory to be used for the build.")
 	cmd.Flags().BoolVar(&o.Config.NoOutput, "no-output", o.Config.NoOutput, "If true, the build output will not be pushed anywhere.")
@@ -257,7 +259,7 @@ func transformBuildError(err error, commandPath string, groups ocnewapp.ErrorGro
 
 				  1. Images tagged into image streams in the current project or the 'openshift' project
 				     - if you don't specify a tag, we'll add ':latest'
-				  2. Images in the Docker Hub, on remote registries, or on the local Docker engine
+				  2. Images in the container registry, on remote registries, or on the local container engine
 				  3. Git repository URLs or local paths that point to Git repositories
 
 				--allow-missing-images can be used to force the use of an image that was not matched

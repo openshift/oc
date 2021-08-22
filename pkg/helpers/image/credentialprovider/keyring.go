@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-// DockerKeyring tracks a set of docker registry credentials, maintaining a
+// DockerKeyring tracks a set of container registry credentials, maintaining a
 // reverse index across the registry endpoints. A registry endpoint is made
 // up of a host (e.g. registry.example.com), but it may also contain a path
 // (e.g. registry.example.com/foo) This index is important for two reasons:

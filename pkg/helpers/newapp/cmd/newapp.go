@@ -494,7 +494,7 @@ func (c *AppConfig) buildPipelines(components app.ComponentReferences, environme
 						return nil, fmt.Errorf("can't build %q: %v", from, err)
 					}
 					if !inputImage.AsImageStream && from != "scratch" && (refInput.Uses == nil || refInput.Uses.GetStrategy() != newapp.StrategyPipeline) {
-						msg := "Could not find an image stream match for %q. Make sure that a Docker image with that tag is available on the node for the build to succeed."
+						msg := "Could not find an image stream match for %q. Make sure that a container image with that tag is available on the node for the build to succeed."
 						klog.Warningf(msg, from)
 					}
 					image = inputImage
@@ -510,7 +510,7 @@ func (c *AppConfig) buildPipelines(components app.ComponentReferences, environme
 					return nil, fmt.Errorf("can't include %q: %v", from, err)
 				}
 				if !inputImage.AsImageStream {
-					msg := "Could not find an image stream match for %q. Make sure that a Docker image with that tag is available on the node for the deployment to succeed."
+					msg := "Could not find an image stream match for %q. Make sure that a container image with that tag is available on the node for the deployment to succeed."
 					klog.Warningf(msg, from)
 				}
 
