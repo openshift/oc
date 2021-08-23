@@ -94,11 +94,14 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	// Security Contexts
+	cmd.Flags().BoolVar(&o.DebugPrivileges, "debug-privileges", o.DebugPrivileges, "Start Pod in Privilege Mode with HostPID, HostIPC and HostNetwork enabled. Mount hosts / directory to /host")
 	cmd.Flags().BoolVar(&o.Privileged, "privileged", o.Privileged, "Start the Pod running in Privileged Mode")
 	cmd.Flags().BoolVar(&o.HostNetwork, "host-network", o.HostNetwork, "Start the Pod running the Host NetworkNamespace")
 	cmd.Flags().BoolVar(&o.HostPID, "host-pid", o.HostPID, "Start the Pod running in Host PID Namespace")
 	cmd.Flags().BoolVar(&o.HostIPC, "host-ipc", o.HostIPC, "Start the Pod running in Host IPC Namespace")
 	cmd.Flags().BoolVar(&o.MountHostRoot, "mount-host", o.MountHostRoot, "Mount the Hosts / to /host inside the Pod")
+
+	cmd.Flags().MarkHidden("debug-privileges")
 	cmd.Flags().MarkHidden("keep")
 	return cmd
 }
@@ -163,6 +166,14 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 		return err
 	}
 	o.RsyncRshCmd = rsync.DefaultRsyncRemoteShellToUse(cmd)
+
+	if o.DebugPrivileges {
+		o.Privileged = true
+		o.HostNetwork = true
+		o.HostPID = true
+		o.HostIPC = true
+		o.MountHostRoot = true
+	}
 	return nil
 }
 
@@ -241,11 +252,12 @@ type MustGatherOptions struct {
 	Keep         bool
 
 	// SecurityContexts
-	Privileged    bool
-	HostNetwork   bool
-	HostPID       bool
-	HostIPC       bool
-	MountHostRoot bool
+	DebugPrivileges bool
+	Privileged      bool
+	HostNetwork     bool
+	HostPID         bool
+	HostIPC         bool
+	MountHostRoot   bool
 
 	RsyncRshCmd string
 
