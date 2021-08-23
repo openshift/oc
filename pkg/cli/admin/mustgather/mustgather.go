@@ -93,8 +93,13 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
 	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
+	// Security Contexts
+	cmd.Flags().BoolVar(&o.Privileged, "privileged", o.Privileged, "Start the Pod running in Privileged Mode")
+	cmd.Flags().BoolVar(&o.HostNetwork, "host-network", o.HostNetwork, "Start the Pod running the Host NetworkNamespace")
+	cmd.Flags().BoolVar(&o.HostPID, "host-pid", o.HostPID, "Start the Pod running in Host PID Namespace")
+	cmd.Flags().BoolVar(&o.HostIPC, "host-ipc", o.HostIPC, "Start the Pod running in Host IPC Namespace")
+	cmd.Flags().BoolVar(&o.MountHostRoot, "mount-host", o.MountHostRoot, "Mount the Hosts / to /host inside the Pod")
 	cmd.Flags().MarkHidden("keep")
-
 	return cmd
 }
 
@@ -234,6 +239,13 @@ type MustGatherOptions struct {
 	Timeout      time.Duration
 	timeoutStr   string
 	Keep         bool
+
+	// SecurityContexts
+	Privileged    bool
+	HostNetwork   bool
+	HostPID       bool
+	HostIPC       bool
+	MountHostRoot bool
 
 	RsyncRshCmd string
 
@@ -584,6 +596,26 @@ func (o *MustGatherOptions) newClusterRoleBinding(ns string) *rbacv1.ClusterRole
 	}
 }
 
+func getHostPathConfiguration() (corev1.Volume, corev1.VolumeMount) {
+	hostPathDirectory := corev1.HostPathDirectory
+
+	hostVol := corev1.Volume{
+		Name: "root-dir",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/",
+				Type: &hostPathDirectory,
+			},
+		},
+	}
+	hostMount := corev1.VolumeMount{
+		Name:      "root-dir",
+		MountPath: "/host",
+	}
+
+	return hostVol, hostMount
+}
+
 // newPod creates a pod with 2 containers with a shared volume mount:
 // - gather: init containers that run gather command
 // - copy: no-op container we can exec into
@@ -595,6 +627,28 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 	}
 	if node == "" {
 		nodeSelector["node-role.kubernetes.io/master"] = ""
+	}
+
+	volumes := []corev1.Volume{
+		{
+			Name: "must-gather-output",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+	}
+	gatherVolumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "must-gather-output",
+			MountPath: path.Clean(o.SourceDir),
+			ReadOnly:  false,
+		},
+	}
+
+	if o.MountHostRoot {
+		hostVol, hostMount := getHostPathConfiguration()
+		volumes = append(volumes, hostVol)
+		gatherVolumeMounts = append(gatherVolumeMounts, hostMount)
 	}
 
 	ret := &corev1.Pod{
@@ -611,27 +665,17 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 			// so setting priority class to system-cluster-critical
 			PriorityClassName: "system-cluster-critical",
 			RestartPolicy:     corev1.RestartPolicyNever,
-			Volumes: []corev1.Volume{
-				{
-					Name: "must-gather-output",
-					VolumeSource: corev1.VolumeSource{
-						EmptyDir: &corev1.EmptyDirVolumeSource{},
-					},
-				},
-			},
+			Volumes:           volumes,
 			Containers: []corev1.Container{
 				{
 					Name:            "gather",
 					Image:           image,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					// always force disk flush to ensure that all data gathered is accessible in the copy container
-					Command: []string{"/bin/bash", "-c", "/usr/bin/gather; sync"},
-					VolumeMounts: []corev1.VolumeMount{
-						{
-							Name:      "must-gather-output",
-							MountPath: path.Clean(o.SourceDir),
-							ReadOnly:  false,
-						},
+					Command:      []string{"/bin/bash", "-c", "/usr/bin/gather; sync"},
+					VolumeMounts: gatherVolumeMounts,
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: &o.Privileged,
 					},
 				},
 				{
@@ -655,6 +699,10 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 					Operator: "Exists",
 				},
 			},
+			// Run the Pod in Host namespaces
+			HostNetwork: o.HostNetwork,
+			HostPID:     o.HostPID,
+			HostIPC:     o.HostIPC,
 		},
 	}
 	if len(o.Command) > 0 {
