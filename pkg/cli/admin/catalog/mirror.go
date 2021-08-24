@@ -41,6 +41,16 @@ import (
 )
 
 var (
+	sqliteDeprecationNotice = `
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! DEPRECATION NOTICE:
+!!   Sqlite-based catalogs are deprecated. Support for them will be removed in a
+!!   future release. Please migrate your catalog workflows to the new file-based
+!!   catalog format.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+`
+
 	mirrorLong = templates.LongDesc(`
 		Mirrors the contents of a catalog into a registry.
 
@@ -55,7 +65,8 @@ var (
 
 		A mapping.txt file is also created that is compatible with "oc image mirror". This may be used to further
 		customize the mirroring configuration, but should not be needed in normal circumstances.
-	`)
+
+	` + prefixLines(sqliteDeprecationNotice, "\t\t\t"))
 	mirrorExample = templates.Examples(`
 		# Mirror an operator-registry image and its contents to a registry
 		oc adm catalog mirror quay.io/my/image:latest myregistry.com
@@ -211,7 +222,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		return err
 	}
 
-	// try to get the index db location label from src, from pkg/image/info
+	// try to get the catalog file location label from src, from pkg/image/info
 	var image *info.Image
 	retriever := &info.ImageRetriever{
 		FileDir:         o.FileDir,
@@ -259,6 +270,8 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		indexLocation = dcLocation
 		fmt.Fprintf(o.IOStreams.Out, "src image has index label for declarative configs path: %s\n", indexLocation)
 	} else if dbLocation, ok := image.Config.Config.Labels[DatabaseLocationLabelKey]; ok {
+		fmt.Fprint(o.IOStreams.ErrOut, sqliteDeprecationNotice)
+
 		indexLocation = dbLocation
 		fmt.Fprintf(o.IOStreams.Out, "src image has index label for database path: %s\n", indexLocation)
 	}
@@ -709,4 +722,12 @@ func generateICSP(out io.Writer, name string, byteLimit int, registryMapping map
 	}
 
 	return icspExample, nil
+}
+
+func prefixLines(in string, prefix string) string {
+	lines := strings.Split(in, "\n")
+	for i := range lines {
+		lines[i] = fmt.Sprintf("%s%s", prefix, lines[i])
+	}
+	return strings.Join(lines, "\n")
 }
