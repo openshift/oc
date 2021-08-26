@@ -16,9 +16,9 @@ aliases:
     - vrutkovs
     - wking
   catalog-approvers:
-    - ecordell
+    - kevinrizza
   catalog-reviewers:
-    - ecordell
+    - kevinrizza
   build-reviewers:
     - adambkaplan
     - gabemontero
