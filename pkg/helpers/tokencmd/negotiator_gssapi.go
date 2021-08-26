@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apcera/gssapi"
+	"github.com/openshift/gssapi"
 	"k8s.io/klog/v2"
 
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"

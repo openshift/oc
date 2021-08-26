@@ -8,7 +8,6 @@ require (
 	github.com/RangelReale/osincli v0.0.0-20160924135400-fababb0555f2
 	github.com/alexbrainman/sspi v0.0.0-20180613141037-e580b900e9f5
 	github.com/alicebob/sqlittle v1.4.0
-	github.com/apcera/gssapi v0.0.0-00010101000000-000000000000
 	github.com/aws/aws-sdk-go v1.38.49
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/containers/image/v5 v5.15.0
@@ -30,6 +29,7 @@ require (
 	github.com/openshift/api v0.0.0-20220525145417-ee5b62754c68
 	github.com/openshift/build-machinery-go v0.0.0-20220429084610-baff9f8d23b3
 	github.com/openshift/client-go v0.0.0-20220525160904-9e1acff93e4a
+	github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 	github.com/openshift/library-go v0.0.0-20220525173854-9b950a41acdc
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1
@@ -178,5 +178,3 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.13.6 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 )
-
-replace github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
