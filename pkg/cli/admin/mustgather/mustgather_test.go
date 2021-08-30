@@ -4,14 +4,14 @@ import (
 	"reflect"
 	"testing"
 
+	imagev1 "github.com/openshift/api/image/v1"
+	imageclient "github.com/openshift/client-go/image/clientset/versioned/fake"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/diff"
-
-	imagev1 "github.com/openshift/api/image/v1"
-	imageclient "github.com/openshift/client-go/image/clientset/versioned/fake"
 )
 
 func TestImagesAndImageStreams(t *testing.T) {
@@ -103,5 +103,63 @@ func withTag(tag, reference string) func(*imagev1.ImageStream) *imagev1.ImageStr
 			Items: append([]imagev1.TagEvent{{DockerImageReference: reference}}),
 		})
 		return imageStream
+	}
+}
+
+func TestEnvironmentVariables(t *testing.T) {
+
+	testCases := []struct {
+		name            string
+		environmentStr  []string
+		expectedEnviron []corev1.EnvVar
+		objects         []runtime.Object
+	}{
+		// No Environ
+		{
+			name:            "DefaultNoEnvironmentVariable",
+			environmentStr:  nil,
+			expectedEnviron: []corev1.EnvVar{},
+		},
+		// Multiple Environ
+		{
+			name:           "MultipleEnvironmentVariables",
+			environmentStr: []string{"FIELD1=VALUE1", "FIELD2=VALUE2"},
+			expectedEnviron: []corev1.EnvVar{
+				{Name: "FIELD1", Value: "VALUE1"},
+				{Name: "FIELD2", Value: "VALUE2"},
+			},
+		},
+		{
+			name:           "EnvironmentVariableContainsEqualSign",
+			environmentStr: []string{"FIELD1=VALUE1=VALUE2"},
+			expectedEnviron: []corev1.EnvVar{
+				{Name: "FIELD1", Value: "VALUE1=VALUE2"},
+			},
+		},
+		{
+			name:           "EmptyString",
+			environmentStr: []string{"FIELD1="},
+			expectedEnviron: []corev1.EnvVar{
+				{Name: "FIELD1", Value: ""},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			options := MustGatherOptions{
+				IOStreams:                  genericclioptions.NewTestIOStreamsDiscard(),
+				Client:                     fake.NewSimpleClientset(),
+				environmentVariablesString: tc.environmentStr,
+				LogOut:                     genericclioptions.NewTestIOStreamsDiscard().Out,
+			}
+			err := options.completeEnvironmentVariables()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(options.EnvironmentVariables, tc.expectedEnviron) {
+				t.Fatal(diff.ObjectDiff(options.EnvironmentVariables, tc.expectedEnviron))
+			}
+		})
 	}
 }
