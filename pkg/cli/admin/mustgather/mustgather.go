@@ -29,6 +29,8 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/validation"
+
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -92,6 +94,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
 	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
+	cmd.Flags().StringSliceVar(&o.environmentVariablesString, "env", o.environmentVariablesString, "A list of environment variables to set in the Must-Gather image.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	cmd.Flags().MarkHidden("keep")
 
@@ -149,6 +152,13 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	if err := o.completeImages(); err != nil {
 		return err
 	}
+	if len(o.environmentVariablesString) > 0 {
+		err = o.completeEnvironmentVariables()
+		if err != nil {
+			return err
+		}
+
+	}
 	o.PrinterCreated, err = printers.NewTypeSetter(scheme.Scheme).WrapToPrinter(&printers.NamePrinter{Operation: "created"}, nil)
 	if err != nil {
 		return err
@@ -158,6 +168,30 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 		return err
 	}
 	o.RsyncRshCmd = rsync.DefaultRsyncRemoteShellToUse(cmd)
+	return nil
+}
+
+func (o *MustGatherOptions) completeEnvironmentVariables() error {
+	envs := make([]corev1.EnvVar, 0, len(o.environmentVariablesString))
+
+	for _, env := range o.environmentVariablesString {
+		// Split environments into field and value
+		envSlice := strings.SplitN(env, "=", 2)
+		if len(envSlice) != 2 {
+			return fmt.Errorf("invalid env: %v", env)
+		}
+
+		field := envSlice[0]
+		value := envSlice[1]
+		if len(field) == 0 || len(validation.IsEnvVarName(field)) != 0 {
+			return fmt.Errorf("invalid env: %v", env)
+		}
+		// Create EnvVar
+		envVar := corev1.EnvVar{Name: field, Value: value}
+		envs = append(envs, envVar)
+	}
+
+	o.EnvironmentVariables = envs
 	return nil
 }
 
@@ -234,6 +268,9 @@ type MustGatherOptions struct {
 	Timeout      time.Duration
 	timeoutStr   string
 	Keep         bool
+
+	environmentVariablesString []string
+	EnvironmentVariables       []corev1.EnvVar
 
 	RsyncRshCmd string
 
@@ -660,6 +697,10 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 	if len(o.Command) > 0 {
 		// always force disk flush to ensure that all data gathered is accessible in the copy container
 		ret.Spec.Containers[0].Command = []string{"/bin/bash", "-c", fmt.Sprintf("%s; sync", strings.Join(o.Command, " "))}
+	}
+	// Configure environment variables in gather container
+	if len(o.EnvironmentVariables) > 0 {
+		ret.Spec.Containers[0].Env = o.EnvironmentVariables
 	}
 
 	return ret
