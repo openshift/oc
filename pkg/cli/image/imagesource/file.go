@@ -238,8 +238,8 @@ func (s *fileManifestService) Put(ctx context.Context, manifest distribution.Man
 	}
 	for _, option := range options {
 		if opt, ok := option.(distribution.WithTagOption); ok {
-			tagPath := filepath.Join(generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "manifests"), opt.Tag)
-			if err := atomicSymlink(tagPath, dgst.String()); err != nil {
+			tagPath := filepath.Join(s.r.basePath, "v2", s.r.repoPath, "manifests", opt.Tag)
+			if err := atomicSymlink(tagPath, generateDigestPath(dgst.String())); err != nil {
 				return "", err
 			}
 		}
