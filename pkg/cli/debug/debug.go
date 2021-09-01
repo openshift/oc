@@ -62,6 +62,9 @@ const (
 	containerResourcesAnnotationPrefix = "resources.workload.openshift.io/"
 	// podWorkloadTargetAnnotationPrefix contains the prefix for the pod workload target annotation
 	podWorkloadTargetAnnotationPrefix = "target.workload.openshift.io/"
+	kubeOSNodeSelector                = "kubernetes.io/os"
+	commandLinuxShell                 = "/bin/sh"
+	commandWindowsShell               = "cmd.exe"
 )
 
 var (
@@ -75,7 +78,8 @@ var (
 
 		The default mode is to start a shell inside of the first container of the referenced pod.
 		The started pod will be a copy of your source pod, with labels stripped, the command
-		changed to '/bin/sh', and readiness and liveness checks disabled. If you just want to run
+		changed to '/bin/sh' for Linux containers or 'cmd.exe' for Windows containers, 
+		and readiness and liveness checks disabled. If you just want to run
 		a command, add '--' and a command to run. Passing a command will not create a TTY or send
 		STDIN by default. Other flags are supported for altering the container or pod in common ways.
 
@@ -290,7 +294,7 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 	}
 
 	if len(o.Command) == 0 {
-		o.Command = []string{"/bin/sh"}
+		o.Command = []string{commandLinuxShell}
 	}
 
 	o.Namespace, o.ExplicitNamespace, err = f.ToRawKubeConfigLoader().Namespace()
@@ -744,7 +748,8 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 		container.Image = o.Image
 	}
 
-	container.Command = o.Command
+	command := o.getContainerCommand()
+	container.Command = command
 	container.Args = nil
 	container.TTY = o.Attach.Stdin && o.Attach.TTY
 	container.Stdin = o.Attach.Stdin
@@ -931,6 +936,18 @@ func clearHostPorts(pod *corev1.Pod) {
 			}
 		}
 	}
+}
+
+func (o *DebugOptions) getContainerCommand() []string {
+	if len(o.Command) == 1 && o.Command[0] == commandLinuxShell {
+		pod := o.Attach.Pod
+
+		if val, ok := pod.Spec.NodeSelector[kubeOSNodeSelector]; ok && val == "windows" {
+			return []string{commandWindowsShell}
+		}
+	}
+
+	return o.Command
 }
 
 func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*corev1.PodTemplateSpec, error) {
