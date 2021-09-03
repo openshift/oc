@@ -88,7 +88,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 
 	cmd.Flags().StringVar(&o.NodeName, "node-name", o.NodeName, "Set a specific node to use - by default a random master will be used")
 	cmd.Flags().StringVar(&o.NodeSelector, "node-selector", o.NodeSelector, "Set a specific node selector to use - only relevant when specifying a specific command and image which needs to capture data on a set of cluster nodes simultaneously")
-	cmd.Flags().BoolVar(&o.HostNetwork, "host", o.HostNetwork, "Run must-gather pods as hostNetwork: true - relevant if a specific command and image needs to capture host-level data")
+	cmd.Flags().BoolVar(&o.HostNetwork, "host-network", o.HostNetwork, "Run must-gather pods as hostNetwork: true - relevant if a specific command and image needs to capture host-level data")
 	cmd.Flags().StringSliceVar(&o.Images, "image", o.Images, "Specify a must-gather plugin image to run. If not specified, OpenShift's default must-gather image will be used.")
 	cmd.Flags().StringSliceVar(&o.ImageStreams, "image-stream", o.ImageStreams, "Specify an image stream (namespace/name:tag) containing a must-gather plugin image to run.")
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
@@ -251,6 +251,9 @@ type MustGatherOptions struct {
 func (o *MustGatherOptions) Validate() error {
 	if len(o.Images) == 0 {
 		return fmt.Errorf("missing an image")
+	}
+	if o.NodeName != "" && o.NodeSelector != "" {
+		return fmt.Errorf("\"node-name\" and \"node-selector\" are mutually exclusive: please specify one or the other")
 	}
 	return nil
 }
