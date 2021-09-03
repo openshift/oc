@@ -8,6 +8,7 @@ import (
 	"github.com/alicebob/sqlittle"
 	"k8s.io/apimachinery/pkg/util/errors"
 
+	"github.com/openshift/oc/pkg/cli/admin/catalog/internal"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
@@ -152,7 +153,7 @@ func mappingForImages(images map[string]struct{}, src, dest imagesource.TypedIma
 			continue
 		}
 
-		parsed, err := imagesource.ParseReference(img)
+		parsed, err := internal.ParseTargetReference(img)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("couldn't parse image for mirroring (%s), skipping mirror: %v", img, err))
 			continue

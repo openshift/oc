@@ -21,14 +21,6 @@ func noopMirror(map[imagesource.TypedImageReference]imagesource.TypedImageRefere
 }
 
 func mustParse(t *testing.T, img string) imagesource.TypedImageReference {
-	imgRef, err := imagesource.ParseReference(img)
-	if err != nil {
-		t.Errorf("couldn't parse image ref %s: %v", img, err)
-	}
-	return imgRef
-}
-
-func mustParseTarget(t *testing.T, img string) imagesource.TypedImageReference {
 	imgRef, err := internal.ParseTargetReference(img)
 	if err != nil {
 		t.Errorf("couldn't parse image ref %s: %v", img, err)
@@ -55,7 +47,7 @@ func TestMirror(t *testing.T) {
 				ImageMirrorer:     noopMirror,
 				DatabaseExtractor: existingExtractor("testdata/test.db"),
 				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParseTarget(t, "localhost:5000"),
+				Dest:              mustParse(t, "localhost:5000"),
 			},
 			want: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 				mustParseRef(t, "quay.io/example/image:tag"): {
@@ -176,7 +168,7 @@ func TestMirror(t *testing.T) {
 				ImageMirrorer:     noopMirror,
 				DatabaseExtractor: existingExtractor("testdata/test.db"),
 				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParseTarget(t, "localhost:5000/org"),
+				Dest:              mustParse(t, "localhost:5000/org"),
 			},
 			want: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 				mustParseRef(t, "quay.io/example/image:tag"): {
@@ -297,7 +289,7 @@ func TestMirror(t *testing.T) {
 				ImageMirrorer:     noopMirror,
 				DatabaseExtractor: existingExtractor("testdata/test.db"),
 				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParseTarget(t, "quay.io/org"),
+				Dest:              mustParse(t, "quay.io/org"),
 			},
 			want: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 				mustParseRef(t, "quay.io/example/image:tag"): {
@@ -455,7 +447,7 @@ func TestMirror(t *testing.T) {
 }
 
 func mustParseRef(t *testing.T, ref string) imagesource.TypedImageReference {
-	parsed, err := imagesource.ParseReference(ref)
+	parsed, err := internal.ParseTargetReference(ref)
 	if err != nil {
 		t.Error(err)
 		t.Fail()
@@ -872,7 +864,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image:tag": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 
@@ -896,7 +888,7 @@ func TestMappingForImages(t *testing.T) {
 					"registry.access.redhat.com/ubi8-minimal@sha256:9285da611437622492f9ef4229877efe302589f1401bbd4052e9bb261b3d4387": {},
 				},
 				src:           mustParseRef(t, "registry.access.redhat.com/ubi8-minimal@sha256:9285da611437622492f9ef4229877efe302589f1401bbd4052e9bb261b3d4387"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -919,7 +911,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -943,7 +935,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/second-image:preserved": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -978,7 +970,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/digest-image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io"),
-				dest:          mustParseTarget(t, "file://my-local-index/index"),
+				dest:          mustParseRef(t, "file://my-local-index/index"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1023,7 +1015,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/digest-image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "file://my-local-index/index"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1066,7 +1058,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1089,7 +1081,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image:tag": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "localhost:5000"),
+				dest:          mustParseRef(t, "localhost:5000"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1112,7 +1104,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "localhost:5000"),
+				dest:          mustParseRef(t, "localhost:5000"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1135,7 +1127,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image:tag": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1158,7 +1150,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1181,7 +1173,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1204,7 +1196,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image:tag": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 3,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1227,7 +1219,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 3,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1250,7 +1242,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 3,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1273,7 +1265,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org/sub-org"),
+				dest:          mustParseRef(t, "quay.io/my-org/sub-org"),
 				maxComponents: 3,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1296,7 +1288,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org/sub-org"),
+				dest:          mustParseRef(t, "quay.io/my-org/sub-org"),
 				maxComponents: 4,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -1319,7 +1311,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org/sub-org"),
+				dest:          mustParseRef(t, "quay.io/my-org/sub-org"),
 				maxComponents: 0,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
