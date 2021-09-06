@@ -2,6 +2,7 @@ package startbuild
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,14 +11,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/apitesting"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
 	restfake "k8s.io/client-go/rest/fake"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
@@ -26,9 +31,29 @@ import (
 
 	"github.com/openshift/api"
 	buildv1 "github.com/openshift/api/build/v1"
+	fakebuildclientset "github.com/openshift/client-go/build/clientset/versioned/fake"
 	buildclientmanual "github.com/openshift/oc/pkg/helpers/build/client/v1"
 	"github.com/openshift/oc/pkg/helpers/source-to-image/tar"
 )
+
+type missingResourceTest struct {
+	name         string
+	namespace    string
+	strategyType buildv1.BuildStrategyType
+	secrets      []string
+	vSecrets     []string
+	cms          []string
+	vCms         []string
+
+	// these will exist in the client
+	createSecrets []string
+	createCms     []string
+
+	// these will be in the error message
+	// if both empty, no error is expected
+	missSecrets []string
+	missCms     []string
+}
 
 type FakeClientConfig struct {
 	Raw      clientcmdapi.Config
@@ -72,7 +97,7 @@ func TestStartBuildWebHook(t *testing.T) {
 		FromWebhook:  server.URL + "/webhook",
 		Mapper:       testrestmapper.TestOnlyStaticRESTMapper(scheme.Scheme),
 	}
-	if err := o.Run(); err != nil {
+	if err := o.Run(context.TODO()); err != nil {
 		t.Fatalf("unable to start hook: %v", err)
 	}
 	<-invoked
@@ -82,7 +107,7 @@ func TestStartBuildWebHook(t *testing.T) {
 		FromWebhook:    server.URL + "/webhook",
 		GitPostReceive: "unknownpath",
 	}
-	if err := o.Run(); err == nil {
+	if err := o.Run(context.TODO()); err == nil {
 		t.Fatalf("unexpected non-error: %v", err)
 	}
 }
@@ -117,7 +142,7 @@ func TestStartBuildHookPostReceive(t *testing.T) {
 		GitPostReceive: f.Name(),
 		Mapper:         testrestmapper.TestOnlyStaticRESTMapper(scheme.Scheme),
 	}
-	if err := o.Run(); err != nil {
+	if err := o.Run(context.TODO()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -372,7 +397,7 @@ func TestStreamBuildLogs(t *testing.T) {
 				BuildLogClient: buildclientmanual.NewBuildLogClient(fakeREST, build.Namespace, scheme),
 			}
 
-			err := o.streamBuildLogs(build)
+			err := o.streamBuildLogs(context.TODO(), build)
 			if tc.RequestErr == nil && tc.IOErr == nil {
 				if err != nil {
 					t.Errorf("received unexpected error streaming build logs: %v", err)
@@ -388,5 +413,332 @@ func TestStreamBuildLogs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBuildConfigWithMissingResources(t *testing.T) {
+	secretsPattern := regexp.MustCompile("Secrets: (.+)")
+	cmPattern := regexp.MustCompile("Config Maps: (.+)")
+
+	tests := []missingResourceTest{
+		{
+			name:      "missing-volumes-and-cms",
+			namespace: "nsname",
+
+			secrets:  []string{"secret-name-1", "secret-name-2", "secret-name-3"},
+			cms:      []string{"config-map-1", "config-map-2", "config-map-3"},
+			vSecrets: []string{"volume-secret-1", "volume-secret-2"},
+			vCms:     []string{"volume-cm-1", "volume-cm-2"},
+
+			createSecrets: []string{"secret-name-1", "secret-name-2", "volume-secret-1"},
+			createCms:     []string{"config-map-1", "config-map-2", "volume-cm-1"},
+
+			missSecrets: []string{"secret-name-3", "volume-secret-2"},
+			missCms:     []string{"config-map-3", "volume-cm-2"},
+		},
+		{
+			name:      "no-errors",
+			namespace: "nsname",
+
+			secrets:  []string{"secret-name-1", "secret-name-2", "secret-name-3"},
+			cms:      []string{"config-map-1", "config-map-2", "config-map-3"},
+			vSecrets: []string{"volume-secret-1", "volume-secret-2"},
+			vCms:     []string{"volume-cm-1", "volume-cm-2"},
+
+			createSecrets: []string{"secret-name-1", "secret-name-2", "secret-name-3", "volume-secret-1", "volume-secret-2"},
+			createCms:     []string{"config-map-1", "config-map-2", "config-map-3", "volume-cm-1", "volume-cm-2"},
+
+			missSecrets: []string{},
+			missCms:     []string{},
+		},
+		{
+			name:      "only-miss-secrets",
+			namespace: "nsname",
+
+			secrets:  []string{"secret-name-1", "secret-name-2", "secret-name-3"},
+			cms:      []string{"config-map-1", "config-map-2", "config-map-3"},
+			vSecrets: []string{"volume-secret-1", "volume-secret-2"},
+			vCms:     []string{"volume-cm-1", "volume-cm-2"},
+
+			createSecrets: []string{"secret-name-1", "secret-name-2", "volume-secret-1"},
+			createCms:     []string{"config-map-1", "config-map-2", "config-map-3", "volume-cm-1", "volume-cm-2"},
+
+			missSecrets: []string{"secret-name-3", "volume-secret-2"},
+			missCms:     []string{},
+		},
+		{
+			name:      "only-miss-config-maps",
+			namespace: "nsname",
+
+			secrets:  []string{"secret-name-1", "secret-name-2", "secret-name-3"},
+			cms:      []string{"config-map-1", "config-map-2", "config-map-3"},
+			vSecrets: []string{"volume-secret-1", "volume-secret-2"},
+			vCms:     []string{"volume-cm-1", "volume-cm-2"},
+
+			createSecrets: []string{"secret-name-1", "secret-name-2", "secret-name-3", "volume-secret-1", "volume-secret-2"},
+			createCms:     []string{"config-map-1", "config-map-2", "volume-cm-1"},
+
+			missSecrets: []string{},
+			missCms:     []string{"config-map-3", "volume-cm-2"},
+		},
+	}
+
+	allTests := []missingResourceTest{}
+
+	for _, t := range tests {
+		dockerTest, sourceTest := t, t
+
+		dockerTest.name += "-docker"
+		sourceTest.name += "-source"
+
+		dockerTest.strategyType = buildv1.DockerBuildStrategyType
+		sourceTest.strategyType = buildv1.SourceBuildStrategyType
+
+		allTests = append(allTests, sourceTest, dockerTest)
+	}
+
+	for _, test := range allTests {
+		bc := initializeBc(
+			test.name,
+			test.namespace,
+			test.strategyType,
+			test.secrets,
+			test.cms,
+			test.vSecrets,
+			test.vCms)
+
+		kubeObjects := initializeRuntimeObjects(
+			test.namespace,
+			test.createSecrets,
+			test.createCms,
+		)
+
+		kubeClient := fake.NewSimpleClientset(kubeObjects...)
+		buildClient := fakebuildclientset.NewSimpleClientset(bc).BuildV1()
+		options := &StartBuildOptions{
+			Name:        test.name,
+			Namespace:   test.namespace,
+			KubeClient:  kubeClient,
+			BuildClient: buildClient,
+		}
+
+		err := options.checkNonExistantResources(context.TODO())
+		if err != nil && len(test.missSecrets) == 0 && len(test.missCms) == 0 {
+			t.Errorf("Unexpected error in bc %q: %v", test.name, err)
+		}
+
+		// if error exists and we are not expecting to miss any secrets
+		// then error should not contain anything about them
+		if err != nil && len(test.missSecrets) == 0 {
+			secretsErr := secretsPattern.FindAllString(err.Error(), -1)
+			if len(secretsErr) > 0 {
+				t.Errorf("In bc %q error contains secrets which should not be missing: %v", test.name, err)
+			}
+		}
+		// same situation as before, but with config maps here
+		if err != nil && len(test.missCms) == 0 {
+			cmsErr := cmPattern.FindAllString(err.Error(), -1)
+			if len(cmsErr) > 0 {
+				t.Errorf("In bc %q error contains ConfigMaps which should not be missing: %v", test.name, err)
+			}
+		}
+
+		// we are expecting to be informed about missing secrets in the error
+		if len(test.missSecrets) > 0 {
+			found := secretsPattern.FindAllStringSubmatch(err.Error(), -1)
+			if len(found) == 0 {
+				t.Errorf("Secrets not found in bc %q, expected: %v", test.name, test.missSecrets)
+			}
+
+			// remove spaces, remove comas
+			foundSecrets := strings.ReplaceAll(found[0][1], " ", "")
+			fs := strings.Split(foundSecrets, ",")
+			if len(fs) == 0 {
+				// this is weird and should never happen
+				// but we'll check anyways
+				t.Errorf("Empty secrets list in bc %q, error: %v", test.name, err)
+			}
+
+			// just make sure that error contains all secrets that we expect it to contain and doesn't contain any extras
+			if len(fs) != len(test.missSecrets) {
+				t.Errorf("Wrong missing secrets in bc %q, expected %v, actual %v", test.name, test.missSecrets, err)
+			}
+			for _, sec := range test.missSecrets {
+				if !findValueInSlice(sec, fs) {
+					t.Errorf("In bc %q secret %q is not missing in error %v", test.name, sec, err)
+				}
+			}
+
+		}
+
+		// this is basically the same as secrets, but for config maps
+		if len(test.missCms) > 0 {
+			found := cmPattern.FindAllStringSubmatch(err.Error(), -1)
+			if len(found) == 0 {
+				t.Errorf("ConfigMaps not found in bc %q, expected: %v", test.name, test.missCms)
+			}
+
+			foundCms := strings.ReplaceAll(found[0][1], " ", "")
+			fcm := strings.Split(foundCms, ",")
+			if len(fcm) == 0 {
+				t.Errorf("Empty ConfigMaps list in bc %q, error: %v", test.name, err)
+			}
+			if len(fcm) != len(test.missCms) {
+				t.Errorf("Wrong missing ConfigMaps in bc %q, expected %v, actual %v", test.name, test.missCms, err)
+			}
+
+			for _, cm := range test.missCms {
+				if !findValueInSlice(cm, fcm) {
+					t.Errorf("In bc %q ConfigMap %q is not missing in error %v", test.name, cm, err)
+				}
+			}
+
+		}
+	}
+}
+
+func findValueInSlice(value string, where []string) bool {
+	for _, elem := range where {
+		if value == elem {
+			return true
+		}
+	}
+
+	return false
+}
+
+// initializeBCForTest creates BuildConfig and required Kubernetes resources for the
+// TestBuildConfigWithMissingResources test
+// It takes slices of secret and config map names as arguments and returns prepared objects
+func initializeBc(name string, namespace string, strategyType buildv1.BuildStrategyType, secrets []string, cms []string, vSecrets []string, vCms []string) *buildv1.BuildConfig {
+	// Create the skeleton BuildConfig
+	buildConfig := &buildv1.BuildConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: buildv1.BuildConfigSpec{
+			CommonSpec: buildv1.CommonSpec{
+				Source:   buildv1.BuildSource{},
+				Strategy: buildv1.BuildStrategy{},
+			},
+		},
+	}
+
+	// Create Secret and ConfigMap reference objects for the name provided to the function
+	for _, s := range secrets {
+		secret := buildv1.SecretBuildSource{
+			Secret: corev1.LocalObjectReference{
+				Name: s,
+			},
+		}
+		buildConfig.Spec.Source.Secrets = append(buildConfig.Spec.Source.Secrets, secret)
+	}
+	for _, cmName := range cms {
+		cm := buildv1.ConfigMapBuildSource{
+			ConfigMap: corev1.LocalObjectReference{
+				Name: cmName,
+			},
+		}
+		buildConfig.Spec.Source.ConfigMaps = append(buildConfig.Spec.Source.ConfigMaps, cm)
+	}
+
+	// only need to set strategy for the test if we are going to work with volumes
+	if len(vSecrets) > 0 || len(vCms) > 0 {
+		switch strategyType {
+		case buildv1.DockerBuildStrategyType:
+			buildConfig.Spec.Strategy.Type = buildv1.DockerBuildStrategyType
+			buildConfig.Spec.Strategy.DockerStrategy = &buildv1.DockerBuildStrategy{}
+		case buildv1.SourceBuildStrategyType:
+			buildConfig.Spec.Strategy.Type = buildv1.SourceBuildStrategyType
+			buildConfig.Spec.Strategy.SourceStrategy = &buildv1.SourceBuildStrategy{}
+		}
+	}
+
+	// Create BuildVolumes for BuildConfig
+	for _, vs := range vSecrets {
+		volume := buildv1.BuildVolume{
+			Name: vs,
+			Source: buildv1.BuildVolumeSource{
+				Type: buildv1.BuildVolumeSourceTypeSecret,
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: vs,
+				},
+			},
+		}
+
+		switch strategyType {
+		case buildv1.DockerBuildStrategyType:
+			buildConfig.Spec.CommonSpec.Strategy.DockerStrategy.Volumes =
+				append(buildConfig.Spec.CommonSpec.Strategy.DockerStrategy.Volumes, volume)
+		case buildv1.SourceBuildStrategyType:
+			buildConfig.Spec.CommonSpec.Strategy.SourceStrategy.Volumes =
+				append(buildConfig.Spec.CommonSpec.Strategy.SourceStrategy.Volumes, volume)
+		}
+	}
+
+	// Add all the build volumes to the BuildConfig
+	for _, vcm := range vCms {
+		volume := buildv1.BuildVolume{
+			Name: vcm,
+			Source: buildv1.BuildVolumeSource{
+				Type: buildv1.BuildVolumeSourceTypeConfigMap,
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: vcm,
+					},
+				},
+			},
+		}
+
+		switch strategyType {
+		case buildv1.DockerBuildStrategyType:
+			buildConfig.Spec.CommonSpec.Strategy.DockerStrategy.Volumes =
+				append(buildConfig.Spec.CommonSpec.Strategy.DockerStrategy.Volumes, volume)
+		case buildv1.SourceBuildStrategyType:
+			buildConfig.Spec.CommonSpec.Strategy.SourceStrategy.Volumes =
+				append(buildConfig.Spec.CommonSpec.Strategy.SourceStrategy.Volumes, volume)
+		}
+	}
+
+	return buildConfig
+}
+
+func initializeRuntimeObjects(namespace string, secrets []string, configMaps []string) []runtime.Object {
+	runtimeObjects := []runtime.Object{}
+
+	// Create Kube objects for secrets and config maps. We don't want to create all of them.
+	// Still need some false positives, so we will not create last elements of each slice
+	for _, s := range secrets {
+		runtimeObjects = append(runtimeObjects, createSecret(s, namespace))
+	}
+	for _, cmName := range configMaps {
+		runtimeObjects = append(runtimeObjects, createConfigMap(cmName, namespace))
+	}
+
+	return runtimeObjects
+}
+
+func createSecret(secret string, namespace string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secret,
+			Namespace: namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{"key": []byte("some value")},
+	}
+}
+
+func createConfigMap(cm string, namespace string) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cm,
+			Namespace: namespace,
+		},
+		Data: map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+		},
 	}
 }
