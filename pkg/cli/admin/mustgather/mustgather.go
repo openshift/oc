@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -254,6 +255,11 @@ func (o *MustGatherOptions) Validate() error {
 	}
 	if o.NodeName != "" && o.NodeSelector != "" {
 		return fmt.Errorf("\"node-name\" and \"node-selector\" are mutually exclusive: please specify one or the other")
+	}
+	if len(o.NodeName) != 0 {
+		if errStrArray := validation.NameIsDNSSubdomain(o.NodeName, false); len(errStrArray) != 0 {
+			return fmt.Errorf(`invalid argument "%s" for "--node-name" flag: %v`, o.NodeName, errStrArray[0])
+		}
 	}
 	return nil
 }
