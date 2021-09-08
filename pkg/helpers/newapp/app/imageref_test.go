@@ -3,10 +3,12 @@ package app
 import (
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	buildv1 "github.com/openshift/api/build/v1"
@@ -85,6 +87,93 @@ func TestBuildConfigOutput(t *testing.T) {
 		}
 		if !imageChangeTrigger {
 			t.Errorf("expecting image change trigger in build config")
+		}
+	}
+}
+
+func TestSuggestName(t *testing.T) {
+	objectName := "some/test/name-1#another$part"
+	host := "test-host.org"
+	tag := "latest"
+	namespace := "namespace-name"
+
+	expectedObjectName := "some-test-name-1-another-part"
+
+	tests := []struct {
+		name     string
+		imageRef *ImageRef
+		expected string
+	}{
+		{
+			name: "ObjectName",
+			imageRef: &ImageRef{
+				ObjectName:    objectName,
+				AsImageStream: false,
+			},
+			expected: expectedObjectName,
+		},
+		{
+			name: "DockerImageReference",
+			imageRef: &ImageRef{
+				Reference: reference.DockerImageReference{
+					Registry:  host,
+					Tag:       tag,
+					Namespace: namespace,
+					Name:      objectName,
+				},
+				AsImageStream: false,
+			},
+			expected: expectedObjectName,
+		},
+		{
+			name: "ImageStream",
+			imageRef: &ImageRef{
+				Stream: &imagev1.ImageStream{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      objectName,
+						Namespace: namespace,
+					},
+				},
+				AsImageStream: true,
+			},
+			expected: expectedObjectName,
+		},
+		{
+			name: "Really long name",
+			imageRef: &ImageRef{
+				Stream: &imagev1.ImageStream{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      strings.Repeat("abcd", 100), // 400 long string
+						Namespace: namespace,
+					},
+				},
+				AsImageStream: true,
+			},
+			expected: strings.Repeat("abcd", 70)[:validation.DNS1123SubdomainMaxLength],
+		},
+		{
+			name: "Ending with dash",
+			imageRef: &ImageRef{
+				Stream: &imagev1.ImageStream{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "abc-def-",
+						Namespace: namespace,
+					},
+				},
+				AsImageStream: true,
+			},
+			expected: "abc-def",
+		},
+	}
+
+	for _, test := range tests {
+		suggestedName, ok := test.imageRef.SuggestName()
+		if !ok {
+			t.Errorf("Failed to get suggested name for Image Ref in test %q", test.name)
+		}
+
+		if suggestedName != test.expected {
+			t.Errorf("Wrong suggested name in test %q, expected %q, actual %q", test.name, test.expected, suggestedName)
 		}
 	}
 }
