@@ -21,14 +21,6 @@ func noopMirror(map[imagesource.TypedImageReference]imagesource.TypedImageRefere
 }
 
 func mustParse(t *testing.T, img string) imagesource.TypedImageReference {
-	imgRef, err := imagesource.ParseReference(img)
-	if err != nil {
-		t.Errorf("couldn't parse image ref %s: %v", img, err)
-	}
-	return imgRef
-}
-
-func mustParseTarget(t *testing.T, img string) imagesource.TypedImageReference {
 	imgRef, err := internal.ParseTargetReference(img)
 	if err != nil {
 		t.Errorf("couldn't parse image ref %s: %v", img, err)
@@ -55,7 +47,7 @@ func TestMirror(t *testing.T) {
 				ImageMirrorer:     noopMirror,
 				DatabaseExtractor: existingExtractor("testdata/test.db"),
 				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParseTarget(t, "localhost:5000"),
+				Dest:              mustParse(t, "localhost:5000"),
 			},
 			want: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 				mustParseRef(t, "quay.io/example/image:tag"): {
@@ -176,7 +168,7 @@ func TestMirror(t *testing.T) {
 				ImageMirrorer:     noopMirror,
 				DatabaseExtractor: existingExtractor("testdata/test.db"),
 				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParseTarget(t, "localhost:5000/org"),
+				Dest:              mustParse(t, "localhost:5000/org"),
 			},
 			want: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 				mustParseRef(t, "quay.io/example/image:tag"): {
@@ -297,7 +289,7 @@ func TestMirror(t *testing.T) {
 				ImageMirrorer:     noopMirror,
 				DatabaseExtractor: existingExtractor("testdata/test.db"),
 				Source:            mustParse(t, "quay.io/example/image:tag"),
-				Dest:              mustParseTarget(t, "quay.io/org"),
+				Dest:              mustParse(t, "quay.io/org"),
 			},
 			want: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
 				mustParseRef(t, "quay.io/example/image:tag"): {
@@ -455,12 +447,401 @@ func TestMirror(t *testing.T) {
 }
 
 func mustParseRef(t *testing.T, ref string) imagesource.TypedImageReference {
-	parsed, err := imagesource.ParseReference(ref)
+	parsed, err := internal.ParseTargetReference(ref)
 	if err != nil {
 		t.Error(err)
 		t.Fail()
 	}
 	return parsed
+}
+
+// airgap mirror is two step: first to a file, second from a file
+// this test ensures the assumptions around mapping to/from files are correct
+func TestAirGapMirror(t *testing.T) {
+	type fields struct {
+		ImageMirrorer     ImageMirrorerFunc
+		DatabaseExtractor DatabaseExtractorFunc
+		Source            imagesource.TypedImageReference
+		Dest              imagesource.TypedImageReference
+	}
+	tests := []struct {
+		name         string
+		fields       fields
+		fileSource   imagesource.TypedImageReference
+		fileDest     imagesource.TypedImageReference
+		wantToFile   map[imagesource.TypedImageReference]imagesource.TypedImageReference
+		wantFromFile map[imagesource.TypedImageReference]imagesource.TypedImageReference
+	}{
+		{
+			name:       "maps to and from an intermediate file",
+			fileSource: mustParseRef(t, "file:///local/index/example/image:tag"),
+			fileDest:   mustParseRef(t, "file:///local/index"),
+			fields: fields{
+				ImageMirrorer:     noopMirror,
+				DatabaseExtractor: existingExtractor("testdata/test.db"),
+				Source:            mustParse(t, "quay.io/example/image:tag"),
+				Dest:              mustParse(t, "localhost:5000"),
+			},
+			wantToFile: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+				mustParseRef(t, "quay.io/example/image:tag"):             mustParseRef(t, "file://local/index/example/image:tag"),
+				mustParseRef(t, "quay.io/test/prometheus.0.14.0:latest"): mustParseRef(t, "file://local/index/example/image/test/prometheus.0.14.0:latest"),
+				mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8"): {
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/coreos/etcd-operator",
+						Tag:       "b56e2636",
+						ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
+					},
+				},
+				mustParseRef(t, "quay.io/test/etcd.0.9.0:latest"): {
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/test/etcd.0.9.0",
+						Tag:       "latest",
+						ID:        "",
+					},
+				},
+				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d"): {
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/coreos/prometheus-operator",
+						Tag:       "7f39d12d",
+						ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
+					},
+				},
+				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf"): {
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/coreos/prometheus-operator",
+						Tag:       "1ebe036a",
+						ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
+					},
+				},
+				mustParseRef(t, "quay.io/test/prometheus.0.22.2:latest"): {
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/test/prometheus.0.22.2",
+						Tag:       "latest",
+						ID:        "",
+					},
+				},
+				mustParseRef(t, "quay.io/coreos/etcd-operator@sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2"): {
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/coreos/etcd-operator",
+						Tag:       "2f1eb95",
+						ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
+					},
+				},
+				mustParseRef(t, "quay.io/coreos/prometheus-operator@sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731"): {
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/coreos/prometheus-operator",
+						Tag:       "76771fef",
+						ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
+					},
+				},
+				mustParseRef(t, "quay.io/test/etcd.0.9.2:latest"): {
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/test/etcd.0.9.2",
+						Tag:       "latest",
+						ID:        "",
+					},
+				},
+				mustParseRef(t, "quay.io/test/prometheus.0.15.0:latest"): {
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/test/prometheus.0.15.0",
+						Tag:       "latest",
+						ID:        "",
+					},
+				},
+			},
+			wantFromFile: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+				mustParseRef(t, "file://local/index/example/image:tag"): {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "local",
+						Name:      "index-example-image",
+						Tag:       "tag",
+						ID:        "",
+					},
+				},
+				mustParseRef(t, "file://local/index/example/image/test/prometheus.0.14.0:latest"): {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "test",
+						Name:      "prometheus.0.14.0",
+						Tag:       "latest",
+						ID:        "",
+					},
+				},
+				{
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/coreos/etcd-operator",
+						Tag:       "",
+						ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
+					},
+				}: {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "coreos",
+						Name:      "etcd-operator",
+						Tag:       "b56e2636",
+						ID:        "sha256:db563baa8194fcfe39d1df744ed70024b0f1f9e9b55b5923c2f3a413c44dc6b8",
+					},
+				},
+				{
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/test/etcd.0.9.0",
+						Tag:       "latest",
+						ID:        "",
+					},
+				}: {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "test",
+						Name:      "etcd.0.9.0",
+						Tag:       "latest",
+						ID:        "",
+					},
+				},
+				{
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/coreos/prometheus-operator",
+						Tag:       "",
+						ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
+					},
+				}: {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "coreos",
+						Name:      "prometheus-operator",
+						Tag:       "7f39d12d",
+						ID:        "sha256:0e92dd9b5789c4b13d53e1319d0a6375bcca4caaf0d698af61198061222a576d",
+					},
+				},
+				{
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/coreos/prometheus-operator",
+						Tag:       "",
+						ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
+					},
+				}: {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "coreos",
+						Name:      "prometheus-operator",
+						Tag:       "1ebe036a",
+						ID:        "sha256:3daa69a8c6c2f1d35dcf1fe48a7cd8b230e55f5229a1ded438f687debade5bcf",
+					},
+				},
+				{
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/test/prometheus.0.22.2",
+						Tag:       "latest",
+						ID:        "",
+					},
+				}: {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "test",
+						Name:      "prometheus.0.22.2",
+						Tag:       "latest",
+						ID:        "",
+					},
+				},
+				{
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/coreos/etcd-operator",
+						Tag:       "",
+						ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
+					},
+				}: {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "coreos",
+						Name:      "etcd-operator",
+						Tag:       "2f1eb95",
+						ID:        "sha256:c0301e4686c3ed4206e370b42de5a3bd2229b9fb4906cf85f3f30650424abec2",
+					},
+				},
+				{
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/coreos/prometheus-operator",
+						Tag:       "",
+						ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
+					},
+				}: {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "coreos",
+						Name:      "prometheus-operator",
+						Tag:       "76771fef",
+						ID:        "sha256:5037b4e90dbb03ebdefaa547ddf6a1f748c8eeebeedf6b9d9f0913ad662b5731",
+					},
+				},
+				{
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/test/etcd.0.9.2",
+						Tag:       "latest",
+						ID:        "",
+					},
+				}: {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "test",
+						Name:      "etcd.0.9.2",
+						Tag:       "latest",
+						ID:        "",
+					},
+				},
+				{
+					Type: imagesource.DestinationFile,
+					Ref: imgref.DockerImageReference{
+						Registry:  "",
+						Namespace: "local",
+						Name:      "index/example/image/test/prometheus.0.15.0",
+						Tag:       "latest",
+						ID:        "",
+					},
+				}: {
+					Type: imagesource.DestinationRegistry,
+					Ref: imgref.DockerImageReference{
+						Registry:  "localhost:5000",
+						Namespace: "test",
+						Name:      "prometheus.0.15.0",
+						Tag:       "latest",
+						ID:        "",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// first mirror to file
+			b := &IndexImageMirrorer{
+				ImageMirrorer:     tt.fields.ImageMirrorer,
+				DatabaseExtractor: tt.fields.DatabaseExtractor,
+				Source:            tt.fields.Source,
+				Dest:              tt.fileDest,
+				MaxPathComponents: 0,
+			}
+			gotToFile, err := b.Mirror()
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			for k, v := range tt.wantToFile {
+				w, ok := gotToFile[k]
+				if !ok {
+					t.Errorf("couldn't find wanted key %#v", k)
+					continue
+				}
+				if w != v {
+					t.Errorf("incorrect mapping for %s - have %#v, want %#v", k, w, v)
+				}
+			}
+			for k, v := range gotToFile {
+				w, ok := tt.wantToFile[k]
+				if !ok {
+					t.Errorf("got unexpected key %#v", k)
+					continue
+				}
+				if w != v {
+					t.Errorf("incorrect mapping for %s - have %s, want %s", k, v, w)
+				}
+			}
+
+			// then mirror from file
+			b = &IndexImageMirrorer{
+				ImageMirrorer:     tt.fields.ImageMirrorer,
+				DatabaseExtractor: tt.fields.DatabaseExtractor,
+				Source:            tt.fileSource,
+				Dest:              tt.fields.Dest,
+				MaxPathComponents: 2,
+			}
+			gotFromFile, err := b.Mirror()
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			for k, v := range tt.wantFromFile {
+				w, ok := gotFromFile[k]
+				if !ok {
+					t.Errorf("couldn't find wanted key %#v", k)
+					continue
+				}
+				if w != v {
+					t.Errorf("incorrect mapping for %s - have %s, want %s", k, w, v)
+				}
+			}
+			for k, v := range gotFromFile {
+				w, ok := tt.wantFromFile[k]
+				if !ok {
+					t.Errorf("got unexpected key %#v", k)
+					continue
+				}
+				if w != v {
+					t.Errorf("incorrect mapping for %s - have %s, want %s", k, v, w)
+				}
+			}
+		})
+	}
 }
 
 func TestMappingForImages(t *testing.T) {
@@ -483,7 +864,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image:tag": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 
@@ -507,7 +888,7 @@ func TestMappingForImages(t *testing.T) {
 					"registry.access.redhat.com/ubi8-minimal@sha256:9285da611437622492f9ef4229877efe302589f1401bbd4052e9bb261b3d4387": {},
 				},
 				src:           mustParseRef(t, "registry.access.redhat.com/ubi8-minimal@sha256:9285da611437622492f9ef4229877efe302589f1401bbd4052e9bb261b3d4387"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -530,7 +911,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -554,7 +935,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/second-image:preserved": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -589,7 +970,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/digest-image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io"),
-				dest:          mustParseTarget(t, "file://my-local-index/index"),
+				dest:          mustParseRef(t, "file://my-local-index/index"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -634,11 +1015,11 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/digest-image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "file://my-local-index/index"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
-				mustParseRef(t, "file://my-local-index/index/my/image"): {
+				mustParseRef(t, "file://my-local-index/index/my/image:latest"): {
 					Type: imagesource.DestinationRegistry,
 					Ref: imgref.DockerImageReference{
 						Registry:  "quay.io",
@@ -677,7 +1058,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io"),
+				dest:          mustParseRef(t, "quay.io"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -700,7 +1081,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image:tag": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "localhost:5000"),
+				dest:          mustParseRef(t, "localhost:5000"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -723,7 +1104,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "localhost:5000"),
+				dest:          mustParseRef(t, "localhost:5000"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -746,7 +1127,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image:tag": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -769,7 +1150,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -792,7 +1173,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 2,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -815,7 +1196,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image:tag": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 3,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -838,7 +1219,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 3,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -861,7 +1242,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org"),
+				dest:          mustParseRef(t, "quay.io/my-org"),
 				maxComponents: 3,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -884,7 +1265,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org/sub-org"),
+				dest:          mustParseRef(t, "quay.io/my-org/sub-org"),
 				maxComponents: 3,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -907,7 +1288,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org/sub-org"),
+				dest:          mustParseRef(t, "quay.io/my-org/sub-org"),
 				maxComponents: 4,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
@@ -930,7 +1311,7 @@ func TestMappingForImages(t *testing.T) {
 					"docker.io/my/image@sha256:154d7e0295a94fb3d2a97309d711186a98a7308da37a5cd3d50360c6b2ba57de": {},
 				},
 				src:           mustParseRef(t, "quay.io/my-ns/my-index:1"),
-				dest:          mustParseTarget(t, "quay.io/my-org/sub-org"),
+				dest:          mustParseRef(t, "quay.io/my-org/sub-org"),
 				maxComponents: 0,
 			},
 			wantMapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{

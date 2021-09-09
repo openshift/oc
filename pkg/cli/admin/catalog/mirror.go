@@ -3,7 +3,6 @@ package catalog
 import (
 	"bytes"
 	"fmt"
-	"github.com/openshift/oc/pkg/cli/admin/catalog/internal"
 	"io"
 	"io/ioutil"
 	"os"
@@ -28,6 +27,7 @@ import (
 	"github.com/spf13/cobra"
 
 	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
+	"github.com/openshift/oc/pkg/cli/admin/catalog/internal"
 	imgextract "github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	"github.com/openshift/oc/pkg/cli/image/info"
@@ -163,7 +163,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		return err
 	}
 
-	srcRef, err := imagesource.ParseReference(src)
+	srcRef, err := internal.ParseTargetReference(src)
 	if err != nil {
 		return err
 	}

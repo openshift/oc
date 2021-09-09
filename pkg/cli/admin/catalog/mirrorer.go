@@ -8,6 +8,7 @@ import (
 	"github.com/alicebob/sqlittle"
 	"k8s.io/apimachinery/pkg/util/errors"
 
+	"github.com/openshift/oc/pkg/cli/admin/catalog/internal"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
@@ -129,11 +130,21 @@ func imagesFromDb(file string) (map[string]struct{}, error) {
 }
 
 func mappingForImages(images map[string]struct{}, src, dest imagesource.TypedImageReference, maxComponents int) (mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference, errs []error) {
-	// don't do any name mangling when not mirroring to a real registry
-	// this allows us to assume the names are preserved when doing multi-hop mirrors that use a file or s3 as an
-	// intermediate step
 	if dest.Type != imagesource.DestinationRegistry {
+		// don't do any name mangling when not mirroring to a real registry
+		// this allows us to assume the names are preserved when doing multi-hop mirrors that use a file or s3 as an
+		// intermediate step
 		maxComponents = 0
+
+		// if mirroring a source (like quay.io/my/index:1) to a file location like file://local/store
+		// we will remount all of the content in the file store under the catalog name
+		// i.e. file://local/store/my/index
+		var err error
+		dest, err = mount(src, dest, 0)
+		if err != nil {
+			errs = []error{err}
+			return
+		}
 	}
 
 	mapping = map[imagesource.TypedImageReference]imagesource.TypedImageReference{}
@@ -142,7 +153,7 @@ func mappingForImages(images map[string]struct{}, src, dest imagesource.TypedIma
 			continue
 		}
 
-		parsed, err := imagesource.ParseReference(img)
+		parsed, err := internal.ParseTargetReference(img)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("couldn't parse image for mirroring (%s), skipping mirror: %v", img, err))
 			continue
@@ -152,6 +163,13 @@ func mappingForImages(images map[string]struct{}, src, dest imagesource.TypedIma
 		if err != nil {
 			errs = append(errs, err)
 			continue
+		}
+
+		// set docker defaults, but don't set default tag for digest refs
+		s := parsed
+		parsed.Ref = parsed.Ref.DockerClientDefaults()
+		if len(s.Ref.Tag) == 0 && len(s.Ref.ID) > 0 {
+			parsed.Ref.Tag = ""
 		}
 
 		// if src is a file store, assume all other references are in the same location on disk
@@ -168,12 +186,6 @@ func mappingForImages(images map[string]struct{}, src, dest imagesource.TypedIma
 			continue
 		}
 
-		// set docker defaults, but don't set default tag for digest refs
-		s := parsed
-		parsed.Ref = parsed.Ref.DockerClientDefaults()
-		if len(s.Ref.Tag) == 0 && len(s.Ref.ID) > 0 {
-			parsed.Ref.Tag = ""
-		}
 		mapping[parsed] = targetRef
 	}
 	return
