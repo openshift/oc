@@ -33,8 +33,8 @@ var (
 type CreateDeploymentConfigOptions struct {
 	CreateSubcommandOptions *CreateSubcommandOptions
 
-	Image string
-	Args  []string
+	Image   string
+	Command []string
 
 	Client appsv1client.DeploymentConfigsGetter
 }
@@ -66,7 +66,7 @@ func NewCmdCreateDeploymentConfig(f genericclioptions.RESTClientGetter, streams 
 
 func (o *CreateDeploymentConfigOptions) Complete(cmd *cobra.Command, f genericclioptions.RESTClientGetter, args []string) error {
 	if len(args) > 1 {
-		o.Args = args[1:]
+		o.Command = args[1:]
 	}
 
 	clientConfig, err := f.ToRESTConfig()
@@ -95,9 +95,9 @@ func (o *CreateDeploymentConfigOptions) Run() error {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "default-container",
-							Image: o.Image,
-							Args:  o.Args,
+							Name:    "default-container",
+							Image:   o.Image,
+							Command: o.Command,
 						},
 					},
 				},
