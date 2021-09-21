@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/third_party/forked/golang/netutil"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
+	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -91,6 +92,8 @@ var (
 )
 
 type StartBuildOptions struct {
+	ctx context.Context
+
 	PrintFlags *genericclioptions.PrintFlags
 
 	Printer printers.ResourcePrinter
@@ -124,6 +127,7 @@ type StartBuildOptions struct {
 
 	Mapper         meta.RESTMapper
 	BuildClient    buildv1client.BuildV1Interface
+	KubeClient     kubernetes.Interface
 	BuildLogClient buildclientmanual.BuildLogInterface
 	ClientConfig   *restclient.Config
 
@@ -155,9 +159,9 @@ func NewCmdStartBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 		Example:    startBuildExample,
 		SuggestFor: []string{"build", "builds"},
 		Run: func(cmd *cobra.Command, args []string) {
-			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			kcmdutil.CheckErr(o.Complete(cmd.Context(), f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			kcmdutil.CheckErr(o.Run(cmd.Context()))
 		},
 	}
 	cmd.Flags().StringVar(&o.LogLevel, "build-loglevel", o.LogLevel, "Specify the log level for the build log output")
@@ -187,7 +191,7 @@ func NewCmdStartBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	return cmd
 }
 
-func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
+func (o *StartBuildOptions) Complete(ctx context.Context, f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	var err error
 	o.Git = git.NewRepository()
 	o.ClientConfig, err = f.ToRESTConfig()
@@ -271,6 +275,11 @@ func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 		return err
 	}
 
+	o.KubeClient, err = kubernetes.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+
 	var (
 		name     = buildName
 		resource = build.Resource("builds")
@@ -299,7 +308,7 @@ func (o *StartBuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 
 	// when listing webhooks, allow --from-build to lookup a build config
 	if build.Resource("builds") == resource && len(o.ListWebhooks) > 0 {
-		build, err := o.BuildClient.Builds(o.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		build, err := o.BuildClient.Builds(o.Namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -378,12 +387,12 @@ func (o *StartBuildOptions) Validate() error {
 }
 
 // Run contains all the necessary functionality for the OpenShift cli start-build command
-func (o *StartBuildOptions) Run() error {
+func (o *StartBuildOptions) Run(ctx context.Context) error {
 	if len(o.FromWebhook) > 0 {
 		return o.RunStartBuildWebHook()
 	}
 	if len(o.ListWebhooks) > 0 {
-		return o.RunListBuildWebHooks()
+		return o.RunListBuildWebHooks(ctx)
 	}
 
 	buildRequestCauses := []buildv1.BuildTriggerCause{}
@@ -439,6 +448,12 @@ func (o *StartBuildOptions) Run() error {
 		if len(o.BuildArgs) > 0 {
 			fmt.Fprintf(o.ErrOut, "WARNING: Specifying build arguments with binary builds is not supported.\n")
 		}
+
+		// check for resources that BuildConfig expects to exist but are missing
+		if err = o.checkNonExistantResources(ctx); err != nil {
+			return err
+		}
+
 		instantiateClient := buildclientmanual.NewBuildInstantiateBinaryClient(o.BuildClient.RESTClient(), o.Namespace)
 		if newBuild, err = streamPathToBuild(o.Git, o.In, o.ErrOut, instantiateClient, o.FromDir, o.FromFile, o.FromRepo, o.ExcludeRegExp, request); err != nil {
 			if kerrors.IsAlreadyExists(err) {
@@ -447,7 +462,7 @@ func (o *StartBuildOptions) Run() error {
 			return err
 		}
 	case len(o.FromBuild) > 0:
-		if newBuild, err = o.BuildClient.Builds(o.Namespace).Clone(context.TODO(), request.Name, request, metav1.CreateOptions{}); err != nil {
+		if newBuild, err = o.BuildClient.Builds(o.Namespace).Clone(ctx, request.Name, request, metav1.CreateOptions{}); err != nil {
 			if isInvalidSourceInputsError(err) {
 				return fmt.Errorf("build %s/%s has no valid source inputs and '--from-build' cannot be used for binary builds", o.Namespace, o.Name)
 			}
@@ -457,7 +472,7 @@ func (o *StartBuildOptions) Run() error {
 			return err
 		}
 	default:
-		if newBuild, err = o.BuildClient.BuildConfigs(o.Namespace).Instantiate(context.TODO(), request.Name, request, metav1.CreateOptions{}); err != nil {
+		if newBuild, err = o.BuildClient.BuildConfigs(o.Namespace).Instantiate(ctx, request.Name, request, metav1.CreateOptions{}); err != nil {
 			if isInvalidSourceInputsError(err) {
 				return fmt.Errorf("build configuration %s/%s has no valid source inputs, if this is a binary build you must specify one of '--from-dir', '--from-repo', or '--from-file'", o.Namespace, o.Name)
 			}
@@ -474,27 +489,27 @@ func (o *StartBuildOptions) Run() error {
 
 	// Stream the logs from the build
 	if o.Follow {
-		err = o.streamBuildLogs(newBuild)
+		err = o.streamBuildLogs(ctx, newBuild)
 		if err != nil {
 			fmt.Fprintf(o.ErrOut, "Failed to stream the build logs - to view the logs, run oc logs build/%s\nError: %v\n", newBuild.Name, err)
 		}
 	}
 
 	if o.WaitForComplete {
-		return WaitForBuildComplete(o.BuildClient.Builds(o.Namespace), newBuild.Name)
+		return WaitForBuildComplete(ctx, o.BuildClient.Builds(o.Namespace), newBuild.Name)
 	}
 
 	return nil
 }
 
-func (o *StartBuildOptions) streamBuildLogs(build *buildv1.Build) error {
+func (o *StartBuildOptions) streamBuildLogs(ctx context.Context, build *buildv1.Build) error {
 	opts := buildv1.BuildLogOptions{
 		Follow: true,
 		NoWait: false,
 	}
 	var err error
 	for {
-		rd, logErr := o.BuildLogClient.Logs(build.Name, opts).Stream(context.TODO())
+		rd, logErr := o.BuildLogClient.Logs(build.Name, opts).Stream(ctx)
 		if logErr != nil {
 			err = ocerrors.NewError("unable to stream the build logs").WithCause(logErr)
 			klog.V(4).Infof("Error: %v", err)
@@ -513,9 +528,123 @@ func (o *StartBuildOptions) streamBuildLogs(build *buildv1.Build) error {
 	return err
 }
 
+// checkNonExistantResources checks for Resources (config maps, secrets, etc) listed in the BuildConfig
+// and returns error in case any of them are missing, or in case of unexpected behavior
+func (o *StartBuildOptions) checkNonExistantResources(ctx context.Context) error {
+	buildConfig, err := o.BuildClient.BuildConfigs(o.Namespace).Get(ctx, o.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	cms := []string{}
+	secrets := []string{}
+
+	// compile lists of all ConfigMap and Secret names referred to by the BuildConfig
+	for _, cm := range buildConfig.Spec.Source.ConfigMaps {
+		cms = append(cms, cm.ConfigMap.Name)
+	}
+	for _, secret := range buildConfig.Spec.Source.Secrets {
+		secrets = append(secrets, secret.Secret.Name)
+	}
+
+	var volumes []buildv1.BuildVolume
+	switch buildConfig.Spec.Strategy.Type {
+	case buildv1.DockerBuildStrategyType:
+		volumes = buildConfig.Spec.Strategy.DockerStrategy.Volumes
+	case buildv1.SourceBuildStrategyType:
+		volumes = buildConfig.Spec.Strategy.SourceStrategy.Volumes
+	}
+
+	// add BuildVolume resources to the names lists
+	for _, v := range volumes {
+		switch v.Source.Type {
+		case buildv1.BuildVolumeSourceTypeSecret:
+			secrets = append(secrets, v.Source.Secret.SecretName)
+		case buildv1.BuildVolumeSourceTypeConfigMap:
+			cms = append(cms, v.Source.ConfigMap.Name)
+		}
+	}
+
+	// check for all the CM and Secret lists in order to find those
+	// that do not exist and get lists of those
+	missingCms, err := o.checkNonExistantConfigMaps(ctx, cms)
+	if err != nil {
+		return err
+	}
+	missingSecrets, err := o.checkNonExistantSecrets(ctx, secrets)
+	if err != nil {
+		return err
+	}
+
+	// join all the missing resources names together to form an error message
+	resourceMessages := []string{}
+	if len(missingCms) > 0 {
+		resourceMessages = append(resourceMessages, fmt.Sprintf("Config Maps: %s", strings.Join(missingCms, ", ")))
+	}
+	if len(missingSecrets) > 0 {
+		resourceMessages = append(resourceMessages, fmt.Sprintf("Secrets: %s", strings.Join(missingSecrets, ", ")))
+	}
+
+	if len(resourceMessages) > 0 {
+		return fmt.Errorf("Missing resources\n%s", strings.Join(resourceMessages, "\n"))
+	}
+
+	return nil
+}
+
+// checkNonExistantConfigMaps takes a list of ConfigMap names and returns
+// list of all of those that do not exist in the namespace
+// or return error in case of unexpected behavior
+func (o *StartBuildOptions) checkNonExistantConfigMaps(ctx context.Context, cms []string) ([]string, error) {
+	if len(cms) == 0 {
+		return []string{}, nil
+	}
+
+	result := []string{}
+
+	for _, name := range cms {
+		_, err := o.KubeClient.CoreV1().ConfigMaps(o.Namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil && kerrors.IsNotFound(err) {
+			result = append(result, name)
+			continue
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+// checkNonExistantSecrets takes a list of Secret names and returns
+// list of all of those that do not exist in the namespace
+// or return error in case of unexpected behavior
+func (o *StartBuildOptions) checkNonExistantSecrets(ctx context.Context, secrets []string) ([]string, error) {
+	if len(secrets) == 0 {
+		return []string{}, nil
+	}
+
+	result := []string{}
+
+	for _, name := range secrets {
+		_, err := o.KubeClient.CoreV1().Secrets(o.Namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil && kerrors.IsNotFound(err) {
+			result = append(result, name)
+			continue
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
 // RunListBuildWebHooks prints the webhooks for the provided build config.
-func (o *StartBuildOptions) RunListBuildWebHooks() error {
-	config, err := o.BuildClient.BuildConfigs(o.Namespace).Get(context.TODO(), o.Name, metav1.GetOptions{})
+func (o *StartBuildOptions) RunListBuildWebHooks(ctx context.Context) error {
+	config, err := o.BuildClient.BuildConfigs(o.Namespace).Get(ctx, o.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -933,7 +1062,7 @@ func gitRefInfo(repo git.Repository, dir, ref string) (buildv1.GitRefInfo, error
 }
 
 // WaitForBuildComplete waits for a build identified by the name to complete
-func WaitForBuildComplete(c buildv1client.BuildInterface, name string) error {
+func WaitForBuildComplete(ctx context.Context, c buildv1client.BuildInterface, name string) error {
 	isOK := func(b *buildv1.Build) bool {
 		return b.Status.Phase == buildv1.BuildPhaseComplete
 	}
@@ -943,7 +1072,7 @@ func WaitForBuildComplete(c buildv1client.BuildInterface, name string) error {
 			b.Status.Phase == buildv1.BuildPhaseError
 	}
 	for {
-		list, err := c.List(context.TODO(), metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String()})
+		list, err := c.List(ctx, metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String()})
 		if err != nil {
 			return err
 		}
@@ -957,7 +1086,7 @@ func WaitForBuildComplete(c buildv1client.BuildInterface, name string) error {
 		}
 
 		rv := list.ResourceVersion
-		w, err := c.Watch(context.TODO(), metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String(), ResourceVersion: rv})
+		w, err := c.Watch(ctx, metav1.ListOptions{FieldSelector: fields.Set{"metadata.name": name}.AsSelector().String(), ResourceVersion: rv})
 		if err != nil {
 			return err
 		}
