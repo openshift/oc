@@ -536,6 +536,9 @@ func (o *MirrorCatalogOptions) Validate() error {
 }
 
 func (o *MirrorCatalogOptions) Run() error {
+	// Run PostRun to clean up after the run
+	defer o.PostRun()
+
 	indexMirrorer, err := NewIndexImageMirror(o.IndexImageMirrorerOptions.ToOption(),
 		WithSource(o.SourceRef),
 		WithDest(o.DestRef),
