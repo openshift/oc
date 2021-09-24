@@ -28,6 +28,11 @@ workstation, install them with:
 dnf install krb5-devel
 ```
 
+You will also need:
+```
+dnf install gpgme-devel libassuan-devel
+```
+
 ## Testing
 
 All PRs will have to pass a series of automated tests starting from go tools
