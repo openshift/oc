@@ -11,15 +11,21 @@ import (
 type StatFunc func(path string) (os.FileInfo, error)
 
 func (t StatFunc) Has(dir string) (string, bool, error) {
-	path := filepath.Join(dir, "Dockerfile")
-	_, err := t(path)
-	if os.IsNotExist(err) {
-		return "", false, nil
+	choices := []string{"Dockerfile", "Containerfile"}
+	for _, fname := range choices {
+		path := filepath.Join(dir, fname)
+		result, err := t(path)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return "", false, err
+		}
+		if result != nil && err == nil {
+			return path, true, nil
+		}
 	}
-	if err != nil {
-		return "", false, err
-	}
-	return path, true, nil
+	return "", false, nil
 }
 
 func NewTester() newapp.Tester {
@@ -65,7 +71,7 @@ func (f *finder) Find(dir string) ([]string, error) {
 }
 
 // isDockerfile returns true if info looks like a Dockerfile. It must be named
-// "Dockerfile" and be either a regular file or a symlink.
+// "Dockerfile" or "Containerfile" and be either a regular file or a symlink.
 func isDockerfile(info os.FileInfo) bool {
-	return info.Name() == "Dockerfile" && (info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0)
+	return (info.Name() == "Dockerfile" || info.Name() == "Containerfile") && (info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0)
 }

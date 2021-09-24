@@ -57,8 +57,18 @@ func TestFind(t *testing.T) {
 			isDir: false,
 		},
 		{
+			name:  "Containerfile",
+			path:  "test/Containerfile",
+			isDir: false,
+		},
+		{
 			name:  "Dockerfile",
 			path:  "test2/Dockerfile",
+			isDir: true,
+		},
+		{
+			name:  "Containerfile",
+			path:  "test2/Containerfile",
 			isDir: true,
 		},
 		{
@@ -73,8 +83,19 @@ func TestFind(t *testing.T) {
 			isDir: false,
 		},
 		{
+			// Should not be in result because it's in a hidden directory
+			name:  "Containerfile",
+			path:  ".hidden/Containerfile",
+			isDir: false,
+		},
+		{
 			name:  "Dockerfile",
 			path:  "Dockerfile",
+			isDir: false,
+		},
+		{
+			name:  "Containerfile",
+			path:  "Containerfile",
 			isDir: false,
 		},
 	}
@@ -83,10 +104,10 @@ func TestFind(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error returned: %v", err)
 	}
-	if len(dockerfiles) != 2 {
-		t.Errorf("Unexpected number of Dockerfiles returned: %d. Expected: 2", len(dockerfiles))
+	if len(dockerfiles) != 4 {
+		t.Errorf("Unexpected number of Dockerfiles returned: %d. Expected: 4", len(dockerfiles))
 	}
-	expectedResult := []string{"test/Dockerfile", "Dockerfile"}
+	expectedResult := []string{"test/Dockerfile", "test/Containerfile", "Dockerfile", "Containerfile"}
 	if !reflect.DeepEqual(dockerfiles, expectedResult) {
 		t.Errorf("Unexpected result: %v. Expected: %v", dockerfiles, expectedResult)
 	}
