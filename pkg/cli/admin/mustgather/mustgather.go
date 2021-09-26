@@ -649,6 +649,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 			TerminationGracePeriodSeconds: &zero,
 			Tolerations: []corev1.Toleration{
 				{
+					Key:      "node-role.kubernetes.io/master",
 					Operator: "Exists",
 				},
 			},
