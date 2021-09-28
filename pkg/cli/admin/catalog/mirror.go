@@ -533,8 +533,12 @@ func (o *MirrorCatalogOptions) Validate() error {
 }
 
 func (o *MirrorCatalogOptions) Run() error {
-	// Run PostRun to clean up after the run
-	defer o.postRun()
+	// Run postRun to clean up after the run
+	defer func() {
+		if err := o.postRun(); err != nil {
+			fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
+		}
+	}()
 
 	indexMirrorer, err := NewIndexImageMirror(o.IndexImageMirrorerOptions.ToOption(),
 		WithSource(o.SourceRef),
@@ -596,11 +600,18 @@ func (o *MirrorCatalogOptions) postRun() error {
 	if !o.TempDir {
 		return nil
 	}
+
 	dir := strings.Split(o.IndexPath, ":")
-	if err := os.RemoveAll(dir[1]); err != nil {
-		return fmt.Errorf("unable to delete dir %s: %w", dir[1], err)
+	if len(dir) < 2 {
+		return fmt.Errorf("error cleaning up temp dir: could not find dir")
 	}
+
+	if err := os.RemoveAll(dir[1]); err != nil {
+		return fmt.Errorf("error cleaning up temp dir %s: %w", dir[1], err)
+	}
+
 	fmt.Fprintf(o.IOStreams.Out, "deleted dir %s\n", dir[1])
+
 	return nil
 }
 
