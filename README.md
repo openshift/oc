@@ -28,6 +28,11 @@ workstation, install them with:
 dnf install krb5-devel
 ```
 
+For MacOS you'll need to install a few brew packages before building locally. Install them with:
+```
+brew install heimdal
+brew install gpgme
+```
 ## Testing
 
 All PRs will have to pass a series of automated tests starting from go tools
