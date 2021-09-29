@@ -28,6 +28,13 @@ workstation, install them with:
 dnf install krb5-devel
 ```
 
+Also:
+
+```
+dnf install gpgme-devel
+dnf install libassuan-devel
+```
+
 For MacOS you'll need to install a few brew packages before building locally. Install them with:
 ```
 brew install heimdal
