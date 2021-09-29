@@ -27,9 +27,8 @@ var policyLong = ktemplates.LongDesc(`
 	These commands allow you to assign and manage the roles and policies that apply to users. The reconcile
 	commands allow you to reset and upgrade your system policies to the latest default policies.
 
-	To see more information on roles and policies, use the 'get' and 'describe' commands on the following
-	resources: 'clusterroles', 'clusterpolicy', 'clusterrolebindings', 'roles', 'policy', 'rolebindings',
-	and 'scc'.`)
+	To see more information on roles and bindings, use the 'get' and 'describe' commands on the following
+	resources: 'clusterroles', 'clusterrolebindings', 'roles', 'rolebindings', and 'scc'.`)
 
 // NewCmdPolicy implements the OpenShift cli policy command
 func NewCmdPolicy(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
