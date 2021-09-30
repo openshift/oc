@@ -31,10 +31,10 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
-	github.com/openshift/api v0.0.0-20210730095913-85e1d547cdee
-	github.com/openshift/build-machinery-go v0.0.0-20210712174854-1bb7fd1518d3
-	github.com/openshift/client-go v0.0.0-20210730113412-1811c1b3fc0e
-	github.com/openshift/library-go v0.0.0-20210730125111-f3b4cc9813a9
+	github.com/openshift/api v0.0.0-20211019100638-b2cbe79f2e4b
+	github.com/openshift/build-machinery-go v0.0.0-20210806203541-4ea9b6da3a37
+	github.com/openshift/client-go v0.0.0-20211020194811-d47e6f550cce
+	github.com/openshift/library-go v0.0.0-20211018074344-7fcf688c505e
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/russross/blackfriday v1.5.2
@@ -43,15 +43,15 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	golang.org/x/sys v0.0.0-20210616094352-59db8d763f22
-	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
+	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	gopkg.in/ldap.v2 v2.5.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	k8s.io/api v0.22.0-rc.0
-	k8s.io/apimachinery v0.22.0-rc.0
-	k8s.io/apiserver v0.22.0-rc.0
+	k8s.io/api v0.22.1
+	k8s.io/apimachinery v0.22.1
+	k8s.io/apiserver v0.22.1
 	k8s.io/cli-runtime v0.22.0-rc.0
-	k8s.io/client-go v0.22.0-rc.0
-	k8s.io/component-base v0.22.0-rc.0
+	k8s.io/client-go v0.22.1
+	k8s.io/component-base v0.22.1
 	k8s.io/klog/v2 v2.9.0
 	k8s.io/kubectl v0.22.0-rc.0
 	k8s.io/utils v0.0.0-20210707171843-4b05e18ac7d9

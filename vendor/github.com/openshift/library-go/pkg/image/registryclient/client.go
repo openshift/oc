@@ -30,6 +30,12 @@ import (
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 )
 
+// CredentialStoreFactory is any entity capable of creating a CredentialStore based on an image
+// path (such as quay.io/fedora/fedora).
+type CredentialStoreFactory interface {
+	CredentialStoreFor(image string) auth.CredentialStore
+}
+
 // RepositoryRetriever fetches a Docker distribution.Repository.
 type RepositoryRetriever interface {
 	// Repository returns a properly authenticated distribution.Repository for the given registry, repository
@@ -73,16 +79,17 @@ type transportCache struct {
 }
 
 type Context struct {
-	Transport         http.RoundTripper
-	InsecureTransport http.RoundTripper
-	Challenges        challenge.Manager
-	Scopes            []auth.Scope
-	Actions           []string
-	Retries           int
-	Credentials       auth.CredentialStore
-	RequestModifiers  []transport.RequestModifier
-	Limiter           *rate.Limiter
-	Alternates        AlternateBlobSourceStrategy
+	Transport          http.RoundTripper
+	InsecureTransport  http.RoundTripper
+	Challenges         challenge.Manager
+	Scopes             []auth.Scope
+	Actions            []string
+	Retries            int
+	Credentials        auth.CredentialStore
+	CredentialsFactory CredentialStoreFactory
+	RequestModifiers   []transport.RequestModifier
+	Limiter            *rate.Limiter
+	Alternates         AlternateBlobSourceStrategy
 
 	DisableDigestVerification bool
 
@@ -138,6 +145,11 @@ func (c *Context) WithActions(actions ...string) *Context {
 
 func (c *Context) WithCredentials(credentials auth.CredentialStore) *Context {
 	c.Credentials = credentials
+	return c
+}
+
+func (c *Context) WithCredentialsFactory(factory CredentialStoreFactory) *Context {
+	c.CredentialsFactory = factory
 	return c
 }
 
@@ -269,7 +281,7 @@ func (c *Context) connectToRegistry(ctx context.Context, locator repositoryLocat
 		return nil, err
 	}
 
-	rt = c.repositoryTransport(rt, src, path)
+	rt = c.repositoryTransport(rt, src, path, locator.ref)
 
 	repo, err := registryclient.NewRepository(named, src.String(), rt)
 	if err != nil {
@@ -348,7 +360,7 @@ func (s stringScope) String() string { return string(s) }
 // cachedTransport reuses an underlying transport for the given round tripper based
 // on the set of passed scopes. It will always return a transport that has at least the
 // provided scope list.
-func (c *Context) cachedTransport(rt http.RoundTripper, host string, scopes []auth.Scope) http.RoundTripper {
+func (c *Context) cachedTransport(rt http.RoundTripper, host string, scopes []auth.Scope, ref imagereference.DockerImageReference) http.RoundTripper {
 	scopeNames := make(map[string]struct{})
 	for _, scope := range scopes {
 		scopeNames[scope.String()] = struct{}{}
@@ -373,6 +385,11 @@ func (c *Context) cachedTransport(rt http.RoundTripper, host string, scopes []au
 		scopes = append(scopes, stringScope(s))
 	}
 
+	creds := c.Credentials
+	if c.CredentialsFactory != nil {
+		creds = c.CredentialsFactory.CredentialStoreFor(ref.AsRepository().String())
+	}
+
 	modifiers := []transport.RequestModifier{
 		// TODO: slightly smarter authorizer that retries unauthenticated requests
 		// TODO: make multiple attempts if the first credential fails
@@ -380,10 +397,10 @@ func (c *Context) cachedTransport(rt http.RoundTripper, host string, scopes []au
 			c.Challenges,
 			auth.NewTokenHandlerWithOptions(auth.TokenHandlerOptions{
 				Transport:   rt,
-				Credentials: c.Credentials,
+				Credentials: creds,
 				Scopes:      scopes,
 			}),
-			auth.NewBasicHandler(c.Credentials),
+			auth.NewBasicHandler(creds),
 		),
 	}
 	modifiers = append(modifiers, c.RequestModifiers...)
@@ -408,8 +425,8 @@ func (c *Context) scopes(repoName string) []auth.Scope {
 	return scopes
 }
 
-func (c *Context) repositoryTransport(t http.RoundTripper, registry *url.URL, repoName string) http.RoundTripper {
-	return c.cachedTransport(t, registry.Host, c.scopes(repoName))
+func (c *Context) repositoryTransport(t http.RoundTripper, registry *url.URL, repoName string, ref imagereference.DockerImageReference) http.RoundTripper {
+	return c.cachedTransport(t, registry.Host, c.scopes(repoName), ref)
 }
 
 var nowFn = time.Now
