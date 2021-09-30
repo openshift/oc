@@ -14,8 +14,10 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	kubecmd "k8s.io/kubectl/pkg/cmd"
+	"k8s.io/kubectl/pkg/cmd/get"
 	"k8s.io/kubectl/pkg/cmd/plugin"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	kutil "k8s.io/kubectl/pkg/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
 	kterm "k8s.io/kubectl/pkg/util/term"
 
@@ -134,7 +136,6 @@ func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 			kcmdutil.RequireNoArguments(c, args)
 			fmt.Fprintf(explainOut, "%s\n\n%s\n", cliLong, cliExplain)
 		},
-		BashCompletionFunction: bashCompletionFunc,
 		PersistentPreRunE: func(*cobra.Command, []string) error {
 			rest.SetDefaultWarningHandler(warningHandler)
 			return nil
@@ -276,15 +277,7 @@ func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	cmds.AddCommand(version.NewCmdVersion(f, ioStreams))
 	cmds.AddCommand(options.NewCmdOptions(ioStreams))
 
-	if cmds.Flag("namespace") != nil {
-		if cmds.Flag("namespace").Annotations == nil {
-			cmds.Flag("namespace").Annotations = map[string][]string{}
-		}
-		cmds.Flag("namespace").Annotations[cobra.BashCompCustom] = append(
-			cmds.Flag("namespace").Annotations[cobra.BashCompCustom],
-			"__oc_get_namespaces",
-		)
-	}
+	registerCompletionFuncForGlobalFlags(cmds, f)
 
 	return cmds
 }
@@ -396,4 +389,27 @@ func CommandFor(basename string) *cobra.Command {
 		cmdutil.ActsAsRootCommand(cmd, []string{"options"})
 	}
 	return cmd
+}
+
+func registerCompletionFuncForGlobalFlags(cmd *cobra.Command, f kcmdutil.Factory) {
+	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
+		"namespace",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return get.CompGetResource(f, cmd, "namespace", toComplete), cobra.ShellCompDirectiveNoFileComp
+		}))
+	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
+		"context",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return kutil.ListContextsInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
+		}))
+	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
+		"cluster",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return kutil.ListClustersInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
+		}))
+	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
+		"user",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return kutil.ListUsersInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
+		}))
 }
