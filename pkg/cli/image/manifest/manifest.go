@@ -123,17 +123,17 @@ func (o *SecurityOptions) NewContext() (*registryclient.Context, error) {
 	if err != nil {
 		return nil, err
 	}
-	creds := dockercredentials.NewLocal()
-	if len(o.RegistryConfig) > 0 {
-		creds, err = dockercredentials.NewFromFile(o.RegistryConfig)
-		if err != nil {
+	credStoreFactory, err := dockercredentials.NewCredentialStoreFactory(o.RegistryConfig)
+	if err != nil {
+		if len(o.RegistryConfig) > 0 {
 			return nil, fmt.Errorf("unable to load --registry-config: %v", err)
 		}
+		return nil, err
 	}
-	context := registryclient.NewContext(rt, insecureRT).WithCredentials(creds).
+	ctx := registryclient.NewContext(rt, insecureRT).WithCredentialsFactory(credStoreFactory).
 		WithRequestModifiers(transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{rest.DefaultKubernetesUserAgent()}}))
-	context.DisableDigestVerification = o.SkipVerification
-	return context, nil
+	ctx.DisableDigestVerification = o.SkipVerification
+	return ctx, nil
 }
 
 // FilterOptions assist in filtering out unneeded manifests from ManifestList objects.

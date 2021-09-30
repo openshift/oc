@@ -15,29 +15,22 @@ import (
 	"github.com/openshift/oc/pkg/helpers/image/credentialprovider"
 )
 
-var (
-	emptyKeyring = &credentialprovider.BasicDockerKeyring{}
-)
+// NewCredentialStore creates a new credential store that uses the authFilePath file
+// (defaults to a docker locations) to find a valid
+// authentication for registry targets.
+func NewCredentialStore(authFilePath string) (auth.CredentialStore, error) {
+	var cfg credentialprovider.DockerConfig
+	var err error
 
-// NewLocal creates a new credential store that uses the default
-// local configuration to find a valid authentication for registry
-// targets.
-func NewLocal() auth.CredentialStore {
-	keyring := &credentialprovider.BasicDockerKeyring{}
-	keyring.Add(defaultClientDockerConfig())
-	return &keyringCredentialStore{
-		DockerKeyring:     keyring,
-		RefreshTokenStore: registryclient.NewRefreshTokenStore(),
+	if authFilePath != "" {
+		cfg, err = credentialprovider.ReadSpecificDockerConfigJSONFile(authFilePath)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cfg = defaultClientDockerConfig()
 	}
-}
 
-// NewFromFile creates a new credential store for the provided Docker config.json
-// authentication file.
-func NewFromFile(path string) (auth.CredentialStore, error) {
-	cfg, err := credentialprovider.ReadSpecificDockerConfigJSONFile(path)
-	if err != nil {
-		return nil, err
-	}
 	keyring := &credentialprovider.BasicDockerKeyring{}
 	keyring.Add(cfg)
 	return &keyringCredentialStore{
