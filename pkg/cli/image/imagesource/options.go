@@ -28,8 +28,12 @@ func (o *Options) Repository(ctx context.Context, ref TypedImageReference) (dist
 		}
 		return driver.Repository(ctx, ref.Ref.DockerClientDefaults().RegistryURL(), ref.Ref.RepositoryName(), o.Insecure)
 	case DestinationS3:
+		creds := o.RegistryContext.Credentials
+		if o.RegistryContext.CredentialsFactory != nil {
+			creds = o.RegistryContext.CredentialsFactory.CredentialStoreFor(ref.Ref.DockerClientDefaults().AsRepository().String())
+		}
 		driver := &s3Driver{
-			Creds:    o.RegistryContext.Credentials,
+			Creds:    creds,
 			CopyFrom: o.AttemptS3BucketCopy,
 		}
 		url := ref.Ref.DockerClientDefaults().RegistryURL()
