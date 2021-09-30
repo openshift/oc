@@ -12,11 +12,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-
+	"k8s.io/client-go/rest"
 	kubecmd "k8s.io/kubectl/pkg/cmd"
 	"k8s.io/kubectl/pkg/cmd/plugin"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
+	kterm "k8s.io/kubectl/pkg/util/term"
 
 	"github.com/openshift/oc/pkg/cli/admin"
 	"github.com/openshift/oc/pkg/cli/cancelbuild"
@@ -119,7 +120,9 @@ func NewDefaultOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 	return cmd
 }
 
-func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
+func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
+	warningHandler := rest.NewWarningWriter(err, rest.WarningWriterOptions{Deduplicate: true, Color: kterm.AllowsColorOutput(err)})
+	warningsAsErrors := false
 	// Main command
 	cmds := &cobra.Command{
 		Use:   "oc",
@@ -132,16 +135,37 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 			fmt.Fprintf(explainOut, "%s\n\n%s\n", cliLong, cliExplain)
 		},
 		BashCompletionFunction: bashCompletionFunc,
+		PersistentPreRunE: func(*cobra.Command, []string) error {
+			rest.SetDefaultWarningHandler(warningHandler)
+			return nil
+		},
+		PersistentPostRunE: func(*cobra.Command, []string) error {
+			if warningsAsErrors {
+				count := warningHandler.WarningCount()
+				switch count {
+				case 0:
+					// no warnings
+				case 1:
+					return fmt.Errorf("%d warning received", count)
+				default:
+					return fmt.Errorf("%d warnings received", count)
+				}
+			}
+			return nil
+		},
 	}
 
+	flags := cmds.PersistentFlags()
+	flags.BoolVar(&warningsAsErrors, "warnings-as-errors", warningsAsErrors, "Treat warnings received from the server as errors and exit with a non-zero exit code")
+
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDiscoveryBurst(250)
-	kubeConfigFlags.AddFlags(cmds.PersistentFlags())
+	kubeConfigFlags.AddFlags(flags)
 	matchVersionKubeConfigFlags := kcmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	matchVersionKubeConfigFlags.AddFlags(cmds.PersistentFlags())
 	cmds.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	f := kcmdutil.NewFactory(matchVersionKubeConfigFlags)
 
-	ioStreams := genericclioptions.IOStreams{In: in, Out: out, ErrOut: errout}
+	ioStreams := genericclioptions.IOStreams{In: in, Out: out, ErrOut: err}
 
 	loginCmd := login.NewCmdLogin(f, ioStreams)
 	secretcmds := secrets.NewCmdSecrets(f, ioStreams)
@@ -315,7 +339,7 @@ func newExperimentalCommand(f kcmdutil.Factory, ioStreams genericclioptions.IOSt
 func CommandFor(basename string) *cobra.Command {
 	var cmd *cobra.Command
 
-	in, out, errout := os.Stdin, os.Stdout, os.Stderr
+	in, out, err := os.Stdin, os.Stdout, os.Stderr
 
 	// Make case-insensitive and strip executable suffix if present
 	if runtime.GOOS == "windows" {
@@ -332,7 +356,7 @@ func CommandFor(basename string) *cobra.Command {
 		cmd = recycle.NewCommandRecycle(basename, out)
 	default:
 		shimKubectlForOc()
-		cmd = NewDefaultOcCommand(in, out, errout)
+		cmd = NewDefaultOcCommand(in, out, err)
 
 		// treat oc as a kubectl plugin
 		if strings.HasPrefix(basename, "kubectl-") {
