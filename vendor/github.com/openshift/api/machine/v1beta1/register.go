@@ -1,4 +1,4 @@
-package v1
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	GroupName     = "config.openshift.io"
-	GroupVersion  = schema.GroupVersion{Group: GroupName, Version: "v1"}
+	GroupName     = "machine.openshift.io"
+	GroupVersion  = schema.GroupVersion{Group: GroupName, Version: "v1beta1"}
 	schemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 	// Install is a function which adds this version to a scheme
 	Install = schemeBuilder.AddToScheme
@@ -29,44 +29,12 @@ func Resource(resource string) schema.GroupResource {
 
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypes(GroupVersion,
-		&APIServer{},
-		&APIServerList{},
-		&Authentication{},
-		&AuthenticationList{},
-		&Build{},
-		&BuildList{},
-		&ClusterOperator{},
-		&ClusterOperatorList{},
-		&ClusterVersion{},
-		&ClusterVersionList{},
-		&Console{},
-		&ConsoleList{},
-		&DNS{},
-		&DNSList{},
-		&FeatureGate{},
-		&FeatureGateList{},
-		&Image{},
-		&ImageList{},
-		&Infrastructure{},
-		&InfrastructureList{},
-		&Ingress{},
-		&IngressList{},
-		&Network{},
-		&NetworkList{},
-		&OAuth{},
-		&OAuthList{},
-		&OperatorHub{},
-		&OperatorHubList{},
-		&Project{},
-		&ProjectList{},
-		&Proxy{},
-		&ProxyList{},
-		&Scheduler{},
-		&SchedulerList{},
-		&ImageContentPolicy{},
-		&ImageContentPolicyList{},
-	)
 	metav1.AddToGroupVersion(scheme, GroupVersion)
+
+	scheme.AddKnownTypes(GroupVersion,
+		&Machine{},
+		&MachineList{},
+	)
+
 	return nil
 }
