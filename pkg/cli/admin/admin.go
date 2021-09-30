@@ -38,8 +38,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/top"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade"
 	"github.com/openshift/oc/pkg/cli/admin/verifyimagesignature"
-	"github.com/openshift/oc/pkg/cli/kubectlwrappers"
-	"github.com/openshift/oc/pkg/cli/options"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
@@ -122,13 +120,6 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 		release.NewCmd(f, streams),
 		buildchain.NewCmdBuildChain(f, streams),
 		verifyimagesignature.NewCmdVerifyImageSignature(f, streams),
-
-		// part of every root command
-		kubectlwrappers.NewCmdConfig(f, streams),
-		kubectlwrappers.NewCmdCompletion(streams),
-
-		// hidden
-		options.NewCmdOptions(streams),
 	)
 	catalog.AddCommand(f, streams, cmds)
 
