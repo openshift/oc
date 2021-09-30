@@ -22,7 +22,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/cancelbuild"
 	"github.com/openshift/oc/pkg/cli/debug"
 	"github.com/openshift/oc/pkg/cli/deployer"
-	"github.com/openshift/oc/pkg/cli/experimental/dockergc"
 	"github.com/openshift/oc/pkg/cli/expose"
 	"github.com/openshift/oc/pkg/cli/extract"
 	"github.com/openshift/oc/pkg/cli/idle"
@@ -240,11 +239,10 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 	}
 	groups.Add(cmds)
 
-	filters := []string{
-		"options",
-		"deploy",
-	}
+	filters := []string{"options"}
+
 	changeSharedFlagDefaults(cmds)
+
 	cmdutil.ActsAsRootCommand(cmds, filters, groups...).
 		ExposeFlags(loginCmd, "certificate-authority", "insecure-skip-tls-verify", "token")
 
@@ -306,8 +304,8 @@ func newExperimentalCommand(f kcmdutil.Factory, ioStreams genericclioptions.IOSt
 		BashCompletionFunction: admin.BashCompletionFunc,
 	}
 
-	experimental.AddCommand(dockergc.NewCmdDockerGCConfig(f, ioStreams))
-	experimental.AddCommand(options.NewCmdOptions(ioStreams))
+	// remove this line, when adding experimental commands
+	experimental.Hidden = true
 
 	return experimental
 }
