@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -75,11 +76,11 @@ func NewLogsOptions(streams genericclioptions.IOStreams) *LogsOptions {
 func NewCmdLogs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewLogsOptions(streams)
 	cmd := &cobra.Command{
-		Use:        "logs [-f] [-p] (POD | TYPE/NAME) [-c CONTAINER]",
-		Short:      "Print the logs for a container in a pod",
-		Long:       logsLong,
-		Example:    logsExample,
-		SuggestFor: []string{"builds", "deployments"},
+		Use:               "logs [-f] [-p] (POD | TYPE/NAME) [-c CONTAINER]",
+		Short:             "Print the logs for a container in a pod",
+		Long:              logsLong,
+		Example:           logsExample,
+		ValidArgsFunction: util.PodResourceNameAndContainerCompletionFunc(f),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate(args))

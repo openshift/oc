@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -100,11 +101,15 @@ func NewRollbackOptions(streams genericclioptions.IOStreams) *RollbackOptions {
 // NewCmdRollback creates a CLI rollback command.
 func NewCmdRollback(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRollbackOptions(streams)
+
+	validArgs := []string{"deploymentconfig", "replicationcontroller"}
+
 	cmd := &cobra.Command{
-		Use:     "rollback (DEPLOYMENTCONFIG | DEPLOYMENT)",
-		Short:   "Revert part of an application back to a previous deployment",
-		Long:    rollbackLong,
-		Example: rollbackExample,
+		Use:               "rollback (DEPLOYMENTCONFIG | DEPLOYMENT)",
+		Short:             "Revert part of an application back to a previous deployment",
+		Long:              rollbackLong,
+		Example:           rollbackExample,
+		ValidArgsFunction: util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

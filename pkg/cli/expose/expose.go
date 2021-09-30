@@ -12,6 +12,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/expose"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/oc/pkg/cli/create/route"
@@ -100,6 +101,8 @@ func NewCmdExpose(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 		kcmdutil.CheckErr(o.Validate(cmd))
 		defRun(cmd, args)
 	}
+	validArgs := []string{"pod", "service", "replicationcontroller", "deployment", "replicaset", "deploymentconfig"}
+	cmd.ValidArgsFunction = util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 
 	cmd.Flags().StringVar(&o.Hostname, "hostname", o.Hostname, "Set a hostname for the new route")
 	cmd.Flags().StringVar(&o.Path, "path", o.Path, "Set a path for the new route")
