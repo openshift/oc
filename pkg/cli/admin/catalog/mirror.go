@@ -106,6 +106,7 @@ type MirrorCatalogOptions struct {
 	DryRun       bool
 	ManifestOnly bool
 	IndexPath    string
+	TempDir      bool
 
 	FromFileDir string
 	FileDir     string
@@ -282,6 +283,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 			return err
 		}
 		o.IndexPath = indexLocation + ":" + tmpdir
+		o.TempDir = true
 	} else {
 		dir := strings.Split(o.IndexPath, ":")
 		if len(dir) < 2 {
@@ -531,6 +533,13 @@ func (o *MirrorCatalogOptions) Validate() error {
 }
 
 func (o *MirrorCatalogOptions) Run() error {
+	// Run postRun to clean up after the run
+	defer func() {
+		if err := o.postRun(); err != nil {
+			fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
+		}
+	}()
+
 	indexMirrorer, err := NewIndexImageMirror(o.IndexImageMirrorerOptions.ToOption(),
 		WithSource(o.SourceRef),
 		WithDest(o.DestRef),
@@ -583,6 +592,27 @@ func aggregateICSPs(icsps [][]byte) []byte {
 		aggregation = append(aggregation, icsp...)
 	}
 	return aggregation
+}
+
+func (o *MirrorCatalogOptions) postRun() error {
+	// If we have NOT set --path, the TempDir is set to true and we will delete
+	// Temporary folder.
+	if !o.TempDir {
+		return nil
+	}
+
+	dir := strings.Split(o.IndexPath, ":")
+	if len(dir) < 2 {
+		return fmt.Errorf("error cleaning up temp dir: could not find dir")
+	}
+
+	if err := os.RemoveAll(dir[1]); err != nil {
+		return fmt.Errorf("error cleaning up temp dir %s: %w", dir[1], err)
+	}
+
+	fmt.Fprintf(o.IOStreams.Out, "deleted dir %s\n", dir[1])
+
+	return nil
 }
 
 func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference, dir, icspScope string, maxICSPSize int, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
