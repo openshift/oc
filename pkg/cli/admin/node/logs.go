@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
@@ -103,6 +104,7 @@ func NewCmdLogs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		Short:                 "Display and filter node logs",
 		Long:                  logsLong,
 		Example:               logsExample,
+		ValidArgsFunction:     util.ResourceNameCompletionFunc(f, "node"),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

@@ -2,11 +2,9 @@ package kubectlwrappers
 
 import (
 	"bufio"
-	"flag"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
@@ -117,32 +115,7 @@ var (
 func NewCmdCompletion(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(completion.NewCmdCompletion(streams.Out, "\n")))
 	cmd.Long = completionLong
-	// mark all statically included flags as hidden to prevent them appearing in completions
-	cmd.PreRun = func(c *cobra.Command, _ []string) {
-		pflag.CommandLine.VisitAll(func(flag *pflag.Flag) {
-			flag.Hidden = true
-		})
-		hideGlobalFlags(c.Root(), flag.CommandLine)
-	}
 	return cmd
-}
-
-// hideGlobalFlags marks any flag that is in the global flag set as
-// hidden to prevent completion from varying by platform due to conditional
-// includes. This means that some completions will not be possible unless
-// they are registered in cobra instead of being added to flag.CommandLine.
-func hideGlobalFlags(c *cobra.Command, fs *flag.FlagSet) {
-	fs.VisitAll(func(flag *flag.Flag) {
-		if f := c.PersistentFlags().Lookup(flag.Name); f != nil {
-			f.Hidden = true
-		}
-		if f := c.LocalFlags().Lookup(flag.Name); f != nil {
-			f.Hidden = true
-		}
-	})
-	for _, child := range c.Commands() {
-		hideGlobalFlags(child, fs)
-	}
 }
 
 // NewCmdExec is a wrapper for the Kubernetes cli exec command

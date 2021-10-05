@@ -2,9 +2,11 @@ package rollout
 
 import (
 	"github.com/spf13/cobra"
+
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/rollout"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
@@ -73,7 +75,8 @@ func NewCmdRolloutHistory(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd := rollout.NewCmdRolloutHistory(f, streams)
 	cmd.Long = rolloutHistoryLong
 	cmd.Example = rolloutHistoryExample
-	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
+	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
+	cmd.ValidArgsFunction = util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }
 
@@ -96,7 +99,8 @@ func NewCmdRolloutPause(f kcmdutil.Factory, streams genericclioptions.IOStreams)
 	cmd := rollout.NewCmdRolloutPause(f, streams)
 	cmd.Long = rolloutPauseLong
 	cmd.Example = rolloutPauseExample
-	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
+	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
+	cmd.ValidArgsFunction = util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }
 
@@ -117,7 +121,8 @@ func NewCmdRolloutResume(f kcmdutil.Factory, streams genericclioptions.IOStreams
 	cmd := rollout.NewCmdRolloutResume(f, streams)
 	cmd.Long = rolloutResumeLong
 	cmd.Example = rolloutResumeExample
-	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
+	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
+	cmd.ValidArgsFunction = util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }
 
@@ -155,7 +160,8 @@ func NewCmdRolloutUndo(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 	cmd := rollout.NewCmdRolloutUndo(f, streams)
 	cmd.Long = rolloutUndoLong
 	cmd.Example = rolloutUndoExample
-	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
+	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
+	cmd.ValidArgsFunction = util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }
 
@@ -173,5 +179,7 @@ func NewCmdRolloutStatus(f kcmdutil.Factory, streams genericclioptions.IOStreams
 	cmd := rollout.NewCmdRolloutStatus(f, streams)
 	cmd.Long = rolloutStatusLong
 	cmd.Example = rolloutStatusExample
+	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
+	cmd.ValidArgsFunction = util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }

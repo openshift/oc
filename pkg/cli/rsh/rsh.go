@@ -10,6 +10,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/kubectl/pkg/util/term"
 )
@@ -94,6 +95,7 @@ func NewCmdRsh(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 		Short:                 "Start a shell session in a container",
 		Long:                  rshLong,
 		Example:               rshExample,
+		ValidArgsFunction:     util.PodResourceNameAndContainerCompletionFunc(f),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

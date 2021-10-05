@@ -12,17 +12,19 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-
+	"k8s.io/client-go/rest"
 	kubecmd "k8s.io/kubectl/pkg/cmd"
+	"k8s.io/kubectl/pkg/cmd/get"
 	"k8s.io/kubectl/pkg/cmd/plugin"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	kutil "k8s.io/kubectl/pkg/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
+	kterm "k8s.io/kubectl/pkg/util/term"
 
 	"github.com/openshift/oc/pkg/cli/admin"
 	"github.com/openshift/oc/pkg/cli/cancelbuild"
 	"github.com/openshift/oc/pkg/cli/debug"
 	"github.com/openshift/oc/pkg/cli/deployer"
-	"github.com/openshift/oc/pkg/cli/experimental/dockergc"
 	"github.com/openshift/oc/pkg/cli/expose"
 	"github.com/openshift/oc/pkg/cli/extract"
 	"github.com/openshift/oc/pkg/cli/idle"
@@ -120,7 +122,9 @@ func NewDefaultOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 	return cmd
 }
 
-func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
+func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
+	warningHandler := rest.NewWarningWriter(err, rest.WarningWriterOptions{Deduplicate: true, Color: kterm.AllowsColorOutput(err)})
+	warningsAsErrors := false
 	// Main command
 	cmds := &cobra.Command{
 		Use:   "oc",
@@ -132,17 +136,37 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 			kcmdutil.RequireNoArguments(c, args)
 			fmt.Fprintf(explainOut, "%s\n\n%s\n", cliLong, cliExplain)
 		},
-		BashCompletionFunction: bashCompletionFunc,
+		PersistentPreRunE: func(*cobra.Command, []string) error {
+			rest.SetDefaultWarningHandler(warningHandler)
+			return nil
+		},
+		PersistentPostRunE: func(*cobra.Command, []string) error {
+			if warningsAsErrors {
+				count := warningHandler.WarningCount()
+				switch count {
+				case 0:
+					// no warnings
+				case 1:
+					return fmt.Errorf("%d warning received", count)
+				default:
+					return fmt.Errorf("%d warnings received", count)
+				}
+			}
+			return nil
+		},
 	}
 
+	flags := cmds.PersistentFlags()
+	flags.BoolVar(&warningsAsErrors, "warnings-as-errors", warningsAsErrors, "Treat warnings received from the server as errors and exit with a non-zero exit code")
+
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDiscoveryBurst(250)
-	kubeConfigFlags.AddFlags(cmds.PersistentFlags())
+	kubeConfigFlags.AddFlags(flags)
 	matchVersionKubeConfigFlags := kcmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	matchVersionKubeConfigFlags.AddFlags(cmds.PersistentFlags())
 	cmds.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	f := kcmdutil.NewFactory(matchVersionKubeConfigFlags)
 
-	ioStreams := genericclioptions.IOStreams{In: in, Out: out, ErrOut: errout}
+	ioStreams := genericclioptions.IOStreams{In: in, Out: out, ErrOut: err}
 
 	loginCmd := login.NewCmdLogin(f, ioStreams)
 	secretcmds := secrets.NewCmdSecrets(f, ioStreams)
@@ -240,11 +264,10 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 	}
 	groups.Add(cmds)
 
-	filters := []string{
-		"options",
-		"deploy",
-	}
+	filters := []string{"options"}
+
 	changeSharedFlagDefaults(cmds)
+
 	cmdutil.ActsAsRootCommand(cmds, filters, groups...).
 		ExposeFlags(loginCmd, "certificate-authority", "insecure-skip-tls-verify", "token")
 
@@ -254,15 +277,7 @@ func NewOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 	cmds.AddCommand(version.NewCmdVersion(f, ioStreams))
 	cmds.AddCommand(options.NewCmdOptions(ioStreams))
 
-	if cmds.Flag("namespace") != nil {
-		if cmds.Flag("namespace").Annotations == nil {
-			cmds.Flag("namespace").Annotations = map[string][]string{}
-		}
-		cmds.Flag("namespace").Annotations[cobra.BashCompCustom] = append(
-			cmds.Flag("namespace").Annotations[cobra.BashCompCustom],
-			"__oc_get_namespaces",
-		)
-	}
+	registerCompletionFuncForGlobalFlags(cmds, f)
 
 	return cmds
 }
@@ -283,13 +298,6 @@ func changeSharedFlagDefaults(rootCmd *cobra.Command) {
 	for i := 0; i < len(cmds); i++ {
 		currCmd := cmds[i]
 		cmds = append(cmds, currCmd.Commands()...)
-
-		if showAllFlag := currCmd.Flags().Lookup("show-all"); showAllFlag != nil {
-			showAllFlag.DefValue = "true"
-			showAllFlag.Value.Set("true")
-			showAllFlag.Changed = false
-			showAllFlag.Usage = "When printing, show all resources (false means hide terminated pods.)"
-		}
 
 		// we want to disable the --validate flag by default when we're running kube commands from oc.  We want to make sure
 		// that we're only getting the upstream --validate flags, so check both the flag and the usage
@@ -313,8 +321,8 @@ func newExperimentalCommand(f kcmdutil.Factory, ioStreams genericclioptions.IOSt
 		BashCompletionFunction: admin.BashCompletionFunc,
 	}
 
-	experimental.AddCommand(dockergc.NewCmdDockerGCConfig(f, ioStreams))
-	experimental.AddCommand(options.NewCmdOptions(ioStreams))
+	// remove this line, when adding experimental commands
+	experimental.Hidden = true
 
 	return experimental
 }
@@ -324,7 +332,7 @@ func newExperimentalCommand(f kcmdutil.Factory, ioStreams genericclioptions.IOSt
 func CommandFor(basename string) *cobra.Command {
 	var cmd *cobra.Command
 
-	in, out, errout := os.Stdin, os.Stdout, os.Stderr
+	in, out, err := os.Stdin, os.Stdout, os.Stderr
 
 	// Make case-insensitive and strip executable suffix if present
 	if runtime.GOOS == "windows" {
@@ -341,7 +349,7 @@ func CommandFor(basename string) *cobra.Command {
 		cmd = recycle.NewCommandRecycle(basename, out)
 	default:
 		shimKubectlForOc()
-		cmd = NewDefaultOcCommand(in, out, errout)
+		cmd = NewDefaultOcCommand(in, out, err)
 
 		// treat oc as a kubectl plugin
 		if strings.HasPrefix(basename, "kubectl-") {
@@ -381,4 +389,27 @@ func CommandFor(basename string) *cobra.Command {
 		cmdutil.ActsAsRootCommand(cmd, []string{"options"})
 	}
 	return cmd
+}
+
+func registerCompletionFuncForGlobalFlags(cmd *cobra.Command, f kcmdutil.Factory) {
+	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
+		"namespace",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return get.CompGetResource(f, cmd, "namespace", toComplete), cobra.ShellCompDirectiveNoFileComp
+		}))
+	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
+		"context",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return kutil.ListContextsInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
+		}))
+	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
+		"cluster",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return kutil.ListClustersInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
+		}))
+	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
+		"user",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return kutil.ListUsersInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
+		}))
 }

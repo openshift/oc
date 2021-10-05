@@ -13,6 +13,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imagev1 "github.com/openshift/api/image/v1"
@@ -101,11 +102,14 @@ func NewImportImageOptions(streams genericclioptions.IOStreams) *ImportImageOpti
 func NewCmdImportImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewImportImageOptions(streams)
 
+	validArgs := []string{"imagestream"}
+
 	cmd := &cobra.Command{
-		Use:     "import-image IMAGESTREAM[:TAG]",
-		Short:   "Import images from a container image registry",
-		Long:    importImageLong,
-		Example: importImageExample,
+		Use:               "import-image IMAGESTREAM[:TAG]",
+		Short:             "Import images from a container image registry",
+		Long:              importImageLong,
+		Example:           importImageExample,
+		ValidArgsFunction: util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

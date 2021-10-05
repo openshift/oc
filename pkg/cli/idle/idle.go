@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/scale"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	operatorv1 "github.com/openshift/api/operator/v1"
@@ -89,11 +90,14 @@ func NewIdleOptions(streams genericclioptions.IOStreams) *IdleOptions {
 func NewCmdIdle(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewIdleOptions(streams)
 
+	validArgs := []string{"deploymentconfig", "replicationcontroller"}
+
 	cmd := &cobra.Command{
-		Use:     "idle (SERVICE_ENDPOINTS... | -l label | --all | --resource-names-file FILENAME)",
-		Short:   "Idle scalable resources",
-		Long:    idleLong,
-		Example: idleExample,
+		Use:               "idle (SERVICE_ENDPOINTS... | -l label | --all | --resource-names-file FILENAME)",
+		Short:             "Idle scalable resources",
+		Long:              idleLong,
+		Example:           idleExample,
+		ValidArgsFunction: util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.RunIdle())

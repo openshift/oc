@@ -20,6 +20,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/api/build"
@@ -92,12 +93,16 @@ func NewCancelBuildOptions(streams genericclioptions.IOStreams) *CancelBuildOpti
 // NewCmdCancelBuild implements the OpenShift cli cancel-build command
 func NewCmdCancelBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewCancelBuildOptions(streams)
+
+	validArgs := []string{"build", "buildconfig"}
+
 	cmd := &cobra.Command{
-		Use:        "cancel-build (BUILD | BUILDCONFIG)",
-		Short:      "Cancel running, pending, or new builds",
-		Long:       cancelBuildLong,
-		Example:    cancelBuildExample,
-		SuggestFor: []string{"builds", "stop-build"},
+		Use:               "cancel-build (BUILD | BUILDCONFIG)",
+		Short:             "Cancel running, pending, or new builds",
+		Long:              cancelBuildLong,
+		Example:           cancelBuildExample,
+		SuggestFor:        []string{"builds", "stop-build"},
+		ValidArgsFunction: util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

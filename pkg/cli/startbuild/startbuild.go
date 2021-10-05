@@ -21,9 +21,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
-	s2ifs "github.com/openshift/oc/pkg/helpers/source-to-image/fs"
-	"github.com/openshift/oc/pkg/helpers/source-to-image/tar"
-
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -37,6 +34,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/api/build"
@@ -48,6 +46,8 @@ import (
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 	utilenv "github.com/openshift/oc/pkg/helpers/env"
 	ocerrors "github.com/openshift/oc/pkg/helpers/errors"
+	s2ifs "github.com/openshift/oc/pkg/helpers/source-to-image/fs"
+	"github.com/openshift/oc/pkg/helpers/source-to-image/tar"
 )
 
 var (
@@ -152,12 +152,14 @@ func NewStartBuildOptions(streams genericclioptions.IOStreams) *StartBuildOption
 func NewCmdStartBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewStartBuildOptions(streams)
 
+	validArgs := []string{"buildconfig"}
+
 	cmd := &cobra.Command{
-		Use:        "start-build (BUILDCONFIG | --from-build=BUILD)",
-		Short:      "Start a new build",
-		Long:       startBuildLong,
-		Example:    startBuildExample,
-		SuggestFor: []string{"build", "builds"},
+		Use:               "start-build (BUILDCONFIG | --from-build=BUILD)",
+		Short:             "Start a new build",
+		Long:              startBuildLong,
+		Example:           startBuildExample,
+		ValidArgsFunction: util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd.Context(), f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
