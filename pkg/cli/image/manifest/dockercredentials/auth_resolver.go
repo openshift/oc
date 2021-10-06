@@ -122,7 +122,6 @@ func normalizeRegistry(registry string) string {
 	return registry
 }
 
-
 // defaultClientDockerConfig returns the credentials that the docker command line client would
 // return.
 func defaultClientDockerConfig() credentialprovider.DockerConfig {
