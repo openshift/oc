@@ -180,7 +180,7 @@ func (o *ExposeOptions) Validate(cmd *cobra.Command) error {
 			// The upstream generator will incorrectly chose service.Port instead of service.TargetPort
 			// for the route TargetPort when no port is present.  Passing forcePort=true
 			// causes UnsecuredRoute to always set a Port so the upstream default is not used.
-			route, err := route.UnsecuredRoute(o.CoreClient, o.Namespace, info.Name, info.Name, o.Port, true)
+			route, err := route.UnsecuredRoute(o.CoreClient, o.Namespace, info.Name, info.Name, o.Port, true, o.EnforceNamespace)
 			if err != nil {
 				return err
 			}

@@ -99,15 +99,9 @@ func (o *CreateEdgeRouteOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	route, err := route.UnsecuredRoute(o.CreateRouteSubcommandOptions.CoreClient, o.CreateRouteSubcommandOptions.Namespace, o.CreateRouteSubcommandOptions.Name, serviceName, o.Port, false)
+	route, err := route.UnsecuredRoute(o.CreateRouteSubcommandOptions.CoreClient, o.CreateRouteSubcommandOptions.Namespace, o.CreateRouteSubcommandOptions.Name, serviceName, o.Port, false, o.CreateRouteSubcommandOptions.EnforceNamespace)
 	if err != nil {
 		return err
-	}
-
-	// If the namespace is not the default, add it. This makes sure it will eventually
-	// appear in the manifest if the dry-run is enabled.
-	if o.CreateRouteSubcommandOptions.EnforceNamespace {
-		route.Namespace = o.CreateRouteSubcommandOptions.Namespace
 	}
 
 	if len(o.WildcardPolicy) > 0 {
