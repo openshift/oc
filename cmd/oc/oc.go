@@ -2,6 +2,7 @@ package main
 
 import (
 	goflag "flag"
+	"github.com/sirupsen/logrus"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -89,6 +90,7 @@ func main() {
 	legacy.InstallExternalLegacyAll(scheme.Scheme)
 
 	basename := filepath.Base(os.Args[0])
+	logrus.Error("i am here line 93")
 	command := cli.CommandFor(basename)
 	if err := command.Execute(); err != nil {
 		os.Exit(1)

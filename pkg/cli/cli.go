@@ -1,10 +1,17 @@
 package cli
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"github.com/mgutz/ansi"
+	"github.com/sirupsen/logrus"
 	"io"
+	"io/ioutil"
+	"k8s.io/client-go/tools/clientcmd"
+	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -59,6 +66,10 @@ import (
 	"github.com/openshift/oc/pkg/cli/whoami"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/openshift/oc/pkg/helpers/term"
+
+	"github.com/openziti/sdk-golang/ziti"
+	"github.com/openziti/sdk-golang/ziti/config"
+	"github.com/go-yaml/yaml"
 )
 
 const productName = `OpenShift`
@@ -327,6 +338,56 @@ func newExperimentalCommand(f kcmdutil.Factory, ioStreams genericclioptions.IOSt
 	return experimental
 }
 
+var configFilePath string
+var serviceName string
+
+type ZitiFlags struct {
+	zConfig string
+	service string
+}
+
+type Context struct {
+	ZConfig string `yaml:"zConfig"`
+	Service string `yaml:"service"`
+}
+
+type MinKubeConfig struct {
+	Contexts []struct {
+		Context Context `yaml:"context"`
+		Name    string  `yaml:"name"`
+	} `yaml:"contexts"`
+}
+
+var zFlags = ZitiFlags{}
+
+// function for handling the dialing with ziti
+func dialFunc(ctx context.Context, network, address string) (net.Conn, error) {
+	service := serviceName
+	configFile, err := config.NewFromFile(configFilePath)
+
+	if err != nil {
+		logrus.WithError(err).Error("Error loading config file")
+		os.Exit(1)
+	}
+
+	context := ziti.NewContextWithConfig(configFile)
+	return context.Dial(service)
+}
+
+func wrapConfigFn(restConfig *rest.Config) *rest.Config {
+
+	restConfig.Dial = dialFunc
+	return restConfig
+}
+
+func setZitiFlags(command *cobra.Command) *cobra.Command {
+
+	command.PersistentFlags().StringVarP(&zFlags.zConfig, "zConfig", "", "", "Path to ziti config file")
+	command.PersistentFlags().StringVarP(&zFlags.service, "service", "", "", "Service name")
+
+	return command
+}
+
 // CommandFor returns the appropriate command for this base name,
 // or the OpenShift CLI command.
 func CommandFor(basename string) *cobra.Command {
@@ -340,16 +401,49 @@ func CommandFor(basename string) *cobra.Command {
 		basename = strings.TrimSuffix(basename, ".exe")
 	}
 
+	logrus.Error("i am here line 399")
+
 	switch basename {
 	case "kubectl":
-		cmd = kubecmd.NewDefaultKubectlCommand()
+		//cmd = kubecmd.NewDefaultKubectlCommand()
+		logrus.Error("we did it")
+		kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+
+		// set the wrapper function. This allows modification to the reset Config
+		kubeConfigFlags.WrapConfigFn = wrapConfigFn
+		cmd = kubecmd.NewDefaultKubectlCommandWithArgsAndConfigFlags(kubecmd.NewDefaultPluginHandler(plugin.ValidPluginFilenamePrefixes), os.Args, in, out, err, kubeConfigFlags)
 	case "openshift-deploy":
 		cmd = deployer.NewCommandDeployer(basename)
 	case "openshift-recycle":
 		cmd = recycle.NewCommandRecycle(basename, out)
 	default:
+		logrus.Error("i am here line 415")
 		shimKubectlForOc()
-		cmd = NewDefaultOcCommand(in, out, err)
+
+		logrus.Error("we did it")
+		kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+
+		// set the wrapper function. This allows modification to the reset Config
+		kubeConfigFlags.WrapConfigFn = wrapConfigFn
+		cmd = kubecmd.NewDefaultKubectlCommandWithArgsAndConfigFlags(kubecmd.NewDefaultPluginHandler(plugin.ValidPluginFilenamePrefixes), os.Args, in, out, err, kubeConfigFlags)
+
+		//set and parse the ziti flags
+		cmd = setZitiFlags(cmd)
+		cmd.PersistentFlags().Parse(os.Args)
+
+		// try to get the ziti options from the flags
+		configFilePath = cmd.Flag("zConfig").Value.String()
+		serviceName = cmd.Flag("service").Value.String()
+
+		// get the loaded kubeconfig
+		kubeconfig := getKubeconfig()
+
+		// if both the config file and service name are not set, parse the kubeconfig file
+		if configFilePath == "" || serviceName == "" {
+			parseKubeConfig(cmd, kubeconfig)
+		}
+
+		//cmd = NewDefaultOcCommand(in, out, err)
 
 		// treat oc as a kubectl plugin
 		if strings.HasPrefix(basename, "kubectl-") {
@@ -413,3 +507,163 @@ func registerCompletionFuncForGlobalFlags(cmd *cobra.Command, f kcmdutil.Factory
 			return kutil.ListUsersInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
 		}))
 }
+
+// function for getting the current kubeconfig
+func getKubeconfig() clientcmd.ClientConfig {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	configOverrides := &clientcmd.ConfigOverrides{}
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules,
+		configOverrides)
+
+	return kubeConfig
+}
+
+func parseKubeConfig(command *cobra.Command, kubeconfig clientcmd.ClientConfig) {
+	// attempt to get the kubeconfig path from the command flags
+	kubeconfigPath := command.Flag("kubeconfig").Value.String()
+
+	// if the path is not set, attempt to get it from the kubeconfig precedence
+	if kubeconfigPath == "" {
+		// obtain the list of kubeconfig files from the current kubeconfig
+		kubeconfigPrcedence := kubeconfig.ConfigAccess().GetLoadingPrecedence()
+
+		// get the raw API config
+		apiConfig, err := kubeconfig.RawConfig()
+
+		if err != nil {
+			panic(err)
+		}
+
+		// set the ziti options from one of the config files
+		getZitiOptionsFromConfigList(kubeconfigPrcedence, apiConfig.CurrentContext)
+
+	} else {
+		// get the ziti options form the specified path
+		getZitiOptionsFromConfig(kubeconfigPath)
+	}
+
+}
+
+
+func getZitiOptionsFromConfigList(kubeconfigPrcedence []string, currentContext string) {
+	// for the kubeconfig files in the precedence
+	for _, path := range kubeconfigPrcedence {
+
+		// read the config file
+		config := readKubeConfig(path)
+
+		// loop through the context list
+		for _, context := range config.Contexts {
+
+			// if the context name matches the current context
+			if currentContext == context.Name {
+
+				// set the config file path if it's not already set
+				if configFilePath == "" {
+					configFilePath = context.Context.ZConfig
+				}
+
+				// set the service name if it's not already set
+				if serviceName == "" {
+					serviceName = context.Context.Service
+				}
+
+				break
+			}
+		}
+	}
+}
+
+func readKubeConfig(kubeconfig string) MinKubeConfig {
+	// get the file name from the path
+	filename, _ := filepath.Abs(kubeconfig)
+
+	// read the yaml file
+	yamlFile, err := ioutil.ReadFile(filename)
+
+	if err != nil {
+		panic(err)
+	}
+
+	var minKubeConfig MinKubeConfig
+
+	//parse the yaml file
+	err = yaml.Unmarshal(yamlFile, &minKubeConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	return minKubeConfig
+
+}
+
+func getZitiOptionsFromConfig(kubeconfig string) {
+
+	// get the config from the path
+	config := clientcmd.GetConfigFromFileOrDie(kubeconfig)
+
+	// get the current context
+	currentContext := config.CurrentContext
+
+	// read the yaml file
+	minKubeConfig := readKubeConfig(kubeconfig)
+
+	var context Context
+	// find the context that matches the current context
+	for _, ctx := range minKubeConfig.Contexts {
+
+		if ctx.Name == currentContext {
+			context = ctx.Context
+		}
+	}
+
+	// set the config file if not already set
+	if configFilePath == "" {
+		configFilePath = context.ZConfig
+	}
+
+	// set the service name if not already set
+	if serviceName == "" {
+		serviceName = context.Service
+	}
+}
+
+
+
+type logrusFormatter struct {
+}
+
+func (fa *logrusFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	level := toLevel(entry)
+	return []byte(fmt.Sprintf("%s\t%s\n", level, entry.Message)), nil
+}
+
+func toLevel(entry *logrus.Entry) string {
+	switch entry.Level {
+	case logrus.PanicLevel:
+		return panicColor
+	case logrus.FatalLevel:
+		return fatalColor
+	case logrus.ErrorLevel:
+		return errorColor
+	case logrus.WarnLevel:
+		return warnColor
+	case logrus.InfoLevel:
+		return infoColor
+	case logrus.DebugLevel:
+		return debugColor
+	case logrus.TraceLevel:
+		return traceColor
+	default:
+		return infoColor
+	}
+}
+
+var panicColor = ansi.Red + "PANIC" + ansi.DefaultFG
+var fatalColor = ansi.Red + "FATAL" + ansi.DefaultFG
+var errorColor = ansi.Red + "ERROR" + ansi.DefaultFG
+var warnColor = ansi.Yellow + "WARN " + ansi.DefaultFG
+var infoColor = ansi.LightGreen + "INFO " + ansi.DefaultFG
+var debugColor = ansi.LightBlue + "DEBUG" + ansi.DefaultFG
+var traceColor = ansi.LightBlack + "TRACE" + ansi.DefaultFG
+
