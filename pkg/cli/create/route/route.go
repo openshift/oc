@@ -19,7 +19,7 @@ import (
 // forcePort always sets a port, even when there is only one and it has no name.
 // The kubernetes generator, when no port is present incorrectly selects the service Port
 // instead of the service TargetPort for the route TargetPort.
-func UnsecuredRoute(kc corev1client.CoreV1Interface, namespace, routeName, serviceName, portString string, forcePort bool) (*routev1.Route, error) {
+func UnsecuredRoute(kc corev1client.CoreV1Interface, namespace, routeName, serviceName, portString string, forcePort, forceNamespace bool) (*routev1.Route, error) {
 	if len(routeName) == 0 {
 		routeName = serviceName
 	}
@@ -29,7 +29,8 @@ func UnsecuredRoute(kc corev1client.CoreV1Interface, namespace, routeName, servi
 		if len(portString) == 0 {
 			return nil, fmt.Errorf("you need to provide a route port via --port when exposing a non-existent service")
 		}
-		return &routev1.Route{
+
+		route := &routev1.Route{
 			// this is ok because we know exactly how we want to be serialized
 			TypeMeta: metav1.TypeMeta{APIVersion: routev1.SchemeGroupVersion.String(), Kind: "Route"},
 			ObjectMeta: metav1.ObjectMeta{
@@ -41,7 +42,13 @@ func UnsecuredRoute(kc corev1client.CoreV1Interface, namespace, routeName, servi
 				},
 				Port: resolveRoutePort(portString),
 			},
-		}, nil
+		}
+
+		if forceNamespace {
+			route.Namespace = namespace
+		}
+
+		return route, nil
 	}
 
 	ok, port := supportsTCP(svc)
@@ -77,6 +84,9 @@ func UnsecuredRoute(kc corev1client.CoreV1Interface, namespace, routeName, servi
 		route.Spec.Port = resolveRoutePort(portString)
 	}
 
+	if forceNamespace {
+		route.Namespace = namespace
+	}
 	return route, nil
 }
 

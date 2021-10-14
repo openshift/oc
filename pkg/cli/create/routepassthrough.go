@@ -82,7 +82,7 @@ func (o *CreatePassthroughRouteOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	route, err := route.UnsecuredRoute(o.CreateRouteSubcommandOptions.CoreClient, o.CreateRouteSubcommandOptions.Namespace, o.CreateRouteSubcommandOptions.Name, serviceName, o.Port, false)
+	route, err := route.UnsecuredRoute(o.CreateRouteSubcommandOptions.CoreClient, o.CreateRouteSubcommandOptions.Namespace, o.CreateRouteSubcommandOptions.Name, serviceName, o.Port, false, o.CreateRouteSubcommandOptions.EnforceNamespace)
 	if err != nil {
 		return err
 	}
