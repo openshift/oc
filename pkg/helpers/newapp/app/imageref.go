@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -43,6 +44,11 @@ type SecretAccessor interface {
 }
 
 type imageRefGenerator struct{}
+
+var (
+	// Imagestream names must comply with k8s DNS1123 Subdomains
+	dnsSubdomainAllowedCharacters = regexp.MustCompile("[^a-zA-Z0-9-]")
+)
 
 // NewImageRefGenerator creates a new ImageRefGenerator
 func NewImageRefGenerator() ImageRefGenerator {
@@ -230,18 +236,45 @@ func (r *ImageRef) SuggestName() (string, bool) {
 	if r == nil {
 		return "", false
 	}
+	var name string
 	// if ImageStream already exists, its name should
 	// have higher preference than object name
-	if r.Stream != nil {
-		return r.Stream.Name, true
+	switch {
+	case r.Stream != nil:
+		name = r.Stream.Name
+	case len(r.ObjectName) > 0:
+		name = r.ObjectName
+	case len(r.Reference.Name) > 0:
+		name = r.Reference.Name
 	}
-	if len(r.ObjectName) > 0 {
-		return r.ObjectName, true
+
+	name = toValidImageRefName(name)
+
+	return name, len(name) > 0
+}
+
+// toValidImageRefName checks that ImageRef suggested name is a valid
+// subdomain name according to DNS1123
+func toValidImageRefName(name string) string {
+	if len(name) == 0 {
+		return name
 	}
-	if len(r.Reference.Name) > 0 {
-		return r.Reference.Name, true
+
+	// in some certain situations, ref name might contain slashes or other symbols
+	// k8s naming refers to DNS1123, which states that only alphanumeric characters
+	// dashes are allowed in a subdomain name
+	// bug example: https://bugzilla.redhat.com/show_bug.cgi?id=1970805
+	result := dnsSubdomainAllowedCharacters.ReplaceAllString(name, "-")
+
+	// Also should check allowed subdomain name length and trim accordingly
+	if len(result) > kvalidation.DNS1123SubdomainMaxLength {
+		result = result[:kvalidation.DNS1123SubdomainMaxLength]
 	}
-	return "", false
+
+	// if after the trim name ends with a dash, trim it, too, must end with an alphanumeric
+	result = strings.Trim(result, "-")
+
+	return result
 }
 
 // SuggestNamespace suggests a namespace for an image reference
