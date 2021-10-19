@@ -663,6 +663,7 @@ golang.org/x/crypto/ssh/terminal
 # golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6
 golang.org/x/exp/mmap
 # golang.org/x/net v0.0.0-20210520170846-37e1c6afe023
+## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/html
