@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"unicode"
 
 	"github.com/spf13/cobra"
 
@@ -114,6 +115,12 @@ func (o *NewGroupOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 func (o *NewGroupOptions) Validate() error {
 	if len(o.Group) == 0 {
 		return fmt.Errorf("group is required")
+	}
+
+	for _, r := range o.Group {
+		if !unicode.IsPrint(r) {
+			return fmt.Errorf("group can't contain non-printable characters like %q", r)
+		}
 	}
 
 	return nil
