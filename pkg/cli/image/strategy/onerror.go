@@ -68,43 +68,48 @@ func (s *onErrorStrategy) resolve(ctx context.Context, imageRef reference.Docker
 	if err != nil {
 		return nil, err
 	}
-	imageRefList, err := alternativeImageSources(imageRef, icspList)
+	// always add the original as the first reference
+	imageRefList, err := alternativeImageSources(imageRef, icspList, false)
 	if err != nil {
 		return nil, err
 	}
-	// always add the original as the first reference
-	imageRefList = append([]reference.DockerImageReference{imageRef.AsRepository()}, imageRefList...)
 	return imageRefList, nil
 }
 
 // alternativeImageSources returns unique list of DockerImageReference objects from list of ImageContentSourcePolicy objects
-func alternativeImageSources(imageRef reference.DockerImageReference, icspList []operatorv1alpha1.ImageContentSourcePolicy) ([]reference.DockerImageReference, error) {
+// addSourceAsLastAlternate decides whether the original imageRef is first or the last element in the result
+func alternativeImageSources(imageRef reference.DockerImageReference, icspList []operatorv1alpha1.ImageContentSourcePolicy, addSourceAsLastAlternate bool) ([]reference.DockerImageReference, error) {
 	var imageSources []reference.DockerImageReference
-	klog.V(5).Infof("%v ImageReference added to potential ImageSourcePrefixes from ImageContentSourcePolicy", imageRef.AsRepository())
+	klog.V(5).Infof("%v ImageReference added to potential ImageSourcePrefixes from ImageContentSourcePolicy", imageRef.AsRepository().AsV2())
+	if !addSourceAsLastAlternate {
+		imageSources = append(imageSources, imageRef.AsRepository().AsV2())
+	}
 	for _, icsp := range icspList {
 		repoDigestMirrors := icsp.Spec.RepositoryDigestMirrors
 		for _, rdm := range repoDigestMirrors {
 			var err error
 			rdmSourceRef, err := reference.Parse(rdm.Source)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("invalid source %q: %w", rdm.Source, err)
 			}
 			// AsV2 in the right call is required to ensure we transform docker registry
 			// from docker.io to registry-1.docker.io
-			// TODO: support partial match, iow. quay.io/foo should match quay.io/foo/bar
-			if imageRef.AsRepository() != rdmSourceRef.AsRepository().AsV2() {
+			if imageRef.AsRepository().AsV2() != rdmSourceRef.AsRepository().AsV2() {
 				continue
 			}
-			klog.V(5).Infof("%v RepositoryDigestMirrors source matches given image", imageRef.AsRepository())
+			klog.V(5).Infof("%v RepositoryDigestMirrors source matches given image", imageRef.AsRepository().AsV2())
 			for _, m := range rdm.Mirrors {
 				mRef, err := reference.Parse(m)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("invalid mirror %q: %w", m, err)
 				}
 				imageSources = append(imageSources, mRef)
 				klog.V(5).Infof("%v RepositoryDigestMirrors mirror added to potential ImageSourcePrefixes from ImageContentSourcePolicy", m)
 			}
 		}
+	}
+	if addSourceAsLastAlternate {
+		imageSources = append(imageSources, imageRef.AsRepository().AsV2())
 	}
 	uniqueMirrors := make([]reference.DockerImageReference, 0, len(imageSources))
 	uniqueMap := make(map[reference.DockerImageReference]bool)

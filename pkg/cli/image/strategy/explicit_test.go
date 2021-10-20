@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -164,6 +165,37 @@ func TestExplicitStrategy(t *testing.T) {
 			imageSourcesExpected: []string{"quay.io/ocp-test/release", "registry-1.docker.io/ocp-test/release"},
 		},
 		{
+			name: "docker.io and registry-1.docker.io as source",
+			icspList: []operatorv1alpha1.ImageContentSourcePolicy{
+				{
+					Spec: operatorv1alpha1.ImageContentSourcePolicySpec{
+						RepositoryDigestMirrors: []operatorv1alpha1.RepositoryDigestMirrors{
+							{
+								Source: "docker.io/ocp-test/release",
+								Mirrors: []string{
+									"quay.io/ocp-test/release",
+								},
+							},
+						},
+					},
+				},
+				{
+					Spec: operatorv1alpha1.ImageContentSourcePolicySpec{
+						RepositoryDigestMirrors: []operatorv1alpha1.RepositoryDigestMirrors{
+							{
+								Source: "registry-1.docker.io/ocp-test/release",
+								Mirrors: []string{
+									"quay.io/ocp-test/release",
+								},
+							},
+						},
+					},
+				},
+			},
+			image:                "registry-1.docker.io/ocp-test/release:4.5",
+			imageSourcesExpected: []string{"quay.io/ocp-test/release", "registry-1.docker.io/ocp-test/release"},
+		},
+		{
 			name:                 "no ICSP",
 			image:                "quay.io/ocp-test/release:4.5",
 			imageSourcesExpected: []string{"quay.io/ocp-test/release"},
@@ -211,11 +243,71 @@ func TestExplicitStrategy(t *testing.T) {
 }
 
 func TestExplicitStrategyErrors(t *testing.T) {
-	ref, _ := reference.Parse("quay.io/ocp-test/release:4.5")
+	tests := []struct {
+		name         string
+		readICSPFunc readICSPsFromFileFunc
+		image        string
+		expectedErr  string
+	}{
+		{
+			name:  "non-existent ICSP file",
+			image: "quay.io/ocp-test/release:4.5",
+			readICSPFunc: func(string) ([]operatorv1alpha1.ImageContentSourcePolicy, error) {
+				return nil, errors.New("no ImageContentSourceFile")
+			},
+			expectedErr: "no ImageContentSourceFile",
+		},
+		{
+			name:  "invalid source locator",
+			image: "quay.io/ocp-test/release:4.5",
+			readICSPFunc: func(string) ([]operatorv1alpha1.ImageContentSourcePolicy, error) {
+				return []operatorv1alpha1.ImageContentSourcePolicy{
+					{
+						Spec: operatorv1alpha1.ImageContentSourcePolicySpec{
+							RepositoryDigestMirrors: []operatorv1alpha1.RepositoryDigestMirrors{
+								{
+									Source: ".invalid-source-spec",
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			expectedErr: "invalid source",
+		},
+		{
+			name:  "invalid mirror locator",
+			image: "quay.io/ocp-test/release:4.5",
+			readICSPFunc: func(string) ([]operatorv1alpha1.ImageContentSourcePolicy, error) {
+				return []operatorv1alpha1.ImageContentSourcePolicy{
+					{
+						Spec: operatorv1alpha1.ImageContentSourcePolicySpec{
+							RepositoryDigestMirrors: []operatorv1alpha1.RepositoryDigestMirrors{
+								{
+									Source: "quay.io/ocp-test/release",
+									Mirrors: []string{
+										".invalid-mirror-spec",
+									},
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			expectedErr: "invalid mirror",
+		},
+	}
 
-	alternates := NewICSPExplicitStrategy("")
-	_, err := alternates.FirstRequest(context.Background(), ref)
-	if err == nil || !strings.Contains(err.Error(), "no ImageContentSourceFile") {
-		t.Errorf("Expected error empty ICSP file error, got %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			imageRef, _ := reference.Parse(tt.image)
+			alternates := NewICSPExplicitStrategy("name")
+			onErr := alternates.(*explicitStrategy)
+			onErr.readICSPsFromFileFunc = tt.readICSPFunc
+			_, err := alternates.FirstRequest(context.Background(), imageRef)
+			if err == nil || !strings.Contains(err.Error(), tt.expectedErr) {
+				t.Errorf("Unexpected error, got %v, want %v", err, tt.expectedErr)
+			}
+		})
 	}
 }

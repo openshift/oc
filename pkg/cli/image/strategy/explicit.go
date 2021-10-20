@@ -71,11 +71,10 @@ func (s *explicitStrategy) resolve(ctx context.Context, imageRef reference.Docke
 	if err != nil {
 		return nil, err
 	}
-	imageRefList, err := alternativeImageSources(imageRef, icspList)
+	// always add the original as the last reference
+	imageRefList, err := alternativeImageSources(imageRef, icspList, true)
 	if err != nil {
 		return nil, err
 	}
-	// always add the original as the last reference
-	imageRefList = append(imageRefList, imageRef.AsRepository())
 	return imageRefList, nil
 }

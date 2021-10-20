@@ -25,7 +25,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	operatorv1alpha1client "github.com/openshift/client-go/operator/clientset/versioned/typed/operator/v1alpha1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
@@ -91,8 +90,6 @@ type InfoOptions struct {
 	SecurityOptions imagemanifest.SecurityOptions
 	FilterOptions   imagemanifest.FilterOptions
 
-	operatorClient operatorv1alpha1client.OperatorV1alpha1Interface
-
 	Images   []string
 	FileDir  string
 	Output   string
@@ -105,40 +102,12 @@ func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 	}
 	o.Images = args
 
-	clientConfig, err := f.ToRESTConfig()
-	if err != nil {
-		return err
-	}
-	o.operatorClient, err = operatorv1alpha1client.NewForConfig(clientConfig)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
 func (o *InfoOptions) Validate(cmd *cobra.Command) error {
 	if len(o.Images) == 0 {
 		return fmt.Errorf("must specify one or more images as arguments")
-	}
-	if len(o.ICSPFile) > 0 {
-		warned := false
-		for _, location := range o.Images {
-			if warned {
-				break
-			}
-			sources, err := imagesource.ParseSourceReference(location, nil)
-			if err != nil {
-				return err
-			}
-			for _, src := range sources {
-				if len(src.Ref.Tag) > 0 {
-					fmt.Fprintf(o.ErrOut, "warning: --icsp-file doesn't work with tags, only digest is supported\n")
-					warned = true
-					break
-				}
-			}
-		}
 	}
 	return o.FilterOptions.Validate()
 }
@@ -159,6 +128,7 @@ func (o *InfoOptions) Run() error {
 	}
 
 	hadError := false
+	icspWarned := false
 	for _, location := range o.Images {
 		sources, err := imagesource.ParseSourceReference(location, opts.ExpandWildcard)
 		if err != nil {
@@ -167,6 +137,10 @@ func (o *InfoOptions) Run() error {
 		for _, src := range sources {
 			if len(src.Ref.Tag) == 0 && len(src.Ref.ID) == 0 {
 				return fmt.Errorf("--from must point to an image ID or image tag")
+			}
+			if !icspWarned && len(o.ICSPFile) > 0 && len(src.Ref.Tag) > 0 {
+				fmt.Fprintf(o.ErrOut, "warning: --icsp-file only applies to images referenced by digest and will be ignored for tags\n")
+				icspWarned = true
 			}
 
 			var image *Image
