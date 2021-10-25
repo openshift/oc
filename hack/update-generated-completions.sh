@@ -18,21 +18,22 @@ function os::build::gen-completions() {
   # create the list of generated files
   ls "${tmpdir}" | LC_ALL=C sort > "${tmpdir}/.files_generated"
 
-  # remove all old generated file from the destination
-  while read file; do
-    if [[ -e "${tmpdir}/${file}" && -n "${skipprefix}" ]]; then
-      local original generated
-      original=$(grep -v "^${skipprefix}" "${dest}/${file}") || :
-      generated=$(grep -v "^${skipprefix}" "${tmpdir}/${file}") || :
-      if [[ "${original}" == "${generated}" ]]; then
-        # overwrite generated with original.
-        mv "${dest}/${file}" "${tmpdir}/${file}"
+  if [[ -e "${dest}/.files_generated" ]]; then
+    # remove all old generated file from the destination
+    while read file; do
+      if [[ -e "${tmpdir}/${file}" && -n "${skipprefix}" ]]; then
+        local original generated
+        original=$(grep -v "^${skipprefix}" "${dest}/${file}") || :
+        generated=$(grep -v "^${skipprefix}" "${tmpdir}/${file}") || :
+        if [[ "${original}" == "${generated}" ]]; then
+          # overwrite generated with original.
+          mv "${dest}/${file}" "${tmpdir}/${file}"
+        fi
+      else
+        rm "${dest}/${file}" || true
       fi
-    else
-      rm "${dest}/${file}" || true
-    fi
-  done <"${dest}/.files_generated"
-
+    done <"${dest}/.files_generated"
+  fi
   # put the new generated file into the destination
   find "${tmpdir}" -exec rsync -pt {} "${dest}" \; >/dev/null
   #cleanup
