@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/docker/distribution/registry/client/transport"
 	godigest "github.com/opencontainers/go-digest"
 
 	"k8s.io/client-go/rest"
@@ -21,14 +20,13 @@ func getImageManifestByIDFromRegistry(registry *url.URL, repositoryName, imageID
 	credentials := registryclient.NewBasicCredentials()
 	credentials.Add(registry, username, password)
 
-	insecureRT, err := rest.TransportFor(&rest.Config{TLSClientConfig: rest.TLSClientConfig{Insecure: true}})
+	insecureRT, err := rest.TransportFor(&rest.Config{TLSClientConfig: rest.TLSClientConfig{Insecure: true}, UserAgent: rest.DefaultKubernetesUserAgent()})
 	if err != nil {
 		return nil, err
 	}
 
 	repo, err := registryclient.NewContext(http.DefaultTransport, insecureRT).
 		WithCredentials(credentials).
-		WithRequestModifiers(transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{rest.DefaultKubernetesUserAgent()}})).
 		Repository(ctx, registry, repositoryName, insecure)
 	if err != nil {
 		return nil, err

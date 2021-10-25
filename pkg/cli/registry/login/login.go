@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/distribution/registry/client/transport"
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
@@ -286,12 +285,11 @@ func (o *LoginOptions) Run() error {
 		creds := registryclient.NewBasicCredentials()
 		url := &url.URL{Host: o.HostPort}
 		creds.Add(url, o.Credentials.Username, o.Credentials.Password)
-		insecureRT, err := rest.TransportFor(&rest.Config{TLSClientConfig: rest.TLSClientConfig{Insecure: true}})
+		insecureRT, err := rest.TransportFor(&rest.Config{TLSClientConfig: rest.TLSClientConfig{Insecure: true}, UserAgent: rest.DefaultKubernetesUserAgent()})
 		if err != nil {
 			return err
 		}
-		c := registryclient.NewContext(http.DefaultTransport, insecureRT).WithCredentials(creds).
-			WithRequestModifiers(transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{rest.DefaultKubernetesUserAgent()}}))
+		c := registryclient.NewContext(http.DefaultTransport, insecureRT).WithCredentials(creds)
 		if _, err := c.Repository(ctx, url, "does_not_exist", o.Insecure); err != nil {
 			return fmt.Errorf("unable to check your credentials - pass --skip-check to bypass this error: %v", err)
 		}
