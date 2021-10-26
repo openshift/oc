@@ -109,6 +109,8 @@ var MissingDescriberGroupCoverageExceptions = []schema.GroupVersion{
 	{Group: "apiserver.openshift.io", Version: "v1"},
 
 	{Group: "helm.openshift.io", Version: "v1beta1"},
+	{Group: "machine.openshift.io", Version: "v1beta1"},
+	{Group: "sharedresource.openshift.io", Version: "v1alpha1"},
 }
 
 func TestDescriberCoverage(t *testing.T) {
