@@ -194,7 +194,7 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
 		}
 
-		sortSemanticVersions(cv.Status.AvailableUpdates)
+		sortReleasesBySemanticVersions(cv.Status.AvailableUpdates)
 
 		update := cv.Status.AvailableUpdates[len(cv.Status.AvailableUpdates)-1]
 		desiredUpdate := &configv1.Update{
@@ -352,7 +352,7 @@ func (o *Options) Run() error {
 			w := tabwriter.NewWriter(o.Out, 0, 2, 1, ' ', 0)
 			fmt.Fprintf(w, "VERSION\tIMAGE\n")
 			// TODO: add metadata about version
-			sortSemanticVersions(cv.Status.AvailableUpdates)
+			sortReleasesBySemanticVersions(cv.Status.AvailableUpdates)
 			for _, update := range cv.Status.AvailableUpdates {
 				fmt.Fprintf(w, "%s\t%s\n", update.Version, update.Image)
 			}
@@ -432,8 +432,8 @@ func updateIsEquivalent(a configv1.Update, b configv1.Release) bool {
 	}
 }
 
-// sortSemanticVersions sorts the input slice in increasing order.
-func sortSemanticVersions(versions []configv1.Release) {
+// sortReleasesBySemanticVersions sorts the input slice in increasing order.
+func sortReleasesBySemanticVersions(versions []configv1.Release) {
 	sort.Slice(versions, func(i, j int) bool {
 		a, errA := semver.Parse(versions[i].Version)
 		b, errB := semver.Parse(versions[j].Version)

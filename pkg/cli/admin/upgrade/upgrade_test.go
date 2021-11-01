@@ -9,7 +9,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 )
 
-func TestSortSemanticVersions(t *testing.T) {
+func TestSortReleasesBySemanticVersions(t *testing.T) {
 	expected := []configv1.Release{
 		{Version: "not-sem-ver-1"},
 		{Version: "not-sem-ver-2"},
@@ -25,7 +25,7 @@ func TestSortSemanticVersions(t *testing.T) {
 		actual[i] = expected[j]
 	}
 
-	sortSemanticVersions(actual)
+	sortReleasesBySemanticVersions(actual)
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("%v != %v", actual, expected)
 	}
