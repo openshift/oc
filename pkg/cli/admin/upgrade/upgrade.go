@@ -238,7 +238,7 @@ func (o *Options) Run() error {
 			}
 			if update == nil {
 				if len(cv.Status.AvailableUpdates) == 0 {
-					if c := findCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
+					if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
 						return fmt.Errorf("Can't look up image for version %s. %v", o.To, c.Message)
 					}
 					return fmt.Errorf("No available updates, specify --to-image or wait for new updates to be available")
@@ -308,9 +308,9 @@ func (o *Options) Run() error {
 		return nil
 
 	default:
-		if c := findCondition(cv.Status.Conditions, configv1.OperatorDegraded); c != nil && c.Status == configv1.ConditionTrue {
+		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorDegraded); c != nil && c.Status == configv1.ConditionTrue {
 			prefix := "No upgrade is possible due to an error"
-			if c := findCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue && len(c.Message) > 0 {
+			if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue && len(c.Message) > 0 {
 				prefix = c.Message
 			}
 			if len(c.Message) > 0 {
@@ -319,7 +319,7 @@ func (o *Options) Run() error {
 			return fmt.Errorf("The cluster can't be upgraded, see `oc describe clusterversion`")
 		}
 
-		if c := findCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && len(c.Message) > 0 {
+		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && len(c.Message) > 0 {
 			if c.Status == configv1.ConditionTrue {
 				fmt.Fprintf(o.Out, "info: An upgrade is in progress. %s\n", c.Message)
 			} else {
@@ -330,7 +330,7 @@ func (o *Options) Run() error {
 		}
 		fmt.Fprintln(o.Out)
 
-		if c := findCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
+		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
 			fmt.Fprintf(o.Out, "Upgradeable=False\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 		}
 
@@ -357,11 +357,11 @@ func (o *Options) Run() error {
 				fmt.Fprintf(w, "%s\t%s\n", update.Version, update.Image)
 			}
 			w.Flush()
-			if c := findCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
+			if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
 				fmt.Fprintf(o.ErrOut, "warning: Cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 			}
 		} else {
-			if c := findCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
+			if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
 				fmt.Fprintf(o.ErrOut, "warning: Cannot display available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 			} else {
 				fmt.Fprintf(o.Out, "No updates available. You may force an upgrade to a specific release image, but doing so may not be supported and may result in downtime or data loss.\n")
@@ -458,7 +458,7 @@ func versionStrings(updates []configv1.Release) []string {
 	return arr
 }
 
-func findCondition(conditions []configv1.ClusterOperatorStatusCondition, name configv1.ClusterStatusConditionType) *configv1.ClusterOperatorStatusCondition {
+func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorStatusCondition, name configv1.ClusterStatusConditionType) *configv1.ClusterOperatorStatusCondition {
 	for i := range conditions {
 		if conditions[i].Type == name {
 			return &conditions[i]
@@ -469,13 +469,13 @@ func findCondition(conditions []configv1.ClusterOperatorStatusCondition, name co
 
 func checkForUpgrade(cv *configv1.ClusterVersion) error {
 	results := []string{}
-	if c := findCondition(cv.Status.Conditions, "Invalid"); c != nil && c.Status == configv1.ConditionTrue {
+	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "Invalid"); c != nil && c.Status == configv1.ConditionTrue {
 		results = append(results, fmt.Sprintf("the cluster version object is invalid, you must correct the invalid state first:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
-	if c := findCondition(cv.Status.Conditions, configv1.OperatorDegraded); c != nil && c.Status == configv1.ConditionTrue {
+	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorDegraded); c != nil && c.Status == configv1.ConditionTrue {
 		results = append(results, fmt.Sprintf("the cluster is experiencing an upgrade-blocking error:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
-	if c := findCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue {
+	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue {
 		results = append(results, fmt.Sprintf("the cluster is already upgrading:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
 
