@@ -86,6 +86,7 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 	flags.BoolVar(&o.Force, "force", o.Force, "Forcefully upgrade the cluster even when upgrade release image validation fails and the cluster is reporting errors.")
 	flags.BoolVar(&o.AllowExplicitUpgrade, "allow-explicit-upgrade", o.AllowExplicitUpgrade, "Upgrade even if the upgrade target is not listed in the available versions list.")
 	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade even if an upgrade is in process or a cluster error is blocking the update.")
+	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
 
 	cmd.AddCommand(channel.New(f, streams))
 
@@ -103,6 +104,7 @@ type Options struct {
 	AllowUpgradeWithWarnings bool
 	Force                    bool
 	Clear                    bool
+	IncludeNotRecommended    bool
 
 	Client configv1client.Interface
 }
@@ -369,10 +371,36 @@ func (o *Options) Run() error {
 			}
 		}
 
+		if o.IncludeNotRecommended {
+			if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
+				sortConditionalUpdatesBySemanticVersions(cv.Status.ConditionalUpdates)
+				fmt.Fprintf(o.Out, "\nSupported but not recommended updates:\n")
+				for _, update := range cv.Status.ConditionalUpdates {
+					if c := findCondition(update.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
+						fmt.Fprintf(o.Out, "\n  Version: %s\n  Image: %s\n", update.Release.Version, update.Release.Image)
+						fmt.Fprintf(o.Out, "  Recommended: %s\n  Reason: %s\n  Message: %s\n", c.Status, c.Reason, strings.ReplaceAll(strings.TrimSpace(c.Message), "\n", "\n  "))
+					}
+				}
+			} else {
+				fmt.Fprintf(o.Out, "\nNo updates which are not recommended based on your cluster configuration are available.\n")
+			}
+		} else if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
+			fmt.Fprintf(o.Out, "\nAdditional updates which are not recommended based on your cluster configuration are available, to view those re-run the command with --include-not-recommended.\n")
+		}
+
 		// TODO: print previous versions
 	}
 
 	return nil
+}
+
+func containsNotRecommendedUpdate(updates []configv1.ConditionalUpdate) bool {
+	for _, update := range updates {
+		if c := findCondition(update.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }
 
 func errorList(errs []error) string {
@@ -451,12 +479,39 @@ func sortReleasesBySemanticVersions(versions []configv1.Release) {
 	})
 }
 
+// sortConditionalUpdatesBySemanticVersions sorts the input slice in decreasing order.
+func sortConditionalUpdatesBySemanticVersions(updates []configv1.ConditionalUpdate) {
+	sort.Slice(updates, func(i, j int) bool {
+		a, errA := semver.Parse(updates[i].Release.Version)
+		b, errB := semver.Parse(updates[j].Release.Version)
+		if errA == nil && errB != nil {
+			return true
+		}
+		if errB == nil && errA != nil {
+			return false
+		}
+		if errA != nil && errB != nil {
+			return updates[i].Release.Version > updates[j].Release.Version
+		}
+		return a.GT(b)
+	})
+}
+
 func versionStrings(updates []configv1.Release) []string {
 	var arr []string
 	for _, update := range updates {
 		arr = append(arr, update.Version)
 	}
 	return arr
+}
+
+func findCondition(conditions []metav1.Condition, name string) *metav1.Condition {
+	for i := range conditions {
+		if conditions[i].Type == name {
+			return &conditions[i]
+		}
+	}
+	return nil
 }
 
 func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorStatusCondition, name configv1.ClusterStatusConditionType) *configv1.ClusterOperatorStatusCondition {
