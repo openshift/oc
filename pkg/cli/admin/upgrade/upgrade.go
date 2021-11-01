@@ -196,7 +196,7 @@ func (o *Options) Run() error {
 
 		sortReleasesBySemanticVersions(cv.Status.AvailableUpdates)
 
-		update := cv.Status.AvailableUpdates[len(cv.Status.AvailableUpdates)-1]
+		update := cv.Status.AvailableUpdates[0]
 		desiredUpdate := &configv1.Update{
 			Version: update.Version,
 			Image:   update.Image,
@@ -348,13 +348,14 @@ func (o *Options) Run() error {
 		}
 
 		if len(cv.Status.AvailableUpdates) > 0 {
-			fmt.Fprintf(o.Out, "Available Updates:\n\n")
-			w := tabwriter.NewWriter(o.Out, 0, 2, 1, ' ', 0)
-			fmt.Fprintf(w, "VERSION\tIMAGE\n")
+			fmt.Fprintf(o.Out, "\nRecommended updates:\n\n")
+			// set the minimal cell width to 14 to have a larger space between the columns for shorter versions
+			w := tabwriter.NewWriter(o.Out, 14, 2, 1, ' ', 0)
+			fmt.Fprintf(w, "  VERSION\tIMAGE\n")
 			// TODO: add metadata about version
 			sortReleasesBySemanticVersions(cv.Status.AvailableUpdates)
 			for _, update := range cv.Status.AvailableUpdates {
-				fmt.Fprintf(w, "%s\t%s\n", update.Version, update.Image)
+				fmt.Fprintf(w, "  %s\t%s\n", update.Version, update.Image)
 			}
 			w.Flush()
 			if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
@@ -432,21 +433,21 @@ func updateIsEquivalent(a configv1.Update, b configv1.Release) bool {
 	}
 }
 
-// sortReleasesBySemanticVersions sorts the input slice in increasing order.
+// sortReleasesBySemanticVersions sorts the input slice in decreasing order.
 func sortReleasesBySemanticVersions(versions []configv1.Release) {
 	sort.Slice(versions, func(i, j int) bool {
 		a, errA := semver.Parse(versions[i].Version)
 		b, errB := semver.Parse(versions[j].Version)
 		if errA == nil && errB != nil {
-			return false
-		}
-		if errB == nil && errA != nil {
 			return true
 		}
-		if errA != nil && errB != nil {
-			return versions[i].Version < versions[j].Version
+		if errB == nil && errA != nil {
+			return false
 		}
-		return a.LT(b)
+		if errA != nil && errB != nil {
+			return versions[i].Version > versions[j].Version
+		}
+		return a.GT(b)
 	})
 }
 

@@ -11,13 +11,13 @@ import (
 
 func TestSortReleasesBySemanticVersions(t *testing.T) {
 	expected := []configv1.Release{
-		{Version: "not-sem-ver-1"},
-		{Version: "not-sem-ver-2"},
-		{Version: "2.0.0"},
-		{Version: "2.0.1"},
-		{Version: "2.0.5"},
-		{Version: "2.0.10"},
 		{Version: "10.0.0"},
+		{Version: "2.0.10"},
+		{Version: "2.0.5"},
+		{Version: "2.0.1"},
+		{Version: "2.0.0"},
+		{Version: "not-sem-ver-2"},
+		{Version: "not-sem-ver-1"},
 	}
 
 	actual := make([]configv1.Release, len(expected))
