@@ -87,7 +87,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	}
 
 	cmd.Flags().StringVar(&o.NodeName, "node-name", o.NodeName, "Set a specific node to use - by default a random master will be used")
-	cmd.Flags().StringVar(&o.NodeSelector, "node-selector", o.NodeSelector, "Set a specific node selector to use - only relevant when specifying a specific command and image which needs to capture data on a set of cluster nodes simultaneously")
+	cmd.Flags().StringVar(&o.NodeSelector, "node-selector", o.NodeSelector, "Set a specific node selector to use - only relevant when specifying a command and image which needs to capture data on a set of cluster nodes simultaneously")
 	cmd.Flags().BoolVar(&o.HostNetwork, "host-network", o.HostNetwork, "Run must-gather pods as hostNetwork: true - relevant if a specific command and image needs to capture host-level data")
 	cmd.Flags().StringSliceVar(&o.Images, "image", o.Images, "Specify a must-gather plugin image to run. If not specified, OpenShift's default must-gather image will be used.")
 	cmd.Flags().StringSliceVar(&o.ImageStreams, "image-stream", o.ImageStreams, "Specify an image stream (namespace/name:tag) containing a must-gather plugin image to run.")
@@ -253,7 +253,7 @@ func (o *MustGatherOptions) Validate() error {
 		return fmt.Errorf("missing an image")
 	}
 	if o.NodeName != "" && o.NodeSelector != "" {
-		return fmt.Errorf("\"node-name\" and \"node-selector\" are mutually exclusive: please specify one or the other")
+		return fmt.Errorf("--node-name and --node-selector are mutually exclusive: please specify one or the other")
 	}
 	return nil
 }
@@ -703,7 +703,20 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 		// always force disk flush to ensure that all data gathered is accessible in the copy container
 		ret.Spec.Containers[0].Command = []string{"/bin/bash", "-c", fmt.Sprintf("%s; sync", strings.Join(o.Command, " "))}
 	}
-
+	if o.HostNetwork {
+		// If a user specified hostNetwork he might have intended to perform
+		// packet captures on the host, for that we need to set the correct
+		// capability. Limit the capability to CAP_NET_RAW though, as that's the
+		// only capability which does not allow for more than what can be
+		// considered "reading"
+		ret.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+			Capabilities: &corev1.Capabilities{
+				Add: []corev1.Capability{
+					corev1.Capability("CAP_NET_RAW"),
+				},
+			},
+		}
+	}
 	return ret
 }
 
