@@ -1377,6 +1377,8 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			}
 		}
 
+		transform = newExplicitSourceManifestMapper(name, transform)
+
 		for _, fi := range contents {
 			if fi.IsDir() {
 				continue

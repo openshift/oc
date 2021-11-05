@@ -119,6 +119,19 @@ func readReleaseImageReferences(data []byte) (*imageapi.ImageStream, error) {
 
 type ManifestMapper func(data []byte) ([]byte, error)
 
+func newExplicitSourceManifestMapper(sourceName string, wrapped ManifestMapper) ManifestMapper {
+	return func(data []byte) ([]byte, error) {
+		data, err := wrapped(data)
+		if err != nil {
+			return nil, err
+		}
+
+		result := []byte(fmt.Sprintf("# manifest from referenced image %s", sourceName))
+		result = append(result, data...)
+		return result, nil
+	}
+}
+
 func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, allowMissingImages bool) (ManifestMapper, error) {
 	is, err := parseImageStream(path)
 	if err != nil {
