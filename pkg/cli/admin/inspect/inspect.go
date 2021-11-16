@@ -75,6 +75,7 @@ type InspectOptions struct {
 	namespace      string
 	sinceTime      string
 	allNamespaces  bool
+	rotatedPodLogs bool
 	sinceInt       int64
 	sinceTimestamp metav1.Time
 
@@ -115,6 +116,11 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 	cmd.Flags().StringVar(&o.sinceTime, "since-time", o.sinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Only one of since-time / since may be used.")
 	cmd.Flags().DurationVar(&o.since, "since", o.since, "Only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Only one of since-time / since may be used.")
+	cmd.Flags().BoolVar(&o.rotatedPodLogs, "rotated-pod-logs", o.rotatedPodLogs, "Experimental: If present, retrieve rotated log files that are available for selected pods. This can significantly increase the collected logs size. since/since-time is ignored for rotated logs.")
+
+	// The rotated-pod-logs option should be removed once support for retrieving rotated logs is added to kubelet
+	// https://github.com/kubernetes/kubernetes/issues/59902
+	cmd.Flags().MarkHidden("rotated-pod-logs")
 
 	o.configFlags.AddFlags(cmd.Flags())
 	return cmd

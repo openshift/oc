@@ -1,9 +1,12 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
+	"golang.org/x/net/html"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -64,6 +67,11 @@ func (o *InspectOptions) gatherContainerAllLogs(destDir string, pod *corev1.Pod,
 		errs = append(errs, filterContainerLogsErrors(err))
 	}
 
+	if o.rotatedPodLogs {
+		if err := o.gatherContainerRotatedLogFiles(path.Join(destDir, "/logs/rotated"), pod, container); err != nil {
+			errs = append(errs, filterContainerLogsErrors(err))
+		}
+	}
 	if len(errs) > 0 {
 		return utilerrors.NewAggregate(errs)
 	}
@@ -76,6 +84,67 @@ func filterContainerLogsErrors(err error) error {
 		return nil
 	}
 	return err
+}
+
+func (o *InspectOptions) gatherContainerRotatedLogFiles(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+
+	restClient := o.kubeClient.CoreV1().RESTClient()
+	var innerErrs []error
+
+	// Get all container log files from the node
+	containerPath := restClient.Get().
+		Name(pod.Spec.NodeName).
+		Resource("nodes").
+		SubResource("proxy", "logs", "pods", pod.Namespace+"_"+pod.Name+"_"+string(pod.GetUID())).
+		Suffix(container.Name).URL().Path
+
+	req := restClient.Get().RequestURI(containerPath).
+		SetHeader("Accept", "text/plain, */*")
+	res, err := req.Stream(context.TODO())
+	if err != nil {
+		return err
+	}
+
+	doc, err := html.Parse(res)
+	if err != nil {
+		return err
+	}
+
+	// rotated log files have a suffix added at the end of the file name
+	// e.g: 0.log.20211027-082023, 0.log.20211027-082023.gz
+	reRotatedLog := regexp.MustCompile(`[0-9]+\.log\..+`)
+	var downloadRotatedLogs func(*html.Node)
+	downloadRotatedLogs = func(n *html.Node) {
+		var fileName string
+		if n.Type == html.ElementNode && n.Data == "a" {
+			for _, attr := range n.Attr {
+				if attr.Key == "href" {
+					fileName = attr.Val
+				}
+			}
+			if !reRotatedLog.MatchString(fileName) {
+				return
+			}
+
+			// ensure destination dir exists
+			if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+				innerErrs = append(innerErrs, err)
+			}
+
+			logsReq := restClient.Get().RequestURI(path.Join(containerPath, fileName)).
+				SetHeader("Accept", "text/plain, */*").
+				SetHeader("Accept-Encoding", "gzip")
+
+			if err := o.fileWriter.WriteFromSource(path.Join(destDir, fileName), logsReq); err != nil {
+				innerErrs = append(innerErrs, err)
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			downloadRotatedLogs(c)
+		}
+	}
+	downloadRotatedLogs(doc)
+	return utilerrors.NewAggregate(innerErrs)
 }
 
 func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, container *corev1.Container) error {
