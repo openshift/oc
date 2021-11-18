@@ -36,7 +36,7 @@ var (
 	`)
 
 	addRoleToUserLongDesc = templates.LongDesc(`
-		Add a role to users or service accounts for the current project.
+		Add a role to users or service accounts for the project.
 
 		This command allows you to grant a user access to specific resources and actions within the current project, by assigning them to a role. It creates or modifies a role binding referencing the specified role adding the user(s) or service account(s) to the list of subjects. The command does not require that the matching role or user/service account resources exist and will create the binding successfully even when the role or user/service account do not exist or when the user does not have access to view them.
 
@@ -46,7 +46,7 @@ var (
 	`)
 
 	addRoleToGroupLongDesc = templates.LongDesc(`
-		Add a role to groups for the current project
+		Add a role to groups for the project
 
 		This command allows you to grant a group access to specific resources and actions within the current project, by assigning them to a role. It creates or modifies a role binding referencing the specified role adding the group(s) to the list of subjects. The command does not require that the matching role or group resources exist and will create the binding successfully even when the role or group do not exist or when the user does not have access to view them.
 
@@ -66,7 +66,7 @@ var (
 	`)
 
 	addClusterRoleToGroupLongDesc = templates.LongDesc(`
-		Add a role to groups for the current project
+		Add a role to groups for the project
 
 		This command creates or modifies a cluster role binding with the named cluster role by adding the named group(s) to the list of subjects. The command does not require the matching role or group resources exist and will create the binding successfully even when the role or group do not exist or when the user does not have access to view them.
 
@@ -114,7 +114,7 @@ func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStream
 	o := NewRoleModificationOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "add-role-to-group ROLE GROUP [GROUP ...]",
-		Short: "Add a role to groups for the current project",
+		Short: "Add a role to groups for the project",
 		Long:  addRoleToGroupLongDesc,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
@@ -132,7 +132,7 @@ func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStream
 }
 
 // NewCmdAddRoleToUser implements the OpenShift cli add-role-to-user command
-func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams, admin bool) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
@@ -145,6 +145,10 @@ func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
 			kcmdutil.CheckErr(o.AddRole())
 		},
+	}
+	if admin {
+		cmd.Long = strings.Replace(cmd.Long, "oc policy", "oc adm policy", -1)
+		cmd.Example = strings.Replace(cmd.Example, "oc policy", "oc adm policy", -1)
 	}
 
 	cmd.Flags().StringVar(&o.RoleBindingName, "rolebinding-name", o.RoleBindingName, "Name of the rolebinding to modify or create. If left empty creates a new rolebinding with a default name")
@@ -161,8 +165,8 @@ func NewCmdRemoveRoleFromGroup(f kcmdutil.Factory, streams genericclioptions.IOS
 	o := NewRoleModificationOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "remove-role-from-group ROLE GROUP [GROUP ...]",
-		Short: "Remove a role from groups for the current project",
-		Long:  `Remove a role from groups for the current project`,
+		Short: "Remove a role from groups for the project",
+		Long:  `Remove a role from groups for the project`,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
@@ -184,8 +188,8 @@ func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericclioptions.IOSt
 	o.SANames = []string{}
 	cmd := &cobra.Command{
 		Use:   "remove-role-from-user ROLE USER [USER ...]",
-		Short: "Remove a role from users for the current project",
-		Long:  `Remove a role from users for the current project`,
+		Short: "Remove a role from users for the project",
+		Long:  `Remove a role from users for the project`,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))

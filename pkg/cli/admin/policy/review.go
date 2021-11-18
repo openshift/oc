@@ -85,7 +85,7 @@ func NewSCCReviewOptions(streams genericclioptions.IOStreams) *SCCReviewOptions 
 	}
 }
 
-func NewCmdSccReview(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSccReview(f kcmdutil.Factory, streams genericclioptions.IOStreams, admin bool) *cobra.Command {
 	o := NewSCCReviewOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "scc-review",
@@ -96,6 +96,10 @@ func NewCmdSccReview(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 			kcmdutil.CheckErr(o.Complete(f, args, cmd))
 			kcmdutil.CheckErr(o.Run(args))
 		},
+	}
+	if admin {
+		cmd.Long = strings.Replace(cmd.Long, "oc policy", "oc adm policy", -1)
+		cmd.Example = strings.Replace(cmd.Example, "oc policy", "oc adm policy", -1)
 	}
 
 	cmd.Flags().StringSliceVarP(&o.serviceAccountNames, "serviceaccount", "z", o.serviceAccountNames, "service account in the current namespace to use as a user")

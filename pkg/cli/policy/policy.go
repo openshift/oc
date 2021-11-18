@@ -18,10 +18,10 @@ func NewCmdPolicy(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 	}
 
 	cmds.AddCommand(adminpolicy.NewCmdWhoCan(f, streams))
-	cmds.AddCommand(adminpolicy.NewCmdSccSubjectReview(f, streams))
-	cmds.AddCommand(adminpolicy.NewCmdSccReview(f, streams))
+	cmds.AddCommand(adminpolicy.NewCmdSccSubjectReview(f, streams, false))
+	cmds.AddCommand(adminpolicy.NewCmdSccReview(f, streams, false))
 
-	cmds.AddCommand(adminpolicy.NewCmdAddRoleToUser(f, streams))
+	cmds.AddCommand(adminpolicy.NewCmdAddRoleToUser(f, streams, false))
 	cmds.AddCommand(adminpolicy.NewCmdRemoveRoleFromUser(f, streams))
 	cmds.AddCommand(adminpolicy.NewCmdRemoveUserFromProject(f, streams))
 	cmds.AddCommand(adminpolicy.NewCmdAddRoleToGroup(f, streams))
