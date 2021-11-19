@@ -1,10 +1,12 @@
 package auth
 
 import (
-	"github.com/davecgh/go-spew/spew"
+	"context"
 	"io/ioutil"
 	"reflect"
 	"testing"
+
+	"github.com/davecgh/go-spew/spew"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -214,7 +216,13 @@ func TestUserReaper(t *testing.T) {
 			authFake := &fakeauthv1client.FakeAuthorizationV1{Fake: &(fakeauthclient.NewSimpleClientset(test.authObjects...).Fake)}
 			oauthFake := &fakeoauthv1client.FakeOauthV1{Fake: &(fakeoauthclient.NewSimpleClientset(test.oauthObjects...).Fake)}
 			userFake := &fakeuserv1client.FakeUserV1{Fake: &(fakeuserclient.NewSimpleClientset(test.userObjects...).Fake)}
-			securityFake := &fakesecurityv1client.FakeSecurityV1{Fake: &(fakesecurityclient.NewSimpleClientset(test.sccs...).Fake)}
+			securityFake := &fakesecurityv1client.FakeSecurityV1{Fake: &(fakesecurityclient.NewSimpleClientset().Fake)}
+			// since SCC's are CRDs we need to manually create them since
+			// ObjectTracker used in fakesecurityclient.NewSimpleClientset
+			// can only handle them when invoked through Create and not Add
+			for _, scc := range test.sccs {
+				securityFake.SecurityContextConstraints().Create(context.TODO(), scc.(*securityv1.SecurityContextConstraints), metav1.CreateOptions{})
+			}
 
 			actual := []interface{}{}
 			oreactor := func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
