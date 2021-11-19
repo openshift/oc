@@ -43,15 +43,15 @@ require (
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	gopkg.in/ldap.v2 v2.5.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	k8s.io/api v0.22.1
-	k8s.io/apimachinery v0.22.1
-	k8s.io/apiserver v0.22.1
-	k8s.io/cli-runtime v0.22.0-rc.0
-	k8s.io/client-go v0.22.1
-	k8s.io/component-base v0.22.1
+	k8s.io/api v0.22.4
+	k8s.io/apimachinery v0.22.4
+	k8s.io/apiserver v0.22.4
+	k8s.io/cli-runtime v0.22.4
+	k8s.io/client-go v0.22.4
+	k8s.io/component-base v0.22.4
 	k8s.io/klog/v2 v2.9.0
-	k8s.io/kubectl v0.22.0-rc.0
-	k8s.io/utils v0.0.0-20210707171843-4b05e18ac7d9
+	k8s.io/kubectl v0.22.4
+	k8s.io/utils v0.0.0-20210819203725-bdf08cb9a70a
 	sigs.k8s.io/yaml v1.2.0
 )
 
@@ -160,9 +160,9 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/component-helpers v0.22.0-rc.0 // indirect
-	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e // indirect
-	k8s.io/metrics v0.22.0-rc.0 // indirect
+	k8s.io/component-helpers v0.22.4 // indirect
+	k8s.io/kube-openapi v0.0.0-20211109043538-20434351676c // indirect
+	k8s.io/metrics v0.22.4 // indirect
 	sigs.k8s.io/kustomize/api v0.8.11 // indirect
 	sigs.k8s.io/kustomize/kustomize/v4 v4.2.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.11.0 // indirect
@@ -171,8 +171,6 @@ require (
 
 replace (
 	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
-	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20210730111815-c26349f8e2c9
 	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210730111823-1570202448c3
-	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20210826123502-7208c21f5119
 	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20210730111826-9c6734b9d97d
 )
