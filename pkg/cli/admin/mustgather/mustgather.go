@@ -452,7 +452,13 @@ func (o *MustGatherOptions) logTimestamp() error {
 func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	streams := o.IOStreams
 	streams.Out = newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name))
-	destDir := path.Join(o.DestDir, regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.ContainerStatuses[0].ImageID, "-"))
+	imageFolder := regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.ContainerStatuses[0].ImageID, "-")
+	var destDir string
+	if o.NodeSelector != "" {
+		destDir = path.Join(o.DestDir, regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Spec.NodeName, "-"), imageFolder)
+	} else {
+		destDir = path.Join(o.DestDir, imageFolder)
+	}
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
 	}
