@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"io/ioutil"
 	"reflect"
 	"testing"
@@ -130,7 +131,13 @@ func TestGroupReaper(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			authFake := &fakeauthv1client.FakeAuthorizationV1{Fake: &(fakeauthclient.NewSimpleClientset(test.objects...).Fake)}
 			userFake := &fakeuserv1client.FakeUserV1{Fake: &clienttesting.Fake{}}
-			securityFake := &fakesecurityv1client.FakeSecurityV1{Fake: &(fakesecurityclient.NewSimpleClientset(test.sccs...).Fake)}
+			securityFake := &fakesecurityv1client.FakeSecurityV1{Fake: &(fakesecurityclient.NewSimpleClientset().Fake)}
+			// since SCC's are CRDs we need to manually create them since
+			// ObjectTracker used in fakesecurityclient.NewSimpleClientset
+			// can only handle them when invoked through Create and not Add
+			for _, scc := range test.sccs {
+				securityFake.SecurityContextConstraints().Create(context.TODO(), scc.(*securityv1.SecurityContextConstraints), metav1.CreateOptions{})
+			}
 
 			actual := []interface{}{}
 			oreactor := func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
