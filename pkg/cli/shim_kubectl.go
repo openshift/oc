@@ -1,13 +1,15 @@
 package cli
 
 import (
-	"k8s.io/klog/v2"
+	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericclioptions/openshiftpatch"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
+	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/klog/v2"
 	kcmdset "k8s.io/kubectl/pkg/cmd/set"
 	describeversioned "k8s.io/kubectl/pkg/describe"
 	"k8s.io/kubectl/pkg/generate/versioned"
@@ -22,6 +24,7 @@ func shimKubectlForOc() {
 	// we only need this change for `oc`.  `kubectl` should behave as close to `kubectl` as we can
 	// if we call this factory construction method, we want the openshift style config loading
 	kclientcmd.ErrEmptyConfig = genericclioptions.ErrEmptyConfig
+	kclientcmd.ClusterDefaults = kclientcmdapi.Cluster{Server: os.Getenv("KUBERNETES_MASTER")}
 	kcmdset.ParseDockerImageReferenceToStringFunc = clientcmd.ParseDockerImageReferenceToStringFunc
 	openshiftpatch.OAPIToGroupified = oAPIToGroupified
 	openshiftpatch.OAPIToGroupifiedGVK = oAPIToGroupifiedGVK
