@@ -71,7 +71,7 @@ func NewSCCSubjectReviewOptions(streams genericclioptions.IOStreams) *SCCSubject
 	}
 }
 
-func NewCmdSccSubjectReview(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSccSubjectReview(f kcmdutil.Factory, streams genericclioptions.IOStreams, admin bool) *cobra.Command {
 	o := NewSCCSubjectReviewOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "scc-subject-review",
@@ -82,6 +82,10 @@ func NewCmdSccSubjectReview(f kcmdutil.Factory, streams genericclioptions.IOStre
 			kcmdutil.CheckErr(o.Complete(f, args, cmd))
 			kcmdutil.CheckErr(o.Run(args))
 		},
+	}
+	if admin {
+		cmd.Long = strings.Replace(cmd.Long, "oc policy", "oc adm policy", -1)
+		cmd.Example = strings.Replace(cmd.Example, "oc policy", "oc adm policy", -1)
 	}
 
 	cmd.Flags().StringVarP(&o.User, "user", "u", o.User, "Review will be performed on behalf of this user")

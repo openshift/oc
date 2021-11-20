@@ -45,8 +45,8 @@ func NewCmdPolicy(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 			Message: "Discover:",
 			Commands: []*cobra.Command{
 				NewCmdWhoCan(f, streams),
-				NewCmdSccSubjectReview(f, streams),
-				NewCmdSccReview(f, streams),
+				NewCmdSccSubjectReview(f, streams, true),
+				NewCmdSccReview(f, streams, true),
 			},
 		},
 		{
@@ -59,7 +59,7 @@ func NewCmdPolicy(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 		{
 			Message: "Assign roles to users and groups:",
 			Commands: []*cobra.Command{
-				NewCmdAddRoleToUser(f, streams),
+				NewCmdAddRoleToUser(f, streams, true),
 				NewCmdAddRoleToGroup(f, streams),
 				NewCmdRemoveRoleFromUser(f, streams),
 				NewCmdRemoveRoleFromGroup(f, streams),

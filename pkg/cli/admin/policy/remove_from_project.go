@@ -49,8 +49,8 @@ func NewCmdRemoveGroupFromProject(f kcmdutil.Factory, streams genericclioptions.
 	o := NewRemoveFromProjectOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "remove-group GROUP [GROUP ...]",
-		Short: "Remove group from the current project",
-		Long:  `Remove group from the current project`,
+		Short: "Remove group from the project",
+		Long:  `Remove group from the project`,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
 			kcmdutil.CheckErr(o.Validate(f, cmd, args))
@@ -68,8 +68,8 @@ func NewCmdRemoveUserFromProject(f kcmdutil.Factory, streams genericclioptions.I
 	o := NewRemoveFromProjectOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "remove-user USER [USER ...]",
-		Short: "Remove user from the current project",
-		Long:  `Remove user from the current project`,
+		Short: "Remove user from the project",
+		Long:  `Remove user from the project`,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Users, "user"))
 			kcmdutil.CheckErr(o.Validate(f, cmd, args))
