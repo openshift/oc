@@ -27,6 +27,14 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
 )
 
+var upgradeExample = templates.Examples(`
+	# Review the available cluster updates
+	oc adm upgrade
+
+	# Update to the latest version
+	oc adm upgrade --to-latest=true
+`)
+
 func NewOptions(streams genericclioptions.IOStreams) *Options {
 	return &Options{
 		IOStreams: streams,
@@ -36,8 +44,9 @@ func NewOptions(streams genericclioptions.IOStreams) *Options {
 func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "upgrade --to=VERSION",
-		Short: "Upgrade a cluster",
+		Use:     "upgrade --to=VERSION",
+		Short:   "Upgrade a cluster",
+		Example: upgradeExample,
 		Long: templates.LongDesc(`
 			Check on upgrade status or upgrade the cluster to a newer version
 
