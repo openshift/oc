@@ -832,8 +832,8 @@ github.com/openshift/kubernetes-cli-runtime v0.0.0-20210730111823-1570202448c3 h
 github.com/openshift/kubernetes-cli-runtime v0.0.0-20210730111823-1570202448c3/go.mod h1:M/w0bryClqcYKNQ5ofMMNDJE1r5rvYaAj8GswxUNUJY=
 github.com/openshift/kubernetes-kubectl v0.0.0-20210730111826-9c6734b9d97d h1:3mDOdg1bim6uNUJhh16fhwW2ScjYzLFgS9sHHj+QDx8=
 github.com/openshift/kubernetes-kubectl v0.0.0-20210730111826-9c6734b9d97d/go.mod h1:7/NjJzIH3rgPmfO9C8V3u/yIKeJdK7ptpFbPWQGKYas=
-github.com/openshift/library-go v0.0.0-20211018074344-7fcf688c505e h1:Jgp48GXsSXRUyZ1RwzsahrKxpZq8/AXXp3sg2EEJIik=
-github.com/openshift/library-go v0.0.0-20211018074344-7fcf688c505e/go.mod h1:b1cKE6TuNqjl7wT0y3W4g0qREuab1mH6WOJm9pT8L/A=
+github.com/openshift/library-go v0.0.0-20211102122425-bd4484acad90 h1:wk7Towu/9PapQZ35Xd213YzxF2F5qTy5KeYT39mKHZ4=
+github.com/openshift/library-go v0.0.0-20211102122425-bd4484acad90/go.mod h1:b1cKE6TuNqjl7wT0y3W4g0qREuab1mH6WOJm9pT8L/A=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/ostreedev/ostree-go v0.0.0-20190702140239-759a8c1ac913/go.mod h1:J6OG6YJVEWopen4avK3VNQSnALmmjvniMmni/YFYAwc=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
@@ -1385,6 +1385,7 @@ google.golang.org/genproto v0.0.0-20200513103714-09dca8ec2884/go.mod h1:55QSHmfG
 google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013/go.mod h1:NbSheEEYHJ7i3ixzK3sjbqSGDJWnxyFXZblF3eUsNvo=
 google.golang.org/genproto v0.0.0-20201019141844-1ed22bb0c154/go.mod h1:FWY/as6DDZQgahTzZj3fqbO1CbirC29ZNUFHwi0/+no=
 google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a/go.mod h1:FWY/as6DDZQgahTzZj3fqbO1CbirC29ZNUFHwi0/+no=
+google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c h1:wtujag7C+4D6KMoulW9YauvK2lgdvCMS260jsqqBXr0=
 google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c/go.mod h1:UODoCrxHCcBojKKwX1terBiRUaqAsFqJiF615XL43r0=
 google.golang.org/grpc v0.0.0-20160317175043-d3ddb4469d5a/go.mod h1:yo6s7OP7yaDglbqo1J04qKzAhqBH6lvTonzMVmEdcZw=
 google.golang.org/grpc v1.19.0/go.mod h1:mqu4LbDTu4XGKhr4mRzUsmM4RtVoemTSY81AxZiDr8c=
@@ -1404,6 +1405,7 @@ google.golang.org/grpc v1.33.1/go.mod h1:fr5YgcSWrqhRRxogOsw7RzIpsmvOZ6IcH4kBYTp
 google.golang.org/grpc v1.33.2/go.mod h1:JMHMWHQWaTccqQQlmk3MJZS+GWXOdAesneDmEnv2fbc=
 google.golang.org/grpc v1.36.0/go.mod h1:qjiiYl8FncCW8feJPdyg3v6XW24KsRHe+dy9BAGRRjU=
 google.golang.org/grpc v1.37.0/go.mod h1:NREThFqKR1f3iQ6oBuvc5LadQuXVGo9rkm5ZGrQdJfM=
+google.golang.org/grpc v1.38.0 h1:/9BgsAsa5nWe26HqOlvlgJnqBuktYOLCgjCPqsa56W0=
 google.golang.org/grpc v1.38.0/go.mod h1:NREThFqKR1f3iQ6oBuvc5LadQuXVGo9rkm5ZGrQdJfM=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=

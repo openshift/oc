@@ -103,14 +103,15 @@ func (c *Context) Copy() *Context {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	copied := &Context{
-		Transport:         c.Transport,
-		InsecureTransport: c.InsecureTransport,
-		Challenges:        c.Challenges,
-		Scopes:            c.Scopes,
-		Actions:           c.Actions,
-		Retries:           c.Retries,
-		Credentials:       c.Credentials,
-		Limiter:           c.Limiter,
+		Transport:          c.Transport,
+		InsecureTransport:  c.InsecureTransport,
+		Challenges:         c.Challenges,
+		Scopes:             c.Scopes,
+		Actions:            c.Actions,
+		Retries:            c.Retries,
+		Credentials:        c.Credentials,
+		CredentialsFactory: c.CredentialsFactory,
+		Limiter:            c.Limiter,
 
 		DisableDigestVerification: c.DisableDigestVerification,
 

@@ -31,7 +31,7 @@ require (
 	github.com/openshift/api v0.0.0-20211019100638-b2cbe79f2e4b
 	github.com/openshift/build-machinery-go v0.0.0-20210806203541-4ea9b6da3a37
 	github.com/openshift/client-go v0.0.0-20211020194811-d47e6f550cce
-	github.com/openshift/library-go v0.0.0-20211018074344-7fcf688c505e
+	github.com/openshift/library-go v0.0.0-20211102122425-bd4484acad90
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/russross/blackfriday v1.5.2
@@ -155,6 +155,8 @@ require (
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/tools v0.1.2 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
+	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
+	google.golang.org/grpc v1.38.0 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
