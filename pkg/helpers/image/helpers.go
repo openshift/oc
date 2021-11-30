@@ -1,9 +1,11 @@
 package image
 
 import (
+	"os"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -126,4 +128,27 @@ func DockerImageReferenceString(r imagev1.DockerImageReference) string {
 		r.Namespace = "library"
 	}
 	return DockerImageReferenceExact(r)
+}
+
+// RegistryAuthConfigPreference describes options for REGISTRY_AUTH_PREFERENCE env variable
+type RegistryAuthConfigPreference string
+
+var (
+	// DockerPreference gives a preference for $HOME/.docker/config.json
+	DockerPreference RegistryAuthConfigPreference = "docker"
+
+	// PodmanPreference gives a preference for podman config locations
+	PodmanPreference RegistryAuthConfigPreference = "podman"
+)
+
+func GetRegistryAuthConfigPreference() RegistryAuthConfigPreference {
+	// TODO: docker default is deprecated and will be changed to podman in 4.12
+	result := DockerPreference // default to docker
+	if authPreference := strings.ToLower(os.Getenv("REGISTRY_AUTH_PREFERENCE")); authPreference == string(DockerPreference) || authPreference == string(PodmanPreference) {
+		result = RegistryAuthConfigPreference(authPreference)
+	} else {
+		// TODO: remove once deprecated in 4.12
+		klog.Warningln("Defaulting of registry auth file to \"${HOME}/.docker/config.json\" is deprecated. The default will be switched to podman config locations in 4.12")
+	}
+	return result
 }

@@ -1,46 +1,78 @@
 package dockercredentials
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/containers/image/v5/docker/reference"
+	imageAuth "github.com/containers/image/v5/pkg/docker/config"
+	imageTypes "github.com/containers/image/v5/types"
 
+	"github.com/openshift/oc/pkg/helpers/image"
 	"github.com/openshift/oc/pkg/helpers/image/credentialprovider"
 )
 
 type AuthResolver struct {
-	authConfigs credentialprovider.DockerConfig
+	credentials map[string]imageTypes.DockerAuthConfig
 }
 
 // NewAuthResolver creates a new auth resolver that loads authFilePath file
 // (defaults to a docker locations) to find a valid
 // authentication for registry targets.
 func NewAuthResolver(authFilePath string) (*AuthResolver, error) {
-	var cfg credentialprovider.DockerConfig
+	var credentials map[string]imageTypes.DockerAuthConfig
 	var err error
 
 	if authFilePath != "" {
-		cfg, err = credentialprovider.ReadSpecificDockerConfigJSONFile(authFilePath)
+		if _, err := os.Stat(authFilePath); os.IsNotExist(err) { // imageAuth.GetAllCredentials doesn't handle this
+			return nil, err
+		}
+		ctx := &imageTypes.SystemContext{AuthFilePath: authFilePath}
+		credentials, err = imageAuth.GetAllCredentials(ctx)
 		if err != nil {
 			return nil, err
 		}
+	} else if authFile := os.Getenv("REGISTRY_AUTH_FILE"); authFile != "" {
+		if _, err := os.Stat(authFile); os.IsNotExist(err) { // imageAuth.GetAllCredentials doesn't handle this
+			return nil, err
+		}
+		ctx := &imageTypes.SystemContext{AuthFilePath: authFile}
+		credentials, err = imageAuth.GetAllCredentials(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load ${REGISTRY_AUTH_FILE}: %v", err)
+		}
 	} else {
-		cfg = defaultClientDockerConfig()
+		ctx := &imageTypes.SystemContext{}
+		credentials, err = imageAuth.GetAllCredentials(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if image.GetRegistryAuthConfigPreference() == image.DockerPreference {
+			// give priority to the docker config file $HOME/.docker/config.json
+			for registry, entry := range defaultClientDockerConfig() {
+				credentials[registry] = imageTypes.DockerAuthConfig{
+					Username: entry.Username,
+					Password: entry.Password,
+				}
+			}
+
+		}
 	}
 
 	return &AuthResolver{
-		authConfigs: cfg,
+		credentials: credentials,
 	}, nil
 }
 
+// TODO: switch this for imageAuth.GetCredentials or imageAuth.GetAllCredentials once we remove REGISTRY_AUTH_PREFERENCE env variable
 // original: https://github.com/containers/image/blob/main/pkg/docker/config/config.go
 // findAuthentication looks for auth of registry in path. If ref is
 // not nil, then it will be taken into account when looking up the
 // authentication credentials.
-func (r *AuthResolver) findAuthentication(ref reference.Named, registry string) (credentialprovider.DockerConfigEntry, error) {
+func (r *AuthResolver) findAuthentication(ref reference.Named, registry string) (imageTypes.DockerAuthConfig, error) {
 	// Support for different paths in auth.
 	// (This is not a feature of ~/.docker/config.json; we support it even for
 	// those files as an extension.)
@@ -54,7 +86,7 @@ func (r *AuthResolver) findAuthentication(ref reference.Named, registry string) 
 	// Repo or namespace keys are only supported as exact matches. For registry
 	// keys we prefer exact matches as well.
 	for _, key := range keys {
-		if val, exists := r.authConfigs[key]; exists {
+		if val, exists := r.credentials[key]; exists {
 			return val, nil
 		}
 	}
@@ -68,13 +100,13 @@ func (r *AuthResolver) findAuthentication(ref reference.Named, registry string) 
 	// The docker.io registry still uses the /v1/ key with a special host name,
 	// so account for that as well.
 	registry = normalizeRegistry(registry)
-	for k, v := range r.authConfigs {
+	for k, v := range r.credentials {
 		if normalizeAuthFileKey(k) == registry {
 			return v, nil
 		}
 	}
 
-	return credentialprovider.DockerConfigEntry{}, nil
+	return imageTypes.DockerAuthConfig{}, nil
 }
 
 // authKeysForRef returns the valid paths for a provided reference. For example,
