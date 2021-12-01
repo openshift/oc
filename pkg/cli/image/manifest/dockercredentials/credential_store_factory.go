@@ -5,6 +5,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	dockerregistry "github.com/docker/docker/registry"
+
 	"github.com/openshift/library-go/pkg/image/registryclient"
 )
 

@@ -51,7 +51,7 @@ type SecurityOptions struct {
 
 func (o *SecurityOptions) Bind(flags *pflag.FlagSet) {
 	// TODO: fix priority and deprecation notice in 4.12
-	flags.StringVarP(&o.RegistryConfig, "registry-config", "a", o.RegistryConfig, "Path to your registry credentials. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Defaults to  ~/.docker/config.json (order deprecated), ${XDG_RUNTIME_DIR}/containers/auth.json, ${XDG_CONFIG_HOME}/containers/auth.json, /run/containers/${UID}/auth.json, ${DOCKER_CONFIG}, ~/.dockercfg. Defaults can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker or podman.")
+	flags.StringVarP(&o.RegistryConfig, "registry-config", "a", o.RegistryConfig, "Path to your registry credentials. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Defaults to  ~/.docker/config.json, ${XDG_RUNTIME_DIR}/containers/auth.json, ${XDG_CONFIG_HOME}/containers/auth.json, /run/containers/${UID}/auth.json, ${DOCKER_CONFIG}, ~/.dockercfg. The order can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker (current default - deprecated) or podman (prioritizes podman credentials over docker).")
 	flags.BoolVar(&o.Insecure, "insecure", o.Insecure, "Allow push and pull operations to registries to be made over HTTP")
 	flags.BoolVar(&o.SkipVerification, "skip-verification", o.SkipVerification, "Skip verifying the integrity of the retrieved content. This is not recommended, but may be necessary when importing images from older image registries. Only bypass verification if the registry is known to be trustworthy.")
 }

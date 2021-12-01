@@ -8,52 +8,52 @@ import (
 	"strings"
 
 	"github.com/containers/image/v5/docker/reference"
-	imageAuth "github.com/containers/image/v5/pkg/docker/config"
-	imageTypes "github.com/containers/image/v5/types"
+	dockerconfig "github.com/containers/image/v5/pkg/docker/config"
+	containertypes "github.com/containers/image/v5/types"
 
 	"github.com/openshift/oc/pkg/helpers/image"
 	"github.com/openshift/oc/pkg/helpers/image/credentialprovider"
 )
 
 type AuthResolver struct {
-	credentials map[string]imageTypes.DockerAuthConfig
+	credentials map[string]containertypes.DockerAuthConfig
 }
 
 // NewAuthResolver creates a new auth resolver that loads authFilePath file
 // (defaults to a docker locations) to find a valid
 // authentication for registry targets.
 func NewAuthResolver(authFilePath string) (*AuthResolver, error) {
-	var credentials map[string]imageTypes.DockerAuthConfig
+	var credentials map[string]containertypes.DockerAuthConfig
 	var err error
 
 	if authFilePath != "" {
-		if _, err := os.Stat(authFilePath); os.IsNotExist(err) { // imageAuth.GetAllCredentials doesn't handle this
+		if _, err := os.Stat(authFilePath); os.IsNotExist(err) { // dockerconfig.GetAllCredentials doesn't handle this
 			return nil, err
 		}
-		ctx := &imageTypes.SystemContext{AuthFilePath: authFilePath}
-		credentials, err = imageAuth.GetAllCredentials(ctx)
+		ctx := &containertypes.SystemContext{AuthFilePath: authFilePath}
+		credentials, err = dockerconfig.GetAllCredentials(ctx)
 		if err != nil {
 			return nil, err
 		}
 	} else if authFile := os.Getenv("REGISTRY_AUTH_FILE"); authFile != "" {
-		if _, err := os.Stat(authFile); os.IsNotExist(err) { // imageAuth.GetAllCredentials doesn't handle this
+		if _, err := os.Stat(authFile); os.IsNotExist(err) { // dockerconfig.GetAllCredentials doesn't handle this
 			return nil, err
 		}
-		ctx := &imageTypes.SystemContext{AuthFilePath: authFile}
-		credentials, err = imageAuth.GetAllCredentials(ctx)
+		ctx := &containertypes.SystemContext{AuthFilePath: authFile}
+		credentials, err = dockerconfig.GetAllCredentials(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load ${REGISTRY_AUTH_FILE}: %v", err)
 		}
 	} else {
-		ctx := &imageTypes.SystemContext{}
-		credentials, err = imageAuth.GetAllCredentials(ctx)
+		ctx := &containertypes.SystemContext{}
+		credentials, err = dockerconfig.GetAllCredentials(ctx)
 		if err != nil {
 			return nil, err
 		}
 		if image.GetRegistryAuthConfigPreference() == image.DockerPreference {
 			// give priority to the docker config file $HOME/.docker/config.json
 			for registry, entry := range defaultClientDockerConfig() {
-				credentials[registry] = imageTypes.DockerAuthConfig{
+				credentials[registry] = containertypes.DockerAuthConfig{
 					Username: entry.Username,
 					Password: entry.Password,
 				}
@@ -67,12 +67,12 @@ func NewAuthResolver(authFilePath string) (*AuthResolver, error) {
 	}, nil
 }
 
-// TODO: switch this for imageAuth.GetCredentials or imageAuth.GetAllCredentials once we remove REGISTRY_AUTH_PREFERENCE env variable
+// TODO: switch this for dockerconfig.GetCredentials or dockerconfig.GetAllCredentials once we remove REGISTRY_AUTH_PREFERENCE env variable
 // original: https://github.com/containers/image/blob/main/pkg/docker/config/config.go
 // findAuthentication looks for auth of registry in path. If ref is
 // not nil, then it will be taken into account when looking up the
 // authentication credentials.
-func (r *AuthResolver) findAuthentication(ref reference.Named, registry string) (imageTypes.DockerAuthConfig, error) {
+func (r *AuthResolver) findAuthentication(ref reference.Named, registry string) (containertypes.DockerAuthConfig, error) {
 	// Support for different paths in auth.
 	// (This is not a feature of ~/.docker/config.json; we support it even for
 	// those files as an extension.)
@@ -106,7 +106,7 @@ func (r *AuthResolver) findAuthentication(ref reference.Named, registry string) 
 		}
 	}
 
-	return imageTypes.DockerAuthConfig{}, nil
+	return containertypes.DockerAuthConfig{}, nil
 }
 
 // authKeysForRef returns the valid paths for a provided reference. For example,

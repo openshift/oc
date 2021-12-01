@@ -148,7 +148,7 @@ func GetRegistryAuthConfigPreference() RegistryAuthConfigPreference {
 		result = RegistryAuthConfigPreference(authPreference)
 	} else {
 		// TODO: remove once deprecated in 4.12
-		klog.Warningln("Defaulting of registry auth file to \"${HOME}/.docker/config.json\" is deprecated. The default will be switched to podman config locations in 4.12")
+		klog.Warningln("Defaulting of registry auth file to \"${HOME}/.docker/config.json\" is deprecated. The default will be switched to podman config locations in the future version.")
 	}
 	return result
 }
