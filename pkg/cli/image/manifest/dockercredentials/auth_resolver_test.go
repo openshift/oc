@@ -1,20 +1,21 @@
 package dockercredentials
 
 import (
-	"github.com/containers/image/v5/docker/reference"
-	imageTypes "github.com/containers/image/v5/types"
 	"testing"
+
+	"github.com/containers/image/v5/docker/reference"
+	containertypes "github.com/containers/image/v5/types"
 )
 
 func Test_AuthResolver(t *testing.T) {
-	fn := func(host string, entry imageTypes.DockerAuthConfig) AuthResolver {
+	fn := func(host string, entry containertypes.DockerAuthConfig) AuthResolver {
 		return AuthResolver{
-			map[string]imageTypes.DockerAuthConfig{
+			map[string]containertypes.DockerAuthConfig{
 				host: entry,
 			},
 		}
 	}
-	def := imageTypes.DockerAuthConfig{
+	def := containertypes.DockerAuthConfig{
 		Username: "local_user",
 		Password: "local_pass",
 	}

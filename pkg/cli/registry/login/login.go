@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containers/image/v5/pkg/docker/config"
-	imageTypes "github.com/containers/image/v5/types"
+	dockerconfig "github.com/containers/image/v5/pkg/docker/config"
+	containertypes "github.com/containers/image/v5/types"
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
@@ -128,7 +128,7 @@ func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams
 	flag := cmd.Flags()
 	flag.StringVar(&o.AuthBasic, "auth-basic", o.AuthBasic, "Provide credentials in the form 'user:password' to authenticate (advanced)")
 	// TODO: fix priority and deprecation notice in 4.12
-	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Default is Docker config.json (deprecated). Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker or podman.")
+	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Defaults to ~/.docker/config.json. Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker (current default - deprecated) or podman (prioritizes podman credentials over docker).")
 	flag.StringVar(&o.ConfigFile, "to", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Default is Docker config.json (deprecated). Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker or podman.")
 	flag.StringVarP(&o.ServiceAccount, "service-account", "z", o.ServiceAccount, "Log in as the specified service account name in the specified namespace.")
 	flag.StringVar(&o.HostPort, "registry", o.HostPort, "An alternate domain name and port to use for the registry, defaults to the cluster's configured external hostname.")
@@ -293,8 +293,8 @@ func (o *LoginOptions) Run() error {
 		}
 	}
 
-	ctx := &imageTypes.SystemContext{AuthFilePath: o.ConfigFile}
-	if err := config.SetAuthentication(ctx, o.HostPort, o.Credentials.Username, o.Credentials.Password); err != nil {
+	ctx := &containertypes.SystemContext{AuthFilePath: o.ConfigFile}
+	if err := dockerconfig.SetAuthentication(ctx, o.HostPort, o.Credentials.Username, o.Credentials.Password); err != nil {
 		return err
 	}
 
