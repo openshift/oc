@@ -162,6 +162,18 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			ArchiveFormat:        "openshift-client-mac-%s.tar.gz",
 		},
 		{
+			OS:      "darwin",
+			Arch:    "arm64",
+			Command: "oc",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/mac_arm64/oc"},
+
+			LinkTo:               []string{"kubectl"},
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-mac-arm64-%s.tar.gz",
+		},
+		{
 			OS:      "linux",
 			Arch:    targetReleaseArch,
 			Command: "oc",
