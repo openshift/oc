@@ -1,4 +1,3 @@
-
 # bash completion for oc                                   -*- shell-script -*-
 
 __oc_debug()

@@ -1,6 +1,8 @@
 package completion
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -85,7 +87,8 @@ func runCompletionBash(streams genericclioptions.IOStreams, oc *cobra.Command) e
 }
 
 func runCompletionZsh(streams genericclioptions.IOStreams, oc *cobra.Command) error {
-	zshHead := "#compdef oc\ncompdef _oc oc\n"
+	commandName := oc.Name()
+	zshHead := fmt.Sprintf("#compdef %[1]s\ncompdef _%[1]s %[1]s\n", commandName)
 	streams.Out.Write([]byte(zshHead))
 	return oc.GenZshCompletion(streams.Out)
 }
