@@ -23,6 +23,7 @@ import (
 
 	"github.com/openshift/oc/pkg/cli/admin"
 	"github.com/openshift/oc/pkg/cli/cancelbuild"
+	"github.com/openshift/oc/pkg/cli/completion"
 	"github.com/openshift/oc/pkg/cli/debug"
 	"github.com/openshift/oc/pkg/cli/deployer"
 	"github.com/openshift/oc/pkg/cli/expose"
@@ -258,7 +259,7 @@ func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 				logout.NewCmdLogout(f, ioStreams),
 				kubectlwrappers.NewCmdConfig(f, ioStreams),
 				whoami.NewCmdWhoAmI(f, ioStreams),
-				kubectlwrappers.NewCmdCompletion(ioStreams),
+				completion.NewCmdCompletion(ioStreams),
 			},
 		},
 	}

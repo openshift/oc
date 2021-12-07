@@ -15,7 +15,6 @@ import (
 	kcmdauth "k8s.io/kubectl/pkg/cmd/auth"
 	"k8s.io/kubectl/pkg/cmd/autoscale"
 	"k8s.io/kubectl/pkg/cmd/clusterinfo"
-	"k8s.io/kubectl/pkg/cmd/completion"
 	"k8s.io/kubectl/pkg/cmd/config"
 	"k8s.io/kubectl/pkg/cmd/cp"
 	kcreate "k8s.io/kubectl/pkg/cmd/create"
@@ -102,21 +101,6 @@ func NewCmdCreate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 	return cmd
 }
 
-var (
-	completionLong = templates.LongDesc(`
-		Output shell completion code for the specified shell (bash or zsh).
-		The shell code must be evaluated to provide interactive
-		completion of oc commands.  This can be done by sourcing it from
-		the .bash_profile.
-
-		Note for zsh users: [1] zsh completions are only supported in versions of zsh >= 5.2`)
-)
-
-func NewCmdCompletion(streams genericclioptions.IOStreams) *cobra.Command {
-	cmd := cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(completion.NewCmdCompletion(streams.Out, "\n")))
-	cmd.Long = completionLong
-	return cmd
-}
 
 // NewCmdExec is a wrapper for the Kubernetes cli exec command
 func NewCmdExec(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
