@@ -1,8 +1,6 @@
 package completion
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -21,22 +19,33 @@ var (
 		Note for zsh users: [1] zsh completions are only supported in versions of zsh >= 5.2.`))
 
 	completionExample = templates.Examples(i18n.T(`
+		# Installing bash completion on macOS using homebrew
+		## If running Bash 3.2 included with macOS
+		brew install bash-completion
+		## or, if running Bash 4.1+
+		brew install bash-completion@2
+		## If oc is installed via homebrew, this should start working immediately
+		## If you've installed via other means, you may need add the completion to your completion directory
+		oc completion bash > $(brew --prefix)/etc/bash_completion.d/oc
+
+
 		# Installing bash completion on Linux
 		## If bash-completion is not installed on Linux, install the 'bash-completion' package
 		## via your distribution's package manager.
 		## Load the oc completion code for bash into the current shell
-		    source <(oc completion bash)
+		source <(oc completion bash)
 		## Write bash completion code to a file and source it from .bash_profile
-		    oc completion bash > ~/.kube/completion.bash.inc
-		    printf "
-		      # Kubectl shell completion
-		      source '$HOME/.kube/completion.bash.inc'
-		      " >> $HOME/.bash_profile
-		    source $HOME/.bash_profile
+		oc completion bash > ~/.kube/completion.bash.inc
+		printf "
+		# Kubectl shell completion
+		source '$HOME/.kube/completion.bash.inc'
+		" >> $HOME/.bash_profile
+		source $HOME/.bash_profile
+
 		# Load the oc completion code for zsh[1] into the current shell
-		    source <(oc completion zsh)
+		source <(oc completion zsh)
 		# Set the oc completion code for zsh[1] to autoload on startup
-		    oc completion zsh > "${fpath[1]}/_oc"`))
+		oc completion zsh > "${fpath[1]}/_oc"`))
 
 	completionShells = map[string]func(streams genericclioptions.IOStreams, cmd *cobra.Command) error{
 		"bash": runCompletionBash,
@@ -87,8 +96,5 @@ func runCompletionBash(streams genericclioptions.IOStreams, oc *cobra.Command) e
 }
 
 func runCompletionZsh(streams genericclioptions.IOStreams, oc *cobra.Command) error {
-	commandName := oc.Name()
-	zshHead := fmt.Sprintf("#compdef %[1]s\ncompdef _%[1]s %[1]s\n", commandName)
-	streams.Out.Write([]byte(zshHead))
 	return oc.GenZshCompletion(streams.Out)
 }
