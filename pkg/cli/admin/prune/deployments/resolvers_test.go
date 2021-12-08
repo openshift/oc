@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -14,23 +13,23 @@ import (
 )
 
 type mockResolver struct {
-	items []*corev1.ReplicationController
+	items []metav1.Object
 	err   error
 }
 
-func (m *mockResolver) Resolve() ([]*corev1.ReplicationController, error) {
+func (m *mockResolver) Resolve() ([]metav1.Object, error) {
 	return m.items, m.err
 }
 
 func TestMergeResolver(t *testing.T) {
 	resolverA := &mockResolver{
-		items: []*corev1.ReplicationController{
-			mockDeployment("a", "b", nil),
+		items: []metav1.Object{
+			mockReplicationController("a", "b", nil),
 		},
 	}
 	resolverB := &mockResolver{
-		items: []*corev1.ReplicationController{
-			mockDeployment("c", "d", nil),
+		items: []metav1.Object{
+			mockReplicationController("c", "d", nil),
 		},
 	}
 	resolver := &mergeResolver{resolvers: []Resolver{resolverA, resolverB}}
@@ -43,8 +42,8 @@ func TestMergeResolver(t *testing.T) {
 	}
 	expectedNames := sets.NewString("b", "d")
 	for _, item := range results {
-		if !expectedNames.Has(item.Name) {
-			t.Errorf("Unexpected name %v", item.Name)
+		if !expectedNames.Has(item.GetName()) {
+			t.Errorf("Unexpected name %v", item.GetName())
 		}
 	}
 }
@@ -53,8 +52,8 @@ func TestOrphanDeploymentResolver(t *testing.T) {
 	activeDeploymentConfig := mockDeploymentConfig("a", "active-deployment-config")
 	inactiveDeploymentConfig := mockDeploymentConfig("a", "inactive-deployment-config")
 
-	deploymentConfigs := []*appsv1.DeploymentConfig{activeDeploymentConfig}
-	deployments := []*corev1.ReplicationController{}
+	deployments := []metav1.Object{activeDeploymentConfig}
+	replicas := []metav1.Object{}
 
 	expectedNames := sets.String{}
 	deploymentStatusOptions := []appsv1.DeploymentStatus{
@@ -75,24 +74,24 @@ func TestOrphanDeploymentResolver(t *testing.T) {
 	}
 
 	for _, deploymentStatusOption := range deploymentStatusOptions {
-		deployments = append(deployments, withStatus(mockDeployment("a", string(deploymentStatusOption)+"-active", activeDeploymentConfig), deploymentStatusOption))
-		deployments = append(deployments, withStatus(mockDeployment("a", string(deploymentStatusOption)+"-inactive", inactiveDeploymentConfig), deploymentStatusOption))
-		deployments = append(deployments, withStatus(mockDeployment("a", string(deploymentStatusOption)+"-orphan", nil), deploymentStatusOption))
+		replicas = append(replicas, withStatus(mockReplicationController("a", string(deploymentStatusOption)+"-active", activeDeploymentConfig), deploymentStatusOption))
+		replicas = append(replicas, withStatus(mockReplicationController("a", string(deploymentStatusOption)+"-inactive", inactiveDeploymentConfig), deploymentStatusOption))
+		replicas = append(replicas, withStatus(mockReplicationController("a", string(deploymentStatusOption)+"-orphan", nil), deploymentStatusOption))
 		if deploymentStatusFilterSet.Has(string(deploymentStatusOption)) {
 			expectedNames.Insert(string(deploymentStatusOption) + "-inactive")
 			expectedNames.Insert(string(deploymentStatusOption) + "-orphan")
 		}
 	}
 
-	dataSet := NewDataSet(deploymentConfigs, deployments)
-	resolver := NewOrphanDeploymentResolver(dataSet, deploymentStatusFilter)
+	dataSet := NewDataSet(deployments, replicas)
+	resolver := NewOrphanReplicaResolver(dataSet, deploymentStatusFilter)
 	results, err := resolver.Resolve()
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
 	}
 	foundNames := sets.String{}
 	for _, result := range results {
-		foundNames.Insert(result.Name)
+		foundNames.Insert(result.GetName())
 	}
 	if len(foundNames) != len(expectedNames) || !expectedNames.HasAll(foundNames.List()...) {
 		t.Errorf("expected %v, actual %v", expectedNames, foundNames)
@@ -107,75 +106,75 @@ func TestPerDeploymentConfigResolver(t *testing.T) {
 		appsv1.DeploymentStatusPending,
 		appsv1.DeploymentStatusRunning,
 	}
-	deploymentConfigs := []*appsv1.DeploymentConfig{
+	deployments := []metav1.Object{
 		mockDeploymentConfig("a", "deployment-config-1"),
 		mockDeploymentConfig("b", "deployment-config-2"),
 	}
 	deploymentsPerStatus := 100
-	deployments := []*corev1.ReplicationController{}
-	for _, deploymentConfig := range deploymentConfigs {
+	replicas := []metav1.Object{}
+	for _, deployment := range deployments {
 		for _, deploymentStatusOption := range deploymentStatusOptions {
 			for i := 0; i < deploymentsPerStatus; i++ {
-				deployment := withStatus(mockDeployment(deploymentConfig.Namespace, fmt.Sprintf("%v-%v-%v", deploymentConfig.Name, deploymentStatusOption, i), deploymentConfig), deploymentStatusOption)
-				deployments = append(deployments, deployment)
+				replica := withStatus(mockReplicationController(deployment.GetNamespace(), fmt.Sprintf("%v-%v-%v", deployment.GetName(), deploymentStatusOption, i), deployment), deploymentStatusOption)
+				replicas = append(replicas, replica)
 			}
 		}
 	}
 
 	now := metav1.Now()
-	for i := range deployments {
+	for i := range replicas {
 		creationTimestamp := metav1.NewTime(now.Time.Add(-1 * time.Duration(i) * time.Hour))
-		deployments[i].CreationTimestamp = creationTimestamp
+		replicas[i].SetCreationTimestamp(creationTimestamp)
 	}
 
 	// test number to keep at varying ranges
 	for keep := 0; keep < deploymentsPerStatus*2; keep++ {
-		dataSet := NewDataSet(deploymentConfigs, deployments)
+		dataSet := NewDataSet(deployments, replicas)
 
 		expectedNames := sets.String{}
 		deploymentCompleteStatusFilterSet := sets.NewString(string(appsv1.DeploymentStatusComplete))
 		deploymentFailedStatusFilterSet := sets.NewString(string(appsv1.DeploymentStatusFailed))
 
-		for _, deploymentConfig := range deploymentConfigs {
-			deploymentItems, err := dataSet.ListDeploymentsByDeploymentConfig(deploymentConfig)
+		for _, deployment := range deployments {
+			replicaItems, err := dataSet.ListReplicasByDeployment(deployment)
 			if err != nil {
 				t.Errorf("Unexpected err %v", err)
 			}
-			completedDeployments, failedDeployments := []*corev1.ReplicationController{}, []*corev1.ReplicationController{}
-			for _, deployment := range deploymentItems {
-				status := deployment.Annotations[appsv1.DeploymentStatusAnnotation]
+			completedDeployments, failedDeployments := []metav1.Object{}, []metav1.Object{}
+			for _, replica := range replicaItems {
+				status := replica.GetAnnotations()[appsv1.DeploymentStatusAnnotation]
 				if deploymentCompleteStatusFilterSet.Has(status) {
-					completedDeployments = append(completedDeployments, deployment)
+					completedDeployments = append(completedDeployments, replica)
 				} else if deploymentFailedStatusFilterSet.Has(status) {
-					failedDeployments = append(failedDeployments, deployment)
+					failedDeployments = append(failedDeployments, replica)
 				}
 			}
 			sort.Sort(ByMostRecent(completedDeployments))
 			sort.Sort(ByMostRecent(failedDeployments))
-			purgeCompleted := []*corev1.ReplicationController{}
-			purgeFailed := []*corev1.ReplicationController{}
+			purgeCompleted := []metav1.Object{}
+			purgeFailed := []metav1.Object{}
 			if keep >= 0 && keep < len(completedDeployments) {
 				purgeCompleted = completedDeployments[keep:]
 			}
 			if keep >= 0 && keep < len(failedDeployments) {
 				purgeFailed = failedDeployments[keep:]
 			}
-			for _, deployment := range purgeCompleted {
-				expectedNames.Insert(deployment.Name)
+			for _, replica := range purgeCompleted {
+				expectedNames.Insert(replica.GetName())
 			}
-			for _, deployment := range purgeFailed {
-				expectedNames.Insert(deployment.Name)
+			for _, replica := range purgeFailed {
+				expectedNames.Insert(replica.GetName())
 			}
 		}
 
-		resolver := NewPerDeploymentConfigResolver(dataSet, keep, keep)
+		resolver := NewPerDeploymentResolver(dataSet, keep, keep)
 		results, err := resolver.Resolve()
 		if err != nil {
 			t.Errorf("Unexpected error %v", err)
 		}
 		foundNames := sets.String{}
 		for _, result := range results {
-			foundNames.Insert(result.Name)
+			foundNames.Insert(result.GetName())
 		}
 		if len(foundNames) != len(expectedNames) || !expectedNames.HasAll(foundNames.List()...) {
 			expectedValues := expectedNames.List()

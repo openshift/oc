@@ -10,14 +10,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	kappsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	appsv1 "github.com/openshift/api/apps/v1"
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 )
 
@@ -42,13 +41,15 @@ var (
 type PruneDeploymentsOptions struct {
 	Confirm         bool
 	Orphans         bool
+	ReplicaSets     bool
 	KeepYoungerThan time.Duration
 	KeepComplete    int
 	KeepFailed      int
 	Namespace       string
 
-	AppsClient appsv1client.DeploymentConfigsGetter
-	KubeClient corev1client.CoreV1Interface
+	AppsClient  appsv1client.DeploymentConfigsGetter
+	KubeClient  corev1client.CoreV1Interface
+	KAppsClient kappsv1client.AppsV1Interface
 
 	genericclioptions.IOStreams
 }
@@ -80,6 +81,7 @@ func NewCmdPruneDeployments(f kcmdutil.Factory, streams genericclioptions.IOStre
 
 	cmd.Flags().BoolVar(&o.Confirm, "confirm", o.Confirm, "If true, specify that deployment pruning should proceed. Defaults to false, displaying what would be deleted but not actually deleting anything.")
 	cmd.Flags().BoolVar(&o.Orphans, "orphans", o.Orphans, "If true, prune all deployments where the associated DeploymentConfig no longer exists, the status is complete or failed, and the replica size is 0.")
+	cmd.Flags().BoolVar(&o.ReplicaSets, "replica-sets", o.ReplicaSets, "EXPERIMENTAL: If true, ReplicaSets will be included in the pruning process.")
 	cmd.Flags().DurationVar(&o.KeepYoungerThan, "keep-younger-than", o.KeepYoungerThan, "Specify the minimum age of a deployment for it to be considered a candidate for pruning.")
 	cmd.Flags().IntVar(&o.KeepComplete, "keep-complete", o.KeepComplete, "Per DeploymentConfig, specify the number of deployments whose status is complete that will be preserved whose replica size is 0.")
 	cmd.Flags().IntVar(&o.KeepFailed, "keep-failed", o.KeepFailed, "Per DeploymentConfig, specify the number of deployments whose status is failed that will be preserved whose replica size is 0.")
@@ -115,6 +117,10 @@ func (o *PruneDeploymentsOptions) Complete(f kcmdutil.Factory, cmd *cobra.Comman
 	if err != nil {
 		return err
 	}
+	o.KAppsClient, err = kappsv1client.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -139,67 +145,89 @@ func (o PruneDeploymentsOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	deploymentConfigs := []*appsv1.DeploymentConfig{}
+	deployments := []metav1.Object{}
 	for i := range deploymentConfigList.Items {
-		deploymentConfigs = append(deploymentConfigs, &deploymentConfigList.Items[i])
+		deployments = append(deployments, &deploymentConfigList.Items[i])
 	}
 
-	deploymentList, err := o.KubeClient.ReplicationControllers(o.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if o.ReplicaSets {
+		deploymentList, err := o.KAppsClient.Deployments(o.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+
+		for i := range deploymentList.Items {
+			deployments = append(deployments, &deploymentList.Items[i])
+		}
+	}
+
+	replicationControllerList, err := o.KubeClient.ReplicationControllers(o.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	deployments := []*corev1.ReplicationController{}
-	for i := range deploymentList.Items {
-		deployments = append(deployments, &deploymentList.Items[i])
+	replicas := []metav1.Object{}
+	for i := range replicationControllerList.Items {
+		replicas = append(deployments, &replicationControllerList.Items[i])
+	}
+
+	if o.ReplicaSets {
+		replicaSetList, err := o.KAppsClient.ReplicaSets(o.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+
+		for i := range replicaSetList.Items {
+			replicas = append(deployments, &replicationControllerList.Items[i])
+		}
 	}
 
 	options := PrunerOptions{
-		KeepYoungerThan:   o.KeepYoungerThan,
-		Orphans:           o.Orphans,
-		KeepComplete:      o.KeepComplete,
-		KeepFailed:        o.KeepFailed,
-		DeploymentConfigs: deploymentConfigs,
-		Deployments:       deployments,
+		KeepYoungerThan: o.KeepYoungerThan,
+		Orphans:         o.Orphans,
+		KeepComplete:    o.KeepComplete,
+		KeepFailed:      o.KeepFailed,
+		Deployments:     deployments,
+		Replicas:        replicas,
 	}
 	pruner := NewPruner(options)
 
 	w := tabwriter.NewWriter(o.Out, 10, 4, 3, ' ', 0)
 	defer w.Flush()
 
-	deploymentDeleter := &describingDeploymentDeleter{w: w}
+	replicaDeleter := &describingReplicaDeleter{w: w}
 
 	if o.Confirm {
-		deploymentDeleter.delegate = NewDeploymentDeleter(o.KubeClient)
+		replicaDeleter.delegate = NewReplicaDeleter(o.KubeClient, o.KAppsClient)
 	} else {
 		fmt.Fprintln(os.Stderr, "Dry run enabled - no modifications will be made. Add --confirm to remove deployments")
 	}
 
-	return pruner.Prune(deploymentDeleter)
+	return pruner.Prune(replicaDeleter)
 }
 
-// describingDeploymentDeleter prints information about each deployment it removes.
-// If a delegate exists, its DeleteDeployment function is invoked prior to returning.
-type describingDeploymentDeleter struct {
+// describingReplicaDeleter prints information about each replication controller or replicaset it removes.
+// If a delegate exists, its DeleteReplica function is invoked prior to returning.
+type describingReplicaDeleter struct {
 	w             io.Writer
-	delegate      DeploymentDeleter
+	delegate      ReplicaDeleter
 	headerPrinted bool
 }
 
-var _ DeploymentDeleter = &describingDeploymentDeleter{}
+var _ ReplicaDeleter = &describingReplicaDeleter{}
 
-func (p *describingDeploymentDeleter) DeleteDeployment(deployment *corev1.ReplicationController) error {
+func (p *describingReplicaDeleter) DeleteReplica(replica metav1.Object) error {
 	if !p.headerPrinted {
 		p.headerPrinted = true
 		fmt.Fprintln(p.w, "NAMESPACE\tNAME")
 	}
 
-	fmt.Fprintf(p.w, "%s\t%s\n", deployment.Namespace, deployment.Name)
+	fmt.Fprintf(p.w, "%s\t%s\n", replica.GetNamespace(), replica.GetName())
 
 	if p.delegate == nil {
 		return nil
 	}
 
-	if err := p.delegate.DeleteDeployment(deployment); err != nil {
+	if err := p.delegate.DeleteReplica(replica); err != nil {
 		return err
 	}
 
