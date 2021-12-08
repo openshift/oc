@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -17,10 +16,10 @@ type mockDeleteRecorder struct {
 	err error
 }
 
-var _ DeploymentDeleter = &mockDeleteRecorder{}
+var _ ReplicaDeleter = &mockDeleteRecorder{}
 
-func (m *mockDeleteRecorder) DeleteDeployment(deployment *corev1.ReplicationController) error {
-	m.set.Insert(deployment.Name)
+func (m *mockDeleteRecorder) DeleteReplica(replica metav1.Object) error {
+	m.set.Insert(replica.GetName())
 	return m.err
 }
 
@@ -58,18 +57,18 @@ func TestPruneTask(t *testing.T) {
 			now := metav1.Now()
 			old := metav1.NewTime(now.Time.Add(-1 * keepYoungerThan))
 
-			deploymentConfigs := []*appsv1.DeploymentConfig{}
-			deployments := []*corev1.ReplicationController{}
+			deployments := []metav1.Object{}
+			replicas := []metav1.Object{}
 
 			deploymentConfig := mockDeploymentConfig("a", "deployment-config")
-			deploymentConfigs = append(deploymentConfigs, deploymentConfig)
+			deployments = append(deployments, deploymentConfig)
 
-			deployments = append(deployments, withCreated(withStatus(mockDeployment("a", "build-1", deploymentConfig), deploymentStatusOption), now))
-			deployments = append(deployments, withCreated(withStatus(mockDeployment("a", "build-2", deploymentConfig), deploymentStatusOption), old))
-			deployments = append(deployments, withSize(withCreated(withStatus(mockDeployment("a", "build-3-with-replicas", deploymentConfig), deploymentStatusOption), old), 4))
-			deployments = append(deployments, withCreated(withStatus(mockDeployment("a", "orphan-build-1", nil), deploymentStatusOption), now))
-			deployments = append(deployments, withCreated(withStatus(mockDeployment("a", "orphan-build-2", nil), deploymentStatusOption), old))
-			deployments = append(deployments, withSize(withCreated(withStatus(mockDeployment("a", "orphan-build-3-with-replicas", nil), deploymentStatusOption), old), 4))
+			replicas = append(replicas, withCreated(withStatus(mockReplicationController("a", "build-1", deploymentConfig), deploymentStatusOption), now))
+			replicas = append(replicas, withCreated(withStatus(mockReplicationController("a", "build-2", deploymentConfig), deploymentStatusOption), old))
+			replicas = append(replicas, withSize(withCreated(withStatus(mockReplicationController("a", "build-3-with-replicas", deploymentConfig), deploymentStatusOption), old), 4))
+			replicas = append(replicas, withCreated(withStatus(mockReplicationController("a", "orphan-build-1", nil), deploymentStatusOption), now))
+			replicas = append(replicas, withCreated(withStatus(mockReplicationController("a", "orphan-build-2", nil), deploymentStatusOption), old))
+			replicas = append(replicas, withSize(withCreated(withStatus(mockReplicationController("a", "orphan-build-3-with-replicas", nil), deploymentStatusOption), old), 4))
 
 			keepComplete := 1
 			keepFailed := 1
@@ -81,11 +80,11 @@ func TestPruneTask(t *testing.T) {
 					NewFilterBeforePredicate(keepYoungerThan),
 				},
 			}
-			dataSet := NewDataSet(deploymentConfigs, filter.Filter(deployments))
-			resolver := NewPerDeploymentConfigResolver(dataSet, keepComplete, keepFailed)
+			dataSet := NewDataSet(deployments, filter.Filter(replicas))
+			resolver := NewPerDeploymentResolver(dataSet, keepComplete, keepFailed)
 			if orphans {
 				resolver = &mergeResolver{
-					resolvers: []Resolver{resolver, NewOrphanDeploymentResolver(dataSet, deploymentStatusFilter)},
+					resolvers: []Resolver{resolver, NewOrphanReplicaResolver(dataSet, deploymentStatusFilter)},
 				}
 			}
 			expectedDeployments, err := resolver.Resolve()
@@ -93,18 +92,18 @@ func TestPruneTask(t *testing.T) {
 				t.Errorf("Unexpected error %v", err)
 			}
 			for _, item := range expectedDeployments {
-				expectedValues.Insert(item.Name)
+				expectedValues.Insert(item.GetName())
 			}
 
 			recorder := &mockDeleteRecorder{set: sets.String{}}
 
 			options := PrunerOptions{
-				KeepYoungerThan:   keepYoungerThan,
-				Orphans:           orphans,
-				KeepComplete:      keepComplete,
-				KeepFailed:        keepFailed,
-				DeploymentConfigs: deploymentConfigs,
-				Deployments:       deployments,
+				KeepYoungerThan: keepYoungerThan,
+				Orphans:         orphans,
+				KeepComplete:    keepComplete,
+				KeepFailed:      keepFailed,
+				Deployments:     deployments,
+				ReplicaSets:     true,
 			}
 			pruner := NewPruner(options)
 			if err := pruner.Prune(recorder); err != nil {
