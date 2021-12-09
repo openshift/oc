@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -22,13 +23,14 @@ import (
 	kterm "k8s.io/kubectl/pkg/util/term"
 
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
 	"github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/motd"
 	"github.com/openshift/oc/pkg/helpers/project"
 	loginutil "github.com/openshift/oc/pkg/helpers/project"
 	"github.com/openshift/oc/pkg/helpers/term"
-	"github.com/openshift/oc/pkg/helpers/tokencmd"
 )
 
 const defaultClusterURL = "https://localhost:8443"
@@ -68,6 +70,12 @@ type LoginOptions struct {
 	RequestTimeout time.Duration
 
 	genericclioptions.IOStreams
+}
+
+type passwordPrompter func(r io.Reader, w io.Writer, format string, a ...interface{}) string
+
+func (p passwordPrompter) PromptForPassword(r io.Reader, w io.Writer, format string, a ...interface{}) string {
+	return p(r, w, format, a)
 }
 
 func NewLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
@@ -246,7 +254,13 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	clientConfig.CertFile = o.CertFile
 	clientConfig.KeyFile = o.KeyFile
 
-	token, err := tokencmd.RequestToken(o.Config, o.In, o.Username, o.Password)
+	token, err := tokenrequest.RequestTokenWithChallengeHandlers(
+		o.Config,
+		challengehandlers.NewBasicChallengeHandler(o.Config.Host,
+			o.In, o.Out,
+			passwordPrompter(term.PromptForPasswordString),
+			o.Username, o.Password),
+	)
 	if err != nil {
 		return err
 	}
