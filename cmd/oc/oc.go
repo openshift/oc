@@ -1,12 +1,9 @@
 package main
 
 import (
-	goflag "flag"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	"github.com/spf13/pflag"
 
@@ -14,9 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	utilflag "k8s.io/component-base/cli/flag"
+	k8scli "k8s.io/component-base/cli"
 	"k8s.io/component-base/logs"
-	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api/apps"
@@ -42,24 +38,15 @@ import (
 )
 
 func injectLoglevelFlag(flags *pflag.FlagSet) {
-	from := goflag.CommandLine
-	if flag := from.Lookup("v"); flag != nil {
-		level := flag.Value.(*klog.Level)
-		levelPtr := (*int32)(level)
-		flags.Int32Var(levelPtr, "loglevel", 0, "Set the level of log output (0-10)")
-		if flags.Lookup("v") == nil {
-			flags.Int32Var(levelPtr, "v", 0, "Set the level of log output (0-10)")
-		}
+	if vFlag := flags.Lookup("v"); vFlag != nil {
+		flags.Var(&flagValueWrapper{vFlag.Value}, "loglevel", "Set the level of log output (0-10)")
 	}
 }
 
 func main() {
-	logs.InitLogs()
-	defer logs.FlushLogs()
 	defer serviceability.BehaviorOnPanic(os.Getenv("OPENSHIFT_ON_PANIC"), version.Get())()
 	defer serviceability.Profile(os.Getenv("OPENSHIFT_PROFILE")).Stop()
 
-	rand.Seed(time.Now().UTC().UnixNano())
 	if len(os.Getenv("GOMAXPROCS")) == 0 {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
@@ -67,10 +54,6 @@ func main() {
 	// Prevents race condition present in vendored version of Docker.
 	// See: https://github.com/moby/moby/issues/39859
 	os.Setenv("MOBY_DISABLE_PIGZ", "true")
-
-	pflag.CommandLine.SetNormalizeFunc(utilflag.WordSepNormalizeFunc)
-	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
-	injectLoglevelFlag(pflag.CommandLine)
 
 	// the kubectl scheme expects to have all the recognizable external types it needs to consume.  Install those here.
 	// We can't use the "normal" scheme because apply will use that to build stategic merge patches on CustomResources
@@ -90,9 +73,10 @@ func main() {
 
 	basename := filepath.Base(os.Args[0])
 	command := cli.CommandFor(basename)
-	if err := command.Execute(); err != nil {
-		os.Exit(1)
-	}
+	logs.AddFlags(command.PersistentFlags())
+	injectLoglevelFlag(command.PersistentFlags())
+	code := k8scli.Run(command)
+	os.Exit(code)
 }
 
 func installNonCRDSecurity(scheme *apimachineryruntime.Scheme) error {
