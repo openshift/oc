@@ -83,7 +83,7 @@ func (c *FakeOAuthClients) Update(ctx context.Context, oAuthClient *oauthv1.OAut
 // Delete takes name of the oAuthClient and deletes it. Returns an error if one occurs.
 func (c *FakeOAuthClients) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(oauthclientsResource, name), &oauthv1.OAuthClient{})
+		Invokes(testing.NewRootDeleteActionWithOptions(oauthclientsResource, name, opts), &oauthv1.OAuthClient{})
 	return err
 }
 

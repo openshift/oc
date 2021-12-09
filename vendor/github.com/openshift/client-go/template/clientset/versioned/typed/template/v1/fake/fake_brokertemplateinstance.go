@@ -83,7 +83,7 @@ func (c *FakeBrokerTemplateInstances) Update(ctx context.Context, brokerTemplate
 // Delete takes name of the brokerTemplateInstance and deletes it. Returns an error if one occurs.
 func (c *FakeBrokerTemplateInstances) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(brokertemplateinstancesResource, name), &templatev1.BrokerTemplateInstance{})
+		Invokes(testing.NewRootDeleteActionWithOptions(brokertemplateinstancesResource, name, opts), &templatev1.BrokerTemplateInstance{})
 	return err
 }
 

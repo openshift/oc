@@ -33,6 +33,6 @@ func (c *FakeImageSignatures) Create(ctx context.Context, imageSignature *v1.Ima
 // Delete takes name of the imageSignature and deletes it. Returns an error if one occurs.
 func (c *FakeImageSignatures) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(imagesignaturesResource, name), &v1.ImageSignature{})
+		Invokes(testing.NewRootDeleteActionWithOptions(imagesignaturesResource, name, opts), &v1.ImageSignature{})
 	return err
 }

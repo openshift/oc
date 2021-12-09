@@ -80,7 +80,7 @@ func (c *FakeImageStreamTags) Update(ctx context.Context, imageStreamTag *imagev
 // Delete takes name of the imageStreamTag and deletes it. Returns an error if one occurs.
 func (c *FakeImageStreamTags) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(imagestreamtagsResource, c.ns, name), &imagev1.ImageStreamTag{})
+		Invokes(testing.NewDeleteActionWithOptions(imagestreamtagsResource, c.ns, name, opts), &imagev1.ImageStreamTag{})
 
 	return err
 }
