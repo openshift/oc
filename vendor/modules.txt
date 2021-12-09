@@ -49,9 +49,10 @@ github.com/Microsoft/hcsshim/osversion
 # github.com/RangelReale/osincli v0.0.0-20160924135400-fababb0555f2
 ## explicit
 github.com/RangelReale/osincli
-# github.com/alexbrainman/sspi v0.0.0-20180613141037-e580b900e9f5
-## explicit
+# github.com/alexbrainman/sspi v0.0.0-20210105120005-909beea2cc74
+## explicit; go 1.13
 github.com/alexbrainman/sspi
+github.com/alexbrainman/sspi/internal/common
 github.com/alexbrainman/sspi/negotiate
 # github.com/alicebob/sqlittle v1.4.0
 ## explicit; go 1.12
@@ -533,7 +534,7 @@ github.com/opencontainers/runc/libcontainer/user
 # github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
-# github.com/openshift/api v0.0.0-20230120195050-6ba31fa438f2
+# github.com/openshift/api v0.0.0-20230426193520-54a14470e5dc
 ## explicit; go 1.19
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -709,7 +710,7 @@ github.com/openshift/client-go/user/clientset/versioned/fake
 github.com/openshift/client-go/user/clientset/versioned/scheme
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
-# github.com/openshift/library-go v0.0.0-20230227140230-39892725eed1
+# github.com/openshift/library-go v0.0.0-20230503125631-c31a6e7b87d4
 ## explicit; go 1.19
 github.com/openshift/library-go/pkg/apps/appsserialization
 github.com/openshift/library-go/pkg/apps/appsutil
@@ -738,6 +739,8 @@ github.com/openshift/library-go/pkg/network
 github.com/openshift/library-go/pkg/network/networkapihelpers
 github.com/openshift/library-go/pkg/network/networkutils
 github.com/openshift/library-go/pkg/oauth/oauthdiscovery
+github.com/openshift/library-go/pkg/oauth/tokenrequest
+github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers
 github.com/openshift/library-go/pkg/operator/resource/retry
 github.com/openshift/library-go/pkg/security/ldapclient
 github.com/openshift/library-go/pkg/security/ldapquery
