@@ -133,6 +133,26 @@ const (
 	// MachineCreated indicates whether the machine has been created or not. If not,
 	// it should include a reason and message for the failure.
 	MachineCreated ConditionType = "MachineCreated"
+	// InstanceExistsCondition is set on the Machine to show whether a virtual mahcine has been created by the cloud provider.
+	InstanceExistsCondition ConditionType = "InstanceExists"
+	// RemediationAllowedCondition is set on MachineHealthChecks to show the status of whether the MachineHealthCheck is
+	// allowed to remediate any Machines or whether it is blocked from remediating any further.
+	RemediationAllowedCondition ConditionType = "RemediationAllowed"
+	// ExternalRemediationTemplateAvailable is set on machinehealthchecks when MachineHealthCheck controller uses external remediation.
+	// ExternalRemediationTemplateAvailable is set to false if external remediation template is not found.
+	ExternalRemediationTemplateAvailable ConditionType = "ExternalRemediationTemplateAvailable"
+	// ExternalRemediationRequestAvailable is set on machinehealthchecks when MachineHealthCheck controller uses external remediation.
+	// ExternalRemediationRequestAvailable is set to false if creating external remediation request fails.
+	ExternalRemediationRequestAvailable ConditionType = "ExternalRemediationRequestAvailable"
+	// MachineDrained is set on a machine to indicate that the machine has been drained. When an error occurs during
+	// the drain process, the condition will be added with a false status and details of the error.
+	MachineDrained ConditionType = "Drained"
+	// MachineDrainable is set on a machine to indicate whether or not the machine can be drained, or, whether some
+	// deletion hook is blocking the drain operation.
+	MachineDrainable ConditionType = "Drainable"
+	// MachineTerminable is set on a machine to indicate whether or not the machine can be terminated, or, whether some
+	// deletion hook is blocking the termination operation.
+	MachineTerminable ConditionType = "Terminable"
 )
 
 const (
@@ -140,6 +160,26 @@ const (
 	MachineCreationSucceededConditionReason string = "MachineCreationSucceeded"
 	// MachineCreationFailed indicates machine creation failure.
 	MachineCreationFailedConditionReason string = "MachineCreationFailed"
+	// ErrorCheckingProviderReason is the reason used when the exist operation fails.
+	// This would normally be because we cannot contact the provider.
+	ErrorCheckingProviderReason = "ErrorCheckingProvider"
+	// InstanceMissingReason is the reason used when the machine was provisioned, but the instance has gone missing.
+	InstanceMissingReason = "InstanceMissing"
+	// InstanceNotCreatedReason is the reason used when the machine has not yet been provisioned.
+	InstanceNotCreatedReason = "InstanceNotCreated"
+	// TooManyUnhealthy is the reason used when too many Machines are unhealthy and the MachineHealthCheck is blocked
+	// from making any further remediations.
+	TooManyUnhealthyReason = "TooManyUnhealthy"
+	// ExternalRemediationTemplateNotFound is the reason used when a machine health check fails to find external remediation template.
+	ExternalRemediationTemplateNotFound = "ExternalRemediationTemplateNotFound"
+	// ExternalRemediationRequestCreationFailed is the reason used when a machine health check fails to create external remediation request.
+	ExternalRemediationRequestCreationFailed = "ExternalRemediationRequestCreationFailed"
+	// MachineHookPresent indicates that a machine lifecycle hook is blocking part of the lifecycle of the machine.
+	// This should be used with the `Drainable` and `Terminable` machine condition types.
+	MachineHookPresent = "HookPresent"
+	// MachineDrainError indicates an error occurred when draining the machine.
+	// This should be used with the `Drained` condition type.
+	MachineDrainError = "DrainError"
 )
 
 // Condition defines an observation of a Machine API resource operational state.

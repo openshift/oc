@@ -2,12 +2,16 @@ package registryclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/distribution/registry/client"
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/opencontainers/go-digest"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"k8s.io/klog/v2"
@@ -185,6 +189,21 @@ func (r *blobMirroredRepository) attemptRepos(ctx context.Context, repos []refer
 	return firstErr
 }
 
+// isRequestError reports whether the registry rejected the request or was not
+// able to serve any data. True for an error from io.Copy indicates that
+// nothing was copied.
+func isRequestError(err error) bool {
+	var errorCode errcode.ErrorCode
+	responseError := &client.UnexpectedHTTPResponseError{}
+	statusError := &client.UnexpectedHTTPStatusError{}
+	return errors.As(err, &errcode.Errors{}) ||
+		errors.As(err, &errcode.Error{}) ||
+		errors.As(err, &errorCode) ||
+		errors.As(err, &responseError) ||
+		errors.As(err, &statusError) ||
+		errors.Is(err, auth.ErrNoBasicAuthCredentials)
+}
+
 // attemptFirstConnectedRepo will invoke fn on the first repo that successfully connects.
 func (r *blobMirroredRepository) attemptFirstConnectedRepo(ctx context.Context, repos []reference.DockerImageReference, fn func(r RepositoryWithLocation) error) error {
 	var firstErr error
@@ -197,7 +216,21 @@ func (r *blobMirroredRepository) attemptFirstConnectedRepo(ctx context.Context, 
 			}
 			continue
 		}
-		return fn(repo)
+		if err := fn(repo); err != nil {
+			if !isRequestError(err) {
+				// The request may have been halfway through
+				// and we cannot make another attempt.
+				return err
+			}
+			// The registry replied with an error like 4xx or 5xx,
+			// i.e. it hasn't served the blob and we can make
+			// another attempt with a different registry.
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		return nil
 	}
 	return firstErr
 }
@@ -419,6 +452,7 @@ func (f blobMirroredBlobstore) Stat(ctx context.Context, dgst digest.Digest) (di
 	err := f.repo.alternates(ctx, func(r RepositoryWithLocation) error {
 		var err error
 		desc, err = r.Blobs(ctx).Stat(ctx, dgst)
+		klog.V(5).Infof("stat for %s served from %s: %v", dgst, r.Named(), err)
 		return err
 	})
 	return desc, err
@@ -426,7 +460,9 @@ func (f blobMirroredBlobstore) Stat(ctx context.Context, dgst digest.Digest) (di
 
 func (f blobMirroredBlobstore) ServeBlob(ctx context.Context, w http.ResponseWriter, req *http.Request, dgst digest.Digest) error {
 	err := f.repo.firstConnectedAlternate(ctx, func(r RepositoryWithLocation) error {
-		return r.Blobs(ctx).ServeBlob(ctx, w, req, dgst)
+		err := r.Blobs(ctx).ServeBlob(ctx, w, req, dgst)
+		klog.V(5).Infof("blob %s served from %s: %v", dgst, r.Named(), err)
+		return err
 	})
 	return err
 }
@@ -436,6 +472,16 @@ func (f blobMirroredBlobstore) Open(ctx context.Context, dgst digest.Digest) (di
 	err := f.repo.alternates(ctx, func(r RepositoryWithLocation) error {
 		var err error
 		rsc, err = r.Blobs(ctx).Open(ctx, dgst)
+		if err != nil {
+			klog.V(5).Infof("open %s from %s: %v", dgst, r.Named(), err)
+			return err
+		}
+
+		// Distribution's implementation of Open doesn't send any requests to
+		// the registry. We need the reader to send a request to see if the
+		// registry can serve the blob.
+		_, err = rsc.Read([]byte{})
+		klog.V(5).Infof("open (read) %s from %s: %v", dgst, r.Named(), err)
 		return err
 	})
 	return rsc, err
