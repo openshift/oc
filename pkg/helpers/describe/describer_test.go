@@ -711,6 +711,35 @@ func Test_describeBuildVolumes(t *testing.T) {
 				"/my/configmap/destination/path/two",
 			},
 		},
+		{
+			name: "csi build volume",
+			volumes: []buildv1.BuildVolume{
+				{
+					Name: "my-csi-volume",
+					Source: buildv1.BuildVolumeSource{
+						Type: buildv1.BuildVolumeSourceTypeCSI,
+						CSI: &corev1.CSIVolumeSource{
+							Driver:           "inline.storage.kubernetes.io",
+							VolumeAttributes: map[string]string{"foo": "bar"},
+						},
+					},
+					Mounts: []buildv1.BuildVolumeMount{
+						{
+							DestinationPath: "/my/csi/destination/path",
+						},
+						{
+							DestinationPath: "/my/csi/destination/path/two",
+						},
+					},
+				},
+			},
+			want: []string{
+				"my-csi-volume",
+				"my-csi-volume",
+				"/my/csi/destination/path",
+				"/my/csi/destination/path/two",
+			},
+		},
 	}
 	for _, tt := range tests {
 		var b bytes.Buffer
