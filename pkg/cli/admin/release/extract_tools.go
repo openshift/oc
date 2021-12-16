@@ -218,6 +218,18 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			ArchiveFormat:        "openshift-install-mac-%s.tar.gz",
 		},
 		{
+			OS:      "darwin",
+			Arch:    "arm64",
+			Command: "openshift-install",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "installer-artifacts", From: "usr/share/openshift/mac_arm64/openshift-install"},
+
+			Readme:               readmeInstallUnix,
+			InjectReleaseImage:   true,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-install-mac-arm64-%s.tar.gz",
+		},
+		{
 			OS:      "linux",
 			Arch:    targetReleaseArch,
 			Command: "openshift-install",
