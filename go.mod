@@ -179,5 +179,5 @@ require (
 replace (
 	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20211209151317-e6fb6de9735e
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20211209151510-f59b8c637a93
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20211216124125-fc0f9e6f591f
 )

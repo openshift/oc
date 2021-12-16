@@ -1261,7 +1261,7 @@ k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/proto/testing
 k8s.io/kube-openapi/pkg/util/proto/validation
 k8s.io/kube-openapi/pkg/validation/spec
-# k8s.io/kubectl v0.23.0 => github.com/openshift/kubernetes-kubectl v0.0.0-20211209151510-f59b8c637a93
+# k8s.io/kubectl v0.23.0 => github.com/openshift/kubernetes-kubectl v0.0.0-20211216124125-fc0f9e6f591f
 ## explicit; go 1.16
 k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd
@@ -1463,4 +1463,4 @@ sigs.k8s.io/structured-merge-diff/v4/value
 sigs.k8s.io/yaml
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 # k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20211209151317-e6fb6de9735e
-# k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20211209151510-f59b8c637a93
+# k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20211216124125-fc0f9e6f591f

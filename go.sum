@@ -877,8 +877,8 @@ github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b h1:it0YPE/evO6/m8
 github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b/go.mod h1:tNrEB5k8SI+g5kOlsCmL2ELASfpqEofI0+FLBgBdN08=
 github.com/openshift/kubernetes-cli-runtime v0.0.0-20211209151317-e6fb6de9735e h1:nbOJVi4vfzJ9lljSNByfPTjuBAITKRVCGK5OkNHhORo=
 github.com/openshift/kubernetes-cli-runtime v0.0.0-20211209151317-e6fb6de9735e/go.mod h1:B5N3YH0KP1iKr6gEuJ/RRmGjO0mJQ/f/JrsmEiPQAlU=
-github.com/openshift/kubernetes-kubectl v0.0.0-20211209151510-f59b8c637a93 h1:HV93gGVItQDl5xZ1OsHWkNlyKl0LdLCzDa7uac5ZT6Y=
-github.com/openshift/kubernetes-kubectl v0.0.0-20211209151510-f59b8c637a93/go.mod h1:TfcGEs3u4dkmoC2eku1GYymdGaMtPMcaLLFrX/RB2kI=
+github.com/openshift/kubernetes-kubectl v0.0.0-20211216124125-fc0f9e6f591f h1:JLm/D4VsYKXVnIY3z9JnEPAFBM3FWeOvSbkaN/THhJQ=
+github.com/openshift/kubernetes-kubectl v0.0.0-20211216124125-fc0f9e6f591f/go.mod h1:TfcGEs3u4dkmoC2eku1GYymdGaMtPMcaLLFrX/RB2kI=
 github.com/openshift/library-go v0.0.0-20211209153216-ed9bc958bd8a h1:MoAaYFrzB5QlYzO7phyjx/JBxghUrLitwb69RaulRAs=
 github.com/openshift/library-go v0.0.0-20211209153216-ed9bc958bd8a/go.mod h1:M/Gi/GUUrMdSS07nrYtTiK43J6/VUAyk/+IfN4ZqUY4=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
