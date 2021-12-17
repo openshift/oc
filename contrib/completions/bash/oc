@@ -8503,6 +8503,8 @@ _oc_adm_upgrade()
 
     flags+=("--allow-explicit-upgrade")
     local_nonpersistent_flags+=("--allow-explicit-upgrade")
+    flags+=("--allow-not-recommended")
+    local_nonpersistent_flags+=("--allow-not-recommended")
     flags+=("--allow-upgrade-with-warnings")
     local_nonpersistent_flags+=("--allow-upgrade-with-warnings")
     flags+=("--clear")
