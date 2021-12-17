@@ -622,8 +622,12 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 	nodeSelector := map[string]string{
 		corev1.LabelOSStable: "linux",
 	}
+
+	tolerationKey := ""
+
 	if node == "" {
 		nodeSelector["node-role.kubernetes.io/master"] = ""
+		tolerationKey = "node-role.kubernetes.io/master"
 	}
 
 	ret := &corev1.Pod{
@@ -700,6 +704,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 			TerminationGracePeriodSeconds: &zero,
 			Tolerations: []corev1.Toleration{
 				{
+					Key:      tolerationKey,
 					Operator: "Exists",
 				},
 			},
