@@ -101,7 +101,7 @@ func (c *FakeTemplateInstances) UpdateStatus(ctx context.Context, templateInstan
 // Delete takes name of the templateInstance and deletes it. Returns an error if one occurs.
 func (c *FakeTemplateInstances) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(templateinstancesResource, c.ns, name), &templatev1.TemplateInstance{})
+		Invokes(testing.NewDeleteActionWithOptions(templateinstancesResource, c.ns, name, opts), &templatev1.TemplateInstance{})
 
 	return err
 }

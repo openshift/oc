@@ -413,11 +413,11 @@ func (o *ProbeOptions) updateContainer(container *corev1.Container) {
 func (o *ProbeOptions) updateProbe(probe *corev1.Probe) {
 	switch {
 	case o.Command != nil:
-		probe.Handler = corev1.Handler{Exec: &corev1.ExecAction{Command: o.Command}}
+		probe.ProbeHandler = corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: o.Command}}
 	case o.HTTPGetAction != nil:
-		probe.Handler = corev1.Handler{HTTPGet: o.HTTPGetAction}
+		probe.ProbeHandler = corev1.ProbeHandler{HTTPGet: o.HTTPGetAction}
 	case len(o.OpenTCPSocket) > 0:
-		probe.Handler = corev1.Handler{TCPSocket: &corev1.TCPSocketAction{Port: intOrString(o.OpenTCPSocket)}}
+		probe.ProbeHandler = corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intOrString(o.OpenTCPSocket)}}
 	}
 	if o.InitialDelaySeconds != nil {
 		probe.InitialDelaySeconds = int32(*o.InitialDelaySeconds)

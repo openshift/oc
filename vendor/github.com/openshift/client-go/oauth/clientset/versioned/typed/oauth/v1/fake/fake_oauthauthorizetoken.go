@@ -83,7 +83,7 @@ func (c *FakeOAuthAuthorizeTokens) Update(ctx context.Context, oAuthAuthorizeTok
 // Delete takes name of the oAuthAuthorizeToken and deletes it. Returns an error if one occurs.
 func (c *FakeOAuthAuthorizeTokens) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(oauthauthorizetokensResource, name), &oauthv1.OAuthAuthorizeToken{})
+		Invokes(testing.NewRootDeleteActionWithOptions(oauthauthorizetokensResource, name, opts), &oauthv1.OAuthAuthorizeToken{})
 	return err
 }
 

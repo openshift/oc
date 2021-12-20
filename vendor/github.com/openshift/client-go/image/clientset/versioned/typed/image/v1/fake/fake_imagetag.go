@@ -80,7 +80,7 @@ func (c *FakeImageTags) Update(ctx context.Context, imageTag *imagev1.ImageTag, 
 // Delete takes name of the imageTag and deletes it. Returns an error if one occurs.
 func (c *FakeImageTags) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(imagetagsResource, c.ns, name), &imagev1.ImageTag{})
+		Invokes(testing.NewDeleteActionWithOptions(imagetagsResource, c.ns, name, opts), &imagev1.ImageTag{})
 
 	return err
 }

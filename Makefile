@@ -14,8 +14,8 @@ include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 )
 
 GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
-                   -X k8s.io/component-base/version.gitMinor="21" \
-                   -X k8s.io/component-base/version.gitVersion="v0.21.0-beta.1" \
+                   -X k8s.io/component-base/version.gitMinor="23" \
+                   -X k8s.io/component-base/version.gitVersion="v0.23.0" \
                    -X k8s.io/component-base/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
                    -X k8s.io/component-base/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
                    -X k8s.io/component-base/version.gitTreeState="clean" \
@@ -55,8 +55,7 @@ $(call build-image,ocp-cli,$(IMAGE_REGISTRY)/ocp/4.2:cli,./images/cli/Dockerfile
 
 $(call build-image,ocp-cli-artifacts,$(IMAGE_REGISTRY)/ocp/4.2:cli-artifacts,./images/cli-artifacts/Dockerfile.rhel,.)
 
-# TODO: Temporarily disable golang verification until we get golang-1.17 for rhel7
-# $(call verify-golang-versions,images/cli/Dockerfile.rhel)
+$(call verify-golang-versions,images/cli/Dockerfile.rhel)
 
 image-ocp-cli-artifacts: image-ocp-cli
 

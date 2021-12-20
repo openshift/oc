@@ -101,7 +101,7 @@ func (c *FakeBuildConfigs) UpdateStatus(ctx context.Context, buildConfig *buildv
 // Delete takes name of the buildConfig and deletes it. Returns an error if one occurs.
 func (c *FakeBuildConfigs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(buildconfigsResource, c.ns, name), &buildv1.BuildConfig{})
+		Invokes(testing.NewDeleteActionWithOptions(buildconfigsResource, c.ns, name, opts), &buildv1.BuildConfig{})
 
 	return err
 }

@@ -83,7 +83,7 @@ func (c *FakeOAuthClientAuthorizations) Update(ctx context.Context, oAuthClientA
 // Delete takes name of the oAuthClientAuthorization and deletes it. Returns an error if one occurs.
 func (c *FakeOAuthClientAuthorizations) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(oauthclientauthorizationsResource, name), &oauthv1.OAuthClientAuthorization{})
+		Invokes(testing.NewRootDeleteActionWithOptions(oauthclientauthorizationsResource, name, opts), &oauthv1.OAuthClientAuthorization{})
 	return err
 }
 

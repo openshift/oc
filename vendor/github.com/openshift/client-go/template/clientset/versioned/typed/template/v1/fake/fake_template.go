@@ -89,7 +89,7 @@ func (c *FakeTemplates) Update(ctx context.Context, template *templatev1.Templat
 // Delete takes name of the template and deletes it. Returns an error if one occurs.
 func (c *FakeTemplates) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(templatesResource, c.ns, name), &templatev1.Template{})
+		Invokes(testing.NewDeleteActionWithOptions(templatesResource, c.ns, name, opts), &templatev1.Template{})
 
 	return err
 }

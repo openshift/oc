@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmd "k8s.io/kubectl/pkg/cmd"
 )
 
@@ -35,7 +36,12 @@ var WhitelistedCommands = sets.NewString()
 
 func TestKubectlCompatibility(t *testing.T) {
 	oc := NewOcCommand(&bytes.Buffer{}, ioutil.Discard, ioutil.Discard)
-	kubectl := kcmd.NewKubectlCommand(nil, ioutil.Discard, ioutil.Discard)
+	kubectl := kcmd.NewKubectlCommand(kcmd.KubectlOptions{
+		IOStreams: genericclioptions.IOStreams{
+			Out:    ioutil.Discard,
+			ErrOut: ioutil.Discard,
+		},
+	})
 
 kubectlLoop:
 	for _, kubecmd := range kubectl.Commands() {
@@ -65,7 +71,12 @@ kubectlLoop:
 // all share the same registration.
 func TestValidateDisabled(t *testing.T) {
 	oc := NewOcCommand(&bytes.Buffer{}, ioutil.Discard, ioutil.Discard)
-	kubectl := kcmd.NewKubectlCommand(nil, ioutil.Discard, ioutil.Discard)
+	kubectl := kcmd.NewKubectlCommand(kcmd.KubectlOptions{
+		IOStreams: genericclioptions.IOStreams{
+			Out:    ioutil.Discard,
+			ErrOut: ioutil.Discard,
+		},
+	})
 
 	for _, kubecmd := range kubectl.Commands() {
 		for _, occmd := range oc.Commands() {

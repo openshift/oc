@@ -83,7 +83,7 @@ func (c *FakeUserOAuthAccessTokens) Update(ctx context.Context, userOAuthAccessT
 // Delete takes name of the userOAuthAccessToken and deletes it. Returns an error if one occurs.
 func (c *FakeUserOAuthAccessTokens) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(useroauthaccesstokensResource, name), &oauthv1.UserOAuthAccessToken{})
+		Invokes(testing.NewRootDeleteActionWithOptions(useroauthaccesstokensResource, name, opts), &oauthv1.UserOAuthAccessToken{})
 	return err
 }
 
