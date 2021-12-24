@@ -177,7 +177,7 @@ func (o PruneDeploymentsOptions) Run() error {
 		}
 
 		for i := range replicaSetList.Items {
-			replicas = append(deployments, &replicationControllerList.Items[i])
+			replicas = append(deployments, &replicaSetList.Items[i])
 		}
 	}
 
