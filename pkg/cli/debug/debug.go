@@ -79,7 +79,7 @@ var (
 		The default mode is to start a shell inside of the first container of the referenced pod.
 		The started pod will be a copy of your source pod, with labels stripped, the command
 		changed to '/bin/sh' for Linux containers or 'cmd.exe' for Windows containers, 
-		and readiness and liveness checks disabled. If you just want to run
+		and readiness, liveness, and startup checks disabled. If you just want to run
 		a command, add '--' and a command to run. Passing a command will not create a TTY or send
 		STDIN by default. Other flags are supported for altering the container or pod in common ways.
 
@@ -154,6 +154,7 @@ type DebugOptions struct {
 	KeepAnnotations    bool
 	KeepLiveness       bool
 	KeepReadiness      bool
+	KeepStartup        bool
 	KeepInitContainers bool
 	OneContainer       bool
 	NodeName           string
@@ -229,6 +230,7 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	cmd.Flags().BoolVar(&o.KeepLiveness, "keep-liveness", o.KeepLiveness, "If true, keep the original pod liveness probes")
 	cmd.Flags().BoolVar(&o.KeepInitContainers, "keep-init-containers", o.KeepInitContainers, "Run the init containers for the pod. Defaults to true.")
 	cmd.Flags().BoolVar(&o.KeepReadiness, "keep-readiness", o.KeepReadiness, "If true, keep the original pod readiness probes")
+	cmd.Flags().BoolVar(&o.KeepStartup, "keep-startup", o.KeepStartup, "If true, keep the original pod startup probes")
 	cmd.Flags().BoolVar(&o.OneContainer, "one-container", o.OneContainer, "If true, run only the selected container, remove all others")
 	cmd.Flags().StringVar(&o.NodeName, "node-name", o.NodeName, "Set a specific node to run on - by default the pod will run on any valid node")
 	cmd.Flags().BoolVar(&o.AsRoot, "as-root", o.AsRoot, "If true, try to run the container as the root user")
@@ -760,6 +762,9 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	}
 	if !o.KeepLiveness {
 		container.LivenessProbe = nil
+	}
+	if !o.KeepStartup {
+		container.StartupProbe = nil
 	}
 
 	var newEnv []corev1.EnvVar
