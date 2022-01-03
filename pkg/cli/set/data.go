@@ -1,7 +1,6 @@
 package set
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,7 +11,6 @@ import (
 	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -20,7 +18,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/dynamic"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
@@ -74,8 +71,6 @@ type DataOptions struct {
 	All      bool
 	Local    bool
 
-	Mapper              meta.RESTMapper
-	Client              dynamic.Interface
 	Printer             printers.ResourcePrinter
 	Builder             func() *resource.Builder
 	Encoder             runtime.Encoder
@@ -85,6 +80,7 @@ type DataOptions struct {
 	Command             []string
 	Resources           []string
 	DryRunStrategy      kcmdutil.DryRunStrategy
+	FieldManager        string
 
 	FlagSet func(string) bool
 
@@ -133,6 +129,7 @@ func NewCmdData(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
+	kcmdutil.AddFieldManagerFlagVar(cmd, &o.FieldManager, "kubectl-set")
 
 	return cmd
 }
@@ -153,10 +150,6 @@ func (o *DataOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 		return err
 	}
 
-	o.Mapper, err = f.ToRESTMapper()
-	if err != nil {
-		return err
-	}
 	o.Builder = f.NewBuilder
 	o.UpdateDataForObject = updateDataForObject
 
@@ -167,15 +160,6 @@ func (o *DataOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 
 	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
-	if err != nil {
-		return err
-	}
-
-	clientConfig, err := f.ToRESTConfig()
-	if err != nil {
-		return err
-	}
-	o.Client, err = dynamic.NewForConfig(clientConfig)
 	if err != nil {
 		return err
 	}
@@ -224,6 +208,9 @@ func (o *DataOptions) Validate() error {
 		if _, ok := o.SetData[remove]; ok {
 			return fmt.Errorf("you may not remove and set the key %q in the same invocation", remove)
 		}
+	}
+	if o.Local && o.DryRunStrategy == kcmdutil.DryRunServer {
+		return fmt.Errorf("cannot specify --local and --dry-run=server - did you mean --dry-run=client?")
 	}
 	return nil
 }
@@ -303,7 +290,10 @@ func (o *DataOptions) Run() error {
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := resource.NewHelper(info.Client, info.Mapping).
+			DryRun(o.DryRunStrategy == kcmdutil.DryRunServer).
+			WithFieldManager(o.FieldManager).
+			Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patch.Patch, &metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, err)
 			continue
