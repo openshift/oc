@@ -165,8 +165,12 @@ func (d *dataSet) GetDeployment(replica metav1.Object) (metav1.Object, bool, err
 func (d *dataSet) ListDeployments() ([]metav1.Object, error) {
 	results := []metav1.Object{}
 	for _, item := range d.deploymentStore.List() {
-
-		results = append(results, item.(*appsv1.DeploymentConfig))
+		switch v := item.(type) {
+		case *appsv1.DeploymentConfig:
+			results = append(results, v)
+		case *kappsv1.Deployment:
+			results = append(results, v)
+		}
 	}
 	return results, nil
 }
