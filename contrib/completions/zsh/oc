@@ -1,3 +1,5 @@
+#compdef oc
+compdef _oc oc
 #compdef _oc oc
 
 # zsh completion for oc                                   -*- shell-script -*-
