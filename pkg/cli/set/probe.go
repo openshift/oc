@@ -1,7 +1,6 @@
 package set
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/url"
@@ -12,7 +11,6 @@ import (
 	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,7 +19,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/dynamic"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
@@ -90,8 +87,6 @@ type ProbeOptions struct {
 	OpenTCPSocket     string
 	HTTPGet           string
 
-	Mapper                 meta.RESTMapper
-	Client                 dynamic.Interface
 	Printer                printers.ResourcePrinter
 	Builder                func() *resource.Builder
 	Encoder                runtime.Encoder
@@ -101,6 +96,7 @@ type ProbeOptions struct {
 	Command                []string
 	Resources              []string
 	DryRunStrategy         kcmdutil.DryRunStrategy
+	FieldManager           string
 
 	FlagSet       func(string) bool
 	HTTPGetAction *corev1.HTTPGetAction
@@ -165,6 +161,7 @@ func NewCmdProbe(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
+	kcmdutil.AddFieldManagerFlagVar(cmd, &o.FieldManager, "kubectl-set")
 
 	return cmd
 }
@@ -185,10 +182,6 @@ func (o *ProbeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 		return err
 	}
 
-	o.Mapper, err = f.ToRESTMapper()
-	if err != nil {
-		return err
-	}
 	o.Builder = f.NewBuilder
 	o.UpdatePodSpecForObject = polymorphichelpers.UpdatePodSpecForObjectFn
 
@@ -216,15 +209,6 @@ func (o *ProbeOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 	}
 	if !cmd.Flags().Lookup("failure-threshold").Changed {
 		o.FailureThreshold = nil
-	}
-
-	clientConfig, err := f.ToRESTConfig()
-	if err != nil {
-		return err
-	}
-	o.Client, err = dynamic.NewForConfig(clientConfig)
-	if err != nil {
-		return err
 	}
 
 	if len(o.HTTPGet) > 0 {
@@ -292,6 +276,9 @@ func (o *ProbeOptions) Validate() error {
 	}
 	if len(o.HTTPGet) > 0 && len(o.HTTPGetAction.Port.String()) == 0 {
 		return fmt.Errorf("port must be specified as part of a url")
+	}
+	if o.Local && o.DryRunStrategy == kcmdutil.DryRunServer {
+		return fmt.Errorf("cannot specify --local and --dry-run=server - did you mean --dry-run=client?")
 	}
 
 	return nil
@@ -362,7 +349,10 @@ func (o *ProbeOptions) Run() error {
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := resource.NewHelper(info.Client, info.Mapping).
+			DryRun(o.DryRunStrategy == kcmdutil.DryRunServer).
+			WithFieldManager(o.FieldManager).
+			Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patch.Patch, &metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, err)
 			continue
