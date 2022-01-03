@@ -1,20 +1,17 @@
 package set
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/dynamic"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -63,8 +60,6 @@ type BuildHookOptions struct {
 	Remove     bool
 	PostCommit bool
 
-	Mapper            meta.RESTMapper
-	Client            dynamic.Interface
 	Printer           printers.ResourcePrinter
 	Builder           func() *resource.Builder
 	Namespace         string
@@ -72,6 +67,7 @@ type BuildHookOptions struct {
 	Command           []string
 	Resources         []string
 	DryRunStrategy    kcmdutil.DryRunStrategy
+	FieldManager      string
 
 	resource.FilenameOptions
 	genericclioptions.IOStreams
@@ -110,6 +106,7 @@ func NewCmdBuildHook(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
+	kcmdutil.AddFieldManagerFlagVar(cmd, &o.FieldManager, "kubectl-set")
 
 	return cmd
 }
@@ -130,10 +127,6 @@ func (o *BuildHookOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args
 		return err
 	}
 
-	o.Mapper, err = f.ToRESTMapper()
-	if err != nil {
-		return err
-	}
 	o.Builder = f.NewBuilder
 
 	o.DryRunStrategy, err = kcmdutil.GetDryRunStrategy(cmd)
@@ -147,15 +140,6 @@ func (o *BuildHookOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args
 		return err
 	}
 
-	clientConfig, err := f.ToRESTConfig()
-	if err != nil {
-		return err
-	}
-	o.Client, err = dynamic.NewForConfig(clientConfig)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -163,20 +147,20 @@ func (o *BuildHookOptions) Validate() error {
 	if !o.PostCommit {
 		return fmt.Errorf("you must specify a type of hook to set")
 	}
-
 	if o.Remove {
 		if len(o.Script) > 0 || o.Entrypoint {
 			return fmt.Errorf("--remove may not be used with any other option")
 		}
 		return nil
 	}
-
 	if len(o.Script) > 0 && o.Entrypoint {
 		return fmt.Errorf("--script and --command cannot be specified together")
 	}
-
 	if !o.Entrypoint && len(o.Script) == 0 {
 		return fmt.Errorf("you must specify either a script or command for the build hook")
+	}
+	if o.Local && o.DryRunStrategy == kcmdutil.DryRunServer {
+		return fmt.Errorf("cannot specify --local and --dry-run=server - did you mean --dry-run=client?")
 	}
 	return nil
 }
@@ -244,7 +228,10 @@ func (o *BuildHookOptions) Run() error {
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := resource.NewHelper(info.Client, info.Mapping).
+			DryRun(o.DryRunStrategy == kcmdutil.DryRunServer).
+			WithFieldManager(o.FieldManager).
+			Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patch.Patch, &metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch build hook: %v\n", err))
 			continue

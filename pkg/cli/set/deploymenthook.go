@@ -1,20 +1,17 @@
 package set
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/dynamic"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -74,8 +71,6 @@ type DeploymentHookOptions struct {
 	Remove           bool
 	FailurePolicyStr string
 
-	Mapper            meta.RESTMapper
-	Client            dynamic.Interface
 	Printer           printers.ResourcePrinter
 	Builder           func() *resource.Builder
 	Command           []string
@@ -85,6 +80,7 @@ type DeploymentHookOptions struct {
 	Namespace         string
 	ExplicitNamespace bool
 	DryRunStrategy    kcmdutil.DryRunStrategy
+	FieldManager      string
 	FailurePolicy     appsv1.LifecycleHookFailurePolicy
 
 	resource.FilenameOptions
@@ -129,6 +125,7 @@ func NewCmdDeploymentHook(f kcmdutil.Factory, streams genericclioptions.IOStream
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
+	kcmdutil.AddFieldManagerFlagVar(cmd, &o.FieldManager, "kubectl-set")
 
 	return cmd
 }
@@ -154,23 +151,10 @@ func (o *DeploymentHookOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command,
 		return err
 	}
 
-	o.Mapper, err = f.ToRESTMapper()
-	if err != nil {
-		return err
-	}
 	o.Builder = f.NewBuilder
 
 	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
-	if err != nil {
-		return err
-	}
-
-	clientConfig, err := f.ToRESTConfig()
-	if err != nil {
-		return err
-	}
-	o.Client, err = dynamic.NewForConfig(clientConfig)
 	if err != nil {
 		return err
 	}
@@ -218,9 +202,11 @@ func (o *DeploymentHookOptions) Validate() error {
 	if cnt == 0 || cnt > 1 {
 		return fmt.Errorf("you must specify one of --pre, --mid, or --post")
 	}
-
 	if len(o.Command) == 0 {
 		return fmt.Errorf("you must specify a command for the deployment hook")
+	}
+	if o.Local && o.DryRunStrategy == kcmdutil.DryRunServer {
+		return fmt.Errorf("cannot specify --local and --dry-run=server - did you mean --dry-run=client?")
 	}
 
 	cmdutil.WarnAboutCommaSeparation(o.ErrOut, o.Environment, "--environment")
@@ -291,7 +277,10 @@ func (o *DeploymentHookOptions) Run() error {
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := resource.NewHelper(info.Client, info.Mapping).
+			DryRun(o.DryRunStrategy == kcmdutil.DryRunServer).
+			WithFieldManager(o.FieldManager).
+			Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patch.Patch, &metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch deployment hook: %v\n", err))
 			continue
