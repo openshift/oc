@@ -3,6 +3,7 @@ package login
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -294,19 +295,53 @@ func (o *LoginOptions) Run() error {
 		}
 	}
 
-	if o.ConfigFile != "" {
+	var err error
+	authFilePath := o.ConfigFile
+
+	if o.ConfigFile == "-" {
+		// TODO: deprecated, remove in 4.12
+		klog.Warningln("Support for stdout output is deprecated. The support will be removed in the future version.")
+		authFilePath, err = createTmpAuthFile()
+		if err != nil {
+			return err
+		}
+		defer func() {
+			err := os.Remove(authFilePath)
+			if err != nil {
+				klog.Errorf("Could not remove tmp auth file %v: %v", authFilePath, err)
+			}
+		}()
+	} else if o.ConfigFile != "" {
 		if err := ensureEmptyAuthFileInitialized(o.ConfigFile); err != nil {
 			return err
 		}
 	}
 
-	ctx := &containertypes.SystemContext{AuthFilePath: o.ConfigFile}
+	ctx := &containertypes.SystemContext{AuthFilePath: authFilePath}
 	if err := dockerconfig.SetAuthentication(ctx, o.HostPort, o.Credentials.Username, o.Credentials.Password); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(o.Out, "Saved credentials for %s\n", o.HostPort)
+	if o.ConfigFile == "-" {
+		bytes, err := ioutil.ReadFile(authFilePath)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(o.Out, string(bytes))
+	} else {
+		fmt.Fprintf(o.Out, "Saved credentials for %s\n", o.HostPort)
+	}
 	return nil
+}
+
+func createTmpAuthFile() (string, error) {
+	file, err := ioutil.TempFile("", "oc-tmp-file")
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	_, err = file.WriteString("{}")
+	return file.Name(), nil
 }
 
 func ensureEmptyAuthFileInitialized(configFile string) error {
