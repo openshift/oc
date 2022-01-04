@@ -1,14 +1,12 @@
 package set
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,7 +14,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/dynamic"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -63,8 +60,6 @@ type BuildSecretOptions struct {
 	Source   bool
 	Remove   bool
 
-	Mapper            meta.RESTMapper
-	Client            dynamic.Interface
 	Printer           printers.ResourcePrinter
 	Builder           func() *resource.Builder
 	Namespace         string
@@ -72,6 +67,7 @@ type BuildSecretOptions struct {
 	Resources         []string
 	SecretArg         string
 	DryRunStrategy    kcmdutil.DryRunStrategy
+	FieldManager      string
 
 	resource.FilenameOptions
 	genericclioptions.IOStreams
@@ -110,6 +106,7 @@ func NewCmdBuildSecret(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
+	kcmdutil.AddFieldManagerFlagVar(cmd, &o.FieldManager, "kubectl-set")
 
 	return cmd
 }
@@ -167,23 +164,10 @@ func (o *BuildSecretOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, ar
 		return err
 	}
 
-	o.Mapper, err = f.ToRESTMapper()
-	if err != nil {
-		return err
-	}
 	o.Builder = f.NewBuilder
 
 	kcmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 	o.Printer, err = o.PrintFlags.ToPrinter()
-	if err != nil {
-		return err
-	}
-
-	clientConfig, err := f.ToRESTConfig()
-	if err != nil {
-		return err
-	}
-	o.Client, err = dynamic.NewForConfig(clientConfig)
 	if err != nil {
 		return err
 	}
@@ -200,6 +184,9 @@ func (o *BuildSecretOptions) Validate() error {
 	}
 	if o.Remove && len(o.SecretArg) > 0 {
 		return fmt.Errorf("a secret cannot be specified when using the --remove flag")
+	}
+	if o.Local && o.DryRunStrategy == kcmdutil.DryRunServer {
+		return fmt.Errorf("cannot specify --local and --dry-run=server - did you mean --dry-run=client?")
 	}
 	return nil
 }
@@ -274,7 +261,10 @@ func (o *BuildSecretOptions) Run() error {
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patch.Patch, metav1.PatchOptions{})
+		actual, err := resource.NewHelper(info.Client, info.Mapping).
+			DryRun(o.DryRunStrategy == kcmdutil.DryRunServer).
+			WithFieldManager(o.FieldManager).
+			Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patch.Patch, &metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch secret  %v", err))
 			continue
