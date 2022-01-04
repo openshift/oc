@@ -21,6 +21,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/homedir"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -293,11 +294,38 @@ func (o *LoginOptions) Run() error {
 		}
 	}
 
+	if o.ConfigFile != "" {
+		if err := ensureEmptyAuthFileInitialized(o.ConfigFile); err != nil {
+			return err
+		}
+	}
+
 	ctx := &containertypes.SystemContext{AuthFilePath: o.ConfigFile}
 	if err := dockerconfig.SetAuthentication(ctx, o.HostPort, o.Credentials.Username, o.Credentials.Password); err != nil {
 		return err
 	}
 
 	fmt.Fprintf(o.Out, "Saved credentials for %s\n", o.HostPort)
+	return nil
+}
+
+func ensureEmptyAuthFileInitialized(configFile string) error {
+	fileInfo, err := os.Stat(configFile)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if !os.IsNotExist(err) && fileInfo.Size() == 0 {
+		// TODO: deprecated, remove in 4.12
+		klog.Warningln("Support for empty registry config files is deprecated. The support will be removed in the future version.")
+		file, err := os.OpenFile(configFile, os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = file.WriteString("{}")
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
