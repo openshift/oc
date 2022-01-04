@@ -262,6 +262,16 @@ func (o *MustGatherOptions) Validate() error {
 func (o *MustGatherOptions) Run() error {
 	var err error
 
+	// print at both the beginning and at the end.  This information is important enough to be in both spots.
+	o.PrintBasicClusterState(context.TODO())
+	defer func() {
+		fmt.Fprintf(o.RawOut, "\n\n")
+		fmt.Fprintf(o.RawOut, "Reprinting Cluster State:") 
+		o.PrintBasicClusterState(context.TODO())
+	}()
+
+	// Due to 'stack unwiding', this should happen after 'clusterState' printing, to ensure that we always
+	//  print our ClusterState information.
 	runBackCollection := true
 	defer func() {
 		if !runBackCollection {
@@ -270,12 +280,6 @@ func (o *MustGatherOptions) Run() error {
 		o.BackupGathering(context.TODO())
 	}()
 
-	// print at both the beginning and at the end.  This information is important enough to be in both spots.
-	o.PrintBasicClusterState(context.TODO())
-	defer func() {
-		fmt.Fprintf(o.RawOut, "\n\n")
-		o.PrintBasicClusterState(context.TODO())
-	}()
 
 	// create namespace ...
 	ns, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
@@ -729,9 +733,14 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 // BackupGathering is called if the full must-gather has an error.  This is useful for making sure we get *something*
 // no matter what has failed.  It should be focused on universal openshift failures.
 func (o *MustGatherOptions) BackupGathering(ctx context.Context) {
+	fmt.Fprintf(o.ErrOut, "\n\n")      // Space out the output
+	fmt.Fprintf(o.ErrOut, "Error running must-gather collection due to above error.")
+	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect` to collect basic cluster information.")
+
 	inspectOptions := inspect.NewInspectOptions(o.IOStreams)
 	inspectOptions.RESTConfig = rest.CopyConfig(o.Config)
-	inspectOptions.DestDir = o.DestDir
+	inspectOptions.DestDir = path.Join(o.DestDir, fmt.Sprintf("inspect.local.%06d", rand.Int63()))
+
 	if err := inspectOptions.Complete([]string{"clusteroperators.v1.config.openshift.io"}); err != nil {
 		fmt.Fprintf(o.ErrOut, "error completing backup collection: %v", err)
 		return
