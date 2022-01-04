@@ -734,7 +734,7 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 // no matter what has failed.  It should be focused on universal openshift failures.
 func (o *MustGatherOptions) BackupGathering(ctx context.Context) {
 	fmt.Fprintf(o.ErrOut, "\n\n")      // Space out the output
-	fmt.Fprintf(o.ErrOut, "Error running must-gather collection : %v", err)
+	fmt.Fprintf(o.ErrOut, "Error running must-gather collection due to above error.")
 	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect` to collect basic cluster information.")
 
 	inspectOptions := inspect.NewInspectOptions(o.IOStreams)
