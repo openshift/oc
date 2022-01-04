@@ -260,13 +260,13 @@ func (o *MustGatherOptions) Validate() error {
 
 // Run creates and runs a must-gather pod.d
 func (o *MustGatherOptions) Run() error {
-	var err error
+	var errs []error
 
 	// print at both the beginning and at the end.  This information is important enough to be in both spots.
 	o.PrintBasicClusterState(context.TODO())
 	defer func() {
 		fmt.Fprintf(o.RawOut, "\n\n")
-		fmt.Fprintf(o.RawOut, "Reprinting Cluster State:") 
+		fmt.Fprintf(o.RawOut, "Reprinting Cluster State:\n")
 		o.PrintBasicClusterState(context.TODO())
 	}()
 
@@ -277,9 +277,8 @@ func (o *MustGatherOptions) Run() error {
 		if !runBackCollection {
 			return
 		}
-		o.BackupGathering(context.TODO())
+		o.BackupGathering(context.TODO(), errs)
 	}()
-
 
 	// create namespace ...
 	ns, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
@@ -411,7 +410,7 @@ func (o *MustGatherOptions) Run() error {
 	}
 	wg.Wait()
 	close(errCh)
-	var errs []error
+
 	for i := range errCh {
 		errs = append(errs, i)
 	}
@@ -732,25 +731,25 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 
 // BackupGathering is called if the full must-gather has an error.  This is useful for making sure we get *something*
 // no matter what has failed.  It should be focused on universal openshift failures.
-func (o *MustGatherOptions) BackupGathering(ctx context.Context) {
-	fmt.Fprintf(o.ErrOut, "\n\n")      // Space out the output
-	fmt.Fprintf(o.ErrOut, "Error running must-gather collection due to above error.")
-	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect` to collect basic cluster information.")
+func (o *MustGatherOptions) BackupGathering(ctx context.Context, errs []error) {
+	fmt.Fprintf(o.ErrOut, "\n\n") // Space out the output
+	fmt.Fprintf(o.ErrOut, "Error running must-gather collection:\n    %v\n\n", errors.NewAggregate(errs))
+	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect clusteroperators.v1.config.openshift.io` to collect basic cluster information.\n")
 
 	inspectOptions := inspect.NewInspectOptions(o.IOStreams)
 	inspectOptions.RESTConfig = rest.CopyConfig(o.Config)
 	inspectOptions.DestDir = path.Join(o.DestDir, fmt.Sprintf("inspect.local.%06d", rand.Int63()))
 
 	if err := inspectOptions.Complete([]string{"clusteroperators.v1.config.openshift.io"}); err != nil {
-		fmt.Fprintf(o.ErrOut, "error completing backup collection: %v", err)
+		fmt.Fprintf(o.ErrOut, "error completing backup collection: %v\n", err)
 		return
 	}
 	if err := inspectOptions.Validate(); err != nil {
-		fmt.Fprintf(o.ErrOut, "error validating backup collection: %v", err)
+		fmt.Fprintf(o.ErrOut, "error validating backup collection: %v\n", err)
 		return
 	}
 	if err := inspectOptions.Run(); err != nil {
-		fmt.Fprintf(o.ErrOut, "error running backup collection: %v", err)
+		fmt.Fprintf(o.ErrOut, "error running backup collection: %v\n", err)
 		return
 	}
 }

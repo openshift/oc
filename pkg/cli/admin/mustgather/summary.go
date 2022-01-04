@@ -23,7 +23,7 @@ import (
 // to one of those three spots.  Doing so improves the self-diagnosis capabilities of our platform and lets *every*
 // client benefit.
 func (o *MustGatherOptions) PrintBasicClusterState(ctx context.Context) {
-	fmt.Fprintf(o.RawOut, "When opening a support case, bugzilla, or issue please include the following summary data along with any other requested information.\n")
+	fmt.Fprintf(o.RawOut, "When opening a support case, bugzilla, or issue please include the following summary data along with any other requested information:\n")
 
 	clusterVersion, err := o.ConfigClient.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
 	if err != nil {
