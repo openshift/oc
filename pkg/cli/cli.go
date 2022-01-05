@@ -318,7 +318,6 @@ func newExperimentalCommand(f kcmdutil.Factory, ioStreams genericclioptions.IOSt
 			c.SetOutput(ioStreams.Out)
 			c.Help()
 		},
-		BashCompletionFunction: admin.BashCompletionFunc,
 	}
 
 	// remove this line, when adding experimental commands
