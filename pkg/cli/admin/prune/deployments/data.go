@@ -23,11 +23,12 @@ func ReplicaByDeploymentIndexFunc(obj interface{}) ([]string, error) {
 		}
 		return []string{v.Namespace + "/" + name}, nil
 	case *kappsv1.ReplicaSet:
-		name := appsutil.DeploymentNameFor(v)
-		if len(name) == 0 {
-			return []string{"orphan"}, nil
+		for _, owner := range v.OwnerReferences {
+			if owner.Kind == "Deployment" && len(owner.Name) > 0 {
+				return []string{v.Namespace + "/" + owner.Name}, nil
+			}
 		}
-		return []string{v.Namespace + "/" + name}, nil
+		return []string{"orphan"}, nil
 	default:
 		return nil, fmt.Errorf("unknown type: %T", obj)
 	}
@@ -76,7 +77,12 @@ func FilterDeploymentsPredicate(item metav1.Object) bool {
 	case *corev1.ReplicationController:
 		return len(appsutil.DeploymentConfigNameFor(v)) > 0
 	case *kappsv1.ReplicaSet:
-		return len(appsutil.DeploymentNameFor(v)) > 0
+		for _, owner := range v.OwnerReferences {
+			if owner.Kind == "Deployment" && len(owner.Name) > 0 {
+				return true
+			}
+		}
+		return false
 	default:
 		return false
 	}
@@ -90,7 +96,7 @@ func FilterZeroReplicaSize(item metav1.Object) bool {
 	case *kappsv1.ReplicaSet:
 		return *v.Spec.Replicas == 0 && v.Status.Replicas == 0
 	default:
-		return true
+		return false
 	}
 }
 
@@ -144,7 +150,14 @@ func (d *dataSet) GetDeployment(replica metav1.Object) (metav1.Object, bool, err
 		}
 		return deploymentConfig, exists, err
 	case *kappsv1.ReplicaSet:
-		name := appsutil.DeploymentNameFor(v)
+		var name string
+		for _, owner := range v.OwnerReferences {
+			if owner.Kind == "Deployment" {
+				name = owner.Name
+				break
+			}
+		}
+
 		if len(name) == 0 {
 			return nil, false, nil
 		}
@@ -213,8 +226,14 @@ func (d *dataSet) ListReplicasByDeployment(deployment metav1.Object) ([]metav1.O
 	case *kappsv1.Deployment:
 		key := &kappsv1.ReplicaSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   v.Namespace,
-				Annotations: map[string]string{appsv1.DeploymentAnnotation: v.Name},
+				Namespace: v.Namespace,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       v.Name,
+					},
+				},
 			},
 		}
 
