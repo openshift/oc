@@ -57,9 +57,14 @@ func mockReplicaSet(namespace, name string, deployment metav1.Object) *kappsv1.R
 		Spec:       kappsv1.ReplicaSetSpec{Replicas: &zero},
 	}
 	if deployment != nil {
-		item.Annotations[appsv1.DeploymentAnnotation] = deployment.GetName()
+		item.OwnerReferences = []metav1.OwnerReference{
+			{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       deployment.GetName(),
+			},
+		}
 	}
-	item.Annotations[appsv1.DeploymentStatusAnnotation] = string(appsv1.DeploymentStatusNew)
 	return item
 }
 
@@ -159,7 +164,10 @@ func TestPopulatedDataSet(t *testing.T) {
 		case *corev1.ReplicationController:
 			config, hasConfig = replica.GetAnnotations()[appsv1.DeploymentConfigAnnotation]
 		case *kappsv1.ReplicaSet:
-			config, hasConfig = replica.GetAnnotations()[appsv1.DeploymentAnnotation]
+			hasConfig = len(replica.GetOwnerReferences()) > 0
+			if hasConfig {
+				config = replica.GetOwnerReferences()[0].Name
+			}
 		}
 		if hasConfig {
 			if err != nil {

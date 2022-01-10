@@ -121,15 +121,19 @@ func (o *perDeploymentResolver) Resolve() ([]metav1.Object, error) {
 			return nil, err
 		}
 
+		sort.Sort(ByMostRecent(replicas))
+
 		completeDeployments, failedDeployments := []metav1.Object{}, []metav1.Object{}
-		for _, replica := range replicas {
+		for i, replica := range replicas {
 			var status appsv1.DeploymentStatus
 
 			switch v := replica.(type) {
 			case *corev1.ReplicationController:
 				status = appsutil.DeploymentStatusFor(v)
 			case *kappsv1.ReplicaSet:
-				status = appsutil.DeploymentStatusFor(v)
+				if v.Status.Replicas == 0 && i < len(replicas)-1 {
+					status = appsv1.DeploymentStatusComplete
+				}
 			}
 
 			if completeStates.Has(string(status)) {

@@ -167,7 +167,7 @@ func (o PruneDeploymentsOptions) Run() error {
 	}
 	replicas := []metav1.Object{}
 	for i := range replicationControllerList.Items {
-		replicas = append(deployments, &replicationControllerList.Items[i])
+		replicas = append(replicas, &replicationControllerList.Items[i])
 	}
 
 	if o.ReplicaSets {
@@ -177,7 +177,7 @@ func (o PruneDeploymentsOptions) Run() error {
 		}
 
 		for i := range replicaSetList.Items {
-			replicas = append(deployments, &replicaSetList.Items[i])
+			replicas = append(replicas, &replicaSetList.Items[i])
 		}
 	}
 
