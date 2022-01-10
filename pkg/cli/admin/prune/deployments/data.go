@@ -10,18 +10,18 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	appsv1 "github.com/openshift/api/apps/v1"
-	"github.com/openshift/library-go/pkg/apps/appsutil"
 )
 
 // ReplicaByDeploymentIndexFunc indexes Replica items by their associated Deployment, if none, index with key "orphan".
 func ReplicaByDeploymentIndexFunc(obj interface{}) ([]string, error) {
 	switch v := obj.(type) {
 	case *corev1.ReplicationController:
-		name := appsutil.DeploymentConfigNameFor(v)
-		if len(name) == 0 {
-			return []string{"orphan"}, nil
+		for _, owner := range v.OwnerReferences {
+			if owner.Kind == "DeploymentConfig" && len(owner.Name) > 0 {
+				return []string{v.Namespace + "/" + owner.Name}, nil
+			}
 		}
-		return []string{v.Namespace + "/" + name}, nil
+		return []string{"orphan"}, nil
 	case *kappsv1.ReplicaSet:
 		for _, owner := range v.OwnerReferences {
 			if owner.Kind == "Deployment" && len(owner.Name) > 0 {
@@ -75,7 +75,12 @@ func NewFilterBeforePredicate(d time.Duration) FilterPredicate {
 func FilterDeploymentsPredicate(item metav1.Object) bool {
 	switch v := item.(type) {
 	case *corev1.ReplicationController:
-		return len(appsutil.DeploymentConfigNameFor(v)) > 0
+		for _, owner := range v.OwnerReferences {
+			if owner.Kind == "DeploymentConfig" && len(owner.Name) > 0 {
+				return true
+			}
+		}
+		return false
 	case *kappsv1.ReplicaSet:
 		for _, owner := range v.OwnerReferences {
 			if owner.Kind == "Deployment" && len(owner.Name) > 0 {
@@ -137,7 +142,14 @@ func NewDataSet(deployments []metav1.Object, replicas []metav1.Object) DataSet {
 func (d *dataSet) GetDeployment(replica metav1.Object) (metav1.Object, bool, error) {
 	switch v := replica.(type) {
 	case *corev1.ReplicationController:
-		name := appsutil.DeploymentConfigNameFor(v)
+		var name string
+		for _, owner := range v.OwnerReferences {
+			if owner.Kind == "DeploymentConfig" {
+				name = owner.Name
+				break
+			}
+		}
+
 		if len(name) == 0 {
 			return nil, false, nil
 		}
@@ -212,6 +224,13 @@ func (d *dataSet) ListReplicasByDeployment(deployment metav1.Object) ([]metav1.O
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:   v.Namespace,
 				Annotations: map[string]string{appsv1.DeploymentConfigAnnotation: v.Name},
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion: "apps.openshift.io/v1",
+						Kind:       "DeploymentConfig",
+						Name:       v.Name,
+					},
+				},
 			},
 		}
 

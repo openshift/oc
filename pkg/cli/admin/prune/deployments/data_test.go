@@ -45,6 +45,16 @@ func mockReplicationController(namespace, name string, deploymentConfig metav1.O
 	}
 	if deploymentConfig != nil {
 		item.Annotations[appsv1.DeploymentConfigAnnotation] = deploymentConfig.GetName()
+
+		if deploymentConfig != nil {
+			item.OwnerReferences = []metav1.OwnerReference{
+				{
+					APIVersion: "apps.openshift.io/v1",
+					Kind:       "DeploymentConfig",
+					Name:       deploymentConfig.GetName(),
+				},
+			}
+		}
 	}
 	item.Annotations[appsv1.DeploymentStatusAnnotation] = string(appsv1.DeploymentStatusNew)
 	return item
