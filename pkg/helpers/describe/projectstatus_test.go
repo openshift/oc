@@ -215,7 +215,7 @@ func TestProjectStatus(t *testing.T) {
 				"In project example on server https://example.com:8443\n",
 				"svc/sinatra-example-2 - 172.30.17.48:8080",
 				"deploys istag/sinatra-example-2:latest <-",
-				"builds git://github.com",
+				"builds https://github.com",
 				"on docker.io/centos/ruby-25-centos7:latest",
 				"not built yet",
 				"deployment #1 waiting on image or update",
@@ -275,7 +275,7 @@ func TestProjectStatus(t *testing.T) {
 			Contains: []string{
 				"In project example on server https://example.com:8443\n",
 				"svc/sinatra-example-1 - 172.30.17.47:8080",
-				"builds git://github.com",
+				"builds https://github.com",
 				"on docker.io/centos/ruby-25-centos7:latest",
 				"build #1 running for about a minute",
 				"deployment #1 waiting on image or update",
