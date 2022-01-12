@@ -561,6 +561,8 @@ func describeBuildVolumes(w *tabwriter.Writer, volumes []buildv1.BuildVolume) {
 			sourceName = v.Source.Secret.SecretName
 		case buildv1.BuildVolumeSourceTypeConfigMap:
 			sourceName = v.Source.ConfigMap.Name
+		case buildv1.BuildVolumeSourceTypeCSI:
+			sourceName = v.Name
 		default:
 			sourceName = fmt.Sprintf("<InvalidSourceType: %q>", v.Source.Type)
 		}
