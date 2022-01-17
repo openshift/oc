@@ -21,8 +21,8 @@ runtime layer.
 To build oc invoke `make oc`. At any time you can invoke `make help` and you'll
 get a list of all supported make sub-commands.
 
-In order to build `oc`, you will need the GSSAPI sources. On a Fedora/CentOS/RHEL
-workstation, install them with:
+In order to build `oc`, you will need Go 1.17 or above. Also, you will need the 
+GSSAPI sources. On a Fedora/CentOS/RHEL workstation, install them with:
 
 ```
 dnf install krb5-devel
