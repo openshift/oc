@@ -968,6 +968,10 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 			// TODO: allow --as-root=false to skip all the namespaces except network
 			return nil, fmt.Errorf("can't debug nodes without running as the root user")
 		}
+		if t.Labels["kubernetes.io/os"] == "windows" {
+			// Windows nodes don't yet support privileged containers, which is required for debug
+			return nil, fmt.Errorf("can't debug Windows nodes")
+		}
 		image := o.Image
 		if len(o.Image) == 0 {
 			imageStream := o.ImageStream
