@@ -60,11 +60,15 @@ func NewPruner(options PrunerOptions) Pruner {
 
 	filter := &andFilter{
 		filterPredicates: []FilterPredicate{
-			FilterDeploymentsPredicate,
 			FilterZeroReplicaSize,
 			NewFilterBeforePredicate(options.KeepYoungerThan),
 		},
 	}
+
+	if !options.Orphans {
+		filter.filterPredicates = append(filter.filterPredicates, FilterDeploymentsPredicate)
+	}
+
 	replicas := filter.Filter(options.Replicas)
 	dataSet := NewDataSet(options.Deployments, replicas)
 

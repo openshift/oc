@@ -61,7 +61,8 @@ func TestPruneTask(t *testing.T) {
 			replicas := []metav1.Object{}
 
 			deploymentConfig := mockDeploymentConfig("a", "deployment-config")
-			deployments = append(deployments, deploymentConfig)
+			deployment := mockDeployment("b", "deployment")
+			deployments = append(deployments, deploymentConfig, deployment)
 
 			replicas = append(replicas, withCreated(withStatus(mockReplicationController("a", "build-1", deploymentConfig), deploymentStatusOption), now))
 			replicas = append(replicas, withCreated(withStatus(mockReplicationController("a", "build-2", deploymentConfig), deploymentStatusOption), old))
@@ -69,17 +70,27 @@ func TestPruneTask(t *testing.T) {
 			replicas = append(replicas, withCreated(withStatus(mockReplicationController("a", "orphan-build-1", nil), deploymentStatusOption), now))
 			replicas = append(replicas, withCreated(withStatus(mockReplicationController("a", "orphan-build-2", nil), deploymentStatusOption), old))
 			replicas = append(replicas, withSize(withCreated(withStatus(mockReplicationController("a", "orphan-build-3-with-replicas", nil), deploymentStatusOption), old), 4))
+			replicas = append(replicas, mockReplicaSet("b", "rs1", deployment))
+			replicas = append(replicas, mockReplicaSet("b", "orphan-rs1", nil))
 
 			keepComplete := 1
 			keepFailed := 1
 			expectedValues := sets.String{}
 			filter := &andFilter{
 				filterPredicates: []FilterPredicate{
-					FilterDeploymentsPredicate,
 					FilterZeroReplicaSize,
 					NewFilterBeforePredicate(keepYoungerThan),
 				},
 			}
+
+			if !orphans {
+				for i := 0; i < len(replicas)-1; i++ {
+					if len(replicas[i].GetOwnerReferences()) == 0 {
+						replicas = append(replicas[:i], replicas[i+1:]...)
+					}
+				}
+			}
+
 			dataSet := NewDataSet(deployments, filter.Filter(replicas))
 			resolver := NewPerDeploymentResolver(dataSet, keepComplete, keepFailed)
 			if orphans {
@@ -103,6 +114,7 @@ func TestPruneTask(t *testing.T) {
 				KeepComplete:    keepComplete,
 				KeepFailed:      keepFailed,
 				Deployments:     deployments,
+				Replicas:        replicas,
 				ReplicaSets:     true,
 			}
 			pruner := NewPruner(options)

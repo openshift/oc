@@ -123,8 +123,6 @@ func (o *perDeploymentResolver) Resolve() ([]metav1.Object, error) {
 			return nil, err
 		}
 
-		sort.Sort(ByMostRecent(replicas))
-
 		completeDeployments, failedDeployments := []metav1.Object{}, []metav1.Object{}
 		for _, replica := range replicas {
 			var status appsv1.DeploymentStatus
