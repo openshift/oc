@@ -261,21 +261,23 @@ func TestGetRegistryMapping(t *testing.T) {
 
 func TestGenerateICSP(t *testing.T) {
 	type args struct {
-		name    string
-		scope   string
-		mapping map[string]string
+		name          string
+		scope         string
+		mapping       map[string]string
+		icspByteLimit int
 	}
 	tests := []struct {
 		name    string
 		args    args
 		want    []byte
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "src is tagged - skip mirror",
 			args: args{
-				name:    "catalog",
-				mapping: map[string]string{},
+				name:          "catalog",
+				mapping:       map[string]string{},
+				icspByteLimit: maxICSPSize,
 			},
 			want: []byte(
 				`apiVersion: operator.openshift.io/v1alpha1
@@ -292,9 +294,10 @@ spec:
 		{
 			name: "src is tagged and icsp with registy scope - skip mirror",
 			args: args{
-				name:    "catalog",
-				scope:   "registry",
-				mapping: map[string]string{},
+				name:          "catalog",
+				scope:         "registry",
+				mapping:       map[string]string{},
+				icspByteLimit: maxICSPSize,
 			},
 			want: []byte(
 				`apiVersion: operator.openshift.io/v1alpha1
@@ -311,8 +314,9 @@ spec:
 		{
 			name: "src has digest",
 			args: args{
-				name:    "catalog",
-				mapping: map[string]string{"docker.io/strimzi/operator": "quay.io/olmtest/strimzi-operator"},
+				name:          "catalog",
+				mapping:       map[string]string{"docker.io/strimzi/operator": "quay.io/olmtest/strimzi-operator"},
+				icspByteLimit: maxICSPSize,
 			},
 			want: []byte(
 				`apiVersion: operator.openshift.io/v1alpha1
@@ -332,9 +336,10 @@ spec:
 		{
 			name: "src has digest and icsp with registry scope",
 			args: args{
-				name:    "catalog",
-				scope:   "registry",
-				mapping: map[string]string{"docker.io": "quay.io"},
+				name:          "catalog",
+				scope:         "registry",
+				mapping:       map[string]string{"docker.io": "quay.io"},
+				icspByteLimit: maxICSPSize,
 			},
 			want: []byte(
 				`apiVersion: operator.openshift.io/v1alpha1
@@ -354,8 +359,9 @@ spec:
 		{
 			name: "multiple",
 			args: args{
-				name:    "catalog",
-				mapping: map[string]string{"docker.io/strimzi/operator": "quay.io/olmtest/strimzi-operator"},
+				name:          "catalog",
+				mapping:       map[string]string{"docker.io/strimzi/operator": "quay.io/olmtest/strimzi-operator"},
+				icspByteLimit: maxICSPSize,
 			},
 			want: []byte(
 				`apiVersion: operator.openshift.io/v1alpha1
@@ -375,9 +381,10 @@ spec:
 		{
 			name: "multiple with icsp registry scope",
 			args: args{
-				name:    "catalog",
-				scope:   "registry",
-				mapping: map[string]string{"docker.io": "quay.io"},
+				name:          "catalog",
+				scope:         "registry",
+				mapping:       map[string]string{"docker.io": "quay.io"},
+				icspByteLimit: maxICSPSize,
 			},
 			want: []byte(
 				`apiVersion: operator.openshift.io/v1alpha1
@@ -394,13 +401,25 @@ spec:
 `,
 			),
 		},
+		{
+			name: "icsp byte limit set to 0",
+			args: args{
+				name:          "catalog",
+				scope:         "registry",
+				mapping:       map[string]string{"docker.io": "quay.io"},
+				icspByteLimit: 0,
+			},
+			wantErr: fmt.Errorf("unable to add mirror {docker.io [quay.io]} to ICSP with the max-icsp-size set to 0"),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := generateICSP(os.Stdout, tt.args.name, 99999999, tt.args.mapping)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("generateICSP() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			got, err := generateICSP(os.Stdout, tt.args.name, tt.args.icspByteLimit, tt.args.mapping)
+			if tt.wantErr != nil {
+				if err == nil || err.Error() != tt.wantErr.Error() {
+					t.Errorf("generateICSP() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("generateICSP() got = %v, want %v, diff = %v", string(got), string(tt.want), cmp.Diff(got, tt.want))

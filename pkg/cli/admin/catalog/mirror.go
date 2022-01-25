@@ -93,6 +93,9 @@ var (
 const (
 	DatabaseLocationLabelKey = "operators.operatorframework.io.index.database.v1"
 	ConfigsLocationLabelKey  = "operators.operatorframework.io.index.configs.v1"
+	IndexLocationLabelKey    = "operators.operatorframework.io.index.database.v1"
+	minICSPSize              = 0
+	maxICSPSize              = 250000
 )
 
 func init() {
@@ -168,7 +171,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	flags.StringVar(&o.FromFileDir, "from-dir", o.FromFileDir, "The directory on disk that file:// images will be read from. Overrides --dir")
 	flags.IntVar(&o.MaxPathComponents, "max-components", 2, "The maximum number of path components allowed in a destination mapping. Example: `quay.io/org/repo` has two path components.")
 	flags.StringVar(&o.IcspScope, "icsp-scope", o.IcspScope, "Scope of registry mirrors in imagecontentsourcepolicy file. Allowed values: repository, registry. Defaults to: repository")
-	flags.IntVar(&o.MaxICSPSize, "max-icsp-size", 250000, "The maximum number of bytes for the generated ICSP yaml(s). Defaults to 250000")
+	flags.IntVar(&o.MaxICSPSize, "max-icsp-size", maxICSPSize, "The maximum number of bytes for the generated ICSP yaml(s). Defaults to 250000")
 	return cmd
 }
 
@@ -527,6 +530,9 @@ func (o *MirrorCatalogOptions) Validate() error {
 	default:
 		return fmt.Errorf("invalid icsp-scope %s", o.IcspScope)
 	}
+	if o.MaxICSPSize <= minICSPSize || o.MaxICSPSize > maxICSPSize {
+		return fmt.Errorf("provided max-icsp-size of %d must be greater than %d and less than or equal to %d", o.MaxICSPSize, minICSPSize, maxICSPSize)
+	}
 	return nil
 }
 
@@ -689,20 +695,22 @@ func generateICSP(out io.Writer, name string, byteLimit int, registryMapping map
 	}
 
 	for key := range registryMapping {
-		icsp.Spec.RepositoryDigestMirrors = append(icsp.Spec.RepositoryDigestMirrors, operatorv1alpha1.RepositoryDigestMirrors{
+		repositoryDigestMirror := operatorv1alpha1.RepositoryDigestMirrors{
 			Source:  key,
 			Mirrors: []string{registryMapping[key]},
-		})
+		}
+		icsp.Spec.RepositoryDigestMirrors = append(icsp.Spec.RepositoryDigestMirrors, repositoryDigestMirror)
 		y, err := yaml.Marshal(icsp)
 		if err != nil {
 			return nil, fmt.Errorf("unable to marshal ImageContentSourcePolicy yaml: %v", err)
 		}
 
 		if len(y) > byteLimit {
-			if lenMirrors := len(icsp.Spec.RepositoryDigestMirrors); lenMirrors > 0 {
+			if lenMirrors := len(icsp.Spec.RepositoryDigestMirrors); lenMirrors > 1 {
 				icsp.Spec.RepositoryDigestMirrors = icsp.Spec.RepositoryDigestMirrors[:lenMirrors-1]
+				break
 			}
-			break
+			return nil, fmt.Errorf("unable to add mirror %v to ICSP with the max-icsp-size set to %d", repositoryDigestMirror, byteLimit)
 		}
 		delete(registryMapping, key)
 	}
