@@ -28,10 +28,10 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
-	github.com/openshift/api v0.0.0-20211222145011-3bf13cf5081a
-	github.com/openshift/build-machinery-go v0.0.0-20211213093930-7e33a7eb4ce3
+	github.com/openshift/api v0.0.0-20220124143425-d74727069f6f
+	github.com/openshift/build-machinery-go v0.0.0-20220121085309-f94edc2d6874
 	github.com/openshift/client-go v0.0.0-20211209144617-7385dd6338e3
-	github.com/openshift/library-go v0.0.0-20211209153216-ed9bc958bd8a
+	github.com/openshift/library-go v0.0.0-20220124121022-2bc87c4fc9dd
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/russross/blackfriday v1.5.2
@@ -43,14 +43,14 @@ require (
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	gopkg.in/ldap.v2 v2.5.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	k8s.io/api v0.23.1
-	k8s.io/apimachinery v0.23.1
-	k8s.io/apiserver v0.23.0
-	k8s.io/cli-runtime v0.23.0
-	k8s.io/client-go v0.23.0
-	k8s.io/component-base v0.23.0
+	k8s.io/api v0.23.2
+	k8s.io/apimachinery v0.23.2
+	k8s.io/apiserver v0.23.2
+	k8s.io/cli-runtime v0.23.2
+	k8s.io/client-go v0.23.2
+	k8s.io/component-base v0.23.2
 	k8s.io/klog/v2 v2.40.1
-	k8s.io/kubectl v0.23.0
+	k8s.io/kubectl v0.23.2
 	k8s.io/utils v0.0.0-20211208161948-7d6a63dca704
 	sigs.k8s.io/yaml v1.2.0
 )
@@ -173,11 +173,11 @@ require (
 	sigs.k8s.io/kustomize/api v0.10.1 // indirect
 	sigs.k8s.io/kustomize/kustomize/v4 v4.4.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 )
 
 replace (
 	github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20211209151317-e6fb6de9735e
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20211216124125-fc0f9e6f591f
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20220124124213-df787b5b471c
 )

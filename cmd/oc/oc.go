@@ -11,8 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	k8scli "k8s.io/component-base/cli"
+	kcli "k8s.io/component-base/cli"
 	"k8s.io/component-base/logs"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/api/apps"
@@ -75,8 +76,10 @@ func main() {
 	command := cli.CommandFor(basename)
 	logs.AddFlags(command.PersistentFlags())
 	injectLoglevelFlag(command.PersistentFlags())
-	code := k8scli.Run(command)
-	os.Exit(code)
+	if err := kcli.RunNoErrOutput(command); err != nil {
+		// Pretty-print the error and exit with an error.
+		kcmdutil.CheckErr(err)
+	}
 }
 
 func installNonCRDSecurity(scheme *apimachineryruntime.Scheme) error {
