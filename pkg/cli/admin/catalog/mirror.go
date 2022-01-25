@@ -474,10 +474,14 @@ type declcfgRelatedImage struct {
 
 type declcfgRelatedImagesParser struct{}
 
+const (
+	indexIgnoreFilename = ".indexignore"
+)
+
 func (_ declcfgRelatedImagesParser) Parse(root string) (map[string]struct{}, error) {
 	rootFS := os.DirFS(root)
 
-	matcher, err := ignore.NewMatcher(rootFS, ".indexignore")
+	matcher, err := ignore.NewMatcher(rootFS, indexIgnoreFilename)
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +491,7 @@ func (_ declcfgRelatedImagesParser) Parse(root string) (map[string]struct{}, err
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() || matcher.Match(path, false) {
+		if entry.IsDir() || entry.Name() == indexIgnoreFilename || matcher.Match(path, false) {
 			return nil
 		}
 		f, err := rootFS.Open(path)
