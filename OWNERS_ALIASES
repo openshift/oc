@@ -16,8 +16,14 @@ aliases:
     - wking
   catalog-approvers:
     - kevinrizza
+    - awgreene
+    - perdasilva
+    - joelanford
   catalog-reviewers:
     - kevinrizza
+    - awgreene
+    - perdasilva
+    - joelanford
   build-reviewers:
     - adambkaplan
     - gabemontero
