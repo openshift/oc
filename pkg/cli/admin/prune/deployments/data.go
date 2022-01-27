@@ -93,6 +93,16 @@ func FilterDeploymentsPredicate(item metav1.Object) bool {
 	}
 }
 
+// FilterReplicaSets is a function that returns false if the item is a replicaset.
+func FilterReplicaSets(item metav1.Object) bool {
+	switch item.(type) {
+	case *kappsv1.ReplicaSet:
+		return false
+	default:
+		return true
+	}
+}
+
 // FilterZeroReplicaSize is a function that returns true if the replication controller or replicaset size is 0.
 func FilterZeroReplicaSize(item metav1.Object) bool {
 	switch v := item.(type) {
