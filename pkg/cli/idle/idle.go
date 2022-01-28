@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	kappsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -268,6 +269,9 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 		}
 		// just get the unversioned version of this
 		gk := schema.GroupKind{Group: gv.Group, Kind: ref.Kind}
+		if kappsv1.SchemeGroupVersion.WithKind("StatefulSet").GroupKind() == gk {
+			return nil, fmt.Errorf("idling StatefulSet is not supported yet.")
+		}
 		helper, ok := helpers[gk]
 		if !ok {
 			var mapping *meta.RESTMapping
@@ -427,7 +431,7 @@ func findScalableResourcesForEndpoints(endpoints *corev1.Endpoints, getPod func(
 	controllerRefs := make(map[namespacedCrossGroupObjectReference]struct{})
 	for controllerRef := range immediateControllerRefs {
 		controller, err := getController(controllerRef)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && !errors.IsNotFound(err) {
 			return nil, fmt.Errorf("unable to load %s %q: %v", controllerRef.Kind, controllerRef.Name, err)
 		}
 
