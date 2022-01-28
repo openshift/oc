@@ -184,6 +184,7 @@ func (o PruneDeploymentsOptions) Run() error {
 	options := PrunerOptions{
 		KeepYoungerThan: o.KeepYoungerThan,
 		Orphans:         o.Orphans,
+		ReplicaSets:     o.ReplicaSets,
 		KeepComplete:    o.KeepComplete,
 		KeepFailed:      o.KeepFailed,
 		Deployments:     deployments,

@@ -21,14 +21,21 @@ func mockDeployment(namespace, name string) *kappsv1.Deployment {
 	return &kappsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 }
 
-func withSize(item *corev1.ReplicationController, replicas int32) *corev1.ReplicationController {
-	item.Spec.Replicas = &replicas
-	item.Status.Replicas = int32(replicas)
+func withSize(item metav1.Object, replicas int32) metav1.Object {
+	switch v := item.(type) {
+	case *corev1.ReplicationController:
+		v.Spec.Replicas = &replicas
+		v.Status.Replicas = replicas
+	case *kappsv1.ReplicaSet:
+		v.Spec.Replicas = &replicas
+		v.Status.Replicas = replicas
+	}
+
 	return item
 }
 
-func withCreated(item *corev1.ReplicationController, creationTimestamp metav1.Time) *corev1.ReplicationController {
-	item.CreationTimestamp = creationTimestamp
+func withCreated(item metav1.Object, creationTimestamp metav1.Time) metav1.Object {
+	item.SetCreationTimestamp(creationTimestamp)
 	return item
 }
 
