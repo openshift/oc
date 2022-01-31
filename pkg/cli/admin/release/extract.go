@@ -42,6 +42,7 @@ var (
 		"azure":        "AzureProviderSpec",
 		"gcp":          "GCPProviderSpec",
 		"ibmcloud":     "IBMCloudProviderSpec",
+		"nutanix":      "NutanixProviderSpec",
 		"openstack":    "OpenStackProviderSpec",
 		"ovirt":        "OvirtProviderSpec",
 		"powervs":      "IBMCloudPowerVSProviderSpec",
@@ -83,7 +84,7 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 
 			The --credentials-requests flag filters extracted manifests to only cloud credential
 			requests. The --cloud flag further filters credential requests to a specific cloud.
-			Valid values for --cloud include alibabacloud, aws, azure, gcp, ibmcloud, openstack, ovirt, powervs, and vsphere.
+			Valid values for --cloud include alibabacloud, aws, azure, gcp, ibmcloud, nutanix, openstack, ovirt, powervs, and vsphere.
 
 			Instead of extracting the manifests, you can specify --git=DIR to perform a Git
 			checkout of the source code that comprises the release. A warning will be printed
