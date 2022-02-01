@@ -982,6 +982,12 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 								MountPath: "/host",
 							},
 						},
+						Env: []corev1.EnvVar{
+							{
+								Name:  "TMOUT",
+								Value: "900",
+							},
+						},
 					},
 				},
 			},
