@@ -304,7 +304,7 @@ func (o *Options) Run() error {
 			c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates)
 
 			toImageOption := "--to-image"
-			if o.ToImage == "" {
+			if o.ToImage != "" {
 				toImageOption = "--allow-explicit-upgrade"
 			}
 			nextStep := fmt.Sprintf("%s to continue with the update", toImageOption)
