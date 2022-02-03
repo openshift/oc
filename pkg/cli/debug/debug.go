@@ -1028,6 +1028,7 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 						},
 						Env: []corev1.EnvVar{
 							{
+								// Set the Shell variable to auto-logout after 15m idle timeout
 								Name:  "TMOUT",
 								Value: "900",
 							},
