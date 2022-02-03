@@ -1341,6 +1341,10 @@ func modifyRoleAndCheck(t *testing.T, o *RoleModificationOptions, tcName, action
 	}
 
 	roleBindings, err := getRoleBindingAbstractionsList(o.RbacClient, o.RoleBindingNamespace)
+	if err != nil {
+		t.Errorf("%s: err fetching roleBindingAbstractionsList %v", tcName, err)
+	}
+
 	foundBindings := make([]string, len(expectedBindings))
 	for _, roleBinding := range roleBindings {
 		var foundBinding string
