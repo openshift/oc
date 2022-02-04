@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -169,6 +170,13 @@ func (o *InspectOptions) Complete(args []string) error {
 	printer, err := o.printFlags.ToPrinter()
 	if err != nil {
 		return err
+	}
+	// TODO (soltysh) change this to set WithManagedFields in PrintFlags creation
+	// above when https://github.com/kubernetes/kubernetes/pull/107947 merges
+	if tsp, ok := printer.(*printers.TypeSetterPrinter); ok {
+		if omp, ok := tsp.Delegate.(*printers.OmitManagedFieldsPrinter); ok {
+			printer = &printers.TypeSetterPrinter{Typer: scheme.Scheme, Delegate: omp.Delegate}
+		}
 	}
 	o.fileWriter = NewMultiSourceWriter(printer)
 	o.podUrlGetter = &PortForwardURLGetter{
