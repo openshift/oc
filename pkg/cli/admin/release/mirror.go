@@ -64,6 +64,7 @@ const signatureFileNameFmt = "signature-%s-%s.yaml"
 // archMap maps Go architecture strings to OpenShift supported values for any that differ.
 var archMap = map[string]string{
 	"amd64": "x86_64",
+	"arm64": "aarch64",
 }
 
 // NewMirrorOptions creates the options for mirroring a release.
