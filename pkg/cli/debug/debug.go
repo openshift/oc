@@ -78,7 +78,7 @@ var (
 
 		The default mode is to start a shell inside of the first container of the referenced pod.
 		The started pod will be a copy of your source pod, with labels stripped, the command
-		changed to '/bin/sh' for Linux containers or 'cmd.exe' for Windows containers, 
+		changed to '/bin/sh' for Linux containers or 'cmd.exe' for Windows containers,
 		and readiness and liveness checks disabled. If you just want to run
 		a command, add '--' and a command to run. Passing a command will not create a TTY or send
 		STDIN by default. Other flags are supported for altering the container or pod in common ways.
@@ -1143,7 +1143,7 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	}
 
-	return nil, fmt.Errorf("unable to extract pod template from type %v", reflect.TypeOf(object))
+	return nil, fmt.Errorf("%v is not supported by debug", reflect.TypeOf(object))
 }
 
 func (o *DebugOptions) getLogs(pod *corev1.Pod) error {
