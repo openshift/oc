@@ -124,6 +124,7 @@ type VolumeOptions struct {
 	Args           []string
 	Printer        printers.ResourcePrinter
 	DryRunStrategy kcmdutil.DryRunStrategy
+	FieldManager   string
 
 	// Add op params
 	AddOpts *AddVolumeOptions
@@ -208,6 +209,7 @@ func NewCmdVolume(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
+	kcmdutil.AddFieldManagerFlagVar(cmd, &o.FieldManager, "kubectl-set")
 
 	return cmd
 }
@@ -243,6 +245,10 @@ func (o *VolumeOptions) Validate() error {
 	if o.Remove && len(o.Name) == 0 && !o.Confirm {
 		return errors.New("must provide --confirm for removing more than one volume")
 	}
+	if o.Local && o.DryRunStrategy == kcmdutil.DryRunServer {
+		return fmt.Errorf("cannot specify --local and --dry-run=server - did you mean --dry-run=client?")
+	}
+
 	return nil
 }
 
@@ -500,9 +506,15 @@ func (o *VolumeOptions) RunVolume() error {
 	for _, info := range updateInfos {
 		var obj runtime.Object
 		if len(info.ResourceVersion) == 0 {
-			obj, err = resource.NewHelper(info.Client, info.Mapping).Create(info.Namespace, false, info.Object)
+			obj, err = resource.NewHelper(info.Client, info.Mapping).
+				DryRun(o.DryRunStrategy == kcmdutil.DryRunServer).
+				WithFieldManager(o.FieldManager).
+				Create(info.Namespace, false, info.Object)
 		} else {
-			obj, err = resource.NewHelper(info.Client, info.Mapping).Replace(info.Namespace, info.Name, true, info.Object)
+			obj, err = resource.NewHelper(info.Client, info.Mapping).
+				DryRun(o.DryRunStrategy == kcmdutil.DryRunServer).
+				WithFieldManager(o.FieldManager).
+				Replace(info.Namespace, info.Name, true, info.Object)
 		}
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch volume update to pod template: %v\n", err))
@@ -523,7 +535,10 @@ func (o *VolumeOptions) RunVolume() error {
 			continue
 		}
 
-		actual, err := resource.NewHelper(info.Client, info.Mapping).Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patch.Patch, &metav1.PatchOptions{})
+		actual, err := resource.NewHelper(info.Client, info.Mapping).
+			DryRun(o.DryRunStrategy == kcmdutil.DryRunServer).
+			WithFieldManager(o.FieldManager).
+			Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patch.Patch, &metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to patch volume update to pod template: %v\n", err))
 			continue

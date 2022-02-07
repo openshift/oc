@@ -1,7 +1,6 @@
 package set
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -96,6 +95,7 @@ type EnvOptions struct {
 	Local          bool
 	Overwrite      bool
 	DryRunStrategy kcmdutil.DryRunStrategy
+	FieldManager   string
 
 	ResourceVersion   string
 	ContainerSelector string
@@ -137,6 +137,7 @@ func NewCmdEnv(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 		Example: envExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.RunEnv())
 		},
 	}
@@ -155,6 +156,7 @@ func NewCmdEnv(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 	cmd.Flags().StringVar(&o.ResourceVersion, "resource-version", o.ResourceVersion, "If non-empty, the labels update will only succeed if this is the current resource-version for the object. Only valid when specifying a single resource.")
 
 	kcmdutil.AddDryRunFlag(cmd)
+	kcmdutil.AddFieldManagerFlagVar(cmd, &o.FieldManager, "kubectl-set")
 	o.PrintFlags.AddFlags(cmd)
 
 	return cmd
@@ -221,8 +223,15 @@ func (o *EnvOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 		return err
 	}
 
+	return nil
+}
+
+func (o *EnvOptions) Validate() error {
 	if o.List && o.PrintFlags.OutputFormat != nil && len(*o.PrintFlags.OutputFormat) > 0 {
-		return kcmdutil.UsageErrorf(cmd, "--list and --output may not be specified together")
+		return fmt.Errorf("--list and --output may not be specified together")
+	}
+	if o.Local && o.DryRunStrategy == kcmdutil.DryRunServer {
+		return fmt.Errorf("cannot specify --local and --dry-run=server - did you mean --dry-run=client?")
 	}
 
 	cmdutil.WarnAboutCommaSeparation(o.ErrOut, o.EnvParams, "--env")
@@ -484,7 +493,10 @@ updates:
 			continue
 		}
 
-		actual, err := o.Client.Resource(info.Mapping.Resource).Namespace(info.Namespace).Patch(context.TODO(), info.Name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		actual, err := resource.NewHelper(info.Client, info.Mapping).
+			DryRun(o.DryRunStrategy == kcmdutil.DryRunServer).
+			WithFieldManager(o.FieldManager).
+			Patch(info.Namespace, info.Name, types.StrategicMergePatchType, patchBytes, &metav1.PatchOptions{})
 		if err != nil {
 			allErrs = append(allErrs, fmt.Errorf("failed to set env: %v\n", err))
 			continue
