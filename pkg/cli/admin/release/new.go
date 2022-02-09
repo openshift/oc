@@ -38,6 +38,7 @@ import (
 	imageapi "github.com/openshift/api/image/v1"
 	imageclient "github.com/openshift/client-go/image/clientset/versioned"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
+	"github.com/openshift/library-go/pkg/image/imageutil"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	imageappend "github.com/openshift/oc/pkg/cli/image/append"
 	"github.com/openshift/oc/pkg/cli/image/extract"
@@ -286,35 +287,6 @@ type imageData struct {
 	Digest        digest.Digest
 	ContentDigest digest.Digest
 	Directory     string
-}
-
-func findStatusTagEvents(tags []imageapi.NamedTagEventList, name string) *imageapi.NamedTagEventList {
-	for i := range tags {
-		tag := &tags[i]
-		if tag.Tag != name {
-			continue
-		}
-		return tag
-	}
-	return nil
-}
-
-func findStatusTagEvent(tags []imageapi.NamedTagEventList, name string) *imageapi.TagEvent {
-	events := findStatusTagEvents(tags, name)
-	if events == nil || len(events.Items) == 0 {
-		return nil
-	}
-	return &events.Items[0]
-}
-
-func findSpecTag(tags []imageapi.TagReference, name string) *imageapi.TagReference {
-	for i, tag := range tags {
-		if tag.Name != name {
-			continue
-		}
-		return &tags[i]
-	}
-	return nil
 }
 
 type CincinnatiMetadata struct {
@@ -810,11 +782,11 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 				continue
 			}
 
-			statusRef := findStatusTagEvents(inputIS.Status.Tags, ref.Name)
+			statusRef, refOk := imageutil.StatusHasTag(inputIS, ref.Name)
 
 			if ref.Generation != nil {
 				generation := *ref.Generation
-				if statusRef != nil && len(statusRef.Items) > 0 {
+				if refOk && len(statusRef.Items) > 0 {
 					newest := statusRef.Items[0]
 					// spec tags that are waiting for import should prevent release building,
 					if generation > newest.Generation {
@@ -845,7 +817,7 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 					covered.Insert(ref.Name)
 
 				case len(from.Tag) > 0:
-					if statusRef == nil {
+					if !refOk {
 						klog.V(2).Infof("Can't use spec tag %q because the image has not been imported and all we have is a tag", ref.Name)
 						continue
 					}
