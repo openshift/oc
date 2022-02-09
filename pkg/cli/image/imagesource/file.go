@@ -2,7 +2,6 @@ package imagesource
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,8 +14,8 @@ import (
 
 	"k8s.io/klog/v2"
 
+	man "github.com/containers/image/v5/manifest"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/reference"
 	"github.com/opencontainers/go-digest"
 	godigest "github.com/opencontainers/go-digest"
@@ -170,12 +169,7 @@ func (s *fileManifestService) Get(ctx context.Context, dgst godigest.Digest, opt
 		return nil, err
 	}
 
-	var versioned manifest.Versioned
-	if err = json.Unmarshal(data, &versioned); err != nil {
-		return nil, err
-	}
-
-	manifest, desc, err := distribution.UnmarshalManifest(versioned.MediaType, data)
+	manifest, desc, err := distribution.UnmarshalManifest(man.GuessMIMEType(data), data)
 	if err != nil {
 		return nil, err
 	}
