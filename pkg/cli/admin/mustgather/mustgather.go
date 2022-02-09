@@ -703,6 +703,9 @@ func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
 			TerminationGracePeriodSeconds: &zero,
 			Tolerations: []corev1.Toleration{
 				{
+					// An empty key with operator Exists matches all keys,
+					// values and effects which means this will tolerate everything.
+					// As noted in https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
 					Operator: "Exists",
 				},
 			},
