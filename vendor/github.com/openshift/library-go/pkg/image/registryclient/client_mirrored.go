@@ -64,6 +64,7 @@ type blobMirroredRepoRetriever interface {
 
 // repositoryLocator caches the components necessary to connect to a single image repository.
 type repositoryLocator struct {
+	// ref is the full image reference as it is provided by the client.
 	ref reference.DockerImageReference
 	// url may specify a default protocol (http) instead of (https), but is otherwise calculated
 	// by taking ref.Registry and applying it to url.Host
