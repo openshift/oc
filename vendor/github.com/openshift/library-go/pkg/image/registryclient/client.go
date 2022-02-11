@@ -237,11 +237,18 @@ func (c *Context) Repository(ctx context.Context, registry *url.URL, repoName st
 	if err != nil {
 		return nil, err
 	}
-	ref, err := imagereference.Parse(repoName)
+
+	registryName := registry.Host
+	if registryName == "registry-1.docker.io" {
+		registryName = "docker.io"
+	}
+	fullReference := fmt.Sprintf("%s/%s", registryName, repoName)
+
+	ref, err := imagereference.Parse(fullReference)
 	if err != nil {
 		return nil, err
 	}
-	ref.Registry = registry.Host
+
 	locator := repositoryLocator{
 		named: named,
 		ref:   ref,
