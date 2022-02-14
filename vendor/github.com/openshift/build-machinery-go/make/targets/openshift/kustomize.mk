@@ -12,8 +12,13 @@ ensure-kustomize:
 ifeq "" "$(wildcard $(KUSTOMIZE))"
 	$(info Installing kustomize into '$(KUSTOMIZE)')
 	mkdir -p '$(kustomize_dir)'
+	@# install_kustomize.sh lays down the binary as `kustomize`, and will
+	@# also fail if a file of that name already exists. Remove it for
+	@# backward compatibility (older b-m-gs used the raw file name).
+	rm -f $(kustomize_dir)/kustomize
 	@# NOTE: Pinning script to a tag rather than `master` for security reasons
 	curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/kustomize/v$(KUSTOMIZE_VERSION)/hack/install_kustomize.sh"  | bash -s $(KUSTOMIZE_VERSION) $(kustomize_dir)
+	mv $(kustomize_dir)/kustomize $(KUSTOMIZE)
 else
 	$(info Using existing kustomize from "$(KUSTOMIZE)")
 endif
