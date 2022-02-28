@@ -1,12 +1,16 @@
 package mustgather
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/diff"
 
@@ -103,5 +107,75 @@ func withTag(tag, reference string) func(*imagev1.ImageStream) *imagev1.ImageStr
 			Items: append([]imagev1.TagEvent{{DockerImageReference: reference}}),
 		})
 		return imageStream
+	}
+}
+
+func TestGetNamespace(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		Options          MustGatherOptions
+		ShouldBeRetained bool
+		ShouldFail       bool
+	}{
+		"no namespace given": {
+			Options: MustGatherOptions{
+				Client: fake.NewSimpleClientset(),
+			},
+			ShouldBeRetained: false,
+		},
+		"namespace given": {
+			Options: MustGatherOptions{
+				Client: fake.NewSimpleClientset(
+					&corev1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-namespace",
+						},
+					},
+				),
+				RunNamespace: "test-namespace",
+			},
+			ShouldBeRetained: true,
+		},
+		"namespace given, but does not exist": {
+			Options: MustGatherOptions{
+				Client:       fake.NewSimpleClientset(),
+				RunNamespace: "test-namespace",
+			},
+			ShouldBeRetained: true,
+			ShouldFail:       true,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tc.Options.PrinterCreated = printers.NewDiscardingPrinter()
+			tc.Options.PrinterDeleted = printers.NewDiscardingPrinter()
+
+			ns, cleanup, err := tc.Options.getNamespace()
+			if err != nil {
+				if tc.ShouldFail {
+					return
+				}
+
+				t.Fatal(err)
+			}
+
+			if _, err = tc.Options.Client.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{}); err != nil {
+				if !k8sapierrors.IsNotFound(err) {
+					t.Fatal(err)
+				}
+
+				t.Error("namespace should exist")
+			}
+
+			cleanup()
+
+			if _, err = tc.Options.Client.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{}); err != nil {
+				if !k8sapierrors.IsNotFound(err) {
+					t.Fatal(err)
+				} else if tc.ShouldBeRetained {
+					t.Error("namespace should still exist")
+				}
+			}
+		})
 	}
 }
