@@ -300,7 +300,7 @@ func (o *LoginOptions) Run() error {
 
 	if o.ConfigFile == "-" {
 		// TODO: deprecated, remove in 4.12
-		klog.Warningln("Support for stdout output is deprecated. The support will be removed in the future version.")
+		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for stdout output is deprecated. The support will be removed in the future version.\n")
 		authFilePath, err = createTmpAuthFile()
 		if err != nil {
 			return err
@@ -312,7 +312,7 @@ func (o *LoginOptions) Run() error {
 			}
 		}()
 	} else if o.ConfigFile != "" {
-		if err := ensureEmptyAuthFileInitialized(o.ConfigFile); err != nil {
+		if err := o.ensureEmptyAuthFileInitialized(o.ConfigFile); err != nil {
 			return err
 		}
 	}
@@ -334,24 +334,14 @@ func (o *LoginOptions) Run() error {
 	return nil
 }
 
-func createTmpAuthFile() (string, error) {
-	file, err := ioutil.TempFile("", "oc-tmp-file")
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-	_, err = file.WriteString("{}")
-	return file.Name(), nil
-}
-
-func ensureEmptyAuthFileInitialized(configFile string) error {
+func (o *LoginOptions) ensureEmptyAuthFileInitialized(configFile string) error {
 	fileInfo, err := os.Stat(configFile)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	if !os.IsNotExist(err) && fileInfo.Size() == 0 {
 		// TODO: deprecated, remove in 4.12
-		klog.Warningln("Support for empty registry config files is deprecated. The support will be removed in the future version.")
+		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for empty registry config files is deprecated. The support will be removed in the future version.\n")
 		file, err := os.OpenFile(configFile, os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
 			return err
@@ -363,4 +353,14 @@ func ensureEmptyAuthFileInitialized(configFile string) error {
 		}
 	}
 	return nil
+}
+
+func createTmpAuthFile() (string, error) {
+	file, err := ioutil.TempFile("", "oc-tmp-file")
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	_, err = file.WriteString("{}")
+	return file.Name(), nil
 }

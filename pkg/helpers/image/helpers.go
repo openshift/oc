@@ -1,11 +1,11 @@
 package image
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/klog/v2"
 
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -148,7 +148,7 @@ func GetRegistryAuthConfigPreference() RegistryAuthConfigPreference {
 		result = RegistryAuthConfigPreference(authPreference)
 	} else {
 		// TODO: remove once deprecated in 4.12
-		klog.Warningln("Defaulting of registry auth file to \"${HOME}/.docker/config.json\" is deprecated. The default will be switched to podman config locations in the future version.")
+		fmt.Fprintf(os.Stderr, "Warning: the default reading order of registry auth file will be changed from \"${HOME}/.docker/config.json\" to podman registry config locations in the future version. \"${HOME}/.docker/config.json\" is deprecated, but can still be used for storing credentials as a fallback. See https://github.com/containers/image/blob/main/docs/containers-auth.json.5.md for the order of podman registry config locations.\n")
 	}
 	return result
 }
