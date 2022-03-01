@@ -94,11 +94,11 @@ func TestValidate(t *testing.T) {
 		"components+source": {
 			cfg: AppConfig{
 				ComponentInputs: ComponentInputs{
-					Components: []string{"mysql+ruby~git://github.com/namespace/repo.git"},
+					Components: []string{"mysql+ruby~https://github.com/namespace/repo.git"},
 				},
 			},
 			componentValues:     []string{"mysql", "ruby"},
-			sourceRepoLocations: []string{"git://github.com/namespace/repo.git"},
+			sourceRepoLocations: []string{"https://github.com/namespace/repo.git"},
 			env:                 map[string]string{},
 			buildEnv:            map[string]string{},
 			parms:               map[string]string{},
