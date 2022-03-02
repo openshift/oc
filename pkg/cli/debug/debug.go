@@ -1139,6 +1139,8 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 		return setNodeName(&t.Spec.Template, o.NodeName, o.NodeNameSet), nil
 
 	// CronJob
+	case *batchv1.CronJob:
+		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	case *batchv1beta1.CronJob:
 		return setNodeName(&t.Spec.JobTemplate.Spec.Template, o.NodeName, o.NodeNameSet), nil
 	}
