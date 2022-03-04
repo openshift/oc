@@ -154,6 +154,7 @@ type DebugOptions struct {
 	KeepAnnotations    bool
 	KeepLiveness       bool
 	KeepReadiness      bool
+	KeepStartup        bool
 	KeepInitContainers bool
 	OneContainer       bool
 	NodeName           string
@@ -229,6 +230,7 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	cmd.Flags().BoolVar(&o.KeepLiveness, "keep-liveness", o.KeepLiveness, "If true, keep the original pod liveness probes")
 	cmd.Flags().BoolVar(&o.KeepInitContainers, "keep-init-containers", o.KeepInitContainers, "Run the init containers for the pod. Defaults to true.")
 	cmd.Flags().BoolVar(&o.KeepReadiness, "keep-readiness", o.KeepReadiness, "If true, keep the original pod readiness probes")
+	cmd.Flags().BoolVar(&o.KeepStartup, "keep-startup", o.KeepStartup, "If true, keep the original startup probes")
 	cmd.Flags().BoolVar(&o.OneContainer, "one-container", o.OneContainer, "If true, run only the selected container, remove all others")
 	cmd.Flags().StringVar(&o.NodeName, "node-name", o.NodeName, "Set a specific node to run on - by default the pod will run on any valid node")
 	cmd.Flags().BoolVar(&o.AsRoot, "as-root", o.AsRoot, "If true, try to run the container as the root user")
@@ -764,6 +766,9 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	}
 	if !o.KeepLiveness {
 		container.LivenessProbe = nil
+	}
+	if !o.KeepStartup {
+		container.StartupProbe = nil
 	}
 
 	var newEnv []corev1.EnvVar
