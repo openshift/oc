@@ -294,10 +294,10 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 				// try to find the cause of the internal error
 				if image.Status.Details != nil && len(image.Status.Details.Causes) > 0 {
 					for _, c := range image.Status.Details.Causes {
-						klog.Warningf("container image remote registry lookup failed: %s", c.Message)
+						klog.V(4).Infof("container image remote registry lookup failed: %s", c.Message)
 					}
 				} else {
-					klog.Warningf("container image remote registry lookup failed: %s", image.Status.Message)
+					klog.V(4).Infof("container image remote registry lookup failed: %s", image.Status.Message)
 				}
 			case metav1.StatusReasonInvalid, metav1.StatusReasonNotFound:
 			default:
@@ -340,6 +340,9 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 		}
 		klog.V(2).Infof("Adding %s as component match for %q with score %v", match.Description, term, match.Score)
 		componentMatches = append(componentMatches, match)
+	}
+	if len(componentMatches) == 0 {
+		klog.V(2).Infof("No container images found via the search string(s) %s", strings.Join(terms, ","))
 	}
 	return componentMatches, errs
 }
