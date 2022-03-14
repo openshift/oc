@@ -303,15 +303,21 @@ func (o *Options) Run() error {
 			sort.Strings(possibleUpgradeTargets)
 			c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates)
 
+			toImageOption := "--to-image"
+			if o.ToImage != "" {
+				toImageOption = "--allow-explicit-upgrade"
+			}
+			nextStep := fmt.Sprintf("%s to continue with the update", toImageOption)
+
 			switch {
 			case c != nil && c.Status != configv1.ConditionTrue:
-				return fmt.Errorf("cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+				return fmt.Errorf("cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\nspecify %s.", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "), nextStep)
 			case len(possibleUpgradeTargets) == 0 && o.AllowNotRecommended:
-				return errors.New("no recommended or conditional updates, specify --to-image or wait for new updates to be available")
+				return fmt.Errorf("no recommended or conditional updates, specify %s or wait for new updates to be available.", nextStep)
 			case len(possibleUpgradeTargets) == 0:
-				return errors.New("no recommended updates, specify --to-image or wait for new updates to be available")
+				return fmt.Errorf("no recommended updates, specify %s or wait for new updates to be available.", nextStep)
 			case len(possibleUpgradeTargets) > 0:
-				return fmt.Errorf("the update is not one of the possible targets: %s", strings.Join(possibleUpgradeTargets, ", "))
+				return fmt.Errorf("the update is not one of the possible targets: %s. specify %s.", strings.Join(possibleUpgradeTargets, ", "), nextStep)
 			default:
 				return errors.New("unable to calculate a target update")
 			}
