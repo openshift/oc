@@ -57,30 +57,30 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 			retrieved from the update server and cached on the cluster - these are updates that are
 			known to be supported as upgrades from the current version.
 
-			Passing --to=VERSION will upgrade the cluster to one of the available updates or report
-			an error if no such version exists. The cluster will then upgrade itself and report
-			status that is available via "oc get clusterversion" and "oc describe clusterversion".
+			Passing --to=VERSION or --to-image=IMAGE will upgrade the cluster to one of the available
+			updates or report an error if no such version exists. The cluster will then upgrade
+			itself and report status that is available via "oc get clusterversion" and "oc describe
+			clusterversion".
 
-			If the desired upgrade from --to-image is not in the list of available versions, you must
-			pass --allow-explicit-upgrade to allow upgrade to proceed. If the cluster is
-			already being upgraded, or if the cluster is reporting a failure or other error, you
-			must pass --allow-upgrade-with-warnings to proceed (see note below on the implications).
+			If there are no versions available, or a bug in the cluster version operator prevents
+			updates from being retrieved, --to-image may be combined with the more powerful and
+			dangerous --allow-explicit-upgrade. This instructs the cluster to upgrade to the contents
+			of the specified release image, regardless of whether that upgrade is known to be
+			recommended for the current version. While rolling back to a previous patch (z stream) version
+			(4.1.2 -> 4.1.1) may be safe, upgrading more than one minor version ahead (4.1 -> 4.3) or
+			downgrading one minor version (4.2 -> 4.1) is likely to cause data corruption or to
+			completely break a cluster.
 
-			If the cluster reports that the upgrade should not be performed due to a content
+			If the cluster is already being upgraded, or if the cluster is reporting a failure or
+			other error, the update will not be triggered.  It is usually best to give these conditions
+			time to resolve, or to actively work to resolve them.  But if you decide to trigger the update
+			regardless of these concerns, use --allow-upgrade-with-warnings.
+
+			The cluster may report that the upgrade should not be performed due to a content
 			verification error or update precondition failures such as operators blocking upgrades.
 			Do not upgrade to images that are not appropriately signed without understanding the risks
 			of upgrading your cluster to untrusted code. If you must override this protection use
 			the --force flag.
-
-			If there are no versions available, or a bug in the cluster version operator prevents
-			updates from being retrieved, the more powerful and dangerous --to-image=IMAGE option
-			may be used. This instructs the cluster to upgrade to the contents of the specified release
-			image, regardless of whether that upgrade is safe to apply to the current version. While
-			rolling back to a previous micro version (4.1.2 -> 4.1.1) may be safe, upgrading more
-			than one minor version ahead (4.1 -> 4.3) or downgrading one minor version (4.2 -> 4.1)
-			is likely to cause data corruption or to completely break a cluster. Avoid upgrading
-			when the cluster is reporting errors or when another upgrade is in progress unless the
-			upgrade cannot make progress.
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -89,7 +89,7 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 	}
 	flags := cmd.Flags()
 	flags.StringVar(&o.To, "to", o.To, "Specify the version to upgrade to. The version must be on the list of available updates.")
-	flags.StringVar(&o.ToImage, "to-image", o.ToImage, "Provide a release image to upgrade to. WARNING: This option does not check for upgrade compatibility and may break your cluster.")
+	flags.StringVar(&o.ToImage, "to-image", o.ToImage, "Provide a release image to upgrade to.")
 	flags.BoolVar(&o.ToLatestAvailable, "to-latest", o.ToLatestAvailable, "Use the next available version")
 	flags.BoolVar(&o.Clear, "clear", o.Clear, "If an upgrade has been requested but not yet downloaded, cancel the update. This has no effect once the update has started.")
 	flags.BoolVar(&o.Force, "force", o.Force, "Forcefully upgrade the cluster even when upgrade release image validation fails and the cluster is reporting errors.")
