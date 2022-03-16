@@ -31,8 +31,8 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
-	github.com/openshift/api v0.0.0-20210831091943-07e756545ac1
-	github.com/openshift/build-machinery-go v0.0.0-20210806203541-4ea9b6da3a37
+	github.com/openshift/api v0.0.0-20211028023115-7224b732cc14
+	github.com/openshift/build-machinery-go v0.0.0-20211221164819-4024613928f1
 	github.com/openshift/client-go v0.0.0-20210831095141-e19a065e79f7
 	github.com/openshift/library-go v0.0.0-20220211144658-96cd7a701be1
 	github.com/pkg/errors v0.9.1
@@ -46,15 +46,15 @@ require (
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	gopkg.in/ldap.v2 v2.5.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	k8s.io/api v0.22.1
-	k8s.io/apimachinery v0.22.1
-	k8s.io/apiserver v0.22.1
-	k8s.io/cli-runtime v0.22.0-rc.0
-	k8s.io/client-go v0.22.1
-	k8s.io/component-base v0.22.1
+	k8s.io/api v0.22.6
+	k8s.io/apimachinery v0.22.6
+	k8s.io/apiserver v0.22.6
+	k8s.io/cli-runtime v0.22.6
+	k8s.io/client-go v0.22.6
+	k8s.io/component-base v0.22.6
 	k8s.io/klog/v2 v2.9.0
-	k8s.io/kubectl v0.22.0-rc.0
-	k8s.io/utils v0.0.0-20210707171843-4b05e18ac7d9
+	k8s.io/kubectl v0.22.6
+	k8s.io/utils v0.0.0-20210819203725-bdf08cb9a70a
 	sigs.k8s.io/yaml v1.2.0
 )
 
@@ -63,5 +63,5 @@ replace (
 	k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20210730111815-c26349f8e2c9
 	k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210730111823-1570202448c3
 	k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20210826123502-7208c21f5119
-	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20210730111826-9c6734b9d97d
+	k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20220210115940-17cc5ae41743
 )
