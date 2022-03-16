@@ -45,7 +45,7 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 	o := NewOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "upgrade --to=VERSION",
-		Short:   "Upgrade a cluster",
+		Short:   "Upgrade a cluster or adjust the upgrade channel",
 		Example: upgradeExample,
 		Long: templates.LongDesc(`
 			Check on upgrade status or upgrade the cluster to a newer version
