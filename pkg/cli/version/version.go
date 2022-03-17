@@ -50,7 +50,7 @@ var (
 
 type VersionOptions struct {
 	kversion.Options
-	oClient         configv1client.ClusterOperatorsGetter
+	oClient         configv1client.ClusterVersionsGetter
 	discoveryClient discovery.CachedDiscoveryInterface
 
 	genericclioptions.IOStreams
@@ -133,8 +133,8 @@ func (o *VersionOptions) Run() error {
 			versionInfo.ServerVersion = serverVersion
 		}
 		if o.oClient != nil {
-			var clusterOperator *configv1.ClusterOperator
-			clusterOperator, serverErr = o.oClient.ClusterOperators().Get(context.TODO(), "openshift-apiserver", metav1.GetOptions{})
+			var clusterVersion *configv1.ClusterVersion
+			clusterVersion, serverErr = o.oClient.ClusterVersions().Get(context.TODO(), "version", metav1.GetOptions{})
 			// error here indicates logged in as non-admin, log and move on
 			if serverErr != nil {
 				switch {
@@ -143,12 +143,12 @@ func (o *VersionOptions) Run() error {
 					serverErr = nil
 				}
 			}
-			if clusterOperator != nil {
-				for _, ver := range clusterOperator.Status.Versions {
-					if ver.Name == "operator" {
-						// openshift-apiserver does not report version,
-						// clusteroperator/openshift-apiserver does, and only version number
-						versionInfo.OpenShiftVersion = ver.Version
+			if clusterVersion != nil {
+				for _, update := range clusterVersion.Status.History {
+					if update.State == configv1.CompletedUpdate {
+						// obtain the version from the last completed update
+						versionInfo.OpenShiftVersion = update.Version
+						break
 					}
 				}
 			}
