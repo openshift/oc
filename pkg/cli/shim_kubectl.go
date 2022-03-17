@@ -8,6 +8,7 @@ import (
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	kcmdset "k8s.io/kubectl/pkg/cmd/set"
+	kcmdcreate "k8s.io/kubectl/pkg/cmd/create"
 	describeversioned "k8s.io/kubectl/pkg/describe"
 	"k8s.io/kubectl/pkg/generate/versioned"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
@@ -22,6 +23,10 @@ func shimKubectlForOc() {
 	kclientcmd.ErrEmptyConfig = genericclioptions.ErrEmptyConfig
 	kclientcmd.ClusterDefaults = kclientcmdapi.Cluster{Server: os.Getenv("KUBERNETES_MASTER")}
 	kcmdset.ParseDockerImageReferenceToStringFunc = clientcmd.ParseDockerImageReferenceToStringFunc
+	kcmdcreate.AddSpecialVerb("use", schema.GroupResource{
+		Group:    "security.openshift.io",
+		Resource: "securitycontextconstraints",
+	})
 	kclientcmd.UseModifyConfigLock = false
 
 	// update polymorphic helpers
