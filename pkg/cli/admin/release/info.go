@@ -1526,16 +1526,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 			}
 			for _, commit := range commits {
 				fmt.Fprintf(out, "*")
-				for i, bug := range commit.Bugs {
-					if i == 0 {
-						fmt.Fprintf(out, " [Bug %d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
-					} else {
-						fmt.Fprintf(out, ", [%d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
-					}
-				}
-				if len(commit.Bugs) > 0 {
-					fmt.Fprintf(out, ":")
-				}
+				commit.Bugs.PrintBugs(out)
 				fmt.Fprintf(out, " %s", replaceUnsafeInput.Replace(commit.Subject))
 				switch {
 				case commit.PullRequest > 0:
@@ -1570,7 +1561,7 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 	var hasError bool
 	codeChanges, _, _ := releaseDiffContentChanges(diff)
 
-	bugIDs := sets.NewInt()
+	bugIDs := make(map[string]Bug)
 	for _, change := range codeChanges {
 		_, commits, err := commitsForRepo(dir, change, out, errOut)
 		if err != nil {
@@ -1579,26 +1570,27 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 			continue
 		}
 		for _, commit := range commits {
-			if len(commit.Bugs) == 0 {
+			if len(commit.Bugs.Bugs) == 0 {
 				continue
 			}
-			bugIDs.Insert(commit.Bugs...)
+			for _, v := range commit.Bugs.Bugs {
+				if _, ok := bugIDs[generateBugKey(v.Source, v.ID)]; !ok {
+					// We are using generated bug key according to the source type
+					// to prevent possible clashes like BUG 111 and OCPBUGS-111
+					bugIDs[generateBugKey(v.Source, v.ID)] = v
+				}
+			}
 		}
 	}
 
-	bugs := make(map[int]BugInfo)
-	var valid []int
+	bugs := make(map[string]BugRemoteInfo)
+	var valid []Bug
 	if skipBugCheck {
-		valid = bugIDs.List()
+		valid = GetBugList(bugIDs)
 	} else {
-		u, err := url.Parse("https://bugzilla.redhat.com/rest/bug")
-		if err != nil {
-			return err
-		}
-		client := http.DefaultClient
-		allBugIDs := bugIDs.List()
+		allBugIDs := GetBugList(bugIDs)
 		for len(allBugIDs) > 0 {
-			var next []int
+			var next []Bug
 			if len(allBugIDs) > 10 {
 				next = allBugIDs[:10]
 				allBugIDs = allBugIDs[10:]
@@ -1607,18 +1599,18 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 				allBugIDs = nil
 			}
 
-			bugList, err := retrieveBugs(client, u, next, 2)
+			bugList, err := RetrieveBugs(next)
 			if err != nil {
 
 			}
 			for _, bug := range bugList.Bugs {
-				bugs[bug.ID] = bug
+				bugs[generateBugKey(bug.Source, bug.ID)] = bug
 			}
 		}
 
-		for _, id := range bugIDs.List() {
-			if _, ok := bugs[id]; !ok {
-				fmt.Fprintf(errOut, "error: Bug %d was not retrieved\n", id)
+		for _, id := range GetBugList(bugIDs) {
+			if _, ok := bugs[generateBugKey(id.Source, id.ID)]; !ok {
+				fmt.Fprintf(errOut, "error: Bug %d was not retrieved\n", id.ID)
 				hasError = true
 				continue
 			}
@@ -1629,15 +1621,16 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 	if len(valid) > 0 {
 		switch format {
 		case "name":
-			for _, id := range valid {
-				fmt.Fprintln(out, id)
+			for _, b := range valid {
+				fmt.Fprintln(out, b.ID)
 			}
 		default:
 			tw := tabwriter.NewWriter(out, 0, 0, 1, ' ', 0)
 			fmt.Fprintln(tw, "ID\tSTATUS\tPRIORITY\tSUMMARY")
-			for _, id := range valid {
-				bug := bugs[id]
-				fmt.Fprintf(tw, "%d\t%s\t%s\t%s\n", id, bug.Status, bug.Priority, bug.Summary)
+			for _, v := range valid {
+				if bug, ok := bugs[generateBugKey(v.Source, v.ID)]; ok {
+					fmt.Fprintf(tw, "%d\t%s\t%s\t%s\n", v.ID, bug.Status, bug.Priority, bug.Summary)
+				}
 			}
 			tw.Flush()
 		}
@@ -1647,52 +1640,6 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 		return kcmdutil.ErrExit
 	}
 	return nil
-}
-
-func retrieveBugs(client *http.Client, server *url.URL, bugs []int, retries int) (*BugList, error) {
-	q := url.Values{}
-	for _, id := range bugs {
-		q.Add("id", strconv.Itoa(id))
-	}
-	u := *server
-	u.RawQuery = q.Encode()
-	var lastErr error
-	for i := 0; i < retries; i++ {
-		resp, err := client.Get(u.String())
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			lastErr = fmt.Errorf("server responded with %d", resp.StatusCode)
-			continue
-		}
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			lastErr = fmt.Errorf("unable to get body contents: %v", err)
-			continue
-		}
-		resp.Body.Close()
-		var bugList BugList
-		if err := json.Unmarshal(data, &bugList); err != nil {
-			lastErr = fmt.Errorf("unable to parse bug list: %v", err)
-			continue
-		}
-		return &bugList, nil
-	}
-	return nil, lastErr
-}
-
-type BugList struct {
-	Bugs []BugInfo `json:"bugs"`
-}
-
-type BugInfo struct {
-	ID       int    `json:"id"`
-	Status   string `json:"status"`
-	Priority string `json:"priority"`
-	Summary  string `json:"summary"`
 }
 
 type ImageChange struct {

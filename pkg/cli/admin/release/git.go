@@ -13,7 +13,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -147,7 +146,7 @@ type MergeCommit struct {
 	ParentCommits []string
 
 	PullRequest int
-	Bugs        []int
+	Bugs        BugList
 
 	Subject string
 }
@@ -165,7 +164,6 @@ func gitOutputToError(err error, out string) error {
 
 var (
 	rePR     = regexp.MustCompile(`^Merge pull request #(\d+) from`)
-	reBug    = regexp.MustCompile(`^[B|b]ug(?:s)?\s([\d\s,]+)(?:-|:)\s*`)
 	rePrefix = regexp.MustCompile(`^(\[[\w\.\-]+\]\s*)+`)
 )
 
@@ -222,25 +220,7 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		}
 
 		msg := records[3]
-		msg = rePrefix.ReplaceAllString(strings.TrimSpace(msg), "")
-		if m := reBug.FindStringSubmatch(msg); m != nil {
-			msg = msg[len(m[0]):]
-			for _, part := range strings.Split(m[1], ",") {
-				for _, subpart := range strings.Split(part, " ") {
-					subpart = strings.TrimSpace(subpart)
-					if len(subpart) == 0 {
-						continue
-					}
-					bug, err := strconv.Atoi(subpart)
-					if err != nil {
-						klog.V(5).Infof("unable to parse numbers from %q: %v", part, err)
-						continue
-					}
-					mergeCommit.Bugs = append(mergeCommit.Bugs, bug)
-				}
-			}
-		}
-		sort.Ints(mergeCommit.Bugs)
+		mergeCommit.Bugs, msg = extractBugs(msg)
 		msg = strings.TrimSpace(msg)
 		msg = strings.SplitN(msg, "\n", 2)[0]
 
