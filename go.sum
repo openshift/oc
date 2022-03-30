@@ -1721,6 +1721,8 @@ k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65/go.mod h1:sX9MT8g7NVZM5lV
 k8s.io/kubernetes v1.13.0/go.mod h1:ocZa8+6APFNC2tX1DZASIbocyYT5jHzqFVsY5aoB7Jk=
 k8s.io/metrics v0.23.0 h1:hJH0UMmgmOZHuVuOjbxE/b3710DbwpmWLT6qh33RiJY=
 k8s.io/metrics v0.23.0/go.mod h1:NDiZTwppEtAuKJ1Rxt3S4dhyRzdp6yUcJf0vo023dPo=
+k8s.io/pod-security-admission v0.23.2 h1:ePNricRxtKZVV5rgQVtfcp3qCntHGjrQGXgA/XohBmY=
+k8s.io/pod-security-admission v0.23.2/go.mod h1:qbwG5XF7vHgTTk8XemjkR1GXAmyNHQQAo5bHWAJSskE=
 k8s.io/utils v0.0.0-20191114184206-e782cd3c129f/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
 k8s.io/utils v0.0.0-20200229041039-0a110f9eb7ab/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
 k8s.io/utils v0.0.0-20201110183641-67b214c5f920/go.mod h1:jPW/WVKK9YHAvNhRxK0md/EJ228hCsBRufyofKtW8HA=
