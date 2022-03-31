@@ -78,7 +78,7 @@ var (
 		oc set env -f dc.json ENV-
 
 		# Set some of the local shell environment into a deployment config on the server
-		oc set env | grep RAILS_ | oc env -e - dc/myapp
+		env | grep RAILS_ | oc env -e - dc/myapp
 	`)
 )
 
