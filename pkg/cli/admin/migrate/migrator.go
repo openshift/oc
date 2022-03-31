@@ -252,7 +252,7 @@ func (o *ResourceOptions) Complete(f kcmdutil.Factory, c *cobra.Command) error {
 	// but invalidate its cache to force it to fetch the latest data
 	discoveryClient.Invalidate()
 	// and do a no-op call to cause the latest data to be written to disk
-	_, _ = discoveryClient.ServerResources()
+	_, _, _ = discoveryClient.ServerGroupsAndResources()
 	// so that the REST mapper will never use stale discovery data
 	mapper, err := f.ToRESTMapper()
 	if err != nil {
@@ -774,7 +774,7 @@ func FindAllCanonicalResources(d discovery.ServerResourcesInterface, m meta.REST
 	set := make(map[schema.GroupResource]struct{})
 
 	// this call doesn't fail on aggregated apiserver failures
-	all, err := d.ServerResources()
+	_, all, err := d.ServerGroupsAndResources()
 	if err != nil {
 		return nil, err
 	}
