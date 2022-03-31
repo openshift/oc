@@ -3,3 +3,4 @@ reviewers:
 approvers:
   - root-approvers
 component: "oc"
+subcomponent: "oc"
