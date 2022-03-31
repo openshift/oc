@@ -39,6 +39,7 @@ import (
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
+	admissionapi "k8s.io/pod-security-admission/api"
 )
 
 var (
@@ -285,7 +286,8 @@ func (o *MustGatherOptions) Run() error {
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "openshift-must-gather-",
 			Labels: map[string]string{
-				"openshift.io/run-level": "0",
+				"openshift.io/run-level":       "0",
+				admissionapi.EnforceLevelLabel: string(admissionapi.LevelPrivileged),
 			},
 			Annotations: map[string]string{
 				"oc.openshift.io/command":    "oc adm must-gather",
