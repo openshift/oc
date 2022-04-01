@@ -370,7 +370,7 @@ func (o *DebugOptions) RunDebug() error {
 	var infos []*resource.Info
 
 	// the simplest possible debug is an image
-	if len(o.Resources) == 0 {
+	if len(o.Resources) == 0 && len(o.FilenameOptions.Filenames) == 0 {
 		image := o.Image
 
 		if len(image) == 0 {
