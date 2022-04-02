@@ -17,8 +17,6 @@ func (g fakeGit) exec(commands ...string) (string, error) {
 }
 
 func Test_mergeLogForRepo(t *testing.T) {
-	type args struct {
-	}
 	tests := []struct {
 		name    string
 		input   string
@@ -33,7 +31,15 @@ func Test_mergeLogForRepo(t *testing.T) {
 			want: []MergeCommit{
 				{
 					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
-					Bugs: []int{1743564}, Subject: "test",
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     1743564,
+								Source: Bugzilla,
+							},
+						},
+					},
+					Subject: "test",
 				},
 			},
 		},
@@ -42,7 +48,15 @@ func Test_mergeLogForRepo(t *testing.T) {
 			want: []MergeCommit{
 				{
 					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
-					Bugs: []int{1743564}, Subject: "test [trailing]",
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     1743564,
+								Source: Bugzilla,
+							},
+						},
+					},
+					Subject: "test [trailing]",
 				},
 			},
 		},
@@ -51,7 +65,15 @@ func Test_mergeLogForRepo(t *testing.T) {
 			want: []MergeCommit{
 				{
 					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
-					Bugs: []int{1743564}, Subject: "test",
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     1743564,
+								Source: Bugzilla,
+							},
+						},
+					},
+					Subject: "test",
 				},
 			},
 		},
@@ -60,7 +82,15 @@ func Test_mergeLogForRepo(t *testing.T) {
 			want: []MergeCommit{
 				{
 					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
-					Bugs: []int{1743564}, Subject: "test",
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     1743564,
+								Source: Bugzilla,
+							},
+						},
+					},
+					Subject: "test",
 				},
 			},
 		},
@@ -69,7 +99,15 @@ func Test_mergeLogForRepo(t *testing.T) {
 			want: []MergeCommit{
 				{
 					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
-					Bugs: []int{1743564}, Subject: "test",
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     1743564,
+								Source: Bugzilla,
+							},
+						},
+					},
+					Subject: "test",
 				},
 			},
 		},
@@ -78,7 +116,15 @@ func Test_mergeLogForRepo(t *testing.T) {
 			want: []MergeCommit{
 				{
 					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
-					Bugs: []int{1743564}, Subject: "test",
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     1743564,
+								Source: Bugzilla,
+							},
+						},
+					},
+					Subject: "test",
 				},
 			},
 		},
@@ -87,7 +133,15 @@ func Test_mergeLogForRepo(t *testing.T) {
 			want: []MergeCommit{
 				{
 					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
-					Bugs: []int{1743564}, Subject: "test",
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     1743564,
+								Source: Bugzilla,
+							},
+						},
+					},
+					Subject: "test",
 				},
 			},
 		},
@@ -96,7 +150,23 @@ func Test_mergeLogForRepo(t *testing.T) {
 			want: []MergeCommit{
 				{
 					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
-					Bugs: []int{17, 43, 564}, Subject: "test",
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     17,
+								Source: Bugzilla,
+							},
+							{
+								ID:     43,
+								Source: Bugzilla,
+							},
+							{
+								ID:     564,
+								Source: Bugzilla,
+							},
+						},
+					},
+					Subject: "test",
 				},
 			},
 		},
@@ -105,7 +175,23 @@ func Test_mergeLogForRepo(t *testing.T) {
 			want: []MergeCommit{
 				{
 					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
-					Bugs: []int{17, 43, 564}, Subject: "test",
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     17,
+								Source: Bugzilla,
+							},
+							{
+								ID:     43,
+								Source: Bugzilla,
+							},
+							{
+								ID:     564,
+								Source: Bugzilla,
+							},
+						},
+					},
+					Subject: "test",
 				},
 			},
 		},
@@ -114,7 +200,8 @@ func Test_mergeLogForRepo(t *testing.T) {
 			want: []MergeCommit{
 				{
 					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
-					Bugs: nil, Subject: "[release 4.1] bugs , 17 43,564,: test",
+					Bugs:    BugList{},
+					Subject: "[release 4.1] bugs , 17 43,564,: test",
 				},
 			},
 		},
