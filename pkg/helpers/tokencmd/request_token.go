@@ -1,18 +1,22 @@
 package tokencmd
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/RangelReale/osincli"
+	"github.com/pkg/browser"
 
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +41,9 @@ const (
 
 	// openShiftCLIClientID is the name of the CLI OAuth client, copied from pkg/oauth/apiserver/auth.go
 	openShiftCLIClientID = "openshift-challenging-client"
+
+	// openshiftBrowserClientID is the name of the CLI client for logging in through a browser
+	openshiftBrowserClientID = "openshift-cli-client"
 
 	// pkce_s256 is sha256 hash per RFC7636, copied from github.com/RangelReale/osincli/pkce.go
 	pkce_s256 = "S256"
@@ -72,15 +79,13 @@ type RequestTokenOptions struct {
 	OsinConfig   *osincli.ClientConfig
 	Issuer       string
 	TokenFlow    bool
+	BrowserFunc  func(string) error
 }
 
-// RequestToken uses the cmd arguments to locate an openshift oauth server and attempts to authenticate via an
+// RequestTokenWithCredentials uses the cmd arguments to locate an openshift oauth server and attempts to authenticate via an
 // OAuth code flow and challenge handling.  It returns the access token if it gets one or an error if it does not.
-func RequestToken(clientCfg *restclient.Config, reader io.Reader, defaultUsername string, defaultPassword string) (string, error) {
-	return NewRequestTokenOptions(clientCfg, reader, defaultUsername, defaultPassword, false).RequestToken()
-}
-
-func NewRequestTokenOptions(clientCfg *restclient.Config, reader io.Reader, defaultUsername string, defaultPassword string, tokenFlow bool) *RequestTokenOptions {
+func RequestTokenWithCredentials(clientCfg *restclient.Config, reader io.Reader, defaultUsername string, defaultPassword string) (string, error) {
+	options := NewRequestTokenOptions(clientCfg, false)
 	// priority ordered list of challenge handlers
 	// the SPNEGO ones must come before basic auth
 	var handlers []ChallengeHandler
@@ -103,69 +108,157 @@ func NewRequestTokenOptions(clientCfg *restclient.Config, reader io.Reader, defa
 	} else {
 		handler = NewMultiHandler(handlers...)
 	}
+	options.Handler = handler
+	return options.WithCredentials()
+}
 
+func RequestTokenWithBrowser(clientCfg *restclient.Config, callbackPort int32) (string, error) {
+	options := NewRequestTokenOptions(clientCfg, false)
+	options.BrowserFunc = browser.OpenURL
+	return options.WithBrowser(callbackPort)
+}
+
+// WithBrowser retrieves a token from the OAuth server by launching a browser with the URL of the token endpoint.
+// The token request flow uses PKCE for public clients https://datatracker.ietf.org/doc/html/rfc8252
+// The function also takes the callback port as a parameter. When the value is 0 a random port is used.
+func (o *RequestTokenOptions) WithBrowser(callbackPort int32) (string, error) {
+	loopbackAddr, err := getLoopbackAddr()
+	if err != nil {
+		return "", err
+	}
+	tcpListener, err := net.Listen("tcp", net.JoinHostPort(loopbackAddr, strconv.Itoa(int(callbackPort))))
+	if err != nil {
+		return "", err
+	}
+
+	var (
+		listenAddr *net.TCPAddr
+		ok         bool
+	)
+	if listenAddr, ok = tcpListener.Addr().(*net.TCPAddr); !ok {
+		return "", fmt.Errorf("listener is not of TCP type: %v", tcpListener.Addr())
+	}
+
+	if o.OsinConfig == nil {
+		o.OsinConfig, o.Issuer, err = makeDefaultOsinConfig(openshiftBrowserClientID, o.TokenFlow, o.ClientConfig)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	o.OsinConfig.RedirectUrl = fmt.Sprintf("http://%s/callback", listenAddr)
+
+	// we are going to use this transport to talk
+	// with a server that may not be the api server
+	// thus we need to include the system roots
+	// in our ca data otherwise an external
+	// oauth server with a valid cert will fail with
+	// error: x509: certificate signed by unknown authority
+	rt, err := transportWithSystemRoots(o.Issuer, o.ClientConfig)
+	if err != nil {
+		return "", err
+	}
+
+	client, err := osincli.NewClient(o.OsinConfig)
+	if err != nil {
+		return "", err
+	}
+	client.Transport = rt
+	authorizeRequest := client.NewAuthorizeRequest(osincli.CODE) // assume code flow to start with
+	server, resultChan := newCallbackServer(authorizeRequest, client)
+	go func() {
+		_ = server.Serve(tcpListener)
+	}()
+
+	defer func() {
+		err := server.Shutdown(context.Background())
+		if err != nil {
+			klog.V(4).Infof("failed to shutdown callback server: %v", err)
+		}
+	}()
+
+	err = o.BrowserFunc(authorizeRequest.GetAuthorizeUrl().String())
+	if err != nil {
+		return "", fmt.Errorf("failed to open authorize request in browser: %w", err)
+	}
+	token := <-resultChan
+	return token.token, token.err
+}
+
+// getLoopbackAddr returns the first address from the host's network interfaces which is a loopback address
+func getLoopbackAddr() (string, error) {
+	interfaces, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range interfaces {
+		if ipaddr, ok := iface.(*net.IPNet); ok {
+			if ipaddr.IP.IsLoopback() {
+				return ipaddr.IP.String(), nil
+			}
+		}
+	}
+	return "", errors.New("no loopback network interfaces found")
+}
+
+func NewRequestTokenOptions(clientCfg *restclient.Config, tokenFlow bool) *RequestTokenOptions {
 	return &RequestTokenOptions{
 		ClientConfig: clientCfg,
-		Handler:      handler,
 		TokenFlow:    tokenFlow,
 	}
 }
 
-// SetDefaultOsinConfig overwrites RequestTokenOptions.OsinConfig with the default CLI
-// OAuth client and PKCE support if the server supports S256 / a code flow is being used
-func (o *RequestTokenOptions) SetDefaultOsinConfig() error {
-	if o.OsinConfig != nil {
-		return fmt.Errorf("osin config is already set to: %#v", *o.OsinConfig)
-	}
-
+// makeDefaultOsinConfig creates the osincli.ClientConfig for the default CLI
+// OAuth client and PKCE support if the server supports S256 / a code flow is being used.
+// It also returns the issuers which is retrieved from metadata endpoint.
+func makeDefaultOsinConfig(clientID string, tokenFlow bool, clientConfig *restclient.Config) (*osincli.ClientConfig, string, error) {
 	// get the OAuth metadata directly from the api server
 	// we only want to use the ca data from our config
-	rt, err := restclient.TransportFor(o.ClientConfig)
+	rt, err := restclient.TransportFor(clientConfig)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 
-	requestURL := strings.TrimRight(o.ClientConfig.Host, "/") + oauthMetadataEndpoint
+	requestURL := strings.TrimRight(clientConfig.Host, "/") + oauthMetadataEndpoint
 	resp, err := request(rt, requestURL, nil)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("couldn't get %v: unexpected response status %v", requestURL, resp.StatusCode)
+		return nil, "", fmt.Errorf("couldn't get %v: unexpected response status %v", requestURL, resp.StatusCode)
 	}
 
 	metadata := &oauthdiscovery.OauthAuthorizationServerMetadata{}
 	if err := json.NewDecoder(resp.Body).Decode(metadata); err != nil {
-		return err
+		return nil, "", err
 	}
 
 	// use the metadata to build the osin config
 	config := &osincli.ClientConfig{
-		ClientId:     openShiftCLIClientID,
+		ClientId:     clientID,
 		AuthorizeUrl: metadata.AuthorizationEndpoint,
 		TokenUrl:     metadata.TokenEndpoint,
 		RedirectUrl:  oauthdiscovery.OpenShiftOAuthTokenImplicitURL(metadata.Issuer),
 	}
-	if !o.TokenFlow && sets.NewString(metadata.CodeChallengeMethodsSupported...).Has(pkce_s256) {
+
+	if !tokenFlow && sets.NewString(metadata.CodeChallengeMethodsSupported...).Has(pkce_s256) {
 		if err := osincli.PopulatePKCE(config); err != nil {
-			return err
+			return nil, "", err
 		}
 	}
 
-	o.OsinConfig = config
-	o.Issuer = metadata.Issuer
-	return nil
+	return config, metadata.Issuer, nil
 }
 
-// RequestToken locates an openshift oauth server and attempts to authenticate.
+// WithCredentials locates an openshift oauth server and attempts to authenticate.
 // It returns the access token if it gets one, or an error if it does not.
 // It should only be invoked once on a given RequestTokenOptions instance.
 // The Handler held by the options is released as part of this call.
-// If RequestTokenOptions.OsinConfig is nil, it will be defaulted using SetDefaultOsinConfig.
+// If RequestTokenOptions.OsinConfig is nil, it will be defaulted using makeDefaultOsinConfig.
 // The caller is responsible for setting up the entire OsinConfig if the value is not nil.
-func (o *RequestTokenOptions) RequestToken() (string, error) {
+func (o *RequestTokenOptions) WithCredentials() (string, error) {
 	defer func() {
 		// Always release the handler
 		if err := o.Handler.Release(); err != nil {
@@ -174,8 +267,10 @@ func (o *RequestTokenOptions) RequestToken() (string, error) {
 		}
 	}()
 
+	var err error
 	if o.OsinConfig == nil {
-		if err := o.SetDefaultOsinConfig(); err != nil {
+		o.OsinConfig, o.Issuer, err = makeDefaultOsinConfig(openShiftCLIClientID, o.TokenFlow, o.ClientConfig)
+		if err != nil {
 			return "", err
 		}
 	}

@@ -22,6 +22,7 @@ import (
 	kterm "k8s.io/kubectl/pkg/util/term"
 
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
+
 	"github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/motd"
@@ -47,9 +48,11 @@ type LoginOptions struct {
 	InsecureTLS bool
 
 	// flags and printing helpers
-	Username string
-	Password string
-	Project  string
+	Username     string
+	Password     string
+	Project      string
+	WebLogin     bool
+	CallbackPort int32
 
 	// infra
 	StartingKubeConfig *kclientcmdapi.Config
@@ -239,10 +242,19 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	clientConfig.CertFile = o.CertFile
 	clientConfig.KeyFile = o.KeyFile
 
-	token, err := tokencmd.RequestToken(o.Config, o.In, o.Username, o.Password)
-	if err != nil {
-		return err
+	var token string
+	if o.WebLogin {
+		token, err = tokencmd.RequestTokenWithBrowser(o.Config, o.CallbackPort)
+		if err != nil {
+			return err
+		}
+	} else {
+		token, err = tokencmd.RequestTokenWithCredentials(o.Config, o.In, o.Username, o.Password)
+		if err != nil {
+			return err
+		}
 	}
+
 	clientConfig.BearerToken = token
 
 	me, err := project.WhoAmI(clientConfig)

@@ -43,6 +43,9 @@ var (
 
 		# Log in to the given server with the given credentials (will not prompt interactively)
 		oc login localhost:8443 --username=myuser --password=mypass
+
+		# Log in to the given server through a browser
+		oc login --web --callback-port 8280 localhost:8443
 	`)
 )
 
@@ -83,6 +86,8 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	cmds.Flags().StringVarP(&o.Username, "username", "u", o.Username, "Username for server")
 	cmds.Flags().StringVarP(&o.Password, "password", "p", o.Password, "Password for server")
 
+	cmds.Flags().BoolVarP(&o.WebLogin, "web", "w", o.WebLogin, "Login with web browser")
+	cmds.Flags().Int32VarP(&o.CallbackPort, "callback-port", "c", o.CallbackPort, "Port for the callback server. Defaults to a random open port")
 	return cmds
 }
 
@@ -167,10 +172,18 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 		return errors.New("Must have a config file already created")
 	}
 
+	if o.WebLogin && (o.Username != "" || o.Password != "") {
+		return errors.New("--web cannot be used when --username and --password are specified")
+	}
+
+	if o.CallbackPort != 0 && !o.WebLogin {
+		return errors.New("--callback-port can only be specified along with --web")
+	}
+
 	return nil
 }
 
-// RunLogin contains all the necessary functionality for the OpenShift cli login command
+// Run contains all the necessary functionality for the OpenShift cli login command
 func (o LoginOptions) Run() error {
 	if err := o.GatherInfo(); err != nil {
 		return err
