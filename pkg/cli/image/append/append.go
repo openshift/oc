@@ -11,14 +11,15 @@ import (
 	"strconv"
 	"time"
 
-	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client"
+	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -103,6 +104,9 @@ type AppendImageOptions struct {
 
 	DropHistory bool
 	CreatedAt   string
+
+	// exposed only to be used by the `oc adm release`
+	KeepManifestList bool
 
 	SecurityOptions imagemanifest.SecurityOptions
 	FilterOptions   imagemanifest.FilterOptions
@@ -259,26 +263,87 @@ func (o *AppendImageOptions) Run() error {
 	}
 
 	var (
-		base              *dockerv1client.DockerImageConfig
-		baseDigest        digest.Digest
-		baseContentDigest digest.Digest
-		layers            []distribution.Descriptor
-		fromRepo          distribution.Repository
+		repo             distribution.Repository
+		manifestLocation imagemanifest.ManifestLocation
+		srcManifest      distribution.Manifest
 	)
 	if from != nil {
-		repo, err := fromOptions.Repository(ctx, *from)
+		repo, err = fromOptions.Repository(ctx, *from)
 		if err != nil {
 			return err
 		}
-		fromRepo = repo
 
-		srcManifest, manifestLocation, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+		srcManifest, manifestLocation, err = imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 		if err != nil {
 			return fmt.Errorf("unable to read image %s: %v", from, err)
 		}
+
+		if o.KeepManifestList {
+			return o.appendManifestList(ctx, createdAt, from, to, repo, srcManifest, manifestLocation, toRepo, toManifests)
+		}
+	}
+
+	return o.append(ctx, createdAt, from, to, repo, srcManifest, manifestLocation, toRepo, toManifests)
+}
+
+func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *time.Time,
+	from *imagesource.TypedImageReference, to imagesource.TypedImageReference,
+	repo distribution.Repository, srcManifest distribution.Manifest, manifestLocation imagemanifest.ManifestLocation,
+	toRepo distribution.Repository, toManifests distribution.ManifestService) error {
+	// process manifestlist
+	// oldDigest:newDigest mappging so that we can create a new manifestlist
+	newDigests := make(map[digest.Digest]digest.Digest)
+	manifestMap, oldList, _, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
+	for digest, srcManifest := range manifestMap {
+		err = o.append(ctx, createdAt, from, to, repo, srcManifest, manifestLocation, toRepo, toManifests)
+		if err != nil {
+			return fmt.Errorf("error appending image %s: %w", digest, err)
+		}
+		newDigests[digest] = o.ToDigest
+	}
+	// create new manifestlist from the old one swapping digest with the new ones
+	newDescriptors := make([]manifestlist.ManifestDescriptor, 0, len(oldList.Manifests))
+	for _, manifest := range oldList.Manifests {
+		manifest.Digest = newDigests[manifest.Digest]
+		newDescriptors = append(newDescriptors, manifest)
+
+	}
+	forPush, err := manifestlist.FromDescriptors(newDescriptors)
+	if err != nil {
+		return fmt.Errorf("error creating new manifestlist: %#v", err)
+	}
+	// push new manifestlist to registry
+	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, forPush, to.Ref.Tag, toManifests, toRepo.Named(), nil, nil)
+	if err != nil {
+		return fmt.Errorf("unable to push manifestlist: %#v", err)
+	}
+	o.ToDigest = toDigest
+	if !o.DryRun {
+		fmt.Fprintf(o.Out, "Pushed %s to %s\n", toDigest, to)
+	}
+
+	return nil
+}
+
+func (o *AppendImageOptions) append(ctx context.Context, createdAt *time.Time,
+	from *imagesource.TypedImageReference, to imagesource.TypedImageReference,
+	repo distribution.Repository, srcManifest distribution.Manifest, manifestLocation imagemanifest.ManifestLocation,
+	toRepo distribution.Repository, toManifests distribution.ManifestService) error {
+	var (
+		base              *dockerv1client.DockerImageConfig
+		baseDigest        digest.Digest
+		baseContentDigest digest.Digest
+		err               error
+		layers            []distribution.Descriptor
+		fromRepo          distribution.Repository
+	)
+	if repo != nil || srcManifest != nil {
+		fromRepo = repo
+
 		base, layers, err = imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), manifestLocation)
 		if err != nil {
-			return fmt.Errorf("unable to parse image %s: %v", from, err)
+			// return fmt.Errorf("unable to parse image %s: %v", from, err)
+			return err
 		}
 
 		contentDigest, err := registryclient.ContentDigestForManifest(srcManifest, manifestLocation.Manifest.Algorithm())
