@@ -283,7 +283,7 @@ func (o *AppendImageOptions) Run() error {
 		}
 	}
 
-	return o.append(ctx, createdAt, from, to, repo, srcManifest, manifestLocation, toRepo, toManifests)
+	return o.append(ctx, createdAt, from, to, false, repo, srcManifest, manifestLocation, toRepo, toManifests)
 }
 
 func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *time.Time,
@@ -291,11 +291,11 @@ func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *
 	repo distribution.Repository, srcManifest distribution.Manifest, manifestLocation imagemanifest.ManifestLocation,
 	toRepo distribution.Repository, toManifests distribution.ManifestService) error {
 	// process manifestlist
-	// oldDigest:newDigest mappging so that we can create a new manifestlist
+	// oldDigest:newDigest mapping so that we can create a new manifestlist
 	newDigests := make(map[digest.Digest]digest.Digest)
 	manifestMap, oldList, _, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
 	for digest, srcManifest := range manifestMap {
-		err = o.append(ctx, createdAt, from, to, repo, srcManifest, manifestLocation, toRepo, toManifests)
+		err = o.append(ctx, createdAt, from, to, true, repo, srcManifest, manifestLocation, toRepo, toManifests)
 		if err != nil {
 			return fmt.Errorf("error appending image %s: %w", digest, err)
 		}
@@ -326,7 +326,7 @@ func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *
 }
 
 func (o *AppendImageOptions) append(ctx context.Context, createdAt *time.Time,
-	from *imagesource.TypedImageReference, to imagesource.TypedImageReference,
+	from *imagesource.TypedImageReference, to imagesource.TypedImageReference, skipTagging bool,
 	repo distribution.Repository, srcManifest distribution.Manifest, manifestLocation imagemanifest.ManifestLocation,
 	toRepo distribution.Repository, toManifests distribution.ManifestService) error {
 	var (
@@ -342,7 +342,6 @@ func (o *AppendImageOptions) append(ctx context.Context, createdAt *time.Time,
 
 		base, layers, err = imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), manifestLocation)
 		if err != nil {
-			// return fmt.Errorf("unable to parse image %s: %v", from, err)
 			return err
 		}
 
@@ -518,13 +517,21 @@ func (o *AppendImageOptions) append(ctx context.Context, createdAt *time.Time,
 		return fmt.Errorf("unable to upload the new image manifest: %v", err)
 	}
 	klog.V(4).Infof("Created config JSON:\n%s", configJSON)
-	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, manifest, to.Ref.Tag, toManifests, toRepo.Named(), fromRepo.Blobs(ctx), configJSON)
+	tag := to.Ref.Tag
+	if skipTagging {
+		tag = ""
+	}
+	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, manifest, tag, toManifests, toRepo.Named(), fromRepo.Blobs(ctx), configJSON)
 	if err != nil {
 		return fmt.Errorf("unable to convert the image to a compatible schema version: %v", err)
 	}
 	o.ToDigest = toDigest
 	if !o.DryRun {
-		fmt.Fprintf(o.Out, "Pushed %s to %s\n", toDigest, to)
+		toString := to.String()
+		if skipTagging {
+			toString = to.Ref.AsRepository().String()
+		}
+		fmt.Fprintf(o.Out, "Pushed %s to %s\n", toDigest, toString)
 	}
 	return nil
 }
