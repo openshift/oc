@@ -242,7 +242,10 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 	if len(o.ConfigFile) == 0 {
 		if authFile := os.Getenv("REGISTRY_AUTH_FILE"); authFile != "" {
 			o.ConfigFile = authFile
-		} else if image.GetRegistryAuthConfigPreference() == image.DockerPreference {
+		} else if pref, warn := image.GetRegistryAuthConfigPreference(); pref == image.DockerPreference {
+			if len(warn) > 0 {
+				fmt.Fprint(o.IOStreams.ErrOut, warn)
+			}
 			home := homedir.HomeDir()
 			o.ConfigFile = filepath.Join(home, ".docker", "config.json")
 		}
