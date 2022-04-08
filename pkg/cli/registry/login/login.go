@@ -303,7 +303,7 @@ func (o *LoginOptions) Run() error {
 
 	if o.ConfigFile == "-" {
 		// TODO: deprecated, remove in 4.12
-		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for stdout output is deprecated. The support will be removed in the future version.\n")
+		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for stdout output is deprecated. The support will be removed in the future version of oc.\n")
 		authFilePath, err = createTmpAuthFile()
 		if err != nil {
 			return err
@@ -344,7 +344,7 @@ func (o *LoginOptions) ensureEmptyAuthFileInitialized(configFile string) error {
 	}
 	if !os.IsNotExist(err) && fileInfo.Size() == 0 {
 		// TODO: deprecated, remove in 4.12
-		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for empty registry config files is deprecated. The support will be removed in the future version.\n")
+		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for empty registry config files is deprecated. The support will be removed in the future version of oc.\n")
 		file, err := os.OpenFile(configFile, os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
 			return err
