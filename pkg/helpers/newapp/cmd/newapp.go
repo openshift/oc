@@ -966,12 +966,14 @@ func (c *AppConfig) Run() (*AppResult, error) {
 	}
 
 	// check for circular reference specifically from the newly generated objects, handling new-app vs. new-build nuances as needed
+	var pipeline *app.Pipeline
+	trackedImage := extractFirstImageStreamTag(true, pipeline.InputImage)
 	err = c.checkCircularReferences(objects)
 	if err != nil {
 		if err, ok := err.(app.CircularOutputReferenceError); ok {
 			if c.ExpectToBuild {
 				// circular reference handling for `oc new-build`.
-				if len(c.To) == 0 {
+				if len(c.To) == 0 && c.Name != trackedImage {
 					// Output reference was generated, return error.
 					return nil, fmt.Errorf("%v, set a different tag with --to", err)
 				}
