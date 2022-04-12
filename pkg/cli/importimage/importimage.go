@@ -197,6 +197,16 @@ func (o *ImportImageOptions) Validate() error {
 		return fmt.Errorf("you must specify the name of an image stream")
 	}
 
+	switch strings.ToLower(o.ReferencePolicy) {
+	case tag.SourceReferencePolicy:
+	case "":
+		o.ReferencePolicy = tag.SourceReferencePolicy
+	case tag.LocalReferencePolicy:
+		o.ReferencePolicy = tag.LocalReferencePolicy
+	default:
+		return fmt.Errorf("valid reference policy values are source or local")
+	}
+
 	return nil
 }
 
