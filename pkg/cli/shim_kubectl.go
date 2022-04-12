@@ -9,7 +9,6 @@ import (
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	kcmdcreate "k8s.io/kubectl/pkg/cmd/create"
 	describeversioned "k8s.io/kubectl/pkg/describe"
-	"k8s.io/kubectl/pkg/generate/versioned"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 
 	"github.com/openshift/oc/pkg/helpers/originpolymorphichelpers"
@@ -41,6 +40,5 @@ func shimKubectlForOc() {
 	polymorphichelpers.UpdatePodSpecForObjectFn = originpolymorphichelpers.NewUpdatePodSpecForObjectFn(polymorphichelpers.UpdatePodSpecForObjectFn)
 
 	// update some functions we inject
-	versioned.GeneratorFn = originpolymorphichelpers.NewGeneratorsFn(versioned.GeneratorFn)
 	describeversioned.DescriberFn = originpolymorphichelpers.NewDescriberFn(describeversioned.DescriberFn)
 }

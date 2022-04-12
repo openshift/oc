@@ -86,8 +86,8 @@ func TestValidateDisabled(t *testing.T) {
 					continue
 				}
 
-				if ocValidateFlag.Value.String() != "false" {
-					t.Errorf("%s --validate is not defaulting to false", occmd.Name())
+				if ocValidateFlag.Value.String() != "ignore" {
+					t.Errorf("%s --validate is not defaulting to ignore", occmd.Name())
 				}
 			}
 		}

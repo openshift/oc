@@ -1,11 +1,13 @@
 package expose
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -13,8 +15,11 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
+	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	routev1 "github.com/openshift/api/route/v1"
+	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/openshift/oc/pkg/cli/create/route"
 )
 
@@ -46,13 +51,6 @@ var (
 
 		# Expose a service as a route in the specified path
 		oc expose service nginx --path=/nginx
-
-		# Expose a service using different generators
-		oc expose service nginx --name=exposed-svc --port=12201 --protocol="TCP" --generator="service/v2"
-		oc expose service nginx --name=my-route --port=12201 --generator="route/v1"
-
-		# Exposing a service using the "route/v1" generator (default) will create a new exposed route with the "--name" provided
-		# (or the name of the service otherwise). You may not specify a "--protocol" or "--target-port" option when using this generator
 	`)
 )
 
@@ -61,48 +59,38 @@ type ExposeOptions struct {
 	Path           string
 	WildcardPolicy string
 
-	Namespace        string
-	EnforceNamespace bool
-	CoreClient       corev1client.CoreV1Interface
-	Builder          func() *resource.Builder
-	Args             []string
-	Generator        string
-	Filenames        []string
-	Port             string
-	Protocol         string
+	Args        []string
+	Cmd         *cobra.Command
+	CoreClient  corev1client.CoreV1Interface
+	RouteClient routev1client.RouteV1Interface
+	Builder     *resource.Builder
+
+	// Embed kubectl's ExposeServiceOptions directly.
+	*expose.ExposeServiceOptions
 }
 
-func NewExposeOptions() *ExposeOptions {
-	return &ExposeOptions{}
+func NewExposeOptions(streams genericclioptions.IOStreams) *ExposeOptions {
+	return &ExposeOptions{
+		ExposeServiceOptions: expose.NewExposeServiceOptions(streams),
+	}
 }
 
 // NewCmdExpose is a wrapper for the Kubernetes cli expose command
 func NewCmdExpose(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewExposeOptions()
+	o := NewExposeOptions(streams)
 
 	cmd := expose.NewCmdExposeService(f, streams)
 	cmd.Short = "Expose a replicated application as a service or route"
 	cmd.Long = exposeLong
 	cmd.Example = exposeExample
-	// Default generator to an empty string so we can get more flexibility
-	// when setting defaults based on input resources
-	cmd.Flags().Set("generator", "")
-	cmd.Flag("generator").Usage = "The name of the API generator to use. Defaults to \"route/v1\". Available generators include \"service/v1\", \"service/v2\", and \"route/v1\". \"service/v1\" will automatically name the port \"default\", while \"service/v2\" will leave it unnamed."
-	cmd.Flag("generator").DefValue = ""
-	// Default protocol to an empty string so we can get more flexibility
-	// when validating the use of it (invalid for routes)
 	cmd.Flags().Set("protocol", "")
-	cmd.Flag("protocol").DefValue = ""
-	cmd.Flag("protocol").Changed = false
-	cmd.Flag("port").Usage = "The port that the resource should serve on."
-	defRun := cmd.Run
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		kcmdutil.CheckErr(o.Complete(cmd, f, args))
-		kcmdutil.CheckErr(o.Validate(cmd))
-		defRun(cmd, args)
+		kcmdutil.CheckErr(o.Validate())
+		kcmdutil.CheckErr(o.Run())
 	}
 	validArgs := []string{"pod", "service", "replicationcontroller", "deployment", "replicaset", "deploymentconfig"}
-	cmd.ValidArgsFunction = util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
+	cmd.ValidArgsFunction = completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 
 	cmd.Flags().StringVar(&o.Hostname, "hostname", o.Hostname, "Set a hostname for the new route")
 	cmd.Flags().StringVar(&o.Path, "path", o.Path, "Set a path for the new route")
@@ -112,40 +100,57 @@ func NewCmdExpose(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 }
 
 func (o *ExposeOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []string) error {
-	var err error
-	o.Namespace, o.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
-	if err != nil {
-		return err
-	}
+	// manually bind all flag values from the upstream command
+	// TODO: once the upstream command supports binding flags
+	// by outside callers, this will no longer be needed.
+	o.ExposeServiceOptions.Protocol = kcmdutil.GetFlagString(cmd, "protocol")
+	o.ExposeServiceOptions.Port = kcmdutil.GetFlagString(cmd, "port")
+	o.ExposeServiceOptions.Type = kcmdutil.GetFlagString(cmd, "type")
+	o.ExposeServiceOptions.LoadBalancerIP = kcmdutil.GetFlagString(cmd, "load-balancer-ip")
+	o.ExposeServiceOptions.Selector = kcmdutil.GetFlagString(cmd, "selector")
+	o.ExposeServiceOptions.Labels = kcmdutil.GetFlagString(cmd, "labels")
+	o.ExposeServiceOptions.TargetPort = kcmdutil.GetFlagString(cmd, "target-port")
+	o.ExposeServiceOptions.ExternalIP = kcmdutil.GetFlagString(cmd, "external-ip")
+	o.ExposeServiceOptions.Name = kcmdutil.GetFlagString(cmd, "name")
+	o.ExposeServiceOptions.SessionAffinity = kcmdutil.GetFlagString(cmd, "session-affinity")
+	o.ExposeServiceOptions.ClusterIP = kcmdutil.GetFlagString(cmd, "cluster-ip")
+	output := kcmdutil.GetFlagString(cmd, "output")
+	o.ExposeServiceOptions.PrintFlags.OutputFormat = &output
 
 	config, err := f.ToRESTConfig()
 	if err != nil {
 		return err
 	}
 
+	o.Cmd = cmd
+	o.Args = args
+	o.Builder = f.NewBuilder()
+
 	o.CoreClient, err = corev1client.NewForConfig(config)
 	if err != nil {
 		return err
 	}
+	o.RouteClient, err = routev1client.NewForConfig(config)
+	if err != nil {
+		return err
+	}
 
-	o.Builder = f.NewBuilder
-	o.Args = args
-	o.Generator = kcmdutil.GetFlagString(cmd, "generator")
-	o.Filenames = kcmdutil.GetFlagStringSlice(cmd, "filename")
-	o.Port = kcmdutil.GetFlagString(cmd, "port")
-	o.Protocol = kcmdutil.GetFlagString(cmd, "protocol")
+	return o.ExposeServiceOptions.Complete(f, cmd)
+}
 
+func (o *ExposeOptions) Validate() error {
+	if len(o.WildcardPolicy) > 0 && (o.WildcardPolicy != string(routev1.WildcardPolicySubdomain) && o.WildcardPolicy != string(routev1.WildcardPolicyNone)) {
+		return fmt.Errorf("only \"Subdomain\" or \"None\" are supported for wildcard-policy")
+	}
 	return nil
 }
 
-// Validate adds one layer of validation prior to calling the upstream
-// expose command.
-func (o *ExposeOptions) Validate(cmd *cobra.Command) error {
-	r := o.Builder().
+func (o *ExposeOptions) Run() error {
+	r := o.Builder.
 		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
-		FilenameParam(o.EnforceNamespace, &resource.FilenameOptions{Recursive: false, Filenames: o.Filenames}).
+		FilenameParam(o.EnforceNamespace, &o.ExposeServiceOptions.FilenameOptions).
 		ResourceTypeOrNameArgs(false, o.Args...).
 		Flatten().
 		Do()
@@ -153,11 +158,6 @@ func (o *ExposeOptions) Validate(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-
-	if len(o.WildcardPolicy) > 0 && (o.WildcardPolicy != "Subdomain" && o.WildcardPolicy != "None") {
-		return fmt.Errorf("only \"Subdomain\" or \"None\" are supported for wildcard-policy")
-	}
-
 	if len(infos) > 1 {
 		return fmt.Errorf("multiple resources provided: %v", o.Args)
 	}
@@ -166,44 +166,37 @@ func (o *ExposeOptions) Validate(cmd *cobra.Command) error {
 
 	switch mapping.Resource.GroupResource() {
 	case corev1.Resource("services"):
-		switch o.Generator {
-		case "service/v1", "service/v2":
-			// Set default protocol back for generating services
-			if len(o.Protocol) == 0 {
-				cmd.Flags().Set("protocol", "TCP")
-			}
-		case "":
-			// Default exposing services as a route
-			cmd.Flags().Set("generator", "route/v1")
-			fallthrough
-		case "route/v1":
-			// The upstream generator will incorrectly chose service.Port instead of service.TargetPort
-			// for the route TargetPort when no port is present.  Passing forcePort=true
-			// causes UnsecuredRoute to always set a Port so the upstream default is not used.
-			route, err := route.UnsecuredRoute(o.CoreClient, o.Namespace, info.Name, info.Name, o.Port, true, o.EnforceNamespace)
+		if len(o.ExposeServiceOptions.Type) != 0 {
+			return fmt.Errorf("cannot use --type when exposing route")
+		}
+		// The upstream generator will incorrectly chose service.Port instead of service.TargetPort
+		// for the route TargetPort when no port is present.  Passing forcePort=true
+		// causes UnsecuredRoute to always set a Port so the upstream default is not used.
+		route, err := route.UnsecuredRoute(o.CoreClient, o.Namespace, o.ExposeServiceOptions.Name, info.Name, o.Port, true, o.EnforceNamespace)
+		if err != nil {
+			return err
+		}
+		route.Spec.Host = o.Hostname
+		route.Spec.Path = o.Path
+		route.Spec.WildcardPolicy = routev1.WildcardPolicyType(o.WildcardPolicy)
+		if err := util.CreateOrUpdateAnnotation(kcmdutil.GetFlagBool(o.Cmd, kcmdutil.ApplyAnnotationsFlag), route, scheme.DefaultJSONEncoder()); err != nil {
+			return err
+		}
+
+		if o.DryRunStrategy != kcmdutil.DryRunClient {
+			route, err = o.RouteClient.Routes(o.ExposeServiceOptions.Namespace).Create(context.TODO(), route, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}
-			if route.Spec.Port != nil {
-				cmd.Flags().Set("port", route.Spec.Port.TargetPort.String())
-			}
 		}
 
-	default:
-		switch o.Generator {
-		case "route/v1":
-			return fmt.Errorf("cannot expose a %s as a route", mapping.GroupVersionKind.Kind)
-		case "":
-			// Default exposing everything except services as a service
-			cmd.Flags().Set("generator", "service/v2")
-			fallthrough
-		case "service/v1", "service/v2":
-			// Set default protocol back for generating services
-			if len(kcmdutil.GetFlagString(cmd, "protocol")) == 0 {
-				cmd.Flags().Set("protocol", "TCP")
-			}
-		}
+		return o.ExposeServiceOptions.PrintObj(route, o.ExposeServiceOptions.Out)
 	}
 
-	return nil
+	// Set default protocol back for generating services
+	if len(kcmdutil.GetFlagString(o.Cmd, "protocol")) == 0 {
+		o.ExposeServiceOptions.Protocol = "TCP"
+	}
+
+	return o.ExposeServiceOptions.RunExpose(o.Cmd, o.Args)
 }
