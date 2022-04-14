@@ -20,7 +20,6 @@ import (
 	"github.com/openshift/api/authorization"
 	"github.com/openshift/api/build"
 	"github.com/openshift/api/image"
-	"github.com/openshift/api/network"
 	"github.com/openshift/api/oauth"
 	"github.com/openshift/api/project"
 	quotav1 "github.com/openshift/api/quota/v1"
@@ -62,7 +61,6 @@ func main() {
 	utilruntime.Must(authorization.Install(scheme.Scheme))
 	utilruntime.Must(build.Install(scheme.Scheme))
 	utilruntime.Must(image.Install(scheme.Scheme))
-	utilruntime.Must(network.Install(scheme.Scheme))
 	utilruntime.Must(oauth.Install(scheme.Scheme))
 	utilruntime.Must(project.Install(scheme.Scheme))
 	utilruntime.Must(installNonCRDQuota(scheme.Scheme))
