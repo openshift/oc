@@ -288,15 +288,13 @@ func (o *Options) Run() error {
 			}
 		}
 
-		if o.ToImage != "" {
-			if o.AllowExplicitUpgrade {
-				update = &configv1.Update{
-					Version: "",
-					Image:   o.ToImage,
-				}
-				fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates."+
-					"You have used --allow-explicit-upgrade for the update to proceed anyway")
+		if update == nil && o.ToImage != "" && o.AllowExplicitUpgrade {
+			update = &configv1.Update{
+				Version: "",
+				Image:   o.ToImage,
 			}
+			fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates."+
+				"You have used --allow-explicit-upgrade for the update to proceed anyway")
 		}
 
 		if update == nil {
