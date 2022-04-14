@@ -3,6 +3,7 @@ package upgrade
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -321,10 +322,12 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
 		}
 
-		cv.Spec.DesiredUpdate = update
-
-		_, err := o.Client.ConfigV1().ClusterVersions().Update(context.TODO(), cv, metav1.UpdateOptions{})
+		updateJSON, err := json.Marshal(update)
 		if err != nil {
+			return fmt.Errorf("marshal ClusterVersion patch: %v", err)
+		}
+		patch := []byte(fmt.Sprintf(`{"spec":{"desiredUpdate": %s}}`, updateJSON))
+		if _, err := o.Client.ConfigV1().ClusterVersions().Patch(context.TODO(), cv.Name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil {
 			return fmt.Errorf("Unable to upgrade: %v", err)
 		}
 
