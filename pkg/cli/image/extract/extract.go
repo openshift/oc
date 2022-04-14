@@ -234,7 +234,7 @@ func parseMappings(images, paths, files []string, requireEmpty bool) ([]Mapping,
 			case 2:
 				mapping = Mapping{Image: image, From: parts[0], To: parts[1]}
 			default:
-				return nil, fmt.Errorf("--paths must be of the form SRC:DST")
+				return nil, fmt.Errorf("--path must be of the form SRC:DST")
 			}
 			if len(mapping.From) > 0 {
 				mapping.From = strings.TrimPrefix(mapping.From, "/")
