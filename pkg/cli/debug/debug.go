@@ -32,6 +32,7 @@ import (
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/kubectl/pkg/cmd/attach"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	krun "k8s.io/kubectl/pkg/cmd/run"
@@ -41,6 +42,7 @@ import (
 	"k8s.io/kubectl/pkg/util/interrupt"
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/kubectl/pkg/util/term"
+	admissionapi "k8s.io/pod-security-admission/api"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
@@ -445,6 +447,22 @@ func (o *DebugOptions) RunDebug() error {
 	}
 	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug", generateapp.MakeSimpleName(infos[0].Name)), ns
 	o.Attach.Pod = pod
+
+	// set pod security label on the namespace as the debug pod is privileged.
+	retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		nsObj, err := o.CoreClient.Namespaces().Get(context.Background(), pod.Namespace, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		if nsObj.Labels == nil {
+			nsObj.Labels = make(map[string]string)
+		}
+		nsObj.Labels[admissionapi.EnforceLevelLabel] = string(admissionapi.LevelPrivileged)
+
+		_, err = o.CoreClient.Namespaces().Update(context.Background(), nsObj, metav1.UpdateOptions{})
+		return err
+	})
 
 	if len(o.Attach.ContainerName) == 0 && len(pod.Spec.Containers) > 0 {
 		if !o.Attach.Quiet {
