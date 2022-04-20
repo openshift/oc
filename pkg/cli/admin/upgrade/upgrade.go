@@ -377,6 +377,10 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.Out, "Upgradeable=False\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 		}
 
+		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "ReleaseAccepted"); c != nil && c.Status != configv1.ConditionTrue {
+			fmt.Fprintf(o.Out, "ReleaseAccepted=%s\n\n  Reason: %s\n  Message: %s\n\n", c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+		}
+
 		if cv.Spec.Channel != "" {
 			if cv.Spec.Upstream == "" {
 				fmt.Fprint(o.Out, "Upstream is unset, so the cluster will use an appropriate default.\n")
