@@ -133,6 +133,9 @@ func (r *TemplateFileSearcher) Search(precise bool, terms ...string) (ComponentM
 
 		if err != nil {
 			switch {
+			// FIXME: remove below condition as soon as we land https://github.com/kubernetes/kubernetes/pull/109488
+			case strings.Contains(err.Error(), "is not valid: no match") && strings.Contains(err.Error(), "pattern"):
+				continue
 			case strings.Contains(err.Error(), "does not exist") && strings.Contains(err.Error(), "the path"):
 				continue
 			case strings.Contains(err.Error(), "not a directory") && strings.Contains(err.Error(), "the path"):

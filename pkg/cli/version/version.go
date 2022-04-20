@@ -72,8 +72,8 @@ func NewCmdVersion(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *co
 		Long:    "Print the client and server version information for the current context",
 		Example: versionExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Validate(args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
@@ -122,6 +122,9 @@ func (o *VersionOptions) Run() error {
 		versionInfo.ReleaseClientVersion = reportedVersion
 	}
 	versionInfo.ClientVersion = &clientVersion
+	// TODO: fix this to use kversion.GetKustomizeVersion after
+	// https://github.com/kubernetes/kubernetes/pull/109430 lands
+	versionInfo.KustomizeVersion = "v4.5.4"
 
 	var serverErr error
 	var serverVersion *apimachineryversion.Info
@@ -162,6 +165,9 @@ func (o *VersionOptions) Run() error {
 			} else {
 				fmt.Fprintf(o.Out, "Client Version: %s\n", clientVersion.GitVersion)
 			}
+		}
+		if len(versionInfo.KustomizeVersion) != 0 {
+			fmt.Fprintf(o.Out, "Kustomize Version: %s\n", versionInfo.KustomizeVersion)
 		}
 		if len(versionInfo.OpenShiftVersion) != 0 {
 			fmt.Fprintf(o.Out, "Server Version: %s\n", fmt.Sprintf("%s", versionInfo.OpenShiftVersion))

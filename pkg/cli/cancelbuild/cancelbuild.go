@@ -20,7 +20,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/kubectl/pkg/util"
+	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/api/build"
@@ -102,7 +102,7 @@ func NewCmdCancelBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 		Long:              cancelBuildLong,
 		Example:           cancelBuildExample,
 		SuggestFor:        []string{"builds", "stop-build"},
-		ValidArgsFunction: util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
+		ValidArgsFunction: completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

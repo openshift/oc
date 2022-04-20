@@ -1,6 +1,6 @@
 apiVersion: v1
 items:
-- apiVersion: v1
+- apiVersion: image.openshift.io/v1
   kind: ImageStream
   metadata:
     creationTimestamp: null
@@ -9,7 +9,7 @@ items:
     dockerImageRepository: centos/ruby-25-centos7
   status:
     dockerImageRepository: ""
-- apiVersion: v1
+- apiVersion: image.openshift.io/v1
   kind: ImageStream
   metadata:
     creationTimestamp: null
@@ -17,7 +17,7 @@ items:
   spec: {}
   status:
     dockerImageRepository: ""
-- apiVersion: v1
+- apiVersion: build.openshift.io/v1
   kind: BuildConfig
   metadata:
     creationTimestamp: null

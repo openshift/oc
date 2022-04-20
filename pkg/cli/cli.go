@@ -14,10 +14,9 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	kubecmd "k8s.io/kubectl/pkg/cmd"
-	"k8s.io/kubectl/pkg/cmd/get"
 	"k8s.io/kubectl/pkg/cmd/plugin"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	kutil "k8s.io/kubectl/pkg/util"
+	"k8s.io/kubectl/pkg/util/completion"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
 	kterm "k8s.io/kubectl/pkg/util/term"
 
@@ -291,7 +290,6 @@ func moved(fullName, to string, parent, cmd *cobra.Command) string {
 
 // changeSharedFlagDefaults changes values of shared flags that we disagree with.  This can't be done in godep code because
 // that would change behavior in our `kubectl` symlink. Defend each change.
-// 1. show-all - the most interesting pods are terminated/failed pods.  We don't want to exclude them from printing
 func changeSharedFlagDefaults(rootCmd *cobra.Command) {
 	cmds := []*cobra.Command{rootCmd}
 
@@ -301,9 +299,9 @@ func changeSharedFlagDefaults(rootCmd *cobra.Command) {
 
 		// we want to disable the --validate flag by default when we're running kube commands from oc.  We want to make sure
 		// that we're only getting the upstream --validate flags, so check both the flag and the usage
-		if validateFlag := currCmd.Flags().Lookup("validate"); (validateFlag != nil) && (validateFlag.Usage == "If true, use a schema to validate the input before sending it") {
-			validateFlag.DefValue = "false"
-			validateFlag.Value.Set("false")
+		if validateFlag := currCmd.Flags().Lookup("validate"); (validateFlag != nil) && (strings.Contains(validateFlag.Usage, "Must be one of: strict (or true), warn, ignore (or false)")) {
+			validateFlag.DefValue = "ignore"
+			validateFlag.Value.Set("ignore")
 			validateFlag.Changed = false
 		}
 	}
@@ -394,21 +392,21 @@ func registerCompletionFuncForGlobalFlags(cmd *cobra.Command, f kcmdutil.Factory
 	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
 		"namespace",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return get.CompGetResource(f, cmd, "namespace", toComplete), cobra.ShellCompDirectiveNoFileComp
+			return completion.CompGetResource(f, cmd, "namespace", toComplete), cobra.ShellCompDirectiveNoFileComp
 		}))
 	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
 		"context",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return kutil.ListContextsInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
+			return completion.ListContextsInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
 		}))
 	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
 		"cluster",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return kutil.ListClustersInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
+			return completion.ListClustersInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
 		}))
 	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
 		"user",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return kutil.ListUsersInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
+			return completion.ListUsersInConfig(toComplete), cobra.ShellCompDirectiveNoFileComp
 		}))
 }

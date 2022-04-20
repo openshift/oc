@@ -25,7 +25,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions/openshiftpatch"
 )
 
 // JSONPrinter is an implementation of ResourcePrinter which outputs an object as JSON.
@@ -68,9 +67,6 @@ func (p *JSONPrinter) PrintObj(obj runtime.Object, w io.Writer) error {
 
 	if obj.GetObjectKind().GroupVersionKind().Empty() {
 		return fmt.Errorf("missing apiVersion or kind; try GetObjectKind().SetGroupVersionKind() if you know the type")
-	}
-	if openshiftpatch.IsOAPI(obj.GetObjectKind().GroupVersionKind()) {
-		return fmt.Errorf("attempt to print an ungroupified object: %v", obj.GetObjectKind().GroupVersionKind())
 	}
 
 	data, err := json.MarshalIndent(obj, "", "    ")

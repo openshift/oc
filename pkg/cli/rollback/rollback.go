@@ -18,7 +18,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/kubectl/pkg/util"
+	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -109,7 +109,7 @@ func NewCmdRollback(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 		Short:             "Revert part of an application back to a previous deployment",
 		Long:              rollbackLong,
 		Example:           rollbackExample,
-		ValidArgsFunction: util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
+		ValidArgsFunction: completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

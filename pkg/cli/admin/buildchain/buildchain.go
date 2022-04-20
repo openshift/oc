@@ -13,7 +13,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util"
+	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/api/image"
@@ -77,7 +77,7 @@ func NewCmdBuildChain(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 		Short:             "Output the inputs and dependencies of your builds",
 		Long:              buildChainLong,
 		Example:           buildChainExample,
-		ValidArgsFunction: util.ResourceNameCompletionFunc(f, "pod"),
+		ValidArgsFunction: completion.ResourceNameCompletionFunc(f, "pod"),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(options.Complete(f, cmd, args, streams.Out))
 			kcmdutil.CheckErr(options.Validate())
