@@ -103,6 +103,9 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			# Show information about the cluster's current release
 			oc adm release info
 
+			# Search information about a specific architecture's release (default is linux/amd64)
+			oc adm release info 4.10.0 --filter-by-os=linux/arm64
+
 			# Show the source code that comprises a release
 			oc adm release info 4.2.2 --commit-urls
 
@@ -221,7 +224,7 @@ const defaultGraphURL = "https://api.openshift.com/api/upgrades_info/v1/graph"
 // replaceStableSemanticArgs attempts to look up known major versions in existing public stable
 // channels.
 // TODO: perfom graph lookups from the cluster's graph endpoint and channel in preference
-func replaceStableSemanticArgs(args []string, semanticArgs map[string]semver.Version, graphURL string) error {
+func replaceStableSemanticArgs(args []string, semanticArgs map[string]semver.Version, graphURL string, filterByOs imagemanifest.FilterOptions) error {
 	if len(graphURL) == 0 {
 		graphURL = defaultGraphURL
 	}
@@ -252,7 +255,14 @@ func replaceStableSemanticArgs(args []string, semanticArgs map[string]semver.Ver
 
 		var found bool
 		for _, stream := range []string{"fast", "stable", "candidate"} {
-			u.RawQuery = url.Values{"channel": []string{fmt.Sprintf("%s-%d.%d", stream, v.Major, v.Minor)}}.Encode()
+			params := url.Values{"channel": []string{fmt.Sprintf("%s-%d.%d", stream, v.Major, v.Minor)}}
+			//the api only accpets the arch portion of os/arch privided by filter-by-os parameters, so we filter out linux/ prefix
+			if filterByOs.FilterByOS != "" {
+				arch := filterByOs.FilterByOS
+				arch = strings.ReplaceAll(arch, "linux/", "")
+				params.Add("arch", arch)
+			}
+			u.RawQuery = params.Encode()
 			if err := func() error {
 				req, err := http.NewRequest("GET", u.String(), nil)
 				if err != nil {
@@ -268,7 +278,7 @@ func replaceStableSemanticArgs(args []string, semanticArgs map[string]semver.Ver
 				case http.StatusOK:
 				default:
 					io.Copy(ioutil.Discard, resp.Body)
-					return fmt.Errorf("unable to retrieve status for %q: %d", arg, resp.StatusCode)
+					return fmt.Errorf("unable to retrieve status for %q %q: %d", arg, filterByOs.FilterByOS, resp.StatusCode)
 				}
 				data, err := ioutil.ReadAll(resp.Body)
 				if err != nil {
@@ -315,7 +325,6 @@ func replaceClusterSemanticArgs(f kcmdutil.Factory, args []string, semanticArgs 
 		}
 		return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server: %v", err)
 	}
-
 	if len(args) == 0 {
 		image := cv.Status.Desired.Image
 		if len(image) == 0 && cv.Spec.DesiredUpdate != nil {
@@ -342,7 +351,7 @@ func replaceClusterSemanticArgs(f kcmdutil.Factory, args []string, semanticArgs 
 	return args, nil
 }
 
-func findArgumentsFromCluster(f kcmdutil.Factory, args []string) ([]string, error) {
+func findArgumentsFromCluster(f kcmdutil.Factory, args []string, filterByOs imagemanifest.FilterOptions) ([]string, error) {
 	semanticArgs := findSemanticVersionArgs(args)
 	if len(semanticArgs) == 0 && len(args) > 0 {
 		return args, nil
@@ -354,7 +363,7 @@ func findArgumentsFromCluster(f kcmdutil.Factory, args []string) ([]string, erro
 		return args, clusterErr
 	}
 	// if any semantic args remain, try to fetch them from the api endpoint out of a stable channel
-	err := replaceStableSemanticArgs(args, semanticArgs, defaultGraphURL)
+	err := replaceStableSemanticArgs(args, semanticArgs, defaultGraphURL, filterByOs)
 	if len(semanticArgs) == 0 || err != nil {
 		if clusterErr != nil {
 			klog.V(2).Infof("Ignored error retrieving semantic versions from cluster version: %v", err)
@@ -363,13 +372,17 @@ func findArgumentsFromCluster(f kcmdutil.Factory, args []string) ([]string, erro
 	}
 	// if there are any semantic args left, error
 	for arg := range semanticArgs {
-		return nil, fmt.Errorf("the semantic version %q is not present in the cluster version status or in the official versions list, cannot be resolved", arg)
+		if filterByOs.FilterByOS == "" {
+			return nil, fmt.Errorf("the semantic version %q is not present in the cluster version status or in the official versions list, cannot be resolved", arg)
+		}
+		return nil, fmt.Errorf("the semantic version %q and --filter-by-os %q are not present in the cluster version status or in the official versions list, cannot be resolved", arg, filterByOs.FilterByOS)
 	}
+
 	return args, nil
 }
 
 func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
-	args, err := findArgumentsFromCluster(f, args)
+	args, err := findArgumentsFromCluster(f, args, o.FilterOptions)
 	if err != nil {
 		return err
 	}

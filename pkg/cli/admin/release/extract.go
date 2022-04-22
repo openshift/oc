@@ -145,6 +145,7 @@ type ExtractOptions struct {
 	SecurityOptions imagemanifest.SecurityOptions
 	FilterOptions   imagemanifest.FilterOptions
 	ParallelOptions imagemanifest.ParallelOptions
+	FilterOptions   imagemanifest.FilterOptions
 
 	ICSPFile string
 
@@ -184,7 +185,7 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	if len(o.From) > 0 {
 		args = []string{o.From}
 	}
-	args, err := findArgumentsFromCluster(f, args)
+	args, err := findArgumentsFromCluster(f, args, o.FilterOptions)
 	if err != nil {
 		return err
 	}
