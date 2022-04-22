@@ -67,8 +67,6 @@ type InspectOptions struct {
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
 
-	podUrlGetter *PortForwardURLGetter
-
 	fileWriter     *MultiSourceFileWriter
 	builder        *resource.Builder
 	since          time.Duration
@@ -185,11 +183,6 @@ func (o *InspectOptions) Complete(args []string) error {
 		}
 	}
 	o.fileWriter = NewMultiSourceWriter(printer)
-	o.podUrlGetter = &PortForwardURLGetter{
-		Protocol:  "https",
-		Host:      "localhost",
-		LocalPort: "37587",
-	}
 
 	o.builder = resource.NewBuilder(o.configFlags)
 
