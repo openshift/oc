@@ -242,7 +242,10 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 	if len(o.ConfigFile) == 0 {
 		if authFile := os.Getenv("REGISTRY_AUTH_FILE"); authFile != "" {
 			o.ConfigFile = authFile
-		} else if image.GetRegistryAuthConfigPreference() == image.DockerPreference {
+		} else if pref, warn := image.GetRegistryAuthConfigPreference(); pref == image.DockerPreference {
+			if len(warn) > 0 {
+				fmt.Fprint(o.IOStreams.ErrOut, warn)
+			}
 			home := homedir.HomeDir()
 			o.ConfigFile = filepath.Join(home, ".docker", "config.json")
 		}
@@ -300,7 +303,7 @@ func (o *LoginOptions) Run() error {
 
 	if o.ConfigFile == "-" {
 		// TODO: deprecated, remove in 4.12
-		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for stdout output is deprecated. The support will be removed in the future version.\n")
+		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for stdout output is deprecated. The support will be removed in the future version of oc.\n")
 		authFilePath, err = createTmpAuthFile()
 		if err != nil {
 			return err
@@ -341,7 +344,7 @@ func (o *LoginOptions) ensureEmptyAuthFileInitialized(configFile string) error {
 	}
 	if !os.IsNotExist(err) && fileInfo.Size() == 0 {
 		// TODO: deprecated, remove in 4.12
-		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for empty registry config files is deprecated. The support will be removed in the future version.\n")
+		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for empty registry config files is deprecated. The support will be removed in the future version of oc.\n")
 		file, err := os.OpenFile(configFile, os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
 			return err
