@@ -9,10 +9,14 @@ import (
 )
 
 type fakeGit struct {
-	input string
+	input  string
+	squash bool
 }
 
 func (g fakeGit) exec(commands ...string) (string, error) {
+	if commands[1] == "--merges" && g.squash {
+		return "", nil
+	}
 	return g.input, nil
 }
 
@@ -23,6 +27,7 @@ func Test_mergeLogForRepo(t *testing.T) {
 		repo    string
 		from    string
 		to      string
+		squash  bool
 		want    []MergeCommit
 		wantErr bool
 	}{
@@ -205,10 +210,46 @@ func Test_mergeLogForRepo(t *testing.T) {
 				},
 			},
 		},
+		{
+			input:  "abc\x1e1\x1eBugs 1743564: fix typo (#145)\x1e * fix typo",
+			squash: true,
+			want: []MergeCommit{
+				{
+					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     1743564,
+								Source: Bugzilla,
+							},
+						},
+					},
+					Subject: "fix typo (#145)",
+				},
+			},
+		},
+		{
+			input:  "abc\x1e1\x1eOCPBUGS-1743564: fix typo (#145)\x1e * fix typo",
+			squash: true,
+			want: []MergeCommit{
+				{
+					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
+					Bugs: BugList{
+						Bugs: []Bug{
+							{
+								ID:     1743564,
+								Source: Jira,
+							},
+						},
+					},
+					Subject: "fix typo (#145)",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := fakeGit{input: tt.input}
+			g := fakeGit{input: tt.input, squash: tt.squash}
 			got, err := mergeLogForRepo(g, tt.repo, "a", "b")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("mergeLogForRepo() error = %v, wantErr %v", err, tt.wantErr)
