@@ -22,6 +22,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/blang/semver"
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
@@ -93,6 +94,10 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			The --bugs and --changelog flags will use git to clone the source of the release and display
 			the code changes that occurred between the two release arguments. This operation is slow
 			and requires sufficient disk space on the selected drive to clone all repositories.
+
+			If the specified image supports multiple operating systems, the image that matches the
+			current operating system will be chosen. Otherwise you must pass --filter-by-os to
+			select the desired image.
 		`),
 		Example: templates.Examples(`
 			# Show information about the cluster's current release
@@ -107,6 +112,10 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			# Show where the images referenced by the release are located
 			oc adm release info quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
 
+			# Show information about linux/s390x image
+			# Note: Wildcard filter is not supported. Pass a single os/arch to extract
+			oc adm release info quay.io/openshift-release-dev/ocp-release:4.2.2 --filter-by-os=linux/s390x
+
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -116,6 +125,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 	}
 	flags := cmd.Flags()
 	o.SecurityOptions.Bind(flags)
+	o.FilterOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
 	o.KubeTemplatePrintFlags.AddFlags(cmd)
 
@@ -162,6 +172,7 @@ type InfoOptions struct {
 
 	ParallelOptions imagemanifest.ParallelOptions
 	SecurityOptions imagemanifest.SecurityOptions
+	FilterOptions   imagemanifest.FilterOptions
 }
 
 func findSemanticVersionArgs(args []string) map[string]semver.Version {
@@ -367,7 +378,7 @@ func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 		o.From = o.Images[0]
 		o.Images = o.Images[1:]
 	}
-	return nil
+	return o.FilterOptions.Complete(cmd.Flags())
 }
 
 func (o *InfoOptions) Validate() error {
@@ -438,7 +449,7 @@ func (o *InfoOptions) Validate() error {
 		return fmt.Errorf("must specify a single release image as argument when comparing to another release image")
 	}
 
-	return nil
+	return o.FilterOptions.Validate()
 }
 
 func (o *InfoOptions) Run() error {
@@ -743,6 +754,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	verifier := imagemanifest.NewVerifier()
 	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.SecurityOptions = o.SecurityOptions
+	opts.FilterOptions = o.FilterOptions
 	opts.FileDir = o.FileDir
 
 	release := &ReleaseInfo{
@@ -839,6 +851,21 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 			FileDir:         opts.FileDir,
 			SecurityOptions: o.SecurityOptions,
 			ParallelOptions: o.ParallelOptions,
+			ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
+				filtered := make(map[digest.Digest]distribution.Manifest)
+				for _, manifest := range list.Manifests {
+					if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
+						klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
+						continue
+					}
+					filtered[manifest.Digest] = all[manifest.Digest]
+				}
+				if len(filtered) == 1 {
+					return filtered, nil
+				}
+
+				return nil, fmt.Errorf("no matching image found in manifest list")
+			},
 			ImageMetadataCallback: func(name string, image *imageinfo.Image, err error) error {
 				if image != nil {
 					verifier.Verify(image.Digest, image.ContentDigest)
