@@ -24,14 +24,13 @@ require (
 	github.com/gonum/graph v0.0.0-20170401004347-50b27dea7ebb
 	github.com/google/go-cmp v0.5.6
 	github.com/joelanford/ignore v0.0.0-20210610194209-63d4919d8fb2
-	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
-	github.com/openshift/api v0.0.0-20220317153038-a2ca88c44400
-	github.com/openshift/build-machinery-go v0.0.0-20220121085309-f94edc2d6874
-	github.com/openshift/client-go v0.0.0-20220316161609-20d926360175
-	github.com/openshift/library-go v0.0.0-20220315141154-40a8b89abdc2
+	github.com/openshift/api v0.0.0-20220525145417-ee5b62754c68
+	github.com/openshift/build-machinery-go v0.0.0-20220429084610-baff9f8d23b3
+	github.com/openshift/client-go v0.0.0-20220525160904-9e1acff93e4a
+	github.com/openshift/library-go v0.0.0-20220525173854-9b950a41acdc
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1
 	github.com/russross/blackfriday v1.5.2
@@ -42,15 +41,15 @@ require (
 	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
 	gopkg.in/ldap.v2 v2.5.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	k8s.io/api v0.24.0-beta.0
-	k8s.io/apimachinery v0.24.0-beta.0
-	k8s.io/apiserver v0.24.0-beta.0
-	k8s.io/cli-runtime v0.24.0-beta.0
-	k8s.io/client-go v0.24.0-beta.0
-	k8s.io/component-base v0.24.0-beta.0
+	k8s.io/api v0.24.1
+	k8s.io/apimachinery v0.24.1
+	k8s.io/apiserver v0.24.1
+	k8s.io/cli-runtime v0.24.1
+	k8s.io/client-go v0.24.1
+	k8s.io/component-base v0.24.1
 	k8s.io/klog/v2 v2.60.1
-	k8s.io/kubectl v0.24.0-beta.0
-	k8s.io/pod-security-admission v0.24.0-beta.0
+	k8s.io/kubectl v0.24.1
+	k8s.io/pod-security-admission v0.24.1
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 	sigs.k8s.io/yaml v1.2.0
 )
@@ -128,6 +127,7 @@ require (
 	github.com/lithammer/dedent v1.1.0 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
+	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/moby/sys/mount v0.2.0 // indirect
 	github.com/moby/sys/mountinfo v0.4.1 // indirect
@@ -155,7 +155,7 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6 // indirect
-	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
+	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
@@ -169,9 +169,9 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/component-helpers v0.24.0-beta.0 // indirect
+	k8s.io/component-helpers v0.24.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42 // indirect
-	k8s.io/metrics v0.24.0-beta.0 // indirect
+	k8s.io/metrics v0.24.1 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/kustomize/api v0.11.4 // indirect
 	sigs.k8s.io/kustomize/kustomize/v4 v4.5.4 // indirect
