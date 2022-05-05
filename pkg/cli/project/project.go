@@ -80,14 +80,12 @@ func NewProjectOptions(streams genericclioptions.IOStreams) *ProjectOptions {
 func NewCmdProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewProjectOptions(streams)
 
-	validArgs := []string{"project"}
-
 	cmd := &cobra.Command{
 		Use:               "project [NAME]",
 		Short:             "Switch to another project",
 		Long:              projectLong,
 		Example:           projectExample,
-		ValidArgsFunction: completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
+		ValidArgsFunction: completion.ResourceNameCompletionFunc(f, "project"),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
