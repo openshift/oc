@@ -246,6 +246,17 @@ func Test_mergeLogForRepo(t *testing.T) {
 				},
 			},
 		},
+		{
+			input:  "abc\x1e1\x1efix vendoring from #123 (#145)\x1e * fix vendoring from #123",
+			squash: true,
+			want: []MergeCommit{
+				{
+					ParentCommits: []string{}, Commit: "abc", PullRequest: 145, CommitDate: time.Unix(1, 0).UTC(),
+					Bugs:    BugList{},
+					Subject: "fix vendoring from #123 (#145)",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

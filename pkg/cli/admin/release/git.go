@@ -163,7 +163,7 @@ func gitOutputToError(err error, out string) error {
 }
 
 var (
-	squashRePR = regexp.MustCompile(`#(\d+)`)
+	squashRePR = regexp.MustCompile(`[(]#(\d+)[)]`)
 	rePR       = regexp.MustCompile(`^Merge pull request #(\d+) from`)
 	rePrefix   = regexp.MustCompile(`^(\[[\w\.\-]+\]\s*)+`)
 )
