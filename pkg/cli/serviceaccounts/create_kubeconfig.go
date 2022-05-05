@@ -61,10 +61,12 @@ func NewCommandCreateKubeconfig(f cmdutil.Factory, streams genericclioptions.IOS
 	options := NewCreateKubeconfigOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     "create-kubeconfig NAME",
-		Short:   createKubeconfigShort,
-		Long:    createKubeconfigLong,
-		Example: createKubeconfigExamples,
+		Use:        "create-kubeconfig NAME",
+		Short:      createKubeconfigShort,
+		Long:       createKubeconfigLong,
+		Example:    createKubeconfigExamples,
+		Hidden:     true,
+		Deprecated: "and will be removed in the future version. Use oc create token instead.",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(options.Complete(args, f, cmd))
 			cmdutil.CheckErr(options.Validate())
