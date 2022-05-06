@@ -278,7 +278,7 @@ func (o *AppendImageOptions) Run() error {
 			return fmt.Errorf("unable to read image %s: %v", from, err)
 		}
 
-		if o.KeepManifestList {
+		if _, ok := srcManifest.(*manifestlist.DeserializedManifestList); ok && o.KeepManifestList {
 			return o.appendManifestList(ctx, createdAt, from, to, repo, srcManifest, manifestLocation, toRepo, toManifests)
 		}
 	}
