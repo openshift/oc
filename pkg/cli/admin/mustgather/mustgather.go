@@ -95,6 +95,8 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
 	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
+	cmd.Flags().StringVar(&o.RunNamespace, "run-namespace", o.RunNamespace, "An existing namespace where must-gather pods should run. If not specified a temporary namespace will be generated.")
+	cmd.Flags().MarkHidden("run-namespace")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	cmd.Flags().MarkHidden("keep")
 
@@ -148,6 +150,9 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	}
 	if len(o.DestDir) == 0 {
 		o.DestDir = fmt.Sprintf("must-gather.local.%06d", rand.Int63())
+	}
+	if len(o.RunNamespace) > 0 {
+		fmt.Fprintln(o.ErrOut, `"--run-namespace" is an experimental flag, using it is not supported`)
 	}
 	if err := o.completeImages(); err != nil {
 		return err
@@ -238,6 +243,7 @@ type MustGatherOptions struct {
 	Command      []string
 	Timeout      time.Duration
 	timeoutStr   string
+	RunNamespace string
 	Keep         bool
 
 	RsyncRshCmd string
@@ -281,51 +287,18 @@ func (o *MustGatherOptions) Run() error {
 		o.BackupGathering(context.TODO(), errs)
 	}()
 
-	// create namespace ...
-	ns, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "openshift-must-gather-",
-			Labels: map[string]string{
-				"openshift.io/run-level":       "0",
-				admissionapi.EnforceLevelLabel: string(admissionapi.LevelPrivileged),
-			},
-			Annotations: map[string]string{
-				"oc.openshift.io/command":    "oc adm must-gather",
-				"openshift.io/node-selector": "",
-			},
-		},
-	}, metav1.CreateOptions{})
+	// Get or create "working" namespace ...
+	ns, cleanupNamespace, err := o.getNamespace()
 	if err != nil {
 		return err
 	}
-	o.PrinterCreated.PrintObj(ns, o.LogOut)
+
+	// ... ensure resource cleanup unless instructed otherwise ...
 	if !o.Keep {
-		defer func() {
-			if err := o.Client.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
-				fmt.Printf("%v\n", err)
-				return
-			}
-			o.PrinterDeleted.PrintObj(ns, o.LogOut)
-		}()
+		defer cleanupNamespace()
 	}
 
-	// ... cluster role binding ...
-	clusterRoleBinding, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), o.newClusterRoleBinding(ns.Name), metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	o.PrinterCreated.PrintObj(clusterRoleBinding, o.LogOut)
-	if !o.Keep {
-		defer func() {
-			if err := o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), clusterRoleBinding.Name, metav1.DeleteOptions{}); err != nil {
-				fmt.Printf("%v\n", err)
-				return
-			}
-			o.PrinterDeleted.PrintObj(clusterRoleBinding, o.LogOut)
-		}()
-	}
-
-	// ... and finally must-gather pod
+	// ... and create must-gather pod(s)
 	var pods []*corev1.Pod
 	for _, image := range o.Images {
 		_, err := imagereference.Parse(image)
@@ -595,7 +568,66 @@ func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error
 	})
 }
 
-func (o *MustGatherOptions) newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
+func (o *MustGatherOptions) getNamespace() (*corev1.Namespace, func(), error) {
+	if o.RunNamespace == "" {
+		return o.createTempNamespace()
+	}
+
+	ns, err := o.Client.CoreV1().Namespaces().Get(context.TODO(), o.RunNamespace, metav1.GetOptions{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("retrieving namespace %q: %w", o.RunNamespace, err)
+	}
+
+	return ns, func() {}, nil
+}
+
+func (o *MustGatherOptions) createTempNamespace() (*corev1.Namespace, func(), error) {
+	ns, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), newNamespace(), metav1.CreateOptions{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating temp namespace: %w", err)
+	}
+	o.PrinterCreated.PrintObj(ns, o.LogOut)
+
+	crb, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), newClusterRoleBinding(ns.Name), metav1.CreateOptions{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating temp clusterRoleBinding: %w", err)
+	}
+	o.PrinterCreated.PrintObj(crb, o.LogOut)
+
+	cleanup := func() {
+		if err := o.Client.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
+			fmt.Printf("%v\n", err)
+		} else {
+			o.PrinterDeleted.PrintObj(ns, o.LogOut)
+		}
+
+		if err := o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), crb.Name, metav1.DeleteOptions{}); err != nil {
+			fmt.Printf("%v\n", err)
+		} else {
+			o.PrinterDeleted.PrintObj(crb, o.LogOut)
+		}
+	}
+
+	return ns, cleanup, nil
+}
+
+func newNamespace() *corev1.Namespace {
+	return &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "openshift-must-gather-",
+			Labels: map[string]string{
+				"openshift.io/run-level":       "0",
+				admissionapi.EnforceLevelLabel: string(admissionapi.LevelPrivileged),
+			},
+			Annotations: map[string]string{
+				"oc.openshift.io/command":    "oc adm must-gather",
+				"openshift.io/node-selector": "",
+			},
+		},
+	}
+}
+
+func newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "must-gather-",
