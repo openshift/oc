@@ -101,6 +101,7 @@ type AppendImageOptions struct {
 	ConfigurationCallback func(dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig) error
 	// ToDigest is set after a new image is uploaded
 	ToDigest digest.Digest
+	ToSize   int64
 
 	DropHistory bool
 	CreatedAt   string
@@ -278,7 +279,7 @@ func (o *AppendImageOptions) Run() error {
 			return fmt.Errorf("unable to read image %s: %v", from, err)
 		}
 
-		if o.KeepManifestList {
+		if _, ok := srcManifest.(*manifestlist.DeserializedManifestList); ok && o.KeepManifestList {
 			return o.appendManifestList(ctx, createdAt, from, to, repo, srcManifest, manifestLocation, toRepo, toManifests)
 		}
 	}
@@ -292,26 +293,46 @@ func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *
 	toRepo distribution.Repository, toManifests distribution.ManifestService) error {
 	// process manifestlist
 	// oldDigest:newDigest mapping so that we can create a new manifestlist
-	newDigests := make(map[digest.Digest]digest.Digest)
+	newDigests := make(map[digest.Digest]distribution.Descriptor)
 	manifestMap, oldList, _, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
 	for digest, srcManifest := range manifestMap {
-		err = o.append(ctx, createdAt, from, to, true, repo, srcManifest, manifestLocation, toRepo, toManifests)
+		// create new ManifestLocation for each digest from the manifestlist
+		// because append function relies on that data
+		dgstManifestLocation := imagemanifest.ManifestLocation{Manifest: digest}
+		// to ensure we can read from the Reader multiple times, especially
+		// when dealing with ManifestList, where we copy the same layer contents
+		// (the release-manifests/ directory), we need to wrap it inside TeeReader
+		// which reads copies data to buffer while reading it allowing re-use
+		var buf bytes.Buffer
+		if o.LayerStream != nil {
+			o.LayerStream = io.TeeReader(o.LayerStream, &buf)
+		}
+		err = o.append(ctx, createdAt, from, to, true, repo, srcManifest, dgstManifestLocation, toRepo, toManifests)
 		if err != nil {
 			return fmt.Errorf("error appending image %s: %w", digest, err)
 		}
-		newDigests[digest] = o.ToDigest
+		if buf.Len() > 0 {
+			o.LayerStream = &buf
+		}
+		newDigests[digest] = distribution.Descriptor{
+			Digest: o.ToDigest,
+			Size:   o.ToSize,
+		}
 	}
+
 	// create new manifestlist from the old one swapping digest with the new ones
 	newDescriptors := make([]manifestlist.ManifestDescriptor, 0, len(oldList.Manifests))
 	for _, manifest := range oldList.Manifests {
-		manifest.Digest = newDigests[manifest.Digest]
+		descriptor := newDigests[manifest.Digest]
+		manifest.Digest = descriptor.Digest
+		manifest.Size = descriptor.Size
 		newDescriptors = append(newDescriptors, manifest)
-
 	}
 	forPush, err := manifestlist.FromDescriptors(newDescriptors)
 	if err != nil {
 		return fmt.Errorf("error creating new manifestlist: %#v", err)
 	}
+
 	// push new manifestlist to registry
 	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, forPush, to.Ref.Tag, toManifests, toRepo.Named(), nil, nil)
 	if err != nil {
@@ -517,6 +538,7 @@ func (o *AppendImageOptions) append(ctx context.Context, createdAt *time.Time,
 		return fmt.Errorf("unable to upload the new image manifest: %v", err)
 	}
 	klog.V(4).Infof("Created config JSON:\n%s", configJSON)
+
 	tag := to.Ref.Tag
 	if skipTagging {
 		tag = ""
@@ -526,6 +548,8 @@ func (o *AppendImageOptions) append(ctx context.Context, createdAt *time.Time,
 		return fmt.Errorf("unable to convert the image to a compatible schema version: %v", err)
 	}
 	o.ToDigest = toDigest
+	data, _ := json.MarshalIndent(manifest, "", "   ")
+	o.ToSize = int64(len(data))
 	if !o.DryRun {
 		toString := to.String()
 		if skipTagging {
