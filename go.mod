@@ -1,6 +1,6 @@
 module github.com/openshift/oc
 
-go 1.17
+go 1.18
 
 require (
 	github.com/AaronO/go-git-http v0.0.0-20161214145340-1d9485b3a98f
