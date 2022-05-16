@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -207,11 +208,17 @@ func (o *InspectOptions) Run() error {
 		NamespaceParam(o.namespace).DefaultNamespace().AllNamespaces(o.allNamespaces).
 		ResourceTypeOrNameArgs(true, o.args...).
 		Flatten().
+		ContinueOnError().
 		Latest().Do()
 
+	allErrs := []error{}
 	infos, err := r.Infos()
 	if err != nil {
-		return err
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+
+		allErrs = append(allErrs, err)
 	}
 
 	// ensure we're able to proceed writing data to specified destination
@@ -230,7 +237,6 @@ func (o *InspectOptions) Run() error {
 	defer o.logTimestamp()
 
 	// finally, gather polymorphic resources specified by the user
-	allErrs := []error{}
 	ctx := NewResourceContext()
 	for _, info := range infos {
 		err := InspectResource(info, ctx, o)
