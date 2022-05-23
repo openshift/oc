@@ -59,7 +59,7 @@ const configFilesBaseDir = "config"
 const maxDigestHashLen = 16
 
 // signatureFileNameFmt defines format of the release image signature file name.
-const signatureFileNameFmt = "signature-%s-%s.yaml"
+const signatureFileNameFmt = "signature-%s-%s.json"
 
 // archMap maps Go architecture strings to OpenShift supported values for any that differ.
 var archMap = map[string]string{
