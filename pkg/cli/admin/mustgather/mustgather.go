@@ -40,6 +40,7 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 	admissionapi "k8s.io/pod-security-admission/api"
+	"k8s.io/utils/exec"
 )
 
 var (
@@ -364,7 +365,11 @@ func (o *MustGatherOptions) Run() error {
 			log("waiting for gather to complete")
 			if err := o.waitForGatherToComplete(pod); err != nil {
 				log("gather never finished: %v", err)
-				errCh <- fmt.Errorf("gather never finished for pod %s: %s", pod.Name, err)
+				if exiterr, ok := err.(*exec.CodeExitError); ok {
+					errCh <- exiterr
+				} else {
+					errCh <- fmt.Errorf("gather never finished for pod %s: %s", pod.Name, err)
+				}
 				return
 			}
 
@@ -538,7 +543,10 @@ func (o *MustGatherOptions) isGatherDone(pod *corev1.Pod) (bool, error) {
 		if state.Terminated.ExitCode == 0 {
 			return true, nil
 		}
-		return true, fmt.Errorf("%s/%s unexpectedly terminated: exit code: %v, reason: %s, message: %s", pod.Namespace, pod.Name, state.Terminated.ExitCode, state.Terminated.Reason, state.Terminated.Message)
+		return true, &exec.CodeExitError{
+			Err:  fmt.Errorf("%s/%s unexpectedly terminated: exit code: %v, reason: %s, message: %s", pod.Namespace, pod.Name, state.Terminated.ExitCode, state.Terminated.Reason, state.Terminated.Message),
+			Code: int(state.Terminated.ExitCode),
+		}
 	}
 	return false, nil
 }
