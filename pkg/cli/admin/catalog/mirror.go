@@ -106,10 +106,11 @@ type MirrorCatalogOptions struct {
 	*IndexImageMirrorerOptions
 	genericclioptions.IOStreams
 
-	DryRun       bool
-	ManifestOnly bool
-	IndexPath    string
-	TempDir      bool
+	DryRun          bool
+	ManifestOnly    bool
+	IndexPath       string
+	TempDir         bool
+	ContinueOnError bool
 
 	FromFileDir string
 	FileDir     string
@@ -173,6 +174,7 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	flags.IntVar(&o.MaxPathComponents, "max-components", 2, "The maximum number of path components allowed in a destination mapping. Example: `quay.io/org/repo` has two path components.")
 	flags.StringVar(&o.IcspScope, "icsp-scope", o.IcspScope, "Scope of registry mirrors in imagecontentsourcepolicy file. Allowed values: repository, registry. Defaults to: repository")
 	flags.IntVar(&o.MaxICSPSize, "max-icsp-size", maxICSPSize, "The maximum number of bytes for the generated ICSP yaml(s). Defaults to 250000")
+	flags.BoolVar(&o.ContinueOnError, "continue-on-error", true, "If an error occurs while mirroring, keep going and attempt to mirror as much as possible.")
 	return cmd
 }
 
@@ -309,7 +311,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		}
 		a := imgmirror.NewMirrorImageOptions(o.IOStreams)
 		a.SkipMissing = true
-		a.ContinueOnError = true
+		a.ContinueOnError = o.ContinueOnError
 		a.DryRun = o.DryRun
 		a.SecurityOptions = o.SecurityOptions
 		// because images in the catalog are statically referenced by digest,
