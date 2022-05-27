@@ -106,7 +106,6 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 	}
 
 	groups.Add(cmds)
-	ktemplates.ActsAsRootCommand(cmds, []string{"options"}, groups...)
 
 	cmds.AddCommand(
 		release.NewCmd(f, streams),

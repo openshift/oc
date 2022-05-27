@@ -48,6 +48,5 @@ func NewCmdImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 		},
 	}
 	groups.Add(image)
-	ktemplates.ActsAsRootCommand(image, []string{"options"}, groups...)
 	return image
 }

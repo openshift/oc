@@ -78,7 +78,6 @@ func NewCmdSet(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 		},
 	}
 	groups.Add(set)
-	ktemplates.ActsAsRootCommand(set, []string{"options"}, groups...)
 	return set
 }
 

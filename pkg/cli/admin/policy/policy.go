@@ -83,8 +83,6 @@ func NewCmdPolicy(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 		},
 	}
 	groups.Add(cmds)
-	ktemplates.ActsAsRootCommand(cmds, []string{"options"}, groups...)
-
 	return cmds
 }
 
