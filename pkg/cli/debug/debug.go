@@ -19,7 +19,6 @@ import (
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -555,7 +554,7 @@ func (o *DebugOptions) RunDebug() error {
 				// We need to make sure we see the object in the cache before we start waiting for events
 				// or we would be waiting for the timeout if such object didn't exist.
 				// (e.g. it was deleted before we started informers so they wouldn't even see the delete event)
-				return true, errors.NewNotFound(corev1.Resource("pods"), pod.Name)
+				return true, kapierrors.NewNotFound(corev1.Resource("pods"), pod.Name)
 			}
 
 			return false, nil
