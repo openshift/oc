@@ -17,13 +17,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
-	configclient "github.com/openshift/client-go/config/clientset/versioned"
-	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
-	"github.com/openshift/library-go/pkg/image/imageutil"
-	imagereference "github.com/openshift/library-go/pkg/image/reference"
-	"github.com/openshift/library-go/pkg/operator/resource/retry"
-	"github.com/openshift/oc/pkg/cli/admin/inspect"
-	"github.com/openshift/oc/pkg/cli/rsync"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -41,6 +34,16 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/exec"
+
+	configclient "github.com/openshift/client-go/config/clientset/versioned"
+	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
+	"github.com/openshift/library-go/pkg/image/imageutil"
+	imagereference "github.com/openshift/library-go/pkg/image/reference"
+	"github.com/openshift/library-go/pkg/operator/resource/retry"
+
+	"github.com/openshift/oc/pkg/cli/admin/inspect"
+	"github.com/openshift/oc/pkg/cli/rsync"
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
 var (
@@ -84,7 +87,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckPodSecurityErr(o.Run())
 		},
 	}
 

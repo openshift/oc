@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
-	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	kappsv1 "k8s.io/api/apps/v1"
 	kappsv1beta1 "k8s.io/api/apps/v1beta1"
 	kappsv1beta2 "k8s.io/api/apps/v1beta2"
@@ -50,6 +49,8 @@ import (
 	"github.com/openshift/library-go/pkg/apps/appsutil"
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	"github.com/openshift/library-go/pkg/image/reference"
+
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/openshift/oc/pkg/helpers/conditions"
 	utilenv "github.com/openshift/oc/pkg/helpers/env"
 	generateapp "github.com/openshift/oc/pkg/helpers/newapp/app"
@@ -204,7 +205,14 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, f, args))
 			kcmdutil.CheckErr(o.Validate())
-			ocmdhelpers.CheckPodSecurityErr(o.RunDebug())
+
+			cmdErr := o.RunDebug()
+			if o.IsNode {
+				ocmdhelpers.CheckPodSecurityErr(cmdErr)
+			} else {
+				kcmdutil.CheckErr(cmdErr)
+			}
+
 		},
 	}
 

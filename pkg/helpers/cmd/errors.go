@@ -22,9 +22,10 @@ func CheckPodSecurityErr(err error) {
 	}
 
 	if errors.IsForbidden(err) && strings.Contains(err.Error(), "violates PodSecurity") {
-		err = fmt.Errorf(`PodSecurity violation error: ensure the target namespace has the appropriate security level set `+
-			`or consider creating a dedicated privileged namespace using `+
-			`"oc create ns <namespace> -o yaml | oc label -f - pod-security.kubernetes.io/enforce=privileged pod-security.kubernetes.io/audit=privileged pod-security.kubernetes.io/warn=privileged": %w`, err)
+		err = fmt.Errorf("PodSecurity violation error:\n"+
+			"Ensure the target namespace has the appropriate security level set "+
+			"or consider creating a dedicated privileged namespace using:\n"+
+			"\t\"oc create ns <namespace> -o yaml | oc label -f - pod-security.kubernetes.io/enforce=privileged pod-security.kubernetes.io/audit=privileged pod-security.kubernetes.io/warn=privileged\".\n\nOriginal error:\n%w", err)
 	}
 
 	kcmdutil.CheckErr(err)
