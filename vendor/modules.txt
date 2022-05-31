@@ -321,7 +321,7 @@ github.com/gonum/matrix/mat64
 ## explicit
 # github.com/google/btree v1.0.0
 github.com/google/btree
-# github.com/google/go-cmp v0.5.4
+# github.com/google/go-cmp v0.5.5
 ## explicit
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
@@ -369,10 +369,6 @@ github.com/klauspost/pgzip
 github.com/liggitt/tabwriter
 # github.com/lithammer/dedent v1.1.0
 github.com/lithammer/dedent
-# github.com/magefile/mage v1.11.0
-## explicit
-github.com/magefile/mage/mg
-github.com/magefile/mage/sh
 # github.com/mailru/easyjson v0.7.0
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
@@ -423,7 +419,7 @@ github.com/opencontainers/image-spec/specs-go/v1
 github.com/opencontainers/runc/libcontainer/user
 # github.com/opencontainers/runtime-spec v1.0.3-0.20200520003142-237cc4f519e2
 github.com/opencontainers/runtime-spec/specs-go
-# github.com/openshift/api v0.0.0-20210521075222-e273a339932a
+# github.com/openshift/api v0.0.0-20210910062324-a41d3573a3ba
 ## explicit
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -483,7 +479,7 @@ github.com/openshift/api/template/v1
 github.com/openshift/api/unidling/v1alpha1
 github.com/openshift/api/user
 github.com/openshift/api/user/v1
-# github.com/openshift/build-machinery-go v0.0.0-20210423112049-9415d7ebd33e
+# github.com/openshift/build-machinery-go v0.0.0-20211221165021-8d8fec7ad2c7
 ## explicit
 github.com/openshift/build-machinery-go
 github.com/openshift/build-machinery-go/make
@@ -630,8 +626,7 @@ github.com/prometheus/procfs/internal/util
 # github.com/russross/blackfriday v1.5.2
 ## explicit
 github.com/russross/blackfriday
-# github.com/sirupsen/logrus v1.8.0
-## explicit
+# github.com/sirupsen/logrus v1.8.1
 github.com/sirupsen/logrus
 # github.com/spf13/cobra v1.1.3
 ## explicit
@@ -697,7 +692,7 @@ golang.org/x/lint
 golang.org/x/lint/golint
 # golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20210224082022-3d97a244fca7
+# golang.org/x/net v0.0.0-20211209124913-491a49abca63
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/html
@@ -716,7 +711,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210225134936-a50acf3fe073
+# golang.org/x/sys v0.0.0-20210426230700-d19ff857e887
 ## explicit
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
@@ -725,8 +720,7 @@ golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
 golang.org/x/term
-# golang.org/x/text v0.3.5
-## explicit
+# golang.org/x/text v0.3.6
 golang.org/x/text/encoding
 golang.org/x/text/encoding/internal
 golang.org/x/text/encoding/internal/identifier
@@ -787,7 +781,7 @@ google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/grpc/codes
 google.golang.org/grpc/internal/status
 google.golang.org/grpc/status
-# google.golang.org/protobuf v1.25.0
+# google.golang.org/protobuf v1.26.0-rc.1
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
@@ -798,13 +792,12 @@ google.golang.org/protobuf/internal/encoding/messageset
 google.golang.org/protobuf/internal/encoding/tag
 google.golang.org/protobuf/internal/encoding/text
 google.golang.org/protobuf/internal/errors
-google.golang.org/protobuf/internal/fieldsort
 google.golang.org/protobuf/internal/filedesc
 google.golang.org/protobuf/internal/filetype
 google.golang.org/protobuf/internal/flags
 google.golang.org/protobuf/internal/genid
 google.golang.org/protobuf/internal/impl
-google.golang.org/protobuf/internal/mapsort
+google.golang.org/protobuf/internal/order
 google.golang.org/protobuf/internal/pragma
 google.golang.org/protobuf/internal/set
 google.golang.org/protobuf/internal/strs
@@ -859,7 +852,7 @@ honnef.co/go/tools/staticcheck
 honnef.co/go/tools/stylecheck
 honnef.co/go/tools/unused
 honnef.co/go/tools/version
-# k8s.io/api v0.21.1
+# k8s.io/api v0.21.9
 ## explicit
 k8s.io/api/admission/v1
 k8s.io/api/admission/v1beta1
@@ -907,7 +900,7 @@ k8s.io/api/scheduling/v1beta1
 k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
-# k8s.io/apimachinery v0.21.1 => github.com/openshift/kubernetes-apimachinery v0.0.0-20210521074607-b6b98f7a1855
+# k8s.io/apimachinery v0.21.9 => github.com/openshift/kubernetes-apimachinery v0.0.0-20210521074607-b6b98f7a1855
 ## explicit
 k8s.io/apimachinery/pkg/api/apitesting
 k8s.io/apimachinery/pkg/api/equality
@@ -970,7 +963,7 @@ k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/netutil
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/apiserver v0.21.1
+# k8s.io/apiserver v0.21.9
 ## explicit
 k8s.io/apiserver/pkg/apis/audit
 k8s.io/apiserver/pkg/apis/audit/v1
@@ -989,13 +982,13 @@ k8s.io/apiserver/pkg/server/healthz
 k8s.io/apiserver/pkg/server/httplog
 k8s.io/apiserver/pkg/storage/names
 k8s.io/apiserver/pkg/util/feature
-# k8s.io/cli-runtime v0.21.1 => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210521074950-112a61d2624f
+# k8s.io/cli-runtime v0.21.9 => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210521074950-112a61d2624f
 ## explicit
 k8s.io/cli-runtime/pkg/genericclioptions
 k8s.io/cli-runtime/pkg/genericclioptions/openshiftpatch
 k8s.io/cli-runtime/pkg/printers
 k8s.io/cli-runtime/pkg/resource
-# k8s.io/client-go v0.21.1 => github.com/openshift/kubernetes-client-go v0.0.0-20210521075216-71b63307b5df
+# k8s.io/client-go v0.21.9 => github.com/openshift/kubernetes-client-go v0.0.0-20210521075216-71b63307b5df
 ## explicit
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1beta1
@@ -1182,7 +1175,7 @@ k8s.io/client-go/util/jsonpath
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
-# k8s.io/component-base v0.21.1
+# k8s.io/component-base v0.21.9
 ## explicit
 k8s.io/component-base/cli/flag
 k8s.io/component-base/featuregate
@@ -1196,14 +1189,14 @@ k8s.io/component-base/version
 # k8s.io/component-helpers v0.21.1
 k8s.io/component-helpers/auth/rbac/reconciliation
 k8s.io/component-helpers/auth/rbac/validation
-# k8s.io/klog/v2 v2.8.0
+# k8s.io/klog/v2 v2.9.0
 ## explicit
 k8s.io/klog/v2
-# k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7
+# k8s.io/kube-openapi v0.0.0-20211110012726-3cc51fd1e909
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/proto/testing
 k8s.io/kube-openapi/pkg/util/proto/validation
-# k8s.io/kubectl v0.21.0-beta.1 => github.com/openshift/kubernetes-kubectl v0.0.0-20210521075729-633333dfccda
+# k8s.io/kubectl v0.21.9 => github.com/openshift/kubernetes-kubectl v0.0.0-20220210121652-e0903a5a8515
 ## explicit
 k8s.io/kubectl/pkg/apps
 k8s.io/kubectl/pkg/cmd
@@ -1292,7 +1285,7 @@ k8s.io/metrics/pkg/client/clientset/versioned
 k8s.io/metrics/pkg/client/clientset/versioned/scheme
 k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1alpha1
 k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1
-# k8s.io/utils v0.0.0-20210305010621-2afb4311ab10
+# k8s.io/utils v0.0.0-20210521133846-da695404a2bc
 ## explicit
 k8s.io/utils/buffer
 k8s.io/utils/diff
@@ -1378,7 +1371,7 @@ sigs.k8s.io/kustomize/kyaml/yaml/merge2
 sigs.k8s.io/kustomize/kyaml/yaml/merge3
 sigs.k8s.io/kustomize/kyaml/yaml/schema
 sigs.k8s.io/kustomize/kyaml/yaml/walk
-# sigs.k8s.io/structured-merge-diff/v4 v4.1.0
+# sigs.k8s.io/structured-merge-diff/v4 v4.2.1
 sigs.k8s.io/structured-merge-diff/v4/fieldpath
 sigs.k8s.io/structured-merge-diff/v4/schema
 sigs.k8s.io/structured-merge-diff/v4/typed
@@ -1391,4 +1384,4 @@ sigs.k8s.io/yaml
 # k8s.io/apimachinery => github.com/openshift/kubernetes-apimachinery v0.0.0-20210521074607-b6b98f7a1855
 # k8s.io/cli-runtime => github.com/openshift/kubernetes-cli-runtime v0.0.0-20210521074950-112a61d2624f
 # k8s.io/client-go => github.com/openshift/kubernetes-client-go v0.0.0-20210521075216-71b63307b5df
-# k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20210521075729-633333dfccda
+# k8s.io/kubectl => github.com/openshift/kubernetes-kubectl v0.0.0-20220210121652-e0903a5a8515
