@@ -324,10 +324,10 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 		a.Mappings = mappings
 		a.SkipMultipleScopes = true
 		if err := a.Validate(); err != nil {
-			fmt.Fprintf(o.IOStreams.ErrOut, "error configuring image mirroring: %v\n", err)
+			return fmt.Errorf("error configuring image mirroring: %v", err)
 		}
 		if err := a.Run(); err != nil {
-			fmt.Fprintf(o.IOStreams.ErrOut, "error mirroring image: %v\n", err)
+			return fmt.Errorf("error mirroring image: %v", err)
 		}
 		return nil
 	}
@@ -561,7 +561,11 @@ func (o *MirrorCatalogOptions) Run() error {
 	}
 	mapping, err := indexMirrorer.Mirror()
 	if err != nil {
-		fmt.Fprintf(o.IOStreams.ErrOut, "errors during mirroring. the full contents of the catalog may not have been mirrored: %s\n", err.Error())
+		err = fmt.Errorf("errors during mirroring. the full contents of the catalog may not have been mirrored: %v", err)
+		if !o.ContinueOnError {
+			return err
+		}
+		fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
 	}
 
 	return WriteManifests(o.IOStreams.Out, o.SourceRef, o.DestRef, o.ManifestDir, o.IcspScope, o.MaxICSPSize, mapping)
