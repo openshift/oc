@@ -15,9 +15,12 @@ aliases:
     - vrutkovs
     - wking
   catalog-approvers:
-    - kevinrizza
+    - awgreene
+    - perdasilva
   catalog-reviewers:
-    - kevinrizza
+    - awgreene
+    - perdasilva
+    - tylerslaton
   build-reviewers:
     - adambkaplan
     - gabemontero
