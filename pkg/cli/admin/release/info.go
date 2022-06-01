@@ -22,6 +22,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/blang/semver"
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
@@ -93,6 +94,10 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			The --bugs and --changelog flags will use git to clone the source of the release and display
 			the code changes that occurred between the two release arguments. This operation is slow
 			and requires sufficient disk space on the selected drive to clone all repositories.
+
+			If the specified image supports multiple operating systems, the image that matches the
+			current operating system will be chosen. Otherwise you must pass --filter-by-os to
+			select the desired image.
 		`),
 		Example: templates.Examples(`
 			# Show information about the cluster's current release
@@ -107,6 +112,10 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			# Show where the images referenced by the release are located
 			oc adm release info quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
 
+			# Show information about linux/s390x image
+			# Note: Wildcard filter is not supported. Pass a single os/arch to extract
+			oc adm release info quay.io/openshift-release-dev/ocp-release:4.2.2 --filter-by-os=linux/s390x
+
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -116,6 +125,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 	}
 	flags := cmd.Flags()
 	o.SecurityOptions.Bind(flags)
+	o.FilterOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
 	o.KubeTemplatePrintFlags.AddFlags(cmd)
 
@@ -162,6 +172,7 @@ type InfoOptions struct {
 
 	ParallelOptions imagemanifest.ParallelOptions
 	SecurityOptions imagemanifest.SecurityOptions
+	FilterOptions   imagemanifest.FilterOptions
 }
 
 func findSemanticVersionArgs(args []string) map[string]semver.Version {
@@ -367,7 +378,7 @@ func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []st
 		o.From = o.Images[0]
 		o.Images = o.Images[1:]
 	}
-	return nil
+	return o.FilterOptions.Complete(cmd.Flags())
 }
 
 func (o *InfoOptions) Validate() error {
@@ -438,7 +449,7 @@ func (o *InfoOptions) Validate() error {
 		return fmt.Errorf("must specify a single release image as argument when comparing to another release image")
 	}
 
-	return nil
+	return o.FilterOptions.Validate()
 }
 
 func (o *InfoOptions) Run() error {
@@ -743,6 +754,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	verifier := imagemanifest.NewVerifier()
 	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.SecurityOptions = o.SecurityOptions
+	opts.FilterOptions = o.FilterOptions
 	opts.FileDir = o.FileDir
 
 	release := &ReleaseInfo{
@@ -839,6 +851,21 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 			FileDir:         opts.FileDir,
 			SecurityOptions: o.SecurityOptions,
 			ParallelOptions: o.ParallelOptions,
+			ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
+				filtered := make(map[digest.Digest]distribution.Manifest)
+				for _, manifest := range list.Manifests {
+					if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
+						klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
+						continue
+					}
+					filtered[manifest.Digest] = all[manifest.Digest]
+				}
+				if len(filtered) == 1 {
+					return filtered, nil
+				}
+
+				return nil, fmt.Errorf("no matching image found in manifest list")
+			},
 			ImageMetadataCallback: func(name string, image *imageinfo.Image, err error) error {
 				if image != nil {
 					verifier.Verify(image.Digest, image.ContentDigest)
@@ -1526,16 +1553,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 			}
 			for _, commit := range commits {
 				fmt.Fprintf(out, "*")
-				for i, bug := range commit.Bugs {
-					if i == 0 {
-						fmt.Fprintf(out, " [Bug %d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
-					} else {
-						fmt.Fprintf(out, ", [%d](%s)", bug, fmt.Sprintf("https://bugzilla.redhat.com/show_bug.cgi?id=%d", bug))
-					}
-				}
-				if len(commit.Bugs) > 0 {
-					fmt.Fprintf(out, ":")
-				}
+				commit.Bugs.PrintBugs(out)
 				fmt.Fprintf(out, " %s", replaceUnsafeInput.Replace(commit.Subject))
 				switch {
 				case commit.PullRequest > 0:
@@ -1570,7 +1588,7 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 	var hasError bool
 	codeChanges, _, _ := releaseDiffContentChanges(diff)
 
-	bugIDs := sets.NewInt()
+	bugIDs := make(map[string]Bug)
 	for _, change := range codeChanges {
 		_, commits, err := commitsForRepo(dir, change, out, errOut)
 		if err != nil {
@@ -1579,26 +1597,27 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 			continue
 		}
 		for _, commit := range commits {
-			if len(commit.Bugs) == 0 {
+			if len(commit.Bugs.Bugs) == 0 {
 				continue
 			}
-			bugIDs.Insert(commit.Bugs...)
+			for _, v := range commit.Bugs.Bugs {
+				if _, ok := bugIDs[generateBugKey(v.Source, v.ID)]; !ok {
+					// We are using generated bug key according to the source type
+					// to prevent possible clashes like BUG 111 and OCPBUGS-111
+					bugIDs[generateBugKey(v.Source, v.ID)] = v
+				}
+			}
 		}
 	}
 
-	bugs := make(map[int]BugInfo)
-	var valid []int
+	bugs := make(map[string]BugRemoteInfo)
+	var valid []Bug
 	if skipBugCheck {
-		valid = bugIDs.List()
+		valid = GetBugList(bugIDs)
 	} else {
-		u, err := url.Parse("https://bugzilla.redhat.com/rest/bug")
-		if err != nil {
-			return err
-		}
-		client := http.DefaultClient
-		allBugIDs := bugIDs.List()
+		allBugIDs := GetBugList(bugIDs)
 		for len(allBugIDs) > 0 {
-			var next []int
+			var next []Bug
 			if len(allBugIDs) > 10 {
 				next = allBugIDs[:10]
 				allBugIDs = allBugIDs[10:]
@@ -1607,18 +1626,18 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 				allBugIDs = nil
 			}
 
-			bugList, err := retrieveBugs(client, u, next, 2)
+			bugList, err := RetrieveBugs(next)
 			if err != nil {
 
 			}
 			for _, bug := range bugList.Bugs {
-				bugs[bug.ID] = bug
+				bugs[generateBugKey(bug.Source, bug.ID)] = bug
 			}
 		}
 
-		for _, id := range bugIDs.List() {
-			if _, ok := bugs[id]; !ok {
-				fmt.Fprintf(errOut, "error: Bug %d was not retrieved\n", id)
+		for _, id := range GetBugList(bugIDs) {
+			if _, ok := bugs[generateBugKey(id.Source, id.ID)]; !ok {
+				fmt.Fprintf(errOut, "error: Bug %d was not retrieved\n", id.ID)
 				hasError = true
 				continue
 			}
@@ -1629,15 +1648,16 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 	if len(valid) > 0 {
 		switch format {
 		case "name":
-			for _, id := range valid {
-				fmt.Fprintln(out, id)
+			for _, b := range valid {
+				fmt.Fprintln(out, b.ID)
 			}
 		default:
 			tw := tabwriter.NewWriter(out, 0, 0, 1, ' ', 0)
 			fmt.Fprintln(tw, "ID\tSTATUS\tPRIORITY\tSUMMARY")
-			for _, id := range valid {
-				bug := bugs[id]
-				fmt.Fprintf(tw, "%d\t%s\t%s\t%s\n", id, bug.Status, bug.Priority, bug.Summary)
+			for _, v := range valid {
+				if bug, ok := bugs[generateBugKey(v.Source, v.ID)]; ok {
+					fmt.Fprintf(tw, "%d\t%s\t%s\t%s\n", v.ID, bug.Status, bug.Priority, bug.Summary)
+				}
 			}
 			tw.Flush()
 		}
@@ -1647,52 +1667,6 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 		return kcmdutil.ErrExit
 	}
 	return nil
-}
-
-func retrieveBugs(client *http.Client, server *url.URL, bugs []int, retries int) (*BugList, error) {
-	q := url.Values{}
-	for _, id := range bugs {
-		q.Add("id", strconv.Itoa(id))
-	}
-	u := *server
-	u.RawQuery = q.Encode()
-	var lastErr error
-	for i := 0; i < retries; i++ {
-		resp, err := client.Get(u.String())
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			lastErr = fmt.Errorf("server responded with %d", resp.StatusCode)
-			continue
-		}
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			lastErr = fmt.Errorf("unable to get body contents: %v", err)
-			continue
-		}
-		resp.Body.Close()
-		var bugList BugList
-		if err := json.Unmarshal(data, &bugList); err != nil {
-			lastErr = fmt.Errorf("unable to parse bug list: %v", err)
-			continue
-		}
-		return &bugList, nil
-	}
-	return nil, lastErr
-}
-
-type BugList struct {
-	Bugs []BugInfo `json:"bugs"`
-}
-
-type BugInfo struct {
-	ID       int    `json:"id"`
-	Status   string `json:"status"`
-	Priority string `json:"priority"`
-	Summary  string `json:"summary"`
 }
 
 type ImageChange struct {

@@ -2,6 +2,7 @@ package mirror
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -523,6 +524,13 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 						srcDigest := godigest.Digest(srcDigestString)
 						srcManifest, err := manifests.Get(ctx, godigest.Digest(srcDigest), imagemanifest.PreferManifestList)
 						if err != nil {
+							var unexpectedHTTPResponseError *client.UnexpectedHTTPResponseError
+							if o.SkipMissing && errors.As(err, &unexpectedHTTPResponseError) {
+								if unexpectedHTTPResponseError.StatusCode == 404 {
+									fmt.Fprintf(o.ErrOut, "warning: Image %s does not exist and will not be mirrored\n", err)
+									return
+								}
+							}
 							plan.AddError(retrieverError{src: src.ref, err: fmt.Errorf("unable to retrieve source image %s manifest %s: %v", src.ref, srcDigest, err)})
 							return
 						}

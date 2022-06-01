@@ -50,12 +50,18 @@ func NewAuthResolver(authFilePath string) (*AuthResolver, error) {
 		if err != nil {
 			return nil, err
 		}
-		if image.GetRegistryAuthConfigPreference() == image.DockerPreference {
-			// give priority to the docker config file $HOME/.docker/config.json
-			for registry, entry := range defaultClientDockerConfig() {
-				credentials[registry] = containertypes.DockerAuthConfig{
-					Username: entry.Username,
-					Password: entry.Password,
+		if pref, warn := image.GetRegistryAuthConfigPreference(); pref == image.DockerPreference {
+			config := defaultClientDockerConfig()
+			if config != nil {
+				if len(warn) > 0 {
+					fmt.Fprint(os.Stderr, warn)
+				}
+				// give priority to the docker config file $HOME/.docker/config.json
+				for registry, entry := range config {
+					credentials[registry] = containertypes.DockerAuthConfig{
+						Username: entry.Username,
+						Password: entry.Password,
+					}
 				}
 			}
 
@@ -165,7 +171,7 @@ func defaultClientDockerConfig() credentialprovider.DockerConfig {
 	if cfg, err := credentialprovider.ReadDockercfgFile(defaultPathsForLegacyCredentials()); err == nil {
 		return cfg
 	}
-	return credentialprovider.DockerConfig{}
+	return nil
 }
 
 // defaultPathsForCredentials returns the correct search directories for a docker config

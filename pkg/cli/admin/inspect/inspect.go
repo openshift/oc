@@ -12,13 +12,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -67,8 +67,6 @@ type InspectOptions struct {
 	discoveryClient discovery.CachedDiscoveryInterface
 	dynamicClient   dynamic.Interface
 
-	podUrlGetter *PortForwardURLGetter
-
 	fileWriter     *MultiSourceFileWriter
 	builder        *resource.Builder
 	since          time.Duration
@@ -90,8 +88,12 @@ type InspectOptions struct {
 }
 
 func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
+	printFlags := genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme)
+	if printFlags.JSONYamlPrintFlags != nil {
+		printFlags.JSONYamlPrintFlags.ShowManagedFields = true
+	}
 	return &InspectOptions{
-		printFlags:  genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme),
+		printFlags:  printFlags,
 		configFlags: genericclioptions.NewConfigFlags(true),
 		overwrite:   true,
 		IOStreams:   streams,
@@ -177,19 +179,7 @@ func (o *InspectOptions) Complete(args []string) error {
 	if err != nil {
 		return err
 	}
-	// TODO (soltysh) change this to set WithManagedFields in PrintFlags creation
-	// above when https://github.com/kubernetes/kubernetes/pull/107947 merges
-	if tsp, ok := printer.(*printers.TypeSetterPrinter); ok {
-		if omp, ok := tsp.Delegate.(*printers.OmitManagedFieldsPrinter); ok {
-			printer = &printers.TypeSetterPrinter{Typer: scheme.Scheme, Delegate: omp.Delegate}
-		}
-	}
 	o.fileWriter = NewMultiSourceWriter(printer)
-	o.podUrlGetter = &PortForwardURLGetter{
-		Protocol:  "https",
-		Host:      "localhost",
-		LocalPort: "37587",
-	}
 
 	o.builder = resource.NewBuilder(o.configFlags)
 
@@ -218,11 +208,17 @@ func (o *InspectOptions) Run() error {
 		NamespaceParam(o.namespace).DefaultNamespace().AllNamespaces(o.allNamespaces).
 		ResourceTypeOrNameArgs(true, o.args...).
 		Flatten().
+		ContinueOnError().
 		Latest().Do()
 
+	allErrs := []error{}
 	infos, err := r.Infos()
 	if err != nil {
-		return err
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+
+		allErrs = append(allErrs, err)
 	}
 
 	// ensure we're able to proceed writing data to specified destination
@@ -241,7 +237,6 @@ func (o *InspectOptions) Run() error {
 	defer o.logTimestamp()
 
 	// finally, gather polymorphic resources specified by the user
-	allErrs := []error{}
 	ctx := NewResourceContext()
 	for _, info := range infos {
 		err := InspectResource(info, ctx, o)

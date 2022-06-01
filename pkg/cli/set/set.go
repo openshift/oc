@@ -1,13 +1,21 @@
 package set
 
 import (
+	"context"
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/set"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
 
+	imageclient "github.com/openshift/client-go/image/clientset/versioned"
+	imagetypedclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
+	"github.com/openshift/oc/pkg/helpers/clientcmd"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
@@ -101,6 +109,8 @@ func NewCmdImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	cmd := set.NewCmdImage(f, streams)
 	cmd.Long = setImageLong
 	cmd.Example = setImageExample
+	cmd.Flags().String("source", "docker", "The image source type; valid types are 'imagestreamtag', 'istag', 'imagestreamimage', 'isimage', and 'docker'")
+	set.ImageResolver = resolveImageFactory(f, cmd)
 
 	return cmd
 }
@@ -206,4 +216,94 @@ func NewCmdSubject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cob
 	cmd.Example = setSubjectExample
 
 	return cmd
+}
+
+func resolveImageFactory(f kcmdutil.Factory, cmd *cobra.Command) set.ImageResolverFunc {
+	resolveImageFn := func(in string) (string, error) {
+		return in, nil
+	}
+	return func(image string) (string, error) {
+		source, err := cmd.Flags().GetString("source")
+		if err != nil {
+			return resolveImageFn(source)
+		}
+		if isDockerImageSource(source) {
+			return resolveImageFn(image)
+		}
+		config, err := f.ToRESTConfig()
+		if err != nil {
+			return "", err
+		}
+		imageClient, err := imageclient.NewForConfig(config)
+		if err != nil {
+			return "", err
+		}
+		namespace, _, err := f.ToRawKubeConfigLoader().Namespace()
+		if err != nil {
+			return "", err
+		}
+
+		return resolveImagePullSpec(imageClient.ImageV1(), source, image, namespace)
+	}
+}
+
+// resolveImagePullSpec resolves the provided source which can be "docker", "istag" or
+// "isimage" and returns the full Docker pull spec.
+func resolveImagePullSpec(imageClient imagetypedclient.ImageV1Interface, source, name, defaultNamespace string) (string, error) {
+	// for Docker source, just passtrough the image name
+	if isDockerImageSource(source) {
+		return name, nil
+	}
+	// parse the namespace from the provided image
+	namespace, image := splitNamespaceAndImage(name)
+	if len(namespace) == 0 {
+		namespace = defaultNamespace
+	}
+
+	dockerImageReference := ""
+
+	if isImageStreamTag(source) {
+		if resolved, err := imageClient.ImageStreamTags(namespace).Get(context.TODO(), image, metav1.GetOptions{}); err != nil {
+			return "", fmt.Errorf("failed to get image stream tag %q: %v", image, err)
+		} else {
+			dockerImageReference = resolved.Image.DockerImageReference
+		}
+	}
+
+	if isImageStreamImage(source) {
+		if resolved, err := imageClient.ImageStreamImages(namespace).Get(context.TODO(), image, metav1.GetOptions{}); err != nil {
+			return "", fmt.Errorf("failed to get image stream image %q: %v", image, err)
+		} else {
+			dockerImageReference = resolved.Image.DockerImageReference
+		}
+	}
+
+	if len(dockerImageReference) == 0 {
+		return "", fmt.Errorf("unable to resolve %s %q", source, name)
+	}
+
+	return clientcmd.ParseDockerImageReferenceToStringFunc(dockerImageReference)
+}
+
+func isDockerImageSource(source string) bool {
+	return source == "docker"
+}
+
+func isImageStreamTag(source string) bool {
+	return source == "istag" || source == "imagestreamtag"
+}
+
+func isImageStreamImage(source string) bool {
+	return source == "isimage" || source == "imagestreamimage"
+}
+
+func splitNamespaceAndImage(name string) (string, string) {
+	namespace := ""
+	imageName := ""
+	if parts := strings.Split(name, "/"); len(parts) == 2 {
+		namespace, imageName = parts[0], parts[1]
+	} else if len(parts) == 1 {
+		imageName = parts[0]
+	}
+	return namespace, imageName
 }

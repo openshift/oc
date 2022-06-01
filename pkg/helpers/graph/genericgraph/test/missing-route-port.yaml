@@ -24,7 +24,7 @@ items:
     type: ClusterIP
   status:
     loadBalancer: {}
-- apiVersion: v1
+- apiVersion: route.openshift.io/v1
   kind: Route
   metadata:
     creationTimestamp: 2015-10-13T10:13:11Z

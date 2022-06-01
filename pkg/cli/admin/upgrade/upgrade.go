@@ -3,6 +3,7 @@ package upgrade
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -194,47 +195,9 @@ func (o *Options) Run() error {
 		}
 		return nil
 
-	case o.ToLatestAvailable:
-		if len(cv.Status.AvailableUpdates) == 0 {
-			fmt.Fprintf(o.Out, "info: Cluster is already at the latest available version %s\n", cv.Status.Desired.Version)
-			return nil
-		}
-
-		if err := checkForUpgrade(cv); err != nil {
-			if !o.AllowUpgradeWithWarnings {
-				return fmt.Errorf("%s\n\nIf you want to upgrade anyway, use --allow-upgrade-with-warnings.", err)
-			}
-			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
-		}
-
-		sortReleasesBySemanticVersions(cv.Status.AvailableUpdates)
-
-		update := cv.Status.AvailableUpdates[0]
-		desiredUpdate := &configv1.Update{
-			Version: update.Version,
-			Image:   update.Image,
-		}
-		if o.Force {
-			desiredUpdate.Force = true
-			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
-		}
-
-		cv.Spec.DesiredUpdate = desiredUpdate
-		_, err := o.Client.ConfigV1().ClusterVersions().Update(context.TODO(), cv, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("Unable to upgrade to latest version %s: %v", update.Version, err)
-		}
-
-		if len(update.Version) > 0 {
-			fmt.Fprintf(o.Out, "Updating to latest version %s\n", update.Version)
-		} else {
-			fmt.Fprintf(o.Out, "Updating to latest release image %s\n", update.Image)
-		}
-
-		return nil
-
-	case len(o.To) > 0, len(o.ToImage) > 0:
+	case o.ToLatestAvailable, len(o.To) > 0, len(o.ToImage) > 0:
 		var update *configv1.Update
+
 		if len(o.To) > 0 && o.To == cv.Status.Desired.Version {
 			fmt.Fprintf(o.Out, "info: Cluster is already at version %s\n", o.To)
 			return nil
@@ -245,7 +208,8 @@ func (o *Options) Run() error {
 			return nil
 		}
 
-		possibleUpgradeTargets := make([]string, 0, len(cv.Status.AvailableUpdates)+len(cv.Status.ConditionalUpdates))
+		possibleUpgradeTargets := make([]configv1.Release, 0, len(cv.Status.AvailableUpdates)+len(cv.Status.ConditionalUpdates))
+		recommendedConditions := make(map[string]metav1.Condition, len(cv.Status.ConditionalUpdates))
 
 		// check for recommended updates
 		for _, available := range cv.Status.AvailableUpdates {
@@ -258,7 +222,7 @@ func (o *Options) Run() error {
 			} else if err != nil {
 				fmt.Fprintf(o.ErrOut, "warning: unable to calculate match for the update target in available updates: %v\n", err)
 			}
-			possibleUpgradeTargets = append(possibleUpgradeTargets, available.Version)
+			possibleUpgradeTargets = append(possibleUpgradeTargets, available)
 		}
 
 		if update == nil {
@@ -282,42 +246,65 @@ func (o *Options) Run() error {
 						fmt.Fprintf(o.ErrOut, "warning: unable to calculate match for the update target in available conditional updates: %v\n", err)
 					}
 					if o.AllowNotRecommended {
-						possibleUpgradeTargets = append(possibleUpgradeTargets, upgrade.Release.Version)
+						possibleUpgradeTargets = append(possibleUpgradeTargets, upgrade.Release)
+						recommendedConditions[upgrade.Release.Image] = *c
 					}
 				}
 			}
 		}
 
-		if o.ToImage != "" {
-			if o.AllowExplicitUpgrade {
-				update = &configv1.Update{
-					Version: "",
-					Image:   o.ToImage,
-				}
-				fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates."+
-					"You have used --allow-explicit-upgrade for the update to proceed anyway")
+		if update == nil && o.ToImage != "" && o.AllowExplicitUpgrade {
+			update = &configv1.Update{
+				Version: "",
+				Image:   o.ToImage,
+			}
+			fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates."+
+				"You have used --allow-explicit-upgrade for the update to proceed anyway")
+		}
+
+		sortReleasesBySemanticVersions(possibleUpgradeTargets)
+
+		if o.ToLatestAvailable && len(possibleUpgradeTargets) > 0 {
+			update = &configv1.Update{
+				Version: possibleUpgradeTargets[0].Version,
+				Image:   possibleUpgradeTargets[0].Image,
+			}
+
+			if c, ok := recommendedConditions[update.Image]; ok {
+				fmt.Fprintf(o.ErrOut, "warning: with --allow-not-recommended you have accepted the risks with %s and bypassed %s=%s %s: %s\n",
+					update.Version, c.Type, c.Status, c.Reason, c.Message)
 			}
 		}
 
 		if update == nil {
-			sort.Strings(possibleUpgradeTargets)
 			c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates)
 
 			toImageOption := "--to-image"
 			if o.ToImage != "" {
 				toImageOption = "--allow-explicit-upgrade"
 			}
-			nextStep := fmt.Sprintf("%s to continue with the update", toImageOption)
+			article := "the" // --to and --to-image have a specific target in mind
+			if o.ToLatestAvailable {
+				article = "an" // --to-latest does not have a specific target in mind
+			}
+			nextStep := fmt.Sprintf("%s to continue with %s update", toImageOption, article)
 
 			switch {
 			case c != nil && c.Status != configv1.ConditionTrue:
 				return fmt.Errorf("cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\nspecify %s.", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "), nextStep)
 			case len(possibleUpgradeTargets) == 0 && o.AllowNotRecommended:
 				return fmt.Errorf("no recommended or conditional updates, specify %s or wait for new updates to be available.", nextStep)
+			case len(possibleUpgradeTargets) == 0 && o.ToLatestAvailable:
+				fmt.Fprintf(o.Out, "info: Cluster is already at the latest available version %s\n", cv.Status.Desired.Version)
+				return nil
 			case len(possibleUpgradeTargets) == 0:
 				return fmt.Errorf("no recommended updates, specify %s or wait for new updates to be available.", nextStep)
 			case len(possibleUpgradeTargets) > 0:
-				return fmt.Errorf("the update is not one of the possible targets: %s. specify %s.", strings.Join(possibleUpgradeTargets, ", "), nextStep)
+				versions := make([]string, 0, len(possibleUpgradeTargets))
+				for _, release := range possibleUpgradeTargets {
+					versions = append(versions, release.Version)
+				}
+				return fmt.Errorf("the update is not one of the possible targets: %s. specify %s.", strings.Join(versions, ", "), nextStep)
 			default:
 				return errors.New("unable to calculate a target update")
 			}
@@ -335,10 +322,12 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
 		}
 
-		cv.Spec.DesiredUpdate = update
-
-		_, err := o.Client.ConfigV1().ClusterVersions().Update(context.TODO(), cv, metav1.UpdateOptions{})
+		updateJSON, err := json.Marshal(update)
 		if err != nil {
+			return fmt.Errorf("marshal ClusterVersion patch: %v", err)
+		}
+		patch := []byte(fmt.Sprintf(`{"spec":{"desiredUpdate": %s}}`, updateJSON))
+		if _, err := o.Client.ConfigV1().ClusterVersions().Patch(context.TODO(), cv.Name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil {
 			return fmt.Errorf("Unable to upgrade: %v", err)
 		}
 
@@ -375,6 +364,10 @@ func (o *Options) Run() error {
 
 		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
 			fmt.Fprintf(o.Out, "Upgradeable=False\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+		}
+
+		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "ReleaseAccepted"); c != nil && c.Status != configv1.ConditionTrue {
+			fmt.Fprintf(o.Out, "ReleaseAccepted=%s\n\n  Reason: %s\n  Message: %s\n\n", c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 		}
 
 		if cv.Spec.Channel != "" {

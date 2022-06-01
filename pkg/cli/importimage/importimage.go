@@ -13,7 +13,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util"
+	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imagev1 "github.com/openshift/api/image/v1"
@@ -109,7 +109,7 @@ func NewCmdImportImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 		Short:             "Import images from a container image registry",
 		Long:              importImageLong,
 		Example:           importImageExample,
-		ValidArgsFunction: util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
+		ValidArgsFunction: completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -195,6 +195,16 @@ func (o *ImportImageOptions) parseImageReference() error {
 func (o *ImportImageOptions) Validate() error {
 	if len(o.Target) == 0 {
 		return fmt.Errorf("you must specify the name of an image stream")
+	}
+
+	switch strings.ToLower(o.ReferencePolicy) {
+	case tag.SourceReferencePolicy:
+	case "":
+		o.ReferencePolicy = tag.SourceReferencePolicy
+	case tag.LocalReferencePolicy:
+		o.ReferencePolicy = tag.LocalReferencePolicy
+	default:
+		return fmt.Errorf("valid reference policy values are source or local")
 	}
 
 	return nil

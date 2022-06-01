@@ -71,6 +71,9 @@ func PodContainerRunning(containerName string, coreClient corev1client.CoreV1Int
 					continue
 				}
 				if s.State.Terminated != nil {
+					if s.State.Terminated.ExitCode != 0 {
+						return false, ErrNonZeroExitCode
+					}
 					return false, ErrContainerTerminated
 				}
 				return s.State.Running != nil, nil

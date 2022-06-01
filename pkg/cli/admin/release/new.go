@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -134,6 +135,7 @@ func NewRelease(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 	flags.StringSliceVar(&o.PreviousVersions, "previous", o.PreviousVersions, "A list of semantic versions that should precede this version in the release manifest.")
 	flags.StringVar(&o.ReleaseMetadata, "metadata", o.ReleaseMetadata, "A JSON object to attach as the metadata for the release manifest.")
 	flags.BoolVar(&o.ForceManifest, "release-manifest", o.ForceManifest, "If true, a release manifest will be created using --name as the semantic version.")
+	flags.BoolVar(&o.KeepManifestList, "keep-manifest-list", o.KeepManifestList, "If an image is part of a manifest list, always mirror the list even if only one image is found.")
 
 	// validation
 	flags.BoolVar(&o.AllowMissingImages, "allow-missing-images", o.AllowMissingImages, "Ignore errors when an operator references a release image that is not included.")
@@ -188,6 +190,7 @@ type NewOptions struct {
 	ForceManifest    bool
 	ReleaseMetadata  string
 	PreviousVersions []string
+	KeepManifestList bool
 
 	DryRun bool
 
@@ -915,6 +918,13 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
+	// we'll always use manifests from the linux/amd64 image, since the manifests
+	// won't differ between architectures, at least for now
+	re, err := regexp.Compile("linux/amd64")
+	if err != nil {
+		return err
+	}
+	opts.FilterOptions.OSFilter = re
 	opts.OnlyFiles = true
 	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig) {
 		verifier.Verify(dgst, contentDigest)
@@ -1042,6 +1052,7 @@ func (o *NewOptions) mirrorImages(is *imageapi.ImageStream) error {
 	opts.SkipRelease = true
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
+	opts.KeepManifestList = o.KeepManifestList
 
 	if err := opts.Run(); err != nil {
 		return err
@@ -1175,6 +1186,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 		options.SecurityOptions = o.SecurityOptions
 		options.DryRun = o.DryRun
 		options.From = toImageBase
+		options.KeepManifestList = o.KeepManifestList
 		options.ConfigurationCallback = func(dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig) error {
 			verifier.Verify(dgst, contentDigest)
 			// reset any base image info

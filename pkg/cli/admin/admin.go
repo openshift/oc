@@ -23,10 +23,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/groups"
 	"github.com/openshift/oc/pkg/cli/admin/inspect"
 	"github.com/openshift/oc/pkg/cli/admin/migrate"
-	migrateetcd "github.com/openshift/oc/pkg/cli/admin/migrate/etcd"
-	migrateimages "github.com/openshift/oc/pkg/cli/admin/migrate/images"
-	migratehpa "github.com/openshift/oc/pkg/cli/admin/migrate/legacyhpa"
-	migratestorage "github.com/openshift/oc/pkg/cli/admin/migrate/storage"
 	migratetemplateinstances "github.com/openshift/oc/pkg/cli/admin/migrate/templateinstances"
 	"github.com/openshift/oc/pkg/cli/admin/mustgather"
 	"github.com/openshift/oc/pkg/cli/admin/network"
@@ -91,10 +87,6 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 				prune.NewCommandPrune(f, streams),
 				migrate.NewCommandMigrate(f, streams,
 					// Migration commands
-					migrateimages.NewCmdMigrateImageReferences(f, streams),
-					migratestorage.NewCmdMigrateAPIStorage(f, streams),
-					migrateetcd.NewCmdMigrateTTLs(f, streams),
-					migratehpa.NewCmdMigrateLegacyHPA(f, streams),
 					migratetemplateinstances.NewCmdMigrateTemplateInstances(f, streams),
 				),
 			},

@@ -21,9 +21,11 @@ func namespaceResourcesToCollect() []schema.GroupResource {
 		// this is actually a group which collects most useful things
 		{Resource: "all"},
 		{Resource: "configmaps"},
+		{Resource: "egressfirewalls"},
 		{Resource: "events"},
 		{Resource: "endpoints"},
 		{Resource: "endpointslices"},
+		{Resource: "networkpolicies"},
 		{Resource: "persistentvolumeclaims"},
 		{Resource: "poddisruptionbudgets"},
 		{Resource: "secrets"},

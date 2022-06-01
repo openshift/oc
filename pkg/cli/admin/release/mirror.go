@@ -59,7 +59,7 @@ const configFilesBaseDir = "config"
 const maxDigestHashLen = 16
 
 // signatureFileNameFmt defines format of the release image signature file name.
-const signatureFileNameFmt = "signature-%s-%s.yaml"
+const signatureFileNameFmt = "signature-%s-%s.json"
 
 // archMap maps Go architecture strings to OpenShift supported values for any that differ.
 var archMap = map[string]string{
@@ -158,6 +158,7 @@ func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 	flags.StringVar(&o.ToDir, "to-dir", o.ToDir, "A directory to export images to.")
 	flags.BoolVar(&o.ToMirror, "to-mirror", o.ToMirror, "Output the mirror mappings instead of mirroring.")
 	flags.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Display information about the mirror without actually executing it.")
+	flags.BoolVar(&o.KeepManifestList, "keep-manifest-list", o.KeepManifestList, "If an image is part of a manifest list, always mirror the list even if only one image is found.")
 	flags.BoolVar(&o.ApplyReleaseImageSignature, "apply-release-image-signature", o.ApplyReleaseImageSignature, "Apply release image signature to connected cluster.")
 	flags.StringVar(&o.ReleaseImageSignatureToDir, "release-image-signature-to-dir", o.ReleaseImageSignatureToDir, "A directory to export release image signature to.")
 
@@ -185,6 +186,8 @@ type MirrorOptions struct {
 
 	ToMirror bool
 	ToDir    string
+
+	KeepManifestList bool
 
 	ApplyReleaseImageSignature bool
 	ReleaseImageSignatureToDir string
@@ -754,6 +757,7 @@ func (o *MirrorOptions) Run() error {
 	opts.FromFileDir = o.FromDir
 	opts.FileDir = o.ToDir
 	opts.DryRun = o.DryRun
+	opts.KeepManifestList = o.KeepManifestList
 	opts.ManifestUpdateCallback = func(registry string, manifests map[digest.Digest]digest.Digest) error {
 		lock.Lock()
 		defer lock.Unlock()

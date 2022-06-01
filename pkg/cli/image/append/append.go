@@ -7,19 +7,19 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client"
+	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -101,9 +101,13 @@ type AppendImageOptions struct {
 	ConfigurationCallback func(dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig) error
 	// ToDigest is set after a new image is uploaded
 	ToDigest digest.Digest
+	ToSize   int64
 
 	DropHistory bool
 	CreatedAt   string
+
+	// exposed only to be used by the `oc adm release`
+	KeepManifestList bool
 
 	SecurityOptions imagemanifest.SecurityOptions
 	FilterOptions   imagemanifest.FilterOptions
@@ -260,26 +264,106 @@ func (o *AppendImageOptions) Run() error {
 	}
 
 	var (
-		base              *dockerv1client.DockerImageConfig
-		baseDigest        digest.Digest
-		baseContentDigest digest.Digest
-		layers            []distribution.Descriptor
-		fromRepo          distribution.Repository
+		repo             distribution.Repository
+		manifestLocation imagemanifest.ManifestLocation
+		srcManifest      distribution.Manifest
 	)
 	if from != nil {
-		repo, err := fromOptions.Repository(ctx, *from)
+		repo, err = fromOptions.Repository(ctx, *from)
 		if err != nil {
 			return err
 		}
-		fromRepo = repo
 
-		srcManifest, manifestLocation, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+		srcManifest, manifestLocation, err = imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 		if err != nil {
 			return fmt.Errorf("unable to read image %s: %v", from, err)
 		}
+
+		if _, ok := srcManifest.(*manifestlist.DeserializedManifestList); ok && o.KeepManifestList {
+			return o.appendManifestList(ctx, createdAt, from, to, repo, srcManifest, manifestLocation, toRepo, toManifests)
+		}
+	}
+
+	return o.append(ctx, createdAt, from, to, false, repo, srcManifest, manifestLocation, toRepo, toManifests)
+}
+
+func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *time.Time,
+	from *imagesource.TypedImageReference, to imagesource.TypedImageReference,
+	repo distribution.Repository, srcManifest distribution.Manifest, manifestLocation imagemanifest.ManifestLocation,
+	toRepo distribution.Repository, toManifests distribution.ManifestService) error {
+	// process manifestlist
+	// oldDigest:newDigest mapping so that we can create a new manifestlist
+	newDigests := make(map[digest.Digest]distribution.Descriptor)
+	manifestMap, oldList, _, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
+	for digest, srcManifest := range manifestMap {
+		// create new ManifestLocation for each digest from the manifestlist
+		// because append function relies on that data
+		dgstManifestLocation := imagemanifest.ManifestLocation{Manifest: digest}
+		// to ensure we can read from the Reader multiple times, especially
+		// when dealing with ManifestList, where we copy the same layer contents
+		// (the release-manifests/ directory), we need to wrap it inside TeeReader
+		// which reads copies data to buffer while reading it allowing re-use
+		var buf bytes.Buffer
+		if o.LayerStream != nil {
+			o.LayerStream = io.TeeReader(o.LayerStream, &buf)
+		}
+		err = o.append(ctx, createdAt, from, to, true, repo, srcManifest, dgstManifestLocation, toRepo, toManifests)
+		if err != nil {
+			return fmt.Errorf("error appending image %s: %w", digest, err)
+		}
+		if buf.Len() > 0 {
+			o.LayerStream = &buf
+		}
+		newDigests[digest] = distribution.Descriptor{
+			Digest: o.ToDigest,
+			Size:   o.ToSize,
+		}
+	}
+
+	// create new manifestlist from the old one swapping digest with the new ones
+	newDescriptors := make([]manifestlist.ManifestDescriptor, 0, len(oldList.Manifests))
+	for _, manifest := range oldList.Manifests {
+		descriptor := newDigests[manifest.Digest]
+		manifest.Digest = descriptor.Digest
+		manifest.Size = descriptor.Size
+		newDescriptors = append(newDescriptors, manifest)
+	}
+	forPush, err := manifestlist.FromDescriptors(newDescriptors)
+	if err != nil {
+		return fmt.Errorf("error creating new manifestlist: %#v", err)
+	}
+
+	// push new manifestlist to registry
+	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, forPush, to.Ref.Tag, toManifests, toRepo.Named(), nil, nil)
+	if err != nil {
+		return fmt.Errorf("unable to push manifestlist: %#v", err)
+	}
+	o.ToDigest = toDigest
+	if !o.DryRun {
+		fmt.Fprintf(o.Out, "Pushed %s to %s\n", toDigest, to)
+	}
+
+	return nil
+}
+
+func (o *AppendImageOptions) append(ctx context.Context, createdAt *time.Time,
+	from *imagesource.TypedImageReference, to imagesource.TypedImageReference, skipTagging bool,
+	repo distribution.Repository, srcManifest distribution.Manifest, manifestLocation imagemanifest.ManifestLocation,
+	toRepo distribution.Repository, toManifests distribution.ManifestService) error {
+	var (
+		base              *dockerv1client.DockerImageConfig
+		baseDigest        digest.Digest
+		baseContentDigest digest.Digest
+		err               error
+		layers            []distribution.Descriptor
+		fromRepo          distribution.Repository
+	)
+	if repo != nil || srcManifest != nil {
+		fromRepo = repo
+
 		base, layers, err = imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), manifestLocation)
 		if err != nil {
-			return fmt.Errorf("unable to parse image %s: %v", from, err)
+			return err
 		}
 
 		contentDigest, err := registryclient.ContentDigestForManifest(srcManifest, manifestLocation.Manifest.Algorithm())
@@ -454,13 +538,24 @@ func (o *AppendImageOptions) Run() error {
 		return fmt.Errorf("unable to upload the new image manifest: %v", err)
 	}
 	klog.V(4).Infof("Created config JSON:\n%s", configJSON)
-	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, manifest, to.Ref.Tag, toManifests, toRepo.Named(), fromRepo.Blobs(ctx), configJSON)
+
+	tag := to.Ref.Tag
+	if skipTagging {
+		tag = ""
+	}
+	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, manifest, tag, toManifests, toRepo.Named(), fromRepo.Blobs(ctx), configJSON)
 	if err != nil {
 		return fmt.Errorf("unable to convert the image to a compatible schema version: %v", err)
 	}
 	o.ToDigest = toDigest
+	data, _ := json.MarshalIndent(manifest, "", "   ")
+	o.ToSize = int64(len(data))
 	if !o.DryRun {
-		fmt.Fprintf(o.Out, "Pushed %s to %s\n", toDigest, to)
+		toString := to.String()
+		if skipTagging {
+			toString = to.Ref.AsRepository().String()
+		}
+		fmt.Fprintf(o.Out, "Pushed %s to %s\n", toDigest, toString)
 	}
 	return nil
 }
@@ -610,142 +705,4 @@ func calculateLayerDigest(blobs distribution.BlobService, dgst digest.Digest, re
 	}
 	layerDigest, _, _, _, err := add.DigestCopy(readerFrom, r)
 	return layerDigest, err
-}
-
-// scratchRepo can serve the scratch image blob.
-type scratchRepo struct{}
-
-var _ distribution.Repository = scratchRepo{}
-
-func (_ scratchRepo) Named() reference.Named { panic("not implemented") }
-func (_ scratchRepo) Tags(ctx context.Context) distribution.TagService {
-	panic("not implemented")
-}
-func (_ scratchRepo) Manifests(ctx context.Context, options ...distribution.ManifestServiceOption) (distribution.ManifestService, error) {
-	panic("not implemented")
-}
-
-func (r scratchRepo) Blobs(ctx context.Context) distribution.BlobStore { return r }
-
-func (_ scratchRepo) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
-	if dgst != dockerlayer.GzippedEmptyLayerDigest {
-		return distribution.Descriptor{}, distribution.ErrBlobUnknown
-	}
-	return distribution.Descriptor{
-		MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-		Digest:    digest.Digest(dockerlayer.GzippedEmptyLayerDigest),
-		Size:      int64(len(dockerlayer.GzippedEmptyLayer)),
-	}, nil
-}
-
-func (_ scratchRepo) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
-	if dgst != dockerlayer.GzippedEmptyLayerDigest {
-		return nil, distribution.ErrBlobUnknown
-	}
-	return dockerlayer.GzippedEmptyLayer, nil
-}
-
-type nopCloseBuffer struct {
-	*bytes.Buffer
-}
-
-func (_ nopCloseBuffer) Seek(offset int64, whence int) (int64, error) {
-	return 0, nil
-}
-
-func (_ nopCloseBuffer) Close() error {
-	return nil
-}
-
-func (_ scratchRepo) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
-	if dgst != dockerlayer.GzippedEmptyLayerDigest {
-		return nil, distribution.ErrBlobUnknown
-	}
-	return nopCloseBuffer{bytes.NewBuffer(dockerlayer.GzippedEmptyLayer)}, nil
-}
-
-func (_ scratchRepo) Put(ctx context.Context, mediaType string, p []byte) (distribution.Descriptor, error) {
-	panic("not implemented")
-}
-
-func (_ scratchRepo) Create(ctx context.Context, options ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
-	panic("not implemented")
-}
-
-func (_ scratchRepo) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
-	panic("not implemented")
-}
-
-func (_ scratchRepo) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
-	panic("not implemented")
-}
-
-func (_ scratchRepo) Delete(ctx context.Context, dgst digest.Digest) error {
-	panic("not implemented")
-}
-
-// dryRunManifestService emulates a remote registry for dry run behavior
-type dryRunManifestService struct{}
-
-func (s *dryRunManifestService) Exists(ctx context.Context, dgst digest.Digest) (bool, error) {
-	panic("not implemented")
-}
-
-func (s *dryRunManifestService) Get(ctx context.Context, dgst digest.Digest, options ...distribution.ManifestServiceOption) (distribution.Manifest, error) {
-	panic("not implemented")
-}
-
-func (s *dryRunManifestService) Put(ctx context.Context, manifest distribution.Manifest, options ...distribution.ManifestServiceOption) (digest.Digest, error) {
-	klog.V(4).Infof("Manifest: %#v", manifest.References())
-	return registryclient.ContentDigestForManifest(manifest, digest.SHA256)
-}
-
-func (s *dryRunManifestService) Delete(ctx context.Context, dgst digest.Digest) error {
-	panic("not implemented")
-}
-
-// dryRunBlobStore emulates a remote registry for dry run behavior
-type dryRunBlobStore struct {
-	layers []distribution.Descriptor
-}
-
-func (s *dryRunBlobStore) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
-	for _, layer := range s.layers {
-		if layer.Digest == dgst {
-			return layer, nil
-		}
-	}
-	return distribution.Descriptor{}, distribution.ErrBlobUnknown
-}
-
-func (s *dryRunBlobStore) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
-	panic("not implemented")
-}
-
-func (s *dryRunBlobStore) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
-	panic("not implemented")
-}
-
-func (s *dryRunBlobStore) Put(ctx context.Context, mediaType string, p []byte) (distribution.Descriptor, error) {
-	return distribution.Descriptor{
-		MediaType: mediaType,
-		Size:      int64(len(p)),
-		Digest:    digest.SHA256.FromBytes(p),
-	}, nil
-}
-
-func (s *dryRunBlobStore) Create(ctx context.Context, options ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
-	panic("not implemented")
-}
-
-func (s *dryRunBlobStore) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
-	panic("not implemented")
-}
-
-func (s *dryRunBlobStore) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
-	panic("not implemented")
-}
-
-func (s *dryRunBlobStore) Delete(ctx context.Context, dgst digest.Digest) error {
-	panic("not implemented")
 }

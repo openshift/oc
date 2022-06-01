@@ -268,7 +268,7 @@ func NewCmdNewApplication(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().BoolVar(&o.Config.DeploymentConfig, "as-deployment-config", o.Config.DeploymentConfig, "If true create this application as a deployment config, which allows for hooks and custom strategies.")
 	cmd.Flags().StringSliceVar(&o.Config.SourceRepositories, "code", o.Config.SourceRepositories, "Source code to use to build this application.")
 	cmd.Flags().StringVar(&o.Config.ContextDir, "context-dir", o.Config.ContextDir, "Context directory to be used for the build.")
-	cmd.Flags().StringSliceVarP(&o.Config.ImageStreams, "image-stream", "i", o.Config.ImageStreams, "Name of an image stream to use in the app.")
+	cmd.Flags().StringSliceVarP(&o.Config.ImageStreams, "image-stream", "i", o.Config.ImageStreams, "Name of an existing image stream to use to deploy an app.")
 	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "image", o.Config.DockerImages, "Name of a container image to include in the app.  Note:  not specifying a registry or repository means defaults in place for client image pulls are employed.")
 	cmd.Flags().StringSliceVar(&o.Config.DockerImages, "docker-image", o.Config.DockerImages, "")
 	cmd.Flags().MarkDeprecated("docker-image", "Deprecated flag use --image")

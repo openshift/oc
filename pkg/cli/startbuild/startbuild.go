@@ -34,7 +34,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/kubectl/pkg/util"
+	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/api/build"
@@ -159,7 +159,7 @@ func NewCmdStartBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 		Short:             "Start a new build",
 		Long:              startBuildLong,
 		Example:           startBuildExample,
-		ValidArgsFunction: util.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
+		ValidArgsFunction: completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd.Context(), f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())

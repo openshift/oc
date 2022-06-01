@@ -56,10 +56,12 @@ func NewCommandGetServiceAccountToken(f cmdutil.Factory, streams genericclioptio
 	options := NewGetServiceAccountTokenOptions(streams)
 
 	getServiceAccountTokenCommand := &cobra.Command{
-		Use:     "get-token NAME",
-		Short:   getServiceAccountTokenShort,
-		Long:    getServiceAccountTokenLong,
-		Example: getServiceAccountTokenExamples,
+		Use:        "get-token NAME",
+		Short:      getServiceAccountTokenShort,
+		Long:       getServiceAccountTokenLong,
+		Example:    getServiceAccountTokenExamples,
+		Hidden:     true,
+		Deprecated: "and will be removed in the future version. Use oc create token instead.",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(options.Complete(args, f, cmd))
 			cmdutil.CheckErr(options.Validate())
