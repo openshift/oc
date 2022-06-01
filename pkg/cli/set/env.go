@@ -76,9 +76,6 @@ var (
 		# Remove the environment variable ENV from a deployment config definition on disk and
 		# update the deployment config on the server
 		oc set env -f dc.json ENV-
-
-		# Set some of the local shell environment into a deployment config on the server
-		env | grep RAILS_ | oc env -e - dc/myapp
 	`)
 )
 
