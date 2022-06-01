@@ -18,7 +18,6 @@ import (
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +49,8 @@ import (
 	"github.com/openshift/library-go/pkg/apps/appsutil"
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	"github.com/openshift/library-go/pkg/image/reference"
+
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/openshift/oc/pkg/helpers/conditions"
 	utilenv "github.com/openshift/oc/pkg/helpers/env"
 	generateapp "github.com/openshift/oc/pkg/helpers/newapp/app"
@@ -204,7 +205,14 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, f, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.RunDebug())
+
+			cmdErr := o.RunDebug()
+			if o.IsNode {
+				ocmdhelpers.CheckPodSecurityErr(cmdErr)
+			} else {
+				kcmdutil.CheckErr(cmdErr)
+			}
+
 		},
 	}
 
@@ -554,7 +562,7 @@ func (o *DebugOptions) RunDebug() error {
 				// We need to make sure we see the object in the cache before we start waiting for events
 				// or we would be waiting for the timeout if such object didn't exist.
 				// (e.g. it was deleted before we started informers so they wouldn't even see the delete event)
-				return true, errors.NewNotFound(corev1.Resource("pods"), pod.Name)
+				return true, kapierrors.NewNotFound(corev1.Resource("pods"), pod.Name)
 			}
 
 			return false, nil
