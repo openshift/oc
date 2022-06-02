@@ -452,6 +452,13 @@ func (o *DebugOptions) RunDebug() error {
 		ns = o.ToNamespace
 	}
 	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug", generateapp.MakeSimpleName(infos[0].Name)), ns
+	// Must gather pods should not be preempted. Following the conventions mentioned at:
+	// https://github.com/openshift/enhancements/blob/master/CONVENTIONS.md#priority-classes
+	// setting priority class to system-cluster-critical
+	if strings.HasPrefix(pod.Namespace, "openshift-must-gather") {
+		pod.Spec.PriorityClassName = "system-cluster-critical"
+	}
+
 	o.Attach.Pod = pod
 
 	if len(o.Attach.ContainerName) == 0 && len(pod.Spec.Containers) > 0 {
