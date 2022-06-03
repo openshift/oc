@@ -56,8 +56,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/tag"
 	"github.com/openshift/oc/pkg/cli/version"
 	"github.com/openshift/oc/pkg/cli/whoami"
-	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
-	"github.com/openshift/oc/pkg/helpers/term"
 )
 
 const productName = `OpenShift`
@@ -129,12 +127,7 @@ func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 		Use:   "oc",
 		Short: "Command line tools for managing applications",
 		Long:  cliLong,
-		Run: func(c *cobra.Command, args []string) {
-			explainOut := term.NewResponsiveWriter(out)
-			c.SetOutput(explainOut)
-			kcmdutil.RequireNoArguments(c, args)
-			fmt.Fprintf(explainOut, "%s\n\n%s\n", cliLong, cliExplain)
-		},
+		Run:   runHelp,
 		PersistentPreRunE: func(*cobra.Command, []string) error {
 			rest.SetDefaultWarningHandler(warningHandler)
 			return nil
@@ -267,7 +260,7 @@ func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 
 	changeSharedFlagDefaults(cmds)
 
-	cmdutil.ActsAsRootCommand(cmds, filters, groups...).
+	ktemplates.ActsAsRootCommand(cmds, filters, groups...).
 		ExposeFlags(loginCmd, "certificate-authority", "insecure-skip-tls-verify", "token")
 
 	cmds.AddCommand(newExperimentalCommand(f, ioStreams))
@@ -279,6 +272,10 @@ func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	registerCompletionFuncForGlobalFlags(cmds, f)
 
 	return cmds
+}
+
+func runHelp(cmd *cobra.Command, args []string) {
+	cmd.Help()
 }
 
 func moved(fullName, to string, parent, cmd *cobra.Command) string {
@@ -383,7 +380,7 @@ func CommandFor(basename string) *cobra.Command {
 	}
 
 	if cmd.UsageFunc() == nil {
-		cmdutil.ActsAsRootCommand(cmd, []string{"options"})
+		ktemplates.ActsAsRootCommand(cmd, []string{"options"})
 	}
 	return cmd
 }

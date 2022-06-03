@@ -9,7 +9,6 @@ import (
 
 	"github.com/openshift/oc/pkg/cli/registry/info"
 	"github.com/openshift/oc/pkg/cli/registry/login"
-	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
 var (
@@ -38,6 +37,5 @@ func NewCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Comm
 		},
 	}
 	groups.Add(image)
-	cmdutil.ActsAsRootCommand(image, []string{"options"}, groups...)
 	return image
 }

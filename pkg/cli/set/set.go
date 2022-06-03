@@ -16,7 +16,6 @@ import (
 	imageclient "github.com/openshift/client-go/image/clientset/versioned"
 	imagetypedclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/oc/pkg/helpers/clientcmd"
-	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
 var (
@@ -79,7 +78,6 @@ func NewCmdSet(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 		},
 	}
 	groups.Add(set)
-	cmdutil.ActsAsRootCommand(set, []string{"options"}, groups...)
 	return set
 }
 

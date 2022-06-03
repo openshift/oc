@@ -19,6 +19,7 @@ import (
 	dockerv10 "github.com/openshift/api/image/docker10"
 	dockerpre012 "github.com/openshift/api/image/dockerpre012"
 	imagev1 "github.com/openshift/api/image/v1"
+	monitoringv1alpha1 "github.com/openshift/api/monitoring/v1alpha1"
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	projectv1 "github.com/openshift/api/project/v1"
 	securityv1 "github.com/openshift/api/security/v1"
@@ -80,6 +81,8 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&securityv1.PodSecurityPolicyReview{}),
 	reflect.TypeOf(&securityv1.RangeAllocation{}),
 	reflect.TypeOf(&oauthv1.OAuthRedirectReference{}),
+	reflect.TypeOf(&monitoringv1alpha1.AlertRelabelConfig{}),
+	reflect.TypeOf(&monitoringv1alpha1.AlertingRule{}),
 }
 
 // MissingDescriberCoverageExceptions is the list of types that were missing describer methods when I started

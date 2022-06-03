@@ -12,7 +12,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/image/info"
 	"github.com/openshift/oc/pkg/cli/image/mirror"
 	"github.com/openshift/oc/pkg/cli/image/serve"
-	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
 var (
@@ -49,6 +48,5 @@ func NewCmdImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 		},
 	}
 	groups.Add(image)
-	cmdutil.ActsAsRootCommand(image, []string{"options"}, groups...)
 	return image
 }

@@ -139,7 +139,7 @@ func NewCmdProcess(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cob
 	// edit --output flag description to mention "describe" as an acceptable output format
 	// TODO: add custom PrintFlags printer that does this ^
 	if f := cmd.Flag("output"); f != nil {
-		f.Usage = "Output format. One of: json|yaml|name|describe|go-template-file|templatefile|template|go-template|jsonpath|jsonpath-file."
+		f.Usage = "Output format. One of: (json, yaml, name, describe, go-template-file, templatefile, template, go-template, jsonpath, jsonpath-file)."
 	}
 
 	// point to the original memory address shared between the jsonpath and go-template printer's TemplateArgument field

@@ -15,8 +15,6 @@ import (
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
-
-	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
 const PolicyRecommendedName = "policy"
@@ -85,8 +83,6 @@ func NewCmdPolicy(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 		},
 	}
 	groups.Add(cmds)
-	cmdutil.ActsAsRootCommand(cmds, []string{"options"}, groups...)
-
 	return cmds
 }
 
