@@ -332,9 +332,9 @@ func (o *Options) Run() error {
 		}
 
 		if len(update.Version) > 0 {
-			fmt.Fprintf(o.Out, "Updating to %s\n", update.Version)
+			fmt.Fprintf(o.Out, "Requesting update to %s\n", update.Version)
 		} else {
-			fmt.Fprintf(o.Out, "Updating to release image %s\n", update.Image)
+			fmt.Fprintf(o.Out, "Requesting update to release image %s\n", update.Image)
 		}
 
 		return nil
