@@ -29,6 +29,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/image/archive"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
+	"github.com/openshift/oc/pkg/cli/image/strategy"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
 )
 
@@ -130,7 +131,8 @@ type ExtractOptions struct {
 	Confirm bool
 	DryRun  bool
 
-	FileDir string
+	FileDir  string
+	ICSPFile string
 
 	genericclioptions.IOStreams
 
@@ -341,6 +343,9 @@ func (o *ExtractOptions) Run() error {
 	if err != nil {
 		return err
 	}
+	if len(o.ICSPFile) > 0 {
+		fromContext = fromContext.WithAlternateBlobSourceStrategy(strategy.NewICSPOnErrorStrategy(o.ICSPFile))
+	}
 	fromOptions := &imagesource.Options{
 		FileDir:         o.FileDir,
 		Insecure:        o.SecurityOptions.Insecure,
@@ -351,9 +356,14 @@ func (o *ExtractOptions) Run() error {
 	defer close(stopCh)
 	q := workqueue.New(o.ParallelOptions.MaxPerRegistry, stopCh)
 	return q.Try(func(q workqueue.Try) {
+		icspWarned := false
 		for i := range o.Mappings {
 			mapping := o.Mappings[i]
 			from := mapping.ImageRef
+			if !icspWarned && len(o.ICSPFile) > 0 && len(from.Ref.Tag) > 0 {
+				fmt.Fprintf(o.ErrOut, "warning: --icsp-file only applies to images referenced by digest and will be ignored for tags\n")
+				icspWarned = true
+			}
 			q.Try(func() error {
 				repo, err := fromOptions.Repository(ctx, from)
 				if err != nil {
