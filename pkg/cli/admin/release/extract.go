@@ -108,6 +108,8 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 	o.SecurityOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
 
+	flags.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file. If set, data from this file will be used to find alternative locations for images.")
+
 	flags.StringVar(&o.From, "from", o.From, "Image containing the release payload.")
 	flags.StringVar(&o.File, "file", o.File, "Extract a single file from the payload to standard output.")
 	flags.StringVar(&o.Directory, "to", o.Directory, "Directory to write release contents to, defaults to the current directory.")
@@ -132,6 +134,8 @@ type ExtractOptions struct {
 
 	SecurityOptions imagemanifest.SecurityOptions
 	ParallelOptions imagemanifest.ParallelOptions
+
+	ICSPFile string
 
 	Output string
 
@@ -242,6 +246,7 @@ func (o *ExtractOptions) Run() error {
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FileDir = o.FileDir
+	opts.ICSPFile = o.ICSPFile
 
 	switch {
 	case len(o.File) > 0:
