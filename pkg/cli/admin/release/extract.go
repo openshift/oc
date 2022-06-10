@@ -91,6 +91,10 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 			if the component is not associated with source code. The command will not perform
 			any destructive actions on your behalf except for executing a 'git checkout' which
 			may change the current branch. Requires 'git' to be on your path.
+
+			If the specified image supports multiple operating systems, the image that matches the
+			current operating system will be chosen. Otherwise you must pass --filter-by-os to
+			select the desired image.
 		`),
 		Example: templates.Examples(`
 			# Use git to check out the source code for the current cluster release to DIR
@@ -98,14 +102,20 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 
 			# Extract cloud credential requests for AWS
 			oc adm release extract --credentials-requests --cloud=aws
+
+			# Use git to check out the source code for the current cluster release to DIR from linux/s390x image
+			# Note: Wildcard filter is not supported. Pass a single os/arch to extract
+			oc adm release extract --git=DIR quay.io/openshift-release-dev/ocp-release:4.2.2 --filter-by-os=linux/s390x
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
 	flags := cmd.Flags()
 	o.SecurityOptions.Bind(flags)
+	o.FilterOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
 
 	flags.StringVar(&o.From, "from", o.From, "Image containing the release payload.")
@@ -131,6 +141,7 @@ type ExtractOptions struct {
 	genericclioptions.IOStreams
 
 	SecurityOptions imagemanifest.SecurityOptions
+	FilterOptions   imagemanifest.FilterOptions
 	ParallelOptions imagemanifest.ParallelOptions
 
 	Output string
@@ -178,7 +189,11 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	}
 	o.From = args[0]
 
-	return nil
+	return o.FilterOptions.Complete(cmd.Flags())
+}
+
+func (o *ExtractOptions) Validate() error {
+	return o.FilterOptions.Validate()
 }
 
 func (o *ExtractOptions) Run() error {
@@ -241,6 +256,7 @@ func (o *ExtractOptions) Run() error {
 	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
+	opts.FilterOptions = o.FilterOptions
 	opts.FileDir = o.FileDir
 
 	switch {
@@ -430,6 +446,7 @@ func (o *ExtractOptions) extractGit(dir string) error {
 
 	opts := NewInfoOptions(o.IOStreams)
 	opts.SecurityOptions = o.SecurityOptions
+	opts.FilterOptions = o.FilterOptions
 	opts.FileDir = o.FileDir
 	release, err := opts.LoadReleaseInfo(o.From, false)
 	if err != nil {

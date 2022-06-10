@@ -360,6 +360,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	dir := o.Directory
 	infoOptions := NewInfoOptions(o.IOStreams)
 	infoOptions.SecurityOptions = o.SecurityOptions
+	infoOptions.FilterOptions = o.FilterOptions
 	infoOptions.FileDir = o.FileDir
 	release, err := infoOptions.LoadReleaseInfo(o.From, false)
 	if err != nil {
@@ -427,6 +428,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
+	opts.FilterOptions = o.FilterOptions
 	opts.OnlyFiles = true
 
 	// create the mapping lookup of the valid targets
