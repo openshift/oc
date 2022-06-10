@@ -37,13 +37,12 @@ var (
 		Log in to the OpenShift integrated registry.
 
 		This logs your local Docker client into the OpenShift integrated registry using the
-		external registry name (if configured by your administrator). You may also log in
-		using a service account if you have access to its credentials. If you are logged in
+		external registry name (if configured by your administrator). If you are logged in
 		to the server using a client certificate the command will report an error because
 		container registries do not generally allow client certificates.
 
 		As an advanced option you may specify the credentials to login with using --auth-basic
-		with USER:PASSWORD. This may not be used with the -z flag.
+		with USER:PASSWORD.
 
 		You may specify an alternate file to write credentials to with --to instead of
 		.docker/config.json in your home directory. If you pass --to=- the file will be
@@ -65,9 +64,6 @@ var (
 	example = templates.Examples(`
 		# Log in to the integrated registry
 		oc registry login
-
-		# Log in as the default service account in the current namespace
-		oc registry login -z default
 
 		# Log in to different registry using BASIC auth credentials
 		oc registry login --registry quay.io/myregistry --auth-basic=USER:PASS
@@ -133,6 +129,7 @@ func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams
 	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Defaults to ~/.docker/config.json. Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker (current default - deprecated) or podman (prioritizes podman credentials over docker).")
 	flag.StringVar(&o.ConfigFile, "to", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Default is Docker config.json (deprecated). Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker or podman.")
 	flag.StringVarP(&o.ServiceAccount, "service-account", "z", o.ServiceAccount, "Log in as the specified service account name in the specified namespace.")
+	flag.MarkDeprecated("service-account", "and will be removed in the future version. Use oc create token instead.")
 	flag.StringVar(&o.HostPort, "registry", o.HostPort, "An alternate domain name and port to use for the registry, defaults to the cluster's configured external hostname.")
 	flag.BoolVar(&o.SkipCheck, "skip-check", o.SkipCheck, "Skip checking the credentials against the registry.")
 	flag.BoolVar(&o.Insecure, "insecure", o.Insecure, "Bypass HTTPS certificate verification when checking the registry login.")
@@ -149,7 +146,7 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 		credentials++
 	}
 	if credentials > 1 {
-		return fmt.Errorf("You may only specify a single authentication input as -z or --auth-basic")
+		return fmt.Errorf("You may only specify a single authentication input as --auth-basic")
 	}
 
 	cfg, err := f.ToRESTConfig()
@@ -277,7 +274,7 @@ func (o *LoginOptions) Validate() error {
 		return fmt.Errorf("The public hostname of the integrated registry could not be determined. Please specify one with --registry.")
 	}
 	if o.Credentials.Empty() {
-		return fmt.Errorf("Unable to determine registry credentials, please specify a service account or log into the cluster.")
+		return fmt.Errorf("Unable to determine registry credentials, please log into the cluster.")
 	}
 	return nil
 }
