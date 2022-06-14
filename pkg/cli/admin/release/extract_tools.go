@@ -362,6 +362,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	infoOptions.SecurityOptions = o.SecurityOptions
 	infoOptions.FilterOptions = o.FilterOptions
 	infoOptions.FileDir = o.FileDir
+	infoOptions.ICSPFile = o.ICSPFile
 	release, err := infoOptions.LoadReleaseInfo(o.From, false)
 	if err != nil {
 		return err
@@ -429,6 +430,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FilterOptions = o.FilterOptions
+	opts.ICSPFile = o.ICSPFile
 	opts.OnlyFiles = true
 
 	// create the mapping lookup of the valid targets
