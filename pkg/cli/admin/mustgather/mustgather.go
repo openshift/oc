@@ -266,6 +266,10 @@ func (o *MustGatherOptions) Validate() error {
 	if o.NodeName != "" && o.NodeSelector != "" {
 		return fmt.Errorf("--node-name and --node-selector are mutually exclusive: please specify one or the other")
 	}
+	// validation from vendor/k8s.io/apimachinery/pkg/api/validation/path/name.go
+	if len(o.NodeName) > 0 && strings.ContainsAny(o.NodeName, "/%") {
+		return fmt.Errorf("--node-name may not contain '/' or '%%'")
+	}
 	return nil
 }
 
@@ -294,6 +298,8 @@ func (o *MustGatherOptions) Run() error {
 	// Get or create "working" namespace ...
 	ns, cleanupNamespace, err := o.getNamespace()
 	if err != nil {
+		// ensure the errors bubble up to BackupGathering method for display
+		errs = []error{err}
 		return err
 	}
 
@@ -307,7 +313,10 @@ func (o *MustGatherOptions) Run() error {
 	for _, image := range o.Images {
 		_, err := imagereference.Parse(image)
 		if err != nil {
-			o.log("unable to parse image reference %s: %v", image, err)
+			line := fmt.Sprintf("unable to parse image reference %s: %v", image, err)
+			o.log(line)
+			// ensure the errors bubble up to BackupGathering method for display
+			errs = []error{fmt.Errorf(line)}
 			return err
 		}
 		if o.NodeSelector != "" {
@@ -315,19 +324,32 @@ func (o *MustGatherOptions) Run() error {
 				LabelSelector: o.NodeSelector,
 			})
 			if err != nil {
+				// ensure the errors bubble up to BackupGathering method for display
+				errs = []error{err}
 				return err
 			}
 			for _, node := range nodes.Items {
 				pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(node.Name, image), metav1.CreateOptions{})
 				if err != nil {
+					// ensure the errors bubble up to BackupGathering method for display
+					errs = []error{err}
 					return err
 				}
 				o.log("pod: %s on node: %s for plug-in image %s created", pod.Name, node.Name, image)
 				pods = append(pods, pod)
 			}
 		} else {
+			if o.NodeName != "" {
+				if _, err := o.Client.CoreV1().Nodes().Get(context.TODO(), o.NodeName, metav1.GetOptions{}); err != nil {
+					// ensure the errors bubble up to BackupGathering method for display
+					errs = []error{err}
+					return err
+				}
+			}
 			pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image), metav1.CreateOptions{})
 			if err != nil {
+				// ensure the errors bubble up to BackupGathering method for display
+				errs = []error{err}
 				return err
 			}
 			o.log("pod for plug-in image %s created", image)
@@ -337,9 +359,13 @@ func (o *MustGatherOptions) Run() error {
 
 	// log timestamps...
 	if err := os.MkdirAll(o.DestDir, os.ModePerm); err != nil {
+		// ensure the errors bubble up to BackupGathering method for display
+		errs = []error{err}
 		return err
 	}
 	if err := o.logTimestamp(); err != nil {
+		// ensure the errors bubble up to BackupGathering method for display
+		errs = []error{err}
 		return err
 	}
 	defer o.logTimestamp()
