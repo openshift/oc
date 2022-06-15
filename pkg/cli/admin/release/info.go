@@ -133,6 +133,8 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 
 	flags.BoolVar(&o.Verify, "verify", o.Verify, "Generate bug listings from the changelogs in the git repositories extracted to this path.")
 
+	flags.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file. If set, data from this file will be used to find alternative locations for images.")
+
 	flags.BoolVar(&o.ShowContents, "contents", o.ShowContents, "Display the contents of a release.")
 	flags.BoolVar(&o.ShowCommit, "commits", o.ShowCommit, "Display information about the source an image was created with.")
 	flags.BoolVar(&o.ShowCommitURL, "commit-urls", o.ShowCommitURL, "Display a link (if possible) to the source code.")
@@ -165,6 +167,7 @@ type InfoOptions struct {
 	ShowPullSpec  bool
 	ShowSize      bool
 	Verify        bool
+	ICSPFile      string
 
 	ChangelogDir string
 	BugsDir      string
@@ -756,6 +759,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FilterOptions = o.FilterOptions
 	opts.FileDir = o.FileDir
+	opts.ICSPFile = o.ICSPFile
 
 	release := &ReleaseInfo{
 		Image:    image,
