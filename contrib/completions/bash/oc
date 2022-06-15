@@ -457,6 +457,8 @@ _oc_adm_catalog_mirror()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--continue-on-error")
+    local_nonpersistent_flags+=("--continue-on-error")
     flags+=("--dir=")
     two_word_flags+=("--dir")
     local_nonpersistent_flags+=("--dir")
