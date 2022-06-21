@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"reflect"
 	"testing"
+
+	"github.com/openshift/oc/pkg/version"
 )
 
 var (
@@ -21,6 +23,18 @@ type Challenge struct {
 	ExpectedHandled   bool
 	ExpectedErr       error
 	ExpectedPrompt    string
+}
+
+type FakeServerVersionRetriever struct {
+	MajorNumber int
+	MinorNumber int
+}
+
+func (r *FakeServerVersionRetriever) RetrieveServerVersion() (*version.ServerVersion, error) {
+	return &version.ServerVersion{
+		MajorNumber: r.MajorNumber,
+		MinorNumber: r.MinorNumber,
+	}, nil
 }
 
 func TestHandleChallenge(t *testing.T) {
@@ -77,12 +91,13 @@ func TestHandleChallenge(t *testing.T) {
 			},
 		},
 
-		"interactive challenge with default user": {
+		"interactive challenge with default user without console url": {
 			Handler: &BasicChallengeHandler{
-				Host:     "myhost",
-				Reader:   bytes.NewBufferString("mypassword\n"),
-				Username: "myuser",
-				Password: "",
+				Host:                   "https://myhost",
+				serverVersionRetriever: &FakeServerVersionRetriever{1, 23},
+				Reader:                 bytes.NewBufferString("mypassword\n"),
+				Username:               "myuser",
+				Password:               "",
 			},
 			Challenges: []Challenge{
 				{
@@ -91,7 +106,30 @@ func TestHandleChallenge(t *testing.T) {
 					ExpectedHeaders:   http.Header{AUTHORIZATION: []string{getBasicHeader("myuser", "mypassword")}},
 					ExpectedHandled:   true,
 					ExpectedErr:       nil,
-					ExpectedPrompt: `Authentication required for myhost (myrealm)
+					ExpectedPrompt: `Authentication required for https://myhost (myrealm)
+Username: myuser
+Password: `,
+				},
+			},
+		},
+
+		"interactive challenge with default user with console url": {
+			Handler: &BasicChallengeHandler{
+				Host:                   "https://myhost",
+				serverVersionRetriever: &FakeServerVersionRetriever{1, 24},
+				Reader:                 bytes.NewBufferString("mypassword\n"),
+				Username:               "myuser",
+				Password:               "",
+			},
+			Challenges: []Challenge{
+				{
+					Headers:           basicChallenge,
+					ExpectedCanHandle: true,
+					ExpectedHeaders:   http.Header{AUTHORIZATION: []string{getBasicHeader("myuser", "mypassword")}},
+					ExpectedHandled:   true,
+					ExpectedErr:       nil,
+					ExpectedPrompt: `Authentication required for https://myhost (myrealm)
+Console URL: https://myhost/console
 Username: myuser
 Password: `,
 				},
