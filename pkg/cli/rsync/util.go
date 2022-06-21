@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os/exec"
 	"runtime"
 
 	"k8s.io/klog/v2"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/kubectl/pkg/cmd/util/podcmd"
 )
 
 var (
@@ -127,13 +130,39 @@ func rsyncSpecificFlags(o *RsyncOptions) []string {
 }
 
 type podAPIChecker struct {
-	client    kubernetes.Interface
-	namespace string
-	podName   string
+	client        kubernetes.Interface
+	namespace     string
+	podName       string
+	containerName string
+	quiet         bool
+	stdErr        io.Writer
 }
 
-// CheckPods will check if pods exists in the provided context
+// CheckPod will check if pods exists in the provided context and has a required container running
 func (p podAPIChecker) CheckPod() error {
-	_, err := p.client.CoreV1().Pods(p.namespace).Get(context.TODO(), p.podName, metav1.GetOptions{})
-	return err
+	pod, err := p.client.CoreV1().Pods(p.namespace).Get(context.TODO(), p.podName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		return fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+	}
+	if pod.DeletionTimestamp != nil {
+		return fmt.Errorf("pod %v is getting deleted", p.podName)
+	}
+
+	container, err := podcmd.FindOrDefaultContainerByName(pod, p.containerName, p.quiet, p.stdErr)
+	if err != nil {
+		return err
+	}
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		if containerStatus.Name == container.Name {
+			if containerStatus.State.Running == nil {
+				return fmt.Errorf("container %v is not running", p.containerName)
+			}
+			break
+		}
+	}
+	return nil
 }

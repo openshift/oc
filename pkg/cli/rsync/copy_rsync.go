@@ -74,7 +74,7 @@ func NewRsyncStrategy(o *RsyncOptions) CopyStrategy {
 		RshCommand:     o.RshCmd,
 		RemoteExecutor: newRemoteExecutor(o),
 		LocalExecutor:  newLocalExecutor(),
-		podChecker:     podAPIChecker{o.Client, o.Namespace, podName},
+		podChecker:     podAPIChecker{o.Client, o.Namespace, podName, o.ContainerName, o.Quiet, o.ErrOut},
 	}
 }
 
