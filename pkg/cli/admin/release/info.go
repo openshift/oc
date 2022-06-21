@@ -1653,14 +1653,25 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 		switch format {
 		case "name":
 			for _, b := range valid {
-				fmt.Fprintln(out, b.ID)
+				switch b.Source {
+				case Jira:
+					fmt.Fprintf(out, "OCPBUGS-%d\n", b.ID)
+				default:
+					fmt.Fprintln(out, b.ID)
+				}
 			}
+
 		default:
 			tw := tabwriter.NewWriter(out, 0, 0, 1, ' ', 0)
 			fmt.Fprintln(tw, "ID\tSTATUS\tPRIORITY\tSUMMARY")
 			for _, v := range valid {
 				if bug, ok := bugs[generateBugKey(v.Source, v.ID)]; ok {
-					fmt.Fprintf(tw, "%d\t%s\t%s\t%s\n", v.ID, bug.Status, bug.Priority, bug.Summary)
+					switch bug.Source {
+					case Jira:
+						fmt.Fprintf(tw, "OCPBUGS-%d\t%s\t%s\t%s\n", v.ID, bug.Status, bug.Priority, bug.Summary)
+					default:
+						fmt.Fprintf(tw, "%d\t%s\t%s\t%s\n", v.ID, bug.Status, bug.Priority, bug.Summary)
+					}
 				}
 			}
 			tw.Flush()
