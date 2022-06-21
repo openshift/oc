@@ -368,6 +368,13 @@ func (o *NewOptions) Run() error {
 		extractOpts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: buf, ErrOut: o.ErrOut})
 		extractOpts.ParallelOptions = o.ParallelOptions
 		extractOpts.SecurityOptions = o.SecurityOptions
+		// we'll always use manifests from the linux/amd64 image, since the manifests
+		// won't differ between architectures, at least for now
+		re, err := regexp.Compile("linux/amd64")
+		if err != nil {
+			return err
+		}
+		extractOpts.FilterOptions.OSFilter = re
 		extractOpts.OnlyFiles = true
 		extractOpts.Mappings = []extract.Mapping{
 			{
