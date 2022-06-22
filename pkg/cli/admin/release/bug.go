@@ -56,11 +56,11 @@ type BugRemoteList struct {
 // BugRemoteInfo stores the detail information of bug retrieved
 // from remote url like bugzilla or jira.
 type BugRemoteInfo struct {
-	ID       int    `json:"id"`
-	Status   string `json:"status"`
-	Priority string `json:"priority"`
-	Summary  string `json:"summary"`
-	Source   BugType
+	ID       int     `json:"id"`
+	Status   string  `json:"status"`
+	Priority string  `json:"priority"`
+	Summary  string  `json:"summary"`
+	Source   BugType `json:"source"`
 }
 
 type JiraRemoteBug struct {
