@@ -368,13 +368,15 @@ func (o *NewOptions) Run() error {
 		extractOpts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: buf, ErrOut: o.ErrOut})
 		extractOpts.ParallelOptions = o.ParallelOptions
 		extractOpts.SecurityOptions = o.SecurityOptions
-		// we'll always use manifests from the linux/amd64 image, since the manifests
-		// won't differ between architectures, at least for now
-		re, err := regexp.Compile("linux/amd64")
-		if err != nil {
-			return err
+		if o.KeepManifestList {
+			// we'll always use manifests from the linux/amd64 image, since the manifests
+			// won't differ between architectures, at least for now
+			re, err := regexp.Compile("linux/amd64")
+			if err != nil {
+				return err
+			}
+			extractOpts.FilterOptions.OSFilter = re
 		}
-		extractOpts.FilterOptions.OSFilter = re
 		extractOpts.OnlyFiles = true
 		extractOpts.Mappings = []extract.Mapping{
 			{
@@ -925,13 +927,15 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
-	// we'll always use manifests from the linux/amd64 image, since the manifests
-	// won't differ between architectures, at least for now
-	re, err := regexp.Compile("linux/amd64")
-	if err != nil {
-		return err
+	if o.KeepManifestList {
+		// we'll always use manifests from the linux/amd64 image, since the manifests
+		// won't differ between architectures, at least for now
+		re, err := regexp.Compile("linux/amd64")
+		if err != nil {
+			return err
+		}
+		opts.FilterOptions.OSFilter = re
 	}
-	opts.FilterOptions.OSFilter = re
 	opts.OnlyFiles = true
 	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig) {
 		verifier.Verify(dgst, contentDigest)
