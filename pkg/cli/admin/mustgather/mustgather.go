@@ -270,6 +270,9 @@ func (o *MustGatherOptions) Validate() error {
 	if len(o.NodeName) > 0 && strings.ContainsAny(o.NodeName, "/%") {
 		return fmt.Errorf("--node-name may not contain '/' or '%%'")
 	}
+	if strings.Contains(o.DestDir, ":") {
+		return fmt.Errorf("--dest-dir may not contain special characters such as colon(:)")
+	}
 	return nil
 }
 
