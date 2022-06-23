@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
+	"k8s.io/client-go/discovery"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 
@@ -36,6 +37,7 @@ type WhoCanOptions struct {
 
 	verb         string
 	resource     schema.GroupVersionResource
+	subresource  string
 	resourceName string
 
 	genericclioptions.IOStreams
@@ -63,6 +65,7 @@ func NewCmdWhoCan(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 	}
 
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If true, list who can perform the specified action in all namespaces.")
+	cmd.Flags().StringVar(&o.subresource, "subresource", o.subresource, "SubResource such as log or scale")
 
 	o.PrintFlags.AddFlags(cmd)
 	return cmd
@@ -73,6 +76,10 @@ func (o *WhoCanOptions) complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	if err != nil {
 		return err
 	}
+	discoveryClient, err := f.ToDiscoveryClient()
+	if err != nil {
+		return err
+	}
 
 	switch len(args) {
 	case 3:
@@ -80,7 +87,7 @@ func (o *WhoCanOptions) complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 		fallthrough
 	case 2:
 		o.verb = args[0]
-		o.resource = ResourceFor(mapper, args[1], o.ErrOut)
+		o.resource = ResourceFor(mapper, discoveryClient, args[1], o.subresource, o.ErrOut)
 	default:
 		return errors.New("you must specify two or three arguments: verb, resource, and optional resourceName")
 	}
@@ -106,8 +113,7 @@ func (o *WhoCanOptions) complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 
 	return nil
 }
-
-func ResourceFor(mapper meta.RESTMapper, resourceArg string, errOut io.Writer) schema.GroupVersionResource {
+func ResourceFor(mapper meta.RESTMapper, discoveryClient discovery.DiscoveryInterface, resourceArg string, subresourceArg string, errOut io.Writer) schema.GroupVersionResource {
 	fullySpecifiedGVR, groupResource := schema.ParseResourceArg(strings.ToLower(resourceArg))
 	gvr := schema.GroupVersionResource{}
 	if fullySpecifiedGVR != nil {
@@ -126,7 +132,46 @@ func ResourceFor(mapper meta.RESTMapper, resourceArg string, errOut io.Writer) s
 		}
 	}
 
+	if len(subresourceArg) > 0 {
+		err := hasSubresource(discoveryClient, gvr, subresourceArg)
+		if err != nil {
+			fmt.Fprintf(errOut, "Warning: %v", err)
+		}
+	}
+
 	return gvr
+}
+
+func hasSubresource(discoveryClient discovery.DiscoveryInterface, gvr schema.GroupVersionResource, subresource string) error {
+	groupVersion := gvr.GroupVersion().String()
+	var serverResources []*metav1.APIResourceList
+	if len(groupVersion) > 0 {
+		var apiResourceList *metav1.APIResourceList
+		apiResourceList, _ = discoveryClient.ServerResourcesForGroupVersion(groupVersion)
+		serverResources = []*metav1.APIResourceList{apiResourceList}
+	}
+
+	if serverResources == nil {
+		_, serverResources, _ = discoveryClient.ServerGroupsAndResources()
+	}
+	resourceAndSubresource := fmt.Sprintf("%v/%v", gvr.Resource, subresource)
+
+	if serverResources != nil {
+		for _, apiResourceList := range serverResources {
+			for _, apiResource := range apiResourceList.APIResources {
+				if apiResource.Name == resourceAndSubresource &&
+					(apiResource.Group == "" || apiResource.Group == gvr.Group) &&
+					(apiResource.Version == "" || apiResource.Version == gvr.Version) {
+					return nil
+				}
+			}
+		}
+	}
+
+	if len(gvr.Group) == 0 {
+		return fmt.Errorf("the server doesn't have a subresource '%s'\n", resourceAndSubresource)
+	}
+	return fmt.Errorf("the server doesn't have a subresource '%s' in group '%s'\n", resourceAndSubresource, gvr.Group)
 }
 
 func (o *WhoCanOptions) run() error {
@@ -135,6 +180,9 @@ func (o *WhoCanOptions) run() error {
 		Group:        o.resource.Group,
 		Resource:     o.resource.Resource,
 		ResourceName: o.resourceName,
+	}
+	if len(o.subresource) > 0 {
+		authorizationAttributes.Resource += "/" + o.subresource
 	}
 
 	resourceAccessReviewResponse := &authorizationv1.ResourceAccessReviewResponse{}
@@ -160,7 +208,10 @@ func (o *WhoCanOptions) run() error {
 
 	resourceDisplay := o.resource.Resource
 	if len(o.resource.Group) > 0 {
-		resourceDisplay = resourceDisplay + "." + o.resource.Group
+		resourceDisplay += "." + o.resource.Group
+	}
+	if len(o.subresource) > 0 {
+		resourceDisplay += "/" + o.subresource
 	}
 
 	fmt.Fprintf(message, "Verb:      %s\n", o.verb)
