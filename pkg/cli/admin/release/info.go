@@ -430,9 +430,9 @@ func (o *InfoOptions) Validate() error {
 	switch {
 	case len(o.BugsDir) > 0:
 		switch o.Output {
-		case "", "name":
+		case "", "name", "json":
 		default:
-			return fmt.Errorf("--output only supports 'name' for --bugs")
+			return fmt.Errorf("--output only supports 'name' or 'json' for --bugs")
 		}
 	case len(o.ChangelogDir) > 0:
 		if len(o.Output) > 0 {
@@ -1655,6 +1655,18 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 			for _, b := range valid {
 				fmt.Fprintln(out, b.ID)
 			}
+		case "json":
+			var printedBugs []BugRemoteInfo
+			for _, v := range valid {
+				if bug, ok := bugs[generateBugKey(v.Source, v.ID)]; ok {
+					printedBugs = append(printedBugs, bug)
+				}
+			}
+			data, err := json.MarshalIndent(printedBugs, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(out, string(data))
 		default:
 			tw := tabwriter.NewWriter(out, 0, 0, 1, ' ', 0)
 			fmt.Fprintln(tw, "ID\tSTATUS\tPRIORITY\tSUMMARY")
