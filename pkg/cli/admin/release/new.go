@@ -445,7 +445,8 @@ func (o *NewOptions) Run() error {
 			ordered = append(ordered, tag.Name)
 		}
 
-		// default the base image to a matching release payload digest or error
+		// default the base image to a matching release payload base digest or
+		// if the base digest is invalid use release payload itself as base image.
 		if len(o.ToImageBase) == 0 && len(baseDigest) > 0 {
 			for _, tag := range is.Spec.Tags {
 				if tag.From == nil || tag.From.Kind != "DockerImage" {
@@ -461,7 +462,12 @@ func (o *NewOptions) Run() error {
 				}
 			}
 			if len(o.ToImageBase) == 0 {
-				return fmt.Errorf("unable to find an image within the release that matches the base image manifest %q, please specify --to-image-base", baseDigest)
+				if !o.KeepManifestList {
+					return fmt.Errorf("unable to find an image within the release that matches the base image manifest %q, please specify --to-image-base", baseDigest)
+				}
+
+				o.ToImageBase = o.FromReleaseImage
+				klog.V(2).Infof("unable to find an image within the release that matches the base image manifest %q, using --from-release %q as base image", baseDigest, o.FromReleaseImage)
 			}
 		}
 
