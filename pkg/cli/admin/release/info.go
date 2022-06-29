@@ -692,10 +692,11 @@ type ReleaseManifestDiff struct {
 }
 
 type ReleaseInfo struct {
-	Image         string                          `json:"image"`
-	ImageRef      imagesource.TypedImageReference `json:"-"`
-	Digest        digest.Digest                   `json:"digest"`
-	ContentDigest digest.Digest                   `json:"contentDigest"`
+	Image          string                          `json:"image"`
+	ImageRef       imagesource.TypedImageReference `json:"-"`
+	Digest         digest.Digest                   `json:"digest"`
+	ContentDigest  digest.Digest                   `json:"contentDigest"`
+	IsManifestList bool
 	// TODO: return the list digest in the future
 	// ListDigest    digest.Digest                       `json:"listDigest"`
 	Config     *dockerv1client.DockerImageConfig `json:"config"`
@@ -768,8 +769,9 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 		RawMetadata: make(map[string][]byte),
 	}
 
-	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig) {
+	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, isManifestList bool) {
 		verifier.Verify(dgst, contentDigest)
+		release.IsManifestList = isManifestList
 		release.Digest = dgst
 		release.ContentDigest = contentDigest
 		release.Config = config
@@ -1211,7 +1213,11 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 	defer w.Flush()
 	now := time.Now()
 	fmt.Fprintf(w, "Name:\t%s\n", release.PreferredName())
-	fmt.Fprintf(w, "Digest:\t%s\n", release.Digest)
+	if release.IsManifestList {
+		fmt.Fprintf(w, "Digest:\t%s\n", release.ImageRef.Ref.ID)
+	} else {
+		fmt.Fprintf(w, "Digest:\t%s\n", release.Digest)
+	}
 	fmt.Fprintf(w, "Created:\t%s\n", release.Config.Created.UTC().Truncate(time.Second).Format(time.RFC3339))
 	fmt.Fprintf(w, "OS/Arch:\t%s/%s\n", release.Config.OS, release.Config.Architecture)
 	fmt.Fprintf(w, "Manifests:\t%d\n", len(release.ManifestFiles))
@@ -1222,7 +1228,9 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 	fmt.Fprintln(w)
 	refExact := release.ImageRef
 	refExact.Ref.Tag = ""
-	refExact.Ref.ID = release.Digest.String()
+	if !release.IsManifestList {
+		refExact.Ref.ID = release.Digest.String()
+	}
 	fmt.Fprintf(w, "Pull From:\t%s\n", refExact)
 
 	if m := release.Metadata; m != nil {
