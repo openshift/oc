@@ -656,8 +656,11 @@ func newNamespace() *corev1.Namespace {
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "openshift-must-gather-",
 			Labels: map[string]string{
-				"openshift.io/run-level":       "0",
-				admissionapi.EnforceLevelLabel: string(admissionapi.LevelPrivileged),
+				"openshift.io/run-level":                         "0",
+				admissionapi.EnforceLevelLabel:                   string(admissionapi.LevelPrivileged),
+				admissionapi.AuditLevelLabel:                     string(admissionapi.LevelPrivileged),
+				admissionapi.WarnLevelLabel:                      string(admissionapi.LevelPrivileged),
+				"security.openshift.io/scc.podSecurityLabelSync": "false",
 			},
 			Annotations: map[string]string{
 				"oc.openshift.io/command":    "oc adm must-gather",
