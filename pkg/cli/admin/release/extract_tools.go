@@ -371,7 +371,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	releaseName := release.PreferredName()
 	refExact := release.ImageRef
 	refExact.Ref.Tag = ""
-	refExact.Ref.ID = release.Digest.String()
+	// if the release image is manifestlist image, we'll not change digest with
+	// arch based sha. Because we want that the extracted tool can be used for all archs.
+	if !release.IsManifestList {
+		refExact.Ref.ID = release.Digest.String()
+	}
 	exactReleaseImage := refExact.String()
 
 	// resolve target image references to their pull specs
