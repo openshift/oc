@@ -467,6 +467,10 @@ func (o *NewOptions) Run() error {
 				}
 
 				o.ToImageBase = o.FromReleaseImage
+				// ToImageBase is set and thereby, metadata is overridden.
+				// To skip verification, we need to set hasMetadataOverrides to true
+				// in order to behave similar when user passes --to-image-base flag.
+				hasMetadataOverrides = true
 				klog.V(2).Infof("unable to find an image within the release that matches the base image manifest %q, using --from-release %q as base image", baseDigest, o.FromReleaseImage)
 			}
 		}
