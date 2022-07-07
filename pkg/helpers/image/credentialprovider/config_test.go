@@ -133,6 +133,17 @@ func TestDockerConfigEntryJSONDecode(t *testing.T) {
 			fail: false,
 		},
 
+		// auth field decodes to username & IdentityToken
+		{
+			input: []byte(`{"auth": "aWFtYXBpa2V5Og==", "email": "foo@example.com", "identitytoken": "somerandomtoken"}`),
+			expect: DockerConfigEntry{
+				Username:      "iamapikey",
+				Email:         "foo@example.com",
+				IdentityToken: "somerandomtoken",
+			},
+			fail: false,
+		},
+
 		// auth field overrides username & password
 		{
 			// Fake values for testing.

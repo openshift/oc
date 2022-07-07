@@ -39,7 +39,8 @@ func (c *credentialStoreFactory) CredentialStoreFor(image string) auth.Credentia
 	}
 
 	return dockerregistry.NewStaticCredentialStore(&types.AuthConfig{
-		Username: authCfg.Username,
-		Password: authCfg.Password,
+		Username:      authCfg.Username,
+		Password:      authCfg.Password,
+		IdentityToken: authCfg.IdentityToken,
 	})
 }
