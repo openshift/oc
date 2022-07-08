@@ -416,8 +416,8 @@ func (o *InfoOptions) Validate() error {
 	if o.SkipBugCheck && len(o.BugsDir) == 0 {
 		return fmt.Errorf("--skip-bug-check requires --bugs")
 	}
-	if o.SkipBugCheck && o.Output != "name" {
-		return fmt.Errorf("--skip-bug-check requires --output to be set to 'name'")
+	if o.SkipBugCheck && o.Output != "name" && o.Output != "json" {
+		return fmt.Errorf("--skip-bug-check requires --output to be set to 'name' or 'json'")
 	}
 	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 {
 		if len(o.From) == 0 {
@@ -1658,8 +1658,12 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 		case "json":
 			var printedBugs []BugRemoteInfo
 			for _, v := range valid {
-				if bug, ok := bugs[generateBugKey(v.Source, v.ID)]; ok {
-					printedBugs = append(printedBugs, bug)
+				if skipBugCheck {
+					printedBugs = append(printedBugs, BugRemoteInfo{ID: v.ID, Source: v.Source})
+				} else {
+					if bug, ok := bugs[generateBugKey(v.Source, v.ID)]; ok {
+						printedBugs = append(printedBugs, bug)
+					}
 				}
 			}
 			data, err := json.MarshalIndent(printedBugs, "", "  ")
