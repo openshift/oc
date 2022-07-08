@@ -139,6 +139,27 @@ var (
 	program is [located on github](https://github.com/openshift/oc).
 	`)
 
+	readmeCCOUnix = heredoc.Doc(`
+	# Cloud Credential Operator utility
+
+	The ccoctl tool provides various commands to assist with the creating and maintenance of
+	cloud credentials from outside the cluster (necessary when CCO is put in "Manual" mode).
+
+	To learn more about OpenShift, visit [docs.openshift.com](https://docs.openshift.com)
+	and select the version of OpenShift you are using.
+
+	## Installing the tools
+
+	After extracting this archive, move the \u0060ccoctl\u0060 binary to a location on your
+	PATH such as \u0060/usr/local/bin\u0060, or keep it in a temporary directory and
+	reference it via \u0060./ccoctl\u0060.
+
+	## License
+
+	OpenShift is licensed under the Apache Public License 2.0. The source code for this
+	program is [located on github](https://github.com/openshift/cloud-credential-operator).
+	`)
+
 	// indicates that the architecture of the binary matches the release payload
 	targetReleaseArch = "release-arch"
 )
@@ -263,6 +284,16 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			InjectReleaseImage:   true,
 			InjectReleaseVersion: true,
 			ArchiveFormat:        "openshift-baremetal-install-linux-%s.tar.gz",
+		},
+		{
+			OS:      "linux",
+			Arch:    targetReleaseArch,
+			Command: "ccoctl",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "cloud-credential-operator", From: "usr/bin/ccoctl"},
+
+			Readme:        readmeCCOUnix,
+			ArchiveFormat: "ccoctl-linux-%s.tar.gz",
 		},
 	}
 
