@@ -692,16 +692,14 @@ type ReleaseManifestDiff struct {
 }
 
 type ReleaseInfo struct {
-	Image          string                          `json:"image"`
-	ImageRef       imagesource.TypedImageReference `json:"-"`
-	Digest         digest.Digest                   `json:"digest"`
-	ContentDigest  digest.Digest                   `json:"contentDigest"`
-	IsManifestList bool
-	// TODO: return the list digest in the future
-	// ListDigest    digest.Digest                       `json:"listDigest"`
-	Config     *dockerv1client.DockerImageConfig `json:"config"`
-	Metadata   *CincinnatiMetadata               `json:"metadata"`
-	References *imageapi.ImageStream             `json:"references"`
+	Image              string                            `json:"image"`
+	ImageRef           imagesource.TypedImageReference   `json:"-"`
+	Digest             digest.Digest                     `json:"digest"`
+	ContentDigest      digest.Digest                     `json:"contentDigest"`
+	ManifestListDigest digest.Digest                     `json:"listDigest"`
+	Config             *dockerv1client.DockerImageConfig `json:"config"`
+	Metadata           *CincinnatiMetadata               `json:"metadata"`
+	References         *imageapi.ImageStream             `json:"references"`
 
 	// This field is deprecated, does not contain display names. Is replaced by
 	// ComponentVersions.
@@ -769,9 +767,9 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 		RawMetadata: make(map[string][]byte),
 	}
 
-	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, isManifestList bool) {
+	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
 		verifier.Verify(dgst, contentDigest)
-		release.IsManifestList = isManifestList
+		release.ManifestListDigest = manifestListDigest
 		release.Digest = dgst
 		release.ContentDigest = contentDigest
 		release.Config = config
@@ -1213,10 +1211,11 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 	defer w.Flush()
 	now := time.Now()
 	fmt.Fprintf(w, "Name:\t%s\n", release.PreferredName())
-	if release.IsManifestList {
-		fmt.Fprintf(w, "Digest:\t%s\n", release.ImageRef.Ref.ID)
-	} else {
+	if len(release.ManifestListDigest) == 0 {
 		fmt.Fprintf(w, "Digest:\t%s\n", release.Digest)
+	} else {
+		// if the image is manifestlisted, use the manifestlist digest.
+		fmt.Fprintf(w, "Digest:\t%s\n", release.ManifestListDigest.String())
 	}
 	fmt.Fprintf(w, "Created:\t%s\n", release.Config.Created.UTC().Truncate(time.Second).Format(time.RFC3339))
 	fmt.Fprintf(w, "OS/Arch:\t%s/%s\n", release.Config.OS, release.Config.Architecture)
@@ -1228,8 +1227,11 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 	fmt.Fprintln(w)
 	refExact := release.ImageRef
 	refExact.Ref.Tag = ""
-	if !release.IsManifestList {
+	if len(release.ManifestListDigest) == 0 {
 		refExact.Ref.ID = release.Digest.String()
+	} else {
+		// if the image is manifestlisted, use the manifestlist digest.
+		refExact.Ref.ID = release.ManifestListDigest.String()
 	}
 	fmt.Fprintf(w, "Pull From:\t%s\n", refExact)
 

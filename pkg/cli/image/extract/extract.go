@@ -138,7 +138,7 @@ type ExtractOptions struct {
 
 	// ImageMetadataCallback is invoked once per image retrieved, and may be called in parallel if
 	// MaxPerRegistry is set higher than 1.
-	ImageMetadataCallback func(m *Mapping, dgst, contentDigest digest.Digest, imageConfig *dockerv1client.DockerImageConfig, isManifestList bool)
+	ImageMetadataCallback func(m *Mapping, dgst, contentDigest digest.Digest, imageConfig *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest)
 	// TarEntryCallback, if set, is passed each entry in the viewed layers. Entries will be filtered
 	// by name and only the entry in the highest layer will be passed to the callback. Returning false
 	// will halt processing of the image.
@@ -518,7 +518,7 @@ func (o *ExtractOptions) Run() error {
 				}
 
 				if o.ImageMetadataCallback != nil {
-					o.ImageMetadataCallback(&mapping, location.Manifest, contentDigest, imageConfig, location.IsList())
+					o.ImageMetadataCallback(&mapping, location.Manifest, contentDigest, imageConfig, location.ManifestListDigest())
 				}
 				return nil
 			})

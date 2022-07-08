@@ -173,7 +173,7 @@ type ExtractOptions struct {
 	ExtractManifests bool
 	Manifests        []manifest.Manifest
 
-	ImageMetadataCallback func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, isManifestList bool)
+	ImageMetadataCallback func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest)
 }
 
 func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
@@ -413,10 +413,10 @@ func (o *ExtractOptions) Run() error {
 			},
 		}
 		verifier := imagemanifest.NewVerifier()
-		opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, isManifestList bool) {
+		opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
 			verifier.Verify(dgst, contentDigest)
 			if o.ImageMetadataCallback != nil {
-				o.ImageMetadataCallback(m, dgst, contentDigest, config, isManifestList)
+				o.ImageMetadataCallback(m, dgst, contentDigest, config, manifestListDigest)
 			}
 			if len(ref.Ref.ID) > 0 {
 				fmt.Fprintf(o.Out, "Extracted release payload created at %s\n", config.Created.Format(time.RFC3339))

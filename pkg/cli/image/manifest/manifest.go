@@ -253,6 +253,13 @@ func (m ManifestLocation) IsList() bool {
 	return len(m.ManifestList) > 0
 }
 
+func (m ManifestLocation) ManifestListDigest() digest.Digest {
+	if m.IsList() {
+		return m.ManifestList
+	}
+	return ""
+}
+
 func (m ManifestLocation) String() string {
 	if m.IsList() {
 		return fmt.Sprintf("manifest %s in manifest list %s", m.Manifest, m.ManifestList)
