@@ -31,7 +31,7 @@ func Test_CredentialStoreFactory(t *testing.T) {
 		store := credentialStoreFactory{
 			authResolver: &AuthResolver{
 				credentials: map[string]imageTypes.DockerAuthConfig{
-					image: {Username: "local_user", Password: "local_pass"},
+					image: {Username: "local_user", Password: "local_pass", IdentityToken: "somerandomtext"},
 				},
 			},
 		}

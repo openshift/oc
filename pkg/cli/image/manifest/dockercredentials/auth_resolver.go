@@ -59,8 +59,9 @@ func NewAuthResolver(authFilePath string) (*AuthResolver, error) {
 				// give priority to the docker config file $HOME/.docker/config.json
 				for registry, entry := range config {
 					credentials[registry] = containertypes.DockerAuthConfig{
-						Username: entry.Username,
-						Password: entry.Password,
+						Username:      entry.Username,
+						Password:      entry.Password,
+						IdentityToken: entry.IdentityToken,
 					}
 				}
 			}
