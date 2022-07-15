@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -136,6 +137,11 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	// try to TCP connect to the server to make sure it's reachable, and discover
 	// about the need of certificates or insecure TLS
 	if err := dialToServer(*clientConfig); err != nil {
+		// TODO: this is a temporary workaround until issue is resolved in upstream Go: https://github.com/golang/go/issues/52010
+		if strings.Contains(err.Error(), "certificate is not trusted") {
+			err = x509.CertificateInvalidError{Reason: x509.Expired, Detail: err.Error()}
+		}
+
 		switch err.(type) {
 		// certificate authority unknown, check or prompt if we want an insecure
 		// connection or if we already have a cluster stanza that tells us to
