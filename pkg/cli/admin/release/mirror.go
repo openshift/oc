@@ -491,7 +491,7 @@ func (o *MirrorOptions) Run() error {
 			}
 			extractOpts.FilterOptions.OSFilter = re
 		}
-		extractOpts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, isManifestList bool) {
+		extractOpts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
 			releaseDigest = contentDigest.String()
 			verifier.Verify(dgst, contentDigest)
 			if config != nil {
