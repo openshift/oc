@@ -404,8 +404,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	refExact.Ref.Tag = ""
 	// if the release image is manifestlist image, we'll not change digest with
 	// arch based sha. Because we want that the extracted tool can be used for all archs.
-	if !release.IsManifestList {
+	if len(release.ManifestListDigest) == 0 {
 		refExact.Ref.ID = release.Digest.String()
+	} else {
+		// if the image is manifestlisted, use the manifestlist digest.
+		refExact.Ref.ID = release.ManifestListDigest.String()
 	}
 	exactReleaseImage := refExact.String()
 

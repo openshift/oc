@@ -384,7 +384,7 @@ func (o *NewOptions) Run() error {
 				From:     "release-manifests/",
 			},
 		}
-		extractOpts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, isManifestList bool) {
+		extractOpts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
 			verifier.Verify(dgst, contentDigest)
 			releaseDigest = contentDigest
 			if config.Config != nil {
@@ -947,7 +947,7 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 		opts.FilterOptions.OSFilter = re
 	}
 	opts.OnlyFiles = true
-	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, isManifestList bool) {
+	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
 		verifier.Verify(dgst, contentDigest)
 
 		lock.Lock()
