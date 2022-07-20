@@ -123,14 +123,17 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	}
 	o.Server = serverNormalized
 	clientConfig.Host = o.Server
+	clientConfig.Insecure = o.InsecureTLS
 
-	// use specified CA or find existing CA
-	if len(o.CAFile) > 0 {
-		clientConfig.CAFile = o.CAFile
-		clientConfig.CAData = nil
-	} else if caFile, caData, ok := findExistingClientCA(clientConfig.Host, *o.StartingKubeConfig); ok {
-		clientConfig.CAFile = caFile
-		clientConfig.CAData = caData
+	if !o.InsecureTLS {
+		// use specified CA or find existing CA
+		if len(o.CAFile) > 0 {
+			clientConfig.CAFile = o.CAFile
+			clientConfig.CAData = nil
+		} else if caFile, caData, ok := findExistingClientCA(clientConfig.Host, *o.StartingKubeConfig); ok {
+			clientConfig.CAFile = caFile
+			clientConfig.CAData = caData
+		}
 	}
 
 	// try to TCP connect to the server to make sure it's reachable, and discover
@@ -180,6 +183,10 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	directClientConfig, err := o.getClientConfig()
 	if err != nil {
 		return err
+	}
+
+	if directClientConfig.Insecure || o.InsecureTLS {
+		fmt.Fprintf(o.Out, "WARNING: Using insecure TLS client config. Setting this option is not supported!\n\n")
 	}
 
 	// make a copy and use it to avoid mutating the original
