@@ -387,6 +387,8 @@ func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifes
 
 		return base, layers, nil
 
+	case *manifestlist.DeserializedManifestList:
+		return nil, nil, fmt.Errorf("use --keep-manifest-list option for image manifest type %T from %s", srcManifest, location)
 	default:
 		return nil, nil, fmt.Errorf("unknown image manifest of type %T from %s", srcManifest, location)
 	}
