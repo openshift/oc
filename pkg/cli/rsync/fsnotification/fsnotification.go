@@ -26,6 +26,9 @@ func AddRecursiveWatch(watcher *fsnotify.Watcher, path string) error {
 	}
 
 	folders, err := getSubFolders(path)
+	if err != nil {
+		return fmt.Errorf("error getting sub folders for path %s: %v", path, err)
+	}
 	for _, v := range folders {
 		klog.V(5).Infof("adding watch on path %s", v)
 		err = watcher.Add(v)
