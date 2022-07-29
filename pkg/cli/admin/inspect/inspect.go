@@ -240,9 +240,29 @@ func (o *InspectOptions) Run() error {
 	}
 	defer o.logTimestamp()
 
+	// Collect all resources served by the server
+	discoveryClient, err := o.configFlags.ToDiscoveryClient()
+	if err != nil {
+		return err
+	}
+
+	// Check if the resource is served by the server
+	_, rList, err := discoveryClient.ServerGroupsAndResources()
+	if err != nil {
+		return fmt.Errorf("unable to retrieve served resources: %v", err)
+	}
+	serverResources := sets.NewString()
+	for _, rItem := range rList {
+		for _, item := range rItem.APIResources {
+			// The inspection checks whether a resource of a given name exist
+			// independent of the version/group.
+			serverResources.Insert(item.Name)
+		}
+	}
+
 	// finally, gather polymorphic resources specified by the user
 	allErrs := []error{}
-	ctx := NewResourceContext()
+	ctx := NewResourceContext(serverResources)
 	for _, info := range infos {
 		err := InspectResource(info, ctx, o)
 		if err != nil {
