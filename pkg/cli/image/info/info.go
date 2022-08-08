@@ -80,6 +80,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 	flags.StringVarP(&o.Output, "output", "o", o.Output, "Print the image in an alternative format: json")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be read from.")
 	flags.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file.  If set, data from this file will be used to find alternative locations for images.")
+	flags.BoolVar(&o.ShowMultiArch, "show-multiarch", o.ShowMultiArch, "Show information even if the image is multiarch image. If not set, error is thrown for multiarch images.")
 
 	return cmd
 }
@@ -90,10 +91,11 @@ type InfoOptions struct {
 	SecurityOptions imagemanifest.SecurityOptions
 	FilterOptions   imagemanifest.FilterOptions
 
-	Images   []string
-	FileDir  string
-	Output   string
-	ICSPFile string
+	Images        []string
+	FileDir       string
+	Output        string
+	ICSPFile      string
+	ShowMultiArch bool
 }
 
 func (o *InfoOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
@@ -143,7 +145,7 @@ func (o *InfoOptions) Run() error {
 				icspWarned = true
 			}
 
-			var image *Image
+			var images []*Image
 			retriever := &ImageRetriever{
 				FileDir:         o.FileDir,
 				SecurityOptions: o.SecurityOptions,
@@ -157,6 +159,10 @@ func (o *InfoOptions) Run() error {
 						filtered[manifest.Digest] = all[manifest.Digest]
 					}
 					if len(filtered) == 1 {
+						return filtered, nil
+					}
+
+					if o.ShowMultiArch {
 						return filtered, nil
 					}
 
@@ -174,7 +180,7 @@ func (o *InfoOptions) Run() error {
 					if err != nil {
 						return err
 					}
-					image = i
+					images = append(images, i)
 					return nil
 				},
 			}
@@ -185,7 +191,12 @@ func (o *InfoOptions) Run() error {
 			switch o.Output {
 			case "":
 			case "json":
-				data, err := json.MarshalIndent(image, "", "  ")
+				var data []byte
+				if len(images) == 1 {
+					data, err = json.MarshalIndent(images[0], "", "  ")
+				} else {
+					data, err = json.MarshalIndent(images, "", "  ")
+				}
 				if err != nil {
 					return err
 				}
@@ -195,10 +206,12 @@ func (o *InfoOptions) Run() error {
 				return fmt.Errorf("unrecognized --output, only 'json' is supported")
 			}
 
-			if err := describeImage(o.Out, image); err != nil {
-				hadError = true
-				if err != kcmdutil.ErrExit {
-					fmt.Fprintf(o.ErrOut, "error: %v", err)
+			for _, img := range images {
+				if err := describeImage(o.Out, img); err != nil {
+					hadError = true
+					if err != kcmdutil.ErrExit {
+						fmt.Fprintf(o.ErrOut, "error: %v", err)
+					}
 				}
 			}
 		}
