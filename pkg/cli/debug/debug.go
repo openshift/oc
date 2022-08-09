@@ -1013,6 +1013,7 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 				NodeName:    t.Name,
 				HostNetwork: true,
 				HostPID:     true,
+				HostIPC:     true,
 				Volumes: []corev1.Volume{
 					{
 						Name: "host",
