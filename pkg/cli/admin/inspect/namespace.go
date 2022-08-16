@@ -29,6 +29,7 @@ func namespaceResourcesToCollect() []schema.GroupResource {
 		{Resource: "persistentvolumeclaims"},
 		{Resource: "poddisruptionbudgets"},
 		{Resource: "secrets"},
+		{Resource: "servicemonitors"},
 	}
 }
 
