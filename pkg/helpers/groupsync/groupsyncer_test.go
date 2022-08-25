@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/ldap.v2"
+	"github.com/go-ldap/ldap/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clienttesting "k8s.io/client-go/testing"

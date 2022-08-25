@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"time"
 
-	"gopkg.in/ldap.v2"
+	"github.com/go-ldap/ldap/v3"
 )
 
 // Fake is a mock client for an LDAP server
@@ -98,6 +98,26 @@ func (c *Fake) SearchWithPaging(searchRequest *ldap.SearchRequest, pagingSize ui
 
 // SetTimeout sets a timeout on the client
 func (c *Fake) SetTimeout(d time.Duration) {
+}
+
+func (c *Fake) IsClosing() bool {
+	return false
+}
+
+func (c *Fake) UnauthenticatedBind(username string) error {
+	return nil
+}
+
+func (c *Fake) ExternalBind() error {
+	return nil
+}
+
+func (c *Fake) ModifyDN(request *ldap.ModifyDNRequest) error {
+	return nil
+}
+
+func (c *Fake) ModifyWithResult(request *ldap.ModifyRequest) (*ldap.ModifyResult, error) {
+	return nil, nil
 }
 
 // NewMatchingSearchErrorClient returns a new MatchingSearchError client sitting on top of the parent
