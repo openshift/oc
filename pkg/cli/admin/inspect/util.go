@@ -26,16 +26,19 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/klog/v2"
 )
 
 // resourceContext is used to keep track of previously seen objects
 type resourceContext struct {
-	visited sets.String
+	visited         sets.String
+	serverResources sets.String
 }
 
-func NewResourceContext() *resourceContext {
+func NewResourceContext(serverResources sets.String) *resourceContext {
 	return &resourceContext{
-		visited: sets.NewString(),
+		visited:         sets.NewString(),
+		serverResources: serverResources,
 	}
 }
 
@@ -85,17 +88,38 @@ func objectReferenceToResourceInfos(clientGetter genericclioptions.RESTClientGet
 	return infos, nil
 }
 
-func groupResourceToInfos(clientGetter genericclioptions.RESTClientGetter, ref schema.GroupResource, namespace string) ([]*resource.Info, error) {
+func groupResourceToInfos(clientGetter genericclioptions.RESTClientGetter, ref schema.GroupResource, namespace string, serverResources sets.String) ([]*resource.Info, error) {
 	resourceString := ref.Resource
 	if len(ref.Group) > 0 {
 		resourceString = fmt.Sprintf("%s.%s", resourceString, ref.Group)
 	}
+
 	b := resource.NewBuilder(clientGetter).
 		Unstructured().
 		ResourceTypeOrNameArgs(false, resourceString).
 		SelectAllParam(true).
 		NamespaceParam(namespace).
 		Latest()
+
+	// Check if the resource is served by the server
+	if serverResources.Len() > 0 {
+		resourceList := resource.SplitResourceArgument(b.ReplaceAliases(resourceString))
+		// resourceString is a single resource
+		// in case the resource is a category (e.g. all) that gets expanded
+		// through the discovery client all the expandees are expected
+		// to exists in the cluster
+		resourceFound := false
+		for _, resourceItem := range resourceList {
+			if serverResources.Has(resourceItem) {
+				resourceFound = true
+				break
+			}
+		}
+		if !resourceFound {
+			klog.Warningf("the server doesn't have a resource type %v, skipping the inspection", resourceString)
+			return nil, nil
+		}
+	}
 
 	return b.Do().Infos()
 }
