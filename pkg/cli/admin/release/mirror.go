@@ -134,8 +134,8 @@ func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 			# Mirror a release to another directory in the default location
 			oc adm release mirror 4.3.0 --to-dir /tmp/releases
 
-			# Mirror a release of a different architecture to another directory in the default location
-			oc adm release mirror 4.10.0 --to-dir /tmp/releases --filter-by-os=linux/arm64
+			# Query the cincinnati graph for a specific version and cpu architecture and mirror to another directory (default is amd64)
+			oc adm release mirror 4.10.0 --to-dir /tmp/releases --arch arm64
 
 			# Upload a release from the current directory to another server
 			oc adm release mirror --from file://openshift/release --to myregistry.com/openshift/release \
@@ -153,8 +153,8 @@ func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 	}
 	flags := cmd.Flags()
 	o.SecurityOptions.Bind(flags)
-	o.FilterOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
+	o.ArchOptions.Bind(flags)
 
 	flags.StringVar(&o.From, "from", o.From, "Image containing the release payload.")
 	flags.StringVar(&o.To, "to", o.To, "An image repository to push to.")
@@ -178,7 +178,7 @@ type MirrorOptions struct {
 
 	SecurityOptions imagemanifest.SecurityOptions
 	ParallelOptions imagemanifest.ParallelOptions
-	FilterOptions   imagemanifest.FilterOptions
+	ArchOptions     ArchOptions
 
 	From    string
 	FromDir string
@@ -221,7 +221,10 @@ func (o *MirrorOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 		return fmt.Errorf("only one argument is accepted")
 	}
 
-	args, err := findArgumentsFromCluster(f, []string{o.From}, o.FilterOptions)
+	if err := o.ArchOptions.Validate(); err != nil {
+		return err
+	}
+	args, err := findArgumentsFromCluster(f, []string{o.From}, o.ArchOptions.Arch)
 	if err != nil {
 		return err
 	}

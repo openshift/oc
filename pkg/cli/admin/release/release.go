@@ -1,7 +1,10 @@
 package release
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -25,4 +28,24 @@ func NewCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Comm
 	cmd.AddCommand(NewExtract(f, streams))
 	cmd.AddCommand(NewMirror(f, streams))
 	return cmd
+}
+
+func (o *ArchOptions) Bind(flags *pflag.FlagSet) {
+	flags.StringVar(&o.Arch, "arch", o.Arch, "Specify a release's architecture (amd64|arm64|ppc64le|s390x). When used, it will bypass searching the current connected cluster for the release payload.")
+}
+
+type ArchOptions struct {
+	Arch string
+}
+
+// Validating Arch, if --arch is passed
+func (o *ArchOptions) Validate() error {
+	if len(o.Arch) > 0 {
+		switch o.Arch {
+		case "", "amd64", "arm64", "ppc64le", "s390x":
+			return nil
+		}
+		return fmt.Errorf("%s is not a valid arch", o.Arch)
+	}
+	return nil
 }

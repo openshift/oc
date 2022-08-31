@@ -106,6 +106,10 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 			# Use git to check out the source code for the current cluster release to DIR from linux/s390x image
 			# Note: Wildcard filter is not supported. Pass a single os/arch to extract
 			oc adm release extract --git=DIR quay.io/openshift-release-dev/ocp-release:4.2.2 --filter-by-os=linux/s390x
+
+			# Query the cincinnati graph for a specific version and cpu architecture and extract to another directory (default is amd64)
+			oc adm release extract 4.10.8 --to=/tmp/example --arch=arm64
+
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -117,6 +121,7 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 	o.SecurityOptions.Bind(flags)
 	o.FilterOptions.Bind(flags)
 	o.ParallelOptions.Bind(flags)
+	o.ArchOptions.Bind(flags)
 
 	flags.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file. If set, data from this file will be used to find alternative locations for images.")
 
@@ -145,7 +150,7 @@ type ExtractOptions struct {
 	SecurityOptions imagemanifest.SecurityOptions
 	FilterOptions   imagemanifest.FilterOptions
 	ParallelOptions imagemanifest.ParallelOptions
-	FilterOptions   imagemanifest.FilterOptions
+	ArchOptions     ArchOptions
 
 	ICSPFile string
 
@@ -185,7 +190,10 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	if len(o.From) > 0 {
 		args = []string{o.From}
 	}
-	args, err := findArgumentsFromCluster(f, args, o.FilterOptions)
+	if err := o.ArchOptions.Validate(); err != nil {
+		return err
+	}
+	args, err := findArgumentsFromCluster(f, args, o.ArchOptions.Arch)
 	if err != nil {
 		return err
 	}
