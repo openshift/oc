@@ -38,6 +38,14 @@ const (
 	managedByOpenShiftAnnotation = "openshift.io/image.managed"
 )
 
+type ImageMutator func(*imagev1.Image)
+
+func OverrideMediaType(mediaType string) ImageMutator {
+	return func(image *imagev1.Image) {
+		image.DockerImageManifestMediaType = mediaType
+	}
+}
+
 // AgedImage creates a test image with specified age.
 func AgedImage(id, ref string, ageInMinutes int64, layers ...string) imagev1.Image {
 	return CreatedImage(id, ref, time.Now().Add(time.Duration(ageInMinutes)*time.Minute*-1), layers...)
@@ -63,6 +71,25 @@ func SizedImage(id, ref string, size int64, configName *string) imagev1.Image {
 	}
 	dockerImageMetadata.Size = size
 
+	return image
+}
+
+// IndexImage returns a test image object that represents a manifest list.
+func IndexImage(id, ref string, manifests []imagev1.ImageManifest, opts ...ImageMutator) imagev1.Image {
+	image := imagev1.Image{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: id,
+			Annotations: map[string]string{
+				managedByOpenShiftAnnotation: "true",
+			},
+		},
+		DockerImageReference:         ref,
+		DockerImageManifestMediaType: imagespecv1.MediaTypeImageIndex,
+		DockerImageManifests:         manifests,
+	}
+	for _, opt := range opts {
+		opt(&image)
+	}
 	return image
 }
 
