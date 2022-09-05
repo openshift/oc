@@ -22,6 +22,7 @@ func namespaceResourcesToCollect() []schema.GroupResource {
 		{Resource: "all"},
 		{Resource: "configmaps"},
 		{Resource: "egressfirewalls"},
+		{Resource: "egressqoses"},
 		{Resource: "events"},
 		{Resource: "endpoints"},
 		{Resource: "endpointslices"},
