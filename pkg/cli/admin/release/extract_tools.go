@@ -189,10 +189,9 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			NewArch: true,
 			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/mac_arm64/oc"},
 
-			LinkTo:               []string{"kubectl"},
-			Readme:               readmeCLIUnix,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-client-mac-arm64-%s.tar.gz",
+			LinkTo:        []string{"kubectl"},
+			Readme:        readmeCLIUnix,
+			ArchiveFormat: "openshift-client-mac-arm64-%s.tar.gz",
 		},
 		{
 			OS:      "linux",
@@ -245,10 +244,8 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			NewArch: true,
 			Mapping: extract.Mapping{Image: "installer-artifacts", From: "usr/share/openshift/mac_arm64/openshift-install"},
 
-			Readme:               readmeInstallUnix,
-			InjectReleaseImage:   true,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-install-mac-arm64-%s.tar.gz",
+			Readme:        readmeInstallUnix,
+			ArchiveFormat: "openshift-install-mac-arm64-%s.tar.gz",
 		},
 		{
 			OS:      "linux",
