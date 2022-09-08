@@ -3,7 +3,7 @@ package syncgroups
 import (
 	"fmt"
 
-	"gopkg.in/ldap.v2"
+	"github.com/go-ldap/ldap/v3"
 
 	"github.com/openshift/library-go/pkg/security/ldaputil"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"

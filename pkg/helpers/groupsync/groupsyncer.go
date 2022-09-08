@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	"gopkg.in/ldap.v2"
+	"github.com/go-ldap/ldap/v3"
 	"k8s.io/klog/v2"
 
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
