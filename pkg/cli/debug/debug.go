@@ -40,6 +40,7 @@ import (
 	"k8s.io/kubectl/pkg/util/interrupt"
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/kubectl/pkg/util/term"
+	admissionapi "k8s.io/pod-security-admission/api"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
@@ -50,7 +51,6 @@ import (
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	"github.com/openshift/library-go/pkg/image/reference"
 
-	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/openshift/oc/pkg/helpers/conditions"
 	utilenv "github.com/openshift/oc/pkg/helpers/env"
 	generateapp "github.com/openshift/oc/pkg/helpers/newapp/app"
@@ -205,14 +205,7 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, f, args))
 			kcmdutil.CheckErr(o.Validate())
-
-			cmdErr := o.RunDebug()
-			if o.IsNode {
-				ocmdhelpers.CheckPodSecurityErr(cmdErr)
-			} else {
-				kcmdutil.CheckErr(cmdErr)
-			}
-
+			kcmdutil.CheckErr(o.RunDebug())
 		},
 	}
 
@@ -445,11 +438,18 @@ func (o *DebugOptions) RunDebug() error {
 		Spec:       template.Spec,
 	}
 	ns := infos[0].Namespace
-	if len(ns) == 0 {
-		ns = o.Namespace
-	}
 	if len(o.ToNamespace) > 0 {
 		ns = o.ToNamespace
+	}
+	if len(ns) == 0 {
+		// if ns is empty, that means user does not set ToNamespace flag
+		// and debugging resource is non-namespaced resource such as node, image stream.
+		tmpNs, cleanup, err := o.createTempNamespace()
+		if err != nil {
+			return fmt.Errorf("cannot create temporary namespace %s: %v", infos[0].Name, err)
+		}
+		ns = tmpNs.Name
+		defer cleanup()
 	}
 	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug", generateapp.MakeSimpleName(infos[0].Name)), ns
 	o.Attach.Pod = pod
@@ -1215,4 +1215,38 @@ func (o *DebugOptions) resolveImageStreamTag(namespace, name, tag string) (strin
 		return "", fmt.Errorf("unable to resolve the imagestream tag %s/%s:%s: %v", namespace, name, tag, err)
 	}
 	return image, nil
+}
+
+func (o *DebugOptions) createTempNamespace() (*corev1.Namespace, func(), error) {
+	tmpNamespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "openshift-debug-",
+			Labels: map[string]string{
+				admissionapi.EnforceLevelLabel:                   string(admissionapi.LevelPrivileged),
+				admissionapi.AuditLevelLabel:                     string(admissionapi.LevelPrivileged),
+				admissionapi.WarnLevelLabel:                      string(admissionapi.LevelPrivileged),
+				"security.openshift.io/scc.podSecurityLabelSync": "false",
+			},
+			Annotations: map[string]string{
+				"oc.openshift.io/command":    "oc debug",
+				"openshift.io/node-selector": "",
+			},
+		},
+	}
+
+	ns, err := o.CoreClient.Namespaces().Create(context.TODO(), tmpNamespace, metav1.CreateOptions{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating temporary namespace: %w", err)
+	}
+
+	klog.V(2).Infof("temporary namespace %s is created", ns.Name)
+
+	cleanup := func() {
+		if err := o.CoreClient.Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
+			klog.V(2).Infof("unable to delete temporary namespace %s err: %v", ns.Name, err)
+		}
+		klog.V(2).Infof("temporary namespace %s is deleted", ns.Name)
+	}
+
+	return ns, cleanup, nil
 }
