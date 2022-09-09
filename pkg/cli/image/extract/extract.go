@@ -111,6 +111,9 @@ type LayerInfo struct {
 	Mapping    *Mapping
 }
 
+// ImageMetadataFunc is called once per image retrieved.
+type ImageMetadataFunc func(m *Mapping, dgst, contentDigest digest.Digest, imageConfig *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest)
+
 // TarEntryFunc is called once per entry in the tar file. It may return
 // an error, or false to stop processing.
 type TarEntryFunc func(*tar.Header, LayerInfo, io.Reader) (cont bool, err error)
@@ -138,7 +141,7 @@ type ExtractOptions struct {
 
 	// ImageMetadataCallback is invoked once per image retrieved, and may be called in parallel if
 	// MaxPerRegistry is set higher than 1.
-	ImageMetadataCallback func(m *Mapping, dgst, contentDigest digest.Digest, imageConfig *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest)
+	ImageMetadataCallback ImageMetadataFunc
 	// TarEntryCallback, if set, is passed each entry in the viewed layers. Entries will be filtered
 	// by name and only the entry in the highest layer will be passed to the callback. Returning false
 	// will halt processing of the image.

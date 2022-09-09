@@ -173,7 +173,7 @@ type ExtractOptions struct {
 	ExtractManifests bool
 	Manifests        []manifest.Manifest
 
-	ImageMetadataCallback func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest)
+	ImageMetadataCallback extract.ImageMetadataFunc
 }
 
 func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
@@ -273,11 +273,29 @@ func (o *ExtractOptions) Run() error {
 		},
 	}
 
+	imageMetadataCallbacks := []extract.ImageMetadataFunc{}
+	if o.ImageMetadataCallback != nil {
+		imageMetadataCallbacks = append(imageMetadataCallbacks, o.ImageMetadataCallback)
+	}
+
+	verifier := imagemanifest.NewVerifier()
+	imageMetadataCallbacks = append(imageMetadataCallbacks, func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
+		verifier.Verify(dgst, contentDigest)
+		if len(ref.Ref.ID) > 0 {
+			fmt.Fprintf(o.Out, "Extracted release payload created at %s\n", config.Created.Format(time.RFC3339))
+		} else {
+			fmt.Fprintf(o.Out, "Extracted release payload from digest %s created at %s\n", dgst, config.Created.Format(time.RFC3339))
+		}
+	})
+
+	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
+		for _, callback := range imageMetadataCallbacks {
+			callback(m, dgst, contentDigest, config, manifestListDigest)
+		}
+	}
+
 	switch {
 	case len(o.File) > 0:
-		if o.ImageMetadataCallback != nil {
-			opts.ImageMetadataCallback = o.ImageMetadataCallback
-		}
 		var manifestErrs []error
 		found := false
 		opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
@@ -392,32 +410,24 @@ func (o *ExtractOptions) Run() error {
 			}
 			return true, nil
 		}
-		return opts.Run()
-	default:
-		verifier := imagemanifest.NewVerifier()
-		opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
-			verifier.Verify(dgst, contentDigest)
-			if o.ImageMetadataCallback != nil {
-				o.ImageMetadataCallback(m, dgst, contentDigest, config, manifestListDigest)
-			}
-			if len(ref.Ref.ID) > 0 {
-				fmt.Fprintf(o.Out, "Extracted release payload created at %s\n", config.Created.Format(time.RFC3339))
-			} else {
-				fmt.Fprintf(o.Out, "Extracted release payload from digest %s created at %s\n", dgst, config.Created.Format(time.RFC3339))
-			}
-		}
 		if err := opts.Run(); err != nil {
 			return err
 		}
-		if !verifier.Verified() {
-			err := fmt.Errorf("the release image failed content verification and may have been tampered with")
-			if !o.SecurityOptions.SkipVerification {
-				return err
-			}
-			fmt.Fprintf(o.ErrOut, "warning: %v\n", err)
+	default:
+		if err := opts.Run(); err != nil {
+			return err
 		}
-		return nil
 	}
+
+	if !verifier.Verified() {
+		err := fmt.Errorf("the release image failed content verification and may have been tampered with")
+		if !o.SecurityOptions.SkipVerification {
+			return err
+		}
+		fmt.Fprintf(o.ErrOut, "warning: %v\n", err)
+	}
+	return nil
+
 }
 
 func (o *ExtractOptions) extractGit(dir string) error {

@@ -471,7 +471,6 @@ func (o *MirrorOptions) Run() error {
 
 	var releaseDigest string
 	var manifests []manifest.Manifest
-	verifier := imagemanifest.NewVerifier()
 	is := o.ImageStream
 	if is == nil {
 		o.ImageStream = &imagev1.ImageStream{}
@@ -493,7 +492,6 @@ func (o *MirrorOptions) Run() error {
 		}
 		extractOpts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
 			releaseDigest = contentDigest.String()
-			verifier.Verify(dgst, contentDigest)
 			if config != nil {
 				if val, ok := archMap[config.Architecture]; ok {
 					archExt = "-" + val
@@ -515,13 +513,6 @@ func (o *MirrorOptions) Run() error {
 		}
 		if is.Kind != "ImageStream" || is.APIVersion != "image.openshift.io/v1" {
 			return fmt.Errorf("unrecognized image-references in release payload")
-		}
-		if !verifier.Verified() {
-			err := fmt.Errorf("the release image failed content verification and may have been tampered with")
-			if !o.SecurityOptions.SkipVerification {
-				return err
-			}
-			fmt.Fprintf(o.ErrOut, "warning: %v\n", err)
 		}
 		manifests = extractOpts.Manifests
 	}
