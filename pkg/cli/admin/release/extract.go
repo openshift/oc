@@ -262,6 +262,7 @@ func (o *ExtractOptions) Run() error {
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FilterOptions = o.FilterOptions
 	opts.FileDir = o.FileDir
+	opts.OnlyFiles = true
 	opts.ICSPFile = o.ICSPFile
 
 	switch {
@@ -269,7 +270,6 @@ func (o *ExtractOptions) Run() error {
 		if o.ImageMetadataCallback != nil {
 			opts.ImageMetadataCallback = o.ImageMetadataCallback
 		}
-		opts.OnlyFiles = true
 		opts.Mappings = []extract.Mapping{
 			{
 				ImageRef: ref,
@@ -336,7 +336,6 @@ func (o *ExtractOptions) Run() error {
 		return nil
 
 	case o.CredentialsRequests:
-		opts.OnlyFiles = true
 		opts.Mappings = []extract.Mapping{
 			{
 				ImageRef: ref,
@@ -403,7 +402,6 @@ func (o *ExtractOptions) Run() error {
 		}
 		return opts.Run()
 	default:
-		opts.OnlyFiles = true
 		opts.Mappings = []extract.Mapping{
 			{
 				ImageRef: ref,
