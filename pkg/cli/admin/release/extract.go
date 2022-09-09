@@ -264,19 +264,19 @@ func (o *ExtractOptions) Run() error {
 	opts.FileDir = o.FileDir
 	opts.OnlyFiles = true
 	opts.ICSPFile = o.ICSPFile
+	opts.Mappings = []extract.Mapping{
+		{
+			ImageRef: ref,
+
+			From: "release-manifests/",
+			To:   dir,
+		},
+	}
 
 	switch {
 	case len(o.File) > 0:
 		if o.ImageMetadataCallback != nil {
 			opts.ImageMetadataCallback = o.ImageMetadataCallback
-		}
-		opts.Mappings = []extract.Mapping{
-			{
-				ImageRef: ref,
-
-				From: "release-manifests/",
-				To:   dir,
-			},
 		}
 		var manifestErrs []error
 		found := false
@@ -336,14 +336,6 @@ func (o *ExtractOptions) Run() error {
 		return nil
 
 	case o.CredentialsRequests:
-		opts.Mappings = []extract.Mapping{
-			{
-				ImageRef: ref,
-
-				From: "release-manifests/",
-				To:   dir,
-			},
-		}
 		expectedProviderSpecKind := ""
 		if len(o.Cloud) > 0 {
 			expectedProviderSpecKind = credRequestCloudProviderSpecKindMapping[o.Cloud]
@@ -402,14 +394,6 @@ func (o *ExtractOptions) Run() error {
 		}
 		return opts.Run()
 	default:
-		opts.Mappings = []extract.Mapping{
-			{
-				ImageRef: ref,
-
-				From: "release-manifests/",
-				To:   dir,
-			},
-		}
 		verifier := imagemanifest.NewVerifier()
 		opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
 			verifier.Verify(dgst, contentDigest)
