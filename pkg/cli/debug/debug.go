@@ -40,6 +40,7 @@ import (
 	"k8s.io/kubectl/pkg/util/interrupt"
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/kubectl/pkg/util/term"
+	"k8s.io/pod-security-admission/api"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
@@ -444,13 +445,13 @@ func (o *DebugOptions) RunDebug() error {
 		ObjectMeta: template.ObjectMeta,
 		Spec:       template.Spec,
 	}
-	ns := infos[0].Namespace
-	if len(ns) == 0 {
-		ns = o.Namespace
+
+	ns, cleanup, err := o.getNamespace(infos[0].Namespace)
+	if err != nil {
+		return fmt.Errorf("unable to get namespace %v", err)
 	}
-	if len(o.ToNamespace) > 0 {
-		ns = o.ToNamespace
-	}
+	defer cleanup()
+
 	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug", generateapp.MakeSimpleName(infos[0].Name)), ns
 	o.Attach.Pod = pod
 
@@ -1174,6 +1175,75 @@ func (o *DebugOptions) getLogs(pod *corev1.Pod) error {
 		IOStreams:        o.IOStreams,
 		LogsForObject:    o.LogsForObject,
 	}.RunLogs()
+}
+
+// getNamespace returns namespace name and clean up function.
+// --to-namespace flag has the highest priority. If it is not set, -n flag is used.
+// if there is no explicit namespace flag(--to-namespace, -n), default one is used.
+// In the manner of node debugging, if default namespace is decided to be used and
+// this namespace is not privileged, this function creates temporary namespace.
+func (o *DebugOptions) getNamespace(infoNs string) (string, func(), error) {
+	if len(o.ToNamespace) > 0 {
+		return o.ToNamespace, func() {}, nil
+	}
+
+	if len(infoNs) == 0 {
+		infoNs = o.Namespace
+	}
+
+	if o.ExplicitNamespace {
+		return infoNs, func() {}, nil
+	}
+
+	if !o.IsNode {
+		return infoNs, func() {}, nil
+	}
+
+	currentNS, err := o.CoreClient.Namespaces().Get(context.TODO(), infoNs, metav1.GetOptions{})
+	if err != nil {
+		return "", nil, err
+	}
+
+	if val, ok := currentNS.Labels[api.EnforceLevelLabel]; !ok || val != string(api.LevelPrivileged) {
+		tmpNS := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "openshift-debug-",
+				Labels: map[string]string{
+					api.EnforceLevelLabel:                            string(api.LevelPrivileged),
+					api.AuditLevelLabel:                              string(api.LevelPrivileged),
+					api.WarnLevelLabel:                               string(api.LevelPrivileged),
+					"security.openshift.io/scc.podSecurityLabelSync": "false",
+				},
+				Annotations: map[string]string{
+					"oc.openshift.io/command":    "oc debug",
+					"openshift.io/node-selector": "",
+				},
+			},
+		}
+
+		ns, err := o.CoreClient.Namespaces().Create(context.TODO(), tmpNS, metav1.CreateOptions{})
+		if err != nil {
+			return "", nil, fmt.Errorf("unable to create temporary namespace %s: %v", tmpNS.Name, err)
+		}
+
+		if !o.Attach.Quiet {
+			fmt.Fprintf(o.ErrOut, "Temporary namespace %s is created for debugging node...\n", ns.Name)
+		}
+
+		cleanup := func() {
+			if err := o.CoreClient.Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
+				klog.V(2).Infof("Unable to delete temporary namespace %s: %v", ns.Name, err)
+			} else {
+				if !o.Attach.Quiet {
+					fmt.Fprintf(o.ErrOut, "Temporary namespace %s was removed.\n", ns.Name)
+				}
+			}
+		}
+
+		return ns.Name, cleanup, nil
+	}
+
+	return infoNs, func() {}, nil
 }
 
 func setNodeName(template *corev1.PodTemplateSpec, nodeName string, overrideWhenEmpty bool) *corev1.PodTemplateSpec {
