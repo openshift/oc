@@ -3,12 +3,13 @@ package inspect
 import (
 	"context"
 	"fmt"
-	"golang.org/x/net/html"
 	"os"
 	"path"
 	"regexp"
 	"strings"
 	"sync"
+
+	"golang.org/x/net/html"
 
 	corev1 "k8s.io/api/core/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -86,16 +87,31 @@ func filterContainerLogsErrors(err error) error {
 	return err
 }
 
-func (o *InspectOptions) gatherContainerRotatedLogFiles(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func rotatedLogFilename(pod *corev1.Pod) (string, error) {
+	if value, exists := pod.Annotations["kubernetes.io/config.source"]; exists && value == "file" {
+		hash, exists := pod.Annotations["kubernetes.io/config.hash"]
+		if !exists {
+			return "", fmt.Errorf("missing 'kubernetes.io/config.hash' annotation for static pod")
+		}
+		return pod.Namespace + "_" + pod.Name + "_" + hash, nil
+	}
+	return pod.Namespace + "_" + pod.Name + "_" + string(pod.GetUID()), nil
+}
 
+func (o *InspectOptions) gatherContainerRotatedLogFiles(destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	restClient := o.kubeClient.CoreV1().RESTClient()
 	var innerErrs []error
+
+	logFileName, err := rotatedLogFilename(pod)
+	if err != nil {
+		return err
+	}
 
 	// Get all container log files from the node
 	containerPath := restClient.Get().
 		Name(pod.Spec.NodeName).
 		Resource("nodes").
-		SubResource("proxy", "logs", "pods", pod.Namespace+"_"+pod.Name+"_"+string(pod.GetUID())).
+		SubResource("proxy", "logs", "pods", logFileName).
 		Suffix(container.Name).URL().Path
 
 	req := restClient.Get().RequestURI(containerPath).
