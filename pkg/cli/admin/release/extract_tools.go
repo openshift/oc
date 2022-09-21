@@ -299,11 +299,15 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 	currentArch := runtime.GOARCH
 	currentOS := runtime.GOOS
+	if len(o.CommandArch) > 0 {
+		currentArch = o.CommandArch
+	}
 	if len(o.CommandOperatingSystem) > 0 {
 		currentOS = o.CommandOperatingSystem
 		if currentOS == "*" {
 			currentArch = "*"
-		} else {
+		} else if len(o.CommandArch) == 0 {
+			// keep same behaviour as before o.CommandArch was introduced
 			currentArch = "amd64"
 		}
 	}
