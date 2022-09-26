@@ -133,6 +133,7 @@ func NewRelease(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 	// properties of the release
 	flags.StringVar(&o.Name, "name", o.Name, "The name of the release. Will default to the current time.")
 	flags.StringSliceVar(&o.PreviousVersions, "previous", o.PreviousVersions, "A list of semantic versions that should precede this version in the release manifest.")
+	flags.StringSliceVar(&o.NextVersions, "next", o.NextVersions, "A list of semantic versions that should succeed this version in the release manifest. Using --next can potentially cause regressions given the release does not exist. Use with caution")
 	flags.StringVar(&o.ReleaseMetadata, "metadata", o.ReleaseMetadata, "A JSON object to attach as the metadata for the release manifest.")
 	flags.BoolVar(&o.ForceManifest, "release-manifest", o.ForceManifest, "If true, a release manifest will be created using --name as the semantic version.")
 	flags.BoolVar(&o.KeepManifestList, "keep-manifest-list", o.KeepManifestList, "If an image is part of a manifest list, always mirror the list even if only one image is found.")
@@ -190,6 +191,7 @@ type NewOptions struct {
 	ForceManifest    bool
 	ReleaseMetadata  string
 	PreviousVersions []string
+	NextVersions     []string
 	KeepManifestList bool
 
 	DryRun bool
@@ -297,6 +299,7 @@ type CincinnatiMetadata struct {
 
 	Version  string   `json:"version"`
 	Previous []string `json:"previous"`
+	Next     []string `json:"next,omitempty"`
 
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
@@ -330,6 +333,7 @@ func (o *NewOptions) Run() error {
 	hasMetadataOverrides := len(o.Name) > 0 ||
 		len(o.ReleaseMetadata) > 0 ||
 		len(o.PreviousVersions) > 0 ||
+		len(o.NextVersions) > 0 ||
 		len(o.ToImageBase) > 0 ||
 		len(o.ExtraComponentVersions) > 0 ||
 		len(o.ExtraComponentVersionsDisplayNames) > 0 ||
@@ -488,6 +492,9 @@ func (o *NewOptions) Run() error {
 		if o.PreviousVersions == nil {
 			o.PreviousVersions = cm.Previous
 		}
+		if o.NextVersions == nil {
+			o.NextVersions = cm.Next
+		}
 
 		if hasMetadataOverrides {
 			if is.Annotations == nil {
@@ -626,6 +633,20 @@ func (o *NewOptions) Run() error {
 	sort.Strings(cm.Previous)
 	if cm.Previous == nil {
 		cm.Previous = []string{}
+	}
+	for _, next := range o.NextVersions {
+		if len(next) == 0 {
+			continue
+		}
+		v, err := semver.Parse(next)
+		if err != nil {
+			return fmt.Errorf("%q is not a valid semantic version: %v", next, err)
+		}
+		cm.Next = append(cm.Next, v.String())
+	}
+	sort.Strings(cm.Next)
+	if cm.Next == nil {
+		cm.Next = []string{}
 	}
 	klog.V(4).Infof("Release metadata:\n%s", toJSONString(cm))
 
