@@ -62,7 +62,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 				if err, isStatusErr := err.(*kapierrors.StatusError); isStatusErr {
 					if err.Status().Message != tokencmd.BasicAuthNoUsernameMessage {
 						fmt.Fprintln(streams.Out, "Login failed (401 Unauthorized)")
-						fmt.Fprintln(streams.Out, "Verify you have provided correct credentials.")
+						fmt.Fprintln(streams.Out, "Verify you have provided the correct credentials.")
 					}
 					if details := err.Status().Details; details != nil {
 						for _, cause := range details.Causes {
