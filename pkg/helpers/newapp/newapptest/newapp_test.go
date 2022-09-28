@@ -40,6 +40,7 @@ import (
 	buildv1 "github.com/openshift/api/build/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
+	imageapplyconfigurationsv1 "github.com/openshift/client-go/image/applyconfigurations/image/v1"
 	fakeimagev1client "github.com/openshift/client-go/image/clientset/versioned/fake"
 	imagev1typedclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	fakeroutev1client "github.com/openshift/client-go/route/clientset/versioned/fake"
@@ -2441,6 +2442,14 @@ func (c *NewAppFakeImageClient) RESTClient() krest.Interface {
 // default fake client behavior round default, empty imagestreams
 type NewAppFakeImageStreams struct {
 	proxy imagev1typedclient.ImageStreamInterface
+}
+
+func (c *NewAppFakeImageStreams) Apply(ctx context.Context, imageStream *imageapplyconfigurationsv1.ImageStreamApplyConfiguration, opts metav1.ApplyOptions) (result *imagev1.ImageStream, err error) {
+	return c.proxy.Apply(ctx, imageStream, opts)
+}
+
+func (c *NewAppFakeImageStreams) ApplyStatus(ctx context.Context, imageStream *imageapplyconfigurationsv1.ImageStreamApplyConfiguration, opts metav1.ApplyOptions) (result *imagev1.ImageStream, err error) {
+	return c.proxy.ApplyStatus(ctx, imageStream, opts)
 }
 
 func (c *NewAppFakeImageStreams) Get(ctx context.Context, name string, options metav1.GetOptions) (result *imagev1.ImageStream, err error) {
