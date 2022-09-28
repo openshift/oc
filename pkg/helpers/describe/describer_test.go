@@ -113,6 +113,7 @@ var MissingDescriberGroupCoverageExceptions = []schema.GroupVersion{
 
 	{Group: "helm.openshift.io", Version: "v1beta1"},
 	{Group: "machine.openshift.io", Version: "v1beta1"},
+	{Group: "machine.openshift.io", Version: "v1"},
 	{Group: "sharedresource.openshift.io", Version: "v1alpha1"},
 }
 

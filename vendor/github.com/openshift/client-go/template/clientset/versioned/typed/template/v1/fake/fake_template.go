@@ -4,8 +4,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	templatev1 "github.com/openshift/api/template/v1"
+	applyconfigurationstemplatev1 "github.com/openshift/client-go/template/applyconfigurations/template/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -106,6 +109,28 @@ func (c *FakeTemplates) DeleteCollection(ctx context.Context, opts v1.DeleteOpti
 func (c *FakeTemplates) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *templatev1.Template, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(templatesResource, c.ns, name, pt, data, subresources...), &templatev1.Template{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*templatev1.Template), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied template.
+func (c *FakeTemplates) Apply(ctx context.Context, template *applyconfigurationstemplatev1.TemplateApplyConfiguration, opts v1.ApplyOptions) (result *templatev1.Template, err error) {
+	if template == nil {
+		return nil, fmt.Errorf("template provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(template)
+	if err != nil {
+		return nil, err
+	}
+	name := template.Name
+	if name == nil {
+		return nil, fmt.Errorf("template.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(templatesResource, c.ns, *name, types.ApplyPatchType, data), &templatev1.Template{})
 
 	if obj == nil {
 		return nil, err
