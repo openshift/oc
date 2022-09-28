@@ -4,8 +4,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	oauthv1 "github.com/openshift/api/oauth/v1"
+	applyconfigurationsoauthv1 "github.com/openshift/client-go/oauth/applyconfigurations/oauth/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -99,6 +102,27 @@ func (c *FakeUserOAuthAccessTokens) DeleteCollection(ctx context.Context, opts v
 func (c *FakeUserOAuthAccessTokens) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *oauthv1.UserOAuthAccessToken, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootPatchSubresourceAction(useroauthaccesstokensResource, name, pt, data, subresources...), &oauthv1.UserOAuthAccessToken{})
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*oauthv1.UserOAuthAccessToken), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied userOAuthAccessToken.
+func (c *FakeUserOAuthAccessTokens) Apply(ctx context.Context, userOAuthAccessToken *applyconfigurationsoauthv1.UserOAuthAccessTokenApplyConfiguration, opts v1.ApplyOptions) (result *oauthv1.UserOAuthAccessToken, err error) {
+	if userOAuthAccessToken == nil {
+		return nil, fmt.Errorf("userOAuthAccessToken provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(userOAuthAccessToken)
+	if err != nil {
+		return nil, err
+	}
+	name := userOAuthAccessToken.Name
+	if name == nil {
+		return nil, fmt.Errorf("userOAuthAccessToken.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewRootPatchSubresourceAction(useroauthaccesstokensResource, *name, types.ApplyPatchType, data), &oauthv1.UserOAuthAccessToken{})
 	if obj == nil {
 		return nil, err
 	}

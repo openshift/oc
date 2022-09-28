@@ -4,8 +4,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	templatev1 "github.com/openshift/api/template/v1"
+	applyconfigurationstemplatev1 "github.com/openshift/client-go/template/applyconfigurations/template/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -99,6 +102,27 @@ func (c *FakeBrokerTemplateInstances) DeleteCollection(ctx context.Context, opts
 func (c *FakeBrokerTemplateInstances) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *templatev1.BrokerTemplateInstance, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootPatchSubresourceAction(brokertemplateinstancesResource, name, pt, data, subresources...), &templatev1.BrokerTemplateInstance{})
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*templatev1.BrokerTemplateInstance), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied brokerTemplateInstance.
+func (c *FakeBrokerTemplateInstances) Apply(ctx context.Context, brokerTemplateInstance *applyconfigurationstemplatev1.BrokerTemplateInstanceApplyConfiguration, opts v1.ApplyOptions) (result *templatev1.BrokerTemplateInstance, err error) {
+	if brokerTemplateInstance == nil {
+		return nil, fmt.Errorf("brokerTemplateInstance provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(brokerTemplateInstance)
+	if err != nil {
+		return nil, err
+	}
+	name := brokerTemplateInstance.Name
+	if name == nil {
+		return nil, fmt.Errorf("brokerTemplateInstance.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewRootPatchSubresourceAction(brokertemplateinstancesResource, *name, types.ApplyPatchType, data), &templatev1.BrokerTemplateInstance{})
 	if obj == nil {
 		return nil, err
 	}

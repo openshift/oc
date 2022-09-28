@@ -4,8 +4,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	oauthv1 "github.com/openshift/api/oauth/v1"
+	applyconfigurationsoauthv1 "github.com/openshift/client-go/oauth/applyconfigurations/oauth/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -99,6 +102,27 @@ func (c *FakeOAuthClientAuthorizations) DeleteCollection(ctx context.Context, op
 func (c *FakeOAuthClientAuthorizations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *oauthv1.OAuthClientAuthorization, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootPatchSubresourceAction(oauthclientauthorizationsResource, name, pt, data, subresources...), &oauthv1.OAuthClientAuthorization{})
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*oauthv1.OAuthClientAuthorization), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied oAuthClientAuthorization.
+func (c *FakeOAuthClientAuthorizations) Apply(ctx context.Context, oAuthClientAuthorization *applyconfigurationsoauthv1.OAuthClientAuthorizationApplyConfiguration, opts v1.ApplyOptions) (result *oauthv1.OAuthClientAuthorization, err error) {
+	if oAuthClientAuthorization == nil {
+		return nil, fmt.Errorf("oAuthClientAuthorization provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(oAuthClientAuthorization)
+	if err != nil {
+		return nil, err
+	}
+	name := oAuthClientAuthorization.Name
+	if name == nil {
+		return nil, fmt.Errorf("oAuthClientAuthorization.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewRootPatchSubresourceAction(oauthclientauthorizationsResource, *name, types.ApplyPatchType, data), &oauthv1.OAuthClientAuthorization{})
 	if obj == nil {
 		return nil, err
 	}
