@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
 
@@ -105,6 +106,22 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 		return err
 	}
 
+	if o.TargetDirectory != "-" {
+		if _, err := os.Stat(o.TargetDirectory); err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+
+			if !o.Overwrite {
+				return errors.Wrap(err, "use --confirm if you want to create target directory")
+			}
+
+			if err = os.MkdirAll(o.TargetDirectory, os.ModePerm); err != nil {
+				return err
+			}
+		}
+	}
+
 	o.Resources = args
 	o.Builder = f.NewBuilder
 
@@ -112,12 +129,6 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 }
 
 func (o *ExtractOptions) Validate() error {
-	if o.TargetDirectory != "-" {
-		// determine if output location is valid before continuing
-		if _, err := os.Stat(o.TargetDirectory); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -190,7 +201,7 @@ func (o *ExtractOptions) Run() error {
 
 func (o *ExtractOptions) writeToDisk(path string, data []byte) error {
 	if o.Overwrite {
-		if err := ioutil.WriteFile(path, data, 0600); err != nil {
+		if err := os.WriteFile(path, data, 0600); err != nil {
 			return err
 		}
 	} else {
