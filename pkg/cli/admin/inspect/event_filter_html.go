@@ -139,11 +139,11 @@ const eventHTMLPage = `
     integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2"
     crossorigin="anonymous"></script>
 
-  <script src="https://unpkg.com/bootstrap-table@1.21.0/dist/bootstrap-table.min.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/bootstrap-table@1.21.0/dist/extensions/toolbar/bootstrap-table-toolbar.min.js"
+  <script src="https://unpkg.com/bootstrap-table@1.21.1/dist/bootstrap-table.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/bootstrap-table@1.21.1/dist/extensions/toolbar/bootstrap-table-toolbar.min.js"
     crossorigin="anonymous"></script>
   <script
-    src="https://unpkg.com/bootstrap-table@1.21.0/dist/extensions/filter-control/bootstrap-table-filter-control.min.js"
+    src="https://unpkg.com/bootstrap-table@1.21.1/dist/extensions/filter-control/bootstrap-table-filter-control.min.js"
     crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/luxon@2.4.0/build/global/luxon.min.js" crossorigin="anonymous"></script>
 
