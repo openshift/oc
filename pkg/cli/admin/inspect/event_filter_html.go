@@ -91,7 +91,7 @@ const eventHTMLPage = `
   <div id="errorMsg" class="card card-body bg-warning" style="display: none"> </div>
 
   <table id="events" class="table table-bordered table-hover table-sm" data-toggle="table" data-search="true"
-    data-search-regex="true" data-show-search-clear-button="true" data-filter-control="true"
+    data-regex-search="true" data-show-search-clear-button="true" data-filter-control="true"
     data-id-table="advancedTable" data-pagination="true" data-page-size="100" data-show-columns-toggle-all="true"
     data-show-pagination-switch="true" data-show-columns="true" data-addrbar="true">
     <thead>
