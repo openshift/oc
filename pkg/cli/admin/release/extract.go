@@ -4,9 +4,9 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,6 +24,7 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/library-go/pkg/manifest"
 	"github.com/openshift/oc/pkg/cli/image/extract"
@@ -173,6 +174,9 @@ type ExtractOptions struct {
 	ExtractManifests bool
 	Manifests        []manifest.Manifest
 
+	// ImageReferences will be populated by Run if ExtractManifests is true and an image-references file is found.
+	ImageReferences *imagev1.ImageStream
+
 	ImageMetadataCallback extract.ImageMetadataFunc
 }
 
@@ -236,7 +240,7 @@ func (o *ExtractOptions) Run() error {
 		return fmt.Errorf("only one of --tools, --command, --credentials-requests, --file, or --git may be specified")
 	case len(o.From) == 0:
 		return fmt.Errorf("must specify an image containing a release payload with --from")
-	case o.Directory != "." && len(o.File) > 0:
+	case o.Directory != "" && o.Directory != "." && len(o.File) > 0:
 		return fmt.Errorf("only one of --to and --file may be set")
 
 	case len(o.GitExtractDir) > 0:
@@ -247,9 +251,14 @@ func (o *ExtractOptions) Run() error {
 		return o.extractCommand(o.Command)
 	}
 
-	dir := o.Directory
-	if err := os.MkdirAll(dir, 0777); err != nil {
-		return err
+	if o.File == "" && o.Directory != "" {
+		o.ExtractManifests = true
+	}
+
+	if o.Directory != "" {
+		if err := os.MkdirAll(o.Directory, 0777); err != nil {
+			return err
+		}
 	}
 
 	src := o.From
@@ -269,7 +278,6 @@ func (o *ExtractOptions) Run() error {
 			ImageRef: ref,
 
 			From: "release-manifests/",
-			To:   dir,
 		},
 	}
 
@@ -296,133 +304,160 @@ func (o *ExtractOptions) Run() error {
 		}
 	}
 
-	switch {
-	case len(o.File) > 0:
-		var manifestErrs []error
-		found := false
-		opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
-			if !o.ExtractManifests {
-				if hdr.Name != o.File {
-					return true, nil
+	tarEntryCallbacks := []extract.TarEntryFunc{}
+
+	var manifestErrs []error
+	if o.ExtractManifests {
+		expectedProviderSpecKind := credRequestCloudProviderSpecKindMapping[o.Cloud]
+
+		tarEntryCallbacks = append(tarEntryCallbacks, func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
+			if hdr.Name == "image-references" {
+				buf := &bytes.Buffer{}
+				if _, err := io.Copy(buf, r); err != nil {
+					return false, fmt.Errorf("unable to load image-references from release payload: %w", err)
 				}
-				if _, err := io.Copy(o.Out, r); err != nil {
-					return false, err
+
+				o.ImageReferences = &imagev1.ImageStream{}
+				if err := json.Unmarshal(buf.Bytes(), o.ImageReferences); err != nil {
+					return false, fmt.Errorf("unable to load image-references from release payload: %w", err)
 				}
-				found = true
-				return false, nil
-			} else {
-				switch hdr.Name {
-				case o.File:
-					if _, err := io.Copy(o.Out, r); err != nil {
+				if o.ImageReferences.APIVersion != "image.openshift.io/v1" {
+					return false, fmt.Errorf("unrecognized image-references in release payload: API version %q is not image.openshift.io/v1", o.ImageReferences.APIVersion)
+				} else if o.ImageReferences.Kind != "ImageStream" {
+					return false, fmt.Errorf("unrecognized image-references in release payload: kind %q is not ImageStream", o.ImageReferences.Kind)
+				}
+
+				out := o.Out
+				if o.Directory != "" {
+					out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
+					if err != nil {
 						return false, err
 					}
-					found = true
-				case "image-references":
-					return true, nil
-				case "release-metadata":
-					return true, nil
-				default:
-					if ext := path.Ext(hdr.Name); len(ext) == 0 || !(ext == ".yaml" || ext == ".yml" || ext == ".json") {
-						return true, nil
-					}
-					klog.V(4).Infof("Found manifest %s", hdr.Name)
-					raw, err := ioutil.ReadAll(r)
+				}
+				if out != nil {
+					_, err := buf.WriteTo(out)
+					return true, err
+				}
+				return true, nil
+			} else if hdr.Name == "release-metadata" {
+				out := o.Out
+				if o.Directory != "" {
+					out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
 					if err != nil {
-						manifestErrs = append(manifestErrs, errors.Wrapf(err, "error reading file %s", hdr.Name))
-						return true, nil
+						return false, err
 					}
-					ms, err := manifest.ParseManifests(bytes.NewReader(raw))
-					if err != nil {
-						manifestErrs = append(manifestErrs, errors.Wrapf(err, "error parsing %s", hdr.Name))
-						return true, nil
-					}
-					o.Manifests = append(o.Manifests, ms...)
+				}
+				if out != nil {
+					_, err := io.Copy(out, r)
+					return true, err
 				}
 				return true, nil
 			}
-		}
-		if err := opts.Run(); err != nil {
-			return err
-		}
-		if !found {
-			return fmt.Errorf("image did not contain %s", o.File)
-		}
 
-		// Only output manifest errors if manifests were being extracted.
-		// Do not return an error so current operation, e.g. mirroring, continues.
-		if o.ExtractManifests && len(manifestErrs) > 0 {
-			fmt.Fprintf(o.ErrOut, "Errors: %s\n", errorList(manifestErrs))
-		}
-		return nil
-
-	case o.CredentialsRequests:
-		expectedProviderSpecKind := ""
-		if len(o.Cloud) > 0 {
-			expectedProviderSpecKind = credRequestCloudProviderSpecKindMapping[o.Cloud]
-		}
-		opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
 			if ext := path.Ext(hdr.Name); len(ext) == 0 || !(ext == ".yaml" || ext == ".yml" || ext == ".json") {
 				return true, nil
 			}
 			klog.V(4).Infof("Found manifest %s", hdr.Name)
-			raw, err := ioutil.ReadAll(r)
+			ms, err := manifest.ParseManifests(r)
 			if err != nil {
-				return false, errors.Wrapf(err, "error reading file %s", hdr.Name)
+				manifestErrs = append(manifestErrs, errors.Wrapf(err, "error parsing %s", hdr.Name))
+				return true, nil
 			}
-			ms, err := manifest.ParseManifests(bytes.NewReader(raw))
-			if err != nil {
-				return false, errors.Wrapf(err, "error parsing %s", hdr.Name)
-			}
-			credRequestManifests := []manifest.Manifest{}
+
+			o.Manifests = append(o.Manifests, ms...)
+
+			manifestsToWrite := make([]manifest.Manifest, 0, len(ms))
 			for _, m := range ms {
-				if m.GVK != credentialsRequestGVK {
-					continue
-				}
-				if len(expectedProviderSpecKind) > 0 {
-					kind, _, err := unstructured.NestedString(m.Obj.Object, "spec", "providerSpec", "kind")
-					if err != nil {
-						return false, errors.Wrap(err, "error extracting cred request kind")
-					}
-					if kind != expectedProviderSpecKind {
+				if o.CredentialsRequests {
+					if m.GVK != credentialsRequestGVK {
 						continue
 					}
+					if expectedProviderSpecKind != "" {
+						kind, _, err := unstructured.NestedString(m.Obj.Object, "spec", "providerSpec", "kind")
+						if err != nil {
+							return false, errors.Wrap(err, "error extracting cred request kind")
+						}
+						if kind != expectedProviderSpecKind {
+							continue
+						}
+					}
 				}
-				credRequestManifests = append(credRequestManifests, m)
+				manifestsToWrite = append(manifestsToWrite, m)
 			}
-			if len(credRequestManifests) == 0 {
+
+			if len(manifestsToWrite) == 0 {
 				return true, nil
 			}
 
 			out := o.Out
-			if len(o.Directory) > 0 {
+			if o.Directory != "" {
 				out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
 				if err != nil {
 					return false, errors.Wrapf(err, "error creating manifest in %s", hdr.Name)
 				}
 			}
-			for _, m := range credRequestManifests {
-				yamlBytes, err := yaml.JSONToYAML(m.Raw)
-				if err != nil {
-					return false, errors.Wrapf(err, "error serializing manifest in %s", hdr.Name)
-				}
-				fmt.Fprintf(out, "---\n")
-				if _, err := out.Write(yamlBytes); err != nil {
-					return false, errors.Wrapf(err, "error writing manifest in %s", hdr.Name)
+			if out != nil {
+				for _, m := range manifestsToWrite {
+					yamlBytes, err := yaml.JSONToYAML(m.Raw)
+					if err != nil {
+						return false, errors.Wrapf(err, "error serializing manifest in %s", hdr.Name)
+					}
+					fmt.Fprintf(out, "---\n")
+					if _, err := out.Write(yamlBytes); err != nil {
+						return false, errors.Wrapf(err, "error writing manifest in %s", hdr.Name)
+					}
 				}
 			}
 			return true, nil
-		}
-		if err := opts.Run(); err != nil {
-			return err
-		}
-	default:
-		if err := opts.Run(); err != nil {
-			return err
+		})
+	}
+
+	fileFound := false
+	if o.File != "" {
+		tarEntryCallbacks = append(tarEntryCallbacks, func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
+			if hdr.Name != o.File {
+				return true, nil
+			}
+			fileFound = true
+			_, err := io.Copy(o.Out, r)
+			return false, err
+		})
+	}
+
+	if len(tarEntryCallbacks) > 0 {
+		tarEntryCallbacksDone := make([]bool, len(tarEntryCallbacks))
+		opts.TarEntryCallback = func(hdr *tar.Header, layer extract.LayerInfo, r io.Reader) (bool, error) {
+			for i, callback := range tarEntryCallbacks {
+				if tarEntryCallbacksDone[i] {
+					continue
+				}
+				if cont, err := callback(hdr, layer, r); err != nil {
+					return cont, err
+				} else if !cont {
+					tarEntryCallbacksDone[i] = true
+				}
+			}
+
+			for _, done := range tarEntryCallbacksDone {
+				if !done {
+					return true, nil // still some callbacks that want to keep working
+				}
+			}
+
+			return false, nil
 		}
 	}
 
+	if err := opts.Run(); err != nil {
+		return err
+	}
+
 	if metadataVerifyMsg != "" {
-		fmt.Fprintf(o.Out, "%s\n", metadataVerifyMsg)
+		if o.File == "" && o.Out != nil {
+			fmt.Fprintf(o.Out, "%s\n", metadataVerifyMsg)
+		} else {
+			klog.V(4).Info(metadataVerifyMsg)
+		}
 	}
 
 	if !verifier.Verified() {
@@ -432,6 +467,17 @@ func (o *ExtractOptions) Run() error {
 		}
 		fmt.Fprintf(o.ErrOut, "warning: %v\n", err)
 	}
+
+	if o.File != "" && !fileFound {
+		return fmt.Errorf("image did not contain %s", o.File)
+	}
+
+	// Only output manifest errors if manifests were being extracted.
+	// Do not return an error so current operation, e.g. mirroring, continues.
+	if o.ExtractManifests && len(manifestErrs) > 0 {
+		fmt.Fprintf(o.ErrOut, "Errors: %s\n", errorList(manifestErrs))
+	}
+
 	return nil
 
 }
