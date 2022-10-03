@@ -457,7 +457,10 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		if len(missing) == 1 {
 			return fmt.Errorf("the image %q containing the desired command is not available", missing.List()[0])
 		}
-		return fmt.Errorf("some required images are missing: %s", strings.Join(missing.List(), ", "))
+		if len(missing) > 1 {
+			return fmt.Errorf("some required images are missing: %s", strings.Join(missing.List(), ", "))
+		}
+		return fmt.Errorf("the command '%s' is not available for %s/%s on %s", command, currentOS, currentArch, o.From)
 	}
 	if len(missing) > 0 {
 		fmt.Fprintf(o.ErrOut, "warning: Some commands can not be extracted due to missing images: %s\n", strings.Join(missing.List(), ", "))
