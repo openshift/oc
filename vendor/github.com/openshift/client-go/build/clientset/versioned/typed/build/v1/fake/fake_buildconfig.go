@@ -4,8 +4,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	buildv1 "github.com/openshift/api/build/v1"
+	applyconfigurationsbuildv1 "github.com/openshift/client-go/build/applyconfigurations/build/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -118,6 +121,51 @@ func (c *FakeBuildConfigs) DeleteCollection(ctx context.Context, opts v1.DeleteO
 func (c *FakeBuildConfigs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *buildv1.BuildConfig, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(buildconfigsResource, c.ns, name, pt, data, subresources...), &buildv1.BuildConfig{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*buildv1.BuildConfig), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied buildConfig.
+func (c *FakeBuildConfigs) Apply(ctx context.Context, buildConfig *applyconfigurationsbuildv1.BuildConfigApplyConfiguration, opts v1.ApplyOptions) (result *buildv1.BuildConfig, err error) {
+	if buildConfig == nil {
+		return nil, fmt.Errorf("buildConfig provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(buildConfig)
+	if err != nil {
+		return nil, err
+	}
+	name := buildConfig.Name
+	if name == nil {
+		return nil, fmt.Errorf("buildConfig.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(buildconfigsResource, c.ns, *name, types.ApplyPatchType, data), &buildv1.BuildConfig{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*buildv1.BuildConfig), err
+}
+
+// ApplyStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+func (c *FakeBuildConfigs) ApplyStatus(ctx context.Context, buildConfig *applyconfigurationsbuildv1.BuildConfigApplyConfiguration, opts v1.ApplyOptions) (result *buildv1.BuildConfig, err error) {
+	if buildConfig == nil {
+		return nil, fmt.Errorf("buildConfig provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(buildConfig)
+	if err != nil {
+		return nil, err
+	}
+	name := buildConfig.Name
+	if name == nil {
+		return nil, fmt.Errorf("buildConfig.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(buildconfigsResource, c.ns, *name, types.ApplyPatchType, data, "status"), &buildv1.BuildConfig{})
 
 	if obj == nil {
 		return nil, err

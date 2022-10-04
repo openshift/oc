@@ -4,8 +4,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	appsv1 "github.com/openshift/api/apps/v1"
+	applyconfigurationsappsv1 "github.com/openshift/client-go/apps/applyconfigurations/apps/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -119,6 +122,51 @@ func (c *FakeDeploymentConfigs) DeleteCollection(ctx context.Context, opts v1.De
 func (c *FakeDeploymentConfigs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *appsv1.DeploymentConfig, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(deploymentconfigsResource, c.ns, name, pt, data, subresources...), &appsv1.DeploymentConfig{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*appsv1.DeploymentConfig), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied deploymentConfig.
+func (c *FakeDeploymentConfigs) Apply(ctx context.Context, deploymentConfig *applyconfigurationsappsv1.DeploymentConfigApplyConfiguration, opts v1.ApplyOptions) (result *appsv1.DeploymentConfig, err error) {
+	if deploymentConfig == nil {
+		return nil, fmt.Errorf("deploymentConfig provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(deploymentConfig)
+	if err != nil {
+		return nil, err
+	}
+	name := deploymentConfig.Name
+	if name == nil {
+		return nil, fmt.Errorf("deploymentConfig.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(deploymentconfigsResource, c.ns, *name, types.ApplyPatchType, data), &appsv1.DeploymentConfig{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*appsv1.DeploymentConfig), err
+}
+
+// ApplyStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+func (c *FakeDeploymentConfigs) ApplyStatus(ctx context.Context, deploymentConfig *applyconfigurationsappsv1.DeploymentConfigApplyConfiguration, opts v1.ApplyOptions) (result *appsv1.DeploymentConfig, err error) {
+	if deploymentConfig == nil {
+		return nil, fmt.Errorf("deploymentConfig provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(deploymentConfig)
+	if err != nil {
+		return nil, err
+	}
+	name := deploymentConfig.Name
+	if name == nil {
+		return nil, fmt.Errorf("deploymentConfig.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(deploymentconfigsResource, c.ns, *name, types.ApplyPatchType, data, "status"), &appsv1.DeploymentConfig{})
 
 	if obj == nil {
 		return nil, err

@@ -4,8 +4,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	templatev1 "github.com/openshift/api/template/v1"
+	applyconfigurationstemplatev1 "github.com/openshift/client-go/template/applyconfigurations/template/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -118,6 +121,51 @@ func (c *FakeTemplateInstances) DeleteCollection(ctx context.Context, opts v1.De
 func (c *FakeTemplateInstances) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *templatev1.TemplateInstance, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(templateinstancesResource, c.ns, name, pt, data, subresources...), &templatev1.TemplateInstance{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*templatev1.TemplateInstance), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied templateInstance.
+func (c *FakeTemplateInstances) Apply(ctx context.Context, templateInstance *applyconfigurationstemplatev1.TemplateInstanceApplyConfiguration, opts v1.ApplyOptions) (result *templatev1.TemplateInstance, err error) {
+	if templateInstance == nil {
+		return nil, fmt.Errorf("templateInstance provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(templateInstance)
+	if err != nil {
+		return nil, err
+	}
+	name := templateInstance.Name
+	if name == nil {
+		return nil, fmt.Errorf("templateInstance.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(templateinstancesResource, c.ns, *name, types.ApplyPatchType, data), &templatev1.TemplateInstance{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*templatev1.TemplateInstance), err
+}
+
+// ApplyStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+func (c *FakeTemplateInstances) ApplyStatus(ctx context.Context, templateInstance *applyconfigurationstemplatev1.TemplateInstanceApplyConfiguration, opts v1.ApplyOptions) (result *templatev1.TemplateInstance, err error) {
+	if templateInstance == nil {
+		return nil, fmt.Errorf("templateInstance provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(templateInstance)
+	if err != nil {
+		return nil, err
+	}
+	name := templateInstance.Name
+	if name == nil {
+		return nil, fmt.Errorf("templateInstance.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(templateinstancesResource, c.ns, *name, types.ApplyPatchType, data, "status"), &templatev1.TemplateInstance{})
 
 	if obj == nil {
 		return nil, err

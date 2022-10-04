@@ -4,8 +4,11 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	imagev1 "github.com/openshift/api/image/v1"
+	applyconfigurationsimagev1 "github.com/openshift/client-go/image/applyconfigurations/image/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -118,6 +121,51 @@ func (c *FakeImageStreams) DeleteCollection(ctx context.Context, opts v1.DeleteO
 func (c *FakeImageStreams) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *imagev1.ImageStream, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(imagestreamsResource, c.ns, name, pt, data, subresources...), &imagev1.ImageStream{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*imagev1.ImageStream), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied imageStream.
+func (c *FakeImageStreams) Apply(ctx context.Context, imageStream *applyconfigurationsimagev1.ImageStreamApplyConfiguration, opts v1.ApplyOptions) (result *imagev1.ImageStream, err error) {
+	if imageStream == nil {
+		return nil, fmt.Errorf("imageStream provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(imageStream)
+	if err != nil {
+		return nil, err
+	}
+	name := imageStream.Name
+	if name == nil {
+		return nil, fmt.Errorf("imageStream.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(imagestreamsResource, c.ns, *name, types.ApplyPatchType, data), &imagev1.ImageStream{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*imagev1.ImageStream), err
+}
+
+// ApplyStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+func (c *FakeImageStreams) ApplyStatus(ctx context.Context, imageStream *applyconfigurationsimagev1.ImageStreamApplyConfiguration, opts v1.ApplyOptions) (result *imagev1.ImageStream, err error) {
+	if imageStream == nil {
+		return nil, fmt.Errorf("imageStream provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(imageStream)
+	if err != nil {
+		return nil, err
+	}
+	name := imageStream.Name
+	if name == nil {
+		return nil, fmt.Errorf("imageStream.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(imagestreamsResource, c.ns, *name, types.ApplyPatchType, data, "status"), &imagev1.ImageStream{})
 
 	if obj == nil {
 		return nil, err

@@ -4,10 +4,14 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
-	v1 "github.com/openshift/api/project/v1"
+	projectv1 "github.com/openshift/api/project/v1"
+	v1 "github.com/openshift/client-go/project/applyconfigurations/project/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
+	types "k8s.io/apimachinery/pkg/types"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -20,12 +24,33 @@ var projectrequestsResource = schema.GroupVersionResource{Group: "project.opensh
 
 var projectrequestsKind = schema.GroupVersionKind{Group: "project.openshift.io", Version: "v1", Kind: "ProjectRequest"}
 
-// Create takes the representation of a projectRequest and creates it.  Returns the server's representation of the project, and an error, if there is any.
-func (c *FakeProjectRequests) Create(ctx context.Context, projectRequest *v1.ProjectRequest, opts metav1.CreateOptions) (result *v1.Project, err error) {
+// Apply takes the given apply declarative configuration, applies it and returns the applied projectRequest.
+func (c *FakeProjectRequests) Apply(ctx context.Context, projectRequest *v1.ProjectRequestApplyConfiguration, opts metav1.ApplyOptions) (result *projectv1.ProjectRequest, err error) {
+	if projectRequest == nil {
+		return nil, fmt.Errorf("projectRequest provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(projectRequest)
+	if err != nil {
+		return nil, err
+	}
+	name := projectRequest.Name
+	if name == nil {
+		return nil, fmt.Errorf("projectRequest.Name must be provided to Apply")
+	}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(projectrequestsResource, projectRequest), &v1.Project{})
+		Invokes(testing.NewRootPatchSubresourceAction(projectrequestsResource, *name, types.ApplyPatchType, data), &projectv1.ProjectRequest{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1.Project), err
+	return obj.(*projectv1.ProjectRequest), err
+}
+
+// Create takes the representation of a projectRequest and creates it.  Returns the server's representation of the project, and an error, if there is any.
+func (c *FakeProjectRequests) Create(ctx context.Context, projectRequest *projectv1.ProjectRequest, opts metav1.CreateOptions) (result *projectv1.Project, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewRootCreateAction(projectrequestsResource, projectRequest), &projectv1.Project{})
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*projectv1.Project), err
 }
