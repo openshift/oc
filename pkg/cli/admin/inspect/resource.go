@@ -126,6 +126,8 @@ func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstruct
 		return err
 	}
 
+	relatedObjReferences = append(relatedObjReferences, obtainWebhookService(unstr)...)
+
 	errs := []error{}
 	for _, relatedRef := range relatedObjReferences {
 		if context.visited.Has(objectRefToContextKey(relatedRef)) {
@@ -183,4 +185,43 @@ func obtainRelatedObjects(obj *unstructured.Unstructured) ([]*configv1.ObjectRef
 	}
 
 	return relatedObjs, nil
+}
+
+// obtainWebhookService obtains namespaces related to ValidatingWebhookConfiguration or
+// MutatingWebhookConfiguration. These WebhookConfiguration resources do not contain status.relatedObject field,
+// instead service resources are stored in webhook.clientConfig.Service field and this function will
+// return namespace resources in which services related to webhook configurations are running.
+func obtainWebhookService(obj *unstructured.Unstructured) []*configv1.ObjectReference {
+	if obj.GetKind() != "ValidatingWebhookConfiguration" && obj.GetKind() != "MutatingWebhookConfiguration" {
+		return nil
+	}
+
+	webhooks, found, err := unstructured.NestedSlice(obj.Object, "webhooks")
+	if !found || err != nil {
+		klog.V(1).Infof("%q does not contain .webhook", unstructuredToString(obj))
+		return nil
+	}
+
+	var relatedObjs []*configv1.ObjectReference
+	for _, w := range webhooks {
+		w, ok := w.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		ns, found, err := unstructured.NestedString(w, "clientConfig", "service", "namespace")
+		if !found || err != nil {
+			klog.V(1).Infof("%q does not contain .webhook.clientConfig.service.namespace", unstructuredToString(obj))
+			continue
+		}
+
+		ref := &configv1.ObjectReference{
+			Resource: "namespaces",
+			Name:     ns,
+		}
+
+		relatedObjs = append(relatedObjs, ref)
+		klog.V(1).Infof("    Found related object in webhook %q...\n", objectReferenceToString(ref))
+	}
+
+	return relatedObjs
 }
