@@ -31,6 +31,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
+	"github.com/openshift/oc/pkg/cli/admin/internal/codesign"
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
@@ -45,6 +46,7 @@ type extractTarget struct {
 
 	InjectReleaseImage   bool
 	InjectReleaseVersion bool
+	SignMachOBinary      bool
 
 	ArchiveFormat string
 	AsArchive     bool
@@ -166,7 +168,8 @@ var (
 
 // extractTools extracts specific commands out of images referenced by the release image.
 // TODO: in the future the metadata this command contains might be loaded from the release
-//   image, but we must maintain compatibility with older payloads if so
+//
+//	image, but we must maintain compatibility with older payloads if so
 func (o *ExtractOptions) extractCommand(command string) error {
 	// Available targets is treated as a GA API and may not be changed without backwards
 	// compatibility of at least N-2 releases.
@@ -192,6 +195,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			LinkTo:               []string{"kubectl"},
 			Readme:               readmeCLIUnix,
 			InjectReleaseVersion: true,
+			SignMachOBinary:      true,
 			ArchiveFormat:        "openshift-client-mac-arm64-%s.tar.gz",
 		},
 		{
@@ -248,6 +252,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Readme:               readmeInstallUnix,
 			InjectReleaseImage:   true,
 			InjectReleaseVersion: true,
+			SignMachOBinary:      true,
 			ArchiveFormat:        "openshift-install-mac-arm64-%s.tar.gz",
 		},
 		{
@@ -647,6 +652,12 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		}
 		if err := os.Chtimes(f.Name(), hdr.ModTime, hdr.ModTime); err != nil {
 			klog.V(2).Infof("Unable to set extracted file modification time: %v", err)
+		}
+
+		if (target.InjectReleaseVersion || target.InjectReleaseImage) && target.SignMachOBinary {
+			if err = codesign.ResignMacho(layer.Mapping.To, target.AsArchive, target.Command, target.LinkTo); err != nil {
+				klog.Infof("Unable to resign macho binaries:  %v", err)
+			}
 		}
 
 		func() {
