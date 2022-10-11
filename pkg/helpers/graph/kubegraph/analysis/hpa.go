@@ -96,16 +96,17 @@ func createMissingScaleRefMarker(hpaNode *kubenodes.HorizontalPodAutoscalerNode,
 // This can occur in two ways:
 //   - 1. label selectors for two ReplicationControllers/DeploymentConfigs/etc overlap
 //   - 2. multiple HorizontalPodAutoscalers are attempting to scale the same ReplicationController/DeploymentConfig/etc
+//
 // Case 1 is handled by deconflicting the area of influence of ReplicationControllers/DeploymentConfigs/etc, and therefore we
 // can assume that it will be handled before this step. Therefore, we are only concerned with finding HPAs that are trying to
 // scale the same resources.
 //
 // The algorithm that is used to implement this check is described as follows:
-//  - create a sub-graph containing only HPA nodes and other nodes that can be scaled, as well as any scaling edges or other
-//    edges used to connect between objects that can be scaled
-//  - for every resulting edge in the new sub-graph, create an edge in the reverse direction
-//  - find the shortest paths between all HPA nodes in the graph
-//  - shortest paths connecting two horizontal pod autoscalers are used to create markers for the graph
+//   - create a sub-graph containing only HPA nodes and other nodes that can be scaled, as well as any scaling edges or other
+//     edges used to connect between objects that can be scaled
+//   - for every resulting edge in the new sub-graph, create an edge in the reverse direction
+//   - find the shortest paths between all HPA nodes in the graph
+//   - shortest paths connecting two horizontal pod autoscalers are used to create markers for the graph
 func FindOverlappingHPAs(graph osgraph.Graph, namer osgraph.Namer) []osgraph.Marker {
 	markers := []osgraph.Marker{}
 
@@ -158,9 +159,9 @@ func FindOverlappingHPAs(graph osgraph.Graph, namer osgraph.Namer) []osgraph.Mar
 }
 
 // nameList outputs a nicely-formatted list of names:
-//  - given nodes ['a', 'b', 'c'], this will return "one of a, b, or c"
-//  - given nodes ['a', 'b'], this will return "a or b"
-//  - given nodes ['a'], this will return "a"
+//   - given nodes ['a', 'b', 'c'], this will return "one of a, b, or c"
+//   - given nodes ['a', 'b'], this will return "a or b"
+//   - given nodes ['a'], this will return "a"
 func nameList(nodes []graphapi.Node, namer osgraph.Namer) string {
 	names := []string{}
 

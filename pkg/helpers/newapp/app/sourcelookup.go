@@ -275,11 +275,11 @@ func (r *SourceRepository) LocalPath() (string, error) {
 // DetectAuth returns an error if the source repository cannot be cloned
 // without the current user's environment. The following changes are made to the
 // environment:
-// 1) The HOME directory is set to a temporary dir to avoid loading any settings in .gitconfig
-// 2) The GIT_SSH variable is set to /dev/null so the regular SSH keys are not used
-//    (changing the HOME directory is not enough).
-// 3) GIT_CONFIG_NOSYSTEM prevents git from loading system-wide config
-// 4) GIT_ASKPASS to prevent git from prompting for a user/password
+//  1. The HOME directory is set to a temporary dir to avoid loading any settings in .gitconfig
+//  2. The GIT_SSH variable is set to /dev/null so the regular SSH keys are not used
+//     (changing the HOME directory is not enough).
+//  3. GIT_CONFIG_NOSYSTEM prevents git from loading system-wide config
+//  4. GIT_ASKPASS to prevent git from prompting for a user/password
 func (r *SourceRepository) DetectAuth() error {
 
 	url, ok, err := r.RemoteURL()

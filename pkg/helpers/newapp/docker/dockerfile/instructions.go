@@ -36,7 +36,8 @@ func Label(m []KeyValue) (string, error) {
 // keyValueInstruction builds a Dockerfile instruction from the mapping m. Keys
 // and values are serialized as JSON strings to ensure compatibility with the
 // Dockerfile parser. Syntax:
-//   COMMAND "KEY"="VALUE" "may"="contain spaces"
+//
+//	COMMAND "KEY"="VALUE" "may"="contain spaces"
 func keyValueInstruction(cmd string, m []KeyValue) (string, error) {
 	s := []string{strings.ToUpper(cmd)}
 	for _, kv := range m {
@@ -57,8 +58,9 @@ func keyValueInstruction(cmd string, m []KeyValue) (string, error) {
 
 // unquotedArgsInstruction builds a Dockerfile instruction that takes unquoted
 // string arguments. Syntax:
-//   COMMAND single unquoted argument
-//   COMMAND value1 value2 value3 ...
+//
+//	COMMAND single unquoted argument
+//	COMMAND value1 value2 value3 ...
 func unquotedArgsInstruction(cmd string, args ...string) (string, error) {
 	s := []string{strings.ToUpper(cmd)}
 	for _, arg := range args {

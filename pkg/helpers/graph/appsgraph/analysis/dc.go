@@ -50,9 +50,9 @@ func FindDeploymentConfigTriggerErrors(g osgraph.Graph, f osgraph.Namer) []osgra
 // ictMarker inspects the image change triggers for the provided deploymentconfig and returns
 // a marker in case of the following two scenarios:
 //
-// 1. The image stream pointed by the dc trigger doen not exist.
-// 2. The image stream tag pointed by the dc trigger does not exist and there is no build in
-// 	  flight that could push to the tag.
+//  1. The image stream pointed by the dc trigger doen not exist.
+//  2. The image stream tag pointed by the dc trigger does not exist and there is no build in
+//     flight that could push to the tag.
 func ictMarker(g osgraph.Graph, f osgraph.Namer, dcNode *appsgraph.DeploymentConfigNode) *osgraph.Marker {
 	for _, uncastIstNode := range g.PredecessorNodesByEdgeKind(dcNode, appsedges.TriggersDeploymentEdgeKind) {
 		if istNode := uncastIstNode.(*imagegraph.ImageStreamTagNode); !istNode.Found() {

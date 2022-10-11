@@ -176,7 +176,8 @@ func defaultClientDockerConfig() credentialprovider.DockerConfig {
 }
 
 // defaultPathsForCredentials returns the correct search directories for a docker config
-//  file
+//
+//	file
 func defaultPathsForCredentials() []string {
 	if runtime.GOOS == "windows" { // Windows
 		return []string{filepath.Join(os.Getenv("USERPROFILE"), ".docker")}
@@ -185,7 +186,8 @@ func defaultPathsForCredentials() []string {
 }
 
 // defaultPathsForCredentials returns the correct search directories for a docker config
-//  file
+//
+//	file
 func defaultPathsForLegacyCredentials() []string {
 	if runtime.GOOS == "windows" { // Windows
 		return []string{os.Getenv("USERPROFILE")}

@@ -970,11 +970,10 @@ func describeJobStatus(job *batchv1.Job) string {
 // exposedRoutes orders strings by their leading prefix (https:// -> http:// other prefixes), then by
 // the shortest distance up to the first space (indicating a break), then alphabetically:
 //
-//   https://test.com
-//   https://www.test.com
-//   http://t.com
-//   other string
-//
+//	https://test.com
+//	https://www.test.com
+//	http://t.com
+//	other string
 type exposedRoutes []string
 
 func (e exposedRoutes) Len() int      { return len(e) }
