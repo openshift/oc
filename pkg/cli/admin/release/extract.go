@@ -278,13 +278,15 @@ func (o *ExtractOptions) Run() error {
 		imageMetadataCallbacks = append(imageMetadataCallbacks, o.ImageMetadataCallback)
 	}
 
+	var metadataVerifyMsg string
+
 	verifier := imagemanifest.NewVerifier()
 	imageMetadataCallbacks = append(imageMetadataCallbacks, func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
 		verifier.Verify(dgst, contentDigest)
 		if len(ref.Ref.ID) > 0 {
-			fmt.Fprintf(o.Out, "Extracted release payload created at %s\n", config.Created.Format(time.RFC3339))
+			metadataVerifyMsg = fmt.Sprintf("Extracted release payload created at %s", config.Created.Format(time.RFC3339))
 		} else {
-			fmt.Fprintf(o.Out, "Extracted release payload from digest %s created at %s\n", dgst, config.Created.Format(time.RFC3339))
+			metadataVerifyMsg = fmt.Sprintf("Extracted release payload from digest %s created at %s", dgst, config.Created.Format(time.RFC3339))
 		}
 	})
 
@@ -417,6 +419,10 @@ func (o *ExtractOptions) Run() error {
 		if err := opts.Run(); err != nil {
 			return err
 		}
+	}
+
+	if metadataVerifyMsg != "" {
+		fmt.Fprintf(o.Out, "%s\n", metadataVerifyMsg)
 	}
 
 	if !verifier.Verified() {
