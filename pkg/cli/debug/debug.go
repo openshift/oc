@@ -1195,7 +1195,7 @@ func (o *DebugOptions) getNamespace(infoNs string) (string, func(), error) {
 		return infoNs, func() {}, nil
 	}
 
-	if !o.IsNode {
+	if !o.IsNode || o.DryRun {
 		return infoNs, func() {}, nil
 	}
 
