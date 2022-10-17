@@ -122,9 +122,7 @@ func (o *VersionOptions) Run() error {
 		versionInfo.ReleaseClientVersion = reportedVersion
 	}
 	versionInfo.ClientVersion = &clientVersion
-	// TODO: fix this to use kversion.GetKustomizeVersion after
-	// https://github.com/kubernetes/kubernetes/pull/109430 lands
-	versionInfo.KustomizeVersion = "v4.5.4"
+	versionInfo.KustomizeVersion, _ = kversion.GetKustomizeModVersion()
 
 	var serverErr error
 	var serverVersion *apimachineryversion.Info
