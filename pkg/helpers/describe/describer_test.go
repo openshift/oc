@@ -16,6 +16,8 @@ import (
 	appsv1 "github.com/openshift/api/apps/v1"
 	authorizationv1 "github.com/openshift/api/authorization/v1"
 	buildv1 "github.com/openshift/api/build/v1"
+	consolev1 "github.com/openshift/api/console/v1"
+	consolev1alpha1 "github.com/openshift/api/console/v1alpha1"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	dockerpre012 "github.com/openshift/api/image/dockerpre012"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -66,6 +68,16 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&imagev1.ImageSignature{}),
 	// we might want to add this in the future
 	reflect.TypeOf(&imagev1.ImageStreamLayers{}),
+
+	// these resources are descrbied with custom resource definitions
+	reflect.TypeOf(&consolev1.ConsoleCLIDownload{}),
+	reflect.TypeOf(&consolev1.ConsoleExternalLogLink{}),
+	reflect.TypeOf(&consolev1.ConsoleLink{}),
+	reflect.TypeOf(&consolev1.ConsoleNotification{}),
+	reflect.TypeOf(&consolev1.ConsolePlugin{}),
+	reflect.TypeOf(&consolev1.ConsoleQuickStart{}),
+	reflect.TypeOf(&consolev1.ConsoleYAMLSample{}),
+	reflect.TypeOf(&consolev1alpha1.ConsolePlugin{}),
 
 	// these resources can't be "GET"ed, so you can't make a describer for them
 	reflect.TypeOf(&authorizationv1.SubjectAccessReviewResponse{}),

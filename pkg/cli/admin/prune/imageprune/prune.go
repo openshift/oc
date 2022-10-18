@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -797,17 +798,22 @@ func getImageBlobs(image *imagev1.Image) ([]string, error) {
 		blobs = append(blobs, layer.Name)
 	}
 
-	dockerImage, ok := image.DockerImageMetadata.Object.(*dockerv10.DockerImage)
-	if !ok {
-		return blobs, fmt.Errorf("failed to read metadata for image %s", image.Name)
-	}
+	isImageIndex := image.DockerImageManifestMediaType == imagespecv1.MediaTypeImageIndex ||
+		image.DockerImageManifestMediaType == manifestlist.MediaTypeManifestList
 
-	mediaTypeHasConfig := image.DockerImageManifestMediaType == schema2.MediaTypeManifest ||
-		image.DockerImageManifestMediaType == imagespecv1.MediaTypeImageManifest
+	if !isImageIndex {
+		dockerImage, ok := image.DockerImageMetadata.Object.(*dockerv10.DockerImage)
+		if !ok {
+			return blobs, fmt.Errorf("failed to read metadata for image %s", image.Name)
+		}
 
-	if mediaTypeHasConfig && len(dockerImage.ID) > 0 {
-		configName := dockerImage.ID
-		blobs = append(blobs, configName)
+		mediaTypeHasConfig := image.DockerImageManifestMediaType == schema2.MediaTypeManifest ||
+			image.DockerImageManifestMediaType == imagespecv1.MediaTypeImageManifest
+
+		if mediaTypeHasConfig && len(dockerImage.ID) > 0 {
+			configName := dockerImage.ID
+			blobs = append(blobs, configName)
+		}
 	}
 
 	return blobs, nil
@@ -1065,11 +1071,11 @@ func (p *pruner) pruneImageStream(stream *imagev1.ImageStream, imageStreamDelete
 	return stream, stats, errs
 }
 
-func (p *pruner) pruneImage(image *imagev1.Image, usedImages map[string]bool, counts referenceCounts, blobDeleter BlobDeleter, imageDeleter ImageDeleter) (*PruneStats, []error) {
+func (p *pruner) pruneImage(image *imagev1.Image, usedImages map[string]string, counts referenceCounts, blobDeleter BlobDeleter, imageDeleter ImageDeleter) (*PruneStats, []error) {
 	stats := &PruneStats{}
 
-	if usedImages[image.Name] {
-		klog.V(4).Infof("image %s: keeping because it is used by imagestreams", image.Name)
+	if reason, ok := usedImages[image.Name]; ok {
+		klog.V(4).Infof("image %s: keeping because it is used by %s", image.Name, reason)
 		return stats, nil
 	}
 
@@ -1200,12 +1206,24 @@ func (p *pruner) pruneImages(
 	blobDeleter BlobDeleter,
 	imageDeleter ImageDeleter,
 ) (*PruneStats, []error) {
-	usedImages := map[string]bool{}
+	usedImages := map[string]string{}
 	for _, stream := range p.imageStreams {
 		for _, tag := range stream.Status.Tags {
 			for _, item := range tag.Items {
-				usedImages[item.Image] = true
+				usedImages[item.Image] = fmt.Sprintf("imagestream %s/%s:%s", stream.Namespace, stream.Name, tag.Tag)
 			}
+		}
+	}
+	for _, image := range p.images {
+		if len(image.DockerImageManifests) == 0 {
+			continue
+		}
+		if _, ok := usedImages[image.Name]; !ok {
+			klog.V(4).Infof("image %s: submanifests are eligible for deletion as the index image is going to be deleted", image.Name)
+			continue
+		}
+		for _, submanifest := range image.DockerImageManifests {
+			usedImages[submanifest.Digest] = fmt.Sprintf("image %s", image.Name)
 		}
 	}
 
