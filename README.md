@@ -34,35 +34,3 @@ Also:
 dnf install gpgme-devel
 dnf install libassuan-devel
 ```
-
-For MacOS you'll need to install a few brew packages before building locally. Install them with:
-```
-brew install heimdal
-brew install gpgme
-```
-## Testing
-
-All PRs will have to pass a series of automated tests starting from go tools
-such as `go fmt` and `go vet`, through unit tests, up to e2e against a real cluster.
-
-Locally you can invoke the initial verification and unit test through `make verify`
-and `make test`, accordingly.
-
-## Dependencies
-
-Dependencies are managed through [Go Modules](https://github.com/golang/go/wiki/Modules).
-When updating any dependency the suggested workflow is:
-
-1. `go mod tidy`
-2. `go mod vendor`
-
-
-# Security Response
-
-If you've found a security issue that you'd like to disclose confidentially
-please contact Red Hat's Product Security team. Details at
-https://access.redhat.com/security/team/contact
-
-# License
-
-oc is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/).
