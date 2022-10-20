@@ -110,9 +110,25 @@ func NewDefaultOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 	// only look for suitable extension executables if
 	// the specified command does not already exist
 	if _, _, err := cmd.Find(cmdPathPieces); err != nil {
-		if err := kubecmd.HandlePluginCommand(pluginHandler, cmdPathPieces); err != nil {
-			fmt.Fprintf(errout, "%v\n", err)
-			os.Exit(1)
+		// Also check the commands that will be added by Cobra.
+		// These commands are only added once rootCmd.Execute() is called, so we
+		// need to check them explicitly here.
+		var cmdName string // first "non-flag" arguments
+		for _, arg := range cmdPathPieces {
+			if !strings.HasPrefix(arg, "-") {
+				cmdName = arg
+				break
+			}
+		}
+
+		switch cmdName {
+		case "help", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
+			// Don't search for a plugin
+		default:
+			if err := kubecmd.HandlePluginCommand(pluginHandler, cmdPathPieces); err != nil {
+				fmt.Fprintf(errout, "%v\n", err)
+				os.Exit(1)
+			}
 		}
 	}
 
