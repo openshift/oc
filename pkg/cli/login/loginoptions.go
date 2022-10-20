@@ -275,13 +275,13 @@ func (o *LoginOptions) gatherProjectInfo() error {
 
 	projectsList, err := projectClient.Projects().List(context.TODO(), metav1.ListOptions{})
 	// if we're running on kube (or likely kube), just set it to "default"
-	if kerrors.IsNotFound(err) || kerrors.IsForbidden(err) {
+	if err != nil {
+		if !kerrors.IsNotFound(err) && !kerrors.IsForbidden(err) {
+			fmt.Fprintf(o.Out, "WARNING: Failed to list projects: %v\n", err)
+		}
 		fmt.Fprintf(o.Out, "Using \"default\" namespace.  You can switch namespaces with:\n\n %s project <projectname>\n", o.CommandName)
 		o.Project = "default"
 		return nil
-	}
-	if err != nil {
-		return err
 	}
 
 	projectsItems := projectsList.Items
