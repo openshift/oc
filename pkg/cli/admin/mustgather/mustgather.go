@@ -288,16 +288,6 @@ func (o *MustGatherOptions) Run() error {
 		o.PrintBasicClusterState(context.TODO())
 	}()
 
-	// Due to 'stack unwiding', this should happen after 'clusterState' printing, to ensure that we always
-	//  print our ClusterState information.
-	runBackCollection := true
-	defer func() {
-		if !runBackCollection {
-			return
-		}
-		o.BackupGathering(context.TODO(), errs)
-	}()
-
 	// Get or create "working" namespace ...
 	ns, cleanupNamespace, err := o.getNamespace()
 	if err != nil {
@@ -310,6 +300,17 @@ func (o *MustGatherOptions) Run() error {
 	if !o.Keep {
 		defer cleanupNamespace()
 	}
+
+	// Due to 'stack unwiding', this should happen after 'cleanupNamespace()' - WRKLDS-593
+	// Due to 'stack unwiding', this should happen after 'clusterState' printing, to ensure that we always
+	//  print our ClusterState information.
+	runBackCollection := true
+	defer func() {
+		if !runBackCollection {
+			return
+		}
+		o.BackupGathering(context.TODO(), errs)
+	}()
 
 	// ... and create must-gather pod(s)
 	var pods []*corev1.Pod
