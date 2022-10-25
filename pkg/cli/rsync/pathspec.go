@@ -122,14 +122,19 @@ func resolveResourceKindPath(f kcmdutil.Factory, path, namespace string) (string
 // the rsync command in windows.
 // It can take one of three forms:
 // 1 - relative to current dir or relative to current drive
-//     \mydir\subdir or subdir
-//     For these, it's only sufficient to change '\' to '/'
+//
+//	\mydir\subdir or subdir
+//	For these, it's only sufficient to change '\' to '/'
+//
 // 2 - absolute path with drive
-//     d:\mydir\subdir
-//     These need to be converted to /cygdrive/<drive-letter>/rest/of/path
+//
+//	d:\mydir\subdir
+//	These need to be converted to /cygdrive/<drive-letter>/rest/of/path
+//
 // 3 - UNC path
-//     \\server\c$\mydir\subdir
-//     For these it should be sufficient to change '\' to '/'
+//
+//	\\server\c$\mydir\subdir
+//	For these it should be sufficient to change '\' to '/'
 func convertWindowsPath(path string) string {
 	// If the path starts with a single letter followed by a ":", it needs to
 	// be converted /cygwin/<drive>/path form

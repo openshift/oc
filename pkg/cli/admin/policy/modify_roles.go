@@ -568,7 +568,8 @@ func (o *RoleModificationOptions) AddRole() error {
 
 // addSubjects appends new subjects to the list existing ones, removing any duplicates.
 // !!! The returned list MUST start with `existingSubjects` and only append new subjects *after*;
-//     consumers of this function expect new subjects to start at `len(existingSubjects)`.
+//
+//	consumers of this function expect new subjects to start at `len(existingSubjects)`.
 func addSubjects(users []string, groups []string, subjects []rbacv1.Subject, existingSubjects []rbacv1.Subject) []rbacv1.Subject {
 	subjectsToAdd := authorizationutil.BuildRBACSubjects(users, groups)
 	subjectsToAdd = append(subjectsToAdd, subjects...)

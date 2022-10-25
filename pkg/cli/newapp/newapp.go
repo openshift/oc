@@ -168,7 +168,7 @@ type AppOptions struct {
 	genericclioptions.IOStreams
 }
 
-//Complete sets all common default options for commands (new-app and new-build)
+// Complete sets all common default options for commands (new-app and new-build)
 func (o *ObjectGeneratorOptions) Complete(f kcmdutil.Factory, c *cobra.Command, args []string) error {
 	cmdutil.WarnAboutCommaSeparation(o.ErrOut, o.Config.Environment, "--env")
 	cmdutil.WarnAboutCommaSeparation(o.ErrOut, o.Config.BuildEnvironment, "--build-env")

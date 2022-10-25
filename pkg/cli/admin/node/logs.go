@@ -433,20 +433,21 @@ type mergeReader []Reader
 // available line from the reader with the "smallest" line.
 //
 // For example, given the readers with the following lines:
-//   1: A
-//      B
-//      D
-//   2: C
-//      D
-//      E
 //
-//  the reader would contain:
-//      A
-//      B
-//      C
-//      D
-//      D
-//      E
+//	 1: A
+//	    B
+//	    D
+//	 2: C
+//	    D
+//	    E
+//
+//	the reader would contain:
+//	    A
+//	    B
+//	    C
+//	    D
+//	    D
+//	    E
 //
 // The merge reader uses bufio.NewReader() for each input and the
 // ReadLine() method to find the next shortest input. If a given
