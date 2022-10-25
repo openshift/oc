@@ -3,7 +3,6 @@ package login
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,7 +21,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/homedir"
-	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -45,8 +43,7 @@ var (
 		with USER:PASSWORD.
 
 		You may specify an alternate file to write credentials to with --to instead of
-		.docker/config.json in your home directory. If you pass --to=- the file will be
-		written to standard output.
+		.docker/config.json in your home directory.
 
 		To detect the registry hostname the client will attempt to find an image stream in
 		the current namespace or the openshift namespace and use the status fields that
@@ -125,7 +122,7 @@ func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams
 
 	flag := cmd.Flags()
 	flag.StringVar(&o.AuthBasic, "auth-basic", o.AuthBasic, "Provide credentials in the form 'user:password' to authenticate (advanced)")
-	// TODO: fix priority and deprecation notice in 4.12
+	// TODO: fix priority and deprecation notice in 4.13
 	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Defaults to ~/.docker/config.json. Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker (current default - deprecated) or podman (prioritizes podman credentials over docker).")
 	flag.StringVar(&o.ConfigFile, "to", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Default is Docker config.json (deprecated). Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker or podman.")
 	flag.StringVarP(&o.ServiceAccount, "service-account", "z", o.ServiceAccount, "Log in as the specified service account name in the specified namespace.")
@@ -295,72 +292,11 @@ func (o *LoginOptions) Run() error {
 		}
 	}
 
-	var err error
-	authFilePath := o.ConfigFile
-
-	if o.ConfigFile == "-" {
-		// TODO: deprecated, remove in 4.12
-		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for stdout output is deprecated. The support will be removed in the future version of oc.\n")
-		authFilePath, err = createTmpAuthFile()
-		if err != nil {
-			return err
-		}
-		defer func() {
-			err := os.Remove(authFilePath)
-			if err != nil {
-				klog.Errorf("Could not remove tmp auth file %v: %v", authFilePath, err)
-			}
-		}()
-	} else if o.ConfigFile != "" {
-		if err := o.ensureEmptyAuthFileInitialized(o.ConfigFile); err != nil {
-			return err
-		}
-	}
-
-	ctx := &containertypes.SystemContext{AuthFilePath: authFilePath}
+	ctx := &containertypes.SystemContext{AuthFilePath: o.ConfigFile}
 	if err := dockerconfig.SetAuthentication(ctx, o.HostPort, o.Credentials.Username, o.Credentials.Password); err != nil {
 		return err
 	}
 
-	if o.ConfigFile == "-" {
-		bytes, err := ioutil.ReadFile(authFilePath)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(o.Out, string(bytes))
-	} else {
-		fmt.Fprintf(o.Out, "Saved credentials for %s\n", o.HostPort)
-	}
+	fmt.Fprintf(o.Out, "Saved credentials for %s\n", o.HostPort)
 	return nil
-}
-
-func (o *LoginOptions) ensureEmptyAuthFileInitialized(configFile string) error {
-	fileInfo, err := os.Stat(configFile)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	if !os.IsNotExist(err) && fileInfo.Size() == 0 {
-		// TODO: deprecated, remove in 4.12
-		fmt.Fprint(o.IOStreams.ErrOut, "Warning: support for empty registry config files is deprecated. The support will be removed in the future version of oc.\n")
-		file, err := os.OpenFile(configFile, os.O_APPEND|os.O_WRONLY, 0600)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		_, err = file.WriteString("{}")
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func createTmpAuthFile() (string, error) {
-	file, err := ioutil.TempFile("", "oc-tmp-file")
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-	_, err = file.WriteString("{}")
-	return file.Name(), nil
 }
