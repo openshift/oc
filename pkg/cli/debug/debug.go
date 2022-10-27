@@ -1017,7 +1017,8 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 						},
 					},
 				},
-				RestartPolicy: corev1.RestartPolicyNever,
+				PriorityClassName: "openshift-user-critical",
+				RestartPolicy:     corev1.RestartPolicyNever,
 				Containers: []corev1.Container{
 					{
 						Name:  "container-00",

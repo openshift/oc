@@ -78,12 +78,11 @@ func NewMirrorOptions(streams genericclioptions.IOStreams) *MirrorOptions {
 
 // NewMirror creates a command to mirror an existing release.
 //
-// Example command to mirror a release to a local repository to work offline
+// # Example command to mirror a release to a local repository to work offline
 //
-// $ oc adm release mirror \
-//     --from=registry.svc.ci.openshift.org/openshift/v4.0 \
-//     --to=mycompany.com/myrepository/repo
-//
+//	$ oc adm release mirror \
+//	    --from=registry.svc.ci.openshift.org/openshift/v4.0 \
+//	    --to=mycompany.com/myrepository/repo
 func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewMirrorOptions(streams)
 	cmd := &cobra.Command{

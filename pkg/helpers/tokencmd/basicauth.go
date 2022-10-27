@@ -19,7 +19,6 @@ import (
 // but the required username was not provided from the command line options
 type BasicAuthNoUsernameError struct{}
 
-//
 func (e *BasicAuthNoUsernameError) Error() string {
 	return "did not receive username. Pass 'oc login --username <username>' for the password prompt"
 }

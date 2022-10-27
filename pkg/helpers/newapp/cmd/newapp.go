@@ -567,7 +567,10 @@ func (c *AppConfig) buildTemplates(components app.ComponentReferences, parameter
 	name := ""
 	for _, ref := range components {
 		tpl := ref.Input().ResolvedMatch.Template
-
+		if len(tpl.Namespace) > 0 && tpl.Namespace != c.OriginNamespace {
+			// if set, template namespace must match the namespace it will be processed in.
+			tpl.Namespace = c.OriginNamespace
+		}
 		klog.V(4).Infof("processing template %s/%s", c.OriginNamespace, tpl.Name)
 		if len(c.ContextDir) > 0 {
 			return "", nil, fmt.Errorf("--context-dir is not supported when using a template")

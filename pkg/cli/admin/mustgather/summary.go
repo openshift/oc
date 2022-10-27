@@ -19,6 +19,7 @@ import (
 //  1. clusterversion - shows errors applying payloads to transition versions
 //  2. clusteroperators - shows whether every operand is functioning properly
 //  3. alerts - show whether something might be at risk
+//
 // if you find yourself wanting to add an additional piece of information here, what you really want to do is add it
 // to one of those three spots.  Doing so improves the self-diagnosis capabilities of our platform and lets *every*
 // client benefit.
