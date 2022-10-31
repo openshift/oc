@@ -6,7 +6,7 @@
 %global gopath      %{_datadir}/gocode
 %global import_path github.com/openshift/oc
 
-%global golang_version 1.13
+%global golang_version 1.19
 
 %{!?version: %global version 0.0.1}
 %{!?release: %global release 1}
