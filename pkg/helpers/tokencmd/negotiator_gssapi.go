@@ -9,10 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apcera/gssapi"
 	"k8s.io/klog/v2"
 
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+
+	_ "github.com/jcmturner/gokrb5/v8"
 )
 
 func GSSAPIEnabled() bool {
