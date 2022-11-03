@@ -221,6 +221,18 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			ArchiveFormat:        "openshift-client-linux-amd64-%s.tar.gz",
 		},
 		{
+			OS:      "linux",
+			Arch:    "arm64",
+			Command: "oc",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/linux_arm64/oc"},
+
+			LinkTo:               []string{"kubectl"},
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-linux-arm64-%s.tar.gz",
+		},
+		{
 			OS:      "windows",
 			Arch:    "amd64",
 			Command: "oc",
@@ -277,6 +289,18 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			InjectReleaseImage:   true,
 			InjectReleaseVersion: true,
 			ArchiveFormat:        "openshift-install-linux-amd64-%s.tar.gz",
+		},
+		{
+			OS:      "linux",
+			Arch:    "arm64",
+			Command: "openshift-install",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "installer-artifacts", From: "usr/share/openshift/linux_arm64/openshift-install"},
+
+			Readme:               readmeInstallUnix,
+			InjectReleaseImage:   true,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-install-linux-arm64-%s.tar.gz",
 		},
 		{
 			OS:       "linux",
