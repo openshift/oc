@@ -4,11 +4,13 @@
 package tokencmd
 
 import (
+	"fmt"
 	"os"
 
 	krb5client "github.com/jcmturner/gokrb5/v8/client"
 	krb5conf "github.com/jcmturner/gokrb5/v8/config"
 	krb5kt "github.com/jcmturner/gokrb5/v8/keytab"
+	krb5spnego "github.com/jcmturner/gokrb5/v8/spnego"
 )
 
 const (
@@ -41,6 +43,8 @@ func (g *gssapiNegotiator) Load() error {
 }
 
 func (g *gssapiNegotiator) InitSecContext(requestURL string, challengeToken []byte) (tokenToSend []byte, err error) {
+	g.complete = false
+
 	if g.client == nil {
 		krb5ConfLocation := krb5Config
 		if os.Getenv(krb5ConfigEnvKey) != "" {
@@ -69,20 +73,49 @@ func (g *gssapiNegotiator) InitSecContext(requestURL string, challengeToken []by
 		}
 	}
 
+	if challengeToken != nil {
+		var aprep krb5spnego.KRB5Token
+		if err := aprep.Unmarshal(challengeToken); err != nil {
+			return nil, err
+		}
+
+		if aprep.IsKRBError() {
+			return nil, fmt.Errorf("received Kerberos error")
+		}
+
+		if !aprep.IsAPRep() {
+			return nil, fmt.Errorf("didn't receive an AP_REP")
+		}
+
+		return nil, nil
+	}
+
 	servicePrincipleName, err := getServiceName('/', requestURL)
 	if err != nil {
 		return nil, err
 	}
 
-	_, key, err := g.client.GetServiceTicket(servicePrincipleName)
+	tkt, key, err := g.client.GetServiceTicket(servicePrincipleName)
 	if err != nil {
 		g.client = nil
-		g.complete = false
+		return nil, err
+	}
+
+	negTokenInit, err := krb5spnego.NewNegTokenInitKRB5(g.client, tkt, key)
+	if err != nil {
+		g.client = nil
+		return nil, err
+	}
+
+	// Marshal init negotiation token.
+	initTokenBytes, err := negTokenInit.Marshal()
+	if err != nil {
+		g.client = nil
 		return nil, err
 	}
 
 	g.complete = true
-	return key.KeyValue, nil
+	return initTokenBytes, nil
 }
 
 func (g *gssapiNegotiator) IsComplete() bool {

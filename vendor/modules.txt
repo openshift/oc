@@ -468,6 +468,9 @@ github.com/jcmturner/dnsutils/v2
 ## explicit; go 1.7
 github.com/jcmturner/gofork/encoding/asn1
 github.com/jcmturner/gofork/x/crypto/pbkdf2
+# github.com/jcmturner/goidentity/v6 v6.0.1
+## explicit; go 1.13
+github.com/jcmturner/goidentity/v6
 # github.com/jcmturner/gokrb5/v8 v8.4.3
 ## explicit; go 1.16
 github.com/jcmturner/gokrb5/v8/asn1tools
@@ -481,6 +484,7 @@ github.com/jcmturner/gokrb5/v8/crypto/rfc3961
 github.com/jcmturner/gokrb5/v8/crypto/rfc3962
 github.com/jcmturner/gokrb5/v8/crypto/rfc4757
 github.com/jcmturner/gokrb5/v8/crypto/rfc8009
+github.com/jcmturner/gokrb5/v8/gssapi
 github.com/jcmturner/gokrb5/v8/iana
 github.com/jcmturner/gokrb5/v8/iana/addrtype
 github.com/jcmturner/gokrb5/v8/iana/adtype
@@ -498,6 +502,8 @@ github.com/jcmturner/gokrb5/v8/keytab
 github.com/jcmturner/gokrb5/v8/krberror
 github.com/jcmturner/gokrb5/v8/messages
 github.com/jcmturner/gokrb5/v8/pac
+github.com/jcmturner/gokrb5/v8/service
+github.com/jcmturner/gokrb5/v8/spnego
 github.com/jcmturner/gokrb5/v8/types
 # github.com/jcmturner/rpc/v2 v2.0.3
 ## explicit; go 1.13
