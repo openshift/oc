@@ -6,10 +6,16 @@ package tokencmd
 import (
 	"fmt"
 	"os"
+	"os/user"
+	"strings"
 
 	krb5client "github.com/jcmturner/gokrb5/v8/client"
 	krb5conf "github.com/jcmturner/gokrb5/v8/config"
+	krb5credentials "github.com/jcmturner/gokrb5/v8/credentials"
+	krb5crypto "github.com/jcmturner/gokrb5/v8/crypto"
+	krb5flags "github.com/jcmturner/gokrb5/v8/iana/flags"
 	krb5kt "github.com/jcmturner/gokrb5/v8/keytab"
+	krb5messages "github.com/jcmturner/gokrb5/v8/messages"
 	krb5spnego "github.com/jcmturner/gokrb5/v8/spnego"
 )
 
@@ -56,16 +62,47 @@ func (g *gssapiNegotiator) InitSecContext(requestURL string, challengeToken []by
 			return nil, err
 		}
 
+		useKeytab := true
 		krb5KeytabLocation := krb5Keytab
 		if os.Getenv(krb5KeytabEnvKey) != "" {
 			krb5KeytabLocation = os.Getenv(krb5KeytabEnvKey)
 		}
-		keytab, err := krb5kt.Load(krb5KeytabLocation)
-		if err != nil {
-			return nil, err
+
+		if g.principalName == "" {
+			if _, err := os.Stat(krb5KeytabLocation); err != nil {
+				useKeytab = false
+			}
 		}
 
-		g.client = krb5client.NewWithKeytab(g.principalName, config.LibDefaults.DefaultRealm, keytab, config)
+		if useKeytab {
+			keytab, err := krb5kt.Load(krb5KeytabLocation)
+			if err != nil {
+				return nil, err
+			}
+
+			g.client = krb5client.NewWithKeytab(g.principalName, config.LibDefaults.DefaultRealm, keytab, config)
+		} else {
+			u, err := user.Current()
+			if err != nil {
+				return nil, err
+			}
+
+			path := "/tmp/krb5cc_" + u.Uid
+
+			if env, ok := os.LookupEnv("KRB5CCNAME"); ok && strings.HasPrefix(env, "FILE:") {
+				path = strings.SplitN(env, ":", 2)[1]
+			}
+
+			cache, err := krb5credentials.LoadCCache(path)
+			if err != nil {
+				return nil, err
+			}
+
+			g.client, err = krb5client.NewFromCCache(cache, config)
+			if err != nil {
+				return nil, err
+			}
+		}
 
 		err = g.client.Login()
 		if err != nil {
@@ -87,6 +124,7 @@ func (g *gssapiNegotiator) InitSecContext(requestURL string, challengeToken []by
 			return nil, fmt.Errorf("didn't receive an AP_REP")
 		}
 
+		g.complete = true
 		return nil, nil
 	}
 
@@ -101,21 +139,35 @@ func (g *gssapiNegotiator) InitSecContext(requestURL string, challengeToken []by
 		return nil, err
 	}
 
-	negTokenInit, err := krb5spnego.NewNegTokenInitKRB5(g.client, tkt, key)
+	apreq, err := krb5spnego.NewKRB5TokenAPREQ(g.client, tkt, key, nil, []int{krb5flags.APOptionMutualRequired})
 	if err != nil {
-		g.client = nil
 		return nil, err
 	}
 
-	// Marshal init negotiation token.
-	initTokenBytes, err := negTokenInit.Marshal()
+	if err = apreq.APReq.DecryptAuthenticator(key); err != nil {
+		return nil, err
+	}
+
+	etype, err := krb5crypto.GetEtype(key.KeyType)
 	if err != nil {
-		g.client = nil
+		return nil, err
+	}
+
+	if err = apreq.APReq.Authenticator.GenerateSeqNumberAndSubKey(key.KeyType, etype.GetKeyByteSize()); err != nil {
+		return nil, err
+	}
+
+	if apreq.APReq, err = krb5messages.NewAPReq(tkt, key, apreq.APReq.Authenticator); err != nil {
+		return nil, err
+	}
+
+	b, err := apreq.Marshal()
+	if err != nil {
 		return nil, err
 	}
 
 	g.complete = true
-	return initTokenBytes, nil
+	return b, nil
 }
 
 func (g *gssapiNegotiator) IsComplete() bool {
