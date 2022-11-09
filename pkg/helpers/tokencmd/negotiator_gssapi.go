@@ -68,6 +68,8 @@ func (g *gssapiNegotiator) InitSecContext(requestURL string, challengeToken []by
 			krb5KeytabLocation = os.Getenv(krb5KeytabEnvKey)
 		}
 
+		// if principal name is not empty, we can not use
+		// caching and we push it to use keytab.
 		if g.principalName == "" {
 			if _, err := os.Stat(krb5KeytabLocation); err != nil {
 				useKeytab = false
