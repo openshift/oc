@@ -9,20 +9,19 @@ import (
 	"os"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
-
 	imageclienttyped "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
-
 	"github.com/openshift/library-go/pkg/apps/appsserialization"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
 	strat "github.com/openshift/oc/pkg/cli/deployer/strategy"
 	stratsupport "github.com/openshift/oc/pkg/cli/deployer/strategy/support"
 	stratutil "github.com/openshift/oc/pkg/cli/deployer/strategy/util"
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
+	applycorev1 "k8s.io/client-go/applyconfigurations/core/v1"
+	"k8s.io/client-go/kubernetes"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 const (
@@ -172,38 +171,28 @@ func (s *RollingDeploymentStrategy) Deploy(from *corev1.ReplicationController, t
 	//
 	// Related upstream issue:
 	// https://github.com/kubernetes/kubernetes/pull/7183
-	err = wait.Poll(s.apiRetryPeriod, s.apiRetryTimeout, func() (done bool, err error) {
-		existing, err := s.rcClient.ReplicationControllers(to.Namespace).Get(context.TODO(), to.Name, metav1.GetOptions{})
-		if err != nil {
-			msg := fmt.Sprintf("couldn't look up deployment %s: %s", to.Name, err)
-			if kerrors.IsNotFound(err) {
-				return false, fmt.Errorf("%s", msg)
-			}
-			// Try again.
-			fmt.Fprintln(s.errOut, "error:", msg)
-			return false, nil
-		}
-		if _, hasSourceId := existing.Annotations[sourceIdAnnotation]; !hasSourceId {
-			existing.Annotations[sourceIdAnnotation] = fmt.Sprintf("%s:%s", from.Name, from.ObjectMeta.UID)
-			if _, err := s.rcClient.ReplicationControllers(existing.Namespace).Update(context.TODO(), existing, metav1.UpdateOptions{}); err != nil {
-				msg := fmt.Sprintf("couldn't assign source annotation to deployment %s: %v", existing.Name, err)
-				if kerrors.IsNotFound(err) {
-					return false, fmt.Errorf("%s", msg)
-				}
-				// Try again.
-				fmt.Fprintln(s.errOut, "error:", msg)
-				return false, nil
-			}
-		}
-		return true, nil
+	desiredAnnotation := applycorev1.ReplicationController(to.Name, to.Namespace).WithAnnotations(map[string]string{
+		sourceIdAnnotation: fmt.Sprintf("%s:%s", from.Name, from.ObjectMeta.UID),
 	})
-	if err != nil {
-		return err
+
+	result, err := s.rcClient.ReplicationControllers(to.Namespace).Apply(context.TODO(), desiredAnnotation, metav1.ApplyOptions{
+		// use a random field manager so we don't accidentally clear this field using a normal update later on.
+		FieldManager: fmt.Sprintf("deployer-invocation-%v", uuid.NewUUID()),
+	})
+	switch {
+	case kerrors.IsConflict(err):
+		// if there is a conflict on the apply call, then that means someone else owns the field so it has already been set
+		// in this case, we simply get the latest and continue
+		var getErr error
+		result, getErr = s.rcClient.ReplicationControllers(to.Namespace).Get(context.TODO(), to.Name, metav1.GetOptions{})
+		if getErr != nil {
+			return err
+		}
+	case err != nil:
+		return fmt.Errorf("couldn't assign source annotation to deployment %s: %w", to.Name, err)
 	}
-	to, err = s.rcClient.ReplicationControllers(to.Namespace).Get(context.TODO(), to.Name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
+	// use the last updated `to` to match previous behavior. Best guess is that something else is using the RV
+	to = result
 
 	// HACK: There's a validation in the rolling updater which assumes that when
 	// an existing RC is supplied, it will have >0 replicas- a validation which
