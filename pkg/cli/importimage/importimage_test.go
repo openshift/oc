@@ -24,6 +24,7 @@ func TestCreateImageImport(t *testing.T) {
 		insecure           *bool
 		referencePolicy    string
 		err                string
+		importMode         imagev1.ImportModeType
 		expectedImages     []imagev1.ImageImportSpec
 		expectedRepository *imagev1.RepositoryImportSpec
 	}{
@@ -573,6 +574,44 @@ func TestCreateImageImport(t *testing.T) {
 				ImportPolicy: imagev1.TagImportPolicy{Scheduled: true},
 			},
 		},
+		"import with importMode PreserveOriginal": {
+			name:       "testis",
+			importMode: imagev1.ImportModePreserveOriginal,
+			stream: &imagev1.ImageStream{
+				ObjectMeta: metav1.ObjectMeta{Name: "testis", Namespace: "other"},
+				Spec: imagev1.ImageStreamSpec{
+					Tags: []imagev1.TagReference{
+						{Name: "latest", From: &corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:latest"}},
+					},
+				},
+			},
+			expectedImages: []imagev1.ImageImportSpec{{
+				From: corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:latest"},
+				To:   &corev1.LocalObjectReference{Name: "latest"},
+				ImportPolicy: imagev1.TagImportPolicy{
+					ImportMode: imagev1.ImportModePreserveOriginal,
+				},
+			}},
+		},
+		"import with importMode Legacy": {
+			name:       "testis",
+			importMode: imagev1.ImportModeLegacy,
+			stream: &imagev1.ImageStream{
+				ObjectMeta: metav1.ObjectMeta{Name: "testis", Namespace: "other"},
+				Spec: imagev1.ImageStreamSpec{
+					Tags: []imagev1.TagReference{
+						{Name: "latest", From: &corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:latest"}},
+					},
+				},
+			},
+			expectedImages: []imagev1.ImageImportSpec{{
+				From: corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:latest"},
+				To:   &corev1.LocalObjectReference{Name: "latest"},
+				ImportPolicy: imagev1.TagImportPolicy{
+					ImportMode: imagev1.ImportModeLegacy,
+				},
+			}},
+		},
 	}
 
 	for name, test := range testCases {
@@ -588,6 +627,7 @@ func TestCreateImageImport(t *testing.T) {
 			All:             test.all,
 			Scheduled:       test.scheduled,
 			ReferencePolicy: test.referencePolicy,
+			ImportMode:      string(test.importMode),
 			Confirm:         test.confirm,
 			isClient:        fake.ImageV1().ImageStreams("other"),
 		}
