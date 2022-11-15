@@ -3,21 +3,22 @@ package rolling
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/diff"
-	"k8s.io/client-go/kubernetes/fake"
-	clientgotesting "k8s.io/client-go/testing"
+	"reflect"
 
 	appsv1 "github.com/openshift/api/apps/v1"
-
 	"github.com/openshift/library-go/pkg/apps/appsutil"
 	strat "github.com/openshift/oc/pkg/cli/deployer/strategy"
 	"github.com/openshift/oc/pkg/cli/deployer/strategy/util/appstest"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/diff"
+	"k8s.io/client-go/kubernetes/fake"
+	clientgotesting "k8s.io/client-go/testing"
 )
 
 func TestRolling_deployInitial(t *testing.T) {
@@ -73,10 +74,25 @@ func TestRolling_deployRolling(t *testing.T) {
 		name := action.(clientgotesting.GetAction).GetName()
 		return true, deployments[name], nil
 	})
-	client.AddReactor("update", "replicationcontrollers", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
-		updated := action.(clientgotesting.UpdateAction).GetObject().(*corev1.ReplicationController)
+	client.AddReactor("patch", "replicationcontrollers", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(clientgotesting.PatchAction)
+		if patchAction.GetPatchType() != types.ApplyPatchType {
+			return true, nil, fmt.Errorf("unhandled")
+		}
+		appliedRC := &unstructured.Unstructured{}
+		if _, _, err := unstructured.UnstructuredJSONScheme.Decode(patchAction.GetPatch(), nil, appliedRC); err != nil {
+			return true, nil, err
+		}
 		deploymentUpdated = true
-		return true, updated, nil
+
+		if deployment.Annotations == nil {
+			deployment.Annotations = map[string]string{}
+		}
+		for k, v := range appliedRC.GetAnnotations() {
+			deployment.Annotations[k] = v
+		}
+
+		return true, deployment, nil
 	})
 
 	var rollingConfig *RollingUpdaterConfig
