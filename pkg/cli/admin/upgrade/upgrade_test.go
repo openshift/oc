@@ -48,26 +48,33 @@ func TestCheckForUpgrade(t *testing.T) {
 				Reason:  "SomeReason",
 				Message: "Some message.",
 			}},
-			expected: errors.New("the cluster version object is invalid, you must correct the invalid state first:\n\n  Reason: SomeReason\n  Message: Some message.\n\n"),
+			expected: errors.New("the cluster version object is invalid, you must correct the invalid state first:\n\n  Reason: SomeReason\n  Message: Some message."),
 		},
 		{
-			name: "degraded and progressing",
+			name: "failing and progressing",
 			conditions: []configv1.ClusterOperatorStatusCondition{{
 				Type:    configv1.OperatorProgressing,
 				Status:  configv1.ConditionTrue,
 				Reason:  "RollingOut",
 				Message: "Updating to v2.",
 			}, {
-				Type:    configv1.OperatorDegraded,
+				Type:    clusterStatusFailing,
 				Status:  configv1.ConditionTrue,
 				Reason:  "BadStuff",
 				Message: "The widgets are slow.",
 			}},
-			expected: errors.New("the cluster is experiencing an upgrade-blocking error:\n\n  Reason: BadStuff\n  Message: The widgets are slow.\n\nthe cluster is already upgrading:\n\n  Reason: RollingOut\n  Message: Updating to v2.\n\n"),
+			expected: errors.New("the cluster is experiencing an error reconciling \"4.1.0\":\n\n  Reason: BadStuff\n  Message: The widgets are slow.\n\nthe cluster is already upgrading:\n\n  Reason: RollingOut\n  Message: Updating to v2."),
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			clusterVersion := &configv1.ClusterVersion{}
+			clusterVersion := &configv1.ClusterVersion{
+				Status: configv1.ClusterVersionStatus{
+					Desired: configv1.Release{
+						Version: "4.1.0",
+						Image:   "quay.io/openshift-release-dev/ocp-release@sha256:b8307ac0f3ec4ac86c3f3b52846425205022da52c16f56ec31cbe428501001d6",
+					},
+				},
+			}
 			clusterVersion.Status.Conditions = testCase.conditions
 			actual := checkForUpgrade(clusterVersion)
 			if !reflect.DeepEqual(actual, testCase.expected) {
