@@ -736,15 +736,23 @@ func (i *ReleaseInfo) PreferredName() string {
 }
 
 func (i *ReleaseInfo) Platform() string {
-	os := i.Config.OS
-	if len(os) > 0 {
+	config := i.Config
+	if config == nil {
+		config = &dockerv1client.DockerImageConfig{}
+	}
+
+	os := config.OS
+	if len(os) == 0 {
 		os = "unknown"
 	}
-	arch := i.Config.Architecture
+	arch := config.Architecture
 	if len(arch) == 0 {
 		arch = "unknown"
 	}
-	return fmt.Sprintf("%s/%s", os, arch)
+	if len(i.ManifestListDigest) == 0 {
+		return fmt.Sprintf("%s/%s", os, arch)
+	}
+	return fmt.Sprintf("multi (%s/%s)", os, arch)
 }
 
 func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*ReleaseInfo, error) {
@@ -1218,7 +1226,7 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 		fmt.Fprintf(w, "Digest:\t%s\n", release.ManifestListDigest.String())
 	}
 	fmt.Fprintf(w, "Created:\t%s\n", release.Config.Created.UTC().Truncate(time.Second).Format(time.RFC3339))
-	fmt.Fprintf(w, "OS/Arch:\t%s/%s\n", release.Config.OS, release.Config.Architecture)
+	fmt.Fprintf(w, "OS/Arch:\t%s\n", release.Platform())
 	fmt.Fprintf(w, "Manifests:\t%d\n", len(release.ManifestFiles))
 	if len(release.UnknownFiles) > 0 {
 		fmt.Fprintf(w, "Metadata files:\t%d\n", len(release.UnknownFiles))

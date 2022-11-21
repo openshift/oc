@@ -9,10 +9,71 @@ import (
 	"strings"
 	"testing"
 
+	digest "github.com/opencontainers/go-digest"
+	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"k8s.io/apimachinery/pkg/util/diff"
 
 	imageapi "github.com/openshift/api/image/v1"
 )
+
+func TestReleaseInfoPlatform(t *testing.T) {
+	for _, testCase := range []struct {
+		name        string
+		releaseInfo ReleaseInfo
+		expected    string
+	}{
+		{
+			name:     "nil value",
+			expected: "unknown/unknown",
+		},
+		{
+			name: "single config, only architecture",
+			releaseInfo: ReleaseInfo{
+				Config: &dockerv1client.DockerImageConfig{
+					Architecture: "amd64",
+				},
+			},
+			expected: "unknown/amd64",
+		},
+		{
+			name: "single config, only operating system",
+			releaseInfo: ReleaseInfo{
+				Config: &dockerv1client.DockerImageConfig{
+					OS: "linux",
+				},
+			},
+			expected: "linux/unknown",
+		},
+		{
+			name: "single config, both architecture and operating system",
+			releaseInfo: ReleaseInfo{
+				Config: &dockerv1client.DockerImageConfig{
+					Architecture: "amd64",
+					OS:           "linux",
+				},
+			},
+			expected: "linux/amd64",
+		},
+		{
+			name: "manifest-list config, both architecture and operating system",
+			releaseInfo: ReleaseInfo{
+				ManifestListDigest: digest.Digest("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+				Config: &dockerv1client.DockerImageConfig{
+					Architecture: "amd64",
+					OS:           "linux",
+				},
+			},
+			expected: "multi (linux/amd64)",
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			actual := testCase.releaseInfo.Platform()
+			if actual != testCase.expected {
+				t.Errorf("actual %q != expected %q", actual, testCase.expected)
+			}
+		})
+	}
+}
 
 func Test_contentStream_Read(t *testing.T) {
 	tests := []struct {
