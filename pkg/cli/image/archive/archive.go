@@ -399,6 +399,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 			continue
 		}
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
+			if err == system.ErrNotSupportedPlatform {
+				// we ignore not supported platform errors
+				// to proceed archiving on platforms like darwin.
+				continue
+			}
 			if err == syscall.ENOTSUP {
 				// We ignore errors here because not all graphdrivers support
 				// xattrs *cough* old versions of AUFS *cough*. However only
