@@ -392,7 +392,6 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 	}
 
-	var errors []string
 	for key, value := range hdr.Xattrs {
 		// exclude security.capability unless you're root, Lsetxattr only works
 		// for linux based systems so that's fine
@@ -405,7 +404,6 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 				// xattrs *cough* old versions of AUFS *cough*. However only
 				// ENOTSUP should be emitted in that case, otherwise we still
 				// bail.
-				errors = append(errors, err.Error())
 				continue
 			}
 			return err
