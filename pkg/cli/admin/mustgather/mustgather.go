@@ -275,7 +275,11 @@ func (o *MustGatherOptions) Run() error {
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "openshift-must-gather-",
 			Labels: map[string]string{
-				"openshift.io/run-level": "0",
+				"openshift.io/run-level":                         "0",
+				"pod-security.kubernetes.io/enforce":             "privileged",
+				"pod-security.kubernetes.io/audit":               "privileged",
+				"pod-security.kubernetes.io/warn":                "privileged",
+				"security.openshift.io/scc.podSecurityLabelSync": "false",
 			},
 			Annotations: map[string]string{
 				"oc.openshift.io/command":    "oc adm must-gather",
