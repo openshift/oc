@@ -19,7 +19,7 @@ require (
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
 	github.com/elazarl/goproxy v0.0.0-20190911111923-ecfe977594f1
 	github.com/fsnotify/fsnotify v1.5.1
-	github.com/fsouza/go-dockerclient v1.7.1
+	github.com/fsouza/go-dockerclient v1.7.11
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ldap/ldap/v3 v3.4.3
 	github.com/gonum/graph v0.0.0-20170401004347-50b27dea7ebb
@@ -74,7 +74,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/containerd/cgroups v1.0.3 // indirect
-	github.com/containerd/containerd v1.5.7 // indirect
+	github.com/containerd/containerd v1.6.1 // indirect
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
 	github.com/containers/ocicrypt v1.1.5 // indirect
 	github.com/containers/storage v1.42.0 // indirect

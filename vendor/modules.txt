@@ -163,9 +163,8 @@ github.com/chai2010/gettext-go/po
 # github.com/containerd/cgroups v1.0.3
 ## explicit; go 1.16
 github.com/containerd/cgroups/stats/v1
-# github.com/containerd/containerd v1.5.7
+# github.com/containerd/containerd v1.6.1
 ## explicit; go 1.16
-github.com/containerd/containerd/log
 github.com/containerd/containerd/pkg/userns
 github.com/containerd/containerd/sys
 # github.com/containers/image/v5 v5.22.1
@@ -299,8 +298,8 @@ github.com/fatih/camelcase
 # github.com/fsnotify/fsnotify v1.5.1
 ## explicit; go 1.13
 github.com/fsnotify/fsnotify
-# github.com/fsouza/go-dockerclient v1.7.1
-## explicit; go 1.15
+# github.com/fsouza/go-dockerclient v1.7.11
+## explicit; go 1.17
 github.com/fsouza/go-dockerclient
 # github.com/fvbommel/sortorder v1.0.1
 ## explicit; go 1.13
