@@ -18,7 +18,7 @@ require (
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
 	github.com/elazarl/goproxy v0.0.0-20190911111923-ecfe977594f1
-	github.com/fsnotify/fsnotify v1.4.9
+	github.com/fsnotify/fsnotify v1.5.1
 	github.com/fsouza/go-dockerclient v1.7.11
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ldap/ldap/v3 v3.4.3
@@ -27,14 +27,14 @@ require (
 	github.com/joelanford/ignore v0.0.0-20210610194209-63d4919d8fb2
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.0.2
+	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198
 	github.com/openshift/api v0.0.0-20221004120407-c46852673d03
 	github.com/openshift/build-machinery-go v0.0.0-20220913142420-e25cf57ea46d
 	github.com/openshift/client-go v0.0.0-20220831193253-4950ae70c8ea
 	github.com/openshift/library-go v0.0.0-20220922140741-7772048e4447
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1
-	github.com/russross/blackfriday v1.5.2
+	github.com/russross/blackfriday v1.6.0
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29
@@ -64,7 +64,7 @@ require (
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/Azure/go-ntlmssp v0.0.0-20211209120228-48547f28849e // indirect
-	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/BurntSushi/toml v0.4.1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/Microsoft/hcsshim v0.9.2 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
@@ -112,9 +112,9 @@ require (
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/google/uuid v1.2.0 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
+	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
@@ -153,7 +153,7 @@ require (
 	github.com/xlab/treeprint v1.1.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
-	golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6 // indirect
+	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect

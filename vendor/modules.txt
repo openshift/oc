@@ -31,9 +31,10 @@ github.com/Azure/go-autorest/tracing
 # github.com/Azure/go-ntlmssp v0.0.0-20211209120228-48547f28849e
 ## explicit
 github.com/Azure/go-ntlmssp
-# github.com/BurntSushi/toml v0.3.1
-## explicit
+# github.com/BurntSushi/toml v0.4.1
+## explicit; go 1.16
 github.com/BurntSushi/toml
+github.com/BurntSushi/toml/internal
 # github.com/MakeNowJust/heredoc v1.0.0
 ## explicit; go 1.12
 github.com/MakeNowJust/heredoc
@@ -288,7 +289,7 @@ github.com/exponent-io/jsonpath
 # github.com/fatih/camelcase v1.0.0
 ## explicit
 github.com/fatih/camelcase
-# github.com/fsnotify/fsnotify v1.4.9
+# github.com/fsnotify/fsnotify v1.5.1
 ## explicit; go 1.13
 github.com/fsnotify/fsnotify
 # github.com/fsouza/go-dockerclient v1.7.11
@@ -422,13 +423,13 @@ github.com/google/gofuzz/bytesource
 # github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 ## explicit; go 1.13
 github.com/google/shlex
-# github.com/google/uuid v1.2.0
+# github.com/google/uuid v1.3.0
 ## explicit
 github.com/google/uuid
 # github.com/gorilla/mux v1.8.0
 ## explicit; go 1.12
 github.com/gorilla/mux
-# github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7
+# github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 ## explicit
 github.com/gregjones/httpcache
 # github.com/hashicorp/errwrap v1.1.0
@@ -520,8 +521,8 @@ github.com/mxk/go-flowrate/flowrate
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.0.2
-## explicit
+# github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198
+## explicit; go 1.11
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
 # github.com/opencontainers/runc v1.1.0
@@ -775,8 +776,8 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/russross/blackfriday v1.5.2
-## explicit
+# github.com/russross/blackfriday v1.6.0
+## explicit; go 1.13
 github.com/russross/blackfriday
 # github.com/sirupsen/logrus v1.8.1
 ## explicit; go 1.13
@@ -823,7 +824,7 @@ golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6
+# golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5
 ## explicit; go 1.12
 golang.org/x/exp/mmap
 # golang.org/x/net v0.0.0-20220722155237-a158d28d115b
