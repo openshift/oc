@@ -222,8 +222,10 @@ func (o *ImportImageOptions) Run() error {
 		return err
 	}
 
+	var importErr error
 	message := "imported"
 	if wasError(result) {
+		importErr = fmt.Errorf("imported completed with errors")
 		message = "imported with errors"
 	}
 
@@ -279,7 +281,12 @@ func (o *ImportImageOptions) Run() error {
 		return err
 	}
 
-	return printer.PrintObj(stream, o.Out)
+	err = printer.PrintObj(stream, o.Out)
+	if err != nil {
+		return err
+	}
+
+	return importErr
 }
 
 func wasError(isi *imagev1.ImageStreamImport) bool {
