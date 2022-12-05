@@ -6,42 +6,33 @@ import (
 	"path"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/resource"
 )
 
+
+type secretList struct{
+	*corev1.SecretList
+}
+
+func (c *secretList) addItem(obj interface{}) error{
+	structuredItem, ok := obj.(*corev1.Secret)
+	if !ok{
+		return fmt.Errorf("unhandledStructuredItemType: %T", obj)
+	}
+	c.Items = append(c.Items, *structuredItem)
+	return nil
+}
+
+
+
 func inspectSecretInfo(info *resource.Info, o *InspectOptions) error {
-	obj := info.Object
-
-	if unstructureObj, ok := obj.(*unstructured.Unstructured); ok {
-		structuredSecret := &corev1.Secret{}
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructureObj.Object, structuredSecret)
-		if err != nil {
-			return err
-		}
-		obj = structuredSecret
-	}
-	if unstructureObjList, ok := obj.(*unstructured.UnstructuredList); ok {
-		structuredSecretList := &corev1.SecretList{}
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructureObjList.Object, structuredSecretList)
-		if err != nil {
-			return err
-		}
-		for _, unstructureObj := range unstructureObjList.Items {
-			structuredSecret := &corev1.Secret{}
-			err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructureObj.Object, structuredSecret)
-			if err != nil {
-				return err
-			}
-			structuredSecretList.Items = append(structuredSecretList.Items, *structuredSecret)
-		}
-
-		obj = structuredSecretList
+	structuredObj, err := toStructuredObject[corev1.Secret, corev1.SecretList](info.Object)
+	if err != nil{
+		return err
 	}
 
-	switch castObj := obj.(type) {
+	switch castObj := structuredObj.(type) {
 	case *corev1.Secret:
 		elideSecret(castObj)
 
@@ -49,8 +40,6 @@ func inspectSecretInfo(info *resource.Info, o *InspectOptions) error {
 		for i := range castObj.Items {
 			elideSecret(&castObj.Items[i])
 		}
-
-	case *unstructured.UnstructuredList:
 
 	}
 
@@ -61,7 +50,7 @@ func inspectSecretInfo(info *resource.Info, o *InspectOptions) error {
 	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
 		return err
 	}
-	return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), obj)
+	return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), structuredObj)
 }
 
 var publicSecretKeys = sets.NewString(
