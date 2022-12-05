@@ -889,7 +889,7 @@ func (p *pruner) pruneImageStreamTag(is *imagev1.ImageStream, tagEventList image
 	var manifestsToDelete []string
 	var errs []error
 	for rev, item := range tagEventList.Items {
-		if item.Created.After(p.algorithm.keepYoungerThan) {
+		if !p.algorithm.pruneOverSizeLimit && item.Created.After(p.algorithm.keepYoungerThan) {
 			klog.V(4).Infof("imagestream %s/%s: tag %s: revision %d: keeping %s because of --keep-younger-than", is.Namespace, is.Name, tagEventList.Tag, rev+1, item.Image)
 			filteredItems = append(filteredItems, item)
 			continue
