@@ -100,24 +100,28 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 		}
 		return nil
 	default:
-		unstr, ok := info.Object.(*unstructured.Unstructured)
-		if ok {
-			// obtain associated objects for the current resource
-			if err := gatherRelatedObjects(context, unstr, o); err != nil {
-				return err
-			}
-		}
+		return gatherGenericObject(context, info, o)
+	}
+}
 
-		// save the current object to disk
-		dirPath := dirPathForInfo(o.DestDir, info)
-		filename := filenameForInfo(info)
-		// ensure destination path exists
-		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
+func gatherGenericObject(context *resourceContext, info *resource.Info, o *InspectOptions) error {
+	unstr, ok := info.Object.(*unstructured.Unstructured)
+	if ok {
+		// obtain associated objects for the current resource
+		if err := gatherRelatedObjects(context, unstr, o); err != nil {
 			return err
 		}
-
-		return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), info.Object)
 	}
+
+	// save the current object to disk
+	dirPath := dirPathForInfo(o.DestDir, info)
+	filename := filenameForInfo(info)
+	// ensure destination path exists
+	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
+		return err
+	}
+
+	return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), info.Object)
 }
 
 func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstructured, o *InspectOptions) error {
