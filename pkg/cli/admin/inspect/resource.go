@@ -3,6 +3,7 @@ package inspect
 import (
 	"fmt"
 	routev1 "github.com/openshift/api/route/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"os"
 	"path"
 
@@ -94,7 +95,7 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 		}
 		return nil
 
-	case routev1.GroupVersion.WithResource( "routes").GroupResource():
+	case routev1.GroupVersion.WithResource("routes").GroupResource():
 		if err := inspectRouteInfo(info, o); err != nil {
 			return err
 		}
@@ -108,6 +109,12 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 	case admissionregistrationv1.SchemeGroupVersion.WithResource("validatingwebhookconfigurations").GroupResource():
 		if err := gatherValidatingAdmissionWebhook(context, info, o); err != nil {
+			return err
+		}
+		return nil
+
+	case apiextensionsv1.SchemeGroupVersion.WithResource("customresourcedefinitions").GroupResource():
+		if err := gatherCustomResourceDefinition(context, info, o); err != nil {
 			return err
 		}
 		return nil
@@ -141,8 +148,7 @@ func newListAccessor(structuredList interface{}) (listAccessor, error) {
 	}
 }
 
-
-func toStructuredObject[T any, TList any](obj runtime.Object) (runtime.Object, error){
+func toStructuredObject[T any, TList any](obj runtime.Object) (runtime.Object, error) {
 	if unstructureObj, ok := obj.(*unstructured.Unstructured); ok {
 		var t T
 		structuredItem := &t

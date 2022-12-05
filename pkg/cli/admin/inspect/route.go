@@ -9,23 +9,22 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 )
 
-type routeList struct{
+type routeList struct {
 	*routev1.RouteList
 }
 
-func (c *routeList) addItem(obj interface{}) error{
+func (c *routeList) addItem(obj interface{}) error {
 	structuredItem, ok := obj.(*routev1.Route)
-	if !ok{
+	if !ok {
 		return fmt.Errorf("unhandledStructuredItemType: %T", obj)
 	}
 	c.Items = append(c.Items, *structuredItem)
 	return nil
 }
 
-
 func inspectRouteInfo(info *resource.Info, o *InspectOptions) error {
 	structuredObj, err := toStructuredObject[routev1.Route, routev1.RouteList](info.Object)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 

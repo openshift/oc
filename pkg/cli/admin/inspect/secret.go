@@ -10,25 +10,22 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 )
 
-
-type secretList struct{
+type secretList struct {
 	*corev1.SecretList
 }
 
-func (c *secretList) addItem(obj interface{}) error{
+func (c *secretList) addItem(obj interface{}) error {
 	structuredItem, ok := obj.(*corev1.Secret)
-	if !ok{
+	if !ok {
 		return fmt.Errorf("unhandledStructuredItemType: %T", obj)
 	}
 	c.Items = append(c.Items, *structuredItem)
 	return nil
 }
 
-
-
 func inspectSecretInfo(info *resource.Info, o *InspectOptions) error {
 	structuredObj, err := toStructuredObject[corev1.Secret, corev1.SecretList](info.Object)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
