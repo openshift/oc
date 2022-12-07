@@ -97,18 +97,18 @@ func NewRelease(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		`),
 		Example: templates.Examples(`
 			# Create a release from the latest origin images and push to a DockerHub repo
-			oc adm release new --from-image-stream=4.1 -n origin --to-image docker.io/mycompany/myrepo:latest
+			oc adm release new --from-image-stream=4.11 -n origin --to-image docker.io/mycompany/myrepo:latest
 
 			# Create a new release with updated metadata from a previous release
-			oc adm release new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 --name 4.1.1 \
-				--previous 4.1.0 --metadata ... --to-image docker.io/mycompany/myrepo:latest
+			oc adm release new --from-release registry.ci.openshift.org/origin/release:v4.11 --name 4.11.1 \
+				--previous 4.11.0 --metadata ... --to-image docker.io/mycompany/myrepo:latest
 
 			# Create a new release and override a single image
-			oc adm release new --from-release registry.svc.ci.openshift.org/origin/release:v4.1 \
+			oc adm release new --from-release registry.ci.openshift.org/origin/release:v4.11 \
 				cli=docker.io/mycompany/cli:latest --to-image docker.io/mycompany/myrepo:latest
 
 			# Run a verification pass to ensure the release can be reproduced
-			oc adm release new --from-release registry.svc.ci.openshift.org/origin/release:v4.1
+			oc adm release new --from-release registry.ci.openshift.org/origin/release:v4.11
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
