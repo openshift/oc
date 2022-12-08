@@ -74,7 +74,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 
 			If no arguments are specified the release of the currently connected cluster is displayed.
 			Specify one or more images via pull spec to see details of each release image. You may also
-			pass a semantic version (4.2.2) as an argument, and if cluster version object has seen such a
+			pass a semantic version (4.11.2) as an argument, and if cluster version object has seen such a
 			version in the upgrades channel it will find the release info for that version.
 
 			The --commits flag will display the Git commit IDs and repository URLs for the source of each
@@ -104,17 +104,17 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			oc adm release info
 
 			# Show the source code that comprises a release
-			oc adm release info 4.2.2 --commit-urls
+			oc adm release info 4.11.2 --commit-urls
 
 			# Show the source code difference between two releases
-			oc adm release info 4.2.0 4.2.2 --commits
+			oc adm release info 4.11.0 4.11.2 --commits
 
 			# Show where the images referenced by the release are located
-			oc adm release info quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
+			oc adm release info quay.io/openshift-release-dev/ocp-release:4.11.2 --pullspecs
 
 			# Show information about linux/s390x image
 			# Note: Wildcard filter is not supported. Pass a single os/arch to extract
-			oc adm release info quay.io/openshift-release-dev/ocp-release:4.2.2 --filter-by-os=linux/s390x
+			oc adm release info quay.io/openshift-release-dev/ocp-release:4.11.2 --filter-by-os=linux/s390x
 
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
