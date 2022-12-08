@@ -333,7 +333,19 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		if currentOS == "*" {
 			currentArch = "*"
 		} else {
-			currentArch = "amd64"
+			parsed := strings.Split(currentOS, "/")
+			switch len(parsed) {
+			case 1:
+				// --command-os=linux
+				currentArch = "amd64"
+			case 2:
+				// --command-os=linux/amd64
+				currentOS = parsed[0]
+				currentArch = parsed[1]
+			default:
+				return fmt.Errorf("invalid --command-os value")
+			}
+
 		}
 	}
 	if currentOS == "mac" {
