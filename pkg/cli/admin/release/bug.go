@@ -9,61 +9,61 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
-
-	"k8s.io/klog/v2"
 )
 
-type BugType int
+type RefType int
 
 const (
-	Bugzilla BugType = iota
+	Bugzilla RefType = iota
 	Jira
 )
 
 const (
 	maxRetries = 2
 
-	bugzillaBrowseURL = "https://bugzilla.redhat.com/show_bug.cgi?id=%d"
+	bugzillaBrowseURL = "https://bugzilla.redhat.com/show_bug.cgi?id=%s"
 	bugzillaRestURL   = "https://bugzilla.redhat.com/rest/bug"
-	jiraBrowseURL     = "https://issues.redhat.com/browse/OCPBUGS-%d"
-	JiraRestURL       = "https://issues.redhat.com/rest/api/latest/issue/OCPBUGS-%d"
+	jiraBrowseURL     = "https://issues.redhat.com/browse/%s"
+	JiraRestURL       = "https://issues.redhat.com/rest/api/latest/issue/%s"
 )
 
 var (
+	// find strings like "Bug: 123,456 789: some commit description"
 	reBugzillaBug = regexp.MustCompile(`^[B|b]ug(?:s)?\s([\d\s,]+)(?:-|:)\s*`)
-	reJiraBug     = regexp.MustCompile(`^OCPBUGS-([\d\s,]+)(?:-|:)\s*`)
+
+	// find strings like "XYZ-123,ABC-456 DEF-789: some commit description"
+	reJiraRef = regexp.MustCompile(`^([A-Z]+-\d+[\s,]*)+(?:-|:)\s*`)
 )
 
-// BugList stores Bug list
-type BugList struct {
-	Bugs []Bug
+// RefList stores Bug list
+type RefList struct {
+	Refs []Ref
 }
 
-// Bug stores referenced bug ids and
-// source of bug type like Bugzilla or Jira.
-type Bug struct {
-	ID     int
-	Source BugType
+// Ref stores ref ids and
+// source of ref type like Bugzilla or Jira.
+type Ref struct {
+	ID     string
+	Source RefType
 }
 
-// BugRemoteList stores BugRemoteInfo list
-type BugRemoteList struct {
-	Bugs []BugRemoteInfo `json:"bugs"`
+// RefRemoteList stores RefRemoteInfo list
+type RefRemoteList struct {
+	Refs []RefRemoteInfo `json:"refs"`
 }
 
-// BugRemoteInfo stores the detail information of bug retrieved
+// RefRemoteInfo stores the detail information of bug retrieved
 // from remote url like bugzilla or jira.
-type BugRemoteInfo struct {
-	ID       int     `json:"id"`
+type RefRemoteInfo struct {
+	ID       string  `json:"id"`
 	Status   string  `json:"status"`
 	Priority string  `json:"priority"`
 	Summary  string  `json:"summary"`
-	Source   BugType `json:"source"`
+	Source   RefType `json:"source"`
 }
 
-type JiraRemoteBug struct {
+type JiraRemoteRef struct {
 	Key    string           `json:"key"`
 	Fields JiraRemoteFields `json:"fields"`
 }
@@ -82,12 +82,12 @@ type JiraRemotePriority struct {
 	Name string `json:"name"`
 }
 
-// RetrieveBugs retrieves bug details and fills BugRemoteList
-// by sending request to Bugzilla and Jira according to the source type of bug.
-func RetrieveBugs(bugs []Bug) (*BugRemoteList, error) {
-	var brl BugRemoteList
-	var bugzilla, jira []Bug
-	for _, v := range bugs {
+// RetrieveRefs retrieves ref details and fills RefRemoteList
+// by sending request to Bugzilla and Jira according to the source type of ref.
+func RetrieveRefs(refs []Ref) (*RefRemoteList, error) {
+	var brl RefRemoteList
+	var bugzilla, jira []Ref
+	for _, v := range refs {
 		if v.Source == Bugzilla {
 			bugzilla = append(bugzilla, v)
 		} else {
@@ -96,33 +96,33 @@ func RetrieveBugs(bugs []Bug) (*BugRemoteList, error) {
 	}
 
 	var lastErr error
-	bz, err := retrieveBugsBugzilla(bugzilla)
+	bz, err := retrieveRefsBugzila(bugzilla)
 	if err != nil {
 		lastErr = err
 	}
 	if bz != nil {
-		brl.Bugs = append(brl.Bugs, bz.Bugs...)
+		brl.Refs = append(brl.Refs, bz.Refs...)
 	}
 
-	jr, err := retrieveBugsJira(jira)
+	jr, err := retrieveRefsJira(jira)
 	if err != nil {
 		lastErr = err
 	}
 	if jr != nil {
-		brl.Bugs = append(brl.Bugs, jr.Bugs...)
+		brl.Refs = append(brl.Refs, jr.Refs...)
 	}
 
 	return &brl, lastErr
 }
 
-func retrieveBugsJira(bugs []Bug) (*BugRemoteList, error) {
-	if len(bugs) == 0 {
+func retrieveRefsJira(refs []Ref) (*RefRemoteList, error) {
+	if len(refs) == 0 {
 		return nil, nil
 	}
-	var brl BugRemoteList
+	var brl RefRemoteList
 	client := http.DefaultClient
 	var lastErr error
-	for _, b := range bugs {
+	for _, b := range refs {
 		u, err := url.Parse(fmt.Sprintf(JiraRestURL, b.ID))
 		if err != nil {
 			return nil, err
@@ -143,26 +143,26 @@ func retrieveBugsJira(bugs []Bug) (*BugRemoteList, error) {
 			continue
 		}
 		resp.Body.Close()
-		var jrb JiraRemoteBug
+		var jrb JiraRemoteRef
 		if err := json.Unmarshal(data, &jrb); err != nil {
-			lastErr = fmt.Errorf("unable to parse bug list: %v", err)
+			lastErr = fmt.Errorf("unable to parse issue list: %v", err)
 			continue
 		}
 
-		bugInfo := convertJiraToBugRemoteInfo(jrb)
-		brl.Bugs = append(brl.Bugs, bugInfo)
+		refInfo := convertJiraToRefRemoteInfo(jrb)
+		brl.Refs = append(brl.Refs, refInfo)
 	}
 
-	if len(brl.Bugs) == 0 && lastErr != nil {
+	if len(brl.Refs) == 0 && lastErr != nil {
 		return nil, lastErr
 	}
 
 	return &brl, nil
 }
 
-func convertJiraToBugRemoteInfo(jrb JiraRemoteBug) BugRemoteInfo {
-	var bri BugRemoteInfo
-	bri.ID, _ = strconv.Atoi(strings.Replace(jrb.Key, "OCPBUGS-", "", 1))
+func convertJiraToRefRemoteInfo(jrb JiraRemoteRef) RefRemoteInfo {
+	var bri RefRemoteInfo
+	bri.ID = jrb.Key
 	bri.Priority = jrb.Fields.Priority.Name
 	bri.Summary = jrb.Fields.Summary
 	bri.Status = jrb.Fields.Status.Name
@@ -170,7 +170,7 @@ func convertJiraToBugRemoteInfo(jrb JiraRemoteBug) BugRemoteInfo {
 	return bri
 }
 
-func retrieveBugsBugzilla(bugs []Bug) (*BugRemoteList, error) {
+func retrieveRefsBugzila(bugs []Ref) (*RefRemoteList, error) {
 	if len(bugs) == 0 {
 		return nil, nil
 	}
@@ -181,7 +181,7 @@ func retrieveBugsBugzilla(bugs []Bug) (*BugRemoteList, error) {
 	client := http.DefaultClient
 	q := url.Values{}
 	for _, b := range bugs {
-		q.Add("id", strconv.Itoa(b.ID))
+		q.Add("id", b.ID)
 	}
 	u.RawQuery = q.Encode()
 	var lastErr error
@@ -202,14 +202,14 @@ func retrieveBugsBugzilla(bugs []Bug) (*BugRemoteList, error) {
 			continue
 		}
 		resp.Body.Close()
-		var bugList BugRemoteList
+		var bugList RefRemoteList
 		if err := json.Unmarshal(data, &bugList); err != nil {
 			lastErr = fmt.Errorf("unable to parse bug list: %v", err)
 			continue
 		}
 
-		for i := range bugList.Bugs {
-			bugList.Bugs[i].Source = Bugzilla
+		for i := range bugList.Refs {
+			bugList.Refs[i].Source = Bugzilla
 		}
 
 		return &bugList, nil
@@ -217,33 +217,33 @@ func retrieveBugsBugzilla(bugs []Bug) (*BugRemoteList, error) {
 	return nil, lastErr
 }
 
-// PrintBugs prints bugs in a formatted way by also handling
-// its correct url whether it is bugzilla bug or jira bug.
-func (b BugList) PrintBugs(out io.Writer) {
-	for i, bug := range b.Bugs {
+// PrintRefs prints refs in a formatted way by also handling
+// its correct url whether it is bugzilla bug or jira reference.
+func (b RefList) PrintRefs(out io.Writer) {
+	for i, ref := range b.Refs {
 		if i == 0 {
-			if bug.Source == Bugzilla {
-				fmt.Fprintf(out, " [Bug %d](%s)", bug.ID, fmt.Sprintf(bugzillaBrowseURL, bug.ID))
+			if ref.Source == Bugzilla {
+				fmt.Fprintf(out, " [Bug %s](%s)", ref.ID, fmt.Sprintf(bugzillaBrowseURL, ref.ID))
 			} else {
-				fmt.Fprintf(out, " [OCPBUGS-%d](%s)", bug.ID, fmt.Sprintf(jiraBrowseURL, bug.ID))
+				fmt.Fprintf(out, " [%s](%s)", ref.ID, fmt.Sprintf(jiraBrowseURL, ref.ID))
 			}
 		} else {
-			if bug.Source == Bugzilla {
-				fmt.Fprintf(out, ", [%d](%s)", bug.ID, fmt.Sprintf(bugzillaBrowseURL, bug.ID))
+			if ref.Source == Bugzilla {
+				fmt.Fprintf(out, ", [%s](%s)", ref.ID, fmt.Sprintf(bugzillaBrowseURL, ref.ID))
 			} else {
-				fmt.Fprintf(out, ", [%d](%s)", bug.ID, fmt.Sprintf(jiraBrowseURL, bug.ID))
+				fmt.Fprintf(out, ", [%s](%s)", ref.ID, fmt.Sprintf(jiraBrowseURL, ref.ID))
 			}
 		}
 	}
-	if len(b.Bugs) > 0 {
+	if len(b.Refs) > 0 {
 		fmt.Fprintf(out, ":")
 	}
 }
 
-// GetBugList converts Bug map to bug list after sorting
+// GetRefList converts Ref map to Ref list after sorting
 // according to the ID field.
-func GetBugList(b map[string]Bug) []Bug {
-	var bs []Bug
+func GetRefList(b map[string]Ref) []Ref {
+	var bs []Ref
 	for _, v := range b {
 		bs = append(bs, v)
 	}
@@ -255,18 +255,10 @@ func GetBugList(b map[string]Bug) []Bug {
 	return bs
 }
 
-func generateBugKey(bt BugType, id int) string {
-	if bt == Bugzilla {
-		return fmt.Sprintf("bugzilla-%d", id)
-	}
-
-	return fmt.Sprintf("jira-%d", id)
-}
-
-// extractBugs parses git log output and extracts bug list
+// extractRefs parses git log output and extracts bugzilla+jira references
 // compatible with Bugzilla or Jira prefixes.
-func extractBugs(msg string) (BugList, string) {
-	var b BugList
+func extractRefs(msg string) (RefList, string) {
+	var b RefList
 	if msg == "" {
 		return b, ""
 	}
@@ -275,34 +267,37 @@ func extractBugs(msg string) (BugList, string) {
 	msg = rePrefix.ReplaceAllString(strings.TrimSpace(msg), "")
 	parsedMsg := reBugzillaBug.FindStringSubmatch(msg)
 	if parsedMsg == nil {
-		parsedMsg = reJiraBug.FindStringSubmatch(msg)
+		parsedMsg = reJiraRef.FindStringSubmatch(msg)
 		if parsedMsg == nil {
 			return b, msg
 		}
 		bt = Jira
 	}
 
+	refs := parsedMsg[1]
+	if bt == Jira {
+		refs = strings.TrimSpace(parsedMsg[0])
+		refs = strings.TrimSuffix(refs, ":")
+	}
+
+	// trim all the bug/jira refs from the commit message
 	msg = msg[len(parsedMsg[0]):]
-	for _, part := range strings.Split(parsedMsg[1], ",") {
+
+	for _, part := range strings.Split(refs, ",") {
 		for _, subpart := range strings.Split(part, " ") {
 			subpart = strings.TrimSpace(subpart)
 			if len(subpart) == 0 {
 				continue
 			}
-			bug, err := strconv.Atoi(subpart)
-			if err != nil {
-				klog.V(5).Infof("unable to parse numbers from %q: %v", part, err)
-				continue
-			}
-			b.Bugs = append(b.Bugs, Bug{
-				ID:     bug,
+			b.Refs = append(b.Refs, Ref{
+				ID:     subpart,
 				Source: bt,
 			})
 		}
 	}
 
-	sort.Slice(b.Bugs, func(i, j int) bool {
-		return b.Bugs[i].ID < b.Bugs[j].ID
+	sort.Slice(b.Refs, func(i, j int) bool {
+		return b.Refs[i].ID < b.Refs[j].ID
 	})
 
 	return b, msg
