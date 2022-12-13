@@ -296,7 +296,7 @@ func FirstManifest(ctx context.Context, from imagereference.DockerImageReference
 		return nil, ManifestLocation{}, err
 	}
 	if len(srcManifests) == 0 {
-		return nil, ManifestLocation{}, fmt.Errorf("filtered all images from manifest list")
+		return nil, ManifestLocation{}, AllImageFilteredErr
 	}
 
 	if srcDigest != originalSrcDigest {
