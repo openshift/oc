@@ -753,6 +753,14 @@ func DescribeImage(image *imagev1.Image, imageName string) (string, error) {
 		formatString(out, "Author", dockerImage.Author)
 		formatString(out, "Arch", dockerImage.Architecture)
 
+		if len(image.DockerImageManifests) > 0 {
+			var manifests []string
+			for _, m := range image.DockerImageManifests {
+				manifests = append(manifests, fmt.Sprintf("%s/%s\t%s", m.OS, m.Architecture, m.Digest))
+			}
+			formatString(out, "Manifests", strings.Join(manifests, "\n"))
+		}
+
 		dockerImageConfig := dockerImage.Config
 		// This field should always be populated, if it is not we should print empty fields.
 		if dockerImageConfig == nil {
