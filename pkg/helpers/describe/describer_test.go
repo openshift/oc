@@ -539,6 +539,22 @@ func TestDescribeImage(t *testing.T) {
 				"Image Size:.+4.43kB in 2 layers",
 			},
 		},
+		{
+			image: imagev1.Image{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+				DockerImageManifests: []imagev1.ImageManifest{
+					{Architecture: "amd64", OS: "linux", Digest: "sha256:1234"},
+					{Architecture: "s390x", OS: "linux", Digest: "sha256:5678"},
+				},
+				DockerImageMetadata: runtime.RawExtension{Object: &dockerv10.DockerImage{}},
+			},
+			want: []string{
+				"Manifests:\\slinux/amd64\\ssha256:1234",
+				"linux/s390x\\ssha256:5678",
+			},
+		},
 	}
 	for i := range tests {
 		tt := tests[i]
