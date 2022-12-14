@@ -1575,7 +1575,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 			}
 			for _, commit := range commits {
 				fmt.Fprintf(out, "*")
-				commit.Bugs.PrintBugs(out)
+				commit.Refs.PrintRefs(out)
 				fmt.Fprintf(out, " %s", replaceUnsafeInput.Replace(commit.Subject))
 				switch {
 				case commit.PullRequest > 0:
@@ -1610,7 +1610,7 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 	var hasError bool
 	codeChanges, _, _ := releaseDiffContentChanges(diff)
 
-	bugIDs := make(map[string]Bug)
+	bugIDs := make(map[string]Ref)
 	for _, change := range codeChanges {
 		_, commits, err := commitsForRepo(dir, change, out, errOut)
 		if err != nil {
@@ -1619,27 +1619,30 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 			continue
 		}
 		for _, commit := range commits {
-			if len(commit.Bugs.Bugs) == 0 {
+			if len(commit.Refs.Refs) == 0 {
 				continue
 			}
-			for _, v := range commit.Bugs.Bugs {
-				if _, ok := bugIDs[generateBugKey(v.Source, v.ID)]; !ok {
-					// We are using generated bug key according to the source type
-					// to prevent possible clashes like BUG 111 and OCPBUGS-111
-					bugIDs[generateBugKey(v.Source, v.ID)] = v
+			for _, v := range commit.Refs.Refs {
+				// the describeBugs function only returns bug references because it's used from the --bugs argument
+				// which prints bugs (not all changes) in the payload, so ignore jira refs to non bugs
+				if v.Source == Jira && !(strings.HasPrefix(v.ID, "OCPBUGS-") || strings.HasPrefix(v.ID, "OCPBUGSM-")) {
+					continue
+				}
+				if _, ok := bugIDs[v.ID]; !ok {
+					bugIDs[v.ID] = v
 				}
 			}
 		}
 	}
 
-	bugs := make(map[string]BugRemoteInfo)
-	var valid []Bug
+	bugs := make(map[string]RefRemoteInfo)
+	var valid []Ref
 	if skipBugCheck {
-		valid = GetBugList(bugIDs)
+		valid = GetRefList(bugIDs)
 	} else {
-		allBugIDs := GetBugList(bugIDs)
+		allBugIDs := GetRefList(bugIDs)
 		for len(allBugIDs) > 0 {
-			var next []Bug
+			var next []Ref
 			if len(allBugIDs) > 10 {
 				next = allBugIDs[:10]
 				allBugIDs = allBugIDs[10:]
@@ -1648,18 +1651,18 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 				allBugIDs = nil
 			}
 
-			bugList, err := RetrieveBugs(next)
+			bugList, err := RetrieveRefs(next)
 			if err != nil {
 
 			}
-			for _, bug := range bugList.Bugs {
-				bugs[generateBugKey(bug.Source, bug.ID)] = bug
+			for _, bug := range bugList.Refs {
+				bugs[bug.ID] = bug
 			}
 		}
 
-		for _, id := range GetBugList(bugIDs) {
-			if _, ok := bugs[generateBugKey(id.Source, id.ID)]; !ok {
-				fmt.Fprintf(errOut, "error: Bug %d was not retrieved\n", id.ID)
+		for _, id := range GetRefList(bugIDs) {
+			if _, ok := bugs[id.ID]; !ok {
+				fmt.Fprintf(errOut, "error: Bug %s was not retrieved\n", id.ID)
 				hasError = true
 				continue
 			}
@@ -1674,12 +1677,12 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 				fmt.Fprintln(out, b.ID)
 			}
 		case "json":
-			var printedBugs []BugRemoteInfo
+			var printedBugs []RefRemoteInfo
 			for _, v := range valid {
 				if skipBugCheck {
-					printedBugs = append(printedBugs, BugRemoteInfo{ID: v.ID, Source: v.Source})
+					printedBugs = append(printedBugs, RefRemoteInfo{ID: v.ID, Source: v.Source})
 				} else {
-					if bug, ok := bugs[generateBugKey(v.Source, v.ID)]; ok {
+					if bug, ok := bugs[v.ID]; ok {
 						printedBugs = append(printedBugs, bug)
 					}
 				}
@@ -1693,8 +1696,8 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 			tw := tabwriter.NewWriter(out, 0, 0, 1, ' ', 0)
 			fmt.Fprintln(tw, "ID\tSTATUS\tPRIORITY\tSUMMARY")
 			for _, v := range valid {
-				if bug, ok := bugs[generateBugKey(v.Source, v.ID)]; ok {
-					fmt.Fprintf(tw, "%d\t%s\t%s\t%s\n", v.ID, bug.Status, bug.Priority, bug.Summary)
+				if bug, ok := bugs[v.ID]; ok {
+					fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", v.ID, bug.Status, bug.Priority, bug.Summary)
 				}
 			}
 			tw.Flush()
