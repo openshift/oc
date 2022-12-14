@@ -44,6 +44,8 @@ type TagOptions struct {
 	destNameAndTag []string
 
 	genericclioptions.IOStreams
+
+	importMode string
 }
 
 var (
@@ -111,6 +113,7 @@ func NewCmdTag(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 	cmd.Flags().BoolVar(&o.scheduleTag, "scheduled", o.scheduleTag, "Set a container image to be periodically imported from a remote repository. Defaults to false.")
 	cmd.Flags().BoolVar(&o.insecureTag, "insecure", o.insecureTag, "Set to true if importing the specified container image requires HTTP or has a self-signed certificate. Defaults to false.")
 	cmd.Flags().StringVar(&o.referencePolicy, "reference-policy", SourceReferencePolicy, "Allow to request pullthrough for external image when set to 'local'. Defaults to 'source'.")
+	cmd.Flags().StringVar(&o.importMode, "import-mode", o.importMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
 
 	return cmd
 }
@@ -322,6 +325,9 @@ func (o TagOptions) Validate() error {
 		if o.scheduleTag || o.insecureTag {
 			return errors.New("cannot set flags for importing images when deleting a tag")
 		}
+		if len(o.importMode) > 0 {
+			return errors.New("cannot specify an import mode when deleting")
+		}
 	} else {
 		if len(o.sourceKind) == 0 {
 			return errors.New("a source kind is required")
@@ -435,8 +441,9 @@ func (o TagOptions) Run() error {
 					Name:      destTag,
 					Reference: o.referenceTag,
 					ImportPolicy: imagev1.TagImportPolicy{
-						Insecure:  o.insecureTag,
-						Scheduled: o.scheduleTag,
+						Insecure:   o.insecureTag,
+						Scheduled:  o.scheduleTag,
+						ImportMode: imagev1.ImportModeType(o.importMode),
 					},
 					ReferencePolicy: imagev1.TagReferencePolicy{
 						Type: tagReferencePolicy,
