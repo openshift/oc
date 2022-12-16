@@ -96,15 +96,11 @@ const eventHTMLPage = `
     data-show-pagination-switch="true" data-show-columns="true" data-addrbar="true">
     <thead>
       <tr>
-        <th data-width="100" data-field="time" data-filter-control="input" data-sortable="true"
-          data-filter-custom-search="timeSearch">Time</th>
-        <th data-width="200" data-field="namespace" data-filter-control="input" data-sortable="true">Namespace
-        </th>
-        <th data-width="200" data-field="component" data-filter-control="input" data-sortable="true">Component
-        </th>
-        <th data-width="200" data-field="relatedobject" data-filter-control="input" data-sortable="true">
-          RelatedObject</th>
-        <th data-field="reason" data-filter-control="input">Reason</th>
+        <th data-width="100" data-field="time" data-filter-control="input" data-sortable="true" data-filter-custom-search="timeSearch">Time</th>
+        <th data-width="200" data-field="namespace" data-filter-control="input" data-sortable="true" data-filter-custom-search="textSearch">Namespace</th>
+        <th data-width="200" data-field="component" data-filter-control="input" data-sortable="true" data-filter-custom-search="textSearch">Component</th>
+        <th data-width="200" data-field="relatedobject" data-filter-control="input" data-sortable="true" data-filter-custom-search="textSearch">RelatedObject</th>
+        <th data-field="reason" data-filter-control="input" data-filter-custom-search="textSearch">Reason</th>
         <th data-field="message" data-filter-control="input" data-escape="true">Message</th>
       </tr>
     </thead>
@@ -203,6 +199,19 @@ const eventHTMLPage = `
       }
     }
 
+    function textSearch(query, cellToTest, _columnName, allData) {
+      const cellContent = ((cell) => {
+        if (cell.startsWith("<p")) {
+          var p = document.createElement('p')
+          p.innerHTML = cell
+          return p.textContent
+        } else {
+          return cell
+        }
+      })(cellToTest)
+      return (new RegExp(query, 'i')).test(cellContent)
+    }
+
     function timeSearch(query, cellToTest, _columnName, allData) {
       if (lastErrMsgQuery !== query) {
         $("#errorMsg").hide()
@@ -277,7 +286,7 @@ const eventHTMLPage = `
     // Below is modified code from: https://github.com/wenzhixin/bootstrap-table/blob/develop/src/extensions/addrbar/bootstrap-table-addrbar.js
     // Original author: generals.space@gmail.com
     // Licence: MIT(https://github.com/wenzhixin/bootstrap-table/blob/develop/LICENSE)
-    function _GET(key, url = window.location.search) {
+    function _GET(key, url = window.location.hash) {
       const reg = new RegExp("(^|&)" + key + "=([^&]*)(&|$)")
       const result = url.substr(1).match(reg)
 
@@ -287,7 +296,7 @@ const eventHTMLPage = `
       return null
     }
 
-    function _buildUrl(dict, url = window.location.search) {
+    function _buildUrl(dict, url = window.location.hash) {
       for (const [key, val] of Object.entries(dict)) {
         const pattern = key + "=([^&]*)"
         const targetStr = key + "=" + val
@@ -300,18 +309,14 @@ const eventHTMLPage = `
           const tmp = new RegExp("(" + key + "=)([^&]*)", 'gi')
           url = url.replace(tmp, targetStr)
         } else {
-          const seperator = url.match('[?]') ? '&' : '?'
-          url = url + seperator + targetStr
+          url = url + targetStr + '&'
         }
       }
-
-      if (location.hash) {
-        url += location.hash
-      }
-      return url
+      
+      return url.slice(-1) === '&' ? url.slice(0, -1) : url
     }
 
-    function _updateHistoryState(table, _prefix) {
+    function updateURL(table, _prefix) {
       const params = {}
 
       params[_prefix + "page"] = table.options.pageNumber
@@ -325,7 +330,7 @@ const eventHTMLPage = `
         params[_prefix + columnName] = table._valuesFilterControl.find(column => column.field === columnName).value
       });
 
-      window.history.pushState({}, '', _buildUrl(params))
+      window.location.hash = _buildUrl(params)
     }
 
     $.extend($.fn.bootstrapTable.defaults, {
@@ -357,7 +362,7 @@ const eventHTMLPage = `
             if (this.addrbarInit) {
               this.addrbarInit = false
             } else {
-              _updateHistoryState(this, _prefix)
+              updateURL(this, _prefix)
             }
 
             if (_onLoadSuccess) {
@@ -366,7 +371,7 @@ const eventHTMLPage = `
           }
 
           this.options.onPageChange = (number, size) => {
-            _updateHistoryState(this, _prefix)
+            updateURL(this, _prefix)
 
             if (_onPageChange) {
               _onPageChange.call(this, number, size)
@@ -374,7 +379,7 @@ const eventHTMLPage = `
           }
 
           this.options.onSort = (name, order) => {
-            _updateHistoryState(this, _prefix)
+            updateURL(this, _prefix)
 
             if (_onSort) {
               _onSort.call(this, name, order)

@@ -248,7 +248,7 @@ func createEventFilterPage(events *corev1.EventList, rootDir string) error {
 			if lastSeen.IsZero() {
 				lastSeen = created
 			}
-			return template.HTML(fmt.Sprintf(`<time datetime="%s" title="First Seen: %s">%s</time>%s`, lastSeen.String(), firstSeen.Format("15:04:05"), lastSeen.Format("15:04:05"), countMsg))
+			return template.HTML(fmt.Sprintf(`<time datetime="%s" title="%s&#010;First Seen: %s">%s</time>%s`, lastSeen.String(), lastSeen.String(), firstSeen.Format("15:04:05"), lastSeen.Format("15:04:05"), countMsg))
 		},
 		"formatReason": func(r string) template.HTML {
 			switch {
