@@ -99,8 +99,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
 	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
-	cmd.Flags().StringVar(&o.RunNamespace, "run-namespace", o.RunNamespace, "An existing namespace where must-gather pods should run. If not specified a temporary namespace will be generated.")
-	cmd.Flags().MarkHidden("run-namespace")
+	cmd.Flags().StringVar(&o.RunNamespace, "run-namespace", o.RunNamespace, "An existing privileged namespace where must-gather pods should run. If not specified a temporary namespace will be generated.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	cmd.Flags().MarkHidden("keep")
 

@@ -74,7 +74,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 
 			If no arguments are specified the release of the currently connected cluster is displayed.
 			Specify one or more images via pull spec to see details of each release image. You may also
-			pass a semantic version (4.2.2) as an argument, and if cluster version object has seen such a
+			pass a semantic version (4.11.2) as an argument, and if cluster version object has seen such a
 			version in the upgrades channel it will find the release info for that version.
 
 			The --commits flag will display the Git commit IDs and repository URLs for the source of each
@@ -104,17 +104,17 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			oc adm release info
 
 			# Show the source code that comprises a release
-			oc adm release info 4.2.2 --commit-urls
+			oc adm release info 4.11.2 --commit-urls
 
 			# Show the source code difference between two releases
-			oc adm release info 4.2.0 4.2.2 --commits
+			oc adm release info 4.11.0 4.11.2 --commits
 
 			# Show where the images referenced by the release are located
-			oc adm release info quay.io/openshift-release-dev/ocp-release:4.2.2 --pullspecs
+			oc adm release info quay.io/openshift-release-dev/ocp-release:4.11.2 --pullspecs
 
 			# Show information about linux/s390x image
 			# Note: Wildcard filter is not supported. Pass a single os/arch to extract
-			oc adm release info quay.io/openshift-release-dev/ocp-release:4.2.2 --filter-by-os=linux/s390x
+			oc adm release info quay.io/openshift-release-dev/ocp-release:4.11.2 --filter-by-os=linux/s390x
 
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -736,15 +736,23 @@ func (i *ReleaseInfo) PreferredName() string {
 }
 
 func (i *ReleaseInfo) Platform() string {
-	os := i.Config.OS
-	if len(os) > 0 {
+	config := i.Config
+	if config == nil {
+		config = &dockerv1client.DockerImageConfig{}
+	}
+
+	os := config.OS
+	if len(os) == 0 {
 		os = "unknown"
 	}
-	arch := i.Config.Architecture
+	arch := config.Architecture
 	if len(arch) == 0 {
 		arch = "unknown"
 	}
-	return fmt.Sprintf("%s/%s", os, arch)
+	if len(i.ManifestListDigest) == 0 {
+		return fmt.Sprintf("%s/%s", os, arch)
+	}
+	return fmt.Sprintf("multi (%s/%s)", os, arch)
 }
 
 func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*ReleaseInfo, error) {
@@ -1218,7 +1226,7 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 		fmt.Fprintf(w, "Digest:\t%s\n", release.ManifestListDigest.String())
 	}
 	fmt.Fprintf(w, "Created:\t%s\n", release.Config.Created.UTC().Truncate(time.Second).Format(time.RFC3339))
-	fmt.Fprintf(w, "OS/Arch:\t%s/%s\n", release.Config.OS, release.Config.Architecture)
+	fmt.Fprintf(w, "OS/Arch:\t%s\n", release.Platform())
 	fmt.Fprintf(w, "Manifests:\t%d\n", len(release.ManifestFiles))
 	if len(release.UnknownFiles) > 0 {
 		fmt.Fprintf(w, "Metadata files:\t%d\n", len(release.UnknownFiles))
@@ -1567,7 +1575,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 			}
 			for _, commit := range commits {
 				fmt.Fprintf(out, "*")
-				commit.Bugs.PrintBugs(out)
+				commit.Refs.PrintRefs(out)
 				fmt.Fprintf(out, " %s", replaceUnsafeInput.Replace(commit.Subject))
 				switch {
 				case commit.PullRequest > 0:
@@ -1602,7 +1610,7 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 	var hasError bool
 	codeChanges, _, _ := releaseDiffContentChanges(diff)
 
-	bugIDs := make(map[string]Bug)
+	bugIDs := make(map[string]Ref)
 	for _, change := range codeChanges {
 		_, commits, err := commitsForRepo(dir, change, out, errOut)
 		if err != nil {
@@ -1611,27 +1619,30 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 			continue
 		}
 		for _, commit := range commits {
-			if len(commit.Bugs.Bugs) == 0 {
+			if len(commit.Refs.Refs) == 0 {
 				continue
 			}
-			for _, v := range commit.Bugs.Bugs {
-				if _, ok := bugIDs[generateBugKey(v.Source, v.ID)]; !ok {
-					// We are using generated bug key according to the source type
-					// to prevent possible clashes like BUG 111 and OCPBUGS-111
-					bugIDs[generateBugKey(v.Source, v.ID)] = v
+			for _, v := range commit.Refs.Refs {
+				// the describeBugs function only returns bug references because it's used from the --bugs argument
+				// which prints bugs (not all changes) in the payload, so ignore jira refs to non bugs
+				if v.Source == Jira && !(strings.HasPrefix(v.ID, "OCPBUGS-") || strings.HasPrefix(v.ID, "OCPBUGSM-")) {
+					continue
+				}
+				if _, ok := bugIDs[v.ID]; !ok {
+					bugIDs[v.ID] = v
 				}
 			}
 		}
 	}
 
-	bugs := make(map[string]BugRemoteInfo)
-	var valid []Bug
+	bugs := make(map[string]RefRemoteInfo)
+	var valid []Ref
 	if skipBugCheck {
-		valid = GetBugList(bugIDs)
+		valid = GetRefList(bugIDs)
 	} else {
-		allBugIDs := GetBugList(bugIDs)
+		allBugIDs := GetRefList(bugIDs)
 		for len(allBugIDs) > 0 {
-			var next []Bug
+			var next []Ref
 			if len(allBugIDs) > 10 {
 				next = allBugIDs[:10]
 				allBugIDs = allBugIDs[10:]
@@ -1640,18 +1651,18 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 				allBugIDs = nil
 			}
 
-			bugList, err := RetrieveBugs(next)
+			bugList, err := RetrieveRefs(next)
 			if err != nil {
 
 			}
-			for _, bug := range bugList.Bugs {
-				bugs[generateBugKey(bug.Source, bug.ID)] = bug
+			for _, bug := range bugList.Refs {
+				bugs[bug.ID] = bug
 			}
 		}
 
-		for _, id := range GetBugList(bugIDs) {
-			if _, ok := bugs[generateBugKey(id.Source, id.ID)]; !ok {
-				fmt.Fprintf(errOut, "error: Bug %d was not retrieved\n", id.ID)
+		for _, id := range GetRefList(bugIDs) {
+			if _, ok := bugs[id.ID]; !ok {
+				fmt.Fprintf(errOut, "error: Bug %s was not retrieved\n", id.ID)
 				hasError = true
 				continue
 			}
@@ -1666,12 +1677,12 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 				fmt.Fprintln(out, b.ID)
 			}
 		case "json":
-			var printedBugs []BugRemoteInfo
+			var printedBugs []RefRemoteInfo
 			for _, v := range valid {
 				if skipBugCheck {
-					printedBugs = append(printedBugs, BugRemoteInfo{ID: v.ID, Source: v.Source})
+					printedBugs = append(printedBugs, RefRemoteInfo{ID: v.ID, Source: v.Source})
 				} else {
-					if bug, ok := bugs[generateBugKey(v.Source, v.ID)]; ok {
+					if bug, ok := bugs[v.ID]; ok {
 						printedBugs = append(printedBugs, bug)
 					}
 				}
@@ -1685,8 +1696,8 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 			tw := tabwriter.NewWriter(out, 0, 0, 1, ' ', 0)
 			fmt.Fprintln(tw, "ID\tSTATUS\tPRIORITY\tSUMMARY")
 			for _, v := range valid {
-				if bug, ok := bugs[generateBugKey(v.Source, v.ID)]; ok {
-					fmt.Fprintf(tw, "%d\t%s\t%s\t%s\n", v.ID, bug.Status, bug.Priority, bug.Summary)
+				if bug, ok := bugs[v.ID]; ok {
+					fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", v.ID, bug.Status, bug.Priority, bug.Summary)
 				}
 			}
 			tw.Flush()

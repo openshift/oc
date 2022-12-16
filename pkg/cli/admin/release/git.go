@@ -146,7 +146,7 @@ type MergeCommit struct {
 	ParentCommits []string
 
 	PullRequest int
-	Bugs        BugList
+	Refs        RefList
 
 	Subject string
 }
@@ -239,7 +239,7 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 			msg = records[2]
 		}
 
-		mergeCommit.Bugs, msg = extractBugs(msg)
+		mergeCommit.Refs, msg = extractRefs(msg)
 		msg = strings.TrimSpace(msg)
 		msg = strings.SplitN(msg, "\n", 2)[0]
 

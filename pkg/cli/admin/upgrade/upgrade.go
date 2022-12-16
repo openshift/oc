@@ -28,6 +28,13 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
 )
 
+const (
+	// clusterStatusFailing is set on the ClusterVersion status when a cluster
+	// cannot reach the desired state. It is considered more serious than Degraded
+	// and indicates the cluster is not healthy.
+	clusterStatusFailing = configv1.ClusterStatusConditionType("Failing")
+)
+
 var upgradeExample = templates.Examples(`
 	# Review the available cluster updates
 	oc adm upgrade
@@ -63,6 +70,9 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 			itself and report status that is available via "oc get clusterversion" and "oc describe
 			clusterversion".
 
+			Passing --to-multi-arch will upgrade the cluster from a single-architecture to a
+			multi-architecture cluster at the current version.
+
 			If there are no versions available, or a bug in the cluster version operator prevents
 			updates from being retrieved, --to-image may be combined with the more powerful and
 			dangerous --allow-explicit-upgrade. This instructs the cluster to upgrade to the contents
@@ -91,13 +101,14 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 	flags := cmd.Flags()
 	flags.StringVar(&o.To, "to", o.To, "Specify the version to upgrade to. The version must be on the list of available updates.")
 	flags.StringVar(&o.ToImage, "to-image", o.ToImage, "Provide a release image to upgrade to.")
-	flags.BoolVar(&o.ToLatestAvailable, "to-latest", o.ToLatestAvailable, "Use the next available version")
+	flags.BoolVar(&o.ToLatestAvailable, "to-latest", o.ToLatestAvailable, "Use the next available version.")
+	flags.BoolVar(&o.ToMultiArch, "to-multi-arch", o.ToMultiArch, "Upgrade current version to multi architecture.")
 	flags.BoolVar(&o.Clear, "clear", o.Clear, "If an upgrade has been requested but not yet downloaded, cancel the update. This has no effect once the update has started.")
 	flags.BoolVar(&o.Force, "force", o.Force, "Forcefully upgrade the cluster even when upgrade release image validation fails and the cluster is reporting errors.")
 	flags.BoolVar(&o.AllowExplicitUpgrade, "allow-explicit-upgrade", o.AllowExplicitUpgrade, "Upgrade even if the upgrade target is not listed in the available versions list.")
 	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade even if an upgrade is in process or a cluster error is blocking the update.")
 	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
-	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows upgrade to a version when it is supported but not recommended for updates")
+	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows upgrade to a version when it is supported but not recommended for updates.")
 
 	cmd.AddCommand(channel.New(f, streams))
 
@@ -110,6 +121,7 @@ type Options struct {
 	To                string
 	ToImage           string
 	ToLatestAvailable bool
+	ToMultiArch       bool
 
 	AllowExplicitUpgrade     bool
 	AllowUpgradeWithWarnings bool
@@ -122,18 +134,21 @@ type Options struct {
 }
 
 func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
-	if o.Clear && (len(o.ToImage) > 0 || len(o.To) > 0 || o.ToLatestAvailable) {
+	if o.Clear && (len(o.ToImage) > 0 || len(o.To) > 0 || o.ToLatestAvailable || o.ToMultiArch) {
 		return fmt.Errorf("--clear may not be specified with any other flags")
+	}
+	if o.ToMultiArch && (len(o.To) > 0 || len(o.ToImage) > 0) {
+		return fmt.Errorf("--to-multi-arch may not be used with --to or --to-image")
 	}
 	if len(o.To) > 0 && len(o.ToImage) > 0 {
 		return fmt.Errorf("only one of --to or --to-image may be provided")
 	}
-
 	if len(o.To) > 0 {
 		if _, err := semver.Parse(o.To); err != nil {
 			return fmt.Errorf("--to must be a semantic version (e.g. 4.0.1 or 4.1.0-nightly-20181104): %v", err)
 		}
 	}
+
 	// defend against simple mistakes (4.0.1 is a valid container image)
 	if len(o.ToImage) > 0 {
 		ref, err := imagereference.Parse(o.ToImage)
@@ -176,6 +191,8 @@ func (o *Options) Run() error {
 		return err
 	}
 
+	ctx := context.TODO()
+
 	switch {
 	case o.Clear:
 		if cv.Spec.DesiredUpdate == nil {
@@ -193,6 +210,18 @@ func (o *Options) Run() error {
 		} else {
 			fmt.Fprintf(o.Out, "Cancelled requested upgrade to %s\n", updateVersionString(*original))
 		}
+		return nil
+
+	case o.ToMultiArch:
+		if cv.Spec.DesiredUpdate != nil && cv.Spec.DesiredUpdate.Architecture == configv1.ClusterVersionArchitectureMulti {
+			return fmt.Errorf("info: Update to multi cluster architecture has already been requested")
+		}
+		if err := patchDesiredUpdate(ctx, &configv1.Update{Architecture: configv1.ClusterVersionArchitectureMulti,
+			Version: cv.Status.Desired.Version}, o.Client, cv.Name); err != nil {
+
+			return err
+		}
+		fmt.Fprintln(o.Out, "Requested update to multi cluster architecture")
 		return nil
 
 	case o.ToLatestAvailable, len(o.To) > 0, len(o.ToImage) > 0:
@@ -322,33 +351,25 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
 		}
 
-		updateJSON, err := json.Marshal(update)
-		if err != nil {
-			return fmt.Errorf("marshal ClusterVersion patch: %v", err)
-		}
-		patch := []byte(fmt.Sprintf(`{"spec":{"desiredUpdate": %s}}`, updateJSON))
-		if _, err := o.Client.ConfigV1().ClusterVersions().Patch(context.TODO(), cv.Name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil {
-			return fmt.Errorf("Unable to upgrade: %v", err)
+		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
+			return err
 		}
 
 		if len(update.Version) > 0 {
-			fmt.Fprintf(o.Out, "Requesting update to %s\n", update.Version)
+			fmt.Fprintf(o.Out, "Requested update to %s\n", update.Version)
 		} else {
-			fmt.Fprintf(o.Out, "Requesting update to release image %s\n", update.Image)
+			fmt.Fprintf(o.Out, "Requested update to release image %s\n", update.Image)
 		}
 
 		return nil
 
 	default:
-		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorDegraded); c != nil && c.Status == configv1.ConditionTrue {
-			prefix := "No upgrade is possible due to an error"
-			if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue && len(c.Message) > 0 {
-				prefix = c.Message
+		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil {
+			if c.Status != configv1.ConditionFalse {
+				fmt.Fprintf(o.Out, "%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 			}
-			if len(c.Message) > 0 {
-				return fmt.Errorf("%s:\n\n  Reason: %s\n  Message: %s\n\n", prefix, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-			}
-			return fmt.Errorf("The cluster can't be upgraded, see `oc describe clusterversion`")
+		} else {
+			fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", clusterStatusFailing)
 		}
 
 		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && len(c.Message) > 0 {
@@ -358,12 +379,12 @@ func (o *Options) Run() error {
 				fmt.Fprintln(o.Out, c.Message)
 			}
 		} else {
-			fmt.Fprintln(o.ErrOut, "warning: No current status info, see `oc describe clusterversion` for more details")
+			fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", configv1.OperatorProgressing)
 		}
 		fmt.Fprintln(o.Out)
 
 		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
-			fmt.Fprintf(o.Out, "Upgradeable=False\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+			fmt.Fprintf(o.Out, "%s=%s\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 		}
 
 		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "ReleaseAccepted"); c != nil && c.Status != configv1.ConditionTrue {
@@ -401,7 +422,7 @@ func (o *Options) Run() error {
 			if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
 				fmt.Fprintf(o.ErrOut, "warning: Cannot display available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 			} else {
-				fmt.Fprintf(o.Out, "No updates available. You may force an upgrade to a specific release image, but doing so may not be supported and may result in downtime or data loss.\n")
+				fmt.Fprintf(o.Out, "No updates available. You may still upgrade to a specific release image with --to-image or wait for new updates to be available.\n")
 			}
 		}
 
@@ -560,20 +581,27 @@ func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorSta
 func checkForUpgrade(cv *configv1.ClusterVersion) error {
 	results := []string{}
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "Invalid"); c != nil && c.Status == configv1.ConditionTrue {
-		results = append(results, fmt.Sprintf("the cluster version object is invalid, you must correct the invalid state first:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
+		results = append(results, fmt.Sprintf("the cluster version object is invalid, you must correct the invalid state first:\n\n  Reason: %s\n  Message: %s", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
-	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorDegraded); c != nil && c.Status == configv1.ConditionTrue {
-		results = append(results, fmt.Sprintf("the cluster is experiencing an upgrade-blocking error:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
+	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil && c.Status == configv1.ConditionTrue {
+		target := cv.Status.Desired.Version
+		if target == "" {
+			target = cv.Status.Desired.Image
+			if target == "" {
+				target = "ClusterVersion status.desired has neither a version nor image; please open a bug"
+			}
+		}
+		results = append(results, fmt.Sprintf("the cluster is experiencing an error reconciling %q:\n\n  Reason: %s\n  Message: %s", target, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue {
-		results = append(results, fmt.Sprintf("the cluster is already upgrading:\n\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
+		results = append(results, fmt.Sprintf("the cluster is already upgrading:\n\n  Reason: %s\n  Message: %s", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
 
 	if len(results) == 0 {
 		return nil
 	}
 
-	return errors.New(strings.Join(results, ""))
+	return errors.New(strings.Join(results, "\n\n"))
 }
 
 // targetMatch returns true if the target release matches the target
@@ -604,4 +632,20 @@ func targetMatch(target *configv1.Release, to string, toImage string) (bool, err
 	}
 
 	return false, nil
+}
+
+func patchDesiredUpdate(ctx context.Context, update *configv1.Update, client configv1client.Interface,
+	clusterVersionName string) error {
+
+	updateJSON, err := json.Marshal(update)
+	if err != nil {
+		return fmt.Errorf("marshal ClusterVersion patch: %v", err)
+	}
+	patch := []byte(fmt.Sprintf(`{"spec":{"desiredUpdate": %s}}`, updateJSON))
+	if _, err := client.ConfigV1().ClusterVersions().Patch(ctx, clusterVersionName, types.MergePatchType, patch,
+		metav1.PatchOptions{}); err != nil {
+
+		return fmt.Errorf("Unable to upgrade: %v", err)
+	}
+	return nil
 }
