@@ -237,6 +237,7 @@ func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 				kubectlwrappers.NewCmdRun(f, ioStreams),
 				kubectlwrappers.NewCmdCp(f, ioStreams),
 				kubectlwrappers.NewCmdWait(f, ioStreams),
+				kubectlwrappers.NewCmdEvents(f, ioStreams),
 			},
 		},
 		{
