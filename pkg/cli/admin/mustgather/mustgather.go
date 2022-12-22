@@ -662,8 +662,9 @@ func newNamespace() *corev1.Namespace {
 				"security.openshift.io/scc.podSecurityLabelSync": "false",
 			},
 			Annotations: map[string]string{
-				"oc.openshift.io/command":    "oc adm must-gather",
-				"openshift.io/node-selector": "",
+				"oc.openshift.io/command":       "oc adm must-gather",
+				"openshift.io/node-selector":    "",
+				"workload.openshift.io/allowed": "management",
 			},
 		},
 	}
