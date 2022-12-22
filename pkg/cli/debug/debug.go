@@ -595,8 +595,19 @@ func (o *DebugOptions) RunDebug() error {
 			// switch to logging output
 		case err == krun.ErrPodCompleted, err == conditions.ErrContainerTerminated:
 			resultPod, ok := containerRunningEvent.Object.(*corev1.Pod)
-			if ok && resultPod.Status.Reason == "NodeAffinity" && len(resultPod.Spec.NodeSelector) != 0 {
-				return fmt.Errorf("debug pod could not be scheduled: %v. To fix this you may want to create a new namespace with empty node selector and run the debug there. For example: oc adm new-project --node-selector=\"\" debug", resultPod.Status.Message)
+			if ok {
+				if resultPod.Status.Reason == "NodeAffinity" && len(resultPod.Spec.NodeSelector) != 0 {
+					return fmt.Errorf("debug pod could not be scheduled: %v. To fix this you may want to create a new namespace with empty node selector and run the debug there. For example: oc adm new-project --node-selector=\"\" debug", resultPod.Status.Message)
+				}
+				for _, c := range resultPod.Status.Conditions {
+					if c.Type == corev1.AlphaNoCompatGuaranteeDisruptionTarget {
+						msg := fmt.Sprintf("unable to create the debug pod %q", pod.Name)
+						if len(o.NodeName) > 0 {
+							msg += fmt.Sprintf(" on node %q", o.NodeName)
+						}
+						return fmt.Errorf(msg)
+					}
+				}
 			}
 			return o.getLogs(pod)
 		case err == conditions.ErrNonZeroExitCode:
