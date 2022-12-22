@@ -72,12 +72,16 @@ oc: build
 update: update-generated-completions
 .PHONY: update
 
-verify: verify-cli-conventions verify-generated-completions
+verify: verify-cli-conventions verify-commands verify-generated-completions
 .PHONY: verify
 
 verify-cli-conventions:
 	go run ./tools/clicheck
 .PHONY: verify-cli-conventions
+
+verify-commands: oc
+	OC=./oc hack/verify-commands.sh testdata/commands
+.PHONY: verify-commands
 
 update-generated-completions: build
 	hack/update-generated-completions.sh
