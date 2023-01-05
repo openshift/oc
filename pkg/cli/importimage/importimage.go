@@ -212,6 +212,15 @@ func (o *ImportImageOptions) Validate() error {
 		return fmt.Errorf("valid reference policy values are source or local")
 	}
 
+	switch o.ImportMode {
+	case string(imagev1.ImportModeLegacy):
+	case string(imagev1.ImportModePreserveOriginal):
+	case "":
+		o.ImportMode = string(imagev1.ImportModeLegacy)
+	default:
+		return fmt.Errorf("valid ImportMode values are %s or %s", imagev1.ImportModeLegacy, imagev1.ImportModePreserveOriginal)
+	}
+
 	return nil
 }
 
