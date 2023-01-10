@@ -349,6 +349,146 @@ func TestRunTag_AddRestricted(t *testing.T) {
 	}
 }
 
+func TestRunTag_AddImportMode(t *testing.T) {
+	streams := testData()
+
+	type testActionWithImportMode struct {
+		verb, resource, importMode string
+	}
+
+	type ActionWithObject interface {
+		GetObject() runtime.Object
+	}
+
+	testCases := map[string]struct {
+		data            []runtime.Object
+		opts            *TagOptions
+		validateErr     string
+		runErr          string
+		expectedActions []testActionWithImportMode
+	}{
+		"valid tag without specified import mode": {
+			data: []runtime.Object{streams[2], streams[0]},
+			opts: &TagOptions{
+				ref: imagev1.DockerImageReference{
+					Namespace: "openshift",
+					Name:      "ruby",
+					Tag:       "latest",
+				},
+				referencePolicy: SourceReferencePolicy,
+				namespace:       "myproject",
+				sourceKind:      "ImageStreamTag",
+				destNamespace:   []string{"yourproject2"},
+				destNameAndTag:  []string{"rails:tip"},
+			},
+			expectedActions: []testActionWithImportMode{
+				{verb: "update", resource: "imagestreamtags", importMode: string(imagev1.ImportModeLegacy)},
+				{verb: "create", resource: "imagestreamtags", importMode: string(imagev1.ImportModeLegacy)},
+			},
+		},
+		"valid tag with import mode PreserveOriginal": {
+			data: []runtime.Object{streams[2], streams[0]},
+			opts: &TagOptions{
+				ref: imagev1.DockerImageReference{
+					Namespace: "openshift",
+					Name:      "ruby",
+					Tag:       "latest",
+				},
+				referencePolicy: SourceReferencePolicy,
+				namespace:       "myproject",
+				sourceKind:      "ImageStreamTag",
+				importMode:      string(imagev1.ImportModePreserveOriginal),
+				destNamespace:   []string{"yourproject2"},
+				destNameAndTag:  []string{"rails:tip"},
+			},
+			expectedActions: []testActionWithImportMode{
+				{verb: "update", resource: "imagestreamtags", importMode: string(imagev1.ImportModePreserveOriginal)},
+				{verb: "create", resource: "imagestreamtags", importMode: string(imagev1.ImportModePreserveOriginal)},
+			},
+		},
+		"valid tag with import mode Legacy": {
+			data: []runtime.Object{streams[2], streams[0]},
+			opts: &TagOptions{
+				ref: imagev1.DockerImageReference{
+					Namespace: "openshift",
+					Name:      "ruby",
+					Tag:       "latest",
+				},
+				referencePolicy: SourceReferencePolicy,
+				namespace:       "myproject",
+				sourceKind:      "ImageStreamTag",
+				importMode:      string(imagev1.ImportModeLegacy),
+				destNamespace:   []string{"yourproject2"},
+				destNameAndTag:  []string{"rails:tip"},
+			},
+			expectedActions: []testActionWithImportMode{
+				{verb: "update", resource: "imagestreamtags", importMode: string(imagev1.ImportModeLegacy)},
+				{verb: "create", resource: "imagestreamtags", importMode: string(imagev1.ImportModeLegacy)},
+			},
+		},
+		"invalid tag with import mode NoPreserveOriginal": {
+			data: []runtime.Object{streams[2], streams[0]},
+			opts: &TagOptions{
+				ref: imagev1.DockerImageReference{
+					Namespace: "openshift",
+					Name:      "ruby",
+					Tag:       "latest",
+				},
+				referencePolicy: SourceReferencePolicy,
+				importMode:      "NoPreserveOriginal",
+				namespace:       "myproject",
+				sourceKind:      "ImageStreamTag",
+				destNamespace:   []string{"yourproject2"},
+				destNameAndTag:  []string{"rails:tip"},
+			},
+			validateErr: "valid ImportMode values are Legacy or PreserveOriginal",
+		},
+	}
+
+	for name, test := range testCases {
+		client := fakeimagev1client.NewSimpleClientset(test.data...)
+
+		test.opts.IOStreams = genericclioptions.NewTestIOStreamsDiscard()
+		test.opts.client = client.ImageV1()
+
+		err := test.opts.Validate()
+		if (err == nil && len(test.validateErr) != 0) || (err != nil && err.Error() != test.validateErr) {
+			t.Errorf("%s: validation error mismatch: expected %v, got %v", name, test.validateErr, err)
+		}
+		if err != nil {
+			continue
+		}
+
+		err = test.opts.Run()
+		if (err == nil && len(test.runErr) != 0) || (err != nil && err.Error() != test.runErr) {
+			t.Errorf("%s: run error mismatch: expected %v, got %v", name, test.runErr, err)
+		}
+
+		got := client.Actions()
+		if len(test.expectedActions) != len(got) {
+			t.Fatalf("%s: action length mismatch: expected %d, got %d", name, len(test.expectedActions), len(got))
+		}
+		for i, action := range test.expectedActions {
+			if !got[i].Matches(action.verb, action.resource) {
+				t.Errorf("action mismatch: expected %s %s, got %s %s", action.verb, action.resource, got[i].GetVerb(), got[i].GetResource())
+			} else {
+				actionWithObject, ok := got[i].(ActionWithObject)
+				if !ok {
+					t.Errorf("Expected action with GetObject(), found %T", got[i])
+				}
+				imageStreamTag, ok := actionWithObject.GetObject().(*imagev1.ImageStreamTag)
+				if !ok {
+					t.Errorf("Expected ImageStreamTag, found %T", actionWithObject.GetObject())
+				}
+
+				if action.importMode != string(imageStreamTag.Tag.ImportPolicy.ImportMode) {
+					t.Errorf("ImportMode mismatch: expected: %s, got: %s", action.importMode, imageStreamTag.Tag.ImportPolicy.ImportMode)
+				}
+			}
+		}
+	}
+}
+
 func TestRunTag_DeleteNew(t *testing.T) {
 	is := &imagev1.ImageStreamTag{
 		ObjectMeta: metav1.ObjectMeta{Name: "rails:tip", Namespace: "yourproject", ResourceVersion: "11", CreationTimestamp: metav1.Now()},
