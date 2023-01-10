@@ -379,6 +379,19 @@ func (o *MustGatherOptions) Run() error {
 		go func(pod *corev1.Pod) {
 			defer wg.Done()
 
+			if len(o.RunNamespace) > 0 && !o.Keep {
+				defer func() {
+					// must-gather runs in its own separate namespace as default , so after it is completed
+					// it deletes this namespace and all the pods are removed by garbage collector.
+					// However, if user specifies namespace via `run-namespace`, these pods need to
+					// be deleted manually.
+					err = o.Client.CoreV1().Pods(o.RunNamespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
+					if err != nil {
+						klog.V(4).Infof("pod deletion error %v", err)
+					}
+				}()
+			}
+
 			log := newPodOutLogger(o.Out, pod.Name)
 
 			// wait for gather container to be running (gather is running)
