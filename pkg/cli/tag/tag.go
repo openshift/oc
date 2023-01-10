@@ -305,7 +305,7 @@ func isCrossImageStream(namespace string, srcRef imagev1.DockerImageReference, d
 }
 
 // Validate validates all the required options for the tag command.
-func (o TagOptions) Validate() error {
+func (o *TagOptions) Validate() error {
 	if o.deleteTag && o.aliasTag {
 		return errors.New("--alias and --delete may not be both specified")
 	}
@@ -358,6 +358,15 @@ func (o TagOptions) Validate() error {
 		if cross {
 			return errors.New("cannot set alias across different Image Streams")
 		}
+	}
+
+	switch o.importMode {
+	case string(imagev1.ImportModeLegacy):
+	case string(imagev1.ImportModePreserveOriginal):
+	case "":
+		o.importMode = string(imagev1.ImportModeLegacy)
+	default:
+		return fmt.Errorf("valid ImportMode values are %s or %s", imagev1.ImportModeLegacy, imagev1.ImportModePreserveOriginal)
 	}
 
 	return nil
