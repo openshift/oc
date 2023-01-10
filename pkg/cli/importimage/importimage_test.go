@@ -1,6 +1,7 @@
 package importimage
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -612,6 +613,19 @@ func TestCreateImageImport(t *testing.T) {
 				},
 			}},
 		},
+		"importMode specified with incorrect mode": {
+			name:       "testis",
+			err:        fmt.Sprintf("valid ImportMode values are %s or %s", imagev1.ImportModeLegacy, imagev1.ImportModePreserveOriginal),
+			importMode: imagev1.ImportModeType("Wrong"),
+			stream: &imagev1.ImageStream{
+				ObjectMeta: metav1.ObjectMeta{Name: "testis", Namespace: "other"},
+				Spec: imagev1.ImageStreamSpec{
+					Tags: []imagev1.TagReference{
+						{Name: "latest", From: &corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:latest"}},
+					},
+				},
+			},
+		},
 	}
 
 	for name, test := range testCases {
@@ -637,8 +651,36 @@ func TestCreateImageImport(t *testing.T) {
 			o.InsecureFlagProvided = true
 		}
 
+		// set default for referencePolicy
+		if len(test.referencePolicy) == 0 {
+			for i := range test.expectedImages {
+				test.expectedImages[i].ReferencePolicy.Type = imagev1.SourceTagReferencePolicy
+			}
+			if test.expectedRepository != nil {
+				test.expectedRepository.ReferencePolicy.Type = imagev1.SourceTagReferencePolicy
+			}
+		}
+
+		// set default for importMode
+		if len(o.ImportMode) == 0 {
+			for i := range test.expectedImages {
+				test.expectedImages[i].ImportPolicy.ImportMode = imagev1.ImportModeLegacy
+			}
+			if test.expectedRepository != nil {
+				test.expectedRepository.ImportPolicy.ImportMode = imagev1.ImportModeLegacy
+			}
+		}
+
 		if err := o.parseImageReference(); err != nil {
 			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+
+		if err := o.Validate(); err != nil {
+			if len(test.err) > 0 && strings.Contains(err.Error(), test.err) {
+				continue
+			}
+			t.Errorf("unexpected validation error: %v", err)
 			continue
 		}
 
