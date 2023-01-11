@@ -294,6 +294,7 @@ func extractRefs(msg string) (RefList, string) {
 	if bt == Jira {
 		refs = strings.TrimSpace(parsedMsg[0])
 		refs = strings.TrimSuffix(refs, ":")
+		refs = strings.TrimSuffix(refs, "-")
 	}
 
 	// trim all the bug/jira refs from the commit message
