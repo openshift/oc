@@ -99,6 +99,7 @@ func NewImportImageOptions(streams genericclioptions.IOStreams) *ImportImageOpti
 		PrintFlags:      genericclioptions.NewPrintFlags("imported"),
 		IOStreams:       streams,
 		ReferencePolicy: tag.SourceReferencePolicy,
+		ImportMode:      string(imagev1.ImportModeLegacy),
 	}
 }
 
