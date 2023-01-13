@@ -37,6 +37,7 @@ type TagOptions struct {
 	namespace    string
 
 	referencePolicy string
+	importMode      string
 
 	ref            imagev1.DockerImageReference
 	sourceKind     string
@@ -44,8 +45,6 @@ type TagOptions struct {
 	destNameAndTag []string
 
 	genericclioptions.IOStreams
-
-	importMode string
 }
 
 var (
