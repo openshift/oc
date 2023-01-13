@@ -73,6 +73,20 @@ func TestExtractBugs(t *testing.T) {
 			bugs:  RefList{},
 			msg:   "test",
 		},
+		{
+			input: "OCPBUGS-17 - test",
+			bugs: RefList{
+				Refs: []Ref{{"OCPBUGS-17", Jira}},
+			},
+			msg: "test",
+		},
+		{
+			input: "OCPBUGS-17,OCPBUGS-43,OCPBUGS-564 - test",
+			bugs: RefList{
+				Refs: []Ref{{"OCPBUGS-17", Jira}, {"OCPBUGS-43", Jira}, {"OCPBUGS-564", Jira}},
+			},
+			msg: "test",
+		},
 	}
 
 	for _, tt := range tests {
