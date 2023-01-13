@@ -76,6 +76,9 @@ var (
 		# Tag an external container image and request pullthrough for it
 		oc tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip --reference-policy=local
 
+		# Tag an external container image and include the full manifest list
+		oc tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip --import-mode=PreserveOriginal
+
 		# Remove the specified spec tag from an image stream
 		oc tag openshift/origin-control-plane:latest -d`)
 )
