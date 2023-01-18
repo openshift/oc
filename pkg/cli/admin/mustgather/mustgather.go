@@ -154,9 +154,6 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	if len(o.DestDir) == 0 {
 		o.DestDir = fmt.Sprintf("must-gather.local.%06d", rand.Int63())
 	}
-	if len(o.RunNamespace) > 0 {
-		fmt.Fprintln(o.ErrOut, `"--run-namespace" is an experimental flag, using it is not supported`)
-	}
 	if err := o.completeImages(); err != nil {
 		return err
 	}
