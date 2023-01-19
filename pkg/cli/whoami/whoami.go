@@ -2,6 +2,7 @@ package whoami
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -17,6 +18,7 @@ import (
 
 	userv1 "github.com/openshift/api/user/v1"
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -47,6 +49,8 @@ type WhoAmIOptions struct {
 	ShowContext    bool
 	ShowServer     bool
 	ShowConsoleUrl bool
+	ShowGroups     bool
+	Output         string
 
 	genericclioptions.IOStreams
 }
@@ -76,6 +80,7 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 	cmd.Flags().BoolVarP(&o.ShowContext, "show-context", "c", o.ShowContext, "Print the current user context name")
 	cmd.Flags().BoolVar(&o.ShowServer, "show-server", o.ShowServer, "If true, print the current server's REST API URL")
 	cmd.Flags().BoolVar(&o.ShowConsoleUrl, "show-console", o.ShowConsoleUrl, "If true, print the current server's web console URL")
+	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "One of 'yaml' or 'json'.")
 
 	return cmd
 }
@@ -136,6 +141,12 @@ func (o *WhoAmIOptions) getWebConsoleUrl() (string, error) {
 }
 
 func (o *WhoAmIOptions) Run() error {
+	var err error
+	o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
+	if err != nil {
+		return err
+	}
+
 	switch {
 	case o.ShowToken:
 		fmt.Fprintf(o.Out, "%s\n", o.ClientConfig.BearerToken)
@@ -153,14 +164,34 @@ func (o *WhoAmIOptions) Run() error {
 		}
 		fmt.Fprintf(o.Out, "%s\n", consoleUrl)
 		return nil
-	}
+	case o.Output == "yaml":
+		u, err := o.UserInterface.Users().Get(context.TODO(), "~", metav1.GetOptions{})
+		u.SetGroupVersionKind(userv1.GroupVersion.WithKind("User"))
+		if err != nil {
+			return err
+		}
 
-	var err error
-	o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
-	if err != nil {
-		return err
+		y, err := yaml.Marshal(u)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(o.Out, "%s\n", string(y))
+		return nil
+	case o.Output == "json":
+		u, err := o.UserInterface.Users().Get(context.TODO(), "~", metav1.GetOptions{})
+		u.SetGroupVersionKind(userv1.GroupVersion.WithKind("User"))
+		if err != nil {
+			return err
+		}
+		j, err := json.MarshalIndent(u, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(o.Out, "%s\n", string(j))
+		return nil
 	}
 
 	_, err = o.WhoAmI()
+
 	return err
 }
