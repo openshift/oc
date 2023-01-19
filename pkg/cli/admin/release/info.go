@@ -1575,7 +1575,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 					Commits: []CommitInfo{},
 				}
 				if u.Host == "github.com" {
-					info.Path = fmt.Sprintf("https://github.com%s/tree/%s)", u.Path, change.To)
+					info.Path = fmt.Sprintf("https://github.com%s/tree/%s", u.Path, change.To)
 				}
 				for _, commit := range commits {
 					commitInfo := CommitInfo{
