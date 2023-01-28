@@ -586,6 +586,9 @@ func (o *MirrorOptions) Run() error {
 			if err != nil {
 				return fmt.Errorf("invalid --to-release-image: %v", err)
 			}
+			if len(dstRef.Ref.Tag) == 0 {
+				return fmt.Errorf("invalid --to-release-image must include a tag name: %s", o.ToRelease)
+			}
 			mappings = append(mappings, mirror.Mapping{
 				Source:      srcRef,
 				Destination: dstRef,
