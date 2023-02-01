@@ -7,8 +7,9 @@ import (
 	"sort"
 	"text/tabwriter"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubectl/pkg/describe"
@@ -32,20 +33,13 @@ var _ polymorphichelpers.HistoryViewer = &DeploymentConfigHistoryViewer{}
 
 // ViewHistory returns a description of all the history it can find for a deployment config.
 func (h *DeploymentConfigHistoryViewer) ViewHistory(namespace, name string, revision int64) (string, error) {
-	opts := metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()}
-	deploymentList, err := h.rn.ReplicationControllers(namespace).List(context.TODO(), opts)
+	history, err := getDeploymentReplicaSets(h.rn, namespace, name)
 	if err != nil {
 		return "", err
 	}
 
-	if len(deploymentList.Items) == 0 {
+	if len(history) == 0 {
 		return "No rollout history found.", nil
-	}
-
-	items := deploymentList.Items
-	history := make([]*v1.ReplicationController, 0, len(items))
-	for i := range items {
-		history = append(history, &items[i])
 	}
 
 	// Print details of a specific revision
@@ -88,6 +82,42 @@ func (h *DeploymentConfigHistoryViewer) ViewHistory(namespace, name string, revi
 		}
 		return nil
 	})
+}
+
+// GetHistory returns the revisions associated with a DeploymentConfig
+func (h *DeploymentConfigHistoryViewer) GetHistory(namespace, name string) (map[int64]runtime.Object, error) {
+	history, err := getDeploymentReplicaSets(h.rn, namespace, name)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[int64]runtime.Object)
+	for _, rc := range history {
+		rev := appsutil.DeploymentVersionFor(rc)
+		result[rev] = rc
+	}
+
+	return result, nil
+}
+
+func getDeploymentReplicaSets(rcGetter corev1client.ReplicationControllersGetter, namespace, name string) ([]*v1.ReplicationController, error) {
+	opts := metav1.ListOptions{LabelSelector: appsutil.ConfigSelector(name).String()}
+	deploymentList, err := rcGetter.ReplicationControllers(namespace).List(context.TODO(), opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(deploymentList.Items) == 0 {
+		return nil, nil
+	}
+
+	items := deploymentList.Items
+	history := make([]*v1.ReplicationController, 0, len(items))
+	for i := range items {
+		history = append(history, &items[i])
+	}
+
+	return history, nil
 }
 
 // TODO: Re-use from an utility package

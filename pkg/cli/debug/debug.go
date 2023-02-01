@@ -600,7 +600,7 @@ func (o *DebugOptions) RunDebug() error {
 					return fmt.Errorf("debug pod could not be scheduled: %v. To fix this you may want to create a new namespace with empty node selector and run the debug there. For example: oc adm new-project --node-selector=\"\" debug", resultPod.Status.Message)
 				}
 				for _, c := range resultPod.Status.Conditions {
-					if c.Type == corev1.AlphaNoCompatGuaranteeDisruptionTarget {
+					if c.Type == corev1.DisruptionTarget {
 						msg := fmt.Sprintf("unable to create the debug pod %q", pod.Name)
 						if len(o.NodeName) > 0 {
 							msg += fmt.Sprintf(" on node %q", o.NodeName)
