@@ -319,17 +319,27 @@ func FirstManifest(ctx context.Context, from imagereference.DockerImageReference
 	}
 
 	originalSrcDigest := srcDigest
-	srcManifests, srcManifest, srcDigest, err := ProcessManifestList(ctx, srcDigest, srcManifest, manifests, from, filterFn, false)
+	srcChildren, srcManifest, srcDigest, err := ProcessManifestList(ctx, srcDigest, srcManifest, manifests, from, filterFn, false)
 	if err != nil {
 		return nil, ManifestLocation{}, err
 	}
-	if len(srcManifests) == 0 {
+	if srcManifest == nil {
 		return nil, ManifestLocation{}, AllImageFilteredErr
 	}
-
+	if len(srcChildren) > 0 {
+		// More than one match within the list, return the first
+		childManifest := srcChildren[0]
+		childDigest, err := registryclient.ContentDigestForManifest(childManifest, srcDigest.Algorithm())
+		if err != nil {
+			return nil, ManifestLocation{}, fmt.Errorf("could not generate digest for first manifest")
+		}
+		return childManifest, ManifestLocation{Manifest: childDigest, ManifestList: originalSrcDigest}, nil
+	}
 	if srcDigest != originalSrcDigest {
+		// One match in list selected by ProcessManifestList
 		return srcManifest, ManifestLocation{Manifest: srcDigest, ManifestList: originalSrcDigest}, nil
 	}
+	// Was not a list
 	return srcManifest, ManifestLocation{Manifest: srcDigest}, nil
 }
 
@@ -422,8 +432,8 @@ func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifes
 	}
 }
 
-func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imagereference.DockerImageReference, filterFn FilterFunc, keepManifestList bool) ([]distribution.Manifest, distribution.Manifest, digest.Digest, error) {
-	var srcManifests []distribution.Manifest
+func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imagereference.DockerImageReference, filterFn FilterFunc, keepManifestList bool) (children []distribution.Manifest, manifest distribution.Manifest, digest digest.Digest, err error) {
+	var childManifests []distribution.Manifest
 	switch t := srcManifest.(type) {
 	case *manifestlist.DeserializedManifestList:
 		manifestDigest := srcDigest
@@ -439,12 +449,13 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 			filtered = append(filtered, manifest)
 		}
 
-		if len(filtered) == 0 {
+		if len(filtered) == 0 && !keepManifestList {
 			return nil, nil, "", nil
 		}
 
-		// if we're filtering the manifest list, update the source manifest and digest
-		if len(filtered) != len(t.Manifests) {
+		// if we're not keeping manifest lists and this one has been filtered, make a new one with
+		// just the filtered platforms.
+		if len(filtered) != len(t.Manifests) && !keepManifestList {
 			var err error
 			t, err = manifestlist.FromDescriptors(filtered)
 			if err != nil {
@@ -462,28 +473,29 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 			klog.V(5).Infof("Filtered manifest list to new digest %s:\n%s", manifestDigest, body)
 		}
 
-		for i, manifest := range t.Manifests {
+		for i, manifest := range filtered {
 			childManifest, err := manifests.Get(ctx, manifest.Digest, PreferManifestList)
 			if err != nil {
 				return nil, nil, "", fmt.Errorf("unable to retrieve source image %s manifest #%d from manifest list: %v", ref, i+1, err)
 			}
-			srcManifests = append(srcManifests, childManifest)
+			childManifests = append(childManifests, childManifest)
 		}
 
 		switch {
-		case len(srcManifests) == 1 && !keepManifestList:
-			manifestDigest, err := registryclient.ContentDigestForManifest(srcManifests[0], srcDigest.Algorithm())
+		case len(childManifests) == 1 && !keepManifestList:
+			// Just return the single platform specific image
+			manifestDigest, err := registryclient.ContentDigestForManifest(childManifests[0], srcDigest.Algorithm())
 			if err != nil {
 				return nil, nil, "", err
 			}
 			klog.V(2).Infof("Chose %s/%s manifest from the manifest list.", t.Manifests[0].Platform.OS, t.Manifests[0].Platform.Architecture)
-			return srcManifests, srcManifests[0], manifestDigest, nil
+			return nil, childManifests[0], manifestDigest, nil
 		default:
-			return append(srcManifests, manifestList), manifestList, manifestDigest, nil
+			return childManifests, manifestList, manifestDigest, nil
 		}
 
 	default:
-		return []distribution.Manifest{srcManifest}, srcManifest, srcDigest, nil
+		return nil, srcManifest, srcDigest, nil
 	}
 }
 
