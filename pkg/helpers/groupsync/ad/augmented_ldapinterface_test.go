@@ -8,12 +8,13 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 
+	"github.com/openshift/library-go/pkg/security/ldapclient"
 	ldapquery "github.com/openshift/library-go/pkg/security/ldapquery"
 	"github.com/openshift/library-go/pkg/security/ldaptestclient"
 	"github.com/openshift/library-go/pkg/security/ldaputil"
 )
 
-func newTestAugmentedADLDAPInterface(client ldap.Client) *AugmentedADLDAPInterface {
+func newTestAugmentedADLDAPInterfaceOrDie(client ldap.Client) *AugmentedADLDAPInterface {
 	// below are common test implementations of LDAPInterface fields
 	userQuery := ldapquery.LDAPQuery{
 		BaseDN:       "ou=users,dc=example,dc=com",
@@ -36,12 +37,18 @@ func newTestAugmentedADLDAPInterface(client ldap.Client) *AugmentedADLDAPInterfa
 	}
 	groupNameAttributes := []string{"cn"}
 
-	return NewAugmentedADLDAPInterface(ldaptestclient.NewConfig(client),
+	ldapClient, err := ldapclient.ConnectMaybeBind(ldaptestclient.NewConfig(client))
+	if err != nil {
+		panic(err)
+	}
+
+	return NewAugmentedADLDAPInterface(ldapClient,
 		userQuery,
 		groupMembershipAttributes,
 		userNameAttributes,
 		groupQuery,
 		groupNameAttributes)
+
 }
 
 // newDefaultTestGroup returns a new LDAP entry with the given CN
@@ -91,7 +98,7 @@ func TestGroupEntryFor(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		ldapInterface := newTestAugmentedADLDAPInterface(testCase.client)
+		ldapInterface := newTestAugmentedADLDAPInterfaceOrDie(testCase.client)
 		if len(testCase.cacheSeed) > 0 {
 			ldapInterface.cachedGroups = testCase.cacheSeed
 		}
