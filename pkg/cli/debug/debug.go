@@ -219,6 +219,12 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 		},
 	}
 
+	addDebugFlags(cmd, o)
+
+	return cmd
+}
+
+func addDebugFlags(cmd *cobra.Command, o *DebugOptions) {
 	usage := "to read a template"
 	kcmdutil.AddFilenameOptionFlags(cmd, &o.FilenameOptions, usage)
 
@@ -253,8 +259,6 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
-
-	return cmd
 }
 
 func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []string) error {
@@ -581,7 +585,7 @@ func (o *DebugOptions) RunDebug() error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 		defer cancel()
-		containerRunningEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient, notifyFn))
+		containerRunningEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodContainerRunning(o.ContainerName, o.CoreClient, notifyFn))
 		if err == nil {
 			klog.V(4).Infof("Stopped waiting for pod: %s %#v", containerRunningEvent.Type, containerRunningEvent.Object)
 		} else {
@@ -757,7 +761,7 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	pod := o.Attach.Pod
 
 	// reset the container
-	container := containerForName(pod, o.Attach.ContainerName)
+	container := containerForName(pod, o.ContainerName)
 
 	// identify the command to be run
 	originalCommand, _ := o.getContainerImageCommand(pod, container)
@@ -837,7 +841,7 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 		pod.Spec.Containers = []corev1.Container{*container}
 	case o.KeepInitContainers:
 		// there is nothing we need to do
-	case isInitContainer(pod, o.Attach.ContainerName):
+	case isInitContainer(pod, o.ContainerName):
 		// keep only the init container we are debugging
 		pod.Spec.InitContainers = []corev1.Container{*container}
 	default:
@@ -876,7 +880,6 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	pod.Status = corev1.PodStatus{}
 	pod.UID = ""
 	pod.CreationTimestamp = metav1.Time{}
-	pod.SelfLink = ""
 
 	// clear pod ownerRefs
 	pod.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
@@ -1175,7 +1178,7 @@ func (o *DebugOptions) getLogs(pod *corev1.Pod) error {
 	return logs.LogsOptions{
 		Object: pod,
 		Options: &corev1.PodLogOptions{
-			Container: o.Attach.ContainerName,
+			Container: o.ContainerName,
 			Follow:    true,
 		},
 		RESTClientGetter: o.RESTClientGetter,
