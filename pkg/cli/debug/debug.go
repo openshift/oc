@@ -143,7 +143,7 @@ type DebugOptions struct {
 
 	PreservePod bool
 	NoStdin     bool
-	ForceTTY    bool
+	TTY         bool
 	DisableTTY  bool
 	Timeout     time.Duration
 	Quiet       bool
@@ -233,7 +233,7 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 
 	cmd.Flags().BoolVarP(&o.Quiet, "quiet", "q", o.Quiet, "No informational messages will be printed.")
 	cmd.Flags().BoolVarP(&o.NoStdin, "no-stdin", "I", o.NoStdin, "Bypasses passing STDIN to the container, defaults to true if no command specified")
-	cmd.Flags().BoolVarP(&o.ForceTTY, "tty", "t", o.ForceTTY, "Force a pseudo-terminal to be allocated")
+	cmd.Flags().BoolVarP(&o.TTY, "tty", "t", o.TTY, "Force a pseudo-terminal to be allocated")
 	cmd.Flags().BoolVarP(&o.DisableTTY, "no-tty", "T", o.DisableTTY, "Disable pseudo-terminal allocation")
 	cmd.Flags().StringVarP(&o.ContainerName, "container", "c", o.ContainerName, "Container name; defaults to first container")
 	cmd.Flags().BoolVar(&o.KeepAnnotations, "keep-annotations", o.KeepAnnotations, "If true, keep the original pod annotations")
@@ -276,14 +276,14 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 	o.DryRun = strategy != kcmdutil.DryRunNone
 
 	switch {
-	case o.ForceTTY && o.NoStdin:
+	case o.TTY && o.NoStdin:
 		return kcmdutil.UsageErrorf(cmd, "you may not specify -I and -t together")
-	case o.ForceTTY && o.DisableTTY:
+	case o.TTY && o.DisableTTY:
 		return kcmdutil.UsageErrorf(cmd, "you may not specify -t and -T together")
-	case o.ForceTTY:
+	case o.TTY:
 		o.Attach.TTY = true
 	// since ForceTTY is defaulted to false, check if user specifically passed in "=false" flag
-	case !o.ForceTTY && cmd.Flags().Changed("tty"):
+	case !o.TTY && cmd.Flags().Changed("tty"):
 		o.Attach.TTY = false
 	case o.DisableTTY:
 		o.Attach.TTY = false
