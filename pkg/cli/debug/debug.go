@@ -143,9 +143,10 @@ type DebugOptions struct {
 
 	PreservePod bool
 	NoStdin     bool
-	ForceTTY    bool
+	TTY         bool
 	DisableTTY  bool
 	Timeout     time.Duration
+	Quiet       bool
 
 	Command            []string
 	Annotations        map[string]string
@@ -159,6 +160,7 @@ type DebugOptions struct {
 	KeepStartup        bool
 	KeepInitContainers bool
 	OneContainer       bool
+	ContainerName      string
 	NodeName           string
 	NodeNameSet        bool
 	AddEnv             []corev1.EnvVar
@@ -217,6 +219,12 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 		},
 	}
 
+	addDebugFlags(cmd, o)
+
+	return cmd
+}
+
+func addDebugFlags(cmd *cobra.Command, o *DebugOptions) {
 	usage := "to read a template"
 	kcmdutil.AddFilenameOptionFlags(cmd, &o.FilenameOptions, usage)
 
@@ -229,11 +237,11 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	cmd.Flags().MarkHidden("show-all")
 	cmd.Flags().Bool("show-labels", false, "When printing, show all labels as the last column (default hide labels column)")
 
-	cmd.Flags().BoolVarP(&o.Attach.Quiet, "quiet", "q", o.Attach.Quiet, "No informational messages will be printed.")
+	cmd.Flags().BoolVarP(&o.Quiet, "quiet", "q", o.Quiet, "No informational messages will be printed.")
 	cmd.Flags().BoolVarP(&o.NoStdin, "no-stdin", "I", o.NoStdin, "Bypasses passing STDIN to the container, defaults to true if no command specified")
-	cmd.Flags().BoolVarP(&o.ForceTTY, "tty", "t", o.ForceTTY, "Force a pseudo-terminal to be allocated")
+	cmd.Flags().BoolVarP(&o.TTY, "tty", "t", o.TTY, "Force a pseudo-terminal to be allocated")
 	cmd.Flags().BoolVarP(&o.DisableTTY, "no-tty", "T", o.DisableTTY, "Disable pseudo-terminal allocation")
-	cmd.Flags().StringVarP(&o.Attach.ContainerName, "container", "c", o.Attach.ContainerName, "Container name; defaults to first container")
+	cmd.Flags().StringVarP(&o.ContainerName, "container", "c", o.ContainerName, "Container name; defaults to first container")
 	cmd.Flags().BoolVar(&o.KeepAnnotations, "keep-annotations", o.KeepAnnotations, "If true, keep the original pod annotations")
 	cmd.Flags().BoolVar(&o.KeepLabels, "keep-labels", o.KeepLabels, "If true, keep the original pod labels")
 	cmd.Flags().BoolVar(&o.KeepLiveness, "keep-liveness", o.KeepLiveness, "If true, keep the original pod liveness probes")
@@ -251,8 +259,6 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
-
-	return cmd
 }
 
 func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []string) error {
@@ -274,14 +280,14 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 	o.DryRun = strategy != kcmdutil.DryRunNone
 
 	switch {
-	case o.ForceTTY && o.NoStdin:
+	case o.TTY && o.NoStdin:
 		return kcmdutil.UsageErrorf(cmd, "you may not specify -I and -t together")
-	case o.ForceTTY && o.DisableTTY:
+	case o.TTY && o.DisableTTY:
 		return kcmdutil.UsageErrorf(cmd, "you may not specify -t and -T together")
-	case o.ForceTTY:
+	case o.TTY:
 		o.Attach.TTY = true
 	// since ForceTTY is defaulted to false, check if user specifically passed in "=false" flag
-	case !o.ForceTTY && cmd.Flags().Changed("tty"):
+	case !o.TTY && cmd.Flags().Changed("tty"):
 		o.Attach.TTY = false
 	case o.DisableTTY:
 		o.Attach.TTY = false
@@ -297,6 +303,8 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 		o.Attach.TTY = false
 		o.Attach.Stdin = false
 	}
+
+	o.Attach.Quiet = o.Quiet
 
 	o.NodeNameSet = cmd.Flags().Changed("node-name")
 
@@ -446,8 +454,8 @@ func (o *DebugOptions) RunDebug() error {
 	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug", generateapp.MakeSimpleName(infos[0].Name)), ns
 	o.Attach.Pod = pod
 
-	if len(o.Attach.ContainerName) == 0 && len(pod.Spec.Containers) > 0 {
-		if !o.Attach.Quiet {
+	if len(o.ContainerName) == 0 && len(pod.Spec.Containers) > 0 {
+		if !o.Quiet {
 			if len(pod.Spec.Containers) > 1 && len(o.FullCmdName) > 0 {
 				fmt.Fprintf(o.ErrOut, "Defaulting container name to %s.\n", pod.Spec.Containers[0].Name)
 				fmt.Fprintf(o.ErrOut, "Use '%s describe pod/%s -n %s' to see all of the containers in this pod.\n", o.FullCmdName, pod.Name, pod.Namespace)
@@ -456,22 +464,22 @@ func (o *DebugOptions) RunDebug() error {
 		}
 
 		klog.V(4).Infof("Defaulting container name to %s", pod.Spec.Containers[0].Name)
-		o.Attach.ContainerName = pod.Spec.Containers[0].Name
+		o.ContainerName = pod.Spec.Containers[0].Name
 	}
 
 	names := containerNames(o.Attach.Pod)
 	if len(names) == 0 {
 		return fmt.Errorf("the provided pod must have at least one container")
 	}
-	if len(o.Attach.ContainerName) == 0 {
+	if len(o.ContainerName) == 0 {
 		return fmt.Errorf("you must provide a container name to debug")
 	}
-	if containerForName(o.Attach.Pod, o.Attach.ContainerName) == nil {
-		return fmt.Errorf("the container %q is not a valid container name; must be one of %v", o.Attach.ContainerName, names)
+	if containerForName(o.Attach.Pod, o.ContainerName) == nil {
+		return fmt.Errorf("the container %q is not a valid container name; must be one of %v", o.ContainerName, names)
 	}
 
 	o.Annotations[debugPodAnnotationSourceResource] = fmt.Sprintf("%s/%s", infos[0].Mapping.Resource, infos[0].Name)
-	o.Annotations[debugPodAnnotationSourceContainer] = o.Attach.ContainerName
+	o.Annotations[debugPodAnnotationSourceContainer] = o.ContainerName
 
 	pod, originalCommand := o.transformPodForDebug(o.Annotations)
 	var commandString string
@@ -507,13 +515,13 @@ func (o *DebugOptions) RunDebug() error {
 			if stderr == nil {
 				stderr = os.Stderr
 			}
-			if !o.Attach.Quiet {
+			if !o.Quiet {
 				fmt.Fprintf(stderr, "\nRemoving debug pod ...\n")
 			}
 			if err := o.CoreClient.Pods(pod.Namespace).Delete(context.TODO(), pod.Name, *metav1.NewDeleteOptions(0)); err != nil {
 				if !kapierrors.IsNotFound(err) {
 					klog.V(2).Infof("Unable to delete the debug pod %q: %v", pod.Name, err)
-					if !o.Attach.Quiet {
+					if !o.Quiet {
 						fmt.Fprintf(stderr, "error: unable to delete the debug pod %q: %v\n", pod.Name, err)
 					}
 				}
@@ -523,7 +531,7 @@ func (o *DebugOptions) RunDebug() error {
 
 	klog.V(5).Infof("Created attach arguments: %#v", o.Attach)
 	return o.Attach.InterruptParent.Run(func() error {
-		if !o.Attach.Quiet {
+		if !o.Quiet {
 			if len(commandString) > 0 {
 				fmt.Fprintf(o.ErrOut, "Starting pod/%s, command was: %s\n", pod.Name, commandString)
 			} else {
@@ -563,7 +571,7 @@ func (o *DebugOptions) RunDebug() error {
 		notifyFn := func(pod *corev1.Pod, container corev1.ContainerStatus) error {
 			// TODO: instead of reporting to the user a message, accumulate a certain amount of time in
 			// the error state, then exit early
-			if o.Attach.Quiet {
+			if o.Quiet {
 				return nil
 			}
 			if container.State.Waiting != nil {
@@ -577,7 +585,7 @@ func (o *DebugOptions) RunDebug() error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
 		defer cancel()
-		containerRunningEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodContainerRunning(o.Attach.ContainerName, o.CoreClient, notifyFn))
+		containerRunningEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodContainerRunning(o.ContainerName, o.CoreClient, notifyFn))
 		if err == nil {
 			klog.V(4).Infof("Stopped waiting for pod: %s %#v", containerRunningEvent.Type, containerRunningEvent.Object)
 		} else {
@@ -620,7 +628,7 @@ func (o *DebugOptions) RunDebug() error {
 		case !o.Attach.Stdin:
 			return o.getLogs(pod)
 		default:
-			if !o.Attach.Quiet {
+			if !o.Quiet {
 				// TODO this doesn't do us much good for remote debugging sessions, but until we get a local port
 				// set up to proxy, this is what we've got.
 				if podWithStatus, ok := containerRunningEvent.Object.(*corev1.Pod); ok {
@@ -629,6 +637,7 @@ func (o *DebugOptions) RunDebug() error {
 			}
 
 			// TODO: attach can race with pod completion, allow attach to switch to logs
+			o.Attach.ContainerName = o.ContainerName
 			return o.Attach.Run()
 		}
 	})
@@ -752,7 +761,7 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	pod := o.Attach.Pod
 
 	// reset the container
-	container := containerForName(pod, o.Attach.ContainerName)
+	container := containerForName(pod, o.ContainerName)
 
 	// identify the command to be run
 	originalCommand, _ := o.getContainerImageCommand(pod, container)
@@ -832,7 +841,7 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 		pod.Spec.Containers = []corev1.Container{*container}
 	case o.KeepInitContainers:
 		// there is nothing we need to do
-	case isInitContainer(pod, o.Attach.ContainerName):
+	case isInitContainer(pod, o.ContainerName):
 		// keep only the init container we are debugging
 		pod.Spec.InitContainers = []corev1.Container{*container}
 	default:
@@ -871,7 +880,6 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	pod.Status = corev1.PodStatus{}
 	pod.UID = ""
 	pod.CreationTimestamp = metav1.Time{}
-	pod.SelfLink = ""
 
 	// clear pod ownerRefs
 	pod.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
@@ -1170,7 +1178,7 @@ func (o *DebugOptions) getLogs(pod *corev1.Pod) error {
 	return logs.LogsOptions{
 		Object: pod,
 		Options: &corev1.PodLogOptions{
-			Container: o.Attach.ContainerName,
+			Container: o.ContainerName,
 			Follow:    true,
 		},
 		RESTClientGetter: o.RESTClientGetter,
@@ -1229,7 +1237,7 @@ func (o *DebugOptions) getNamespace(infoNs string) (string, func(), error) {
 			return "", nil, fmt.Errorf("unable to create temporary namespace %s: %v", tmpNS.Name, err)
 		}
 
-		if !o.Attach.Quiet {
+		if !o.Quiet {
 			fmt.Fprintf(o.ErrOut, "Temporary namespace %s is created for debugging node...\n", ns.Name)
 		}
 
@@ -1237,7 +1245,7 @@ func (o *DebugOptions) getNamespace(infoNs string) (string, func(), error) {
 			if err := o.CoreClient.Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
 				klog.V(2).Infof("Unable to delete temporary namespace %s: %v", ns.Name, err)
 			} else {
-				if !o.Attach.Quiet {
+				if !o.Quiet {
 					fmt.Fprintf(o.ErrOut, "Temporary namespace %s was removed.\n", ns.Name)
 				}
 			}
