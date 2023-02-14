@@ -8,8 +8,9 @@ aliases:
     - smarterclayton
     - soltysh
   update-approvers:
-    - jottofar
+    - Davoska
     - LalatenduMohanty
+    - petr-muller
     - wking
   catalog-approvers:
     - awgreene
