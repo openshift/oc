@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -82,10 +83,14 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 			downgrading one minor version (4.2 -> 4.1) is likely to cause data corruption or to
 			completely break a cluster.
 
-			If the cluster is already being upgraded, or if the cluster is reporting a failure or
-			other error, the update will not be triggered.  It is usually best to give these conditions
-			time to resolve, or to actively work to resolve them.  But if you decide to trigger the update
-			regardless of these concerns, use --allow-upgrade-with-warnings.
+			If the desired update has already been requested, the command is a no-op, and will
+			exit zero.
+
+			If the cluster is already being upgraded to a different desired update, or if the cluster
+			is reporting a failure or other error, the update will not be triggered, and the command
+			will exist non-zero.  It is usually best to give these conditions time to resolve, or to
+			actively work to resolve them.  But if you decide to trigger the update regardless of
+			these concerns, use --allow-upgrade-with-warnings.
 
 			The cluster may report that the upgrade should not be performed due to a content
 			verification error or update precondition failures such as operators blocking upgrades.
@@ -214,26 +219,28 @@ func (o *Options) Run() error {
 
 	case o.ToMultiArch:
 		if cv.Spec.DesiredUpdate != nil && cv.Spec.DesiredUpdate.Architecture == configv1.ClusterVersionArchitectureMulti {
-			return fmt.Errorf("info: Update to multi cluster architecture has already been requested")
+			fmt.Println(o.Out, "info: A multi-architecture release has already been requested.")
+			return nil
+
 		}
 		if err := patchDesiredUpdate(ctx, &configv1.Update{Architecture: configv1.ClusterVersionArchitectureMulti,
 			Version: cv.Status.Desired.Version}, o.Client, cv.Name); err != nil {
 
 			return err
 		}
-		fmt.Fprintln(o.Out, "Requested update to multi cluster architecture")
+		fmt.Fprintln(o.Out, "Requested update to a multi-architecture release.")
 		return nil
 
 	case o.ToLatestAvailable, len(o.To) > 0, len(o.ToImage) > 0:
 		var update *configv1.Update
 
 		if len(o.To) > 0 && o.To == cv.Status.Desired.Version {
-			fmt.Fprintf(o.Out, "info: Cluster is already at version %s\n", o.To)
+			fmt.Fprintf(o.Out, "info: Cluster is already reconciling version %s\n", o.To)
 			return nil
 		}
 
 		if len(o.ToImage) > 0 && o.ToImage == cv.Status.Desired.Image {
-			fmt.Fprintf(o.Out, "info: Cluster is already at %s\n", o.ToImage)
+			fmt.Fprintf(o.Out, "info: Cluster is already reconciling %s\n", o.ToImage)
 			return nil
 		}
 
@@ -342,6 +349,11 @@ func (o *Options) Run() error {
 		if o.Force {
 			update.Force = true
 			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
+		}
+
+		if reflect.DeepEqual(update, cv.Spec.DesiredUpdate) {
+			fmt.Frintln(o.Out, "The desired update has already been requested.")
+			return nil
 		}
 
 		if err := checkForUpgrade(cv); err != nil {
