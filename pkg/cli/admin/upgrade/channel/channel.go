@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -129,9 +130,8 @@ func (o *Options) Run() error {
 		fmt.Fprintf(o.ErrOut, "warning: Clearing channel %q; cluster will no longer request available update recommendations.\n", cv.Spec.Channel)
 	}
 
-	cv.Spec.Channel = o.Channel
-
-	if _, err = o.Client.ConfigV1().ClusterVersions().Update(ctx, cv, metav1.UpdateOptions{}); err != nil {
+	patch := []byte(fmt.Sprintf(`{"spec":{"channel": %q}}`, o.Channel))
+	if _, err := o.Client.ConfigV1().ClusterVersions().Patch(ctx, cv.ObjectMeta.Name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil {
 		return fmt.Errorf("unable to set channel: %w", err)
 	}
 
