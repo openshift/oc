@@ -27,6 +27,7 @@ type ComponentMatch struct {
 	// available.
 	DockerImage *dockerv10.DockerImage
 	ImageStream *imagev1.ImageStream
+	ImportMode  imagev1.ImportModeType
 	ImageTag    string
 	Template    *templatev1.Template
 
