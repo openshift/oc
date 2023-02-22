@@ -215,7 +215,10 @@ func NewAppConfig() *AppConfig {
 func (c *AppConfig) DockerRegistrySearcher() app.Searcher {
 	r := NewImageRegistrySearcher()
 	r.ImageRetriever.SecurityOptions.Insecure = c.InsecureRegistry
-	return app.DockerRegistrySearcher{Client: r}
+	return app.DockerRegistrySearcher{
+		Client:     r,
+		ImportMode: c.ImportMode,
+	}
 }
 
 type ImageRegistrySearcher struct {
@@ -295,7 +298,9 @@ func (c *AppConfig) SetOpenShiftClient(imageClient imagev1typedclient.ImageV1Int
 			Client:        c.ImageClient.ImageStreamImports(OriginNamespace),
 			AllowInsecure: c.InsecureRegistry,
 			Fallback:      c.DockerRegistrySearcher(),
+			ImportMode:    c.ImportMode,
 		},
+		ImportMode: c.ImportMode,
 	}
 }
 
@@ -501,6 +506,7 @@ func (c *AppConfig) buildPipelines(components app.ComponentReferences, environme
 						klog.Warningf(msg, from)
 					}
 					image = inputImage
+					image.ImportMode = imagev1.ImportModeType(c.ImportMode)
 				}
 
 				klog.V(4).Infof("will use %q as the base image for a source build of %q", ref, refInput.Uses)

@@ -123,6 +123,11 @@ func (pb *pipelineBuilder) NewBuildPipeline(from string, input *ImageRef, source
 					Config: &dockerv10.DockerConfig{},
 				}
 			}
+			input.ImportMode = imagev1.ImportModeType(input.ImportMode)
+			// If there is no DockerConfig, otherwise a panic results
+			if input.Info.Config == nil {
+				input.Info.Config = &dockerv10.DockerConfig{}
+			}
 			input.Info.Config.ExposedPorts = map[string]struct{}{}
 			for _, p := range ports {
 				input.Info.Config.ExposedPorts[p] = struct{}{}
@@ -134,6 +139,7 @@ func (pb *pipelineBuilder) NewBuildPipeline(from string, input *ImageRef, source
 		// TODO: assumes that build doesn't change the image metadata. In the future
 		// we could get away with deferred generation possibly.
 		output.Info = input.Info
+		output.ImportMode = imagev1.ImportModeType(input.ImportMode)
 	}
 
 	build := &BuildRef{
@@ -145,7 +151,6 @@ func (pb *pipelineBuilder) NewBuildPipeline(from string, input *ImageRef, source
 		DockerStrategyOptions: pb.dockerStrategyOptions,
 		Binary:                binary,
 	}
-
 	return &Pipeline{
 		Name:       name,
 		From:       from,
