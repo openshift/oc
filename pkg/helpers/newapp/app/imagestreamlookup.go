@@ -242,6 +242,7 @@ func InputImageFromMatch(match *ComponentMatch) (*ImageRef, error) {
 		}
 		input.AsImageStream = true
 		input.Info = match.DockerImage
+		input.ImportMode = match.ImportMode
 		return input, nil
 
 	case match.DockerImage != nil:
@@ -256,6 +257,7 @@ func InputImageFromMatch(match *ComponentMatch) (*ImageRef, error) {
 		input.AsImageStream = !match.LocalOnly
 		input.Info = match.DockerImage
 		input.Insecure = match.Insecure
+		input.ImportMode = match.ImportMode
 		return input, nil
 
 	default:

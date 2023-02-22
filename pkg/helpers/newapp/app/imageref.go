@@ -170,6 +170,9 @@ type ImageRef struct {
 	// Stream and Info should *only* be set if the image stream already exists
 	Stream *imagev1.ImageStream
 	Info   *dockerv10.DockerImage
+
+	// The ImportMode for the image
+	ImportMode imagev1.ImportModeType
 }
 
 // Exists returns true if the image stream exists
@@ -371,7 +374,7 @@ func (r *ImageRef) ImageStream() (*imagev1.ImageStream, error) {
 			Kind: "DockerImage",
 			Name: r.PullSpec(),
 		},
-		ImportPolicy: imagev1.TagImportPolicy{Insecure: r.Insecure},
+		ImportPolicy: imagev1.TagImportPolicy{Insecure: r.Insecure, ImportMode: r.ImportMode},
 	})
 
 	return stream, nil
@@ -398,7 +401,7 @@ func (r *ImageRef) ImageStreamTag() (*imagev1.ImageStreamTag, error) {
 				Kind: "DockerImage",
 				Name: r.PullSpec(),
 			},
-			ImportPolicy: imagev1.TagImportPolicy{Insecure: r.Insecure},
+			ImportPolicy: imagev1.TagImportPolicy{Insecure: r.Insecure, ImportMode: r.ImportMode},
 		},
 	}
 	return ist, nil
