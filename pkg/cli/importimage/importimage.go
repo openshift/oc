@@ -52,6 +52,9 @@ var (
 		# Update imported data for all tags in an existing image stream
 		oc import-image mystream --all
 
+		# Update imported data for a tag which points to a manifest list to include the full manifest list
+		oc import-image mystream --import-mode=PreserveOriginal
+
 		# Import all tags into a new image stream
 		oc import-image mystream --from=registry.io/repo/image --all --confirm
 
@@ -73,6 +76,7 @@ type ImportImageOptions struct {
 	Scheduled            bool
 	Insecure             bool
 	InsecureFlagProvided bool
+	ImportMode           string
 
 	DryRun bool
 
@@ -95,6 +99,7 @@ func NewImportImageOptions(streams genericclioptions.IOStreams) *ImportImageOpti
 		PrintFlags:      genericclioptions.NewPrintFlags("imported"),
 		IOStreams:       streams,
 		ReferencePolicy: tag.SourceReferencePolicy,
+		ImportMode:      string(imagev1.ImportModeLegacy),
 	}
 }
 
@@ -123,6 +128,7 @@ func NewCmdImportImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 	cmd.Flags().BoolVar(&o.Confirm, "confirm", o.Confirm, "If true, allow the image stream import location to be set or changed")
 	cmd.Flags().BoolVar(&o.All, "all", o.All, "If true, import all tags from the provided source on creation or if --from is specified")
 	cmd.Flags().StringVar(&o.ReferencePolicy, "reference-policy", o.ReferencePolicy, "Allow to request pullthrough for external image when set to 'local'. Defaults to 'source'.")
+	cmd.Flags().StringVar(&o.ImportMode, "import-mode", o.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
 	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Fetch information about images without creating or updating an image stream.")
 	cmd.Flags().BoolVar(&o.Scheduled, "scheduled", o.Scheduled, "Set each imported container image to be periodically imported from a remote repository. Defaults to false.")
 	cmd.Flags().BoolVar(&o.Insecure, "insecure", o.Insecure, "If true, allow importing from registries that have invalid HTTPS certificates or are hosted via HTTP. This flag will take precedence over the insecure annotation.")
@@ -205,6 +211,15 @@ func (o *ImportImageOptions) Validate() error {
 		o.ReferencePolicy = tag.LocalReferencePolicy
 	default:
 		return fmt.Errorf("valid reference policy values are source or local")
+	}
+
+	switch o.ImportMode {
+	case string(imagev1.ImportModeLegacy):
+	case string(imagev1.ImportModePreserveOriginal):
+	case "":
+		o.ImportMode = string(imagev1.ImportModeLegacy)
+	default:
+		return fmt.Errorf("valid ImportMode values are %s or %s", imagev1.ImportModeLegacy, imagev1.ImportModePreserveOriginal)
 	}
 
 	return nil
@@ -543,8 +558,9 @@ func (o *ImportImageOptions) newImageStreamImportAll(stream *imagev1.ImageStream
 			Name: from,
 		},
 		ImportPolicy: imagev1.TagImportPolicy{
-			Insecure:  insecure,
-			Scheduled: o.Scheduled,
+			Insecure:   insecure,
+			Scheduled:  o.Scheduled,
+			ImportMode: imagev1.ImportModeType(o.ImportMode),
 		},
 		ReferencePolicy: o.getReferencePolicy(),
 	}
@@ -579,8 +595,9 @@ func (o *ImportImageOptions) newImageStreamImportTags(stream *imagev1.ImageStrea
 			},
 			To: &corev1.LocalObjectReference{Name: tag},
 			ImportPolicy: imagev1.TagImportPolicy{
-				Insecure:  insecure,
-				Scheduled: scheduled,
+				Insecure:   insecure,
+				Scheduled:  scheduled,
+				ImportMode: imagev1.ImportModeType(o.ImportMode),
 			},
 			ReferencePolicy: o.getReferencePolicy(),
 		})

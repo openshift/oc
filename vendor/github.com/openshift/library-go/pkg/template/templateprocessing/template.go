@@ -186,7 +186,6 @@ func (p *Processor) EvaluateParameterSubstitution(params map[string]templatev1.P
 //
 // Example of Parameter expression:
 //   - ${PARAMETER_NAME}
-//
 func (p *Processor) SubstituteParameters(params map[string]templatev1.Parameter, item runtime.Object) (runtime.Object, error) {
 	visitObjectStrings(item, func(in string) (string, bool) {
 		return p.EvaluateParameterSubstitution(params, in)

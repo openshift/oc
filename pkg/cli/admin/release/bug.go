@@ -240,6 +240,22 @@ func (b RefList) PrintRefs(out io.Writer) {
 	}
 }
 
+// GetRefsForSource returns a map of URLs, sorted by ID, for the specified RefType
+func (b RefList) GetRefsForSource(source RefType) map[string]string {
+	refs := make(map[string]string)
+	for _, ref := range b.Refs {
+		if ref.Source == source {
+			switch ref.Source {
+			case Bugzilla:
+				refs[ref.ID] = fmt.Sprintf(bugzillaBrowseURL, ref.ID)
+			case Jira:
+				refs[ref.ID] = fmt.Sprintf(jiraBrowseURL, ref.ID)
+			}
+		}
+	}
+	return refs
+}
+
 // GetRefList converts Ref map to Ref list after sorting
 // according to the ID field.
 func GetRefList(b map[string]Ref) []Ref {
@@ -278,6 +294,7 @@ func extractRefs(msg string) (RefList, string) {
 	if bt == Jira {
 		refs = strings.TrimSpace(parsedMsg[0])
 		refs = strings.TrimSuffix(refs, ":")
+		refs = strings.TrimSuffix(refs, "-")
 	}
 
 	// trim all the bug/jira refs from the commit message

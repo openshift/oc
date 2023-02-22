@@ -37,6 +37,7 @@ type TagOptions struct {
 	namespace    string
 
 	referencePolicy string
+	importMode      string
 
 	ref            imagev1.DockerImageReference
 	sourceKind     string
@@ -73,6 +74,9 @@ var (
 
 		# Tag an external container image and request pullthrough for it
 		oc tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip --reference-policy=local
+
+		# Tag an external container image and include the full manifest list
+		oc tag --source=docker openshift/origin-control-plane:latest yourproject/ruby:tip --import-mode=PreserveOriginal
 
 		# Remove the specified spec tag from an image stream
 		oc tag openshift/origin-control-plane:latest -d`)
@@ -111,6 +115,7 @@ func NewCmdTag(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 	cmd.Flags().BoolVar(&o.scheduleTag, "scheduled", o.scheduleTag, "Set a container image to be periodically imported from a remote repository. Defaults to false.")
 	cmd.Flags().BoolVar(&o.insecureTag, "insecure", o.insecureTag, "Set to true if importing the specified container image requires HTTP or has a self-signed certificate. Defaults to false.")
 	cmd.Flags().StringVar(&o.referencePolicy, "reference-policy", SourceReferencePolicy, "Allow to request pullthrough for external image when set to 'local'. Defaults to 'source'.")
+	cmd.Flags().StringVar(&o.importMode, "import-mode", o.importMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
 
 	return cmd
 }
@@ -302,7 +307,7 @@ func isCrossImageStream(namespace string, srcRef imagev1.DockerImageReference, d
 }
 
 // Validate validates all the required options for the tag command.
-func (o TagOptions) Validate() error {
+func (o *TagOptions) Validate() error {
 	if o.deleteTag && o.aliasTag {
 		return errors.New("--alias and --delete may not be both specified")
 	}
@@ -321,6 +326,9 @@ func (o TagOptions) Validate() error {
 		}
 		if o.scheduleTag || o.insecureTag {
 			return errors.New("cannot set flags for importing images when deleting a tag")
+		}
+		if len(o.importMode) > 0 {
+			return errors.New("cannot specify an import mode when deleting")
 		}
 	} else {
 		if len(o.sourceKind) == 0 {
@@ -352,6 +360,15 @@ func (o TagOptions) Validate() error {
 		if cross {
 			return errors.New("cannot set alias across different Image Streams")
 		}
+	}
+
+	switch o.importMode {
+	case string(imagev1.ImportModeLegacy):
+	case string(imagev1.ImportModePreserveOriginal):
+	case "":
+		o.importMode = string(imagev1.ImportModeLegacy)
+	default:
+		return fmt.Errorf("valid ImportMode values are %s or %s", imagev1.ImportModeLegacy, imagev1.ImportModePreserveOriginal)
 	}
 
 	return nil
@@ -435,8 +452,9 @@ func (o TagOptions) Run() error {
 					Name:      destTag,
 					Reference: o.referenceTag,
 					ImportPolicy: imagev1.TagImportPolicy{
-						Insecure:  o.insecureTag,
-						Scheduled: o.scheduleTag,
+						Insecure:   o.insecureTag,
+						Scheduled:  o.scheduleTag,
+						ImportMode: imagev1.ImportModeType(o.importMode),
 					},
 					ReferencePolicy: imagev1.TagReferencePolicy{
 						Type: tagReferencePolicy,

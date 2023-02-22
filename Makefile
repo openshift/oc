@@ -13,9 +13,12 @@ include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 	targets/openshift/deps-gomod.mk \
 )
 
+KUBE_GIT_MINOR_VERSION := "26"
+KUBE_GIT_VERSION := "v1.26.1"
+
 GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
-                   -X k8s.io/component-base/version.gitMinor="24" \
-                   -X k8s.io/component-base/version.gitVersion="v1.24.1" \
+                   -X k8s.io/component-base/version.gitMinor=$(KUBE_GIT_MINOR_VERSION) \
+                   -X k8s.io/component-base/version.gitVersion=$(KUBE_GIT_VERSION) \
                    -X k8s.io/component-base/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
                    -X k8s.io/component-base/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
                    -X k8s.io/component-base/version.gitTreeState="clean" \
@@ -72,7 +75,7 @@ oc: build
 update: update-generated-completions
 .PHONY: update
 
-verify: verify-cli-conventions verify-generated-completions
+verify: verify-cli-conventions verify-generated-completions verify-kube-version
 .PHONY: verify
 
 verify-cli-conventions:
@@ -86,6 +89,10 @@ update-generated-completions: build
 verify-generated-completions: build
 	hack/verify-generated-completions.sh
 .PHONY: verify-generated-completions
+
+verify-kube-version: build
+	KUBE_GIT_VERSION=$(KUBE_GIT_VERSION) hack/verify-kube-version.sh
+.PHONY: verify-kube-version
 
 generate-docs:
 	go run ./tools/gendocs

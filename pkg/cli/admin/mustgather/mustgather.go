@@ -154,9 +154,6 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	if len(o.DestDir) == 0 {
 		o.DestDir = fmt.Sprintf("must-gather.local.%06d", rand.Int63())
 	}
-	if len(o.RunNamespace) > 0 {
-		fmt.Fprintln(o.ErrOut, `"--run-namespace" is an experimental flag, using it is not supported`)
-	}
 	if err := o.completeImages(); err != nil {
 		return err
 	}
@@ -378,6 +375,19 @@ func (o *MustGatherOptions) Run() error {
 	for _, pod := range pods {
 		go func(pod *corev1.Pod) {
 			defer wg.Done()
+
+			if len(o.RunNamespace) > 0 && !o.Keep {
+				defer func() {
+					// must-gather runs in its own separate namespace as default , so after it is completed
+					// it deletes this namespace and all the pods are removed by garbage collector.
+					// However, if user specifies namespace via `run-namespace`, these pods need to
+					// be deleted manually.
+					err = o.Client.CoreV1().Pods(o.RunNamespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
+					if err != nil {
+						klog.V(4).Infof("pod deletion error %v", err)
+					}
+				}()
+			}
 
 			log := newPodOutLogger(o.Out, pod.Name)
 

@@ -2,18 +2,19 @@ package inspect
 
 import (
 	"fmt"
+	routev1 "github.com/openshift/api/route/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"os"
 	"path"
 
+	configv1 "github.com/openshift/api/config/v1"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/klog/v2"
-
-	configv1 "github.com/openshift/api/config/v1"
 )
 
 const (
@@ -94,30 +95,114 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 		}
 		return nil
 
-	case schema.GroupResource{Group: "route.openshift.io", Resource: "routes"}:
+	case routev1.GroupVersion.WithResource("routes").GroupResource():
 		if err := inspectRouteInfo(info, o); err != nil {
 			return err
 		}
 		return nil
-	default:
-		unstr, ok := info.Object.(*unstructured.Unstructured)
-		if ok {
-			// obtain associated objects for the current resource
-			if err := gatherRelatedObjects(context, unstr, o); err != nil {
-				return err
-			}
-		}
 
-		// save the current object to disk
-		dirPath := dirPathForInfo(o.DestDir, info)
-		filename := filenameForInfo(info)
-		// ensure destination path exists
-		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
+	case admissionregistrationv1.SchemeGroupVersion.WithResource("mutatingwebhookconfigurations").GroupResource():
+		if err := gatherMutatingAdmissionWebhook(context, info, o); err != nil {
 			return err
 		}
+		return nil
 
-		return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), info.Object)
+	case admissionregistrationv1.SchemeGroupVersion.WithResource("validatingwebhookconfigurations").GroupResource():
+		if err := gatherValidatingAdmissionWebhook(context, info, o); err != nil {
+			return err
+		}
+		return nil
+
+	case apiextensionsv1.SchemeGroupVersion.WithResource("customresourcedefinitions").GroupResource():
+		if err := gatherCustomResourceDefinition(context, info, o); err != nil {
+			return err
+		}
+		return nil
+
+	default:
+		return gatherGenericObject(context, info, o)
 	}
+}
+
+type listAccessor interface {
+	addItem(obj interface{}) error
+}
+
+func newListAccessor(structuredList interface{}) (listAccessor, error) {
+	switch castObj := structuredList.(type) {
+	case *admissionregistrationv1.MutatingWebhookConfigurationList:
+		return &mutatingWebhookConfigList{castObj}, nil
+
+	case *admissionregistrationv1.ValidatingWebhookConfigurationList:
+		return &validatingWebhookConfigList{castObj}, nil
+
+	case *corev1.SecretList:
+		return &secretList{castObj}, nil
+
+	case *routev1.RouteList:
+		return &routeList{castObj}, nil
+
+	default:
+		return nil, fmt.Errorf("unhandledStructuredListType: %T", castObj)
+
+	}
+}
+
+func toStructuredObject[T any, TList any](obj runtime.Object) (runtime.Object, error) {
+	if unstructureObj, ok := obj.(*unstructured.Unstructured); ok {
+		var t T
+		structuredItem := &t
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructureObj.Object, structuredItem)
+		if err != nil {
+			return nil, err
+		}
+		return interface{}(structuredItem).(runtime.Object), nil
+	}
+	if unstructureObjList, ok := obj.(*unstructured.UnstructuredList); ok {
+		var t TList
+		structuredList := &t
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructureObjList.Object, structuredList)
+		if err != nil {
+			return nil, err
+		}
+		for _, unstructureObj := range unstructureObjList.Items {
+			var t T
+			structuredItem := &t
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructureObj.Object, structuredItem)
+			if err != nil {
+				return nil, err
+			}
+			listMeta, err := newListAccessor(structuredList)
+			if err != nil {
+				return nil, err
+			}
+			listMeta.addItem(structuredItem)
+		}
+
+		return interface{}(structuredList).(runtime.Object), nil
+	}
+
+	return nil, fmt.Errorf("unhandled object type")
+}
+
+func gatherGenericObject(context *resourceContext, info *resource.Info, o *InspectOptions) error {
+	unstr, ok := info.Object.(*unstructured.Unstructured)
+	if ok {
+		// obtain associated objects for the current resource
+		if err := gatherRelatedObjects(context, unstr, o); err != nil {
+			return err
+		}
+	}
+
+	// save the current object to disk
+	dirPath := dirPathForInfo(o.DestDir, info)
+	filename := filenameForInfo(info)
+	// ensure destination path exists
+	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
+		return err
+	}
+
+	return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), info.Object)
 }
 
 func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstructured, o *InspectOptions) error {
@@ -126,8 +211,10 @@ func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstruct
 		return err
 	}
 
-	relatedObjReferences = append(relatedObjReferences, obtainWebhookService(unstr)...)
+	return gatherMoreObjects(context, o, relatedObjReferences...)
+}
 
+func gatherMoreObjects(context *resourceContext, o *InspectOptions, relatedObjReferences ...*configv1.ObjectReference) error {
 	errs := []error{}
 	for _, relatedRef := range relatedObjReferences {
 		if context.visited.Has(objectRefToContextKey(relatedRef)) {
@@ -149,6 +236,19 @@ func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstruct
 	}
 
 	return errors.NewAggregate(errs)
+}
+
+func gatherNamespaces(context *resourceContext, o *InspectOptions, namespaces ...string) error {
+	relatedObjReferences := []*configv1.ObjectReference{}
+
+	for _, namespace := range namespaces {
+		relatedObjReferences = append(relatedObjReferences, &configv1.ObjectReference{
+			Resource: "namespaces",
+			Name:     namespace,
+		})
+	}
+
+	return gatherMoreObjects(context, o, relatedObjReferences...)
 }
 
 func gatherClusterOperatorResource(baseDir string, obj *unstructured.Unstructured, fileWriter *MultiSourceFileWriter) error {
@@ -185,43 +285,4 @@ func obtainRelatedObjects(obj *unstructured.Unstructured) ([]*configv1.ObjectRef
 	}
 
 	return relatedObjs, nil
-}
-
-// obtainWebhookService obtains namespaces related to ValidatingWebhookConfiguration or
-// MutatingWebhookConfiguration. These WebhookConfiguration resources do not contain status.relatedObject field,
-// instead service resources are stored in webhook.clientConfig.Service field and this function will
-// return namespace resources in which services related to webhook configurations are running.
-func obtainWebhookService(obj *unstructured.Unstructured) []*configv1.ObjectReference {
-	if obj.GetKind() != "ValidatingWebhookConfiguration" && obj.GetKind() != "MutatingWebhookConfiguration" {
-		return nil
-	}
-
-	webhooks, found, err := unstructured.NestedSlice(obj.Object, "webhooks")
-	if !found || err != nil {
-		klog.V(1).Infof("%q does not contain .webhook", unstructuredToString(obj))
-		return nil
-	}
-
-	var relatedObjs []*configv1.ObjectReference
-	for _, w := range webhooks {
-		w, ok := w.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		ns, found, err := unstructured.NestedString(w, "clientConfig", "service", "namespace")
-		if !found || err != nil {
-			klog.V(1).Infof("%q does not contain .webhook.clientConfig.service.namespace", unstructuredToString(obj))
-			continue
-		}
-
-		ref := &configv1.ObjectReference{
-			Resource: "namespaces",
-			Name:     ns,
-		}
-
-		relatedObjs = append(relatedObjs, ref)
-		klog.V(1).Infof("    Found related object in webhook %q...\n", objectReferenceToString(ref))
-	}
-
-	return relatedObjs
 }

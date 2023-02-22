@@ -23,6 +23,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/groups"
 	"github.com/openshift/oc/pkg/cli/admin/inspect"
 	"github.com/openshift/oc/pkg/cli/admin/migrate"
+	migrateteicsp "github.com/openshift/oc/pkg/cli/admin/migrate/icsp"
 	migratetemplateinstances "github.com/openshift/oc/pkg/cli/admin/migrate/templateinstances"
 	"github.com/openshift/oc/pkg/cli/admin/mustgather"
 	"github.com/openshift/oc/pkg/cli/admin/network"
@@ -88,6 +89,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 				migrate.NewCommandMigrate(f, streams,
 					// Migration commands
 					migratetemplateinstances.NewCmdMigrateTemplateInstances(f, streams),
+					migrateteicsp.NewCmdMigrateICSP(f, streams),
 				),
 			},
 		},

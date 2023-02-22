@@ -23,6 +23,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/describe"
 	"k8s.io/kubectl/pkg/cmd/diff"
 	"k8s.io/kubectl/pkg/cmd/edit"
+	"k8s.io/kubectl/pkg/cmd/events"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	"k8s.io/kubectl/pkg/cmd/explain"
 	kget "k8s.io/kubectl/pkg/cmd/get"
@@ -206,6 +207,10 @@ func NewCmdCp(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Co
 
 func NewCmdWait(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(kwait.NewCmdWait(f, streams)))
+}
+
+func NewCmdEvents(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(events.NewCmdEvents(f, streams)))
 }
 
 func NewCmdAuth(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
