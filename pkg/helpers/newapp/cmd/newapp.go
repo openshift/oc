@@ -141,6 +141,9 @@ type AppConfig struct {
 	TemplateClassificationErrors    map[string]ArgumentClassificationError
 	ComponentClassificationErrors   map[string]ArgumentClassificationError
 	ClassificationWinners           map[string]ArgumentClassificationWinner
+
+	// The ImportMode for the image
+	ImportMode string
 }
 
 type ArgumentClassificationError struct {
@@ -512,6 +515,8 @@ func (c *AppConfig) buildPipelines(components app.ComponentReferences, environme
 				if !inputImage.AsImageStream {
 					msg := "Could not find an image stream match for %q. Make sure that a container image with that tag is available on the node for the deployment to succeed."
 					klog.Warningf(msg, from)
+				} else {
+					inputImage.ImportMode = imagev1.ImportModeType(c.ImportMode)
 				}
 
 				klog.V(4).Infof("will include %q", ref)
@@ -871,6 +876,17 @@ func (c *AppConfig) Run() (*AppResult, error) {
 	}
 	// TODO: I don't belong here
 	c.ensureDockerSearch()
+
+	// verifies the import mode is correct
+	// style is the same as oc tag and oc import-image
+	switch c.ImportMode {
+	case string(imagev1.ImportModeLegacy):
+	case string(imagev1.ImportModePreserveOriginal):
+	case "":
+		c.ImportMode = string(imagev1.ImportModeLegacy)
+	default:
+		return nil, fmt.Errorf("valid ImportMode values are %s or %s", imagev1.ImportModeLegacy, imagev1.ImportModePreserveOriginal)
+	}
 
 	resolved, err := Resolve(c)
 	if err != nil {
