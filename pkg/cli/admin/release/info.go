@@ -1579,9 +1579,10 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 				}
 				for _, commit := range commits {
 					commitInfo := CommitInfo{
-						Bugs:    commit.Refs.GetRefsForSource(Bugzilla),
-						Issues:  commit.Refs.GetRefsForSource(Jira),
-						Subject: replaceUnsafeInput.Replace(commit.Subject),
+						Bugs:       commit.Refs.GetRefsForSource(Bugzilla),
+						Issues:     commit.Refs.GetRefsForSource(Jira),
+						Subject:    replaceUnsafeInput.Replace(commit.Subject),
+						CommitDate: commit.CommitDate,
 					}
 					switch {
 					case commit.PullRequest > 0:
@@ -2105,13 +2106,14 @@ type ChangeLogImageInfo struct {
 }
 
 type CommitInfo struct {
-	Bugs      map[string]string `json:"bugs,omitempty"`
-	Issues    map[string]string `json:"issues,omitempty"`
-	Subject   string            `json:"subject,omitempty"`
-	PullID    int               `json:"pullID,omitempty"`
-	PullURL   string            `json:"pullURL,omitempty"`
-	CommitID  string            `json:"commitID,omitempty"`
-	CommitURL string            `json:"commitURL,omitempty"`
+	Bugs       map[string]string `json:"bugs,omitempty"`
+	Issues     map[string]string `json:"issues,omitempty"`
+	Subject    string            `json:"subject,omitempty"`
+	PullID     int               `json:"pullID,omitempty"`
+	PullURL    string            `json:"pullURL,omitempty"`
+	CommitID   string            `json:"commitID,omitempty"`
+	CommitURL  string            `json:"commitURL,omitempty"`
+	CommitDate time.Time         `json:"commitDate,omitempty"`
 }
 
 func refToChangeInfo(ref *imageapi.TagReference) ChangeLogImageInfo {
