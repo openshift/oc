@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/go-ldap/ldap/v3"
 	"github.com/spf13/cobra"
 
 	kerrs "k8s.io/apimachinery/pkg/util/errors"
@@ -15,8 +16,8 @@ import (
 	legacyconfigv1 "github.com/openshift/api/legacyconfig/v1"
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	"github.com/openshift/library-go/pkg/security/ldapclient"
-	"github.com/openshift/oc/pkg/helpers/groupsync"
-	"github.com/openshift/oc/pkg/helpers/groupsync/ldap"
+	syncgroups "github.com/openshift/oc/pkg/helpers/groupsync"
+	ldapsync "github.com/openshift/oc/pkg/helpers/groupsync/ldap"
 )
 
 var (
@@ -133,7 +134,7 @@ func (o *PruneOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 }
 
 func (o *PruneOptions) Validate() error {
-	results := ldap.ValidateLDAPSyncConfig(o.Config)
+	results := ldapsync.ValidateLDAPSyncConfig(o.Config)
 	if o.GroupClient == nil {
 		results.Errors = append(results.Errors, field.Required(field.NewPath("groupInterface"), ""))
 	}
@@ -147,7 +148,7 @@ func (o *PruneOptions) Validate() error {
 // Run creates the GroupSyncer specified and runs it to sync groups
 // the arguments are only here because its the only way to get the printer we need
 func (o *PruneOptions) Run() error {
-	bindPassword, err := ldap.ResolveStringValue(o.Config.BindPassword)
+	bindPassword, err := ldapsync.ResolveStringValue(o.Config.BindPassword)
 	if err != nil {
 		return err
 	}
@@ -156,7 +157,13 @@ func (o *PruneOptions) Run() error {
 		return fmt.Errorf("could not determine LDAP client configuration: %v", err)
 	}
 
-	pruneBuilder, err := buildPruneBuilder(clientConfig, o.Config)
+	ldapClient, err := ldapclient.ConnectMaybeBind(clientConfig)
+	if err != nil {
+		return err
+	}
+	defer ldapClient.Close()
+
+	pruneBuilder, err := buildPruneBuilder(ldapClient, o.Config)
 	if err != nil {
 		return err
 	}
@@ -189,14 +196,14 @@ func (o *PruneOptions) Run() error {
 
 }
 
-func buildPruneBuilder(clientConfig ldapclient.Config, pruneConfig *legacyconfigv1.LDAPSyncConfig) (PruneBuilder, error) {
+func buildPruneBuilder(ldapClient ldap.Client, pruneConfig *legacyconfigv1.LDAPSyncConfig) (PruneBuilder, error) {
 	switch {
 	case pruneConfig.RFC2307Config != nil:
-		return &RFC2307Builder{ClientConfig: clientConfig, Config: pruneConfig.RFC2307Config}, nil
+		return &RFC2307Builder{LDAPClient: ldapClient, Config: pruneConfig.RFC2307Config}, nil
 	case pruneConfig.ActiveDirectoryConfig != nil:
-		return &ADBuilder{ClientConfig: clientConfig, Config: pruneConfig.ActiveDirectoryConfig}, nil
+		return &ADBuilder{LDAPClient: ldapClient, Config: pruneConfig.ActiveDirectoryConfig}, nil
 	case pruneConfig.AugmentedActiveDirectoryConfig != nil:
-		return &AugmentedADBuilder{ClientConfig: clientConfig, Config: pruneConfig.AugmentedActiveDirectoryConfig}, nil
+		return &AugmentedADBuilder{LDAPClient: ldapClient, Config: pruneConfig.AugmentedActiveDirectoryConfig}, nil
 	default:
 		return nil, errors.New("invalid sync config type")
 	}

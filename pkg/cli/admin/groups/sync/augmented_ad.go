@@ -1,10 +1,10 @@
 package sync
 
 import (
+	"github.com/go-ldap/ldap/v3"
 	legacyconfigv1 "github.com/openshift/api/legacyconfig/v1"
-	"github.com/openshift/library-go/pkg/security/ldapclient"
 	ldapquery "github.com/openshift/library-go/pkg/security/ldapquery"
-	"github.com/openshift/oc/pkg/helpers/groupsync"
+	syncgroups "github.com/openshift/oc/pkg/helpers/groupsync"
 	"github.com/openshift/oc/pkg/helpers/groupsync/ad"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"
 )
@@ -13,8 +13,8 @@ var _ SyncBuilder = &AugmentedADBuilder{}
 var _ PruneBuilder = &AugmentedADBuilder{}
 
 type AugmentedADBuilder struct {
-	ClientConfig ldapclient.Config
-	Config       *legacyconfigv1.AugmentedActiveDirectoryConfig
+	LDAPClient ldap.Client
+	Config     *legacyconfigv1.AugmentedActiveDirectoryConfig
 
 	augmentedADLDAPInterface *ad.AugmentedADLDAPInterface
 }
@@ -56,7 +56,7 @@ func (b *AugmentedADBuilder) getAugmentedADLDAPInterface() (*ad.AugmentedADLDAPI
 	if err != nil {
 		return nil, err
 	}
-	b.augmentedADLDAPInterface = ad.NewAugmentedADLDAPInterface(b.ClientConfig,
+	b.augmentedADLDAPInterface = ad.NewAugmentedADLDAPInterface(b.LDAPClient,
 		userQuery, b.Config.GroupMembershipAttributes, b.Config.UserNameAttributes,
 		groupQuery, b.Config.GroupNameAttributes)
 	return b.augmentedADLDAPInterface, nil

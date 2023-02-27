@@ -5,20 +5,19 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/openshift/library-go/pkg/security/ldapclient"
 	ldapquery "github.com/openshift/library-go/pkg/security/ldapquery"
 	"github.com/openshift/oc/pkg/helpers/groupsync/groupdetector"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"
 )
 
 // NewADLDAPInterface builds a new ADLDAPInterface using a schema-appropriate config
-func NewADLDAPInterface(clientConfig ldapclient.Config,
+func NewADLDAPInterface(ldapClient ldap.Client,
 	userQuery ldapquery.LDAPQuery,
 	groupMembershipAttributes []string,
 	userNameAttributes []string) *ADLDAPInterface {
 
 	return &ADLDAPInterface{
-		clientConfig:              clientConfig,
+		ldapClient:                ldapClient,
 		userQuery:                 userQuery,
 		userNameAttributes:        userNameAttributes,
 		groupMembershipAttributes: groupMembershipAttributes,
@@ -29,8 +28,8 @@ func NewADLDAPInterface(clientConfig ldapclient.Config,
 // ADLDAPInterface extracts the member list of an LDAP group entry from an LDAP server
 // with first-class LDAP entries for user only. The ADLDAPInterface is *NOT* thread-safe.
 type ADLDAPInterface struct {
-	// clientConfig holds LDAP connection information
-	clientConfig ldapclient.Config
+	// ldapClient holds LDAP connection information
+	ldapClient ldap.Client
 
 	// userQuery holds the information necessary to make an LDAP query for all first-class user entries on the LDAP server
 	userQuery ldapquery.LDAPQuery
@@ -70,7 +69,7 @@ func (e *ADLDAPInterface) ExtractMembers(ldapGroupUID string) ([]*ldap.Entry, er
 			return nil, err
 		}
 
-		currEntries, err := ldapquery.QueryForEntries(e.clientConfig, searchRequest)
+		currEntries, err := ldapquery.QueryForEntries(e.ldapClient, searchRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +105,7 @@ func (e *ADLDAPInterface) populateCache() error {
 
 	searchRequest := e.userQuery.NewSearchRequest(e.requiredUserAttributes())
 
-	userEntries, err := ldapquery.QueryForEntries(e.clientConfig, searchRequest)
+	userEntries, err := ldapquery.QueryForEntries(e.ldapClient, searchRequest)
 	if err != nil {
 		return err
 	}
