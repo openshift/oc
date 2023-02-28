@@ -33,6 +33,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
+	"github.com/openshift/oc/pkg/cli/image/strategy"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
 )
 
@@ -135,6 +136,7 @@ type MirrorImageOptions struct {
 	AttemptS3BucketCopy []string
 	FileDir             string
 	FromFileDir         string
+	ICSPFile            string
 
 	Filenames []string
 
@@ -184,6 +186,7 @@ func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 	flag.StringSliceVarP(&o.Filenames, "filename", "f", o.Filenames, "One or more files to read SRC=DST or SRC DST [DST ...] mappings from.")
 	flag.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
 	flag.StringVar(&o.FromFileDir, "from-dir", o.FromFileDir, "The directory on disk that file:// images will be read from. Overrides --dir")
+	flag.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file.  If set, data from this file will be used to find alternative locations for images.")
 
 	return cmd
 }
@@ -204,6 +207,9 @@ func (o *MirrorImageOptions) Complete(cmd *cobra.Command, args []string) error {
 	registryContext, err := o.SecurityOptions.Context()
 	if err != nil {
 		return err
+	}
+	if len(o.ICSPFile) > 0 {
+		registryContext = registryContext.WithAlternateBlobSourceStrategy(strategy.NewICSPOnErrorStrategy(o.ICSPFile))
 	}
 
 	dir := o.FileDir
@@ -452,6 +458,9 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 		return nil, err
 	}
 	fromContext := context.Copy()
+	if len(o.ICSPFile) > 0 {
+		fromContext = fromContext.WithAlternateBlobSourceStrategy(strategy.NewICSPOnErrorStrategy(o.ICSPFile))
+	}
 	toContext := context.Copy().WithActions("pull", "push")
 	toContexts := make(map[contextKey]*registryclient.Context)
 
