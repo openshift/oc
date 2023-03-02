@@ -57,9 +57,12 @@ var (
 		add the --drop-history flag to remove information from the image about the system that
 		built the base image.
 
-		Images in manifest list format will automatically select an image that matches the current
-		operating system and architecture unless you use --filter-by-os to select a different image.
-		This flag has no effect on regular images.
+		Images in manifest list format with keep-manifest-list specified will automatically append layers
+		to all sub manifests in the list unless filter-by-os is specified in which case the append will
+		only happen for the filtered manifests while preserving the manifestlist. If keep-manifest-list is
+		not specified, automatically select an image that matches the current operating system and architecture
+		unless --filter-by-os is used to select a different image.
+		These flags have no effect on regular images.
 	`)
 
 	example = templates.Examples(`
@@ -84,8 +87,14 @@ var (
 		oc image append --from-dir v2 --to myregistry.com/myimage:latest layer.tar.gz
 
 		# Add a new layer to a multi-architecture image for an os/arch that is different from the system's os/arch
-		# Note: Wildcard filter is not supported with append. Pass a single os/arch to append
+		# Note: Wildcard filter is not supported with append. Pass a single os/arch to append (when --keep-manifest-list is not specified)
 		oc image append --from docker.io/library/busybox:latest --filter-by-os=linux/s390x --to myregistry.com/myimage:latest layer.tar.gz
+
+		# Add a new layer to a multi-architecture image for all the os/arch manifests when keep-manifest-list is specified
+		oc image append --from docker.io/library/busybox:latest --keep-manifest-list --to myregistry.com/myimage:latest layer.tar.gz
+
+		# Add a new layer to a multi-architecture image for all the os/arch manifests that is specified by the filter, while preserving the manifestlist
+		oc image append --from docker.io/library/busybox:latest --filter-by-os=linux/s390x --keep-manifest-list --to myregistry.com/myimage:latest layer.tar.gz
 
 	`)
 )
@@ -165,10 +174,17 @@ func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
 	flag.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
 	flag.StringVar(&o.FromFileDir, "from-dir", o.FromFileDir, "The directory on disk that file:// images will be read from. Overrides --dir")
 
+	flag.BoolVar(&o.KeepManifestList, "keep-manifest-list", o.KeepManifestList, "If an image is part of a manifest list, always append to each image in the list. The default is to append to all images unless --filter-by-os is passed.")
+
 	return cmd
 }
 
 func (o *AppendImageOptions) Complete(cmd *cobra.Command, args []string) error {
+	//if keep-manifest-list is specified, append to all manifests if filter is not specified
+	if o.KeepManifestList && len(o.FilterOptions.FilterByOS) == 0 {
+		o.FilterOptions.FilterByOS = ".*"
+	}
+
 	if err := o.FilterOptions.Complete(cmd.Flags()); err != nil {
 		return err
 	}
@@ -273,14 +289,20 @@ func (o *AppendImageOptions) Run() error {
 		if err != nil {
 			return err
 		}
-
+		// if keep-manifest-list is enabled and the image is a manifestlist, add layers only to the filtered sub manifests specified by filter-by-os.
+		// If no filter-by-os is specified, add layers to all sub manifests
+		if o.KeepManifestList {
+			ismanifestlist, err := imagemanifest.IsManifestList(ctx, from.Ref, repo)
+			if err != nil {
+				return fmt.Errorf("unable to read image %s: %v", from, err)
+			}
+			if ismanifestlist {
+				return o.appendManifestList(ctx, createdAt, from, to, repo, toRepo, toManifests, o.FilterOptions.Include)
+			}
+		}
 		srcManifest, manifestLocation, err = imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
 		if err != nil {
 			return fmt.Errorf("unable to read image %s: %v", from, err)
-		}
-
-		if _, ok := srcManifest.(*manifestlist.DeserializedManifestList); ok && o.KeepManifestList {
-			return o.appendManifestList(ctx, createdAt, from, to, repo, srcManifest, manifestLocation, toRepo, toManifests)
 		}
 	}
 
@@ -289,43 +311,38 @@ func (o *AppendImageOptions) Run() error {
 
 func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *time.Time,
 	from *imagesource.TypedImageReference, to imagesource.TypedImageReference,
-	repo distribution.Repository, srcManifest distribution.Manifest, manifestLocation imagemanifest.ManifestLocation,
-	toRepo distribution.Repository, toManifests distribution.ManifestService) error {
+	repo distribution.Repository, toRepo distribution.Repository,
+	toManifests distribution.ManifestService, filterFn imagemanifest.FilterFunc) error {
 	// process manifestlist
-	// oldDigest:newDigest mapping so that we can create a new manifestlist
-	newDigests := make(map[digest.Digest]distribution.Descriptor)
 	manifestMap, oldList, _, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
-	for digest, srcManifest := range manifestMap {
-		// create new ManifestLocation for each digest from the manifestlist
-		// because append function relies on that data
-		dgstManifestLocation := imagemanifest.ManifestLocation{Manifest: digest}
-		// to ensure we can read from the Reader multiple times, especially
-		// when dealing with ManifestList, where we copy the same layer contents
-		// (the release-manifests/ directory), we need to wrap it inside TeeReader
-		// which reads copies data to buffer while reading it allowing re-use
-		var buf bytes.Buffer
-		if o.LayerStream != nil {
-			o.LayerStream = io.TeeReader(o.LayerStream, &buf)
-		}
-		err = o.append(ctx, createdAt, from, to, true, repo, srcManifest, dgstManifestLocation, toRepo, toManifests)
-		if err != nil {
-			return fmt.Errorf("error appending image %s: %w", digest, err)
-		}
-		if buf.Len() > 0 {
-			o.LayerStream = &buf
-		}
-		newDigests[digest] = distribution.Descriptor{
-			Digest: o.ToDigest,
-			Size:   o.ToSize,
-		}
-	}
-
 	// create new manifestlist from the old one swapping digest with the new ones
 	newDescriptors := make([]manifestlist.ManifestDescriptor, 0, len(oldList.Manifests))
 	for _, manifest := range oldList.Manifests {
-		descriptor := newDigests[manifest.Digest]
-		manifest.Digest = descriptor.Digest
-		manifest.Size = descriptor.Size
+		// add layers only to the sub manifests that are specified by the filter
+		if !filterFn(&manifest, len(oldList.Manifests) > 1) {
+			klog.V(5).Infof("Skipping append for image %s for %#v from %s", manifest.Digest, manifest.Platform, from.Ref)
+		} else {
+			// create new ManifestLocation for each digest from the manifestlist
+			// because append function relies on that data
+			dgstManifestLocation := imagemanifest.ManifestLocation{Manifest: manifest.Digest}
+			// to ensure we can read from the Reader multiple times, especially
+			// when dealing with ManifestList, where we copy the same layer contents
+			// (the release-manifests/ directory), we need to wrap it inside TeeReader
+			// which reads copies data to buffer while reading it allowing re-use
+			var buf bytes.Buffer
+			if o.LayerStream != nil {
+				o.LayerStream = io.TeeReader(o.LayerStream, &buf)
+			}
+			err = o.append(ctx, createdAt, from, to, true, repo, manifestMap[manifest.Digest], dgstManifestLocation, toRepo, toManifests)
+			if err != nil {
+				return fmt.Errorf("error appending image %s: %w", manifest.Digest, err)
+			}
+			if buf.Len() > 0 {
+				o.LayerStream = &buf
+			}
+			manifest.Digest = o.ToDigest
+			manifest.Size = o.ToSize
+		}
 		newDescriptors = append(newDescriptors, manifest)
 	}
 	forPush, err := manifestlist.FromDescriptors(newDescriptors)

@@ -218,6 +218,33 @@ var PreferManifestList = distribution.WithManifestMediaTypes([]string{
 	imagespecv1.MediaTypeImageManifest,
 })
 
+// IsManifestList returns if a given image is a manifestlist or not
+func IsManifestList(ctx context.Context, from imagereference.DockerImageReference, repo distribution.Repository) (bool, error) {
+	var srcDigest digest.Digest
+	if len(from.ID) > 0 {
+		srcDigest = digest.Digest(from.ID)
+	} else if len(from.Tag) > 0 {
+		desc, err := repo.Tags(ctx).Get(ctx, from.Tag)
+		if err != nil {
+			return false, err
+		}
+		srcDigest = desc.Digest
+	} else {
+		return false, fmt.Errorf("no tag or digest specified")
+	}
+	manifests, err := repo.Manifests(ctx)
+	if err != nil {
+		return false, err
+	}
+	srcManifest, err := manifests.Get(ctx, srcDigest, PreferManifestList)
+	if err != nil {
+		return false, err
+	}
+
+	_, ok := srcManifest.(*manifestlist.DeserializedManifestList)
+	return ok, nil
+}
+
 // AllManifests returns all non-list manifests, the list manifest (if any), the digest the from refers to, or an error.
 func AllManifests(ctx context.Context, from imagereference.DockerImageReference, repo distribution.Repository) (map[digest.Digest]distribution.Manifest, *manifestlist.DeserializedManifestList, digest.Digest, error) {
 	var srcDigest digest.Digest
