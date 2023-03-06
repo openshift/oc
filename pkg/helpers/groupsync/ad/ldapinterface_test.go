@@ -8,12 +8,13 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 
+	"github.com/openshift/library-go/pkg/security/ldapclient"
 	ldapquery "github.com/openshift/library-go/pkg/security/ldapquery"
 	"github.com/openshift/library-go/pkg/security/ldaptestclient"
 	"github.com/openshift/library-go/pkg/security/ldaputil"
 )
 
-func newTestADLDAPInterface(client ldap.Client) *ADLDAPInterface {
+func newTestADLDAPInterfaceOrDie(client ldap.Client) *ADLDAPInterface {
 	// below are common test implementations of LDAPInterface fields
 	userQuery := ldapquery.LDAPQuery{
 		BaseDN:       "ou=users,dc=example,dc=com",
@@ -25,10 +26,16 @@ func newTestADLDAPInterface(client ldap.Client) *ADLDAPInterface {
 	groupMembershipAttributes := []string{"memberOf"}
 	userNameAttributes := []string{"cn"}
 
-	return NewADLDAPInterface(ldaptestclient.NewConfig(client),
+	ldapClient, err := ldapclient.ConnectMaybeBind(ldaptestclient.NewConfig(client))
+	if err != nil {
+		panic(err)
+	}
+
+	return NewADLDAPInterface(ldapClient,
 		userQuery,
 		groupMembershipAttributes,
 		userNameAttributes)
+
 }
 
 // newTestUser(testUserDN, testUserCN, testGroupUID) returns a new LDAP entry with the given CN,
@@ -78,7 +85,7 @@ func TestExtractMembers(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		ldapInterface := newTestADLDAPInterface(testCase.client)
+		ldapInterface := newTestADLDAPInterfaceOrDie(testCase.client)
 		if len(testCase.cacheSeed) > 0 {
 			ldapInterface.ldapGroupToLDAPMembers = testCase.cacheSeed
 		}
@@ -99,7 +106,7 @@ func TestListGroups(t *testing.T) {
 			"ou=users,dc=example,dc=com": {newTestUser("testUser", "testGroup")},
 		},
 	)
-	ldapInterface := newTestADLDAPInterface(client)
+	ldapInterface := newTestADLDAPInterfaceOrDie(client)
 	groups, err := ldapInterface.ListGroups()
 	if !reflect.DeepEqual(err, nil) {
 		t.Errorf("listing groups: incorrect error returned:\n\texpected:\n\t%v\n\tgot:\n\t%v\n", nil, err)
@@ -153,7 +160,7 @@ func TestPopulateCache(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		ldapInterface := newTestADLDAPInterface(testCase.client)
+		ldapInterface := newTestADLDAPInterfaceOrDie(testCase.client)
 		if len(testCase.cacheSeed) > 0 {
 			ldapInterface.ldapGroupToLDAPMembers = testCase.cacheSeed
 			ldapInterface.cacheFullyPopulated = true
@@ -177,7 +184,7 @@ func TestPopulateCacheAfterExtractMembers(t *testing.T) {
 			"ou=users,dc=example,dc=com": {newTestUser("testUser", "testGroup")},
 		},
 	)
-	ldapInterface := newTestADLDAPInterface(client)
+	ldapInterface := newTestADLDAPInterfaceOrDie(client)
 	_, err := ldapInterface.ExtractMembers("testGroup")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)

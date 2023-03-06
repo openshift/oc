@@ -9,6 +9,7 @@ import (
 
 	"github.com/openshift/library-go/pkg/config/helpers"
 
+	"github.com/go-ldap/ldap/v3"
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -27,7 +28,7 @@ import (
 	"github.com/openshift/library-go/pkg/security/ldapclient"
 	syncgroups "github.com/openshift/oc/pkg/helpers/groupsync"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"
-	"github.com/openshift/oc/pkg/helpers/groupsync/ldap"
+	ldapsync "github.com/openshift/oc/pkg/helpers/groupsync/ldap"
 	"github.com/openshift/oc/pkg/helpers/groupsync/syncerror"
 )
 
@@ -255,7 +256,7 @@ func decodeSyncConfigFromFile(configFile string) (*legacyconfigv1.LDAPSyncConfig
 	}
 	ldapConfig := uncast.(*legacyconfigv1.LDAPSyncConfig)
 
-	if err := helpers.ResolvePaths(ldap.GetStringSourceFileReferences(&ldapConfig.BindPassword), configFile); err != nil {
+	if err := helpers.ResolvePaths(ldapsync.GetStringSourceFileReferences(&ldapConfig.BindPassword), configFile); err != nil {
 		return nil, fmt.Errorf("could not relativize files %s: %v", configFile, err)
 	}
 
@@ -316,7 +317,7 @@ func (o *SyncOptions) Validate() error {
 		return fmt.Errorf("sync source must be one of the following: %v", strings.Join(AllowedSourceTypes, ","))
 	}
 
-	results := ldap.ValidateLDAPSyncConfig(o.Config)
+	results := ldapsync.ValidateLDAPSyncConfig(o.Config)
 	if o.GroupClient == nil {
 		results.Errors = append(results.Errors, field.Required(field.NewPath("groupInterface"), ""))
 	}
@@ -345,7 +346,7 @@ func (o *SyncOptions) CreateErrorHandler() syncerror.Handler {
 // Run creates the GroupSyncer specified and runs it to sync groups
 // the arguments are only here because its the only way to get the printer we need
 func (o *SyncOptions) Run() error {
-	bindPassword, err := ldap.ResolveStringValue(o.Config.BindPassword)
+	bindPassword, err := ldapsync.ResolveStringValue(o.Config.BindPassword)
 	if err != nil {
 		return err
 	}
@@ -354,9 +355,15 @@ func (o *SyncOptions) Run() error {
 		return fmt.Errorf("could not determine LDAP client configuration: %v", err)
 	}
 
+	ldapClient, err := ldapclient.ConnectMaybeBind(clientConfig)
+	if err != nil {
+		return err
+	}
+	defer ldapClient.Close()
+
 	errorHandler := o.CreateErrorHandler()
 
-	syncBuilder, err := buildSyncBuilder(clientConfig, o.Config, errorHandler)
+	syncBuilder, err := buildSyncBuilder(ldapClient, o.Config, errorHandler)
 	if err != nil {
 		return err
 	}
@@ -435,14 +442,14 @@ func (o *SyncOptions) Run() error {
 	return kerrs.NewAggregate(syncErrors)
 }
 
-func buildSyncBuilder(clientConfig ldapclient.Config, syncConfig *legacyconfigv1.LDAPSyncConfig, errorHandler syncerror.Handler) (SyncBuilder, error) {
+func buildSyncBuilder(ldapClient ldap.Client, syncConfig *legacyconfigv1.LDAPSyncConfig, errorHandler syncerror.Handler) (SyncBuilder, error) {
 	switch {
 	case syncConfig.RFC2307Config != nil:
-		return &RFC2307Builder{ClientConfig: clientConfig, Config: syncConfig.RFC2307Config, ErrorHandler: errorHandler}, nil
+		return &RFC2307Builder{LDAPClient: ldapClient, Config: syncConfig.RFC2307Config, ErrorHandler: errorHandler}, nil
 	case syncConfig.ActiveDirectoryConfig != nil:
-		return &ADBuilder{ClientConfig: clientConfig, Config: syncConfig.ActiveDirectoryConfig}, nil
+		return &ADBuilder{LDAPClient: ldapClient, Config: syncConfig.ActiveDirectoryConfig}, nil
 	case syncConfig.AugmentedActiveDirectoryConfig != nil:
-		return &AugmentedADBuilder{ClientConfig: clientConfig, Config: syncConfig.AugmentedActiveDirectoryConfig}, nil
+		return &AugmentedADBuilder{LDAPClient: ldapClient, Config: syncConfig.AugmentedActiveDirectoryConfig}, nil
 	default:
 		return nil, errors.New("invalid sync config type")
 	}
