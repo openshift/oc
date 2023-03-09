@@ -102,6 +102,14 @@ generate-docs-admin:
 	go run ./tools/gendocs --admin
 .PHONY: generate-docs-admin
 
+generate-docs-microshift:
+	go run ./tools/gendocs --microshift
+.PHONY: generate-docs-microshift
+
+generate-docs-admin-microshift:
+	go run ./tools/gendocs --admin --microshift
+.PHONY: generate-docs-admin-microshift
+
 generate-versioninfo:
 	SOURCE_GIT_TAG=$(SOURCE_GIT_TAG) hack/generate-versioninfo.sh
 .PHONY: generate-versioninfo
