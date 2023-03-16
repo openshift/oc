@@ -6,6 +6,7 @@ import (
 
 // a set of commands excluded from microshift
 var microshiftCommands = sets.NewString(
+	"oc autoscale",
 	"oc cancel-build",
 	"oc create build",
 	"oc create clusterresourcequota",
