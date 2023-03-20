@@ -5,14 +5,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/openshift/library-go/pkg/security/ldapclient"
 	ldapquery "github.com/openshift/library-go/pkg/security/ldapquery"
 	"github.com/openshift/oc/pkg/helpers/groupsync/groupdetector"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"
 )
 
 // NewLDAPInterface builds a new LDAPInterface using a schema-appropriate config
-func NewAugmentedADLDAPInterface(clientConfig ldapclient.Config,
+func NewAugmentedADLDAPInterface(ldapClient ldap.Client,
 	userQuery ldapquery.LDAPQuery,
 	groupMembershipAttributes []string,
 	userNameAttributes []string,
@@ -20,7 +19,7 @@ func NewAugmentedADLDAPInterface(clientConfig ldapclient.Config,
 	groupNameAttributes []string) *AugmentedADLDAPInterface {
 
 	return &AugmentedADLDAPInterface{
-		ADLDAPInterface:     NewADLDAPInterface(clientConfig, userQuery, groupMembershipAttributes, userNameAttributes),
+		ADLDAPInterface:     NewADLDAPInterface(ldapClient, userQuery, groupMembershipAttributes, userNameAttributes),
 		groupQuery:          groupQuery,
 		groupNameAttributes: groupNameAttributes,
 		cachedGroups:        map[string]*ldap.Entry{},
@@ -61,7 +60,7 @@ func (e *AugmentedADLDAPInterface) GroupEntryFor(ldapGroupUID string) (*ldap.Ent
 		return nil, err
 	}
 
-	group, err = ldapquery.QueryForUniqueEntry(e.clientConfig, searchRequest)
+	group, err = ldapquery.QueryForUniqueEntry(e.ldapClient, searchRequest)
 	if err != nil {
 		return nil, err
 	}

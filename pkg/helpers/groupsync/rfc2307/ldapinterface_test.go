@@ -9,13 +9,14 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 
+	"github.com/openshift/library-go/pkg/security/ldapclient"
 	ldapquery "github.com/openshift/library-go/pkg/security/ldapquery"
 	"github.com/openshift/library-go/pkg/security/ldaptestclient"
 	"github.com/openshift/library-go/pkg/security/ldaputil"
 	"github.com/openshift/oc/pkg/helpers/groupsync/syncerror"
 )
 
-func newTestLDAPInterface(client ldap.Client) *LDAPInterface {
+func newTestLDAPInterfaceOrDie(client ldap.Client) *LDAPInterface {
 	// below are common test implementations of LDAPInterface fields
 	groupQuery := ldapquery.LDAPQueryOnAttribute{
 		LDAPQuery: ldapquery.LDAPQuery{
@@ -46,13 +47,19 @@ func newTestLDAPInterface(client ldap.Client) *LDAPInterface {
 		syncerror.NewMemberLookupMemberNotFoundSuppressor(ioutil.Discard),
 	)
 
-	return NewLDAPInterface(ldaptestclient.NewConfig(client),
+	ldapClient, err := ldapclient.ConnectMaybeBind(ldaptestclient.NewConfig(client))
+	if err != nil {
+		panic(err)
+	}
+
+	return NewLDAPInterface(ldapClient,
 		groupQuery,
 		groupNameAttributes,
 		groupMembershipAttributes,
 		userQuery,
 		userNameAttributes,
 		errorHandler)
+
 }
 
 // newTestUser returns a new LDAP entry with the CN
@@ -165,7 +172,7 @@ func TestExtractMembers(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		ldapInterface := newTestLDAPInterface(testCase.client)
+		ldapInterface := newTestLDAPInterfaceOrDie(testCase.client)
 		members, err := ldapInterface.ExtractMembers("cn=testGroup,ou=groups,dc=example,dc=com")
 		if !reflect.DeepEqual(err, testCase.expectedError) {
 			t.Errorf("%s: incorrect error returned:\n\texpected:\n\t%v\n\tgot:\n\t%v\n", testCase.name, testCase.expectedError, err)
@@ -220,7 +227,7 @@ func TestGroupEntryFor(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		ldapInterface := newTestLDAPInterface(testCase.client)
+		ldapInterface := newTestLDAPInterfaceOrDie(testCase.client)
 		if len(testCase.cacheSeed) > 0 {
 			ldapInterface.cachedGroups = testCase.cacheSeed
 		}
@@ -280,7 +287,7 @@ func TestListGroups(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		ldapInterface := newTestLDAPInterface(testCase.client)
+		ldapInterface := newTestLDAPInterfaceOrDie(testCase.client)
 		if len(testCase.groupUIDAttribute) > 0 {
 			ldapInterface.groupQuery.QueryAttribute = testCase.groupUIDAttribute
 		}
@@ -340,7 +347,7 @@ func TestUserEntryFor(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		ldapInterface := newTestLDAPInterface(testCase.client)
+		ldapInterface := newTestLDAPInterfaceOrDie(testCase.client)
 		if len(testCase.cacheSeed) > 0 {
 			ldapInterface.cachedUsers = testCase.cacheSeed
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -76,6 +77,16 @@ func (s *onErrorStrategy) resolve(ctx context.Context, imageRef reference.Docker
 	return imageRefList, nil
 }
 
+func isSubrepo(repo, ancestor string) bool {
+	if repo == ancestor {
+		return true
+	}
+	if len(repo) > len(ancestor) {
+		return strings.HasPrefix(repo, ancestor) && repo[len(ancestor)] == '/'
+	}
+	return false
+}
+
 // alternativeImageSources returns unique list of DockerImageReference objects from list of ImageContentSourcePolicy objects
 // addSourceAsLastAlternate decides whether the original imageRef is first or the last element in the result
 func alternativeImageSources(imageRef reference.DockerImageReference, icspList []operatorv1alpha1.ImageContentSourcePolicy, addSourceAsLastAlternate bool) ([]reference.DockerImageReference, error) {
@@ -84,9 +95,11 @@ func alternativeImageSources(imageRef reference.DockerImageReference, icspList [
 	if !addSourceAsLastAlternate {
 		imageSources = append(imageSources, imageRef.AsRepository().AsV2())
 	}
+	repo := imageRef.AsRepository().Exact()
 	for _, icsp := range icspList {
 		repoDigestMirrors := icsp.Spec.RepositoryDigestMirrors
 		for _, rdm := range repoDigestMirrors {
+			var suffix string
 			var err error
 			rdmSourceRef, err := reference.Parse(rdm.Source)
 			if err != nil {
@@ -95,11 +108,14 @@ func alternativeImageSources(imageRef reference.DockerImageReference, icspList [
 			// AsV2 in the right call is required to ensure we transform docker registry
 			// from docker.io to registry-1.docker.io
 			if imageRef.AsRepository().AsV2() != rdmSourceRef.AsRepository().AsV2() {
-				continue
+				if !isSubrepo(repo, rdm.Source) {
+					continue
+				}
+				suffix = repo[len(rdm.Source):]
 			}
 			klog.V(5).Infof("%v RepositoryDigestMirrors source matches given image", imageRef.AsRepository().AsV2())
 			for _, m := range rdm.Mirrors {
-				mRef, err := reference.Parse(m)
+				mRef, err := reference.Parse(m + suffix)
 				if err != nil {
 					return nil, fmt.Errorf("invalid mirror %q: %w", m, err)
 				}

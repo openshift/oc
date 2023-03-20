@@ -1,10 +1,10 @@
 package sync
 
 import (
+	"github.com/go-ldap/ldap/v3"
 	legacyconfigv1 "github.com/openshift/api/legacyconfig/v1"
-	"github.com/openshift/library-go/pkg/security/ldapclient"
 	"github.com/openshift/library-go/pkg/security/ldapquery"
-	"github.com/openshift/oc/pkg/helpers/groupsync"
+	syncgroups "github.com/openshift/oc/pkg/helpers/groupsync"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"
 	"github.com/openshift/oc/pkg/helpers/groupsync/rfc2307"
 	"github.com/openshift/oc/pkg/helpers/groupsync/syncerror"
@@ -14,8 +14,8 @@ var _ SyncBuilder = &RFC2307Builder{}
 var _ PruneBuilder = &RFC2307Builder{}
 
 type RFC2307Builder struct {
-	ClientConfig ldapclient.Config
-	Config       *legacyconfigv1.RFC2307Config
+	LDAPClient ldap.Client
+	Config     *legacyconfigv1.RFC2307Config
 
 	rfc2307LDAPInterface *rfc2307.LDAPInterface
 
@@ -59,7 +59,7 @@ func (b *RFC2307Builder) getRFC2307LDAPInterface() (*rfc2307.LDAPInterface, erro
 	if err != nil {
 		return nil, err
 	}
-	b.rfc2307LDAPInterface = rfc2307.NewLDAPInterface(b.ClientConfig,
+	b.rfc2307LDAPInterface = rfc2307.NewLDAPInterface(b.LDAPClient,
 		groupQuery, b.Config.GroupNameAttributes, b.Config.GroupMembershipAttributes,
 		userQuery, b.Config.UserNameAttributes, b.ErrorHandler)
 	return b.rfc2307LDAPInterface, nil

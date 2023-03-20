@@ -100,6 +100,25 @@ func TestOnErrorStrategy(t *testing.T) {
 			imageSourcesExpected: []string{"quay.io/ocp-test/release", "someregistry/mirrors/match"},
 		},
 		{
+			name: "single mirror and match with subrepository",
+			icspList: []operatorv1alpha1.ImageContentSourcePolicy{
+				{
+					Spec: operatorv1alpha1.ImageContentSourcePolicySpec{
+						RepositoryDigestMirrors: []operatorv1alpha1.RepositoryDigestMirrors{
+							{
+								Source: "quay.io/ocp-test",
+								Mirrors: []string{
+									"someregistry/mirrors",
+								},
+							},
+						},
+					},
+				},
+			},
+			image:                "quay.io/ocp-test/release:4.5",
+			imageSourcesExpected: []string{"quay.io/ocp-test/release", "someregistry/mirrors/release"},
+		},
+		{
 			name: "no source match",
 			icspList: []operatorv1alpha1.ImageContentSourcePolicy{
 				{

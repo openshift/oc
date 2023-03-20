@@ -34,6 +34,8 @@ import (
 	authorizationv1 "github.com/openshift/api/authorization/v1"
 	"github.com/openshift/api/build"
 	buildv1 "github.com/openshift/api/build/v1"
+	"github.com/openshift/api/config"
+	configv1alpha1 "github.com/openshift/api/config/v1alpha1"
 	"github.com/openshift/api/image"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -54,6 +56,7 @@ import (
 	appstypedclient "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	oauthorizationclient "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
 	buildv1clienttyped "github.com/openshift/client-go/build/clientset/versioned/typed/build/v1"
+	configclientv1alpha1 "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1alpha1"
 	imageclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	onetworktypedclient "github.com/openshift/client-go/network/clientset/versioned/typed/network/v1"
 	oauthclient "github.com/openshift/client-go/oauth/clientset/versioned/typed/oauth/v1"
@@ -127,6 +130,10 @@ func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host 
 	if err != nil {
 		klog.V(1).Info(err)
 	}
+	configv1alpha1Client, err := configclientv1alpha1.NewForConfig(clientConfig)
+	if err != nil {
+		klog.V(1).Info(err)
+	}
 
 	m := map[schema.GroupKind]describe.ResourceDescriber{
 		oapps.Kind("DeploymentConfig"):               &DeploymentConfigDescriber{appsClient, kubeClient, nil},
@@ -158,6 +165,7 @@ func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host 
 		network.Kind("NetNamespace"):                 &NetNamespaceDescriber{onetworkClient},
 		network.Kind("EgressNetworkPolicy"):          &EgressNetworkPolicyDescriber{onetworkClient},
 		security.Kind("SecurityContextConstraints"):  &SecurityContextConstraintsDescriber{securityClient},
+		config.Kind("InsightsDataGather"):            &InsightsDataGatherDescriber{configv1alpha1Client},
 	}
 
 	// Register the legacy ("core") API group for all kinds as well.
@@ -2091,6 +2099,29 @@ func describeSecurityContextConstraints(scc *securityv1.SecurityContextConstrain
 
 		fmt.Fprintf(out, "  Supplemental Groups Strategy: %s\t\n", string(scc.SupplementalGroups.Type))
 		fmt.Fprintf(out, "    Ranges:\t%s\n", idRangeToString(scc.SupplementalGroups.Ranges))
+
+		return nil
+	})
+}
+
+type InsightsDataGatherDescriber struct {
+	c configclientv1alpha1.InsightsDataGathersGetter
+}
+
+func (d *InsightsDataGatherDescriber) Describe(namespace, name string, s describe.DescriberSettings) (string, error) {
+	idg, err := d.c.InsightsDataGathers().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return describeInsightsDataGathers(idg)
+}
+
+func describeInsightsDataGathers(idg *configv1alpha1.InsightsDataGather) (string, error) {
+	return tabbedString(func(out *tabwriter.Writer) error {
+		fmt.Fprintf(out, "Name:\t%s\n", idg.Name)
+		fmt.Fprintf(out, "GatherConfig:\t\n")
+		fmt.Fprintf(out, "  DataPolicy:\t%s\n", stringOrNone(string(idg.Spec.GatherConfig.DataPolicy)))
+		fmt.Fprintf(out, "  DisabledGatherers:\t%s\n", stringOrNone(strings.Join(idg.Spec.GatherConfig.DisabledGatherers, ",")))
 
 		return nil
 	})

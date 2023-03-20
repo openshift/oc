@@ -25,7 +25,7 @@ func (x Examples) Less(i, j int) bool {
 	return xi < xj
 }
 
-func GenDocs(cmd *cobra.Command, filename string, admin bool) error {
+func GenDocs(cmd *cobra.Command, filename string, admin, microshift bool) error {
 	out := new(bytes.Buffer)
 	templatePath := "hack/clibyexample/template"
 	if admin {
@@ -43,7 +43,7 @@ func GenDocs(cmd *cobra.Command, filename string, admin bool) error {
 	output := &unstructured.UnstructuredList{}
 	output.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("List"))
 
-	examples := extractExamples(cmd, admin)
+	examples := extractExamples(cmd, admin, microshift)
 	for i := range examples {
 		output.Items = append(output.Items, *examples[i])
 	}
@@ -70,10 +70,13 @@ func GenDocs(cmd *cobra.Command, filename string, admin bool) error {
 	return nil
 }
 
-func extractExamples(cmd *cobra.Command, admin bool) Examples {
+func extractExamples(cmd *cobra.Command, admin, microshift bool) Examples {
 	objs := Examples{}
 	for _, c := range cmd.Commands() {
 		if len(c.Deprecated) > 0 {
+			continue
+		}
+		if microshift && microshiftCommands.Has(c.CommandPath()) {
 			continue
 		}
 		if strings.HasPrefix(c.CommandPath(), "oc adm") && !admin {
@@ -81,7 +84,7 @@ func extractExamples(cmd *cobra.Command, admin bool) Examples {
 		} else if !strings.HasPrefix(c.CommandPath(), "oc adm") && admin {
 			continue
 		} else {
-			objs = append(objs, extractExamples(c, admin)...)
+			objs = append(objs, extractExamples(c, admin, microshift)...)
 		}
 	}
 	if cmd.HasExample() {

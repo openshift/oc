@@ -7,7 +7,6 @@ import (
 	"github.com/go-ldap/ldap/v3"
 	"k8s.io/klog/v2"
 
-	"github.com/openshift/library-go/pkg/security/ldapclient"
 	"github.com/openshift/library-go/pkg/security/ldaputil"
 )
 
@@ -174,8 +173,8 @@ func (o *LDAPQueryOnAttribute) buildAttributeQuery(attributeValue string,
 
 // QueryForUniqueEntry queries for an LDAP entry with the given searchRequest. The query is expected
 // to return one unqiue result. If this is not the case, errors are raised
-func QueryForUniqueEntry(clientConfig ldapclient.Config, query *ldap.SearchRequest) (*ldap.Entry, error) {
-	result, err := QueryForEntries(clientConfig, query)
+func QueryForUniqueEntry(ldapClient ldap.Client, query *ldap.SearchRequest) (*ldap.Entry, error) {
+	result, err := QueryForEntries(ldapClient, query)
 	if err != nil {
 		return nil, err
 	}
@@ -213,27 +212,16 @@ func formatResult(results []*ldap.Entry) string {
 }
 
 // QueryForEntries queries for LDAP with the given searchRequest
-func QueryForEntries(clientConfig ldapclient.Config, query *ldap.SearchRequest) ([]*ldap.Entry, error) {
-	connection, err := clientConfig.Connect()
-	if err != nil {
-		return nil, fmt.Errorf("could not connect to the LDAP server: %v", err)
-	}
-	defer connection.Close()
-
-	if bindDN, bindPassword := clientConfig.GetBindCredentials(); len(bindDN) > 0 {
-		if err := connection.Bind(bindDN, bindPassword); err != nil {
-			return nil, fmt.Errorf("could not bind to the LDAP server: %v", err)
-		}
-	}
-
+func QueryForEntries(ldapClient ldap.Client, query *ldap.SearchRequest) ([]*ldap.Entry, error) {
 	var searchResult *ldap.SearchResult
+	var err error
 	control := ldap.FindControl(query.Controls, ldap.ControlTypePaging)
 	if control == nil {
-		klog.V(4).Infof("searching LDAP server with config %v with dn=%q and scope %v for %s requesting %v", clientConfig, query.BaseDN, query.Scope, query.Filter, query.Attributes)
-		searchResult, err = connection.Search(query)
+		klog.V(4).Infof("LDAP search: base dn=%q and scope %v for %s requesting %v", query.BaseDN, query.Scope, query.Filter, query.Attributes)
+		searchResult, err = ldapClient.Search(query)
 	} else if pagingControl, ok := control.(*ldap.ControlPaging); ok {
-		klog.V(4).Infof("searching LDAP server with config %v with dn=%q and scope %v for %s requesting %v with pageSize=%d", clientConfig, query.BaseDN, query.Scope, query.Filter, query.Attributes, pagingControl.PagingSize)
-		searchResult, err = connection.SearchWithPaging(query, pagingControl.PagingSize)
+		klog.V(4).Infof("LDAP search: base dn=%q and scope %v for %s requesting %v with pageSize=%d", query.BaseDN, query.Scope, query.Filter, query.Attributes, pagingControl.PagingSize)
+		searchResult, err = ldapClient.SearchWithPaging(query, pagingControl.PagingSize)
 	} else {
 		err = fmt.Errorf("invalid paging control type: %v", control)
 	}

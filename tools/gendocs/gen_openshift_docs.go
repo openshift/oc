@@ -7,12 +7,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/openshift/oc/pkg/cli"
 	"github.com/openshift/oc/tools/gendocs/gendocs"
 )
 
 var admin = flag.Bool("admin", false, "Generate admin commands docs")
+var microshift = flag.Bool("microshift", false, "Generate MicroShift commands docs")
 
 func OutDir(path string) (string, error) {
 	outDir, err := filepath.Abs(path)
@@ -51,12 +53,16 @@ func main() {
 	out := os.Stdout
 	cmd := cli.NewOcCommand(&bytes.Buffer{}, out, ioutil.Discard)
 
-	outFile := filepath.Join(outDir, "oc-by-example-content.adoc")
+	fileName := "oc-by-example-content.adoc"
 	if *admin {
-		outFile = filepath.Join(outDir, "oc-adm-by-example-content.adoc")
+		fileName = strings.Replace(fileName, "oc", "oc-adm", 1)
 	}
+	if *microshift {
+		fileName = "microshift-" + fileName
+	}
+	outFile := filepath.Join(outDir, fileName)
 
-	if err := gendocs.GenDocs(cmd, outFile, *admin); err != nil {
+	if err := gendocs.GenDocs(cmd, outFile, *admin, *microshift); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to generate docs: %v\n", err)
 		os.Exit(1)
 	}
