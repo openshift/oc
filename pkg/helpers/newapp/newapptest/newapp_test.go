@@ -530,7 +530,7 @@ func TestNewAppRunAll(t *testing.T) {
 					SourceRepositories: []string{"https://github.com/openshift/sti-ruby"},
 				},
 				GenerationInputs: cmd.GenerationInputs{
-					ContextDir: "2.0/test/rack-test-app",
+					ContextDir: "3.1/test/rack-test-app",
 				},
 
 				Resolvers: cmd.Resolvers{
@@ -571,7 +571,7 @@ func TestNewAppRunAll(t *testing.T) {
 					SourceRepositories: []string{"https://github.com/openshift/sti-ruby"},
 				},
 				GenerationInputs: cmd.GenerationInputs{
-					ContextDir: "2.0/test/missing-dir",
+					ContextDir: "3.1/test/missing-dir",
 				},
 
 				Resolvers: cmd.Resolvers{
@@ -604,7 +604,7 @@ func TestNewAppRunAll(t *testing.T) {
 			expectedName:    "sti-ruby",
 			expectedVolumes: nil,
 			errFn: func(err error) bool {
-				return err.Error() == "supplied context directory '2.0/test/missing-dir' does not exist in 'https://github.com/openshift/sti-ruby'"
+				return err.Error() == "supplied context directory '3.1/test/missing-dir' does not exist in 'https://github.com/openshift/sti-ruby'"
 			},
 		},
 
