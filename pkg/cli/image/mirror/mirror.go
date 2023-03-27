@@ -586,6 +586,9 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 								mustCopyLayers = true
 							case src.ref.EqualRegistry(dst.ref) && canonicalFrom.String() == canonicalTo.String():
 								// if the source and destination repos are the same, we don't need to copy layers unless forced
+							case dst.ref.Type != imagesource.DestinationRegistry:
+								// If we're not copying to a registry, the destination doesn't guarantee the blobs exist for the manifest
+								mustCopyLayers = true
 							default:
 								if _, err := toManifests.Get(ctx, srcDigest); err != nil {
 									mustCopyLayers = true
