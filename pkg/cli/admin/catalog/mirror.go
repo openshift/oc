@@ -14,6 +14,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	apicfgv1 "github.com/openshift/api/config/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -94,8 +95,12 @@ const (
 	DatabaseLocationLabelKey = "operators.operatorframework.io.index.database.v1"
 	ConfigsLocationLabelKey  = "operators.operatorframework.io.index.configs.v1"
 	IndexLocationLabelKey    = "operators.operatorframework.io.index.database.v1"
+	icspKind                 = "ImageContentSourcePolicy"
+	idmsKind                 = "ImageDigestMirrorSet"
 	minICSPSize              = 0
 	maxICSPSize              = 250000
+	minIDMSSize              = 0
+	maxIDMSSize              = 250000
 )
 
 func init() {
@@ -115,8 +120,10 @@ type MirrorCatalogOptions struct {
 	FromFileDir string
 	FileDir     string
 	MaxICSPSize int
+	MaxIDMSSize int
 
 	IcspScope string
+	IdmsScope string
 
 	SecurityOptions imagemanifest.SecurityOptions
 	FilterOptions   imagemanifest.FilterOptions
@@ -132,6 +139,7 @@ func NewMirrorCatalogOptions(streams genericclioptions.IOStreams) *MirrorCatalog
 		IndexImageMirrorerOptions: DefaultImageIndexMirrorerOptions(),
 		ParallelOptions:           imagemanifest.ParallelOptions{MaxPerRegistry: 4},
 		IcspScope:                 "repository",
+		IdmsScope:                 "repository",
 	}
 }
 
@@ -173,8 +181,12 @@ func NewMirrorCatalog(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	flags.StringVar(&o.FromFileDir, "from-dir", o.FromFileDir, "The directory on disk that file:// images will be read from. Overrides --dir")
 	flags.IntVar(&o.MaxPathComponents, "max-components", 2, "The maximum number of path components allowed in a destination mapping. Example: `quay.io/org/repo` has two path components.")
 	flags.StringVar(&o.IcspScope, "icsp-scope", o.IcspScope, "Scope of registry mirrors in imagecontentsourcepolicy file. Allowed values: repository, registry. Defaults to: repository")
+	flags.StringVar(&o.IdmsScope, "idms-scope", o.IdmsScope, "Scope of registry mirrors in imagedigestmirrorset file. Allowed values: repository, registry. Defaults to: repository")
 	flags.IntVar(&o.MaxICSPSize, "max-icsp-size", maxICSPSize, "The maximum number of bytes for the generated ICSP yaml(s). Defaults to 250000")
+	flags.IntVar(&o.MaxIDMSSize, "max-idms-size", maxIDMSSize, "The maximum number of bytes for the generated IDMS yaml(s). Defaults to 250000")
 	flags.BoolVar(&o.ContinueOnError, "continue-on-error", true, "If an error occurs while mirroring, keep going and attempt to mirror as much as possible.")
+	flags.MarkDeprecated("icsp-scope", "support for it will be removed in a future release.Use --idms-scope instead.")
+	flags.MarkDeprecated("max-icsp-size", "support for it will be removed in a future release. Use --max-idms-size instead.")
 	return cmd
 }
 
@@ -538,8 +550,16 @@ func (o *MirrorCatalogOptions) Validate() error {
 	default:
 		return fmt.Errorf("invalid icsp-scope %s", o.IcspScope)
 	}
+	switch o.IdmsScope {
+	case "repository", "registry":
+	default:
+		return fmt.Errorf("invalid idms-scope %s", o.IdmsScope)
+	}
 	if o.MaxICSPSize <= minICSPSize || o.MaxICSPSize > maxICSPSize {
 		return fmt.Errorf("provided max-icsp-size of %d must be greater than %d and less than or equal to %d", o.MaxICSPSize, minICSPSize, maxICSPSize)
+	}
+	if o.MaxIDMSSize <= minIDMSSize || o.MaxIDMSSize > maxIDMSSize {
+		return fmt.Errorf("provided max-idms-size of %d must be greater than %d and less than or equal to %d", o.MaxIDMSSize, minIDMSSize, maxIDMSSize)
 	}
 	return nil
 }
@@ -568,17 +588,17 @@ func (o *MirrorCatalogOptions) Run() error {
 		fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
 	}
 
-	return WriteManifests(o.IOStreams.Out, o.SourceRef, o.DestRef, o.ManifestDir, o.IcspScope, o.MaxICSPSize, mapping)
+	return WriteManifests(o.IOStreams.Out, o.SourceRef, o.DestRef, o.ManifestDir, o.IcspScope, o.IdmsScope, o.MaxICSPSize, o.MaxIDMSSize, mapping)
 }
 
-func getRegistryMapping(out io.Writer, icspScope string, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) map[string]string {
+func getRegistryMapping(out io.Writer, scope string, objectKind string, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) map[string]string {
 	registryMapping := map[string]string{}
 	for k, v := range mapping {
 		if len(v.Ref.ID) == 0 {
-			fmt.Fprintf(out, "no digest mapping available for %s, skip writing to ImageContentSourcePolicy\n", k)
+			fmt.Fprintf(out, "no digest mapping available for %s, skip writing to %s\n", k, objectKind)
 			continue
 		}
-		if icspScope == "registry" {
+		if scope == "registry" {
 			registryMapping[k.Ref.Registry] = v.Ref.Registry
 		} else {
 			registryMapping[k.Ref.AsRepository().String()] = v.Ref.AsRepository().String()
@@ -588,7 +608,7 @@ func getRegistryMapping(out io.Writer, icspScope string, mapping map[imagesource
 }
 
 func generateICSPs(out io.Writer, source string, icspScope string, maxICSPSize int, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) ([][]byte, error) {
-	registryMapping := getRegistryMapping(out, icspScope, mapping)
+	registryMapping := getRegistryMapping(out, icspScope, icspKind, mapping)
 	icsps := [][]byte{}
 
 	for i := 0; len(registryMapping) != 0; i++ {
@@ -608,6 +628,29 @@ func aggregateICSPs(icsps [][]byte) []byte {
 		aggregation = append(aggregation, icsp...)
 	}
 	return aggregation
+}
+
+func aggregateIDMSs(idmss [][]byte) []byte {
+	aggregation := []byte{}
+	for _, idms := range idmss {
+		aggregation = append(aggregation, []byte("---\n")...)
+		aggregation = append(aggregation, idms...)
+	}
+	return aggregation
+}
+
+func generateIDMSs(out io.Writer, source string, idmsScope string, maxIDMSSize int, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) ([][]byte, error) {
+	registryMapping := getRegistryMapping(out, idmsScope, idmsKind, mapping)
+	idmss := [][]byte{}
+
+	for i := 0; len(registryMapping) != 0; i++ {
+		idms, err := generateIDMS(out, source+"-"+strconv.Itoa(i), maxIDMSSize, registryMapping)
+		if err != nil {
+			return nil, err
+		}
+		idmss = append(idmss, idms)
+	}
+	return idmss, nil
 }
 
 func (o *MirrorCatalogOptions) postRun() error {
@@ -631,7 +674,7 @@ func (o *MirrorCatalogOptions) postRun() error {
 	return nil
 }
 
-func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference, dir, icspScope string, maxICSPSize int, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
+func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference, dir, icspScope, idmsScope string, maxICSPSize, maxIDMSSize int, mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference) error {
 	f, err := os.Create(filepath.Join(dir, "mapping.txt"))
 	if err != nil {
 		return err
@@ -647,6 +690,15 @@ func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference,
 	}
 
 	if dest.Type != imagesource.DestinationFile {
+		idmss, err := generateIDMSs(out, source.Ref.Name, idmsScope, maxIDMSSize, mapping)
+		if err != nil {
+			return nil
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(dir, "imageDigestMirrorSet.yaml"), aggregateIDMSs(idmss), os.ModePerm); err != nil {
+			return fmt.Errorf("error writing ImageDigestMirrorSet")
+		}
+
 		icsps, err := generateICSPs(out, source.Ref.Name, icspScope, maxICSPSize, mapping)
 		if err != nil {
 			return err
@@ -770,6 +822,59 @@ func generateICSP(out io.Writer, name string, byteLimit int, registryMapping map
 	}
 
 	return icspExample, nil
+}
+
+func generateIDMS(out io.Writer, name string, byteLimit int, registryMapping map[string]string) ([]byte, error) {
+	idms := apicfgv1.ImageDigestMirrorSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: apicfgv1.GroupVersion.String(),
+			Kind:       "ImageDigestMirrorSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: strings.Join(strings.Split(name, "/"), "-"),
+			Labels: map[string]string{
+				"operators.openshift.org/catalog": "true",
+			},
+		},
+		Spec: apicfgv1.ImageDigestMirrorSetSpec{
+			ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{},
+		},
+	}
+
+	for key := range registryMapping {
+		imageDigestMirror := apicfgv1.ImageDigestMirrors{
+			Source:  key,
+			Mirrors: []apicfgv1.ImageMirror{apicfgv1.ImageMirror(registryMapping[key])},
+		}
+		idms.Spec.ImageDigestMirrors = append(idms.Spec.ImageDigestMirrors, imageDigestMirror)
+		y, err := yaml.Marshal(idms)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal ImageDigestMirrorSet yaml: %v", err)
+		}
+		if len(y) > byteLimit {
+			if lenMirrors := len(idms.Spec.ImageDigestMirrors); lenMirrors > 1 {
+				idms.Spec.ImageDigestMirrors = idms.Spec.ImageDigestMirrors[:lenMirrors-1]
+				break
+			}
+			return nil, fmt.Errorf("unable to add mirror %v to IDMS with the max-idms-size set to %d", imageDigestMirror, byteLimit)
+		}
+		delete(registryMapping, key)
+	}
+
+	// Create an unstructured object for removing creationTimestamp, status
+	unstructuredObj := unstructured.Unstructured{}
+	var err error
+	unstructuredObj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(&idms)
+	if err != nil {
+		return nil, fmt.Errorf("error converting to unstructured: %v", err)
+	}
+	delete(unstructuredObj.Object["metadata"].(map[string]interface{}), "creationTimestamp")
+	delete(unstructuredObj.Object, "status")
+	idmsExample, err := yaml.Marshal(unstructuredObj.Object)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal ImageDigestMirrorSet yaml: %v", err)
+	}
+	return idmsExample, nil
 }
 
 func prefixLines(in string, prefix string) string {

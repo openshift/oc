@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	apicfgv1 "github.com/openshift/api/config/v1"
 	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
@@ -101,7 +102,7 @@ func TestWriteToMapping(t *testing.T) {
 	}
 }
 
-func TestGetRegistryMapping(t *testing.T) {
+func TestGetRegistryMappingICSP(t *testing.T) {
 	type args struct {
 		scope   string
 		mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference
@@ -246,7 +247,165 @@ func TestGetRegistryMapping(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getRegistryMapping(os.Stdout, tt.args.scope, tt.args.mapping)
+			got := getRegistryMapping(os.Stdout, tt.args.scope, icspKind, tt.args.mapping)
+			if len(got) != len(tt.want) {
+				t.Errorf("Received map length != expected map length")
+			}
+			for k := range tt.want {
+				if got[k] != tt.want[k] {
+					t.Errorf("Expeced Map DNE actual map %v", got)
+				}
+			}
+		})
+	}
+}
+
+func TestGetRegistryMapping(t *testing.T) {
+	type args struct {
+		scope   string
+		mapping map[imagesource.TypedImageReference]imagesource.TypedImageReference
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]string
+	}{
+		{
+			name: "src is tagged - skip mirrors",
+			args: args{
+				scope: "",
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: reference.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "halkyonio",
+							Name:      "operator",
+							Tag:       "v0.1.8",
+							ID:        "",
+						},
+					},
+				},
+			},
+			want: map[string]string{},
+		},
+		{
+			name: "src is tagged and idms with registy scope - skip mirror",
+			args: args{
+				scope: "registry",
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: reference.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "halkyonio",
+							Name:      "operator",
+							Tag:       "v0.1.8",
+							ID:        "",
+						},
+					},
+				},
+			},
+			want: map[string]string{},
+		},
+		{
+			name: "src has digest",
+			args: args{
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: reference.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "strimzi-operator",
+							Tag:       "2b13d275",
+							ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+						},
+					},
+				},
+			},
+			want: map[string]string{"docker.io/strimzi/operator": "quay.io/olmtest/strimzi-operator"},
+		},
+		{
+			name: "src has digest and idms with registry scope",
+			args: args{
+				scope: "registry",
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: reference.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "strimzi-operator",
+							Tag:       "2b13d275",
+							ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+						},
+					},
+				},
+			},
+			want: map[string]string{"docker.io": "quay.io"},
+		},
+		{
+			name: "multiple",
+			args: args{
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: reference.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "strimzi-operator",
+							Tag:       "2b13d275",
+							ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+						},
+					},
+					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: reference.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "halkyonio-operator",
+							Tag:       "v0.1.8",
+							ID:        "",
+						},
+					},
+				},
+			},
+			want: map[string]string{"docker.io/strimzi/operator": "quay.io/olmtest/strimzi-operator"},
+		},
+		{
+			name: "multiple with idms registry scope",
+			args: args{
+				scope: "registry",
+				mapping: map[imagesource.TypedImageReference]imagesource.TypedImageReference{
+					mustParseRef(t, "docker.io/strimzi/operator@sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: reference.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "strimzi-operator",
+							Tag:       "2b13d275",
+							ID:        "sha256:d134a9865524c29fcf75bbc4469013bc38d8a15cb5f41acfddb6b9e492f556e4",
+						},
+					},
+					mustParseRef(t, "quay.io/halkyonio/operator:v0.1.8"): {
+						Type: imagesource.DestinationRegistry,
+						Ref: reference.DockerImageReference{
+							Registry:  "quay.io",
+							Namespace: "olmtest",
+							Name:      "halkyonio-operator",
+							Tag:       "v0.1.8",
+							ID:        "",
+						},
+					},
+				},
+			},
+			want: map[string]string{"docker.io": "quay.io"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getRegistryMapping(os.Stdout, tt.args.scope, idmsKind, tt.args.mapping)
 			if len(got) != len(tt.want) {
 				t.Errorf("Received map length != expected map length")
 			}
@@ -579,6 +738,248 @@ func TestGenerateICSPs(t *testing.T) {
 			// ensure that all mappings were seen in ICSPs
 			if missingMaps := len(mapping); missingMaps != 0 {
 				t.Errorf("generated ICSPs are missing %d mappings", missingMaps)
+				return
+			}
+		})
+	}
+}
+
+func TestGenerateIDMS(t *testing.T) {
+	type args struct {
+		name          string
+		scope         string
+		mapping       map[string]string
+		idmsByteLimit int
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []byte
+		wantErr error
+	}{
+		{
+			name: "src is tagged - skip mirror",
+			args: args{
+				name:          "catalog",
+				mapping:       map[string]string{},
+				idmsByteLimit: maxIDMSSize,
+			},
+			want: []byte(
+				`apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  labels:
+    operators.openshift.org/catalog: "true"
+  name: catalog
+spec:
+  imageDigestMirrors: []
+`,
+			),
+		},
+		{
+			name: "src is tagged and idms with registy scope - skip mirror",
+			args: args{
+				name:          "catalog",
+				scope:         "registry",
+				mapping:       map[string]string{},
+				idmsByteLimit: maxIDMSSize,
+			},
+			want: []byte(
+				`apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  labels:
+    operators.openshift.org/catalog: "true"
+  name: catalog
+spec:
+  imageDigestMirrors: []
+`,
+			),
+		},
+		{
+			name: "src has digest",
+			args: args{
+				name:          "catalog",
+				mapping:       map[string]string{"docker.io/strimzi/operator": "quay.io/olmtest/strimzi-operator"},
+				idmsByteLimit: maxIDMSSize,
+			},
+			want: []byte(
+				`apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  labels:
+    operators.openshift.org/catalog: "true"
+  name: catalog
+spec:
+  imageDigestMirrors:
+  - mirrors:
+    - quay.io/olmtest/strimzi-operator
+    source: docker.io/strimzi/operator
+`,
+			),
+		},
+		{
+			name: "src has digest and idms with registry scope",
+			args: args{
+				name:          "catalog",
+				scope:         "registry",
+				mapping:       map[string]string{"docker.io": "quay.io"},
+				idmsByteLimit: maxIDMSSize,
+			},
+			want: []byte(
+				`apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  labels:
+    operators.openshift.org/catalog: "true"
+  name: catalog
+spec:
+  imageDigestMirrors:
+  - mirrors:
+    - quay.io
+    source: docker.io
+`,
+			),
+		},
+		{
+			name: "multiple",
+			args: args{
+				name:          "catalog",
+				mapping:       map[string]string{"docker.io/strimzi/operator": "quay.io/olmtest/strimzi-operator"},
+				idmsByteLimit: maxIDMSSize,
+			},
+			want: []byte(
+				`apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  labels:
+    operators.openshift.org/catalog: "true"
+  name: catalog
+spec:
+  imageDigestMirrors:
+  - mirrors:
+    - quay.io/olmtest/strimzi-operator
+    source: docker.io/strimzi/operator
+`,
+			),
+		},
+		{
+			name: "multiple with idms registry scope",
+			args: args{
+				name:          "catalog",
+				scope:         "registry",
+				mapping:       map[string]string{"docker.io": "quay.io"},
+				idmsByteLimit: maxIDMSSize,
+			},
+			want: []byte(
+				`apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  labels:
+    operators.openshift.org/catalog: "true"
+  name: catalog
+spec:
+  imageDigestMirrors:
+  - mirrors:
+    - quay.io
+    source: docker.io
+`,
+			),
+		},
+		{
+			name: "idms byte limit set to 0",
+			args: args{
+				name:          "catalog",
+				scope:         "registry",
+				mapping:       map[string]string{"docker.io": "quay.io"},
+				idmsByteLimit: 0,
+			},
+			wantErr: fmt.Errorf("unable to add mirror {docker.io [quay.io] } to IDMS with the max-idms-size set to 0"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := generateIDMS(os.Stdout, tt.args.name, tt.args.idmsByteLimit, tt.args.mapping)
+			if tt.wantErr != nil {
+				if err == nil || err.Error() != tt.wantErr.Error() {
+					t.Errorf("generateIDMS() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("generateIDMS() got = %v, want %v, diff = %v", string(got), string(tt.want), cmp.Diff(got, tt.want))
+			}
+		})
+	}
+}
+
+func TestGenerateIDMSs(t *testing.T) {
+	type args struct {
+		name  string
+		scope string
+		limit int
+	}
+	tests := []struct {
+		name            string
+		args            args
+		registryMapSize int
+	}{
+		{
+			name: "Generated IDMSs are smaller than the byte limit",
+			args: args{
+				name:  "catalog",
+				scope: "registry",
+				limit: 1000,
+			},
+			registryMapSize: 100000,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mapping := map[imagesource.TypedImageReference]imagesource.TypedImageReference{}
+			for i, byteCount := 0, 0; byteCount < tt.registryMapSize; i++ {
+				key := fmt.Sprintf("foo-%d", i)
+				value := fmt.Sprintf("bar-%d", i)
+				mapping[imagesource.TypedImageReference{Ref: reference.DockerImageReference{Registry: key}}] = imagesource.TypedImageReference{Ref: reference.DockerImageReference{ID: value, Registry: value}}
+				byteCount += len(key) + len(value)
+			}
+
+			got, err := generateIDMSs(os.Stdout, tt.args.name, tt.args.scope, tt.args.limit, mapping)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			for _, idms := range got {
+				// check that all IDMSs are under IDMS limit
+				if idmsBytes := len(idms); idmsBytes > tt.args.limit {
+					t.Errorf("IDMS size (%d) exceeded limit (%d)", idmsBytes, tt.args.limit)
+					return
+				}
+				// convert Byte array into unstructured object
+				unstructuredObj := unstructured.Unstructured{Object: map[string]interface{}{}}
+				err = yaml.Unmarshal(idms, unstructuredObj.Object)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+
+				// convert unstructured object into IDMS
+				idmsObject := &apicfgv1.ImageDigestMirrorSet{}
+				err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, &idmsObject)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+
+				// remove mappings found in IDMS from original mapping
+				for _, repositoryDigestMirrors := range idmsObject.Spec.ImageDigestMirrors {
+					delete(mapping, imagesource.TypedImageReference{Ref: reference.DockerImageReference{Registry: repositoryDigestMirrors.Source}})
+				}
+			}
+			// ensure that all mappings were seen in IDMSs
+			if missingMaps := len(mapping); missingMaps != 0 {
+				t.Errorf("generated IDMSs are missing %d mappings", missingMaps)
 				return
 			}
 		})
