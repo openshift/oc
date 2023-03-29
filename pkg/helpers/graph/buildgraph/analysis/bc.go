@@ -66,7 +66,7 @@ bc:
 						Key:      MissingRequiredRegistryErr,
 						Message: fmt.Sprintf("%s is pushing to %s, but the administrator has not configured the integrated container image registry.",
 							f.ResourceName(bcNode), f.ResourceName(istNode)),
-						Suggestion: osgraph.Suggestion("oc adm registry -h"),
+						Suggestion: "oc registry -h",
 					})
 
 					continue bc
