@@ -216,6 +216,14 @@ func (o *Options) Run() error {
 		if cv.Spec.DesiredUpdate != nil && cv.Spec.DesiredUpdate.Architecture == configv1.ClusterVersionArchitectureMulti {
 			return fmt.Errorf("info: Update to multi cluster architecture has already been requested")
 		}
+
+		if err := checkForUpgrade(cv); err != nil {
+			if !o.AllowUpgradeWithWarnings {
+				return fmt.Errorf("%s\n\nIf you want to upgrade anyway, use --allow-upgrade-with-warnings.", err)
+			}
+			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
+		}
+
 		if err := patchDesiredUpdate(ctx, &configv1.Update{Architecture: configv1.ClusterVersionArchitectureMulti,
 			Version: cv.Status.Desired.Version}, o.Client, cv.Name); err != nil {
 
