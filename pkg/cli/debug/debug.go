@@ -1243,6 +1243,9 @@ func (o *DebugOptions) getNamespace(infoNs string) (string, func(), error) {
 		}
 
 		cleanup := func() {
+			if o.PreservePod {
+				return
+			}
 			if err := o.CoreClient.Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
 				klog.V(2).Infof("Unable to delete temporary namespace %s: %v", ns.Name, err)
 			} else {
