@@ -260,27 +260,45 @@ func (o LogsOptions) RunLogs() error {
 			SetHeader("Accept-Encoding", "gzip")
 		if o.Path == "journal" {
 			if len(o.UntilTime) > 0 {
+				req.Param("untilTime", o.UntilTime)
+
+				// TODO: remove deprecated API parameters in 4.16
+				// TODO: add error handling for invalid time check
+				// TODO: untilTime, err = time.Parse(time.RFC3339, untilTime)
 				req.Param("until", o.UntilTime)
 			}
 			if len(o.SinceTime) > 0 {
+				req.Param("sinceTime", o.SinceTime)
+
+				// TODO: remove deprecated API parameters in 4.16
+				// TODO: add error handling for invalid time check
+				// TODO: sinceTime, err = time.Parse(time.RFC3339, sinceTime)
 				req.Param("since", o.SinceTime)
 			}
 			if len(o.Output) > 0 {
+				//TODO: deprecate this flag in 4.16
 				req.Param("output", o.Output)
 			}
 			if o.BootChanaged {
 				req.Param("boot", fmt.Sprintf("%d", o.Boot))
 			}
 			if len(o.Units) > 0 {
+				//TODO: deprecate this flag in 4.16 and use --query
 				for _, unit := range o.Units {
 					req.Param("unit", unit)
 				}
 			}
 			if len(o.Grep) > 0 {
+				req.Param("pattern", o.Grep)
+
+				// TODO: deprecate this flag in 4.16 and use --pattern flag
 				req.Param("grep", o.Grep)
 				req.Param("case-sensitive", fmt.Sprintf("%t", o.GrepCaseSensitive))
 			}
 			if o.Tail > 0 {
+				req.Param("tailLines", strconv.Itoa(o.Tail))
+
+				// TODO: remove deprecated API parameters in 4.16
 				req.Param("tail", strconv.Itoa(o.Tail))
 			}
 		}
