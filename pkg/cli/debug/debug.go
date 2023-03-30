@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -451,7 +452,7 @@ func (o *DebugOptions) RunDebug() error {
 	}
 	defer cleanup()
 
-	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug", generateapp.MakeSimpleName(infos[0].Name)), ns
+	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug-%s", generateapp.MakeSimpleName(infos[0].Name), utilrand.String(5)), ns
 	o.Attach.Pod = pod
 
 	if len(o.ContainerName) == 0 && len(pod.Spec.Containers) > 0 {
