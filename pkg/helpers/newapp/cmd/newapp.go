@@ -141,6 +141,9 @@ type AppConfig struct {
 	TemplateClassificationErrors    map[string]ArgumentClassificationError
 	ComponentClassificationErrors   map[string]ArgumentClassificationError
 	ClassificationWinners           map[string]ArgumentClassificationWinner
+
+	// The ImportMode for the image
+	ImportMode string
 }
 
 type ArgumentClassificationError struct {
@@ -212,7 +215,10 @@ func NewAppConfig() *AppConfig {
 func (c *AppConfig) DockerRegistrySearcher() app.Searcher {
 	r := NewImageRegistrySearcher()
 	r.ImageRetriever.SecurityOptions.Insecure = c.InsecureRegistry
-	return app.DockerRegistrySearcher{Client: r}
+	return app.DockerRegistrySearcher{
+		Client:     r,
+		ImportMode: c.ImportMode,
+	}
 }
 
 type ImageRegistrySearcher struct {
@@ -292,7 +298,9 @@ func (c *AppConfig) SetOpenShiftClient(imageClient imagev1typedclient.ImageV1Int
 			Client:        c.ImageClient.ImageStreamImports(OriginNamespace),
 			AllowInsecure: c.InsecureRegistry,
 			Fallback:      c.DockerRegistrySearcher(),
+			ImportMode:    c.ImportMode,
 		},
+		ImportMode: c.ImportMode,
 	}
 }
 
@@ -498,6 +506,7 @@ func (c *AppConfig) buildPipelines(components app.ComponentReferences, environme
 						klog.Warningf(msg, from)
 					}
 					image = inputImage
+					image.ImportMode = imagev1.ImportModeType(c.ImportMode)
 				}
 
 				klog.V(4).Infof("will use %q as the base image for a source build of %q", ref, refInput.Uses)
@@ -512,6 +521,8 @@ func (c *AppConfig) buildPipelines(components app.ComponentReferences, environme
 				if !inputImage.AsImageStream {
 					msg := "Could not find an image stream match for %q. Make sure that a container image with that tag is available on the node for the deployment to succeed."
 					klog.Warningf(msg, from)
+				} else {
+					inputImage.ImportMode = imagev1.ImportModeType(c.ImportMode)
 				}
 
 				klog.V(4).Infof("will include %q", ref)
@@ -871,6 +882,17 @@ func (c *AppConfig) Run() (*AppResult, error) {
 	}
 	// TODO: I don't belong here
 	c.ensureDockerSearch()
+
+	// verifies the import mode is correct
+	// style is the same as oc tag and oc import-image
+	switch c.ImportMode {
+	case string(imagev1.ImportModeLegacy):
+	case string(imagev1.ImportModePreserveOriginal):
+	case "":
+		c.ImportMode = string(imagev1.ImportModeLegacy)
+	default:
+		return nil, fmt.Errorf("valid ImportMode values are %s or %s", imagev1.ImportModeLegacy, imagev1.ImportModePreserveOriginal)
+	}
 
 	resolved, err := Resolve(c)
 	if err != nil {

@@ -99,6 +99,9 @@ var (
 		# Use a MySQL image in a private registry to create an app and override application artifacts' names
 		oc new-app --image=myregistry.com/mycompany/mysql --name=private
 
+		# Use an image with the full manifest list to create an app and override application artifacts' names
+		oc new-app --image=myregistry.com/mycompany/image --name=private --import-mode=PreserveOriginal
+
 		# Create an application from a remote repository using its beta4 branch
 		oc new-app https://github.com/openshift/ruby-hello-world#beta4
 
@@ -298,6 +301,7 @@ func NewCmdNewApplication(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringVar(&o.Config.SourceSecret, "source-secret", o.Config.SourceSecret, "The name of an existing secret that should be used for cloning a private git repository.")
 	cmd.Flags().BoolVar(&o.Config.SkipGeneration, "no-install", o.Config.SkipGeneration, "Do not attempt to run images that describe themselves as being installable")
 	cmd.Flags().BoolVar(&o.Config.BinaryBuild, "binary", o.Config.BinaryBuild, "Instead of expecting a source URL, set the build to expect binary contents. Will disable triggers.")
+	cmd.Flags().StringVar(&o.Config.ImportMode, "import-mode", o.Config.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
 
 	o.Action.BindForOutput(cmd.Flags(), "output", "template")
 	cmd.Flags().String("output-version", "", "The preferred API versions of the output objects")
