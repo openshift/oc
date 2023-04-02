@@ -15,7 +15,9 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	configv1 "github.com/openshift/api/config/v1"
 	userv1 "github.com/openshift/api/user/v1"
+	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 )
 
@@ -41,6 +43,7 @@ type WhoAmIOptions struct {
 
 	ClientConfig *rest.Config
 	KubeClient   kubernetes.Interface
+	ConfigClient configv1client.Interface
 	RawConfig    api.Config
 
 	ShowToken      bool
@@ -103,6 +106,13 @@ func (o *WhoAmIOptions) Complete(f kcmdutil.Factory) error {
 	}
 	o.KubeClient = kubeClient
 
+	configClient, err := configv1client.NewForConfig(o.ClientConfig)
+	if err != nil {
+		return err
+	}
+
+	o.ConfigClient = configClient
+
 	o.RawConfig, err = f.ToRawKubeConfigLoader().RawConfig()
 	return err
 }
@@ -119,6 +129,28 @@ func (o *WhoAmIOptions) Validate() error {
 }
 
 func (o *WhoAmIOptions) getWebConsoleUrl() (string, error) {
+	consoleEnabled := false
+	clusterVersion, err := o.ConfigClient.ConfigV1().ClusterVersions().Get(context.TODO(), "version", metav1.GetOptions{})
+	if err == nil {
+		for _, cap := range clusterVersion.Status.Capabilities.EnabledCapabilities {
+			if cap == configv1.ClusterVersionCapabilityConsole {
+				consoleEnabled = true
+				break
+			}
+		}
+	} else if errors.IsNotFound(err) {
+		// This means there's no way of telling whether the Console capability is enabled.
+		// Assume it is enabled unless proven otherwise.
+		consoleEnabled = true
+	} else {
+		return "", fmt.Errorf("unable to determine console location: %v", err)
+	}
+
+	// The Console capability is either disabled or unable to determine
+	if !consoleEnabled {
+		return "", fmt.Errorf("unable to determine console location from the cluster")
+	}
+
 	consolePublicConfig, err := o.KubeClient.CoreV1().ConfigMaps(openShiftConfigManagedNamespaceName).Get(context.TODO(), consolePublicConfigMap, metav1.GetOptions{})
 	// This means the command was run against 3.x server
 	if errors.IsNotFound(err) {
