@@ -102,6 +102,7 @@ func TestWriteToMapping(t *testing.T) {
 	}
 }
 
+// TestGetRegistryMappingICSP should be removed when --icsp-scope is no longer supported
 func TestGetRegistryMappingICSP(t *testing.T) {
 	type args struct {
 		scope   string
