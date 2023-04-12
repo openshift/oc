@@ -214,6 +214,7 @@ type FilterFunc func(*manifestlist.ManifestDescriptor, bool) bool
 // PreferManifestList specifically requests a manifest list first
 var PreferManifestList = distribution.WithManifestMediaTypes([]string{
 	manifestlist.MediaTypeManifestList,
+	imagespecv1.MediaTypeImageIndex,
 	schema2.MediaTypeManifest,
 	imagespecv1.MediaTypeImageManifest,
 })
@@ -462,7 +463,7 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 		}
 
 		for i, manifest := range t.Manifests {
-			childManifest, err := manifests.Get(ctx, manifest.Digest, distribution.WithManifestMediaTypes([]string{manifestlist.MediaTypeManifestList, schema2.MediaTypeManifest}))
+			childManifest, err := manifests.Get(ctx, manifest.Digest, PreferManifestList)
 			if err != nil {
 				return nil, nil, "", fmt.Errorf("unable to retrieve source image %s manifest #%d from manifest list: %v", ref, i+1, err)
 			}
@@ -496,7 +497,7 @@ func ManifestsFromList(ctx context.Context, srcDigest digest.Digest, srcManifest
 		manifestList := t
 
 		for i, manifest := range t.Manifests {
-			childManifest, err := manifests.Get(ctx, manifest.Digest, distribution.WithManifestMediaTypes([]string{manifestlist.MediaTypeManifestList, schema2.MediaTypeManifest}))
+			childManifest, err := manifests.Get(ctx, manifest.Digest, PreferManifestList)
 			if err != nil {
 				return nil, nil, "", fmt.Errorf("unable to retrieve source image %s manifest #%d from manifest list: %v", ref, i+1, err)
 			}
