@@ -454,7 +454,7 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 				return nil, nil, "", fmt.Errorf("unable to filter source image %s manifest list (bad payload): %v", ref, err)
 			}
 			manifestList = t
-			manifestDigest, err := registryclient.ContentDigestForManifest(t, srcDigest.Algorithm())
+			manifestDigest, err = registryclient.ContentDigestForManifest(t, srcDigest.Algorithm())
 			if err != nil {
 				return nil, nil, "", err
 			}
