@@ -82,16 +82,17 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 			downgrading one minor version (4.2 -> 4.1) is likely to cause data corruption or to
 			completely break a cluster.
 
-			If the cluster is already being upgraded, or if the cluster is reporting a failure or
-			other error, the update will not be triggered.  It is usually best to give these conditions
-			time to resolve, or to actively work to resolve them.  But if you decide to trigger the update
+			There are two layers of upgrade guards: client-side and cluster-side.
+
+			Client-side guards include checks for whether the cluster is already being upgraded, or if
+			the cluster is reporting a failure.  It is usually best to give these conditions time to
+			resolve, or to actively work to resolve them.  But if you decide to trigger the update
 			regardless of these concerns, use --allow-upgrade-with-warnings.
 
-			The cluster may report that the upgrade should not be performed due to a content
-			verification error or update precondition failures such as operators blocking upgrades.
-			Do not upgrade to images that are not appropriately signed without understanding the risks
-			of upgrading your cluster to untrusted code. If you must override this protection use
-			the --force flag.
+			Cluster-side guards include checks for release verification and upgradeable conditions.
+			Again, it is usually best to give these conditions time to resolve, or to actively work to
+			resolve them.  But if you decide to trigger the update regardless of these concerns,
+			use --force, which is passed through to ClusterVersion's spec.desiredUpdate.force.
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -104,9 +105,9 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 	flags.BoolVar(&o.ToLatestAvailable, "to-latest", o.ToLatestAvailable, "Use the next available version.")
 	flags.BoolVar(&o.ToMultiArch, "to-multi-arch", o.ToMultiArch, "Upgrade current version to multi architecture.")
 	flags.BoolVar(&o.Clear, "clear", o.Clear, "If an upgrade has been requested but not yet downloaded, cancel the update. This has no effect once the update has started.")
-	flags.BoolVar(&o.Force, "force", o.Force, "Forcefully upgrade the cluster even when upgrade release image validation fails and the cluster is reporting errors.")
+	flags.BoolVar(&o.Force, "force", o.Force, "Upgrade regardless of cluster-side guard failures, such as release verification or upgradeable conditions.")
 	flags.BoolVar(&o.AllowExplicitUpgrade, "allow-explicit-upgrade", o.AllowExplicitUpgrade, "Upgrade even if the upgrade target is not listed in the available versions list.")
-	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade even if an upgrade is in process or a cluster error is blocking the update.")
+	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade regardless of client-side guard failures, such as upgrades in progress or failing clusters.")
 	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
 	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows upgrade to a version when it is supported but not recommended for updates.")
 
