@@ -1,7 +1,7 @@
 //go:build windows
 // +build windows
 
-package tokencmd
+package authchallengers
 
 import (
 	"fmt"

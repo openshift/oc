@@ -1,4 +1,4 @@
-package tokencmd
+package authchallengers
 
 import (
 	"errors"
