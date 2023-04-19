@@ -5,14 +5,12 @@ package authchallengers
 
 import (
 	"io"
-
-	"github.com/openshift/oc/pkg/version"
 )
 
 func SSPIEnabled() bool {
 	return false
 }
 
-func NewSSPINegotiator(string, string, string, io.Reader, version.ServerVersionRetriever) Negotiator {
+func NewSSPINegotiator(string, string, string, string, io.Reader) Negotiator {
 	return newUnsupportedNegotiator("SSPI")
 }
