@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -22,7 +23,7 @@ import (
 	kterm "k8s.io/kubectl/pkg/util/term"
 
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
-	"github.com/openshift/oc/pkg/helpers/errors"
+	ocerrors "github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/motd"
 	"github.com/openshift/oc/pkg/helpers/project"
@@ -139,6 +140,13 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	// try to TCP connect to the server to make sure it's reachable, and discover
 	// about the need of certificates or insecure TLS
 	if err := dialToServer(*clientConfig); err != nil {
+		// In go 1.20 and upwards versions, x509 errors in the switch statement
+		// are wrapped in tls.CertificateVerificationError.
+		var cerr *tls.CertificateVerificationError
+		if errors.As(err, &cerr) {
+			err = cerr.Unwrap()
+		}
+
 		switch err.(type) {
 		// certificate authority unknown, check or prompt if we want an insecure
 		// connection or if we already have a cluster stanza that tells us to
@@ -305,7 +313,7 @@ func (o *LoginOptions) gatherProjectInfo() error {
 		if err != nil {
 			return err
 		}
-		msg := errors.NoProjectsExistMessage(canRequest)
+		msg := ocerrors.NoProjectsExistMessage(canRequest)
 		fmt.Fprintf(o.Out, msg)
 		o.Project = ""
 
@@ -408,7 +416,7 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 		}
 
 		out := &bytes.Buffer{}
-		fmt.Fprintf(out, errors.ErrKubeConfigNotWriteable(o.PathOptions.GetDefaultFilename(), o.PathOptions.IsExplicitFile(), err).Error())
+		fmt.Fprintf(out, ocerrors.ErrKubeConfigNotWriteable(o.PathOptions.GetDefaultFilename(), o.PathOptions.IsExplicitFile(), err).Error())
 		return false, fmt.Errorf("%v", out)
 	}
 
