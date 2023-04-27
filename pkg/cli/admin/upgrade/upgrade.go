@@ -252,9 +252,14 @@ func (o *Options) Run() error {
 		// check for recommended updates
 		for _, available := range cv.Status.AvailableUpdates {
 			if match, err := targetMatch(&available, o.To, o.ToImage); match && err == nil {
+				desired := available.Image
+				// preserve the specifically requested release image
+				if len(o.ToImage) > 0 {
+					desired = o.ToImage
+				}
 				update = &configv1.Update{
 					Version: available.Version,
-					Image:   available.Image,
+					Image:   desired,
 				}
 				break
 			} else if err != nil {
