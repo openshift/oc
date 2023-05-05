@@ -646,12 +646,17 @@ func targetMatch(target *configv1.Release, to string, toImage string) (bool, err
 func patchDesiredUpdate(ctx context.Context, update *configv1.Update, client configv1client.Interface,
 	clusterVersionName string) error {
 
-	updateJSON, err := json.Marshal(update)
+	data := []map[string]interface{}{{
+		"op":    "add",
+		"path":  "/spec/desiredUpdate",
+		"value": update,
+	}}
+
+	patch, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("marshal ClusterVersion patch: %v", err)
 	}
-	patch := []byte(fmt.Sprintf(`{"spec":{"desiredUpdate": %s}}`, updateJSON))
-	if _, err := client.ConfigV1().ClusterVersions().Patch(ctx, clusterVersionName, types.MergePatchType, patch,
+	if _, err := client.ConfigV1().ClusterVersions().Patch(ctx, clusterVersionName, types.JSONPatchType, patch,
 		metav1.PatchOptions{}); err != nil {
 
 		return fmt.Errorf("Unable to upgrade: %v", err)
