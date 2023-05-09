@@ -406,7 +406,7 @@ func registerCompletionFuncForGlobalFlags(cmd *cobra.Command, f kcmdutil.Factory
 	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
 		"namespace",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return completion.CompGetResource(f, cmd, "namespace", toComplete), cobra.ShellCompDirectiveNoFileComp
+			return completion.CompGetResource(f, "namespace", toComplete), cobra.ShellCompDirectiveNoFileComp
 		}))
 	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
 		"context",
