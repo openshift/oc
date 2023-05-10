@@ -1,4 +1,4 @@
-package tokencmd
+package tokenrequest
 
 import (
 	"crypto/tls"
@@ -20,9 +20,8 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	"github.com/openshift/oc/pkg/version"
-
 	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
 )
 
 const (
@@ -50,27 +49,9 @@ const (
 	BasicAuthNoUsernameMessage = "BasicChallengeNoUsername"
 )
 
-// ChallengeHandler handles responses to WWW-Authenticate challenges.
-type ChallengeHandler interface {
-	// CanHandle returns true if the handler recognizes a challenge it thinks it can handle.
-	CanHandle(headers http.Header) bool
-	// HandleChallenge lets the handler attempt to handle a challenge.
-	// It is only invoked if CanHandle() returned true for the given headers.
-	// Returns response headers and true if the challenge is successfully handled.
-	// Returns false if the challenge was not handled, and an optional error in error cases.
-	HandleChallenge(requestURL string, headers http.Header) (http.Header, bool, error)
-	// CompleteChallenge is invoked with the headers from a successful server response
-	// received after having handled one or more challenges.
-	// Returns an error if the handler does not consider the challenge/response interaction complete.
-	CompleteChallenge(requestURL string, headers http.Header) error
-	// Release gives the handler a chance to release any resources held during a challenge/response sequence.
-	// It is always invoked, even in cases where no challenges were received or handled.
-	Release() error
-}
-
 type RequestTokenOptions struct {
 	ClientConfig *restclient.Config
-	Handler      ChallengeHandler
+	Handler      challengehandlers.ChallengeHandler
 	OsinConfig   *osincli.ClientConfig
 	Issuer       string
 	TokenFlow    bool
@@ -78,34 +59,21 @@ type RequestTokenOptions struct {
 
 // RequestToken uses the cmd arguments to locate an openshift oauth server and attempts to authenticate via an
 // OAuth code flow and challenge handling.  It returns the access token if it gets one or an error if it does not.
-func RequestToken(clientCfg *restclient.Config, reader io.Reader, defaultUsername string, defaultPassword string) (string, error) {
-	return NewRequestTokenOptions(clientCfg, reader, defaultUsername, defaultPassword, false).RequestToken()
+func RequestToken(clientCfg *restclient.Config, challengeHandlers ...challengehandlers.ChallengeHandler) (string, error) {
+	return NewRequestTokenOptions(clientCfg, false, challengeHandlers...).RequestToken()
 }
 
-func NewRequestTokenOptions(clientCfg *restclient.Config, reader io.Reader, defaultUsername string, defaultPassword string, tokenFlow bool) *RequestTokenOptions {
-	// priority ordered list of challenge handlers
-	// the SPNEGO ones must come before basic auth
-	var handlers []ChallengeHandler
+func NewRequestTokenOptions(
+	clientCfg *restclient.Config,
+	tokenFlow bool,
+	challengeHandlers ...challengehandlers.ChallengeHandler,
+) *RequestTokenOptions {
 
-	serverVersionDetector := version.NewServerVersionRetriever(clientCfg)
-
-	if GSSAPIEnabled() {
-		klog.V(6).Info("GSSAPI Enabled")
-		handlers = append(handlers, NewNegotiateChallengeHandler(NewGSSAPINegotiator(defaultUsername)))
-	}
-
-	if SSPIEnabled() {
-		klog.V(6).Info("SSPI Enabled")
-		handlers = append(handlers, NewNegotiateChallengeHandler(NewSSPINegotiator(defaultUsername, defaultPassword, clientCfg.Host, reader, serverVersionDetector)))
-	}
-
-	handlers = append(handlers, &BasicChallengeHandler{Host: clientCfg.Host, serverVersionRetriever: serverVersionDetector, Reader: reader, Username: defaultUsername, Password: defaultPassword})
-
-	var handler ChallengeHandler
-	if len(handlers) == 1 {
-		handler = handlers[0]
+	var handler challengehandlers.ChallengeHandler
+	if len(challengeHandlers) == 1 {
+		handler = challengeHandlers[0]
 	} else {
-		handler = NewMultiHandler(handlers...)
+		handler = challengehandlers.NewMultiHandler(challengeHandlers...)
 	}
 
 	return &RequestTokenOptions{
@@ -239,7 +207,7 @@ func (o *RequestTokenOptions) RequestToken() (string, error) {
 				// Handle the challenge
 				newRequestHeaders, shouldRetry, err := o.Handler.HandleChallenge(requestURL, resp.Header)
 				if err != nil {
-					if _, ok := err.(*BasicAuthNoUsernameError); ok {
+					if _, ok := err.(*challengehandlers.BasicAuthNoUsernameError); ok {
 						tokenPromptErr := apierrs.NewUnauthorized(BasicAuthNoUsernameMessage)
 						klog.V(2).Infof("%v", err)
 						tokenPromptErr.ErrStatus.Details = &metav1.StatusDetails{
@@ -431,7 +399,14 @@ func transportWithSystemRoots(issuer string, clientConfig *restclient.Config) (h
 	// perform the retrieval with insecure transport, otherwise oauth-server
 	// logs remote tls error which is confusing during troubleshooting
 	client := http.Client{
-		Transport: insecureTransport(clientConfig.Transport, issuerURL),
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			TLSClientConfig: &tls.Config{
+				Certificates:       []tls.Certificate{},
+				InsecureSkipVerify: true,
+				ServerName:         issuerURL.Hostname(),
+			},
+		},
 	}
 	resp, err := client.Head(issuer)
 	if err != nil {
@@ -495,23 +470,4 @@ func verifyServerCertChain(dnsName string, chain []*x509.Certificate) ([][]*x509
 		Intermediates: intermediates,
 		DNSName:       dnsName,
 	})
-}
-
-func insecureTransport(roundTripper http.RoundTripper, issuerURL *url.URL) *http.Transport {
-	tlsConfig := &tls.Config{
-		Certificates:       []tls.Certificate{},
-		InsecureSkipVerify: true,
-		ServerName:         issuerURL.Hostname(),
-	}
-	if transport, ok := roundTripper.(*http.Transport); ok {
-		return &http.Transport{
-			Proxy:           transport.Proxy,
-			DialContext:     transport.DialContext,
-			TLSClientConfig: tlsConfig,
-		}
-	}
-	return &http.Transport{
-		Proxy:           http.ProxyFromEnvironment,
-		TLSClientConfig: tlsConfig,
-	}
 }
