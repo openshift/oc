@@ -209,10 +209,6 @@ func NewCmdAuth(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 }
 
 func NewCmdPlugin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	// list of accepted plugin executable filename prefixes that we will look for
-	// when executing a plugin. Order matters here, we want to first see if a user
-	// has prefixed their plugin with "oc-", before defaulting to upstream behavior.
-	plugin.ValidPluginFilenamePrefixes = []string{"oc", "kubectl"}
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(plugin.NewCmdPlugin(streams)))
 }
 

@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"os"
 
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	kubecmd "k8s.io/kubectl/pkg/cmd"
+
 	"github.com/openshift/oc/pkg/cli"
 	"github.com/openshift/oc/tools/clicheck/sanity"
 )
 
 func main() {
-	oc := cli.NewOcCommand(os.Stdin, os.Stdout, os.Stderr)
+	oc := cli.NewOcCommand(kubecmd.KubectlOptions{IOStreams: genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}})
 	errors := sanity.CheckCmdTree(oc, sanity.AllCmdChecks, nil)
 	if len(errors) > 0 {
 		for i, err := range errors {
