@@ -211,7 +211,7 @@ func TestExplicitStrategy(t *testing.T) {
 
 			alternates := NewICSPExplicitStrategy("name")
 			readCount := 0
-			onErr := alternates.(*explicitStrategy)
+			onErr := alternates.(*explicitICSPStrategy)
 			onErr.readICSPsFromFileFunc = func(string) ([]operatorv1alpha1.ImageContentSourcePolicy, error) {
 				readCount++
 				return tt.icspList, nil
@@ -302,7 +302,7 @@ func TestExplicitStrategyErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			imageRef, _ := reference.Parse(tt.image)
 			alternates := NewICSPExplicitStrategy("name")
-			onErr := alternates.(*explicitStrategy)
+			onErr := alternates.(*explicitICSPStrategy)
 			onErr.readICSPsFromFileFunc = tt.readICSPFunc
 			_, err := alternates.FirstRequest(context.Background(), imageRef)
 			if err == nil || !strings.Contains(err.Error(), tt.expectedErr) {

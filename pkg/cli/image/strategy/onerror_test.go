@@ -11,7 +11,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/reference"
 )
 
-func TestOnErrorStrategy(t *testing.T) {
+func TestOnErrorICSPStrategy(t *testing.T) {
 	tests := []struct {
 		name                 string
 		icspList             []operatorv1alpha1.ImageContentSourcePolicy
@@ -230,7 +230,7 @@ func TestOnErrorStrategy(t *testing.T) {
 
 			alternates := NewICSPOnErrorStrategy("name")
 			readCount := 0
-			onErr := alternates.(*onErrorStrategy)
+			onErr := alternates.(*onErrorICSPStrategy)
 			onErr.readICSPsFromFileFunc = func(string) ([]operatorv1alpha1.ImageContentSourcePolicy, error) {
 				readCount++
 				return tt.icspList, nil
@@ -317,7 +317,7 @@ func TestOnErrorStrategyErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			imageRef, _ := reference.Parse(tt.image)
 			alternates := NewICSPOnErrorStrategy("name")
-			onErr := alternates.(*onErrorStrategy)
+			onErr := alternates.(*onErrorICSPStrategy)
 			onErr.readICSPsFromFileFunc = tt.readICSPFunc
 			_, err := alternates.OnFailure(context.Background(), imageRef)
 			if err == nil || !strings.Contains(err.Error(), tt.expectedErr) {
