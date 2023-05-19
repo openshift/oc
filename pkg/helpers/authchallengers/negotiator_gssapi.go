@@ -1,7 +1,7 @@
 //go:build gssapi
 // +build gssapi
 
-package tokencmd
+package authchallengers
 
 import (
 	"errors"

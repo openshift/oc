@@ -118,8 +118,12 @@ func (m *Manifest) UnmarshalJSON(in []byte) error {
 	if !ok {
 		return fmt.Errorf("expected manifest to decode into *unstructured.Unstructured, got %T", ud)
 	}
-	m.GVK = ud.GroupVersionKind()
 	m.Obj = ud
+	return m.populateFromObj()
+}
+
+func (m *Manifest) populateFromObj() error {
+	m.GVK = m.Obj.GroupVersionKind()
 	m.id = resourceId{
 		Group:     m.GVK.Group,
 		Kind:      m.GVK.Kind,
@@ -170,8 +174,8 @@ func checkFeatureSets(requiredFeatureSet string, annotations map[string]string) 
 // processing by cluster version operator. Pointer arguments can be set nil to avoid excluding based on that
 // filter. For example, setting profile non-nil and capabilities nil will return an error if the manifest's
 // profile does not match, but will never return an error about capability issues.
-func (m *Manifest) Include(excludeIdentifier *string, requiredFeatureSet *string, profile *string, capabilities *configv1.ClusterVersionCapabilitiesStatus) error {
-	return m.IncludeAllowUnknownCapabilities(excludeIdentifier, requiredFeatureSet, profile, capabilities, false)
+func (m *Manifest) Include(excludeIdentifier *string, requiredFeatureSet *string, profile *string, capabilities *configv1.ClusterVersionCapabilitiesStatus, overrides []configv1.ComponentOverride) error {
+	return m.IncludeAllowUnknownCapabilities(excludeIdentifier, requiredFeatureSet, profile, capabilities, overrides, false)
 }
 
 // IncludeAllowUnknownCapabilities returns an error if the manifest fails an inclusion filter and should be excluded from
@@ -181,7 +185,7 @@ func (m *Manifest) Include(excludeIdentifier *string, requiredFeatureSet *string
 // to capabilities filtering. When set to true a manifest will not be excluded simply because it contains an unknown
 // capability. This is necessary to allow updates to an OCP version containing newly defined capabilities.
 func (m *Manifest) IncludeAllowUnknownCapabilities(excludeIdentifier *string, requiredFeatureSet *string, profile *string,
-	capabilities *configv1.ClusterVersionCapabilitiesStatus, allowUnknownCapabilities bool) error {
+	capabilities *configv1.ClusterVersionCapabilitiesStatus, overrides []configv1.ComponentOverride, allowUnknownCapabilities bool) error {
 
 	annotations := m.Obj.GetAnnotations()
 	if annotations == nil {
@@ -213,7 +217,34 @@ func (m *Manifest) IncludeAllowUnknownCapabilities(excludeIdentifier *string, re
 
 	// If there is no capabilities defined in a release then we do not need to check presence of capabilities in the manifest
 	if capabilities != nil {
-		return checkResourceEnablement(annotations, capabilities, allowUnknownCapabilities)
+		err := checkResourceEnablement(annotations, capabilities, allowUnknownCapabilities)
+		if err != nil {
+			return err
+		}
+	}
+
+	if override := m.getOverrideForManifest(overrides); override != nil && override.Unmanaged {
+		return fmt.Errorf("overridden")
+	}
+
+	return nil
+}
+
+// getOverrideForManifest returns the override when override exists and nil otherwise.
+func (m *Manifest) getOverrideForManifest(overrides []configv1.ComponentOverride) *configv1.ComponentOverride {
+	for _, override := range overrides {
+		namespace := override.Namespace
+		if m.id.Namespace == "" {
+			namespace = "" // cluster-scoped objects don't have namespace.
+		}
+		if m.id.equal(resourceId{
+			Group:     override.Group,
+			Kind:      override.Kind,
+			Name:      override.Name,
+			Namespace: namespace,
+		}) {
+			return &override
+		}
 	}
 	return nil
 }

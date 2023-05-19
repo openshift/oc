@@ -16,8 +16,8 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/kubectl/pkg/util/term"
 
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
 	"github.com/openshift/oc/pkg/helpers/flagtypes"
-	"github.com/openshift/oc/pkg/helpers/tokencmd"
 )
 
 var (
@@ -60,7 +60,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 
 			if err := o.Run(); kapierrors.IsUnauthorized(err) {
 				if err, isStatusErr := err.(*kapierrors.StatusError); isStatusErr {
-					if err.Status().Message != tokencmd.BasicAuthNoUsernameMessage {
+					if err.Status().Message != tokenrequest.BasicAuthNoUsernameMessage {
 						fmt.Fprintln(streams.Out, "Login failed (401 Unauthorized)")
 						fmt.Fprintln(streams.Out, "Verify you have provided the correct credentials.")
 					}

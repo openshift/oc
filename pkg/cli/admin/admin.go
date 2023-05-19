@@ -17,7 +17,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/catalog"
 	"github.com/openshift/oc/pkg/cli/admin/createbootstrapprojecttemplate"
 	"github.com/openshift/oc/pkg/cli/admin/createerrortemplate"
-	"github.com/openshift/oc/pkg/cli/admin/createkubeconfig"
 	"github.com/openshift/oc/pkg/cli/admin/createlogintemplate"
 	"github.com/openshift/oc/pkg/cli/admin/createproviderselectiontemplate"
 	"github.com/openshift/oc/pkg/cli/admin/groups"
@@ -96,8 +95,6 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 		{
 			Message: "Configuration:",
 			Commands: []*cobra.Command{
-				createkubeconfig.NewCommandCreateKubeConfig(streams),
-
 				createbootstrapprojecttemplate.NewCommandCreateBootstrapProjectTemplate(f, streams),
 
 				createlogintemplate.NewCommandCreateLoginTemplate(f, streams),

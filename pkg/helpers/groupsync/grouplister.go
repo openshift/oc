@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 
 	userv1 "github.com/openshift/api/user/v1"
 	userv1client "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
@@ -62,6 +63,9 @@ func (l *allOpenShiftGroupLister) ListGroups() ([]string, error) {
 
 		ldapGroupUID := group.Annotations[LDAPUIDAnnotation]
 		l.ldapGroupUIDToOpenShiftGroupName[ldapGroupUID] = group.Name
+		if existingGroupName, exists := l.ldapGroupUIDToOpenShiftGroupName[ldapGroupUID]; exists {
+			klog.Warningf("Group %q has the same %v as group %q. Only a single group is eligible for mapping. Group %q will be ignored.", existingGroupName, ldapGroupUID, group.Name, existingGroupName)
+		}
 		ldapGroupUIDs = append(ldapGroupUIDs, ldapGroupUID)
 	}
 
@@ -149,6 +153,9 @@ func (l *openshiftGroupLister) ListGroups() ([]string, error) {
 		}
 
 		ldapGroupUID := group.Annotations[LDAPUIDAnnotation]
+		if existingGroupName, exists := l.ldapGroupUIDToOpenShiftGroupName[ldapGroupUID]; exists {
+			klog.Warningf("Group %q has the same %v as group %q. Only a single group is eligible for mapping. Group %q will be ignored.", existingGroupName, ldapGroupUID, group.Name, existingGroupName)
+		}
 		l.ldapGroupUIDToOpenShiftGroupName[ldapGroupUID] = group.Name
 		ldapGroupUIDs = append(ldapGroupUIDs, ldapGroupUID)
 	}

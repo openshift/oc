@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -375,17 +376,29 @@ func (o *ExtractOptions) Run() error {
 					return fmt.Errorf("unable to connect to image repository %s: %v", from.String(), err)
 				}
 
-				srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+				srcManifest, location, err := retrieveSourceManifest(ctx, from, repo, o)
 				if err != nil {
-					if imagemanifest.IsImageForbidden(err) {
-						msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
-						return imagemanifest.NewImageForbidden(msg, err)
+					if err != imagemanifest.AllImageFilteredErr {
+						return err
 					}
-					if imagemanifest.IsImageNotFound(err) {
-						msg := fmt.Sprintf("image %q not found: %s", from, err.Error())
-						return imagemanifest.NewImageNotFound(msg, err)
+
+					// Translate the current runtime OS to linux when looking through a manifest listed image since a manifest for the particular 'runtime OS'/'archType' may not exist.
+					// In cases where the runtime OS is windows or darwin (i.e. macOS), there is no expectation of a manifest image with those particular OS's.
+					if o.FilterOptions.DefaultOSFilter {
+						runtimeOS := runtime.GOOS
+						arch := runtime.GOARCH
+
+						klog.V(2).Infof("Warning: a manifest image could not be found for this platform: %s/%s. Converting runtime OS, %s, to 'linux' to pull the linux/%s equivalent image.\n", runtimeOS, arch, runtimeOS, arch)
+						o.FilterOptions.OSFilter, err = regexp.Compile("linux/" + arch)
+						if err != nil {
+							return fmt.Errorf("failed to compile OSFilter for linux/%s: %v", arch, err)
+						}
+
+						srcManifest, location, err = retrieveSourceManifest(ctx, from, repo, o)
+						if err != nil {
+							return err
+						}
 					}
-					return fmt.Errorf("unable to read image %s: %v", from, err)
 				}
 
 				contentDigest, err := registryclient.ContentDigestForManifest(srcManifest, location.Manifest.Algorithm())
@@ -527,6 +540,27 @@ func (o *ExtractOptions) Run() error {
 			})
 		}
 	})
+}
+
+// retrieveSourceManifest retrieves the first manifest at the request location that matches the filter function and handles any errors resulting from retrieving the manifest
+func retrieveSourceManifest(ctx context.Context, from imagesource.TypedImageReference, repo distribution.Repository, o *ExtractOptions) (distribution.Manifest, imagemanifest.ManifestLocation, error) {
+	srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+	if err != nil {
+		emptyManifestLocation := imagemanifest.ManifestLocation{}
+		if imagemanifest.IsImageForbidden(err) {
+			msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
+			return nil, emptyManifestLocation, imagemanifest.NewImageForbidden(msg, err)
+		}
+		if imagemanifest.IsImageNotFound(err) {
+			msg := fmt.Sprintf("image %q not found: %s", from, err.Error())
+			return nil, emptyManifestLocation, imagemanifest.NewImageNotFound(msg, err)
+		}
+		if err == imagemanifest.AllImageFilteredErr {
+			return nil, emptyManifestLocation, err
+		}
+		return nil, emptyManifestLocation, fmt.Errorf("unable to read image %s: %v", from, err)
+	}
+	return srcManifest, location, nil
 }
 
 func layerByEntry(r io.Reader, options *archive.TarOptions, layerInfo LayerInfo, fn TarEntryFunc, allLayers bool, alreadySeen map[string]struct{}) (bool, error) {

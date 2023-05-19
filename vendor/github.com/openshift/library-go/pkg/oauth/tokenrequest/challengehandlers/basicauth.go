@@ -1,4 +1,4 @@
-package tokencmd
+package challengehandlers
 
 import (
 	"encoding/base64"
@@ -10,9 +10,6 @@ import (
 	"strings"
 
 	"k8s.io/klog/v2"
-
-	"github.com/openshift/oc/pkg/helpers/term"
-	"github.com/openshift/oc/pkg/version"
 )
 
 // BasicAuthNoUsernameError when basic authentication challenge handling was attempted
@@ -28,19 +25,43 @@ func NewBasicAuthNoUsernameError() error {
 	return &BasicAuthNoUsernameError{}
 }
 
+func NewBasicChallengeHandler(
+	host, consoleURL string,
+	reader io.Reader,
+	writer io.Writer,
+	passwordPrompter PasswordPrompter,
+	username, password string,
+) *BasicChallengeHandler {
+	return &BasicChallengeHandler{
+		Host:             host,
+		WebConsoleURL:    consoleURL,
+		Reader:           reader,
+		Writer:           writer,
+		passwordPrompter: passwordPrompter,
+		Username:         username,
+		Password:         password,
+	}
+}
+
+// BasicChallengeHandler handles the "WWW-Authenticate: Basic" challenges.
+// It implements the `ChallengeHandler` interface.
 type BasicChallengeHandler struct {
 	// Host is the server being authenticated to. Used only for displaying messages when prompting for username/password
 	Host string
 
-	// serverVersionRetriever is used for fetching server version
-	serverVersionRetriever version.ServerVersionRetriever
+	// WebConsoleURL is an optional URL to a web interface where the user might go if they prefer login from the browser instead
+	WebConsoleURL string
 
 	// Reader is used to prompt for username/password. If nil, no prompting is done
 	Reader io.Reader
 	// Writer is used to output prompts. If nil, stdout is used
 	Writer io.Writer
 
-	// Username is the username to use when challenged. If empty, a prompt is issued to a non-nil Reader
+	// passwordPrompter is used to retrieve the password as a string
+	passwordPrompter PasswordPrompter
+
+	// Username is the username to use when challenged. If empty, a `BasicAuthNoUsernameError` is returned
+	// when handling the challenge.
 	Username string
 	// Password is the password to use when challenged. If empty, a prompt is issued to a non-nil Reader
 	Password string
@@ -55,13 +76,18 @@ func (c *BasicChallengeHandler) CanHandle(headers http.Header) bool {
 	isBasic, _ := basicRealm(headers)
 	return isBasic
 }
+
+// HandleChallenge attempts to handle the "WWW-Authenticate: Basic" challenge.
+// It may prompt for a password matching the username that should already be a part
+// of the BasicChallengeHandler. The prompt is supposed to be called only once
+// but this assertion is thread unsafe.
 func (c *BasicChallengeHandler) HandleChallenge(requestURL string, headers http.Header) (http.Header, bool, error) {
 	if c.prompted {
-		klog.V(2).Info("already prompted for challenge, won't prompt again")
+		klog.V(4).Info("already prompted for challenge, won't prompt again")
 		return nil, false, nil
 	}
 	if c.handled {
-		klog.V(2).Info("already handled basic challenge")
+		klog.V(4).Info("already handled basic challenge")
 		return nil, false, nil
 	}
 
@@ -85,21 +111,18 @@ func (c *BasicChallengeHandler) HandleChallenge(requestURL string, headers http.
 			w = os.Stdout
 		}
 
+		if len(c.WebConsoleURL) > 0 {
+			fmt.Fprintf(w, "Console URL: %s\n", c.WebConsoleURL)
+		}
+
 		if _, realm := basicRealm(headers); len(realm) > 0 {
 			fmt.Fprintf(w, "Authentication required for %s (%s)\n", c.Host, realm)
 		} else {
 			fmt.Fprintf(w, "Authentication required for %s\n", c.Host)
 		}
-		if c.serverVersionRetriever != nil {
-			serverVersion, err := c.serverVersionRetriever.RetrieveServerVersion()
-			// this feature was introduced in Openshift 4.11 which should correspond to 1.24
-			if err == nil && serverVersion.MajorNumber >= 1 && serverVersion.MinorNumber >= 24 {
-				fmt.Fprintf(w, "Console URL: %s/console\n", c.Host)
-			}
-		}
 		fmt.Fprintf(w, "Username: %s\n", username)
 		if missingPassword {
-			password = term.PromptForPasswordString(c.Reader, w, "Password: ")
+			password = c.passwordPrompter.PromptForPassword(c.Reader, w, "Password: ")
 		}
 		// remember so we don't re-prompt
 		c.prompted = true

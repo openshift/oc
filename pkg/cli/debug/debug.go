@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -451,7 +452,7 @@ func (o *DebugOptions) RunDebug() error {
 	}
 	defer cleanup()
 
-	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug", generateapp.MakeSimpleName(infos[0].Name)), ns
+	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug-%s", generateapp.MakeSimpleName(infos[0].Name), utilrand.String(5)), ns
 	o.Attach.Pod = pod
 
 	if len(o.ContainerName) == 0 && len(pod.Spec.Containers) > 0 {
@@ -1242,6 +1243,9 @@ func (o *DebugOptions) getNamespace(infoNs string) (string, func(), error) {
 		}
 
 		cleanup := func() {
+			if o.PreservePod {
+				return
+			}
 			if err := o.CoreClient.Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
 				klog.V(2).Infof("Unable to delete temporary namespace %s: %v", ns.Name, err)
 			} else {

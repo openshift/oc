@@ -43,6 +43,9 @@ type DockerClientSearcher struct {
 	// AllowingMissingImages will allow images that could not be found in the local or
 	// remote registry to be used anyway.
 	AllowMissingImages bool
+
+	// The ImportMode for the image
+	ImportMode string
 }
 
 func (r DockerClientSearcher) Type() string {
@@ -149,6 +152,7 @@ func (r DockerClientSearcher) Search(precise bool, terms ...string) (ComponentMa
 				Description: descriptionFor(dockerImage, match.Value, ref.Registry, ""),
 				Score:       match.Score,
 				DockerImage: dockerImage,
+				ImportMode:  imagev1.ImportModeType(r.ImportMode),
 				ImageTag:    ref.Tag,
 				Insecure:    r.Insecure,
 				Meta:        map[string]string{"registry": ref.Registry},
@@ -254,6 +258,7 @@ type ImageImportSearcher struct {
 	Client        imagev1client.ImageStreamImportInterface
 	AllowInsecure bool
 	Fallback      Searcher
+	ImportMode    string
 }
 
 func (s ImageImportSearcher) Type() string {
@@ -271,8 +276,11 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 			continue
 		}
 		isi.Spec.Images = append(isi.Spec.Images, imagev1.ImageImportSpec{
-			From:         corev1.ObjectReference{Kind: "DockerImage", Name: term},
-			ImportPolicy: imagev1.TagImportPolicy{Insecure: s.AllowInsecure},
+			From: corev1.ObjectReference{Kind: "DockerImage", Name: term},
+			ImportPolicy: imagev1.TagImportPolicy{
+				Insecure:   s.AllowInsecure,
+				ImportMode: imagev1.ImportModeType(s.ImportMode),
+			},
 		})
 	}
 	isi.Name = "newapp"
@@ -334,6 +342,7 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 			Description: descriptionFor(dockerImage, term, ref.Registry, ref.Tag),
 			Score:       0,
 			DockerImage: dockerImage,
+			ImportMode:  imagev1.ImportModeType(s.ImportMode),
 			ImageTag:    ref.Tag,
 			Insecure:    s.AllowInsecure,
 			Meta:        map[string]string{"registry": ref.Registry, "direct-tag": "1"},
@@ -356,7 +365,8 @@ type RegistryImageClient interface {
 // not return images with the name "ruby".
 // TODO: replace ImageByTag to allow partial matches
 type DockerRegistrySearcher struct {
-	Client RegistryImageClient
+	Client     RegistryImageClient
+	ImportMode string
 }
 
 func (r DockerRegistrySearcher) Type() string {
@@ -397,6 +407,7 @@ func (r DockerRegistrySearcher) Search(precise bool, terms ...string) (Component
 			Description: descriptionFor(image, term, ref.Registry, ref.Tag),
 			Score:       0,
 			DockerImage: image,
+			ImportMode:  imagev1.ImportModeType(r.ImportMode),
 			ImageTag:    ref.Tag,
 			Meta:        map[string]string{"registry": ref.Registry},
 		}

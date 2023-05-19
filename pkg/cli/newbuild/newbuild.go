@@ -59,6 +59,9 @@ var (
 		# Create a build config from a remote private repository and specify which existing secret to use
 		oc new-build https://github.com/youruser/yourgitrepo --source-secret=yoursecret
 
+		# Create a build config using  an image with the full manifest list to create an app and override application artifacts' names
+		oc new-build --image=myregistry.com/mycompany/image --name=private --import-mode=PreserveOriginal
+
 		# Create a build config from a remote repository and inject the npmrc into a build
 		oc new-build https://github.com/openshift/ruby-hello-world --build-secret npmrc:.npmrc
 
@@ -154,6 +157,7 @@ func NewCmdNewBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 	cmd.Flags().BoolVar(&o.Config.NoOutput, "no-output", o.Config.NoOutput, "If true, the build output will not be pushed anywhere.")
 	cmd.Flags().StringVar(&o.Config.SourceImage, "source-image", o.Config.SourceImage, "Specify an image to use as source for the build.  You must also specify --source-image-path.")
 	cmd.Flags().StringVar(&o.Config.SourceImagePath, "source-image-path", o.Config.SourceImagePath, "Specify the file or directory to copy from the source image and its destination in the build directory. Format: [source]:[destination-dir].")
+	cmd.Flags().StringVar(&o.Config.ImportMode, "import-mode", o.Config.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
 
 	o.Action.BindForOutput(cmd.Flags(), "output", "template", "sort-by")
 	cmd.Flags().String("output-version", "", "The preferred API versions of the output objects")

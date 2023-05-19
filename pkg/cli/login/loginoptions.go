@@ -5,7 +5,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -19,16 +21,20 @@ import (
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/klog/v2"
 	kterm "k8s.io/kubectl/pkg/util/term"
 
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
-	"github.com/openshift/oc/pkg/helpers/errors"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
+	occhallengers "github.com/openshift/oc/pkg/helpers/authchallengers"
+	ocerrors "github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/motd"
 	"github.com/openshift/oc/pkg/helpers/project"
 	loginutil "github.com/openshift/oc/pkg/helpers/project"
 	"github.com/openshift/oc/pkg/helpers/term"
-	"github.com/openshift/oc/pkg/helpers/tokencmd"
+	"github.com/openshift/oc/pkg/version"
 )
 
 const defaultClusterURL = "https://localhost:8443"
@@ -68,6 +74,12 @@ type LoginOptions struct {
 	RequestTimeout time.Duration
 
 	genericclioptions.IOStreams
+}
+
+type passwordPrompter func(r io.Reader, w io.Writer, format string, a ...interface{}) string
+
+func (p passwordPrompter) PromptForPassword(r io.Reader, w io.Writer, format string, a ...interface{}) string {
+	return p(r, w, format, a)
 }
 
 func NewLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
@@ -139,6 +151,13 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	// try to TCP connect to the server to make sure it's reachable, and discover
 	// about the need of certificates or insecure TLS
 	if err := dialToServer(*clientConfig); err != nil {
+		// In go 1.20 and upwards versions, x509 errors in the switch statement
+		// are wrapped in tls.CertificateVerificationError.
+		var cerr *tls.CertificateVerificationError
+		if errors.As(err, &cerr) {
+			err = cerr.Unwrap()
+		}
+
 		switch err.(type) {
 		// certificate authority unknown, check or prompt if we want an insecure
 		// connection or if we already have a cluster stanza that tells us to
@@ -246,7 +265,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	clientConfig.CertFile = o.CertFile
 	clientConfig.KeyFile = o.KeyFile
 
-	token, err := tokencmd.RequestToken(o.Config, o.In, o.Username, o.Password)
+	token, err := tokenrequest.RequestToken(o.Config, o.getAuthChallengeHandler())
 	if err != nil {
 		return err
 	}
@@ -261,6 +280,49 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	fmt.Fprint(o.Out, "Login successful.\n\n")
 
 	return nil
+}
+
+func (o *LoginOptions) getAuthChallengeHandler() challengehandlers.ChallengeHandler {
+	var challengeHandlers []challengehandlers.ChallengeHandler
+	var webConsoleURL string
+
+	serverVersionDetector := version.NewServerVersionRetriever(o.Config)
+	serverVersion, err := serverVersionDetector.RetrieveServerVersion()
+	// this feature was introduced in Openshift 4.11 which should correspond to 1.24
+	if err == nil && serverVersion.MajorNumber >= 1 && serverVersion.MinorNumber >= 24 {
+		webConsoleURL = o.Config.Host + "/console"
+	}
+
+	if occhallengers.GSSAPIEnabled() {
+		klog.V(6).Info("GSSAPI Enabled")
+		challengeHandlers = append(challengeHandlers,
+			occhallengers.NewNegotiateChallengeHandler(occhallengers.NewGSSAPINegotiator(o.Username)),
+		)
+	}
+
+	if occhallengers.SSPIEnabled() {
+		klog.V(6).Info("SSPI Enabled")
+		challengeHandlers = append(challengeHandlers,
+			occhallengers.NewNegotiateChallengeHandler(occhallengers.NewSSPINegotiator(o.Username, o.Password, o.Config.Host, webConsoleURL, o.In)))
+	}
+
+	challengeHandlers = append(challengeHandlers,
+		challengehandlers.NewMultiHandler(
+			challengehandlers.NewBasicChallengeHandler(
+				o.Config.Host, webConsoleURL,
+				o.In, o.Out,
+				passwordPrompter(term.PromptForPasswordString),
+				o.Username, o.Password),
+		))
+
+	var handler challengehandlers.ChallengeHandler
+	if len(challengeHandlers) == 1 {
+		handler = challengeHandlers[0]
+	} else {
+		handler = challengehandlers.NewMultiHandler(challengeHandlers...)
+	}
+
+	return handler
 }
 
 // Discover the projects available for the established session and take one to use. It
@@ -305,7 +367,7 @@ func (o *LoginOptions) gatherProjectInfo() error {
 		if err != nil {
 			return err
 		}
-		msg := errors.NoProjectsExistMessage(canRequest)
+		msg := ocerrors.NoProjectsExistMessage(canRequest)
 		fmt.Fprintf(o.Out, msg)
 		o.Project = ""
 
@@ -408,7 +470,7 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 		}
 
 		out := &bytes.Buffer{}
-		fmt.Fprintf(out, errors.ErrKubeConfigNotWriteable(o.PathOptions.GetDefaultFilename(), o.PathOptions.IsExplicitFile(), err).Error())
+		fmt.Fprintf(out, ocerrors.ErrKubeConfigNotWriteable(o.PathOptions.GetDefaultFilename(), o.PathOptions.IsExplicitFile(), err).Error())
 		return false, fmt.Errorf("%v", out)
 	}
 

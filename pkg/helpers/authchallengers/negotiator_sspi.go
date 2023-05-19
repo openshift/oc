@@ -1,7 +1,7 @@
 //go:build windows
 // +build windows
 
-package tokencmd
+package authchallengers
 
 import (
 	"fmt"
@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/openshift/oc/pkg/helpers/term"
-	"github.com/openshift/oc/pkg/version"
 
 	"github.com/alexbrainman/sspi"
 	"github.com/alexbrainman/sspi/negotiate"
@@ -80,6 +79,9 @@ type sspiNegotiator struct {
 	// host is the server being authenticated to.  Used only for displaying messages when prompting for password.
 	host string
 
+	// webConsoleURL is an optional URL to a web interface where the user might go if they prefer login from the browser instead
+	webConsoleURL string
+
 	// https://msdn.microsoft.com/en-us/library/windows/desktop/ms721572(v=vs.85).aspx#_security_credentials_gly
 	// phCredential [in, optional]: A handle to the credentials returned by AcquireCredentialsHandle (Negotiate).
 	// This handle is used to build the security context.  sspi.SECPKG_CRED_OUTBOUND is used to request OUTBOUND credentials.
@@ -96,20 +98,18 @@ type sspiNegotiator struct {
 	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa374764(v=vs.85).aspx
 	// Set to true once InitializeSecurityContext or CompleteAuthToken return sspi.SEC_E_OK
 	complete bool
-	// serverVersionRetriever is used for fetching server version
-	serverVersionRetriever version.ServerVersionRetriever
 }
 
-func NewSSPINegotiator(principalName, password, host string, reader io.Reader, serverVersionRetriever version.ServerVersionRetriever) Negotiator {
+func NewSSPINegotiator(principalName, password, host, webConsoleURL string, reader io.Reader) Negotiator {
 	return &sspiNegotiator{
-		principalName:          principalName,
-		password:               password,
-		reader:                 reader,
-		writer:                 os.Stdout,
-		host:                   host,
-		desiredFlags:           desiredFlags,
-		requiredFlags:          requiredFlags,
-		serverVersionRetriever: serverVersionRetriever,
+		principalName: principalName,
+		password:      password,
+		reader:        reader,
+		writer:        os.Stdout,
+		host:          host,
+		webConsoleURL: webConsoleURL,
+		desiredFlags:  desiredFlags,
+		requiredFlags: requiredFlags,
 	}
 }
 
@@ -246,18 +246,14 @@ func (s *sspiNegotiator) getPassword(domain, username string) (string, error) {
 	password := s.password
 
 	if missingPassword := len(password) == 0; missingPassword {
+		if len(s.webConsoleURL) > 0 {
+			fmt.Fprintf(s.writer, "Console URL: %s/console\n", s.webConsoleURL)
+		}
 		// mimic output from basic auth prompt
 		if hasDomain := len(domain) > 0; hasDomain {
 			fmt.Fprintf(s.writer, "Authentication required for %s (%s)\n", s.host, domain)
 		} else {
 			fmt.Fprintf(s.writer, "Authentication required for %s\n", s.host)
-		}
-		if s.serverVersionRetriever != nil {
-			serverVersion, err := s.serverVersionRetriever.RetrieveServerVersion()
-			// this feature was introduced in Openshift 4.11 which should correspond to 1.24
-			if err == nil && serverVersion.MajorNumber >= 1 && serverVersion.MinorNumber >= 24 {
-				fmt.Fprintf(s.writer, "Console URL: %s/console\n", s.host)
-			}
 		}
 		fmt.Fprintf(s.writer, "Username: %s\n", username)
 		// empty password from prompt is ok

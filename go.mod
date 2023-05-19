@@ -1,12 +1,12 @@
 module github.com/openshift/oc
 
-go 1.19
+go 1.20
 
 require (
 	github.com/AaronO/go-git-http v0.0.0-20161214145340-1d9485b3a98f
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/RangelReale/osincli v0.0.0-20160924135400-fababb0555f2
-	github.com/alexbrainman/sspi v0.0.0-20180613141037-e580b900e9f5
+	github.com/alexbrainman/sspi v0.0.0-20210105120005-909beea2cc74
 	github.com/alicebob/sqlittle v1.4.0
 	github.com/apcera/gssapi v0.0.0-00010101000000-000000000000
 	github.com/aws/aws-sdk-go v1.44.44
@@ -28,10 +28,10 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198
-	github.com/openshift/api v0.0.0-20230120195050-6ba31fa438f2
+	github.com/openshift/api v0.0.0-20230426193520-54a14470e5dc
 	github.com/openshift/build-machinery-go v0.0.0-20220913142420-e25cf57ea46d
 	github.com/openshift/client-go v0.0.0-20230120202327-72f107311084
-	github.com/openshift/library-go v0.0.0-20230227140230-39892725eed1
+	github.com/openshift/library-go v0.0.0-20230503125631-c31a6e7b87d4
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0
 	github.com/russross/blackfriday v1.6.0

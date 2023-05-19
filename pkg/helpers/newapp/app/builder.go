@@ -60,6 +60,12 @@ func IsBuilderMatch(match *ComponentMatch) bool {
 	if match.ImageStream != nil && IsBuilderStreamTag(match.ImageStream, match.ImageTag) {
 		return true
 	}
+
+	// PreserveOriginal indicates the referenced Image is to be treated as manifest-listed
+	// and the match is an Image.
+	if match.ImageStream == nil && match.ImportMode == imagev1.ImportModePreserveOriginal && match.IsImage() {
+		return true
+	}
 	return false
 }
 
