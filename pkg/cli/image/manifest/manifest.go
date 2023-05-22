@@ -11,14 +11,14 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/manifestlist"
-	"github.com/docker/distribution/manifest/ocischema"
-	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/api/errcode"
-	v2 "github.com/docker/distribution/registry/api/v2"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest/manifestlist"
+	"github.com/distribution/distribution/v3/manifest/ocischema"
+	"github.com/distribution/distribution/v3/manifest/schema1"
+	"github.com/distribution/distribution/v3/manifest/schema2"
+	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/distribution/v3/registry/api/errcode"
+	v2 "github.com/distribution/distribution/v3/registry/api/v2"
 
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"

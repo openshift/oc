@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/docker/distribution/manifest"
+	"github.com/distribution/distribution/v3/manifest"
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"

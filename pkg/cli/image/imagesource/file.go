@@ -15,8 +15,8 @@ import (
 	"k8s.io/klog/v2"
 
 	man "github.com/containers/image/v5/manifest"
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/reference"
 	"github.com/opencontainers/go-digest"
 	godigest "github.com/opencontainers/go-digest"
 )

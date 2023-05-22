@@ -3,8 +3,8 @@ package manifest
 import (
 	"fmt"
 
-	"github.com/docker/distribution/registry/api/errcode"
-	registryapiv2 "github.com/docker/distribution/registry/api/v2"
+	"github.com/distribution/distribution/v3/registry/api/errcode"
+	registryapiv2 "github.com/distribution/distribution/v3/registry/api/v2"
 )
 
 var AllImageFilteredErr = fmt.Errorf("filtered all images from manifest list")

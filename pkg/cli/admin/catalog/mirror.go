@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/alicebob/sqlittle"
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	"github.com/joelanford/ignore"
 	"github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"

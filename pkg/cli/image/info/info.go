@@ -12,8 +12,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
