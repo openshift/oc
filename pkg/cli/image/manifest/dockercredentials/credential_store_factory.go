@@ -2,7 +2,7 @@ package dockercredentials
 
 import (
 	"github.com/containers/image/v5/docker/reference"
-	"github.com/docker/distribution/registry/client/auth"
+	"github.com/distribution/distribution/v3/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	dockerregistry "github.com/docker/docker/registry"
 

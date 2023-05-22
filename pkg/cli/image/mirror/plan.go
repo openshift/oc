@@ -7,7 +7,7 @@ import (
 	"sync"
 	"text/tabwriter"
 
-	"github.com/docker/distribution"
+	"github.com/distribution/distribution/v3"
 	"k8s.io/klog/v2"
 
 	units "github.com/docker/go-units"

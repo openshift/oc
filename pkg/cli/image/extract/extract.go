@@ -16,7 +16,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/distribution"
+	"github.com/distribution/distribution/v3"
 	dockerarchive "github.com/docker/docker/pkg/archive"
 	digest "github.com/opencontainers/go-digest"
 

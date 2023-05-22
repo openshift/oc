@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/docker/distribution"
+	"github.com/distribution/distribution/v3"
 	digest "github.com/opencontainers/go-digest"
 
 	"github.com/openshift/library-go/pkg/image/registryclient"
