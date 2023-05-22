@@ -620,7 +620,16 @@ func convertToSchema2(ctx context.Context, blobs distribution.BlobService, srcMa
 	if klog.V(6).Enabled() {
 		klog.Infof("Resulting config.json:\n%s", string(configJSON))
 	}
-	b := schema2.NewManifestBuilder(blobs, schema2.MediaTypeImageConfig, configJSON)
+	configDescriptor := distribution.Descriptor{
+		Digest:    digest.FromBytes(configJSON),
+		Size:      int64(len(configJSON)),
+		MediaType: schema2.MediaTypeImageConfig,
+	}
+	b := schema2.NewManifestBuilder(configDescriptor, configJSON)
+	_, err = blobs.Put(ctx, schema2.MediaTypeImageConfig, configJSON)
+	if err != nil {
+		return nil, err
+	}
 	for _, layer := range layers {
 		desc, err := blobs.Stat(ctx, layer.Digest)
 		if err != nil {
