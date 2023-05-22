@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -119,7 +119,7 @@ type ManifestDescriptor struct {
 type ManifestList struct {
 	manifest.Versioned
 
-	// Config references the image configuration as a blob.
+	// Manifests references a list of manifests
 	Manifests []ManifestDescriptor `json:"manifests"`
 }
 
@@ -129,6 +129,13 @@ func (m ManifestList) References() []distribution.Descriptor {
 	dependencies := make([]distribution.Descriptor, len(m.Manifests))
 	for i := range m.Manifests {
 		dependencies[i] = m.Manifests[i].Descriptor
+		dependencies[i].Platform = &v1.Platform{
+			Architecture: m.Manifests[i].Platform.Architecture,
+			OS:           m.Manifests[i].Platform.OS,
+			OSVersion:    m.Manifests[i].Platform.OSVersion,
+			OSFeatures:   m.Manifests[i].Platform.OSFeatures,
+			Variant:      m.Manifests[i].Platform.Variant,
+		}
 	}
 
 	return dependencies

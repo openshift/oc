@@ -1,30 +1,47 @@
-package ocischema
+package schema2
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest"
 	"github.com/opencontainers/go-digest"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-var (
-	// SchemaVersion provides a pre-initialized version structure for this
-	// packages version of the manifest.
-	SchemaVersion = manifest.Versioned{
-		SchemaVersion: 2, // historical value here.. does not pertain to OCI or docker version
-		MediaType:     v1.MediaTypeImageManifest,
-	}
+const (
+	// MediaTypeManifest specifies the mediaType for the current version.
+	MediaTypeManifest = "application/vnd.docker.distribution.manifest.v2+json"
+
+	// MediaTypeImageConfig specifies the mediaType for the image configuration.
+	MediaTypeImageConfig = "application/vnd.docker.container.image.v1+json"
+
+	// MediaTypePluginConfig specifies the mediaType for plugin configuration.
+	MediaTypePluginConfig = "application/vnd.docker.plugin.v1+json"
+
+	// MediaTypeLayer is the mediaType used for layers referenced by the
+	// manifest.
+	MediaTypeLayer = "application/vnd.docker.image.rootfs.diff.tar.gzip"
+
+	// MediaTypeForeignLayer is the mediaType used for layers that must be
+	// downloaded from foreign URLs.
+	MediaTypeForeignLayer = "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip"
+
+	// MediaTypeUncompressedLayer is the mediaType used for layers which
+	// are not compressed.
+	MediaTypeUncompressedLayer = "application/vnd.docker.image.rootfs.diff.tar"
 )
+
+// SchemaVersion provides a pre-initialized version structure for this
+// packages version of the manifest.
+var SchemaVersion = manifest.Versioned{
+	SchemaVersion: 2,
+	MediaType:     MediaTypeManifest,
+}
 
 func init() {
-	ocischemaFunc := func(b []byte) (distribution.Manifest, distribution.Descriptor, error) {
-		if err := validateManifest(b); err != nil {
-			return nil, distribution.Descriptor{}, err
-		}
+	schema2Func := func(b []byte) (distribution.Manifest, distribution.Descriptor, error) {
 		m := new(DeserializedManifest)
 		err := m.UnmarshalJSON(b)
 		if err != nil {
@@ -32,15 +49,15 @@ func init() {
 		}
 
 		dgst := digest.FromBytes(b)
-		return m, distribution.Descriptor{Digest: dgst, Size: int64(len(b)), MediaType: v1.MediaTypeImageManifest}, err
+		return m, distribution.Descriptor{Digest: dgst, Size: int64(len(b)), MediaType: MediaTypeManifest}, err
 	}
-	err := distribution.RegisterManifestSchema(v1.MediaTypeImageManifest, ocischemaFunc)
+	err := distribution.RegisterManifestSchema(MediaTypeManifest, schema2Func)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to register manifest: %s", err))
 	}
 }
 
-// Manifest defines a ocischema manifest.
+// Manifest defines a schema2 manifest.
 type Manifest struct {
 	manifest.Versioned
 
@@ -50,9 +67,6 @@ type Manifest struct {
 	// Layers lists descriptors for the layers referenced by the
 	// configuration.
 	Layers []distribution.Descriptor `json:"layers"`
-
-	// Annotations contains arbitrary metadata for the image manifest.
-	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // References returns the descriptors of this manifests references.
@@ -95,17 +109,17 @@ func (m *DeserializedManifest) UnmarshalJSON(b []byte) error {
 	copy(m.canonical, b)
 
 	// Unmarshal canonical JSON into Manifest object
-	var manifest Manifest
-	if err := json.Unmarshal(m.canonical, &manifest); err != nil {
+	var mfst Manifest
+	if err := json.Unmarshal(m.canonical, &mfst); err != nil {
 		return err
 	}
 
-	if manifest.MediaType != "" && manifest.MediaType != v1.MediaTypeImageManifest {
-		return fmt.Errorf("if present, mediaType in manifest should be '%s' not '%s'",
-			v1.MediaTypeImageManifest, manifest.MediaType)
+	if mfst.MediaType != MediaTypeManifest {
+		return fmt.Errorf("mediaType in manifest should be '%s' not '%s'",
+			MediaTypeManifest, mfst.MediaType)
 	}
 
-	m.Manifest = manifest
+	m.Manifest = mfst
 
 	return nil
 }
@@ -123,24 +137,5 @@ func (m *DeserializedManifest) MarshalJSON() ([]byte, error) {
 // Payload returns the raw content of the manifest. The contents can be used to
 // calculate the content identifier.
 func (m DeserializedManifest) Payload() (string, []byte, error) {
-	return v1.MediaTypeImageManifest, m.canonical, nil
-}
-
-// unknownDocument represents a manifest, manifest list, or index that has not
-// yet been validated
-type unknownDocument struct {
-	Manifests interface{} `json:"manifests,omitempty"`
-}
-
-// validateManifest returns an error if the byte slice is invalid JSON or if it
-// contains fields that belong to a index
-func validateManifest(b []byte) error {
-	var doc unknownDocument
-	if err := json.Unmarshal(b, &doc); err != nil {
-		return err
-	}
-	if doc.Manifests != nil {
-		return errors.New("ocimanifest: expected manifest but found index")
-	}
-	return nil
+	return m.MediaType, m.canonical, nil
 }
