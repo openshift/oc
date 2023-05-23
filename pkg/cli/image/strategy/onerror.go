@@ -220,9 +220,17 @@ func (s *onErrorIDMSStrategy) resolve(ctx context.Context, imageRef reference.Do
 // addSourceAsLastAlternate decides whether the original imageRef is first or the last element in the result
 func alternativeImageSourcesIDMS(imageRef reference.DockerImageReference, idmsList []apicfgv1.ImageDigestMirrorSet, addSourceAsLastAlternate bool) ([]reference.DockerImageReference, error) {
 	var imageSources []reference.DockerImageReference
-	klog.V(5).Infof("%v ImageReference added to potential ImageSourcePrefixes from ImageDigestMirrorSet", imageRef.AsRepository().AsV2())
-	if !addSourceAsLastAlternate {
-		imageSources = append(imageSources, imageRef.AsRepository().AsV2())
+	addSource, err := isAddSource(idmsList)
+	if err != nil {
+		return nil, err
+	}
+	if addSource {
+		klog.V(5).Infof("%v ImageReference added to potential ImageSourcePrefixes from ImageDigestMirrorSet", imageRef.AsRepository().AsV2())
+		if !addSourceAsLastAlternate {
+			imageSources = append(imageSources, imageRef.AsRepository().AsV2())
+		}
+	} else {
+		klog.V(5).Infof("%v ImageReference not added to potential ImageSourcePrefixes from ImageDigestMirrorSet", imageRef.AsRepository().AsV2())
 	}
 	repo := imageRef.AsRepository().Exact()
 	for _, idms := range idmsList {
@@ -253,7 +261,7 @@ func alternativeImageSourcesIDMS(imageRef reference.DockerImageReference, idmsLi
 			}
 		}
 	}
-	if addSourceAsLastAlternate {
+	if addSource && addSourceAsLastAlternate {
 		imageSources = append(imageSources, imageRef.AsRepository().AsV2())
 	}
 	uniqueMirrors := make([]reference.DockerImageReference, 0, len(imageSources))
@@ -266,6 +274,28 @@ func alternativeImageSourcesIDMS(imageRef reference.DockerImageReference, idmsLi
 	}
 	klog.V(2).Infof("Found sources: %v for image: %v", uniqueMirrors, imageRef)
 	return uniqueMirrors, nil
+}
+
+func isAddSource(idmsList []apicfgv1.ImageDigestMirrorSet) (bool, error) {
+	var found bool
+	var mirrorSourcePolicy apicfgv1.MirrorSourcePolicy
+	for _, idms := range idmsList {
+		for _, mirror := range idms.Spec.ImageDigestMirrors {
+			if !found && mirror.MirrorSourcePolicy != "" {
+				mirrorSourcePolicy = mirror.MirrorSourcePolicy
+				found = true
+				continue
+			}
+			if mirrorSourcePolicy != mirror.MirrorSourcePolicy {
+				return found, fmt.Errorf("ImageDigestMirrorSet can only contain one MirrorSourcePolicy")
+			}
+		}
+	}
+	if found {
+		return mirrorSourcePolicy == apicfgv1.AllowContactingSource, nil
+	}
+
+	return true, nil
 }
 
 // readIDMSsFromFileFunc is used for testing to be able to inject IDMS data

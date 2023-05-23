@@ -3,6 +3,7 @@ package strategy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -640,6 +641,101 @@ func TestOnErrorStrategyErrorsIDMS(t *testing.T) {
 			_, err := alternates.OnFailure(context.Background(), imageRef)
 			if err == nil || !strings.Contains(err.Error(), tt.expectedErr) {
 				t.Errorf("Unexpected error, got %v, want %v", err, tt.expectedErr)
+			}
+		})
+	}
+}
+
+func TestIsAddSource(t *testing.T) {
+	tests := []struct {
+		name        string
+		idmsList    []apicfgv1.ImageDigestMirrorSet
+		addSource   bool
+		expectError error
+	}{
+		{
+			name:        "empty idms",
+			idmsList:    nil,
+			addSource:   true,
+			expectError: nil,
+		},
+		{
+			name: "empty ImageDigestMirror",
+			idmsList: []apicfgv1.ImageDigestMirrorSet{
+				{
+					Spec: apicfgv1.ImageDigestMirrorSetSpec{},
+				},
+			},
+			addSource:   true,
+			expectError: nil,
+		},
+		{
+			name: "AllowContactingSource ImageDigestMirror",
+			idmsList: []apicfgv1.ImageDigestMirrorSet{
+				{
+					Spec: apicfgv1.ImageDigestMirrorSetSpec{
+						ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{
+							{
+								MirrorSourcePolicy: apicfgv1.AllowContactingSource,
+							},
+						},
+					},
+				},
+			},
+			addSource:   true,
+			expectError: nil,
+		},
+		{
+			name: "NeverContactSource ImageDigestMirror",
+			idmsList: []apicfgv1.ImageDigestMirrorSet{
+				{
+					Spec: apicfgv1.ImageDigestMirrorSetSpec{
+						ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{
+							{
+								MirrorSourcePolicy: apicfgv1.NeverContactSource,
+							},
+							{
+								MirrorSourcePolicy: apicfgv1.NeverContactSource,
+							},
+						},
+					},
+				},
+			},
+			addSource:   false,
+			expectError: nil,
+		},
+		{
+			name: "Conflict ImageDigestMirror",
+			idmsList: []apicfgv1.ImageDigestMirrorSet{
+				{
+					Spec: apicfgv1.ImageDigestMirrorSetSpec{
+						ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{
+							{
+								MirrorSourcePolicy: apicfgv1.NeverContactSource,
+							},
+							{
+								MirrorSourcePolicy: apicfgv1.AllowContactingSource,
+							},
+						},
+					},
+				},
+			},
+			addSource:   true,
+			expectError: fmt.Errorf("ImageDigestMirrorSet can only contain one MirrorSourcePolicy"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addSource, err := isAddSource(tt.idmsList)
+			if err != nil && tt.expectError == nil {
+				t.Errorf("unexpected error %v", err)
+			}
+			if err != nil && tt.expectError != nil && err.Error() != tt.expectError.Error() {
+				t.Errorf("error %v is different than the expected error %v", err, tt.expectError)
+			}
+			if addSource != tt.addSource {
+				t.Errorf("unexpected addSource result actual: %v expected: %v", addSource, tt.addSource)
 			}
 		})
 	}
