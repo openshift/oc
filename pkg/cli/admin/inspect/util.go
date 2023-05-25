@@ -191,7 +191,8 @@ func getAllEventsRecursive(rootDir string) (*corev1.EventList, error) {
 			}
 			events, err := readEvents(eventBytes)
 			if err != nil {
-				return fmt.Errorf("failed to read event err: %v", err)
+				klog.Warningf("skipping %s, failed to read event err: %v", string(eventBytes), err)
+				return nil
 			}
 			eventLists.Items = append(eventLists.Items, events.Items...)
 			return nil
