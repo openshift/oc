@@ -1262,13 +1262,13 @@ func TestNewAppRunBuilds(t *testing.T) {
 					},
 				},
 				GenerationInputs: cmd.GenerationInputs{
-					SourceImage:     "registry.centos.org/centos/mongodb-34-centos7",
+					SourceImage:     "quay.io/centos7/httpd-24-centos7",
 					SourceImagePath: "/src:dst",
 				},
 			},
 			expected: map[string][]string{
 				"buildConfig": {"ruby-hello-world"},
-				"imageStream": {"mongodb-34-centos7", "ruby-27", "ruby-hello-world"},
+				"imageStream": {"httpd-24-centos7", "ruby-27", "ruby-hello-world"},
 			},
 			checkResult: func(res *cmd.AppResult) error {
 				var bc *buildv1.BuildConfig
@@ -1286,7 +1286,7 @@ func TestNewAppRunBuilds(t *testing.T) {
 				}
 				var got string
 
-				want := "mongodb-34-centos7:latest"
+				want := "httpd-24-centos7:latest"
 				got = bc.Spec.Source.Images[0].From.Name
 				if got != want {
 					return fmt.Errorf("bc.Spec.Source.Image.From.Name = %q; want %q", got, want)
@@ -1320,13 +1320,13 @@ func TestNewAppRunBuilds(t *testing.T) {
 				},
 				GenerationInputs: cmd.GenerationInputs{
 					To:              "outputimage",
-					SourceImage:     "registry.centos.org/centos/mongodb-34-centos7",
+					SourceImage:     "quay.io/centos7/httpd-24-centos7",
 					SourceImagePath: "/src:dst",
 				},
 			},
 			expected: map[string][]string{
 				"buildConfig": {"outputimage"},
-				"imageStream": {"mongodb-34-centos7", "nodejs-010-centos7", "outputimage"},
+				"imageStream": {"httpd-24-centos7", "nodejs-010-centos7", "outputimage"},
 			},
 			checkResult: func(res *cmd.AppResult) error {
 				var bc *buildv1.BuildConfig
@@ -1344,7 +1344,7 @@ func TestNewAppRunBuilds(t *testing.T) {
 				}
 				var got string
 
-				want := "mongodb-34-centos7:latest"
+				want := "httpd-24-centos7:latest"
 				got = bc.Spec.Source.Images[0].From.Name
 				if got != want {
 					return fmt.Errorf("bc.Spec.Source.Image.From.Name = %q; want %q", got, want)
@@ -1419,7 +1419,7 @@ func TestNewAppRunBuilds(t *testing.T) {
 			config: &cmd.AppConfig{
 				ComponentInputs: cmd.ComponentInputs{
 					Components: []string{
-						"registry.centos.org/centos/nodejs-12-centos7~https://github.com/sclorg/nodejs-ex",
+						"quay.io/centos7/nodejs-12-centos7~https://github.com/sclorg/nodejs-ex",
 					},
 				},
 				GenerationInputs: cmd.GenerationInputs{
@@ -1815,7 +1815,7 @@ func TestNewAppNewBuildEnvVars(t *testing.T) {
 			config: &cmd.AppConfig{
 				ComponentInputs: cmd.ComponentInputs{
 					SourceRepositories: []string{"https://github.com/openshift/ruby-hello-world"},
-					DockerImages:       []string{"quay.io/centos7/ruby-27-centos7", "registry.centos.org/centos/nodejs-12-centos7"},
+					DockerImages:       []string{"quay.io/centos7/ruby-27-centos7", "quay.io/centos7/nodejs-12-centos7"},
 				},
 				GenerationInputs: cmd.GenerationInputs{
 					OutputDocker:     true,
@@ -1891,7 +1891,7 @@ func TestNewAppBuildConfigEnvVarsAndSecrets(t *testing.T) {
 			config: &cmd.AppConfig{
 				ComponentInputs: cmd.ComponentInputs{
 					SourceRepositories: []string{"https://github.com/openshift/ruby-hello-world"},
-					DockerImages:       []string{"quay.io/centos7/ruby-27-centos7", "registry.centos.org/centos/mongodb-34-centos7"},
+					DockerImages:       []string{"quay.io/centos7/ruby-27-centos7", "quay.io/centos7/httpd-24-centos7"},
 				},
 				GenerationInputs: cmd.GenerationInputs{
 					OutputDocker: true,
