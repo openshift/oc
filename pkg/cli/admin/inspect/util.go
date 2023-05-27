@@ -173,8 +173,9 @@ func filenameForInfo(info *resource.Info) string {
 	return info.Name + ".yaml"
 }
 
-// getAllEventsRecursive returns a union (not deconflicted) or all events under a directory
-func getAllEventsRecursive(rootDir string) (*corev1.EventList, error) {
+// getEventsRecursive returns a union (not deconflicted) or all events under a directory
+// it ignores the invalid ones and does this traversal in best-effort.
+func getEventsRecursive(rootDir string) (*corev1.EventList, error) {
 	// now gather all the events into a single file and produce a unified file
 	eventLists := &corev1.EventList{}
 	err := filepath.Walk(rootDir,
@@ -191,7 +192,8 @@ func getAllEventsRecursive(rootDir string) (*corev1.EventList, error) {
 			}
 			events, err := readEvents(eventBytes)
 			if err != nil {
-				return fmt.Errorf("failed to read event err: %v", err)
+				klog.Warningf("skipping %s, failed to read event err: %v", string(eventBytes), err)
+				return nil
 			}
 			eventLists.Items = append(eventLists.Items, events.Items...)
 			return nil
@@ -276,7 +278,7 @@ func createEventFilterPage(events *corev1.EventList, rootDir string) error {
 // CreateEventFilterPage reads all events in rootDir recursively, produces a single file, and produces a webpage
 // that can be viewed locally to filter the events.
 func CreateEventFilterPage(rootDir string) error {
-	events, err := getAllEventsRecursive(rootDir)
+	events, err := getEventsRecursive(rootDir)
 	if err != nil {
 		return err
 	}
