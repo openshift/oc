@@ -62,10 +62,10 @@ func (l *allOpenShiftGroupLister) ListGroups() ([]string, error) {
 		}
 
 		ldapGroupUID := group.Annotations[LDAPUIDAnnotation]
-		l.ldapGroupUIDToOpenShiftGroupName[ldapGroupUID] = group.Name
 		if existingGroupName, exists := l.ldapGroupUIDToOpenShiftGroupName[ldapGroupUID]; exists {
 			klog.Warningf("Group %q has the same %v as group %q. Only a single group is eligible for mapping. Group %q will be ignored.", existingGroupName, LDAPUIDAnnotation, group.Name, existingGroupName)
 		}
+		l.ldapGroupUIDToOpenShiftGroupName[ldapGroupUID] = group.Name
 		ldapGroupUIDs = append(ldapGroupUIDs, ldapGroupUID)
 	}
 
