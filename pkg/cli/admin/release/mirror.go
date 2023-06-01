@@ -492,7 +492,10 @@ func (o *MirrorOptions) Run() error {
 		extractOpts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
 			releaseDigest = contentDigest.String()
 			if config != nil {
-				if val, ok := archMap[config.Architecture]; ok {
+				// Use 'multi' instead of config.Architecture if keeping the ManifestList.
+				if o.KeepManifestList && manifestListDigest != "" {
+					archExt = "-multi"
+				} else if val, ok := archMap[config.Architecture]; ok {
 					archExt = "-" + val
 				} else {
 					archExt = "-" + config.Architecture
