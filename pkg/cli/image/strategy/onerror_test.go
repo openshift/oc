@@ -650,6 +650,7 @@ func TestIsAddSource(t *testing.T) {
 	tests := []struct {
 		name        string
 		idmsList    []apicfgv1.ImageDigestMirrorSet
+		source      string
 		addSource   bool
 		expectError error
 	}{
@@ -705,15 +706,18 @@ func TestIsAddSource(t *testing.T) {
 			expectError: nil,
 		},
 		{
-			name: "Conflict ImageDigestMirror",
+			name:   "Conflict ImageDigestMirror",
+			source: "test-registry",
 			idmsList: []apicfgv1.ImageDigestMirrorSet{
 				{
 					Spec: apicfgv1.ImageDigestMirrorSetSpec{
 						ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{
 							{
+								Source:             "test-registry",
 								MirrorSourcePolicy: apicfgv1.NeverContactSource,
 							},
 							{
+								Source:             "test-registry",
 								MirrorSourcePolicy: apicfgv1.AllowContactingSource,
 							},
 						},
@@ -721,13 +725,77 @@ func TestIsAddSource(t *testing.T) {
 				},
 			},
 			addSource:   true,
-			expectError: fmt.Errorf("ImageDigestMirrorSet can only contain one MirrorSourcePolicy"),
+			expectError: fmt.Errorf("ImageDigestMirrorSet can only contain one MirrorSourcePolicy for source test-registry"),
+		},
+		{
+			name:   "Conflict when empty",
+			source: "test-registry",
+			idmsList: []apicfgv1.ImageDigestMirrorSet{
+				{
+					Spec: apicfgv1.ImageDigestMirrorSetSpec{
+						ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{
+							{
+								Source:             "test-registry",
+								MirrorSourcePolicy: apicfgv1.NeverContactSource,
+							},
+							{
+								Source: "test-registry",
+							},
+						},
+					},
+				},
+			},
+			addSource:   true,
+			expectError: fmt.Errorf("ImageDigestMirrorSet can only contain one MirrorSourcePolicy for source test-registry"),
+		},
+		{
+			name:   "Not conflict when empty",
+			source: "test-registry",
+			idmsList: []apicfgv1.ImageDigestMirrorSet{
+				{
+					Spec: apicfgv1.ImageDigestMirrorSetSpec{
+						ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{
+							{
+								Source: "test-registry",
+							},
+							{
+								Source:             "test-registry",
+								MirrorSourcePolicy: apicfgv1.AllowContactingSource,
+							},
+						},
+					},
+				},
+			},
+			addSource:   true,
+			expectError: nil,
+		},
+		{
+			name:   "Conflict ImageDigestMirror different registry",
+			source: "test-registry",
+			idmsList: []apicfgv1.ImageDigestMirrorSet{
+				{
+					Spec: apicfgv1.ImageDigestMirrorSetSpec{
+						ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{
+							{
+								Source:             "test-registry",
+								MirrorSourcePolicy: apicfgv1.NeverContactSource,
+							},
+							{
+								Source:             "test-another-registry",
+								MirrorSourcePolicy: apicfgv1.NeverContactSource,
+							},
+						},
+					},
+				},
+			},
+			addSource:   false,
+			expectError: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addSource, err := isAddSource(tt.idmsList)
+			addSource, err := isAddSource(tt.idmsList, tt.source)
 			if err != nil && tt.expectError == nil {
 				t.Errorf("unexpected error %v", err)
 			}

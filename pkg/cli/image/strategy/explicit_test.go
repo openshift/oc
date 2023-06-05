@@ -469,7 +469,7 @@ func TestExplicitStrategyIDMS(t *testing.T) {
 				t.Errorf("Unexpected alternates got = %v, want %v", actual, expected)
 			}
 			if readCount > 1 {
-				t.Errorf("Unexpected number of ICSP reads, should be 1, got %d", readCount)
+				t.Errorf("Unexpected number of IDMS reads, should be 1, got %d", readCount)
 			}
 		})
 	}

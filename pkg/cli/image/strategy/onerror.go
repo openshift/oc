@@ -197,7 +197,7 @@ func (s *onErrorIDMSStrategy) OnFailure(ctx context.Context, locator reference.D
 }
 
 // resolve gathers possible image sources for a given image
-// gathered from ImageContentSourcePolicy file.
+// gathered from ImageDigestMirrorSet file.
 // Image reference of user-given image may be different from original in case of mirrored images.
 func (s *onErrorIDMSStrategy) resolve(ctx context.Context, imageRef reference.DockerImageReference) ([]reference.DockerImageReference, error) {
 	if len(s.idmsFile) == 0 {
@@ -220,18 +220,7 @@ func (s *onErrorIDMSStrategy) resolve(ctx context.Context, imageRef reference.Do
 // addSourceAsLastAlternate decides whether the original imageRef is first or the last element in the result
 func alternativeImageSourcesIDMS(imageRef reference.DockerImageReference, idmsList []apicfgv1.ImageDigestMirrorSet, addSourceAsLastAlternate bool) ([]reference.DockerImageReference, error) {
 	var imageSources []reference.DockerImageReference
-	addSource, err := isAddSource(idmsList)
-	if err != nil {
-		return nil, err
-	}
-	if addSource {
-		klog.V(5).Infof("%v ImageReference added to potential ImageSourcePrefixes from ImageDigestMirrorSet", imageRef.AsRepository().AsV2())
-		if !addSourceAsLastAlternate {
-			imageSources = append(imageSources, imageRef.AsRepository().AsV2())
-		}
-	} else {
-		klog.V(5).Infof("%v ImageReference not added to potential ImageSourcePrefixes from ImageDigestMirrorSet", imageRef.AsRepository().AsV2())
-	}
+	var addSource bool
 	repo := imageRef.AsRepository().Exact()
 	for _, idms := range idmsList {
 		repoDigestMirrors := idms.Spec.ImageDigestMirrors
@@ -251,18 +240,31 @@ func alternativeImageSourcesIDMS(imageRef reference.DockerImageReference, idmsLi
 				suffix = repo[len(rdm.Source):]
 			}
 			klog.V(5).Infof("%v ImageDigestMirrors source matches given image", imageRef.AsRepository().AsV2())
+			// check valid mirrorSourcePolicy
+			addSource, err = isAddSource(idmsList, rdm.Source)
+			if err != nil {
+				return nil, err
+			}
 			for _, m := range rdm.Mirrors {
 				mRef, err := reference.Parse(string(m) + suffix)
 				if err != nil {
 					return nil, fmt.Errorf("invalid mirror %q: %w", m, err)
 				}
 				imageSources = append(imageSources, mRef)
-				klog.V(5).Infof("%v RepositoryDigestMirrors mirror added to potential ImageSourcePrefixes from ImageContentSourcePolicy", m)
+				klog.V(5).Infof("%v RepositoryDigestMirrors mirror added to potential ImageSourcePrefixes from ImageDigestMirrorSet", m)
 			}
 		}
 	}
-	if addSource && addSourceAsLastAlternate {
-		imageSources = append(imageSources, imageRef.AsRepository().AsV2())
+
+	if addSource || len(imageSources) == 0 {
+		klog.V(5).Infof("%v ImageReference added to potential ImageSourcePrefixes from ImageDigestMirrorSet", imageRef.AsRepository().AsV2())
+		if addSourceAsLastAlternate {
+			imageSources = append(imageSources, imageRef.AsRepository().AsV2())
+		} else {
+			imageSources = append([]reference.DockerImageReference{imageRef.AsRepository().AsV2()}, imageSources...)
+		}
+	} else {
+		klog.V(5).Infof("%v ImageReference not added to potential ImageSourcePrefixes from ImageDigestMirrorSet", imageRef.AsRepository().AsV2())
 	}
 	uniqueMirrors := make([]reference.DockerImageReference, 0, len(imageSources))
 	uniqueMap := make(map[reference.DockerImageReference]bool)
@@ -276,18 +278,28 @@ func alternativeImageSourcesIDMS(imageRef reference.DockerImageReference, idmsLi
 	return uniqueMirrors, nil
 }
 
-func isAddSource(idmsList []apicfgv1.ImageDigestMirrorSet) (bool, error) {
+func isAddSource(idmsList []apicfgv1.ImageDigestMirrorSet, source string) (bool, error) {
 	var found bool
 	var mirrorSourcePolicy apicfgv1.MirrorSourcePolicy
 	for _, idms := range idmsList {
 		for _, mirror := range idms.Spec.ImageDigestMirrors {
-			if !found && mirror.MirrorSourcePolicy != "" {
-				mirrorSourcePolicy = mirror.MirrorSourcePolicy
+			if mirror.Source != source {
+				continue
+			}
+			if !found {
+				if mirror.MirrorSourcePolicy != "" {
+					mirrorSourcePolicy = mirror.MirrorSourcePolicy
+				} else {
+					mirrorSourcePolicy = apicfgv1.AllowContactingSource
+				}
 				found = true
 				continue
 			}
+			if mirrorSourcePolicy == apicfgv1.AllowContactingSource && mirror.MirrorSourcePolicy == "" {
+				continue
+			}
 			if mirrorSourcePolicy != mirror.MirrorSourcePolicy {
-				return found, fmt.Errorf("ImageDigestMirrorSet can only contain one MirrorSourcePolicy")
+				return found, fmt.Errorf("ImageDigestMirrorSet can only contain one MirrorSourcePolicy for source %s", source)
 			}
 		}
 	}

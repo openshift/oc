@@ -127,8 +127,8 @@ func (s *explicitIDMSStrategy) OnFailure(ctx context.Context, locator reference.
 }
 
 // resolve gathers possible image sources for a given image
-// gathered from ImageContentSourcePolicy objects and user-passed image.
-// Will lookup from cluster or from ImageContentSourcePolicy file passed from user.
+// gathered from ImageDigestMirrorSet objects and user-passed image.
+// Will lookup from cluster or from ImageDigestMirrorSet file passed from user.
 // Image reference of user-given image may be different from original in case of mirrored images.
 func (s *explicitIDMSStrategy) resolve(ctx context.Context, imageRef reference.DockerImageReference) ([]reference.DockerImageReference, error) {
 	if len(s.idmsFile) == 0 {
