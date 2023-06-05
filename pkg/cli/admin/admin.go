@@ -3,16 +3,6 @@ package admin
 import (
 	"fmt"
 
-	"k8s.io/kubectl/pkg/cmd/certificates"
-	"k8s.io/kubectl/pkg/cmd/taint"
-
-	"github.com/spf13/cobra"
-
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/kubectl/pkg/cmd/drain"
-	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	ktemplates "k8s.io/kubectl/pkg/util/templates"
-
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
 	"github.com/openshift/oc/pkg/cli/admin/catalog"
 	"github.com/openshift/oc/pkg/cli/admin/createbootstrapprojecttemplate"
@@ -31,6 +21,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/mustgather"
 	"github.com/openshift/oc/pkg/cli/admin/network"
 	"github.com/openshift/oc/pkg/cli/admin/node"
+	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates"
 	"github.com/openshift/oc/pkg/cli/admin/policy"
 	"github.com/openshift/oc/pkg/cli/admin/project"
 	"github.com/openshift/oc/pkg/cli/admin/prune"
@@ -39,6 +30,13 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/upgrade"
 	"github.com/openshift/oc/pkg/cli/admin/verifyimagesignature"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
+	"github.com/spf13/cobra"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/kubectl/pkg/cmd/certificates"
+	"k8s.io/kubectl/pkg/cmd/drain"
+	"k8s.io/kubectl/pkg/cmd/taint"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	ktemplates "k8s.io/kubectl/pkg/util/templates"
 )
 
 var adminLong = ktemplates.LongDesc(`
@@ -63,6 +61,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 				top.NewCommandTop(f, streams),
 				mustgather.NewMustGatherCommand(f, streams),
 				inspect.NewCmdInspect(streams),
+				ocpcertificates.NewCommandOCPCertificates(f, streams),
 			},
 		},
 		{
