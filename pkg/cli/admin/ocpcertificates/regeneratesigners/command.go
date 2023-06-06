@@ -2,6 +2,7 @@ package regeneratesigners
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -35,6 +36,8 @@ type RegenerateSignersOptions struct {
 	RESTClientGetter     genericclioptions.RESTClientGetter
 	PrintFlags           *genericclioptions.PrintFlags
 	ResourceBuilderFlags *genericclioptions.ResourceBuilderFlags
+
+	ValidBeforeString string
 
 	// TODO push this into genericclioptions
 	DryRun bool
@@ -85,6 +88,7 @@ func (o *RegenerateSignersOptions) AddFlags(cmd *cobra.Command) {
 	o.ResourceBuilderFlags.AddFlags(cmd.Flags())
 
 	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Set to true to use server-side dry run.")
+	cmd.Flags().StringVar(&o.ValidBeforeString, "valid-before", o.ValidBeforeString, "Only regenerate signers valid before this date.  Format: 2023-06-05T14:44:06Z")
 }
 
 func (o *RegenerateSignersOptions) ToRuntime(args []string) (*RegenerateSignersRuntime, error) {
@@ -110,6 +114,14 @@ func (o *RegenerateSignersOptions) ToRuntime(args []string) (*RegenerateSignersR
 
 		Printer:   printer,
 		IOStreams: o.IOStreams,
+	}
+
+	if len(o.ValidBeforeString) > 0 {
+		validBefore, err := time.Parse(time.RFC3339, o.ValidBeforeString)
+		if err != nil {
+			return nil, err
+		}
+		ret.ValidBefore = &validBefore
 	}
 
 	return ret, nil
