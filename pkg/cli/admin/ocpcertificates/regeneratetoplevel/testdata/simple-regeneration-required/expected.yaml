@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    auth.openshift.io/certificate-not-after: "force-regeneration"
+  name: loadbalancer-serving-signer
+  namespace: openshift-kube-apiserver-operator
