@@ -1,4 +1,4 @@
-package regeneratesigners
+package regeneratetoplevel
 
 import (
 	"context"
@@ -32,7 +32,7 @@ var (
 	`)
 )
 
-type RegenerateSignersOptions struct {
+type RegenerateTopLevelCertificatesOptions struct {
 	RESTClientGetter     genericclioptions.RESTClientGetter
 	PrintFlags           *genericclioptions.PrintFlags
 	ResourceBuilderFlags *genericclioptions.ResourceBuilderFlags
@@ -45,8 +45,8 @@ type RegenerateSignersOptions struct {
 	genericclioptions.IOStreams
 }
 
-func NewRegenerateSignersOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *RegenerateSignersOptions {
-	return &RegenerateSignersOptions{
+func NewRegenerateTopLevelOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *RegenerateTopLevelCertificatesOptions {
+	return &RegenerateTopLevelCertificatesOptions{
 		RESTClientGetter: restClientGetter,
 		PrintFlags:       genericclioptions.NewPrintFlags("regeneration set"),
 		ResourceBuilderFlags: genericclioptions.NewResourceBuilderFlags().
@@ -61,13 +61,13 @@ func NewRegenerateSignersOptions(restClientGetter genericclioptions.RESTClientGe
 	}
 }
 
-func NewCmdRegenerateSigners(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewRegenerateSignersOptions(restClientGetter, streams)
+func NewCmdRegenerateTopLevel(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewRegenerateTopLevelOptions(restClientGetter, streams)
 
 	cmd := &cobra.Command{
-		Use:                   "regenerate-signers",
+		Use:                   "regenerate-top-level",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Update the annotations on a resource"),
+		Short:                 i18n.T("Regenerate the top level certificates in an OpenShift cluster"),
 		Long:                  regenerateSignersLong,
 		Example:               regenerateSignersExample,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -83,15 +83,15 @@ func NewCmdRegenerateSigners(restClientGetter genericclioptions.RESTClientGetter
 }
 
 // AddFlags registers flags for a cli
-func (o *RegenerateSignersOptions) AddFlags(cmd *cobra.Command) {
+func (o *RegenerateTopLevelCertificatesOptions) AddFlags(cmd *cobra.Command) {
 	o.PrintFlags.AddFlags(cmd)
 	o.ResourceBuilderFlags.AddFlags(cmd.Flags())
 
 	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Set to true to use server-side dry run.")
-	cmd.Flags().StringVar(&o.ValidBeforeString, "valid-before", o.ValidBeforeString, "Only regenerate signers valid before this date.  Format: 2023-06-05T14:44:06Z")
+	cmd.Flags().StringVar(&o.ValidBeforeString, "valid-before", o.ValidBeforeString, "Only regenerate top level certificates valid before this date.  Format: 2023-06-05T14:44:06Z")
 }
 
-func (o *RegenerateSignersOptions) ToRuntime(args []string) (*RegenerateSignersRuntime, error) {
+func (o *RegenerateTopLevelCertificatesOptions) ToRuntime(args []string) (*RegenerateTopLevelRuntime, error) {
 	printer, err := o.PrintFlags.ToPrinter()
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func (o *RegenerateSignersOptions) ToRuntime(args []string) (*RegenerateSignersR
 		return nil, err
 	}
 
-	ret := &RegenerateSignersRuntime{
+	ret := &RegenerateTopLevelRuntime{
 		ResourceFinder: builder,
 		KubeClient:     kubeClient,
 
