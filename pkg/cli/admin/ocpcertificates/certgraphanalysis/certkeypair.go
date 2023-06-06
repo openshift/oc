@@ -31,28 +31,28 @@ func toCertKeyPair(certificate *x509.Certificate) (*certgraphapi.CertKeyPair, er
 }
 
 func toCertKeyPairDetails(certificate *x509.Certificate) (certgraphapi.CertKeyPairDetails, error) {
-	count := 0
+	usageCount := 0
 	isClient := false
 	isServing := false
 	isSigner := (certificate.KeyUsage & x509.KeyUsageCertSign) != 0
 	if isSigner {
-		count++
+		usageCount++
 	}
 	for _, curr := range certificate.ExtKeyUsage {
 		if curr == x509.ExtKeyUsageClientAuth {
 			isClient = true
-			count++
+			usageCount++
 		}
 		if curr == x509.ExtKeyUsageServerAuth {
 			isServing = true
-			count++
+			usageCount++
 		}
 	}
 	var typeError error
-	if count == 0 {
+	if usageCount == 0 {
 		typeError = fmt.Errorf("you have a cert for nothing?")
 	}
-	if count > 1 {
+	if usageCount > 1 {
 		typeError = fmt.Errorf("you have a cert for more than one?  We don't do that. :(")
 	}
 
@@ -70,7 +70,7 @@ func toCertKeyPairDetails(certificate *x509.Certificate) (certgraphapi.CertKeyPa
 		ret.SignerDetails = toSignerDetails(certificate)
 	}
 
-	if count > 1 {
+	if usageCount > 1 {
 		ret.CertType = "Multiple"
 	}
 
