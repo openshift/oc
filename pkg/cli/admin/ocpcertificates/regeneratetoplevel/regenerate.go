@@ -1,4 +1,4 @@
-package regeneratesigners
+package regeneratetoplevel
 
 import (
 	"context"
@@ -27,7 +27,7 @@ var (
 	secretKind = schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Secret"}
 )
 
-type RegenerateSignersRuntime struct {
+type RegenerateTopLevelRuntime struct {
 	ResourceFinder genericclioptions.ResourceFinder
 	KubeClient     kubernetes.Interface
 
@@ -38,7 +38,7 @@ type RegenerateSignersRuntime struct {
 	genericclioptions.IOStreams
 }
 
-func (o *RegenerateSignersRuntime) Run(ctx context.Context) error {
+func (o *RegenerateTopLevelRuntime) Run(ctx context.Context) error {
 	visitor := o.ResourceFinder.Do()
 
 	// TODO need to wire context through the visitorFns
@@ -50,7 +50,7 @@ func (o *RegenerateSignersRuntime) Run(ctx context.Context) error {
 }
 
 // ought to find some way to test this.
-func (o *RegenerateSignersRuntime) forceRegenerationOnResourceInfo(info *resource.Info, err error) error {
+func (o *RegenerateTopLevelRuntime) forceRegenerationOnResourceInfo(info *resource.Info, err error) error {
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (o *RegenerateSignersRuntime) forceRegenerationOnResourceInfo(info *resourc
 }
 
 // split here for convenience of unit testing
-func (o *RegenerateSignersRuntime) forceRegenerationOnSecret(secret *corev1.Secret) error {
+func (o *RegenerateTopLevelRuntime) forceRegenerationOnSecret(secret *corev1.Secret) error {
 	if len(secret.Annotations[certrotation.CertificateIssuer]) == 0 ||
 		len(secret.Annotations[certrotation.CertificateNotBeforeAnnotation]) == 0 {
 		// TODO this should return an error if the name was specified.
