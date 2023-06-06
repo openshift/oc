@@ -3,7 +3,7 @@ package ocpcertificates
 import (
 	"fmt"
 
-	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/regeneratesigners"
+	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/regeneratetoplevel"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -25,7 +25,7 @@ func NewCommandOCPCertificates(f kcmdutil.Factory, streams genericclioptions.IOS
 	}
 
 	cmds.AddCommand(
-		regeneratesigners.NewCmdRegenerateSigners(f, streams),
+		regeneratetoplevel.NewCmdRegenerateTopLevel(f, streams),
 	)
 
 	return cmds
