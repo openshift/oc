@@ -454,7 +454,14 @@ func (o *Options) Run() error {
 				fmt.Fprintf(o.Out, "\nNo updates which are not recommended based on your cluster configuration are available.\n")
 			}
 		} else if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
-			fmt.Fprintf(o.Out, "\nAdditional updates which are not recommended based on your cluster configuration are available, to view those re-run the command with --include-not-recommended.\n")
+			qualifier := ""
+			for _, upgrade := range cv.Status.ConditionalUpdates {
+				if c := findCondition(upgrade.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue && c.Status != metav1.ConditionFalse {
+					qualifier = fmt.Sprintf(", or where the recommended status is %q,", c.Status)
+					break
+				}
+			}
+			fmt.Fprintf(o.Out, "\nAdditional updates which are not recommended%s for your cluster configuration are available, to view those re-run the command with --include-not-recommended.\n", qualifier)
 		}
 
 		// TODO: print previous versions
