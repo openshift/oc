@@ -98,6 +98,12 @@ func (o *MonitorCertificatesRuntime) handleSAToken(secret, oldSecret *corev1.Sec
 	case !oldHasToken && newHasToken && len(newToken) > 0:
 		fmt.Fprintf(o.IOStreams.Out, "secrets/%v[%v] -- serviceaccount token finished regeneration\n", secret.Name, secret.Namespace)
 	}
+
+	oldCA := oldSecret.Data["ca.crt"]
+	newCA := oldSecret.Data["ca.crt"]
+	if !reflect.DeepEqual(oldCA, newCA) {
+		fmt.Fprintf(o.IOStreams.Out, "secrets/%v[%v] -- serviceaccount kube-apiserver trust bundle updated\n", secret.Name, secret.Namespace)
+	}
 }
 
 func isSAToken(secret *corev1.Secret) bool {
