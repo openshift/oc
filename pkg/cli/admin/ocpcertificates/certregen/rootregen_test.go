@@ -1,4 +1,4 @@
-package regeneratetoplevel
+package certregen
 
 import (
 	"bytes"
@@ -27,7 +27,7 @@ import (
 	"k8s.io/utils/diff"
 )
 
-func TestRegenerateTopLevelRuntime_forceRegenerationOnSecret(t *testing.T) {
+func TestRootsRegen_forceRegenerationOnSecret(t *testing.T) {
 	tests := []struct {
 		name           string
 		validBefore    *time.Time
@@ -78,14 +78,16 @@ func TestRegenerateTopLevelRuntime_forceRegenerationOnSecret(t *testing.T) {
 			}
 			fakeClient := fake.NewSimpleClientset(secrets...)
 
-			o := &RegenerateTopLevelRuntime{
-				KubeClient:  fakeClient,
+			o := &RootsRegen{
 				ValidBefore: tt.validBefore,
-				DryRun:      false,
-				Printer:     printers.ResourcePrinterFunc(testPrinter),
-				IOStreams:   genericclioptions.NewTestIOStreamsDiscard(),
 			}
-			err := o.forceRegenerationOnSecret(tt.inputSecret)
+			err := o.forceRegenerationOnSecret(
+				&objectPrinter{
+					out:     genericclioptions.NewTestIOStreamsDiscard().Out,
+					printer: printers.ResourcePrinterFunc(testPrinter),
+				},
+				fakeClient, tt.inputSecret, false,
+			)
 			testErr(t, tt.wantErr, err)
 
 			var expectedSecret *corev1.Secret
