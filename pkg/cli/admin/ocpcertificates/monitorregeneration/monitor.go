@@ -26,6 +26,7 @@ type MonitorCertificatesRuntime struct {
 
 	genericclioptions.IOStreams
 
+	interestingConfigMaps       *namespacedCache
 	interestingSecrets          *namespacedCache
 	interestingClusterOperators *unnamespacedCache
 }
@@ -108,6 +109,17 @@ func (o *MonitorCertificatesRuntime) Run(ctx context.Context) error {
 			[]objDeleteFunc{o.deleteSecret},
 		)
 		reflector := cache.NewReflector(listWatch, &corev1.Secret{}, customStore, 0)
+		go reflector.Run(ctx.Done())
+	}
+
+	for _, namespace := range interestingNamespaces.List() {
+		listWatch := cache.NewListWatchFromClient(o.KubeClient.CoreV1().RESTClient(), "configmaps", namespace, fields.Everything())
+		customStore := newMonitoringStore(
+			[]objCreateFunc{o.createConfigMap},
+			[]objUpdateFunc{o.updateConfigMap},
+			[]objDeleteFunc{o.deleteConfigMap},
+		)
+		reflector := cache.NewReflector(listWatch, &corev1.ConfigMap{}, customStore, 0)
 		go reflector.Run(ctx.Done())
 	}
 

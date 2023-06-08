@@ -84,6 +84,7 @@ func (o *MonitorCertificatesOptions) ToRuntime(args []string) (*MonitorCertifica
 		KubeClient:                  kubeClient,
 		ConfigClient:                configClient,
 		IOStreams:                   o.IOStreams,
+		interestingConfigMaps:       newNamespacedCache(),
 		interestingSecrets:          newNamespacedCache(),
 		interestingClusterOperators: newUnnamespacedCache(),
 	}
