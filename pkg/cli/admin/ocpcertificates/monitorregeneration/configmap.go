@@ -59,7 +59,7 @@ func (o *MonitorCertificatesRuntime) handleRevisionCreate(configMap *corev1.Conf
 		operatorName = name
 	}
 
-	fmt.Fprintf(o.IOStreams.Out, "clusteroperators/%v - Revision %d created because %q\n", operatorName, revisionNumber, reason)
+	fmt.Fprintf(o.IOStreams.Out, "clusteroperators/%v - Revision %v created because %q\n", operatorName, revisionNumber, reason)
 }
 
 func (o *MonitorCertificatesRuntime) handleRevisionDelete(configMap *corev1.ConfigMap) {
