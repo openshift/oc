@@ -311,6 +311,22 @@ func (o *MustGatherOptions) Run() error {
 		defer cleanupNamespace()
 	}
 
+	// Prefer to run in master if there's any but don't be explicit otherwise.
+	// This enables the command to run by default in hypershift where there's no masters.
+	nodes, err := o.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: o.NodeSelector,
+	})
+	if err != nil {
+		return err
+	}
+	var hasMaster bool
+	for _, node := range nodes.Items {
+		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
+			hasMaster = true
+			break
+		}
+	}
+
 	// ... and create must-gather pod(s)
 	var pods []*corev1.Pod
 	for _, image := range o.Images {
@@ -332,7 +348,7 @@ func (o *MustGatherOptions) Run() error {
 				return err
 			}
 			for _, node := range nodes.Items {
-				pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(node.Name, image), metav1.CreateOptions{})
+				pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(node.Name, image, hasMaster), metav1.CreateOptions{})
 				if err != nil {
 					// ensure the errors bubble up to BackupGathering method for display
 					errs = []error{err}
@@ -349,7 +365,7 @@ func (o *MustGatherOptions) Run() error {
 					return err
 				}
 			}
-			pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image), metav1.CreateOptions{})
+			pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image, hasMaster), metav1.CreateOptions{})
 			if err != nil {
 				// ensure the errors bubble up to BackupGathering method for display
 				errs = []error{err}
@@ -696,13 +712,13 @@ func newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
 // newPod creates a pod with 2 containers with a shared volume mount:
 // - gather: init containers that run gather command
 // - copy: no-op container we can exec into
-func (o *MustGatherOptions) newPod(node, image string) *corev1.Pod {
+func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.Pod {
 	zero := int64(0)
 
 	nodeSelector := map[string]string{
 		corev1.LabelOSStable: "linux",
 	}
-	if node == "" {
+	if node == "" && hasMaster {
 		nodeSelector["node-role.kubernetes.io/master"] = ""
 	}
 
