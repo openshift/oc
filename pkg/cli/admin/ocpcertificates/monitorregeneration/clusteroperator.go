@@ -8,13 +8,13 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (o *MonitorCertificatesRuntime) createClusterOperator(obj interface{}, isFirstSync bool) {
 	clusterOperator, ok := obj.(*configv1.ClusterOperator)
 	if !ok {
 		fmt.Fprint(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		return
 	}
 
 	if oldObj, _ := o.interestingClusterOperators.get(clusterOperator.Name); oldObj != nil {
@@ -29,12 +29,14 @@ func (o *MonitorCertificatesRuntime) updateClusterOperator(obj, oldObj interface
 	clusterOperator, ok := obj.(*configv1.ClusterOperator)
 	if !ok {
 		fmt.Fprint(o.IOStreams.ErrOut, "unexpected update obj %T", obj)
+		return
 	}
 	defer o.interestingClusterOperators.upsert(clusterOperator.Name, clusterOperator)
 
 	oldClusterOperator, ok := oldObj.(*configv1.ClusterOperator)
 	if !ok {
 		fmt.Fprint(o.IOStreams.ErrOut, "unexpected update oldObj %T", oldObj)
+		return
 	}
 
 	o.handleClusterOperator(clusterOperator, oldClusterOperator)
@@ -42,11 +44,10 @@ func (o *MonitorCertificatesRuntime) updateClusterOperator(obj, oldObj interface
 
 func defaultCondition(conditionType configv1.ClusterStatusConditionType) *configv1.ClusterOperatorStatusCondition {
 	return &configv1.ClusterOperatorStatusCondition{
-		Type:               conditionType,
-		Status:             configv1.ConditionUnknown,
-		LastTransitionTime: metav1.Now(),
-		Reason:             "Missing",
-		Message:            "Missing",
+		Type:    conditionType,
+		Status:  configv1.ConditionUnknown,
+		Reason:  "Missing",
+		Message: "Missing",
 	}
 }
 
@@ -116,32 +117,6 @@ func progressingStatusString(status configv1.ConditionStatus) string {
 		return "Progressing"
 	default:
 		return fmt.Sprintf("Progressing=%v", status)
-	}
-}
-
-func (o *MonitorCertificatesRuntime) describeConditionChange(clusterOperatorName string, newCondition, oldCondition *configv1.ClusterOperatorStatusCondition, conditionDescription string) {
-	if meaningfulChange(newCondition, oldCondition) {
-		switch {
-		case newCondition.Status != oldCondition.Status:
-			fmt.Fprintf(o.IOStreams.Out, "clusteroperators/%v -- %v - %v - %v\n", clusterOperatorName, conditionDescription, newCondition.Reason, strings.ReplaceAll(newCondition.Message, "\n", "\n   "))
-		case newCondition.Reason != oldCondition.Reason:
-			fmt.Fprintf(o.IOStreams.Out, "clusteroperators/%v -- Still %v, new reason - %v - %v\n", clusterOperatorName, conditionDescription, newCondition.Reason, strings.ReplaceAll(newCondition.Message, "\n", "\n   "))
-		case messageMinusConflicts(newCondition.Message) != messageMinusConflicts(oldCondition.Message):
-			fmt.Fprintf(o.IOStreams.Out, "clusteroperators/%v -- Still %v, new message - %v - %v\n", clusterOperatorName, conditionDescription, newCondition.Reason, strings.ReplaceAll(messageMinusConflicts(newCondition.Message), "\n", "\n   "))
-		}
-	}
-}
-
-func (o *MonitorCertificatesRuntime) describeOperator(clusterOperatorName string, newCondition, oldCondition *configv1.ClusterOperatorStatusCondition, conditionDescription string) {
-	if meaningfulChange(newCondition, oldCondition) {
-		switch {
-		case newCondition.Status != oldCondition.Status:
-			fmt.Fprintf(o.IOStreams.Out, "clusteroperators/%v -- %v - %v - %v\n", clusterOperatorName, conditionDescription, newCondition.Reason, strings.ReplaceAll(newCondition.Message, "\n", "\n   "))
-		case newCondition.Reason != oldCondition.Reason:
-			fmt.Fprintf(o.IOStreams.Out, "clusteroperators/%v -- Still %v, new reason - %v - %v\n", clusterOperatorName, conditionDescription, newCondition.Reason, strings.ReplaceAll(newCondition.Message, "\n", "\n   "))
-		case messageMinusConflicts(newCondition.Message) != messageMinusConflicts(oldCondition.Message):
-			fmt.Fprintf(o.IOStreams.Out, "clusteroperators/%v -- Still %v, new message - %v - %v\n", clusterOperatorName, conditionDescription, newCondition.Reason, strings.ReplaceAll(messageMinusConflicts(newCondition.Message), "\n", "\n   "))
-		}
 	}
 }
 
@@ -219,6 +194,7 @@ func (o *MonitorCertificatesRuntime) deleteClusterOperator(obj interface{}) {
 	clusterOperator, ok := obj.(*configv1.ClusterOperator)
 	if !ok {
 		fmt.Fprint(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		return
 	}
 
 	o.interestingClusterOperators.remove(clusterOperator.Name)
