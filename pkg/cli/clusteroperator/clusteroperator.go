@@ -3,6 +3,8 @@ package clusteroperator
 import (
 	"fmt"
 
+	"github.com/openshift/oc/pkg/cli/clusteroperator/restartkubelet"
+
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -27,6 +29,7 @@ func NewCommandClusterOperators(f kcmdutil.Factory, streams genericclioptions.IO
 
 	cmds.AddCommand(
 		waitforstable.NewCmdWaitForStableClusterOperators(f, streams),
+		restartkubelet.NewCmdRestartKubelet(f, streams),
 	)
 
 	return cmds
