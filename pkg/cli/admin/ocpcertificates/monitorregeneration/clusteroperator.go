@@ -13,7 +13,7 @@ import (
 func (o *MonitorCertificatesRuntime) createClusterOperator(obj interface{}, isFirstSync bool) {
 	clusterOperator, ok := obj.(*configv1.ClusterOperator)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
 		return
 	}
 
@@ -28,14 +28,14 @@ func (o *MonitorCertificatesRuntime) createClusterOperator(obj interface{}, isFi
 func (o *MonitorCertificatesRuntime) updateClusterOperator(obj, oldObj interface{}) {
 	clusterOperator, ok := obj.(*configv1.ClusterOperator)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected update obj %T", obj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected update obj %T", obj)
 		return
 	}
 	defer o.interestingClusterOperators.upsert(clusterOperator.Name, clusterOperator)
 
 	oldClusterOperator, ok := oldObj.(*configv1.ClusterOperator)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected update oldObj %T", oldObj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected update oldObj %T", oldObj)
 		return
 	}
 
@@ -86,38 +86,6 @@ func messageMinusConflicts(message string) string {
 	}
 
 	return strings.Join(nonConflictLines, "\n")
-}
-
-func availableStatusString(status configv1.ConditionStatus) string {
-	switch {
-	case status == configv1.ConditionFalse:
-		return "Unavailable"
-	case status == configv1.ConditionTrue:
-		return "Available"
-	default:
-		return fmt.Sprintf("Available=%v", status)
-	}
-}
-
-func degradedStatusString(status configv1.ConditionStatus) string {
-	switch {
-	case status == configv1.ConditionFalse:
-		return "NotDegraded"
-	case status == configv1.ConditionTrue:
-		return "Degraded"
-	default:
-		return fmt.Sprintf("Degraded=%v", status)
-	}
-}
-func progressingStatusString(status configv1.ConditionStatus) string {
-	switch {
-	case status == configv1.ConditionFalse:
-		return "NotProgressing"
-	case status == configv1.ConditionTrue:
-		return "Progressing"
-	default:
-		return fmt.Sprintf("Progressing=%v", status)
-	}
 }
 
 func (o *MonitorCertificatesRuntime) handleClusterOperator(clusterOperator, oldClusterOperator *configv1.ClusterOperator) {
@@ -193,7 +161,7 @@ func (o *MonitorCertificatesRuntime) handleClusterOperator(clusterOperator, oldC
 func (o *MonitorCertificatesRuntime) deleteClusterOperator(obj interface{}) {
 	clusterOperator, ok := obj.(*configv1.ClusterOperator)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
 		return
 	}
 

@@ -10,7 +10,8 @@ import (
 func (o *MonitorCertificatesRuntime) createConfigMap(obj interface{}, isFirstSync bool) {
 	configMap, ok := obj.(*corev1.ConfigMap)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		return
 	}
 
 	if oldObj, _ := o.interestingConfigMaps.get(configMap.Namespace, configMap.Name); oldObj != nil {
@@ -29,13 +30,15 @@ func (o *MonitorCertificatesRuntime) createConfigMap(obj interface{}, isFirstSyn
 func (o *MonitorCertificatesRuntime) updateConfigMap(obj, oldObj interface{}) {
 	configMap, ok := obj.(*corev1.ConfigMap)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected update obj %T", obj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected update obj %T", obj)
+		return
 	}
 	defer o.interestingConfigMaps.upsert(configMap.Namespace, configMap.Name, configMap)
 
 	_, ok = oldObj.(*corev1.ConfigMap)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected update oldObj %T", oldObj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected update oldObj %T", oldObj)
+		return
 	}
 
 }
@@ -79,7 +82,8 @@ func (o *MonitorCertificatesRuntime) handleRevisionDelete(configMap *corev1.Conf
 func (o *MonitorCertificatesRuntime) deleteConfigMap(obj interface{}) {
 	configMap, ok := obj.(*corev1.ConfigMap)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		return
 	}
 
 	o.handleRevisionDelete(configMap)
