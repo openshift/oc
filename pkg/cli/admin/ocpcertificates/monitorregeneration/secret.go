@@ -14,6 +14,7 @@ func (o *MonitorCertificatesRuntime) createSecret(obj interface{}, isFirstSync b
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
 		fmt.Fprint(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		return
 	}
 
 	if oldObj, _ := o.interestingSecrets.get(secret.Namespace, secret.Name); oldObj != nil {
@@ -38,12 +39,14 @@ func (o *MonitorCertificatesRuntime) updateSecret(obj, oldObj interface{}) {
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
 		fmt.Fprint(o.IOStreams.ErrOut, "unexpected update obj %T", obj)
+		return
 	}
 	defer o.interestingSecrets.upsert(secret.Namespace, secret.Name, secret)
 
 	oldSecret, ok := oldObj.(*corev1.Secret)
 	if !ok {
 		fmt.Fprint(o.IOStreams.ErrOut, "unexpected update oldObj %T", oldObj)
+		return
 	}
 
 	// we skip revisions because their information is not unique
@@ -98,13 +101,7 @@ func (o *MonitorCertificatesRuntime) handleSAToken(secret, oldSecret *corev1.Sec
 }
 
 func isSAToken(secret *corev1.Secret) bool {
-	if _, isSAToken := secret.Annotations["kubernetes.io/service-account.name"]; !isSAToken {
-		return false
-	}
-	if isDockerPullSecret(secret) {
-		return false
-	}
-	return true
+	return secret.Type == corev1.SecretTypeServiceAccountToken
 }
 
 func isDockerPullSecret(secret *corev1.Secret) bool {
@@ -131,6 +128,7 @@ func (o *MonitorCertificatesRuntime) deleteSecret(obj interface{}) {
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
 		fmt.Fprint(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		return
 	}
 
 	if isSAToken(secret) {
