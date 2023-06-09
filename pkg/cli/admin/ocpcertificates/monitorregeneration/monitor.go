@@ -84,7 +84,7 @@ func (c *unnamespacedCache) remove(name string) {
 }
 
 func (o *MonitorCertificatesRuntime) Run(ctx context.Context) error {
-	interestingNamespaces := sets.NewString("kube-lease", "kube-public", "kube-system", "default", "openshift")
+	interestingNamespaces := sets.NewString("kube-node-lease", "kube-public", "kube-system", "default", "openshift")
 	namespaces, err := o.KubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
