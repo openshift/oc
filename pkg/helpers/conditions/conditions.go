@@ -80,3 +80,21 @@ func PodContainerRunning(containerName string, coreClient corev1client.CoreV1Int
 		return false, nil
 	}
 }
+
+// PodDone called on a single-item watch like
+//
+//	cache.NewListWatchFromClient(o.KubeClient.CoreV1().RESTClient(), "pods", namespaceName, fields.OneTermEqualSelector("metadata.name", createdPod.Name)),
+func PodDone(event watch.Event) (bool, error) {
+	switch event.Type {
+	case watch.Deleted:
+		return false, errors.NewNotFound(schema.GroupResource{Resource: "pods"}, "")
+	}
+	switch t := event.Object.(type) {
+	case *corev1.Pod:
+		switch t.Status.Phase {
+		case corev1.PodSucceeded, corev1.PodFailed:
+			return true, nil
+		}
+	}
+	return false, nil
+}
