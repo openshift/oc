@@ -13,7 +13,7 @@ import (
 func (o *MonitorCertificatesRuntime) createSecret(obj interface{}, isFirstSync bool) {
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
 		return
 	}
 
@@ -38,14 +38,14 @@ func (o *MonitorCertificatesRuntime) createSecret(obj interface{}, isFirstSync b
 func (o *MonitorCertificatesRuntime) updateSecret(obj, oldObj interface{}) {
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected update obj %T", obj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected update obj %T", obj)
 		return
 	}
 	defer o.interestingSecrets.upsert(secret.Namespace, secret.Name, secret)
 
 	oldSecret, ok := oldObj.(*corev1.Secret)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected update oldObj %T", oldObj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected update oldObj %T", oldObj)
 		return
 	}
 
@@ -133,7 +133,7 @@ func isForRevision(ownerReferences []metav1.OwnerReference) bool {
 func (o *MonitorCertificatesRuntime) deleteSecret(obj interface{}) {
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
-		fmt.Fprint(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
+		fmt.Fprintf(o.IOStreams.ErrOut, "unexpected create obj %T", obj)
 		return
 	}
 
