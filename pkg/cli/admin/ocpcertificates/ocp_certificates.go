@@ -6,6 +6,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/monitorregeneration"
 
 	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/certregen"
+	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/trustpurge"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -30,6 +31,7 @@ func NewCommandOCPCertificates(f kcmdutil.Factory, streams genericclioptions.IOS
 		certregen.NewCmdRegenerateTopLevel(f, streams),
 		certregen.NewCmdRegenerateLeaves(f, streams),
 		monitorregeneration.NewCmdMonitorCertificates(f, streams),
+		trustpurge.NewCmdRemoveOldTrust(f, streams),
 	)
 
 	return cmds
