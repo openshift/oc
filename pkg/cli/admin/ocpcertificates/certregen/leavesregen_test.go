@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"testing"
 	"time"
 
@@ -16,17 +17,19 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes/fake"
+	clienttesting "k8s.io/client-go/testing"
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/client-go/util/keyutil"
 )
 
 func TestLeavesRegen_forceRegenerationOnSecret(t *testing.T) {
 	tests := []struct {
-		name           string
-		validBefore    *time.Time
-		inputSecret    *corev1.Secret
-		expectedUpdate bool
-		wantErr        string
+		name             string
+		validBefore      *time.Time
+		inputSecret      *corev1.Secret
+		expectedUpdate   bool
+		injectApplyError bool
+		wantErr          string
 	}{
 		{
 			name:        "no annotations",
@@ -62,6 +65,13 @@ func TestLeavesRegen_forceRegenerationOnSecret(t *testing.T) {
 			name:        "cert is a CA cert",
 			inputSecret: withCACert(t, testLeafCertSecret(t)),
 		},
+		{
+			name:             "apply fails",
+			inputSecret:      testLeafCertSecret(t),
+			injectApplyError: true,
+			wantErr:          "ha, you failed!",
+			expectedUpdate:   true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -70,6 +80,11 @@ func TestLeavesRegen_forceRegenerationOnSecret(t *testing.T) {
 				secrets = append(secrets, tt.inputSecret.DeepCopy())
 			}
 			fakeClient := fake.NewSimpleClientset(secrets...)
+			if tt.injectApplyError {
+				fakeClient.PrependReactor("patch", "secrets", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
+					return true, nil, fmt.Errorf("ha, you failed!")
+				})
+			}
 
 			o := &LeavesRegen{
 				ValidBefore: tt.validBefore,

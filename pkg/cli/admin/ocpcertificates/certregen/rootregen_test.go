@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"reflect"
 	"testing"
@@ -29,11 +30,12 @@ import (
 
 func TestRootsRegen_forceRegenerationOnSecret(t *testing.T) {
 	tests := []struct {
-		name           string
-		validBefore    *time.Time
-		inputSecret    *corev1.Secret
-		expectedUpdate bool
-		wantErr        string
+		name             string
+		validBefore      *time.Time
+		inputSecret      *corev1.Secret
+		expectedUpdate   bool
+		injectApplyError bool
+		wantErr          string
 	}{
 		{
 			name:        "no annotations",
@@ -69,6 +71,13 @@ func TestRootsRegen_forceRegenerationOnSecret(t *testing.T) {
 			name:        "cert is a leaf cert",
 			inputSecret: withLeafCert(t, testSecret(t)),
 		},
+		{
+			name:             "apply fails",
+			inputSecret:      testSecret(t),
+			injectApplyError: true,
+			wantErr:          "ha, you failed!",
+			expectedUpdate:   true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -77,6 +86,11 @@ func TestRootsRegen_forceRegenerationOnSecret(t *testing.T) {
 				secrets = append(secrets, tt.inputSecret.DeepCopy())
 			}
 			fakeClient := fake.NewSimpleClientset(secrets...)
+			if tt.injectApplyError {
+				fakeClient.PrependReactor("patch", "secrets", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
+					return true, nil, fmt.Errorf("ha, you failed!")
+				})
+			}
 
 			o := &RootsRegen{
 				ValidBefore: tt.validBefore,
