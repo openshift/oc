@@ -104,7 +104,7 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 			oc adm release extract --credentials-requests --cloud=aws
 
 			# Use git to check out the source code for the current cluster release to DIR from linux/s390x image
-			# Note: Wildcard filter is not supported. Pass a single os/arch to extract
+			# Note: Wildcard filter is not supported; pass a single os/arch to extract
 			oc adm release extract --git=DIR quay.io/openshift-release-dev/ocp-release:4.11.2 --filter-by-os=linux/s390x
 		`),
 		Run: func(cmd *cobra.Command, args []string) {

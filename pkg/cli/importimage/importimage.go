@@ -52,7 +52,7 @@ var (
 		# Update imported data for all tags in an existing image stream
 		oc import-image mystream --all
 
-		# Update imported data for a tag which points to a manifest list to include the full manifest list
+		# Update imported data for a tag that points to a manifest list to include the full manifest list
 		oc import-image mystream --import-mode=PreserveOriginal
 
 		# Import all tags into a new image stream

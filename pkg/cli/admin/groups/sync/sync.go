@@ -54,8 +54,8 @@ var (
 		# Sync all groups except the ones from the blacklist file with an LDAP server
 		oc adm groups sync --blacklist=/path/to/blacklist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-		# Sync specific groups specified in a whitelist file with an LDAP server
-		oc adm groups sync --whitelist=/path/to/whitelist.txt --sync-config=/path/to/sync-config.yaml --confirm
+		# Sync specific groups specified in an allowlist file with an LDAP server
+		oc adm groups sync --whitelist=/path/to/allowlist.txt --sync-config=/path/to/sync-config.yaml --confirm
 
 		# Sync all OpenShift groups that have been synced previously with an LDAP server
 		oc adm groups sync --type=openshift --sync-config=/path/to/ldap-sync-config.yaml --confirm

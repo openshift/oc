@@ -95,7 +95,7 @@ var (
 	  # To actually perform the prune operation, the confirm flag must be appended
 	  oc adm prune images --prune-over-size-limit --confirm
 
-	  # Force the insecure http protocol with the particular registry host name
+	  # Force the insecure HTTP protocol with the particular registry host name
 	  oc adm prune images --registry-url=http://registry.example.org --confirm
 
 	  # Force a secure connection with a custom certificate authority to the particular registry host name

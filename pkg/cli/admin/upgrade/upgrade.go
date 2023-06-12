@@ -36,7 +36,7 @@ const (
 )
 
 var upgradeExample = templates.Examples(`
-	# Review the available cluster updates
+	# View the update status and available cluster updates
 	oc adm upgrade
 
 	# Update to the latest version

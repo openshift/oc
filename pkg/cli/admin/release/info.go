@@ -113,7 +113,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			oc adm release info quay.io/openshift-release-dev/ocp-release:4.11.2 --pullspecs
 
 			# Show information about linux/s390x image
-			# Note: Wildcard filter is not supported. Pass a single os/arch to extract
+			# Note: Wildcard filter is not supported; pass a single os/arch to extract
 			oc adm release info quay.io/openshift-release-dev/ocp-release:4.11.2 --filter-by-os=linux/s390x
 
 		`),

@@ -75,7 +75,7 @@ var (
 		# /var/lib/myapp
 		oc set volume dc/myapp --add --mount-path=/var/lib/myapp
 
-		# Use an existing persistent volume claim (pvc) to overwrite an existing volume 'v1'
+		# Use an existing persistent volume claim (PVC) to overwrite an existing volume 'v1'
 		oc set volume dc/myapp --add --name=v1 -t pvc --claim-name=pvc1 --overwrite
 
 		# Remove volume 'v1' from deployment config 'myapp'

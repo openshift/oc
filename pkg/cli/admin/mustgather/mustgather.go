@@ -72,7 +72,7 @@ var (
 		# Gather information using a specific image stream plug-in
 		  oc adm must-gather --image-stream=openshift/must-gather:latest
 
-		# Gather information using a specific image, command, and pod-dir
+		# Gather information using a specific image, command, and pod directory
 		  oc adm must-gather --image=my/image:tag --source-dir=/pod/directory -- myspecial-command.sh
 	`)
 )

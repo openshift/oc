@@ -71,7 +71,7 @@ var (
 		oc image extract docker.io/library/busybox:latest --path /:/tmp/busybox
 
 		# Extract the busybox image into the current directory for linux/s390x platform
-		# Note: Wildcard filter is not supported with extract. Pass a single os/arch to extract
+		# Note: Wildcard filter is not supported with extract; pass a single os/arch to extract
 		oc image extract docker.io/library/busybox:latest --filter-by-os=linux/s390x
 
 		# Extract a single file from the image into the current directory
