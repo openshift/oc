@@ -7,6 +7,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,7 +15,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	applycorev1 "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/client-go/kubernetes"
 	certutil "k8s.io/client-go/util/cert"
 
@@ -74,60 +74,82 @@ func (r *RemoveOldTrustRuntime) purgeTrustFromResourceInfo(info *resource.Info, 
 }
 
 func (r *RemoveOldTrustRuntime) purgeTrustFromConfigMap(cm *corev1.ConfigMap) error {
-	if cm.Labels[certrotation.ManagedCertificateTypeLabelName] != "ca-bundle" {
-		return nil
-	}
+	var err error
+	var finalObj *corev1.ConfigMap
 
-	caBundle := cm.Data["ca-bundle.crt"]
-	if len(caBundle) == 0 {
-		// somebody was faster
-		fmt.Fprintf(r.ErrOut, "the 'ca-bundle.crt' key of %s/%s was empty", cm.Namespace, cm.Name)
-		return nil
-	}
-
-	newCMData := map[string]string{
-		"ca-bundle.crt": "",
-	}
-	if !r.createdBefore.IsZero() {
-		certs, err := certutil.ParseCertsPEM([]byte(caBundle))
-		if err != nil {
-			return fmt.Errorf("failed to parse certificates of the %s/%s configMap: %v", cm.Namespace, cm.Name, err)
-		}
-
-		newCerts := make([]*x509.Certificate, 0, len(certs))
-		for i, cert := range certs {
-			if cert.NotBefore.After(r.createdBefore) {
-				newCerts = append(newCerts, certs[i])
-			}
-		}
-
-		if len(certs) == len(newCerts) {
+	for retriesLeft := 2; retriesLeft > 0; retriesLeft -= 1 {
+		if cm.Labels[certrotation.ManagedCertificateTypeLabelName] != "ca-bundle" {
 			return nil
 		}
-		newPEMBundle, err := certutil.EncodeCertificates(newCerts...)
-		if err != nil {
-			return fmt.Errorf("failed to PEM-encode certs for configMap %s/%s: %v", cm.Namespace, cm.Name, err)
+
+		caBundle := cm.Data["ca-bundle.crt"]
+		if len(caBundle) == 0 {
+			// somebody was faster
+			return nil
 		}
-		newCMData["ca-bundle.crt"] = string(newPEMBundle)
+
+		cm.Data["ca-bundle.crt"] = ""
+		if !r.createdBefore.IsZero() {
+			newBundle, pruned, err := pruneCertBundle(r.createdBefore, caBundle)
+			if err != nil {
+				return fmt.Errorf("cert pruning failed for %s/%s", cm.Namespace, cm.Name)
+			}
+			if !pruned { // old == new
+				return nil
+			}
+			cm.Data["ca-bundle.crt"] = newBundle
+		}
+
+		updateOptions := metav1.UpdateOptions{
+			FieldManager: RemoveOldTrustFieldManager,
+		}
+		if r.dryRun {
+			updateOptions.DryRun = []string{metav1.DryRunAll}
+		}
+
+		finalObj, err = r.KubeClient.CoreV1().ConfigMaps(cm.Namespace).Update(context.TODO(), cm, updateOptions)
+		if err != nil {
+			if apierrors.IsConflict(err) && retriesLeft > 0 {
+				fmt.Fprintf(r.ErrOut, "error encountered applying configmap, retrying: %v", err)
+				var getErr error
+				cm, getErr = r.KubeClient.CoreV1().ConfigMaps(cm.Namespace).Get(context.TODO(), cm.Name, metav1.GetOptions{})
+				if getErr != nil {
+					return fmt.Errorf("failed to retrieve CM %s/%s upon reapplying: %v", cm.Namespace, cm.Name, getErr)
+				}
+				continue
+			}
+			return err
+		}
+		// no error, no need to repeat
+		break
 	}
 
-	applyOptions := metav1.ApplyOptions{
-		Force:        true,
-		FieldManager: RemoveOldTrustFieldManager,
-	}
-
-	if r.dryRun {
-		applyOptions.DryRun = []string{metav1.DryRunAll}
-	}
-
-	applyCM := applycorev1.ConfigMap(cm.Name, cm.Namespace)
-	applyCM = applyCM.WithData(newCMData)
-
-	finalObj, err := r.KubeClient.CoreV1().ConfigMaps(cm.Namespace).Apply(context.TODO(), applyCM, applyOptions)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to apply changes to %s/%s: %v", cm.Namespace, cm.Name, err)
 	}
-
 	finalObj.GetObjectKind().SetGroupVersionKind(configMapKind)
 	return r.Printer.PrintObj(finalObj, r.Out)
+}
+
+func pruneCertBundle(createdBefore time.Time, bundlePEM string) (string, bool, error) {
+	certs, err := certutil.ParseCertsPEM([]byte(bundlePEM))
+	if err != nil {
+		return "", false, fmt.Errorf("failed to parse certificates: %v", err)
+	}
+
+	newCerts := make([]*x509.Certificate, 0, len(certs))
+	for i, cert := range certs {
+		if cert.NotBefore.After(createdBefore) {
+			newCerts = append(newCerts, certs[i])
+		}
+	}
+
+	if len(certs) == len(newCerts) {
+		return bundlePEM, false, nil
+	}
+	newPEMBundle, err := certutil.EncodeCertificates(newCerts...)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to PEM-encode certs: %v", err)
+	}
+	return string(newPEMBundle), true, nil
 }
