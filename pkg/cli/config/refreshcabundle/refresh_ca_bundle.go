@@ -26,6 +26,8 @@ type RefreshCABundleOptions struct {
 	// oc config view --raw -o jsonpath='{.clusters[?(@.name == "the-name")].cluster.certificate-authority-data}' | base64 -d
 	DryRun bool
 
+	Output string
+
 	genericclioptions.IOStreams
 }
 
@@ -41,13 +43,14 @@ var (
 		oc config refresh-ca-bundle e2e
 
 		# Print the CA bundle from the current OpenShift cluster's apiserver.
-		oc config refresh-ca-bundle --dry-run`)
+		oc config refresh-ca-bundle --dry-run -oraw`)
 )
 
 func NewRefreshCABundleOptions(restClientGetter genericclioptions.RESTClientGetter, configAccess clientcmd.ConfigAccess, streams genericclioptions.IOStreams) *RefreshCABundleOptions {
 	return &RefreshCABundleOptions{
 		RESTClientGetter: restClientGetter,
 		ConfigAccess:     configAccess,
+		Output:           "kubeconfig",
 		IOStreams:        streams,
 	}
 }
@@ -71,9 +74,14 @@ func NewCmdConfigRefreshCABundle(restClientGetter genericclioptions.RESTClientGe
 		},
 	}
 
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "display the CA bundle, but don't make any changes to the kubeconfig")
+	o.AddFlags(cmd)
 
 	return cmd
+}
+
+func (o *RefreshCABundleOptions) AddFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "display the CA bundle, but don't make any changes to the kubeconfig")
+	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "One of 'raw' or 'kubeconfig'.")
 }
 
 func (o *RefreshCABundleOptions) Complete(cmd *cobra.Command) error {
@@ -86,10 +94,31 @@ func (o *RefreshCABundleOptions) Complete(cmd *cobra.Command) error {
 		o.ClusterName = args[0]
 	}
 
+	if len(o.Output) == 0 {
+		if o.DryRun {
+			o.Output = string(OutputRaw)
+		} else {
+			o.Output = string(OutputKubeconfig)
+		}
+	}
+
 	return nil
 }
 
 func (o RefreshCABundleOptions) Validate() error {
+	switch o.Output {
+	case string(OutputKubeconfig):
+		if o.DryRun {
+			return fmt.Errorf("when --output is kubeconfig, --dry-run must be false")
+		}
+	case string(OutputRaw):
+		if !o.DryRun {
+			return fmt.Errorf("when --output is raw, --dry-run must be true")
+		}
+	default:
+		return fmt.Errorf("--output must be either kubeconfig or raw")
+	}
+
 	return nil
 }
 
@@ -108,12 +137,20 @@ func (o *RefreshCABundleOptions) ToRuntime() (*RefreshCABundleRuntime, error) {
 		ConfigAccess:                  o.ConfigAccess,
 		ClusterName:                   o.ClusterName,
 		DryRun:                        o.DryRun,
+		Output:                        OutputFormat(o.Output),
 		IOStreams:                     o.IOStreams,
 		OriginalInsecureSkipTLSVerify: clientConfig.Insecure,
 	}
 
 	return ret, nil
 }
+
+type OutputFormat string
+
+var (
+	OutputRaw        OutputFormat = "raw"
+	OutputKubeconfig OutputFormat = "kubeconfig"
+)
 
 type RefreshCABundleRuntime struct {
 	KubeClient kubernetes.Interface
@@ -126,6 +163,8 @@ type RefreshCABundleRuntime struct {
 	// for convenience. You can compare to an original by doing.
 	// oc config view --raw -o jsonpath='{.clusters[?(@.name == "the-name")].cluster.certificate-authority-data}' | base64 -d
 	DryRun bool
+
+	Output OutputFormat
 
 	genericclioptions.IOStreams
 }
@@ -141,7 +180,12 @@ func (r *RefreshCABundleRuntime) Run(ctx context.Context) error {
 	}
 
 	if r.DryRun {
-		fmt.Fprintf(r.Out, caBundle)
+		switch r.Output {
+		case OutputRaw:
+			fmt.Fprintf(r.Out, caBundle)
+		default:
+			return fmt.Errorf("unhandled --dry-run output format: %q", r.Output)
+		}
 		return nil
 	}
 
