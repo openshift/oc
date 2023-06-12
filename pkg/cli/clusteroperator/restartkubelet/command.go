@@ -1,13 +1,6 @@
 package restartkubelet
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"syscall"
-
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/openshift/oc/pkg/cli/clusteroperator/pernodepod"
 
 	"github.com/spf13/cobra"
@@ -51,13 +44,6 @@ func NewRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, stre
 	return &RestartKubeletOptions{
 		PerNodePodOptions: pernodepod.NewPerNodePodOptions(
 			"openshift-restart-kubelet-",
-			func(ctx context.Context, namespaceName, nodeName, imagePullSpec string) (*corev1.Pod, error) {
-				restartObj := pod.DeepCopy()
-				restartObj.Namespace = namespaceName
-				restartObj.Spec.NodeName = nodeName
-				restartObj.Spec.Containers[0].Image = imagePullSpec
-				return restartObj, nil
-			},
 			restClientGetter,
 			streams,
 		),
@@ -76,17 +62,8 @@ func NewCmdRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, s
 		Long:                  regenerateSignersLong,
 		Example:               regenerateSignersExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := pernodepod.SignalContext()
 			defer cancel()
-
-			c := make(chan os.Signal, 2)
-			signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				<-c
-				cancel()
-				<-c // second call exits
-				os.Exit(1)
-			}()
 
 			r, err := o.ToRuntime(args)
 			cmdutil.CheckErr(err)
