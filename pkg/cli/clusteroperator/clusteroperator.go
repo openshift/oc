@@ -3,6 +3,8 @@ package clusteroperator
 import (
 	"fmt"
 
+	"github.com/openshift/oc/pkg/cli/clusteroperator/copytonode"
+
 	"github.com/openshift/oc/pkg/cli/clusteroperator/restartkubelet"
 
 	"github.com/spf13/cobra"
@@ -30,6 +32,7 @@ func NewCommandClusterOperators(f kcmdutil.Factory, streams genericclioptions.IO
 	cmds.AddCommand(
 		waitforstable.NewCmdWaitForStableClusterOperators(f, streams),
 		restartkubelet.NewCmdRestartKubelet(f, streams),
+		copytonode.NewCmdCopyToNode(f, streams),
 	)
 
 	return cmds
