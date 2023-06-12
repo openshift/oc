@@ -33,6 +33,8 @@ var (
 )
 
 type CreatePodFunc func(ctx context.Context, namespaceName, nodeName, imagePullSpec string) (*corev1.Pod, error)
+type CleanUpFunc func(ctx context.Context)
+type PrePodHookFunc func(ctx context.Context, namespaceName string) (CleanUpFunc, error)
 
 type PerNodePodRuntime struct {
 	ResourceFinder genericclioptions.ResourceFinder
@@ -40,7 +42,6 @@ type PerNodePodRuntime struct {
 
 	DryRun bool
 
-	CreatePodFn              CreatePodFunc
 	NamespacePrefix          string
 	ImagePullSpec            string
 	NumberOfNodesInParallel  int
@@ -50,7 +51,7 @@ type PerNodePodRuntime struct {
 	genericclioptions.IOStreams
 }
 
-func (r *PerNodePodRuntime) Run(ctx context.Context) error {
+func (r *PerNodePodRuntime) Run(ctx context.Context, prePodHookFn PrePodHookFunc, createPodFn CreatePodFunc) error {
 	interestingNodes, err := r.GetInterestingNodes(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to get interesting nodes: %w", err)
@@ -85,6 +86,16 @@ func (r *PerNodePodRuntime) Run(ctx context.Context) error {
 				fmt.Fprintf(r.ErrOut, "failed to cleanup namespace: %v", err)
 			}
 		}()
+
+		if prePodHookFn != nil {
+			cleanup, err := prePodHookFn(ctx, actualNamespace.Name)
+			if err != nil {
+				return fmt.Errorf("pre-pod hook failed: %w", err)
+			}
+			if cleanup != nil {
+				defer cleanup(ctx)
+			}
+		}
 	}
 
 	workCh := make(chan *corev1.Node, numberOfNodesInParallel)
@@ -113,7 +124,7 @@ func (r *PerNodePodRuntime) Run(ctx context.Context) error {
 					if !stillReady {
 						return
 					}
-					if restartErr := r.RestartNode(ctx, nsName, node); restartErr != nil {
+					if restartErr := r.RestartNode(ctx, createPodFn, nsName, node); restartErr != nil {
 						errCh <- restartErr
 					}
 				case <-ctx.Done():
@@ -132,7 +143,7 @@ func (r *PerNodePodRuntime) Run(ctx context.Context) error {
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *PerNodePodRuntime) RestartNode(ctx context.Context, namespaceName string, node *corev1.Node) error {
+func (r *PerNodePodRuntime) RestartNode(ctx context.Context, createPodFn CreatePodFunc, namespaceName string, node *corev1.Node) error {
 	if r.DryRun {
 		fmt.Fprintf(r.Out, "node/%v kubelet restarted\n", node.Name)
 		return nil
@@ -142,7 +153,7 @@ func (r *PerNodePodRuntime) RestartNode(ctx context.Context, namespaceName strin
 	timeLimitedCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
-	restartObj, err := r.CreatePodFn(ctx, namespaceName, node.Name, r.ImagePullSpec)
+	restartObj, err := createPodFn(ctx, namespaceName, node.Name, r.ImagePullSpec)
 	if err != nil {
 		return fmt.Errorf("unable to create pod manifest: %w", err)
 	}

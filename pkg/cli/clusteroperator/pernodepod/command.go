@@ -28,12 +28,11 @@ type PerNodePodOptions struct {
 	Parallelism string
 
 	NamespacePrefix string
-	CreatePodFn     CreatePodFunc
 
 	genericclioptions.IOStreams
 }
 
-func NewPerNodePodOptions(namespacePrefix string, createPodFn CreatePodFunc, restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *PerNodePodOptions {
+func NewPerNodePodOptions(namespacePrefix string, restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *PerNodePodOptions {
 	return &PerNodePodOptions{
 		RESTClientGetter: restClientGetter,
 		PrintFlags:       genericclioptions.NewPrintFlags("copied to node"),
@@ -46,7 +45,6 @@ func NewPerNodePodOptions(namespacePrefix string, createPodFn CreatePodFunc, res
 
 		Parallelism:     "10%",
 		NamespacePrefix: namespacePrefix,
-		CreatePodFn:     createPodFn,
 
 		IOStreams: streams,
 	}
@@ -122,8 +120,6 @@ func (o *PerNodePodOptions) ToRuntime(args []string) (*PerNodePodRuntime, error)
 		ImagePullSpec:            imagePullSpec,
 		NumberOfNodesInParallel:  int(parallelInt),
 		PercentOfNodesInParallel: int(parallelPercentage),
-
-		CreatePodFn: o.CreatePodFn,
 
 		Printer:   printer,
 		IOStreams: o.IOStreams,
