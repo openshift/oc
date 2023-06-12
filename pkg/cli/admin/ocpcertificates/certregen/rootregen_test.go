@@ -114,7 +114,7 @@ func testPrinter(runtime.Object, io.Writer) error {
 }
 
 func testSecret(t *testing.T) *corev1.Secret {
-	key, err := rsa.GenerateKey(rand.Reader, 4096)
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatalf("failed to generate key")
 	}
