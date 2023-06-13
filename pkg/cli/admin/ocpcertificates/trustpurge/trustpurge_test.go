@@ -112,6 +112,8 @@ func TestRemoveOldTrustRuntime_purgeTrustFromConfigMap(t *testing.T) {
 				apierrors.NewConflict(schema.GroupResource{}, "test-configmap", fmt.Errorf("oh no, a conflict")),
 				apierrors.NewConflict(schema.GroupResource{}, "test-configmap", fmt.Errorf("oh no, a conflict")),
 				apierrors.NewConflict(schema.GroupResource{}, "test-configmap", fmt.Errorf("oh no, a conflict")),
+				apierrors.NewConflict(schema.GroupResource{}, "test-configmap", fmt.Errorf("oh no, a conflict")),
+				apierrors.NewConflict(schema.GroupResource{}, "test-configmap", fmt.Errorf("oh no, a conflict")),
 			},
 			wantErr: true,
 		},
