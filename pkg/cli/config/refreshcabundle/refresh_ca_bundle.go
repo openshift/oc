@@ -131,13 +131,9 @@ type RefreshCABundleRuntime struct {
 }
 
 func (r *RefreshCABundleRuntime) Run(ctx context.Context) error {
-	kubeAPIServerCABundleConfigMap, err := r.KubeClient.CoreV1().ConfigMaps("openshift-kube-controller-manager").Get(ctx, "serviceaccount-ca", metav1.GetOptions{})
+	caBundle, err := GetCABundleToTrustKubeAPIServer(ctx, r.KubeClient)
 	if err != nil {
-		return fmt.Errorf("unable to read the CA bundle from the cluster: %w", err)
-	}
-	caBundle := kubeAPIServerCABundleConfigMap.Data["ca-bundle.crt"]
-	if len(caBundle) == 0 {
-		return fmt.Errorf("cluster somehow missing the CA bundle: not an OCP cluster?")
+		return fmt.Errorf("unable to get the CA bundle from the cluster: %w", err)
 	}
 
 	if r.DryRun {
@@ -210,4 +206,18 @@ func helpErrorf(cmd *cobra.Command, format string, args ...interface{}) error {
 	cmd.Help()
 	msg := fmt.Sprintf(format, args...)
 	return fmt.Errorf("%s", msg)
+}
+
+func GetCABundleToTrustKubeAPIServer(ctx context.Context, kubeClient kubernetes.Interface) (string, error) {
+	// get the most recent configmap
+	kubeAPIServerCABundleConfigMap, err := kubeClient.CoreV1().ConfigMaps("openshift-kube-controller-manager").Get(ctx, "serviceaccount-ca", metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("unable to read the CA bundle from the cluster: %w", err)
+	}
+	caBundle := kubeAPIServerCABundleConfigMap.Data["ca-bundle.crt"]
+	if len(caBundle) == 0 {
+		return "", fmt.Errorf("cluster somehow missing the CA bundle: not an OCP cluster?")
+	}
+
+	return caBundle, nil
 }
