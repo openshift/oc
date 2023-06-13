@@ -76,6 +76,9 @@ func (o *RootsRegen) forceRegenerationOnSecret(objPrinter *objectPrinter, kubeCl
 		certrotation.CertificateNotAfterAnnotation: "force-regeneration",
 	})
 	finalObject, err := kubeClient.CoreV1().Secrets(secret.Namespace).Apply(context.TODO(), secretToApply, applyOptions)
+	if err != nil {
+		return err
+	}
 
 	// required for printing
 	finalObject.GetObjectKind().SetGroupVersionKind(secretKind)

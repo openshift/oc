@@ -25,10 +25,10 @@ var (
 
 	regenerateSignersExample = templates.Examples(`
 		# Regenerate all known signing certificates on the cluster.
-		oc adm certificates regenerate-signers -A secrets --all
+		oc adm certificates regenerate-signers -A --all
 
 		# Regenerate the signing certificate contained in a particular secret.
-		oc adm certificates regenerate-signers -n openshift-kube-apiserver-operator secrets/loadbalancer-serving-signer
+		oc adm certificates regenerate-signers -n openshift-kube-apiserver-operator loadbalancer-serving-signer
 	`)
 )
 
@@ -125,7 +125,7 @@ func (o *RegenerateCertificatesOptions) ToRuntime(args []string) (*RegenerateCer
 	if err != nil {
 		return nil, err
 	}
-	builder := o.ResourceBuilderFlags.ToBuilder(o.RESTClientGetter, args)
+	builder := o.ResourceBuilderFlags.ToBuilder(o.RESTClientGetter, []string{"secrets"})
 	clientConfig, err := o.RESTClientGetter.ToRESTConfig()
 	if err != nil {
 		return nil, err
