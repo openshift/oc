@@ -80,6 +80,9 @@ func (o *WaitForStableOptions) Complete() error {
 	if o.Timeout <= o.MinimumStablePeriod {
 		return fmt.Errorf("--timeout must be greater than the --minimum-stable-period")
 	}
+	if o.waitInterval > o.MinimumStablePeriod {
+		o.waitInterval = o.MinimumStablePeriod + 1*time.Second
+	}
 
 	clientConfig, err := o.RESTClientGetter.ToRESTConfig()
 	if err != nil {
@@ -96,42 +99,47 @@ func (o *WaitForStableOptions) Complete() error {
 }
 
 func (o WaitForStableOptions) Run(ctx context.Context) error {
-
 	if o.Timeout > 0 {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, o.Timeout)
 		defer cancel()
 	}
 
-	var stableFor time.Duration
-	waitErr := wait.PollImmediateUntilWithContext(ctx, o.waitInterval, func(waitCtx context.Context) (done bool, err error) {
-		defer func() {
-			if !done {
-				stableFor = 0
-			}
-			if stableFor < o.MinimumStablePeriod {
-				done = false
-			}
-		}()
-		stableFor += o.waitInterval
-
+	var stabilityStarted *time.Time
+	waitErr := wait.PollImmediateUntilWithContext(ctx, o.waitInterval, func(waitCtx context.Context) (bool, error) {
 		operators, err := o.configClient.ClusterOperators().List(waitCtx, metav1.ListOptions{})
 		if err != nil {
 			fmt.Fprintf(o.ErrOut, "failed to list clusteroperators: %v", err)
+			stabilityStarted = nil
 			return false, nil
 		}
 
 		for _, operator := range operators.Items {
 			if unstableReason := unstableOperatorReason(&operator); len(unstableReason) > 0 {
-				fmt.Fprintf(o.Out, "operator %q is not yet stable: %v\n", operator.Name, unstableReason)
+				fmt.Fprintf(o.Out, "clusteroperators/%v is not yet stable: %v\n", operator.Name, unstableReason)
+				stabilityStarted = nil
 				return false, nil
 			}
 		}
 
-		return true, nil
-	})
+		if stabilityStarted == nil {
+			t := time.Now()
+			stabilityStarted = &t
+		}
 
-	return waitErr
+		timeStable := time.Now().Sub(*stabilityStarted)
+		if timeStable > o.MinimumStablePeriod {
+			return true, nil
+		}
+
+		return false, nil
+	})
+	if waitErr != nil {
+		return waitErr
+	}
+
+	fmt.Fprintf(o.Out, "All clusteroperators are stable\n")
+	return nil
 }
 
 func unstableOperatorReason(operator *configv1.ClusterOperator) string {
