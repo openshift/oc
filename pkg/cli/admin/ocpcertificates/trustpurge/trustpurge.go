@@ -7,7 +7,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,6 +17,7 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	certutil "k8s.io/client-go/util/cert"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/openshift/library-go/pkg/operator/certrotation"
 )
@@ -76,14 +76,22 @@ func (r *RemoveOldTrustRuntime) purgeTrustFromResourceInfo(info *resource.Info, 
 }
 
 func (r *RemoveOldTrustRuntime) purgeTrustFromConfigMap(cm *corev1.ConfigMap) error {
-	var err error
 	var finalObj *corev1.ConfigMap
 
-	if excludedConfigMaps := r.excludeBundles[cm.Namespace]; excludedConfigMaps.Has(cm.Name) {
+	cmNamespace, cmName := cm.Namespace, cm.Name
+	if excludedConfigMaps := r.excludeBundles[cmNamespace]; excludedConfigMaps.Has(cmName) {
 		return nil
 	}
 
-	for retriesLeft := 2; retriesLeft > 0; retriesLeft -= 1 {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var err error
+		if cm == nil {
+			cm, err = r.KubeClient.CoreV1().ConfigMaps(cmNamespace).Get(context.TODO(), cmName, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to retrieve CM %s/%s upon reapplying: %v", cmNamespace, cmName, err)
+			}
+		}
+
 		if cm.Labels[certrotation.ManagedCertificateTypeLabelName] != "ca-bundle" {
 			return nil
 		}
@@ -98,7 +106,7 @@ func (r *RemoveOldTrustRuntime) purgeTrustFromConfigMap(cm *corev1.ConfigMap) er
 		if !r.createdBefore.IsZero() {
 			newBundle, pruned, err := pruneCertBundle(r.createdBefore, caBundle)
 			if err != nil {
-				return fmt.Errorf("cert pruning failed for %s/%s", cm.Namespace, cm.Name)
+				return fmt.Errorf("cert pruning failed for %s/%s", cmNamespace, cmName)
 			}
 			if !pruned { // old == new
 				return nil
@@ -113,26 +121,23 @@ func (r *RemoveOldTrustRuntime) purgeTrustFromConfigMap(cm *corev1.ConfigMap) er
 			updateOptions.DryRun = []string{metav1.DryRunAll}
 		}
 
-		finalObj, err = r.KubeClient.CoreV1().ConfigMaps(cm.Namespace).Update(context.TODO(), cm, updateOptions)
+		finalObj, err = r.KubeClient.CoreV1().ConfigMaps(cmNamespace).Update(context.TODO(), cm, updateOptions)
 		if err != nil {
-			if apierrors.IsConflict(err) && retriesLeft > 0 {
-				fmt.Fprintf(r.ErrOut, "error encountered applying configmap, retrying: %v", err)
-				var getErr error
-				cm, getErr = r.KubeClient.CoreV1().ConfigMaps(cm.Namespace).Get(context.TODO(), cm.Name, metav1.GetOptions{})
-				if getErr != nil {
-					return fmt.Errorf("failed to retrieve CM %s/%s upon reapplying: %v", cm.Namespace, cm.Name, getErr)
-				}
-				continue
-			}
+			cm = nil
 			return err
 		}
-		// no error, no need to repeat
-		break
-	}
+
+		return nil
+	})
 
 	if err != nil {
-		return fmt.Errorf("failed to apply changes to %s/%s: %v", cm.Namespace, cm.Name, err)
+		return fmt.Errorf("failed to apply changes to %s/%s: %v", cmNamespace, cmName, err)
 	}
+
+	if finalObj == nil { // the CM was unchanged
+		return nil
+	}
+
 	finalObj.GetObjectKind().SetGroupVersionKind(configMapKind)
 	return r.Printer.PrintObj(finalObj, r.Out)
 }
