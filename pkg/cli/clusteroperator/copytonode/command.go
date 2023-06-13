@@ -38,6 +38,7 @@ func NewRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, stre
 	return &CopyToNodeOptions{
 		PerNodePodOptions: pernodepod.NewPerNodePodOptions(
 			"openshift-copy-to-node-",
+			"copied to node",
 			restClientGetter,
 			streams,
 		),
