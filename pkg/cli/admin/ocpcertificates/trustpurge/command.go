@@ -106,7 +106,7 @@ func (o *RemoveOldTrustOptions) ToRuntime(args []string) (*RemoveOldTrustRuntime
 		exclude[excludedPair[0]].Insert(excludedPair[1])
 	}
 
-	builder := o.ResourceBuilderFlags.ToBuilder(o.RESTClientGetter, args)
+	builder := o.ResourceBuilderFlags.ToBuilder(o.RESTClientGetter, []string{"configmaps"})
 	clientConfig, err := o.RESTClientGetter.ToRESTConfig()
 	if err != nil {
 		return nil, err
