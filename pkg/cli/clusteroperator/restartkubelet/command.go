@@ -46,7 +46,7 @@ func NewRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, stre
 	return &RestartKubeletOptions{
 		PerNodePodOptions: pernodepod.NewPerNodePodOptions(
 			"openshift-restart-kubelet-",
-			"copied to node",
+			"restarted kubelet",
 			restClientGetter,
 			streams,
 		),
