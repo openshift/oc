@@ -32,10 +32,10 @@ type PerNodePodOptions struct {
 	genericclioptions.IOStreams
 }
 
-func NewPerNodePodOptions(namespacePrefix string, restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *PerNodePodOptions {
+func NewPerNodePodOptions(namespacePrefix, printerText string, restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *PerNodePodOptions {
 	return &PerNodePodOptions{
 		RESTClientGetter: restClientGetter,
-		PrintFlags:       genericclioptions.NewPrintFlags("copied to node"),
+		PrintFlags:       genericclioptions.NewPrintFlags(printerText),
 		ResourceBuilderFlags: genericclioptions.NewResourceBuilderFlags().
 			WithLabelSelector("").
 			WithFieldSelector("").
@@ -71,7 +71,7 @@ func (o *PerNodePodOptions) AddFlags(cmd *cobra.Command) {
 	o.ResourceBuilderFlags.AddFlags(cmd.Flags())
 
 	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Set to true to use server-side dry run.")
-	cmd.Flags().StringVar(&o.Parallelism, "parallelism", o.Parallelism, "parallelism is a raw number or a percentage of the nodes we need to restart at the same time.")
+	cmd.Flags().StringVar(&o.Parallelism, "parallelism", o.Parallelism, "parallelism is a raw number or a percentage of the nodes to work with concurrently.")
 }
 
 func (o *PerNodePodOptions) ToRuntime(args []string) (*PerNodePodRuntime, error) {

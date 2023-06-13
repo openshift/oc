@@ -11,13 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	corev1 "k8s.io/api/core/v1"
-
-	"github.com/openshift/oc/pkg/cli/clusteroperator/pernodepod"
-
+	"github.com/alessio/shellescape"
 	"github.com/openshift/library-go/pkg/operator/resource/resourceread"
+	"github.com/openshift/oc/pkg/cli/clusteroperator/pernodepod"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -51,19 +49,22 @@ func (r *CopyToNodeRuntime) Run(ctx context.Context) error {
 
 		cleanupFn := func(ctx context.Context) {
 			if err := r.PerNodePodRuntime.KubeClient.CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
-				fmt.Fprintf(r.PerNodePodRuntime.ErrOut, "failed to cleanup source-data: %w", err)
+				fmt.Fprintf(r.PerNodePodRuntime.ErrOut, "failed to cleanup source-data: %v", err)
 			}
 		}
 		return cleanupFn, nil
 	}
 
-	copyCommands := []string{}
+	copyCommands := []string{
+		"#/bin/bash",
+		"set -uo pipefail",
+	}
 	for source, destination := range secretDataKeyToFilename {
 		sourcePath := filepath.Join("/source-data", source)
 		destPath := filepath.Join("/host-root", destination)
 		parentDir := filepath.Dir(destPath)
-		copyCommands = append(copyCommands, fmt.Sprintf("mkdir -p %q", parentDir))
-		copyCommands = append(copyCommands, fmt.Sprintf("cp --dereference -fr %q %q", sourcePath, destPath))
+		copyCommands = append(copyCommands, fmt.Sprintf("mkdir -p %s", shellescape.Quote(parentDir)))
+		copyCommands = append(copyCommands, fmt.Sprintf("cp --dereference -fr %s %s", shellescape.Quote(sourcePath), shellescape.Quote(destPath)))
 	}
 
 	createPodFn := func(ctx context.Context, namespaceName, nodeName, imagePullSpec string) (*corev1.Pod, error) {
@@ -71,9 +72,8 @@ func (r *CopyToNodeRuntime) Run(ctx context.Context) error {
 		restartObj.Namespace = namespaceName
 		restartObj.Spec.NodeName = nodeName
 		restartObj.Spec.Containers[0].Image = imagePullSpec
-		restartObj.Spec.Containers[0].Command[2] = strings.ReplaceAll(
-			restartObj.Spec.Containers[0].Command[2],
-			"### COPY_COMMANDS_HERE",
+		restartObj.Spec.Containers[0].Command = append(
+			restartObj.Spec.Containers[0].Command,
 			strings.Join(copyCommands, "\n"))
 		return restartObj, nil
 	}
