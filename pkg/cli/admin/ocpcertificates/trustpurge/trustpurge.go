@@ -58,7 +58,7 @@ func (r *RemoveOldTrustRuntime) purgeTrustFromResourceInfo(info *resource.Info, 
 	if err != nil {
 		return err
 	}
-	// TODO: can we just hardcode the kind and not take it as an argument?
+
 	if configMapKind != info.Object.GetObjectKind().GroupVersionKind() {
 		return fmt.Errorf("command must only be pointed at configMaps")
 	}
