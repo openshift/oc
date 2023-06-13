@@ -18,6 +18,7 @@ spec:
             chroot $ROOT systemctl stop kubelet
           done
           sleep 5
+          # optional command
           while ! pgrep kubelet >/dev/null ; do
             chroot $ROOT systemctl start kubelet
           done

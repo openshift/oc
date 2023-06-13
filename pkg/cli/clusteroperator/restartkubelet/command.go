@@ -37,6 +37,8 @@ var (
 type RestartKubeletOptions struct {
 	PerNodePodOptions *pernodepod.PerNodePodOptions
 
+	CommandWhileKubeletIsOff string
+
 	genericclioptions.IOStreams
 }
 
@@ -80,6 +82,8 @@ func NewCmdRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, s
 // AddFlags registers flags for a cli
 func (o *RestartKubeletOptions) AddFlags(cmd *cobra.Command) {
 	o.PerNodePodOptions.AddFlags(cmd)
+
+	cmd.Flags().StringVar(&o.CommandWhileKubeletIsOff, "command", o.CommandWhileKubeletIsOff, "command to run after the kubelet stops, before the kubelet starts.")
 }
 
 func (o *RestartKubeletOptions) ToRuntime(args []string) (*RestartKubeletRuntime, error) {
@@ -88,6 +92,7 @@ func (o *RestartKubeletOptions) ToRuntime(args []string) (*RestartKubeletRuntime
 		return nil, err
 	}
 	return &RestartKubeletRuntime{
-		PerNodePodRuntime: perNodePodRuntime,
+		PerNodePodRuntime:        perNodePodRuntime,
+		CommandWhileKubeletIsOff: o.CommandWhileKubeletIsOff,
 	}, nil
 }
