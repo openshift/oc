@@ -9,10 +9,6 @@ spec:
     - command:
         - /bin/bash
         - -c
-        - |
-          #/bin/bash
-          set -uo pipefail
-          ### COPY_COMMANDS_HERE
       image: registry.redhat.io/openshift4/ose-must-gather:latest
       name: restart-kubelet
       terminationMessagePolicy: FallbackToLogsOnError
