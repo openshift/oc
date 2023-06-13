@@ -26,7 +26,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-type NewAdminKubeConfigOptions struct {
+type NewAdminKubeconfigOptions struct {
 	RESTClientGetter genericclioptions.RESTClientGetter
 
 	genericclioptions.IOStreams
@@ -45,20 +45,21 @@ var (
 )
 
 const (
+	// adminKubeconfigClientCAConfigMap is described in https://github.com/openshift/api/blob/master/tls/docs/kube-apiserver%20Client%20Certificates/README.md#kube-apiserver-admin-kubeconfig-client-ca
 	adminKubeconfigClientCAConfigMap = "admin-kubeconfig-client-ca"
 
 	tenYears = 24 * time.Hour * 365 * 10
 )
 
-func NewAdminKubeconfigOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *NewAdminKubeConfigOptions {
-	return &NewAdminKubeConfigOptions{
+func NewNewAdminKubeconfigOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *NewAdminKubeconfigOptions {
+	return &NewAdminKubeconfigOptions{
 		RESTClientGetter: restClientGetter,
 		IOStreams:        streams,
 	}
 }
 
-func NewCmdConfigRefreshCABundle(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewAdminKubeconfigOptions(restClientGetter, streams)
+func NewCmdNewAdminKubeconfigOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+	o := NewNewAdminKubeconfigOptions(restClientGetter, streams)
 
 	cmd := &cobra.Command{
 		Use:                   "new-admin-kubeconfig",
@@ -81,15 +82,15 @@ func NewCmdConfigRefreshCABundle(restClientGetter genericclioptions.RESTClientGe
 	return cmd
 }
 
-func (o *NewAdminKubeConfigOptions) AddFlags(cmd *cobra.Command) {
+func (o *NewAdminKubeconfigOptions) AddFlags(cmd *cobra.Command) {
 }
 
-func (o *NewAdminKubeConfigOptions) Complete() error {
+func (o *NewAdminKubeconfigOptions) Complete() error {
 
 	return nil
 }
 
-func (o NewAdminKubeConfigOptions) Validate(args []string) error {
+func (o NewAdminKubeconfigOptions) Validate(args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("no arguments allowed")
 	}
@@ -97,7 +98,7 @@ func (o NewAdminKubeConfigOptions) Validate(args []string) error {
 	return nil
 }
 
-func (o *NewAdminKubeConfigOptions) ToRuntime() (*RefreshCABundleRuntime, error) {
+func (o *NewAdminKubeconfigOptions) ToRuntime() (*NewAdminKubeconfigRuntime, error) {
 	clientConfig, err := o.RESTClientGetter.ToRESTConfig()
 	if err != nil {
 		return nil, err
@@ -107,7 +108,7 @@ func (o *NewAdminKubeConfigOptions) ToRuntime() (*RefreshCABundleRuntime, error)
 		return nil, err
 	}
 
-	ret := &RefreshCABundleRuntime{
+	ret := &NewAdminKubeconfigRuntime{
 		KubeClient: kubeClient,
 		Host:       clientConfig.Host,
 		IOStreams:  o.IOStreams,
@@ -116,14 +117,14 @@ func (o *NewAdminKubeConfigOptions) ToRuntime() (*RefreshCABundleRuntime, error)
 	return ret, nil
 }
 
-type RefreshCABundleRuntime struct {
+type NewAdminKubeconfigRuntime struct {
 	KubeClient kubernetes.Interface
 	Host       string
 
 	genericclioptions.IOStreams
 }
 
-func (r *RefreshCABundleRuntime) Run(ctx context.Context) error {
+func (r *NewAdminKubeconfigRuntime) Run(ctx context.Context) error {
 	systemMasterClientCert, signerCertBytes, err := createNewAdminClientCert()
 	if err != nil {
 		return fmt.Errorf("unable to create new client certificate: %w", err)
@@ -149,6 +150,8 @@ func (r *RefreshCABundleRuntime) Run(ctx context.Context) error {
 	} else if err != nil {
 		return fmt.Errorf("unable to read configmap %w", err)
 	}
+
+	// this ensures that we honor both old and new trust.  Revocation of existing trust would be a separate step and/or command.
 	caBundle, err := combineCABundles(existingConfigMap.Data["ca-bundle.crt"], string(signerCertBytes))
 	if err != nil {
 		return fmt.Errorf("unable to combine CA bundles %w", err)
@@ -230,11 +233,13 @@ func createNewAdminClientCert() (*crypto.TLSCertificateConfig, []byte, error) {
 func combineCABundles(startingCABundle, additionalCABundle string) ([]byte, error) {
 	certificates := []*x509.Certificate{}
 
-	startingCerts, err := cert.ParseCertsPEM([]byte(startingCABundle))
-	if err != nil {
-		return nil, fmt.Errorf("starting CA bundle is malformed: %w", err)
+	if len(startingCABundle) > 0 {
+		startingCerts, err := cert.ParseCertsPEM([]byte(startingCABundle))
+		if err != nil {
+			return nil, fmt.Errorf("starting CA bundle is malformed: %w", err)
+		}
+		certificates = append(certificates, startingCerts...)
 	}
-	certificates = append(certificates, startingCerts...)
 
 	additionalCerts, err := cert.ParseCertsPEM([]byte(additionalCABundle))
 	if err != nil {
