@@ -144,8 +144,10 @@ func (r *PerNodePodRuntime) Run(ctx context.Context, prePodHookFn PrePodHookFunc
 }
 
 func (r *PerNodePodRuntime) RestartNode(ctx context.Context, createPodFn CreatePodFunc, namespaceName string, node *corev1.Node) error {
+	node.Kind = "Node"
+	node.APIVersion = "v1"
 	if r.DryRun {
-		fmt.Fprintf(r.Out, "node/%v kubelet restarted\n", node.Name)
+		r.Printer.PrintObj(node, r.Out)
 		return nil
 	}
 
@@ -180,22 +182,22 @@ func (r *PerNodePodRuntime) RestartNode(ctx context.Context, createPodFn CreateP
 
 	switch {
 	case finalPodState.Status.Phase == corev1.PodSucceeded:
-		fmt.Fprintf(r.Out, "node/%v kubelet restarted\n", node.Name)
+		r.Printer.PrintObj(node, r.Out)
 		_ = r.KubeClient.CoreV1().Pods(namespaceName).Delete(timeLimitedCtx, createdPod.Name, metav1.DeleteOptions{})
 
 	case finalPodState.Status.Phase == corev1.PodFailed:
 		terminationInfo := finalPodState.Status.ContainerStatuses[0].LastTerminationState.Terminated
 		if terminationInfo == nil {
-			retErr := fmt.Errorf("node/%v kubelet restart failed --namespace=%v pod/%v, state unknown", node.Name, namespaceName, createdPod.Name)
+			retErr := fmt.Errorf("node/%v failed --namespace=%v pod/%v, state unknown", node.Name, namespaceName, createdPod.Name)
 			fmt.Fprintln(r.ErrOut, retErr.Error())
 			return retErr
 
 		}
-		retErr := fmt.Errorf("node/%v kubelet restart failed --namespace=%v pod/%v, exitCode=%v, finalLog=%v", node.Name, namespaceName, createdPod.Name, terminationInfo.ExitCode, terminationInfo.Message)
+		retErr := fmt.Errorf("node/%v failed --namespace=%v pod/%v, exitCode=%v, finalLog=%v", node.Name, namespaceName, createdPod.Name, terminationInfo.ExitCode, terminationInfo.Message)
 		fmt.Fprintln(r.ErrOut, retErr.Error())
-		return fmt.Errorf("node/%v kubelet restart failed, exitCode=%v", node.Name, terminationInfo.ExitCode)
+		return fmt.Errorf("node/%v failed, exitCode=%v", node.Name, terminationInfo.ExitCode)
 	default:
-		retErr := fmt.Errorf("node/%v kubelet restart hit unknown state, --namespace=%v pod/%v", node.Name, namespaceName, createdPod.Name)
+		retErr := fmt.Errorf("node/%v hit unknown state, --namespace=%v pod/%v", node.Name, namespaceName, createdPod.Name)
 		fmt.Fprintln(r.ErrOut, retErr.Error())
 		return retErr
 	}
