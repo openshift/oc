@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -33,8 +34,9 @@ type RemoveOldTrustRuntime struct {
 	ResourceFinder genericclioptions.ResourceFinder
 	KubeClient     kubernetes.Interface
 
-	dryRun        bool
-	createdBefore time.Time
+	dryRun         bool
+	createdBefore  time.Time
+	excludeBundles map[string]sets.Set[string]
 
 	Printer printers.ResourcePrinter
 
@@ -76,6 +78,10 @@ func (r *RemoveOldTrustRuntime) purgeTrustFromResourceInfo(info *resource.Info, 
 func (r *RemoveOldTrustRuntime) purgeTrustFromConfigMap(cm *corev1.ConfigMap) error {
 	var err error
 	var finalObj *corev1.ConfigMap
+
+	if excludedConfigMaps := r.excludeBundles[cm.Namespace]; excludedConfigMaps.Has(cm.Name) {
+		return nil
+	}
 
 	for retriesLeft := 2; retriesLeft > 0; retriesLeft -= 1 {
 		if cm.Labels[certrotation.ManagedCertificateTypeLabelName] != "ca-bundle" {
