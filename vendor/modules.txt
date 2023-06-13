@@ -49,6 +49,9 @@ github.com/Microsoft/hcsshim/osversion
 # github.com/RangelReale/osincli v0.0.0-20160924135400-fababb0555f2
 ## explicit
 github.com/RangelReale/osincli
+# github.com/alessio/shellescape v1.4.1
+## explicit; go 1.14
+github.com/alessio/shellescape
 # github.com/alexbrainman/sspi v0.0.0-20210105120005-909beea2cc74
 ## explicit; go 1.13
 github.com/alexbrainman/sspi
