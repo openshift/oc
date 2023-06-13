@@ -2,9 +2,12 @@ package trustpurge
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
@@ -28,7 +31,8 @@ type RemoveOldTrustOptions struct {
 	PrintFlags           *genericclioptions.PrintFlags
 	ResourceBuilderFlags *genericclioptions.ResourceBuilderFlags
 
-	CreatedBefore string
+	CreatedBefore  string
+	ExcludeBundles []string
 
 	// TODO push this into genericclioptions
 	DryRun bool
@@ -81,12 +85,25 @@ func (o *RemoveOldTrustOptions) AddFlags(cmd *cobra.Command) {
 
 	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Set to true to use server-side dry run.")
 	cmd.Flags().StringVar(&o.CreatedBefore, "created-before", o.CreatedBefore, "Only remove CA certificates that were created before this date.  Format: 2023-06-05T14:44:06Z")
+	cmd.Flags().StringSliceVar(&o.ExcludeBundles, "exclude-bundles", o.ExcludeBundles, "CA bundles to exclude from trust pruning. Can be specified multiple times. Format: namespace/name")
 }
 
 func (o *RemoveOldTrustOptions) ToRuntime(args []string) (*RemoveOldTrustRuntime, error) {
 	printer, err := o.PrintFlags.ToPrinter()
 	if err != nil {
 		return nil, err
+	}
+
+	exclude := map[string]sets.Set[string]{}
+	for _, b := range o.ExcludeBundles {
+		excludedPair := strings.Split(b, "/")
+		if len(excludedPair) != 2 {
+			return nil, fmt.Errorf("wrong format of excluded bundle: %q. Expected format of 'namespace/name'", b)
+		}
+		if exclude[excludedPair[0]] == nil {
+			exclude[excludedPair[0]] = sets.New[string]()
+		}
+		exclude[excludedPair[0]].Insert(excludedPair[1])
 	}
 
 	builder := o.ResourceBuilderFlags.ToBuilder(o.RESTClientGetter, args)
@@ -103,7 +120,8 @@ func (o *RemoveOldTrustOptions) ToRuntime(args []string) (*RemoveOldTrustRuntime
 		ResourceFinder: builder,
 		KubeClient:     kubeClient,
 
-		dryRun: o.DryRun,
+		dryRun:         o.DryRun,
+		excludeBundles: exclude,
 
 		Printer:   printer,
 		IOStreams: o.IOStreams,

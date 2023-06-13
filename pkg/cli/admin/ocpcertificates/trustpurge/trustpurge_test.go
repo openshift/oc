@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes/fake"
@@ -47,6 +48,7 @@ func TestRemoveOldTrustRuntime_purgeTrustFromConfigMap(t *testing.T) {
 		name           string
 		inputCM        *corev1.ConfigMap
 		createdBefore  time.Time
+		excludeCMs     map[string]sets.Set[string]
 		expectedUpdate bool
 		expectedBundle string
 		injectErrors   []error
@@ -64,6 +66,11 @@ func TestRemoveOldTrustRuntime_purgeTrustFromConfigMap(t *testing.T) {
 			name:           "basic - remove the ca-bundle",
 			inputCM:        testCM(),
 			expectedUpdate: true,
+		},
+		{
+			name:       "basic - the ca-bundle is supposed to be excluded",
+			inputCM:    testCM(),
+			excludeCMs: map[string]sets.Set[string]{"test-namespace": sets.New("test-configmap")},
 		},
 		{
 			name:           "only the CA bundle gets updated",
@@ -124,11 +131,12 @@ func TestRemoveOldTrustRuntime_purgeTrustFromConfigMap(t *testing.T) {
 			}
 
 			r := &RemoveOldTrustRuntime{
-				KubeClient:    fakeClient,
-				dryRun:        false,
-				createdBefore: tt.createdBefore,
-				Printer:       printers.NewDiscardingPrinter(),
-				IOStreams:     genericclioptions.NewTestIOStreamsDiscard(),
+				KubeClient:     fakeClient,
+				dryRun:         false,
+				createdBefore:  tt.createdBefore,
+				excludeBundles: tt.excludeCMs,
+				Printer:        printers.NewDiscardingPrinter(),
+				IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
 			}
 			if err := r.purgeTrustFromConfigMap(tt.inputCM.DeepCopy()); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveOldTrustRuntime.purgeTrustFromConfigMap() error = %v, wantErr %v", err, tt.wantErr)
