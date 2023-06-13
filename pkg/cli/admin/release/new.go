@@ -96,7 +96,7 @@ func NewRelease(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 			registry.example.com.
 		`),
 		Example: templates.Examples(`
-			# Create a release from the latest origin images and push to a DockerHub repo
+			# Create a release from the latest origin images and push to a DockerHub repository
 			oc adm release new --from-image-stream=4.11 -n origin --to-image docker.io/mycompany/myrepo:latest
 
 			# Create a new release with updated metadata from a previous release

@@ -27,7 +27,7 @@ var (
 	`)
 
 	internalMigrateICSPExample = templates.Examples(`
-	# update the imagecontentsourcepolicy.yaml to new imagedigestmirrorset file under directory mydir
+	# Update the imagecontentsourcepolicy.yaml file to a new imagedigestmirrorset file under the mydir directory
 	oc adm migrate icsp imagecontentsourcepolicy.yaml --dest-dir mydir
 `)
 )
@@ -43,7 +43,7 @@ func NewCmdMigrateICSP(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 	o := NewMigrateICSPOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "icsp",
-		Short:   "Update imagecontentsourcepolicy file(s) to imagedigestmirrorset file(s).",
+		Short:   "Update imagecontentsourcepolicy file(s) to imagedigestmirrorset file(s)",
 		Long:    internalMigrateICSPLong,
 		Example: internalMigrateICSPExample,
 		Run: func(cmd *cobra.Command, args []string) {

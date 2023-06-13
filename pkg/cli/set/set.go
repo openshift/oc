@@ -86,10 +86,10 @@ var (
 Update existing container image(s) of resources.`)
 
 	setImageExample = ktemplates.Examples(`
-	  # Set a deployment configs's nginx container image to 'nginx:1.9.1', and its busybox container image to 'busybox'.
+	  # Set a deployment config's nginx container image to 'nginx:1.9.1', and its busybox container image to 'busybox'.
 	  oc set image dc/nginx busybox=busybox nginx=nginx:1.9.1
 
-	  # Set a deployment configs's app container image to the image referenced by the imagestream tag 'openshift/ruby:2.3'.
+	  # Set a deployment config's app container image to the image referenced by the imagestream tag 'openshift/ruby:2.3'.
 	  oc set image dc/myapp app=openshift/ruby:2.3 --source=imagestreamtag
 
 	  # Update all deployments' and rc's nginx container's image to 'nginx:1.9.1'
@@ -98,7 +98,7 @@ Update existing container image(s) of resources.`)
 	  # Update image of all containers of daemonset abc to 'nginx:1.9.1'
 	  oc set image daemonset abc *=nginx:1.9.1
 
-	  # Print result (in yaml format) of updating nginx container image from local file, without hitting the server
+	  # Print result (in YAML format) of updating nginx container image from local file, without hitting the server
 	  oc set image -f path/to/file.yaml nginx=nginx:1.9.1 --local -o yaml`)
 )
 
