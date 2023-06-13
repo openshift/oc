@@ -112,6 +112,8 @@ func (o WaitForStableOptions) Run(ctx context.Context) error {
 	previouslyUnstableOperators := sets.NewString()
 	operatorInstabilityStartTime := map[string]time.Time{}
 	waitErr := wait.PollImmediateUntilWithContext(ctx, o.waitInterval, func(waitCtx context.Context) (bool, error) {
+		defer fmt.Fprintln(o.Out)
+
 		operators, err := o.configClient.ClusterOperators().List(waitCtx, metav1.ListOptions{})
 		if err != nil {
 			fmt.Fprintf(o.ErrOut, "failed to list clusteroperators: %v", err)
