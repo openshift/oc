@@ -124,7 +124,7 @@ func (r *PerNodePodRuntime) Run(ctx context.Context, prePodHookFn PrePodHookFunc
 					if !stillReady {
 						return
 					}
-					if restartErr := r.RestartNode(ctx, createPodFn, nsName, node); restartErr != nil {
+					if restartErr := r.HandleNode(ctx, createPodFn, nsName, node); restartErr != nil {
 						errCh <- restartErr
 					}
 				case <-ctx.Done():
@@ -143,7 +143,24 @@ func (r *PerNodePodRuntime) Run(ctx context.Context, prePodHookFn PrePodHookFunc
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *PerNodePodRuntime) RestartNode(ctx context.Context, createPodFn CreatePodFunc, namespaceName string, node *corev1.Node) error {
+func (r *PerNodePodRuntime) HandleNode(ctx context.Context, createPodFn CreatePodFunc, namespaceName string, node *corev1.Node) error {
+	notReadyMessage := ""
+	for _, condition := range node.Status.Conditions {
+		if condition.Type != corev1.NodeReady {
+			continue
+		}
+		if condition.Status == corev1.ConditionTrue {
+			break
+		}
+		notReadyMessage = fmt.Sprintf("%s since %v - %s: %s", condition.Status, condition.LastTransitionTime.Format(time.RFC3339), condition.Reason, condition.Message)
+		break
+	}
+	if len(notReadyMessage) > 0 {
+		retErr := fmt.Errorf("nodes/%v is not ready, %v", node.Name, notReadyMessage)
+		fmt.Fprintln(r.ErrOut, retErr.Error())
+		return retErr
+	}
+
 	node.Kind = "Node"
 	node.APIVersion = "v1"
 	if r.DryRun {
