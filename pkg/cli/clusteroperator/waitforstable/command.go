@@ -34,10 +34,16 @@ type WaitForStableOptions struct {
 }
 
 var (
-	waitForStableLong = templates.LongDesc(`TODO:`)
+	waitForStableLong = templates.LongDesc(`
+		Wait for all OCP v4 clusteroperators to report Available=true, Progressing=false, Degraded=false.
+	`)
 
 	waitForStableExample = templates.Examples(`
-		TODO: 
+		# Wait for all clusteroperators to become stable
+		oc adm clusteroperator wait-for-stable-cluster
+
+		# Consider operators to be stable if they report as such for 5 minutes straight
+		oc adm clusteroperator wait-for-stable-cluster --minimum-stable-period 5m
 	`)
 )
 
