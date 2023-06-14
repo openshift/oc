@@ -33,6 +33,7 @@ func NewCommandOCPCertificates(f kcmdutil.Factory, streams genericclioptions.IOS
 		certregen.NewCmdRegenerateTopLevel(f, streams),
 		certregen.NewCmdRegenerateLeaves(f, streams),
 		regeneratemco.NewCmdRegenerateTopLevel(f, streams),
+		regeneratemco.NewCmdUpdateUserData(f, streams),
 		monitorregeneration.NewCmdMonitorCertificates(f, streams),
 		trustpurge.NewCmdRemoveOldTrust(f, streams),
 	)

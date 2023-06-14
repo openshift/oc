@@ -2,18 +2,11 @@ package regeneratemco
 
 import (
 	"context"
-	"fmt"
-	"net/url"
 	"time"
 
-	configclient "github.com/openshift/client-go/config/clientset/versioned"
-	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/certrotation"
-	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
+
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -22,52 +15,57 @@ import (
 )
 
 const (
-	OneYear    = 365 * 24 * time.Hour
-	caExpiry   = 10 * OneYear
-	caRefresh  = 9 * OneYear
+	oneYear    = 365 * 24 * time.Hour
+	caExpiry   = 10 * oneYear
+	caRefresh  = 9 * oneYear
 	keyExpiry  = caExpiry
 	keyRefresh = caRefresh
 
 	mcoNamespace   = "openshift-machine-config-operator"
-	controllerName = "OcMachineConfigServerRotator"
+	mapiNamespace  = "openshift-machine-api"
+	controllerName = "OCMachineConfigServerRotator"
 	mcsName        = "machine-config-server"
 
 	// mcsTlsSecretName is created by the installer and is not owned by default
 	mcsTlsSecretName = mcsName + "-tls"
-	// signerName is the name injected into the certificate as the signer
-	signerName = "oc-for-machine-config-server"
-	// openshiftOrg is the openshift organizational unit
-	openshiftOrg = "openshift"
 
-	// legacyRootCANamespace is the namespace of the legacy root CA
-	legacyRootCANamespace = "kube-system"
-	// legacyRootCA is the name of the configmap holding the MCS CA created by openshift-install
-	legacyRootCA = "root-ca"
+	// newMCSCASecret is the location of the CA after rotation
+	newMCSCASecret = "machine-config-server-ca"
+	userDataKey    = "userData"
 
-	generatedAnnotationKey   = "openshift.io/generated-by"
-	generatedAnnotationValue = "oc"
+	// mcoManagedWorkerSecret is the unused, MCO-managed stub ignition for workers
+	mcoManagedWorkerSecret = "worker-user-data-managed"
+	// mcoManagedMasterSecret is the unused, MCO-managed stub ignition for masters
+	mcoManagedMasterSecret = "master-user-data-managed"
+	// mcsLabelSelector is used to select the MCS pods
+	mcsLabelSelector = "k8s-app=machine-config-server"
+
+	// ign* are for the user-data ignition fields
+	ignFieldIgnition = "ignition"
+	ignFieldSource   = "source"
 )
 
 var (
 	regenerateMCOLong = templates.LongDesc(`
 		Regenerate the Machine Config Operator certificates for an OCP v4 cluster.
-
-		More information about these certificates are in the product documentation;
-		visit [docs.openshift.com](https://docs.openshift.com)
-		and select the version of OpenShift you are using.
+		This is the certificate used to verify the MCS contents when a new nodes attempts to join the cluster.
 
 		Experimental: This command is under active development and may change without notice.
 	`)
 
 	regenerateMCOExample = templates.Examples(`
-		oc adm certificates regenerate-mco
+	    # Regenerate the MCO certs without modifying user-data secrets
+		oc adm certificates regenerate-machine-config-server-serving-cert --update-ignition=false
+
+		# Update the user-data secrets to use new MCS certs
+		oc adm certificates update-ignition-ca-bundle-for-machine-config-server
 	`)
 )
 
 type RegenerateMCOOptions struct {
 	RESTClientGetter genericclioptions.RESTClientGetter
 
-	mcoNamespace string
+	ModifyUserData bool
 
 	genericclioptions.IOStreams
 }
@@ -76,16 +74,17 @@ func NewCmdRegenerateTopLevel(restClientGetter genericclioptions.RESTClientGette
 	o := &RegenerateMCOOptions{
 		RESTClientGetter: restClientGetter,
 		IOStreams:        streams,
+		ModifyUserData:   true,
 	}
 
 	cmd := &cobra.Command{
-		Use:                   "regenerate-mco",
+		Use:                   "regenerate-machine-config-server-serving-cert",
 		DisableFlagsInUseLine: true,
 		Short:                 i18n.T("Regenerate the machine config operator certificates in an OpenShift cluster"),
 		Long:                  regenerateMCOLong,
 		Example:               regenerateMCOExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(run(o, args))
+			cmdutil.CheckErr(o.Run(context.WithValue(context.Background(), certrotation.RunOnceContextKey, true)))
 		},
 	}
 
@@ -94,92 +93,28 @@ func NewCmdRegenerateTopLevel(restClientGetter genericclioptions.RESTClientGette
 	return cmd
 }
 
-// AddFlags registers flags for a cli
-func (o *RegenerateMCOOptions) AddFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&o.mcoNamespace, "mco-namespace", mcoNamespace, "Operate instead on this namespace for the MCO (useful for testing)")
+func NewCmdUpdateUserData(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+	o := &RegenerateMCOOptions{
+		RESTClientGetter: restClientGetter,
+		IOStreams:        streams,
+		ModifyUserData:   true,
+	}
+
+	cmd := &cobra.Command{
+		Use:                   "update-ignition-ca-bundle-for-machine-config-server",
+		DisableFlagsInUseLine: true,
+		Short:                 i18n.T("Update user-data secrets in an OpenShift cluster to use updated MCO certfs"),
+		Long:                  regenerateMCOLong,
+		Example:               regenerateMCOExample,
+		Run: func(cmd *cobra.Command, args []string) {
+			cmdutil.CheckErr(o.RunUserDataUpdate(context.Background()))
+		},
+	}
+
+	return cmd
 }
 
-func run(o *RegenerateMCOOptions, args []string) error {
-	recorder := events.NewLoggingEventRecorder("oc")
-
-	clientConfig, err := o.RESTClientGetter.ToRESTConfig()
-	if err != nil {
-		return err
-	}
-	clientset, err := kubernetes.NewForConfig(clientConfig)
-	if err != nil {
-		return err
-	}
-
-	oconfig, err := configclient.NewForConfig(clientConfig)
-	if err != nil {
-		return err
-	}
-
-	host, err := oconfig.ConfigV1().Infrastructures().Get(context.TODO(), "cluster", metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("unable to get cluster infrastructure resource: %w", err)
-	}
-	if host.Status.APIServerInternalURL == "" {
-		return fmt.Errorf("no APIServerInternalURL")
-	}
-	apiserverIntURL, err := url.Parse(host.Status.APIServerInternalURL)
-	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", apiserverIntURL, err)
-	}
-
-	inf := informers.NewSharedInformerFactoryWithOptions(
-		clientset,
-		24*time.Hour,
-		informers.WithNamespace(o.mcoNamespace))
-
-	caName := mcsName + "-ca"
-	cont := certrotation.NewCertRotationController(
-		controllerName,
-		certrotation.RotatedSigningCASecret{
-			Namespace:     o.mcoNamespace,
-			Name:          caName,
-			Validity:      caExpiry,
-			Refresh:       caRefresh,
-			Informer:      inf.Core().V1().Secrets(),
-			Lister:        inf.Core().V1().Secrets().Lister(),
-			Client:        clientset.CoreV1(),
-			EventRecorder: recorder,
-		},
-		certrotation.CABundleConfigMap{
-			Namespace:     o.mcoNamespace,
-			Name:          caName,
-			Lister:        inf.Core().V1().ConfigMaps().Lister(),
-			Informer:      inf.Core().V1().ConfigMaps(),
-			Client:        clientset.CoreV1(),
-			EventRecorder: recorder,
-		},
-		certrotation.RotatedSelfSignedCertKeySecret{
-			Namespace: o.mcoNamespace,
-			Name:      mcsTlsSecretName,
-			Validity:  keyExpiry,
-			Refresh:   keyRefresh,
-			CertCreator: &certrotation.ServingRotation{
-				Hostnames: func() []string { return []string{apiserverIntURL.Hostname()} },
-			},
-			Lister:        inf.Core().V1().Secrets().Lister(),
-			Informer:      inf.Core().V1().Secrets(),
-			Client:        clientset.CoreV1(),
-			EventRecorder: recorder,
-		},
-		nil, // no operatorclient needed
-		recorder,
-	)
-
-	ch := make(chan struct{})
-	inf.Start(ch)
-	inf.WaitForCacheSync(ch)
-
-	ctx := context.WithValue(context.Background(), certrotation.RunOnceContextKey, true)
-	syncCtx := factory.NewSyncContext(mcsName, recorder)
-	if err := cont.Sync(ctx, syncCtx); err != nil {
-		return err
-	}
-
-	return nil
+// AddFlags registers flags for a cli
+func (o *RegenerateMCOOptions) AddFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(&o.ModifyUserData, "update-ignition", o.ModifyUserData, "If true, automatically update user-data secrets (ignition) in machine-api namespace. Not useful if node scaling not backed by MachineSet.")
 }
