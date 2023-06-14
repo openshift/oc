@@ -62,7 +62,7 @@ func (r *PerNodePodRuntime) Run(ctx context.Context, prePodHookFn PrePodHookFunc
 	case r.NumberOfNodesInParallel > 0:
 		numberOfNodesInParallel = r.NumberOfNodesInParallel
 	case r.PercentOfNodesInParallel > 0:
-		numberOfNodesInParallel = len(interestingNodes) * 100 / r.PercentOfNodesInParallel
+		numberOfNodesInParallel = len(interestingNodes) * r.PercentOfNodesInParallel / 100
 	}
 	if numberOfNodesInParallel < 1 {
 		numberOfNodesInParallel = 1
