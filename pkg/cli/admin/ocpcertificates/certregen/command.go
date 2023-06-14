@@ -15,7 +15,7 @@ import (
 
 var (
 	regenerateSignersLong = templates.LongDesc(`
-		Regenerate certificates provided by an OCP v4 cluster.
+		Regenerate root certificates provided by an OCP v4 cluster.
 		
 		This command does not wait for changes to be acknowledged by the cluster.
 		Some may take a very long time to roll out into a cluster, with different operators and operands involved for each.
@@ -29,6 +29,23 @@ var (
 
 		# Regenerate the signing certificate contained in a particular secret.
 		oc adm certificates regenerate-signers -n openshift-kube-apiserver-operator loadbalancer-serving-signer
+	`)
+
+	regenerateLeafLong = templates.LongDesc(`
+		Regenerate leaf certificates provided by an OCP v4 cluster.
+
+		This command does not wait for changes to be acknowledged by the cluster.
+		Some may take a very long time to roll out into a cluster, with different operators and operands involved for each.
+
+		Experimental: This command is under active development and may change without notice.
+	`)
+
+	regenerateLeafExample = templates.Examples(`
+		# Regenerate all known leaf certificates on the cluster.
+		oc adm certificates regenerate-leaf -A --all
+
+		# Regenerate a leaf certificate contained in a particular secret.
+		oc adm ocp-certificates regenerate-leaf -n openshift-config-managed kube-controller-manager-client-cert
 	`)
 )
 
@@ -93,8 +110,8 @@ func NewCmdRegenerateLeaves(restClientGetter genericclioptions.RESTClientGetter,
 		Use:                   "regenerate-leaf",
 		DisableFlagsInUseLine: true,
 		Short:                 i18n.T("Regenerate client and serving certificates of an OpenShift cluster"),
-		Long:                  regenerateSignersLong,
-		Example:               regenerateSignersExample,
+		Long:                  regenerateLeafLong,
+		Example:               regenerateLeafExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			r, err := o.ToRuntime(args)
 
