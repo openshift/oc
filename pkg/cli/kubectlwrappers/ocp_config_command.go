@@ -2,6 +2,7 @@ package kubectlwrappers
 
 import (
 	"github.com/openshift/oc/pkg/cli/config/adminkubeconfig"
+	"github.com/openshift/oc/pkg/cli/config/kubeletbootstrapkubeconfig"
 	"github.com/openshift/oc/pkg/cli/config/refreshcabundle"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
@@ -18,7 +19,8 @@ func NewCmdConfig(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 
 	configCommand := config.NewCmdConfig(pathOptions, streams)
 	configCommand.AddCommand(refreshcabundle.NewCmdConfigRefreshCABundle(f, pathOptions, streams))
-	configCommand.AddCommand(adminkubeconfig.NewCmdConfigRefreshCABundle(f, streams))
+	configCommand.AddCommand(adminkubeconfig.NewCmdNewAdminKubeconfigOptions(f, streams))
+	configCommand.AddCommand(kubeletbootstrapkubeconfig.NewCmdNewKubeletBootstrapKubeconfig(f, streams))
 
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(configCommand))
 }
