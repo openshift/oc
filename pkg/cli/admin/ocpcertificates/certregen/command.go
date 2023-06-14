@@ -142,7 +142,7 @@ func (o *RegenerateCertificatesOptions) ToRuntime(args []string) (*RegenerateCer
 	if err != nil {
 		return nil, err
 	}
-	builder := o.ResourceBuilderFlags.ToBuilder(o.RESTClientGetter, append([]string{"secrets"}, args...))
+	builder := o.ResourceBuilderFlags.ToBuilder(o.RESTClientGetter, args)
 	clientConfig, err := o.RESTClientGetter.ToRESTConfig()
 	if err != nil {
 		return nil, err
