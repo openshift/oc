@@ -1,12 +1,10 @@
 package trustpurge
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -31,18 +29,12 @@ import (
 )
 
 func TestRemoveOldTrustRuntime_purgeTrustFromConfigMap(t *testing.T) {
-	testBundle := bundleCerts(
+	testBundle := bundleCerts(t,
 		makeCert(t, "testsub", time.Now()),
 		makeCert(t, "testsub2", time.Now().Add(-10*time.Hour)),
 	)
 	testPruneTime := time.Now().Add(-5 * time.Minute)
-	prunedTestBundle, pruned, err := pruneCertBundle(testPruneTime, string(testBundle))
-	if err != nil {
-		t.Fatalf("failed to prepare pruned cert bundle for tests: %v", err)
-	}
-	if !pruned {
-		t.Fatalf("the test bundle should've gotten pruned")
-	}
+	prunedTestBundle := testPruneCertBundle(t, testPruneTime, testBundle)
 
 	tests := []struct {
 		name           string
@@ -55,32 +47,59 @@ func TestRemoveOldTrustRuntime_purgeTrustFromConfigMap(t *testing.T) {
 		wantErr        bool
 	}{
 		{
-			name:    "not a ca-bundle CM - no labels",
-			inputCM: withManagedCertTypeLabel(testCM(), "-"),
+			name:          "not a ca-bundle CM - no labels",
+			inputCM:       withManagedCertTypeLabel(testCM(t), "-"),
+			createdBefore: time.Now().Add(10 * time.Second),
 		},
 		{
-			name:    "not a ca-bundle CM - different cert type",
-			inputCM: withManagedCertTypeLabel(testCM(), "client-cert"),
+			name:          "not a ca-bundle CM - different cert type",
+			inputCM:       withManagedCertTypeLabel(testCM(t), "client-cert"),
+			createdBefore: time.Now().Add(10 * time.Second),
+		},
+		{
+			name:          "ca bundle already empty",
+			inputCM:       withAdditionalData(testCM(t), map[string]string{"ca-bundle.crt": ""}),
+			createdBefore: time.Now().Add(10 * time.Second),
+		},
+		{
+			name:          "ca bundle with unparsable data",
+			inputCM:       withAdditionalData(testCM(t), map[string]string{"ca-bundle.crt": "how did this get here"}),
+			createdBefore: time.Now().Add(10 * time.Second),
+			wantErr:       true,
 		},
 		{
 			name:           "basic - remove the ca-bundle",
-			inputCM:        testCM(),
+			inputCM:        testCM(t),
 			expectedUpdate: true,
+			createdBefore:  time.Now().Add(10 * time.Second),
 		},
 		{
-			name:       "basic - the ca-bundle is supposed to be excluded",
-			inputCM:    testCM(),
-			excludeCMs: map[string]sets.Set[string]{"test-namespace": sets.New("test-configmap")},
+			name:          "basic - the ca-bundle is supposed to be excluded",
+			inputCM:       testCM(t),
+			excludeCMs:    map[string]sets.Set[string]{"test-namespace": sets.New("test-configmap")},
+			createdBefore: time.Now().Add(10 * time.Second),
 		},
 		{
 			name:           "only the CA bundle gets updated",
-			inputCM:        withAdditionalData(testCM(), map[string]string{"key of fun": "funny value"}),
+			inputCM:        withAdditionalData(testCM(t), map[string]string{"key of fun": "funny value"}),
+			createdBefore:  time.Now().Add(10 * time.Second),
 			expectedUpdate: true,
 		},
 		{
+			name: "created before - all certs remain",
+			inputCM: withAdditionalData(testCM(t), map[string]string{
+				"ca-bundle.crt": string(bundleCerts(t,
+					makeCert(t, "testsub", time.Now()),
+					makeCert(t, "testsub2", time.Now().Add(5*time.Second)),
+					makeCert(t, "testsub3", time.Now().Add(-5*time.Hour)),
+				)),
+			}),
+			createdBefore: time.Now().Add(-6 * time.Hour),
+		},
+		{
 			name: "created before - all certs get pruned",
-			inputCM: withAdditionalData(testCM(), map[string]string{
-				"ca-bundle.crt": string(bundleCerts(
+			inputCM: withAdditionalData(testCM(t), map[string]string{
+				"ca-bundle.crt": string(bundleCerts(t,
 					makeCert(t, "testsub", time.Now()),
 				)),
 			}),
@@ -90,23 +109,25 @@ func TestRemoveOldTrustRuntime_purgeTrustFromConfigMap(t *testing.T) {
 		{
 			name: "created before - some certs remain after the pruning",
 			inputCM: withAdditionalData(
-				testCM(), map[string]string{
+				testCM(t), map[string]string{
 					"ca-bundle.crt": string(testBundle),
 				},
 			),
 			createdBefore:  testPruneTime,
-			expectedBundle: prunedTestBundle,
+			expectedBundle: string(prunedTestBundle),
 			expectedUpdate: true,
 		},
 		{
 			name:           "first update fails on conflict",
-			inputCM:        testCM(),
+			inputCM:        testCM(t),
+			createdBefore:  time.Now().Add(10 * time.Second),
 			expectedUpdate: true,
 			injectErrors:   []error{apierrors.NewConflict(schema.GroupResource{}, "test-configmap", fmt.Errorf("oh no, a conflict"))},
 		},
 		{
 			name:           "all updates fail on conflict",
-			inputCM:        testCM(),
+			inputCM:        testCM(t),
+			createdBefore:  time.Now().Add(10 * time.Second),
 			expectedUpdate: true,
 			injectErrors: []error{
 				apierrors.NewConflict(schema.GroupResource{}, "test-configmap", fmt.Errorf("oh no, a conflict")),
@@ -162,95 +183,72 @@ func Test_pruneCertBundle(t *testing.T) {
 	tests := []struct {
 		name          string
 		createdBefore time.Time
-		bundlePEM     []byte
+		bundlePEM     []*x509.Certificate
 		expectCNs     []string
 		expectPruned  bool
-		wantErr       bool
 	}{
-		{
-			name:          "bogus in the cert bundle",
-			createdBefore: time.Now().Add(-5 * time.Second),
-			bundlePEM: bundleCerts(
-				[]byte("how did this get here"),
-			),
-			expectPruned: false,
-			wantErr:      true,
-		},
 		{
 			name:          "single cert, don't remove",
 			createdBefore: time.Now().Add(-5 * time.Minute),
-			bundlePEM: bundleCerts(
+			bundlePEM: []*x509.Certificate{
 				makeCert(t, "test1", time.Now()),
-			),
+			},
 			expectCNs:    []string{"test1"},
 			expectPruned: false,
-			wantErr:      false,
 		},
 		{
 			name:          "single cert, remove it",
 			createdBefore: time.Now().Add(5 * time.Minute),
-			bundlePEM: bundleCerts(
+			bundlePEM: []*x509.Certificate{
 				makeCert(t, "test1", time.Now()),
-			),
+			},
 			expectPruned: true,
-			wantErr:      false,
 		},
 		{
 			name:          "mutliple certs, all good",
 			createdBefore: time.Now().Add(-5 * time.Minute),
-			bundlePEM: bundleCerts(
+			bundlePEM: []*x509.Certificate{
 				makeCert(t, "test1", time.Now()),
 				makeCert(t, "test2", time.Now().Add(5*time.Hour)),
 				makeCert(t, "test3", time.Now().Add(-5*time.Second)),
 				makeCert(t, "test4", time.Now().Add(852*time.Hour*24)),
-			),
+			},
 			expectCNs:    []string{"test1", "test2", "test3", "test4"},
 			expectPruned: false,
-			wantErr:      false,
 		},
 		{
 			name:          "mutliple certs, prune some",
 			createdBefore: time.Now().Add(-5 * time.Minute),
-			bundlePEM: bundleCerts(
+			bundlePEM: []*x509.Certificate{
 				makeCert(t, "test1", time.Now()),
 				makeCert(t, "test2", time.Now().Add(-7*time.Minute)),
 				makeCert(t, "test3", time.Now().Add(-5*time.Second)),
 				makeCert(t, "test4", time.Now().Add(-4*time.Hour)),
-			),
+			},
 			expectCNs:    []string{"test1", "test3"},
 			expectPruned: true,
-			wantErr:      false,
 		},
 		{
 			name:          "mutliple certs, prune all",
 			createdBefore: time.Now().Add(10 * time.Minute),
-			bundlePEM: bundleCerts(
+			bundlePEM: []*x509.Certificate{
 				makeCert(t, "test1", time.Now()),
 				makeCert(t, "test2", time.Now().Add(-7*time.Minute)),
 				makeCert(t, "test3", time.Now().Add(-5*time.Second)),
 				makeCert(t, "test4", time.Now().Add(-4*time.Hour)),
-			),
+			},
 			expectPruned: true,
-			wantErr:      false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, gotPruned, err := pruneCertBundle(tt.createdBefore, string(tt.bundlePEM))
-			if (err != nil) != tt.wantErr {
-				t.Errorf("pruneCertBundle() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got, gotPruned := pruneCertBundle(tt.createdBefore, tt.bundlePEM)
 
 			var gotSubjects []string
 			if len(got) > 0 {
-				gotCerts, err := certutil.ParseCertsPEM([]byte(got))
-				if err != nil {
-					t.Fatalf("failed to parse returned PEM bundle: %v", err)
-				}
 
-				for _, c := range gotCerts {
+				for _, c := range got {
 					gotSubjects = append(gotSubjects, c.Subject.CommonName)
 				}
 			}
@@ -265,7 +263,7 @@ func Test_pruneCertBundle(t *testing.T) {
 	}
 }
 
-func makeCert(t *testing.T, cn string, issuedOn time.Time) []byte {
+func makeCert(t *testing.T, cn string, issuedOn time.Time) *x509.Certificate {
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
 		t.Fatalf("failed to generate key: %v", err)
@@ -288,24 +286,24 @@ func makeCert(t *testing.T, cn string, issuedOn time.Time) []byte {
 		t.Fatalf("failed to create a certificate: %v", err)
 	}
 
-	certBytes := bytes.NewBuffer([]byte{})
-	if err := pem.Encode(certBytes, &pem.Block{Type: "CERTIFICATE", Bytes: certDERBytes}); err != nil {
-		t.Fatalf("failed to PEM-encode certificate: %v", err)
+	cert, err := x509.ParseCertificate(certDERBytes)
+	if err != nil {
+		t.Fatalf("failed to parse the freshly created certificate: %v", err)
 	}
 
-	return certBytes.Bytes()
+	return cert
 }
 
-func bundleCerts(certs ...[]byte) []byte {
+func bundleCerts(t *testing.T, certs ...*x509.Certificate) []byte {
 	var finalBundle []byte
-	for _, c := range certs {
-		finalBundle = append(finalBundle, c...)
-		finalBundle = append(finalBundle, '\n')
+	finalBundle, err := certutil.EncodeCertificates(certs...)
+	if err != nil {
+		t.Fatalf("failed to encode certs: %v", err)
 	}
 	return finalBundle
 }
 
-func testCM() *corev1.ConfigMap {
+func testCM(t *testing.T) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -319,7 +317,8 @@ func testCM() *corev1.ConfigMap {
 			},
 		},
 		Data: map[string]string{
-			"ca-bundle.crt": "A bundled CA chain would normally live here",
+			"ca-bundle.crt": string(bundleCerts(t,
+				makeCert(t, "testingCA", time.Now()))),
 		},
 	}
 
@@ -367,4 +366,23 @@ func testActions(t *testing.T, expectedCM *corev1.ConfigMap, clientActions []cli
 		t.Logf("actual %v", actualCM)
 		t.Fatalf("unexpected diff: %v", diff.ObjectDiff(expectedCM, actualCM))
 	}
+}
+
+func testPruneCertBundle(t *testing.T, pruneBefore time.Time, bundlePEM []byte) []byte {
+	certs, err := certutil.ParseCertsPEM(bundlePEM)
+	if err != nil {
+		t.Fatalf("failed to parse bundle: %v", err)
+	}
+
+	prunedCerts, pruned := pruneCertBundle(pruneBefore, certs)
+	if !pruned {
+		t.Fatalf("expected pruning to occur")
+	}
+
+	newBundlePEM, err := certutil.EncodeCertificates(prunedCerts...)
+	if err != nil {
+		t.Fatalf("failed to encode pruned certs: %v", err)
+	}
+
+	return newBundlePEM
 }
