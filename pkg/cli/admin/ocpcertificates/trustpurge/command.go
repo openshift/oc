@@ -18,11 +18,24 @@ import (
 
 var (
 	removeOldTrustLong = templates.LongDesc(`
-		TODO:
+		Prune CA certificate bundles supplied by the platform and stored in ConfigMaps
+		throughout the cluster.
+
+		This command does not wait for changes to be acknowledged by the cluster.
+		Some may take a very long time to roll out into a cluster, with different operators and operands involved for each.
+
+		Experimental: This command is under active development and may change without notice.
 	`)
 
 	removeOldTrustExample = templates.Examples(`
-		TODO:
+		# Remove all known trust bundles in the cluster
+		oc adm certificates remove-old-trust -A --all
+
+		# Remove a trust bundled contained in a particular config map
+		oc adm certificates remove-old-trust -n openshift-config-managed kube-apiserver-aggregator-client-ca
+
+		#  Remove only CA certificates created before a certain date from all trust bundles
+		oc amd certificates remove-old-trust --created-before 2023-06-05T14:44:06Z
 	`)
 )
 
