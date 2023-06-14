@@ -3,7 +3,10 @@ package waitforstable
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/spf13/cobra"
 
@@ -80,6 +83,9 @@ func (o *WaitForStableOptions) Complete() error {
 	if o.Timeout <= o.MinimumStablePeriod {
 		return fmt.Errorf("--timeout must be greater than the --minimum-stable-period")
 	}
+	if o.waitInterval > o.MinimumStablePeriod {
+		o.waitInterval = o.MinimumStablePeriod + 1*time.Second
+	}
 
 	clientConfig, err := o.RESTClientGetter.ToRESTConfig()
 	if err != nil {
@@ -96,53 +102,88 @@ func (o *WaitForStableOptions) Complete() error {
 }
 
 func (o WaitForStableOptions) Run(ctx context.Context) error {
-
 	if o.Timeout > 0 {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, o.Timeout)
 		defer cancel()
 	}
 
-	var stableFor time.Duration
-	waitErr := wait.PollImmediateUntilWithContext(ctx, o.waitInterval, func(waitCtx context.Context) (done bool, err error) {
-		defer func() {
-			if !done {
-				stableFor = 0
-			}
-			if stableFor < o.MinimumStablePeriod {
-				done = false
-			}
-		}()
-		stableFor += o.waitInterval
+	var stabilityStarted *time.Time
+	previouslyUnstableOperators := sets.NewString()
+	operatorInstabilityStartTime := map[string]time.Time{}
+	waitErr := wait.PollImmediateUntilWithContext(ctx, o.waitInterval, func(waitCtx context.Context) (bool, error) {
+		defer fmt.Fprintln(o.Out)
 
 		operators, err := o.configClient.ClusterOperators().List(waitCtx, metav1.ListOptions{})
 		if err != nil {
 			fmt.Fprintf(o.ErrOut, "failed to list clusteroperators: %v", err)
+			stabilityStarted = nil
+			return false, nil
+		}
+		now := time.Now()
+
+		newUnstableOperators := sets.NewString()
+		for _, operator := range operators.Items {
+			if unstableReason := unstableOperatorReason(&operator); len(unstableReason) > 0 {
+				newUnstableOperators.Insert(operator.Name)
+				if _, ok := operatorInstabilityStartTime[operator.Name]; !ok {
+					operatorInstabilityStartTime[operator.Name] = now
+				}
+				switch {
+				case previouslyUnstableOperators.Has(operator.Name):
+					fmt.Fprintf(o.Out, "clusteroperators/%v is still %v after %v\n", operator.Name, unstableReason, now.Sub(operatorInstabilityStartTime[operator.Name]))
+				case len(previouslyUnstableOperators) == 0:
+					fmt.Fprintf(o.Out, "clusteroperators/%v is %v at %v\n", operator.Name, unstableReason, now.Format(time.RFC3339))
+				default:
+					fmt.Fprintf(o.Out, "clusteroperators/%v became %v at %v\n", operator.Name, unstableReason, now.Format(time.RFC3339))
+				}
+			} else {
+				if previouslyUnstableOperators.Has(operator.Name) {
+					fmt.Fprintf(o.Out, "clusteroperators/%v stabilized at %v after %v\n", operator.Name, now.Format(time.RFC3339), now.Sub(operatorInstabilityStartTime[operator.Name]))
+				}
+				delete(operatorInstabilityStartTime, operator.Name)
+			}
+		}
+		previouslyUnstableOperators = newUnstableOperators
+
+		if len(newUnstableOperators) > 0 {
+			stabilityStarted = nil
 			return false, nil
 		}
 
-		for _, operator := range operators.Items {
-			if unstableReason := unstableOperatorReason(&operator); len(unstableReason) > 0 {
-				fmt.Fprintf(o.Out, "operator %q is not yet stable: %v\n", operator.Name, unstableReason)
-				return false, nil
-			}
+		if stabilityStarted == nil {
+			stabilityStarted = &now
+			fmt.Fprintf(o.Out, "All clusteroperators became stable at %v\n", stabilityStarted.Format(time.RFC3339))
+		} else {
+			fmt.Fprintf(o.Out, "All clusteroperators are still stable after %v\n", now.Sub(*stabilityStarted))
 		}
 
-		return true, nil
-	})
+		timeStable := now.Sub(*stabilityStarted)
+		if timeStable > o.MinimumStablePeriod {
+			return true, nil
+		}
 
-	return waitErr
+		return false, nil
+	})
+	if waitErr != nil {
+		return waitErr
+	}
+
+	fmt.Fprintf(o.Out, "All clusteroperators are stable\n")
+	return nil
 }
 
 func unstableOperatorReason(operator *configv1.ClusterOperator) string {
+	notableConditions := []string{}
 	if !v1helpers.IsStatusConditionTrue(operator.Status.Conditions, configv1.OperatorAvailable) {
-		return "available != true"
+		notableConditions = append(notableConditions, "unavailable")
 	}
 	if !v1helpers.IsStatusConditionFalse(operator.Status.Conditions, configv1.OperatorProgressing) {
-		return "progressing != false"
+		notableConditions = append(notableConditions, "progressing")
 	}
 	if !v1helpers.IsStatusConditionFalse(operator.Status.Conditions, configv1.OperatorDegraded) {
-		return "degraded != false"
+		notableConditions = append(notableConditions, "degraded")
 	}
-	return ""
+
+	return strings.Join(notableConditions, " and ")
 }
