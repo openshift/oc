@@ -34,10 +34,16 @@ type WaitForStableOptions struct {
 }
 
 var (
-	waitForStableLong = templates.LongDesc(`TODO:`)
+	waitForStableLong = templates.LongDesc(`
+		Wait for all OCP v4 clusteroperators to report Available=true, Progressing=false, Degraded=false.
+	`)
 
 	waitForStableExample = templates.Examples(`
-		TODO: 
+		# Wait for all clusteroperators to become stable
+		oc adm clusteroperator wait-for-stable-cluster
+
+		# Consider operators to be stable if they report as such for 5 minutes straight
+		oc adm clusteroperator wait-for-stable-cluster --minimum-stable-period 5m
 	`)
 )
 
@@ -74,7 +80,7 @@ func NewCmdWaitForStableClusterOperators(restClientGetter genericclioptions.REST
 
 func (o *WaitForStableOptions) AddFlags(cmd *cobra.Command) error {
 	cmd.Flags().DurationVar(&o.Timeout, "timeout", o.Timeout, "duration before the command times out. Defaults to 1 hour.")
-	cmd.Flags().DurationVar(&o.MinimumStablePeriod, "minumum-stable-period", o.MinimumStablePeriod, "minimum duration to consider a cluster stable. Defaults to 5 minutes.")
+	cmd.Flags().DurationVar(&o.MinimumStablePeriod, "minimum-stable-period", o.MinimumStablePeriod, "minimum duration to consider a cluster stable. Defaults to 5 minutes.")
 
 	return nil
 }
