@@ -846,6 +846,9 @@ github.com/ulikunitz/xz/lzma
 # github.com/vbatts/tar-split v0.11.2
 ## explicit; go 1.15
 github.com/vbatts/tar-split/archive/tar
+# github.com/vincent-petithory/dataurl v1.0.0
+## explicit
+github.com/vincent-petithory/dataurl
 # github.com/xlab/treeprint v1.1.0
 ## explicit; go 1.13
 github.com/xlab/treeprint
