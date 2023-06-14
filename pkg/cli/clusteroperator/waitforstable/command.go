@@ -74,7 +74,7 @@ func NewCmdWaitForStableClusterOperators(restClientGetter genericclioptions.REST
 
 func (o *WaitForStableOptions) AddFlags(cmd *cobra.Command) error {
 	cmd.Flags().DurationVar(&o.Timeout, "timeout", o.Timeout, "duration before the command times out. Defaults to 1 hour.")
-	cmd.Flags().DurationVar(&o.MinimumStablePeriod, "minumum-stable-period", o.MinimumStablePeriod, "minimum duration to consider a cluster stable. Defaults to 5 minutes.")
+	cmd.Flags().DurationVar(&o.MinimumStablePeriod, "minimum-stable-period", o.MinimumStablePeriod, "minimum duration to consider a cluster stable. Defaults to 5 minutes.")
 
 	return nil
 }
