@@ -3,6 +3,8 @@ package admin
 import (
 	"fmt"
 
+	"github.com/openshift/oc/pkg/cli/admin/waitfornoderestart"
+
 	"github.com/openshift/oc/pkg/cli/admin/rebootmachineconfigpool"
 
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
@@ -78,6 +80,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 				restartkubelet.NewCmdRestartKubelet(f, streams),
 				copytonode.NewCmdCopyToNode(f, streams),
 				rebootmachineconfigpool.NewCmdRebootMachineConfigPool(f, streams),
+				waitfornoderestart.NewCmdWaitForNodeRestart(f, streams),
 			},
 		},
 		{
