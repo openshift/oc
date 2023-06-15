@@ -141,7 +141,7 @@ func (r *RebootMachineConfigPoolRuntime) rebootMachineConfigPool(ctx context.Con
 	if machineConfig.Labels == nil {
 		machineConfig.Labels = map[string]string{}
 	}
-	machineConfig.Name = fmt.Sprintf("95-certrotation-rebooter-%s", machineConfigPool.Name)
+	machineConfig.Name = fmt.Sprintf("95-oc-initiated-reboot-%s", machineConfigPool.Name)
 	for k, v := range machineConfigPool.Spec.MachineConfigSelector.MatchLabels {
 		machineConfig.Labels[k] = v
 	}
