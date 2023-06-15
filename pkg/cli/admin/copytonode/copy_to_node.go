@@ -13,7 +13,7 @@ import (
 
 	"github.com/alessio/shellescape"
 	"github.com/openshift/library-go/pkg/operator/resource/resourceread"
-	"github.com/openshift/oc/pkg/cli/clusteroperator/pernodepod"
+	"github.com/openshift/oc/pkg/cli/admin/pernodepod"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
