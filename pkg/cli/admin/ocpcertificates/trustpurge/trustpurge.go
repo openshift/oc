@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/openshift/library-go/pkg/operator/certrotation"
+	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/certregen"
 )
 
 var (
@@ -73,23 +74,29 @@ func (r *RemoveOldTrustRuntime) Run(ctx context.Context) error {
 		return fmt.Errorf("missing certificate validity borderline date")
 	}
 
-	secretList, err := r.KubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, metav1.ListOptions{LabelSelector: "auth.openshift.io/managed-certificate-type=target"})
+	secretList, err := r.KubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, s := range secretList.Items {
 		s := s
-		if issuer := s.Annotations[certrotation.CertificateIssuer]; len(issuer) > 0 {
-			if cert := s.Data[corev1.TLSCertKey]; len(cert) > 0 {
-				cachedS, err := newCachedSecretCert(s.Namespace, s.Name, s.Data[corev1.TLSCertKey])
-				if err != nil {
-					return err
-				}
-				if cachedS != nil {
-					r.cachedSecretCerts[issuer] = append(r.cachedSecretCerts[issuer], cachedS)
-				}
-			}
+		if isLeaf, err := certregen.IsLeafCertSecret(&s); err != nil {
+			return err
+		} else if !isLeaf {
+			continue
+		}
+		if cert := s.Data[corev1.TLSCertKey]; len(cert) == 0 {
+			continue
+		}
+
+		issuer := s.Annotations[certrotation.CertificateIssuer]
+		cachedS, err := newCachedSecretCert(s.Namespace, s.Name, s.Data[corev1.TLSCertKey])
+		if err != nil {
+			return err
+		}
+		if cachedS != nil {
+			r.cachedSecretCerts[issuer] = append(r.cachedSecretCerts[issuer], cachedS)
 		}
 	}
 
