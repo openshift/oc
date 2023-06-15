@@ -6,10 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"sort"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/blang/semver"
 	"github.com/spf13/cobra"
@@ -26,13 +23,7 @@ import (
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
-)
-
-const (
-	// clusterStatusFailing is set on the ClusterVersion status when a cluster
-	// cannot reach the desired state. It is considered more serious than Degraded
-	// and indicates the cluster is not healthy.
-	clusterStatusFailing = configv1.ClusterStatusConditionType("Failing")
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/status"
 )
 
 var upgradeExample = templates.Examples(`
@@ -58,12 +49,8 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 		Long: templates.LongDesc(`
 			Check on upgrade status or upgrade the cluster to a newer version
 
-			This command assists with cluster upgrades. If no arguments are passed
-			the command will retrieve the current version info and display whether an upgrade is
-			in progress or whether any errors might prevent an upgrade, as well as show the suggested
-			updates available to the cluster. Information about compatible updates is periodically
-			retrieved from the update server and cached on the cluster - these are updates that are
-			known to be supported as upgrades from the current version.
+			This command assists with cluster upgrades. If no options or arguments are passed
+			the default subcommand is 'status'.
 
 			Passing --to=VERSION or --to-image=IMAGE will upgrade the cluster to one of the available
 			updates or report an error if no such version exists. The cluster will then upgrade
@@ -111,6 +98,7 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
 	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows upgrade to a version when it is supported but not recommended for updates.")
 
+	cmd.AddCommand(status.New(f, streams))
 	cmd.AddCommand(channel.New(f, streams))
 
 	return cmd
@@ -131,10 +119,13 @@ type Options struct {
 	IncludeNotRecommended    bool
 	AllowNotRecommended      bool
 
+	cmd *cobra.Command
+
 	Client configv1client.Interface
 }
 
 func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
+	o.cmd = cmd
 	if o.Clear && (len(o.ToImage) > 0 || len(o.To) > 0 || o.ToLatestAvailable || o.ToMultiArch) {
 		return fmt.Errorf("--clear may not be specified with any other flags")
 	}
@@ -211,7 +202,6 @@ func (o *Options) Run() error {
 		} else {
 			fmt.Fprintf(o.Out, "Cancelled requested upgrade to %s\n", updateVersionString(*original))
 		}
-		return nil
 
 	case o.ToMultiArch:
 		if cv.Spec.DesiredUpdate != nil && cv.Spec.DesiredUpdate.Architecture == configv1.ClusterVersionArchitectureMulti {
@@ -231,7 +221,6 @@ func (o *Options) Run() error {
 			return err
 		}
 		fmt.Fprintln(o.Out, "Requested update to multi cluster architecture")
-		return nil
 
 	case o.ToLatestAvailable, len(o.To) > 0, len(o.ToImage) > 0:
 		var update *configv1.Update
@@ -271,7 +260,7 @@ func (o *Options) Run() error {
 		if update == nil {
 			// update was not recommended, so check for conditional, but not recommended, updates
 			for _, upgrade := range cv.Status.ConditionalUpdates {
-				if c := findCondition(upgrade.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
+				if c := status.FindCondition(upgrade.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
 					if match, err := targetMatch(&upgrade.Release, o.To, o.ToImage); match && err == nil {
 						if !o.AllowNotRecommended {
 							return fmt.Errorf("the update %s is not one of the recommended updates, but is available as a conditional update."+
@@ -305,7 +294,7 @@ func (o *Options) Run() error {
 				"You have used --allow-explicit-upgrade for the update to proceed anyway")
 		}
 
-		sortReleasesBySemanticVersions(possibleUpgradeTargets)
+		status.SortReleasesBySemanticVersions(possibleUpgradeTargets)
 
 		if o.ToLatestAvailable && len(possibleUpgradeTargets) > 0 {
 			update = &configv1.Update{
@@ -320,7 +309,7 @@ func (o *Options) Run() error {
 		}
 
 		if update == nil {
-			c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates)
+			c := status.FindClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates)
 
 			toImageOption := "--to-image"
 			if o.ToImage != "" {
@@ -374,102 +363,16 @@ func (o *Options) Run() error {
 		} else {
 			fmt.Fprintf(o.Out, "Requested update to release image %s\n", update.Image)
 		}
-
-		return nil
-
 	default:
-		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil {
-			if c.Status != configv1.ConditionFalse {
-				fmt.Fprintf(o.Out, "%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-			}
-		} else {
-			fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", clusterStatusFailing)
+		fmt.Fprintf(o.ErrOut, "Using '%s' to display cluster status is deprecated.  Use '%s status' instead.\n", o.cmd.CommandPath(), o.cmd.CommandPath())
+		statusOptions := &status.Options{
+			IOStreams:             o.IOStreams,
+			IncludeNotRecommended: o.IncludeNotRecommended,
 		}
-
-		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && len(c.Message) > 0 {
-			if c.Status == configv1.ConditionTrue {
-				fmt.Fprintf(o.Out, "info: An upgrade is in progress. %s\n", c.Message)
-			} else {
-				fmt.Fprintln(o.Out, c.Message)
-			}
-		} else {
-			fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", configv1.OperatorProgressing)
-		}
-		fmt.Fprintln(o.Out)
-
-		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
-			fmt.Fprintf(o.Out, "%s=%s\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-		}
-
-		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "ReleaseAccepted"); c != nil && c.Status != configv1.ConditionTrue {
-			fmt.Fprintf(o.Out, "ReleaseAccepted=%s\n\n  Reason: %s\n  Message: %s\n\n", c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-		}
-
-		if cv.Spec.Channel != "" {
-			if cv.Spec.Upstream == "" {
-				fmt.Fprint(o.Out, "Upstream is unset, so the cluster will use an appropriate default.\n")
-			} else {
-				fmt.Fprintf(o.Out, "Upstream: %s\n", cv.Spec.Upstream)
-			}
-			if len(cv.Status.Desired.Channels) > 0 {
-				fmt.Fprintf(o.Out, "Channel: %s (available channels: %s)\n", cv.Spec.Channel, strings.Join(cv.Status.Desired.Channels, ", "))
-			} else {
-				fmt.Fprintf(o.Out, "Channel: %s\n", cv.Spec.Channel)
-			}
-		}
-
-		if len(cv.Status.AvailableUpdates) > 0 {
-			fmt.Fprintf(o.Out, "\nRecommended updates:\n\n")
-			// set the minimal cell width to 14 to have a larger space between the columns for shorter versions
-			w := tabwriter.NewWriter(o.Out, 14, 2, 1, ' ', 0)
-			fmt.Fprintf(w, "  VERSION\tIMAGE\n")
-			// TODO: add metadata about version
-			sortReleasesBySemanticVersions(cv.Status.AvailableUpdates)
-			for _, update := range cv.Status.AvailableUpdates {
-				fmt.Fprintf(w, "  %s\t%s\n", update.Version, update.Image)
-			}
-			w.Flush()
-			if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
-				fmt.Fprintf(o.ErrOut, "warning: Cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-			}
-		} else {
-			if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
-				fmt.Fprintf(o.ErrOut, "warning: Cannot display available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-			} else {
-				fmt.Fprintf(o.Out, "No updates available. You may still upgrade to a specific release image with --to-image or wait for new updates to be available.\n")
-			}
-		}
-
-		if o.IncludeNotRecommended {
-			if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
-				sortConditionalUpdatesBySemanticVersions(cv.Status.ConditionalUpdates)
-				fmt.Fprintf(o.Out, "\nSupported but not recommended updates:\n")
-				for _, update := range cv.Status.ConditionalUpdates {
-					if c := findCondition(update.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
-						fmt.Fprintf(o.Out, "\n  Version: %s\n  Image: %s\n", update.Release.Version, update.Release.Image)
-						fmt.Fprintf(o.Out, "  Recommended: %s\n  Reason: %s\n  Message: %s\n", c.Status, c.Reason, strings.ReplaceAll(strings.TrimSpace(c.Message), "\n", "\n  "))
-					}
-				}
-			} else {
-				fmt.Fprintf(o.Out, "\nNo updates which are not recommended based on your cluster configuration are available.\n")
-			}
-		} else if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
-			fmt.Fprintf(o.Out, "\nAdditional updates which are not recommended based on your cluster configuration are available, to view those re-run the command with --include-not-recommended.\n")
-		}
-
-		// TODO: print previous versions
+		return statusOptions.Display(ctx, cv)
 	}
 
 	return nil
-}
-
-func containsNotRecommendedUpdate(updates []configv1.ConditionalUpdate) bool {
-	for _, update := range updates {
-		if c := findCondition(update.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
-			return true
-		}
-	}
-	return false
 }
 
 func errorList(errs []error) string {
@@ -513,12 +416,6 @@ func stringArrContains(arr []string, s string) bool {
 	return false
 }
 
-func writeTabSection(out io.Writer, fn func(w io.Writer)) {
-	w := tabwriter.NewWriter(out, 0, 4, 1, ' ', 0)
-	fn(w)
-	w.Flush()
-}
-
 func updateIsEquivalent(a configv1.Update, b configv1.Release) bool {
 	switch {
 	case len(a.Image) > 0 && len(b.Image) > 0:
@@ -530,74 +427,12 @@ func updateIsEquivalent(a configv1.Update, b configv1.Release) bool {
 	}
 }
 
-// sortReleasesBySemanticVersions sorts the input slice in decreasing order.
-func sortReleasesBySemanticVersions(versions []configv1.Release) {
-	sort.Slice(versions, func(i, j int) bool {
-		a, errA := semver.Parse(versions[i].Version)
-		b, errB := semver.Parse(versions[j].Version)
-		if errA == nil && errB != nil {
-			return true
-		}
-		if errB == nil && errA != nil {
-			return false
-		}
-		if errA != nil && errB != nil {
-			return versions[i].Version > versions[j].Version
-		}
-		return a.GT(b)
-	})
-}
-
-// sortConditionalUpdatesBySemanticVersions sorts the input slice in decreasing order.
-func sortConditionalUpdatesBySemanticVersions(updates []configv1.ConditionalUpdate) {
-	sort.Slice(updates, func(i, j int) bool {
-		a, errA := semver.Parse(updates[i].Release.Version)
-		b, errB := semver.Parse(updates[j].Release.Version)
-		if errA == nil && errB != nil {
-			return true
-		}
-		if errB == nil && errA != nil {
-			return false
-		}
-		if errA != nil && errB != nil {
-			return updates[i].Release.Version > updates[j].Release.Version
-		}
-		return a.GT(b)
-	})
-}
-
-func versionStrings(updates []configv1.Release) []string {
-	var arr []string
-	for _, update := range updates {
-		arr = append(arr, update.Version)
-	}
-	return arr
-}
-
-func findCondition(conditions []metav1.Condition, name string) *metav1.Condition {
-	for i := range conditions {
-		if conditions[i].Type == name {
-			return &conditions[i]
-		}
-	}
-	return nil
-}
-
-func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorStatusCondition, name configv1.ClusterStatusConditionType) *configv1.ClusterOperatorStatusCondition {
-	for i := range conditions {
-		if conditions[i].Type == name {
-			return &conditions[i]
-		}
-	}
-	return nil
-}
-
 func checkForUpgrade(cv *configv1.ClusterVersion) error {
 	results := []string{}
-	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "Invalid"); c != nil && c.Status == configv1.ConditionTrue {
+	if c := status.FindClusterOperatorStatusCondition(cv.Status.Conditions, "Invalid"); c != nil && c.Status == configv1.ConditionTrue {
 		results = append(results, fmt.Sprintf("the cluster version object is invalid, you must correct the invalid state first:\n\n  Reason: %s\n  Message: %s", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
-	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil && c.Status == configv1.ConditionTrue {
+	if c := status.FindClusterOperatorStatusCondition(cv.Status.Conditions, status.ClusterStatusFailing); c != nil && c.Status == configv1.ConditionTrue {
 		target := cv.Status.Desired.Version
 		if target == "" {
 			target = cv.Status.Desired.Image
@@ -607,7 +442,7 @@ func checkForUpgrade(cv *configv1.ClusterVersion) error {
 		}
 		results = append(results, fmt.Sprintf("the cluster is experiencing an error reconciling %q:\n\n  Reason: %s\n  Message: %s", target, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
-	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue {
+	if c := status.FindClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue {
 		results = append(results, fmt.Sprintf("the cluster is already upgrading:\n\n  Reason: %s\n  Message: %s", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
 

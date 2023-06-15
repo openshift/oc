@@ -2,34 +2,12 @@ package upgrade
 
 import (
 	"errors"
-	"math/rand"
 	"reflect"
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/status"
 )
-
-func TestSortReleasesBySemanticVersions(t *testing.T) {
-	expected := []configv1.Release{
-		{Version: "10.0.0"},
-		{Version: "2.0.10"},
-		{Version: "2.0.5"},
-		{Version: "2.0.1"},
-		{Version: "2.0.0"},
-		{Version: "not-sem-ver-2"},
-		{Version: "not-sem-ver-1"},
-	}
-
-	actual := make([]configv1.Release, len(expected))
-	for i, j := range rand.Perm(len(expected)) {
-		actual[i] = expected[j]
-	}
-
-	sortReleasesBySemanticVersions(actual)
-	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("%v != %v", actual, expected)
-	}
-}
 
 func TestCheckForUpgrade(t *testing.T) {
 	for _, testCase := range []struct {
@@ -58,7 +36,7 @@ func TestCheckForUpgrade(t *testing.T) {
 				Reason:  "RollingOut",
 				Message: "Updating to v2.",
 			}, {
-				Type:    clusterStatusFailing,
+				Type:    status.ClusterStatusFailing,
 				Status:  configv1.ConditionTrue,
 				Reason:  "BadStuff",
 				Message: "The widgets are slow.",
