@@ -137,7 +137,7 @@ func (o WaitForStableOptions) Run(ctx context.Context) error {
 				}
 				switch {
 				case previouslyUnstableOperators.Has(operator.Name):
-					fmt.Fprintf(o.Out, "clusteroperators/%v is still %v after %v\n", operator.Name, unstableReason, now.Sub(operatorInstabilityStartTime[operator.Name]))
+					fmt.Fprintf(o.Out, "clusteroperators/%v is still %v after %v\n", operator.Name, unstableReason, now.Sub(operatorInstabilityStartTime[operator.Name]).Round(time.Second))
 				case len(previouslyUnstableOperators) == 0:
 					fmt.Fprintf(o.Out, "clusteroperators/%v is %v at %v\n", operator.Name, unstableReason, now.Format(time.RFC3339))
 				default:
@@ -145,7 +145,7 @@ func (o WaitForStableOptions) Run(ctx context.Context) error {
 				}
 			} else {
 				if previouslyUnstableOperators.Has(operator.Name) {
-					fmt.Fprintf(o.Out, "clusteroperators/%v stabilized at %v after %v\n", operator.Name, now.Format(time.RFC3339), now.Sub(operatorInstabilityStartTime[operator.Name]))
+					fmt.Fprintf(o.Out, "clusteroperators/%v stabilized at %v after %v\n", operator.Name, now.Format(time.RFC3339), now.Sub(operatorInstabilityStartTime[operator.Name]).Round(time.Second))
 				}
 				delete(operatorInstabilityStartTime, operator.Name)
 			}
@@ -161,7 +161,7 @@ func (o WaitForStableOptions) Run(ctx context.Context) error {
 			stabilityStarted = &now
 			fmt.Fprintf(o.Out, "All clusteroperators became stable at %v\n", stabilityStarted.Format(time.RFC3339))
 		} else {
-			fmt.Fprintf(o.Out, "All clusteroperators are still stable after %v\n", now.Sub(*stabilityStarted))
+			fmt.Fprintf(o.Out, "All clusteroperators are still stable after %v\n", now.Sub(*stabilityStarted).Round(time.Second))
 		}
 
 		timeStable := now.Sub(*stabilityStarted)
