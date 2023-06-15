@@ -18,12 +18,17 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
+const (
+	MasterRebootingMachineConfigName = "95-oc-initiated-reboot-master"
+	WorkerRebootingMachineConfigName = "95-oc-initiated-reboot-worker"
+)
+
 var (
 	machineConfigPoolKind     = schema.GroupVersionKind{Group: "machineconfiguration.openshift.io", Version: "v1", Kind: "MachineConfigPool"}
 	machineConfigPoolResource = schema.GroupVersionResource{Group: "machineconfiguration.openshift.io", Version: "v1", Resource: "machineconfigpools"}
 
 	machineConfigKind     = schema.GroupVersionKind{Group: "machineconfiguration.openshift.io", Version: "v1", Kind: "MachineConfig"}
-	machineConfigResource = schema.GroupVersionResource{Group: "machineconfiguration.openshift.io", Version: "v1", Resource: "machineconfigs"}
+	MachineConfigResource = schema.GroupVersionResource{Group: "machineconfiguration.openshift.io", Version: "v1", Resource: "machineconfigs"}
 
 	//go:embed restart-template.json
 	restartTemplateJSON []byte
@@ -147,7 +152,7 @@ func (r *RebootMachineConfigPoolRuntime) rebootMachineConfigPool(ctx context.Con
 	}
 
 	finalObject := &MachineConfig{}
-	currMachineConfigUnstructured, err := r.DynamicClient.Resource(machineConfigResource).Get(ctx, machineConfig.Name, metav1.GetOptions{})
+	currMachineConfigUnstructured, err := r.DynamicClient.Resource(MachineConfigResource).Get(ctx, machineConfig.Name, metav1.GetOptions{})
 	switch {
 	case apierrors.IsNotFound(err):
 		machineConfigUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(machineConfig)
@@ -156,7 +161,7 @@ func (r *RebootMachineConfigPoolRuntime) rebootMachineConfigPool(ctx context.Con
 		}
 		toCreate := &unstructured.Unstructured{Object: machineConfigUnstructured}
 
-		finalUnstructured, err := r.DynamicClient.Resource(machineConfigResource).Create(ctx, toCreate, r.createOptions())
+		finalUnstructured, err := r.DynamicClient.Resource(MachineConfigResource).Create(ctx, toCreate, r.createOptions())
 		if err != nil {
 			return err
 		}
@@ -192,7 +197,7 @@ func (r *RebootMachineConfigPoolRuntime) rebootMachineConfigPool(ctx context.Con
 			}
 		}
 
-		finalUnstructured, err := r.DynamicClient.Resource(machineConfigResource).Update(ctx, toUpdate, r.updateOptions())
+		finalUnstructured, err := r.DynamicClient.Resource(MachineConfigResource).Update(ctx, toUpdate, r.updateOptions())
 		if err != nil {
 			return err
 		}
@@ -216,23 +221,51 @@ func (r *RebootMachineConfigPoolRuntime) rebootMachineConfigPool(ctx context.Con
 	return nil
 }
 
-func getNextCount(currMachineConfigUnstructured *unstructured.Unstructured) string {
+func GetRestartNumber(currMachineConfigUnstructured *unstructured.Unstructured) (int, error) {
 	fileList, ok, err := unstructured.NestedSlice(currMachineConfigUnstructured.Object, "spec", "config", "storage", "files")
-	if !ok || err != nil {
-		return ""
+	if err != nil {
+		return 0, fmt.Errorf("failed to get files: %w", err)
 	}
-	existingContent, ok, err := unstructured.NestedString(fileList[0].(map[string]interface{}), "contents", "source")
-	if !ok || err != nil {
-		return ""
+	if !ok {
+		return 0, fmt.Errorf("files content missing: %w", err)
+	}
+
+	existingContent := ""
+	for _, file := range fileList {
+		filename, ok, err := unstructured.NestedString(file.(map[string]interface{}), "path")
+		if !ok || err != nil {
+			continue
+		}
+		// this is the file we use to indicate reboot numbers
+		if filename != "/etc/kubernetes/machine-config-operator-oc-initiated-reboot-number" {
+			continue
+		}
+
+		existingContent, ok, err = unstructured.NestedString(file.(map[string]interface{}), "contents", "source")
+		if err != nil {
+			return 0, fmt.Errorf("failed to get source: %w", err)
+		}
+		if !ok {
+			return 0, fmt.Errorf("source content missing: %w", err)
+		}
 	}
 
 	// we write like `data:,1%0A`
 	if len(existingContent) < len(`data:,1%0A`) {
-		return ""
+		return 0, fmt.Errorf("source content unexpected %q", existingContent)
 	}
 
 	existingCountString := existingContent[6 : len(existingContent)-3]
 	existingCount, err := strconv.ParseInt(existingCountString, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("source content unexpected %q: %w", existingContent, err)
+	}
+
+	return int(existingCount), nil
+}
+
+func getNextCount(currMachineConfigUnstructured *unstructured.Unstructured) string {
+	existingCount, err := GetRestartNumber(currMachineConfigUnstructured)
 	if err != nil {
 		return ""
 	}
