@@ -3,6 +3,8 @@ package admin
 import (
 	"fmt"
 
+	"github.com/openshift/oc/pkg/cli/admin/rebootmachineconfigpool"
+
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
 	"github.com/openshift/oc/pkg/cli/admin/catalog"
 	"github.com/openshift/oc/pkg/cli/admin/copytonode"
@@ -74,6 +76,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 				node.NewCmdLogs(f, streams),
 				restartkubelet.NewCmdRestartKubelet(f, streams),
 				copytonode.NewCmdCopyToNode(f, streams),
+				rebootmachineconfigpool.NewCmdRebootMachineConfigPool(f, streams),
 			},
 		},
 		{
