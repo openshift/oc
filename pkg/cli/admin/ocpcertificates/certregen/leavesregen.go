@@ -26,33 +26,12 @@ type LeavesRegen struct {
 
 // split here for convenience of unit testing
 func (o *LeavesRegen) forceRegenerationOnSecret(objPrinter *objectPrinter, kubeClient kubernetes.Interface, secret *corev1.Secret, dryRun bool) error {
-	if len(secret.Annotations[certrotation.CertificateIssuer]) == 0 ||
-		len(secret.Annotations[certrotation.CertificateNotBeforeAnnotation]) == 0 ||
-		isRevisioned(secret.ObjectMeta) {
-		// TODO this should return an error if the name was specified.
-		// otherwise, not for this command.
+	if isLeaf, err := IsLeafCertSecret(secret); err != nil {
+		return err
+	} else if !isLeaf {
 		return nil
 	}
 
-	keyPairInfo, err := certgraphanalysis.InspectSecret(secret)
-	if err != nil {
-		return fmt.Errorf("error interpretting content: %w", err)
-	}
-	if keyPairInfo.Spec.Details.SignerDetails != nil {
-		// not for this command.
-		return nil
-	}
-
-	issuerInfo := keyPairInfo.Spec.CertMetadata.CertIdentifier.Issuer
-	if issuerInfo == nil {
-		// what are you??
-		return nil
-	}
-
-	if issuerInfo.CommonName == keyPairInfo.Spec.CertMetadata.CertIdentifier.CommonName {
-		// not for this command, we only want leaf certs
-		return nil
-	}
 	if o.ValidBefore != nil {
 		notBefore, err := time.Parse(time.RFC3339, secret.Annotations[certrotation.CertificateNotBeforeAnnotation])
 		if err != nil {
@@ -99,4 +78,38 @@ func isRevisioned(meta metav1.ObjectMeta) bool {
 	}
 
 	return false
+}
+
+func IsPlatformCertSecret(s *corev1.Secret) bool {
+	return len(s.Annotations[certrotation.CertificateIssuer]) != 0 &&
+		len(s.Annotations[certrotation.CertificateNotBeforeAnnotation]) != 0 &&
+		!isRevisioned(s.ObjectMeta)
+}
+
+func IsLeafCertSecret(s *corev1.Secret) (bool, error) {
+	if !IsPlatformCertSecret(s) {
+		return false, nil
+	}
+
+	keyPairInfo, err := certgraphanalysis.InspectSecret(s)
+	if err != nil {
+		return false, fmt.Errorf("error interpretting content: %w", err)
+	}
+	if keyPairInfo.Spec.Details.SignerDetails != nil {
+		// not for this command.
+		return false, nil
+	}
+
+	issuerInfo := keyPairInfo.Spec.CertMetadata.CertIdentifier.Issuer
+	if issuerInfo == nil {
+		// what are you??
+		return false, nil
+	}
+
+	if issuerInfo.CommonName == keyPairInfo.Spec.CertMetadata.CertIdentifier.CommonName {
+		// not for this command, we only want leaf certs
+		return false, nil
+	}
+
+	return true, nil
 }
