@@ -24,10 +24,10 @@ var (
 
 	rebootMachineConfigPoolExample = templates.Examples(`
 		# Reboot all MachineConfigPools
-		oc adm clusteroperator reboot-machine-config-pool machineconfigpools --all
+		oc adm reboot-machine-config-pool mcp/worker mcp/master
 
 		# Reboot masters
-		oc adm clusteroperator reboot-machine-config-pool mcp/master`)
+		oc adm reboot-machine-config-pool mcp/master`)
 )
 
 type RebootMachineConfigPoolOptions struct {
