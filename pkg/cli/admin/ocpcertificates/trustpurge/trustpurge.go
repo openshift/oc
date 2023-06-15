@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -56,7 +57,7 @@ func newCachedSecretCert(namespace, name string, certPEM []byte) (*cachedSecretC
 		return nil, nil
 	}
 
-	secretNamespaceName := namespace + "/" + name
+	secretNamespaceName := fmt.Sprintf("secrets/%s[%s]", name, namespace)
 
 	cert, err := certutil.ParseCertsPEM(certPEM)
 	if err != nil {
@@ -74,13 +75,32 @@ func (r *RemoveOldTrustRuntime) Run(ctx context.Context) error {
 		return fmt.Errorf("missing certificate validity borderline date")
 	}
 
-	secretList, err := r.KubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	namespaces, err := r.KubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, ns := range namespaces.Items {
+		if nsName := ns.Name; strings.HasPrefix(nsName, "openshift-") {
+			if err := r.cacheLeafSecretsForNS(ctx, nsName); err != nil {
+				return err
+			}
+		}
+	}
+
+	visitor := r.ResourceFinder.Do()
+
+	// TODO need to wire context through the visitorFns
+	return visitor.Visit(r.purgeTrustFromResourceInfo)
+}
+
+func (r *RemoveOldTrustRuntime) cacheLeafSecretsForNS(ctx context.Context, nsName string) error {
+	secretList, err := r.KubeClient.CoreV1().Secrets(nsName).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, s := range secretList.Items {
-		s := s
 		if isLeaf, err := certregen.IsLeafCertSecret(&s); err != nil {
 			return err
 		} else if !isLeaf {
@@ -100,10 +120,7 @@ func (r *RemoveOldTrustRuntime) Run(ctx context.Context) error {
 		}
 	}
 
-	visitor := r.ResourceFinder.Do()
-
-	// TODO need to wire context through the visitorFns
-	return visitor.Visit(r.purgeTrustFromResourceInfo)
+	return nil
 }
 
 func (r *RemoveOldTrustRuntime) purgeTrustFromResourceInfo(info *resource.Info, err error) error {
