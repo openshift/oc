@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +21,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/openshift/library-go/pkg/operator/certrotation"
+	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/certregen"
 )
 
 var (
@@ -40,17 +42,84 @@ type RemoveOldTrustRuntime struct {
 
 	Printer printers.ResourcePrinter
 
+	cachedSecretCerts map[string][]*cachedSecretCert
+
 	genericclioptions.IOStreams
 }
 
-func (r *RemoveOldTrustRuntime) Run(ctx context.Context) error {
-	visitor := r.ResourceFinder.Do()
+type cachedSecretCert struct {
+	namespaceName string
+	cert          *x509.Certificate
+}
 
-	// TODO need to wire context through the visitorFns
-	err := visitor.Visit(r.purgeTrustFromResourceInfo)
+func newCachedSecretCert(namespace, name string, certPEM []byte) (*cachedSecretCert, error) {
+	if len(certPEM) == 0 {
+		return nil, nil
+	}
+
+	secretNamespaceName := fmt.Sprintf("secrets/%s[%s]", name, namespace)
+
+	cert, err := certutil.ParseCertsPEM(certPEM)
+	if err != nil {
+		return nil, fmt.Errorf("failed parsing certificate of %s: %w", secretNamespaceName, err)
+	}
+
+	return &cachedSecretCert{
+		namespaceName: secretNamespaceName,
+		cert:          cert[0], // the 1st cert should always be the leaf
+	}, nil
+}
+
+func (r *RemoveOldTrustRuntime) Run(ctx context.Context) error {
+	if r.createdBefore.IsZero() {
+		return fmt.Errorf("missing certificate validity borderline date")
+	}
+
+	namespaces, err := r.KubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
+
+	for _, ns := range namespaces.Items {
+		if nsName := ns.Name; strings.HasPrefix(nsName, "openshift-") {
+			if err := r.cacheLeafSecretsForNS(ctx, nsName); err != nil {
+				return err
+			}
+		}
+	}
+
+	visitor := r.ResourceFinder.Do()
+
+	// TODO need to wire context through the visitorFns
+	return visitor.Visit(r.purgeTrustFromResourceInfo)
+}
+
+func (r *RemoveOldTrustRuntime) cacheLeafSecretsForNS(ctx context.Context, nsName string) error {
+	secretList, err := r.KubeClient.CoreV1().Secrets(nsName).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, s := range secretList.Items {
+		if isLeaf, err := certregen.IsLeafCertSecret(&s); err != nil {
+			return err
+		} else if !isLeaf {
+			continue
+		}
+		if cert := s.Data[corev1.TLSCertKey]; len(cert) == 0 {
+			continue
+		}
+
+		issuer := s.Annotations[certrotation.CertificateIssuer]
+		cachedS, err := newCachedSecretCert(s.Namespace, s.Name, s.Data[corev1.TLSCertKey])
+		if err != nil {
+			return err
+		}
+		if cachedS != nil {
+			r.cachedSecretCerts[issuer] = append(r.cachedSecretCerts[issuer], cachedS)
+		}
+	}
+
 	return nil
 }
 
@@ -96,23 +165,42 @@ func (r *RemoveOldTrustRuntime) purgeTrustFromConfigMap(cm *corev1.ConfigMap) er
 			return nil
 		}
 
-		caBundle := cm.Data["ca-bundle.crt"]
-		if len(caBundle) == 0 {
+		caBundlePEM := cm.Data["ca-bundle.crt"]
+		if len(caBundlePEM) == 0 {
 			// somebody was faster
 			return nil
 		}
 
-		cm.Data["ca-bundle.crt"] = ""
-		if !r.createdBefore.IsZero() {
-			newBundle, pruned, err := pruneCertBundle(r.createdBefore, caBundle)
-			if err != nil {
-				return fmt.Errorf("cert pruning failed for %s/%s", cmNamespace, cmName)
-			}
-			if !pruned { // old == new
-				return nil
-			}
-			cm.Data["ca-bundle.crt"] = newBundle
+		caCerts, err := certutil.ParseCertsPEM([]byte(caBundlePEM))
+		if err != nil {
+			return fmt.Errorf("failed to parse certificates for %s/%s: %v", cmNamespace, cmName, err)
 		}
+
+		originalSecrets := secretsForBundle(caCerts, r.cachedSecretCerts)
+
+		newBundle, pruned := pruneCertBundle(r.createdBefore, caCerts)
+		if !pruned { // old == new
+			return nil
+		}
+
+		newSecrets := secretsForBundle(newBundle, r.cachedSecretCerts)
+		oldSecretNames, newSecretNames := sets.New[string](), sets.New[string]()
+		for _, s := range originalSecrets {
+			oldSecretNames.Insert(s.namespaceName)
+		}
+		for _, s := range newSecrets {
+			newSecretNames.Insert(s.namespaceName)
+		}
+
+		if oDiffN := oldSecretNames.Difference(newSecretNames); oDiffN.Len() > 0 {
+			return fmt.Errorf("secrets only trusted by the old bundle: %v", oDiffN.UnsortedList())
+		}
+
+		newBundlePEM, err := certutil.EncodeCertificates(newBundle...)
+		if err != nil {
+			return fmt.Errorf("failed to encode new cert bundle for %s/%s: %w", cmNamespace, cmName, err)
+		}
+		cm.Data["ca-bundle.crt"] = string(newBundlePEM)
 
 		updateOptions := metav1.UpdateOptions{
 			FieldManager: RemoveOldTrustFieldManager,
@@ -142,25 +230,46 @@ func (r *RemoveOldTrustRuntime) purgeTrustFromConfigMap(cm *corev1.ConfigMap) er
 	return r.Printer.PrintObj(finalObj, r.Out)
 }
 
-func pruneCertBundle(createdBefore time.Time, bundlePEM string) (string, bool, error) {
-	certs, err := certutil.ParseCertsPEM([]byte(bundlePEM))
-	if err != nil {
-		return "", false, fmt.Errorf("failed to parse certificates: %v", err)
-	}
-
-	newCerts := make([]*x509.Certificate, 0, len(certs))
-	for i, cert := range certs {
+func pruneCertBundle(createdBefore time.Time, certBundle []*x509.Certificate) ([]*x509.Certificate, bool) {
+	newCerts := make([]*x509.Certificate, 0, len(certBundle))
+	for i, cert := range certBundle {
 		if cert.NotBefore.After(createdBefore) {
-			newCerts = append(newCerts, certs[i])
+			newCerts = append(newCerts, certBundle[i])
 		}
 	}
 
-	if len(certs) == len(newCerts) {
-		return bundlePEM, false, nil
+	if len(certBundle) == len(newCerts) {
+		return certBundle, false
 	}
-	newPEMBundle, err := certutil.EncodeCertificates(newCerts...)
-	if err != nil {
-		return "", false, fmt.Errorf("failed to PEM-encode certs: %v", err)
+
+	return newCerts, true
+}
+
+func secretsForBundle(trustBundle []*x509.Certificate, cachedSecretsCerts map[string][]*cachedSecretCert) []*cachedSecretCert {
+	var expectedValidSecrets []*cachedSecretCert
+	trustPool := x509.NewCertPool()
+
+	for _, cert := range trustBundle {
+		cert := cert
+		trustPool.AddCert(cert)
+
+		if s := cachedSecretsCerts[cert.Issuer.CommonName]; s != nil {
+			expectedValidSecrets = append(expectedValidSecrets, s...)
+		}
 	}
-	return string(newPEMBundle), true, nil
+
+	verifyOpts := x509.VerifyOptions{
+		Roots:     trustPool,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+	}
+
+	var actualValidSecrets []*cachedSecretCert
+	for i, s := range expectedValidSecrets {
+		_, err := s.cert.Verify(verifyOpts)
+		if err == nil {
+			actualValidSecrets = append(actualValidSecrets, expectedValidSecrets[i])
+		}
+	}
+
+	return actualValidSecrets
 }

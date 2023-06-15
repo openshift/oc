@@ -29,13 +29,13 @@ var (
 
 	removeOldTrustExample = templates.Examples(`
 		# Remove all known trust bundles in the cluster
-		oc adm certificates remove-old-trust -A --all
+		oc adm ocp-certificates remove-old-trust configmaps -A --all
 
 		# Remove a trust bundled contained in a particular config map
-		oc adm certificates remove-old-trust -n openshift-config-managed kube-apiserver-aggregator-client-ca
+		oc adm ocp-certificates remove-old-trust -n openshift-config-managed configmaps/kube-apiserver-aggregator-client-ca
 
 		#  Remove only CA certificates created before a certain date from all trust bundles
-		oc amd certificates remove-old-trust --created-before 2023-06-05T14:44:06Z
+		oc adm ocp-certificates remove-old-trust configmaps -A --all --created-before 2023-06-05T14:44:06Z
 	`)
 )
 
@@ -99,6 +99,8 @@ func (o *RemoveOldTrustOptions) AddFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Set to true to use server-side dry run.")
 	cmd.Flags().StringVar(&o.CreatedBefore, "created-before", o.CreatedBefore, "Only remove CA certificates that were created before this date.  Format: 2023-06-05T14:44:06Z")
 	cmd.Flags().StringSliceVar(&o.ExcludeBundles, "exclude-bundles", o.ExcludeBundles, "CA bundles to exclude from trust pruning. Can be specified multiple times. Format: namespace/name")
+
+	cmd.MarkFlagRequired("created-before")
 }
 
 func (o *RemoveOldTrustOptions) ToRuntime(args []string) (*RemoveOldTrustRuntime, error) {
@@ -133,8 +135,9 @@ func (o *RemoveOldTrustOptions) ToRuntime(args []string) (*RemoveOldTrustRuntime
 		ResourceFinder: builder,
 		KubeClient:     kubeClient,
 
-		dryRun:         o.DryRun,
-		excludeBundles: exclude,
+		dryRun:            o.DryRun,
+		excludeBundles:    exclude,
+		cachedSecretCerts: map[string][]*cachedSecretCert{},
 
 		Printer:   printer,
 		IOStreams: o.IOStreams,
