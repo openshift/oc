@@ -25,9 +25,7 @@ type RootsRegen struct {
 
 // split here for convenience of unit testing
 func (o *RootsRegen) forceRegenerationOnSecret(objPrinter *objectPrinter, kubeClient kubernetes.Interface, secret *corev1.Secret, dryRun bool) error {
-	if len(secret.Annotations[certrotation.CertificateIssuer]) == 0 ||
-		len(secret.Annotations[certrotation.CertificateNotBeforeAnnotation]) == 0 ||
-		isRevisioned(secret.ObjectMeta) {
+	if !IsPlatformCertSecret(secret) {
 		// TODO this should return an error if the name was specified.
 		// otherwise, not for this command.
 		return nil
