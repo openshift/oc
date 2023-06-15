@@ -259,7 +259,8 @@ func secretsForBundle(trustBundle []*x509.Certificate, cachedSecretsCerts map[st
 	}
 
 	verifyOpts := x509.VerifyOptions{
-		Roots: trustPool,
+		Roots:     trustPool,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
 	}
 
 	var actualValidSecrets []*cachedSecretCert
