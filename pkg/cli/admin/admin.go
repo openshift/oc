@@ -26,7 +26,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/release"
 	"github.com/openshift/oc/pkg/cli/admin/restartkubelet"
 	"github.com/openshift/oc/pkg/cli/admin/top"
-	"github.com/openshift/oc/pkg/cli/admin/upgrade"
+	"github.com/openshift/oc/pkg/cli/admin/update"
 	"github.com/openshift/oc/pkg/cli/admin/verifyimagesignature"
 	"github.com/openshift/oc/pkg/cli/admin/waitfornodereboot"
 	"github.com/openshift/oc/pkg/cli/admin/waitforstable"
@@ -58,7 +58,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 		{
 			Message: "Cluster Management:",
 			Commands: []*cobra.Command{
-				upgrade.New(f, streams),
+				update.New(f, streams),
 				top.NewCommandTop(f, streams),
 				mustgather.NewMustGatherCommand(f, streams),
 				inspect.NewCmdInspect(streams),

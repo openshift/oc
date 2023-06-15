@@ -75,7 +75,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			If no arguments are specified the release of the currently connected cluster is displayed.
 			Specify one or more images via pull spec to see details of each release image. You may also
 			pass a semantic version (4.11.2) as an argument, and if cluster version object has seen such a
-			version in the upgrades channel it will find the release info for that version.
+			version in the update channel it will find the release info for that version.
 
 			The --commits flag will display the Git commit IDs and repository URLs for the source of each
 			component image. The --pullspecs flag will display the full component image pull spec. --size
@@ -1052,11 +1052,11 @@ func describeReleaseDiff(out io.Writer, diff *ReleaseDiff, showCommit bool, outp
 	case diff.From.Metadata != nil && diff.To.Metadata != nil:
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "Version:\t%s\t%s\n", diff.From.Metadata.Version, diff.To.Metadata.Version)
-		canUpgrade := "No"
+		canUpdate := "No"
 		if stringArrContains(diff.To.Metadata.Previous, diff.From.Metadata.Version) {
-			canUpgrade = "Yes"
+			canUpdate = "Yes"
 		}
-		fmt.Fprintf(w, "Upgrade From:\t\t%s\n", canUpgrade)
+		fmt.Fprintf(w, "Update From:\t\t%s\n", canUpdate)
 	case diff.From.Metadata != nil && diff.To.Metadata == nil:
 		fmt.Fprintf(w, "Has Release Metadata:\tYes\t\n")
 	case diff.From.Metadata == nil && diff.To.Metadata != nil:
@@ -1250,9 +1250,9 @@ func describeReleaseInfo(out io.Writer, release *ReleaseInfo, showCommit, showCo
 		fmt.Fprintf(w, "Release Metadata:\n")
 		fmt.Fprintf(w, "  Version:\t%s\n", m.Version)
 		if len(m.Previous) > 0 {
-			fmt.Fprintf(w, "  Upgrades:\t%s\n", strings.Join(sortSemanticVersions(m.Previous), ", "))
+			fmt.Fprintf(w, "  Updates:\t%s\n", strings.Join(sortSemanticVersions(m.Previous), ", "))
 		} else {
-			fmt.Fprintf(w, "  Upgrades:\t<none>\n")
+			fmt.Fprintf(w, "  Updates:\t<none>\n")
 		}
 		var keys []string
 		for k, v := range m.Metadata {
@@ -1633,7 +1633,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 					fmt.Fprintf(out, "* %s %s\n", componentDisplayName(key, version.DisplayName), version)
 					continue
 				}
-				fmt.Fprintf(out, "* %s upgraded from %s to %s\n", componentDisplayName(key, version.DisplayName), old, version)
+				fmt.Fprintf(out, "* %s updated from %s to %s\n", componentDisplayName(key, version.DisplayName), old, version)
 			}
 			fmt.Fprintln(out)
 			fmt.Fprintln(out)

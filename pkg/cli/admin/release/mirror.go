@@ -981,7 +981,7 @@ func printICSPInstructions(out io.Writer, sources []mirrorSet) error {
 	if err != nil {
 		return fmt.Errorf("unable to marshal ImageContentSourcePolicy example yaml: %v", err)
 	}
-	fmt.Fprintf(out, "\n\nTo use the new mirrored repository for upgrades, use the following to create an ImageContentSourcePolicy:\n\n")
+	fmt.Fprintf(out, "\n\nTo use the new mirrored repository for updates, use the following to create an ImageContentSourcePolicy:\n\n")
 	fmt.Fprint(out, string(icspExample))
 
 	return nil

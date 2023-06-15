@@ -1,4 +1,4 @@
-package upgrade
+package update
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ import (
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 
-	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
+	"github.com/openshift/oc/pkg/cli/admin/update/channel"
 )
 
 const (
@@ -35,12 +35,12 @@ const (
 	clusterStatusFailing = configv1.ClusterStatusConditionType("Failing")
 )
 
-var upgradeExample = templates.Examples(`
+var updateExample = templates.Examples(`
 	# View the update status and available cluster updates
-	oc adm upgrade
+	oc adm update
 
 	# Update to the latest version
-	oc adm upgrade --to-latest=true
+	oc adm update --to-latest=true
 `)
 
 func NewOptions(streams genericclioptions.IOStreams) *Options {
@@ -52,64 +52,77 @@ func NewOptions(streams genericclioptions.IOStreams) *Options {
 func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewOptions(streams)
 	cmd := &cobra.Command{
-		Use:     "upgrade --to=VERSION",
-		Short:   "Upgrade a cluster or adjust the upgrade channel",
-		Example: upgradeExample,
+		Use:     "update --to=VERSION",
+		Short:   "Update a cluster or adjust the update channel",
+		Example: updateExample,
 		Long: templates.LongDesc(`
-			Check on upgrade status or upgrade the cluster to a newer version
+			Check on update status or update the cluster to a newer version
 
-			This command assists with cluster upgrades. If no arguments are passed
-			the command will retrieve the current version info and display whether an upgrade is
-			in progress or whether any errors might prevent an upgrade, as well as show the suggested
+			This command assists with cluster updates. If no arguments are passed
+			the command will retrieve the current version info and display whether an update is
+			in progress or whether any errors might prevent an update, as well as show the suggested
 			updates available to the cluster. Information about compatible updates is periodically
 			retrieved from the update server and cached on the cluster - these are updates that are
-			known to be supported as upgrades from the current version.
+			known to be supported as updates from the current version.
 
-			Passing --to=VERSION or --to-image=IMAGE will upgrade the cluster to one of the available
-			updates or report an error if no such version exists. The cluster will then upgrade
+			Passing --to=VERSION or --to-image=IMAGE will update the cluster to one of the available
+			updates or report an error if no such version exists. The cluster will then update
 			itself and report status that is available via "oc get clusterversion" and "oc describe
 			clusterversion".
 
-			Passing --to-multi-arch will upgrade the cluster from a single-architecture to a
+			Passing --to-multi-arch will update the cluster from a single-architecture to a
 			multi-architecture cluster at the current version.
 
 			If there are no versions available, or a bug in the cluster version operator prevents
 			updates from being retrieved, --to-image may be combined with the more powerful and
-			dangerous --allow-explicit-upgrade. This instructs the cluster to upgrade to the contents
-			of the specified release image, regardless of whether that upgrade is known to be
+			dangerous --allow-explicit-update. This instructs the cluster to update to the contents
+			of the specified release image, regardless of whether that update is known to be
 			recommended for the current version. While rolling back to a previous patch (z stream) version
-			(4.1.2 -> 4.1.1) may be safe, upgrading more than one minor version ahead (4.1 -> 4.3) or
+			(4.1.2 -> 4.1.1) may be safe, updating more than one minor version ahead (4.1 -> 4.3) or
 			downgrading one minor version (4.2 -> 4.1) is likely to cause data corruption or to
 			completely break a cluster.
 
-			There are two layers of upgrade guards: client-side and cluster-side.
+			There are two layers of update guards: client-side and cluster-side.
 
-			Client-side guards include checks for whether the cluster is already being upgraded, or if
+			Client-side guards include checks for whether the cluster is already being updated, or if
 			the cluster is reporting a failure.  It is usually best to give these conditions time to
 			resolve, or to actively work to resolve them.  But if you decide to trigger the update
-			regardless of these concerns, use --allow-upgrade-with-warnings.
+			regardless of these concerns, use --allow-update-with-warnings.
 
-			Cluster-side guards include checks for release verification and upgradeable conditions.
+			Cluster-side guards include checks for release verification and updateable conditions.
 			Again, it is usually best to give these conditions time to resolve, or to actively work to
 			resolve them.  But if you decide to trigger the update regardless of these concerns,
 			use --force, which is passed through to ClusterVersion's spec.desiredUpdate.force.
 		`),
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if cmd.CalledAs() != "update" {
+				fmt.Fprintf(o.ErrOut, "%s is deprecated.  Use '%s ...' instead\n", strings.Replace(cmd.CommandPath(), "update", "upgrade", 1), cmd.CommandPath())
+			}
+			return nil
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run())
 		},
+		Aliases: []string{"upgrade"},
 	}
 	flags := cmd.Flags()
-	flags.StringVar(&o.To, "to", o.To, "Specify the version to upgrade to. The version must be on the list of available updates.")
-	flags.StringVar(&o.ToImage, "to-image", o.ToImage, "Provide a release image to upgrade to.")
+	flags.StringVar(&o.To, "to", o.To, "Specify the version to update to. The version must be on the list of available updates.")
+	flags.StringVar(&o.ToImage, "to-image", o.ToImage, "Provide a release image to update to.")
 	flags.BoolVar(&o.ToLatestAvailable, "to-latest", o.ToLatestAvailable, "Use the next available version.")
-	flags.BoolVar(&o.ToMultiArch, "to-multi-arch", o.ToMultiArch, "Upgrade current version to multi architecture.")
-	flags.BoolVar(&o.Clear, "clear", o.Clear, "If an upgrade has been requested but not yet downloaded, cancel the update. This has no effect once the update has started.")
-	flags.BoolVar(&o.Force, "force", o.Force, "Upgrade regardless of cluster-side guard failures, such as release verification or upgradeable conditions.")
-	flags.BoolVar(&o.AllowExplicitUpgrade, "allow-explicit-upgrade", o.AllowExplicitUpgrade, "Upgrade even if the upgrade target is not listed in the available versions list.")
-	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade regardless of client-side guard failures, such as upgrades in progress or failing clusters.")
+	flags.BoolVar(&o.ToMultiArch, "to-multi-arch", o.ToMultiArch, "Update current version to multi architecture.")
+	flags.BoolVar(&o.Clear, "clear", o.Clear, "If an update has been requested but not yet downloaded, cancel the update. This has no effect once the update has started.")
+	flags.BoolVar(&o.Force, "force", o.Force, "Update regardless of cluster-side guard failures, such as release verification or updateable conditions.")
+	flags.BoolVar(&o.AllowExplicitUpdate, "allow-explicit-update", o.AllowExplicitUpdate, "Update even if the update target is not listed in the available versions list.")
+	flags.BoolVar(&o.AllowUpdateWithWarnings, "allow-update-with-warnings", o.AllowUpdateWithWarnings, "Update regardless of client-side guard failures, such as updates in progress or failing clusters.")
 	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
-	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows upgrade to a version when it is supported but not recommended for updates.")
+	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows update to a version when it is supported but not recommended for updates.")
+
+	flags.BoolVar(&o.AllowExplicitUpdate, "allow-explicit-upgrade", o.AllowExplicitUpdate, "Update even if the update target is not listed in the available versions list.")
+	flags.MarkDeprecated("allow-explicit-upgrade", "please use --allow-explicit-update instead")
+
+	flags.BoolVar(&o.AllowUpdateWithWarnings, "allow-upgrade-with-warnings", o.AllowUpdateWithWarnings, "Update regardless of client-side guard failures, such as updates in progress or failing clusters.")
+	flags.MarkDeprecated("allow-upgrade-with-warnings", "please use --allow-update-with-warnings instead")
 
 	cmd.AddCommand(channel.New(f, streams))
 
@@ -124,12 +137,12 @@ type Options struct {
 	ToLatestAvailable bool
 	ToMultiArch       bool
 
-	AllowExplicitUpgrade     bool
-	AllowUpgradeWithWarnings bool
-	Force                    bool
-	Clear                    bool
-	IncludeNotRecommended    bool
-	AllowNotRecommended      bool
+	AllowExplicitUpdate     bool
+	AllowUpdateWithWarnings bool
+	Force                   bool
+	Clear                   bool
+	IncludeNotRecommended   bool
+	AllowNotRecommended     bool
 
 	Client configv1client.Interface
 }
@@ -209,7 +222,7 @@ func (o *Options) Run() error {
 		if updateIsEquivalent(*original, updated.Status.Desired) {
 			fmt.Fprintf(o.Out, "Cleared the update field, still at %s\n", releaseVersionString(updated.Status.Desired))
 		} else {
-			fmt.Fprintf(o.Out, "Cancelled requested upgrade to %s\n", updateVersionString(*original))
+			fmt.Fprintf(o.Out, "Cancelled requested update to %s\n", updateVersionString(*original))
 		}
 		return nil
 
@@ -218,11 +231,11 @@ func (o *Options) Run() error {
 			return fmt.Errorf("info: Update to multi cluster architecture has already been requested")
 		}
 
-		if err := checkForUpgrade(cv); err != nil {
-			if !o.AllowUpgradeWithWarnings {
-				return fmt.Errorf("%s\n\nIf you want to upgrade anyway, use --allow-upgrade-with-warnings.", err)
+		if err := checkForUpdate(cv); err != nil {
+			if !o.AllowUpdateWithWarnings {
+				return fmt.Errorf("%s\n\nIf you want to update anyway, use --allow-update-with-warnings.", err)
 			}
-			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
+			fmt.Fprintf(o.ErrOut, "warning: --allow-update-with-warnings is bypassing: %s", err)
 		}
 
 		if err := patchDesiredUpdate(ctx, &configv1.Update{Architecture: configv1.ClusterVersionArchitectureMulti,
@@ -246,7 +259,7 @@ func (o *Options) Run() error {
 			return nil
 		}
 
-		possibleUpgradeTargets := make([]configv1.Release, 0, len(cv.Status.AvailableUpdates)+len(cv.Status.ConditionalUpdates))
+		possibleUpdateTargets := make([]configv1.Release, 0, len(cv.Status.AvailableUpdates)+len(cv.Status.ConditionalUpdates))
 		recommendedConditions := make(map[string]metav1.Condition, len(cv.Status.ConditionalUpdates))
 
 		// check for recommended updates
@@ -265,52 +278,52 @@ func (o *Options) Run() error {
 			} else if err != nil {
 				fmt.Fprintf(o.ErrOut, "warning: unable to calculate match for the update target in available updates: %v\n", err)
 			}
-			possibleUpgradeTargets = append(possibleUpgradeTargets, available)
+			possibleUpdateTargets = append(possibleUpdateTargets, available)
 		}
 
 		if update == nil {
 			// update was not recommended, so check for conditional, but not recommended, updates
-			for _, upgrade := range cv.Status.ConditionalUpdates {
-				if c := findCondition(upgrade.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
-					if match, err := targetMatch(&upgrade.Release, o.To, o.ToImage); match && err == nil {
+			for _, conditionalUpdate := range cv.Status.ConditionalUpdates {
+				if c := findCondition(conditionalUpdate.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
+					if match, err := targetMatch(&conditionalUpdate.Release, o.To, o.ToImage); match && err == nil {
 						if !o.AllowNotRecommended {
 							return fmt.Errorf("the update %s is not one of the recommended updates, but is available as a conditional update. "+
 								"To accept the %s=%s risk and to proceed with update use --allow-not-recommended.\n  Reason: %s\n  Message: %s\n",
-								upgrade.Release.Version, c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+								conditionalUpdate.Release.Version, c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 						}
 						update = &configv1.Update{
-							Version: upgrade.Release.Version,
-							Image:   upgrade.Release.Image,
+							Version: conditionalUpdate.Release.Version,
+							Image:   conditionalUpdate.Release.Image,
 						}
 						fmt.Fprintf(o.ErrOut, "warning: with --allow-not-recommended you have accepted the risks with %s and bypassed %s=%s %s: %s\n",
-							upgrade.Release.Version, c.Type, c.Status, c.Reason, c.Message)
+							conditionalUpdate.Release.Version, c.Type, c.Status, c.Reason, c.Message)
 						break
 					} else if err != nil {
 						fmt.Fprintf(o.ErrOut, "warning: unable to calculate match for the update target in available conditional updates: %v\n", err)
 					}
 					if o.AllowNotRecommended {
-						possibleUpgradeTargets = append(possibleUpgradeTargets, upgrade.Release)
-						recommendedConditions[upgrade.Release.Image] = *c
+						possibleUpdateTargets = append(possibleUpdateTargets, conditionalUpdate.Release)
+						recommendedConditions[conditionalUpdate.Release.Image] = *c
 					}
 				}
 			}
 		}
 
-		if update == nil && o.ToImage != "" && o.AllowExplicitUpgrade {
+		if update == nil && o.ToImage != "" && o.AllowExplicitUpdate {
 			update = &configv1.Update{
 				Version: "",
 				Image:   o.ToImage,
 			}
-			fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates. "+
-				"You have used --allow-explicit-upgrade for the update to proceed anyway")
+			fmt.Fprintln(o.ErrOut, "warning: The requested update image is not one of the available updates. "+
+				"You have used --allow-explicit-update for the update to proceed anyway")
 		}
 
-		sortReleasesBySemanticVersions(possibleUpgradeTargets)
+		sortReleasesBySemanticVersions(possibleUpdateTargets)
 
-		if o.ToLatestAvailable && len(possibleUpgradeTargets) > 0 {
+		if o.ToLatestAvailable && len(possibleUpdateTargets) > 0 {
 			update = &configv1.Update{
-				Version: possibleUpgradeTargets[0].Version,
-				Image:   possibleUpgradeTargets[0].Image,
+				Version: possibleUpdateTargets[0].Version,
+				Image:   possibleUpdateTargets[0].Image,
 			}
 
 			if c, ok := recommendedConditions[update.Image]; ok {
@@ -324,7 +337,7 @@ func (o *Options) Run() error {
 
 			toImageOption := "--to-image"
 			if o.ToImage != "" {
-				toImageOption = "--allow-explicit-upgrade"
+				toImageOption = "--allow-explicit-update"
 			}
 			article := "the" // --to and --to-image have a specific target in mind
 			if o.ToLatestAvailable {
@@ -335,16 +348,16 @@ func (o *Options) Run() error {
 			switch {
 			case c != nil && c.Status != configv1.ConditionTrue:
 				return fmt.Errorf("cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\nspecify %s.", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "), nextStep)
-			case len(possibleUpgradeTargets) == 0 && o.AllowNotRecommended:
+			case len(possibleUpdateTargets) == 0 && o.AllowNotRecommended:
 				return fmt.Errorf("no recommended or conditional updates, specify %s or wait for new updates to be available.", nextStep)
-			case len(possibleUpgradeTargets) == 0 && o.ToLatestAvailable:
+			case len(possibleUpdateTargets) == 0 && o.ToLatestAvailable:
 				fmt.Fprintf(o.Out, "info: Cluster is already at the latest available version %s\n", cv.Status.Desired.Version)
 				return nil
-			case len(possibleUpgradeTargets) == 0:
+			case len(possibleUpdateTargets) == 0:
 				return fmt.Errorf("no recommended updates, specify %s or wait for new updates to be available.", nextStep)
-			case len(possibleUpgradeTargets) > 0:
-				versions := make([]string, 0, len(possibleUpgradeTargets))
-				for _, release := range possibleUpgradeTargets {
+			case len(possibleUpdateTargets) > 0:
+				versions := make([]string, 0, len(possibleUpdateTargets))
+				for _, release := range possibleUpdateTargets {
 					versions = append(versions, release.Version)
 				}
 				return fmt.Errorf("the update is not one of the possible targets: %s. specify %s.", strings.Join(versions, ", "), nextStep)
@@ -358,11 +371,11 @@ func (o *Options) Run() error {
 			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
 		}
 
-		if err := checkForUpgrade(cv); err != nil {
-			if !o.AllowUpgradeWithWarnings {
-				return fmt.Errorf("%s\n\nIf you want to upgrade anyway, use --allow-upgrade-with-warnings.", err)
+		if err := checkForUpdate(cv); err != nil {
+			if !o.AllowUpdateWithWarnings {
+				return fmt.Errorf("%s\n\nIf you want to update anyway, use --allow-update-with-warnings.", err)
 			}
-			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
+			fmt.Fprintf(o.ErrOut, "warning: --allow-update-with-warnings is bypassing: %s", err)
 		}
 
 		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
@@ -388,7 +401,7 @@ func (o *Options) Run() error {
 
 		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && len(c.Message) > 0 {
 			if c.Status == configv1.ConditionTrue {
-				fmt.Fprintf(o.Out, "info: An upgrade is in progress. %s\n", c.Message)
+				fmt.Fprintf(o.Out, "info: An update is in progress. %s\n", c.Message)
 			} else {
 				fmt.Fprintln(o.Out, c.Message)
 			}
@@ -436,7 +449,7 @@ func (o *Options) Run() error {
 			if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
 				fmt.Fprintf(o.ErrOut, "warning: Cannot display available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 			} else {
-				fmt.Fprintf(o.Out, "No updates available. You may still upgrade to a specific release image with --to-image or wait for new updates to be available.\n")
+				fmt.Fprintf(o.Out, "No updates available. You may still update to a specific release image with --to-image or wait for new updates to be available.\n")
 			}
 		}
 
@@ -599,7 +612,7 @@ func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorSta
 	return nil
 }
 
-func checkForUpgrade(cv *configv1.ClusterVersion) error {
+func checkForUpdate(cv *configv1.ClusterVersion) error {
 	results := []string{}
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "Invalid"); c != nil && c.Status == configv1.ConditionTrue {
 		results = append(results, fmt.Sprintf("the cluster version object is invalid, you must correct the invalid state first:\n\n  Reason: %s\n  Message: %s", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
@@ -615,7 +628,7 @@ func checkForUpgrade(cv *configv1.ClusterVersion) error {
 		results = append(results, fmt.Sprintf("the cluster is experiencing an error reconciling %q:\n\n  Reason: %s\n  Message: %s", target, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue {
-		results = append(results, fmt.Sprintf("the cluster is already upgrading:\n\n  Reason: %s\n  Message: %s", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
+		results = append(results, fmt.Sprintf("the cluster is already updating:\n\n  Reason: %s\n  Message: %s", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  ")))
 	}
 
 	if len(results) == 0 {
@@ -666,7 +679,7 @@ func patchDesiredUpdate(ctx context.Context, update *configv1.Update, client con
 	if _, err := client.ConfigV1().ClusterVersions().Patch(ctx, clusterVersionName, types.MergePatchType, patch,
 		metav1.PatchOptions{}); err != nil {
 
-		return fmt.Errorf("Unable to upgrade: %v", err)
+		return fmt.Errorf("Unable to update: %v", err)
 	}
 	return nil
 }

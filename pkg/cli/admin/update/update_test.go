@@ -1,4 +1,4 @@
-package upgrade
+package update
 
 import (
 	"errors"
@@ -31,7 +31,7 @@ func TestSortReleasesBySemanticVersions(t *testing.T) {
 	}
 }
 
-func TestCheckForUpgrade(t *testing.T) {
+func TestCheckForUpdate(t *testing.T) {
 	for _, testCase := range []struct {
 		name       string
 		conditions []configv1.ClusterOperatorStatusCondition
@@ -63,7 +63,7 @@ func TestCheckForUpgrade(t *testing.T) {
 				Reason:  "BadStuff",
 				Message: "The widgets are slow.",
 			}},
-			expected: errors.New("the cluster is experiencing an error reconciling \"4.1.0\":\n\n  Reason: BadStuff\n  Message: The widgets are slow.\n\nthe cluster is already upgrading:\n\n  Reason: RollingOut\n  Message: Updating to v2."),
+			expected: errors.New("the cluster is experiencing an error reconciling \"4.1.0\":\n\n  Reason: BadStuff\n  Message: The widgets are slow.\n\nthe cluster is already updating:\n\n  Reason: RollingOut\n  Message: Updating to v2."),
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -76,7 +76,7 @@ func TestCheckForUpgrade(t *testing.T) {
 				},
 			}
 			clusterVersion.Status.Conditions = testCase.conditions
-			actual := checkForUpgrade(clusterVersion)
+			actual := checkForUpdate(clusterVersion)
 			if !reflect.DeepEqual(actual, testCase.expected) {
 				t.Errorf("%v != %v", actual, testCase.expected)
 			}

@@ -274,7 +274,7 @@ imageContentSources:
   source: quay/ocp/test
 
 
-To use the new mirrored repository for upgrades, use the following to create an ImageContentSourcePolicy:
+To use the new mirrored repository for updates, use the following to create an ImageContentSourcePolicy:
 
 apiVersion: operator.openshift.io/v1alpha1
 kind: ImageContentSourcePolicy
