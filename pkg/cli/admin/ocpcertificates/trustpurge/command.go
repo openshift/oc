@@ -29,13 +29,13 @@ var (
 
 	removeOldTrustExample = templates.Examples(`
 		# Remove all known trust bundles in the cluster
-		oc adm certificates remove-old-trust -A --all
+		oc adm ocp-certificates remove-old-trust configmaps -A --all
 
 		# Remove a trust bundled contained in a particular config map
-		oc adm certificates remove-old-trust -n openshift-config-managed kube-apiserver-aggregator-client-ca
+		oc adm ocp-certificates remove-old-trust -n openshift-config-managed configmaps/kube-apiserver-aggregator-client-ca
 
 		#  Remove only CA certificates created before a certain date from all trust bundles
-		oc amd certificates remove-old-trust --created-before 2023-06-05T14:44:06Z
+		oc adm ocp-certificates remove-old-trust configmaps -A --all --created-before 2023-06-05T14:44:06Z
 	`)
 )
 
