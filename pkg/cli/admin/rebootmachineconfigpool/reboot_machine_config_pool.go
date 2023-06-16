@@ -221,7 +221,7 @@ func (r *RebootMachineConfigPoolRuntime) rebootMachineConfigPool(ctx context.Con
 	return nil
 }
 
-func GetRestartNumber(currMachineConfigUnstructured *unstructured.Unstructured) (int, error) {
+func GetRebootNumber(currMachineConfigUnstructured *unstructured.Unstructured) (int, error) {
 	fileList, ok, err := unstructured.NestedSlice(currMachineConfigUnstructured.Object, "spec", "config", "storage", "files")
 	if err != nil {
 		return 0, fmt.Errorf("failed to get files: %w", err)
@@ -265,7 +265,7 @@ func GetRestartNumber(currMachineConfigUnstructured *unstructured.Unstructured) 
 }
 
 func getNextCount(currMachineConfigUnstructured *unstructured.Unstructured) string {
-	existingCount, err := GetRestartNumber(currMachineConfigUnstructured)
+	existingCount, err := GetRebootNumber(currMachineConfigUnstructured)
 	if err != nil {
 		return ""
 	}
