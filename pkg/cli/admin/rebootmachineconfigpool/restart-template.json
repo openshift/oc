@@ -21,7 +21,7 @@
               "source": "data:,1%0A"
             },
             "mode": 420,
-            "path": "/etc/machine-config-operator-oc-initiated-reboot-number"
+            "path": "/etc/kubernetes/machine-config-operator-oc-initiated-reboot-number"
           }
         ]
       }
