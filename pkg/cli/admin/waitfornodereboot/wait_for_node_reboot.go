@@ -1,4 +1,4 @@
-package waitfornoderestart
+package waitfornodereboot
 
 import (
 	"context"
@@ -30,23 +30,23 @@ const (
 	RemoveOldTrustFieldManager = "remove-old-trust"
 )
 
-type WaitForNodeRestartRuntime struct {
+type WaitForNodeRebootRuntime struct {
 	ResourceFinder genericclioptions.ResourceFinder
 	KubeClient     kubernetes.Interface
 	DynamicClient  dynamic.Interface
 
 	RebootNumber int
 
-	masterRestartNumber int
-	workerRestartNumber int
+	masterRebootNumber          int
+	workerAndCustomRebootNumber int
 
 	genericclioptions.IOStreams
 }
 
-func (r *WaitForNodeRestartRuntime) setRestartNumber(ctx context.Context) error {
+func (r *WaitForNodeRebootRuntime) setRebootNumber(ctx context.Context) error {
 	if r.RebootNumber > 0 {
-		r.masterRestartNumber = r.RebootNumber
-		r.workerRestartNumber = r.RebootNumber
+		r.masterRebootNumber = r.RebootNumber
+		r.workerAndCustomRebootNumber = r.RebootNumber
 		return nil
 	}
 
@@ -57,9 +57,9 @@ func (r *WaitForNodeRestartRuntime) setRestartNumber(ctx context.Context) error 
 	case err != nil:
 		return fmt.Errorf("unable to read existing state: %w", err)
 	default:
-		r.masterRestartNumber, err = rebootmachineconfigpool.GetRestartNumber(masterMachineConfig)
+		r.masterRebootNumber, err = rebootmachineconfigpool.GetRebootNumber(masterMachineConfig)
 		if err != nil {
-			return fmt.Errorf("unable to parse master restart number: %w", err)
+			return fmt.Errorf("unable to parse master reboot number: %w", err)
 		}
 	}
 
@@ -70,22 +70,22 @@ func (r *WaitForNodeRestartRuntime) setRestartNumber(ctx context.Context) error 
 	case err != nil:
 		return fmt.Errorf("unable to read existing state: %w", err)
 	default:
-		r.workerRestartNumber, err = rebootmachineconfigpool.GetRestartNumber(workerMachineConfig)
+		r.workerAndCustomRebootNumber, err = rebootmachineconfigpool.GetRebootNumber(workerMachineConfig)
 		if err != nil {
-			return fmt.Errorf("unable to parse worker restart number: %w", err)
+			return fmt.Errorf("unable to parse worker reboot number: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (r *WaitForNodeRestartRuntime) Run(ctx context.Context) error {
-	if err := r.setRestartNumber(ctx); err != nil {
+func (r *WaitForNodeRebootRuntime) Run(ctx context.Context) error {
+	if err := r.setRebootNumber(ctx); err != nil {
 		return err
 	}
 
 	hasMaster := false
-	hasWorker := false
+	hasWorkerOrCustomPoolNode := false
 	remainingNodes := []*corev1.Node{}
 	visitor := r.ResourceFinder.Do()
 	err := visitor.Visit(func(info *resource.Info, err error) error {
@@ -107,7 +107,7 @@ func (r *WaitForNodeRestartRuntime) Run(ctx context.Context) error {
 		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
 			hasMaster = true
 		} else {
-			hasWorker = true
+			hasWorkerOrCustomPoolNode = true
 		}
 
 		remainingNodes = append(remainingNodes, node)
@@ -117,11 +117,11 @@ func (r *WaitForNodeRestartRuntime) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if hasMaster && r.masterRestartNumber <= 0 {
-		return fmt.Errorf("inspecting a master node, but no master restart number provided or detected")
+	if hasMaster && r.masterRebootNumber <= 0 {
+		return fmt.Errorf("inspecting a master node, but no master reboot number provided or detected")
 	}
-	if hasWorker && r.workerRestartNumber <= 0 {
-		return fmt.Errorf("inspecting a worker node, but no worker restart number provided or detected")
+	if hasWorkerOrCustomPoolNode && r.workerAndCustomRebootNumber <= 0 {
+		return fmt.Errorf("inspecting a worker node, but no worker reboot number provided or detected")
 	}
 
 	startingNodeCount := len(remainingNodes)
@@ -151,7 +151,7 @@ func (r *WaitForNodeRestartRuntime) Run(ctx context.Context) error {
 	return nil
 }
 
-func (r *WaitForNodeRestartRuntime) waitForNodes(ctx context.Context, nodes []*corev1.Node, nodesActivelyRebooting []*corev1.Node) ([]*corev1.Node, []*corev1.Node, error) {
+func (r *WaitForNodeRebootRuntime) waitForNodes(ctx context.Context, nodes []*corev1.Node, nodesActivelyRebooting []*corev1.Node) ([]*corev1.Node, []*corev1.Node, error) {
 	remainingNodes := []*corev1.Node{}
 	newNodesActivelyRebooting := []*corev1.Node{}
 
@@ -167,11 +167,11 @@ func (r *WaitForNodeRestartRuntime) waitForNodes(ctx context.Context, nodes []*c
 			continue
 		}
 
-		targetRestartNumber := 0
+		targetRebootNumber := 0
 		if _, ok := currNode.Labels["node-role.kubernetes.io/master"]; ok {
-			targetRestartNumber = r.masterRestartNumber
+			targetRebootNumber = r.masterRebootNumber
 		} else {
-			targetRestartNumber = r.workerRestartNumber
+			targetRebootNumber = r.workerAndCustomRebootNumber
 		}
 
 		rebootNumbersForNode := r.rebootNumbersForNode(ctx, currNode)
@@ -188,11 +188,11 @@ func (r *WaitForNodeRestartRuntime) waitForNodes(ctx context.Context, nodes []*c
 			}
 			remainingNodes = append(remainingNodes, currNode)
 
-		case rebootNumbersForNode.currentRebootNumber >= targetRestartNumber:
+		case rebootNumbersForNode.currentRebootNumber >= targetRebootNumber:
 			// this node successfully rebooted, print it out and don't requeue.
 			fmt.Fprintf(r.Out, "nodes/%v rebooted\n", nodeName)
 
-		case rebootNumbersForNode.desiredRebootNumber >= targetRestartNumber:
+		case rebootNumbersForNode.desiredRebootNumber >= targetRebootNumber:
 			// this node is actively trying to get to a level that meets our requirements.
 			// Let the  user know (once) that this has started and keep track of it for a future summarization count.
 			// requeue so we know when its done.
@@ -213,7 +213,7 @@ func (r *WaitForNodeRestartRuntime) waitForNodes(ctx context.Context, nodes []*c
 			// the node isn't rebooting to a level we want, so just wait patiently. Only print the message if desired, we can have
 			// a lot of nodes, so we don't want to be super noisy.
 			if klog.V(1).Enabled() {
-				fmt.Fprintf(r.Out, "nodes/%v uses machineconfig/%v is at reboot number %d, we're waiting for reboot number %d\n", nodeName, rebootNumbersForNode.currentMachineConfigName, rebootNumbersForNode.currentRebootNumber, targetRestartNumber)
+				fmt.Fprintf(r.Out, "nodes/%v uses machineconfig/%v is at reboot number %d, we're waiting for reboot number %d\n", nodeName, rebootNumbersForNode.currentMachineConfigName, rebootNumbersForNode.currentRebootNumber, targetRebootNumber)
 			}
 			remainingNodes = append(remainingNodes, currNode)
 		}
@@ -233,7 +233,7 @@ type rebootNumbers struct {
 	fatalErr error
 }
 
-func (r *WaitForNodeRestartRuntime) rebootNumbersForNode(ctx context.Context, currNode *corev1.Node) rebootNumbers {
+func (r *WaitForNodeRebootRuntime) rebootNumbersForNode(ctx context.Context, currNode *corev1.Node) rebootNumbers {
 	ret := rebootNumbers{}
 	nodeName := currNode.Name
 
@@ -250,7 +250,7 @@ func (r *WaitForNodeRestartRuntime) rebootNumbersForNode(ctx context.Context, cu
 		case err != nil:
 			ret.errs = append(ret.errs, fmt.Errorf("nodes/%v failed getting current machineconfig/%v: %v", nodeName, ret.currentMachineConfigName, err))
 		default:
-			ret.currentRebootNumber, err = rebootmachineconfigpool.GetRestartNumber(currentMachineConfig)
+			ret.currentRebootNumber, err = rebootmachineconfigpool.GetRebootNumber(currentMachineConfig)
 			if err != nil && klog.V(2).Enabled() {
 				fmt.Fprintf(r.Out, "nodes/%v uses machineconfig/%v which has not rebooted at all: %v\n", nodeName, ret.currentMachineConfigName, err)
 			}
@@ -270,7 +270,7 @@ func (r *WaitForNodeRestartRuntime) rebootNumbersForNode(ctx context.Context, cu
 		case err != nil:
 			ret.errs = append(ret.errs, fmt.Errorf("nodes/%v failed getting desired machineconfig/%v: %v", nodeName, ret.desiredMachineConfigName, err))
 		default:
-			ret.desiredRebootNumber, err = rebootmachineconfigpool.GetRestartNumber(desiredMachineConfig)
+			ret.desiredRebootNumber, err = rebootmachineconfigpool.GetRebootNumber(desiredMachineConfig)
 			if err != nil && klog.V(2).Enabled() {
 				fmt.Fprintf(r.Out, "nodes/%v desires machineconfig/%v which has not rebooted at all: %v\n", nodeName, ret.desiredMachineConfigName, err)
 			}
