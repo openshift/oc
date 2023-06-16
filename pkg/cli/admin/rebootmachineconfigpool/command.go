@@ -26,6 +26,9 @@ var (
 		# Reboot all MachineConfigPools
 		oc adm reboot-machine-config-pool mcp/worker mcp/master
 
+		# Reboot all MachineConfigPools that inherit from worker.  This include all custom MachineConfigPools and infra. 
+		oc adm reboot-machine-config-pool mcp/worker
+
 		# Reboot masters
 		oc adm reboot-machine-config-pool mcp/master`)
 )
