@@ -38,7 +38,7 @@ type RemoveOldTrustRuntime struct {
 
 	dryRun         bool
 	createdBefore  time.Time
-	excludeBundles map[string]sets.Set[string]
+	excludeBundles map[string]sets.String
 
 	Printer printers.ResourcePrinter
 
@@ -184,7 +184,7 @@ func (r *RemoveOldTrustRuntime) purgeTrustFromConfigMap(cm *corev1.ConfigMap) er
 		}
 
 		newSecrets := secretsForBundle(newBundle, r.cachedSecretCerts)
-		oldSecretNames, newSecretNames := sets.New[string](), sets.New[string]()
+		oldSecretNames, newSecretNames := sets.NewString(), sets.NewString()
 		for _, s := range originalSecrets {
 			oldSecretNames.Insert(s.namespaceName)
 		}

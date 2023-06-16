@@ -109,14 +109,14 @@ func (o *RemoveOldTrustOptions) ToRuntime(args []string) (*RemoveOldTrustRuntime
 		return nil, err
 	}
 
-	exclude := map[string]sets.Set[string]{}
+	exclude := map[string]sets.String{}
 	for _, b := range o.ExcludeBundles {
 		excludedPair := strings.Split(b, "/")
 		if len(excludedPair) != 2 {
 			return nil, fmt.Errorf("wrong format of excluded bundle: %q. Expected format of 'namespace/name'", b)
 		}
 		if exclude[excludedPair[0]] == nil {
-			exclude[excludedPair[0]] = sets.New[string]()
+			exclude[excludedPair[0]] = sets.NewString()
 		}
 		exclude[excludedPair[0]].Insert(excludedPair[1])
 	}
