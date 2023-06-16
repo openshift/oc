@@ -40,7 +40,7 @@ func TestRemoveOldTrustRuntime_purgeTrustFromConfigMap(t *testing.T) {
 		name           string
 		inputCM        *corev1.ConfigMap
 		createdBefore  time.Time
-		excludeCMs     map[string]sets.Set[string]
+		excludeCMs     map[string]sets.String
 		expectedUpdate bool
 		expectedBundle string
 		injectErrors   []error
@@ -76,7 +76,7 @@ func TestRemoveOldTrustRuntime_purgeTrustFromConfigMap(t *testing.T) {
 		{
 			name:          "basic - the ca-bundle is supposed to be excluded",
 			inputCM:       testCM(t),
-			excludeCMs:    map[string]sets.Set[string]{"test-namespace": sets.New("test-configmap")},
+			excludeCMs:    map[string]sets.String{"test-namespace": sets.NewString("test-configmap")},
 			createdBefore: time.Now().Add(10 * time.Second),
 		},
 		{
