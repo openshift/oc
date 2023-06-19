@@ -21,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
-	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/client-go/util/keyutil"
@@ -85,7 +84,7 @@ func TestRootsRegen_forceRegenerationOnSecret(t *testing.T) {
 			if tt.inputSecret != nil {
 				secrets = append(secrets, tt.inputSecret.DeepCopy())
 			}
-			fakeClient := fake.NewSimpleClientset(secrets...)
+			fakeClient := newFakeClientSet(secrets...)
 			if tt.injectApplyError {
 				fakeClient.PrependReactor("patch", "secrets", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, fmt.Errorf("ha, you failed!")
