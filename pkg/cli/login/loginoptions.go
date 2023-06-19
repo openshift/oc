@@ -79,7 +79,7 @@ type LoginOptions struct {
 type passwordPrompter func(r io.Reader, w io.Writer, format string, a ...interface{}) string
 
 func (p passwordPrompter) PromptForPassword(r io.Reader, w io.Writer, format string, a ...interface{}) string {
-	return p(r, w, format, a)
+	return p(r, w, format, a...)
 }
 
 func NewLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
