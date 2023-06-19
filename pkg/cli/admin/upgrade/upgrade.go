@@ -274,7 +274,7 @@ func (o *Options) Run() error {
 				if c := findCondition(upgrade.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
 					if match, err := targetMatch(&upgrade.Release, o.To, o.ToImage); match && err == nil {
 						if !o.AllowNotRecommended {
-							return fmt.Errorf("the update %s is not one of the recommended updates, but is available as a conditional update."+
+							return fmt.Errorf("the update %s is not one of the recommended updates, but is available as a conditional update. "+
 								"To accept the %s=%s risk and to proceed with update use --allow-not-recommended.\n  Reason: %s\n  Message: %s\n",
 								upgrade.Release.Version, c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 						}
@@ -301,7 +301,7 @@ func (o *Options) Run() error {
 				Version: "",
 				Image:   o.ToImage,
 			}
-			fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates."+
+			fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates. "+
 				"You have used --allow-explicit-upgrade for the update to proceed anyway")
 		}
 
