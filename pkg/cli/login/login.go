@@ -31,7 +31,8 @@ var (
 
 		The information required to login -- like username and password, a session token, or
 		the server details -- can be provided through flags. If not provided, the command will
-		prompt for user input as needed.
+		prompt for user input as needed. It is also possible to login through a web browser by
+		providing the respective flag.
 	`)
 
 	loginExample = templates.Examples(`
@@ -43,6 +44,9 @@ var (
 
 		# Log in to the given server with the given credentials (will not prompt interactively)
 		oc login localhost:8443 --username=myuser --password=mypass
+
+		# Log in to the given server through a browser
+		oc login --web --callback-port 8280 localhost:8443
 	`)
 )
 
@@ -83,6 +87,8 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 	cmds.Flags().StringVarP(&o.Username, "username", "u", o.Username, "Username for server")
 	cmds.Flags().StringVarP(&o.Password, "password", "p", o.Password, "Password for server")
 
+	cmds.Flags().BoolVarP(&o.WebLogin, "web", "w", o.WebLogin, "Login with web browser")
+	cmds.Flags().Int32VarP(&o.CallbackPort, "callback-port", "c", o.CallbackPort, "Port for the callback server when using --web. Defaults to a random open port")
 	return cmds
 }
 
@@ -167,10 +173,18 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 		return errors.New("Must have a config file already created")
 	}
 
+	if o.WebLogin && (o.Username != "" || o.Password != "" || o.Token != "") {
+		return errors.New("--web cannot be used along with --username, --password or --token")
+	}
+
+	if o.CallbackPort != 0 && !o.WebLogin {
+		return errors.New("--callback-port can only be specified along with --web")
+	}
+
 	return nil
 }
 
-// RunLogin contains all the necessary functionality for the OpenShift cli login command
+// Run contains all the necessary functionality for the OpenShift cli login command
 func (o LoginOptions) Run() error {
 	if err := o.GatherInfo(); err != nil {
 		return err
