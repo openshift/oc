@@ -285,7 +285,7 @@ func (a *AddVolumeOptions) Validate() error {
 				return errors.New("must provide --claim-name or --claim-size (to create a new claim) for --type=pvc")
 			}
 		default:
-			return errors.New("invalid volume type. Supported types: emptyDir, hostPath, secret, persistentVolumeClaim")
+			return errors.New("invalid volume type. Supported types: emptyDir, hostPath, secret, persistentVolumeClaim, configMap")
 		}
 	} else if len(a.Path) > 0 || len(a.SecretName) > 0 || len(a.ClaimName) > 0 {
 		return errors.New("--path|--secret-name|--claim-name are only valid for --type option")
