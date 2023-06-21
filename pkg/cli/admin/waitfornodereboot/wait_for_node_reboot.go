@@ -163,7 +163,8 @@ func (r *WaitForNodeRebootRuntime) waitForNodes(ctx context.Context, nodes []*co
 			continue
 		case err != nil:
 			fmt.Fprintf(r.ErrOut, "nodes/%v failed getting current: %v\n", nodeName, err)
-			remainingNodes = append(remainingNodes, currNode)
+			// this must requeue the node we have because the currNode from the API is empty.
+			remainingNodes = append(remainingNodes, nodes[i])
 			continue
 		}
 
