@@ -140,15 +140,16 @@ var (
 	PodmanPreference RegistryAuthConfigPreference = "podman"
 )
 
+// TODO: remove REGISTRY_AUTH_PREFERENCE env variable support and support only podman in 4.15
 func GetRegistryAuthConfigPreference() (RegistryAuthConfigPreference, string) {
-	// TODO: docker default is deprecated and will be changed to podman in 4.13
-	result := DockerPreference // default to docker
+	result := PodmanPreference // default to podman
 	warning := ""
 	if authPreference := strings.ToLower(os.Getenv("REGISTRY_AUTH_PREFERENCE")); authPreference == string(DockerPreference) || authPreference == string(PodmanPreference) {
 		result = RegistryAuthConfigPreference(authPreference)
-	} else {
-		// TODO: remove once deprecated in 4.13
-		warning = "Warning: the default reading order of registry auth file will be changed from \"${HOME}/.docker/config.json\" to podman registry config locations in the future version of oc. \"${HOME}/.docker/config.json\" is deprecated, but can still be used for storing credentials as a fallback. See https://github.com/containers/image/blob/main/docs/containers-auth.json.5.md for the order of podman registry config locations.\n"
+		warning = "Warning: The REGISTRY_AUTH_PREFERENCE environment variable is deprecated and will be removed in the future version of oc and" +
+			" only podman reading order of registry auth file will be supported. \"${HOME}/.docker/config.json\" is deprecated, but can still be used to store credentials as a fallback." +
+			" See https://github.com/containers/image/blob/main/docs/containers-auth.json.5.md for the order of podman registry config locations.\n"
+
 	}
 	return result, warning
 }

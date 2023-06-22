@@ -50,12 +50,14 @@ func NewAuthResolver(authFilePath string) (*AuthResolver, error) {
 		if err != nil {
 			return nil, err
 		}
-		if pref, warn := image.GetRegistryAuthConfigPreference(); pref == image.DockerPreference {
+		// TODO: remove REGISTRY_AUTH_PREFERENCE env variable support and support only podman in 4.15
+		pref, warn := image.GetRegistryAuthConfigPreference()
+		if len(warn) > 0 {
+			fmt.Fprint(os.Stderr, warn)
+		}
+		if pref == image.DockerPreference {
 			config := defaultClientDockerConfig()
 			if config != nil {
-				if len(warn) > 0 {
-					fmt.Fprint(os.Stderr, warn)
-				}
 				// give priority to the docker config file $HOME/.docker/config.json
 				for registry, entry := range config {
 					credentials[registry] = containertypes.DockerAuthConfig{
@@ -65,7 +67,6 @@ func NewAuthResolver(authFilePath string) (*AuthResolver, error) {
 					}
 				}
 			}
-
 		}
 	}
 
@@ -74,7 +75,7 @@ func NewAuthResolver(authFilePath string) (*AuthResolver, error) {
 	}, nil
 }
 
-// TODO: switch this for dockerconfig.GetCredentials or dockerconfig.GetAllCredentials once we remove REGISTRY_AUTH_PREFERENCE env variable
+// TODO: switch findAuthentication for dockerconfig.GetCredentials or dockerconfig.GetAllCredentials once we remove REGISTRY_AUTH_PREFERENCE env variable in 4.15
 // original: https://github.com/containers/image/blob/main/pkg/docker/config/config.go
 // findAuthentication looks for auth of registry in path. If ref is
 // not nil, then it will be taken into account when looking up the
