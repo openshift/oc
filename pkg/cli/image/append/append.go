@@ -87,7 +87,7 @@ var (
 		oc image append --from-dir v2 --to myregistry.com/myimage:latest layer.tar.gz
 
 		# Add a new layer to a multi-architecture image for an os/arch that is different from the system's os/arch
-		# Note: Wildcard filter is not supported with append; pass a single os/arch to append (when --keep-manifest-list is not specified)
+		# Note: The first image in the manifest list that matches the filter will be returned when --keep-manifest-list is not specified
 		oc image append --from docker.io/library/busybox:latest --filter-by-os=linux/s390x --to myregistry.com/myimage:latest layer.tar.gz
 
 		# Add a new layer to a multi-architecture image for all the os/arch manifests when keep-manifest-list is specified
