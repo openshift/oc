@@ -42,6 +42,7 @@ type extractTarget struct {
 	Command  string
 	Optional bool
 	NewArch  bool
+	OSName   string
 
 	InjectReleaseImage   bool
 	InjectReleaseVersion bool
@@ -145,7 +146,7 @@ var (
 
 // extractTools extracts specific commands out of images referenced by the release image.
 // TODO: in the future the metadata this command contains might be loaded from the release
-//   image, but we must maintain compatibility with older payloads if so
+// image, but we must maintain compatibility with older payloads if so
 func (o *ExtractOptions) extractCommand(command string) error {
 	// Available targets is treated as a GA API and may not be changed without backwards
 	// compatibility of at least N-2 releases.
@@ -194,6 +195,17 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Readme:               readmeCLIUnix,
 			InjectReleaseVersion: true,
 			ArchiveFormat:        "openshift-client-linux-amd64-%s.tar.gz",
+		},
+		{
+			OS:      "linux",
+			Arch:    "amd64",
+			Command: "oc.rhel7",
+			OSName:  "rhel7",
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/linux_amd64/oc.rhel7"},
+
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-linux-rhel7-amd64-%s.tar.gz",
 		},
 		{
 			OS:      "windows",
@@ -386,7 +398,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 				continue
 			}
 		}
-		if target.OS == "linux" && target.Arch == releaseArch {
+		if target.OS == "linux" && target.Arch == releaseArch && target.OSName == "" {
 			klog.V(2).Infof("Skipping duplicate %s", target.ArchiveFormat)
 			continue
 		}
