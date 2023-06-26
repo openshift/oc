@@ -133,7 +133,7 @@ var (
 		oc observe services --template '{ .spec.clusterIP }' -- register_dns.sh
 
 		# Observe changes to services filtered by a label selector
-		oc observe namespaces -l regist-dns=true --template '{ .spec.clusterIP }' -- register_dns.sh
+		oc observe services -l regist-dns=true --template '{ .spec.clusterIP }' -- register_dns.sh
 	`)
 )
 
