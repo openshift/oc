@@ -187,7 +187,7 @@ func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
 
 	flag.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file. If set, data from this file will be used to find alternative locations for images.")
 	flag.MarkDeprecated("icsp-file", "support for it will be removed in a future release. Use --idms-file instead.")
-	flag.StringVar(&o.IDMSFile, "idms-file", o.ICSPFile, "Path to an ImageDigestMirrorSet file. If set, data from this file will be used to find alternative locations for images.")
+	flag.StringVar(&o.IDMSFile, "idms-file", o.IDMSFile, "Path to an ImageDigestMirrorSet file. If set, data from this file will be used to find alternative locations for images.")
 
 	flag.StringSliceVar(&o.Files, "file", o.Files, "Extract the specified files to the current directory.")
 	flag.StringSliceVar(&o.Paths, "path", o.Paths, "Extract only part of an image, or, designate the directory on disk to extract image contents into. Must be SRC:DST where SRC is the path within the image and DST a local directory. If not specified the default is to extract everything to the current directory.")
