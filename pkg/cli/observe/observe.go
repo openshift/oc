@@ -487,7 +487,7 @@ func (o *ObserveOptions) Run() error {
 	// process all changes that occur in the resource
 	syncing := false
 	for {
-		_, err := store.Pop(func(obj interface{}) error {
+		_, err := store.Pop(func(obj interface{}, isInInitialList bool) error {
 			// if we failed to retrieve the list of keys, exit
 			if err := o.argumentStore.ListKeysError(); err != nil {
 				return fmt.Errorf("unable to list known keys: %v", err)

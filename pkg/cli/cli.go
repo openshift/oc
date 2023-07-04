@@ -107,9 +107,12 @@ func NewDefaultOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 	cmdPathPieces := os.Args[1:]
 	pluginHandler := kubecmd.NewDefaultPluginHandler(plugin.ValidPluginFilenamePrefixes)
 
+	// TODO: this should be imported from kubectl
+	allowedCmdsSubcommandPlugin := map[string]struct{}{"create": {}}
+
 	// only look for suitable extension executables if
 	// the specified command does not already exist
-	if _, _, err := cmd.Find(cmdPathPieces); err != nil {
+	if foundCmd, foundArgs, err := cmd.Find(cmdPathPieces); err != nil {
 		// Also check the commands that will be added by Cobra.
 		// These commands are only added once rootCmd.Execute() is called, so we
 		// need to check them explicitly here.
@@ -125,9 +128,37 @@ func NewDefaultOcCommand(in io.Reader, out, errout io.Writer) *cobra.Command {
 		case "help", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
 			// Don't search for a plugin
 		default:
-			if err := kubecmd.HandlePluginCommand(pluginHandler, cmdPathPieces); err != nil {
+			if err := kubecmd.HandlePluginCommand(pluginHandler, cmdPathPieces, false); err != nil {
 				fmt.Fprintf(errout, "%v\n", err)
 				os.Exit(1)
+			}
+		}
+	} else if err == nil {
+		if kcmdutil.CmdPluginAsSubcommand.IsEnabled() {
+			// Command exists(e.g. kubectl create), but it is not certain that
+			// subcommand also exists (e.g. kubectl create networkpolicy)
+			if _, ok := allowedCmdsSubcommandPlugin[foundCmd.Name()]; ok {
+				var subcommand string
+				for _, arg := range foundArgs { // first "non-flag" argument as subcommand
+					if !strings.HasPrefix(arg, "-") {
+						subcommand = arg
+						break
+					}
+				}
+				builtinSubcmdExist := false
+				for _, subcmd := range foundCmd.Commands() {
+					if subcmd.Name() == subcommand {
+						builtinSubcmdExist = true
+						break
+					}
+				}
+
+				if !builtinSubcmdExist {
+					if err := kubecmd.HandlePluginCommand(pluginHandler, cmdPathPieces, true); err != nil {
+						fmt.Fprintf(errout, "Error: %v\n", err)
+						os.Exit(1)
+					}
+				}
 			}
 		}
 	}
@@ -406,7 +437,7 @@ func registerCompletionFuncForGlobalFlags(cmd *cobra.Command, f kcmdutil.Factory
 	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
 		"namespace",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return completion.CompGetResource(f, cmd, "namespace", toComplete), cobra.ShellCompDirectiveNoFileComp
+			return completion.CompGetResource(f, "namespace", toComplete), cobra.ShellCompDirectiveNoFileComp
 		}))
 	kcmdutil.CheckErr(cmd.RegisterFlagCompletionFunc(
 		"context",
