@@ -1098,8 +1098,8 @@ github.com/openshift/client-go v0.0.0-20230607134213-3cd0021bbee3 h1:uVCq/Sx2y4U
 github.com/openshift/client-go v0.0.0-20230607134213-3cd0021bbee3/go.mod h1:M+VUIcqx5IvgzejcbgmQnxETPrXRYlcufHpw2bAgz9Y=
 github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b h1:it0YPE/evO6/m8t8wxis9KFI2F/aleOKsI6d9uz0cEk=
 github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b/go.mod h1:tNrEB5k8SI+g5kOlsCmL2ELASfpqEofI0+FLBgBdN08=
-github.com/openshift/library-go v0.0.0-20230508110756-9b7abe2c9cbf h1:ZpFAN2qprgp7jEhGPrOAwP8mmuYC9BRYzvDefg+k4GM=
-github.com/openshift/library-go v0.0.0-20230508110756-9b7abe2c9cbf/go.mod h1:PJVatR/oS/EaFciwylyAr9hORSqQHrC+5bXf4L0wsBY=
+github.com/openshift/library-go v0.0.0-20230626162119-954ade536d6d h1:RXJqcNJPjUFlZA27J2fbL7KVMBUvhPxWiH3YkSjrR7w=
+github.com/openshift/library-go v0.0.0-20230626162119-954ade536d6d/go.mod h1:PegtilvJPBJXjJG3AV8uL1a0SAnBr6K67ShNiWVb40M=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/otiai10/copy v1.2.0/go.mod h1:rrF5dJ5F0t/EWSYODDu4j9/vEeYHMkc8jt0zJChqQWw=
 github.com/otiai10/curr v0.0.0-20150429015615-9b4961190c95/go.mod h1:9qAhocn7zKJG+0mI8eUu6xqkFDYS2kb2saOteoSB3cE=
