@@ -9,13 +9,15 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/spf13/cobra"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/library-go/pkg/image/imageutil"
-	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/kubernetes"
 )
 
 type PerNodePodOptions struct {
@@ -23,8 +25,8 @@ type PerNodePodOptions struct {
 	PrintFlags           *genericclioptions.PrintFlags
 	ResourceBuilderFlags *genericclioptions.ResourceBuilderFlags
 
-	// TODO push this into genericclioptions
-	DryRun      bool
+	DryRun cmdutil.DryRunStrategy
+
 	Parallelism string
 
 	NamespacePrefix string
@@ -70,11 +72,11 @@ func (o *PerNodePodOptions) AddFlags(cmd *cobra.Command) {
 	o.PrintFlags.AddFlags(cmd)
 	o.ResourceBuilderFlags.AddFlags(cmd.Flags())
 
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Set to true to use server-side dry run.")
+	cmdutil.AddDryRunFlag(cmd)
 	cmd.Flags().StringVar(&o.Parallelism, "parallelism", o.Parallelism, "parallelism is a raw number or a percentage of the nodes to work with concurrently.")
 }
 
-func (o *PerNodePodOptions) ToRuntime(args []string) (*PerNodePodRuntime, error) {
+func (o *PerNodePodOptions) ToRuntime(cmd *cobra.Command, args []string) (*PerNodePodRuntime, error) {
 	parallelPercentage := int64(0)
 	parallelInt, intParseErr := strconv.ParseInt(o.Parallelism, 10, 32)
 	if intParseErr != nil {
@@ -111,11 +113,20 @@ func (o *PerNodePodOptions) ToRuntime(args []string) (*PerNodePodRuntime, error)
 		return nil, fmt.Errorf("unable to resolve image: %w", err)
 	}
 
+	dryRunStrategy, err := cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	if dryRunStrategy == cmdutil.DryRunClient {
+		return nil, fmt.Errorf("--dry-run=client is not supported, please use --dry-run=server")
+	}
+
 	ret := &PerNodePodRuntime{
 		ResourceFinder: builder,
 		KubeClient:     kubeClient,
 
-		DryRun:                   o.DryRun,
+		DryRun:                   dryRunStrategy == cmdutil.DryRunServer,
 		NamespacePrefix:          o.NamespacePrefix,
 		ImagePullSpec:            imagePullSpec,
 		NumberOfNodesInParallel:  int(parallelInt),

@@ -59,7 +59,7 @@ func NewCmdCopyToNode(restClientGetter genericclioptions.RESTClientGetter, strea
 			ctx, cancel := pernodepod.SignalContext()
 			defer cancel()
 
-			r, err := o.ToRuntime(args)
+			r, err := o.ToRuntime(cmd, args)
 			cmdutil.CheckErr(err)
 			cmdutil.CheckErr(r.Run(ctx))
 		},
@@ -78,8 +78,8 @@ func (o *CopyToNodeOptions) AddFlags(cmd *cobra.Command) {
 
 }
 
-func (o *CopyToNodeOptions) ToRuntime(args []string) (*CopyToNodeRuntime, error) {
-	perNodePodRuntime, err := o.PerNodePodOptions.ToRuntime(args)
+func (o *CopyToNodeOptions) ToRuntime(cmd *cobra.Command, args []string) (*CopyToNodeRuntime, error) {
+	perNodePodRuntime, err := o.PerNodePodOptions.ToRuntime(cmd, args)
 	if err != nil {
 		return nil, err
 	}

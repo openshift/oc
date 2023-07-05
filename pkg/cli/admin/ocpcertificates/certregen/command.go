@@ -2,6 +2,7 @@ package certregen
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -56,8 +57,7 @@ type RegenerateCertificatesOptions struct {
 
 	ValidBeforeString string
 
-	// TODO push this into genericclioptions
-	DryRun bool
+	DryRun cmdutil.DryRunStrategy
 
 	genericclioptions.IOStreams
 }
@@ -88,7 +88,7 @@ func NewCmdRegenerateTopLevel(restClientGetter genericclioptions.RESTClientGette
 		Long:                  regenerateSignersLong,
 		Example:               regenerateSignersExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			r, err := o.ToRuntime(args)
+			r, err := o.ToRuntime(cmd, args)
 
 			regenerator := RootsRegen{ValidBefore: r.ValidBefore}
 			r.regenerateSecretFn = regenerator.forceRegenerationOnSecret
@@ -113,7 +113,7 @@ func NewCmdRegenerateLeaves(restClientGetter genericclioptions.RESTClientGetter,
 		Long:                  regenerateLeafLong,
 		Example:               regenerateLeafExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			r, err := o.ToRuntime(args)
+			r, err := o.ToRuntime(cmd, args)
 
 			regenerator := LeavesRegen{ValidBefore: r.ValidBefore}
 			r.regenerateSecretFn = regenerator.forceRegenerationOnSecret
@@ -133,11 +133,12 @@ func (o *RegenerateCertificatesOptions) AddFlags(cmd *cobra.Command) {
 	o.PrintFlags.AddFlags(cmd)
 	o.ResourceBuilderFlags.AddFlags(cmd.Flags())
 
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Set to true to use server-side dry run.")
+	cmdutil.AddDryRunFlag(cmd)
+
 	cmd.Flags().StringVar(&o.ValidBeforeString, "valid-before", o.ValidBeforeString, "Only regenerate top level certificates valid before this date.  Format: 2023-06-05T14:44:06Z")
 }
 
-func (o *RegenerateCertificatesOptions) ToRuntime(args []string) (*RegenerateCertsRuntime, error) {
+func (o *RegenerateCertificatesOptions) ToRuntime(cmd *cobra.Command, args []string) (*RegenerateCertsRuntime, error) {
 	printer, err := o.PrintFlags.ToPrinter()
 	if err != nil {
 		return nil, err
@@ -152,11 +153,20 @@ func (o *RegenerateCertificatesOptions) ToRuntime(args []string) (*RegenerateCer
 		return nil, err
 	}
 
+	dryRunStrategy, err := cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	if dryRunStrategy == cmdutil.DryRunClient {
+		return nil, fmt.Errorf("--dry-run=client is not supported, please use --dry-run=server")
+	}
+
 	ret := &RegenerateCertsRuntime{
 		ResourceFinder: builder,
 		KubeClient:     kubeClient,
 
-		DryRun: o.DryRun,
+		DryRun: dryRunStrategy == cmdutil.DryRunServer,
 
 		Printer:   printer,
 		IOStreams: o.IOStreams,

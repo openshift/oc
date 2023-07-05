@@ -2,6 +2,7 @@ package rebootmachineconfigpool
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/dynamic"
@@ -38,8 +39,7 @@ type RebootMachineConfigPoolOptions struct {
 	PrintFlags           *genericclioptions.PrintFlags
 	ResourceBuilderFlags *genericclioptions.ResourceBuilderFlags
 
-	// TODO push this into genericclioptions
-	DryRun bool
+	DryRun cmdutil.DryRunStrategy
 
 	genericclioptions.IOStreams
 }
@@ -65,7 +65,7 @@ func NewCmdRebootMachineConfigPool(restClientGetter genericclioptions.RESTClient
 		Long:                  rebootMachineConfigPoolLong,
 		Example:               rebootMachineConfigPoolExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			r, err := o.ToRuntime(args)
+			r, err := o.ToRuntime(cmd, args)
 
 			cmdutil.CheckErr(err)
 			cmdutil.CheckErr(r.Run(context.Background()))
@@ -81,11 +81,10 @@ func NewCmdRebootMachineConfigPool(restClientGetter genericclioptions.RESTClient
 func (o *RebootMachineConfigPoolOptions) AddFlags(cmd *cobra.Command) {
 	o.PrintFlags.AddFlags(cmd)
 	o.ResourceBuilderFlags.AddFlags(cmd.Flags())
-
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Set to true to use server-side dry run.")
+	cmdutil.AddDryRunFlag(cmd)
 }
 
-func (o *RebootMachineConfigPoolOptions) ToRuntime(args []string) (*RebootMachineConfigPoolRuntime, error) {
+func (o *RebootMachineConfigPoolOptions) ToRuntime(cmd *cobra.Command, args []string) (*RebootMachineConfigPoolRuntime, error) {
 	printer, err := o.PrintFlags.ToPrinter()
 	if err != nil {
 		return nil, err
@@ -101,11 +100,20 @@ func (o *RebootMachineConfigPoolOptions) ToRuntime(args []string) (*RebootMachin
 		return nil, err
 	}
 
+	dryRunStrategy, err := cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	if dryRunStrategy == cmdutil.DryRunClient {
+		return nil, fmt.Errorf("--dry-run=client is not supported, please use --dry-run=server")
+	}
+
 	ret := &RebootMachineConfigPoolRuntime{
 		ResourceFinder: builder,
 		DynamicClient:  dynamicClient,
 
-		dryRun: o.DryRun,
+		dryRun: dryRunStrategy == cmdutil.DryRunServer,
 
 		Printer:   printer,
 		IOStreams: o.IOStreams,

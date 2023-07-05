@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -47,8 +47,7 @@ type RemoveOldTrustOptions struct {
 	CreatedBefore  string
 	ExcludeBundles []string
 
-	// TODO push this into genericclioptions
-	DryRun bool
+	DryRun cmdutil.DryRunStrategy
 
 	genericclioptions.IOStreams
 }
@@ -79,7 +78,7 @@ func NewCmdRemoveOldTrust(restClientGetter genericclioptions.RESTClientGetter, s
 		Long:                  removeOldTrustLong,
 		Example:               removeOldTrustExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			r, err := o.ToRuntime(args)
+			r, err := o.ToRuntime(cmd, args)
 
 			cmdutil.CheckErr(err)
 			cmdutil.CheckErr(r.Run(context.Background()))
@@ -96,14 +95,15 @@ func (o *RemoveOldTrustOptions) AddFlags(cmd *cobra.Command) {
 	o.PrintFlags.AddFlags(cmd)
 	o.ResourceBuilderFlags.AddFlags(cmd.Flags())
 
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Set to true to use server-side dry run.")
+	cmdutil.AddDryRunFlag(cmd)
+
 	cmd.Flags().StringVar(&o.CreatedBefore, "created-before", o.CreatedBefore, "Only remove CA certificates that were created before this date.  Format: 2023-06-05T14:44:06Z")
 	cmd.Flags().StringSliceVar(&o.ExcludeBundles, "exclude-bundles", o.ExcludeBundles, "CA bundles to exclude from trust pruning. Can be specified multiple times. Format: namespace/name")
 
 	cmd.MarkFlagRequired("created-before")
 }
 
-func (o *RemoveOldTrustOptions) ToRuntime(args []string) (*RemoveOldTrustRuntime, error) {
+func (o *RemoveOldTrustOptions) ToRuntime(cmd *cobra.Command, args []string) (*RemoveOldTrustRuntime, error) {
 	printer, err := o.PrintFlags.ToPrinter()
 	if err != nil {
 		return nil, err
@@ -131,11 +131,20 @@ func (o *RemoveOldTrustOptions) ToRuntime(args []string) (*RemoveOldTrustRuntime
 		return nil, err
 	}
 
+	dryRunStrategy, err := cmdutil.GetDryRunStrategy(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	if dryRunStrategy == cmdutil.DryRunClient {
+		return nil, fmt.Errorf("--dry-run=client is not supported, please use --dry-run=server")
+	}
+
 	ret := &RemoveOldTrustRuntime{
 		ResourceFinder: builder,
 		KubeClient:     kubeClient,
 
-		dryRun:            o.DryRun,
+		dryRun:            dryRunStrategy == cmdutil.DryRunServer,
 		excludeBundles:    exclude,
 		cachedSecretCerts: map[string][]*cachedSecretCert{},
 

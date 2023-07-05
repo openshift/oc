@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/openshift/oc/pkg/cli/admin/pernodepod"
 	"github.com/spf13/cobra"
+
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
+
+	"github.com/openshift/oc/pkg/cli/admin/pernodepod"
 )
 
 var (
@@ -71,7 +73,7 @@ func NewCmdRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, s
 			ctx, cancel := pernodepod.SignalContext()
 			defer cancel()
 
-			r, err := o.ToRuntime(args)
+			r, err := o.ToRuntime(cmd, args)
 			cmdutil.CheckErr(err)
 			cmdutil.CheckErr(r.Run(ctx))
 		},
@@ -90,7 +92,7 @@ func (o *RestartKubeletOptions) AddFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.Directive, "directive", o.Directive, "run a well-known command while restarting kubelets: RemoveKubeletKubeconfig")
 }
 
-func (o *RestartKubeletOptions) ToRuntime(args []string) (*RestartKubeletRuntime, error) {
+func (o *RestartKubeletOptions) ToRuntime(cmd *cobra.Command, args []string) (*RestartKubeletRuntime, error) {
 	if len(o.CommandWhileKubeletIsOff) > 0 && len(o.Directive) > 0 {
 		return nil, fmt.Errorf("only one of --command and --directive can be set")
 	}
@@ -102,7 +104,7 @@ func (o *RestartKubeletOptions) ToRuntime(args []string) (*RestartKubeletRuntime
 		return nil, fmt.Errorf("unknown directive %q, known directives: %v", o.Directive, strings.Join([]string{"RemoveKubeletKubeconfig"}, ", "))
 	}
 
-	perNodePodRuntime, err := o.PerNodePodOptions.ToRuntime(args)
+	perNodePodRuntime, err := o.PerNodePodOptions.ToRuntime(cmd, args)
 	if err != nil {
 		return nil, err
 	}
