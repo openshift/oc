@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/manifest/manifestlist"
-	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/distribution/distribution/v3/manifest/manifestlist"
+	"github.com/distribution/distribution/v3/manifest/schema2"
+	"github.com/distribution/distribution/v3/registry/api/errcode"
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"k8s.io/klog/v2"
 

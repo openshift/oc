@@ -729,7 +729,7 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			ClientConfig: &restclient.Config{Host: tc.hostWrapper(s.URL)},
 			TokenFlow:    tc.tokenFlow,
 		}
-		if err := opts.SetDefaultOsinConfig(); err != nil {
+		if err := opts.SetDefaultOsinConfig("openshift-challenging-client", nil); err != nil {
 			t.Errorf("%s: unexpected SetDefaultOsinConfig error: %v", tc.name, err)
 			continue
 		}

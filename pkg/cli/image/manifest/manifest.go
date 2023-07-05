@@ -11,14 +11,14 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/manifestlist"
-	"github.com/docker/distribution/manifest/ocischema"
-	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/api/errcode"
-	v2 "github.com/docker/distribution/registry/api/v2"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest/manifestlist"
+	"github.com/distribution/distribution/v3/manifest/ocischema"
+	"github.com/distribution/distribution/v3/manifest/schema1"
+	"github.com/distribution/distribution/v3/manifest/schema2"
+	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/distribution/v3/registry/api/errcode"
+	v2 "github.com/distribution/distribution/v3/registry/api/v2"
 
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
@@ -620,7 +620,16 @@ func convertToSchema2(ctx context.Context, blobs distribution.BlobService, srcMa
 	if klog.V(6).Enabled() {
 		klog.Infof("Resulting config.json:\n%s", string(configJSON))
 	}
-	b := schema2.NewManifestBuilder(blobs, schema2.MediaTypeImageConfig, configJSON)
+	configDescriptor := distribution.Descriptor{
+		Digest:    digest.FromBytes(configJSON),
+		Size:      int64(len(configJSON)),
+		MediaType: schema2.MediaTypeImageConfig,
+	}
+	b := schema2.NewManifestBuilder(configDescriptor, configJSON)
+	_, err = blobs.Put(ctx, schema2.MediaTypeImageConfig, configJSON)
+	if err != nil {
+		return nil, err
+	}
 	for _, layer := range layers {
 		desc, err := blobs.Stat(ctx, layer.Digest)
 		if err != nil {

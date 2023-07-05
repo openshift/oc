@@ -21,10 +21,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/distribution/registry/client/transport"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/distribution/v3/registry/client/auth"
+	"github.com/distribution/distribution/v3/registry/client/transport"
 	godigest "github.com/opencontainers/go-digest"
 )
 

@@ -311,7 +311,7 @@ func (t dockerTransport) ParseReference(reference string) (sigtypes.ImageReferen
 // scope passed to this function will not be "", that value is always allowed.
 func (t dockerTransport) ValidatePolicyConfigurationScope(scope string) error {
 	// FIXME? We could be verifying the various character set and length restrictions
-	// from docker/distribution/reference.regexp.go, but other than that there
+	// from distribution/distribution/v3/reference.regexp.go, but other than that there
 	// are few semantically invalid strings.
 	return nil
 }
@@ -334,7 +334,7 @@ func parseDockerReference(refString string) (sigtypes.ImageReference, error) {
 		return nil, fmt.Errorf("Docker reference %s has neither a tag nor a digest", reference.FamiliarString(ref))
 	}
 	// A github.com/distribution/reference value can have a tag and a digest at the same time!
-	// The docker/distribution API does not really support that (we can’t ask for an image with a specific
+	// The distribution/distribution/v3 API does not really support that (we can’t ask for an image with a specific
 	// tag and digest), so fail.  This MAY be accepted in the future.
 	// (Even if it were supported, the semantics of policy namespaces are unclear - should we drop
 	// the tag or the digest first?)

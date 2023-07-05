@@ -265,7 +265,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	clientConfig.CertFile = o.CertFile
 	clientConfig.KeyFile = o.KeyFile
 
-	token, err := tokenrequest.RequestToken(o.Config, o.getAuthChallengeHandler())
+	token, err := tokenrequest.RequestTokenWithChallengeHandlers(o.Config, o.getAuthChallengeHandler())
 	if err != nil {
 		return err
 	}

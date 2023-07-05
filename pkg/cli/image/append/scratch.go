@@ -5,8 +5,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/reference"
 	digest "github.com/opencontainers/go-digest"
 
 	"github.com/openshift/oc/pkg/helpers/image/dockerlayer"
