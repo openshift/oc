@@ -134,6 +134,8 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 	flags.BoolVar(&o.Verify, "verify", o.Verify, "Generate bug listings from the changelogs in the git repositories extracted to this path.")
 
 	flags.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file. If set, data from this file will be used to find alternative locations for images.")
+	flags.MarkDeprecated("icsp-file", "support for it will be removed in a future release. Use --idms-file instead.")
+	flags.StringVar(&o.IDMSFile, "idms-file", o.IDMSFile, "Path to an ImageDigestMirrorSet file. If set, data from this file will be used to find alternative locations for images.")
 
 	flags.BoolVar(&o.ShowContents, "contents", o.ShowContents, "Display the contents of a release.")
 	flags.BoolVar(&o.ShowCommit, "commits", o.ShowCommit, "Display information about the source an image was created with.")
@@ -168,6 +170,7 @@ type InfoOptions struct {
 	ShowSize      bool
 	Verify        bool
 	ICSPFile      string
+	IDMSFile      string
 
 	ChangelogDir string
 	BugsDir      string
@@ -452,6 +455,10 @@ func (o *InfoOptions) Validate() error {
 	}
 	if len(o.From) > 0 && len(o.Images) != 1 {
 		return fmt.Errorf("must specify a single release image as argument when comparing to another release image")
+	}
+
+	if len(o.ICSPFile) > 0 && len(o.IDMSFile) > 0 {
+		return fmt.Errorf("icsp-file and idms-file are mutually exclusive")
 	}
 
 	return o.FilterOptions.Validate()
@@ -769,6 +776,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	opts.FilterOptions = o.FilterOptions
 	opts.FileDir = o.FileDir
 	opts.ICSPFile = o.ICSPFile
+	opts.IDMSFile = o.IDMSFile
 
 	release := &ReleaseInfo{
 		Image:    image,
