@@ -33,7 +33,7 @@ const (
 	newMCSCASecret = "machine-config-server-ca"
 	userDataKey    = "userData"
 
-	// mcoManagedWorkerSecret is the unused, MCO-managed stub ignition for workers
+	// mcoManagedWorkerSecret is the MCO-managed stub ignition for workers, used only in BareMetal IPI
 	mcoManagedWorkerSecret = "worker-user-data-managed"
 	// mcoManagedMasterSecret is the unused, MCO-managed stub ignition for masters
 	mcoManagedMasterSecret = "master-user-data-managed"
