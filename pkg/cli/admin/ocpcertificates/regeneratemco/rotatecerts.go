@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"time"
 
+	configv1 "github.com/openshift/api/config/v1"
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/certrotation"
@@ -33,14 +34,17 @@ func (o *RegenerateMCOOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	host, err := oconfig.ConfigV1().Infrastructures().Get(ctx, "cluster", metav1.GetOptions{})
+	cfg, err := oconfig.ConfigV1().Infrastructures().Get(ctx, "cluster", metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to get cluster infrastructure resource: %w", err)
 	}
-	if host.Status.APIServerInternalURL == "" {
+
+	serverIPs := getServerIPsFromInfra(cfg)
+
+	if cfg.Status.APIServerInternalURL == "" {
 		return fmt.Errorf("no APIServerInternalURL found in cluster infrastructure resource")
 	}
-	apiserverIntURL, err := url.Parse(host.Status.APIServerInternalURL)
+	apiserverIntURL, err := url.Parse(cfg.Status.APIServerInternalURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse %s: %w", apiserverIntURL, err)
 	}
@@ -77,7 +81,7 @@ func (o *RegenerateMCOOptions) Run(ctx context.Context) error {
 			Validity:  keyExpiry,
 			Refresh:   keyRefresh,
 			CertCreator: &certrotation.ServingRotation{
-				Hostnames: func() []string { return []string{apiserverIntURL.Hostname()} },
+				Hostnames: func() []string { return append([]string{apiserverIntURL.Hostname()}, serverIPs...) },
 			},
 			Lister:        inf.Core().V1().Secrets().Lister(),
 			Informer:      inf.Core().V1().Secrets(),
@@ -119,4 +123,24 @@ func (o *RegenerateMCOOptions) Run(ctx context.Context) error {
 		return o.RunUserDataUpdate(ctx)
 	}
 	return nil
+}
+
+func getServerIPsFromInfra(cfg *configv1.Infrastructure) []string {
+	if cfg.Status.PlatformStatus == nil {
+		return []string{}
+	}
+	switch cfg.Status.PlatformStatus.Type {
+	case configv1.BareMetalPlatformType:
+		return cfg.Status.PlatformStatus.BareMetal.APIServerInternalIPs
+	case configv1.OvirtPlatformType:
+		return cfg.Status.PlatformStatus.Ovirt.APIServerInternalIPs
+	case configv1.OpenStackPlatformType:
+		return cfg.Status.PlatformStatus.OpenStack.APIServerInternalIPs
+	case configv1.VSpherePlatformType:
+		return cfg.Status.PlatformStatus.VSphere.APIServerInternalIPs
+	case configv1.NutanixPlatformType:
+		return cfg.Status.PlatformStatus.Nutanix.APIServerInternalIPs
+	default:
+		return []string{}
+	}
 }
