@@ -47,7 +47,7 @@ func (o *RegenerateMCOOptions) updateSecrets(ctx context.Context) error {
 		return fmt.Errorf("cannot list MAO secrets: %w", err)
 	}
 	for _, secret := range secretList.Items {
-		// These two are managed by the MCO but unused. Skip them since the MCO will write them back.
+		// These two are managed by and only used for BareMetal IPI. Skip them since the MCO will write them back.
 		if secret.Name == mcoManagedWorkerSecret || secret.Name == mcoManagedMasterSecret {
 			continue
 		}
