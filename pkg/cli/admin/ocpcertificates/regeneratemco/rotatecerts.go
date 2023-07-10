@@ -131,15 +131,30 @@ func getServerIPsFromInfra(cfg *configv1.Infrastructure) []string {
 	}
 	switch cfg.Status.PlatformStatus.Type {
 	case configv1.BareMetalPlatformType:
-		return cfg.Status.PlatformStatus.BareMetal.APIServerInternalIPs
+		if cfg.Status.PlatformStatus.BareMetal.APIServerInternalIPs != nil {
+			return cfg.Status.PlatformStatus.BareMetal.APIServerInternalIPs
+		}
+		return []string{cfg.Status.PlatformStatus.BareMetal.APIServerInternalIP}
 	case configv1.OvirtPlatformType:
-		return cfg.Status.PlatformStatus.Ovirt.APIServerInternalIPs
+		if cfg.Status.PlatformStatus.Ovirt.APIServerInternalIPs != nil {
+			return cfg.Status.PlatformStatus.Ovirt.APIServerInternalIPs
+		}
+		return []string{cfg.Status.PlatformStatus.Ovirt.APIServerInternalIP}
 	case configv1.OpenStackPlatformType:
-		return cfg.Status.PlatformStatus.OpenStack.APIServerInternalIPs
+		if cfg.Status.PlatformStatus.OpenStack.APIServerInternalIPs != nil {
+			return cfg.Status.PlatformStatus.OpenStack.APIServerInternalIPs
+		}
+		return []string{cfg.Status.PlatformStatus.OpenStack.APIServerInternalIP}
 	case configv1.VSpherePlatformType:
-		return cfg.Status.PlatformStatus.VSphere.APIServerInternalIPs
+		if cfg.Status.PlatformStatus.VSphere.APIServerInternalIPs != nil {
+			return cfg.Status.PlatformStatus.VSphere.APIServerInternalIPs
+		}
+		return []string{cfg.Status.PlatformStatus.VSphere.APIServerInternalIP}
 	case configv1.NutanixPlatformType:
-		return cfg.Status.PlatformStatus.Nutanix.APIServerInternalIPs
+		if cfg.Status.PlatformStatus.Nutanix.APIServerInternalIPs != nil {
+			return cfg.Status.PlatformStatus.Nutanix.APIServerInternalIPs
+		}
+		return []string{cfg.Status.PlatformStatus.Nutanix.APIServerInternalIP}
 	default:
 		return []string{}
 	}
