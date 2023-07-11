@@ -21,19 +21,22 @@ const (
 	keyExpiry  = caExpiry
 	keyRefresh = caRefresh
 
-	mcoNamespace   = "openshift-machine-config-operator"
-	mapiNamespace  = "openshift-machine-api"
-	controllerName = "OCMachineConfigServerRotator"
-	mcsName        = "machine-config-server"
+	mcoNamespace        = "openshift-machine-config-operator"
+	mapiNamespace       = "openshift-machine-api"
+	kubeSystemNamespace = "kube-system"
+	controllerName      = "OCMachineConfigServerRotator"
+	mcsName             = "machine-config-server"
 
 	// mcsTlsSecretName is created by the installer and is not owned by default
 	mcsTlsSecretName = mcsName + "-tls"
 
 	// newMCSCASecret is the location of the CA after rotation
-	newMCSCASecret = "machine-config-server-ca"
-	userDataKey    = "userData"
+	newMCSCASecret  = "machine-config-server-ca"
+	userDataKey     = "userData"
+	rootCAConfigmap = "root-ca"
+	rootCACertKey   = "ca.crt"
 
-	// mcoManagedWorkerSecret is the unused, MCO-managed stub ignition for workers
+	// mcoManagedWorkerSecret is the MCO-managed stub ignition for workers, used only in BareMetal IPI
 	mcoManagedWorkerSecret = "worker-user-data-managed"
 	// mcoManagedMasterSecret is the unused, MCO-managed stub ignition for masters
 	mcoManagedMasterSecret = "master-user-data-managed"
