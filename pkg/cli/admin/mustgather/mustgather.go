@@ -15,19 +15,22 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
@@ -41,7 +44,6 @@ import (
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/operator/resource/retry"
-
 	"github.com/openshift/oc/pkg/cli/admin/inspect"
 	"github.com/openshift/oc/pkg/cli/rsync"
 	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
@@ -96,6 +98,13 @@ sleep 5
 done`
 )
 
+const (
+	// number of concurrent must-gather Pods to run if --all-images or multiple --image are provided
+	concurrentMG = 4
+	// annotation to look for in ClusterServiceVersions and ClusterOperators when using --all-images
+	mgAnnotation = "operators.openshift.io/must-gather-image"
+)
+
 func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMustGatherOptions(streams)
 	cmd := &cobra.Command{
@@ -115,6 +124,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().BoolVar(&o.HostNetwork, "host-network", o.HostNetwork, "Run must-gather pods as hostNetwork: true - relevant if a specific command and image needs to capture host-level data")
 	cmd.Flags().StringSliceVar(&o.Images, "image", o.Images, "Specify a must-gather plugin image to run. If not specified, OpenShift's default must-gather image will be used.")
 	cmd.Flags().StringSliceVar(&o.ImageStreams, "image-stream", o.ImageStreams, "Specify an image stream (namespace/name:tag) containing a must-gather plugin image to run.")
+	cmd.Flags().BoolVar(&o.AllImages, "all-images", o.AllImages, `Collect must-gather using the default image for all Operators on the cluster annotated with `+mgAnnotation)
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
 	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
@@ -152,6 +162,9 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	if o.ConfigClient, err = configclient.NewForConfig(o.Config); err != nil {
 		return err
 	}
+	if o.DynamicClient, err = dynamic.NewForConfig(o.Config); err != nil {
+		return err
+	}
 	if o.ImageClient, err = imagev1client.NewForConfig(o.Config); err != nil {
 		return err
 	}
@@ -178,6 +191,25 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	if len(o.DestDir) == 0 {
 		o.DestDir = fmt.Sprintf("must-gather.local.%06d", rand.Int63())
 	}
+	// TODO: this should be in Validate() method, but added here because of the call to o.completeImages() below
+	if o.AllImages {
+		errStr := fmt.Sprintf("and --all-images are mutually exclusive: please specify one or the other")
+		if len(o.Images) != 0 {
+			return fmt.Errorf("--image %s", errStr)
+		}
+		if o.HostNetwork {
+			return fmt.Errorf("--host-network %s", errStr)
+		}
+		if len(o.ImageStreams) != 0 {
+			return fmt.Errorf("--image-streams %s", errStr)
+		}
+		if o.NodeName != "" {
+			return fmt.Errorf("--node-name %s", errStr)
+		}
+		if o.RunNamespace != "" {
+			return fmt.Errorf("--run-namespace %s", errStr)
+		}
+	}
 	if err := o.completeImages(); err != nil {
 		return err
 	}
@@ -201,7 +233,7 @@ func (o *MustGatherOptions) completeImages() error {
 			return fmt.Errorf("unable to resolve image stream '%v': %v", imageStream, err)
 		}
 	}
-	if len(o.Images) == 0 {
+	if len(o.Images) == 0 || o.AllImages {
 		var image string
 		var err error
 		if image, err = o.resolveImageStreamTag("openshift", "must-gather", "latest"); err != nil {
@@ -210,9 +242,57 @@ func (o *MustGatherOptions) completeImages() error {
 		}
 		o.Images = append(o.Images, image)
 	}
+	if o.AllImages {
+		// find all csvs and clusteroperators with the annotation "operators.openshift.io/must-gather-image"
+		pluginImages := make(map[string]struct{})
+		var err error
+
+		pluginImages, err = o.annotatedCSVs()
+		if err != nil {
+			return err
+		}
+
+		cos, err := o.ConfigClient.ConfigV1().ClusterOperators().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		for _, item := range cos.Items {
+			ann := item.GetAnnotations()
+			if v, ok := ann[mgAnnotation]; ok {
+				pluginImages[v] = struct{}{}
+			}
+		}
+		// delete the default image to avoid duplication in case an Operator had it in its annotation
+		delete(pluginImages, o.Images[0])
+		for i := range pluginImages {
+			o.Images = append(o.Images, i)
+		}
+	}
 	o.log("Using must-gather plug-in image: %s", strings.Join(o.Images, ", "))
 
 	return nil
+}
+
+func (o *MustGatherOptions) annotatedCSVs() (map[string]struct{}, error) {
+	var csvGVR = schema.GroupVersionResource{
+		Group:    "operators.coreos.com",
+		Version:  "v1alpha1",
+		Resource: "clusterserviceversions",
+	}
+	pluginImages := make(map[string]struct{})
+
+	csvs, err := o.DynamicClient.Resource(csvGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, item := range csvs.Items {
+		ann := item.GetAnnotations()
+		if v, ok := ann[mgAnnotation]; ok {
+			pluginImages[v] = struct{}{}
+		}
+	}
+	return pluginImages, nil
 }
 
 func (o *MustGatherOptions) resolveImageStreamTagString(s string) (string, error) {
@@ -255,6 +335,7 @@ type MustGatherOptions struct {
 	Config           *rest.Config
 	Client           kubernetes.Interface
 	ConfigClient     configclient.Interface
+	DynamicClient    dynamic.Interface
 	ImageClient      imagev1client.ImageV1Interface
 	RESTClientGetter genericclioptions.RESTClientGetter
 
@@ -264,6 +345,7 @@ type MustGatherOptions struct {
 	DestDir          string
 	SourceDir        string
 	Images           []string
+	AllImages        bool
 	ImageStreams     []string
 	Command          []string
 	Timeout          time.Duration
@@ -321,7 +403,7 @@ func (o *MustGatherOptions) Validate() error {
 	return nil
 }
 
-// Run creates and runs a must-gather pod.d
+// Run creates and runs a must-gather pod
 func (o *MustGatherOptions) Run() error {
 	var errs []error
 
@@ -414,14 +496,7 @@ func (o *MustGatherOptions) Run() error {
 				return err
 			}
 			for _, node := range nodes.Items {
-				pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(node.Name, image, hasMaster), metav1.CreateOptions{})
-				if err != nil {
-					// ensure the errors bubble up to BackupGathering method for display
-					errs = []error{err}
-					return err
-				}
-				o.log("pod: %s on node: %s for plug-in image %s created", pod.Name, node.Name, image)
-				pods = append(pods, pod)
+				pods = append(pods, o.newPod(node.Name, image, hasMaster))
 			}
 		} else {
 			if o.NodeName != "" {
@@ -431,14 +506,7 @@ func (o *MustGatherOptions) Run() error {
 					return err
 				}
 			}
-			pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image, hasMaster), metav1.CreateOptions{})
-			if err != nil {
-				// ensure the errors bubble up to BackupGathering method for display
-				errs = []error{err}
-				return err
-			}
-			o.log("pod for plug-in image %s created", image)
-			pods = append(pods, pod)
+			pods = append(pods, o.newPod(o.NodeName, image, hasMaster))
 		}
 	}
 
@@ -450,65 +518,31 @@ func (o *MustGatherOptions) Run() error {
 	}
 	defer o.logTimestamp()
 
+	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+
 	var wg sync.WaitGroup
-	wg.Add(len(pods))
 	errCh := make(chan error, len(pods))
+
 	for _, pod := range pods {
-		go func(pod *corev1.Pod) {
+		queue.Add(pod)
+	}
+	queue.ShutDownWithDrain()
+
+	wg.Add(concurrentMG)
+	for i := 0; i < concurrentMG; i++ {
+		go func() {
 			defer wg.Done()
-
-			if len(o.RunNamespace) > 0 && !o.Keep {
-				defer func() {
-					// must-gather runs in its own separate namespace as default , so after it is completed
-					// it deletes this namespace and all the pods are removed by garbage collector.
-					// However, if user specifies namespace via `run-namespace`, these pods need to
-					// be deleted manually.
-					err = o.Client.CoreV1().Pods(o.RunNamespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
-					if err != nil {
-						klog.V(4).Infof("pod deletion error %v", err)
-					}
-				}()
-			}
-
-			log := o.newPodOutLogger(o.Out, pod.Name)
-
-			// wait for gather container to be running (gather is running)
-			if err := o.waitForGatherContainerRunning(pod); err != nil {
-				log("gather did not start: %s", err)
-				errCh <- fmt.Errorf("gather did not start for pod %s: %s", pod.Name, err)
-				return
-			}
-			// stream gather container logs
-			if err := o.getGatherContainerLogs(pod); err != nil {
-				log("gather logs unavailable: %v", err)
-			}
-
-			// wait for pod to be running (gather has completed)
-			log("waiting for gather to complete")
-			if err := o.waitForGatherToComplete(pod); err != nil {
-				log("gather never finished: %v", err)
-				if exiterr, ok := err.(*exec.CodeExitError); ok {
-					errCh <- exiterr
-				} else {
-					errCh <- fmt.Errorf("gather never finished for pod %s: %s", pod.Name, err)
+			for {
+				pod, quit := queue.Get()
+				if quit {
+					return
 				}
-				return
+				defer queue.Done(pod)
+				if err := o.processNextWorkItem(ns.Name, pod.(*corev1.Pod)); err != nil {
+					errCh <- err
+				}
 			}
-
-			// copy the gathered files into the local destination dir
-			log("downloading gather output")
-			pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
-			if err != nil {
-				log("gather output not downloaded: %v\n", err)
-				errCh <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
-				return
-			}
-			if err := o.copyFilesFromPod(pod); err != nil {
-				log("gather output not downloaded: %v\n", err)
-				errCh <- fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
-				return
-			}
-		}(pod)
+		}()
 	}
 	wg.Wait()
 	close(errCh)
@@ -532,6 +566,68 @@ func (o *MustGatherOptions) Run() error {
 	}
 
 	return errors.NewAggregate(errs)
+}
+
+// processNextWorkItem creates & processes the must-gather pod and returns error if any
+func (o *MustGatherOptions) processNextWorkItem(ns string, pod *corev1.Pod) error {
+	var err error
+	pod, err = o.Client.CoreV1().Pods(ns).Create(context.TODO(), pod, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	if o.NodeSelector != "" {
+		o.log("pod: %s on node: %s for plug-in image %s created", pod.Name, pod.Spec.NodeName, pod.Spec.Containers[0].Image)
+	} else {
+		o.log("pod for plug-in image %s created", pod.Spec.Containers[0].Image)
+	}
+	if len(o.RunNamespace) > 0 && !o.Keep {
+		defer func() {
+			// must-gather runs in its own separate namespace as default , so after it is completed
+			// it deletes this namespace and all the pods are removed by garbage collector.
+			// However, if user specifies namespace via `run-namespace`, these pods need to
+			// be deleted manually.
+			err = o.Client.CoreV1().Pods(o.RunNamespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
+			if err != nil {
+				klog.V(4).Infof("pod deletion error %v", err)
+			}
+		}()
+	}
+
+	log := o.newPodOutLogger(o.Out, pod.Name)
+
+	// wait for gather container to be running (gather is running)
+	if err := o.waitForGatherContainerRunning(pod); err != nil {
+		log("gather did not start: %s", err)
+		return fmt.Errorf("gather did not start for pod %s: %s", pod.Name, err)
+
+	}
+	// stream gather container logs
+	if err := o.getGatherContainerLogs(pod); err != nil {
+		log("gather logs unavailable: %v", err)
+	}
+
+	// wait for pod to be running (gather has completed)
+	log("waiting for gather to complete")
+	if err := o.waitForGatherToComplete(pod); err != nil {
+		log("gather never finished: %v", err)
+		if exiterr, ok := err.(*exec.CodeExitError); ok {
+			return exiterr
+		}
+		return fmt.Errorf("gather never finished for pod %s: %s", pod.Name, err)
+	}
+
+	// copy the gathered files into the local destination dir
+	log("downloading gather output")
+	pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+	if err != nil {
+		log("gather output not downloaded: %v\n", err)
+		return fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
+	}
+	if err := o.copyFilesFromPod(pod); err != nil {
+		log("gather output not downloaded: %v\n", err)
+		return fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
+	}
+	return nil
 }
 
 func (o *MustGatherOptions) newPodOutLogger(out io.Writer, podName string) func(string, ...interface{}) {
