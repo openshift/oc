@@ -1,9 +1,7 @@
 package release
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -495,12 +493,9 @@ func (o *MirrorOptions) Run() error {
 	var manifests []manifest.Manifest
 	is := o.ImageStream
 	if is == nil {
-		o.ImageStream = &imagev1.ImageStream{}
-		is = o.ImageStream
-
 		// load image references
-		buf := &bytes.Buffer{}
-		extractOpts := NewExtractOptions(genericclioptions.IOStreams{Out: buf, ErrOut: o.ErrOut}, true)
+		extractOpts := NewExtractOptions(genericclioptions.IOStreams{ErrOut: o.ErrOut}, true)
+		extractOpts.Directory = ""
 		extractOpts.ParallelOptions = o.ParallelOptions
 		extractOpts.SecurityOptions = o.SecurityOptions
 		if o.KeepManifestList {
@@ -529,15 +524,13 @@ func (o *MirrorOptions) Run() error {
 		}
 		extractOpts.FileDir = o.FromDir
 		extractOpts.From = o.From
-		extractOpts.File = "image-references"
 		if err := extractOpts.Run(); err != nil {
 			return fmt.Errorf("unable to retrieve release image info: %v", err)
 		}
-		if err := json.Unmarshal(buf.Bytes(), &is); err != nil {
-			return fmt.Errorf("unable to load image-references from release payload: %v", err)
-		}
-		if is.Kind != "ImageStream" || is.APIVersion != "image.openshift.io/v1" {
-			return fmt.Errorf("unrecognized image-references in release payload")
+
+		is = extractOpts.ImageReferences
+		if is == nil {
+			return errors.New("unable to load image-references from release payload")
 		}
 		manifests = extractOpts.Manifests
 	}
