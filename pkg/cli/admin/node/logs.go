@@ -34,7 +34,7 @@ var (
 		This command retrieves logs for the node. The default mode is to query the
 		systemd journal on supported operating systems, which allows searching, time
 		based filtering, and unit based filtering. You may also use the --path argument
-		to see a list of log files available under /var/logs/ and view those contents
+		to see a list of log files available under /var/log/ and view those contents
 		directly.
 
 		Node logs may contain sensitive output and so are limited to privileged node
@@ -48,7 +48,7 @@ var (
 		# Show kubelet logs from all masters
 		oc adm node-logs --role master -u kubelet
 
-		# See what logs are available in masters in /var/logs
+		# See what logs are available in masters in /var/log
 		oc adm node-logs --role master --path=/
 
 		# Display cron log file from all masters
@@ -111,7 +111,7 @@ func NewCmdLogs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		},
 	}
 
-	cmd.Flags().StringVar(&o.Path, "path", o.Path, "Retrieve the specified path within the node's /var/logs/ folder. The 'journal' value will allow querying the services on supported operating systems.")
+	cmd.Flags().StringVar(&o.Path, "path", o.Path, "Retrieve the specified path within the node's /var/log/ folder. The 'journal' value will allow querying the services on supported operating systems.")
 	cmd.Flags().StringSliceVarP(&o.Units, "unit", "u", o.Units, "Return log entries from the specified services(s) Only applies to node service logs.")
 	cmd.Flags().StringVarP(&o.Grep, "grep", "g", o.Grep, "Filter log entries by the provided regex pattern. Only applies to node service logs.")
 	cmd.Flags().BoolVar(&o.GrepCaseSensitive, "case-sensitive", o.GrepCaseSensitive, "Filters are case sensitive by default. Pass --case-sensitive=false to do a case insensitive filter.")
