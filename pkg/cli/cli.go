@@ -177,9 +177,12 @@ func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 		Run:   runHelp,
 		PersistentPreRunE: func(*cobra.Command, []string) error {
 			rest.SetDefaultWarningHandler(warningHandler)
-			return nil
+			return initProfiling()
 		},
 		PersistentPostRunE: func(*cobra.Command, []string) error {
+			if err := flushProfiling(); err != nil {
+				return err
+			}
 			if warningsAsErrors {
 				count := warningHandler.WarningCount()
 				switch count {
@@ -196,6 +199,9 @@ func NewOcCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	}
 
 	flags := cmds.PersistentFlags()
+
+	addProfilingFlags(flags)
+
 	flags.BoolVar(&warningsAsErrors, "warnings-as-errors", warningsAsErrors, "Treat warnings received from the server as errors and exit with a non-zero exit code")
 
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDiscoveryBurst(350).WithDiscoveryQPS(50.0)
