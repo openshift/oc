@@ -51,7 +51,7 @@ func (r *resourceWriterReadCloser) Close() error {
 type simpleFileWriter struct{}
 
 func (f *simpleFileWriter) Write(filepath string, src fileWriterSource) error {
-	dest, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0755)
+	dest, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
 	}
