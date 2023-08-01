@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	configv1 "github.com/openshift/api/config/v1"
+	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/vincent-petithory/dataurl"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -47,7 +50,7 @@ func (o *RegenerateMCOOptions) updateSecrets(ctx context.Context) error {
 		return fmt.Errorf("cannot list MAO secrets: %w", err)
 	}
 	for _, secret := range secretList.Items {
-		// These two are managed by the MCO but unused. Skip them since the MCO will write them back.
+		// These two are managed by and only used for BareMetal IPI. Skip them since the MCO will write them back.
 		if secret.Name == mcoManagedWorkerSecret || secret.Name == mcoManagedMasterSecret {
 			continue
 		}
@@ -99,6 +102,34 @@ func (o *RegenerateMCOOptions) updateSecrets(ctx context.Context) error {
 		}
 
 		fmt.Fprintf(o.IOStreams.Out, "Successfully modified user-data secret %s\n", secret.Name)
+	}
+
+	// For Baremetal IPI, the worker-user-data-managed machineset is being used for scaling,
+	// so we need to do update the source (root-ca configmap) which will also cause all nodes to reboot.
+	oconfig, err := configclient.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+	cfg, err := oconfig.ConfigV1().Infrastructures().Get(ctx, "cluster", metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("unable to get cluster infrastructure resource: %w", err)
+	}
+	if cfg.Status.Platform == configv1.BareMetalPlatformType {
+		kubeSystemRootCA, err := clientset.CoreV1().ConfigMaps(kubeSystemNamespace).Get(ctx, rootCAConfigmap, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				fmt.Fprintf(o.IOStreams.Out, "Could not find configmap %s/%s on platform %s, skipping. This may cause issues when scaling nodes.", kubeSystemNamespace, rootCAConfigmap, configv1.BareMetalPlatformType)
+				return nil
+			}
+			return fmt.Errorf("unable to get configmap %s/%s: %w", kubeSystemNamespace, rootCAConfigmap, err)
+		}
+
+		kubeSystemRootCA.Data[rootCACertKey] = string(caCert)
+		_, err = clientset.CoreV1().ConfigMaps(kubeSystemNamespace).Update(ctx, kubeSystemRootCA, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("could not update configmap %s: %w", rootCAConfigmap, err)
+		}
+		fmt.Fprintf(o.IOStreams.Out, "Successfully updated configmap %s/%s, nodes will now reboot.\n", kubeSystemNamespace, rootCAConfigmap)
 	}
 
 	return nil
