@@ -65,7 +65,6 @@ const (
 	containerResourcesAnnotationPrefix = "resources.workload.openshift.io/"
 	// podWorkloadTargetAnnotationPrefix contains the prefix for the pod workload target annotation
 	podWorkloadTargetAnnotationPrefix = "target.workload.openshift.io/"
-	kubeOSNodeSelector                = "kubernetes.io/os"
 	commandLinuxShell                 = "/bin/sh"
 	commandWindowsShell               = "cmd.exe"
 )
@@ -108,6 +107,10 @@ var (
 
 		# Debug a node as an administrator
 		oc debug node/master-1
+
+		# Debug a Windows Node
+		# Note: the chosen image must match the Windows Server version (2019, 2022) of the Node
+		oc debug node/win-worker-1 --image=mcr.microsoft.com/powershell:lts-nanoserver-ltsc2022
 
 		# Launch a shell in a pod using the provided image stream tag
 		oc debug istag/mysql:latest -n openshift
@@ -539,7 +542,9 @@ func (o *DebugOptions) RunDebug() error {
 				fmt.Fprintf(o.ErrOut, "Starting pod/%s ...\n", pod.Name)
 			}
 			if o.IsNode {
-				fmt.Fprintf(o.ErrOut, "To use host binaries, run `chroot /host`\n")
+				if !(template.Spec.OS != nil && template.Spec.OS.Name == corev1.Windows) {
+					fmt.Fprintf(o.ErrOut, "To use host binaries, run `chroot /host`\n")
+				}
 			}
 		}
 
@@ -978,7 +983,7 @@ func (o *DebugOptions) getContainerCommand() []string {
 	if len(o.Command) == 1 && o.Command[0] == commandLinuxShell {
 		pod := o.Attach.Pod
 
-		if val, ok := pod.Spec.NodeSelector[kubeOSNodeSelector]; ok && val == "windows" {
+		if pod.Spec.OS != nil && pod.Spec.OS.Name == corev1.Windows {
 			return []string{commandWindowsShell}
 		}
 	}
@@ -997,12 +1002,11 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 			// TODO: allow --as-root=false to skip all the namespaces except network
 			return nil, fmt.Errorf("can't debug nodes without running as the root user")
 		}
-		if t.Labels["kubernetes.io/os"] == "windows" {
-			// Windows nodes don't yet support privileged containers, which is required for debug
-			return nil, fmt.Errorf("can't debug Windows nodes")
-		}
 		image := o.Image
 		if len(o.Image) == 0 {
+			if t.Labels[corev1.LabelOSStable] == string(corev1.Windows) {
+				return nil, fmt.Errorf("--image must be set when debugging Windows nodes")
+			}
 			imageStream := o.ImageStream
 			if len(o.ImageStream) == 0 {
 				imageStream = "openshift/tools:latest"
@@ -1020,7 +1024,7 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 		zero := int64(0)
 		isTrue := true
 		hostPathType := corev1.HostPathDirectory
-		return &corev1.PodTemplateSpec{
+		template := &corev1.PodTemplateSpec{
 			Spec: corev1.PodSpec{
 				NodeName:    t.Name,
 				HostNetwork: true,
@@ -1063,7 +1067,19 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 					},
 				},
 			},
-		}, nil
+		}
+		if t.Labels[corev1.LabelOSStable] == string(corev1.Windows) {
+			template.Spec.OS = &corev1.PodOS{Name: corev1.Windows}
+			template.Spec.HostPID = false
+			template.Spec.HostIPC = false
+			containerUser := "ContainerUser"
+			template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+				WindowsOptions: &corev1.WindowsSecurityContextOptions{
+					RunAsUserName: &containerUser,
+				},
+			}
+		}
+		return template, nil
 	case *imagev1.ImageStreamTag:
 		// create a minimal pod spec that uses the image referenced by the istag without any introspection
 		// it possible that we could someday do a better job introspecting it
