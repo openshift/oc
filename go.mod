@@ -27,6 +27,8 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/joelanford/ignore v0.0.0-20210610194209-63d4919d8fb2
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
+	github.com/moby/sys/sequential v0.5.0
+	github.com/moby/term v0.5.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198
 	github.com/openshift/api v0.0.0-20230615141659-a6fbaf36017d
@@ -131,7 +133,6 @@ require (
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/moby/sys/mount v0.2.0 // indirect
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
-	github.com/moby/term v0.0.0-20221205130635-1aeaba878587 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect

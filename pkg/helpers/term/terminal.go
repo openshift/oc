@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/pkg/term"
+	"github.com/moby/term"
 	"k8s.io/klog/v2"
 )
 
