@@ -1,9 +1,11 @@
 package debug
 
 import (
+	"fmt"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -200,4 +202,98 @@ func TestGetNamespace(t *testing.T) {
 			t.Errorf("test %s: expected namespace %s, got %s", test.name, test.expectedNamespace, actualNS)
 		}
 	}
+}
+
+func TestSafeToDebug(t *testing.T) {
+	tests := []struct {
+		name          string
+		pod           *corev1.Pod
+		expectToDebug bool
+	}{
+		{
+			name:          "when pod has one container and no volumes",
+			pod:           getPod().pod,
+			expectToDebug: true,
+		},
+		{
+			name:          "when pod has multiple containers but no volumes",
+			pod:           getPod().addContainer(1).pod,
+			expectToDebug: true,
+		},
+		{
+			name: "when pod has multiple containers but only configmap volumes",
+			pod: getPod().addContainer(1).addVolume(corev1.Volume{
+				Name: "c",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{},
+				},
+			}).pod,
+			expectToDebug: true,
+		},
+		{
+			name: "when pod has multiple containers but only secret volumes",
+			pod: getPod().addContainer(1).addVolume(corev1.Volume{
+				Name: "c",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{},
+				},
+			}).pod,
+			expectToDebug: true,
+		},
+		{
+			name: "when pod has multiple containers and one pvs",
+			pod: getPod().addContainer(1).addVolume(corev1.Volume{
+				Name: "c",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{},
+				},
+			}).pod,
+			expectToDebug: false,
+		},
+	}
+
+	for _, test := range tests {
+		_, debugFlag := safeToDebugPod(test.pod)
+		if debugFlag != test.expectToDebug {
+			t.Errorf("expected debug flag to be %v, got %v", test.expectToDebug, debugFlag)
+		}
+	}
+}
+
+type podBuilder struct {
+	pod *corev1.Pod
+}
+
+func getPod() *podBuilder {
+	return &podBuilder{
+		pod: &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "debug-test-pod",
+				UID:       "debug-test-pod-uid",
+				Namespace: "debug-test",
+			},
+			Spec: v1.PodSpec{
+				NodeName: "debug-test-host",
+				Containers: []corev1.Container{
+					{
+						Name:  "foobar",
+						Image: "quay.io/foobar",
+					},
+				},
+			},
+		},
+	}
+}
+
+func (pb *podBuilder) addVolume(v corev1.Volume) *podBuilder {
+	pb.pod.Spec.Volumes = append(pb.pod.Spec.Volumes, v)
+	return pb
+}
+
+func (pb *podBuilder) addContainer(index int) *podBuilder {
+	pb.pod.Spec.Containers = append(pb.pod.Spec.Containers, corev1.Container{
+		Name:  fmt.Sprintf("hello-%d", index),
+		Image: "quay.io/hello",
+	})
+	return pb
 }

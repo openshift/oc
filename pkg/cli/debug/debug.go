@@ -499,6 +499,12 @@ func (o *DebugOptions) RunDebug() error {
 		return nil
 	}
 
+	msg, okayToDebug := safeToDebugPod(pod)
+	if !okayToDebug {
+		klog.Errorf(msg)
+		os.Exit(1)
+	}
+
 	klog.V(5).Infof("Creating pod: %#v", pod)
 	pod, err = o.createPod(pod)
 	if err != nil {
@@ -642,6 +648,32 @@ func (o *DebugOptions) RunDebug() error {
 			return o.Attach.Run()
 		}
 	})
+}
+
+// safeToDebugPod checks if we can safely start to debug this pod.
+// Generally a pod that has multiple containers and uses persistent volumes
+// shouldn't be debuggable this way, because it can break originally running pod
+func safeToDebugPod(pod *corev1.Pod) (string, bool) {
+	podVolumes := pod.Spec.Volumes
+	pvTypes := []corev1.Volume{}
+
+	for _, v := range podVolumes {
+		if v.Ephemeral == nil &&
+			v.Secret == nil &&
+			v.EmptyDir == nil &&
+			v.Projected == nil &&
+			v.ConfigMap == nil {
+			pvTypes = append(pvTypes, v)
+		}
+	}
+
+	containerCount := pod.Spec.Containers
+	if len(containerCount) > 1 && len(pvTypes) > 0 {
+		// klog.Errorf("unable to debug a pod that has multiple containers with persistent volumes")
+		// os.Exit(1)
+		return "unable to debug a pod that has multiple containers with persistent volumes", false
+	}
+	return "", true
 }
 
 // getContainerImageViaDeploymentConfig attempts to return an Image for a given
