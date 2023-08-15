@@ -152,7 +152,7 @@ func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, f, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run(cmd.Context()))
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 	flags := cmd.Flags()
@@ -410,7 +410,7 @@ func (o *MirrorOptions) handleSignatures(context context.Context, signaturesByDi
 	return nil
 }
 
-func (o *MirrorOptions) Run(ctx context.Context) error {
+func (o *MirrorOptions) Run() error {
 	var recreateRequired bool
 	var hasPrefix bool
 	var targetFn func(name string) imagesource.TypedImageReference
@@ -524,7 +524,7 @@ func (o *MirrorOptions) Run(ctx context.Context) error {
 		}
 		extractOpts.FileDir = o.FromDir
 		extractOpts.From = o.From
-		if err := extractOpts.Run(ctx); err != nil {
+		if err := extractOpts.Run(); err != nil {
 			return fmt.Errorf("unable to retrieve release image info: %v", err)
 		}
 

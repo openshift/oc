@@ -21,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -76,7 +75,7 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 			must be installed on the cluster for a given version.
 
 			The --tools and --command flags allow you to extract the appropriate client binaries
-			for your operating system to disk. --tools will create archive files containing the
+			for	your operating system to disk. --tools will create archive files containing the
 			current OS tools (or, if --command-os is set to '*', all OS versions). Specifying
 			--command for either 'oc' or 'openshift-install' will extract the binaries directly.
 			You may pass a PGP private key file with --signing-key which will create an ASCII
@@ -87,14 +86,6 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 			The --credentials-requests flag filters extracted manifests to only cloud credential
 			requests. The --cloud flag further filters credential requests to a specific cloud.
 			Valid values for --cloud include alibabacloud, aws, azure, gcp, ibmcloud, nutanix, openstack, ovirt, powervs, and vsphere.
-
-			The --included flag filters extracted manifests to those that are expected to be included
-			with the cluster.  Filters are cumulative, so '--credentials-requests --included' will
-			only include cloud credential requests which are expected to be included with the cluster.
-			If --install-config is set, it will be used to determine the expected cluster configuration,
-			otherwise the command will interrogate your current cluster to determine its configuration.
-			This command is most accurate when the version of the extracting client matches the version
-			of the cluster under consideration.
 
 			Instead of extracting the manifests, you can specify --git=DIR to perform a Git
 			checkout of the source code that comprises the release. A warning will be printed
@@ -120,7 +111,7 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run(cmd.Context()))
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 	flags := cmd.Flags()
@@ -142,11 +133,8 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 	flags.StringVar(&o.CommandOperatingSystem, "command-os", o.CommandOperatingSystem, "Override which operating system command is extracted (mac, windows, linux) or can be specified with arch(linux/arm64, mac/amd64). You map specify '*' to extract all tool archives.")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
 
-	flags.BoolVar(&o.Included, "included", o.Included, "Exclude manifests that are not expected to be included in the cluster.")
-	flags.StringVar(&o.InstallConfig, "install-config", o.InstallConfig, "Path to an install-config file, as consumed by the openshift-install command.  Works only in combination with --included.")
-
-	flags.BoolVar(&o.CredentialsRequests, "credentials-requests", o.CredentialsRequests, "Exclude manifests which are not credential requests.")
-	flags.StringVar(&o.Cloud, "cloud", o.Cloud, "Exclude credential requests which are not relevant to the given cloud provider.  Works only in combination with --credentials-requests.")
+	flags.BoolVar(&o.CredentialsRequests, "credentials-requests", o.CredentialsRequests, "Extract credential request manifests only")
+	flags.StringVar(&o.Cloud, "cloud", o.Cloud, "Specify the cloud for which credential request manifests should be extracted. Works only in combination with --credentials-requests.")
 
 	flags.StringVarP(&o.Output, "output", "o", o.Output, "Output format. Supports 'commit' when used with '--git'.")
 	return cmd
@@ -158,9 +146,6 @@ type ExtractOptions struct {
 	SecurityOptions imagemanifest.SecurityOptions
 	FilterOptions   imagemanifest.FilterOptions
 	ParallelOptions imagemanifest.ParallelOptions
-
-	// RESTConfig is a REST client configuration for connecting to a cluster if neccessary.
-	RESTConfig *rest.Config
 
 	ICSPFile string
 
@@ -174,16 +159,7 @@ type ExtractOptions struct {
 	CommandOperatingSystem string
 	SigningKey             string
 
-	// Included, if true, results in only included manifests getting extracted.
-	// For example, manifests associated with optional capabilities will be excluded unless
-	// the cluster configuration enables that capability.
-	Included bool
-
-	// InstallConfig is the path to an install-config file, as
-	// consumed by the openshift-install command.
-	InstallConfig string
-
-	// CredentialsRequests, if true, results in only credential request manifests getting extracted.
+	// CredentialsRequests if true, results in only credential request manifests getting extracted.
 	// If Cloud is specified, then only the credential requests for that cloud are extracted.
 	CredentialsRequests bool
 	Cloud               string
@@ -220,9 +196,6 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 		return fmt.Errorf("you may only specify a single image via --from or argument")
 	}
 	o.From = args[0]
-	if o.RESTConfig, err = f.ToRESTConfig(); err != nil {
-		return err
-	}
 
 	return o.FilterOptions.Complete(cmd.Flags())
 }
@@ -231,7 +204,7 @@ func (o *ExtractOptions) Validate() error {
 	return o.FilterOptions.Validate()
 }
 
-func (o *ExtractOptions) Run(ctx context.Context) error {
+func (o *ExtractOptions) Run() error {
 	sources := 0
 	if o.Tools {
 		sources++
@@ -253,12 +226,8 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		return fmt.Errorf("--output is only supported with --git")
 	}
 
-	if len(o.InstallConfig) > 0 && !o.Included {
-		return fmt.Errorf("--install-config is only supported with --included")
-	}
-
-	if len(o.Cloud) > 0 && !o.CredentialsRequests && !o.Included {
-		return fmt.Errorf("--cloud is only supported with --credentials-requests or --included")
+	if !o.CredentialsRequests && len(o.Cloud) > 0 {
+		return fmt.Errorf("--cloud is only supported with --credentials-requests")
 	}
 	if len(o.Cloud) > 0 {
 		if _, ok := credRequestCloudProviderSpecKindMapping[o.Cloud]; !ok {
@@ -341,33 +310,8 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 	if o.ExtractManifests {
 		expectedProviderSpecKind := credRequestCloudProviderSpecKindMapping[o.Cloud]
 
-		include := func(m *manifest.Manifest) error { return nil } // default to including everything
-		if o.Included {
-			context := "connected cluster"
-			inclusionConfig := manifestInclusionConfiguration{}
-			if o.InstallConfig == "" {
-				inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig)
-			} else {
-				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig)
-				context = o.InstallConfig
-			}
-			if err != nil {
-				return err
-			}
-			if inclusionConfig.Platform != nil {
-				if o.Cloud != "" && *inclusionConfig.Platform != o.Cloud {
-					return fmt.Errorf("--cloud %q set, but %s has %q", o.Cloud, context, *inclusionConfig.Platform)
-				}
-				var ok bool
-				if expectedProviderSpecKind, ok = credRequestCloudProviderSpecKindMapping[*inclusionConfig.Platform]; !ok {
-					return fmt.Errorf("unrecognized platform for CredentialsRequests: %q", *inclusionConfig.Platform)
-				}
-			}
-			include = newIncluder(inclusionConfig)
-		}
-
 		tarEntryCallbacks = append(tarEntryCallbacks, func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
-			if hdr.Name == "image-references" && !o.CredentialsRequests {
+			if hdr.Name == "image-references" {
 				buf := &bytes.Buffer{}
 				if _, err := io.Copy(buf, r); err != nil {
 					return false, fmt.Errorf("unable to load image-references from release payload: %w", err)
@@ -395,7 +339,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 					return true, err
 				}
 				return true, nil
-			} else if hdr.Name == "release-metadata" && !o.CredentialsRequests {
+			} else if hdr.Name == "release-metadata" {
 				out := o.Out
 				if o.Directory != "" {
 					out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
@@ -418,15 +362,6 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 			if err != nil {
 				manifestErrs = append(manifestErrs, errors.Wrapf(err, "error parsing %s", hdr.Name))
 				return true, nil
-			}
-
-			for i := len(ms) - 1; i >= 0; i-- {
-				if o.Included && o.CredentialsRequests && ms[i].GVK == credentialsRequestGVK && len(ms[i].Obj.GetAnnotations()) == 0 {
-					klog.V(4).Infof("Including %s for manual CredentialsRequests, despite lack of annotations", ms[i].String())
-				} else if err := include(&ms[i]); err != nil {
-					klog.V(4).Infof("Excluding %s: %s", ms[i].String(), err)
-					ms = append(ms[:i], ms[i+1:]...)
-				}
 			}
 
 			o.Manifests = append(o.Manifests, ms...)

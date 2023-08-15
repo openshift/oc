@@ -1,7 +1,6 @@
 package release
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -14,8 +13,6 @@ import (
 )
 
 func TestMirrorImages(t *testing.T) {
-	ctx := context.Background()
-
 	tests := []struct {
 		is                  *imageapi.ImageStream
 		expectedWarningMsgs []string
@@ -71,7 +68,7 @@ func TestMirrorImages(t *testing.T) {
 
 	for _, tt := range tests {
 		options := NewNewOptions(ioStream)
-		err := options.mirrorImages(ctx, tt.is)
+		err := options.mirrorImages(tt.is)
 
 		if err != nil {
 			if len(tt.expectedErr) == 0 {
