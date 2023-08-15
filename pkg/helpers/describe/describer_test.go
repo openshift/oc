@@ -9,6 +9,8 @@ import (
 	"testing"
 	"text/tabwriter"
 
+	configv1alpha1 "github.com/openshift/api/config/v1alpha1"
+
 	v1 "github.com/openshift/api/quota/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -48,6 +50,7 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&buildv1.BuildLog{}),                              // normal users don't ever look at these
 	reflect.TypeOf(&buildv1.BuildLogOptions{}),                       // normal users don't ever look at these
 	reflect.TypeOf(&buildv1.BinaryBuildRequestOptions{}),             // normal users don't ever look at these
+	reflect.TypeOf(&configv1alpha1.Backup{}),                         // normal users don't ever look at these
 	reflect.TypeOf(&buildv1.BuildRequest{}),                          // normal users don't ever look at these
 	reflect.TypeOf(&appsv1.DeploymentConfigRollback{}),               // normal users don't ever look at these
 	reflect.TypeOf(&appsv1.DeploymentLog{}),                          // normal users don't ever look at these
@@ -75,6 +78,7 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&consolev1.ConsoleLink{}),
 	reflect.TypeOf(&consolev1.ConsoleNotification{}),
 	reflect.TypeOf(&consolev1.ConsolePlugin{}),
+	reflect.TypeOf(&consolev1.ConsoleSample{}),
 	reflect.TypeOf(&consolev1.ConsoleQuickStart{}),
 	reflect.TypeOf(&consolev1.ConsoleYAMLSample{}),
 	reflect.TypeOf(&consolev1alpha1.ConsolePlugin{}),
