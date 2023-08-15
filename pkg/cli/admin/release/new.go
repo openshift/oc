@@ -113,7 +113,7 @@ func NewRelease(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run(cmd.Context()))
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 	flags := cmd.Flags()
@@ -311,7 +311,7 @@ func (o *NewOptions) cleanup() {
 	o.cleanupFns = nil
 }
 
-func (o *NewOptions) Run(ctx context.Context) error {
+func (o *NewOptions) Run() error {
 	defer o.cleanup()
 
 	// check parameters
@@ -717,7 +717,7 @@ func (o *NewOptions) Run(ctx context.Context) error {
 	}
 
 	if len(o.Mirror) > 0 {
-		if err := o.mirrorImages(ctx, is); err != nil {
+		if err := o.mirrorImages(is); err != nil {
 			return err
 		}
 	}
@@ -1084,7 +1084,7 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 	return nil
 }
 
-func (o *NewOptions) mirrorImages(ctx context.Context, is *imageapi.ImageStream) error {
+func (o *NewOptions) mirrorImages(is *imageapi.ImageStream) error {
 	klog.V(4).Infof("Mirroring release contents to %s", o.Mirror)
 	copied := is.DeepCopy()
 	opts := NewMirrorOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
@@ -1096,7 +1096,7 @@ func (o *NewOptions) mirrorImages(ctx context.Context, is *imageapi.ImageStream)
 	opts.SecurityOptions = o.SecurityOptions
 	opts.KeepManifestList = o.KeepManifestList
 
-	if err := opts.Run(ctx); err != nil {
+	if err := opts.Run(); err != nil {
 		return err
 	}
 
