@@ -75,6 +75,10 @@ func CreateConfig(namespace, userName string, clientCfg *restclient.Config) (*cl
 	cluster := clientcmdapi.NewCluster()
 	cluster.Server = clientCfg.Host
 
+	if len(clientCfg.TLSClientConfig.ServerName) > 0 {
+		cluster.TLSServerName = clientCfg.TLSClientConfig.ServerName
+	}
+
 	if clientCfg.Proxy != nil {
 		req, err := http.NewRequest("", clientCfg.Host, nil)
 		if err != nil {
