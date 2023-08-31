@@ -76,6 +76,22 @@ var (
 		# Gather information using a specific image, command, and pod directory
 		  oc adm must-gather --image=my/image:tag --source-dir=/pod/directory -- myspecial-command.sh
 	`)
+
+	volumeUsageCheckerScript = `
+echo "volume percentage checker started....."
+while true; do 
+disk_usage=$(du -s "%s" | awk '{print $1}')
+disk_space=$(df -P "%s" | awk 'NR==2 {print $2}')
+usage_percentage=$(( (disk_usage * 100) / disk_space ))
+echo "volume usage percentage $usage_percentage" 
+if [ "$usage_percentage" -gt "%d" ]; then 
+	echo "Disk usage exceeds the volume percentage of %d for mounted directory. Exiting..." 
+	# kill gathering process in gather container to prevent disk to use more.
+	pkill --signal SIGKILL -f %s
+	exit 1
+fi
+sleep 5
+done`
 )
 
 func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
@@ -101,6 +117,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
 	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
 	cmd.Flags().StringVar(&o.RunNamespace, "run-namespace", o.RunNamespace, "An existing privileged namespace where must-gather pods should run. If not specified a temporary namespace will be generated.")
+	cmd.Flags().Uint8Var(&o.VolumePercentage, "volume-percentage", o.VolumePercentage, "Specify maximum percentage of must-gather pod's allocated volume that can be used. If this limit is exceeded, must-gather will stop gathering, but still copy gathered data. Defaults to 30%.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	cmd.Flags().MarkHidden("keep")
 
@@ -109,11 +126,12 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 
 func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions {
 	return &MustGatherOptions{
-		SourceDir: "/must-gather/",
-		IOStreams: streams,
-		LogOut:    newPrefixWriter(streams.Out, "[must-gather      ] OUT"),
-		RawOut:    streams.Out,
-		Timeout:   10 * time.Minute,
+		SourceDir:        "/must-gather/",
+		IOStreams:        streams,
+		LogOut:           newPrefixWriter(streams.Out, "[must-gather      ] OUT"),
+		RawOut:           streams.Out,
+		Timeout:          10 * time.Minute,
+		VolumePercentage: 30,
 	}
 }
 
@@ -234,18 +252,19 @@ type MustGatherOptions struct {
 	ImageClient      imagev1client.ImageV1Interface
 	RESTClientGetter genericclioptions.RESTClientGetter
 
-	NodeName     string
-	NodeSelector string
-	HostNetwork  bool
-	DestDir      string
-	SourceDir    string
-	Images       []string
-	ImageStreams []string
-	Command      []string
-	Timeout      time.Duration
-	timeoutStr   string
-	RunNamespace string
-	Keep         bool
+	NodeName         string
+	NodeSelector     string
+	HostNetwork      bool
+	DestDir          string
+	SourceDir        string
+	Images           []string
+	ImageStreams     []string
+	Command          []string
+	Timeout          time.Duration
+	timeoutStr       string
+	RunNamespace     string
+	VolumePercentage uint8
+	Keep             bool
 
 	RsyncRshCmd string
 
@@ -270,6 +289,14 @@ func (o *MustGatherOptions) Validate() error {
 	if strings.Contains(o.DestDir, ":") {
 		return fmt.Errorf("--dest-dir may not contain special characters such as colon(:)")
 	}
+
+	if o.VolumePercentage <= 0 || o.VolumePercentage > 100 {
+		return fmt.Errorf("invalid volume usage percentage, please specify a value between 0 and 100")
+	}
+	if o.VolumePercentage >= 80 {
+		klog.Warningf("volume percentage greater than or equal to 80 might cause filling up the disk space and have an impact on other components running on master")
+	}
+
 	return nil
 }
 
@@ -732,6 +759,14 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 		nodeSelector["node-role.kubernetes.io/master"] = ""
 	}
 
+	executedCommand := "/usr/bin/gather"
+	if len(o.Command) > 0 {
+		executedCommand = strings.Join(o.Command, " ")
+	}
+
+	cleanedSourceDir := path.Clean(o.SourceDir)
+	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
+
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "must-gather-",
@@ -760,7 +795,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 					Image:           image,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					// always force disk flush to ensure that all data gathered is accessible in the copy container
-					Command: []string{"/bin/bash", "-c", "/usr/bin/gather; sync"},
+					Command: []string{"/bin/bash", "-c", fmt.Sprintf("%s & %s; sync", volumeUsageChecker, executedCommand)},
 					Env: []corev1.EnvVar{
 						{
 							Name: "NODE_NAME",
@@ -782,7 +817,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "must-gather-output",
-							MountPath: path.Clean(o.SourceDir),
+							MountPath: cleanedSourceDir,
 							ReadOnly:  false,
 						},
 					},
@@ -795,7 +830,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "must-gather-output",
-							MountPath: path.Clean(o.SourceDir),
+							MountPath: cleanedSourceDir,
 							ReadOnly:  false,
 						},
 					},
@@ -813,10 +848,6 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 				},
 			},
 		},
-	}
-	if len(o.Command) > 0 {
-		// always force disk flush to ensure that all data gathered is accessible in the copy container
-		ret.Spec.Containers[0].Command = []string{"/bin/bash", "-c", fmt.Sprintf("%s; sync", strings.Join(o.Command, " "))}
 	}
 	if o.HostNetwork {
 		// If a user specified hostNetwork he might have intended to perform
