@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubectl/pkg/cmd/annotate"
 	"k8s.io/kubectl/pkg/cmd/apiresources"
 	"k8s.io/kubectl/pkg/cmd/apply"
@@ -16,7 +15,6 @@ import (
 	"k8s.io/kubectl/pkg/cmd/autoscale"
 	"k8s.io/kubectl/pkg/cmd/clusterinfo"
 	"k8s.io/kubectl/pkg/cmd/completion"
-	"k8s.io/kubectl/pkg/cmd/config"
 	"k8s.io/kubectl/pkg/cmd/cp"
 	kcreate "k8s.io/kubectl/pkg/cmd/create"
 	"k8s.io/kubectl/pkg/cmd/delete"
@@ -193,13 +191,6 @@ func NewCmdEdit(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(edit.NewCmdEdit(f, streams)))
 }
 
-// NewCmdConfig is a wrapper for the Kubernetes cli config command
-func NewCmdConfig(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	pathOptions := kclientcmd.NewDefaultPathOptions()
-
-	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(config.NewCmdConfig(pathOptions, streams)))
-}
-
 // NewCmdCp is a wrapper for the Kubernetes cli cp command
 func NewCmdCp(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(cp.NewCmdCp(f, streams)))
@@ -218,10 +209,6 @@ func NewCmdAuth(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 }
 
 func NewCmdPlugin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	// list of accepted plugin executable filename prefixes that we will look for
-	// when executing a plugin. Order matters here, we want to first see if a user
-	// has prefixed their plugin with "oc-", before defaulting to upstream behavior.
-	plugin.ValidPluginFilenamePrefixes = []string{"oc", "kubectl"}
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(plugin.NewCmdPlugin(streams)))
 }
 

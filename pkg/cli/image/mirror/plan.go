@@ -7,8 +7,7 @@ import (
 	"sync"
 	"text/tabwriter"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/distribution/distribution/v3"
 	"k8s.io/klog/v2"
 
 	units "github.com/docker/go-units"
@@ -615,7 +614,7 @@ type repositoryManifestPlan struct {
 	}
 }
 
-func (p *repositoryManifestPlan) Copy(srcDigest godigest.Digest, srcManifest distribution.Manifest, tags []string, to distribution.ManifestService, toBlobs distribution.BlobService) {
+func (p *repositoryManifestPlan) Copy(srcDigest godigest.Digest, srcManifest distribution.Manifest, prerequisites []godigest.Digest, tags []string, to distribution.ManifestService, toBlobs distribution.BlobService) {
 	p.parent.parent.parent.CacheManifest(srcDigest, srcManifest)
 
 	p.lock.Lock()
@@ -628,11 +627,8 @@ func (p *repositoryManifestPlan) Copy(srcDigest godigest.Digest, srcManifest dis
 		p.toBlobs = toBlobs
 	}
 
-	switch t := srcManifest.(type) {
-	case *manifestlist.DeserializedManifestList:
-		for _, desc := range t.Manifests {
-			p.prerequisites[desc.Digest] = srcDigest
-		}
+	for _, prerequisite := range prerequisites {
+		p.prerequisites[prerequisite] = srcDigest
 	}
 
 	if len(tags) == 0 {

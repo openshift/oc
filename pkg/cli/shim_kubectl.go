@@ -8,6 +8,7 @@ import (
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	kcmdcreate "k8s.io/kubectl/pkg/cmd/create"
+	"k8s.io/kubectl/pkg/cmd/plugin"
 	describeversioned "k8s.io/kubectl/pkg/describe"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 
@@ -41,4 +42,9 @@ func shimKubectlForOc() {
 
 	// update some functions we inject
 	describeversioned.DescriberFn = originpolymorphichelpers.NewDescriberFn(describeversioned.DescriberFn)
+
+	// list of accepted plugin executable filename prefixes that we will look for
+	// when executing a plugin. Order matters here, we want to first see if a user
+	// has prefixed their plugin with "oc-", before defaulting to upstream behavior.
+	plugin.ValidPluginFilenamePrefixes = []string{"oc", "kubectl"}
 }

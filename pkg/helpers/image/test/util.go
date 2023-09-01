@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/manifest/schema2"
+	"github.com/distribution/distribution/v3/manifest/schema1"
+	"github.com/distribution/distribution/v3/manifest/schema2"
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	kappsv1 "k8s.io/api/apps/v1"

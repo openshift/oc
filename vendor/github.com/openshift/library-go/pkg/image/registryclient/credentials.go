@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/docker/distribution/registry/client/auth"
+	"github.com/distribution/distribution/v3/registry/client/auth"
 )
 
 var (

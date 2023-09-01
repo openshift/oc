@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -331,6 +332,19 @@ func (s ImageImportSearcher) Search(precise bool, terms ...string) (ComponentMat
 		}
 
 		dockerImage, ok := image.Image.DockerImageMetadata.Object.(*dockerv10.DockerImage)
+
+		// When a ManifestListed Image is used the nested DockerConfig objects in a DockerImageManifest are not propagated
+		// The first entry of the Manifest List entry's config is assigned to the top-level DockerImage
+		if ok && image.Manifests != nil && len(image.Manifests) != 0 && dockerImage.Config == nil {
+			conf := image.Manifests[0].DockerImageConfig
+			dc := &docker10.DockerImage{}
+			if err := json.Unmarshal([]byte(conf), &dc); err != nil {
+				// Errors do not cause issues in unmarshalling, and it is intentional, and logged out.
+				klog.V(4).Infof("unmarshalling failed for manifest listed image's dockerConfig: %#v %#v", conf, err)
+			} else {
+				dockerImage.Config = dc.Config
+			}
+		}
 		if !ok {
 			continue
 		}

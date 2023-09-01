@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	kubecmd "k8s.io/kubectl/pkg/cmd"
 
 	"github.com/openshift/oc/pkg/cli"
 	"github.com/openshift/oc/tools/gendocs/gendocs"
@@ -51,7 +54,7 @@ func main() {
 	}
 
 	out := os.Stdout
-	cmd := cli.NewOcCommand(&bytes.Buffer{}, out, ioutil.Discard)
+	cmd := cli.NewOcCommand(kubecmd.KubectlOptions{IOStreams: genericclioptions.IOStreams{In: &bytes.Buffer{}, Out: out, ErrOut: io.Discard}})
 
 	fileName := "oc-by-example-content.adoc"
 	if *admin {

@@ -36,7 +36,7 @@ const (
 )
 
 var upgradeExample = templates.Examples(`
-	# Review the available cluster updates
+	# View the update status and available cluster updates
 	oc adm upgrade
 
 	# Update to the latest version
@@ -222,7 +222,7 @@ func (o *Options) Run() error {
 			if !o.AllowUpgradeWithWarnings {
 				return fmt.Errorf("%s\n\nIf you want to upgrade anyway, use --allow-upgrade-with-warnings.", err)
 			}
-			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
+			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s\n", err)
 		}
 
 		if err := patchDesiredUpdate(ctx, &configv1.Update{Architecture: configv1.ClusterVersionArchitectureMulti,
@@ -252,9 +252,14 @@ func (o *Options) Run() error {
 		// check for recommended updates
 		for _, available := range cv.Status.AvailableUpdates {
 			if match, err := targetMatch(&available, o.To, o.ToImage); match && err == nil {
+				desired := available.Image
+				// preserve the specifically requested release image
+				if len(o.ToImage) > 0 {
+					desired = o.ToImage
+				}
 				update = &configv1.Update{
 					Version: available.Version,
-					Image:   available.Image,
+					Image:   desired,
 				}
 				break
 			} else if err != nil {
@@ -269,7 +274,7 @@ func (o *Options) Run() error {
 				if c := findCondition(upgrade.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
 					if match, err := targetMatch(&upgrade.Release, o.To, o.ToImage); match && err == nil {
 						if !o.AllowNotRecommended {
-							return fmt.Errorf("the update %s is not one of the recommended updates, but is available as a conditional update."+
+							return fmt.Errorf("the update %s is not one of the recommended updates, but is available as a conditional update. "+
 								"To accept the %s=%s risk and to proceed with update use --allow-not-recommended.\n  Reason: %s\n  Message: %s\n",
 								upgrade.Release.Version, c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 						}
@@ -296,7 +301,7 @@ func (o *Options) Run() error {
 				Version: "",
 				Image:   o.ToImage,
 			}
-			fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates."+
+			fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates. "+
 				"You have used --allow-explicit-upgrade for the update to proceed anyway")
 		}
 
@@ -357,7 +362,7 @@ func (o *Options) Run() error {
 			if !o.AllowUpgradeWithWarnings {
 				return fmt.Errorf("%s\n\nIf you want to upgrade anyway, use --allow-upgrade-with-warnings.", err)
 			}
-			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
+			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s\n", err)
 		}
 
 		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
@@ -449,7 +454,14 @@ func (o *Options) Run() error {
 				fmt.Fprintf(o.Out, "\nNo updates which are not recommended based on your cluster configuration are available.\n")
 			}
 		} else if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
-			fmt.Fprintf(o.Out, "\nAdditional updates which are not recommended based on your cluster configuration are available, to view those re-run the command with --include-not-recommended.\n")
+			qualifier := ""
+			for _, upgrade := range cv.Status.ConditionalUpdates {
+				if c := findCondition(upgrade.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue && c.Status != metav1.ConditionFalse {
+					qualifier = fmt.Sprintf(", or where the recommended status is %q,", c.Status)
+					break
+				}
+			}
+			fmt.Fprintf(o.Out, "\nAdditional updates which are not recommended%s for your cluster configuration are available, to view those re-run the command with --include-not-recommended.\n", qualifier)
 		}
 
 		// TODO: print previous versions

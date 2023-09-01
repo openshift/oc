@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -35,6 +36,7 @@ import (
 	loginutil "github.com/openshift/oc/pkg/helpers/project"
 	"github.com/openshift/oc/pkg/helpers/term"
 	"github.com/openshift/oc/pkg/version"
+	"github.com/pkg/browser"
 )
 
 const defaultClusterURL = "https://localhost:8443"
@@ -53,9 +55,11 @@ type LoginOptions struct {
 	InsecureTLS bool
 
 	// flags and printing helpers
-	Username string
-	Password string
-	Project  string
+	Username     string
+	Password     string
+	Project      string
+	WebLogin     bool
+	CallbackPort int32
 
 	// infra
 	StartingKubeConfig *kclientcmdapi.Config
@@ -79,7 +83,7 @@ type LoginOptions struct {
 type passwordPrompter func(r io.Reader, w io.Writer, format string, a ...interface{}) string
 
 func (p passwordPrompter) PromptForPassword(r io.Reader, w io.Writer, format string, a ...interface{}) string {
-	return p(r, w, format, a)
+	return p(r, w, format, a...)
 }
 
 func NewLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
@@ -265,10 +269,21 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	clientConfig.CertFile = o.CertFile
 	clientConfig.KeyFile = o.KeyFile
 
-	token, err := tokenrequest.RequestToken(o.Config, o.getAuthChallengeHandler())
+	var token string
+	if o.WebLogin {
+		loginURLHandler := func(u *url.URL) error {
+			loginURL := u.String()
+			fmt.Fprintf(o.Out, "Opening login URL in the default browser: %s\n", loginURL)
+			return browser.OpenURL(loginURL)
+		}
+		token, err = tokenrequest.RequestTokenWithLocalCallback(o.Config, loginURLHandler, int(o.CallbackPort))
+	} else {
+		token, err = tokenrequest.RequestTokenWithChallengeHandlers(o.Config, o.getAuthChallengeHandler())
+	}
 	if err != nil {
 		return err
 	}
+
 	clientConfig.BearerToken = token
 
 	me, err := project.WhoAmI(clientConfig)

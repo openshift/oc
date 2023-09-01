@@ -2,7 +2,7 @@ package cli
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -35,13 +35,8 @@ var MissingCommands = sets.NewString(
 var WhitelistedCommands = sets.NewString()
 
 func TestKubectlCompatibility(t *testing.T) {
-	oc := NewOcCommand(&bytes.Buffer{}, ioutil.Discard, ioutil.Discard)
-	kubectl := kcmd.NewKubectlCommand(kcmd.KubectlOptions{
-		IOStreams: genericclioptions.IOStreams{
-			Out:    ioutil.Discard,
-			ErrOut: ioutil.Discard,
-		},
-	})
+	oc := NewOcCommand(kcmd.KubectlOptions{IOStreams: NewTestIOStreamsDiscard()})
+	kubectl := kcmd.NewKubectlCommand(kcmd.KubectlOptions{IOStreams: NewTestIOStreamsDiscard()})
 
 kubectlLoop:
 	for _, kubecmd := range kubectl.Commands() {
@@ -70,13 +65,8 @@ kubectlLoop:
 // --validate flags.  Based on that we can reasonably assume we got them in the kube commands since they
 // all share the same registration.
 func TestValidateDisabled(t *testing.T) {
-	oc := NewOcCommand(&bytes.Buffer{}, ioutil.Discard, ioutil.Discard)
-	kubectl := kcmd.NewKubectlCommand(kcmd.KubectlOptions{
-		IOStreams: genericclioptions.IOStreams{
-			Out:    ioutil.Discard,
-			ErrOut: ioutil.Discard,
-		},
-	})
+	oc := NewOcCommand(kcmd.KubectlOptions{IOStreams: NewTestIOStreamsDiscard()})
+	kubectl := kcmd.NewKubectlCommand(kcmd.KubectlOptions{IOStreams: NewTestIOStreamsDiscard()})
 
 	for _, kubecmd := range kubectl.Commands() {
 		for _, occmd := range oc.Commands() {
@@ -93,4 +83,14 @@ func TestValidateDisabled(t *testing.T) {
 		}
 	}
 
+}
+
+// NewTestIOStreamsDiscard returns a valid IOStreams that just discards
+func NewTestIOStreamsDiscard() genericclioptions.IOStreams {
+	in := &bytes.Buffer{}
+	return genericclioptions.IOStreams{
+		In:     in,
+		Out:    io.Discard,
+		ErrOut: io.Discard,
+	}
 }

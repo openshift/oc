@@ -57,7 +57,7 @@ var (
 		oc rsh dc/docker-registry cat config.yml
 
 		# Open a shell session on the container named 'index' inside a pod of your job
-		oc rsh -c index job/sheduled
+		oc rsh -c index job/scheduled
 	`)
 )
 

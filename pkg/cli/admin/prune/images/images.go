@@ -95,7 +95,7 @@ var (
 	  # To actually perform the prune operation, the confirm flag must be appended
 	  oc adm prune images --prune-over-size-limit --confirm
 
-	  # Force the insecure http protocol with the particular registry host name
+	  # Force the insecure HTTP protocol with the particular registry host name
 	  oc adm prune images --registry-url=http://registry.example.org --confirm
 
 	  # Force a secure connection with a custom certificate authority to the particular registry host name
@@ -270,9 +270,11 @@ func (o PruneImagesOptions) Validate() error {
 	return nil
 }
 
-var errNoRegistryURLPathAllowed = errors.New("no path after <host>[:<port>] is allowed")
-var errNoRegistryURLQueryAllowed = errors.New("no query arguments are allowed after <host>[:<port>]")
-var errRegistryURLHostEmpty = errors.New("no host name specified")
+var (
+	errNoRegistryURLPathAllowed  = errors.New("no path after <host>[:<port>] is allowed")
+	errNoRegistryURLQueryAllowed = errors.New("no query arguments are allowed after <host>[:<port>]")
+	errRegistryURLHostEmpty      = errors.New("no host name specified")
+)
 
 // validateRegistryURL returns error if the given input is not a valid registry URL. The url may be prefixed
 // with http:// or https:// schema. It may not contain any path or query after the host:[port].
@@ -355,7 +357,7 @@ func (o PruneImagesOptions) Run() error {
 	}
 
 	allDCs, err := o.AppsClient.DeploymentConfigs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
+	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
 
