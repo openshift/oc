@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/openshift/oc/pkg/helpers/newapp"
+
+	templatev1 "github.com/openshift/api/template/v1"
+	templatev1typedclient "github.com/openshift/client-go/template/clientset/versioned/typed/template/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/klog/v2"
-	"k8s.io/kubectl/pkg/scheme"
-
-	templatev1 "github.com/openshift/api/template/v1"
-	templatev1typedclient "github.com/openshift/client-go/template/clientset/versioned/typed/template/v1"
 )
 
 // TemplateSearcher resolves stored template arguments into template objects
@@ -124,7 +124,7 @@ func (r *TemplateFileSearcher) Search(precise bool, terms ...string) (ComponentM
 
 		var isSingleItemImplied bool
 		obj, err := r.Builder.
-			WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+			WithScheme(newapp.NewAppScheme, newapp.NewAppScheme.PrioritizedVersionsAllGroups()...).
 			NamespaceParam(r.Namespace).RequireNamespace().
 			FilenameParam(false, &resource.FilenameOptions{Recursive: false, Filenames: terms}).
 			Do().

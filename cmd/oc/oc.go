@@ -5,32 +5,19 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/openshift/oc/pkg/helpers/newapp"
+
+	"k8s.io/kubectl/pkg/scheme"
+
 	"github.com/spf13/pflag"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"github.com/openshift/library-go/pkg/serviceability"
 	kcli "k8s.io/component-base/cli"
 	"k8s.io/component-base/logs"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
-
-	"github.com/openshift/api/apps"
-	"github.com/openshift/api/authorization"
-	"github.com/openshift/api/build"
-	"github.com/openshift/api/image"
-	"github.com/openshift/api/oauth"
-	"github.com/openshift/api/project"
-	quotav1 "github.com/openshift/api/quota/v1"
-	"github.com/openshift/api/route"
-	securityv1 "github.com/openshift/api/security/v1"
-	"github.com/openshift/api/template"
-	"github.com/openshift/api/user"
-	"github.com/openshift/library-go/pkg/serviceability"
 
 	"github.com/openshift/oc/pkg/cli"
-	"github.com/openshift/oc/pkg/helpers/legacy"
+	schemehelper "github.com/openshift/oc/pkg/helpers/scheme"
 	"github.com/openshift/oc/pkg/version"
 
 	// Import to initialize client auth plugins.
@@ -57,18 +44,8 @@ func main() {
 
 	// the kubectl scheme expects to have all the recognizable external types it needs to consume.  Install those here.
 	// We can't use the "normal" scheme because apply will use that to build stategic merge patches on CustomResources
-	utilruntime.Must(apps.Install(scheme.Scheme))
-	utilruntime.Must(authorization.Install(scheme.Scheme))
-	utilruntime.Must(build.Install(scheme.Scheme))
-	utilruntime.Must(image.Install(scheme.Scheme))
-	utilruntime.Must(oauth.Install(scheme.Scheme))
-	utilruntime.Must(project.Install(scheme.Scheme))
-	utilruntime.Must(installNonCRDQuota(scheme.Scheme))
-	utilruntime.Must(route.Install(scheme.Scheme))
-	utilruntime.Must(installNonCRDSecurity(scheme.Scheme))
-	utilruntime.Must(template.Install(scheme.Scheme))
-	utilruntime.Must(user.Install(scheme.Scheme))
-	legacy.InstallExternalLegacyAll(scheme.Scheme)
+	schemehelper.InstallSchemes(scheme.Scheme)
+	newapp.InstallSchemes()
 
 	basename := filepath.Base(os.Args[0])
 	command := cli.CommandFor(basename)
@@ -78,31 +55,4 @@ func main() {
 		// Pretty-print the error and exit with an error.
 		kcmdutil.CheckErr(err)
 	}
-}
-
-func installNonCRDSecurity(scheme *apimachineryruntime.Scheme) error {
-	scheme.AddKnownTypes(securityv1.GroupVersion,
-		&securityv1.PodSecurityPolicySubjectReview{},
-		&securityv1.PodSecurityPolicySelfSubjectReview{},
-		&securityv1.PodSecurityPolicyReview{},
-		&securityv1.RangeAllocation{},
-		&securityv1.RangeAllocationList{},
-	)
-	if err := corev1.AddToScheme(scheme); err != nil {
-		return err
-	}
-	metav1.AddToGroupVersion(scheme, securityv1.GroupVersion)
-	return nil
-}
-
-func installNonCRDQuota(scheme *apimachineryruntime.Scheme) error {
-	scheme.AddKnownTypes(securityv1.GroupVersion,
-		&quotav1.AppliedClusterResourceQuota{},
-		&quotav1.AppliedClusterResourceQuotaList{},
-	)
-	if err := corev1.AddToScheme(scheme); err != nil {
-		return err
-	}
-	metav1.AddToGroupVersion(scheme, quotav1.GroupVersion)
-	return nil
 }

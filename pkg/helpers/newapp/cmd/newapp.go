@@ -13,19 +13,6 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/klog/v2"
 
-	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
-	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubectl/pkg/scheme"
-
 	appsv1 "github.com/openshift/api/apps/v1"
 	authv1 "github.com/openshift/api/authorization/v1"
 	buildv1 "github.com/openshift/api/build/v1"
@@ -48,6 +35,17 @@ import (
 	"github.com/openshift/oc/pkg/helpers/newapp/jenkinsfile"
 	"github.com/openshift/oc/pkg/helpers/newapp/source"
 	"github.com/openshift/oc/pkg/helpers/template/templateprocessorclient"
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
+	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -863,7 +861,7 @@ func templateObjectsToAppObjects(objs []runtime.RawExtension) (app.Objects, erro
 			continue
 		}
 
-		obj, err := runtime.Decode(scheme.Codecs.UniversalDeserializer(), raw.Raw)
+		obj, err := runtime.Decode(newapp.NewAppCodecs.UniversalDeserializer(), raw.Raw)
 		if err != nil {
 			return nil, err
 		}
