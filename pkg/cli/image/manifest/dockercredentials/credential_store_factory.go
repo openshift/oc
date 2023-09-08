@@ -1,10 +1,12 @@
 package dockercredentials
 
 import (
+	"net/url"
+	"sync"
+
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/distribution/distribution/v3/registry/client/auth"
 	"github.com/docker/docker/api/types"
-	dockerregistry "github.com/docker/docker/registry"
 
 	"github.com/openshift/library-go/pkg/image/registryclient"
 )
@@ -38,9 +40,48 @@ func (c *credentialStoreFactory) CredentialStoreFor(image string) auth.Credentia
 		return nocreds
 	}
 
-	return dockerregistry.NewStaticCredentialStore(&types.AuthConfig{
+	return NewDynamicCredentialStore(&types.AuthConfig{
 		Username:      authCfg.Username,
 		Password:      authCfg.Password,
 		IdentityToken: authCfg.IdentityToken,
 	})
+}
+
+// based on loginCredentialStore from vendor/github.com/docker/docker/registry/auth.go
+type DynamicCredentialStore struct {
+	authConfig *types.AuthConfig
+	mutex      sync.Mutex
+}
+
+func NewDynamicCredentialStore(auth *types.AuthConfig) auth.CredentialStore {
+	return DynamicCredentialStore{authConfig: auth}
+}
+
+func (dcs DynamicCredentialStore) Basic(*url.URL) (string, string) {
+	if dcs.authConfig == nil {
+		return "", ""
+	}
+	dcs.mutex.Lock()
+	defer dcs.mutex.Unlock()
+
+	return dcs.authConfig.Username, dcs.authConfig.Password
+}
+
+func (dcs DynamicCredentialStore) RefreshToken(*url.URL, string) string {
+	if dcs.authConfig == nil {
+		return ""
+	}
+	dcs.mutex.Lock()
+	defer dcs.mutex.Unlock()
+
+	return dcs.authConfig.IdentityToken
+}
+
+func (dcs DynamicCredentialStore) SetRefreshToken(u *url.URL, service, token string) {
+	if dcs.authConfig != nil {
+		dcs.mutex.Lock()
+		defer dcs.mutex.Unlock()
+
+		dcs.authConfig.IdentityToken = token
+	}
 }
