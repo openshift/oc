@@ -1,14 +1,9 @@
 package main
 
 import (
-	"github.com/openshift/oc/pkg/cli/set"
 	"os"
 	"path/filepath"
 	"runtime"
-
-	"github.com/openshift/oc/pkg/helpers/newapp"
-
-	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/spf13/pflag"
 
@@ -16,8 +11,11 @@ import (
 	kcli "k8s.io/component-base/cli"
 	"k8s.io/component-base/logs"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/oc/pkg/cli"
+	"github.com/openshift/oc/pkg/cli/set"
+	"github.com/openshift/oc/pkg/helpers/newapp"
 	schemehelper "github.com/openshift/oc/pkg/helpers/scheme"
 	"github.com/openshift/oc/pkg/version"
 

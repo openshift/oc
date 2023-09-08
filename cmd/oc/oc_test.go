@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/openshift/oc/pkg/helpers/scheme"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -14,7 +16,7 @@ import (
 
 func TestInstallNonCRDSecurity(t *testing.T) {
 	withoutCRDs := runtime.NewScheme()
-	utilruntime.Must(installNonCRDSecurity(withoutCRDs))
+	utilruntime.Must(scheme.InstallNonCRDSecurity(withoutCRDs))
 	nonCRDTypes := gvks(withoutCRDs.AllKnownTypes())
 
 	complete := runtime.NewScheme()

@@ -1,12 +1,14 @@
 package newapp
 
 import (
-	"github.com/openshift/api"
-	"github.com/openshift/api/route"
-	schemehelper "github.com/openshift/oc/pkg/helpers/scheme"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
+	"github.com/openshift/api"
+	"github.com/openshift/api/route"
+
+	schemehelper "github.com/openshift/oc/pkg/helpers/scheme"
 )
 
 var NewAppScheme = runtime.NewScheme()

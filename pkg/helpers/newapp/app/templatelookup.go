@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/openshift/oc/pkg/helpers/newapp"
-
-	templatev1 "github.com/openshift/api/template/v1"
-	templatev1typedclient "github.com/openshift/client-go/template/clientset/versioned/typed/template/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/klog/v2"
+
+	templatev1 "github.com/openshift/api/template/v1"
+	templatev1typedclient "github.com/openshift/client-go/template/clientset/versioned/typed/template/v1"
+
+	"github.com/openshift/oc/pkg/helpers/newapp"
 )
 
 // TemplateSearcher resolves stored template arguments into template objects
