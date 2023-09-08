@@ -29,7 +29,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
@@ -157,7 +156,7 @@ type AddVolumeOptions struct {
 
 func NewVolumeOptions(streams genericclioptions.IOStreams) *VolumeOptions {
 	return &VolumeOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("volume updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("volume updated").WithTypeSetter(setCustomScheme),
 
 		Containers: "*",
 		AddOpts: &AddVolumeOptions{
@@ -444,7 +443,7 @@ func (a *AddVolumeOptions) Complete() error {
 
 func (o *VolumeOptions) RunVolume() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.DefaultNamespace).DefaultNamespace().

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/openshift/oc/pkg/cli/set"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -46,6 +47,7 @@ func main() {
 	// We can't use the "normal" scheme because apply will use that to build stategic merge patches on CustomResources
 	schemehelper.InstallSchemes(scheme.Scheme)
 	newapp.InstallSchemes()
+	set.InstallSchemes()
 
 	basename := filepath.Base(os.Args[0])
 	command := cli.CommandFor(basename)

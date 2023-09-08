@@ -16,7 +16,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	buildv1 "github.com/openshift/api/build/v1"
-	"k8s.io/kubectl/pkg/scheme"
 )
 
 var (
@@ -75,7 +74,7 @@ type BuildHookOptions struct {
 
 func NewBuildHookOptions(streams genericclioptions.IOStreams) *BuildHookOptions {
 	return &BuildHookOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("hooks updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("hooks updated").WithTypeSetter(setCustomScheme),
 		IOStreams:  streams,
 	}
 }
@@ -167,7 +166,7 @@ func (o *BuildHookOptions) Validate() error {
 
 func (o *BuildHookOptions) Run() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
