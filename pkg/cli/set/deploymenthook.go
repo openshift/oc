@@ -88,7 +88,7 @@ type DeploymentHookOptions struct {
 
 func NewDeploymentHookOptions(streams genericclioptions.IOStreams) *DeploymentHookOptions {
 	return &DeploymentHookOptions{
-		PrintFlags:       genericclioptions.NewPrintFlags("hooks updated").WithTypeSetter(setCustomScheme),
+		PrintFlags:       genericclioptions.NewPrintFlags("hooks updated").WithTypeSetter(setCmdScheme),
 		IOStreams:        streams,
 		FailurePolicyStr: "ignore",
 	}
@@ -215,7 +215,7 @@ func (o *DeploymentHookOptions) Validate() error {
 
 func (o *DeploymentHookOptions) Run() error {
 	b := o.Builder().
-		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -239,7 +239,7 @@ func (o *DeploymentHookOptions) Run() error {
 		return err
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		dc, ok := info.Object.(*appsv1.DeploymentConfig)
 		if !ok {
 			return false, nil

@@ -118,7 +118,7 @@ type EnvOptions struct {
 
 func NewEnvOptions(streams genericclioptions.IOStreams) *EnvOptions {
 	return &EnvOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("updated").WithTypeSetter(setCustomScheme),
+		PrintFlags: genericclioptions.NewPrintFlags("updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 
 		ContainerSelector: "*",
@@ -249,7 +249,7 @@ func (o *EnvOptions) RunEnv() error {
 
 	if len(o.From) != 0 {
 		b := o.Builder().
-			WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+			WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 			LocalParam(o.Local).
 			ContinueOnError().
 			NamespaceParam(o.Namespace).DefaultNamespace().
@@ -314,7 +314,7 @@ func (o *EnvOptions) RunEnv() error {
 	}
 
 	b := o.Builder().
-		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().

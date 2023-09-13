@@ -74,7 +74,7 @@ type BuildSecretOptions struct {
 
 func NewBuildSecretOptions(streams genericclioptions.IOStreams) *BuildSecretOptions {
 	return &BuildSecretOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("secret updated").WithTypeSetter(setCustomScheme),
+		PrintFlags: genericclioptions.NewPrintFlags("secret updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 	}
 }
@@ -114,7 +114,7 @@ var supportedBuildTypes = []string{"buildconfigs"}
 
 func (o *BuildSecretOptions) secretFromArg(arg string) (string, error) {
 	builder := o.Builder().
-		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		NamespaceParam(o.Namespace).DefaultNamespace().
 		RequireObject(false).
@@ -203,7 +203,7 @@ func (o *BuildSecretOptions) Run() error {
 	}
 
 	b := o.Builder().
-		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -226,7 +226,7 @@ func (o *BuildSecretOptions) Run() error {
 		return err
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		bc, ok := info.Object.(*buildv1.BuildConfig)
 		if !ok {
 			return false, nil

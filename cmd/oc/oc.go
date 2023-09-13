@@ -14,8 +14,6 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 
 	"github.com/openshift/oc/pkg/cli"
-	"github.com/openshift/oc/pkg/cli/set"
-	"github.com/openshift/oc/pkg/helpers/newapp"
 	schemehelper "github.com/openshift/oc/pkg/helpers/scheme"
 	"github.com/openshift/oc/pkg/version"
 
@@ -43,9 +41,8 @@ func main() {
 
 	// the kubectl scheme expects to have all the recognizable external types it needs to consume.  Install those here.
 	// We can't use the "normal" scheme because apply will use that to build stategic merge patches on CustomResources
+	// new-app and set commands don't use this global scheme. Instead they use their own scheme.
 	schemehelper.InstallSchemes(scheme.Scheme)
-	newapp.InstallSchemes()
-	set.InstallSchemes()
 
 	basename := filepath.Base(os.Args[0])
 	command := cli.CommandFor(basename)

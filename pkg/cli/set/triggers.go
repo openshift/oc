@@ -122,7 +122,7 @@ type TriggersOptions struct {
 
 func NewTriggersOptions(streams genericclioptions.IOStreams) *TriggersOptions {
 	return &TriggersOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("triggers updated").WithTypeSetter(setCustomScheme),
+		PrintFlags: genericclioptions.NewPrintFlags("triggers updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 	}
 }
@@ -280,7 +280,7 @@ func (o *TriggersOptions) Validate() error {
 
 func (o *TriggersOptions) Run() error {
 	b := o.Builder().
-		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -308,7 +308,7 @@ func (o *TriggersOptions) Run() error {
 		o.updateTriggers(triggers)
 		return nil
 	}
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		return UpdateTriggersForObject(info.Object, updateTriggerFn)
 	})
 	if singleItemImplied && len(patches) == 0 {

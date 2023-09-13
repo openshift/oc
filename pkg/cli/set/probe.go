@@ -118,7 +118,7 @@ type ProbeOptions struct {
 
 func NewProbeOptions(streams genericclioptions.IOStreams) *ProbeOptions {
 	return &ProbeOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("probes updated").WithTypeSetter(setCustomScheme),
+		PrintFlags: genericclioptions.NewPrintFlags("probes updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 
 		ContainerSelector: "*",
@@ -285,7 +285,7 @@ func (o *ProbeOptions) Validate() error {
 
 func (o *ProbeOptions) Run() error {
 	b := o.Builder().
-		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -305,7 +305,7 @@ func (o *ProbeOptions) Run() error {
 		return err
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		transformed := false
 		name := getObjectName(info)
 		_, err := o.UpdatePodSpecForObject(info.Object, func(spec *corev1.PodSpec) error {

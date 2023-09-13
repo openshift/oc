@@ -89,7 +89,7 @@ type DataOptions struct {
 
 func NewDataOptions(streams genericclioptions.IOStreams) *DataOptions {
 	return &DataOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("data updated").WithTypeSetter(setCustomScheme),
+		PrintFlags: genericclioptions.NewPrintFlags("data updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 	}
 }
@@ -216,7 +216,7 @@ func (o *DataOptions) Validate() error {
 
 func (o *DataOptions) Run() error {
 	b := o.Builder().
-		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -238,7 +238,7 @@ func (o *DataOptions) Run() error {
 
 	allErrs := []error{}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		changed := false
 		valid, err := o.UpdateDataForObject(info.Object, func(data map[string][]byte) error {
 			for k, v := range o.SetData {

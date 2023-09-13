@@ -156,7 +156,7 @@ type AddVolumeOptions struct {
 
 func NewVolumeOptions(streams genericclioptions.IOStreams) *VolumeOptions {
 	return &VolumeOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("volume updated").WithTypeSetter(setCustomScheme),
+		PrintFlags: genericclioptions.NewPrintFlags("volume updated").WithTypeSetter(setCmdScheme),
 
 		Containers: "*",
 		AddOpts: &AddVolumeOptions{
@@ -443,7 +443,7 @@ func (a *AddVolumeOptions) Complete() error {
 
 func (o *VolumeOptions) RunVolume() error {
 	b := o.Builder().
-		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.DefaultNamespace).DefaultNamespace().
@@ -552,7 +552,7 @@ func (o *VolumeOptions) RunVolume() error {
 
 func (o *VolumeOptions) getVolumeUpdatePatches(infos []*resource.Info, singleItemImplied bool) ([]*Patch, error) {
 	skipped := 0
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		transformed := false
 		ok, err := o.UpdatePodSpecForObject(info.Object, func(spec *corev1.PodSpec) error {
 			var e error

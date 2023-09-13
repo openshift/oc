@@ -101,7 +101,7 @@ type ImageLookupOptions struct {
 
 func NewImageLookupOptions(streams genericclioptions.IOStreams) *ImageLookupOptions {
 	return &ImageLookupOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("image lookup updated").WithTypeSetter(setCustomScheme),
+		PrintFlags: genericclioptions.NewPrintFlags("image lookup updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 		Enabled:    true,
 	}
@@ -177,7 +177,7 @@ func (o *ImageLookupOptions) Validate() error {
 // Run executes the ImageLookupOptions or returns an error.
 func (o *ImageLookupOptions) Run() error {
 	b := o.Builder().
-		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -216,7 +216,7 @@ func (o *ImageLookupOptions) Run() error {
 		return o.printImageLookup(infos)
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		switch t := info.Object.(type) {
 		case *imagev1.ImageStream:
 			t.Spec.LookupPolicy.Local = o.Enabled

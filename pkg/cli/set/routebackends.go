@@ -92,7 +92,7 @@ type BackendsOptions struct {
 
 func NewBackendsOptions(streams genericclioptions.IOStreams) *BackendsOptions {
 	return &BackendsOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("backends updated").WithTypeSetter(setCustomScheme),
+		PrintFlags: genericclioptions.NewPrintFlags("backends updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 	}
 }
@@ -176,7 +176,7 @@ func (o *BackendsOptions) Validate() error {
 // Run executes the BackendOptions or returns an error.
 func (o *BackendsOptions) Run() error {
 	b := o.Builder().
-		WithScheme(setCustomScheme, setCustomScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -203,7 +203,7 @@ func (o *BackendsOptions) Run() error {
 		return o.printBackends(infos)
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		return UpdateBackendsForObject(info.Object, o.Transform.Apply)
 	})
 	if singleItemImplied && len(patches) == 0 {

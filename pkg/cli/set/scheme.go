@@ -1,7 +1,9 @@
 package set
 
 import (
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/openshift/api"
@@ -10,11 +12,14 @@ import (
 	schemehelper "github.com/openshift/oc/pkg/helpers/scheme"
 )
 
-var setCustomScheme = runtime.NewScheme()
+var (
+	setCmdScheme = runtime.NewScheme()
+	setCmdCodecs = serializer.NewCodecFactory(setCmdScheme)
+)
 
-func InstallSchemes() {
-	utilruntime.Must(api.InstallKube(setCustomScheme))
-	schemehelper.InstallSchemes(setCustomScheme)
+func init() {
+	utilruntime.Must(api.InstallKube(setCmdScheme))
+	schemehelper.InstallSchemes(setCmdScheme)
 	// All the other commands can use route object
 	// as CRD and there is no benefit installing route
 	// as native object which is normally managed
@@ -23,5 +28,9 @@ func InstallSchemes() {
 	// register route to let some application templates including
 	// route continue working. That's why, we are manually
 	// registering route in here.
-	utilruntime.Must(route.Install(setCustomScheme))
+	utilruntime.Must(route.Install(setCmdScheme))
+}
+
+func DefaultJSONEncoder() runtime.Encoder {
+	return unstructured.NewJSONFallbackEncoder(setCmdCodecs.LegacyCodec(setCmdScheme.PrioritizedVersionsAllGroups()...))
 }
