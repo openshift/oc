@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
+        "k8s.io/kubectl/pkg/cmd/util/podcmd"
 
 	kappsv1 "k8s.io/api/apps/v1"
 	kappsv1beta1 "k8s.io/api/apps/v1beta1"
@@ -455,17 +456,24 @@ func (o *DebugOptions) RunDebug() error {
 	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug-%s", generateapp.MakeSimpleName(infos[0].Name), utilrand.String(5)), ns
 	o.Attach.Pod = pod
 
+
 	if len(o.ContainerName) == 0 && len(pod.Spec.Containers) > 0 {
+		c, err := podcmd.FindOrDefaultContainerByName(pod, o.ContainerName, o.Quiet, o.ErrOut)
+		if err != nil {
+			return err
+		}
+
 		if !o.Quiet {
 			if len(pod.Spec.Containers) > 1 && len(o.FullCmdName) > 0 {
-				fmt.Fprintf(o.ErrOut, "Defaulting container name to %s.\n", pod.Spec.Containers[0].Name)
+				fmt.Fprintf(o.ErrOut, "Defaulting container name to %s.\n", c.Name)
 				fmt.Fprintf(o.ErrOut, "Use '%s describe pod/%s -n %s' to see all of the containers in this pod.\n", o.FullCmdName, pod.Name, pod.Namespace)
 				fmt.Fprintf(o.ErrOut, "\n")
+
 			}
 		}
 
-		klog.V(4).Infof("Defaulting container name to %s", pod.Spec.Containers[0].Name)
-		o.ContainerName = pod.Spec.Containers[0].Name
+		klog.V(4).Infof("Defaulting container name to %s", c.Name)
+		o.ContainerName = c.Name
 	}
 
 	names := containerNames(o.Attach.Pod)
