@@ -78,8 +78,6 @@ func NewCmdVersion(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cob
 		},
 	}
 	cmd.Flags().BoolVar(&o.ClientOnly, "client", o.ClientOnly, "Client version only (no server required).")
-	cmd.Flags().BoolVar(&o.Short, "short", o.Short, "Print just the version number. (default)")
-	cmd.Flags().MarkDeprecated("short", "This flag is deprecated and will be removed in future. Use 'oc version' instead.")
 	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "One of 'yaml' or 'json'.")
 	return cmd
 }
