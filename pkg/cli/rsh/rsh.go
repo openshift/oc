@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/completion"
@@ -69,7 +69,7 @@ type RshOptions struct {
 	*exec.ExecOptions
 }
 
-func NewRshOptions(streams genericclioptions.IOStreams) *RshOptions {
+func NewRshOptions(streams genericiooptions.IOStreams) *RshOptions {
 	return &RshOptions{
 		ForceTTY:   false,
 		DisableTTY: false,
@@ -87,7 +87,7 @@ func NewRshOptions(streams genericclioptions.IOStreams) *RshOptions {
 }
 
 // NewCmdRsh returns a command that attempts to open a shell session to the server.
-func NewCmdRsh(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRsh(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRshOptions(streams)
 	cmd := &cobra.Command{
 		Use:                   rshUsageStr,

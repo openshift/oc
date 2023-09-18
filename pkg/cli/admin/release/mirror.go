@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
@@ -77,7 +77,7 @@ var archMap = map[string]string{
 }
 
 // NewMirrorOptions creates the options for mirroring a release.
-func NewMirrorOptions(streams genericclioptions.IOStreams) *MirrorOptions {
+func NewMirrorOptions(streams genericiooptions.IOStreams) *MirrorOptions {
 	return &MirrorOptions{
 		IOStreams:       streams,
 		ParallelOptions: imagemanifest.ParallelOptions{MaxPerRegistry: 6},
@@ -91,7 +91,7 @@ func NewMirrorOptions(streams genericclioptions.IOStreams) *MirrorOptions {
 //	$ oc adm release mirror \
 //	    --from=registry.ci.openshift.org/openshift/v4.11 \
 //	    --to=mycompany.com/myrepository/repo
-func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewMirror(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMirrorOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "mirror",
@@ -178,7 +178,7 @@ func NewMirror(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.C
 }
 
 type MirrorOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	SecurityOptions imagemanifest.SecurityOptions
 	ParallelOptions imagemanifest.ParallelOptions
@@ -494,7 +494,7 @@ func (o *MirrorOptions) Run(ctx context.Context) error {
 	is := o.ImageStream
 	if is == nil {
 		// load image references
-		extractOpts := NewExtractOptions(genericclioptions.IOStreams{ErrOut: o.ErrOut}, true)
+		extractOpts := NewExtractOptions(genericiooptions.IOStreams{ErrOut: o.ErrOut}, true)
 		extractOpts.Directory = ""
 		extractOpts.ParallelOptions = o.ParallelOptions
 		extractOpts.SecurityOptions = o.SecurityOptions
@@ -769,7 +769,7 @@ func (o *MirrorOptions) Run(ctx context.Context) error {
 
 	fmt.Fprintf(os.Stderr, "info: Mirroring %d images to %s ...\n", len(mappings), dst)
 	var lock sync.Mutex
-	opts := mirror.NewMirrorImageOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := mirror.NewMirrorImageOptions(genericiooptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.SecurityOptions = o.SecurityOptions
 	opts.ParallelOptions = o.ParallelOptions
 	opts.Mappings = mappings

@@ -11,7 +11,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apimachineryversion "k8s.io/apimachinery/pkg/version"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
@@ -53,10 +53,10 @@ type VersionOptions struct {
 	oClient         configv1client.ClusterVersionsGetter
 	discoveryClient discovery.CachedDiscoveryInterface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewVersionOptions(ioStreams genericclioptions.IOStreams) *VersionOptions {
+func NewVersionOptions(ioStreams genericiooptions.IOStreams) *VersionOptions {
 	return &VersionOptions{
 		IOStreams: ioStreams,
 	}
@@ -64,7 +64,7 @@ func NewVersionOptions(ioStreams genericclioptions.IOStreams) *VersionOptions {
 
 // NewCmdVersion is copied from upstream NewCmdVersion with addition of OpenShift Server version info.
 // OpenShift Server version is output only if logged in to a cluster as an admin user.
-func NewCmdVersion(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVersion(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	o := NewVersionOptions(ioStreams)
 	cmd := &cobra.Command{
 		Use:     "version",

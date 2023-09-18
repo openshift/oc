@@ -17,6 +17,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -114,10 +115,10 @@ type ProbeOptions struct {
 	FailureThreshold *int
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewProbeOptions(streams genericclioptions.IOStreams) *ProbeOptions {
+func NewProbeOptions(streams genericiooptions.IOStreams) *ProbeOptions {
 	return &ProbeOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("probes updated").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
@@ -127,7 +128,7 @@ func NewProbeOptions(streams genericclioptions.IOStreams) *ProbeOptions {
 }
 
 // NewCmdProbe implements the set probe command
-func NewCmdProbe(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProbe(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewProbeOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "probe RESOURCE/NAME --readiness|--liveness [flags] (--get-url=URL|--open-tcp=PORT|-- CMD)",

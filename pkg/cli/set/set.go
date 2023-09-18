@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/kubectl/pkg/cmd/set"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
@@ -26,7 +26,7 @@ var (
 )
 
 // NewCmdSet exposes commands for modifying objects.
-func NewCmdSet(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSet(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	set := &cobra.Command{
 		Use:   "set COMMAND",
 		Short: "Commands that help set specific features on objects",
@@ -103,7 +103,7 @@ Update existing container image(s) of resources.`)
 )
 
 // NewCmdImage is a wrapper for the Kubernetes CLI set image command
-func NewCmdImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdImage(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := set.NewCmdImage(f, streams)
 	cmd.Long = setImageLong
 	cmd.Example = setImageExample
@@ -137,7 +137,7 @@ oc set resources -f path/to/file.yaml --limits=cpu=200m,memory=512Mi --local -o 
 )
 
 // NewCmdResources is a wrapper for the Kubernetes CLI set resources command
-func NewCmdResources(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdResources(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := set.NewCmdResources(f, streams)
 	cmd.Long = setResourcesLong
 	cmd.Example = setResourcesExample
@@ -161,7 +161,7 @@ oc create deployment my-dep -o yaml --dry-run | oc label --local -f - environmen
 )
 
 // NewCmdSelector is a wrapper for the Kubernetes CLI set selector command
-func NewCmdSelector(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSelector(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := set.NewCmdSelector(f, streams)
 	cmd.Long = setSelectorLong
 	cmd.Example = setSelectorExample
@@ -184,7 +184,7 @@ oc set sa -f nginx-deployment.yaml serviceaccount1 --local --dry-run -o yaml
 )
 
 // NewCmdServiceAccount is a wrapper for the Kubernetes CLI set serviceaccount command
-func NewCmdServiceAccount(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdServiceAccount(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := set.NewCmdServiceAccount(f, streams)
 	cmd.Long = setServiceaccountLong
 	cmd.Example = setServiceaccountExample
@@ -208,7 +208,7 @@ oc create rolebinding admin --role=admin --user=admin -o yaml --dry-run | oc set
 )
 
 // NewCmdSubject is a wrapper for the Kubernetes CLI set subject command
-func NewCmdSubject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSubject(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := set.NewCmdSubject(f, streams)
 	cmd.Long = setSubjectLong
 	cmd.Example = setSubjectExample

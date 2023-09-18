@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	watchtools "k8s.io/client-go/tools/watch"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -61,17 +61,17 @@ type ServiceAccountTokenOptions struct {
 
 	Timeout time.Duration
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewServiceAccountTokenOptions(streams genericclioptions.IOStreams) *ServiceAccountTokenOptions {
+func NewServiceAccountTokenOptions(streams genericiooptions.IOStreams) *ServiceAccountTokenOptions {
 	return &ServiceAccountTokenOptions{
 		IOStreams: streams,
 		Labels:    map[string]string{},
 	}
 }
 
-func NewCommandNewServiceAccountToken(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandNewServiceAccountToken(f cmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	options := NewServiceAccountTokenOptions(streams)
 
 	var requestedLabels string

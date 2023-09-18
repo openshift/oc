@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
@@ -41,14 +42,14 @@ type CreateUserIdentityMappingOptions struct {
 	UserIdentityMappingClient userv1client.UserIdentityMappingsGetter
 }
 
-func NewCreateUserIdentityMappingOptions(streams genericclioptions.IOStreams) *CreateUserIdentityMappingOptions {
+func NewCreateUserIdentityMappingOptions(streams genericiooptions.IOStreams) *CreateUserIdentityMappingOptions {
 	return &CreateUserIdentityMappingOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
 }
 
 // NewCmdCreateUserIdentityMapping is a macro command to create a new identity
-func NewCmdCreateUserIdentityMapping(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateUserIdentityMapping(f genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCreateUserIdentityMappingOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "useridentitymapping <IDENTITY_NAME> <USER_NAME>",

@@ -7,6 +7,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -27,7 +28,7 @@ var (
 )
 
 // NewCmdCreateRoute is a macro command to create a secured route.
-func NewCmdCreateRoute(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateRoute(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "route",
 		Short: "Expose containers externally via secured routes",
@@ -63,10 +64,10 @@ type CreateRouteSubcommandOptions struct {
 	Client     routev1client.RoutesGetter
 	CoreClient corev1client.CoreV1Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewCreateRouteSubcommandOptions(ioStreams genericclioptions.IOStreams) *CreateRouteSubcommandOptions {
+func NewCreateRouteSubcommandOptions(ioStreams genericiooptions.IOStreams) *CreateRouteSubcommandOptions {
 	return &CreateRouteSubcommandOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("created").WithTypeSetter(scheme.Scheme),
 		IOStreams:  ioStreams,

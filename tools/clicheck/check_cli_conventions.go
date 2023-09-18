@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kubecmd "k8s.io/kubectl/pkg/cmd"
 
 	"github.com/openshift/oc/pkg/cli"
@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	oc := cli.NewOcCommand(kubecmd.KubectlOptions{IOStreams: genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}})
+	oc := cli.NewOcCommand(kubecmd.KubectlOptions{IOStreams: genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}})
 	errors := sanity.CheckCmdTree(oc, sanity.AllCmdChecks, nil)
 	if len(errors) > 0 {
 		for i, err := range errors {

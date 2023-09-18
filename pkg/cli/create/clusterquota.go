@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
@@ -47,14 +48,14 @@ type CreateClusterQuotaOptions struct {
 	Client quotav1client.ClusterResourceQuotasGetter
 }
 
-func NewCreateClusterQuotaOptions(streams genericclioptions.IOStreams) *CreateClusterQuotaOptions {
+func NewCreateClusterQuotaOptions(streams genericiooptions.IOStreams) *CreateClusterQuotaOptions {
 	return &CreateClusterQuotaOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
 }
 
 // NewCmdCreateClusterQuota is a macro command to create a new cluster quota.
-func NewCmdCreateClusterQuota(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateClusterQuota(f genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCreateClusterQuotaOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "clusterresourcequota NAME --project-label-selector=key=value [--hard=RESOURCE=QUANTITY]...",

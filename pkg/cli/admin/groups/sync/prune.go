@@ -9,7 +9,7 @@ import (
 
 	kerrs "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -67,17 +67,17 @@ type PruneOptions struct {
 	// GroupClient is the interface used to interact with OpenShift Group objects
 	GroupClient userv1typedclient.GroupsGetter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewPruneOptions(streams genericclioptions.IOStreams) *PruneOptions {
+func NewPruneOptions(streams genericiooptions.IOStreams) *PruneOptions {
 	return &PruneOptions{
 		Whitelist: []string{},
 		IOStreams: streams,
 	}
 }
 
-func NewCmdPruneGroups(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneGroups(name, fullName string, f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewPruneOptions(streams)
 	cmd := &cobra.Command{
 		Use:     fmt.Sprintf("%s [WHITELIST] [--whitelist=WHITELIST-FILE] [--blacklist=BLACKLIST-FILE] --sync-config=CONFIG-SOURCE", name),

@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/dynamic"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/client-go/dynamic"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -41,10 +42,10 @@ type RebootMachineConfigPoolOptions struct {
 	// TODO push this into genericclioptions
 	DryRun bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRebootMachineConfigPoolOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *RebootMachineConfigPoolOptions {
+func NewRebootMachineConfigPoolOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *RebootMachineConfigPoolOptions {
 	return &RebootMachineConfigPoolOptions{
 		RESTClientGetter: restClientGetter,
 		PrintFlags:       genericclioptions.NewPrintFlags("rolling reboot initiated"),
@@ -55,7 +56,7 @@ func NewRebootMachineConfigPoolOptions(restClientGetter genericclioptions.RESTCl
 	}
 }
 
-func NewCmdRebootMachineConfigPool(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRebootMachineConfigPool(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRebootMachineConfigPoolOptions(restClientGetter, streams)
 
 	cmd := &cobra.Command{

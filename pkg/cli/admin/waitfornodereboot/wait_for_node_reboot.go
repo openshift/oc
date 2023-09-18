@@ -5,21 +5,20 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/klog/v2"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
-	"github.com/openshift/oc/pkg/cli/admin/rebootmachineconfigpool"
-
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
+
+	"github.com/openshift/oc/pkg/cli/admin/rebootmachineconfigpool"
 )
 
 var (
@@ -40,7 +39,7 @@ type WaitForNodeRebootRuntime struct {
 	masterRebootNumber          int
 	workerAndCustomRebootNumber int
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 func (r *WaitForNodeRebootRuntime) setRebootNumber(ctx context.Context) error {

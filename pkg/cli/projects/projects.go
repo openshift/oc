@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
@@ -34,10 +34,10 @@ type ProjectsOptions struct {
 	DisplayShort bool
 	Args         []string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewProjectsOptions(streams genericclioptions.IOStreams) *ProjectsOptions {
+func NewProjectsOptions(streams genericiooptions.IOStreams) *ProjectsOptions {
 	return &ProjectsOptions{
 		IOStreams: streams,
 	}
@@ -70,7 +70,7 @@ var (
 )
 
 // NewCmdProjects implements the OpenShift cli rollback command
-func NewCmdProjects(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProjects(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewProjectsOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "projects",

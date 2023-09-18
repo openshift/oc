@@ -9,6 +9,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
@@ -46,7 +47,7 @@ type CreateIdentityOptions struct {
 }
 
 // NewCmdCreateIdentity is a macro command to create a new identity
-func NewCmdCreateIdentity(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateIdentity(f genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CreateIdentityOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}

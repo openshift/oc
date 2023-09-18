@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/discovery"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -40,10 +41,10 @@ type WhoCanOptions struct {
 	subresource  string
 	resourceName string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewWhoCanOptions(streams genericclioptions.IOStreams) *WhoCanOptions {
+func NewWhoCanOptions(streams genericiooptions.IOStreams) *WhoCanOptions {
 	return &WhoCanOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("").WithTypeSetter(scheme.Scheme),
 
@@ -52,7 +53,7 @@ func NewWhoCanOptions(streams genericclioptions.IOStreams) *WhoCanOptions {
 }
 
 // NewCmdWhoCan implements the OpenShift cli who-can command
-func NewCmdWhoCan(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdWhoCan(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewWhoCanOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "who-can VERB RESOURCE [NAME]",

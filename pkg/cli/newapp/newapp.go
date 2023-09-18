@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -160,7 +161,7 @@ type ObjectGeneratorOptions struct {
 	LogsForObject polymorphichelpers.LogsForObjectFunc
 	Printer       printers.ResourcePrinter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 type AppOptions struct {
@@ -168,7 +169,7 @@ type AppOptions struct {
 
 	RESTClientGetter genericclioptions.RESTClientGetter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 // Complete sets all common default options for commands (new-app and new-build)
@@ -229,7 +230,7 @@ func (o *ObjectGeneratorOptions) Complete(f kcmdutil.Factory, c *cobra.Command, 
 	return nil
 }
 
-func NewAppOptions(streams genericclioptions.IOStreams) *AppOptions {
+func NewAppOptions(streams genericiooptions.IOStreams) *AppOptions {
 	config := newcmd.NewAppConfig()
 	config.Deploy = true
 
@@ -250,7 +251,7 @@ func NewAppOptions(streams genericclioptions.IOStreams) *AppOptions {
 }
 
 // NewCmdNewApplication implements the OpenShift cli new-app command.
-func NewCmdNewApplication(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdNewApplication(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewAppOptions(streams)
 
 	cmd := &cobra.Command{
@@ -571,7 +572,7 @@ func followInstallation(config *newcmd.AppConfig, clientGetter genericclioptions
 		RESTClientGetter: clientGetter,
 		ConsumeRequestFn: logs.DefaultConsumeRequest,
 		LogsForObject:    logsForObjectFn,
-		IOStreams:        genericclioptions.IOStreams{Out: config.Out},
+		IOStreams:        genericiooptions.IOStreams{Out: config.Out},
 	}
 	logErr := opts.RunLogs()
 

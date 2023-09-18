@@ -8,15 +8,14 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/openshift/library-go/pkg/crypto"
-	"github.com/openshift/library-go/pkg/operator/certrotation"
-	"github.com/openshift/oc/pkg/cli/config/refreshcabundle"
 	"github.com/spf13/cobra"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -24,12 +23,17 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
+
+	"github.com/openshift/library-go/pkg/crypto"
+	"github.com/openshift/library-go/pkg/operator/certrotation"
+
+	"github.com/openshift/oc/pkg/cli/config/refreshcabundle"
 )
 
 type NewAdminKubeconfigOptions struct {
 	RESTClientGetter genericclioptions.RESTClientGetter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var (
@@ -51,14 +55,14 @@ const (
 	tenYears = 24 * time.Hour * 365 * 10
 )
 
-func NewNewAdminKubeconfigOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *NewAdminKubeconfigOptions {
+func NewNewAdminKubeconfigOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *NewAdminKubeconfigOptions {
 	return &NewAdminKubeconfigOptions{
 		RESTClientGetter: restClientGetter,
 		IOStreams:        streams,
 	}
 }
 
-func NewCmdNewAdminKubeconfigOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdNewAdminKubeconfigOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewNewAdminKubeconfigOptions(restClientGetter, streams)
 
 	cmd := &cobra.Command{
@@ -121,7 +125,7 @@ type NewAdminKubeconfigRuntime struct {
 	KubeClient kubernetes.Interface
 	Host       string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 func (r *NewAdminKubeconfigRuntime) Run(ctx context.Context) error {

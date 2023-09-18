@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -50,10 +51,10 @@ type RemoveOldTrustOptions struct {
 	// TODO push this into genericclioptions
 	DryRun bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRemoveOldTrustOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *RemoveOldTrustOptions {
+func NewRemoveOldTrustOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *RemoveOldTrustOptions {
 	return &RemoveOldTrustOptions{
 		RESTClientGetter: restClientGetter,
 		PrintFlags:       genericclioptions.NewPrintFlags("trust purged"),
@@ -69,7 +70,7 @@ func NewRemoveOldTrustOptions(restClientGetter genericclioptions.RESTClientGette
 	}
 }
 
-func NewCmdRemoveOldTrust(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveOldTrust(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRemoveOldTrustOptions(restClientGetter, streams)
 
 	cmd := &cobra.Command{

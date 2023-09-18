@@ -8,7 +8,7 @@ import (
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	clientgotesting "k8s.io/client-go/testing"
 
 	"github.com/openshift/api/image"
@@ -176,7 +176,7 @@ func TestTag(t *testing.T) {
 			return true, nil, kapierrors.NewMethodNotSupported(image.Resource("imagestreamtags"), "update")
 		})
 
-		test.opts.IOStreams = genericclioptions.NewTestIOStreamsDiscard()
+		test.opts.IOStreams = genericiooptions.NewTestIOStreamsDiscard()
 		test.opts.client = client.ImageV1()
 
 		err := test.opts.Validate()
@@ -224,7 +224,7 @@ func TestRunTag_DeleteOld(t *testing.T) {
 		expectedErr     error
 	}{
 		opts: &TagOptions{
-			IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
+			IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 			client:         client.ImageV1(),
 			deleteTag:      true,
 			destNamespace:  []string{"yourproject"},
@@ -267,7 +267,7 @@ func TestRunTag_AddNew(t *testing.T) {
 		expectedErr     error
 	}{
 		opts: &TagOptions{
-			IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
+			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
 			client:    client.ImageV1(),
 			ref: imagev1.DockerImageReference{
 				Namespace: "openshift",
@@ -315,7 +315,7 @@ func TestRunTag_AddRestricted(t *testing.T) {
 		expectedErr     error
 	}{
 		opts: &TagOptions{
-			IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
+			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
 			client:    client.ImageV1(),
 			ref: imagev1.DockerImageReference{
 				Namespace: "openshift",
@@ -448,7 +448,7 @@ func TestRunTag_AddImportMode(t *testing.T) {
 	for name, test := range testCases {
 		client := fakeimagev1client.NewSimpleClientset(test.data...)
 
-		test.opts.IOStreams = genericclioptions.NewTestIOStreamsDiscard()
+		test.opts.IOStreams = genericiooptions.NewTestIOStreamsDiscard()
 		test.opts.client = client.ImageV1()
 
 		err := test.opts.Validate()
@@ -501,7 +501,7 @@ func TestRunTag_DeleteNew(t *testing.T) {
 		expectedErr     error
 	}{
 		opts: &TagOptions{
-			IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
+			IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 			client:         client.ImageV1(),
 			deleteTag:      true,
 			destNamespace:  []string{"yourproject"},

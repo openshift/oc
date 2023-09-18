@@ -22,7 +22,7 @@ import (
 	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -128,10 +128,10 @@ type AppendImageOptions struct {
 	FromFileDir string
 	FileDir     string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewAppendImageOptions(streams genericclioptions.IOStreams) *AppendImageOptions {
+func NewAppendImageOptions(streams genericiooptions.IOStreams) *AppendImageOptions {
 	return &AppendImageOptions{
 		IOStreams:       streams,
 		ParallelOptions: imagemanifest.ParallelOptions{MaxPerRegistry: 4},
@@ -139,7 +139,7 @@ func NewAppendImageOptions(streams genericclioptions.IOStreams) *AppendImageOpti
 }
 
 // New creates a new command
-func NewCmdAppendImage(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAppendImage(streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewAppendImageOptions(streams)
 
 	cmd := &cobra.Command{

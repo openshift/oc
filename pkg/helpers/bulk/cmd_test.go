@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 
 	"github.com/openshift/api"
 )
@@ -73,7 +73,7 @@ func TestBulkAction(t *testing.T) {
 		mapping: &meta.RESTMapping{},
 	}
 
-	ioStreams, _, out, err := genericclioptions.NewTestIOStreams()
+	ioStreams, _, out, err := genericiooptions.NewTestIOStreams()
 	scheme, _ := apitesting.SchemeForOrDie(api.InstallKube)
 	bulk := Bulk{Scheme: scheme, Op: bt.Record}
 	b := &BulkAction{Bulk: bulk, Output: "", IOStreams: ioStreams}
@@ -102,7 +102,7 @@ func TestBulkActionCompact(t *testing.T) {
 		mapping: &meta.RESTMapping{},
 	}
 
-	ioStreams, _, out, err := genericclioptions.NewTestIOStreams()
+	ioStreams, _, out, err := genericiooptions.NewTestIOStreams()
 	scheme, _ := apitesting.SchemeForOrDie(api.InstallKube)
 	bulk := Bulk{Scheme: scheme, Op: bt.Record}
 	b := &BulkAction{Bulk: bulk, Output: "", IOStreams: ioStreams}

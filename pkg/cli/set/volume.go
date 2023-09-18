@@ -24,6 +24,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
@@ -130,7 +131,7 @@ type VolumeOptions struct {
 	AddOpts *AddVolumeOptions
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 type AddVolumeOptions struct {
@@ -155,7 +156,7 @@ type AddVolumeOptions struct {
 	ClassChanged bool
 }
 
-func NewVolumeOptions(streams genericclioptions.IOStreams) *VolumeOptions {
+func NewVolumeOptions(streams genericiooptions.IOStreams) *VolumeOptions {
 	return &VolumeOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("volume updated").WithTypeSetter(scheme.Scheme),
 
@@ -167,7 +168,7 @@ func NewVolumeOptions(streams genericclioptions.IOStreams) *VolumeOptions {
 	}
 }
 
-func NewCmdVolume(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVolume(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewVolumeOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "volumes RESOURCE/NAME --add|--remove",

@@ -7,6 +7,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/pernodepod"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -42,10 +43,10 @@ type RestartKubeletOptions struct {
 	CommandWhileKubeletIsOff string
 	Directive                string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *RestartKubeletOptions {
+func NewRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *RestartKubeletOptions {
 	return &RestartKubeletOptions{
 		PerNodePodOptions: pernodepod.NewPerNodePodOptions(
 			"openshift-restart-kubelet-",
@@ -58,7 +59,7 @@ func NewRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, stre
 	}
 }
 
-func NewCmdRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRestartKubelet(restClientGetter, streams)
 
 	cmd := &cobra.Command{

@@ -15,6 +15,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -29,10 +30,10 @@ type PerNodePodOptions struct {
 
 	NamespacePrefix string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewPerNodePodOptions(namespacePrefix, printerText string, restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *PerNodePodOptions {
+func NewPerNodePodOptions(namespacePrefix, printerText string, restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *PerNodePodOptions {
 	return &PerNodePodOptions{
 		RESTClientGetter: restClientGetter,
 		PrintFlags:       genericclioptions.NewPrintFlags(printerText),

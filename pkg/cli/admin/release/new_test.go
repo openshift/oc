@@ -6,8 +6,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
-
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 
 	imageapi "github.com/openshift/api/image/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,7 +66,7 @@ func TestMirrorImages(t *testing.T) {
 		},
 	}
 
-	ioStream, _, _, errOut := genericclioptions.NewTestIOStreams()
+	ioStream, _, _, errOut := genericiooptions.NewTestIOStreams()
 
 	for _, tt := range tests {
 		options := NewNewOptions(ioStream)

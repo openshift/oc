@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -78,17 +79,17 @@ type IdleOptions struct {
 	Namespace string
 	nowTime   time.Time
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewIdleOptions(streams genericclioptions.IOStreams) *IdleOptions {
+func NewIdleOptions(streams genericiooptions.IOStreams) *IdleOptions {
 	return &IdleOptions{
 		IOStreams: streams,
 	}
 }
 
 // NewCmdIdle implements the OpenShift cli idle command
-func NewCmdIdle(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdIdle(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewIdleOptions(streams)
 
 	validArgs := []string{"deploymentconfig", "replicationcontroller"}

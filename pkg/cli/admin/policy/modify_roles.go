@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
@@ -99,10 +100,10 @@ type RoleModificationOptions struct {
 
 	PrintErrf func(format string, args ...interface{})
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRoleModificationOptions(streams genericclioptions.IOStreams) *RoleModificationOptions {
+func NewRoleModificationOptions(streams genericiooptions.IOStreams) *RoleModificationOptions {
 	return &RoleModificationOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("added").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
@@ -110,7 +111,7 @@ func NewRoleModificationOptions(streams genericclioptions.IOStreams) *RoleModifi
 }
 
 // NewCmdAddRoleToGroup implements the OpenShift cli add-role-to-group command
-func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "add-role-to-group ROLE GROUP [GROUP ...]",
@@ -132,7 +133,7 @@ func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStream
 }
 
 // NewCmdAddRoleToUser implements the OpenShift cli add-role-to-user command
-func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams, admin bool) *cobra.Command {
+func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericiooptions.IOStreams, admin bool) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
@@ -161,7 +162,7 @@ func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams
 }
 
 // NewCmdRemoveRoleFromGroup implements the OpenShift cli remove-role-from-group command
-func NewCmdRemoveRoleFromGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveRoleFromGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "remove-role-from-group ROLE GROUP [GROUP ...]",
@@ -183,7 +184,7 @@ func NewCmdRemoveRoleFromGroup(f kcmdutil.Factory, streams genericclioptions.IOS
 }
 
 // NewCmdRemoveRoleFromUser implements the OpenShift cli remove-role-from-user command
-func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
@@ -207,7 +208,7 @@ func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericclioptions.IOSt
 }
 
 // NewCmdAddClusterRoleToGroup implements the OpenShift cli add-cluster-role-to-group command
-func NewCmdAddClusterRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddClusterRoleToGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	cmd := &cobra.Command{
@@ -228,7 +229,7 @@ func NewCmdAddClusterRoleToGroup(f kcmdutil.Factory, streams genericclioptions.I
 }
 
 // NewCmdAddClusterRoleToUser implements the OpenShift cli add-cluster-role-to-user command
-func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	o.SANames = []string{}
@@ -251,7 +252,7 @@ func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericclioptions.IO
 }
 
 // NewCmdRemoveClusterRoleFromGroup implements the OpenShift cli remove-cluster-role-from-group command
-func NewCmdRemoveClusterRoleFromGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveClusterRoleFromGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	cmd := &cobra.Command{
@@ -272,7 +273,7 @@ func NewCmdRemoveClusterRoleFromGroup(f kcmdutil.Factory, streams genericcliopti
 }
 
 // NewCmdRemoveClusterRoleFromUser implements the OpenShift cli remove-cluster-role-from-user command
-func NewCmdRemoveClusterRoleFromUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveClusterRoleFromUser(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	o.SANames = []string{}

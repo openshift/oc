@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -83,10 +83,10 @@ type LogsOptions struct {
 	RESTClientGetter func(mapping *meta.RESTMapping) (resource.RESTClient, error)
 	Builder          *resource.Builder
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewLogsOptions(streams genericclioptions.IOStreams) *LogsOptions {
+func NewLogsOptions(streams genericiooptions.IOStreams) *LogsOptions {
 	return &LogsOptions{
 		Path:              "journal",
 		IOStreams:         streams,
@@ -95,7 +95,7 @@ func NewLogsOptions(streams genericclioptions.IOStreams) *LogsOptions {
 }
 
 // NewCmdLogs creates a new logs command that supports OpenShift resources.
-func NewCmdLogs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogs(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewLogsOptions(streams)
 	cmd := &cobra.Command{
 		Use:                   "node-logs [-l LABELS] [NODE...]",

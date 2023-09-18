@@ -3,13 +3,13 @@ package waitfornodereboot
 import (
 	"context"
 
-	"k8s.io/client-go/dynamic"
-
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -32,10 +32,10 @@ type WaitForNodeRebootOptions struct {
 
 	RebootNumber int
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewWaitForNodeReboot(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *WaitForNodeRebootOptions {
+func NewWaitForNodeReboot(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *WaitForNodeRebootOptions {
 	return &WaitForNodeRebootOptions{
 		RESTClientGetter: restClientGetter,
 		ResourceBuilderFlags: genericclioptions.NewResourceBuilderFlags().
@@ -48,7 +48,7 @@ func NewWaitForNodeReboot(restClientGetter genericclioptions.RESTClientGetter, s
 	}
 }
 
-func NewCmdWaitForNodeReboot(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdWaitForNodeReboot(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewWaitForNodeReboot(restClientGetter, streams)
 
 	cmd := &cobra.Command{

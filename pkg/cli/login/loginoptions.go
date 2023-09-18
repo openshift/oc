@@ -17,7 +17,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
@@ -77,7 +77,7 @@ type LoginOptions struct {
 	CommandName    string
 	RequestTimeout time.Duration
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 type passwordPrompter func(r io.Reader, w io.Writer, format string, a ...interface{}) string
@@ -86,7 +86,7 @@ func (p passwordPrompter) PromptForPassword(r io.Reader, w io.Writer, format str
 	return p(r, w, format, a...)
 }
 
-func NewLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
+func NewLoginOptions(streams genericiooptions.IOStreams) *LoginOptions {
 	return &LoginOptions{
 		IOStreams:   streams,
 		CommandName: "oc",

@@ -11,6 +11,7 @@ import (
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -56,17 +57,17 @@ type SCCModificationOptions struct {
 	DryRunStrategy kcmdutil.DryRunStrategy
 	Output         string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewSCCModificationOptions(streams genericclioptions.IOStreams) *SCCModificationOptions {
+func NewSCCModificationOptions(streams genericiooptions.IOStreams) *SCCModificationOptions {
 	return &SCCModificationOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("added to").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
 	}
 }
 
-func NewCmdAddSCCToGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddSCCToGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewSCCModificationOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "add-scc-to-group SCC GROUP [GROUP ...]",
@@ -84,7 +85,7 @@ func NewCmdAddSCCToGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams
 	return cmd
 }
 
-func NewCmdAddSCCToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddSCCToUser(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewSCCModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
@@ -105,7 +106,7 @@ func NewCmdAddSCCToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams)
 	return cmd
 }
 
-func NewCmdRemoveSCCFromGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveSCCFromGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewSCCModificationOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "remove-scc-from-group SCC GROUP [GROUP ...]",
@@ -122,7 +123,7 @@ func NewCmdRemoveSCCFromGroup(f kcmdutil.Factory, streams genericclioptions.IOSt
 	return cmd
 }
 
-func NewCmdRemoveSCCFromUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveSCCFromUser(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewSCCModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{

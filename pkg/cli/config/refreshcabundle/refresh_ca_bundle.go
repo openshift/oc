@@ -6,8 +6,10 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -26,7 +28,7 @@ type RefreshCABundleOptions struct {
 	// oc config view --raw -o jsonpath='{.clusters[?(@.name == "the-name")].cluster.certificate-authority-data}' | base64 -d
 	DryRun bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var (
@@ -44,7 +46,7 @@ var (
 		oc config refresh-ca-bundle --dry-run`)
 )
 
-func NewRefreshCABundleOptions(restClientGetter genericclioptions.RESTClientGetter, configAccess clientcmd.ConfigAccess, streams genericclioptions.IOStreams) *RefreshCABundleOptions {
+func NewRefreshCABundleOptions(restClientGetter genericclioptions.RESTClientGetter, configAccess clientcmd.ConfigAccess, streams genericiooptions.IOStreams) *RefreshCABundleOptions {
 	return &RefreshCABundleOptions{
 		RESTClientGetter: restClientGetter,
 		ConfigAccess:     configAccess,
@@ -52,7 +54,7 @@ func NewRefreshCABundleOptions(restClientGetter genericclioptions.RESTClientGett
 	}
 }
 
-func NewCmdConfigRefreshCABundle(restClientGetter genericclioptions.RESTClientGetter, configAccess clientcmd.ConfigAccess, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdConfigRefreshCABundle(restClientGetter genericclioptions.RESTClientGetter, configAccess clientcmd.ConfigAccess, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRefreshCABundleOptions(restClientGetter, configAccess, streams)
 
 	cmd := &cobra.Command{
@@ -127,7 +129,7 @@ type RefreshCABundleRuntime struct {
 	// oc config view --raw -o jsonpath='{.clusters[?(@.name == "the-name")].cluster.certificate-authority-data}' | base64 -d
 	DryRun bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 func (r *RefreshCABundleRuntime) Run(ctx context.Context) error {

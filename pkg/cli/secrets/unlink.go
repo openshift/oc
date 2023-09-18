@@ -10,6 +10,7 @@ import (
 	coreapiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -35,10 +36,10 @@ type UnlinkSecretOptions struct {
 	PrintFlags *genericclioptions.PrintFlags
 	Printer    printers.ResourcePrinter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewUnlinkSecretOptions(streams genericclioptions.IOStreams) *UnlinkSecretOptions {
+func NewUnlinkSecretOptions(streams genericiooptions.IOStreams) *UnlinkSecretOptions {
 	return &UnlinkSecretOptions{
 		PrintFlags:    genericclioptions.NewPrintFlags("updated").WithTypeSetter(scheme.Scheme),
 		SecretOptions: SecretOptions{},
@@ -47,7 +48,7 @@ func NewUnlinkSecretOptions(streams genericclioptions.IOStreams) *UnlinkSecretOp
 }
 
 // NewCmdUnlinkSecret creates a command object for detaching one or more secret references from a service account
-func NewCmdUnlinkSecret(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdUnlinkSecret(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewUnlinkSecretOptions(streams)
 
 	cmd := &cobra.Command{

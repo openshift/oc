@@ -9,7 +9,7 @@ import (
 	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/diff"
@@ -71,12 +71,12 @@ func TestImagesAndImageStreams(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			options := MustGatherOptions{
-				IOStreams:    genericclioptions.NewTestIOStreamsDiscard(),
+				IOStreams:    genericiooptions.NewTestIOStreamsDiscard(),
 				Client:       fake.NewSimpleClientset(),
 				ImageClient:  imageclient.NewSimpleClientset(tc.objects...).ImageV1(),
 				Images:       tc.images,
 				ImageStreams: tc.imageStreams,
-				LogOut:       genericclioptions.NewTestIOStreamsDiscard().Out,
+				LogOut:       genericiooptions.NewTestIOStreamsDiscard().Out,
 			}
 			err := options.completeImages()
 			if err != nil {

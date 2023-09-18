@@ -27,6 +27,7 @@ import (
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -180,10 +181,10 @@ type DebugOptions struct {
 	IsNode bool
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewDebugOptions(streams genericclioptions.IOStreams) *DebugOptions {
+func NewDebugOptions(streams genericiooptions.IOStreams) *DebugOptions {
 	attachOpts := attach.NewAttachOptions(streams)
 	attachOpts.TTY = true
 	attachOpts.Stdin = true
@@ -199,7 +200,7 @@ func NewDebugOptions(streams genericclioptions.IOStreams) *DebugOptions {
 }
 
 // NewCmdDebug creates a command for debugging pods.
-func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDebug(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewDebugOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "debug RESOURCE/NAME [ENV1=VAL1 ...] [-c CONTAINER] [flags] [-- COMMAND]",

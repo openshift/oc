@@ -24,7 +24,7 @@ import (
 	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
 	knet "k8s.io/apimachinery/pkg/util/net"
 	apimachineryversion "k8s.io/apimachinery/pkg/version"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -138,7 +138,7 @@ type PruneImagesOptions struct {
 }
 
 // NewCmdPruneImages implements the OpenShift cli prune images command.
-func NewCmdPruneImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneImages(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	allImages := true
 	opts := &PruneImagesOptions{
 		Confirm:            false,

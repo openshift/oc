@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -84,10 +85,10 @@ type DeploymentHookOptions struct {
 	FailurePolicy     appsv1.LifecycleHookFailurePolicy
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewDeploymentHookOptions(streams genericclioptions.IOStreams) *DeploymentHookOptions {
+func NewDeploymentHookOptions(streams genericiooptions.IOStreams) *DeploymentHookOptions {
 	return &DeploymentHookOptions{
 		PrintFlags:       genericclioptions.NewPrintFlags("hooks updated").WithTypeSetter(scheme.Scheme),
 		IOStreams:        streams,
@@ -96,7 +97,7 @@ func NewDeploymentHookOptions(streams genericclioptions.IOStreams) *DeploymentHo
 }
 
 // NewCmdDeploymentHook implements the set deployment-hook command
-func NewCmdDeploymentHook(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDeploymentHook(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewDeploymentHookOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "deployment-hook DEPLOYMENTCONFIG --pre|--post|--mid -- CMD",

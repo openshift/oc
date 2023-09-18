@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
 	restfake "k8s.io/client-go/rest/fake"
@@ -92,7 +92,7 @@ func TestStartBuildWebHook(t *testing.T) {
 
 	cfg := &FakeClientConfig{}
 	o := &StartBuildOptions{
-		IOStreams:    genericclioptions.NewTestIOStreamsDiscard(),
+		IOStreams:    genericiooptions.NewTestIOStreamsDiscard(),
 		ClientConfig: cfg.Client,
 		FromWebhook:  server.URL + "/webhook",
 		Mapper:       testrestmapper.TestOnlyStaticRESTMapper(scheme.Scheme),
@@ -103,7 +103,7 @@ func TestStartBuildWebHook(t *testing.T) {
 	<-invoked
 
 	o = &StartBuildOptions{
-		IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
+		IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 		FromWebhook:    server.URL + "/webhook",
 		GitPostReceive: "unknownpath",
 	}
@@ -136,7 +136,7 @@ func TestStartBuildHookPostReceive(t *testing.T) {
 		Err: testErr,
 	}
 	o := &StartBuildOptions{
-		IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
+		IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 		ClientConfig:   cfg.Client,
 		FromWebhook:    server.URL + "/webhook",
 		GitPostReceive: f.Name(),
@@ -390,7 +390,7 @@ func TestStreamBuildLogs(t *testing.T) {
 				}),
 			}
 
-			ioStreams, _, out, _ := genericclioptions.NewTestIOStreams()
+			ioStreams, _, out, _ := genericiooptions.NewTestIOStreams()
 
 			o := &StartBuildOptions{
 				IOStreams:      ioStreams,

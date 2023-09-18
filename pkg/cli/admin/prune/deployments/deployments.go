@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kappsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -51,10 +51,10 @@ type PruneDeploymentsOptions struct {
 	KubeClient  corev1client.CoreV1Interface
 	KAppsClient kappsv1client.AppsV1Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewPruneDeploymentsOptions(streams genericclioptions.IOStreams) *PruneDeploymentsOptions {
+func NewPruneDeploymentsOptions(streams genericiooptions.IOStreams) *PruneDeploymentsOptions {
 	return &PruneDeploymentsOptions{
 		Confirm:         false,
 		KeepYoungerThan: 60 * time.Minute,
@@ -65,7 +65,7 @@ func NewPruneDeploymentsOptions(streams genericclioptions.IOStreams) *PruneDeplo
 }
 
 // NewCmdPruneDeployments implements the OpenShift cli prune deployments command.
-func NewCmdPruneDeployments(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneDeployments(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewPruneDeploymentsOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "deployments",

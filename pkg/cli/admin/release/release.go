@@ -3,12 +3,12 @@ package release
 import (
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-func NewCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmd(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "release",
 		Short: "Tools for managing the OpenShift release process",

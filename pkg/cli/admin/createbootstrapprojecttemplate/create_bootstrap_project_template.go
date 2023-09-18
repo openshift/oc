@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -20,7 +21,7 @@ type CreateBootstrapProjectTemplateOptions struct {
 
 	Printer printers.ResourcePrinter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var createBootstrapProjectTemplateExample = templates.Examples(`
@@ -28,7 +29,7 @@ var createBootstrapProjectTemplateExample = templates.Examples(`
 	oc adm create-bootstrap-project-template -o yaml
 `)
 
-func NewCreateBootstrapProjectTemplateOptions(streams genericclioptions.IOStreams) *CreateBootstrapProjectTemplateOptions {
+func NewCreateBootstrapProjectTemplateOptions(streams genericiooptions.IOStreams) *CreateBootstrapProjectTemplateOptions {
 	return &CreateBootstrapProjectTemplateOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("created").WithTypeSetter(scheme.Scheme).WithDefaultOutput("json"),
 		Name:       DefaultTemplateName,
@@ -36,7 +37,7 @@ func NewCreateBootstrapProjectTemplateOptions(streams genericclioptions.IOStream
 	}
 }
 
-func NewCommandCreateBootstrapProjectTemplate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateBootstrapProjectTemplate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCreateBootstrapProjectTemplateOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "create-bootstrap-project-template",

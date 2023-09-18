@@ -9,7 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -43,16 +43,16 @@ type GetServiceAccountTokenOptions struct {
 	SAClient      corev1client.ServiceAccountInterface
 	SecretsClient corev1client.SecretInterface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewGetServiceAccountTokenOptions(streams genericclioptions.IOStreams) *GetServiceAccountTokenOptions {
+func NewGetServiceAccountTokenOptions(streams genericiooptions.IOStreams) *GetServiceAccountTokenOptions {
 	return &GetServiceAccountTokenOptions{
 		IOStreams: streams,
 	}
 }
 
-func NewCommandGetServiceAccountToken(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandGetServiceAccountToken(f cmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	options := NewGetServiceAccountTokenOptions(streams)
 
 	getServiceAccountTokenCommand := &cobra.Command{

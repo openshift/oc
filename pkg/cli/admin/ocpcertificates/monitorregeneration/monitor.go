@@ -4,27 +4,24 @@ import (
 	"context"
 	"strings"
 
-	configv1 "github.com/openshift/api/config/v1"
-
-	"k8s.io/apimachinery/pkg/runtime"
-
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/tools/cache"
-
-	"k8s.io/apimachinery/pkg/util/sets"
-
-	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+
+	configv1 "github.com/openshift/api/config/v1"
+	configclient "github.com/openshift/client-go/config/clientset/versioned"
 )
 
 type MonitorCertificatesRuntime struct {
 	KubeClient   kubernetes.Interface
 	ConfigClient configclient.Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	interestingConfigMaps       *namespacedCache
 	interestingSecrets          *namespacedCache

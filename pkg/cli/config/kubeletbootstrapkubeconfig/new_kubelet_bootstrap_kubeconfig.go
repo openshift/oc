@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -21,7 +22,7 @@ import (
 type NewKubeletBootstrapKubeconfigOptions struct {
 	RESTClientGetter genericclioptions.RESTClientGetter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var (
@@ -30,14 +31,14 @@ var (
 		oc config new-kubelet-bootstrap-kubeconfig`)
 )
 
-func NewNewKubeletBootstrapKubeconfigOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *NewKubeletBootstrapKubeconfigOptions {
+func NewNewKubeletBootstrapKubeconfigOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *NewKubeletBootstrapKubeconfigOptions {
 	return &NewKubeletBootstrapKubeconfigOptions{
 		RESTClientGetter: restClientGetter,
 		IOStreams:        streams,
 	}
 }
 
-func NewCmdNewKubeletBootstrapKubeconfig(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdNewKubeletBootstrapKubeconfig(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewNewKubeletBootstrapKubeconfigOptions(restClientGetter, streams)
 
 	cmd := &cobra.Command{
@@ -104,7 +105,7 @@ type NewKubeletBootstrapKubeconfigRuntime struct {
 	KubeClient   kubernetes.Interface
 	ConfigClient configv1client.Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 func (r *NewKubeletBootstrapKubeconfigRuntime) Run(ctx context.Context) error {

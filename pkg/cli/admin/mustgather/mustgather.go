@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -77,7 +78,7 @@ var (
 	`)
 )
 
-func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMustGatherOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "must-gather",
@@ -106,7 +107,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	return cmd
 }
 
-func NewMustGatherOptions(streams genericclioptions.IOStreams) *MustGatherOptions {
+func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions {
 	return &MustGatherOptions{
 		SourceDir: "/must-gather/",
 		IOStreams: streams,
@@ -225,7 +226,7 @@ func (o *MustGatherOptions) resolveImageStreamTag(namespace, name, tag string) (
 }
 
 type MustGatherOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	Config           *rest.Config
 	Client           kubernetes.Interface
@@ -537,7 +538,7 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 		Object:           pod,
 		ConsumeRequestFn: logs.DefaultConsumeRequest,
 		LogsForObject:    polymorphichelpers.LogsForObjectFn,
-		IOStreams:        genericclioptions.IOStreams{Out: newPrefixWriter(o.Out, fmt.Sprintf("[%s] POD", pod.Name))},
+		IOStreams:        genericiooptions.IOStreams{Out: newPrefixWriter(o.Out, fmt.Sprintf("[%s] POD", pod.Name))},
 	}
 
 	for {

@@ -12,6 +12,7 @@ import (
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
@@ -42,7 +43,7 @@ type ProjectOptions struct {
 	// SkipAccessValidation means that if a specific name is requested, don't bother checking for access to the project
 	SkipAccessValidation bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var (
@@ -69,7 +70,7 @@ var (
 	`)
 )
 
-func NewProjectOptions(streams genericclioptions.IOStreams) *ProjectOptions {
+func NewProjectOptions(streams genericiooptions.IOStreams) *ProjectOptions {
 	return &ProjectOptions{
 		IOStreams:   streams,
 		PathOptions: kclientcmd.NewDefaultPathOptions(),
@@ -77,7 +78,7 @@ func NewProjectOptions(streams genericclioptions.IOStreams) *ProjectOptions {
 }
 
 // NewCmdProject implements the OpenShift cli rollback command
-func NewCmdProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProject(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewProjectOptions(streams)
 
 	cmd := &cobra.Command{

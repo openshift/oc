@@ -18,7 +18,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -84,10 +84,10 @@ type VerifyImageSignatureOptions struct {
 
 	ImageClient imagev1typedclient.ImageV1Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewVerifyImageSignatureOptions(streams genericclioptions.IOStreams) *VerifyImageSignatureOptions {
+func NewVerifyImageSignatureOptions(streams genericiooptions.IOStreams) *VerifyImageSignatureOptions {
 	return &VerifyImageSignatureOptions{
 		// TODO: This improves the error message users get when containers/image is not able
 		// to locate the pubring.gpg file (which is default).
@@ -97,7 +97,7 @@ func NewVerifyImageSignatureOptions(streams genericclioptions.IOStreams) *Verify
 	}
 }
 
-func NewCmdVerifyImageSignature(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVerifyImageSignature(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewVerifyImageSignatureOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "verify-image-signature IMAGE --expected-identity=EXPECTED_IDENTITY [--save]",

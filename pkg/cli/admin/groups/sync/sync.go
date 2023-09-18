@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/openshift/library-go/pkg/config/helpers"
-
 	"github.com/go-ldap/ldap/v3"
 	"github.com/spf13/cobra"
 
@@ -18,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -25,6 +24,7 @@ import (
 
 	legacyconfigv1 "github.com/openshift/api/legacyconfig/v1"
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
+	"github.com/openshift/library-go/pkg/config/helpers"
 	"github.com/openshift/library-go/pkg/security/ldapclient"
 	syncgroups "github.com/openshift/oc/pkg/helpers/groupsync"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"
@@ -104,10 +104,10 @@ type SyncOptions struct {
 	// GroupClient is the interface used to interact with OpenShift Group objects
 	GroupClient userv1typedclient.GroupsGetter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewSyncOptions(streams genericclioptions.IOStreams) *SyncOptions {
+func NewSyncOptions(streams genericiooptions.IOStreams) *SyncOptions {
 	return &SyncOptions{
 		Whitelist:  []string{},
 		Type:       string(GroupSyncSourceLDAP),
@@ -116,7 +116,7 @@ func NewSyncOptions(streams genericclioptions.IOStreams) *SyncOptions {
 	}
 }
 
-func NewCmdSync(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSync(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewSyncOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "sync [--type=TYPE] [WHITELIST] [--whitelist=WHITELIST-FILE] --sync-config=CONFIG-FILE [--confirm]",

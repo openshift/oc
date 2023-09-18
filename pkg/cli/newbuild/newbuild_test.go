@@ -6,7 +6,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 
 	fakeimagev1client "github.com/openshift/client-go/image/clientset/versioned/fake"
 	faketemplatev1client "github.com/openshift/client-go/template/clientset/versioned/fake"
@@ -58,7 +58,7 @@ func TestNewBuildRun(t *testing.T) {
 	o := &BuildOptions{
 		ObjectGeneratorOptions: &ocnewapp.ObjectGeneratorOptions{
 			Action: configcmd.BulkAction{
-				IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
+				IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
 			},
 			CommandPath: "oc new-build",
 			CommandName: "new-build",

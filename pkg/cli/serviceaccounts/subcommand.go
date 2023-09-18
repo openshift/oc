@@ -3,7 +3,7 @@ package serviceaccounts
 import (
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -18,7 +18,7 @@ const (
 	serviceAccountsShort = `Manage service accounts in your project`
 )
 
-func NewCmdServiceAccounts(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdServiceAccounts(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmds := &cobra.Command{
 		Use:        "serviceaccounts",
 		Short:      serviceAccountsShort,

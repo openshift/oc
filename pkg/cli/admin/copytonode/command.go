@@ -1,12 +1,15 @@
 package copytonode
 
 import (
-	"github.com/openshift/oc/pkg/cli/admin/pernodepod"
 	"github.com/spf13/cobra"
+
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
+
+	"github.com/openshift/oc/pkg/cli/admin/pernodepod"
 )
 
 var (
@@ -30,10 +33,10 @@ type CopyToNodeOptions struct {
 	// FileSources to derive the secret from (optional)
 	FileSources []string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *CopyToNodeOptions {
+func NewRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *CopyToNodeOptions {
 	return &CopyToNodeOptions{
 		PerNodePodOptions: pernodepod.NewPerNodePodOptions(
 			"openshift-copy-to-node-",
@@ -46,7 +49,7 @@ func NewRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, stre
 	}
 }
 
-func NewCmdCopyToNode(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCopyToNode(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRestartKubelet(restClientGetter, streams)
 
 	cmd := &cobra.Command{

@@ -6,7 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/kubectl/pkg/cmd/attach"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	"k8s.io/pod-security-admission/api"
@@ -178,7 +178,7 @@ func TestGetNamespace(t *testing.T) {
 		}
 
 		debugOptions := &DebugOptions{
-			IOStreams:         genericclioptions.NewTestIOStreamsDiscard(),
+			IOStreams:         genericiooptions.NewTestIOStreamsDiscard(),
 			IsNode:            test.isNode,
 			ExplicitNamespace: test.explicitNamespace,
 			ToNamespace:       test.toNamespace,

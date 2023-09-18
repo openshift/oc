@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -92,10 +93,10 @@ on the configured container registries.
 
 type BuildOptions struct {
 	*ocnewapp.ObjectGeneratorOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewBuildOptions(streams genericclioptions.IOStreams) *BuildOptions {
+func NewBuildOptions(streams genericiooptions.IOStreams) *BuildOptions {
 	config := newcmd.NewAppConfig()
 	config.ExpectToBuild = true
 
@@ -110,7 +111,7 @@ func NewBuildOptions(streams genericclioptions.IOStreams) *BuildOptions {
 }
 
 // NewCmdNewBuild implements the OpenShift cli new-build command
-func NewCmdNewBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdNewBuild(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewBuildOptions(streams)
 
 	cmd := &cobra.Command{

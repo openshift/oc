@@ -8,7 +8,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd/api"
@@ -48,16 +48,16 @@ type WhoAmIOptions struct {
 	ShowServer     bool
 	ShowConsoleUrl bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewWhoAmIOptions(streams genericclioptions.IOStreams) *WhoAmIOptions {
+func NewWhoAmIOptions(streams genericiooptions.IOStreams) *WhoAmIOptions {
 	return &WhoAmIOptions{
 		IOStreams: streams,
 	}
 }
 
-func NewCmdWhoAmI(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewWhoAmIOptions(streams)
 
 	cmd := &cobra.Command{

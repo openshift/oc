@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/kubectl/pkg/cmd/annotate"
 	"k8s.io/kubectl/pkg/cmd/apiresources"
 	"k8s.io/kubectl/pkg/cmd/apply"
@@ -58,33 +58,33 @@ func adjustCmdExamples(cmd *cobra.Command, name string) {
 }
 
 // NewCmdGet is a wrapper for the Kubernetes cli get command
-func NewCmdGet(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdGet(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	get := kget.NewCmdGet("oc", f, streams)
 	get.ValidArgsFunction = utilcomp.ResourceTypeAndNameCompletionFunc(f)
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(get))
 }
 
 // NewCmdReplace is a wrapper for the Kubernetes cli replace command
-func NewCmdReplace(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdReplace(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(replace.NewCmdReplace(f, streams)))
 }
 
-func NewCmdClusterInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdClusterInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(clusterinfo.NewCmdClusterInfo(f, streams)))
 }
 
 // NewCmdPatch is a wrapper for the Kubernetes cli patch command
-func NewCmdPatch(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPatch(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(patch.NewCmdPatch(f, streams)))
 }
 
 // NewCmdDelete is a wrapper for the Kubernetes cli delete command
-func NewCmdDelete(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDelete(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(delete.NewCmdDelete(f, streams)))
 }
 
 // NewCmdCreate is a wrapper for the Kubernetes cli create command
-func NewCmdCreate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(kcreate.NewCmdCreate(f, streams)))
 
 	// create subcommands
@@ -114,41 +114,41 @@ var (
 		Note for zsh users: [1] zsh completions are only supported in versions of zsh >= 5.2`)
 )
 
-func NewCmdCompletion(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCompletion(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(completion.NewCmdCompletion(streams.Out, "\n")))
 	cmd.Long = completionLong
 	return cmd
 }
 
 // NewCmdExec is a wrapper for the Kubernetes cli exec command
-func NewCmdExec(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdExec(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(exec.NewCmdExec(f, streams)))
 }
 
 // NewCmdPortForward is a wrapper for the Kubernetes cli port-forward command
-func NewCmdPortForward(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPortForward(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(portforward.NewCmdPortForward(f, streams)))
 }
 
 // NewCmdDescribe is a wrapper for the Kubernetes cli describe command
-func NewCmdDescribe(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDescribe(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(describe.NewCmdDescribe("oc", f, streams)))
 }
 
 // NewCmdProxy is a wrapper for the Kubernetes cli proxy command
-func NewCmdProxy(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProxy(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(proxy.NewCmdProxy(f, streams)))
 }
 
 // NewCmdScale is a wrapper for the Kubernetes cli scale command
-func NewCmdScale(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdScale(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(scale.NewCmdScale(f, streams)))
 	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
 	return cmd
 }
 
 // NewCmdAutoscale is a wrapper for the Kubernetes cli autoscale command
-func NewCmdAutoscale(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAutoscale(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(autoscale.NewCmdAutoscale(f, streams)))
 	cmd.Short = "Autoscale a deployment config, deployment, replica set, stateful set, or replication controller"
 	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
@@ -156,74 +156,74 @@ func NewCmdAutoscale(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 }
 
 // NewCmdRun is a wrapper for the Kubernetes cli run command
-func NewCmdRun(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRun(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(run.NewCmdRun(f, streams)))
 	return cmd
 }
 
 // NewCmdAttach is a wrapper for the Kubernetes cli attach command
-func NewCmdAttach(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAttach(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(attach.NewCmdAttach(f, streams)))
 }
 
 // NewCmdAnnotate is a wrapper for the Kubernetes cli annotate command
-func NewCmdAnnotate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAnnotate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(annotate.NewCmdAnnotate("oc", f, streams)))
 }
 
 // NewCmdLabel is a wrapper for the Kubernetes cli label command
-func NewCmdLabel(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLabel(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(label.NewCmdLabel(f, streams)))
 }
 
 // NewCmdApply is a wrapper for the Kubernetes cli apply command
-func NewCmdApply(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdApply(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(apply.NewCmdApply("oc", f, streams)))
 }
 
 // NewCmdExplain is a wrapper for the Kubernetes cli explain command
-func NewCmdExplain(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdExplain(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(explain.NewCmdExplain("oc", f, streams)))
 }
 
 // NewCmdEdit is a wrapper for the Kubernetes cli edit command
-func NewCmdEdit(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdEdit(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(edit.NewCmdEdit(f, streams)))
 }
 
 // NewCmdCp is a wrapper for the Kubernetes cli cp command
-func NewCmdCp(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCp(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(cp.NewCmdCp(f, streams)))
 }
 
-func NewCmdWait(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdWait(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(kwait.NewCmdWait(f, streams)))
 }
 
-func NewCmdEvents(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdEvents(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(events.NewCmdEvents(f, streams)))
 }
 
-func NewCmdAuth(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAuth(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(kcmdauth.NewCmdAuth(f, streams)))
 }
 
-func NewCmdPlugin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPlugin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(plugin.NewCmdPlugin(streams)))
 }
 
-func NewCmdApiResources(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdApiResources(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(apiresources.NewCmdAPIResources(f, streams)))
 }
 
-func NewCmdApiVersions(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdApiVersions(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(apiresources.NewCmdAPIVersions(f, streams)))
 }
 
-func NewCmdKustomize(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdKustomize(streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(kustomize.NewCmdKustomize(streams)))
 }
 
-func NewCmdDiff(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDiff(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(diff.NewCmdDiff(f, streams)))
 }

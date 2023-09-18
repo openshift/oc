@@ -8,7 +8,7 @@ import (
 	"github.com/openshift/oc/pkg/helpers/newapp/app"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -119,7 +119,7 @@ func TestNewAppDefaultFlags(t *testing.T) {
 		},
 	}
 
-	cmd := NewCmdNewApplication(nil, genericclioptions.NewTestIOStreamsDiscard())
+	cmd := NewCmdNewApplication(nil, genericiooptions.NewTestIOStreamsDiscard())
 
 	for _, v := range tests {
 		f := cmd.Flag(v.flagName)
@@ -373,7 +373,7 @@ func TestNewAppRunQueryActions(t *testing.T) {
 	o := &AppOptions{
 		ObjectGeneratorOptions: &ObjectGeneratorOptions{
 			Action: configcmd.BulkAction{
-				IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
+				IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
 			},
 		},
 	}

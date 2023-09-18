@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	kexec "k8s.io/kubectl/pkg/cmd/exec"
@@ -32,7 +32,7 @@ func (e *remoteExecutor) Execute(command []string, in io.Reader, out, errOut io.
 			Namespace:     e.Namespace,
 			PodName:       e.PodName,
 			ContainerName: e.ContainerName,
-			IOStreams: genericclioptions.IOStreams{
+			IOStreams: genericiooptions.IOStreams{
 				In:     in,
 				Out:    out,
 				ErrOut: errOut,

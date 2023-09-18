@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -70,10 +71,10 @@ type BuildSecretOptions struct {
 	FieldManager      string
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewBuildSecretOptions(streams genericclioptions.IOStreams) *BuildSecretOptions {
+func NewBuildSecretOptions(streams genericiooptions.IOStreams) *BuildSecretOptions {
 	return &BuildSecretOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("secret updated").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
@@ -81,7 +82,7 @@ func NewBuildSecretOptions(streams genericclioptions.IOStreams) *BuildSecretOpti
 }
 
 // NewCmdBuildSecret implements the set build-secret command
-func NewCmdBuildSecret(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdBuildSecret(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewBuildSecretOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "build-secret BUILDCONFIG SECRETNAME",

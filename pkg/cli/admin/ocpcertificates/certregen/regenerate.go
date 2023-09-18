@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
@@ -41,7 +42,7 @@ type RegenerateCertsRuntime struct {
 	regenerateSecretFn CertificateSecretRegenerateFunc
 
 	Printer printers.ResourcePrinter
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 func (o *RegenerateCertsRuntime) Run(ctx context.Context) error {
