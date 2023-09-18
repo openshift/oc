@@ -54,6 +54,14 @@ var (
 	`)
 )
 
+type ExposeFlags struct {
+	Hostname       string
+	Path           string
+	WildcardPolicy string
+
+	*expose.ExposeServiceFlags
+}
+
 type ExposeOptions struct {
 	Hostname       string
 	Path           string
@@ -69,15 +77,15 @@ type ExposeOptions struct {
 	*expose.ExposeServiceOptions
 }
 
-func NewExposeOptions(streams genericiooptions.IOStreams) *ExposeOptions {
-	return &ExposeOptions{
-		ExposeServiceOptions: expose.NewExposeServiceOptions(streams),
+func NewExposeFlags(streams genericiooptions.IOStreams) *ExposeFlags {
+	return &ExposeFlags{
+		ExposeServiceFlags: expose.NewExposeFlags(streams),
 	}
 }
 
 // NewCmdExpose is a wrapper for the Kubernetes cli expose command
 func NewCmdExpose(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
-	o := NewExposeOptions(streams)
+	o := NewExposeFlags(streams)
 
 	cmd := expose.NewCmdExposeService(f, streams)
 	cmd.Short = "Expose a replicated application as a service or route"
@@ -85,9 +93,14 @@ func NewCmdExpose(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra
 	cmd.Example = exposeExample
 	cmd.Flags().Set("protocol", "")
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		kcmdutil.CheckErr(o.Complete(cmd, f, args))
-		kcmdutil.CheckErr(o.Validate())
-		kcmdutil.CheckErr(o.Run())
+		options, err := o.ToOptions(cmd, args)
+		exposeOptions := &ExposeOptions{
+			ExposeServiceOptions: options,
+		}
+		kcmdutil.CheckErr(err)
+		kcmdutil.CheckErr(exposeOptions.Complete(cmd, f, args))
+		kcmdutil.CheckErr(exposeOptions.Validate())
+		kcmdutil.CheckErr(exposeOptions.Run())
 	}
 	validArgs := []string{"pod", "service", "replicationcontroller", "deployment", "replicaset", "deploymentconfig"}
 	cmd.ValidArgsFunction = completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
@@ -135,7 +148,7 @@ func (o *ExposeOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 		return err
 	}
 
-	return o.ExposeServiceOptions.Complete(f, cmd)
+	return o.ExposeServiceOptions.Complete(f)
 }
 
 func (o *ExposeOptions) Validate() error {
