@@ -113,9 +113,6 @@ func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 
 	cmdPathPieces := o.Arguments[1:]
 
-	// TODO: this should be imported from kubectl
-	allowedCmdsSubcommandPlugin := map[string]struct{}{"create": {}}
-
 	// only look for suitable extension executables if
 	// the specified command does not already exist
 	if foundCmd, foundArgs, err := cmd.Find(cmdPathPieces); err != nil {
@@ -143,7 +140,7 @@ func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 		if kcmdutil.CmdPluginAsSubcommand.IsEnabled() {
 			// Command exists(e.g. kubectl create), but it is not certain that
 			// subcommand also exists (e.g. kubectl create networkpolicy)
-			if _, ok := allowedCmdsSubcommandPlugin[foundCmd.Name()]; ok {
+			if kubecmd.IsSubcommandPluginAllowed(foundCmd.Name()) {
 				var subcommand string
 				for _, arg := range foundArgs { // first "non-flag" argument as subcommand
 					if !strings.HasPrefix(arg, "-") {
