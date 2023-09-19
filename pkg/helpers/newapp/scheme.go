@@ -15,7 +15,7 @@ var NewAppScheme = runtime.NewScheme()
 
 var NewAppCodecs = serializer.NewCodecFactory(NewAppScheme)
 
-func InstallSchemes() {
+func init() {
 	utilruntime.Must(api.InstallKube(NewAppScheme))
 	schemehelper.InstallSchemes(NewAppScheme)
 	// All the other commands can use route object
@@ -27,8 +27,4 @@ func InstallSchemes() {
 	// route continue working. That's why, we are manually
 	// registering route in here.
 	utilruntime.Must(route.Install(NewAppScheme))
-}
-
-func init() {
-	InstallSchemes()
 }
