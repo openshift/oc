@@ -305,7 +305,7 @@ func (o *ProbeOptions) Run() error {
 		return err
 	}
 
-	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		transformed := false
 		name := getObjectName(info)
 		_, err := o.UpdatePodSpecForObject(info.Object, func(spec *corev1.PodSpec) error {

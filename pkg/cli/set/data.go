@@ -238,7 +238,7 @@ func (o *DataOptions) Run() error {
 
 	allErrs := []error{}
 
-	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		changed := false
 		valid, err := o.UpdateDataForObject(info.Object, func(data map[string][]byte) error {
 			for k, v := range o.SetData {

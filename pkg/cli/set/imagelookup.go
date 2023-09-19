@@ -216,7 +216,7 @@ func (o *ImageLookupOptions) Run() error {
 		return o.printImageLookup(infos)
 	}
 
-	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		switch t := info.Object.(type) {
 		case *imagev1.ImageStream:
 			t.Spec.LookupPolicy.Local = o.Enabled

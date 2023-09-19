@@ -28,3 +28,7 @@ func InstallSchemes() {
 	// registering route in here.
 	utilruntime.Must(route.Install(NewAppScheme))
 }
+
+func init() {
+	InstallSchemes()
+}

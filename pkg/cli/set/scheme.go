@@ -31,6 +31,6 @@ func init() {
 	utilruntime.Must(route.Install(setCmdScheme))
 }
 
-func DefaultJSONEncoder() runtime.Encoder {
+func setCmdJSONEncoder() runtime.Encoder {
 	return unstructured.NewJSONFallbackEncoder(setCmdCodecs.LegacyCodec(setCmdScheme.PrioritizedVersionsAllGroups()...))
 }

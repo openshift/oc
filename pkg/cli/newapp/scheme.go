@@ -17,8 +17,6 @@ import (
 	"github.com/openshift/api/security"
 	"github.com/openshift/api/template"
 	"github.com/openshift/api/user"
-
-	"github.com/openshift/oc/pkg/helpers/newapp"
 )
 
 // we need a scheme that contains ONLY groupped APIs for newapp
@@ -27,8 +25,6 @@ var (
 )
 
 func init() {
-	newapp.InstallSchemes()
-
 	utilruntime.Must(api.InstallKube(newAppBulkScheme))
 
 	utilruntime.Must(apps.Install(newAppBulkScheme))

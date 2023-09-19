@@ -226,7 +226,7 @@ func (o *BuildSecretOptions) Run() error {
 		return err
 	}
 
-	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		bc, ok := info.Object.(*buildv1.BuildConfig)
 		if !ok {
 			return false, nil

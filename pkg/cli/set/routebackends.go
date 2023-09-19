@@ -203,7 +203,7 @@ func (o *BackendsOptions) Run() error {
 		return o.printBackends(infos)
 	}
 
-	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		return UpdateBackendsForObject(info.Object, o.Transform.Apply)
 	})
 	if singleItemImplied && len(patches) == 0 {

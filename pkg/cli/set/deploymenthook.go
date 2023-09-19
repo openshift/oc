@@ -239,7 +239,7 @@ func (o *DeploymentHookOptions) Run() error {
 		return err
 	}
 
-	patches := CalculatePatchesExternal(DefaultJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		dc, ok := info.Object.(*appsv1.DeploymentConfig)
 		if !ok {
 			return false, nil
