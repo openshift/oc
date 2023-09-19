@@ -83,53 +83,52 @@ func NewExposeFlags(streams genericiooptions.IOStreams) *ExposeFlags {
 	}
 }
 
+func (flags *ExposeFlags) ToOptions(cmd *cobra.Command, args []string) (*ExposeOptions, error) {
+	exposeServiceOpts, err := flags.ExposeServiceFlags.ToOptions(cmd, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ExposeOptions{
+		Hostname:             flags.Hostname,
+		Path:                 flags.Path,
+		WildcardPolicy:       flags.WildcardPolicy,
+		Args:                 args,
+		Cmd:                  cmd,
+		ExposeServiceOptions: exposeServiceOpts,
+	}, nil
+}
+
 // NewCmdExpose is a wrapper for the Kubernetes cli expose command
 func NewCmdExpose(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
-	o := NewExposeFlags(streams)
+	flags := NewExposeFlags(streams)
 
-	cmd := expose.NewCmdExposeService(f, streams)
-	cmd.Short = "Expose a replicated application as a service or route"
-	cmd.Long = exposeLong
-	cmd.Example = exposeExample
-	cmd.Flags().Set("protocol", "")
-	cmd.Run = func(cmd *cobra.Command, args []string) {
-		options, err := o.ToOptions(cmd, args)
-		exposeOptions := &ExposeOptions{
-			ExposeServiceOptions: options,
-		}
-		kcmdutil.CheckErr(err)
-		kcmdutil.CheckErr(exposeOptions.Complete(cmd, f, args))
-		kcmdutil.CheckErr(exposeOptions.Validate())
-		kcmdutil.CheckErr(exposeOptions.Run())
-	}
 	validArgs := []string{"pod", "service", "replicationcontroller", "deployment", "replicaset", "deploymentconfig"}
-	cmd.ValidArgsFunction = completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
+	cmd := &cobra.Command{
+		Use:               "expose (-f FILENAME | TYPE NAME) [--port=port] [--protocol=TCP|UDP|SCTP] [--target-port=number-or-name] [--name=name] [--external-ip=external-ip-of-service] [--type=type]",
+		Short:             "Expose a replicated application as a service or route",
+		Long:              exposeLong,
+		Example:           exposeExample,
+		ValidArgsFunction: completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
+		Run: func(cmd *cobra.Command, args []string) {
+			opts, err := flags.ToOptions(cmd, args)
+			kcmdutil.CheckErr(err)
+			kcmdutil.CheckErr(opts.Complete(cmd, f, args))
+			kcmdutil.CheckErr(opts.Validate())
+			kcmdutil.CheckErr(opts.Run())
+		},
+	}
 
-	cmd.Flags().StringVar(&o.Hostname, "hostname", o.Hostname, "Set a hostname for the new route")
-	cmd.Flags().StringVar(&o.Path, "path", o.Path, "Set a path for the new route")
-	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WildcardPolicy for the hostname, the default is \"None\". Valid values are \"None\" and \"Subdomain\"")
+	flags.ExposeServiceFlags.AddFlags(cmd)
+	cmd.Flags().Set("protocol", "")
+	cmd.Flags().StringVar(&flags.Hostname, "hostname", flags.Hostname, "Set a hostname for the new route")
+	cmd.Flags().StringVar(&flags.Path, "path", flags.Path, "Set a path for the new route")
+	cmd.Flags().StringVar(&flags.WildcardPolicy, "wildcard-policy", flags.WildcardPolicy, "Sets the WildcardPolicy for the hostname, the default is \"None\". Valid values are \"None\" and \"Subdomain\"")
 
 	return cmd
 }
 
 func (o *ExposeOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []string) error {
-	// manually bind all flag values from the upstream command
-	// TODO: once the upstream command supports binding flags
-	// by outside callers, this will no longer be needed.
-	o.ExposeServiceOptions.Protocol = kcmdutil.GetFlagString(cmd, "protocol")
-	o.ExposeServiceOptions.Port = kcmdutil.GetFlagString(cmd, "port")
-	o.ExposeServiceOptions.Type = kcmdutil.GetFlagString(cmd, "type")
-	o.ExposeServiceOptions.LoadBalancerIP = kcmdutil.GetFlagString(cmd, "load-balancer-ip")
-	o.ExposeServiceOptions.Selector = kcmdutil.GetFlagString(cmd, "selector")
-	o.ExposeServiceOptions.Labels = kcmdutil.GetFlagString(cmd, "labels")
-	o.ExposeServiceOptions.TargetPort = kcmdutil.GetFlagString(cmd, "target-port")
-	o.ExposeServiceOptions.ExternalIP = kcmdutil.GetFlagString(cmd, "external-ip")
-	o.ExposeServiceOptions.Name = kcmdutil.GetFlagString(cmd, "name")
-	o.ExposeServiceOptions.SessionAffinity = kcmdutil.GetFlagString(cmd, "session-affinity")
-	o.ExposeServiceOptions.ClusterIP = kcmdutil.GetFlagString(cmd, "cluster-ip")
-	output := kcmdutil.GetFlagString(cmd, "output")
-	o.ExposeServiceOptions.PrintFlags.OutputFormat = &output
-
 	config, err := f.ToRESTConfig()
 	if err != nil {
 		return err
