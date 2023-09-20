@@ -170,7 +170,7 @@ func (o CancelOptions) Run() error {
 				return false
 			}
 
-			patches := set.CalculatePatchesExternal([]*resource.Info{{Object: rc, Mapping: mapping}}, func(info *resource.Info) (bool, error) {
+			patches := set.CalculatePatchesExternal(scheme.DefaultJSONEncoder(), []*resource.Info{{Object: rc, Mapping: mapping}}, func(info *resource.Info) (bool, error) {
 				appsutil.SetCancelledByUserReason(rc)
 				return true, nil
 			})

@@ -14,7 +14,6 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imagev1 "github.com/openshift/api/image/v1"
@@ -102,7 +101,7 @@ type ImageLookupOptions struct {
 
 func NewImageLookupOptions(streams genericclioptions.IOStreams) *ImageLookupOptions {
 	return &ImageLookupOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("image lookup updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("image lookup updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 		Enabled:    true,
 	}
@@ -178,7 +177,7 @@ func (o *ImageLookupOptions) Validate() error {
 // Run executes the ImageLookupOptions or returns an error.
 func (o *ImageLookupOptions) Run() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -217,7 +216,7 @@ func (o *ImageLookupOptions) Run() error {
 		return o.printImageLookup(infos)
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		switch t := info.Object.(type) {
 		case *imagev1.ImageStream:
 			t.Spec.LookupPolicy.Local = o.Enabled

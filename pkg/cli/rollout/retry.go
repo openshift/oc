@@ -208,7 +208,7 @@ func (o RetryOptions) Run() error {
 			continue
 		}
 
-		patches := set.CalculatePatchesExternal([]*resource.Info{{Object: rc, Mapping: mapping}}, func(info *resource.Info) (bool, error) {
+		patches := set.CalculatePatchesExternal(scheme.DefaultJSONEncoder(), []*resource.Info{{Object: rc, Mapping: mapping}}, func(info *resource.Info) (bool, error) {
 			rc.Annotations[appsv1.DeploymentStatusAnnotation] = string(appsv1.DeploymentStatusNew)
 			delete(rc.Annotations, appsv1.DeploymentStatusReasonAnnotation)
 			delete(rc.Annotations, appsv1.DeploymentCancelledAnnotation)

@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	buildv1 "github.com/openshift/api/build/v1"
@@ -119,7 +118,7 @@ type EnvOptions struct {
 
 func NewEnvOptions(streams genericclioptions.IOStreams) *EnvOptions {
 	return &EnvOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 
 		ContainerSelector: "*",
@@ -250,7 +249,7 @@ func (o *EnvOptions) RunEnv() error {
 
 	if len(o.From) != 0 {
 		b := o.Builder().
-			WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+			WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 			LocalParam(o.Local).
 			ContinueOnError().
 			NamespaceParam(o.Namespace).DefaultNamespace().
@@ -315,7 +314,7 @@ func (o *EnvOptions) RunEnv() error {
 	}
 
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().

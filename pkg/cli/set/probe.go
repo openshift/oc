@@ -21,7 +21,6 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
@@ -119,7 +118,7 @@ type ProbeOptions struct {
 
 func NewProbeOptions(streams genericclioptions.IOStreams) *ProbeOptions {
 	return &ProbeOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("probes updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("probes updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 
 		ContainerSelector: "*",
@@ -286,7 +285,7 @@ func (o *ProbeOptions) Validate() error {
 
 func (o *ProbeOptions) Run() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -306,7 +305,7 @@ func (o *ProbeOptions) Run() error {
 		return err
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		transformed := false
 		name := getObjectName(info)
 		_, err := o.UpdatePodSpecForObject(info.Object, func(spec *corev1.PodSpec) error {

@@ -20,21 +20,23 @@ import (
 )
 
 // we need a scheme that contains ONLY groupped APIs for newapp
-var newAppScheme = runtime.NewScheme()
+var (
+	newAppBulkScheme = runtime.NewScheme()
+)
 
 func init() {
-	utilruntime.Must(api.InstallKube(newAppScheme))
+	utilruntime.Must(api.InstallKube(newAppBulkScheme))
 
-	utilruntime.Must(apps.Install(newAppScheme))
-	utilruntime.Must(authorization.Install(newAppScheme))
-	utilruntime.Must(build.Install(newAppScheme))
-	utilruntime.Must(image.Install(newAppScheme))
-	utilruntime.Must(network.Install(newAppScheme))
-	utilruntime.Must(oauth.Install(newAppScheme))
-	utilruntime.Must(project.Install(newAppScheme))
-	utilruntime.Must(quota.Install(newAppScheme))
-	utilruntime.Must(route.Install(newAppScheme))
-	utilruntime.Must(security.Install(newAppScheme))
-	utilruntime.Must(template.Install(newAppScheme))
-	utilruntime.Must(user.Install(newAppScheme))
+	utilruntime.Must(apps.Install(newAppBulkScheme))
+	utilruntime.Must(authorization.Install(newAppBulkScheme))
+	utilruntime.Must(build.Install(newAppBulkScheme))
+	utilruntime.Must(image.Install(newAppBulkScheme))
+	utilruntime.Must(network.Install(newAppBulkScheme))
+	utilruntime.Must(oauth.Install(newAppBulkScheme))
+	utilruntime.Must(project.Install(newAppBulkScheme))
+	utilruntime.Must(quota.Install(newAppBulkScheme))
+	utilruntime.Must(route.Install(newAppBulkScheme))
+	utilruntime.Must(security.Install(newAppBulkScheme))
+	utilruntime.Must(template.Install(newAppBulkScheme))
+	utilruntime.Must(user.Install(newAppBulkScheme))
 }

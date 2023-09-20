@@ -10,9 +10,8 @@ import (
 	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
-	v1 "k8s.io/api/apps/v1"
-	"k8s.io/klog/v2"
 
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -24,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/klog/v2"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	authv1 "github.com/openshift/api/authorization/v1"
@@ -863,7 +862,7 @@ func templateObjectsToAppObjects(objs []runtime.RawExtension) (app.Objects, erro
 			continue
 		}
 
-		obj, err := runtime.Decode(scheme.Codecs.UniversalDeserializer(), raw.Raw)
+		obj, err := runtime.Decode(newapp.NewAppCodecs.UniversalDeserializer(), raw.Raw)
 		if err != nil {
 			return nil, err
 		}

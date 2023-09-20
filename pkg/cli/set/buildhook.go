@@ -16,7 +16,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	buildv1 "github.com/openshift/api/build/v1"
-	"k8s.io/kubectl/pkg/scheme"
 )
 
 var (
@@ -75,7 +74,7 @@ type BuildHookOptions struct {
 
 func NewBuildHookOptions(streams genericclioptions.IOStreams) *BuildHookOptions {
 	return &BuildHookOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("hooks updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("hooks updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 	}
 }
@@ -167,7 +166,7 @@ func (o *BuildHookOptions) Validate() error {
 
 func (o *BuildHookOptions) Run() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -194,7 +193,7 @@ func (o *BuildHookOptions) Run() error {
 		return fmt.Errorf("no resources found")
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		bc, ok := info.Object.(*buildv1.BuildConfig)
 		if !ok {
 			return false, nil
