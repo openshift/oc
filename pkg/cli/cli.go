@@ -179,8 +179,15 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 		Short: "Command line tools for managing applications",
 		Long:  cliLong,
 		Run:   runHelp,
-		PersistentPreRunE: func(*cobra.Command, []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			rest.SetDefaultWarningHandler(warningHandler)
+
+			if cmd.Name() == cobra.ShellCompRequestCmd {
+				// This is the __complete or __completeNoDesc command which
+				// indicates shell completion has been requested.
+				plugin.SetupPluginCompletion(cmd, args)
+			}
+
 			return initProfiling()
 		},
 		PersistentPostRunE: func(*cobra.Command, []string) error {
