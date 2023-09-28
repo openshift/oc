@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -50,7 +51,7 @@ import (
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 )
 
-func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
+func NewInfoOptions(streams genericiooptions.IOStreams) *InfoOptions {
 	return &InfoOptions{
 		IOStreams:              streams,
 		KubeTemplatePrintFlags: *genericclioptions.NewKubeTemplatePrintFlags(),
@@ -58,7 +59,7 @@ func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
 	}
 }
 
-func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewInfoOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "info IMAGE [--changes-from=IMAGE] [--verify|--commits|--pullspecs]",
@@ -153,7 +154,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 }
 
 type InfoOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 	genericclioptions.KubeTemplatePrintFlags
 
 	Images  []string
@@ -771,7 +772,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	}
 
 	verifier := imagemanifest.NewVerifier()
-	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := extract.NewExtractOptions(genericiooptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FilterOptions = o.FilterOptions
 	opts.FileDir = o.FileDir

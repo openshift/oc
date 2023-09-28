@@ -20,7 +20,7 @@ import (
 	dockerarchive "github.com/docker/docker/pkg/archive"
 	digest "github.com/opencontainers/go-digest"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -139,7 +139,7 @@ type ExtractOptions struct {
 	ICSPFile string
 	IDMSFile string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	// ImageMetadataCallback is invoked once per image retrieved, and may be called in parallel if
 	// MaxPerRegistry is set higher than 1.
@@ -153,7 +153,7 @@ type ExtractOptions struct {
 	AllLayers bool
 }
 
-func NewExtractOptions(streams genericclioptions.IOStreams) *ExtractOptions {
+func NewExtractOptions(streams genericiooptions.IOStreams) *ExtractOptions {
 	return &ExtractOptions{
 		Paths: []string{},
 
@@ -163,7 +163,7 @@ func NewExtractOptions(streams genericclioptions.IOStreams) *ExtractOptions {
 }
 
 // New creates a new command
-func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
+func NewExtract(streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewExtractOptions(streams)
 
 	cmd := &cobra.Command{

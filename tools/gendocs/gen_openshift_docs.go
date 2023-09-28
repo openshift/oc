@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kubecmd "k8s.io/kubectl/pkg/cmd"
 
 	"github.com/openshift/oc/pkg/cli"
@@ -54,7 +54,7 @@ func main() {
 	}
 
 	out := os.Stdout
-	cmd := cli.NewOcCommand(kubecmd.KubectlOptions{IOStreams: genericclioptions.IOStreams{In: &bytes.Buffer{}, Out: out, ErrOut: io.Discard}})
+	cmd := cli.NewOcCommand(kubecmd.KubectlOptions{IOStreams: genericiooptions.IOStreams{In: &bytes.Buffer{}, Out: out, ErrOut: io.Discard}})
 
 	fileName := "oc-by-example-content.adoc"
 	if *admin {

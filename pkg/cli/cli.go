@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest"
 	kubecmd "k8s.io/kubectl/pkg/cmd"
 	"k8s.io/kubectl/pkg/cmd/plugin"
@@ -113,9 +114,6 @@ func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 
 	cmdPathPieces := o.Arguments[1:]
 
-	// TODO: this should be imported from kubectl
-	allowedCmdsSubcommandPlugin := map[string]struct{}{"create": {}}
-
 	// only look for suitable extension executables if
 	// the specified command does not already exist
 	if foundCmd, foundArgs, err := cmd.Find(cmdPathPieces); err != nil {
@@ -143,7 +141,7 @@ func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 		if kcmdutil.CmdPluginAsSubcommand.IsEnabled() {
 			// Command exists(e.g. kubectl create), but it is not certain that
 			// subcommand also exists (e.g. kubectl create networkpolicy)
-			if _, ok := allowedCmdsSubcommandPlugin[foundCmd.Name()]; ok {
+			if kubecmd.IsSubcommandPluginAllowed(foundCmd.Name()) {
 				var subcommand string
 				for _, arg := range foundArgs { // first "non-flag" argument as subcommand
 					if !strings.HasPrefix(arg, "-") {
@@ -181,8 +179,15 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 		Short: "Command line tools for managing applications",
 		Long:  cliLong,
 		Run:   runHelp,
-		PersistentPreRunE: func(*cobra.Command, []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			rest.SetDefaultWarningHandler(warningHandler)
+
+			if cmd.Name() == cobra.ShellCompRequestCmd {
+				// This is the __complete or __completeNoDesc command which
+				// indicates shell completion has been requested.
+				plugin.SetupPluginCompletion(cmd, args)
+			}
+
 			return initProfiling()
 		},
 		PersistentPostRunE: func(*cobra.Command, []string) error {
@@ -365,7 +370,7 @@ func changeSharedFlagDefaults(rootCmd *cobra.Command) {
 	}
 }
 
-func newExperimentalCommand(f kcmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
+func newExperimentalCommand(f kcmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	experimental := &cobra.Command{
 		Use:   "ex",
 		Short: "Experimental commands under active development",
@@ -408,7 +413,7 @@ func CommandFor(basename string) *cobra.Command {
 			PluginHandler: kubecmd.NewDefaultPluginHandler(plugin.ValidPluginFilenamePrefixes),
 			Arguments:     os.Args,
 			ConfigFlags:   defaultConfigFlags(),
-			IOStreams:     genericclioptions.IOStreams{In: in, Out: out, ErrOut: err},
+			IOStreams:     genericiooptions.IOStreams{In: in, Out: out, ErrOut: err},
 		})
 
 		// treat oc as a kubectl plugin

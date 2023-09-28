@@ -13,7 +13,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 
 	kapierrs "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	restclient "k8s.io/client-go/rest"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
@@ -322,7 +322,7 @@ func TestPreserveErrTypeAuthInfo(t *testing.T) {
 			},
 		},
 
-		IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
+		IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
 	}
 
 	err = options.gatherAuthInfo()

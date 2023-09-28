@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -48,10 +48,10 @@ type PruneBuildsOptions struct {
 
 	BuildClient buildv1client.BuildV1Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewPruneBuildsOptions(streams genericclioptions.IOStreams) *PruneBuildsOptions {
+func NewPruneBuildsOptions(streams genericiooptions.IOStreams) *PruneBuildsOptions {
 	return &PruneBuildsOptions{
 		Confirm:         false,
 		Orphans:         false,
@@ -63,7 +63,7 @@ func NewPruneBuildsOptions(streams genericclioptions.IOStreams) *PruneBuildsOpti
 }
 
 // NewCmdPruneBuilds implements the OpenShift cli prune builds command.
-func NewCmdPruneBuilds(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneBuilds(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewPruneBuildsOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "builds",

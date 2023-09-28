@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/tools/cache"
@@ -185,10 +186,10 @@ type ObserveOptions struct {
 	// knownObjects is nil if we do not need to track deletions
 	knownObjects knownObjects
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewObserveOptions(streams genericclioptions.IOStreams) *ObserveOptions {
+func NewObserveOptions(streams genericiooptions.IOStreams) *ObserveOptions {
 	return &ObserveOptions{
 		PrintFlags: (&genericclioptions.PrintFlags{
 			TemplatePrinterFlags: genericclioptions.NewKubeTemplatePrintFlags(),
@@ -202,7 +203,7 @@ func NewObserveOptions(streams genericclioptions.IOStreams) *ObserveOptions {
 }
 
 // NewCmdObserve creates the observe command.
-func NewCmdObserve(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdObserve(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewObserveOptions(streams)
 
 	cmd := &cobra.Command{

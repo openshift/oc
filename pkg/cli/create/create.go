@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -11,7 +12,7 @@ import (
 
 // CreateSubcommandOptions is an options struct to support create subcommands
 type CreateSubcommandOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	// PrintFlags holds options necessary for obtaining a printer
 	PrintFlags *genericclioptions.PrintFlags
@@ -26,7 +27,7 @@ type CreateSubcommandOptions struct {
 	Printer printers.ResourcePrinter
 }
 
-func NewCreateSubcommandOptions(ioStreams genericclioptions.IOStreams) *CreateSubcommandOptions {
+func NewCreateSubcommandOptions(ioStreams genericiooptions.IOStreams) *CreateSubcommandOptions {
 	return &CreateSubcommandOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("created").WithTypeSetter(scheme.Scheme),
 		IOStreams:  ioStreams,

@@ -17,16 +17,15 @@ import (
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	"github.com/distribution/distribution/v3/reference"
 	"github.com/distribution/distribution/v3/registry/client"
-
 	units "github.com/docker/go-units"
 	godigest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
+
 	"k8s.io/apimachinery/pkg/util/sets"
+	apirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-
-	apirequest "k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -148,10 +147,10 @@ type MirrorImageOptions struct {
 
 	ManifestUpdateCallback func(registry string, manifests map[godigest.Digest]godigest.Digest) error
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewMirrorImageOptions(streams genericclioptions.IOStreams) *MirrorImageOptions {
+func NewMirrorImageOptions(streams genericiooptions.IOStreams) *MirrorImageOptions {
 	return &MirrorImageOptions{
 		IOStreams:       streams,
 		ParallelOptions: imagemanifest.ParallelOptions{MaxPerRegistry: 6},
@@ -160,7 +159,7 @@ func NewMirrorImageOptions(streams genericclioptions.IOStreams) *MirrorImageOpti
 }
 
 // NewCommandMirrorImage copies images from one location to another.
-func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMirrorImage(streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMirrorImageOptions(streams)
 
 	cmd := &cobra.Command{

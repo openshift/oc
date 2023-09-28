@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
@@ -48,7 +49,7 @@ type PerNodePodRuntime struct {
 	PercentOfNodesInParallel int
 
 	Printer printers.ResourcePrinter
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 func (r *PerNodePodRuntime) Run(ctx context.Context, prePodHookFn PrePodHookFunc, createPodFn CreatePodFunc) error {

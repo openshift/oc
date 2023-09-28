@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -96,10 +97,10 @@ type ImageLookupOptions struct {
 	Args              []string
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewImageLookupOptions(streams genericclioptions.IOStreams) *ImageLookupOptions {
+func NewImageLookupOptions(streams genericiooptions.IOStreams) *ImageLookupOptions {
 	return &ImageLookupOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("image lookup updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
@@ -108,7 +109,7 @@ func NewImageLookupOptions(streams genericclioptions.IOStreams) *ImageLookupOpti
 }
 
 // NewCmdImageLookup implements the set image-lookup command
-func NewCmdImageLookup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdImageLookup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewImageLookupOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "image-lookup STREAMNAME [...]",

@@ -4,14 +4,15 @@ import (
 	"context"
 	"time"
 
-	"github.com/openshift/library-go/pkg/operator/certrotation"
 	"github.com/spf13/cobra"
 
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
+
+	"github.com/openshift/library-go/pkg/operator/certrotation"
 )
 
 const (
@@ -70,10 +71,10 @@ type RegenerateMCOOptions struct {
 
 	ModifyUserData bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewCmdRegenerateTopLevel(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRegenerateTopLevel(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &RegenerateMCOOptions{
 		RESTClientGetter: restClientGetter,
 		IOStreams:        streams,
@@ -96,7 +97,7 @@ func NewCmdRegenerateTopLevel(restClientGetter genericclioptions.RESTClientGette
 	return cmd
 }
 
-func NewCmdUpdateUserData(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdUpdateUserData(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &RegenerateMCOOptions{
 		RESTClientGetter: restClientGetter,
 		IOStreams:        streams,

@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -80,10 +80,10 @@ type CancelBuildOptions struct {
 	// timeout is used by unit tests to shorten the polling period
 	timeout time.Duration
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewCancelBuildOptions(streams genericclioptions.IOStreams) *CancelBuildOptions {
+func NewCancelBuildOptions(streams genericiooptions.IOStreams) *CancelBuildOptions {
 	return &CancelBuildOptions{
 		IOStreams: streams,
 		States:    []string{"new", "pending", "running"},
@@ -91,7 +91,7 @@ func NewCancelBuildOptions(streams genericclioptions.IOStreams) *CancelBuildOpti
 }
 
 // NewCmdCancelBuild implements the OpenShift cli cancel-build command
-func NewCmdCancelBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCancelBuild(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCancelBuildOptions(streams)
 
 	validArgs := []string{"build", "buildconfig"}

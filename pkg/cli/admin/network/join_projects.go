@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -40,14 +40,14 @@ type JoinOptions struct {
 	joinProjectName string
 }
 
-func NewJoinOptions(streams genericclioptions.IOStreams) *JoinOptions {
+func NewJoinOptions(streams genericiooptions.IOStreams) *JoinOptions {
 	return &JoinOptions{
 		Options:     NewProjectOptions(streams),
 		JoinProject: NewProjectOptions(streams),
 	}
 }
 
-func NewCmdJoinProjectsNetwork(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdJoinProjectsNetwork(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewJoinOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "join-projects",

@@ -11,20 +11,20 @@ import (
 	"github.com/distribution/distribution/v3/manifest"
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-func NewServeOptions(streams genericclioptions.IOStreams) *ServeOptions {
+func NewServeOptions(streams genericiooptions.IOStreams) *ServeOptions {
 	return &ServeOptions{
 		IOStreams:  streams,
 		ListenAddr: ":5000",
 	}
 }
 
-func NewServe(streams genericclioptions.IOStreams) *cobra.Command {
+func NewServe(streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewServeOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "serve IMAGE",
@@ -56,7 +56,7 @@ func NewServe(streams genericclioptions.IOStreams) *cobra.Command {
 }
 
 type ServeOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	Dir string
 

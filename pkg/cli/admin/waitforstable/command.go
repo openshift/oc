@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/sets"
-
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -30,7 +30,7 @@ type WaitForStableOptions struct {
 	MinimumStablePeriod time.Duration
 	waitInterval        time.Duration // to make unit testing easier
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var (
@@ -47,7 +47,7 @@ var (
 	`)
 )
 
-func NewWaitForStableOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *WaitForStableOptions {
+func NewWaitForStableOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *WaitForStableOptions {
 	return &WaitForStableOptions{
 		RESTClientGetter:    restClientGetter,
 		Timeout:             1 * time.Hour,
@@ -59,7 +59,7 @@ func NewWaitForStableOptions(restClientGetter genericclioptions.RESTClientGetter
 }
 
 // NewCmdLogout implements a command to wait for OpenShift platform operators to become stable
-func NewCmdWaitForStableClusterOperators(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdWaitForStableClusterOperators(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewWaitForStableOptions(restClientGetter, streams)
 
 	cmd := &cobra.Command{

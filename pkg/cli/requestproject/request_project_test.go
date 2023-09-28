@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 )
 
 // TestRequestProjectDefaultFlags ensures that flags default values are set.
@@ -28,7 +28,7 @@ func TestRequestProjectDefaultFlags(t *testing.T) {
 		},
 	}
 
-	cmd := NewCmdRequestProject(nil, genericclioptions.NewTestIOStreamsDiscard())
+	cmd := NewCmdRequestProject(nil, genericiooptions.NewTestIOStreamsDiscard())
 
 	for _, v := range tests {
 		f := cmd.Flag(v.flagName)

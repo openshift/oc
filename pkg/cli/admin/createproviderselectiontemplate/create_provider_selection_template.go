@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -33,16 +33,16 @@ var providerSelectionExample = templates.Examples(`
 `)
 
 type CreateProviderSelectionTemplateOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewCreateProviderSelectionTemplateOptions(streams genericclioptions.IOStreams) *CreateProviderSelectionTemplateOptions {
+func NewCreateProviderSelectionTemplateOptions(streams genericiooptions.IOStreams) *CreateProviderSelectionTemplateOptions {
 	return &CreateProviderSelectionTemplateOptions{
 		IOStreams: streams,
 	}
 }
 
-func NewCommandCreateProviderSelectionTemplate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateProviderSelectionTemplate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCreateProviderSelectionTemplateOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "create-provider-selection-template",

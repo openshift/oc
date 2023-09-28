@@ -14,7 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -65,17 +65,17 @@ type ExtractOptions struct {
 
 	ExtractFileContentsFn func(runtime.Object) (map[string][]byte, bool, error)
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewExtractOptions(targetDirectory string, streams genericclioptions.IOStreams) *ExtractOptions {
+func NewExtractOptions(targetDirectory string, streams genericiooptions.IOStreams) *ExtractOptions {
 	return &ExtractOptions{
 		IOStreams:       streams,
 		TargetDirectory: targetDirectory,
 	}
 }
 
-func NewCmdExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdExtract(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewExtractOptions(".", streams)
 
 	cmd := &cobra.Command{

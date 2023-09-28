@@ -6,11 +6,10 @@ import (
 	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
+	fakeconfig "github.com/openshift/client-go/config/clientset/versioned/fake"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-
-	fakeconfig "github.com/openshift/client-go/config/clientset/versioned/fake"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 )
 
 func TestWaitForStableOptions_Run(t *testing.T) {
@@ -65,7 +64,7 @@ func TestWaitForStableOptions_Run(t *testing.T) {
 				configClient: fakeClient.ConfigV1(),
 				Timeout:      tt.timeout,
 				waitInterval: 500 * time.Millisecond,
-				IOStreams:    genericclioptions.NewTestIOStreamsDiscard(),
+				IOStreams:    genericiooptions.NewTestIOStreamsDiscard(),
 			}
 			if err := o.Run(context.Background()); (err != nil) != tt.wantErr {
 				t.Errorf("WaitForStableOptions.Run() error = %v, wantErr %v", err, tt.wantErr)

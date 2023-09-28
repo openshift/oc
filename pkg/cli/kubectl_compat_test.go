@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmd "k8s.io/kubectl/pkg/cmd"
 )
 
@@ -86,9 +86,9 @@ func TestValidateDisabled(t *testing.T) {
 }
 
 // NewTestIOStreamsDiscard returns a valid IOStreams that just discards
-func NewTestIOStreamsDiscard() genericclioptions.IOStreams {
+func NewTestIOStreamsDiscard() genericiooptions.IOStreams {
 	in := &bytes.Buffer{}
-	return genericclioptions.IOStreams{
+	return genericiooptions.IOStreams{
 		In:     in,
 		Out:    io.Discard,
 		ErrOut: io.Discard,

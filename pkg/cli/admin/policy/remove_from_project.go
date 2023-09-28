@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -34,10 +35,10 @@ type RemoveFromProjectOptions struct {
 
 	Output string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRemoveFromProjectOptions(streams genericclioptions.IOStreams) *RemoveFromProjectOptions {
+func NewRemoveFromProjectOptions(streams genericiooptions.IOStreams) *RemoveFromProjectOptions {
 	return &RemoveFromProjectOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
@@ -45,7 +46,7 @@ func NewRemoveFromProjectOptions(streams genericclioptions.IOStreams) *RemoveFro
 }
 
 // NewCmdRemoveGroupFromProject implements the OpenShift cli remove-group command
-func NewCmdRemoveGroupFromProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveGroupFromProject(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRemoveFromProjectOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "remove-group GROUP [GROUP ...]",
@@ -64,7 +65,7 @@ func NewCmdRemoveGroupFromProject(f kcmdutil.Factory, streams genericclioptions.
 }
 
 // NewCmdRemoveUserFromProject implements the OpenShift cli remove-user command
-func NewCmdRemoveUserFromProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveUserFromProject(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRemoveFromProjectOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "remove-user USER [USER ...]",

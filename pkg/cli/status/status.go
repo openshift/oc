@@ -10,7 +10,7 @@ import (
 
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -61,10 +61,10 @@ type StatusOptions struct {
 	setProbeCommandName         string
 	patchCommandName            string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewStatusOptions(streams genericclioptions.IOStreams) *StatusOptions {
+func NewStatusOptions(streams genericiooptions.IOStreams) *StatusOptions {
 	return &StatusOptions{
 		IOStreams: streams,
 	}
@@ -72,7 +72,7 @@ func NewStatusOptions(streams genericclioptions.IOStreams) *StatusOptions {
 
 // NewCmdStatus implements the OpenShift cli status command.
 // baseCLIName is the path from root cmd to the parent of this cmd.
-func NewCmdStatus(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdStatus(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewStatusOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "status [-o dot | --suggest ]",

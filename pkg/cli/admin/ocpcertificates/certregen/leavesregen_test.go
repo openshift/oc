@@ -14,7 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
@@ -91,7 +91,7 @@ func TestLeavesRegen_forceRegenerationOnSecret(t *testing.T) {
 			}
 			err := o.forceRegenerationOnSecret(
 				&objectPrinter{
-					out:     genericclioptions.NewTestIOStreamsDiscard().Out,
+					out:     genericiooptions.NewTestIOStreamsDiscard().Out,
 					printer: printers.ResourcePrinterFunc(testPrinter),
 				},
 				fakeClient, tt.inputSecret, false,

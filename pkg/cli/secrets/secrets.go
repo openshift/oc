@@ -12,7 +12,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -29,7 +29,7 @@ var (
     container image registries.`)
 )
 
-func NewCmdSecrets(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSecrets(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
 		Use:     "secrets",

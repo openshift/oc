@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
@@ -135,10 +136,10 @@ type ResourceOptions struct {
 	// If true, Out and ErrOut will be wrapped to make them goroutine safe.
 	SyncOut bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewResourceOptions(streams genericclioptions.IOStreams) *ResourceOptions {
+func NewResourceOptions(streams genericiooptions.IOStreams) *ResourceOptions {
 	return &ResourceOptions{
 		PrintFlags:    genericclioptions.NewPrintFlags("migrated").WithTypeSetter(scheme.Scheme),
 		IOStreams:     streams,

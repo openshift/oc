@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
@@ -60,10 +61,10 @@ type RolloutLatestOptions struct {
 
 	Printer printers.ResourcePrinter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRolloutLatestOptions(streams genericclioptions.IOStreams) *RolloutLatestOptions {
+func NewRolloutLatestOptions(streams genericiooptions.IOStreams) *RolloutLatestOptions {
 	return &RolloutLatestOptions{
 		IOStreams:  streams,
 		PrintFlags: genericclioptions.NewPrintFlags("rolled out").WithTypeSetter(scheme.Scheme),
@@ -71,7 +72,7 @@ func NewRolloutLatestOptions(streams genericclioptions.IOStreams) *RolloutLatest
 }
 
 // NewCmdRolloutLatest implements the oc rollout latest subcommand.
-func NewCmdRolloutLatest(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutLatest(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRolloutLatestOptions(streams)
 
 	cmd := &cobra.Command{

@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -51,7 +51,7 @@ var (
 )
 
 // NewCmdLogin implements the OpenShift cli login command
-func NewCmdLogin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewLoginOptions(streams)
 	cmds := &cobra.Command{
 		Use:     "login [URL]",

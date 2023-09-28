@@ -20,6 +20,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -105,10 +106,10 @@ type ProcessOptions struct {
 
 	mapper meta.RESTMapper
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewProcessOptions(streams genericclioptions.IOStreams) *ProcessOptions {
+func NewProcessOptions(streams genericiooptions.IOStreams) *ProcessOptions {
 	printFlags := genericclioptions.NewPrintFlags("processed").WithTypeSetter(scheme.Scheme).WithDefaultOutput("json")
 	// disable binding the --template flag so that we can bind our own --template flag with a shorthand (until the shorthand is deprecated)
 	printFlags.TemplatePrinterFlags.TemplateArgument = nil
@@ -120,7 +121,7 @@ func NewProcessOptions(streams genericclioptions.IOStreams) *ProcessOptions {
 }
 
 // NewCmdProcess implements the OpenShift cli process command
-func NewCmdProcess(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProcess(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewProcessOptions(streams)
 
 	cmd := &cobra.Command{

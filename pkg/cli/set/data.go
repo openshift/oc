@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -84,10 +85,10 @@ type DataOptions struct {
 	FlagSet func(string) bool
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewDataOptions(streams genericclioptions.IOStreams) *DataOptions {
+func NewDataOptions(streams genericiooptions.IOStreams) *DataOptions {
 	return &DataOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("data updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
@@ -95,7 +96,7 @@ func NewDataOptions(streams genericclioptions.IOStreams) *DataOptions {
 }
 
 // NewCmdData implements the set data command
-func NewCmdData(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdData(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewDataOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "data RESOURCE/NAME [KEY=VALUE|KEY- ...] [--from-file=file|dir|key=path]",

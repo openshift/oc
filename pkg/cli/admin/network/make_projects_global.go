@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -34,13 +34,13 @@ type MakeGlobalOptions struct {
 	Options *ProjectOptions
 }
 
-func NewMakeGlobalOptions(streams genericclioptions.IOStreams) *MakeGlobalOptions {
+func NewMakeGlobalOptions(streams genericiooptions.IOStreams) *MakeGlobalOptions {
 	return &MakeGlobalOptions{
 		Options: NewProjectOptions(streams),
 	}
 }
 
-func NewCmdMakeGlobalProjectsNetwork(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMakeGlobalProjectsNetwork(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMakeGlobalOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "make-projects-global",

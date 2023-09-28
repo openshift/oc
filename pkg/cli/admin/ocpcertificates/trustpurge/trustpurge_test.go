@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
@@ -159,7 +159,7 @@ func TestRemoveOldTrustRuntime_purgeTrustFromConfigMap(t *testing.T) {
 				createdBefore:  tt.createdBefore,
 				excludeBundles: tt.excludeCMs,
 				Printer:        printers.NewDiscardingPrinter(),
-				IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
+				IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 			}
 			if err := r.purgeTrustFromConfigMap(tt.inputCM.DeepCopy()); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveOldTrustRuntime.purgeTrustFromConfigMap() error = %v, wantErr %v", err, tt.wantErr)

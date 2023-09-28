@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/third_party/forked/golang/netutil"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -138,10 +139,10 @@ type StartBuildOptions struct {
 	Name        string
 	Namespace   string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewStartBuildOptions(streams genericclioptions.IOStreams) *StartBuildOptions {
+func NewStartBuildOptions(streams genericiooptions.IOStreams) *StartBuildOptions {
 	return &StartBuildOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("started").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
@@ -149,7 +150,7 @@ func NewStartBuildOptions(streams genericclioptions.IOStreams) *StartBuildOption
 }
 
 // NewCmdStartBuild implements the OpenShift cli start-build command
-func NewCmdStartBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdStartBuild(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewStartBuildOptions(streams)
 
 	validArgs := []string{"buildconfig"}

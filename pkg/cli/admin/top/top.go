@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/kubectl/pkg/cmd/top"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -21,7 +21,7 @@ var topLong = templates.LongDesc(`
 	This command analyzes resources managed by the platform and presents current
 	usage statistics.`)
 
-func NewCommandTop(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandTop(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
 		Use:   "top",

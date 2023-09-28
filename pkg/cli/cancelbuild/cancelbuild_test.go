@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	clientgotesting "k8s.io/client-go/testing"
 
 	"github.com/openshift/api"
@@ -21,7 +21,7 @@ import (
 
 // TestCancelBuildDefaultFlags ensures that flags default values are set.
 func TestCancelBuildDefaultFlags(t *testing.T) {
-	o := NewCancelBuildOptions(genericclioptions.NewTestIOStreamsDiscard())
+	o := NewCancelBuildOptions(genericiooptions.NewTestIOStreamsDiscard())
 
 	tests := map[string]struct {
 		flagName   string
@@ -41,7 +41,7 @@ func TestCancelBuildDefaultFlags(t *testing.T) {
 		},
 	}
 
-	cmd := NewCmdCancelBuild(nil, genericclioptions.NewTestIOStreamsDiscard())
+	cmd := NewCmdCancelBuild(nil, genericiooptions.NewTestIOStreamsDiscard())
 
 	for _, v := range tests {
 		f := cmd.Flag(v.flagName)
@@ -68,7 +68,7 @@ func TestCancelBuildRun(t *testing.T) {
 				PrinterCancel:           &discardingPrinter{},
 				PrinterCancelInProgress: &discardingPrinter{},
 				PrinterRestart:          &discardingPrinter{},
-				IOStreams:               genericclioptions.NewTestIOStreamsDiscard(),
+				IOStreams:               genericiooptions.NewTestIOStreamsDiscard(),
 				Namespace:               "test",
 				States:                  []string{"new", "pending", "running"},
 			},
@@ -83,7 +83,7 @@ func TestCancelBuildRun(t *testing.T) {
 				PrinterCancel:           &discardingPrinter{},
 				PrinterCancelInProgress: &discardingPrinter{},
 				PrinterRestart:          &discardingPrinter{},
-				IOStreams:               genericclioptions.NewTestIOStreamsDiscard(),
+				IOStreams:               genericiooptions.NewTestIOStreamsDiscard(),
 				Namespace:               "test",
 			},
 			phase: buildv1.BuildPhaseComplete,
@@ -97,7 +97,7 @@ func TestCancelBuildRun(t *testing.T) {
 				PrinterCancel:           &discardingPrinter{},
 				PrinterCancelInProgress: &discardingPrinter{},
 				PrinterRestart:          &discardingPrinter{},
-				IOStreams:               genericclioptions.NewTestIOStreamsDiscard(),
+				IOStreams:               genericiooptions.NewTestIOStreamsDiscard(),
 				Namespace:               "test",
 			},
 			phase: buildv1.BuildPhaseNew,
@@ -113,7 +113,7 @@ func TestCancelBuildRun(t *testing.T) {
 				PrinterCancel:           &discardingPrinter{},
 				PrinterCancelInProgress: &discardingPrinter{},
 				PrinterRestart:          &discardingPrinter{},
-				IOStreams:               genericclioptions.NewTestIOStreamsDiscard(),
+				IOStreams:               genericiooptions.NewTestIOStreamsDiscard(),
 				Namespace:               "test",
 			},
 			phase: buildv1.BuildPhaseNew,
@@ -129,7 +129,7 @@ func TestCancelBuildRun(t *testing.T) {
 				PrinterCancel:           &discardingPrinter{},
 				PrinterCancelInProgress: &discardingPrinter{},
 				PrinterRestart:          &discardingPrinter{},
-				IOStreams:               genericclioptions.NewTestIOStreamsDiscard(),
+				IOStreams:               genericiooptions.NewTestIOStreamsDiscard(),
 				Namespace:               "test",
 				Restart:                 true,
 			},

@@ -7,18 +7,20 @@ import (
 	"os"
 	"path/filepath"
 
-	apicfgv1 "github.com/openshift/api/config/v1"
-	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
-	operatorv1alpha1scheme "github.com/openshift/client-go/operator/clientset/versioned/scheme"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
+
+	apicfgv1 "github.com/openshift/api/config/v1"
+	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
+	operatorv1alpha1scheme "github.com/openshift/client-go/operator/clientset/versioned/scheme"
 )
 
 var (
@@ -33,13 +35,13 @@ var (
 )
 
 type MigrateICSPOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	ICSPFiles []string
 	DestDir   string
 }
 
-func NewCmdMigrateICSP(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMigrateICSP(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMigrateICSPOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "icsp",
@@ -56,7 +58,7 @@ func NewCmdMigrateICSP(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 	return cmd
 }
 
-func NewMigrateICSPOptions(streams genericclioptions.IOStreams) *MigrateICSPOptions {
+func NewMigrateICSPOptions(streams genericiooptions.IOStreams) *MigrateICSPOptions {
 	return &MigrateICSPOptions{
 		IOStreams: streams,
 	}

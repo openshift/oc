@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -222,7 +222,7 @@ type BulkAction struct {
 	// output modifiers
 	Action string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 // BindForAction sets flags on this action for when setting -o should only change how the operation results are displayed.

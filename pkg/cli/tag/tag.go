@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/util/retry"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -44,7 +44,7 @@ type TagOptions struct {
 	destNamespace  []string
 	destNameAndTag []string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var (
@@ -87,14 +87,14 @@ const (
 	LocalReferencePolicy  = "local"
 )
 
-func NewTagOptions(streams genericclioptions.IOStreams) *TagOptions {
+func NewTagOptions(streams genericiooptions.IOStreams) *TagOptions {
 	return &TagOptions{
 		IOStreams: streams,
 	}
 }
 
 // NewCmdTag implements the OpenShift cli tag command.
-func NewCmdTag(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTag(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewTagOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "tag [--source=SOURCETYPE] SOURCE DEST [DEST ...]",

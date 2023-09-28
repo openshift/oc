@@ -17,7 +17,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -43,13 +43,13 @@ var upgradeExample = templates.Examples(`
 	oc adm upgrade --to-latest=true
 `)
 
-func NewOptions(streams genericclioptions.IOStreams) *Options {
+func NewOptions(streams genericiooptions.IOStreams) *Options {
 	return &Options{
 		IOStreams: streams,
 	}
 }
 
-func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "upgrade --to=VERSION",
@@ -117,7 +117,7 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 }
 
 type Options struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	To                string
 	ToImage           string

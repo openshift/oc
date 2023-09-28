@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -30,17 +30,17 @@ type PruneAuthOptions struct {
 	OAuthClient         oauthv1client.OauthV1Interface
 	SecurityClient      securityv1client.SecurityV1Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewPruneAuthOptions(streams genericclioptions.IOStreams) *PruneAuthOptions {
+func NewPruneAuthOptions(streams genericiooptions.IOStreams) *PruneAuthOptions {
 	return &PruneAuthOptions{
 		IOStreams: streams,
 	}
 }
 
 // NewCmdPruneRoles implements the OpenShift cli prune roles command.
-func NewCmdPruneAuth(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneAuth(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewPruneAuthOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "auth",

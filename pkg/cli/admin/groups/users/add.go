@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -36,7 +37,7 @@ type AddUsersOptions struct {
 	GroupModificationOptions *GroupModificationOptions
 }
 
-func NewCmdAddUsers(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddUsers(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &AddUsersOptions{
 		GroupModificationOptions: NewGroupModificationOptions(streams),
 	}
@@ -95,10 +96,10 @@ type GroupModificationOptions struct {
 	Users          []string
 	DryRunStrategy kcmdutil.DryRunStrategy
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewGroupModificationOptions(streams genericclioptions.IOStreams) *GroupModificationOptions {
+func NewGroupModificationOptions(streams genericiooptions.IOStreams) *GroupModificationOptions {
 	return &GroupModificationOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,

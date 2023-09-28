@@ -2,13 +2,14 @@ package policy
 
 import (
 	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	adminpolicy "github.com/openshift/oc/pkg/cli/admin/policy"
 )
 
-func NewCmdPolicy(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPolicy(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
 		Use:   "policy",

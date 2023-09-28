@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/client-go/kubernetes"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -59,10 +60,10 @@ type RegenerateCertificatesOptions struct {
 	// TODO push this into genericclioptions
 	DryRun bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRegenerateCertsOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *RegenerateCertificatesOptions {
+func NewRegenerateCertsOptions(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *RegenerateCertificatesOptions {
 	return &RegenerateCertificatesOptions{
 		RESTClientGetter: restClientGetter,
 		PrintFlags:       genericclioptions.NewPrintFlags("regeneration set"),
@@ -78,7 +79,7 @@ func NewRegenerateCertsOptions(restClientGetter genericclioptions.RESTClientGett
 	}
 }
 
-func NewCmdRegenerateTopLevel(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRegenerateTopLevel(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRegenerateCertsOptions(restClientGetter, streams)
 
 	cmd := &cobra.Command{
@@ -103,7 +104,7 @@ func NewCmdRegenerateTopLevel(restClientGetter genericclioptions.RESTClientGette
 	return cmd
 }
 
-func NewCmdRegenerateLeaves(restClientGetter genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRegenerateLeaves(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRegenerateCertsOptions(restClientGetter, streams)
 
 	cmd := &cobra.Command{

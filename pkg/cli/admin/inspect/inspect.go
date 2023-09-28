@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -83,11 +84,11 @@ type InspectOptions struct {
 	// whether or not to allow writes to an existing and populated base directory
 	overwrite bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 	eventFile string
 }
 
-func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
+func NewInspectOptions(streams genericiooptions.IOStreams) *InspectOptions {
 	printFlags := genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme)
 	if printFlags.JSONYamlPrintFlags != nil {
 		printFlags.JSONYamlPrintFlags.ShowManagedFields = true
@@ -100,7 +101,7 @@ func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
 	}
 }
 
-func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdInspect(streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewInspectOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "inspect (TYPE[.VERSION][.GROUP] [NAME] | TYPE[.VERSION][.GROUP]/NAME ...) [flags]",

@@ -17,7 +17,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/homedir"
@@ -95,17 +95,17 @@ type LoginOptions struct {
 	AuthBasic      string
 	ServiceAccount string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRegistryLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
+func NewRegistryLoginOptions(streams genericiooptions.IOStreams) *LoginOptions {
 	return &LoginOptions{
 		IOStreams: streams,
 	}
 }
 
 // New logs you in to a container image registry locally.
-func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRegistryLoginOptions(streams)
 
 	cmd := &cobra.Command{

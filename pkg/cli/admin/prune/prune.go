@@ -3,7 +3,7 @@ package prune
 import (
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -20,7 +20,7 @@ var pruneLong = templates.LongDesc(`
 	The commands here allow administrators to manage the older versions of resources on
 	the system by removing them.`)
 
-func NewCommandPrune(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandPrune(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
 		Use:   "prune",

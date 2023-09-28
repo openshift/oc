@@ -3,7 +3,7 @@ package builds
 import (
 	"testing"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	clienttesting "k8s.io/client-go/testing"
 
 	fakebuildv1client "github.com/openshift/client-go/build/clientset/versioned/typed/build/v1/fake"
@@ -15,7 +15,7 @@ func TestBuildPruneNamespaced(t *testing.T) {
 		Namespace: "foo",
 
 		BuildClient: osFake,
-		IOStreams:   genericclioptions.NewTestIOStreamsDiscard(),
+		IOStreams:   genericiooptions.NewTestIOStreamsDiscard(),
 	}
 
 	if err := opts.Run(); err != nil {

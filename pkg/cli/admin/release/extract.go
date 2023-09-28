@@ -20,7 +20,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -55,7 +55,7 @@ var (
 // NewExtractOptions is also used internally as part of image mirroring. For image mirroring
 // internal use, extractManifests is set to true so image manifest files are searched for
 // signature information to be returned for use by mirroring.
-func NewExtractOptions(streams genericclioptions.IOStreams, extractManifests bool) *ExtractOptions {
+func NewExtractOptions(streams genericiooptions.IOStreams, extractManifests bool) *ExtractOptions {
 	return &ExtractOptions{
 		IOStreams:        streams,
 		Directory:        ".",
@@ -63,7 +63,7 @@ func NewExtractOptions(streams genericclioptions.IOStreams, extractManifests boo
 	}
 }
 
-func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewExtract(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewExtractOptions(streams, false)
 	cmd := &cobra.Command{
 		Use:   "extract",
@@ -153,7 +153,7 @@ func NewExtract(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 }
 
 type ExtractOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	SecurityOptions imagemanifest.SecurityOptions
 	FilterOptions   imagemanifest.FilterOptions
@@ -299,7 +299,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := extract.NewExtractOptions(genericiooptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.ParallelOptions = o.ParallelOptions
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FilterOptions = o.FilterOptions

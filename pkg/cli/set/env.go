@@ -18,6 +18,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
@@ -112,11 +113,11 @@ type EnvOptions struct {
 	Namespace              string
 	ExplicitNamespace      bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 	resource.FilenameOptions
 }
 
-func NewEnvOptions(streams genericclioptions.IOStreams) *EnvOptions {
+func NewEnvOptions(streams genericiooptions.IOStreams) *EnvOptions {
 	return &EnvOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
@@ -127,7 +128,7 @@ func NewEnvOptions(streams genericclioptions.IOStreams) *EnvOptions {
 }
 
 // NewCmdEnv implements the OpenShift cli env command
-func NewCmdEnv(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdEnv(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewEnvOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "env RESOURCE/NAME KEY_1=VAL_1 ... KEY_N=VAL_N",

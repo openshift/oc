@@ -8,7 +8,7 @@ import (
 
 	coreapiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -40,14 +40,14 @@ type LinkSecretOptions struct {
 	typeFlags []string
 }
 
-func NewLinkSecretOptions(streams genericclioptions.IOStreams) *LinkSecretOptions {
+func NewLinkSecretOptions(streams genericiooptions.IOStreams) *LinkSecretOptions {
 	return &LinkSecretOptions{
 		SecretOptions: SecretOptions{},
 	}
 }
 
 // NewCmdLinkSecret creates a command object for linking a secret reference to a service account
-func NewCmdLinkSecret(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLinkSecret(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewLinkSecretOptions(streams)
 
 	cmd := &cobra.Command{

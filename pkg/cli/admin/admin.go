@@ -3,6 +3,15 @@ package admin
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/kubectl/pkg/cmd/certificates"
+	"k8s.io/kubectl/pkg/cmd/drain"
+	"k8s.io/kubectl/pkg/cmd/taint"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	ktemplates "k8s.io/kubectl/pkg/util/templates"
+
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
 	"github.com/openshift/oc/pkg/cli/admin/catalog"
 	"github.com/openshift/oc/pkg/cli/admin/copytonode"
@@ -31,13 +40,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/waitfornodereboot"
 	"github.com/openshift/oc/pkg/cli/admin/waitforstable"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
-	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/kubectl/pkg/cmd/certificates"
-	"k8s.io/kubectl/pkg/cmd/drain"
-	"k8s.io/kubectl/pkg/cmd/taint"
-	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	ktemplates "k8s.io/kubectl/pkg/util/templates"
 )
 
 var adminLong = ktemplates.LongDesc(`
@@ -45,7 +47,7 @@ var adminLong = ktemplates.LongDesc(`
 
 	Actions for administering an OpenShift cluster are exposed here.`)
 
-func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	// Main command
 	cmds := &cobra.Command{
 		Use:   "adm",

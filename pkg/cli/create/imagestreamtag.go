@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
@@ -57,7 +58,7 @@ type CreateImageStreamTagOptions struct {
 }
 
 // NewCmdCreateImageStreamTag is a command to create a new image stream tag.
-func NewCmdCreateImageStreamTag(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateImageStreamTag(f genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CreateImageStreamTagOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}

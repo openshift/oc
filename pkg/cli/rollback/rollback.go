@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
@@ -88,10 +89,10 @@ type RollbackOptions struct {
 
 	ToPrinter func(string) (printers.ResourcePrinter, error)
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRollbackOptions(streams genericclioptions.IOStreams) *RollbackOptions {
+func NewRollbackOptions(streams genericiooptions.IOStreams) *RollbackOptions {
 	return &RollbackOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("rolled back").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
@@ -99,7 +100,7 @@ func NewRollbackOptions(streams genericclioptions.IOStreams) *RollbackOptions {
 }
 
 // NewCmdRollback creates a CLI rollback command.
-func NewCmdRollback(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRollback(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRollbackOptions(streams)
 
 	validArgs := []string{"deploymentconfig", "replicationcontroller"}

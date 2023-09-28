@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -78,7 +78,7 @@ type MigrateTemplateInstancesOptions struct {
 	transforms map[apiType]apiType
 }
 
-func NewMigrateTemplateInstancesOptions(streams genericclioptions.IOStreams) *MigrateTemplateInstancesOptions {
+func NewMigrateTemplateInstancesOptions(streams genericiooptions.IOStreams) *MigrateTemplateInstancesOptions {
 	return &MigrateTemplateInstancesOptions{
 		ResourceOptions: *migrate.NewResourceOptions(streams).WithIncludes([]string{"templateinstance"}).WithAllNamespaces(),
 		transforms:      transforms,
@@ -86,7 +86,7 @@ func NewMigrateTemplateInstancesOptions(streams genericclioptions.IOStreams) *Mi
 }
 
 // NewCmdMigrateTemplateInstancesAPI implements a MigrateTemplateInstances command
-func NewCmdMigrateTemplateInstances(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMigrateTemplateInstances(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMigrateTemplateInstancesOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "template-instances",

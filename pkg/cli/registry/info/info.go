@@ -11,7 +11,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -48,17 +48,17 @@ type Options struct {
 	Namespaces []string
 	Client     imageclient.Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRegistryInfoOptions(streams genericclioptions.IOStreams) *Options {
+func NewRegistryInfoOptions(streams genericiooptions.IOStreams) *Options {
 	return &Options{
 		IOStreams: streams,
 	}
 }
 
 // New creates a command that displays info about the registry.
-func NewRegistryInfoCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRegistryInfoCmd(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRegistryInfoOptions(streams)
 
 	cmd := &cobra.Command{

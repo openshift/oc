@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kubecmd "k8s.io/kubectl/pkg/cmd"
 
 	"github.com/openshift/oc/pkg/cli"
@@ -25,7 +25,7 @@ func main() {
 	}
 
 	if strings.HasSuffix(os.Args[2], "oc") {
-		genCmdMan("oc", cli.NewOcCommand(kubecmd.KubectlOptions{IOStreams: genericclioptions.IOStreams{In: &bytes.Buffer{}, Out: os.Stdout, ErrOut: io.Discard}}))
+		genCmdMan("oc", cli.NewOcCommand(kubecmd.KubectlOptions{IOStreams: genericiooptions.IOStreams{In: &bytes.Buffer{}, Out: os.Stdout, ErrOut: io.Discard}}))
 	} else {
 		fmt.Fprintf(os.Stderr, "Root command not specified (oc).")
 		os.Exit(1)
