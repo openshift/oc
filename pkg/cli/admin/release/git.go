@@ -173,7 +173,7 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		return nil, nil
 	}
 
-	args := []string{"log", "--merges", "--topo-order", "-z", "--pretty=format:%H %P%x1E%ct%x1E%s%x1E%b", fmt.Sprintf("%s..%s", from, to)}
+	args := []string{"log", "--merges", "--topo-order", "--first-parent", "-z", "--pretty=format:%H %P%x1E%ct%x1E%s%x1E%b", fmt.Sprintf("%s..%s", from, to)}
 	out, err := g.exec(args...)
 	if err != nil {
 		// retry once if there's a chance we haven't fetched the latest commits
