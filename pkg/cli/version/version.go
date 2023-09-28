@@ -40,8 +40,8 @@ var (
 		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version information for the current context
 		oc version
 
-		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version numbers for the current context
-		oc version --short
+		# Print the OpenShift client, kube-apiserver, and openshift-apiserver version numbers for the current context in json format
+		oc version --output json
 
 		# Print the OpenShift client version information for the current context
 		oc version --client
