@@ -14,7 +14,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/containers/image/v5 v5.22.1
 	github.com/davecgh/go-spew v1.1.1
-	github.com/distribution/distribution/v3 v3.0.0-20230519140516-983358f8e250
+	github.com/distribution/distribution/v3 v3.0.0-20230722181636-7b502560cad4
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
@@ -122,7 +122,7 @@ require (
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.15.9 // indirect
+	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/letsencrypt/boulder v0.0.0-20220331220046-b23ab962616e // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
@@ -159,7 +159,7 @@ require (
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/vbatts/tar-split v0.11.2 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
-	go.opencensus.io v0.23.0 // indirect
+	go.opencensus.io v0.24.0 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
