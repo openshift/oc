@@ -664,7 +664,7 @@ func TestNewAppRunAll(t *testing.T) {
 			name: "emptyDir volumes",
 			config: &cmd.AppConfig{
 				ComponentInputs: cmd.ComponentInputs{
-					DockerImages: []string{"mysql"},
+					DockerImages: []string{"quay.io/centos7/redis-5-centos7"},
 				},
 
 				Resolvers: cmd.Resolvers{
@@ -692,14 +692,14 @@ func TestNewAppRunAll(t *testing.T) {
 			},
 
 			expected: map[string][]string{
-				"imageStream":  {"mysql"},
-				"deployment":   {"mysql"},
-				"service":      {"mysql"},
-				"volumeMounts": {"mysql-volume-1"},
+				"imageStream":  {"redis-5-centos7"},
+				"deployment":   {"redis-5-centos7"},
+				"service":      {"redis-5-centos7"},
+				"volumeMounts": {"redis-5-centos7-volume-1"},
 			},
-			expectedName: "mysql",
+			expectedName: "redis-5-centos7",
 			expectedVolumes: map[string]string{
-				"mysql-volume-1": "EmptyDir",
+				"redis-5-centos7-volume-1": "EmptyDir",
 			},
 			expectedErr: nil,
 		},
