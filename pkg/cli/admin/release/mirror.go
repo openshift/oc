@@ -681,6 +681,10 @@ func (o *MirrorOptions) Run(ctx context.Context) error {
 		hasErrors := make(map[string]error)
 		maxPerIteration := 12
 
+		importMode := imagev1.ImportModeLegacy
+		if o.KeepManifestList {
+			importMode = imagev1.ImportModePreserveOriginal
+		}
 		for retries := 4; (len(remaining) > 0 || len(hasErrors) > 0) && retries > 0; {
 			if len(remaining) == 0 {
 				for _, mapping := range mappings {
@@ -711,6 +715,9 @@ func (o *MirrorOptions) Run(ctx context.Context) error {
 						},
 						To: &corev1.LocalObjectReference{
 							Name: mapping.Name,
+						},
+						ImportPolicy: imagev1.TagImportPolicy{
+							ImportMode: importMode,
 						},
 					})
 					if len(isi.Spec.Images) > maxPerIteration {
