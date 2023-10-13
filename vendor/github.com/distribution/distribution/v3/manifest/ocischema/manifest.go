@@ -11,10 +11,10 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// SchemaVersion provides a pre-initialized version structure for OCI Image
-// Manifests
+// SchemaVersion provides a pre-initialized version structure for this
+// packages version of the manifest.
 var SchemaVersion = manifest.Versioned{
-	SchemaVersion: 2,
+	SchemaVersion: 2, // historical value here.. does not pertain to OCI or docker version
 	MediaType:     v1.MediaTypeImageManifest,
 }
 
@@ -124,12 +124,16 @@ func (m DeserializedManifest) Payload() (string, []byte, error) {
 	return v1.MediaTypeImageManifest, m.canonical, nil
 }
 
+// unknownDocument represents a manifest, manifest list, or index that has not
+// yet been validated
+type unknownDocument struct {
+	Manifests interface{} `json:"manifests,omitempty"`
+}
+
 // validateManifest returns an error if the byte slice is invalid JSON or if it
 // contains fields that belong to a index
 func validateManifest(b []byte) error {
-	var doc struct {
-		Manifests interface{} `json:"manifests,omitempty"`
-	}
+	var doc unknownDocument
 	if err := json.Unmarshal(b, &doc); err != nil {
 		return err
 	}

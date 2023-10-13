@@ -23,6 +23,13 @@ var SchemaVersion = manifest.Versioned{
 	MediaType:     MediaTypeManifestList,
 }
 
+// OCISchemaVersion provides a pre-initialized version structure for this
+// packages OCIschema version of the manifest.
+var OCISchemaVersion = manifest.Versioned{
+	SchemaVersion: 2,
+	MediaType:     v1.MediaTypeImageIndex,
+}
+
 func init() {
 	manifestListFunc := func(b []byte) (distribution.Manifest, distribution.Descriptor, error) {
 		m := new(DeserializedManifestList)
@@ -44,6 +51,31 @@ func init() {
 	err := distribution.RegisterManifestSchema(MediaTypeManifestList, manifestListFunc)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to register manifest: %s", err))
+	}
+
+	imageIndexFunc := func(b []byte) (distribution.Manifest, distribution.Descriptor, error) {
+		if err := validateIndex(b); err != nil {
+			return nil, distribution.Descriptor{}, err
+		}
+		m := new(DeserializedManifestList)
+		err := m.UnmarshalJSON(b)
+		if err != nil {
+			return nil, distribution.Descriptor{}, err
+		}
+
+		if m.MediaType != "" && m.MediaType != v1.MediaTypeImageIndex {
+			err = fmt.Errorf("if present, mediaType in image index should be '%s' not '%s'",
+				v1.MediaTypeImageIndex, m.MediaType)
+
+			return nil, distribution.Descriptor{}, err
+		}
+
+		dgst := digest.FromBytes(b)
+		return m, distribution.Descriptor{Digest: dgst, Size: int64(len(b)), MediaType: v1.MediaTypeImageIndex}, err
+	}
+	err = distribution.RegisterManifestSchema(v1.MediaTypeImageIndex, imageIndexFunc)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to register OCI Image Index: %s", err))
 	}
 }
 
@@ -122,14 +154,21 @@ type DeserializedManifestList struct {
 // DeserializedManifestList which contains the resulting manifest list
 // and its JSON representation.
 func FromDescriptors(descriptors []ManifestDescriptor) (*DeserializedManifestList, error) {
-	return fromDescriptorsWithMediaType(descriptors, MediaTypeManifestList)
+	var mediaType string
+	if len(descriptors) > 0 && descriptors[0].Descriptor.MediaType == v1.MediaTypeImageManifest {
+		mediaType = v1.MediaTypeImageIndex
+	} else {
+		mediaType = MediaTypeManifestList
+	}
+
+	return FromDescriptorsWithMediaType(descriptors, mediaType)
 }
 
-// fromDescriptorsWithMediaType is for testing purposes, it's useful to be able to specify the media type explicitly
-func fromDescriptorsWithMediaType(descriptors []ManifestDescriptor, mediaType string) (*DeserializedManifestList, error) {
+// FromDescriptorsWithMediaType is for testing purposes, it's useful to be able to specify the media type explicitly
+func FromDescriptorsWithMediaType(descriptors []ManifestDescriptor, mediaType string) (*DeserializedManifestList, error) {
 	m := ManifestList{
 		Versioned: manifest.Versioned{
-			SchemaVersion: SchemaVersion.SchemaVersion,
+			SchemaVersion: 2,
 			MediaType:     mediaType,
 		},
 	}
@@ -176,21 +215,32 @@ func (m *DeserializedManifestList) MarshalJSON() ([]byte, error) {
 // Payload returns the raw content of the manifest list. The contents can be
 // used to calculate the content identifier.
 func (m DeserializedManifestList) Payload() (string, []byte, error) {
-	return m.MediaType, m.canonical, nil
+	var mediaType string
+	if m.MediaType == "" {
+		mediaType = v1.MediaTypeImageIndex
+	} else {
+		mediaType = m.MediaType
+	}
+
+	return mediaType, m.canonical, nil
 }
 
-// validateManifestList returns an error if the byte slice is invalid JSON or if it
+// unknownDocument represents a manifest, manifest list, or index that has not
+// yet been validated
+type unknownDocument struct {
+	Config interface{} `json:"config,omitempty"`
+	Layers interface{} `json:"layers,omitempty"`
+}
+
+// validateIndex returns an error if the byte slice is invalid JSON or if it
 // contains fields that belong to a manifest
-func validateManifestList(b []byte) error {
-	var doc struct {
-		Config interface{} `json:"config,omitempty"`
-		Layers interface{} `json:"layers,omitempty"`
-	}
+func validateIndex(b []byte) error {
+	var doc unknownDocument
 	if err := json.Unmarshal(b, &doc); err != nil {
 		return err
 	}
 	if doc.Config != nil || doc.Layers != nil {
-		return errors.New("manifestlist: expected list but found manifest")
+		return errors.New("index: expected index but found manifest")
 	}
 	return nil
 }
