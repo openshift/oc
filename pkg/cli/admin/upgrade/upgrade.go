@@ -91,8 +91,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 
 			Cluster-side guards include checks for release verification and upgradeable conditions.
 			Again, it is usually best to give these conditions time to resolve, or to actively work to
-			resolve them.  But if you decide to trigger the update regardless of these concerns,
-			use --force, which is passed through to ClusterVersion's spec.desiredUpdate.force.
+			resolve them.
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -105,7 +104,6 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	flags.BoolVar(&o.ToLatestAvailable, "to-latest", o.ToLatestAvailable, "Use the next available version.")
 	flags.BoolVar(&o.ToMultiArch, "to-multi-arch", o.ToMultiArch, "Upgrade current version to multi architecture.")
 	flags.BoolVar(&o.Clear, "clear", o.Clear, "If an upgrade has been requested but not yet downloaded, cancel the update. This has no effect once the update has started.")
-	flags.BoolVar(&o.Force, "force", o.Force, "Upgrade regardless of cluster-side guard failures, such as release verification or upgradeable conditions.")
 	flags.BoolVar(&o.AllowExplicitUpgrade, "allow-explicit-upgrade", o.AllowExplicitUpgrade, "Upgrade even if the upgrade target is not listed in the available versions list.")
 	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade regardless of client-side guard failures, such as upgrades in progress or failing clusters.")
 	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
@@ -126,7 +124,6 @@ type Options struct {
 
 	AllowExplicitUpgrade     bool
 	AllowUpgradeWithWarnings bool
-	Force                    bool
 	Clear                    bool
 	IncludeNotRecommended    bool
 	AllowNotRecommended      bool
@@ -157,16 +154,13 @@ func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 			return fmt.Errorf("--to-image must be a valid image pull spec: %v", err)
 		}
 		if len(ref.Registry) == 0 && len(ref.Namespace) == 0 {
-			return fmt.Errorf("--to-image must be a valid image pull spec: no registry or repository specified")
+			return fmt.Errorf("--to-image must be a valid by-digest image pull spec: no registry or repository specified")
 		}
 		if len(ref.ID) == 0 && len(ref.Tag) == 0 {
-			return fmt.Errorf("--to-image must be a valid image pull spec: no tag or digest specified")
+			return fmt.Errorf("--to-image must be a valid by-digest image pull spec: no tag or digest specified")
 		}
 		if len(ref.Tag) > 0 {
-			if o.Force {
-				fmt.Fprintln(o.ErrOut, "warning: Using by-tag pull specs is dangerous, and while we still allow it in combination with --force for backward compatibility, it would be much safer to pass a by-digest pull spec instead")
-			} else {
-				return fmt.Errorf("--to-image must be a by-digest pull spec, unless --force is also set, because release images that are not accessed via digest cannot be verified by the cluster.  Even when --force is set, using tags is not recommended, although we continue to allow it for backwards compatibility")
+			return fmt.Errorf("--to-image must be a by-digest image pull spec")
 			}
 		}
 	}
@@ -351,11 +345,6 @@ func (o *Options) Run() error {
 			default:
 				return errors.New("unable to calculate a target update")
 			}
-		}
-
-		if o.Force {
-			update.Force = true
-			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
 		}
 
 		if err := checkForUpgrade(cv); err != nil {
