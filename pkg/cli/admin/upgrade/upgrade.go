@@ -135,6 +135,8 @@ type Options struct {
 }
 
 func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
+	kcmdutil.RequireNoArguments(cmd, args)
+
 	if o.Clear && (len(o.ToImage) > 0 || len(o.To) > 0 || o.ToLatestAvailable || o.ToMultiArch) {
 		return fmt.Errorf("--clear may not be specified with any other flags")
 	}
