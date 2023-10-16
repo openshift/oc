@@ -559,7 +559,7 @@ func (o *NewOptions) Run(ctx context.Context) error {
 			inputIS.Annotations = make(map[string]string)
 		}
 		inputIS.Annotations[annotationBuildVersions] = extraComponentVersions.String()
-		if err := resolveImageStreamTagsToReferenceMode(inputIS, is, o.ReferenceMode, exclude); err != nil {
+		if err := resolveImageStreamTagsToReferenceMode(inputIS, is, o.ReferenceMode, exclude, len(o.Mirror) > 0); err != nil {
 			return err
 		}
 
@@ -795,10 +795,10 @@ func (o *NewOptions) Run(ctx context.Context) error {
 	return nil
 }
 
-func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, referenceMode string, exclude sets.String) error {
+func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, referenceMode string, exclude sets.String, toMirror bool) error {
 	switch referenceMode {
 	case "public", "", "source":
-		forceExternal := referenceMode == "public" || referenceMode == ""
+		forceExternal := !toMirror && (referenceMode == "public" || referenceMode == "")
 		internal := inputIS.Status.DockerImageRepository
 		external := inputIS.Status.PublicDockerImageRepository
 		if forceExternal && len(external) == 0 {
@@ -807,11 +807,15 @@ func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, re
 
 		externalFn := func(source, image string) string {
 			// filter source URLs
-			if len(source) > 0 && len(internal) > 0 && strings.HasPrefix(source, internal) {
+			if !toMirror && len(source) > 0 && len(internal) > 0 && strings.HasPrefix(source, internal) {
 				klog.V(2).Infof("Can't use source %s because it points to the internal registry", source)
 				source = ""
 			}
-			// default to the external registry name
+			// if --mirror is set and the referenceMode is not 'source', use the internal registry as image source.
+			if !forceExternal && len(internal) > 0 {
+				source = internal + "@" + image
+			}
+			// use the external registry route, when enabled and either forceExternal is true or the source is 0 length
 			if (forceExternal || len(source) == 0) && len(external) > 0 {
 				return external + "@" + image
 			}
