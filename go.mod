@@ -31,10 +31,10 @@ require (
 	github.com/moby/term v0.5.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198
-	github.com/openshift/api v0.0.0-20230915112357-693d4b64813c
+	github.com/openshift/api v0.0.0-20231010075512-1ccc6058c62d
 	github.com/openshift/build-machinery-go v0.0.0-20230824093055-6a18da01283c
-	github.com/openshift/client-go v0.0.0-20230915115245-53bd8980dfb7
-	github.com/openshift/library-go v0.0.0-20230915122714-b753831a0dce
+	github.com/openshift/client-go v0.0.0-20230926161409-848405da69e1
+	github.com/openshift/library-go v0.0.0-20231016155954-11c72a39f742
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.16.0

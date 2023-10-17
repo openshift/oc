@@ -1012,7 +1012,7 @@ func (LoadBalancerStrategy) SwaggerDoc() map[string]string {
 }
 
 var map_LoggingDestination = map[string]string{
-	"":          "LoggingDestination describes a destination for log messages.",
+	"":          "LoggingDestination describes a destination for log messages. ",
 	"type":      "type is the type of destination for logs.  It must be one of the following:\n\n* Container\n\nThe ingress operator configures the sidecar container named \"logs\" on the ingress controller pod and configures the ingress controller to write logs to the sidecar.  The logs are then available as container logs.  The expectation is that the administrator configures a custom logging solution that reads logs from this sidecar.  Note that using container logs means that logs may be dropped if the rate of logs exceeds the container runtime's or the custom logging solution's capacity.\n\n* Syslog\n\nLogs are sent to a syslog endpoint.  The administrator must specify an endpoint that can receive syslog messages.  The expectation is that the administrator has configured a custom syslog instance.",
 	"syslog":    "syslog holds parameters for a syslog endpoint.  Present only if type is Syslog.",
 	"container": "container holds parameters for the Container logging destination. Present only if type is Container.",
@@ -1241,6 +1241,27 @@ var map_KubeStorageVersionMigratorList = map[string]string{
 
 func (KubeStorageVersionMigratorList) SwaggerDoc() map[string]string {
 	return map_KubeStorageVersionMigratorList
+}
+
+var map_MachineConfiguration = map[string]string{
+	"":         "MachineConfiguration provides information to configure an operator to manage Machine Configuration.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata": "metadata is the standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+	"spec":     "spec is the specification of the desired behavior of the Machine Config Operator",
+	"status":   "status is the most recently observed status of the Machine Config Operator",
+}
+
+func (MachineConfiguration) SwaggerDoc() map[string]string {
+	return map_MachineConfiguration
+}
+
+var map_MachineConfigurationList = map[string]string{
+	"":         "MachineConfigurationList is a collection of items\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata": "metadata is the standard list's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+	"items":    "Items contains the items",
+}
+
+func (MachineConfigurationList) SwaggerDoc() map[string]string {
+	return map_MachineConfigurationList
 }
 
 var map_AdditionalNetworkDefinition = map[string]string{
