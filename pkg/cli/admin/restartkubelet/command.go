@@ -25,16 +25,16 @@ var (
 
 	regenerateSignersExample = templates.Examples(`
 		# Restart all the nodes,  10% at a time
-		oc adm clusteroperators restart-kubelet nodes --all
+		oc adm restart-kubelet nodes --all --directive=RemoveKubeletKubeconfig
 
 		# Restart all the nodes,  20 nodes at a time
-		oc adm clusteroperators restart-kubelet nodes --all --parallelism=20
+		oc adm restart-kubelet nodes --all --parallelism=20
 
 		# Restart all the nodes,  15% at a time
-		oc adm clusteroperators restart-kubelet nodes --all --parallelism=15%
+		oc adm restart-kubelet nodes --all --parallelism=15%
 
 		# Restart all the masters at the same time
-		oc adm clusteroperators restart-kubelet nodes -l node-role.kubernetes.io/master --parallelism=100%`)
+		oc adm restart-kubelet nodes -l node-role.kubernetes.io/master --parallelism=100%`)
 )
 
 type RestartKubeletOptions struct {
