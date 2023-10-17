@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/client-go/discovery"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
@@ -43,7 +44,8 @@ type CreateIdentityOptions struct {
 	ProviderName     string
 	ProviderUserName string
 
-	IdentityClient userv1client.IdentitiesGetter
+	IdentityClient  userv1client.IdentitiesGetter
+	DiscoveryClient discovery.DiscoveryInterface
 }
 
 // NewCmdCreateIdentity is a macro command to create a new identity
@@ -58,7 +60,7 @@ func NewCmdCreateIdentity(f genericclioptions.RESTClientGetter, streams generici
 		Example: identityExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
-			cmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 
@@ -74,6 +76,11 @@ func (o *CreateIdentityOptions) Complete(cmd *cobra.Command, f genericclioptions
 		return err
 	}
 	o.IdentityClient, err = userv1client.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}
