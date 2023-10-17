@@ -26,6 +26,7 @@ import (
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/status"
 )
 
 const (
@@ -110,6 +111,10 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade regardless of client-side guard failures, such as upgrades in progress or failing clusters.")
 	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
 	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows upgrade to a version when it is supported but not recommended for updates.")
+
+	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_STATUS").IsEnabled() {
+		cmd.AddCommand(status.New(f, streams))
+	}
 
 	cmd.AddCommand(channel.New(f, streams))
 
