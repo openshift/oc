@@ -21,10 +21,10 @@ var (
 
 	copyToNodeExample = templates.Examples(`
 		# copy a new bootstrap kubeconfig file to every node
-		oc adm clusteroperators copy-to-node --copy=new-bootstrap-kubeconfig=/etc/kubernetes/kubeconfig
+		oc adm copy-to-node --copy=new-bootstrap-kubeconfig=/etc/kubernetes/kubeconfig
 
 		# copy a new bootstrap kubeconfig file to masters
-		oc adm clusteroperators copy-to-node --copy=new-bootstrap-kubeconfig=/etc/kubernetes/kubeconfig -l node-role.kubernetes.io/master`)
+		oc adm copy-to-node --copy=new-bootstrap-kubeconfig=/etc/kubernetes/kubeconfig -l node-role.kubernetes.io/master`)
 )
 
 type CopyToNodeOptions struct {

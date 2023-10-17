@@ -117,7 +117,7 @@ var (
 		# Note that the target registry may reject a manifest list if the platform specific images do not all
 		# exist. You must use a registry with sparse registry support enabled.
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
-			--filter-by-os=os/arch \
+			--filter-by-os=linux/386 \
 			--keep-manifest-list=true
 	`)
 )
