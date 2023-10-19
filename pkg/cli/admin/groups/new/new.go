@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -43,7 +45,8 @@ type NewGroupOptions struct {
 	PrintFlags *genericclioptions.PrintFlags
 	Printer    printers.ResourcePrinter
 
-	GroupClient userv1typedclient.GroupsGetter
+	GroupClient     userv1typedclient.GroupsGetter
+	DiscoveryClient discovery.DiscoveryInterface
 
 	Group string
 	Users []string
@@ -70,7 +73,7 @@ func NewCmdNewGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cob
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 	o.PrintFlags.AddFlags(cmd)
@@ -94,6 +97,11 @@ func (o *NewGroupOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 		return err
 	}
 	o.GroupClient, err = userv1typedclient.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}

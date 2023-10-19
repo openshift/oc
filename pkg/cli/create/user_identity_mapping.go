@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +42,7 @@ type CreateUserIdentityMappingOptions struct {
 	Identity string
 
 	UserIdentityMappingClient userv1client.UserIdentityMappingsGetter
+	DiscoveryClient           discovery.DiscoveryInterface
 }
 
 func NewCreateUserIdentityMappingOptions(streams genericiooptions.IOStreams) *CreateUserIdentityMappingOptions {
@@ -58,7 +61,7 @@ func NewCmdCreateUserIdentityMapping(f genericclioptions.RESTClientGetter, strea
 		Example: userIdentityMappingExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
-			cmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 
@@ -86,6 +89,10 @@ func (o *CreateUserIdentityMappingOptions) Complete(cmd *cobra.Command, f generi
 		return err
 	}
 	o.UserIdentityMappingClient, err = userv1client.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}

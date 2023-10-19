@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	kerrs "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -16,6 +17,7 @@ import (
 	legacyconfigv1 "github.com/openshift/api/legacyconfig/v1"
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	"github.com/openshift/library-go/pkg/security/ldapclient"
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	syncgroups "github.com/openshift/oc/pkg/helpers/groupsync"
 	ldapsync "github.com/openshift/oc/pkg/helpers/groupsync/ldap"
 )
@@ -65,7 +67,8 @@ type PruneOptions struct {
 	Confirm bool
 
 	// GroupClient is the interface used to interact with OpenShift Group objects
-	GroupClient userv1typedclient.GroupsGetter
+	GroupClient     userv1typedclient.GroupsGetter
+	DiscoveryClient discovery.DiscoveryInterface
 
 	genericiooptions.IOStreams
 }
@@ -87,7 +90,7 @@ func NewCmdPruneGroups(name, fullName string, f kcmdutil.Factory, streams generi
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 
@@ -126,6 +129,10 @@ func (o *PruneOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 		return err
 	}
 	o.GroupClient, err = userv1typedclient.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}

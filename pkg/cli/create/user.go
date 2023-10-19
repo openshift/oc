@@ -3,7 +3,9 @@ package create
 import (
 	"context"
 
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -40,7 +42,8 @@ type CreateUserOptions struct {
 
 	FullName string
 
-	UserClient userv1client.UsersGetter
+	UserClient      userv1client.UsersGetter
+	DiscoveryClient discovery.DiscoveryInterface
 }
 
 // NewCmdCreateUser is a macro command to create a new user
@@ -55,7 +58,7 @@ func NewCmdCreateUser(f genericclioptions.RESTClientGetter, streams genericioopt
 		Example: userExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
-			cmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 	cmd.Flags().StringVar(&o.FullName, "full-name", o.FullName, "Display name of the user")
@@ -72,6 +75,10 @@ func (o *CreateUserOptions) Complete(cmd *cobra.Command, f genericclioptions.RES
 		return err
 	}
 	o.UserClient, err = userv1client.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,9 @@
 package auth
 
 import (
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -30,6 +32,8 @@ type PruneAuthOptions struct {
 	OAuthClient         oauthv1client.OauthV1Interface
 	SecurityClient      securityv1client.SecurityV1Interface
 
+	DiscoveryClient discovery.DiscoveryInterface
+
 	genericiooptions.IOStreams
 }
 
@@ -49,7 +53,7 @@ func NewCmdPruneAuth(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
-			kcmdutil.CheckErr(o.RunPrune())
+			ocmdhelpers.CheckOAuthDisabledErr(o.RunPrune(), o.DiscoveryClient)
 		},
 	}
 
@@ -91,6 +95,11 @@ func (o *PruneAuthOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args
 	o.SecurityClient, err = securityv1client.NewForConfig(clientConfig)
 	if err != nil {
 		return nil
+	}
+
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
+	if err != nil {
+		return err
 	}
 
 	cmdNamespace, enforceNamespace, err := f.ToRawKubeConfigLoader().Namespace()
