@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -102,7 +104,8 @@ type SyncOptions struct {
 	Confirm bool
 
 	// GroupClient is the interface used to interact with OpenShift Group objects
-	GroupClient userv1typedclient.GroupsGetter
+	GroupClient     userv1typedclient.GroupsGetter
+	DiscoveryClient discovery.DiscoveryInterface
 
 	genericiooptions.IOStreams
 }
@@ -126,7 +129,7 @@ func NewCmdSync(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.C
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 
@@ -187,6 +190,10 @@ func (o *SyncOptions) Complete(f kcmdutil.Factory, args []string) error {
 		return err
 	}
 	o.GroupClient, err = userv1typedclient.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}

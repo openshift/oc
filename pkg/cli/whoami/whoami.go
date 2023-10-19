@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +39,8 @@ var whoamiExample = templates.Examples(`
 `)
 
 type WhoAmIOptions struct {
-	UserInterface userv1typedclient.UserV1Interface
+	UserInterface   userv1typedclient.UserV1Interface
+	DiscoveryClient discovery.DiscoveryInterface
 
 	ClientConfig *rest.Config
 	KubeClient   kubernetes.Interface
@@ -68,7 +71,7 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 
@@ -102,6 +105,10 @@ func (o *WhoAmIOptions) Complete(f kcmdutil.Factory) error {
 		return err
 	}
 	o.KubeClient = kubeClient
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
+	if err != nil {
+		return err
+	}
 
 	o.RawConfig, err = f.ToRawKubeConfigLoader().RawConfig()
 	return err

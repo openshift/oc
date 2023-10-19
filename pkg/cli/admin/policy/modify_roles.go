@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -90,6 +92,7 @@ type RoleModificationOptions struct {
 
 	UserClient           userv1client.UserV1Interface
 	ServiceAccountClient corev1client.ServiceAccountsGetter
+	DiscoveryClient      discovery.DiscoveryInterface
 
 	Targets  []string
 	Users    []string
@@ -120,7 +123,7 @@ func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
-			kcmdutil.CheckErr(o.AddRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.AddRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -144,7 +147,7 @@ func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericiooptions.IOStreams,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
-			kcmdutil.CheckErr(o.AddRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.AddRole(), o.DiscoveryClient)
 		},
 	}
 	if admin {
@@ -171,7 +174,7 @@ func NewCmdRemoveRoleFromGroup(f kcmdutil.Factory, streams genericiooptions.IOSt
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
-			kcmdutil.CheckErr(o.RemoveRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.RemoveRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -194,7 +197,7 @@ func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericiooptions.IOStr
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
-			kcmdutil.CheckErr(o.RemoveRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.RemoveRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -217,7 +220,7 @@ func NewCmdAddClusterRoleToGroup(f kcmdutil.Factory, streams genericiooptions.IO
 		Long:  addClusterRoleToGroupLongDesc,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
-			kcmdutil.CheckErr(o.AddRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.AddRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -239,7 +242,7 @@ func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericiooptions.IOS
 		Long:  addClusterRoleToUserLongDesc,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
-			kcmdutil.CheckErr(o.AddRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.AddRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -261,7 +264,7 @@ func NewCmdRemoveClusterRoleFromGroup(f kcmdutil.Factory, streams genericiooptio
 		Long:  `Remove a role from groups for all projects in the cluster`,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
-			kcmdutil.CheckErr(o.RemoveRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.RemoveRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -283,7 +286,7 @@ func NewCmdRemoveClusterRoleFromUser(f kcmdutil.Factory, streams genericiooption
 		Long:  `Remove a role from users for all projects in the cluster`,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
-			kcmdutil.CheckErr(o.RemoveRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.RemoveRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -327,6 +330,10 @@ func (o *RoleModificationOptions) innerComplete(f kcmdutil.Factory, cmd *cobra.C
 		return err
 	}
 	o.ServiceAccountClient, err = corev1client.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}

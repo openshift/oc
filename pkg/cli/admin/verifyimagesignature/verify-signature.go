@@ -15,6 +15,7 @@ import (
 	"github.com/containers/image/v5/signature"
 	sigtypes "github.com/containers/image/v5/types"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +27,7 @@ import (
 	imagev1typedclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	imageref "github.com/openshift/library-go/pkg/image/reference"
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
 var (
@@ -82,7 +84,8 @@ type VerifyImageSignatureOptions struct {
 	RegistryURL       string
 	Insecure          bool
 
-	ImageClient imagev1typedclient.ImageV1Interface
+	ImageClient     imagev1typedclient.ImageV1Interface
+	DiscoveryClient discovery.DiscoveryInterface
 
 	genericiooptions.IOStreams
 }
@@ -106,7 +109,7 @@ func NewCmdVerifyImageSignature(f kcmdutil.Factory, streams genericiooptions.IOS
 		Example: verifyImageSignatureExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			ocmdhelpers.CheckOAuthDisabledErr(o.Complete(f, cmd, args), o.DiscoveryClient)
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
@@ -151,6 +154,10 @@ func (o *VerifyImageSignatureOptions) Complete(f kcmdutil.Factory, cmd *cobra.Co
 		return err
 	}
 	o.ImageClient, err = imagev1typedclient.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}
