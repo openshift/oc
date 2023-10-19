@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/openshift/oc/pkg/cli/gettoken"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
@@ -313,6 +315,7 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 		{
 			Message: "Settings Commands:",
 			Commands: []*cobra.Command{
+				gettoken.NewCmdGetTokenWrapper(),
 				logout.NewCmdLogout(f, o.IOStreams),
 				kubectlwrappers.NewCmdConfig(f, o.IOStreams),
 				whoami.NewCmdWhoAmI(f, o.IOStreams),

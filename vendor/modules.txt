@@ -449,7 +449,6 @@ github.com/imdario/mergo
 github.com/inconshreveable/mousetrap
 # github.com/int128/kubelogin v1.28.0
 ## explicit; go 1.19
-github.com/int128/kubelogin
 github.com/int128/kubelogin/pkg/cmd
 github.com/int128/kubelogin/pkg/credentialplugin
 github.com/int128/kubelogin/pkg/credentialplugin/writer

@@ -47,6 +47,9 @@ var (
 
 		# Log in to the given server through a browser
 		oc login localhost:8443 --web --callback-port 8280
+
+		# Log in to the given server via external OIDC issuer
+		oc login localhost:8443 --external-oidc-client-id=client-id
 	`)
 )
 
@@ -89,6 +92,10 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 
 	cmds.Flags().BoolVarP(&o.WebLogin, "web", "w", o.WebLogin, "Login with web browser. Starts a local HTTP callback server to perform the OAuth2 Authorization Code Grant flow. Use with caution on multi-user systems, as the server's port will be open to all users.")
 	cmds.Flags().Int32VarP(&o.CallbackPort, "callback-port", "c", o.CallbackPort, "Port for the callback server when using --web. Defaults to a random open port")
+
+	cmds.Flags().StringArrayVar(&o.ExtraScopes, "external-oidc-extra-scopes", o.ExtraScopes, "Set extra scopes for external OIDC")
+	cmds.Flags().StringVar(&o.OIDCClientID, "external-oidc-client-id", o.OIDCClientID, "OIDC client id to be used for authentication")
+
 	return cmds
 }
 
@@ -143,6 +150,8 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 	o.InsecureTLS = kcmdutil.GetFlagBool(cmd, "insecure-skip-tls-verify")
 	o.Token = kcmdutil.GetFlagString(cmd, "token")
 
+	o.OIDCClientID = kcmdutil.GetFlagString(cmd, "external-oidc-client-id")
+
 	o.DefaultNamespace, _, _ = f.ToRawKubeConfigLoader().Namespace()
 
 	o.PathOptions = kclientcmd.NewDefaultPathOptions()
@@ -167,6 +176,14 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 
 	if len(o.Username) > 0 && len(o.Token) > 0 {
 		return errors.New("--token and --username are mutually exclusive")
+	}
+
+	if len(o.Username) > 0 && len(o.OIDCClientID) > 0 {
+		return errors.New("--oidc-client-id and --username are mutually exclusive")
+	}
+
+	if len(o.Token) > 0 && len(o.OIDCClientID) > 0 {
+		return errors.New("--oidc-client-id and --token are mutually exclusive")
 	}
 
 	if o.StartingKubeConfig == nil {
