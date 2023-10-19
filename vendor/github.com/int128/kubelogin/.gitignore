@@ -1,0 +1,10 @@
+/.idea
+
+/acceptance_test/output/
+
+/coverage.out
+
+/kubelogin
+/kubectl-oidc_login
+/kubelogin_*.zip
+/kubelogin_*.zip.sha256
