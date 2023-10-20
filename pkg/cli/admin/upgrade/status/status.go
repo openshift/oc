@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -84,7 +85,7 @@ func (o *options) Run(ctx context.Context) error {
 		return nil
 	}
 
-	fmt.Fprintf(o.Out, "An update is in progress: %s\n", progressing.Message)
+	fmt.Fprintf(o.Out, "An update is in progress for %s: %s\n", time.Since(progressing.LastTransitionTime.Time).Round(time.Second), progressing.Message)
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil {
 		if c.Status != configv1.ConditionFalse {
