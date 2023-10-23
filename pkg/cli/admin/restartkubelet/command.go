@@ -28,13 +28,13 @@ var (
 		oc adm restart-kubelet nodes --all --directive=RemoveKubeletKubeconfig
 
 		# Restart all the nodes,  20 nodes at a time
-		oc adm restart-kubelet nodes --all --parallelism=20
+		oc adm restart-kubelet nodes --all --parallelism=20 --directive=RemoveKubeletKubeconfig
 
 		# Restart all the nodes,  15% at a time
-		oc adm restart-kubelet nodes --all --parallelism=15%
+		oc adm restart-kubelet nodes --all --parallelism=15% --directive=RemoveKubeletKubeconfig
 
 		# Restart all the masters at the same time
-		oc adm restart-kubelet nodes -l node-role.kubernetes.io/master --parallelism=100%`)
+		oc adm restart-kubelet nodes -l node-role.kubernetes.io/master --parallelism=100% --directive=RemoveKubeletKubeconfig`)
 )
 
 type RestartKubeletOptions struct {
