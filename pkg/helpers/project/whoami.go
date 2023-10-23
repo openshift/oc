@@ -6,8 +6,12 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"k8s.io/klog/v2"
+
+	v1 "k8s.io/api/authentication/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	authenticationv1client "k8s.io/client-go/kubernetes/typed/authentication/v1"
 	restclient "k8s.io/client-go/rest"
 
 	userv1 "github.com/openshift/api/user/v1"
@@ -15,6 +19,22 @@ import (
 )
 
 func WhoAmI(clientConfig *restclient.Config) (*userv1.User, error) {
+	authClient, err := authenticationv1client.NewForConfig(clientConfig)
+	if err != nil {
+		return nil, err
+	}
+	user, err := authClient.SelfSubjectReviews().Create(context.TODO(), &v1.SelfSubjectReview{}, metav1.CreateOptions{})
+	if err == nil {
+		return &userv1.User{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: user.Status.UserInfo.Username,
+			},
+			Groups: user.Status.UserInfo.Groups,
+		}, nil
+	} else {
+		klog.V(2).Infof("selfsubjectreview request error %v, falling back to user object", err)
+	}
+
 	client, err := userv1typedclient.NewForConfig(clientConfig)
 	if err != nil {
 		return nil, err
