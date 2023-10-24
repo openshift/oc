@@ -253,6 +253,14 @@ func (o *LoginOptions) gatherAuthInfo() error {
 			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--oidc-extra-scope=%s", strings.Join(o.ExtraScopes, ",")))
 		}
 
+		if len(o.Config.CAData) > 0 {
+			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--certificate-authority-data=%s", string(o.Config.CAData)))
+		}
+
+		if len(o.Config.CAFile) > 0 {
+			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.Config.CAFile))
+		}
+
 		me, err := project.WhoAmI(clientConfig)
 		if err != nil {
 			if kerrors.IsUnauthorized(err) {
