@@ -239,6 +239,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 				fmt.Sprintf("--oidc-client-id=%s", o.OIDCClientID),
 				"--oidc-use-pkce",
 				"--grant-type=authcode",
+				"--skip-open-browser",
 			},
 			APIVersion:      "client.authentication.k8s.io/v1beta1",
 			InteractiveMode: kclientcmdapi.AlwaysExecInteractiveMode,
