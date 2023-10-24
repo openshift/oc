@@ -3,6 +3,7 @@ package monitorregeneration
 import (
 	"context"
 	"strings"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,6 +31,7 @@ type MonitorCertificatesRuntime struct {
 
 type namespacedCache struct {
 	cache map[string]*unnamespacedCache
+	lock  sync.Mutex
 }
 
 func newNamespacedCache() *namespacedCache {
@@ -39,6 +41,8 @@ func newNamespacedCache() *namespacedCache {
 }
 
 func (c *namespacedCache) get(namespace, name string) (runtime.Object, bool) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	next, ok := c.cache[namespace]
 	if !ok {
 		return nil, false
@@ -47,6 +51,8 @@ func (c *namespacedCache) get(namespace, name string) (runtime.Object, bool) {
 }
 
 func (c *namespacedCache) upsert(namespace, name string, obj runtime.Object) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if _, ok := c.cache[namespace]; !ok {
 		c.cache[namespace] = newUnnamespacedCache()
 	}
@@ -54,11 +60,14 @@ func (c *namespacedCache) upsert(namespace, name string, obj runtime.Object) {
 }
 
 func (c *namespacedCache) remove(namespace, name string) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	c.cache[namespace].remove(name)
 }
 
 type unnamespacedCache struct {
 	cache map[string]runtime.Object
+	lock  sync.Mutex
 }
 
 func newUnnamespacedCache() *unnamespacedCache {
@@ -68,15 +77,21 @@ func newUnnamespacedCache() *unnamespacedCache {
 }
 
 func (c *unnamespacedCache) get(name string) (runtime.Object, bool) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	ret, ok := c.cache[name]
 	return ret, ok
 }
 
 func (c *unnamespacedCache) upsert(name string, obj runtime.Object) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	c.cache[name] = obj
 }
 
 func (c *unnamespacedCache) remove(name string) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	delete(c.cache, name)
 }
 
