@@ -6,20 +6,23 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/util/homedir"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	oauthv1client "github.com/openshift/client-go/oauth/clientset/versioned/typed/oauth/v1"
+	"github.com/openshift/oc/pkg/helpers/oidc"
 	"github.com/openshift/oc/pkg/helpers/project"
 )
 
@@ -110,13 +113,18 @@ func (o LogoutOptions) Validate(args []string) error {
 	}
 
 	if len(o.Config.BearerToken) == 0 {
-		return errors.New("You must have a token in order to logout.")
+		if o.Config.ExecProvider == nil {
+			return errors.New("You must have a token in order to logout.")
+		}
 	}
 
 	return nil
 }
 
 func (o LogoutOptions) RunLogout() error {
+	if o.Config.ExecProvider != nil {
+		return o.RunLogoutExecPlugin()
+	}
 	token := o.Config.BearerToken
 	tokenName := o.Config.BearerToken
 
@@ -148,6 +156,37 @@ func (o LogoutOptions) RunLogout() error {
 	}
 
 	return configErr
+}
+
+func (o LogoutOptions) RunLogoutExecPlugin() error {
+	if len(o.Config.ExecProvider.Command) == 0 {
+		return nil
+	}
+
+	userInfo, err := project.WhoAmI(o.Config)
+	if err != nil {
+		return err
+	}
+
+	ClearPluginCache(o.Config.ExecProvider)
+
+	fmt.Fprintf(o.Out, "Tokens are cleared for %s on %s.\n Please keep in mind that this doesn't mean you logged out from external OIDC server.\n\n", userInfo.Name, o.Config.Host)
+	return nil
+}
+
+func ClearPluginCache(plugin *kclientcmdapi.ExecConfig) {
+	found, val := oidc.ExternalOIDCExtraArgIsSet(plugin.Args, "--token-cache-dir")
+	if !found {
+		// If token-cache-dir isn't changed, we can clear the default
+		if plugin.Command == "kubelogin" {
+			os.RemoveAll(homedir.HomeDir() + "/.kube/cache/kubelogin/")
+		}
+		if plugin.Command == "kubectl-oidc_login" {
+			os.RemoveAll(homedir.HomeDir() + "/.kube/cache/oidc-login/")
+		}
+		return
+	}
+	os.RemoveAll(val)
 }
 
 func deleteTokenFromConfig(config kclientcmdapi.Config, pathOptions *kclientcmd.PathOptions, bearerToken string) error {

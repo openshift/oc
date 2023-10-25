@@ -5,20 +5,26 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/pkg/browser"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/apis/clientauthentication"
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -26,22 +32,37 @@ import (
 	kterm "k8s.io/kubectl/pkg/util/term"
 
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
+	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
 	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
 	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
+
+	"github.com/openshift/oc/pkg/cli/logout"
 	occhallengers "github.com/openshift/oc/pkg/helpers/authchallengers"
 	ocerrors "github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/motd"
+	"github.com/openshift/oc/pkg/helpers/oidc"
 	"github.com/openshift/oc/pkg/helpers/project"
 	loginutil "github.com/openshift/oc/pkg/helpers/project"
 	"github.com/openshift/oc/pkg/helpers/term"
 	"github.com/openshift/oc/pkg/version"
-	"github.com/pkg/browser"
 )
 
 const defaultClusterURL = "https://localhost:8443"
 
 const projectsItemsSuppressThreshold = 50
+
+const (
+	OIDCAuthType    = "oidc"
+	oidcInstallHint = `Please be sure that the oidc-login plugin is installed. You can install it via "oc krew install oidc-login" command`
+	AzureAuthType   = "azure"
+	// This is same with the plugin's install hint
+	azureInstallHint = `
+kubelogin is not installed which is required to connect to AAD enabled cluster.
+
+To learn more, please go to https://azure.github.io/kubelogin/
+`
+)
 
 // LoginOptions is a helper for the login and setup process, gathers all information required for a
 // successful login and eventual update of config files.
@@ -71,6 +92,10 @@ type LoginOptions struct {
 	KeyFile  string
 
 	Token string
+
+	OIDCAuthType  string
+	OIDCClientID  string
+	OIDCExtraArgs []string
 
 	PathOptions *kclientcmd.PathOptions
 
@@ -215,6 +240,87 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	// make a copy and use it to avoid mutating the original
 	t := *directClientConfig
 	clientConfig := &t
+
+	if len(o.OIDCClientID) > 0 {
+		if o.OIDCAuthType == OIDCAuthType {
+			oauthMetadata, err := o.getIssuerUrlForOIDC()
+			if err != nil {
+				return err
+			}
+			clientConfig.ExecProvider = &kclientcmdapi.ExecConfig{
+				Command: "kubectl-oidc_login",
+				Args: []string{
+					"get-token",
+					fmt.Sprintf("--oidc-issuer-url=%s", oauthMetadata.Issuer),
+					fmt.Sprintf("--oidc-client-id=%s", o.OIDCClientID),
+					"--oidc-use-pkce",
+					"--grant-type=authcode",
+					"--skip-open-browser",
+				},
+				APIVersion:      clientauthentication.GroupName + "/v1beta1",
+				InteractiveMode: kclientcmdapi.IfAvailableExecInteractiveMode,
+				InstallHint:     oidcInstallHint,
+			}
+
+			if o.InsecureTLS {
+				clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, "--insecure-skip-tls-verify")
+			}
+
+			if len(o.Config.CAData) > 0 {
+				clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--certificate-authority-data=%s", string(o.Config.CAData)))
+			}
+
+			if len(o.Config.CAFile) > 0 {
+				clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.Config.CAFile))
+			}
+
+			clientConfig.ExecProvider.Args = oidc.ExternalOIDCSetOrOverrideArgs(
+				clientConfig.ExecProvider.Args,
+				o.OIDCExtraArgs,
+				map[string]struct{}{
+					"get-token":         {},
+					"--oidc-issuer-url": {},
+					"--oidc-client-id":  {},
+				})
+
+		} else if o.OIDCAuthType == AzureAuthType {
+			// these values are set according to this https://azure.github.io/kubelogin/topics/k8s-oidc-aad.html
+			// currently we only support interactive login method for Azure
+			clientConfig.ExecProvider = &kclientcmdapi.ExecConfig{
+				Command: "kubelogin",
+				Args: []string{
+					"get-token",
+					"--login=interactive",
+					fmt.Sprintf("--server-id=%s", o.OIDCClientID),
+					fmt.Sprintf("--client-id=%s", o.OIDCClientID),
+				},
+				InstallHint:     azureInstallHint,
+				APIVersion:      clientauthentication.GroupName + "/v1beta1",
+				InteractiveMode: kclientcmdapi.IfAvailableExecInteractiveMode,
+			}
+			clientConfig.ExecProvider.Args = oidc.ExternalOIDCSetOrOverrideArgs(
+				clientConfig.ExecProvider.Args,
+				o.OIDCExtraArgs,
+				map[string]struct{}{
+					"get-token":   {},
+					"--server-id": {},
+					"--client-id": {},
+				})
+		}
+		me, err := project.WhoAmI(clientConfig)
+		if err != nil {
+			if kerrors.IsUnauthorized(err) {
+				logout.ClearPluginCache(clientConfig.ExecProvider)
+				return fmt.Errorf("The token provided is invalid or expired.\n\n")
+			}
+			return err
+		}
+		o.Username = me.Name
+		o.Config = clientConfig
+
+		fmt.Fprintf(o.Out, "Logged into %q as %q from the external oidc issuer.\n\n", o.Config.Host, o.Username)
+		return nil
+	}
 
 	// if a token were explicitly provided, try to use it
 	if o.tokenProvided() {
@@ -511,4 +617,40 @@ func (o *LoginOptions) serverProvided() bool {
 
 func (o *LoginOptions) tokenProvided() bool {
 	return len(o.Token) > 0
+}
+
+func (o *LoginOptions) getIssuerUrlForOIDC() (*oauthdiscovery.OauthAuthorizationServerMetadata, error) {
+	// get the OAuth metadata directly from the api server
+	// we only want to use the ca data from our config
+	rt, err := restclient.TransportFor(o.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	requestURL := strings.TrimRight(o.Config.Host, "/") + "/.well-known/oauth-authorization-server"
+
+	// Build the request
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-CSRF-Token", "1")
+
+	// Make the request
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("couldn't get %v: unexpected response status %v", requestURL, resp.StatusCode)
+	}
+
+	metadata := &oauthdiscovery.OauthAuthorizationServerMetadata{}
+	if err := json.NewDecoder(resp.Body).Decode(metadata); err != nil {
+		return nil, err
+	}
+
+	return metadata, nil
 }
