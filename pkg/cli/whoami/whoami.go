@@ -4,16 +4,17 @@ import (
 	"context"
 	"fmt"
 
-	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/discovery"
 
+	v1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
+	authenticationv1client "k8s.io/client-go/kubernetes/typed/authentication/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -39,8 +40,8 @@ var whoamiExample = templates.Examples(`
 `)
 
 type WhoAmIOptions struct {
-	UserInterface   userv1typedclient.UserV1Interface
-	DiscoveryClient discovery.DiscoveryInterface
+	UserInterface userv1typedclient.UserV1Interface
+	AuthV1Client  authenticationv1client.AuthenticationV1Interface
 
 	ClientConfig *rest.Config
 	KubeClient   kubernetes.Interface
@@ -71,7 +72,7 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f))
 			kcmdutil.CheckErr(o.Validate())
-			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 
@@ -84,6 +85,20 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra
 }
 
 func (o WhoAmIOptions) WhoAmI() (*userv1.User, error) {
+	res, err := o.AuthV1Client.SelfSubjectReviews().Create(context.TODO(), &v1.SelfSubjectReview{}, metav1.CreateOptions{})
+	if err == nil {
+		me := &userv1.User{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: res.Status.UserInfo.Username,
+			},
+			Groups: res.Status.UserInfo.Groups,
+		}
+		fmt.Fprintf(o.Out, "%s\n", me.Name)
+		return me, nil
+	} else {
+		klog.V(2).Infof("selfsubjectreview request error %v, falling back to user object", err)
+	}
+
 	me, err := o.UserInterface.Users().Get(context.TODO(), "~", metav1.GetOptions{})
 	if err == nil {
 		fmt.Fprintf(o.Out, "%s\n", me.Name)
@@ -105,10 +120,6 @@ func (o *WhoAmIOptions) Complete(f kcmdutil.Factory) error {
 		return err
 	}
 	o.KubeClient = kubeClient
-	o.DiscoveryClient, err = f.ToDiscoveryClient()
-	if err != nil {
-		return err
-	}
 
 	o.RawConfig, err = f.ToRawKubeConfigLoader().RawConfig()
 	return err
@@ -164,6 +175,11 @@ func (o *WhoAmIOptions) Run() error {
 
 	var err error
 	o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
+	if err != nil {
+		return err
+	}
+
+	o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
 	if err != nil {
 		return err
 	}
