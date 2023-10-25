@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/certgraphapi"
+	"github.com/openshift/library-go/pkg/certs/cert-inspection/certgraphapi"
 	"k8s.io/apimachinery/pkg/util/duration"
 )
 

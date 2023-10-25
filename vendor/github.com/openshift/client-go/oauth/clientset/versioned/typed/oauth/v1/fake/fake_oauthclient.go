@@ -7,11 +7,10 @@ import (
 	json "encoding/json"
 	"fmt"
 
-	oauthv1 "github.com/openshift/api/oauth/v1"
-	applyconfigurationsoauthv1 "github.com/openshift/client-go/oauth/applyconfigurations/oauth/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/openshift/api/oauth/v1"
+	oauthv1 "github.com/openshift/client-go/oauth/applyconfigurations/oauth/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -22,24 +21,24 @@ type FakeOAuthClients struct {
 	Fake *FakeOauthV1
 }
 
-var oauthclientsResource = schema.GroupVersionResource{Group: "oauth.openshift.io", Version: "v1", Resource: "oauthclients"}
+var oauthclientsResource = v1.SchemeGroupVersion.WithResource("oauthclients")
 
-var oauthclientsKind = schema.GroupVersionKind{Group: "oauth.openshift.io", Version: "v1", Kind: "OAuthClient"}
+var oauthclientsKind = v1.SchemeGroupVersion.WithKind("OAuthClient")
 
 // Get takes name of the oAuthClient, and returns the corresponding oAuthClient object, and an error if there is any.
-func (c *FakeOAuthClients) Get(ctx context.Context, name string, options v1.GetOptions) (result *oauthv1.OAuthClient, err error) {
+func (c *FakeOAuthClients) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.OAuthClient, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(oauthclientsResource, name), &oauthv1.OAuthClient{})
+		Invokes(testing.NewRootGetAction(oauthclientsResource, name), &v1.OAuthClient{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*oauthv1.OAuthClient), err
+	return obj.(*v1.OAuthClient), err
 }
 
 // List takes label and field selectors, and returns the list of OAuthClients that match those selectors.
-func (c *FakeOAuthClients) List(ctx context.Context, opts v1.ListOptions) (result *oauthv1.OAuthClientList, err error) {
+func (c *FakeOAuthClients) List(ctx context.Context, opts metav1.ListOptions) (result *v1.OAuthClientList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(oauthclientsResource, oauthclientsKind, opts), &oauthv1.OAuthClientList{})
+		Invokes(testing.NewRootListAction(oauthclientsResource, oauthclientsKind, opts), &v1.OAuthClientList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -48,8 +47,8 @@ func (c *FakeOAuthClients) List(ctx context.Context, opts v1.ListOptions) (resul
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &oauthv1.OAuthClientList{ListMeta: obj.(*oauthv1.OAuthClientList).ListMeta}
-	for _, item := range obj.(*oauthv1.OAuthClientList).Items {
+	list := &v1.OAuthClientList{ListMeta: obj.(*v1.OAuthClientList).ListMeta}
+	for _, item := range obj.(*v1.OAuthClientList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -58,58 +57,58 @@ func (c *FakeOAuthClients) List(ctx context.Context, opts v1.ListOptions) (resul
 }
 
 // Watch returns a watch.Interface that watches the requested oAuthClients.
-func (c *FakeOAuthClients) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeOAuthClients) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewRootWatchAction(oauthclientsResource, opts))
 }
 
 // Create takes the representation of a oAuthClient and creates it.  Returns the server's representation of the oAuthClient, and an error, if there is any.
-func (c *FakeOAuthClients) Create(ctx context.Context, oAuthClient *oauthv1.OAuthClient, opts v1.CreateOptions) (result *oauthv1.OAuthClient, err error) {
+func (c *FakeOAuthClients) Create(ctx context.Context, oAuthClient *v1.OAuthClient, opts metav1.CreateOptions) (result *v1.OAuthClient, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(oauthclientsResource, oAuthClient), &oauthv1.OAuthClient{})
+		Invokes(testing.NewRootCreateAction(oauthclientsResource, oAuthClient), &v1.OAuthClient{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*oauthv1.OAuthClient), err
+	return obj.(*v1.OAuthClient), err
 }
 
 // Update takes the representation of a oAuthClient and updates it. Returns the server's representation of the oAuthClient, and an error, if there is any.
-func (c *FakeOAuthClients) Update(ctx context.Context, oAuthClient *oauthv1.OAuthClient, opts v1.UpdateOptions) (result *oauthv1.OAuthClient, err error) {
+func (c *FakeOAuthClients) Update(ctx context.Context, oAuthClient *v1.OAuthClient, opts metav1.UpdateOptions) (result *v1.OAuthClient, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(oauthclientsResource, oAuthClient), &oauthv1.OAuthClient{})
+		Invokes(testing.NewRootUpdateAction(oauthclientsResource, oAuthClient), &v1.OAuthClient{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*oauthv1.OAuthClient), err
+	return obj.(*v1.OAuthClient), err
 }
 
 // Delete takes name of the oAuthClient and deletes it. Returns an error if one occurs.
-func (c *FakeOAuthClients) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeOAuthClients) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(oauthclientsResource, name, opts), &oauthv1.OAuthClient{})
+		Invokes(testing.NewRootDeleteActionWithOptions(oauthclientsResource, name, opts), &v1.OAuthClient{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeOAuthClients) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+func (c *FakeOAuthClients) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	action := testing.NewRootDeleteCollectionAction(oauthclientsResource, listOpts)
 
-	_, err := c.Fake.Invokes(action, &oauthv1.OAuthClientList{})
+	_, err := c.Fake.Invokes(action, &v1.OAuthClientList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched oAuthClient.
-func (c *FakeOAuthClients) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *oauthv1.OAuthClient, err error) {
+func (c *FakeOAuthClients) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.OAuthClient, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(oauthclientsResource, name, pt, data, subresources...), &oauthv1.OAuthClient{})
+		Invokes(testing.NewRootPatchSubresourceAction(oauthclientsResource, name, pt, data, subresources...), &v1.OAuthClient{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*oauthv1.OAuthClient), err
+	return obj.(*v1.OAuthClient), err
 }
 
 // Apply takes the given apply declarative configuration, applies it and returns the applied oAuthClient.
-func (c *FakeOAuthClients) Apply(ctx context.Context, oAuthClient *applyconfigurationsoauthv1.OAuthClientApplyConfiguration, opts v1.ApplyOptions) (result *oauthv1.OAuthClient, err error) {
+func (c *FakeOAuthClients) Apply(ctx context.Context, oAuthClient *oauthv1.OAuthClientApplyConfiguration, opts metav1.ApplyOptions) (result *v1.OAuthClient, err error) {
 	if oAuthClient == nil {
 		return nil, fmt.Errorf("oAuthClient provided to Apply must not be nil")
 	}
@@ -122,9 +121,9 @@ func (c *FakeOAuthClients) Apply(ctx context.Context, oAuthClient *applyconfigur
 		return nil, fmt.Errorf("oAuthClient.Name must be provided to Apply")
 	}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(oauthclientsResource, *name, types.ApplyPatchType, data), &oauthv1.OAuthClient{})
+		Invokes(testing.NewRootPatchSubresourceAction(oauthclientsResource, *name, types.ApplyPatchType, data), &v1.OAuthClient{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*oauthv1.OAuthClient), err
+	return obj.(*v1.OAuthClient), err
 }

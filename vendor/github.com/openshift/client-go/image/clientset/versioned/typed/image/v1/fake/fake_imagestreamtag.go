@@ -5,10 +5,9 @@ package fake
 import (
 	"context"
 
-	imagev1 "github.com/openshift/api/image/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/openshift/api/image/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -18,25 +17,25 @@ type FakeImageStreamTags struct {
 	ns   string
 }
 
-var imagestreamtagsResource = schema.GroupVersionResource{Group: "image.openshift.io", Version: "v1", Resource: "imagestreamtags"}
+var imagestreamtagsResource = v1.SchemeGroupVersion.WithResource("imagestreamtags")
 
-var imagestreamtagsKind = schema.GroupVersionKind{Group: "image.openshift.io", Version: "v1", Kind: "ImageStreamTag"}
+var imagestreamtagsKind = v1.SchemeGroupVersion.WithKind("ImageStreamTag")
 
 // Get takes name of the imageStreamTag, and returns the corresponding imageStreamTag object, and an error if there is any.
-func (c *FakeImageStreamTags) Get(ctx context.Context, name string, options v1.GetOptions) (result *imagev1.ImageStreamTag, err error) {
+func (c *FakeImageStreamTags) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.ImageStreamTag, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(imagestreamtagsResource, c.ns, name), &imagev1.ImageStreamTag{})
+		Invokes(testing.NewGetAction(imagestreamtagsResource, c.ns, name), &v1.ImageStreamTag{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*imagev1.ImageStreamTag), err
+	return obj.(*v1.ImageStreamTag), err
 }
 
 // List takes label and field selectors, and returns the list of ImageStreamTags that match those selectors.
-func (c *FakeImageStreamTags) List(ctx context.Context, opts v1.ListOptions) (result *imagev1.ImageStreamTagList, err error) {
+func (c *FakeImageStreamTags) List(ctx context.Context, opts metav1.ListOptions) (result *v1.ImageStreamTagList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(imagestreamtagsResource, imagestreamtagsKind, c.ns, opts), &imagev1.ImageStreamTagList{})
+		Invokes(testing.NewListAction(imagestreamtagsResource, imagestreamtagsKind, c.ns, opts), &v1.ImageStreamTagList{})
 
 	if obj == nil {
 		return nil, err
@@ -46,8 +45,8 @@ func (c *FakeImageStreamTags) List(ctx context.Context, opts v1.ListOptions) (re
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &imagev1.ImageStreamTagList{ListMeta: obj.(*imagev1.ImageStreamTagList).ListMeta}
-	for _, item := range obj.(*imagev1.ImageStreamTagList).Items {
+	list := &v1.ImageStreamTagList{ListMeta: obj.(*v1.ImageStreamTagList).ListMeta}
+	for _, item := range obj.(*v1.ImageStreamTagList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -56,31 +55,31 @@ func (c *FakeImageStreamTags) List(ctx context.Context, opts v1.ListOptions) (re
 }
 
 // Create takes the representation of a imageStreamTag and creates it.  Returns the server's representation of the imageStreamTag, and an error, if there is any.
-func (c *FakeImageStreamTags) Create(ctx context.Context, imageStreamTag *imagev1.ImageStreamTag, opts v1.CreateOptions) (result *imagev1.ImageStreamTag, err error) {
+func (c *FakeImageStreamTags) Create(ctx context.Context, imageStreamTag *v1.ImageStreamTag, opts metav1.CreateOptions) (result *v1.ImageStreamTag, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(imagestreamtagsResource, c.ns, imageStreamTag), &imagev1.ImageStreamTag{})
+		Invokes(testing.NewCreateAction(imagestreamtagsResource, c.ns, imageStreamTag), &v1.ImageStreamTag{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*imagev1.ImageStreamTag), err
+	return obj.(*v1.ImageStreamTag), err
 }
 
 // Update takes the representation of a imageStreamTag and updates it. Returns the server's representation of the imageStreamTag, and an error, if there is any.
-func (c *FakeImageStreamTags) Update(ctx context.Context, imageStreamTag *imagev1.ImageStreamTag, opts v1.UpdateOptions) (result *imagev1.ImageStreamTag, err error) {
+func (c *FakeImageStreamTags) Update(ctx context.Context, imageStreamTag *v1.ImageStreamTag, opts metav1.UpdateOptions) (result *v1.ImageStreamTag, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(imagestreamtagsResource, c.ns, imageStreamTag), &imagev1.ImageStreamTag{})
+		Invokes(testing.NewUpdateAction(imagestreamtagsResource, c.ns, imageStreamTag), &v1.ImageStreamTag{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*imagev1.ImageStreamTag), err
+	return obj.(*v1.ImageStreamTag), err
 }
 
 // Delete takes name of the imageStreamTag and deletes it. Returns an error if one occurs.
-func (c *FakeImageStreamTags) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeImageStreamTags) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(imagestreamtagsResource, c.ns, name, opts), &imagev1.ImageStreamTag{})
+		Invokes(testing.NewDeleteActionWithOptions(imagestreamtagsResource, c.ns, name, opts), &v1.ImageStreamTag{})
 
 	return err
 }

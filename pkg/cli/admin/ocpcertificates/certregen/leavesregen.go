@@ -6,14 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openshift/library-go/pkg/certs/cert-inspection/certgraphanalysis"
+	"github.com/openshift/library-go/pkg/operator/certrotation"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	applycorev1 "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/openshift/library-go/pkg/operator/certrotation"
-
-	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/certgraphanalysis"
 )
 
 const (

@@ -7,11 +7,10 @@ import (
 	json "encoding/json"
 	"fmt"
 
-	templatev1 "github.com/openshift/api/template/v1"
-	applyconfigurationstemplatev1 "github.com/openshift/client-go/template/applyconfigurations/template/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/openshift/api/template/v1"
+	templatev1 "github.com/openshift/client-go/template/applyconfigurations/template/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -23,25 +22,25 @@ type FakeTemplates struct {
 	ns   string
 }
 
-var templatesResource = schema.GroupVersionResource{Group: "template.openshift.io", Version: "v1", Resource: "templates"}
+var templatesResource = v1.SchemeGroupVersion.WithResource("templates")
 
-var templatesKind = schema.GroupVersionKind{Group: "template.openshift.io", Version: "v1", Kind: "Template"}
+var templatesKind = v1.SchemeGroupVersion.WithKind("Template")
 
 // Get takes name of the template, and returns the corresponding template object, and an error if there is any.
-func (c *FakeTemplates) Get(ctx context.Context, name string, options v1.GetOptions) (result *templatev1.Template, err error) {
+func (c *FakeTemplates) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.Template, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(templatesResource, c.ns, name), &templatev1.Template{})
+		Invokes(testing.NewGetAction(templatesResource, c.ns, name), &v1.Template{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*templatev1.Template), err
+	return obj.(*v1.Template), err
 }
 
 // List takes label and field selectors, and returns the list of Templates that match those selectors.
-func (c *FakeTemplates) List(ctx context.Context, opts v1.ListOptions) (result *templatev1.TemplateList, err error) {
+func (c *FakeTemplates) List(ctx context.Context, opts metav1.ListOptions) (result *v1.TemplateList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(templatesResource, templatesKind, c.ns, opts), &templatev1.TemplateList{})
+		Invokes(testing.NewListAction(templatesResource, templatesKind, c.ns, opts), &v1.TemplateList{})
 
 	if obj == nil {
 		return nil, err
@@ -51,8 +50,8 @@ func (c *FakeTemplates) List(ctx context.Context, opts v1.ListOptions) (result *
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &templatev1.TemplateList{ListMeta: obj.(*templatev1.TemplateList).ListMeta}
-	for _, item := range obj.(*templatev1.TemplateList).Items {
+	list := &v1.TemplateList{ListMeta: obj.(*v1.TemplateList).ListMeta}
+	for _, item := range obj.(*v1.TemplateList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -61,63 +60,63 @@ func (c *FakeTemplates) List(ctx context.Context, opts v1.ListOptions) (result *
 }
 
 // Watch returns a watch.Interface that watches the requested templates.
-func (c *FakeTemplates) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeTemplates) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(templatesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a template and creates it.  Returns the server's representation of the template, and an error, if there is any.
-func (c *FakeTemplates) Create(ctx context.Context, template *templatev1.Template, opts v1.CreateOptions) (result *templatev1.Template, err error) {
+func (c *FakeTemplates) Create(ctx context.Context, template *v1.Template, opts metav1.CreateOptions) (result *v1.Template, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(templatesResource, c.ns, template), &templatev1.Template{})
+		Invokes(testing.NewCreateAction(templatesResource, c.ns, template), &v1.Template{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*templatev1.Template), err
+	return obj.(*v1.Template), err
 }
 
 // Update takes the representation of a template and updates it. Returns the server's representation of the template, and an error, if there is any.
-func (c *FakeTemplates) Update(ctx context.Context, template *templatev1.Template, opts v1.UpdateOptions) (result *templatev1.Template, err error) {
+func (c *FakeTemplates) Update(ctx context.Context, template *v1.Template, opts metav1.UpdateOptions) (result *v1.Template, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(templatesResource, c.ns, template), &templatev1.Template{})
+		Invokes(testing.NewUpdateAction(templatesResource, c.ns, template), &v1.Template{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*templatev1.Template), err
+	return obj.(*v1.Template), err
 }
 
 // Delete takes name of the template and deletes it. Returns an error if one occurs.
-func (c *FakeTemplates) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeTemplates) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(templatesResource, c.ns, name, opts), &templatev1.Template{})
+		Invokes(testing.NewDeleteActionWithOptions(templatesResource, c.ns, name, opts), &v1.Template{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeTemplates) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+func (c *FakeTemplates) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(templatesResource, c.ns, listOpts)
 
-	_, err := c.Fake.Invokes(action, &templatev1.TemplateList{})
+	_, err := c.Fake.Invokes(action, &v1.TemplateList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched template.
-func (c *FakeTemplates) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *templatev1.Template, err error) {
+func (c *FakeTemplates) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.Template, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(templatesResource, c.ns, name, pt, data, subresources...), &templatev1.Template{})
+		Invokes(testing.NewPatchSubresourceAction(templatesResource, c.ns, name, pt, data, subresources...), &v1.Template{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*templatev1.Template), err
+	return obj.(*v1.Template), err
 }
 
 // Apply takes the given apply declarative configuration, applies it and returns the applied template.
-func (c *FakeTemplates) Apply(ctx context.Context, template *applyconfigurationstemplatev1.TemplateApplyConfiguration, opts v1.ApplyOptions) (result *templatev1.Template, err error) {
+func (c *FakeTemplates) Apply(ctx context.Context, template *templatev1.TemplateApplyConfiguration, opts metav1.ApplyOptions) (result *v1.Template, err error) {
 	if template == nil {
 		return nil, fmt.Errorf("template provided to Apply must not be nil")
 	}
@@ -130,10 +129,10 @@ func (c *FakeTemplates) Apply(ctx context.Context, template *applyconfigurations
 		return nil, fmt.Errorf("template.Name must be provided to Apply")
 	}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(templatesResource, c.ns, *name, types.ApplyPatchType, data), &templatev1.Template{})
+		Invokes(testing.NewPatchSubresourceAction(templatesResource, c.ns, *name, types.ApplyPatchType, data), &v1.Template{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*templatev1.Template), err
+	return obj.(*v1.Template), err
 }

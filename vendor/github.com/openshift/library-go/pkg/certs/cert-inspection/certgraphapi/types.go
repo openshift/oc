@@ -11,8 +11,20 @@ type PKIList struct {
 
 	Description string
 
+	InClusterResourceData PerInClusterResourceData
+
 	CertificateAuthorityBundles CertificateAuthorityBundleList
 	CertKeyPairs                CertKeyPairList
+}
+
+// PerInClusterResourceData tracks metadata that corresponds to specific secrets and configmaps.
+// This data should not duplicate the analysis of the certkeypair lists, but is pulled from annotations on the resources.
+// It will be stitched together by a generator after the fact.
+type PerInClusterResourceData struct {
+	// +mapType:=atomic
+	CertificateAuthorityBundles []PKIRegistryInClusterCABundle `json:"certificateAuthorityBundles"`
+	// +mapType:=atomic
+	CertKeyPairs []PKIRegistryInClusterCertKeyPair `json:"certKeyPairs"`
 }
 
 type CertificateAuthorityBundleList struct {
