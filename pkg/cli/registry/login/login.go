@@ -55,8 +55,7 @@ var (
 		custom DNS name, or to an external registry. Note that in absence of --auth-basic=USER:PASSWORD,
 		the authentication token from the connected kubeconfig file will be recorded as the auth entry
 		in the credentials file (defaults to Docker config.json) for the passed registry value.
-
-		Experimental: This command is under active development and may change without notice.`)
+	`)
 
 	example = templates.Examples(`
 		# Log in to the integrated registry
