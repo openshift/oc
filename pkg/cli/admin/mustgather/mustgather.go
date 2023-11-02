@@ -53,8 +53,6 @@ var (
 
 		This command will launch a pod in a temporary namespace on your cluster that gathers
 		debugging information and then downloads the gathered information.
-
-		Experimental: This command is under active development and may change without notice.
 	`)
 
 	mustGatherExample = templates.Examples(`
