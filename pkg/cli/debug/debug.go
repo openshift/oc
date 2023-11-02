@@ -627,7 +627,29 @@ func (o *DebugOptions) RunDebug() error {
 		case err != nil:
 			return err
 		case !o.Attach.Stdin:
-			return o.getLogs(pod)
+			if err = o.getLogs(pod); err != nil {
+				return err
+			}
+			lastWatchEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodDone)
+			if err != nil {
+				if kapierrors.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}
+
+			resultPod, ok := lastWatchEvent.Object.(*corev1.Pod)
+			if ok {
+				for _, s := range append(append([]corev1.ContainerStatus{}, resultPod.Status.InitContainerStatuses...), resultPod.Status.ContainerStatuses...) {
+					if s.Name != o.ContainerName {
+						continue
+					}
+					if s.State.Terminated != nil && s.State.Terminated.ExitCode != 0 {
+						return conditions.ErrNonZeroExitCode
+					}
+				}
+			}
+			return nil
 		default:
 			if !o.Quiet {
 				// TODO this doesn't do us much good for remote debugging sessions, but until we get a local port
