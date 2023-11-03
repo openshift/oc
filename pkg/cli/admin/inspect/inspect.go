@@ -40,8 +40,6 @@ var (
 
 		This command downloads the specified resource and any related
 		resources for the purpose of gathering debugging information.
-
-		Experimental: This command is under active development and may change without notice.
 	`)
 
 	inspectExample = templates.Examples(`

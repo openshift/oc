@@ -41,6 +41,7 @@ func NewServe(streams genericiooptions.IOStreams) *cobra.Command {
 
 			Experimental: This command is under active development and may change without notice.
 		`),
+		Deprecated: "and will be removed in the future version.",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, args))
 			kcmdutil.CheckErr(o.Validate())

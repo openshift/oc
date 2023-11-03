@@ -36,9 +36,7 @@ var (
 
 		You may also use this command as part of a chain to modify an object before submitting
 		to the server with the --local and --dry-run flags. This allows you to update local
-		resources to contain additional keys.
-
-		Experimental: This command is under active development and may change without notice.`)
+		resources to contain additional keys.`)
 
 	dataExample = templates.Examples(`
 		# Set the 'password' key of a secret

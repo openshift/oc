@@ -52,9 +52,7 @@ var (
 				$ oc tag --source=docker myregistry:5000/test/mysql:v1 mysql:v1
 				$ oc set image-lookup deploy/mysql
 
-		Which should trigger a deployment pointing to the imported mysql:v1 tag.
-
-		Experimental: This feature is under active development and may change without notice.`)
+		Which should trigger a deployment pointing to the imported mysql:v1 tag.`)
 
 	imageLookupExample = templates.Examples(`
 		# Print all of the image streams and whether they resolve local names
