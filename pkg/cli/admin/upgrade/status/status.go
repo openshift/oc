@@ -209,7 +209,8 @@ func (o *options) Run(ctx context.Context) error {
 		fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", clusterStatusFailing)
 	}
 
-	return nil
+	controlPlaneStatusData := assessControlPlaneStatus(cv, operators.Items)
+	return controlPlaneStatusData.Write(o.Out)
 }
 
 func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorStatusCondition, name configv1.ClusterStatusConditionType) *configv1.ClusterOperatorStatusCondition {
