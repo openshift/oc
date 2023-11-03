@@ -8,6 +8,13 @@ import (
 	v1 "github.com/openshift/api/config/v1"
 )
 
+type assessmentState string
+
+const (
+	assessmentStateProgressing assessmentState = "Progressing"
+	assessmentStateCompleted   assessmentState = "Completed"
+)
+
 type operators struct {
 	Total       int
 	Available   int
@@ -16,11 +23,14 @@ type operators struct {
 }
 
 type controlPlaneStatusDisplayData struct {
-	Operators operators
+	Assessment assessmentState
+	Completion float64
+	Operators  operators
 }
 
 func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOperator) controlPlaneStatusDisplayData {
 	var displayData controlPlaneStatusDisplayData
+	var completed int
 
 	targetVersion := cv.Status.Desired.Version
 
@@ -41,6 +51,8 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		for _, version := range operator.Status.Versions {
 			if version.Name == "operator" && version.Version == targetVersion {
 				updated = true
+				completed++
+				break
 			}
 		}
 		displayData.Operators.Total++
@@ -56,6 +68,13 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		}
 	}
 
+	if completed == displayData.Operators.Total {
+		displayData.Assessment = assessmentStateCompleted
+	} else {
+		displayData.Assessment = assessmentStateProgressing
+	}
+
+	displayData.Completion = float64(completed) / float64(displayData.Operators.Total) * 100.0
 	return displayData
 }
 
@@ -66,5 +85,7 @@ func (d *controlPlaneStatusDisplayData) Write(f io.Writer) error {
 }
 
 const controlPlaneStatusTemplateRaw = `= Control Plane =
+Assessment:      {{ .Assessment }}
+Completion:      {{ printf "%.0f" .Completion }}%
 Operator Status: {{ .Operators.Total }} Total, {{ .Operators.Available }} Available, {{ .Operators.Progressing }} Progressing, {{ .Operators.Degraded }} Degraded
 `

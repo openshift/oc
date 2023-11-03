@@ -228,6 +228,7 @@ func (o *options) Run(ctx context.Context) error {
 	}
 
 	controlPlaneStatusData := assessControlPlaneStatus(cv, operators.Items)
+	fmt.Fprintf(o.Out, "\n")
 	return controlPlaneStatusData.Write(o.Out)
 }
 

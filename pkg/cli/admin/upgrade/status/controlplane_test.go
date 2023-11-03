@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	configv1 "github.com/openshift/api/config/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -227,6 +228,70 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 			actual := assessControlPlaneStatus(&cvFixture, tc.operators)
 			if diff := cmp.Diff(tc.expected, actual.Operators, cmp.AllowUnexported(operators{})); diff != "" {
 				t.Errorf("actual output differs from expected:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestAssessControlPlaneStatus_Completion(t *testing.T) {
+	testCases := []struct {
+		name               string
+		operators          []configv1.ClusterOperator
+		expectedAssessment assessmentState
+		expectedCompletion float64
+	}{
+		{
+			name: "all operators old",
+			operators: []configv1.ClusterOperator{
+				co("one").version("old").operator,
+				co("two").version("old").operator,
+				co("three").version("old").operator,
+			},
+			expectedAssessment: assessmentStateProgressing,
+			expectedCompletion: 0.0,
+		},
+		{
+			name: "all operators new (done)",
+			operators: []configv1.ClusterOperator{
+				co("one").version("new").operator,
+				co("two").version("new").operator,
+				co("three").version("new").operator,
+			},
+			expectedAssessment: assessmentStateCompleted,
+			expectedCompletion: 100,
+		},
+		{
+			name: "two operators done, one to go",
+			operators: []configv1.ClusterOperator{
+				co("one").version("new").operator,
+				co("two").version("old").operator,
+				co("three").version("new").operator,
+			},
+			expectedAssessment: assessmentStateProgressing,
+			expectedCompletion: 2.0 / 3.0 * 100.0,
+		},
+		{
+			name: "non-platform operators do not count",
+			operators: []configv1.ClusterOperator{
+				co("one").version("new").operator,
+				co("two").version("old").operator,
+				co("three").version("new").operator,
+				co("not-platform").annotated(nil).version("new").operator,
+			},
+			expectedAssessment: assessmentStateProgressing,
+			expectedCompletion: 2.0 / 3.0 * 100.0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := assessControlPlaneStatus(&cvFixture, tc.operators)
+			if diff := cmp.Diff(tc.expectedCompletion, actual.Completion, cmpopts.EquateApprox(0, 0.1)); diff != "" {
+				t.Errorf("expected completion %f, got %f", tc.expectedCompletion, actual.Completion)
+			}
+
+			if actual.Assessment != tc.expectedAssessment {
+				t.Errorf("expected assessment %s, got %s", tc.expectedAssessment, actual.Assessment)
 			}
 		})
 	}
