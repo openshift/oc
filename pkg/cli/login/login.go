@@ -19,7 +19,6 @@ import (
 	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
 
 	"github.com/openshift/oc/pkg/helpers/flagtypes"
-	"github.com/openshift/oc/pkg/helpers/oidc"
 )
 
 var (
@@ -51,10 +50,10 @@ var (
 		oc login localhost:8443 --web --callback-port 8280
 
 		# Log in to the given server uses an external OIDC issuer for authentication
-		oc login localhost:8443 --external-auth-type=oidc --external-client-id=client-id --external-extra-args="--grant-type=authcode"
+		oc login localhost:8443 --auth-type=oidc --client-id=client-id --extra-args="--grant-type=authcode"
 
 		# Log in to the given server uses Azure as an external issuer for authentication
-		oc login localhost:8443 --external-auth-type=azure --external-client-id=client-id --external-extra-args="--tenant-id=user-tenant-id"
+		oc login localhost:8443 --auth-type=azure --client-id=client-id --extra-args="--tenant-id=user-tenant-id"
 	`)
 )
 
@@ -98,9 +97,9 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().BoolVarP(&o.WebLogin, "web", "w", o.WebLogin, "Login with web browser. Starts a local HTTP callback server to perform the OAuth2 Authorization Code Grant flow. Use with caution on multi-user systems, as the server's port will be open to all users.")
 	cmds.Flags().Int32VarP(&o.CallbackPort, "callback-port", "c", o.CallbackPort, "Port for the callback server when using --web. Defaults to a random open port")
 
-	cmds.Flags().StringVar(&o.OIDCAuthType, "external-auth-type", o.OIDCAuthType, "Experimental: Specify the authentication type for external issuers to choose which plugin will be used for authentication. Valid values are oidc and azure.")
-	cmds.Flags().StringArrayVar(&o.OIDCExtraArgs, "external-extra-args", o.OIDCExtraArgs, "Experimental: Set extra arguments or overwrite the default ones for external OIDC plugins.")
-	cmds.Flags().StringVar(&o.OIDCClientID, "external-client-id", o.OIDCClientID, "Experimental: OIDC client id to be used for authentication. Required if external OIDC is used.")
+	cmds.Flags().StringVar(&o.OIDCAuthType, "auth-type", o.OIDCAuthType, "Experimental: Specify the authentication type for external issuers to choose which plugin will be used for authentication. Valid values are oidc and azure.")
+	cmds.Flags().StringArrayVar(&o.OIDCExtraArgs, "extra-args", o.OIDCExtraArgs, "Experimental: Set extra arguments or overwrite the default ones for external OIDC plugins.")
+	cmds.Flags().StringVar(&o.OIDCClientID, "client-id", o.OIDCClientID, "Experimental: OIDC client id to be used for authentication. Required if external OIDC is used.")
 
 	return cmds
 }
@@ -156,9 +155,9 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 	o.InsecureTLS = kcmdutil.GetFlagBool(cmd, "insecure-skip-tls-verify")
 	o.Token = kcmdutil.GetFlagString(cmd, "token")
 
-	o.OIDCAuthType = kcmdutil.GetFlagString(cmd, "external-auth-type")
-	o.OIDCClientID = kcmdutil.GetFlagString(cmd, "external-client-id")
-	o.OIDCExtraArgs = kcmdutil.GetFlagStringArray(cmd, "external-extra-args")
+	o.OIDCAuthType = kcmdutil.GetFlagString(cmd, "auth-type")
+	o.OIDCClientID = kcmdutil.GetFlagString(cmd, "client-id")
+	o.OIDCExtraArgs = kcmdutil.GetFlagStringArray(cmd, "extra-args")
 
 	o.DefaultNamespace, _, _ = f.ToRawKubeConfigLoader().Namespace()
 
@@ -195,27 +194,30 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 	}
 
 	if len(o.OIDCClientID) == 0 && (len(o.OIDCAuthType) > 0 || len(o.OIDCExtraArgs) > 0) {
-		return errors.New("--external-auth-type, --external-extra-args can only be used for external issuers and --external-client-id is required")
+		return errors.New("--auth-type, --extra-args can only be used for external issuers and --client-id is required")
 	}
 
 	if len(o.OIDCClientID) > 0 {
 		if len(o.OIDCAuthType) == 0 {
-			return errors.New("auth type should be set and accepted values are oidc and azure")
-		}
-
-		if o.OIDCAuthType == AzureAuthType {
-			found, _ := oidc.ExternalOIDCExtraArgIsSet(o.OIDCExtraArgs, "--tenant-id")
-			if !found {
-				return errors.New("--tenant-id in --external-extra-args is required for Azure")
-			}
+			return errors.New("--auth-type should be set and accepted values are oidc and azure")
 		}
 
 		if len(o.Username) > 0 {
-			return errors.New("--oidc-client-id and --username are mutually exclusive")
+			return errors.New("--client-id and --username are mutually exclusive")
 		}
 
 		if len(o.Token) > 0 {
-			return errors.New("--oidc-client-id and --token are mutually exclusive")
+			return errors.New("--client-id and --token are mutually exclusive")
+		}
+
+		if o.OIDCAuthType == AzureAuthType {
+			if o.InsecureTLS {
+				return errors.New("--insecure-skip-tls-verify can not be used with azure")
+			}
+
+			if len(o.CAFile) > 0 {
+				return errors.New("--certificate-authority can not be used with azure")
+			}
 		}
 	}
 
