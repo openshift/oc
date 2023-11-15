@@ -273,7 +273,7 @@ func (r *oauthMetadataResponse) Serialize() ([]byte, error) {
 }
 
 func TestPreserveErrTypeAuthInfo(t *testing.T) {
-	invoked := make(chan struct{}, 3)
+	invoked := make(chan struct{}, 4)
 	oauthResponse := []byte{}
 
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -284,9 +284,12 @@ func TestPreserveErrTypeAuthInfo(t *testing.T) {
 			t.Fatalf("unexpected request handled by test server: %v: %v", r.Method, r.URL)
 		}
 
-		if r.URL.Path == oauthMetadataEndpoint {
+		switch r.URL.Path {
+		case oauthMetadataEndpoint:
 			w.WriteHeader(http.StatusOK)
 			w.Write(oauthResponse)
+			return
+		case "version":
 			return
 		}
 		w.WriteHeader(http.StatusUnauthorized)

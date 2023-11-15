@@ -6,7 +6,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -19,16 +21,21 @@ import (
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/klog/v2"
 	kterm "k8s.io/kubectl/pkg/util/term"
 
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
+	occhallengers "github.com/openshift/oc/pkg/helpers/authchallengers"
 	"github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/motd"
 	"github.com/openshift/oc/pkg/helpers/project"
 	loginutil "github.com/openshift/oc/pkg/helpers/project"
 	"github.com/openshift/oc/pkg/helpers/term"
-	"github.com/openshift/oc/pkg/helpers/tokencmd"
+	"github.com/openshift/oc/pkg/version"
+	"github.com/pkg/browser"
 )
 
 const defaultClusterURL = "https://localhost:8443"
@@ -47,9 +54,11 @@ type LoginOptions struct {
 	InsecureTLS bool
 
 	// flags and printing helpers
-	Username string
-	Password string
-	Project  string
+	Username     string
+	Password     string
+	Project      string
+	WebLogin     bool
+	CallbackPort int32
 
 	// infra
 	StartingKubeConfig *kclientcmdapi.Config
@@ -68,6 +77,12 @@ type LoginOptions struct {
 	RequestTimeout time.Duration
 
 	genericclioptions.IOStreams
+}
+
+type passwordPrompter func(r io.Reader, w io.Writer, format string, a ...interface{}) string
+
+func (p passwordPrompter) PromptForPassword(r io.Reader, w io.Writer, format string, a ...interface{}) string {
+	return p(r, w, format, a)
 }
 
 func NewLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
@@ -246,10 +261,21 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	clientConfig.CertFile = o.CertFile
 	clientConfig.KeyFile = o.KeyFile
 
-	token, err := tokencmd.RequestToken(o.Config, o.In, o.Username, o.Password)
+	var token string
+	if o.WebLogin {
+		loginURLHandler := func(u *url.URL) error {
+			loginURL := u.String()
+			fmt.Fprintf(o.Out, "Opening login URL in the default browser: %s\n", loginURL)
+			return browser.OpenURL(loginURL)
+		}
+		token, err = tokenrequest.RequestTokenWithLocalCallback(o.Config, loginURLHandler, int(o.CallbackPort))
+	} else {
+		token, err = tokenrequest.RequestTokenWithChallengeHandlers(o.Config, o.getAuthChallengeHandler())
+	}
 	if err != nil {
 		return err
 	}
+
 	clientConfig.BearerToken = token
 
 	me, err := project.WhoAmI(clientConfig)
@@ -261,6 +287,49 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	fmt.Fprint(o.Out, "Login successful.\n\n")
 
 	return nil
+}
+
+func (o *LoginOptions) getAuthChallengeHandler() challengehandlers.ChallengeHandler {
+	var challengeHandlers []challengehandlers.ChallengeHandler
+	var webConsoleURL string
+
+	serverVersionDetector := version.NewServerVersionRetriever(o.Config)
+	serverVersion, err := serverVersionDetector.RetrieveServerVersion()
+	// this feature was introduced in Openshift 4.11 which should correspond to 1.24
+	if err == nil && serverVersion.MajorNumber >= 1 && serverVersion.MinorNumber >= 24 {
+		webConsoleURL = o.Config.Host + "/console"
+	}
+
+	if occhallengers.GSSAPIEnabled() {
+		klog.V(6).Info("GSSAPI Enabled")
+		challengeHandlers = append(challengeHandlers,
+			occhallengers.NewNegotiateChallengeHandler(occhallengers.NewGSSAPINegotiator(o.Username)),
+		)
+	}
+
+	if occhallengers.SSPIEnabled() {
+		klog.V(6).Info("SSPI Enabled")
+		challengeHandlers = append(challengeHandlers,
+			occhallengers.NewNegotiateChallengeHandler(occhallengers.NewSSPINegotiator(o.Username, o.Password, o.Config.Host, webConsoleURL, o.In)))
+	}
+
+	challengeHandlers = append(challengeHandlers,
+		challengehandlers.NewMultiHandler(
+			challengehandlers.NewBasicChallengeHandler(
+				o.Config.Host,
+				o.In, o.Out,
+				passwordPrompter(term.PromptForPasswordString),
+				o.Username, o.Password),
+		))
+
+	var handler challengehandlers.ChallengeHandler
+	if len(challengeHandlers) == 1 {
+		handler = challengeHandlers[0]
+	} else {
+		handler = challengehandlers.NewMultiHandler(challengeHandlers...)
+	}
+
+	return handler
 }
 
 // Discover the projects available for the established session and take one to use. It

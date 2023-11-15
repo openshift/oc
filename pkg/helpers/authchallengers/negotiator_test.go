@@ -1,4 +1,4 @@
-package tokencmd
+package authchallengers
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -17,6 +18,8 @@ import (
 	restclient "k8s.io/client-go/rest"
 
 	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
 )
 
 type unloadableNegotiator struct {
@@ -94,6 +97,15 @@ func (n *successfulNegotiator) Release() error {
 	return nil
 }
 
+type testPasswordPrompter struct{}
+
+func (*testPasswordPrompter) PromptForPassword(r io.Reader, w io.Writer, format string, a ...interface{}) string {
+	fmt.Fprintf(w, format, a...)
+	var result string
+	fmt.Fscan(r, &result)
+	return result
+}
+
 func TestRequestToken(t *testing.T) {
 	type req struct {
 		authorization string
@@ -111,14 +123,14 @@ func TestRequestToken(t *testing.T) {
 		serverResponse  resp
 	}
 
-	var verifyReleased func(test string, handler ChallengeHandler)
-	verifyReleased = func(test string, handler ChallengeHandler) {
+	var verifyReleased func(test string, handler challengehandlers.ChallengeHandler)
+	verifyReleased = func(test string, handler challengehandlers.ChallengeHandler) {
 		switch handler := handler.(type) {
-		case *MultiHandler:
-			for _, subhandler := range handler.allHandlers {
+		case *challengehandlers.MultiHandler:
+			for _, subhandler := range handler.Handlers() {
 				verifyReleased(test, subhandler)
 			}
-		case *BasicChallengeHandler:
+		case *challengehandlers.BasicChallengeHandler:
 			// we don't care
 		case *NegotiateChallengeHandler:
 			switch negotiator := handler.negotiator.(type) {
@@ -165,14 +177,14 @@ func TestRequestToken(t *testing.T) {
 	successWithNegotiate := resp{302, successfulLocation, []string{"Negotiate Y2hhbGxlbmdlMg=="}}
 
 	testcases := map[string]struct {
-		Handler       ChallengeHandler
+		Handler       challengehandlers.ChallengeHandler
 		Requests      []requestResponse
 		ExpectedToken string
 		ExpectedError string
 	}{
 		// Defaulting basic handler
 		"defaulted basic handler, no challenge, success": {
-			Handler: &BasicChallengeHandler{Username: "myuser", Password: "mypassword"},
+			Handler: challengehandlers.NewBasicChallengeHandler("", nil, nil, &testPasswordPrompter{}, "myuser", "mypassword"),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, success},
@@ -180,7 +192,7 @@ func TestRequestToken(t *testing.T) {
 			ExpectedToken: successfulToken,
 		},
 		"defaulted basic handler, basic challenge, success": {
-			Handler: &BasicChallengeHandler{Username: "myuser", Password: "mypassword"},
+			Handler: challengehandlers.NewBasicChallengeHandler("", nil, nil, &testPasswordPrompter{}, "myuser", "mypassword"),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
@@ -189,7 +201,7 @@ func TestRequestToken(t *testing.T) {
 			ExpectedToken: successfulToken,
 		},
 		"defaulted basic handler, basic+negotiate challenge, success": {
-			Handler: &BasicChallengeHandler{Username: "myuser", Password: "mypassword"},
+			Handler: challengehandlers.NewBasicChallengeHandler("", nil, nil, &testPasswordPrompter{}, "myuser", "mypassword"),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, doubleChallenge},
@@ -198,7 +210,7 @@ func TestRequestToken(t *testing.T) {
 			ExpectedToken: successfulToken,
 		},
 		"defaulted basic handler, basic challenge, failure": {
-			Handler: &BasicChallengeHandler{Username: "myuser", Password: "mypassword"},
+			Handler: challengehandlers.NewBasicChallengeHandler("", nil, nil, &testPasswordPrompter{}, "myuser", "mypassword"),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
@@ -207,7 +219,7 @@ func TestRequestToken(t *testing.T) {
 			ExpectedError: "challenger chose not to retry the request",
 		},
 		"defaulted basic handler, negotiate challenge, failure": {
-			Handler: &BasicChallengeHandler{Username: "myuser", Password: "mypassword"},
+			Handler: challengehandlers.NewBasicChallengeHandler("", nil, nil, &testPasswordPrompter{}, "myuser", "mypassword"),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, negotiateChallenge1},
@@ -215,15 +227,15 @@ func TestRequestToken(t *testing.T) {
 			ExpectedError: "unhandled challenge",
 		},
 		"no username, basic challenge, failure": {
-			Handler: &BasicChallengeHandler{},
+			Handler: &challengehandlers.BasicChallengeHandler{},
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
 			},
-			ExpectedError: BasicAuthNoUsernameMessage,
+			ExpectedError: tokenrequest.BasicAuthNoUsernameMessage,
 		},
 		"failing basic handler, basic challenge, failure": {
-			Handler: &BasicChallengeHandler{Username: "myuser"},
+			Handler: &challengehandlers.BasicChallengeHandler{Username: "myuser"},
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
@@ -234,7 +246,7 @@ func TestRequestToken(t *testing.T) {
 
 		// Prompting basic handler
 		"prompting basic handler, no challenge, success": {
-			Handler: &BasicChallengeHandler{Username: "myuser", Reader: bytes.NewBufferString("mypassword\n")},
+			Handler: challengehandlers.NewBasicChallengeHandler("", bytes.NewBufferString("mypassword\n"), nil, &testPasswordPrompter{}, "myuser", ""),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, success},
@@ -242,7 +254,7 @@ func TestRequestToken(t *testing.T) {
 			ExpectedToken: successfulToken,
 		},
 		"prompting basic handler, basic challenge, success": {
-			Handler: &BasicChallengeHandler{Username: "myuser", Reader: bytes.NewBufferString("mypassword\n")},
+			Handler: challengehandlers.NewBasicChallengeHandler("", bytes.NewBufferString("mypassword\n"), nil, &testPasswordPrompter{}, "myuser", ""),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
@@ -251,7 +263,7 @@ func TestRequestToken(t *testing.T) {
 			ExpectedToken: successfulToken,
 		},
 		"prompting basic handler, basic+negotiate challenge, success": {
-			Handler: &BasicChallengeHandler{Username: "myuser", Reader: bytes.NewBufferString("mypassword\n")},
+			Handler: challengehandlers.NewBasicChallengeHandler("", bytes.NewBufferString("mypassword\n"), nil, &testPasswordPrompter{}, "myuser", ""),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, doubleChallenge},
@@ -260,7 +272,7 @@ func TestRequestToken(t *testing.T) {
 			ExpectedToken: successfulToken,
 		},
 		"prompting basic handler, basic challenge, failure": {
-			Handler: &BasicChallengeHandler{Username: "myuser"},
+			Handler: &challengehandlers.BasicChallengeHandler{Username: "myuser"},
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, basicChallenge1},
@@ -269,7 +281,7 @@ func TestRequestToken(t *testing.T) {
 			ExpectedError: "challenger chose not to retry the request",
 		},
 		"prompting basic handler, negotiate challenge, failure": {
-			Handler: &BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
+			Handler: &challengehandlers.BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
 				{initialRequest, negotiateChallenge1},
@@ -378,9 +390,9 @@ func TestRequestToken(t *testing.T) {
 
 		// Negotiate+Basic fallback cases
 		"failing negotiate+prompting basic handler, no challenge, success": {
-			Handler: NewMultiHandler(
+			Handler: challengehandlers.NewMultiHandler(
 				&NegotiateChallengeHandler{negotiator: &failingNegotiator{}},
-				&BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
+				&challengehandlers.BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
@@ -389,9 +401,9 @@ func TestRequestToken(t *testing.T) {
 			ExpectedToken: successfulToken,
 		},
 		"failing negotiate+prompting basic handler, negotiate+basic challenge, success": {
-			Handler: NewMultiHandler(
+			Handler: challengehandlers.NewMultiHandler(
 				&NegotiateChallengeHandler{negotiator: &failingNegotiator{}},
-				&BasicChallengeHandler{Username: "myuser", Reader: bytes.NewBufferString("mypassword\n")},
+				challengehandlers.NewBasicChallengeHandler("", bytes.NewBufferString("mypassword\n"), nil, &testPasswordPrompter{}, "myuser", ""),
 			),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
@@ -401,9 +413,9 @@ func TestRequestToken(t *testing.T) {
 			ExpectedToken: successfulToken,
 		},
 		"negotiate+failing basic handler, negotiate+basic challenge, success": {
-			Handler: NewMultiHandler(
+			Handler: challengehandlers.NewMultiHandler(
 				&NegotiateChallengeHandler{negotiator: &successfulNegotiator{rounds: 2}},
-				&BasicChallengeHandler{},
+				&challengehandlers.BasicChallengeHandler{},
 			),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
@@ -414,9 +426,9 @@ func TestRequestToken(t *testing.T) {
 			ExpectedToken: successfulToken,
 		},
 		"negotiate+basic handler, negotiate+basic challenge, prefers negotiation, success": {
-			Handler: NewMultiHandler(
+			Handler: challengehandlers.NewMultiHandler(
 				&NegotiateChallengeHandler{negotiator: &successfulNegotiator{rounds: 2}},
-				&BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
+				&challengehandlers.BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
@@ -427,9 +439,9 @@ func TestRequestToken(t *testing.T) {
 			ExpectedToken: successfulToken,
 		},
 		"negotiate+basic handler, negotiate+basic challenge, prefers negotiation, sticks with selected handler on failure": {
-			Handler: NewMultiHandler(
+			Handler: challengehandlers.NewMultiHandler(
 				&NegotiateChallengeHandler{negotiator: &successfulNegotiator{rounds: 2}},
-				&BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
+				&challengehandlers.BasicChallengeHandler{Reader: bytes.NewBufferString("myuser\nmypassword\n")},
 			),
 			Requests: []requestResponse{
 				{initialHead, initialHeadResp},
@@ -442,86 +454,88 @@ func TestRequestToken(t *testing.T) {
 	}
 
 	for k, tc := range testcases {
-		i := 0
-		s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			defer func() {
-				if err := recover(); err != nil {
-					t.Errorf("test %s panicked: %v", k, err)
+		t.Run(k, func(t *testing.T) {
+			i := 0
+			s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				defer func() {
+					if err := recover(); err != nil {
+						t.Errorf("test %s panicked: %v", k, err)
+					}
+				}()
+
+				if i >= len(tc.Requests) {
+					t.Errorf("%s: %d: more requests received than expected: %#v", k, i, req)
+					return
 				}
-			}()
+				rr := tc.Requests[i]
+				i++
 
-			if i >= len(tc.Requests) {
-				t.Errorf("%s: %d: more requests received than expected: %#v", k, i, req)
-				return
-			}
-			rr := tc.Requests[i]
-			i++
+				method := rr.expectedRequest.method
+				if len(method) == 0 {
+					method = http.MethodGet
+				}
+				if req.Method != method {
+					t.Errorf("%s: %d: Expected %s, got %s", k, i, method, req.Method)
+					return
+				}
 
-			method := rr.expectedRequest.method
-			if len(method) == 0 {
-				method = http.MethodGet
-			}
-			if req.Method != method {
-				t.Errorf("%s: %d: Expected %s, got %s", k, i, method, req.Method)
-				return
-			}
+				path := rr.expectedRequest.path
+				if len(path) == 0 {
+					path = "/oauth/authorize"
+				}
+				if req.URL.Path != path {
+					t.Errorf("%s: %d: Expected %s, got %s", k, i, path, req.URL.Path)
+					return
+				}
 
-			path := rr.expectedRequest.path
-			if len(path) == 0 {
-				path = "/oauth/authorize"
-			}
-			if req.URL.Path != path {
-				t.Errorf("%s: %d: Expected %s, got %s", k, i, path, req.URL.Path)
-				return
-			}
+				if e, a := rr.expectedRequest.authorization, req.Header.Get("Authorization"); e != a {
+					t.Errorf("%s: %d: expected 'Authorization: %s', got 'Authorization: %s'", k, i, e, a)
+					return
+				}
 
-			if e, a := rr.expectedRequest.authorization, req.Header.Get("Authorization"); e != a {
-				t.Errorf("%s: %d: expected 'Authorization: %s', got 'Authorization: %s'", k, i, e, a)
-				return
-			}
+				if len(rr.serverResponse.location) > 0 {
+					w.Header().Add("Location", rr.serverResponse.location)
+				}
+				for _, v := range rr.serverResponse.wwwAuthenticate {
+					w.Header().Add("WWW-Authenticate", v)
+				}
+				w.WriteHeader(rr.serverResponse.status)
+			}))
+			defer s.Close()
 
-			if len(rr.serverResponse.location) > 0 {
-				w.Header().Add("Location", rr.serverResponse.location)
-			}
-			for _, v := range rr.serverResponse.wwwAuthenticate {
-				w.Header().Add("WWW-Authenticate", v)
-			}
-			w.WriteHeader(rr.serverResponse.status)
-		}))
-		defer s.Close()
-
-		opts := &RequestTokenOptions{
-			ClientConfig: &restclient.Config{
-				Host: s.URL,
-				TLSClientConfig: restclient.TLSClientConfig{
-					CAData: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: s.Certificate().Raw}),
+			opts := &tokenrequest.RequestTokenOptions{
+				ClientConfig: &restclient.Config{
+					Host: s.URL,
+					TLSClientConfig: restclient.TLSClientConfig{
+						CAData: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: s.Certificate().Raw}),
+					},
 				},
-			},
-			Handler: tc.Handler,
-			OsinConfig: &osincli.ClientConfig{
-				ClientId:     openShiftCLIClientID,
-				AuthorizeUrl: oauthdiscovery.OpenShiftOAuthAuthorizeURL(s.URL),
-				TokenUrl:     oauthdiscovery.OpenShiftOAuthTokenURL(s.URL),
-				RedirectUrl:  oauthdiscovery.OpenShiftOAuthTokenImplicitURL(s.URL),
-			},
-			Issuer:    s.URL,
-			TokenFlow: true,
-		}
-		token, err := opts.RequestToken()
-		if token != tc.ExpectedToken {
-			t.Errorf("%s: expected token '%s', got '%s'", k, tc.ExpectedToken, token)
-		}
-		errStr := ""
-		if err != nil {
-			errStr = err.Error()
-		}
-		if errStr != tc.ExpectedError {
-			t.Errorf("%s: expected error '%s', got '%s'", k, tc.ExpectedError, errStr)
-		}
-		if i != len(tc.Requests) {
-			t.Errorf("%s: expected %d requests, saw %d", k, len(tc.Requests), i)
-		}
-		verifyReleased(k, tc.Handler)
+				Handler: tc.Handler,
+				OsinConfig: &osincli.ClientConfig{
+					ClientId:     "openshift-challenging-client",
+					AuthorizeUrl: oauthdiscovery.OpenShiftOAuthAuthorizeURL(s.URL),
+					TokenUrl:     oauthdiscovery.OpenShiftOAuthTokenURL(s.URL),
+					RedirectUrl:  oauthdiscovery.OpenShiftOAuthTokenImplicitURL(s.URL),
+				},
+				Issuer:    s.URL,
+				TokenFlow: true,
+			}
+			token, err := opts.RequestToken()
+			if token != tc.ExpectedToken {
+				t.Errorf("%s: expected token '%s', got '%s'", k, tc.ExpectedToken, token)
+			}
+			errStr := ""
+			if err != nil {
+				errStr = err.Error()
+			}
+			if errStr != tc.ExpectedError {
+				t.Errorf("%s: expected error '%s', got '%s'", k, tc.ExpectedError, errStr)
+			}
+			if i != len(tc.Requests) {
+				t.Errorf("%s: expected %d requests, saw %d", k, len(tc.Requests), i)
+			}
+			verifyReleased(k, tc.Handler)
+		})
 	}
 }
 
@@ -542,18 +556,18 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 				Issuer:                        "a",
 				AuthorizationEndpoint:         "b",
 				TokenEndpoint:                 "c",
-				CodeChallengeMethodsSupported: []string{pkce_s256},
+				CodeChallengeMethodsSupported: []string{"S256"},
 			},
 			hostWrapper: noHostChange,
 			tokenFlow:   false,
 
 			expectPKCE: true,
 			expectedConfig: &osincli.ClientConfig{
-				ClientId:            openShiftCLIClientID,
+				ClientId:            "openshift-challenging-client",
 				AuthorizeUrl:        "b",
 				TokenUrl:            "c",
 				RedirectUrl:         "a/oauth/token/implicit",
-				CodeChallengeMethod: pkce_s256,
+				CodeChallengeMethod: "S256",
 			},
 		},
 		{
@@ -569,7 +583,7 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 
 			expectPKCE: false,
 			expectedConfig: &osincli.ClientConfig{
-				ClientId:     openShiftCLIClientID,
+				ClientId:     "openshift-challenging-client",
 				AuthorizeUrl: "b",
 				TokenUrl:     "c",
 				RedirectUrl:  "a/oauth/token/implicit",
@@ -581,14 +595,14 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 				Issuer:                        "a",
 				AuthorizationEndpoint:         "b",
 				TokenEndpoint:                 "c",
-				CodeChallengeMethodsSupported: []string{pkce_s256},
+				CodeChallengeMethodsSupported: []string{"S256"},
 			},
 			hostWrapper: noHostChange,
 			tokenFlow:   true,
 
 			expectPKCE: false,
 			expectedConfig: &osincli.ClientConfig{
-				ClientId:     openShiftCLIClientID,
+				ClientId:     "openshift-challenging-client",
 				AuthorizeUrl: "b",
 				TokenUrl:     "c",
 				RedirectUrl:  "a/oauth/token/implicit",
@@ -607,7 +621,7 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 
 			expectPKCE: false,
 			expectedConfig: &osincli.ClientConfig{
-				ClientId:     openShiftCLIClientID,
+				ClientId:     "openshift-challenging-client",
 				AuthorizeUrl: "b",
 				TokenUrl:     "c",
 				RedirectUrl:  "a/oauth/token/implicit",
@@ -626,7 +640,7 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 
 			expectPKCE: false,
 			expectedConfig: &osincli.ClientConfig{
-				ClientId:     openShiftCLIClientID,
+				ClientId:     "openshift-challenging-client",
 				AuthorizeUrl: "b",
 				TokenUrl:     "c",
 				RedirectUrl:  "a/oauth/token/implicit",
@@ -638,18 +652,18 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 				Issuer:                        "a",
 				AuthorizationEndpoint:         "b",
 				TokenEndpoint:                 "c",
-				CodeChallengeMethodsSupported: []string{pkce_s256},
+				CodeChallengeMethodsSupported: []string{"S256"},
 			},
 			hostWrapper: func(host string) string { return host + "/////" },
 			tokenFlow:   false,
 
 			expectPKCE: true,
 			expectedConfig: &osincli.ClientConfig{
-				ClientId:            openShiftCLIClientID,
+				ClientId:            "openshift-challenging-client",
 				AuthorizeUrl:        "b",
 				TokenUrl:            "c",
 				RedirectUrl:         "a/oauth/token/implicit",
-				CodeChallengeMethod: pkce_s256,
+				CodeChallengeMethod: "S256",
 			},
 		},
 		{
@@ -658,18 +672,18 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 				Issuer:                        "a/////",
 				AuthorizationEndpoint:         "b",
 				TokenEndpoint:                 "c",
-				CodeChallengeMethodsSupported: []string{pkce_s256},
+				CodeChallengeMethodsSupported: []string{"S256"},
 			},
 			hostWrapper: noHostChange,
 			tokenFlow:   false,
 
 			expectPKCE: true,
 			expectedConfig: &osincli.ClientConfig{
-				ClientId:            openShiftCLIClientID,
+				ClientId:            "openshift-challenging-client",
 				AuthorizeUrl:        "b",
 				TokenUrl:            "c",
 				RedirectUrl:         "a/oauth/token/implicit",
-				CodeChallengeMethod: pkce_s256,
+				CodeChallengeMethod: "S256",
 			},
 		},
 		{
@@ -678,18 +692,18 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 				Issuer:                        "arandomissuerthatisfun123!!!///",
 				AuthorizationEndpoint:         "44authzisanawesomeendpoint",
 				TokenEndpoint:                 "&&buttokenendpointisprettygoodtoo",
-				CodeChallengeMethodsSupported: []string{pkce_s256},
+				CodeChallengeMethodsSupported: []string{"S256"},
 			},
 			hostWrapper: noHostChange,
 			tokenFlow:   false,
 
 			expectPKCE: true,
 			expectedConfig: &osincli.ClientConfig{
-				ClientId:            openShiftCLIClientID,
+				ClientId:            "openshift-challenging-client",
 				AuthorizeUrl:        "44authzisanawesomeendpoint",
 				TokenUrl:            "&&buttokenendpointisprettygoodtoo",
 				RedirectUrl:         "arandomissuerthatisfun123!!!/oauth/token/implicit",
-				CodeChallengeMethod: pkce_s256,
+				CodeChallengeMethod: "S256",
 			},
 		},
 	} {
@@ -698,7 +712,7 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 				t.Errorf("%s: Expected GET, got %s", tc.name, req.Method)
 				return
 			}
-			if req.URL.Path != oauthMetadataEndpoint {
+			if req.URL.Path != "/.well-known/oauth-authorization-server" {
 				t.Errorf("%s: Expected metadata endpoint, got %s", tc.name, req.URL.Path)
 				return
 			}
@@ -711,11 +725,11 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 		}))
 		defer s.Close()
 
-		opts := &RequestTokenOptions{
+		opts := &tokenrequest.RequestTokenOptions{
 			ClientConfig: &restclient.Config{Host: tc.hostWrapper(s.URL)},
 			TokenFlow:    tc.tokenFlow,
 		}
-		if err := opts.SetDefaultOsinConfig(); err != nil {
+		if err := opts.SetDefaultOsinConfig("openshift-challenging-client", nil); err != nil {
 			t.Errorf("%s: unexpected SetDefaultOsinConfig error: %v", tc.name, err)
 			continue
 		}

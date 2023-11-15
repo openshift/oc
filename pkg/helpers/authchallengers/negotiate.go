@@ -1,4 +1,4 @@
-package tokencmd
+package authchallengers
 
 import (
 	"encoding/base64"
@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"k8s.io/klog/v2"
+
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
 )
 
 // Negotiator defines the minimal interface needed to interact with GSSAPI to perform a negotiate challenge/response
@@ -31,7 +33,7 @@ type NegotiateChallengeHandler struct {
 	negotiator Negotiator
 }
 
-func NewNegotiateChallengeHandler(negotiator Negotiator) ChallengeHandler {
+func NewNegotiateChallengeHandler(negotiator Negotiator) challengehandlers.ChallengeHandler {
 	return &NegotiateChallengeHandler{negotiator: negotiator}
 }
 
