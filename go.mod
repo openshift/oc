@@ -29,10 +29,10 @@ require (
 	github.com/moby/buildkit v0.0.0-20181107081847-c3a857e3fca0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198
-	github.com/openshift/api v0.0.0-20230120195050-6ba31fa438f2
+	github.com/openshift/api v0.0.0-20230330150608-05635858d40f
 	github.com/openshift/build-machinery-go v0.0.0-20220913142420-e25cf57ea46d
 	github.com/openshift/client-go v0.0.0-20230120202327-72f107311084
-	github.com/openshift/library-go v0.0.0-20230227140230-39892725eed1
+	github.com/openshift/library-go v0.0.0-20231115094609-5e510a6e9a52
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0
 	github.com/russross/blackfriday v1.6.0
