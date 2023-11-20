@@ -58,6 +58,9 @@ var (
 	mustGatherExample = templates.Examples(`
 		# Gather information using the default plug-in image and command, writing into ./must-gather.local.<rand>
 		  oc adm must-gather
+		
+		# Pass additional arguments to the must-gather script (if supported by the image)
+		oc adm must-gather --args=""
 
 		# Gather information with a specific local folder to copy to
 		  oc adm must-gather --dest-dir=/local/directory
@@ -95,6 +98,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().BoolVar(&o.HostNetwork, "host-network", o.HostNetwork, "Run must-gather pods as hostNetwork: true - relevant if a specific command and image needs to capture host-level data")
 	cmd.Flags().StringSliceVar(&o.Images, "image", o.Images, "Specify a must-gather plugin image to run. If not specified, OpenShift's default must-gather image will be used.")
 	cmd.Flags().StringSliceVar(&o.ImageStreams, "image-stream", o.ImageStreams, "Specify an image stream (namespace/name:tag) containing a must-gather plugin image to run.")
+	cmd.Flags().StringVar(&o.GatherArgs, "args", "", "Extra arguments to pass to the must-gather script.")
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
 	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
@@ -241,6 +245,7 @@ type MustGatherOptions struct {
 	ImageStreams []string
 	Command      []string
 	Timeout      time.Duration
+	GatherArgs   string
 	timeoutStr   string
 	RunNamespace string
 	Keep         bool
@@ -343,7 +348,7 @@ func (o *MustGatherOptions) Run() error {
 				return err
 			}
 			for _, node := range nodes.Items {
-				pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(node.Name, image, hasMaster), metav1.CreateOptions{})
+				pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(node.Name, image, o.GatherArgs, hasMaster), metav1.CreateOptions{})
 				if err != nil {
 					// ensure the errors bubble up to BackupGathering method for display
 					errs = []error{err}
@@ -360,7 +365,7 @@ func (o *MustGatherOptions) Run() error {
 					return err
 				}
 			}
-			pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image, hasMaster), metav1.CreateOptions{})
+			pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image, o.GatherArgs, hasMaster), metav1.CreateOptions{})
 			if err != nil {
 				// ensure the errors bubble up to BackupGathering method for display
 				errs = []error{err}
@@ -720,7 +725,7 @@ func newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
 // newPod creates a pod with 2 containers with a shared volume mount:
 // - gather: init containers that run gather command
 // - copy: no-op container we can exec into
-func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.Pod {
+func (o *MustGatherOptions) newPod(node, image, gatherArgs string, hasMaster bool) *corev1.Pod {
 	zero := int64(0)
 
 	nodeSelector := map[string]string{
@@ -758,7 +763,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 					Image:           image,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					// always force disk flush to ensure that all data gathered is accessible in the copy container
-					Command: []string{"/bin/bash", "-c", "/usr/bin/gather; sync"},
+					Command: []string{"/bin/bash", "-c", fmt.Sprintf("/usr/bin/gather %s; sync", o.GatherArgs)},
 					Env: []corev1.EnvVar{
 						{
 							Name: "NODE_NAME",
