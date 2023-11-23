@@ -227,7 +227,7 @@ func (o *options) Run(ctx context.Context) error {
 		fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", clusterStatusFailing)
 	}
 
-	controlPlaneStatusData := assessControlPlaneStatus(cv, operators.Items)
+	controlPlaneStatusData := assessControlPlaneStatus(cv, operators.Items, now)
 	fmt.Fprintf(o.Out, "\n")
 	return controlPlaneStatusData.Write(o.Out)
 }

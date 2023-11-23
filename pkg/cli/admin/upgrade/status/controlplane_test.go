@@ -2,6 +2,7 @@ package status
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -225,7 +226,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := assessControlPlaneStatus(&cvFixture, tc.operators)
+			actual := assessControlPlaneStatus(&cvFixture, tc.operators, time.Now())
 			if diff := cmp.Diff(tc.expected, actual.Operators, cmp.AllowUnexported(operators{})); diff != "" {
 				t.Errorf("actual output differs from expected:\n%s", diff)
 			}
@@ -285,13 +286,58 @@ func TestAssessControlPlaneStatus_Completion(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := assessControlPlaneStatus(&cvFixture, tc.operators)
+			actual := assessControlPlaneStatus(&cvFixture, tc.operators, time.Now())
 			if diff := cmp.Diff(tc.expectedCompletion, actual.Completion, cmpopts.EquateApprox(0, 0.1)); diff != "" {
 				t.Errorf("expected completion %f, got %f", tc.expectedCompletion, actual.Completion)
 			}
 
 			if actual.Assessment != tc.expectedAssessment {
 				t.Errorf("expected assessment %s, got %s", tc.expectedAssessment, actual.Assessment)
+			}
+		})
+	}
+}
+
+func TestAssessControlPlaneStatus_Duration(t *testing.T) {
+	now := time.Now()
+	hourAgo := metav1.NewTime(now.Add(-time.Hour))
+	halfHourAgo := metav1.NewTime(now.Add(-time.Minute * 30))
+
+	testCases := []struct {
+		name             string
+		firstHistoryItem configv1.UpdateHistory
+		expectedDuration time.Duration
+	}{
+		{
+			name: "partial update -> still in progress",
+			firstHistoryItem: configv1.UpdateHistory{
+				State:       configv1.PartialUpdate,
+				StartedTime: hourAgo,
+				Version:     "new",
+			},
+			expectedDuration: time.Hour,
+		},
+		{
+			name: "completed upgrade",
+			firstHistoryItem: configv1.UpdateHistory{
+				State:          configv1.CompletedUpdate,
+				StartedTime:    hourAgo,
+				CompletionTime: &halfHourAgo,
+				Version:        "new",
+			},
+			expectedDuration: 30 * time.Minute,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			cv := cvFixture.DeepCopy()
+			cv.Status.History = append(cv.Status.History, tc.firstHistoryItem)
+
+			actual := assessControlPlaneStatus(cv, nil, now)
+			if diff := cmp.Diff(tc.expectedDuration, actual.Duration); diff != "" {
+				t.Errorf("expected completion %s, got %s", tc.expectedDuration, actual.Duration)
 			}
 		})
 	}
