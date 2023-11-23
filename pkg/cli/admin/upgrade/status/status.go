@@ -159,6 +159,7 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 
 func (o *options) Run(ctx context.Context) error {
 	var cv *configv1.ClusterVersion
+	now := time.Now()
 	if cv = o.mockClusterVersion; cv == nil {
 		var err error
 		cv, err = o.Client.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
@@ -168,6 +169,14 @@ func (o *options) Run(ctx context.Context) error {
 			}
 			return err
 		}
+	} else {
+		// mock "now" to be the latest time when something happened in the mocked data
+		now = time.Time{}
+		for _, condition := range cv.Status.Conditions {
+			if condition.LastTransitionTime.After(now) {
+				now = condition.LastTransitionTime.Time
+			}
+		}
 	}
 
 	var operators *configv1.ClusterOperatorList
@@ -176,6 +185,15 @@ func (o *options) Run(ctx context.Context) error {
 		operators, err = o.Client.ConfigV1().ClusterOperators().List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return err
+		}
+	} else {
+		// mock "now" to be the latest time when something happened in the mocked data
+		for _, co := range operators.Items {
+			for _, condition := range co.Status.Conditions {
+				if condition.LastTransitionTime.After(now) {
+					now = condition.LastTransitionTime.Time
+				}
+			}
 		}
 	}
 	if len(operators.Items) == 0 {
@@ -199,7 +217,7 @@ func (o *options) Run(ctx context.Context) error {
 		return nil
 	}
 
-	fmt.Fprintf(o.Out, "An update is in progress for %s: %s\n", time.Since(progressing.LastTransitionTime.Time).Round(time.Second), progressing.Message)
+	fmt.Fprintf(o.Out, "An update is in progress for %s: %s\n", now.Sub(progressing.LastTransitionTime.Time).Round(time.Second), progressing.Message)
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil {
 		if c.Status != configv1.ConditionFalse {
