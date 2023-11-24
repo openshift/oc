@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -440,7 +439,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	var hashFn = sha256.New
 	var signer *openpgp.Entity
 	if willArchive && len(o.SigningKey) > 0 {
-		key, err := ioutil.ReadFile(o.SigningKey)
+		key, err := os.ReadFile(o.SigningKey)
 		if err != nil {
 			return err
 		}
@@ -780,7 +779,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			return err
 		}
 		filename := "release.txt"
-		if err := ioutil.WriteFile(filepath.Join(dir, filename), buf.Bytes(), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, filename), buf.Bytes(), 0644); err != nil {
 			return err
 		}
 		hash := hashFn()
@@ -807,7 +806,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		// write the content manifest
 		data := []byte(strings.Join(lines, "\n"))
 		filename := "sha256sum.txt"
-		if err := ioutil.WriteFile(filepath.Join(dir, filename), data, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, filename), data, 0644); err != nil {
 			return fmt.Errorf("unable to write checksum file: %v", err)
 		}
 		// sign the content manifest
@@ -816,7 +815,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			if err := openpgp.ArmoredDetachSign(buf, signer, bytes.NewBuffer(data), nil); err != nil {
 				return fmt.Errorf("unable to sign the sha256sum.txt file: %v", err)
 			}
-			if err := ioutil.WriteFile(filepath.Join(dir, filename+".asc"), buf.Bytes(), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, filename+".asc"), buf.Bytes(), 0644); err != nil {
 				return fmt.Errorf("unable to write signed manifest: %v", err)
 			}
 		}

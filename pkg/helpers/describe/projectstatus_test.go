@@ -2,7 +2,7 @@ package describe
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 	"text/tabwriter"
@@ -668,7 +668,7 @@ func TestPrintMarkerSuggestions(t *testing.T) {
 
 // readObjectsFromPath reads objects from the specified file for testing.
 func readObjectsFromPath(path, namespace string) ([]runtime.Object, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

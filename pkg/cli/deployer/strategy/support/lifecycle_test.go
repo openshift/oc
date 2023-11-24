@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"reflect"
 	"sort"
 	"strings"
@@ -116,7 +115,7 @@ func TestHookExecutor_executeExecNewPodSucceeded(t *testing.T) {
 		pods: client.CoreV1(),
 		out:  podLogs,
 		getPodLogs: func(*corev1.Pod) (io.ReadCloser, error) {
-			return ioutil.NopCloser(strings.NewReader("test")), nil
+			return io.NopCloser(strings.NewReader("test")), nil
 		},
 	}
 
@@ -178,9 +177,9 @@ func TestHookExecutor_executeExecNewPodFailed(t *testing.T) {
 
 	executor := &hookExecutor{
 		pods: client.CoreV1(),
-		out:  ioutil.Discard,
+		out:  io.Discard,
 		getPodLogs: func(*corev1.Pod) (io.ReadCloser, error) {
-			return ioutil.NopCloser(strings.NewReader("test")), nil
+			return io.NopCloser(strings.NewReader("test")), nil
 		},
 	}
 

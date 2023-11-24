@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -811,7 +810,7 @@ func (s *descriptorBlobSource) Get(ctx context.Context, desc distribution.Descri
 		}
 		data, err = func() ([]byte, error) {
 			defer resp.Body.Close()
-			return ioutil.ReadAll(resp.Body)
+			return io.ReadAll(resp.Body)
 		}()
 		if err != nil {
 			continue

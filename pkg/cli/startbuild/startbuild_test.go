@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -125,7 +124,7 @@ func TestStartBuildHookPostReceive(t *testing.T) {
 	}))
 	defer server.Close()
 
-	f, _ := ioutil.TempFile("", "test")
+	f, _ := os.CreateTemp("", "test")
 	defer os.Remove(f.Name())
 	fmt.Fprintf(f, `0000 2384 refs/heads/master
 2548 2548 refs/heads/stage`)
@@ -161,7 +160,7 @@ type FakeBuildConfigs struct {
 }
 
 func (c FakeBuildConfigs) InstantiateBinary(name string, options *buildv1.BinaryBuildRequestOptions, r io.Reader) (result *buildv1.Build, err error) {
-	if binary, err := ioutil.ReadAll(r); err != nil {
+	if binary, err := io.ReadAll(r); err != nil {
 		c.t.Errorf("Error while reading binary over HTTP: %v", err)
 	} else if string(binary) != "hi" {
 		c.t.Errorf("Wrong value while reading binary over HTTP: %q", binary)
@@ -385,7 +384,7 @@ func TestStreamBuildLogs(t *testing.T) {
 					}
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       ioutil.NopCloser(body),
+						Body:       io.NopCloser(body),
 					}, nil
 				}),
 			}

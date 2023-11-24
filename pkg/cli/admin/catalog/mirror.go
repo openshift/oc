@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -295,7 +294,7 @@ func (o *MirrorCatalogOptions) Complete(cmd *cobra.Command, args []string) error
 	}
 
 	if o.IndexPath == "" {
-		tmpdir, err := ioutil.TempDir("", "")
+		tmpdir, err := os.MkdirTemp("", "")
 		if err != nil {
 			return err
 		}
@@ -695,7 +694,7 @@ func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference,
 			return nil
 		}
 
-		if err := ioutil.WriteFile(filepath.Join(dir, "imageDigestMirrorSet.yaml"), aggregateIDMSs(idmss), os.ModePerm); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "imageDigestMirrorSet.yaml"), aggregateIDMSs(idmss), os.ModePerm); err != nil {
 			return fmt.Errorf("error writing ImageDigestMirrorSet")
 		}
 
@@ -704,7 +703,7 @@ func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference,
 			return err
 		}
 
-		if err := ioutil.WriteFile(filepath.Join(dir, "imageContentSourcePolicy.yaml"), aggregateICSPs(icsps), os.ModePerm); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "imageContentSourcePolicy.yaml"), aggregateICSPs(icsps), os.ModePerm); err != nil {
 			return fmt.Errorf("error writing ImageContentSourcePolicy")
 		}
 
@@ -712,7 +711,7 @@ func WriteManifests(out io.Writer, source, dest imagesource.TypedImageReference,
 		if err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(filepath.Join(dir, "catalogSource.yaml"), catalogSource, os.ModePerm); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "catalogSource.yaml"), catalogSource, os.ModePerm); err != nil {
 			return fmt.Errorf("error writing CatalogSource")
 		}
 	}

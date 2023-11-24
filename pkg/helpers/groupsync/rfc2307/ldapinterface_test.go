@@ -3,7 +3,7 @@ package rfc2307
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"testing"
 
@@ -43,8 +43,8 @@ func newTestLDAPInterfaceOrDie(client ldap.Client) *LDAPInterface {
 	userNameAttributes := []string{"cn"}
 
 	errorHandler := syncerror.NewCompoundHandler(
-		syncerror.NewMemberLookupOutOfBoundsSuppressor(ioutil.Discard),
-		syncerror.NewMemberLookupMemberNotFoundSuppressor(ioutil.Discard),
+		syncerror.NewMemberLookupOutOfBoundsSuppressor(io.Discard),
+		syncerror.NewMemberLookupMemberNotFoundSuppressor(io.Discard),
 	)
 
 	ldapClient, err := ldapclient.ConnectMaybeBind(ldaptestclient.NewConfig(client))

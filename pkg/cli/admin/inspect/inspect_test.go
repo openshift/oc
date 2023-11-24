@@ -2,7 +2,6 @@ package inspect
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -26,7 +25,7 @@ func TestDirectoryViable(t *testing.T) {
 		{
 			name: "ensure empty directory is viable",
 			dirName: func() (string, error) {
-				tmpDir, err := ioutil.TempDir(os.TempDir(), "must-gather-inspect-")
+				tmpDir, err := os.MkdirTemp(os.TempDir(), "must-gather-inspect-")
 				if err != nil {
 					return "", err
 				}
@@ -37,11 +36,11 @@ func TestDirectoryViable(t *testing.T) {
 		{
 			name: "ensure non-empty directory not viable",
 			dirName: func() (string, error) {
-				tmpDir, err := ioutil.TempDir(os.TempDir(), "must-gather-inspect-")
+				tmpDir, err := os.MkdirTemp(os.TempDir(), "must-gather-inspect-")
 				if err != nil {
 					return "", err
 				}
-				_, err = ioutil.TempFile(tmpDir, "must-gather-inspect-file-")
+				_, err = os.MkdirTemp(tmpDir, "must-gather-inspect-file-")
 				return tmpDir, err
 			},
 			expectedErr: fmt.Errorf("exists and is not empty"),
@@ -50,11 +49,11 @@ func TestDirectoryViable(t *testing.T) {
 		{
 			name: "ensure non-empty directory viable with data override",
 			dirName: func() (string, error) {
-				tmpDir, err := ioutil.TempDir(os.TempDir(), "must-gather-inspect-")
+				tmpDir, err := os.MkdirTemp(os.TempDir(), "must-gather-inspect-")
 				if err != nil {
 					return "", err
 				}
-				_, err = ioutil.TempFile(tmpDir, "must-gather-inspect-file-")
+				_, err = os.MkdirTemp(tmpDir, "must-gather-inspect-file-")
 				return tmpDir, err
 			},
 			allowOverride: true,

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -721,7 +720,7 @@ func getRegistryClient(clientConfig *restclient.Config, registryCABundle string,
 	}
 
 	if len(registryCABundle) > 0 {
-		cadata, err = ioutil.ReadFile(registryCABundle)
+		cadata, err = os.ReadFile(registryCABundle)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read registry ca bundle: %v", err)
 		}

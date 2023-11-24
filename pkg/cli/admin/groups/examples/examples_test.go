@@ -2,7 +2,7 @@ package examples
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	legacyconfigv1 "github.com/openshift/api/legacyconfig/v1"
@@ -25,7 +25,7 @@ func TestLDAPSyncConfigFixtures(t *testing.T) {
 	fixtures = append(fixtures, "rfc2307/sync-config-tolerating.yaml")
 
 	for _, fixture := range fixtures {
-		yamlConfig, err := ioutil.ReadFile("./../../../../../testdata/ldap/" + fixture)
+		yamlConfig, err := os.ReadFile("./../../../../../testdata/ldap/" + fixture)
 		if err != nil {
 			t.Errorf("could not read fixture at %q: %v", fixture, err)
 			continue

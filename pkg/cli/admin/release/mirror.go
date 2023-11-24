@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -400,7 +399,7 @@ func (o *MirrorOptions) handleSignatures(context context.Context, signaturesByDi
 				if err := os.MkdirAll(filepath.Dir(fullName), 0750); err != nil {
 					return err
 				}
-				if err := ioutil.WriteFile(fullName, cmDataBytes, 0640); err != nil {
+				if err := os.WriteFile(fullName, cmDataBytes, 0640); err != nil {
 					return err
 				}
 				fmt.Fprintf(o.Out, "Configmap signature file %s created\n", fullName)

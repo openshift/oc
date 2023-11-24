@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -188,7 +188,7 @@ func (o *ObjectGeneratorOptions) Complete(f kcmdutil.Factory, c *cobra.Command, 
 	if len(o.Action.Output) == 0 {
 		o.Config.Out = o.Out
 	} else {
-		o.Config.Out = ioutil.Discard
+		o.Config.Out = io.Discard
 	}
 	o.Config.ErrOut = o.ErrOut
 
@@ -1209,7 +1209,7 @@ func (r *configSecretRetriever) CACert() (string, error) {
 		return string(r.config.CAData), nil
 	}
 	if len(r.config.CAFile) > 0 {
-		data, err := ioutil.ReadFile(r.config.CAFile)
+		data, err := os.ReadFile(r.config.CAFile)
 		if err != nil {
 			return "", fmt.Errorf("unable to read CA cert from config %s: %v", r.config.CAFile, err)
 		}

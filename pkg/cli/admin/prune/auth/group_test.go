@@ -2,7 +2,7 @@ package auth
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"testing"
 
@@ -158,7 +158,7 @@ func TestGroupReaper(t *testing.T) {
 			securityFake.Fake.PrependReactor("update", "*", kreactor)
 			securityFake.Fake.PrependReactor("delete", "*", kreactor)
 
-			err := reapForGroup(authFake, securityFake.SecurityContextConstraints(), test.group, ioutil.Discard)
+			err := reapForGroup(authFake, securityFake.SecurityContextConstraints(), test.group, io.Discard)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}

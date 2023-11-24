@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
@@ -253,7 +253,7 @@ func buildNameList(args []string, file string) ([]string, error) {
 }
 
 func decodeSyncConfigFromFile(configFile string) (*legacyconfigv1.LDAPSyncConfig, error) {
-	yamlConfig, err := ioutil.ReadFile(configFile)
+	yamlConfig, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not read file %s: %v", configFile, err)
 	}
@@ -301,7 +301,7 @@ func openshiftGroupNamesOnlyList(list []string) ([]string, error) {
 
 // readLines interprets a file as plaintext and returns a string array of the lines of text in the file
 func readLines(path string) ([]string, error) {
-	bytes, err := ioutil.ReadFile(path)
+	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not open file %s: %v", path, err)
 	}

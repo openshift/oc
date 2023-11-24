@@ -3,7 +3,6 @@ package app
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -31,7 +30,7 @@ type Dockerfile interface {
 }
 
 func NewDockerfileFromFile(path string) (Dockerfile, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +257,7 @@ func (r *SourceRepository) LocalPath() (string, error) {
 	} else {
 		gitRepo := git.NewRepository()
 		var err error
-		if r.localDir, err = ioutil.TempDir("", "gen"); err != nil {
+		if r.localDir, err = os.MkdirTemp("", "gen"); err != nil {
 			return "", err
 		}
 		r.localDir, err = CloneAndCheckoutSources(gitRepo, r.url.StringNoFragment(), r.url.URL.Fragment, r.localDir, r.contextDir)
@@ -289,12 +288,12 @@ func (r *SourceRepository) DetectAuth() error {
 	if !ok {
 		return nil // No auth needed, we can't find a remote URL
 	}
-	tempHome, err := ioutil.TempDir("", "githome")
+	tempHome, err := os.MkdirTemp("", "githome")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tempHome)
-	tempSrc, err := ioutil.TempDir("", "gen")
+	tempSrc, err := os.MkdirTemp("", "gen")
 	if err != nil {
 		return err
 	}

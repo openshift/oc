@@ -399,13 +399,13 @@ func (o *NewOptions) Run(ctx context.Context) error {
 		extractOpts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
 			var err error
 			if hdr.Name == "image-references" {
-				imageReferencesData, err = ioutil.ReadAll(r)
+				imageReferencesData, err = io.ReadAll(r)
 				if err != nil {
 					return false, err
 				}
 			}
 			if hdr.Name == "release-metadata" {
-				releaseMetadata, err = ioutil.ReadAll(r)
+				releaseMetadata, err = io.ReadAll(r)
 				if err != nil {
 					return false, err
 				}
@@ -571,7 +571,7 @@ func (o *NewOptions) Run(ctx context.Context) error {
 
 	case len(o.FromDirectory) > 0:
 		fmt.Fprintf(o.ErrOut, "info: Using %s as the input to the release\n", o.FromDirectory)
-		files, err := ioutil.ReadDir(o.FromDirectory)
+		files, err := os.ReadDir(o.FromDirectory)
 		if err != nil {
 			return err
 		}
@@ -586,7 +586,7 @@ func (o *NewOptions) Run(ctx context.Context) error {
 				ordered = append(ordered, name)
 			}
 			if f.Name() == "image-references" {
-				data, err := ioutil.ReadFile(filepath.Join(o.FromDirectory, "image-references"))
+				data, err := os.ReadFile(filepath.Join(o.FromDirectory, "image-references"))
 				if err != nil {
 					return err
 				}
@@ -945,7 +945,7 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 	dir := o.Directory
 	if len(dir) == 0 {
 		var err error
-		dir, err = ioutil.TempDir("", fmt.Sprintf("release-image-%s", name))
+		dir, err = os.MkdirTemp("", fmt.Sprintf("release-image-%s", name))
 		if err != nil {
 			return err
 		}
@@ -1077,7 +1077,7 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 		if err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(filepath.Join(dir, "image-references"), data, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "image-references"), data, 0644); err != nil {
 			return err
 		}
 	}
@@ -1223,7 +1223,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 		}
 
 		verifier := imagemanifest.NewVerifier()
-		options := imageappend.NewAppendImageOptions(genericiooptions.IOStreams{Out: ioutil.Discard, ErrOut: o.ErrOut})
+		options := imageappend.NewAppendImageOptions(genericiooptions.IOStreams{Out: io.Discard, ErrOut: o.ErrOut})
 		options.ParallelOptions = o.ParallelOptions
 		options.SecurityOptions = o.SecurityOptions
 		options.DryRun = o.DryRun
@@ -1288,7 +1288,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 			return err
 		}
 		if len(o.ToSignature) > 0 {
-			if err := ioutil.WriteFile(o.ToSignature, msg, 0644); err != nil {
+			if err := os.WriteFile(o.ToSignature, msg, 0644); err != nil {
 				return fmt.Errorf("unable to write signature file: %v", err)
 			}
 		} else {
@@ -1427,7 +1427,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			dst := path.Join(append(append([]string{}, parts...), filename)...)
 			klog.V(4).Infof("Copying %s to %s", src, dst)
 
-			data, err := ioutil.ReadFile(src)
+			data, err := os.ReadFile(src)
 			if err != nil {
 				return err
 			}
@@ -1505,7 +1505,7 @@ func pruneEmptyDirectories(dir string) error {
 		if !info.IsDir() {
 			return nil
 		}
-		names, err := ioutil.ReadDir(path)
+		names, err := os.ReadDir(path)
 		if err != nil {
 			return err
 		}
@@ -1628,7 +1628,7 @@ func pruneUnreferencedImageStreams(out io.Writer, is *imageapi.ImageStream, meta
 func filenameContents(s string, in io.Reader) ([]byte, error) {
 	switch {
 	case s == "-":
-		return ioutil.ReadAll(in)
+		return io.ReadAll(in)
 	case strings.Index(s, "http://") == 0 || strings.Index(s, "https://") == 0:
 		resp, err := http.Get(s)
 		if err != nil {
@@ -1637,11 +1637,11 @@ func filenameContents(s string, in io.Reader) ([]byte, error) {
 		defer resp.Body.Close()
 		switch {
 		case resp.StatusCode >= 200 && resp.StatusCode < 300:
-			return ioutil.ReadAll(resp.Body)
+			return io.ReadAll(resp.Body)
 		default:
 			return nil, fmt.Errorf("unable to load URL: server returned %d: %s", resp.StatusCode, resp.Status)
 		}
 	default:
-		return ioutil.ReadFile(s)
+		return os.ReadFile(s)
 	}
 }

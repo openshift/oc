@@ -2,7 +2,7 @@ package test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -126,7 +126,7 @@ func BuildGraph(path string) (osgraph.Graph, []runtime.Object, error) {
 	g := osgraph.New()
 	objs := []runtime.Object{}
 
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return g, objs, err
 	}

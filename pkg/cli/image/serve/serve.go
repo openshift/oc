@@ -3,7 +3,7 @@ package serve
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -102,7 +102,7 @@ func (o *ServeOptions) Run() error {
 			case "manifests":
 				if f, err := dir.Open(req.URL.Path); err == nil {
 					defer f.Close()
-					if data, err := ioutil.ReadAll(f); err == nil {
+					if data, err := io.ReadAll(f); err == nil {
 						var versioned manifest.Versioned
 						if err = json.Unmarshal(data, &versioned); err == nil {
 							w.Header().Set("Content-Type", versioned.MediaType)

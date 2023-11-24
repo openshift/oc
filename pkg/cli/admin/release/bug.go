@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -137,7 +136,7 @@ func retrieveRefsJira(refs []Ref) (*RefRemoteList, error) {
 			lastErr = fmt.Errorf("jira server responded with %d", resp.StatusCode)
 			continue
 		}
-		data, err := ioutil.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
 		if err != nil {
 			lastErr = fmt.Errorf("unable to get body contents: %v", err)
 			continue
@@ -196,7 +195,7 @@ func retrieveRefsBugzila(bugs []Ref) (*RefRemoteList, error) {
 			lastErr = fmt.Errorf("server responded with %d", resp.StatusCode)
 			continue
 		}
-		data, err := ioutil.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
 		if err != nil {
 			lastErr = fmt.Errorf("unable to get body contents: %v", err)
 			continue

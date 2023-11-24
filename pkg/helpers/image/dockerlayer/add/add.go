@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"runtime"
 	"time"
 
@@ -62,7 +61,7 @@ func DigestCopy(dst io.ReaderFrom, src io.Reader) (layerDigest, blobDigest diges
 		}
 		_, err = io.Copy(layerhash, gr)
 		if err != nil {
-			io.Copy(ioutil.Discard, pr)
+			io.Copy(io.Discard, pr)
 		}
 		ch <- err
 	}()

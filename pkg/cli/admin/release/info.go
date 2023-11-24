@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -271,10 +270,10 @@ func replaceStableSemanticArgs(args []string, semanticArgs map[string]semver.Ver
 				switch resp.StatusCode {
 				case http.StatusOK:
 				default:
-					io.Copy(ioutil.Discard, resp.Body)
+					io.Copy(io.Discard, resp.Body)
 					return fmt.Errorf("unable to retrieve status for %q: %d", arg, resp.StatusCode)
 				}
-				data, err := ioutil.ReadAll(resp.Body)
+				data, err := io.ReadAll(resp.Body)
 				if err != nil {
 					return err
 				}
@@ -807,7 +806,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
 		switch hdr.Name {
 		case "image-references":
-			data, err := ioutil.ReadAll(r)
+			data, err := io.ReadAll(r)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("unable to read release image-references: %v", err))
 				return true, nil
@@ -820,7 +819,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 			}
 			release.References = is
 		case "release-metadata":
-			data, err := ioutil.ReadAll(r)
+			data, err := io.ReadAll(r)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("unable to read release metadata: %v", err))
 				return true, nil
@@ -835,7 +834,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 		default:
 			if ext := path.Ext(hdr.Name); len(ext) > 0 && (ext == ".yaml" || ext == ".yml" || ext == ".json") {
 				klog.V(4).Infof("Found manifest %s", hdr.Name)
-				data, err := ioutil.ReadAll(r)
+				data, err := io.ReadAll(r)
 				if err != nil {
 					errs = append(errs, fmt.Errorf("unable to read release manifest %q: %v", hdr.Name, err))
 					return true, nil

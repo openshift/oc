@@ -3,7 +3,6 @@ package inspect
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -380,7 +379,7 @@ func (o *InspectOptions) ensureDirectoryViable() error {
 	if !baseDirInfo.IsDir() {
 		return fmt.Errorf("%q exists and is a file", o.DestDir)
 	}
-	files, err := ioutil.ReadDir(o.DestDir)
+	files, err := os.ReadDir(o.DestDir)
 	if err != nil {
 		return err
 	}
