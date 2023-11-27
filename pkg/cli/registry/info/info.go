@@ -62,10 +62,11 @@ func NewRegistryInfoCmd(f kcmdutil.Factory, streams genericiooptions.IOStreams) 
 	o := NewRegistryInfoOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     "info ",
-		Short:   "Print information about the integrated registry",
-		Long:    desc,
-		Example: example,
+		Use:        "info ",
+		Short:      "Print information about the integrated registry",
+		Long:       desc,
+		Example:    example,
+		Deprecated: "and will be removed in the future version.",
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args))
 			kcmdutil.CheckErr(o.Validate())
