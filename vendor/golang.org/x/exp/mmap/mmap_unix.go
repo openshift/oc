@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux || darwin
-// +build linux darwin
 
 // Package mmap provides a way to memory-map a file.
 package mmap
@@ -37,6 +36,9 @@ type ReaderAt struct {
 // Close closes the reader.
 func (r *ReaderAt) Close() error {
 	if r.data == nil {
+		return nil
+	} else if len(r.data) == 0 {
+		r.data = nil
 		return nil
 	}
 	data := r.data
@@ -91,7 +93,14 @@ func Open(filename string) (*ReaderAt, error) {
 
 	size := fi.Size()
 	if size == 0 {
-		return &ReaderAt{}, nil
+		// Treat (size == 0) as a special case, avoiding the syscall, since
+		// "man 2 mmap" says "the length... must be greater than 0".
+		//
+		// As we do not call syscall.Mmap, there is no need to call
+		// runtime.SetFinalizer to enforce a balancing syscall.Munmap.
+		return &ReaderAt{
+			data: make([]byte, 0),
+		}, nil
 	}
 	if size < 0 {
 		return nil, fmt.Errorf("mmap: file %q has negative size", filename)
