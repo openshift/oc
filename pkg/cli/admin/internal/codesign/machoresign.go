@@ -26,7 +26,7 @@ func ResignMacho(path string, asArchive bool, command string, links []string) er
 }
 
 func signSingleFile(path string) error {
-	file, err := os.OpenFile(path, os.O_RDWR, 0755)
+	file, err := os.OpenFile(filepath.Clean(path), os.O_RDWR, 0755)
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func extractTarToTmpAndSign(path string) (string, error) {
 			return "", err
 		}
 
-		tempExtractionPath := filepath.Join(tempDir, header.Name)
+		tempExtractionPath := filepath.Clean(filepath.Join(tempDir, header.Name))
 
 		switch header.Typeflag {
 		case tar.TypeReg:
