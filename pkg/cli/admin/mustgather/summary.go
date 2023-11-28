@@ -9,6 +9,7 @@ import (
 	"github.com/docker/go-units"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers"
+	"github.com/openshift/oc/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -31,6 +32,12 @@ func (o *MustGatherOptions) PrintBasicClusterState(ctx context.Context) {
 		fmt.Fprintf(o.RawOut, "error getting cluster version: %v\n", err)
 	}
 	fmt.Fprintf(o.RawOut, "ClusterID: %v\n", clusterVersion.Spec.ClusterID)
+
+	clientVersion, err := humanSummaryForClientVersion()
+	if err != nil {
+		fmt.Fprintf(o.RawOut, "error getting client version: %v\n", err)
+	}
+	fmt.Fprintf(o.RawOut, "ClientVersion: %v\n", clientVersion)
 	fmt.Fprintf(o.RawOut, "ClusterVersion: %v\n", humanSummaryForClusterVersion(clusterVersion))
 
 	clusterOperators, err := o.ConfigClient.ConfigV1().ClusterOperators().List(ctx, metav1.ListOptions{})
@@ -177,4 +184,15 @@ func humanSummaryForClusterVersion(clusterVersion *configv1.ClusterVersion) stri
 	default:
 		return fmt.Sprintf("Unknown state")
 	}
+}
+
+func humanSummaryForClientVersion() (string, error) {
+	clientVersion, reportedVersion, err := version.ExtractVersion()
+	if err != nil {
+		return "", err
+	}
+	if len(reportedVersion) != 0 {
+		return reportedVersion, nil
+	}
+	return clientVersion.GitVersion, nil
 }
