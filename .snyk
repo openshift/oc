@@ -7,4 +7,4 @@ exclude:
     - "**/*_test.go"
     - pkg/cli/image/archive/archive.go
     - pkg/cli/admin/inspect/util.go
-    - pkg/cli/admin/release/git.go
+    - pkg/cli/admin/release/git.go  # md5 is used to generate repo name in remoteNameForRepo func and to be compatible with git, md5 is required.
