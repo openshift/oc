@@ -271,7 +271,7 @@ func (o *InspectOptions) Run() error {
 
 	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.DestDir)
 	if len(allErrs) > 0 {
-		return fmt.Errorf("errors occurred while gathering data:\n    %v", errors.NewAggregate(allErrs))
+		return fmt.Errorf("inspection completed with the errors occurred while gathering data:\n    %v", errors.NewAggregate(allErrs))
 	}
 
 	return nil
