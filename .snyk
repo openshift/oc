@@ -8,5 +8,4 @@ exclude:
     - pkg/cli/image/archive/archive.go
     - pkg/helpers/graph/routegraph/analysis/analysis.go
     - pkg/cli/admin/inspect/util.go
-    - pkg/cli/admin/prune/images/images.go
     - pkg/cli/admin/release/git.go

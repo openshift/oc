@@ -753,7 +753,7 @@ func getRegistryClient(clientConfig *restclient.Config, registryCABundle string,
 	}
 
 	// we have to set a username to something for the Docker login but it's not actually used
-	registryClientConfig.Username = "unused"
+	registryClientConfig.Username = token[:5]
 
 	// set the "password" to be the token
 	registryClientConfig.Password = token
