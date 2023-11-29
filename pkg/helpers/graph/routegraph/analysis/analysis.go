@@ -29,9 +29,9 @@ const (
 	// MissingTLSTerminationTypeErr is returned when a route with a tls config doesn't
 	// specify a tls termination type.
 	MissingTLSTerminationTypeErr = "MissingTLSTermination"
-	// PathBasedPassthroughErr is returned when a path based route is passthrough
+	// PathBasedPthroughErr is returned when a path based route is passthrough
 	// terminated.
-	PathBasedPassthroughErr = "PathBasedPassthrough"
+	PathBasedPthroughErr = "PathBasedPassthrough"
 	// MissingTLSTerminationTypeErr is returned when a route with a tls config doesn't
 	// specify a tls termination type.
 	RouteNotAdmittedTypeErr = "RouteNotAdmitted"
@@ -217,7 +217,7 @@ func FindPathBasedPassthroughRoutes(g osgraph.Graph, f osgraph.Namer) []osgraph.
 				Node: routeNode,
 
 				Severity:   osgraph.ErrorSeverity,
-				Key:        PathBasedPassthroughErr,
+				Key:        PathBasedPthroughErr,
 				Message:    fmt.Sprintf("%s is path-based and uses passthrough termination, which is an invalid combination.", f.ResourceName(routeNode)),
 				Suggestion: osgraph.Suggestion(fmt.Sprintf("1. use spec.tls.termination=edge or 2. use spec.tls.termination=reencrypt and specify spec.tls.destinationCACertificate or 3. remove spec.path")),
 			})
