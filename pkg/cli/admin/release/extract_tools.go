@@ -315,17 +315,6 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		},
 		{
 			OS:      "linux",
-			Arch:    targetReleaseArch,
-			Command: "openshift-install",
-			Mapping: extract.Mapping{Image: "installer", From: "usr/bin/openshift-install"},
-
-			Readme:               readmeInstallUnix,
-			InjectReleaseImage:   true,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-install-linux-%s.tar.gz",
-		},
-		{
-			OS:      "linux",
 			Arch:    "amd64",
 			Command: "openshift-install",
 			NewArch: true,
@@ -512,10 +501,6 @@ func (o *ExtractOptions) extractCommand(command string) error {
 				klog.V(2).Infof("Skipping %s, does not match current architecture %s", target.ArchiveFormat, target.Arch)
 				continue
 			}
-		}
-		if target.OS == "linux" && target.Arch == releaseArch {
-			klog.V(2).Infof("Skipping duplicate %s", target.ArchiveFormat)
-			continue
 		}
 		spec, err := findImageSpec(release.References, target.Mapping.Image, o.From)
 		if err != nil && !target.NewArch {
