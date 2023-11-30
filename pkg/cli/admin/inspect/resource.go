@@ -2,14 +2,14 @@ package inspect
 
 import (
 	"fmt"
-	routev1 "github.com/openshift/api/route/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"os"
 	"path"
 
 	configv1 "github.com/openshift/api/config/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -186,11 +186,12 @@ func toStructuredObject[T any, TList any](obj runtime.Object) (runtime.Object, e
 }
 
 func gatherGenericObject(context *resourceContext, info *resource.Info, o *InspectOptions) error {
+	errs := []error{}
 	unstr, ok := info.Object.(*unstructured.Unstructured)
 	if ok {
 		// obtain associated objects for the current resource
 		if err := gatherRelatedObjects(context, unstr, o); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
 
@@ -199,10 +200,15 @@ func gatherGenericObject(context *resourceContext, info *resource.Info, o *Inspe
 	filename := filenameForInfo(info)
 	// ensure destination path exists
 	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
-		return err
+		errs = append(errs, err)
+		return errors.NewAggregate(errs)
 	}
 
-	return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), info.Object)
+	if err := o.fileWriter.WriteFromResource(path.Join(dirPath, filename), info.Object); err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.NewAggregate(errs)
 }
 
 func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstructured, o *InspectOptions) error {
