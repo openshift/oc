@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
 	knet "k8s.io/apimachinery/pkg/util/net"
+	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	apimachineryversion "k8s.io/apimachinery/pkg/version"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/discovery"
@@ -753,7 +754,7 @@ func getRegistryClient(clientConfig *restclient.Config, registryCABundle string,
 	}
 
 	// we have to set a username to something for the Docker login but it's not actually used
-	registryClientConfig.Username = token[:5]
+	registryClientConfig.Username = utilrand.String(5)
 
 	// set the "password" to be the token
 	registryClientConfig.Password = token

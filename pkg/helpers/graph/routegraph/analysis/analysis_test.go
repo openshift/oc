@@ -81,7 +81,7 @@ func TestPathBasedPassthroughRoutes(t *testing.T) {
 	if expected, got := 1, len(markers); expected != got {
 		t.Fatalf("expected %d markers, got %d", expected, got)
 	}
-	if expected, got := PathBasedPthroughErr, markers[0].Key; expected != got {
+	if expected, got := PathBasedPaszthroughErr, markers[0].Key; expected != got {
 		t.Fatalf("expected %s marker key, got %s", expected, got)
 	}
 }
