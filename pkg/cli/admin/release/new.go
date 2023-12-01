@@ -1154,7 +1154,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 			if strings.Count(name, "/") > 0 || name == "." || name == ".." || len(name) == 0 {
 				continue
 			}
-			itemPath := filepath.Join(o.ToDir, name)
+			itemPath := filepath.Clean(filepath.Join(o.ToDir, name))
 			f, err := os.OpenFile(itemPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 			if err != nil {
 				return err
