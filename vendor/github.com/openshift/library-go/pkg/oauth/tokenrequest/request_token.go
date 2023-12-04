@@ -74,8 +74,8 @@ type AuthorizationURLHandlerFunc func(url *url.URL) error
 // RequestTokenWithChallengeHandlers uses the cmd arguments to locate an openshift oauth server
 // and attempts to authenticate with the OAuth code flow and challenge handling.
 // It returns the access token if it gets one or an error if it does not.
-func RequestTokenWithChallengeHandlers(clientCfg *restclient.Config, challengeHandlers ...challengehandlers.ChallengeHandler) (string, error) {
-	o, err := NewRequestTokenOptions(clientCfg, false).WithChallengeHandlers(challengeHandlers...)
+func RequestTokenWithChallengeHandlers(clientCfg *restclient.Config, clientID string, challengeHandlers ...challengehandlers.ChallengeHandler) (string, error) {
+	o, err := NewRequestTokenOptions(clientCfg, false).WithChallengeHandlers(clientID, challengeHandlers...)
 	if err != nil {
 		return "", err
 	}
@@ -87,8 +87,8 @@ func RequestTokenWithChallengeHandlers(clientCfg *restclient.Config, challengeHa
 // authzURLHandler is used to forward the user to the OAuth server's parametrized authorization URL to
 // retrieve the authorization code.
 // It starts a localhost server on port `callbackPort` (random port if unspecified) to exchange the authorization code for an access token.
-func RequestTokenWithLocalCallback(clientCfg *restclient.Config, authzURLHandler AuthorizationURLHandlerFunc, callbackPort int) (string, error) {
-	o, err := NewRequestTokenOptions(clientCfg, false).WithLocalCallback(authzURLHandler, callbackPort)
+func RequestTokenWithLocalCallback(clientCfg *restclient.Config, clientID string, authzURLHandler AuthorizationURLHandlerFunc, callbackPort int) (string, error) {
+	o, err := NewRequestTokenOptions(clientCfg, false).WithLocalCallback(clientID, authzURLHandler, callbackPort)
 	if err != nil {
 		return "", err
 	}
@@ -111,7 +111,7 @@ func NewRequestTokenOptions(
 // used in the OAuth code flow.
 // If RequestTokenOptions.OsinConfig is nil, it will be defaulted using SetDefaultOsinConfig.
 // The caller is responsible for setting up the entire OsinConfig if the value is not nil.
-func (o *RequestTokenOptions) WithChallengeHandlers(challengeHandlers ...challengehandlers.ChallengeHandler) (*RequestTokenOptions, error) {
+func (o *RequestTokenOptions) WithChallengeHandlers(clientID string, challengeHandlers ...challengehandlers.ChallengeHandler) (*RequestTokenOptions, error) {
 	var handler challengehandlers.ChallengeHandler
 	if len(challengeHandlers) == 1 {
 		handler = challengeHandlers[0]
@@ -121,7 +121,10 @@ func (o *RequestTokenOptions) WithChallengeHandlers(challengeHandlers ...challen
 	o.Handler = handler
 
 	if o.OsinConfig == nil {
-		if err := o.SetDefaultOsinConfig(openShiftCLIClientID, nil); err != nil {
+		if len(clientID) == 0 {
+			clientID = openShiftCLIClientID
+		}
+		if err := o.SetDefaultOsinConfig(clientID, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -133,7 +136,7 @@ func (o *RequestTokenOptions) WithChallengeHandlers(challengeHandlers ...challen
 // unstarted local callback server on the specified port.
 // If RequestTokenOptions.OsinConfig is nil, it will be defaulted using SetDefaultOsinConfig.
 // The caller is responsible for setting up the entire OsinConfig if the value is not nil.
-func (o *RequestTokenOptions) WithLocalCallback(handleAuthzURL AuthorizationURLHandlerFunc, localCallbackPort int) (*RequestTokenOptions, error) {
+func (o *RequestTokenOptions) WithLocalCallback(clientID string, handleAuthzURL AuthorizationURLHandlerFunc, localCallbackPort int) (*RequestTokenOptions, error) {
 	var err error
 	o.AuthorizationURLHandler = handleAuthzURL
 	o.LocalCallbackServer, err = newCallbackServer(localCallbackPort)
@@ -143,7 +146,10 @@ func (o *RequestTokenOptions) WithLocalCallback(handleAuthzURL AuthorizationURLH
 
 	if o.OsinConfig == nil {
 		redirectUrl := fmt.Sprintf("http://%s/callback", o.LocalCallbackServer.ListenAddr())
-		if err := o.SetDefaultOsinConfig(openShiftCLIBrowserClientID, &redirectUrl); err != nil {
+		if len(clientID) == 0 {
+			clientID = openShiftCLIBrowserClientID
+		}
+		if err := o.SetDefaultOsinConfig(clientID, &redirectUrl); err != nil {
 			return nil, err
 		}
 	}

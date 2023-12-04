@@ -70,6 +70,8 @@ type LoginOptions struct {
 	CertFile string
 	KeyFile  string
 
+	ClientID string
+
 	Token string
 
 	PathOptions *kclientcmd.PathOptions
@@ -216,6 +218,30 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	t := *directClientConfig
 	clientConfig := &t
 
+	if len(o.ClientID) > 0 {
+		loginURLHandler := func(u *url.URL) error {
+			loginURL := u.String()
+			fmt.Fprintf(o.Out, "Opening login URL in the default browser: %s\n", loginURL)
+			return browser.OpenURL(loginURL)
+		}
+		token, err := tokenrequest.RequestTokenWithLocalCallback(o.Config, "admin-cli", loginURLHandler, 8000)
+		if err != nil {
+			return err
+		}
+
+		clientConfig.BearerToken = token
+
+		me, err := project.WhoAmI(clientConfig)
+		if err != nil {
+			return err
+		}
+		o.Username = me.Name
+		o.Config = clientConfig
+		fmt.Fprint(o.Out, "Login successful.\n\n")
+
+		return nil
+	}
+
 	// if a token were explicitly provided, try to use it
 	if o.tokenProvided() {
 		clientConfig.BearerToken = o.Token
@@ -276,9 +302,9 @@ func (o *LoginOptions) gatherAuthInfo() error {
 			fmt.Fprintf(o.Out, "Opening login URL in the default browser: %s\n", loginURL)
 			return browser.OpenURL(loginURL)
 		}
-		token, err = tokenrequest.RequestTokenWithLocalCallback(o.Config, loginURLHandler, int(o.CallbackPort))
+		token, err = tokenrequest.RequestTokenWithLocalCallback(o.Config, "admin-cli", loginURLHandler, int(o.CallbackPort))
 	} else {
-		token, err = tokenrequest.RequestTokenWithChallengeHandlers(o.Config, o.getAuthChallengeHandler())
+		token, err = tokenrequest.RequestTokenWithChallengeHandlers(o.Config, "admin-cli", o.getAuthChallengeHandler())
 	}
 	if err != nil {
 		return err
