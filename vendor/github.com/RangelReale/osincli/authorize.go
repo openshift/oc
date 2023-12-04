@@ -51,6 +51,7 @@ func (c *AuthorizeRequest) GetAuthorizeUrlWithParams(state string) *url.URL {
 	uq.Add("response_type", string(c.Type))
 	uq.Add("client_id", c.client.config.ClientId)
 	uq.Add("redirect_uri", c.client.config.RedirectUrl)
+	uq.Add("scope", "openid")
 	if c.client.config.Scope != "" {
 		uq.Add("scope", c.client.config.Scope)
 	}

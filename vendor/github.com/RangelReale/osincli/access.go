@@ -91,6 +91,7 @@ func (c *AccessRequest) GetTokenUrl() *url.URL {
 		if c.client.config.CodeVerifier != "" {
 			uq.Add("code_verifier", c.client.config.CodeVerifier)
 		}
+		uq.Add("scope", "openid")
 
 	case CLIENT_CREDENTIALS:
 		// https://tools.ietf.org/html/rfc6749#section-4.4.2
