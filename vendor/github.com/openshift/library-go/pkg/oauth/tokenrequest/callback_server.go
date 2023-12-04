@@ -12,11 +12,13 @@ import (
 )
 
 type callbackResult struct {
-	token string
+	accessToken string
+	idToken string
+	refreshToken string
 	err   error
 }
 
-type callbackHandlerFunc func(*http.Request) (string, error)
+type callbackHandlerFunc func(*http.Request) (string, string, string, error)
 
 type callbackServer struct {
 	server      *http.Server
@@ -95,7 +97,7 @@ func (c *callbackServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := c.callbackHandler(r)
+	accessToken, idToken, refreshToken, err := c.callbackHandler(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("access token request failed; please return to your terminal"))
@@ -104,7 +106,7 @@ func (c *callbackServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte("access token received successfully; please return to your terminal"))
-	c.resultChan <- callbackResult{token: token}
+	c.resultChan <- callbackResult{accessToken: accessToken, idToken: idToken, refreshToken: refreshToken}
 }
 
 // getLoopbackAddr returns the first address from the host's network interfaces which is a loopback address

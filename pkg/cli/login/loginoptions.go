@@ -224,12 +224,12 @@ func (o *LoginOptions) gatherAuthInfo() error {
 			fmt.Fprintf(o.Out, "Opening login URL in the default browser: %s\n", loginURL)
 			return browser.OpenURL(loginURL)
 		}
-		token, err := tokenrequest.RequestTokenWithLocalCallback(o.Config, "admin-cli", loginURLHandler, 8000)
+		_, idToken, _, err := tokenrequest.RequestTokenWithLocalCallback(o.Config, "admin-cli", loginURLHandler, 8000)
 		if err != nil {
 			return err
 		}
 
-		clientConfig.BearerToken = token
+		clientConfig.BearerToken = idToken
 
 		me, err := project.WhoAmI(clientConfig)
 		if err != nil {
@@ -302,9 +302,9 @@ func (o *LoginOptions) gatherAuthInfo() error {
 			fmt.Fprintf(o.Out, "Opening login URL in the default browser: %s\n", loginURL)
 			return browser.OpenURL(loginURL)
 		}
-		token, err = tokenrequest.RequestTokenWithLocalCallback(o.Config, "admin-cli", loginURLHandler, int(o.CallbackPort))
+		token, _, _, err = tokenrequest.RequestTokenWithLocalCallback(o.Config, "admin-cli", loginURLHandler, int(o.CallbackPort))
 	} else {
-		token, err = tokenrequest.RequestTokenWithChallengeHandlers(o.Config, "admin-cli", o.getAuthChallengeHandler())
+		token, _, _, err = tokenrequest.RequestTokenWithChallengeHandlers(o.Config, "admin-cli", o.getAuthChallengeHandler())
 	}
 	if err != nil {
 		return err

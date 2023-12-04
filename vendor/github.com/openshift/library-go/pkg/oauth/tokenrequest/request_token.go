@@ -74,10 +74,10 @@ type AuthorizationURLHandlerFunc func(url *url.URL) error
 // RequestTokenWithChallengeHandlers uses the cmd arguments to locate an openshift oauth server
 // and attempts to authenticate with the OAuth code flow and challenge handling.
 // It returns the access token if it gets one or an error if it does not.
-func RequestTokenWithChallengeHandlers(clientCfg *restclient.Config, clientID string, challengeHandlers ...challengehandlers.ChallengeHandler) (string, error) {
+func RequestTokenWithChallengeHandlers(clientCfg *restclient.Config, clientID string, challengeHandlers ...challengehandlers.ChallengeHandler) (string, string, string, error) {
 	o, err := NewRequestTokenOptions(clientCfg, false).WithChallengeHandlers(clientID, challengeHandlers...)
 	if err != nil {
-		return "", err
+		return "", "", "", err
 	}
 
 	return o.RequestToken()
@@ -87,10 +87,10 @@ func RequestTokenWithChallengeHandlers(clientCfg *restclient.Config, clientID st
 // authzURLHandler is used to forward the user to the OAuth server's parametrized authorization URL to
 // retrieve the authorization code.
 // It starts a localhost server on port `callbackPort` (random port if unspecified) to exchange the authorization code for an access token.
-func RequestTokenWithLocalCallback(clientCfg *restclient.Config, clientID string, authzURLHandler AuthorizationURLHandlerFunc, callbackPort int) (string, error) {
+func RequestTokenWithLocalCallback(clientCfg *restclient.Config, clientID string, authzURLHandler AuthorizationURLHandlerFunc, callbackPort int) (string, string, string, error) {
 	o, err := NewRequestTokenOptions(clientCfg, false).WithLocalCallback(clientID, authzURLHandler, callbackPort)
 	if err != nil {
-		return "", err
+		return "", "", "", err
 	}
 
 	return o.RequestToken()
@@ -214,7 +214,7 @@ func (o *RequestTokenOptions) SetDefaultOsinConfig(clientID string, redirectURL 
 // RequestTokenOptions object and performs the request.
 // It returns the access token if it gets one, or an error if it does not.
 // It should only be invoked once on a given RequestTokenOptions instance.
-func (o *RequestTokenOptions) RequestToken() (string, error) {
+func (o *RequestTokenOptions) RequestToken() (string, string, string, error) {
 
 	switch {
 	case o.LocalCallbackServer != nil:
@@ -224,7 +224,7 @@ func (o *RequestTokenOptions) RequestToken() (string, error) {
 		return o.requestTokenWithChallengeHandlers()
 
 	default:
-		return "", fmt.Errorf("no challenge handlers or localhost callback server were provided")
+		return "", "", "", fmt.Errorf("no challenge handlers or localhost callback server were provided")
 	}
 }
 
@@ -232,7 +232,7 @@ func (o *RequestTokenOptions) RequestToken() (string, error) {
 // challenge handlers.
 // It returns the access token if it gets one, or an error if it does not.
 // The Handler held by the options is released as part of this call.
-func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error) {
+func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, string, string, error) {
 	defer func() {
 		// Always release the handler
 		if err := o.Handler.Release(); err != nil {
@@ -243,17 +243,17 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 
 	client, authorizeRequest, err := o.newOsinClient()
 	if err != nil {
-		return "", err
+		return "", "", "", err
 	}
 
-	var oauthTokenFunc func(redirectURL string) (accessToken string, oauthError error)
+	var oauthTokenFunc func(redirectURL string) (accessToken string, idToken string, refreshToken string, oauthError error)
 	if o.TokenFlow {
 		// access_token in fragment or error parameter
 		authorizeRequest.Type = token // manually override to token flow if necessary
 		oauthTokenFunc = oauthTokenFlow
 	} else {
 		// code or error parameter
-		oauthTokenFunc = func(redirectURL string) (accessToken string, oauthError error) {
+		oauthTokenFunc = func(redirectURL string) (accessToken string, idToken string, refreshToken string, oauthError error) {
 			return oauthCodeFlow(client, authorizeRequest, redirectURL)
 		}
 	}
@@ -271,14 +271,14 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 		// Make the request
 		resp, err := request(client.Transport, requestURL, requestHeaders)
 		if err != nil {
-			return "", err
+			return "", "", "", err
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusUnauthorized {
 			if len(resp.Header.Get("WWW-Authenticate")) > 0 {
 				if !o.Handler.CanHandle(resp.Header) {
-					return "", apierrs.NewUnauthorized("unhandled challenge")
+					return "", "", "", apierrs.NewUnauthorized("unhandled challenge")
 				}
 				// Handle the challenge
 				newRequestHeaders, shouldRetry, err := o.Handler.HandleChallenge(requestURL, resp.Header)
@@ -295,12 +295,12 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 								)},
 							},
 						}
-						return "", tokenPromptErr
+						return "", "", "", tokenPromptErr
 					}
-					return "", err
+					return "", "", "", err
 				}
 				if !shouldRetry {
-					return "", apierrs.NewUnauthorized("challenger chose not to retry the request")
+					return "", "", "", apierrs.NewUnauthorized("challenger chose not to retry the request")
 				}
 				// Remember if we've ever handled a challenge
 				handledChallenge = true
@@ -324,14 +324,14 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 				}
 			}
 
-			return "", unauthorizedError
+			return "", "", "", unauthorizedError
 		}
 
 		// if we've ever handled a challenge, see if the handler also considers the interaction complete.
 		// this is required for negotiate flows with mutual authentication.
 		if handledChallenge {
 			if err := o.Handler.CompleteChallenge(requestURL, resp.Header); err != nil {
-				return "", err
+				return "", "", "", err
 			}
 		}
 
@@ -339,12 +339,12 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 			redirectURL := resp.Header.Get("Location")
 
 			// OAuth response case
-			accessToken, err := oauthTokenFunc(redirectURL)
+			accessToken, idToken, refreshToken, err := oauthTokenFunc(redirectURL)
 			if err != nil {
-				return "", err
+				return "", "", "", err
 			}
 			if len(accessToken) > 0 {
-				return accessToken, nil
+				return accessToken, idToken, refreshToken, nil
 			}
 
 			// Non-OAuth response, just follow the URL
@@ -356,11 +356,11 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 				requestURL = redirectURL
 				continue
 			}
-			return "", apierrs.NewInternalError(fmt.Errorf("redirect loop: %s", strings.Join(requestedURLList, " -> ")))
+			return "", "", "", apierrs.NewInternalError(fmt.Errorf("redirect loop: %s", strings.Join(requestedURLList, " -> ")))
 		}
 
 		// Unknown response
-		return "", apierrs.NewInternalError(fmt.Errorf("unexpected response: %d", resp.StatusCode))
+		return "", "", "", apierrs.NewInternalError(fmt.Errorf("unexpected response: %d", resp.StatusCode))
 	}
 }
 
@@ -369,14 +369,14 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 // and exchange the code for an access token. Once done, it will also shut down
 // the callback server.
 // It returns the access token if it gets one, or an error if it does not.
-func (o *RequestTokenOptions) requestTokenWithLocalCallback() (string, error) {
+func (o *RequestTokenOptions) requestTokenWithLocalCallback() (string, string, string, error) {
 
 	client, authorizeRequest, err := o.newOsinClient()
 	if err != nil {
-		return "", err
+		return "", "", "", err
 	}
 
-	o.LocalCallbackServer.SetCallbackHandler(func(callback *http.Request) (string, error) {
+	o.LocalCallbackServer.SetCallbackHandler(func(callback *http.Request) (string, string, string, error) {
 		// once the redirect callback is received, use it to request an access token
 		// from the oauth server
 		return requestAccessToken(client, authorizeRequest, callback)
@@ -386,15 +386,15 @@ func (o *RequestTokenOptions) requestTokenWithLocalCallback() (string, error) {
 	defer func() { o.LocalCallbackServer.Shutdown(context.Background()) }()
 
 	if err := o.AuthorizationURLHandler(authorizeRequest.GetAuthorizeUrl()); err != nil {
-		return "", err
+		return "", "", "", err
 	}
 
 	result := <-o.LocalCallbackServer.resultChan
 	if result.err != nil {
-		return "", result.err
+		return "", "", "", result.err
 	}
 
-	return result.token, nil
+	return result.accessToken, result.idToken, result.refreshToken, nil
 }
 
 func (o *RequestTokenOptions) newOsinClient() (*osincli.Client, *osincli.AuthorizeRequest, error) {
@@ -426,14 +426,14 @@ func (o *RequestTokenOptions) newOsinClient() (*osincli.Client, *osincli.Authori
 // OAuth error is contained in the location URL.  No error is returned if location does not contain a token.
 // It is assumed that location was not part of the OAuth flow; it was a redirect that the client needs to follow
 // as part of the challenge flow (an authenticating proxy for example) and not a redirect step in the OAuth flow.
-func oauthTokenFlow(location string) (string, error) {
+func oauthTokenFlow(location string) (string, string, string, error) {
 	u, err := url.Parse(location)
 	if err != nil {
-		return "", err
+		return "", "", "", err
 	}
 
 	if oauthErr := oauthErrFromValues(u.Query()); oauthErr != nil {
-		return "", oauthErr
+		return "", "", "", oauthErr
 	}
 
 	// Grab the raw fragment ourselves, since the stdlib URL parsing decodes parts of it
@@ -443,10 +443,10 @@ func oauthTokenFlow(location string) (string, error) {
 	}
 	fragmentValues, err := url.ParseQuery(fragment)
 	if err != nil {
-		return "", err
+		return "", "", "", err
 	}
 
-	return fragmentValues.Get("access_token"), nil
+	return fragmentValues.Get("access_token"), fragmentValues.Get("id_token"), fragmentValues.Get("refresh_token"), nil
 }
 
 // oauthCodeFlow performs the OAuth code flow if location has a code parameter.
@@ -454,39 +454,39 @@ func oauthTokenFlow(location string) (string, error) {
 // or a definite OAuth error is encountered during the code flow.  Other errors are assumed to be caused
 // by location not being part of the OAuth flow; it was a redirect that the client needs to follow as part
 // of the challenge flow (an authenticating proxy for example) and not a redirect step in the OAuth flow.
-func oauthCodeFlow(client *osincli.Client, authorizeRequest *osincli.AuthorizeRequest, location string) (string, error) {
+func oauthCodeFlow(client *osincli.Client, authorizeRequest *osincli.AuthorizeRequest, location string) (string, string, string, error) {
 	// Make a request out of the URL since that is what AuthorizeRequest.HandleRequest expects to extract data from
 	req, err := http.NewRequest(http.MethodGet, location, nil)
 	if err != nil {
-		return "", err
+		return "", "", "", err
 	}
 
 	req.ParseForm()
 	if oauthErr := oauthErrFromValues(req.Form); oauthErr != nil {
-		return "", oauthErr
+		return "", "", "", oauthErr
 	}
 	if len(req.Form.Get("code")) == 0 {
-		return "", nil // no code parameter so this is not part of the OAuth flow
+		return "", "", "", nil // no code parameter so this is not part of the OAuth flow
 	}
 
 	return requestAccessToken(client, authorizeRequest, req)
 }
 
-func requestAccessToken(client *osincli.Client, authorizeRequest *osincli.AuthorizeRequest, req *http.Request) (string, error) {
+func requestAccessToken(client *osincli.Client, authorizeRequest *osincli.AuthorizeRequest, req *http.Request) (string, string, string, error) {
 
 	// any errors after this are fatal because we are committed to an OAuth flow now
 	authorizeData, err := authorizeRequest.HandleRequest(req)
 	if err != nil {
-		return "", osinToOAuthError(err)
+		return "", "", "", osinToOAuthError(err)
 	}
 
 	accessRequest := client.NewAccessRequest(osincli.AUTHORIZATION_CODE, authorizeData)
 	accessData, err := accessRequest.GetToken()
 	if err != nil {
-		return "", osinToOAuthError(err)
+		return "", "", "", osinToOAuthError(err)
 	}
 
-	return accessData.AccessToken, nil
+	return accessData.AccessToken, accessData.IDToken, accessData.RefreshToken, nil
 }
 
 // osinToOAuthError creates a better error message for osincli.Error

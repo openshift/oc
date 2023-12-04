@@ -30,6 +30,7 @@ type AccessRequest struct {
 type AccessData struct {
 	TokenType    string
 	AccessToken  string
+	IDToken      string
 	RefreshToken string
 	Expiration   *int32
 	ResponseData ResponseData
@@ -154,6 +155,13 @@ func (c *AccessRequest) GetToken() (*AccessData, error) {
 		return nil, errors.New("Invalid parameters received")
 	}
 	ret.AccessToken = fmt.Sprintf("%v", access_token)
+
+	id_token, ok := ret.ResponseData["id_token"]
+	if !ok {
+		ret.IDToken = ""
+	} else {
+		ret.IDToken = fmt.Sprintf("%v", id_token)
+	}
 
 	refresh_token, ok := ret.ResponseData["refresh_token"]
 	if !ok {
