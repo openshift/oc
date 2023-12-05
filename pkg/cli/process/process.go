@@ -350,10 +350,6 @@ func (o *ProcessOptions) RunProcess() error {
 			return err
 		}
 		templateObj.CreationTimestamp = metav1.Now()
-		if len(templateObj.Namespace) > 0 && templateObj.Namespace != o.namespace {
-			// if set, template namespace must match the namespace it will be processed in.
-			templateObj.Namespace = o.namespace
-		}
 		infos = append(infos, &resource.Info{Object: templateObj})
 	} else {
 		var err error
