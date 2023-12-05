@@ -3,23 +3,28 @@ package gettoken
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"path/filepath"
 
-	"k8s.io/client-go/util/homedir"
-
+	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
 	"github.com/int128/kubelogin/pkg/credentialplugin/writer"
+	oidcbrowser "github.com/int128/kubelogin/pkg/infrastructure/browser"
+	"github.com/int128/kubelogin/pkg/infrastructure/clock"
 	"github.com/int128/kubelogin/pkg/infrastructure/logger"
 	"github.com/int128/kubelogin/pkg/infrastructure/mutex"
 	"github.com/int128/kubelogin/pkg/oidc"
+	"github.com/int128/kubelogin/pkg/oidc/client"
 	"github.com/int128/kubelogin/pkg/tlsclientconfig"
+	"github.com/int128/kubelogin/pkg/tlsclientconfig/loader"
 	"github.com/int128/kubelogin/pkg/tokencache/repository"
 	"github.com/int128/kubelogin/pkg/usecases/authentication"
 	"github.com/int128/kubelogin/pkg/usecases/authentication/authcode"
 	"github.com/int128/kubelogin/pkg/usecases/credentialplugin"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/client-go/util/homedir"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -89,11 +94,20 @@ func (o *GetTokenOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 
 	o.credLogger = logger.New()
 
+	clockReal := &clock.Real{}
+
 	o.credAuthentication = &authentication.Authentication{
-		ClientFactory:   nil,
-		Logger:          o.credLogger,
-		Clock:           nil,
-		AuthCodeBrowser: nil,
+		ClientFactory: &client.Factory{
+			Loader: loader.Loader{},
+			Clock:  clockReal,
+			Logger: o.credLogger,
+		},
+		Logger: o.credLogger,
+		Clock:  clockReal,
+		AuthCodeBrowser: &authcode.Browser{
+			Browser: NewBrowser(o.IOStreams),
+			Logger:  o.credLogger,
+		},
 	}
 
 	return nil
@@ -145,4 +159,27 @@ func (o *GetTokenOptions) Run() error {
 	}
 
 	return nil
+}
+
+type Browser struct {
+	genericiooptions.IOStreams
+}
+
+func NewBrowser(streams genericiooptions.IOStreams) oidcbrowser.Interface {
+	return &Browser{
+		streams,
+	}
+}
+
+// Open opens the default browser.
+func (b *Browser) Open(url string) error {
+	return browser.OpenURL(url)
+}
+
+// OpenCommand opens the browser using the command.
+func (b *Browser) OpenCommand(ctx context.Context, url, command string) error {
+	c := exec.CommandContext(ctx, command, url)
+	c.Stdout = b.Out
+	c.Stderr = b.ErrOut
+	return c.Run()
 }
