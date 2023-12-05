@@ -351,10 +351,6 @@ func (o *ProcessOptions) RunProcess() error {
 			return err
 		}
 		templateObj.CreationTimestamp = metav1.Now()
-		if len(templateObj.Namespace) > 0 && templateObj.Namespace != o.namespace {
-			// if set, template namespace must match the namespace it will be processed in.
-			templateObj.Namespace = o.namespace
-		}
 		infos = append(infos, &resource.Info{Object: templateObj})
 	} else {
 		var err error
@@ -385,6 +381,11 @@ func (o *ProcessOptions) RunProcess() error {
 			sourceName = o.namespace + "/" + o.templateName
 		}
 		return fmt.Errorf("unable to parse %q, not a valid Template but %s\n", sourceName, reflect.TypeOf(infos[0].Object))
+	}
+
+	if len(obj.Namespace) > 0 && obj.Namespace != o.namespace {
+		// if set, template namespace must match the namespace it will be processed in.
+		obj.Namespace = o.namespace
 	}
 
 	// If 'parameters' flag is set it does not do processing but only print
