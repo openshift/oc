@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
 	"github.com/int128/kubelogin/pkg/credentialplugin/writer"
 	oidcbrowser "github.com/int128/kubelogin/pkg/infrastructure/browser"
-	"github.com/int128/kubelogin/pkg/infrastructure/clock"
 	"github.com/int128/kubelogin/pkg/infrastructure/logger"
 	"github.com/int128/kubelogin/pkg/infrastructure/mutex"
 	"github.com/int128/kubelogin/pkg/oidc"
@@ -94,7 +94,7 @@ func (o *GetTokenOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 
 	o.credLogger = logger.New()
 
-	clockReal := &clock.Real{}
+	clockReal := &Real{}
 
 	o.credAuthentication = &authentication.Authentication{
 		ClientFactory: &client.Factory{
@@ -182,4 +182,11 @@ func (b *Browser) OpenCommand(ctx context.Context, url, command string) error {
 	c.Stdout = b.Out
 	c.Stderr = b.ErrOut
 	return c.Run()
+}
+
+type Real struct{}
+
+// Now returns the current time.
+func (c *Real) Now() time.Time {
+	return time.Now()
 }
