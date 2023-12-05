@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	_ "github.com/int128/kubelogin"
+	_ "github.com/int128/kubelogin/pkg/cmd"
 
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -91,6 +91,8 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 
 	cmds.Flags().BoolVarP(&o.WebLogin, "web", "w", o.WebLogin, "Login with web browser. Starts a local HTTP callback server to perform the OAuth2 Authorization Code Grant flow. Use with caution on multi-user systems, as the server's port will be open to all users.")
 	cmds.Flags().Int32VarP(&o.CallbackPort, "callback-port", "c", o.CallbackPort, "Port for the callback server when using --web. Defaults to a random open port")
+	cmds.Flags().StringVar(&o.OIDCClientID, "client-id", o.OIDCClientID, "Experimental: Client ID for external OIDC issuer")
+	cmds.Flags().StringArrayVar(&o.OIDCExtraArgs, "extra-args", o.OIDCExtraArgs, "Experimental: Set extra arguments")
 	return cmds
 }
 
@@ -177,6 +179,10 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 
 	if o.WebLogin && (o.Username != "" || o.Password != "" || o.Token != "") {
 		return errors.New("--web cannot be used along with --username, --password or --token")
+	}
+
+	if o.OIDCClientID != "" && (o.WebLogin || o.Username != "" || o.Password != "" || o.Token != "") {
+		return errors.New("--client-id cannot be used along with --web, --username, --password or --token")
 	}
 
 	if o.CallbackPort != 0 && !o.WebLogin {

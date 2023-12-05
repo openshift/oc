@@ -5,14 +5,21 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"k8s.io/client-go/pkg/apis/clientauthentication"
+
+	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,6 +78,9 @@ type LoginOptions struct {
 	KeyFile  string
 
 	Token string
+
+	OIDCClientID  string
+	OIDCExtraArgs []string
 
 	PathOptions *kclientcmd.PathOptions
 
@@ -215,6 +225,51 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	// make a copy and use it to avoid mutating the original
 	t := *directClientConfig
 	clientConfig := &t
+
+	if o.clientIDProvided() {
+		oauthMetadata, err := o.getIssuerUrlForOIDC()
+		if err != nil {
+			return err
+		}
+		clientConfig.ExecProvider = &kclientcmdapi.ExecConfig{
+			Command: "oc",
+			Args: []string{
+				"get-token",
+				fmt.Sprintf("--oidc-issuer-url=%s", oauthMetadata.Issuer),
+				fmt.Sprintf("--oidc-client-id=%s", o.OIDCClientID),
+			},
+			APIVersion:      clientauthentication.GroupName + "/v1beta1",
+			InteractiveMode: kclientcmdapi.IfAvailableExecInteractiveMode,
+		}
+
+		if o.InsecureTLS {
+			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, "--insecure-skip-tls-verify")
+		}
+
+		if len(o.Config.CAData) > 0 {
+			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--certificate-authority-data=%s", string(o.Config.CAData)))
+		}
+
+		if len(o.Config.CAFile) > 0 {
+			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.Config.CAFile))
+		}
+		for _, val := range o.OIDCExtraArgs {
+			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--extra-args=%s", val))
+		}
+
+		me, err := project.WhoAmI(clientConfig)
+		if err != nil {
+			if kerrors.IsUnauthorized(err) {
+				return fmt.Errorf("The token provided is invalid or expired.\n\n")
+			}
+			return err
+		}
+		o.Username = me.Name
+		o.Config = clientConfig
+
+		fmt.Fprintf(o.Out, "Logged into %q as %q using the token provided.\n\n", o.Config.Host, o.Username)
+		return nil
+	}
 
 	// if a token were explicitly provided, try to use it
 	if o.tokenProvided() {
@@ -497,6 +552,42 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 	return created, nil
 }
 
+func (o *LoginOptions) getIssuerUrlForOIDC() (*oauthdiscovery.OauthAuthorizationServerMetadata, error) {
+	// get the OAuth metadata directly from the api server
+	// we only want to use the ca data from our config
+	rt, err := restclient.TransportFor(o.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	requestURL := strings.TrimRight(o.Config.Host, "/") + "/.well-known/oauth-authorization-server"
+
+	// Build the request
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-CSRF-Token", "1")
+
+	// Make the request
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("couldn't get %v: unexpected response status %v", requestURL, resp.StatusCode)
+	}
+
+	metadata := &oauthdiscovery.OauthAuthorizationServerMetadata{}
+	if err := json.NewDecoder(resp.Body).Decode(metadata); err != nil {
+		return nil, err
+	}
+
+	return metadata, nil
+}
+
 func (o *LoginOptions) usernameProvided() bool {
 	return len(o.Username) > 0
 }
@@ -511,4 +602,8 @@ func (o *LoginOptions) serverProvided() bool {
 
 func (o *LoginOptions) tokenProvided() bool {
 	return len(o.Token) > 0
+}
+
+func (o *LoginOptions) clientIDProvided() bool {
+	return len(o.OIDCClientID) > 0
 }
