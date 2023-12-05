@@ -33,6 +33,7 @@ import (
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
+	kterm "k8s.io/kubectl/pkg/util/term"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/exec"
 
@@ -92,6 +93,11 @@ sleep 5
 done`
 )
 
+const (
+	redColor   = "\u001b[31;1m"
+	resetColor = "\u001b[0m"
+)
+
 func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMustGatherOptions(streams)
 	cmd := &cobra.Command{
@@ -100,6 +106,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 		Long:    mustGatherLong,
 		Example: mustGatherExample,
 		Run: func(cmd *cobra.Command, args []string) {
+			kcmdutil.BehaviorOnFatal(o.fatal)
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
 			ocmdhelpers.CheckPodSecurityErr(o.Run())
@@ -887,4 +894,29 @@ func (o *MustGatherOptions) BackupGathering(ctx context.Context, errs []error) {
 		fmt.Fprintf(o.ErrOut, "error running backup collection: %v\n", err)
 		return
 	}
+}
+
+// fatal prints the message (if provided) and then exits. If V(99) or greater,
+// klog.Fatal is invoked for extended information. This is intended for maintainer
+// debugging and out of a reasonable range for users.
+// fatal is a copy of github.com/kubernetes/kubectl/blob/master/pkg/cmd/util/helpers.go:fatal with slight modifications
+// to render more legible error output.
+func (o *MustGatherOptions) fatal(msg string, code int) {
+	// nolint:logcheck // Not using the result of klog.V(99) inside the if
+	// branch is okay, we just use it to determine how to terminate.
+	if klog.V(99).Enabled() {
+		klog.FatalDepth(2, msg)
+	}
+	if len(msg) > 0 {
+		msg = strings.TrimSuffix(msg, "\r\n")
+		re := regexp.MustCompile("(?i)^error: ")
+		msg = re.ReplaceAllString(msg, "")
+	}
+	// See pkg/cli/cli.go:NewOcCommand + k8s.io/client-go/rest/warnings.go for a similar approach.
+	if kterm.AllowsColorOutput(o.IOStreams.ErrOut) {
+		fmt.Fprintf(o.IOStreams.ErrOut, "%sError:%s must-gather failed:\n\t%s\n", redColor, resetColor, msg)
+	} else {
+		fmt.Fprintf(o.IOStreams.ErrOut, "Error: must-gather failed:\n\t%s\n", msg)
+	}
+	os.Exit(code)
 }
