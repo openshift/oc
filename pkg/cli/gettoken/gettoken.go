@@ -3,15 +3,11 @@ package gettoken
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"path/filepath"
-	"time"
 
-	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
 	"github.com/int128/kubelogin/pkg/credentialplugin/writer"
-	oidcbrowser "github.com/int128/kubelogin/pkg/infrastructure/browser"
 	"github.com/int128/kubelogin/pkg/infrastructure/logger"
 	"github.com/int128/kubelogin/pkg/infrastructure/mutex"
 	"github.com/int128/kubelogin/pkg/oidc"
@@ -88,11 +84,11 @@ func (o *GetTokenOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 
 	o.tokenCacheRepo = &repository.Repository{}
 
-	o.credWriter = &writer.Writer{
-		Stdout: o.Out,
+	o.credWriter = &Writer{
+		out: o.Out,
 	}
 
-	o.credLogger = logger.New()
+	o.credLogger = NewLogger(o.IOStreams)
 
 	clockReal := &Real{}
 
@@ -159,34 +155,4 @@ func (o *GetTokenOptions) Run() error {
 	}
 
 	return nil
-}
-
-type Browser struct {
-	genericiooptions.IOStreams
-}
-
-func NewBrowser(streams genericiooptions.IOStreams) oidcbrowser.Interface {
-	return &Browser{
-		streams,
-	}
-}
-
-// Open opens the default browser.
-func (b *Browser) Open(url string) error {
-	return browser.OpenURL(url)
-}
-
-// OpenCommand opens the browser using the command.
-func (b *Browser) OpenCommand(ctx context.Context, url, command string) error {
-	c := exec.CommandContext(ctx, command, url)
-	c.Stdout = b.Out
-	c.Stderr = b.ErrOut
-	return c.Run()
-}
-
-type Real struct{}
-
-// Now returns the current time.
-func (c *Real) Now() time.Time {
-	return time.Now()
 }

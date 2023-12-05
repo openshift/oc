@@ -239,7 +239,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 				fmt.Sprintf("--oidc-issuer-url=%s", oauthMetadata.Issuer),
 				fmt.Sprintf("--oidc-client-id=%s", o.OIDCClientID),
 			},
-			APIVersion:      clientauthentication.GroupName + "/v1beta1",
+			APIVersion:      clientauthentication.GroupName + "/v1",
 			InteractiveMode: kclientcmdapi.IfAvailableExecInteractiveMode,
 		}
 
