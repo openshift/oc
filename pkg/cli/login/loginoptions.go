@@ -79,8 +79,8 @@ type LoginOptions struct {
 
 	Token string
 
-	OIDCClientID  string
-	OIDCExtraArgs []string
+	OIDCClientID   string
+	OIDCExtraScope []string
 
 	PathOptions *kclientcmd.PathOptions
 
@@ -246,15 +246,11 @@ func (o *LoginOptions) gatherAuthInfo() error {
 			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, "--insecure-skip-tls-verify")
 		}
 
-		if len(o.Config.CAData) > 0 {
-			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--certificate-authority-data=%s", string(o.Config.CAData)))
-		}
-
 		if len(o.Config.CAFile) > 0 {
 			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.Config.CAFile))
 		}
-		for _, val := range o.OIDCExtraArgs {
-			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--extra-args=%s", val))
+		for _, val := range o.OIDCExtraScope {
+			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--oidc-extra-scope=%s", val))
 		}
 
 		me, err := project.WhoAmI(clientConfig)

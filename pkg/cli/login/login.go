@@ -92,7 +92,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().BoolVarP(&o.WebLogin, "web", "w", o.WebLogin, "Login with web browser. Starts a local HTTP callback server to perform the OAuth2 Authorization Code Grant flow. Use with caution on multi-user systems, as the server's port will be open to all users.")
 	cmds.Flags().Int32VarP(&o.CallbackPort, "callback-port", "c", o.CallbackPort, "Port for the callback server when using --web. Defaults to a random open port")
 	cmds.Flags().StringVar(&o.OIDCClientID, "client-id", o.OIDCClientID, "Experimental: Client ID for external OIDC issuer")
-	cmds.Flags().StringArrayVar(&o.OIDCExtraArgs, "extra-args", o.OIDCExtraArgs, "Experimental: Set extra arguments")
+	cmds.Flags().StringArrayVar(&o.OIDCExtraScope, "extra-scope", o.OIDCExtraScope, "Experimental: Set extra scopes")
 	return cmds
 }
 
