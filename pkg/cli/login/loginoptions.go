@@ -79,8 +79,9 @@ type LoginOptions struct {
 
 	Token string
 
-	OIDCClientID   string
-	OIDCExtraScope []string
+	OIDCClientID    string
+	OIDCExtraScope  []string
+	OIDCBindAddress string
 
 	PathOptions *kclientcmd.PathOptions
 
@@ -249,6 +250,11 @@ func (o *LoginOptions) gatherAuthInfo() error {
 		if len(o.Config.CAFile) > 0 {
 			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.Config.CAFile))
 		}
+
+		if len(o.OIDCBindAddress) > 0 {
+			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--oidc-bind-address=%s", o.OIDCBindAddress))
+		}
+
 		for _, val := range o.OIDCExtraScope {
 			clientConfig.ExecProvider.Args = append(clientConfig.ExecProvider.Args, fmt.Sprintf("--oidc-extra-scope=%s", val))
 		}

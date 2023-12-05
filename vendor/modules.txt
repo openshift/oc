@@ -460,11 +460,8 @@ github.com/imdario/mergo
 github.com/inconshreveable/mousetrap
 # github.com/int128/kubelogin v1.28.0
 ## explicit; go 1.19
-github.com/int128/kubelogin
-github.com/int128/kubelogin/pkg/cmd
 github.com/int128/kubelogin/pkg/credentialplugin
 github.com/int128/kubelogin/pkg/credentialplugin/writer
-github.com/int128/kubelogin/pkg/di
 github.com/int128/kubelogin/pkg/infrastructure/browser
 github.com/int128/kubelogin/pkg/infrastructure/clock
 github.com/int128/kubelogin/pkg/infrastructure/logger
@@ -472,9 +469,6 @@ github.com/int128/kubelogin/pkg/infrastructure/mutex
 github.com/int128/kubelogin/pkg/infrastructure/reader
 github.com/int128/kubelogin/pkg/infrastructure/stdio
 github.com/int128/kubelogin/pkg/jwt
-github.com/int128/kubelogin/pkg/kubeconfig
-github.com/int128/kubelogin/pkg/kubeconfig/loader
-github.com/int128/kubelogin/pkg/kubeconfig/writer
 github.com/int128/kubelogin/pkg/oidc
 github.com/int128/kubelogin/pkg/oidc/client
 github.com/int128/kubelogin/pkg/oidc/client/logging
@@ -488,8 +482,6 @@ github.com/int128/kubelogin/pkg/usecases/authentication/authcode
 github.com/int128/kubelogin/pkg/usecases/authentication/devicecode
 github.com/int128/kubelogin/pkg/usecases/authentication/ropc
 github.com/int128/kubelogin/pkg/usecases/credentialplugin
-github.com/int128/kubelogin/pkg/usecases/setup
-github.com/int128/kubelogin/pkg/usecases/standalone
 # github.com/int128/listener v1.1.0
 ## explicit; go 1.13
 github.com/int128/listener
