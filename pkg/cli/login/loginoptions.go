@@ -241,6 +241,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 			},
 			APIVersion:      clientauthentication.GroupName + "/v1",
 			InteractiveMode: kclientcmdapi.IfAvailableExecInteractiveMode,
+			InstallHint:     "Please be sure that oc is defined in execution $PATH",
 		}
 
 		if o.InsecureTLS {

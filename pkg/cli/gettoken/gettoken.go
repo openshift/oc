@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -29,7 +30,7 @@ var (
 	getTokenLong    = templates.LongDesc(``)
 	getTokenExample = templates.Examples(``)
 
-	defaultCallbackAddress = "127.0.0.1:8000"
+	defaultCallbackAddress = "localhost:8000"
 )
 
 type GetTokenOptions struct {
@@ -59,8 +60,8 @@ func NewCmdGetToken(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cob
 	o := NewGetTokenOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     "",
-		Short:   "",
+		Use:     "get-token",
+		Short:   "get-token",
 		Long:    getTokenLong,
 		Example: getTokenExample,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -73,7 +74,7 @@ func NewCmdGetToken(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cob
 	cmd.Flags().StringVar(&o.IssuerURL, "oidc-issuer-url", o.IssuerURL, "Issuer URL of the external OIDC provider")
 	cmd.Flags().StringVar(&o.ClientID, "oidc-client-id", o.ClientID, "Client ID of the provider")
 	cmd.Flags().StringArrayVar(&o.ExtraScopes, "oidc-extra-scope", o.ExtraScopes, "Scopes to request to the OIDC provider")
-	cmd.Flags().StringVar(&o.BindAdress, "oidc-bind-address", o.BindAdress, "Bind address for callback. Defaults to 127.0.0.1:8000")
+	cmd.Flags().StringVar(&o.BindAdress, "oidc-bind-address", o.BindAdress, "Bind address for callback. Defaults to localhost:8000")
 
 	return cmd
 }
@@ -131,8 +132,9 @@ func (o *GetTokenOptions) Run() error {
 		TokenCacheDir: filepath.Join(homedir.HomeDir(), ".kube"),
 		GrantOptionSet: authentication.GrantOptionSet{
 			AuthCodeBrowserOption: &authcode.BrowserOption{
-				BindAddress:     []string{o.BindAdress},
-				SkipOpenBrowser: true,
+				SkipOpenBrowser:       true,
+				BindAddress:           []string{o.BindAdress},
+				AuthenticationTimeout: 30 * time.Second,
 			},
 		},
 		TLSClientConfig: tlsclientconfig.Config{

@@ -91,7 +91,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().Int32VarP(&o.CallbackPort, "callback-port", "c", o.CallbackPort, "Port for the callback server when using --web. Defaults to a random open port")
 	cmds.Flags().StringVar(&o.OIDCClientID, "client-id", o.OIDCClientID, "Experimental: Client ID for external OIDC issuer. Only supports auth code + pkce (+ optionally refresh token)")
 	cmds.Flags().StringArrayVar(&o.OIDCExtraScope, "extra-scope", o.OIDCExtraScope, "Experimental: Set extra scopes")
-	cmds.Flags().StringVar(&o.OIDCBindAddress, "bind-address", o.OIDCBindAddress, "Experimental: Bind address for callback. Defaults to 127.0.0.1:8000")
+	cmds.Flags().StringVar(&o.OIDCBindAddress, "bind-address", o.OIDCBindAddress, "Experimental: Bind address for callback. Defaults to localhost:8000")
 	return cmds
 }
 
