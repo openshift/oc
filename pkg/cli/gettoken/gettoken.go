@@ -3,11 +3,18 @@ package gettoken
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+
+	"k8s.io/client-go/util/homedir"
 
 	"github.com/spf13/cobra"
 
+	"github.com/int128/kubelogin/pkg/credentialplugin/writer"
+	"github.com/int128/kubelogin/pkg/infrastructure/logger"
+	"github.com/int128/kubelogin/pkg/infrastructure/mutex"
 	"github.com/int128/kubelogin/pkg/oidc"
 	"github.com/int128/kubelogin/pkg/tlsclientconfig"
+	"github.com/int128/kubelogin/pkg/tokencache/repository"
 	"github.com/int128/kubelogin/pkg/usecases/authentication"
 	"github.com/int128/kubelogin/pkg/usecases/authentication/authcode"
 	"github.com/int128/kubelogin/pkg/usecases/credentialplugin"
@@ -20,6 +27,8 @@ import (
 var (
 	getTokenLong    = templates.LongDesc(``)
 	getTokenExample = templates.Examples(``)
+
+	defaultCallbackAddress = "127.0.0.1:8000"
 )
 
 type GetTokenOptions struct {
@@ -30,12 +39,18 @@ type GetTokenOptions struct {
 	CACertFilename string
 	InsecureTLS    bool
 
+	tokenCacheRepo     repository.Interface
+	credWriter         writer.Interface
+	credLogger         logger.Interface
+	credAuthentication authentication.Interface
+
 	genericiooptions.IOStreams
 }
 
 func NewGetTokenOptions(streams genericiooptions.IOStreams) *GetTokenOptions {
 	return &GetTokenOptions{
-		IOStreams: streams,
+		IOStreams:  streams,
+		BindAdress: defaultCallbackAddress,
 	}
 }
 
@@ -66,6 +81,21 @@ func (o *GetTokenOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 	o.CACertFilename = kcmdutil.GetFlagString(cmd, "certificate-authority")
 	o.InsecureTLS = kcmdutil.GetFlagBool(cmd, "insecure-skip-tls-verify")
 
+	o.tokenCacheRepo = &repository.Repository{}
+
+	o.credWriter = &writer.Writer{
+		Stdout: o.Out,
+	}
+
+	o.credLogger = logger.New()
+
+	o.credAuthentication = &authentication.Authentication{
+		ClientFactory:   nil,
+		Logger:          o.credLogger,
+		Clock:           nil,
+		AuthCodeBrowser: nil,
+	}
+
 	return nil
 }
 
@@ -75,10 +105,6 @@ func (o *GetTokenOptions) Validate() error {
 	}
 	if o.ClientID == "" {
 		return fmt.Errorf("--oidc-client-id is required")
-	}
-
-	if len(o.BindAdress) == 0 {
-		o.BindAdress = "127.0.0.1:8000"
 	}
 
 	return nil
@@ -92,7 +118,7 @@ func (o *GetTokenOptions) Run() error {
 			ExtraScopes: o.ExtraScopes,
 			UsePKCE:     true,
 		},
-		TokenCacheDir: "~/.kube/",
+		TokenCacheDir: filepath.Join(homedir.HomeDir(), ".kube"),
 		GrantOptionSet: authentication.GrantOptionSet{
 			AuthCodeBrowserOption: &authcode.BrowserOption{
 				BindAddress:     []string{o.BindAdress},
@@ -106,11 +132,13 @@ func (o *GetTokenOptions) Run() error {
 	}
 
 	credExec := &credentialplugin.GetToken{
-		Authentication:       nil,
-		TokenCacheRepository: nil,
-		Writer:               nil,
-		Mutex:                nil,
-		Logger:               nil,
+		Authentication:       o.credAuthentication,
+		TokenCacheRepository: o.tokenCacheRepo,
+		Writer:               o.credWriter,
+		Mutex: &mutex.Mutex{
+			Logger: o.credLogger,
+		},
+		Logger: o.credLogger,
 	}
 	if err := credExec.Do(context.TODO(), credInput); err != nil {
 		return fmt.Errorf("get-token credential exec plugin error %v", err)
