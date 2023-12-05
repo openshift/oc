@@ -386,6 +386,11 @@ func (o *ProcessOptions) RunProcess() error {
 		return fmt.Errorf("unable to parse %q, not a valid Template but %s\n", sourceName, reflect.TypeOf(infos[0].Object))
 	}
 
+	if len(obj.Namespace) > 0 && obj.Namespace != o.namespace {
+		// if set, template namespace must match the namespace it will be processed in.
+		obj.Namespace = o.namespace
+	}
+
 	// If 'parameters' flag is set it does not do processing but only print
 	// the template parameters to console for inspection.
 	if o.parameters {
