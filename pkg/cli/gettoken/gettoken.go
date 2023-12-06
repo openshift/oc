@@ -8,8 +8,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/int128/kubelogin/pkg/credentialplugin"
-	"github.com/int128/kubelogin/pkg/credentialplugin/writer"
 	"github.com/int128/kubelogin/pkg/infrastructure/logger"
 	"github.com/int128/kubelogin/pkg/jwt"
 	"github.com/int128/kubelogin/pkg/oidc"
@@ -40,7 +38,7 @@ type GetTokenOptions struct {
 	InsecureTLS    bool
 
 	tokenCacheRepo *Repository
-	credWriter     writer.Interface
+	credWriter     *Writer
 	credLogger     logger.Interface
 	realClock      *Real
 
@@ -140,11 +138,7 @@ func (o *GetTokenOptions) Run() error {
 			return fmt.Errorf("could not write the token cache: %w", err)
 		}
 	}
-	out := credentialplugin.Output{
-		Token:  idToken,
-		Expiry: idTokenClaims.Expiry,
-	}
-	if err := o.credWriter.Write(out); err != nil {
+	if err := o.credWriter.Write(idToken, idTokenClaims.Expiry); err != nil {
 		return fmt.Errorf("could not write the token to client-go: %w", err)
 	}
 	return nil

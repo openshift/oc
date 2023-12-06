@@ -3,13 +3,17 @@ package gettoken
 import (
 	"encoding/json"
 	"fmt"
-
-	credentialplugin "github.com/int128/kubelogin/pkg/credentialplugin"
+	"io"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	v1 "k8s.io/client-go/pkg/apis/clientauthentication/v1"
 )
+
+type Writer struct {
+	out io.Writer
+}
 
 func NewWriter(iostreams genericiooptions.IOStreams) *Writer {
 	return &Writer{
@@ -18,15 +22,15 @@ func NewWriter(iostreams genericiooptions.IOStreams) *Writer {
 }
 
 // Write writes the ExecCredential to standard output for kubectl.
-func (w *Writer) Write(out credentialplugin.Output) error {
+func (w *Writer) Write(token string, expiry time.Time) error {
 	ec := &v1.ExecCredential{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "client.authentication.k8s.io/v1",
 			Kind:       "ExecCredential",
 		},
 		Status: &v1.ExecCredentialStatus{
-			Token:               out.Token,
-			ExpirationTimestamp: &metav1.Time{Time: out.Expiry},
+			Token:               token,
+			ExpirationTimestamp: &metav1.Time{Time: expiry},
 		},
 	}
 	e := json.NewEncoder(w.out)
