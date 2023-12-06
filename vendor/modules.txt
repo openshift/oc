@@ -34,9 +34,6 @@ github.com/alessio/shellescape
 github.com/alexbrainman/sspi
 github.com/alexbrainman/sspi/internal/common
 github.com/alexbrainman/sspi/negotiate
-# github.com/alexflint/go-filemutex v1.2.0
-## explicit; go 1.13
-github.com/alexflint/go-filemutex
 # github.com/alicebob/sqlittle v1.4.0
 ## explicit; go 1.12
 github.com/alicebob/sqlittle
@@ -465,7 +462,6 @@ github.com/int128/kubelogin/pkg/credentialplugin/writer
 github.com/int128/kubelogin/pkg/infrastructure/browser
 github.com/int128/kubelogin/pkg/infrastructure/clock
 github.com/int128/kubelogin/pkg/infrastructure/logger
-github.com/int128/kubelogin/pkg/infrastructure/mutex
 github.com/int128/kubelogin/pkg/infrastructure/reader
 github.com/int128/kubelogin/pkg/infrastructure/stdio
 github.com/int128/kubelogin/pkg/jwt
@@ -475,13 +471,7 @@ github.com/int128/kubelogin/pkg/oidc/client/logging
 github.com/int128/kubelogin/pkg/pkce
 github.com/int128/kubelogin/pkg/tlsclientconfig
 github.com/int128/kubelogin/pkg/tlsclientconfig/loader
-github.com/int128/kubelogin/pkg/tokencache
-github.com/int128/kubelogin/pkg/tokencache/repository
-github.com/int128/kubelogin/pkg/usecases/authentication
 github.com/int128/kubelogin/pkg/usecases/authentication/authcode
-github.com/int128/kubelogin/pkg/usecases/authentication/devicecode
-github.com/int128/kubelogin/pkg/usecases/authentication/ropc
-github.com/int128/kubelogin/pkg/usecases/credentialplugin
 # github.com/int128/listener v1.1.0
 ## explicit; go 1.13
 github.com/int128/listener

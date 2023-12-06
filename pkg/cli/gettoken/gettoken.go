@@ -8,17 +8,15 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/int128/kubelogin/pkg/credentialplugin"
 	"github.com/int128/kubelogin/pkg/credentialplugin/writer"
 	"github.com/int128/kubelogin/pkg/infrastructure/logger"
-	"github.com/int128/kubelogin/pkg/infrastructure/mutex"
+	"github.com/int128/kubelogin/pkg/jwt"
 	"github.com/int128/kubelogin/pkg/oidc"
 	"github.com/int128/kubelogin/pkg/oidc/client"
 	"github.com/int128/kubelogin/pkg/tlsclientconfig"
 	"github.com/int128/kubelogin/pkg/tlsclientconfig/loader"
-	"github.com/int128/kubelogin/pkg/tokencache/repository"
-	"github.com/int128/kubelogin/pkg/usecases/authentication"
 	"github.com/int128/kubelogin/pkg/usecases/authentication/authcode"
-	"github.com/int128/kubelogin/pkg/usecases/credentialplugin"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/util/homedir"
@@ -41,10 +39,10 @@ type GetTokenOptions struct {
 	CACertFilename string
 	InsecureTLS    bool
 
-	tokenCacheRepo     repository.Interface
-	credWriter         writer.Interface
-	credLogger         logger.Interface
-	credAuthentication authentication.Interface
+	tokenCacheRepo *Repository
+	credWriter     writer.Interface
+	credLogger     logger.Interface
+	realClock      *Real
 
 	genericiooptions.IOStreams
 }
@@ -83,7 +81,7 @@ func (o *GetTokenOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 	o.CACertFilename = kcmdutil.GetFlagString(cmd, "certificate-authority")
 	o.InsecureTLS = kcmdutil.GetFlagBool(cmd, "insecure-skip-tls-verify")
 
-	o.tokenCacheRepo = &repository.Repository{}
+	o.tokenCacheRepo = &Repository{}
 
 	o.credWriter = &Writer{
 		out: o.Out,
@@ -91,21 +89,7 @@ func (o *GetTokenOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 
 	o.credLogger = NewLogger(o.IOStreams)
 
-	clockReal := &Real{}
-
-	o.credAuthentication = &authentication.Authentication{
-		ClientFactory: &client.Factory{
-			Loader: loader.Loader{},
-			Clock:  clockReal,
-			Logger: o.credLogger,
-		},
-		Logger: o.credLogger,
-		Clock:  clockReal,
-		AuthCodeBrowser: &authcode.Browser{
-			Browser: NewBrowser(o.IOStreams),
-			Logger:  o.credLogger,
-		},
-	}
+	o.realClock = &Real{}
 
 	return nil
 }
@@ -122,39 +106,94 @@ func (o *GetTokenOptions) Validate() error {
 }
 
 func (o *GetTokenOptions) Run() error {
-	credInput := credentialplugin.Input{
-		Provider: oidc.Provider{
-			IssuerURL:   o.IssuerURL,
-			ClientID:    o.ClientID,
-			ExtraScopes: o.ExtraScopes,
-			UsePKCE:     true,
-		},
-		TokenCacheDir: filepath.Join(homedir.HomeDir(), ".kube"),
-		GrantOptionSet: authentication.GrantOptionSet{
-			AuthCodeBrowserOption: &authcode.BrowserOption{
-				SkipOpenBrowser:       true,
-				BindAddress:           []string{o.BindAdress},
-				AuthenticationTimeout: 30 * time.Second,
-			},
-		},
-		TLSClientConfig: tlsclientconfig.Config{
-			CACertFilename: []string{o.CACertFilename},
-			SkipTLSVerify:  o.InsecureTLS,
-		},
+	provider := oidc.Provider{
+		IssuerURL:   o.IssuerURL,
+		ClientID:    o.ClientID,
+		ExtraScopes: o.ExtraScopes,
+		UsePKCE:     true,
 	}
 
-	credExec := &credentialplugin.GetToken{
-		Authentication:       o.credAuthentication,
-		TokenCacheRepository: o.tokenCacheRepo,
-		Writer:               o.credWriter,
-		Mutex: &mutex.Mutex{
-			Logger: o.credLogger,
-		},
+	tokenCacheKey := TokenKey{
+		IssuerURL:      o.IssuerURL,
+		ClientID:       o.ClientID,
+		ExtraScopes:    o.ExtraScopes,
+		CACertFilename: o.CACertFilename,
+		SkipTLSVerify:  o.InsecureTLS,
+	}
+
+	cachedTokenSet, _ := o.tokenCacheRepo.FindByKey(filepath.Join(homedir.HomeDir(), ".kube"), tokenCacheKey)
+	alreadyValid, idToken, refreshToken, err := o.getToken(context.TODO(), cachedTokenSet, provider)
+	if err != nil {
+		return err
+	}
+
+	idTokenClaims, err := jwt.DecodeWithoutVerify(idToken)
+	if err != nil {
+		return fmt.Errorf("you got an invalid token: %w", err)
+	}
+
+	if !alreadyValid {
+		if err := o.tokenCacheRepo.Save(filepath.Join(homedir.HomeDir(), ".kube"), tokenCacheKey, TokenSet{
+			IDToken:      idToken,
+			RefreshToken: refreshToken,
+		}); err != nil {
+			return fmt.Errorf("could not write the token cache: %w", err)
+		}
+	}
+	out := credentialplugin.Output{
+		Token:  idToken,
+		Expiry: idTokenClaims.Expiry,
+	}
+	if err := o.credWriter.Write(out); err != nil {
+		return fmt.Errorf("could not write the token to client-go: %w", err)
+	}
+	return nil
+}
+
+func (o *GetTokenOptions) getToken(ctx context.Context, cache *TokenSet, provider oidc.Provider) (bool, string, string, error) {
+	if cache != nil {
+		claims, err := jwt.DecodeWithoutVerify(cache.IDToken)
+		if err != nil {
+			return false, "", "", fmt.Errorf("invalid token cache (you may need to remove): %w", err)
+		}
+		if !claims.IsExpired(o.realClock) {
+			return true, cache.IDToken, cache.RefreshToken, nil
+		}
+	}
+
+	oidcClientFactory := &client.Factory{
+		Loader: loader.Loader{},
+		Clock:  o.realClock,
 		Logger: o.credLogger,
 	}
-	if err := credExec.Do(context.TODO(), credInput); err != nil {
-		return fmt.Errorf("get-token credential exec plugin error %v", err)
+
+	oidcClient, err := oidcClientFactory.New(ctx, provider, tlsclientconfig.Config{
+		SkipTLSVerify:  o.InsecureTLS,
+		CACertFilename: []string{o.CACertFilename},
+	})
+	if err != nil {
+		return false, "", "", fmt.Errorf("oidc error: %w", err)
 	}
 
-	return nil
+	if cache != nil && cache.RefreshToken != "" {
+		tokenSet, err := oidcClient.Refresh(ctx, cache.RefreshToken)
+		if err == nil {
+			return false, tokenSet.IDToken, tokenSet.RefreshToken, nil
+		}
+	}
+
+	authCode := &authcode.Browser{
+		Browser: NewBrowser(o.IOStreams),
+		Logger:  o.credLogger,
+	}
+
+	tokenSet, err := authCode.Do(ctx, &authcode.BrowserOption{
+		SkipOpenBrowser:       true,
+		BindAddress:           []string{o.BindAdress},
+		AuthenticationTimeout: 30 * time.Second,
+	}, oidcClient)
+	if err != nil {
+		return false, "", "", err
+	}
+	return false, tokenSet.IDToken, tokenSet.RefreshToken, nil
 }

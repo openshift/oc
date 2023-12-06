@@ -1,4 +1,4 @@
-package repository
+package gettoken
 
 import (
 	"crypto/sha256"
@@ -8,21 +8,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/google/wire"
-	"github.com/int128/kubelogin/pkg/oidc"
-	"github.com/int128/kubelogin/pkg/tokencache"
 )
 
-// Set provides an implementation and interface for Kubeconfig.
-var Set = wire.NewSet(
-	wire.Struct(new(Repository), "*"),
-	wire.Bind(new(Interface), new(*Repository)),
-)
+type TokenSet struct {
+	IDToken      string
+	RefreshToken string
+}
 
-type Interface interface {
-	FindByKey(dir string, key tokencache.Key) (*oidc.TokenSet, error)
-	Save(dir string, key tokencache.Key, tokenSet oidc.TokenSet) error
+type TokenKey struct {
+	IssuerURL      string
+	ClientID       string
+	ClientSecret   string
+	Username       string
+	ExtraScopes    []string
+	CACertFilename string
+	CACertData     string
+	SkipTLSVerify  bool
 }
 
 type entity struct {
@@ -30,11 +31,9 @@ type entity struct {
 	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
-// Repository provides access to the token cache on the local filesystem.
-// Filename of a token cache is sha256 digest of the issuer, zero-character and client ID.
 type Repository struct{}
 
-func (r *Repository) FindByKey(dir string, key tokencache.Key) (*oidc.TokenSet, error) {
+func (r *Repository) FindByKey(dir string, key TokenKey) (*TokenSet, error) {
 	filename, err := computeFilename(key)
 	if err != nil {
 		return nil, fmt.Errorf("could not compute the key: %w", err)
@@ -50,13 +49,13 @@ func (r *Repository) FindByKey(dir string, key tokencache.Key) (*oidc.TokenSet, 
 	if err := d.Decode(&e); err != nil {
 		return nil, fmt.Errorf("invalid json file %s: %w", p, err)
 	}
-	return &oidc.TokenSet{
+	return &TokenSet{
 		IDToken:      e.IDToken,
 		RefreshToken: e.RefreshToken,
 	}, nil
 }
 
-func (r *Repository) Save(dir string, key tokencache.Key, tokenSet oidc.TokenSet) error {
+func (r *Repository) Save(dir string, key TokenKey, tokenSet TokenSet) error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("could not create directory %s: %w", dir, err)
 	}
@@ -80,7 +79,7 @@ func (r *Repository) Save(dir string, key tokencache.Key, tokenSet oidc.TokenSet
 	return nil
 }
 
-func computeFilename(key tokencache.Key) (string, error) {
+func computeFilename(key TokenKey) (string, error) {
 	s := sha256.New()
 	e := gob.NewEncoder(s)
 	if err := e.Encode(&key); err != nil {
