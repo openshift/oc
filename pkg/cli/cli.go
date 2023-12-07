@@ -97,7 +97,7 @@ var (
 )
 
 func defaultConfigFlags() *genericclioptions.ConfigFlags {
-	return genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(350).WithDiscoveryQPS(50.0)
+	return genericclioptions.NewConfigFlags(true).WithDiscoveryBurst(350).WithDiscoveryQPS(50.0)
 }
 
 func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
