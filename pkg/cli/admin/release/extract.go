@@ -129,6 +129,8 @@ func NewExtract(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.C
 	o.ParallelOptions.Bind(flags)
 
 	flags.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file. If set, data from this file will be used to find alternative locations for images.")
+	flags.MarkDeprecated("icsp-file", "support for it will be removed in a future release. Use --idms-file instead.")
+	flags.StringVar(&o.IDMSFile, "idms-file", o.IDMSFile, "Path to an ImageDigestMirrorSet file. If set, data from this file will be used to find alternative locations for images.")
 
 	flags.StringVar(&o.From, "from", o.From, "Image containing the release payload.")
 	flags.StringVar(&o.File, "file", o.File, "Extract a single file from the payload to standard output.")
@@ -163,6 +165,7 @@ type ExtractOptions struct {
 	RESTConfig *rest.Config
 
 	ICSPFile string
+	IDMSFile string
 
 	Output string
 
@@ -259,6 +262,10 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		return fmt.Errorf("--install-config is only supported with --included")
 	}
 
+	if len(o.ICSPFile) > 0 && len(o.IDMSFile) > 0 {
+		return fmt.Errorf("icsp-file and idms-file are mutually exclusive")
+	}
+
 	if len(o.Cloud) > 0 && !o.CredentialsRequests && !o.Included {
 		return fmt.Errorf("--cloud is only supported with --credentials-requests or --included")
 	}
@@ -306,6 +313,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 	opts.FileDir = o.FileDir
 	opts.OnlyFiles = true
 	opts.ICSPFile = o.ICSPFile
+	opts.IDMSFile = o.IDMSFile
 	opts.Mappings = []extract.Mapping{
 		{
 			ImageRef: ref,
