@@ -6,17 +6,17 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/int128/kubelogin/pkg/pkce"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/int128/kubelogin/pkg/infrastructure/logger"
 	"github.com/int128/kubelogin/pkg/jwt"
 	"github.com/int128/kubelogin/pkg/oidc"
 	"github.com/int128/kubelogin/pkg/oidc/client"
+	"github.com/int128/kubelogin/pkg/pkce"
 	"github.com/int128/kubelogin/pkg/tlsclientconfig"
 	"github.com/int128/kubelogin/pkg/tlsclientconfig/loader"
+
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/util/homedir"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
