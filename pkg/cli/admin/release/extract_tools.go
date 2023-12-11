@@ -481,6 +481,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	infoOptions.FilterOptions = o.FilterOptions
 	infoOptions.FileDir = o.FileDir
 	infoOptions.ICSPFile = o.ICSPFile
+	infoOptions.IDMSFile = o.IDMSFile
 	release, err := infoOptions.LoadReleaseInfo(o.From, false)
 	if err != nil {
 		return err
@@ -559,6 +560,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FilterOptions = o.FilterOptions
 	opts.ICSPFile = o.ICSPFile
+	opts.IDMSFile = o.IDMSFile
 	opts.OnlyFiles = true
 
 	// create the mapping lookup of the valid targets
