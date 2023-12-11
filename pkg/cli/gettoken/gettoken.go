@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/int128/kubelogin/pkg/pkce"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/spf13/cobra"
 
 	"github.com/int128/kubelogin/pkg/infrastructure/logger"
@@ -14,8 +17,6 @@ import (
 	"github.com/int128/kubelogin/pkg/oidc/client"
 	"github.com/int128/kubelogin/pkg/tlsclientconfig"
 	"github.com/int128/kubelogin/pkg/tlsclientconfig/loader"
-	"github.com/int128/kubelogin/pkg/usecases/authentication/authcode"
-
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/util/homedir"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -176,18 +177,62 @@ func (o *GetTokenOptions) getToken(ctx context.Context, cache *TokenSet, provide
 		}
 	}
 
-	authCode := &authcode.Browser{
-		Browser: NewBrowser(o.IOStreams),
-		Logger:  o.credLogger,
-	}
-
-	tokenSet, err := authCode.Do(ctx, &authcode.BrowserOption{
-		SkipOpenBrowser:       true,
-		BindAddress:           []string{o.BindAdress},
-		AuthenticationTimeout: 30 * time.Second,
-	}, oidcClient)
+	tokenSet, err := o.Do(ctx, oidcClient)
 	if err != nil {
 		return false, "", "", err
 	}
+
 	return false, tokenSet.IDToken, tokenSet.RefreshToken, nil
+}
+
+func (o *GetTokenOptions) Do(ctx context.Context, oidcClient client.Interface) (*oidc.TokenSet, error) {
+	state, err := NewState()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate a state: %w", err)
+	}
+	nonce, err := NewNonce()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate a nonce: %w", err)
+	}
+	p, err := pkce.New(oidcClient.SupportedPKCEMethods())
+	if err != nil {
+		return nil, fmt.Errorf("could not generate PKCE parameters: %w", err)
+	}
+	in := client.GetTokenByAuthCodeInput{
+		BindAddress: []string{o.BindAdress},
+		State:       state,
+		Nonce:       nonce,
+		PKCEParams:  p,
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	readyChan := make(chan string, 1)
+	var out *oidc.TokenSet
+	var eg errgroup.Group
+	eg.Go(func() error {
+		select {
+		case url, ok := <-readyChan:
+			if !ok {
+				return nil
+			}
+			o.credLogger.Printf("Please visit the following URL in your browser: %s", url)
+			return nil
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled while waiting for the local server: %w", ctx.Err())
+		}
+	})
+	eg.Go(func() error {
+		defer close(readyChan)
+		tokenSet, err := oidcClient.GetTokenByAuthCode(ctx, in, readyChan)
+		if err != nil {
+			return fmt.Errorf("authorization code flow error: %w", err)
+		}
+		out = tokenSet
+		return nil
+	})
+	if err := eg.Wait(); err != nil {
+		return nil, fmt.Errorf("authentication error: %w", err)
+	}
+	return out, nil
 }
