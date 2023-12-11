@@ -8,6 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	_ "github.com/int128/kubelogin"
+
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
