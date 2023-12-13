@@ -1,6 +1,8 @@
-FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.21-openshift-4.16 AS builder
+FROM registry.ci.openshift.org/ocp-multi/builder:rhel-9-golang-test-openshift-4.16 AS builder
 WORKDIR /go/src/github.com/openshift/oc
 COPY . .
+# Test if build has access to ART CI repo
+RUN yum install -y skopeo-1.11.2-10.1.rhaos4.14.el9
 RUN make build --warn-undefined-variables
 
 FROM registry.ci.openshift.org/ocp/4.16:base
