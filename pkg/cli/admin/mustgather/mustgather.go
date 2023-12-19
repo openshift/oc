@@ -47,6 +47,10 @@ import (
 	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
+const (
+	gatherContainerName = "gather"
+)
+
 var (
 	mustGatherLong = templates.LongDesc(`
 		Launch a pod to gather debugging information.
@@ -77,13 +81,13 @@ var (
 
 	volumeUsageCheckerScript = `
 echo "volume percentage checker started....."
-while true; do 
+while true; do
 disk_usage=$(du -s "%s" | awk '{print $1}')
 disk_space=$(df -P "%s" | awk 'NR==2 {print $2}')
 usage_percentage=$(( (disk_usage * 100) / disk_space ))
-echo "volume usage percentage $usage_percentage" 
-if [ "$usage_percentage" -gt "%d" ]; then 
-	echo "Disk usage exceeds the volume percentage of %d for mounted directory. Exiting..." 
+echo "volume usage percentage $usage_percentage"
+if [ "$usage_percentage" -gt "%d" ]; then
+	echo "Disk usage exceeds the volume percentage of %d for mounted directory. Exiting..."
 	# kill gathering process in gather container to prevent disk to use more.
 	pkill --signal SIGKILL -f %s
 	exit 1
@@ -542,6 +546,33 @@ func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
 	}
+
+	var errs []error
+
+	// get must-gather gather container logs
+	if err := func() error {
+		dest, err := os.OpenFile(path.Join(destDir, "/gather.logs"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+		if err != nil {
+			return err
+		}
+		defer dest.Close()
+
+		logOptions := &corev1.PodLogOptions{
+			Container:  gatherContainerName,
+			Timestamps: true,
+		}
+		readCloser, err := o.Client.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions).Stream(context.TODO())
+		if err != nil {
+			return err
+		}
+		defer readCloser.Close()
+
+		_, err = io.Copy(dest, readCloser)
+		return err
+	}(); err != nil {
+		errs = append(errs, err)
+	}
+
 	rsyncOptions := &rsync.RsyncOptions{
 		Namespace:     pod.Namespace,
 		Source:        &rsync.PathSpec{PodName: pod.Name, Path: path.Clean(o.SourceDir) + "/"},
@@ -559,8 +590,9 @@ func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 		klog.V(4).Infof("re-trying rsync after initial failure %v", err)
 		// re-try copying data before letting it go
 		err = rsyncOptions.RunRsync()
+		errs = append(errs, err)
 	}
-	return err
+	return errors.NewAggregate(errs)
 }
 
 func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
@@ -625,7 +657,7 @@ func (o *MustGatherOptions) isGatherDone(pod *corev1.Pod) (bool, error) {
 	}
 	var state *corev1.ContainerState
 	for _, cstate := range pod.Status.ContainerStatuses {
-		if cstate.Name == "gather" {
+		if cstate.Name == gatherContainerName {
 			state = &cstate.State
 			break
 		}
@@ -803,7 +835,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 			},
 			Containers: []corev1.Container{
 				{
-					Name:            "gather",
+					Name:            gatherContainerName,
 					Image:           image,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					// always force disk flush to ensure that all data gathered is accessible in the copy container
