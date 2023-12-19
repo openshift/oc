@@ -114,18 +114,18 @@ func TestGetNamespace(t *testing.T) {
 	t.Parallel()
 
 	for name, tc := range map[string]struct {
-		Options          MustGatherOptions
+		Options          *MustGatherOptions
 		ShouldBeRetained bool
 		ShouldFail       bool
 	}{
 		"no namespace given": {
-			Options: MustGatherOptions{
+			Options: &MustGatherOptions{
 				Client: fake.NewSimpleClientset(),
 			},
 			ShouldBeRetained: false,
 		},
 		"namespace given": {
-			Options: MustGatherOptions{
+			Options: &MustGatherOptions{
 				Client: fake.NewSimpleClientset(
 					&corev1.Namespace{
 						ObjectMeta: metav1.ObjectMeta{
@@ -138,7 +138,7 @@ func TestGetNamespace(t *testing.T) {
 			ShouldBeRetained: true,
 		},
 		"namespace given, but does not exist": {
-			Options: MustGatherOptions{
+			Options: &MustGatherOptions{
 				Client:       fake.NewSimpleClientset(),
 				RunNamespace: "test-namespace",
 			},

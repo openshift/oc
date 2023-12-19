@@ -129,14 +129,15 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 }
 
 func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions {
-	return &MustGatherOptions{
+	opts := &MustGatherOptions{
 		SourceDir:        "/must-gather/",
 		IOStreams:        streams,
-		LogOut:           newPrefixWriter(streams.Out, "[must-gather      ] OUT"),
-		RawOut:           streams.Out,
 		Timeout:          10 * time.Minute,
 		VolumePercentage: 30,
 	}
+	opts.LogOut = opts.newPrefixWriter(streams.Out, "[must-gather      ] OUT", false)
+	opts.RawOut = opts.newPrefixWriter(streams.Out, "", false)
+	return opts
 }
 
 func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
@@ -210,6 +211,7 @@ func (o *MustGatherOptions) completeImages() error {
 		o.Images = append(o.Images, image)
 	}
 	o.log("Using must-gather plug-in image: %s", strings.Join(o.Images, ", "))
+
 	return nil
 }
 
@@ -279,6 +281,9 @@ type MustGatherOptions struct {
 	LogOut         io.Writer
 	// RawOut is used for printing information we're looking to have copy/pasted into bugs
 	RawOut io.Writer
+
+	LogWriter    *os.File
+	LogWriterMux sync.Mutex
 }
 
 func (o *MustGatherOptions) Validate() error {
@@ -319,6 +324,27 @@ func (o *MustGatherOptions) Validate() error {
 // Run creates and runs a must-gather pod.d
 func (o *MustGatherOptions) Run() error {
 	var errs []error
+
+	if err := os.MkdirAll(o.DestDir, os.ModePerm); err != nil {
+		// ensure the errors bubble up to BackupGathering method for display
+		errs = []error{err}
+		return err
+	}
+
+	f, err := os.Create(path.Join(o.DestDir, "must-gather.logs"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to write must-gather logs: %v. It is possible the destination directory has not been created yet due to early termination\n", err)
+	} else {
+		o.LogWriter = f
+		o.LogWriterMux.Lock()
+		// gets invoked in Complete step before must-gather.logs is created
+		o.LogWriter.WriteString(fmt.Sprintf("[must-gather      ] OUT Using must-gather plug-in image: %s\n", strings.Join(o.Images, ", ")))
+		o.LogWriterMux.Unlock()
+
+		defer func() {
+			o.LogWriter.Close()
+		}()
+	}
 
 	// print at both the beginning and at the end.  This information is important enough to be in both spots.
 	o.PrintBasicClusterState(context.TODO())
@@ -417,11 +443,6 @@ func (o *MustGatherOptions) Run() error {
 	}
 
 	// log timestamps...
-	if err := os.MkdirAll(o.DestDir, os.ModePerm); err != nil {
-		// ensure the errors bubble up to BackupGathering method for display
-		errs = []error{err}
-		return err
-	}
 	if err := o.logTimestamp(); err != nil {
 		// ensure the errors bubble up to BackupGathering method for display
 		errs = []error{err}
@@ -449,7 +470,7 @@ func (o *MustGatherOptions) Run() error {
 				}()
 			}
 
-			log := newPodOutLogger(o.Out, pod.Name)
+			log := o.newPodOutLogger(o.Out, pod.Name)
 
 			// wait for gather container to be running (gather is running)
 			if err := o.waitForGatherContainerRunning(pod); err != nil {
@@ -513,8 +534,8 @@ func (o *MustGatherOptions) Run() error {
 	return errors.NewAggregate(errs)
 }
 
-func newPodOutLogger(out io.Writer, podName string) func(string, ...interface{}) {
-	writer := newPrefixWriter(out, fmt.Sprintf("[%s] OUT", podName))
+func (o *MustGatherOptions) newPodOutLogger(out io.Writer, podName string) func(string, ...interface{}) {
+	writer := o.newPrefixWriter(out, fmt.Sprintf("[%s] OUT", podName), false)
 	return func(format string, a ...interface{}) {
 		fmt.Fprintf(writer, format+"\n", a...)
 	}
@@ -535,7 +556,7 @@ func (o *MustGatherOptions) logTimestamp() error {
 
 func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	streams := o.IOStreams
-	streams.Out = newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name))
+	streams.Out = o.newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name), false)
 	imageFolder := regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.ContainerStatuses[0].ImageID, "-")
 	var destDir string
 	if o.NodeSelector != "" {
@@ -609,7 +630,7 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 		Object:           pod,
 		ConsumeRequestFn: logs.DefaultConsumeRequest,
 		LogsForObject:    polymorphichelpers.LogsForObjectFn,
-		IOStreams:        genericiooptions.IOStreams{Out: newPrefixWriter(o.Out, fmt.Sprintf("[%s] POD", pod.Name))},
+		IOStreams:        genericiooptions.IOStreams{Out: o.newPrefixWriter(o.Out, fmt.Sprintf("[%s] POD", pod.Name), true)},
 	}
 
 	for {
@@ -629,12 +650,21 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 	}
 }
 
-func newPrefixWriter(out io.Writer, prefix string) io.Writer {
+func (o *MustGatherOptions) newPrefixWriter(out io.Writer, prefix string, ignoreFileWriter bool) io.Writer {
 	reader, writer := io.Pipe()
 	scanner := bufio.NewScanner(reader)
+	if prefix != "" {
+		prefix = prefix + " "
+	}
 	go func() {
 		for scanner.Scan() {
-			fmt.Fprintf(out, "%s %s\n", prefix, scanner.Text())
+			text := scanner.Text()
+			if !ignoreFileWriter && o.LogWriter != nil {
+				o.LogWriterMux.Lock()
+				o.LogWriter.WriteString(fmt.Sprintf("%s%s\n", prefix, text))
+				o.LogWriterMux.Unlock()
+			}
+			fmt.Fprintf(out, "%s%s\n", prefix, text)
 		}
 	}()
 	return writer
