@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -374,6 +375,20 @@ func (o *TagOptions) Validate() error {
 	return nil
 }
 
+// validateTag validates the given tag name according to distribution spec.
+//
+// Returns an error when the tag is invalid, nil otherwise.
+func validateTag(tagName string) error {
+	tagRegexp := regexp.MustCompile(`^[\w][\w.-]{0,127}$`)
+	if !tagRegexp.MatchString(tagName) {
+		return fmt.Errorf(
+			"invalid tag %q format, tags must start with an alphanumeric character followed by alphanumeric, '.' or '-' characters, and have a maximum of 128 characters",
+			tagName,
+		)
+	}
+	return nil
+}
+
 // Run contains all the necessary functionality for the OpenShift cli tag command.
 func (o TagOptions) Run() error {
 	var tagReferencePolicy imagev1.TagReferencePolicyType
@@ -440,6 +455,12 @@ func (o TagOptions) Run() error {
 
 				fmt.Fprintf(o.Out, "Deleted tag %s/%s.\n", o.destNamespace[i], destNameAndTag)
 				return nil
+			}
+
+			// don't validate tag name for deletion - existing tags might
+			// have invalid names and users should be allowed to delete them.
+			if err := validateTag(destTag); err != nil {
+				return err
 			}
 
 			// The user wants to symlink a tag.
