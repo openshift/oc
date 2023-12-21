@@ -2,7 +2,6 @@ package icsp
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -133,7 +132,7 @@ func (o *MigrateICSPOptions) ensureDirectoryViable() error {
 	if !baseDirInfo.IsDir() {
 		return fmt.Errorf("%q exists and is a file", o.DestDir)
 	}
-	if _, err = ioutil.ReadDir(o.DestDir); err != nil {
+	if _, err = os.ReadDir(o.DestDir); err != nil {
 		return err
 	}
 	return nil

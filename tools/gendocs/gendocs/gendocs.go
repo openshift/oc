@@ -2,7 +2,6 @@ package gendocs
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -35,7 +34,7 @@ func GenDocs(cmd *cobra.Command, filename string, admin, microshift bool) error 
 	if err != nil {
 		return err
 	}
-	template, err := ioutil.ReadFile(templateFile)
+	template, err := os.ReadFile(templateFile)
 	if err != nil {
 		return err
 	}

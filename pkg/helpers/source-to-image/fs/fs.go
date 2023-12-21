@@ -334,7 +334,7 @@ func (h *fs) RemoveDirectory(dir string) error {
 
 // CreateWorkingDirectory creates a directory to be used for STI
 func (h *fs) CreateWorkingDirectory() (directory string, err error) {
-	directory, err = ioutil.TempDir("", "s2i")
+	directory, err = os.MkdirTemp("", "s2i")
 	if err != nil {
 		return "", s2ierr.NewWorkDirError(directory, err)
 	}
@@ -355,7 +355,7 @@ func (h *fs) Create(filename string) (io.WriteCloser, error) {
 // WriteFile opens a file and writes data to it, returning error if such
 // occurred
 func (h *fs) WriteFile(filename string, data []byte) error {
-	return ioutil.WriteFile(filename, data, 0700)
+	return os.WriteFile(filename, data, 0700)
 }
 
 // Walk walks the file tree rooted at root, calling walkFn for each file or

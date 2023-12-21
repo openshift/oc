@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"io/ioutil"
+	"io"
 	"reflect"
 	"testing"
 
@@ -73,7 +73,7 @@ func TestClusterRoleReaper(t *testing.T) {
 			return true, nil, nil
 		})
 
-		err := reapForClusterRole(tc.RbacV1(), tc.RbacV1(), "", test.role.Name, ioutil.Discard)
+		err := reapForClusterRole(tc.RbacV1(), tc.RbacV1(), "", test.role.Name, io.Discard)
 		if err != nil {
 			t.Errorf("%s: unexpected error: %v", test.name, err)
 		}
@@ -141,7 +141,7 @@ func TestClusterRoleReaperAgainstNamespacedBindings(t *testing.T) {
 			return true, nil, nil
 		})
 
-		err := reapForClusterRole(tc.RbacV1(), tc.RbacV1(), "", test.role.Name, ioutil.Discard)
+		err := reapForClusterRole(tc.RbacV1(), tc.RbacV1(), "", test.role.Name, io.Discard)
 		if err != nil {
 			t.Errorf("%s: unexpected error: %v", test.name, err)
 		}

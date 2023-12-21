@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -47,7 +46,7 @@ func TestPruneWithoutImagesWithRegistryAccess(t *testing.T) {
 		BuildClient:   &fakebuildv1client.FakeBuildV1{Fake: &(fakebuildclient.NewSimpleClientset().Fake)},
 		ImageClient:   &fakeimagev1client.FakeImageV1{Fake: &(fakeimageclient.NewSimpleClientset().Fake)},
 		KubeClient:    fakekubernetes.NewSimpleClientset(),
-		Out:           ioutil.Discard,
+		Out:           io.Discard,
 		ErrOut:        os.Stderr,
 		Confirm:       true,
 		PruneRegistry: &pruneRegistry,
@@ -65,7 +64,7 @@ func TestPruneWithoutImagesNoRegistryAccess(t *testing.T) {
 		BuildClient: &fakebuildv1client.FakeBuildV1{Fake: &(fakebuildclient.NewSimpleClientset().Fake)},
 		ImageClient: &fakeimagev1client.FakeImageV1{Fake: &(fakeimageclient.NewSimpleClientset().Fake)},
 		KubeClient:  fakekubernetes.NewSimpleClientset(),
-		Out:         ioutil.Discard,
+		Out:         io.Discard,
 		ErrOut:      os.Stderr,
 		Confirm:     true,
 	}
@@ -88,7 +87,7 @@ func TestImagePruneNamespaced(t *testing.T) {
 		BuildClient: &fakebuildv1client.FakeBuildV1{Fake: &(fakebuildclient.NewSimpleClientset().Fake)},
 		ImageClient: imageFake,
 		KubeClient:  kFake,
-		Out:         ioutil.Discard,
+		Out:         io.Discard,
 		ErrOut:      os.Stderr,
 	}
 
@@ -148,7 +147,7 @@ func TestImagePruneErrOnBadReference(t *testing.T) {
 		KubeClient:      kFake,
 		DiscoveryClient: fakeDiscovery,
 		Timeout:         time.Second,
-		Out:             ioutil.Discard,
+		Out:             io.Discard,
 		ErrOut:          errBuf,
 	}
 
@@ -233,7 +232,7 @@ func objBody(object interface{}) io.ReadCloser {
 	if err != nil {
 		panic(err)
 	}
-	return ioutil.NopCloser(bytes.NewReader([]byte(output)))
+	return io.NopCloser(bytes.NewReader([]byte(output)))
 }
 
 func TestValidateRegistryURL(t *testing.T) {

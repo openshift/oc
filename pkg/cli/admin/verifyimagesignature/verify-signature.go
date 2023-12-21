@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -145,7 +144,7 @@ func (o *VerifyImageSignatureOptions) Complete(f kcmdutil.Factory, cmd *cobra.Co
 	var err error
 
 	if len(o.PublicKeyFilename) > 0 {
-		if o.PublicKey, err = ioutil.ReadFile(o.PublicKeyFilename); err != nil {
+		if o.PublicKey, err = os.ReadFile(o.PublicKeyFilename); err != nil {
 			return fmt.Errorf("unable to read --public-key: %v", err)
 		}
 	}

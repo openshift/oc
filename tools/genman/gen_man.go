@@ -63,7 +63,7 @@ func genCmdMan(cmdName string, cmd *cobra.Command) {
 	// Set environment variables used by openshift so the output is consistent,
 	// regardless of where we run.
 	os.Setenv("HOME", "/home/username")
-	// TODO os.Stdin should really be something like ioutil.Discard, but a Reader
+	// TODO os.Stdin should really be something like io.Discard, but a Reader
 	genMarkdown(cmd, "", outDir)
 	for _, c := range cmd.Commands() {
 		genMarkdown(c, cmdName, outDir)

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -65,7 +64,7 @@ func skipExternalGit(t *testing.T) {
 }
 
 func TestNewAppAddArguments(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "test-newapp")
+	tmpDir, err := os.MkdirTemp("", "test-newapp")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -1590,7 +1589,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 				"imageStream": {"ruby-27-centos7"},
 			},
 			checkOutput: func(stdout, stderr io.Reader) error {
-				got, err := ioutil.ReadAll(stderr)
+				got, err := io.ReadAll(stderr)
 				if err != nil {
 					return err
 				}
@@ -1614,7 +1613,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 				"imageStream": {"centos"},
 			},
 			checkOutput: func(stdout, stderr io.Reader) error {
-				got, err := ioutil.ReadAll(stderr)
+				got, err := io.ReadAll(stderr)
 				if err != nil {
 					return err
 				}
@@ -1638,7 +1637,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 				"imageStream": {"ruby-27-centos7"},
 			},
 			checkOutput: func(stdout, stderr io.Reader) error {
-				got, err := ioutil.ReadAll(stderr)
+				got, err := io.ReadAll(stderr)
 				if err != nil {
 					return err
 				}
@@ -1698,7 +1697,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 				"imageStream": {"ruby-27-centos7"},
 			},
 			checkOutput: func(stdout, stderr io.Reader) error {
-				got, err := ioutil.ReadAll(stderr)
+				got, err := io.ReadAll(stderr)
 				if err != nil {
 					return err
 				}
@@ -1730,7 +1729,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 				"imageStream": {"ruby-27-centos7"},
 			},
 			checkOutput: func(stdout, stderr io.Reader) error {
-				got, err := ioutil.ReadAll(stderr)
+				got, err := io.ReadAll(stderr)
 				if err != nil {
 					return err
 				}
@@ -2091,7 +2090,7 @@ func TestNewAppListAndSearch(t *testing.T) {
 
 func setupLocalGitRepo(t *testing.T, passwordProtected bool, requireProxy bool) (string, string) {
 	// Create test directories
-	testDir, err := ioutil.TempDir("", "gitauth")
+	testDir, err := os.MkdirTemp("", "gitauth")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -2122,7 +2121,7 @@ func setupLocalGitRepo(t *testing.T, passwordProtected bool, requireProxy bool) 
 	if err = gitRepo.Init(initialRepoDir, false); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err = ioutil.WriteFile(filepath.Join(initialRepoDir, "Dockerfile"), []byte("FROM mysql\nLABEL mylabel=myvalue\n"), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(initialRepoDir, "Dockerfile"), []byte("FROM mysql\nLABEL mylabel=myvalue\n"), 0644); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if err = gitRepo.Add(initialRepoDir, "."); err != nil {
@@ -2202,7 +2201,7 @@ insteadOf = %s
 		gitConfig += proxySection
 	}
 
-	if err = ioutil.WriteFile(filepath.Join(userHomeDir, ".gitconfig"), []byte(gitConfig), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(userHomeDir, ".gitconfig"), []byte(gitConfig), 0644); err != nil {
 		t.Fatalf("%v", err)
 	}
 	os.Setenv("HOME", userHomeDir)

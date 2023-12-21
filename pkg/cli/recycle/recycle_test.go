@@ -2,7 +2,6 @@ package recycle
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -50,7 +49,7 @@ func prepareTestDir(root string, filenames []string) error {
 
 		for _, file := range filenames {
 			filepath := path.Join(dirpath, file)
-			if err := ioutil.WriteFile(filepath, []byte(filepath), os.FileMode(0755)); err != nil {
+			if err := os.WriteFile(filepath, []byte(filepath), os.FileMode(0755)); err != nil {
 				return fmt.Errorf("Error writing file %s\n%v", filepath, err)
 			}
 
@@ -63,7 +62,7 @@ func prepareTestDir(root string, filenames []string) error {
 }
 
 func TestRecycle(t *testing.T) {
-	root, err := ioutil.TempDir("", "recycler-test-")
+	root, err := os.MkdirTemp("", "recycler-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +119,7 @@ func TestCheckEmpty(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		root, err := ioutil.TempDir("", "recycler-test-")
+		root, err := os.MkdirTemp("", "recycler-test-")
 		if err != nil {
 			t.Fatal(err)
 		}

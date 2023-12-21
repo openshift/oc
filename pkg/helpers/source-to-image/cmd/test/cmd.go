@@ -3,7 +3,6 @@ package test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 
 	"github.com/openshift/oc/pkg/helpers/source-to-image/cmd"
 )
@@ -32,7 +31,7 @@ func (f *FakeCmdRunner) Run(name string, args ...string) error {
 // StartWithStdoutPipe executes a command returning a ReadCloser connected to
 // the command's stdout.
 func (f *FakeCmdRunner) StartWithStdoutPipe(opts cmd.CommandOpts, name string, arg ...string) (io.ReadCloser, error) {
-	return ioutil.NopCloser(&bytes.Buffer{}), f.Err
+	return io.NopCloser(&bytes.Buffer{}), f.Err
 }
 
 // Wait waits for the command to exit.

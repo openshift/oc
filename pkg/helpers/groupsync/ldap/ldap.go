@@ -3,7 +3,6 @@ package ldap
 import (
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"unicode"
@@ -38,7 +37,7 @@ func ResolveStringValue(s legacyconfigv1.StringSource) (string, error) {
 	case len(s.Env) > 0:
 		value = os.Getenv(s.Env)
 	case len(s.File) > 0:
-		data, err := ioutil.ReadFile(s.File)
+		data, err := os.ReadFile(s.File)
 		if err != nil {
 			return "", err
 		}
@@ -52,7 +51,7 @@ func ResolveStringValue(s legacyconfigv1.StringSource) (string, error) {
 		return value, nil
 	}
 
-	keyData, err := ioutil.ReadFile(s.KeyFile)
+	keyData, err := os.ReadFile(s.KeyFile)
 	if err != nil {
 		return "", err
 	}
@@ -284,7 +283,7 @@ func ValidateStringSource(s legacyconfigv1.StringSource, fieldPath *field.Path) 
 
 		// If the file was otherwise ok, and its value will be used verbatim, warn about trailing whitespace
 		if len(fileErrors) == 0 && len(s.KeyFile) == 0 {
-			if data, err := ioutil.ReadFile(s.File); err != nil {
+			if data, err := os.ReadFile(s.File); err != nil {
 				validationResults.AddErrors(field.Invalid(fieldPath.Child("file"), s.File, fmt.Sprintf("could not read file: %v", err)))
 			} else if len(data) > 0 {
 				r, _ := utf8.DecodeLastRune(data)

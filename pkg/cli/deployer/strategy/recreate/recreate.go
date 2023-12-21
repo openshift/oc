@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -66,10 +65,10 @@ type RecreateDeploymentStrategy struct {
 func NewRecreateDeploymentStrategy(kubeClient kubernetes.Interface, imageClient imageclienttyped.ImageStreamTagsGetter, events record.EventSink, out, errOut io.Writer,
 	until string) *RecreateDeploymentStrategy {
 	if out == nil {
-		out = ioutil.Discard
+		out = io.Discard
 	}
 	if errOut == nil {
-		errOut = ioutil.Discard
+		errOut = io.Discard
 	}
 
 	return &RecreateDeploymentStrategy{

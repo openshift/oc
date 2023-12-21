@@ -3,7 +3,6 @@ package observe
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -344,7 +343,7 @@ func (o *ObserveOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	o.printer = printerWrapper{printer: printer}
 
 	if o.quiet {
-		o.debugOut = ioutil.Discard
+		o.debugOut = io.Discard
 	} else {
 		o.debugOut = o.Out
 	}

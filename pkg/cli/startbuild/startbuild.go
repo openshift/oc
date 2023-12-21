@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"net/http"
 	"net/url"
@@ -779,7 +778,7 @@ func streamPathToBuild(repo git.Repository, in io.Reader, out io.Writer, client 
 				}
 
 				// Create a temp directory to move the repo contents to
-				tempDirectory, err := ioutil.TempDir(os.TempDir(), "oc_cloning_"+options.Commit)
+				tempDirectory, err := os.MkdirTemp(os.TempDir(), "oc_cloning_"+options.Commit)
 				if err != nil {
 					return nil, err
 				}
@@ -972,11 +971,11 @@ func (o *StartBuildOptions) RunStartBuildWebHook() error {
 	case resp.StatusCode == 301 || resp.StatusCode == 302:
 		// TODO: follow redirect and display output
 	case resp.StatusCode < 200 || resp.StatusCode >= 300:
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("server rejected our request %d\nremote: %s", resp.StatusCode, string(body))
 	}
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	if len(body) > 0 {
 		// In later server versions we return the created Build in the body.
 		newBuild := &buildv1.Build{}

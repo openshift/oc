@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"io/ioutil"
+	"io"
 	"reflect"
 	"testing"
 
@@ -96,7 +96,7 @@ func TestRoleReaper(t *testing.T) {
 			return true, nil, nil
 		})
 
-		err := reapForRole(tc.RbacV1(), test.role.Namespace, test.role.Name, ioutil.Discard)
+		err := reapForRole(tc.RbacV1(), test.role.Namespace, test.role.Name, io.Discard)
 		if err != nil {
 			t.Errorf("%s: unexpected error: %v", test.name, err)
 		}

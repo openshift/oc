@@ -2,7 +2,7 @@ package newbuild
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -175,7 +175,7 @@ func (o *BuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 	}
 
 	if o.ObjectGeneratorOptions.Config.Dockerfile == "-" {
-		data, err := ioutil.ReadAll(o.In)
+		data, err := io.ReadAll(o.In)
 		if err != nil {
 			return err
 		}

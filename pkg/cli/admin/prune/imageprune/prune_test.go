@@ -5,7 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -2048,7 +2048,7 @@ func TestLayerDeleter(t *testing.T) {
 	var actions []string
 	client := fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
 		actions = append(actions, req.Method+":"+req.URL.String())
-		return &http.Response{StatusCode: http.StatusServiceUnavailable, Body: ioutil.NopCloser(bytes.NewReader([]byte{}))}, nil
+		return &http.Response{StatusCode: http.StatusServiceUnavailable, Body: io.NopCloser(bytes.NewReader([]byte{}))}, nil
 	})
 	layerLinkDeleter := NewLayerLinkDeleter(client, &url.URL{Scheme: "http", Host: "registry1"})
 	layerLinkDeleter.DeleteLayerLink("repo", "layer1")
@@ -2065,7 +2065,7 @@ func TestNotFoundLayerDeleter(t *testing.T) {
 	var actions []string
 	client := fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
 		actions = append(actions, req.Method+":"+req.URL.String())
-		return &http.Response{StatusCode: http.StatusNotFound, Body: ioutil.NopCloser(bytes.NewReader([]byte{}))}, nil
+		return &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(bytes.NewReader([]byte{}))}, nil
 	})
 	layerLinkDeleter := NewLayerLinkDeleter(client, &url.URL{Scheme: "https", Host: "registry1"})
 	layerLinkDeleter.DeleteLayerLink("repo", "layer1")

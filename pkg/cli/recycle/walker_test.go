@@ -1,7 +1,6 @@
 package recycle
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,7 +8,7 @@ import (
 )
 
 func TestStatUID(t *testing.T) {
-	root, err := ioutil.TempDir("", "walker-test-")
+	root, err := os.MkdirTemp("", "walker-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +41,7 @@ func TestStatUID(t *testing.T) {
 				t.Fatalf("Error writing dir %s\n%v", path, err)
 				continue
 			}
-			if err := ioutil.WriteFile(path, []byte(path), os.FileMode(0755)); err != nil {
+			if err := os.WriteFile(path, []byte(path), os.FileMode(0755)); err != nil {
 				t.Fatalf("Error writing file %s\n%v", path, err)
 			}
 		}

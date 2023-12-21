@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -59,7 +58,7 @@ func NewTarStrategy(o *RsyncOptions) CopyStrategy {
 
 func deleteContents(dir string) error {
 	klog.V(4).Infof("Deleting local directory contents: %s", dir)
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		klog.V(4).Infof("Could not read directory %s: %v", dir, err)
 		return err
@@ -129,7 +128,7 @@ func (r *tarStrategy) Copy(source, destination *PathSpec, out, errOut io.Writer)
 			return fmt.Errorf("unable to delete files in destination: %v", err)
 		}
 	}
-	tmp, err := ioutil.TempFile("", "rsync")
+	tmp, err := os.CreateTemp("", "rsync")
 	if err != nil {
 		return fmt.Errorf("cannot create local temporary file for tar: %v", err)
 	}

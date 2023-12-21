@@ -3,7 +3,7 @@ package syncgroups
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -119,8 +119,8 @@ func newTestPruner() (*LDAPGroupPruner, *fakeuserv1client.FakeUserV1) {
 		GroupNameMapper: newTestGroupNameMapper(),
 		GroupClient:     tc.Groups(),
 		Host:            newTestHost(),
-		Out:             ioutil.Discard,
-		Err:             ioutil.Discard,
+		Out:             io.Discard,
+		Err:             io.Discard,
 	}, tc
 
 }
