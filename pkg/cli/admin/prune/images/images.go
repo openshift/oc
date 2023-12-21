@@ -265,7 +265,7 @@ func (o PruneImagesOptions) Validate() error {
 		return fmt.Errorf("--certificate-authority cannot be specified with --force-insecure")
 	}
 	if len(o.CABundle) > 0 && strings.HasPrefix(o.RegistryUrlOverride, "http://") {
-		return fmt.Errorf("--cerificate-authority cannot be specified for insecure http protocol")
+		return fmt.Errorf("--certificate-authority cannot be specified for insecure http protocol")
 	}
 	return nil
 }
