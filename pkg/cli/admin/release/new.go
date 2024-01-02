@@ -1595,7 +1595,7 @@ type PayloadVerifier func(filename string, data []byte) error
 func pruneUnreferencedImageStreams(out io.Writer, is *imageapi.ImageStream, metadata map[string]imageData, include []string) error {
 	referenced := make(map[string]struct{})
 	for _, v := range metadata {
-		is, err := parseImageStream(filepath.Join(v.Directory, "image-references"))
+		is, err := parseImageStream(filepath.Clean(filepath.Join(v.Directory, "image-references")))
 		if os.IsNotExist(err) {
 			continue
 		}
