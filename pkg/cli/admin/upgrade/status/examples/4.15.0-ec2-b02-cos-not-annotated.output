@@ -5,3 +5,7 @@ Assessment:      Progressing
 Completion:      43%
 Duration:        52m56s
 Operator Status: 7 Total, 7 Available, 0 Progressing, 0 Degraded
+
+= Update Health =
+SINCE    LEVEL   IMPACT   MESSAGE
+52m56s   Info    None     Upgrade is proceeding well

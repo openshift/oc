@@ -1,6 +1,7 @@
 package status
 
 import (
+	"fmt"
 	"io"
 	"strings"
 	"text/template"
@@ -30,9 +31,52 @@ type controlPlaneStatusDisplayData struct {
 	Operators  operators
 }
 
-func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOperator, at time.Time) controlPlaneStatusDisplayData {
+const (
+	unavailableWarningThreshold = 5 * time.Minute
+	unavailableErrorThreshold   = 20 * time.Minute
+	degradedWarningThreshold    = 5 * time.Minute
+	degradedErrorThreshold      = 40 * time.Minute
+)
+
+func coInsights(name string, available v1.ClusterOperatorStatusCondition, degraded v1.ClusterOperatorStatusCondition, evaluated time.Time) []updateInsight {
+	var insights []updateInsight
+	if available.Status == v1.ConditionFalse && evaluated.After(available.LastTransitionTime.Time.Add(unavailableWarningThreshold)) {
+		insight := updateInsight{
+			startedAt: available.LastTransitionTime.Time,
+			scope:     updateInsightScope{scopeType: scopeControlPlane, resources: []scopeResource{{kind: clusterOperator, name: name}}},
+			impact: updateInsightImpact{
+				level:      warningImpactLevel,
+				impactType: apiAvailabilityImpactType,
+				summary:    fmt.Sprintf("Cluster Operator %s is unavailable | %s: %s", name, available.Reason, strings.ReplaceAll(available.Message, "\n", ` // `)),
+			},
+		}
+		if evaluated.After(available.LastTransitionTime.Time.Add(unavailableErrorThreshold)) {
+			insight.impact.level = errorImpactLevel
+		}
+		insights = append(insights, insight)
+	}
+	if degraded.Status == v1.ConditionTrue && evaluated.After(degraded.LastTransitionTime.Time.Add(degradedWarningThreshold)) {
+		insight := updateInsight{
+			startedAt: degraded.LastTransitionTime.Time,
+			scope:     updateInsightScope{scopeType: scopeControlPlane, resources: []scopeResource{{kind: clusterOperator, name: name}}},
+			impact: updateInsightImpact{
+				level:      warningImpactLevel,
+				impactType: apiAvailabilityImpactType,
+				summary:    fmt.Sprintf("Cluster Operator %s is degraded | %s: %s", name, degraded.Reason, strings.ReplaceAll(degraded.Message, "\n", ` // `)),
+			},
+		}
+		if evaluated.After(degraded.LastTransitionTime.Time.Add(degradedErrorThreshold)) {
+			insight.impact.level = errorImpactLevel
+		}
+		insights = append(insights, insight)
+	}
+	return insights
+}
+
+func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOperator, at time.Time) (controlPlaneStatusDisplayData, []updateInsight) {
 	var displayData controlPlaneStatusDisplayData
 	var completed int
+	var insights []updateInsight
 
 	targetVersion := cv.Status.Desired.Version
 
@@ -57,17 +101,32 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 				break
 			}
 		}
+		available := v1.ClusterOperatorStatusCondition{}
+		progressing := v1.ClusterOperatorStatusCondition{}
+		degraded := v1.ClusterOperatorStatusCondition{}
+
 		displayData.Operators.Total++
 		for _, condition := range operator.Status.Conditions {
 			switch {
-			case condition.Type == v1.OperatorAvailable && condition.Status == v1.ConditionTrue:
-				displayData.Operators.Available++
-			case condition.Type == v1.OperatorProgressing && condition.Status == v1.ConditionTrue && !updated:
-				displayData.Operators.Progressing++
-			case condition.Type == v1.OperatorDegraded && condition.Status == v1.ConditionTrue:
-				displayData.Operators.Degraded++
+			case condition.Type == v1.OperatorAvailable:
+				available = condition
+			case condition.Type == v1.OperatorProgressing:
+				progressing = condition
+			case condition.Type == v1.OperatorDegraded:
+				degraded = condition
 			}
 		}
+
+		if available.Status == v1.ConditionTrue {
+			displayData.Operators.Available++
+		}
+		if degraded.Status == v1.ConditionTrue {
+			displayData.Operators.Degraded++
+		}
+		if progressing.Status == v1.ConditionTrue && !updated {
+			displayData.Operators.Progressing++
+		}
+		insights = append(insights, coInsights(operator.Name, available, degraded, at)...)
 	}
 
 	if completed == displayData.Operators.Total {
@@ -86,7 +145,7 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	}
 
 	displayData.Completion = float64(completed) / float64(displayData.Operators.Total) * 100.0
-	return displayData
+	return displayData, insights
 }
 
 var controlPlaneStatusTemplate = template.Must(template.New("controlPlaneStatus").Parse(controlPlaneStatusTemplateRaw))

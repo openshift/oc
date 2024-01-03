@@ -217,7 +217,8 @@ func (o *options) Run(ctx context.Context) error {
 		return nil
 	}
 
-	fmt.Fprintf(o.Out, "An update is in progress for %s: %s\n", now.Sub(progressing.LastTransitionTime.Time).Round(time.Second), progressing.Message)
+	updatingFor := now.Sub(progressing.LastTransitionTime.Time).Round(time.Second)
+	fmt.Fprintf(o.Out, "An update is in progress for %s: %s\n", updatingFor, progressing.Message)
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil {
 		if c.Status != configv1.ConditionFalse {
@@ -227,9 +228,14 @@ func (o *options) Run(ctx context.Context) error {
 		fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", clusterStatusFailing)
 	}
 
-	controlPlaneStatusData := assessControlPlaneStatus(cv, operators.Items, now)
+	controlPlaneStatusData, updateInsights := assessControlPlaneStatus(cv, operators.Items, now)
 	fmt.Fprintf(o.Out, "\n")
-	return controlPlaneStatusData.Write(o.Out)
+	_ = controlPlaneStatusData.Write(o.Out)
+	fmt.Fprintf(o.Out, "\n")
+	upgradeHealth := assessUpdateInsights(updateInsights, updatingFor, now)
+	_ = upgradeHealth.Write(o.Out)
+	return nil
+
 }
 
 func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorStatusCondition, name configv1.ClusterStatusConditionType) *configv1.ClusterOperatorStatusCondition {

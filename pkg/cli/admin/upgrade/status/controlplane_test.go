@@ -129,6 +129,8 @@ var cvFixture = configv1.ClusterVersion{
 	},
 }
 
+var allowUnexportedInsightStructs = cmp.AllowUnexported(updateInsight{}, updateInsightScope{}, scopeResource{}, updateInsightImpact{})
+
 func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 	testCases := []struct {
 		name      string
@@ -226,9 +228,14 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := assessControlPlaneStatus(&cvFixture, tc.operators, time.Now())
+			actual, insights := assessControlPlaneStatus(&cvFixture, tc.operators, time.Now())
 			if diff := cmp.Diff(tc.expected, actual.Operators, cmp.AllowUnexported(operators{})); diff != "" {
 				t.Errorf("actual output differs from expected:\n%s", diff)
+			}
+			// expect empty insights, conditions in this test have LastTransitionTime set to Now()
+			// so they never go over the threshold
+			if diff := cmp.Diff([]updateInsight(nil), insights, allowUnexportedInsightStructs); diff != "" {
+				t.Errorf("unexpected non-nil insights:\n%s", diff)
 			}
 		})
 	}
@@ -286,7 +293,7 @@ func TestAssessControlPlaneStatus_Completion(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := assessControlPlaneStatus(&cvFixture, tc.operators, time.Now())
+			actual, _ := assessControlPlaneStatus(&cvFixture, tc.operators, time.Now())
 			if diff := cmp.Diff(tc.expectedCompletion, actual.Completion, cmpopts.EquateApprox(0, 0.1)); diff != "" {
 				t.Errorf("expected completion %f, got %f", tc.expectedCompletion, actual.Completion)
 			}
@@ -335,9 +342,155 @@ func TestAssessControlPlaneStatus_Duration(t *testing.T) {
 			cv := cvFixture.DeepCopy()
 			cv.Status.History = append(cv.Status.History, tc.firstHistoryItem)
 
-			actual := assessControlPlaneStatus(cv, nil, now)
+			actual, _ := assessControlPlaneStatus(cv, nil, now)
 			if diff := cmp.Diff(tc.expectedDuration, actual.Duration); diff != "" {
 				t.Errorf("expected completion %s, got %s", tc.expectedDuration, actual.Duration)
+			}
+		})
+	}
+}
+
+func TestCoInsights(t *testing.T) {
+	t.Parallel()
+	anchorTime := time.Now()
+	testCases := []struct {
+		name      string
+		available configv1.ClusterOperatorStatusCondition
+		degraded  configv1.ClusterOperatorStatusCondition
+		expected  []updateInsight
+	}{
+		{
+			name: "no insights on happy conditions",
+			available: configv1.ClusterOperatorStatusCondition{
+				Type:   configv1.OperatorAvailable,
+				Status: configv1.ConditionTrue,
+			},
+			degraded: configv1.ClusterOperatorStatusCondition{
+				Type:   configv1.OperatorDegraded,
+				Status: configv1.ConditionFalse,
+			},
+		},
+		{
+			name: "no insights on below-threshold bad states",
+			available: configv1.ClusterOperatorStatusCondition{
+				Type:               configv1.OperatorAvailable,
+				Status:             configv1.ConditionFalse,
+				LastTransitionTime: metav1.NewTime(anchorTime.Add(-unavailableWarningThreshold).Add(time.Second)),
+			},
+			degraded: configv1.ClusterOperatorStatusCondition{
+				Type:               configv1.OperatorDegraded,
+				Status:             configv1.ConditionTrue,
+				LastTransitionTime: metav1.NewTime(anchorTime.Add(-degradedWarningThreshold).Add(time.Second)),
+			},
+		},
+		{
+			name: "warning insights on above-warn-threshold bad states",
+			available: configv1.ClusterOperatorStatusCondition{
+				Type:               configv1.OperatorAvailable,
+				Status:             configv1.ConditionFalse,
+				LastTransitionTime: metav1.NewTime(anchorTime.Add(-unavailableWarningThreshold).Add(-time.Second)),
+				Reason:             "Broken",
+				Message:            "Operator is broken",
+			},
+			degraded: configv1.ClusterOperatorStatusCondition{
+				Type:               configv1.OperatorDegraded,
+				Status:             configv1.ConditionTrue,
+				LastTransitionTime: metav1.NewTime(anchorTime.Add(-degradedWarningThreshold).Add(-time.Second)),
+				Reason:             "Slow",
+				Message:            "Networking is hard",
+			},
+			expected: []updateInsight{
+				{
+					startedAt: anchorTime.Add(-unavailableWarningThreshold).Add(-time.Second),
+					scope:     updateInsightScope{scopeType: scopeControlPlane, resources: []scopeResource{{kind: clusterOperator, name: "testOperator"}}},
+					impact: updateInsightImpact{
+						level:      warningImpactLevel,
+						impactType: apiAvailabilityImpactType,
+						summary:    "Cluster Operator testOperator is unavailable | Broken: Operator is broken",
+					},
+				},
+				{
+					startedAt: anchorTime.Add(-degradedWarningThreshold).Add(-time.Second),
+					scope:     updateInsightScope{scopeType: scopeControlPlane, resources: []scopeResource{{kind: clusterOperator, name: "testOperator"}}},
+					impact: updateInsightImpact{
+						level:      warningImpactLevel,
+						impactType: apiAvailabilityImpactType,
+						summary:    "Cluster Operator testOperator is degraded | Slow: Networking is hard",
+					},
+				},
+			},
+		},
+		{
+			name: "error insights on above-error-threshold bad states",
+			available: configv1.ClusterOperatorStatusCondition{
+				Type:               configv1.OperatorAvailable,
+				Status:             configv1.ConditionFalse,
+				LastTransitionTime: metav1.NewTime(anchorTime.Add(-unavailableErrorThreshold).Add(-time.Second)),
+				Reason:             "Broken",
+				Message:            "Operator is broken",
+			},
+			degraded: configv1.ClusterOperatorStatusCondition{
+				Type:               configv1.OperatorDegraded,
+				Status:             configv1.ConditionTrue,
+				LastTransitionTime: metav1.NewTime(anchorTime.Add(-degradedErrorThreshold).Add(-time.Second)),
+				Reason:             "Slow",
+				Message:            "Networking is hard",
+			},
+			expected: []updateInsight{
+				{
+					startedAt: anchorTime.Add(-unavailableErrorThreshold).Add(-time.Second),
+					scope:     updateInsightScope{scopeType: scopeControlPlane, resources: []scopeResource{{kind: clusterOperator, name: "testOperator"}}},
+					impact: updateInsightImpact{
+						level:      errorImpactLevel,
+						impactType: apiAvailabilityImpactType,
+						summary:    "Cluster Operator testOperator is unavailable | Broken: Operator is broken",
+					},
+				},
+				{
+					startedAt: anchorTime.Add(-degradedErrorThreshold).Add(-time.Second),
+					scope:     updateInsightScope{scopeType: scopeControlPlane, resources: []scopeResource{{kind: clusterOperator, name: "testOperator"}}},
+					impact: updateInsightImpact{
+						level:      errorImpactLevel,
+						impactType: apiAvailabilityImpactType,
+						summary:    "Cluster Operator testOperator is degraded | Slow: Networking is hard",
+					},
+				},
+			},
+		},
+		{
+			name: "insights flatten linebreaks in messages",
+			available: configv1.ClusterOperatorStatusCondition{
+				Type:               configv1.OperatorAvailable,
+				Status:             configv1.ConditionFalse,
+				LastTransitionTime: metav1.NewTime(anchorTime.Add(-unavailableErrorThreshold).Add(-time.Second)),
+				Reason:             "Broken",
+				Message:            "Operator is broken\nand message has linebreaks",
+			},
+			degraded: configv1.ClusterOperatorStatusCondition{
+				Type:   configv1.OperatorDegraded,
+				Status: configv1.ConditionFalse,
+			},
+			expected: []updateInsight{
+				{
+					startedAt: anchorTime.Add(-unavailableErrorThreshold).Add(-time.Second),
+					scope:     updateInsightScope{scopeType: scopeControlPlane, resources: []scopeResource{{kind: clusterOperator, name: "testOperator"}}},
+					impact: updateInsightImpact{
+						level:      errorImpactLevel,
+						impactType: apiAvailabilityImpactType,
+						summary:    `Cluster Operator testOperator is unavailable | Broken: Operator is broken // and message has linebreaks`,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			actual := coInsights("testOperator", tc.available, tc.degraded, anchorTime)
+			if diff := cmp.Diff(tc.expected, actual, allowUnexportedInsightStructs); diff != "" {
+				t.Errorf("insights differ from expected:\n%s", diff)
 			}
 		})
 	}
