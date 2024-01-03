@@ -1,0 +1,7 @@
+An update is in progress for 58m53s: Working towards 4.15.0-ec.2: 110 of 863 done (12% complete), waiting up to 40 minutes on etcd
+
+= Control Plane =
+Assessment:      Progressing
+Completion:      97%
+Duration:        58m53s
+Operator Status: 33 Total, 31 Available, 1 Progressing, 1 Degraded

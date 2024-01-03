@@ -1,0 +1,13 @@
+An update is in progress for 1h58m50s: Unable to apply 4.14.1: wait has exceeded 40 minutes for these operators: etcd, kube-apiserver
+
+Failing=True:
+
+  Reason: ClusterOperatorsDegraded
+  Message: Cluster operators etcd, kube-apiserver are degraded
+
+
+= Control Plane =
+Assessment:      Progressing
+Completion:      97%
+Duration:        1h58m50s
+Operator Status: 33 Total, 32 Available, 1 Progressing, 4 Degraded
