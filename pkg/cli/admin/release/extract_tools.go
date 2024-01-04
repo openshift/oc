@@ -268,6 +268,17 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		},
 		{
 			OS:      "linux",
+			Arch:    "amd64",
+			Command: "oc.rhel8",
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/linux_amd64/oc.rhel8"},
+
+			LinkTo:               []string{"kubectl"},
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-linux-amd64-rhel8-%s.tar.gz",
+		},
+		{
+			OS:      "linux",
 			Arch:    "arm64",
 			Command: "oc",
 			NewArch: true,
@@ -277,6 +288,18 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Readme:               readmeCLIUnix,
 			InjectReleaseVersion: true,
 			ArchiveFormat:        "openshift-client-linux-arm64-%s.tar.gz",
+		},
+		{
+			OS:      "linux",
+			Arch:    "arm64",
+			Command: "oc.rhel8",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/linux_arm64/oc.rhel8"},
+
+			LinkTo:               []string{"kubectl"},
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-linux-arm64-rhel8-%s.tar.gz",
 		},
 		{
 			OS:      "windows",
