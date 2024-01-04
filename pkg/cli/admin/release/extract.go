@@ -275,6 +275,10 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		}
 	}
 
+	if o.CredentialsRequests && !o.Included {
+		fmt.Fprintln(o.ErrOut, "warning: if you intend to pass CredentialsRequests to ccoctl, you should use --included to filter out requests that your cluster is not expected to need.")
+	}
+
 	switch {
 	case sources > 1:
 		return fmt.Errorf("only one of --tools, --command, --credentials-requests, --file, or --git may be specified")
