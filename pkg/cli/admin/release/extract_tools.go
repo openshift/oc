@@ -499,6 +499,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	}
 	exactReleaseImage := refExact.String()
 
+	targetArchCommands := make(map[string]struct{})
 	// resolve target image references to their pull specs
 	missing := sets.NewString()
 	var validTargets []extractTarget
@@ -513,9 +514,23 @@ func (o *ExtractOptions) extractCommand(command string) error {
 				continue
 			}
 		}
+
+		if target.Arch == targetReleaseArch {
+			targetArchCommands[target.Command] = struct{}{}
+		}
+
 		if target.OS == "linux" && target.Arch == releaseArch {
-			klog.V(2).Infof("Skipping duplicate %s", target.ArchiveFormat)
-			continue
+			if _, ok := targetArchCommands[target.Command]; ok {
+				// Some target commands have release-arch types that defines extracting
+				// the command in whatever release architecture type is set(e.g. linux/amd64)
+				// But there is also another target type for these commands specifically set to
+				// each architecture type(linux/amd64, linux/arm64) and it is expected that
+				// one of these arch types collide with release-arch type. Thus,
+				// to prevent duplicate extraction, we have to skip the one colliding with release-arch type.
+				// However, we need to skip per command name because some command may not have release-arch type.
+				klog.V(2).Infof("Skipping duplicate %s", target.ArchiveFormat)
+				continue
+			}
 		}
 		spec, err := findImageSpec(release.References, target.Mapping.Image, o.From)
 		if err != nil && !target.NewArch {
