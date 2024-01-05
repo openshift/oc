@@ -58,11 +58,12 @@ type extractTarget struct {
 	InjectReleaseVersion bool
 	SignMachOBinary      bool
 
-	ArchiveFormat string
-	AsArchive     bool
-	AsZip         bool
-	Readme        string
-	LinkTo        []string
+	ArchiveFormat     string
+	AsArchive         bool
+	AsZip             bool
+	Readme            string
+	LinkTo            []string
+	TargetCommandName string
 
 	Mapping extract.Mapping
 }
@@ -275,6 +276,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Readme:               readmeCLIUnix,
 			InjectReleaseVersion: true,
 			ArchiveFormat:        "openshift-client-linux-amd64-rhel9-%s.tar.gz",
+			TargetCommandName:    "oc",
 		},
 		{
 			OS:      "linux",
@@ -286,6 +288,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Readme:               readmeCLIUnix,
 			InjectReleaseVersion: true,
 			ArchiveFormat:        "openshift-client-linux-amd64-rhel8-%s.tar.gz",
+			TargetCommandName:    "oc",
 		},
 		{
 			OS:      "linux",
@@ -310,6 +313,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Readme:               readmeCLIUnix,
 			InjectReleaseVersion: true,
 			ArchiveFormat:        "openshift-client-linux-arm64-rhel9-%s.tar.gz",
+			TargetCommandName:    "oc",
 		},
 		{
 			OS:      "linux",
@@ -322,6 +326,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Readme:               readmeCLIUnix,
 			InjectReleaseVersion: true,
 			ArchiveFormat:        "openshift-client-linux-arm64-rhel8-%s.tar.gz",
+			TargetCommandName:    "oc",
 		},
 		{
 			OS:      "windows",
@@ -590,6 +595,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		}
 		target.Mapping.Image = spec
 		target.Mapping.ImageRef = imagesource.TypedImageReference{Ref: ref, Type: imagesource.DestinationRegistry}
+		// if the name of the extracted binary is set to different from the
+		// actual command name, we set it to new target command name.
+		if target.TargetCommandName != "" {
+			target.Command = target.TargetCommandName
+		}
 		if target.AsArchive {
 			willArchive = true
 			target.Mapping.Name = fmt.Sprintf(target.ArchiveFormat, releaseName)
