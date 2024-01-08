@@ -875,6 +875,13 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			if target.NewArch {
 				continue
 			}
+			if command == "" && (strings.Contains(target.Mapping.From, "rhel9") || strings.Contains(target.Mapping.From, "rhel8")) {
+				// if user explicitly wants to extract oc.rhel9(or installer.rhel9) via --command=oc.rhel9 and
+				// if release does not have this binary, we can safely return error.
+				// On the other hand, if user wants to extract all the tooling in older versions via --tools flag,
+				// we shouldn't print any error indicating that oc.rhel9 does not exist in this release payload.
+				continue
+			}
 			missing = append(missing, target.Mapping.From)
 		}
 		sort.Strings(missing)
