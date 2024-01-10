@@ -1,0 +1,109 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2023-11-03T14:43:52Z"
+  generation: 3
+  name: version
+  resourceVersion: "79291"
+  uid: 91a3fcec-ab0e-47f2-b001-978cf8553164
+spec:
+  channel: candidate-4.14
+  clusterID: fb4b77e5-f288-49ad-b9e6-dfd20426e470
+  desiredUpdate:
+    architecture: ""
+    force: false
+    image: quay.io/openshift-release-dev/ocp-release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd
+    version: 4.14.1
+  upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+status:
+  availableUpdates: null
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2023-11-03T14:43:55Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2023-11-03T14:43:55Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2023-11-03T14:43:55Z"
+    message: Payload loaded version="4.14.1" image="quay.io/openshift-release-dev/ocp-release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2023-11-03T15:02:54Z"
+    message: Done applying 4.14.0-rc.3
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2023-11-03T17:26:54Z"
+    message: Cluster operators etcd, kube-apiserver are degraded
+    reason: ClusterOperatorsDegraded
+    status: "True"
+    type: Failing
+  - lastTransitionTime: "2023-11-03T15:28:04Z"
+    message: 'Unable to apply 4.14.1: wait has exceeded 40 minutes for these operators:
+      etcd, kube-apiserver'
+    reason: ClusterOperatorsDegraded
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2023-11-03T16:24:25Z"
+    message: |-
+      Multiple cluster operators should not be upgraded between minor versions:
+      * Cluster operator control-plane-machine-set should not be upgraded between minor versions: AsExpected: cluster operator is not upgradable
+      * Cluster operator machine-config should not be upgraded between minor versions: PoolUpdating: One or more machine config pools are updating, please see `oc get mcp` for further details
+    reason: ClusterOperatorsNotUpgradeable
+    status: "False"
+    type: Upgradeable
+  desired:
+    channels:
+    - candidate-4.14
+    - candidate-4.15
+    - eus-4.14
+    - fast-4.14
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd
+    url: https://access.redhat.com/errata/RHBA-2023:6153
+    version: 4.14.1
+  history:
+  - completionTime: null
+    image: quay.io/openshift-release-dev/ocp-release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd
+    startedTime: "2023-11-03T15:28:04Z"
+    state: Partial
+    verified: true
+    version: 4.14.1
+  - completionTime: "2023-11-03T15:02:54Z"
+    image: registry.build05.ci.openshift.org/ci-ln-92767cb/release@sha256:a4cb1959bcfbc92571ffdd1ad5873107e32972be4dbd5c4ee4c9221bc907a216
+    startedTime: "2023-11-03T14:43:55Z"
+    state: Completed
+    verified: false
+    version: 4.14.0-rc.3
+  observedGeneration: 3
+  versionHash: I3skQa0FyxU=

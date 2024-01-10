@@ -26,7 +26,7 @@ func compareWithFixture(t *testing.T, actualOut []byte, cvPath string) {
 	if err != nil {
 		t.Fatalf("Error when reading output fixture: %v", err)
 	}
-	if diff := cmp.Diff(expectedOut, actualOut); diff != "" {
+	if diff := cmp.Diff(string(expectedOut), string(actualOut)); diff != "" {
 		t.Errorf("Output differs from expected:\n%s", diff)
 	}
 }
