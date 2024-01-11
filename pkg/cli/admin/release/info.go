@@ -1205,6 +1205,30 @@ func printFeatureSetSection(diff *ReleaseDiff, featureSetName string, w io.Write
 	}
 }
 
+func markdownFeatureSetSection(diff *ReleaseDiff, featureSetName string, w io.Writer) {
+	newFeatures, newlyEnabledFeatures, newlyDisabledFeatures, newlyRemovedFeatures, changed := FeatureGatesForFeatureSetChanged(diff, featureSetName)
+	if newFeatures == nil || !changed {
+		return
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "### New %v FeatureGates\n", featureSetName)
+	for _, featureGate := range newFeatures.Status.FeatureGates[0].Enabled {
+		if newlyEnabledFeatures.Has(featureGate.Name) {
+			fmt.Fprintf(w, "* Enabled %v\n", featureGate.Name)
+		}
+	}
+	for _, featureGate := range newFeatures.Status.FeatureGates[0].Disabled {
+		if newlyDisabledFeatures.Has(featureGate.Name) {
+			fmt.Fprintf(w, "* Disabled %v\n", featureGate.Name)
+		}
+	}
+	for _, featureGate := range sets.List[string](newlyRemovedFeatures) {
+		fmt.Fprintf(w, "* Hardcoded (state unknown) %v\n", featureGate)
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w)
+}
+
 // FeatureGatesForFeatureSetChanged returns newly enabled featureGates, newly disabled featureGates, and newly removed featureGates
 func FeatureGatesForFeatureSetChanged(diff *ReleaseDiff, featureSetName string) (*configv1.FeatureGate, sets.Set[configv1.FeatureGateName], sets.Set[configv1.FeatureGateName], sets.Set[string], bool) {
 	manifestName := fmt.Sprintf("0000_50_cluster-config-api_featureGate-%v.yaml", featureSetName)
@@ -1734,6 +1758,9 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 			fmt.Fprintln(out)
 			fmt.Fprintln(out)
 		}
+
+		markdownFeatureSetSection(diff, "Default", out)
+		markdownFeatureSetSection(diff, string(configv1.TechPreviewNoUpgrade), out)
 
 		if len(added) > 0 {
 			fmt.Fprintf(out, "### New images\n\n")
