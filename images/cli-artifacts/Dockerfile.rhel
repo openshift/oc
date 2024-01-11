@@ -18,6 +18,10 @@ RUN cd /usr/share/openshift && \
     ln -sf /usr/share/openshift/linux_$(uname -m | sed 's/aarch64/arm64/;s/x86_64/amd64/')/oc /usr/bin/oc && \
     mv windows_amd64 windows && mv darwin_amd64 mac && mv darwin_arm64 mac_arm64
 
+RUN ln -sf /usr/share/openshift/linux_amd64/oc /usr/share/openshift/linux_amd64/oc.rhel8
+RUN ln -sf /usr/share/openshift/linux_arm64/oc /usr/share/openshift/linux_arm64/oc.rhel8
+RUN ln -sf /usr/share/openshift/linux_ppc64le/oc /usr/share/openshift/linux_ppc64le/oc.rhel8
+
 COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/linux_amd64/oc /usr/share/openshift/linux_amd64/oc.rhel9
 COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/linux_arm64/oc /usr/share/openshift/linux_arm64/oc.rhel9
 COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/linux_ppc64le/oc /usr/share/openshift/linux_ppc64le/oc.rhel9
