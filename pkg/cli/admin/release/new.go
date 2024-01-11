@@ -55,7 +55,7 @@ func NewNewOptions(streams genericiooptions.IOStreams) *NewOptions {
 		// We strongly control the set of allowed component versions to prevent confusion
 		// about what component versions may be used for. Changing this list requires
 		// approval from the release architects.
-		AllowedComponents: []string{"kubernetes", "machine-os", "kernel", "crio"},
+		AllowedComponents: []string{"kubernetes", "machine-os", "kernel", "crio", "kubectl", "kubernetes-tests"},
 	}
 }
 
