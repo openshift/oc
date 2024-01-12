@@ -666,7 +666,7 @@ func calculateDiff(from, to *ReleaseInfo) (*ReleaseDiff, error) {
 		}
 		diff.ChangedManifests[name] = &ReleaseManifestDiff{
 			Filename: name,
-			From:     manifest,
+			To:       manifest,
 		}
 	}
 	for k, v := range diff.ChangedManifests {
@@ -1165,8 +1165,120 @@ func describeReleaseDiff(out io.Writer, diff *ReleaseDiff, showCommit bool, outp
 			}
 		})
 	}
+
+	printFeatureSetSection(diff, "Default", w)
+	printFeatureSetSection(diff, string(configv1.TechPreviewNoUpgrade), w)
+
 	fmt.Fprintln(w)
 	return nil
+}
+
+func printFeatureSetSection(diff *ReleaseDiff, featureSetName string, w io.Writer) {
+	newFeatures, newlyEnabledFeatures, newlyDisabledFeatures, newlyRemovedFeatures, changed := FeatureGatesForFeatureSetChanged(diff, featureSetName)
+	if newFeatures == nil || !changed {
+		return
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "FeatureGate changes for %q (%d enabled, %d disabled, %d removed)\n",
+		featureSetName, len(newlyEnabledFeatures), len(newlyDisabledFeatures), len(newlyRemovedFeatures))
+	if len(newlyEnabledFeatures) > 0 {
+		fmt.Fprintf(w, "Enabled:\n")
+		for _, featureGate := range newFeatures.Status.FeatureGates[0].Enabled {
+			if newlyEnabledFeatures.Has(featureGate.Name) {
+				fmt.Fprintf(w, "  %v\n", featureGate.Name)
+			}
+		}
+	}
+	if len(newlyDisabledFeatures) > 0 {
+		fmt.Fprintf(w, "Disabled:\n")
+		for _, featureGate := range newFeatures.Status.FeatureGates[0].Disabled {
+			if newlyDisabledFeatures.Has(featureGate.Name) {
+				fmt.Fprintf(w, "  %v\n", featureGate.Name)
+			}
+		}
+	}
+	if len(newlyRemovedFeatures) > 0 {
+		fmt.Fprintf(w, "Removed:\n")
+		for _, featureGate := range sets.List[string](newlyRemovedFeatures) {
+			fmt.Fprintf(w, "  %v\n", featureGate)
+		}
+	}
+}
+
+func markdownFeatureSetSection(diff *ReleaseDiff, featureSetName string, w io.Writer) {
+	newFeatures, newlyEnabledFeatures, newlyDisabledFeatures, newlyRemovedFeatures, changed := FeatureGatesForFeatureSetChanged(diff, featureSetName)
+	if newFeatures == nil || !changed {
+		return
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "### New %v FeatureGates\n", featureSetName)
+	for _, featureGate := range newFeatures.Status.FeatureGates[0].Enabled {
+		if newlyEnabledFeatures.Has(featureGate.Name) {
+			fmt.Fprintf(w, "* Enabled %v\n", featureGate.Name)
+		}
+	}
+	for _, featureGate := range newFeatures.Status.FeatureGates[0].Disabled {
+		if newlyDisabledFeatures.Has(featureGate.Name) {
+			fmt.Fprintf(w, "* Disabled %v\n", featureGate.Name)
+		}
+	}
+	for _, featureGate := range sets.List[string](newlyRemovedFeatures) {
+		fmt.Fprintf(w, "* Hardcoded (state unknown) %v\n", featureGate)
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w)
+}
+
+// FeatureGatesForFeatureSetChanged returns newly enabled featureGates, newly disabled featureGates, and newly removed featureGates
+func FeatureGatesForFeatureSetChanged(diff *ReleaseDiff, featureSetName string) (*configv1.FeatureGate, sets.Set[configv1.FeatureGateName], sets.Set[configv1.FeatureGateName], sets.Set[string], bool) {
+	manifestName := fmt.Sprintf("0000_50_cluster-config-api_featureGate-%v.yaml", featureSetName)
+	changed := diff.ChangedManifests[manifestName]
+	if changed == nil || len(changed.To) == 0 {
+		klog.V(2).Infof("featuregate manifest is missing in To")
+		return nil, nil, nil, nil, false
+	}
+	toFeatureGates, err := ReadFeatureGateV1(changed.To)
+	if err != nil {
+		klog.V(2).Infof("failed to decode To %v: %v", manifestName, err)
+		return nil, nil, nil, nil, false
+	}
+
+	toEntireSet := sets.Set[string]{}
+	toEnabledSet := sets.Set[configv1.FeatureGateName]{}
+	toDisabledSet := sets.Set[configv1.FeatureGateName]{}
+	for _, curr := range toFeatureGates.Status.FeatureGates[0].Enabled {
+		toEntireSet.Insert(string(curr.Name))
+		toEnabledSet.Insert(curr.Name)
+	}
+	for _, curr := range toFeatureGates.Status.FeatureGates[0].Disabled {
+		toEntireSet.Insert(string(curr.Name))
+		toDisabledSet.Insert(curr.Name)
+	}
+
+	fromEntireSet := sets.Set[string]{}
+	fromEnabledSet := sets.Set[configv1.FeatureGateName]{}
+	fromDisabledSet := sets.Set[configv1.FeatureGateName]{}
+	if len(changed.From) > 0 {
+		fromFeatureGates, err := ReadFeatureGateV1(changed.From)
+		if err != nil {
+			klog.V(2).Infof("failed to decode From %v: %v", manifestName, err)
+			return nil, nil, nil, nil, false
+		}
+		for _, curr := range fromFeatureGates.Status.FeatureGates[0].Enabled {
+			fromEntireSet.Insert(string(curr.Name))
+			fromEnabledSet.Insert(curr.Name)
+		}
+		for _, curr := range fromFeatureGates.Status.FeatureGates[0].Disabled {
+			fromEntireSet.Insert(string(curr.Name))
+			fromDisabledSet.Insert(curr.Name)
+		}
+	}
+
+	newlyEnabledFeatureGates := toEnabledSet.Difference(fromEnabledSet)
+	newlyDisabledFeatureGates := toDisabledSet.Difference(fromDisabledSet)
+	removedFeatureGates := fromEntireSet.Difference(toEntireSet)
+	haveFeaturesChange := len(newlyEnabledFeatureGates) > 0 || len(newlyDisabledFeatureGates) > 0 || len(removedFeatureGates) > 0
+	return toFeatureGates, newlyEnabledFeatureGates, newlyDisabledFeatureGates, removedFeatureGates, haveFeaturesChange
 }
 
 func repoAndCommit(ref *imageapi.TagReference) string {
@@ -1646,6 +1758,9 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 			fmt.Fprintln(out)
 			fmt.Fprintln(out)
 		}
+
+		markdownFeatureSetSection(diff, "Default", out)
+		markdownFeatureSetSection(diff, string(configv1.TechPreviewNoUpgrade), out)
 
 		if len(added) > 0 {
 			fmt.Fprintf(out, "### New images\n\n")
