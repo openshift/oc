@@ -34,6 +34,8 @@ type updateInsightScope struct {
 
 type impactLevel uint32
 
+// TODO(muller/OTA): Revise these levels when we move these structures to server-side. As of Jan 2024 we are not
+// entirely sure whether we would need `critical` level or not.
 const (
 	// infoImpactLevel should be used for insights that are strictly informational or even positive (things go well or
 	// something recently healed)
@@ -69,6 +71,9 @@ func (l impactLevel) String() string {
 
 type impactType string
 
+// TODO(muller/OTA): Revise these consts when we move these structures to server-side. These constants were proposed
+// by Justin in 'OpenShift Update Concepts' slides that serve as a basis for this effort but we never properly
+// considered whether these are exactly the ones that we need.
 const (
 	noneImpactType                    impactType = "None"
 	apiAvailabilityImpactType         impactType = "API Availability"
