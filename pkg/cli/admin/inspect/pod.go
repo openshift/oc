@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/html"
 
@@ -126,6 +127,18 @@ func (o *InspectOptions) gatherContainerRotatedLogFiles(destDir string, pod *cor
 		return err
 	}
 
+	// when sinceTime is given we use that to compare the log file name with
+	// the provided date.
+	// when since is given we subtract the given duration from time.Now(),
+	// then use that as the requested time.
+	var requestedTime time.Time
+	if len(o.sinceTime) > 0 {
+		requestedTime = o.sinceTimestamp.Time
+	}
+	if o.since != 0 {
+		requestedTime = time.Now().Add(-o.since)
+	}
+
 	// rotated log files have a suffix added at the end of the file name
 	// e.g: 0.log.20211027-082023, 0.log.20211027-082023.gz
 	reRotatedLog := regexp.MustCompile(`[0-9]+\.log\..+`)
@@ -140,6 +153,24 @@ func (o *InspectOptions) gatherContainerRotatedLogFiles(destDir string, pod *cor
 			}
 			if !reRotatedLog.MatchString(fileName) {
 				return
+			}
+
+			if !requestedTime.IsZero() {
+				// make sure rotated logs honor --since and --since-time
+				// when set by the user.
+				if parts := strings.Split(fileName, "."); len(parts) >= 3 {
+					if rotatedTime, err := time.Parse("20060102-150405", parts[2]); err == nil {
+						if rotatedTime.Before(requestedTime) {
+							klog.V(4).Infof(
+								"skipping rotated logs for %q because it's outside of user-provided time constraints",
+								fileName,
+							)
+							return
+						}
+					} else {
+						innerErrs = append(innerErrs, err)
+					}
+				}
 			}
 
 			// ensure destination dir exists
