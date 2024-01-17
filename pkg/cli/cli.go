@@ -218,7 +218,7 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 
 	kubeConfigFlags := o.ConfigFlags
 	if kubeConfigFlags == nil {
-		kubeConfigFlags = defaultConfigFlags()
+		kubeConfigFlags = defaultConfigFlags().WithWarningPrinter(o.IOStreams)
 	}
 	kubeConfigFlags.AddFlags(flags)
 	matchVersionKubeConfigFlags := kcmdutil.NewMatchVersionFlags(kubeConfigFlags)
@@ -411,11 +411,13 @@ func CommandFor(basename string) *cobra.Command {
 		cmd = recycle.NewCommandRecycle(basename, out)
 	default:
 		shimKubectlForOc()
+
+		ioStreams := genericiooptions.IOStreams{In: in, Out: out, ErrOut: err}
 		cmd = NewDefaultOcCommand(kubecmd.KubectlOptions{
 			PluginHandler: kubecmd.NewDefaultPluginHandler(plugin.ValidPluginFilenamePrefixes),
 			Arguments:     os.Args,
-			ConfigFlags:   defaultConfigFlags(),
-			IOStreams:     genericiooptions.IOStreams{In: in, Out: out, ErrOut: err},
+			ConfigFlags:   defaultConfigFlags().WithWarningPrinter(ioStreams),
+			IOStreams:     ioStreams,
 		})
 
 		// treat oc as a kubectl plugin
