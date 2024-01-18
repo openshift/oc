@@ -118,6 +118,8 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().Uint8Var(&o.VolumePercentage, "volume-percentage", o.VolumePercentage, "Specify maximum percentage of must-gather pod's allocated volume that can be used. If this limit is exceeded, must-gather will stop gathering, but still copy gathered data. Defaults to 30%.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	cmd.Flags().MarkHidden("keep")
+	cmd.Flags().StringVar(&o.SinceTime, "since-time", o.SinceTime, "Experimental: only return logs after a specific date (RFC3339). Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used.")
+	cmd.Flags().DurationVar(&o.Since, "since", o.Since, "Experimental: only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used.")
 
 	return cmd
 }
@@ -263,6 +265,8 @@ type MustGatherOptions struct {
 	RunNamespace     string
 	VolumePercentage uint8
 	Keep             bool
+	Since            time.Duration
+	SinceTime        string
 
 	RsyncRshCmd string
 
@@ -293,6 +297,16 @@ func (o *MustGatherOptions) Validate() error {
 	}
 	if o.VolumePercentage >= 80 {
 		klog.Warningf("volume percentage greater than or equal to 80 might cause filling up the disk space and have an impact on other components running on master")
+	}
+
+	if len(o.SinceTime) > 0 && o.Since != 0 {
+		return fmt.Errorf("at most one of `--since-time` or `--since` may be specified")
+	}
+
+	if len(o.SinceTime) > 0 {
+		if _, err := time.Parse(time.RFC3339, o.SinceTime); err != nil {
+			return fmt.Errorf("--since-time only accepts times matching RFC3339, eg '2006-01-02T15:04:05Z'")
+		}
 	}
 
 	return nil
@@ -861,6 +875,21 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 			},
 		}
 	}
+
+	if o.Since != 0 {
+		ret.Spec.Containers[0].Env = append(ret.Spec.Containers[0].Env, corev1.EnvVar{
+			Name:  "MUST_GATHER_SINCE",
+			Value: o.Since.String(),
+		})
+	}
+
+	if o.SinceTime != "" {
+		ret.Spec.Containers[0].Env = append(ret.Spec.Containers[0].Env, corev1.EnvVar{
+			Name:  "MUST_GATHER_SINCE_TIME",
+			Value: o.SinceTime,
+		})
+	}
+
 	return ret
 }
 
