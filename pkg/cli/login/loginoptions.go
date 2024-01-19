@@ -5,20 +5,26 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/pkg/browser"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/apis/clientauthentication"
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -26,8 +32,10 @@ import (
 	kterm "k8s.io/kubectl/pkg/util/term"
 
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
+	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
 	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
 	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
+
 	occhallengers "github.com/openshift/oc/pkg/helpers/authchallengers"
 	ocerrors "github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
@@ -36,12 +44,17 @@ import (
 	loginutil "github.com/openshift/oc/pkg/helpers/project"
 	"github.com/openshift/oc/pkg/helpers/term"
 	"github.com/openshift/oc/pkg/version"
-	"github.com/pkg/browser"
 )
 
 const defaultClusterURL = "https://localhost:8443"
 
 const projectsItemsSuppressThreshold = 50
+
+type ExecPluginType string
+
+const (
+	OCOIDC ExecPluginType = "oc-oidc"
+)
 
 // LoginOptions is a helper for the login and setup process, gathers all information required for a
 // successful login and eventual update of config files.
@@ -69,6 +82,11 @@ type LoginOptions struct {
 	// cert data to be used when authenticating
 	CertFile string
 	KeyFile  string
+
+	OIDCExecPluginType string
+	OIDCClientID       string
+	OIDCClientSecret   string
+	OIDCExtraScopes    []string
 
 	Token string
 
@@ -262,6 +280,24 @@ func (o *LoginOptions) gatherAuthInfo() error {
 		}
 	}
 
+	if o.OIDCExecPluginType == string(OCOIDC) {
+		execProvider, err := o.prepareBuiltinExecPlugin()
+		if err != nil {
+			return err
+		}
+
+		clientConfig.ExecProvider = execProvider
+		me, err := project.WhoAmI(clientConfig)
+		if err != nil {
+			return err
+		}
+
+		o.Username = me.Name
+		o.Config = clientConfig
+		fmt.Fprintf(o.Out, "Logged into %q as %q from an external oidc issuer.\n\n", o.Config.Host, o.Username)
+		return nil
+	}
+
 	// if kubeconfig doesn't already have a matching user stanza...
 	clientConfig.BearerToken = ""
 	clientConfig.CertData = []byte{}
@@ -295,6 +331,46 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	fmt.Fprint(o.Out, "Login successful.\n\n")
 
 	return nil
+}
+
+// prepareBuiltinExecPlugin sets up the ExecConfig correctly
+// with the given values
+func (o *LoginOptions) prepareBuiltinExecPlugin() (*kclientcmdapi.ExecConfig, error) {
+	issuerUrl, err := o.extractIssuerURLForOIDC()
+	if err != nil {
+		return nil, err
+	}
+
+	execProvider := &kclientcmdapi.ExecConfig{
+		APIVersion: clientauthentication.GroupName + "/v1",
+		Command:    "oc",
+		Args: []string{
+			"get-token",
+			fmt.Sprintf("--issuer-url=%s", issuerUrl),
+			fmt.Sprintf("--client-id=%s", o.OIDCClientID),
+			fmt.Sprintf("--callback-address=127.0.0.1:%d", o.CallbackPort),
+		},
+		InstallHint:     "Please be sure that oc is defined in $PATH to be executed as credentials exec plugin",
+		InteractiveMode: kclientcmdapi.IfAvailableExecInteractiveMode,
+	}
+
+	if len(o.OIDCExtraScopes) > 0 {
+		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--extra-scopes=%s", strings.Join(o.OIDCExtraScopes, ",")))
+	}
+
+	if o.OIDCClientSecret != "" {
+		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--client-secret=%s", o.OIDCClientSecret))
+	}
+
+	if o.InsecureTLS {
+		execProvider.Args = append(execProvider.Args, "--insecure-skip-tls-verify")
+	}
+
+	if len(o.Config.CAFile) > 0 {
+		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.Config.CAFile))
+	}
+
+	return execProvider, nil
 }
 
 func (o *LoginOptions) getAuthChallengeHandler() challengehandlers.ChallengeHandler {
@@ -495,6 +571,38 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 	}
 
 	return created, nil
+}
+
+func (o *LoginOptions) extractIssuerURLForOIDC() (string, error) {
+	rt, err := restclient.TransportFor(o.Config)
+	if err != nil {
+		return "", err
+	}
+
+	requestURL := strings.TrimRight(o.Config.Host, "/") + "/.well-known/oauth-authorization-server"
+
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("X-CSRF-Token", "1")
+
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("couldn't get %v: unexpected response status %v", requestURL, resp.StatusCode)
+	}
+
+	metadata := &oauthdiscovery.OauthAuthorizationServerMetadata{}
+	if err := json.NewDecoder(resp.Body).Decode(metadata); err != nil {
+		return "", err
+	}
+
+	return metadata.Issuer, nil
 }
 
 func (o *LoginOptions) usernameProvided() bool {
