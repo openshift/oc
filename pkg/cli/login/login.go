@@ -47,6 +47,9 @@ var (
 
 		# Log in to the given server through a browser
 		oc login localhost:8443 --web --callback-port 8280
+
+		# Log in to the external OIDC issuer through Auth Code + PKCE by starting a local server listening port 8080
+		oc login localhost:8443 --exec-plugin=oc-oidc --client-id=client-id --extra-scopes=email,profile --callback-port=8080
 	`)
 )
 
@@ -89,6 +92,11 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 
 	cmds.Flags().BoolVarP(&o.WebLogin, "web", "w", o.WebLogin, "Login with web browser. Starts a local HTTP callback server to perform the OAuth2 Authorization Code Grant flow. Use with caution on multi-user systems, as the server's port will be open to all users.")
 	cmds.Flags().Int32VarP(&o.CallbackPort, "callback-port", "c", o.CallbackPort, "Port for the callback server when using --web. Defaults to a random open port")
+
+	cmds.Flags().StringVar(&o.OIDCExecPluginType, "exec-plugin", o.OIDCExecPluginType, "Experimental: Specify credentials exec plugin type to be used to authenticate external OIDC issuer. Currently only 'oc-oidc' is supported")
+	cmds.Flags().StringVar(&o.OIDCClientID, "client-id", o.OIDCClientID, "Experimental: Client ID for external OIDC issuer. Only supports Auth Code + PKCE. Required.")
+	cmds.Flags().StringVar(&o.OIDCClientSecret, "client-secret", o.OIDCClientSecret, "Experimental: Client secret for external OIDC issuer. Optional.")
+	cmds.Flags().StringSliceVar(&o.OIDCExtraScopes, "extra-scopes", o.OIDCExtraScopes, "Experimental: Extra scopes for external OIDC issuer. Optional.")
 	return cmds
 }
 
@@ -177,8 +185,20 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 		return errors.New("--web cannot be used along with --username, --password or --token")
 	}
 
-	if o.CallbackPort != 0 && !o.WebLogin {
-		return errors.New("--callback-port can only be specified along with --web")
+	if o.OIDCExecPluginType != "" && o.OIDCExecPluginType != string(OCOIDC) {
+		return errors.New("currently only oc is supported")
+	}
+
+	if o.OIDCExecPluginType == "" && (o.OIDCClientID != "" || o.OIDCClientSecret != "" || len(o.OIDCExtraScopes) > 0) {
+		return errors.New("please specify --exec-plugin type. Currently only oc-oidc is supported")
+	}
+
+	if o.OIDCExecPluginType != "" && (o.WebLogin || o.Username != "" || o.Password != "" || o.Token != "") {
+		return errors.New("--exec-plugin cannot be used along with --web, --username, --password or --token")
+	}
+
+	if o.CallbackPort != 0 && !o.WebLogin && o.OIDCExecPluginType == "" {
+		return errors.New("--callback-port can only be specified along with --web or --exec-plugin")
 	}
 
 	return nil

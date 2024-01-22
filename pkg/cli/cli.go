@@ -26,6 +26,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/deployer"
 	"github.com/openshift/oc/pkg/cli/expose"
 	"github.com/openshift/oc/pkg/cli/extract"
+	"github.com/openshift/oc/pkg/cli/gettoken"
 	"github.com/openshift/oc/pkg/cli/idle"
 	"github.com/openshift/oc/pkg/cli/image"
 	"github.com/openshift/oc/pkg/cli/importimage"
@@ -313,6 +314,7 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 		{
 			Message: "Settings Commands:",
 			Commands: []*cobra.Command{
+				gettoken.NewCmdGetToken(f, o.IOStreams),
 				logout.NewCmdLogout(f, o.IOStreams),
 				kubectlwrappers.NewCmdConfig(f, o.IOStreams),
 				whoami.NewCmdWhoAmI(f, o.IOStreams),
