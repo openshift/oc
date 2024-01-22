@@ -189,13 +189,28 @@ func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingI
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("input image stream has an invalid version annotation for tag %q: %v", tag.Name, value)
 		}
+		var differentImageKubectlVersion string
 		for k, v := range items {
 			existing, ok := versions[k]
 			if ok {
 				if existing.Version != v.Version {
+					if k == "kubectl" && tag.Name != "cli" && tag.Name != "cli-artifact" {
+						if differentImageKubectlVersion == "" || differentImageKubectlVersion == v.Version {
+							differentImageKubectlVersion = v.Version
+							continue
+						}
+					}
+
 					return nil, nil, nil, fmt.Errorf("input image stream has multiple versions defined for version %s: %s defines %s but was already set to %s on %s", k, tag.Name, v, existing, strings.Join(tagsByName[k], ", "))
 				}
 			} else {
+				if k == "kubectl" && tag.Name != "cli" && tag.Name != "cli-artifact" {
+					if differentImageKubectlVersion != "" && differentImageKubectlVersion != v.Version {
+						return nil, nil, nil, fmt.Errorf("input image stream has multiple versions defined for version %s: %s defines %s but was already set to %s on %s", k, tag.Name, v, existing, strings.Join(tagsByName[k], ", "))
+					}
+					differentImageKubectlVersion = v.Version
+					continue
+				}
 				versions[k] = v
 				klog.V(4).Infof("Found version %s=%s from %s", k, v.Version, tag.Name)
 			}
