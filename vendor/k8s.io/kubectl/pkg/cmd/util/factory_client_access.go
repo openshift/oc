@@ -154,8 +154,13 @@ func (f *factoryImpl) Validator(validationDirective string) (validation.Schema, 
 		return validation.NullSchema{}, nil
 	}
 
+	resources, err := f.OpenAPISchema()
+	if err != nil {
+		return nil, err
+	}
+
 	schema := validation.ConjunctiveSchema{
-		validation.NewSchemaValidation(f),
+		validation.NewSchemaValidation(resources),
 		validation.NoDoubleKeySchema{},
 	}
 
@@ -214,5 +219,5 @@ func (f *factoryImpl) OpenAPIV3Client() (openapiclient.Client, error) {
 		return nil, err
 	}
 
-	return cached.NewClient(discovery.OpenAPIV3()), nil
+	return discovery.OpenAPIV3(), nil
 }

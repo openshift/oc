@@ -29,14 +29,14 @@ import (
 
 // schemaValidation validates the object against an OpenAPI schema.
 type schemaValidation struct {
-	resourcesGetter openapi.OpenAPIResourcesGetter
+	resources openapi.Resources
 }
 
 // NewSchemaValidation creates a new Schema that can be used
 // to validate objects.
-func NewSchemaValidation(resourcesGetter openapi.OpenAPIResourcesGetter) Schema {
+func NewSchemaValidation(resources openapi.Resources) Schema {
 	return &schemaValidation{
-		resourcesGetter: resourcesGetter,
+		resources: resources,
 	}
 }
 
@@ -56,6 +56,7 @@ func (v *schemaValidation) ValidateBytes(data []byte) error {
 	if (gvk == schema.GroupVersionKind{Version: "v1", Kind: "List"}) {
 		return utilerrors.NewAggregate(v.validateList(obj))
 	}
+
 	return utilerrors.NewAggregate(v.validateResource(obj, gvk))
 }
 
@@ -80,12 +81,7 @@ func (v *schemaValidation) validateList(object interface{}) []error {
 }
 
 func (v *schemaValidation) validateResource(obj interface{}, gvk schema.GroupVersionKind) []error {
-	// This lazy-loads the OpenAPI V2 specifications, caching the specs.
-	resources, err := v.resourcesGetter.OpenAPISchema()
-	if err != nil {
-		return []error{err}
-	}
-	resource := resources.LookupResource(gvk)
+	resource := v.resources.LookupResource(gvk)
 	if resource == nil {
 		// resource is not present, let's just skip validation.
 		return nil

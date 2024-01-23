@@ -2,6 +2,7 @@ package resourceapply
 
 import (
 	"context"
+	"fmt"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -14,8 +15,12 @@ import (
 	"github.com/openshift/library-go/pkg/operator/resource/resourcemerge"
 )
 
-// ApplyClusterRole merges objectmeta, requires rules.
+// ApplyClusterRole merges objectmeta, requires rules, aggregation rules are not allowed for now.
 func ApplyClusterRole(ctx context.Context, client rbacclientv1.ClusterRolesGetter, recorder events.Recorder, required *rbacv1.ClusterRole) (*rbacv1.ClusterRole, bool, error) {
+	if required.AggregationRule != nil && len(required.AggregationRule.ClusterRoleSelectors) != 0 {
+		return nil, false, fmt.Errorf("cannot create an aggregated cluster role")
+	}
+
 	existing, err := client.ClusterRoles().Get(ctx, required.Name, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		requiredCopy := required.DeepCopy()
@@ -32,25 +37,15 @@ func ApplyClusterRole(ctx context.Context, client rbacclientv1.ClusterRolesGette
 	existingCopy := existing.DeepCopy()
 
 	resourcemerge.EnsureObjectMeta(modified, &existingCopy.ObjectMeta, required.ObjectMeta)
-	rulesContentSame := equality.Semantic.DeepEqual(existingCopy.Rules, required.Rules)
-	aggregationRuleContentSame := equality.Semantic.DeepEqual(existingCopy.AggregationRule, required.AggregationRule)
-
-	if aggregationRuleContentSame && rulesContentSame && !*modified {
+	contentSame := equality.Semantic.DeepEqual(existingCopy.Rules, required.Rules)
+	if contentSame && !*modified {
 		return existingCopy, false, nil
 	}
 
-	if !aggregationRuleContentSame {
-		existingCopy.AggregationRule = required.AggregationRule
-	}
+	existingCopy.Rules = required.Rules
+	existingCopy.AggregationRule = nil
 
-	// The control plane controller that reconciles ClusterRoles
-	// overwrites any values that are manually specified in the rules field of an aggregate ClusterRole.
-	// As such skip reconciling on the Rules field when the AggregationRule is set.
-	if !rulesContentSame && required.AggregationRule == nil {
-		existingCopy.Rules = required.Rules
-	}
-
-	if klog.V(2).Enabled() {
+	if klog.V(4).Enabled() {
 		klog.Infof("ClusterRole %q changes: %v", required.Name, JSONPatchNoError(existing, existingCopy))
 	}
 
@@ -105,7 +100,7 @@ func ApplyClusterRoleBinding(ctx context.Context, client rbacclientv1.ClusterRol
 	existingCopy.Subjects = requiredCopy.Subjects
 	existingCopy.RoleRef = requiredCopy.RoleRef
 
-	if klog.V(2).Enabled() {
+	if klog.V(4).Enabled() {
 		klog.Infof("ClusterRoleBinding %q changes: %v", requiredCopy.Name, JSONPatchNoError(existing, existingCopy))
 	}
 
@@ -139,7 +134,7 @@ func ApplyRole(ctx context.Context, client rbacclientv1.RolesGetter, recorder ev
 
 	existingCopy.Rules = required.Rules
 
-	if klog.V(2).Enabled() {
+	if klog.V(4).Enabled() {
 		klog.Infof("Role %q changes: %v", required.Namespace+"/"+required.Name, JSONPatchNoError(existing, existingCopy))
 	}
 	actual, err := client.Roles(required.Namespace).Update(ctx, existingCopy, metav1.UpdateOptions{})
@@ -193,7 +188,7 @@ func ApplyRoleBinding(ctx context.Context, client rbacclientv1.RoleBindingsGette
 	existingCopy.Subjects = requiredCopy.Subjects
 	existingCopy.RoleRef = requiredCopy.RoleRef
 
-	if klog.V(2).Enabled() {
+	if klog.V(4).Enabled() {
 		klog.Infof("RoleBinding %q changes: %v", requiredCopy.Namespace+"/"+requiredCopy.Name, JSONPatchNoError(existing, existingCopy))
 	}
 

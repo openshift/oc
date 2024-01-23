@@ -18,15 +18,9 @@ type PKIRegistryInClusterCertKeyPair struct {
 
 // PKIRegistryCertKeyPairInfo holds information about certificate key pair
 type PKIRegistryCertKeyPairInfo struct {
-	// SelectedCertMetadataAnnotations is a specified subset of annotations. NOT all annotations.
-	// The caller will specify which annotations he wants.
-	SelectedCertMetadataAnnotations []AnnotationValue `json:"selectedCertMetadataAnnotations,omitempty"`
-
 	// OwningJiraComponent is a component name when a new OCP issue is filed in Jira
-	// Deprecated
 	OwningJiraComponent string `json:"owningJiraComponent"`
 	// Description is a one sentence description of the certificate pair purpose
-	// Deprecated
 	Description string `json:"description"`
 
 	//CertificateData PKIRegistryCertKeyMetadata
@@ -42,21 +36,10 @@ type PKIRegistryInClusterCABundle struct {
 
 // PKIRegistryCertificateAuthorityInfo holds information about certificate authority bundle
 type PKIRegistryCertificateAuthorityInfo struct {
-	// SelectedCertMetadataAnnotations is a specified subset of annotations. NOT all annotations.
-	// The caller will specify which annotations he wants.
-	SelectedCertMetadataAnnotations []AnnotationValue `json:"selectedCertMetadataAnnotations,omitempty"`
-
 	// OwningJiraComponent is a component name when a new OCP issue is filed in Jira
-	// Deprecated
 	OwningJiraComponent string `json:"owningJiraComponent"`
 	// Description is a one sentence description of the certificate pair purpose
-	// Deprecated
 	Description string `json:"description"`
-}
 
-type AnnotationValue struct {
-	// Key is the annotation key from the resource
-	Key string `json:"key"`
-	// Value is the annotation value from the resource
-	Value string `json:"value"`
+	//CertificateData []PKIRegistryCertKeyMetadata
 }

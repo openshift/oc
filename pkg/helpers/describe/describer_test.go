@@ -111,7 +111,6 @@ var MissingDescriberCoverageExceptions = []reflect.Type{
 
 var MissingDescriberGroupCoverageExceptions = []schema.GroupVersion{
 	{Group: "config.openshift.io", Version: "v1"},
-	{Group: "config.openshift.io", Version: "v1alpha1"},
 	{Group: "osin.config.openshift.io", Version: "v1"},
 	{Group: "servicecertsigner.config.openshift.io", Version: "v1alpha1"},
 	{Group: "kubecontrolplane.config.openshift.io", Version: "v1"},

@@ -196,7 +196,7 @@ func generateService(genericParams map[string]interface{}) (runtime.Object, erro
 		if portNum, err := strconv.Atoi(targetPortString); err != nil {
 			targetPort = intstr.FromString(targetPortString)
 		} else {
-			targetPort = intstr.FromInt32(int32(portNum))
+			targetPort = intstr.FromInt(portNum)
 		}
 		// Use the same target-port for every port
 		for i := range service.Spec.Ports {

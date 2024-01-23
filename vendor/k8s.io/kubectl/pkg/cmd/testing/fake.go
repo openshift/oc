@@ -641,7 +641,7 @@ func testRESTMapper() meta.RESTMapper {
 	}
 
 	fakeDs := NewFakeCachedDiscoveryClient()
-	expander := restmapper.NewShortcutExpander(mapper, fakeDs, nil)
+	expander := restmapper.NewShortcutExpander(mapper, fakeDs)
 	return expander
 }
 

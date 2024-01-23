@@ -35,7 +35,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/openapi3"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -110,8 +109,7 @@ type DiffOptions struct {
 
 	Concurrency      int
 	Selector         string
-	OpenAPIGetter    openapi.OpenAPIResourcesGetter
-	OpenAPIV3Root    openapi3.Root
+	OpenAPISchema    openapi.Resources
 	DynamicClient    dynamic.Interface
 	CmdNamespace     string
 	EnforceNamespace bool
@@ -325,8 +323,7 @@ type InfoObject struct {
 	LocalObj        runtime.Object
 	Info            *resource.Info
 	Encoder         runtime.Encoder
-	OpenAPIGetter   openapi.OpenAPIResourcesGetter
-	OpenAPIV3Root   openapi3.Root
+	OpenAPI         openapi.Resources
 	Force           bool
 	ServerSideApply bool
 	FieldManager    string
@@ -398,8 +395,7 @@ func (obj InfoObject) Merged() (runtime.Object, error) {
 		Helper:          helper,
 		Overwrite:       true,
 		BackOff:         clockwork.NewRealClock(),
-		OpenAPIGetter:   obj.OpenAPIGetter,
-		OpenAPIV3Root:   obj.OpenAPIV3Root,
+		OpenapiSchema:   obj.OpenAPI,
 		ResourceVersion: resourceVersion,
 	}
 
@@ -641,14 +637,9 @@ func (o *DiffOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []str
 	}
 
 	if !o.ServerSideApply {
-		o.OpenAPIGetter = f
-		if !cmdutil.OpenAPIV3Patch.IsDisabled() {
-			openAPIV3Client, err := f.OpenAPIV3Client()
-			if err == nil {
-				o.OpenAPIV3Root = openapi3.NewRoot(openAPIV3Client)
-			} else {
-				klog.V(4).Infof("warning: OpenAPI V3 Patch is enabled but is unable to be loaded. Will fall back to OpenAPI V2")
-			}
+		o.OpenAPISchema, err = f.OpenAPISchema()
+		if err != nil {
+			return err
 		}
 	}
 
@@ -730,8 +721,7 @@ func (o *DiffOptions) Run() error {
 				LocalObj:        local,
 				Info:            info,
 				Encoder:         scheme.DefaultJSONEncoder(),
-				OpenAPIGetter:   o.OpenAPIGetter,
-				OpenAPIV3Root:   o.OpenAPIV3Root,
+				OpenAPI:         o.OpenAPISchema,
 				Force:           force,
 				ServerSideApply: o.ServerSideApply,
 				FieldManager:    o.FieldManager,

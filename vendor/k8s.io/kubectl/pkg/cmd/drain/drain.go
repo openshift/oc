@@ -31,7 +31,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/drain"
 	"k8s.io/kubectl/pkg/scheme"
@@ -157,53 +156,24 @@ func NewDrainCmdOptions(f cmdutil.Factory, ioStreams genericiooptions.IOStreams)
 			ChunkSize:          cmdutil.DefaultChunkSize,
 		},
 	}
-	o.drainer.OnPodDeletionOrEvictionFinished = o.onPodDeletionOrEvictionFinished
-	o.drainer.OnPodDeletionOrEvictionStarted = o.onPodDeletionOrEvictionStarted
+	o.drainer.OnPodDeletedOrEvicted = o.onPodDeletedOrEvicted
 	return o
 }
 
-// onPodDeletionOrEvictionFinished is called by drain.Helper, when eviction/deletetion of the pod is finished
-func (o *DrainCmdOptions) onPodDeletionOrEvictionFinished(pod *corev1.Pod, usingEviction bool, err error) {
+// onPodDeletedOrEvicted is called by drain.Helper, when the pod has been deleted or evicted
+func (o *DrainCmdOptions) onPodDeletedOrEvicted(pod *corev1.Pod, usingEviction bool) {
 	var verbStr string
 	if usingEviction {
-		if err != nil {
-			verbStr = "eviction failed"
-		} else {
-			verbStr = "evicted"
-		}
+		verbStr = "evicted"
 	} else {
-		if err != nil {
-			verbStr = "deletion failed"
-		} else {
-			verbStr = "deleted"
-		}
+		verbStr = "deleted"
 	}
 	printObj, err := o.ToPrinter(verbStr)
 	if err != nil {
 		fmt.Fprintf(o.ErrOut, "error building printer: %v\n", err)
 		fmt.Fprintf(o.Out, "pod %s/%s %s\n", pod.Namespace, pod.Name, verbStr)
 	} else {
-		_ = printObj(pod, o.Out)
-	}
-}
-
-// onPodDeletionOrEvictionStarted is called by drain.Helper, when eviction/deletion of the pod is started
-func (o *DrainCmdOptions) onPodDeletionOrEvictionStarted(pod *corev1.Pod, usingEviction bool) {
-	if !klog.V(2).Enabled() {
-		return
-	}
-	var verbStr string
-	if usingEviction {
-		verbStr = "eviction started"
-	} else {
-		verbStr = "deletion started"
-	}
-	printObj, err := o.ToPrinter(verbStr)
-	if err != nil {
-		fmt.Fprintf(o.ErrOut, "error building printer: %v\n", err)
-		fmt.Fprintf(o.Out, "pod %s/%s %s\n", pod.Namespace, pod.Name, verbStr)
-	} else {
-		_ = printObj(pod, o.Out)
+		printObj(pod, o.Out)
 	}
 }
 

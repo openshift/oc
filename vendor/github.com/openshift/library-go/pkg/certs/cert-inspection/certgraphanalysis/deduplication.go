@@ -1,35 +1,26 @@
 package certgraphanalysis
 
-import (
-	"github.com/openshift/library-go/pkg/certs/cert-inspection/certgraphapi"
-)
+import "github.com/openshift/library-go/pkg/certs/cert-inspection/certgraphapi"
 
 func deduplicateCertKeyPairs(in []*certgraphapi.CertKeyPair) []*certgraphapi.CertKeyPair {
 	ret := []*certgraphapi.CertKeyPair{}
 	for _, currIn := range in {
-		if currIn == nil {
-			panic("currIn is nil")
-		}
-
 		found := false
 		for j, currOut := range ret {
+			if currIn == nil {
+				panic("one")
+			}
 			if currOut == nil {
-				panic("currOut is nil")
+				panic("two")
 			}
-			// currOut has no name set - skip and allow it to be found later
-			if len(currOut.Name) == 0 {
-				continue
-			}
-			// Merge if cert identifiers match
-			if currOut.Spec.CertMetadata.CertIdentifier.PubkeyModulus == currIn.Spec.CertMetadata.CertIdentifier.PubkeyModulus {
+			if currOut.Name == currIn.Name {
+				ret[j] = combineSecretLocations(ret[j], currIn.Spec.SecretLocations)
+				ret[j] = combineCertOnDiskLocations(ret[j], currIn.Spec.OnDiskLocations)
 				found = true
-				ret[j] = CombineSecretLocations(ret[j], currIn.Spec.SecretLocations)
-				ret[j] = CombineCertOnDiskLocations(ret[j], currIn.Spec.OnDiskLocations)
 				break
 			}
 		}
 
-		// No match found - add currIn as is
 		if !found {
 			ret = append(ret, currIn.DeepCopy())
 		}
@@ -38,23 +29,7 @@ func deduplicateCertKeyPairs(in []*certgraphapi.CertKeyPair) []*certgraphapi.Cer
 	return ret
 }
 
-func deduplicateCertKeyPairList(in *certgraphapi.CertKeyPairList) *certgraphapi.CertKeyPairList {
-	ret := &certgraphapi.CertKeyPairList{
-		Items: []certgraphapi.CertKeyPair{},
-	}
-	certs := []*certgraphapi.CertKeyPair{}
-	for idx := range in.Items {
-		certs = append(certs, &in.Items[idx])
-	}
-	dedup := deduplicateCertKeyPairs(certs)
-	for idx := range dedup {
-		ret.Items = append(ret.Items, *dedup[idx])
-	}
-	return ret
-}
-
-// CombineSecretLocations returns a CertKeyPair with all in-cluster locations from in and rhs de-duplicated into a single list
-func CombineSecretLocations(in *certgraphapi.CertKeyPair, rhs []certgraphapi.InClusterSecretLocation) *certgraphapi.CertKeyPair {
+func combineSecretLocations(in *certgraphapi.CertKeyPair, rhs []certgraphapi.InClusterSecretLocation) *certgraphapi.CertKeyPair {
 	out := in.DeepCopy()
 	for _, curr := range rhs {
 		found := false
@@ -71,9 +46,7 @@ func CombineSecretLocations(in *certgraphapi.CertKeyPair, rhs []certgraphapi.InC
 	return out
 }
 
-// CombineCertOnDiskLocations returns a CertKeyPair with all on-disk locations from in and rhs de-duplicated into a single list
-func CombineCertOnDiskLocations(in *certgraphapi.CertKeyPair, rhs []certgraphapi.OnDiskCertKeyPairLocation) *certgraphapi.CertKeyPair {
-	keyLocation := certgraphapi.OnDiskLocation{}
+func combineCertOnDiskLocations(in *certgraphapi.CertKeyPair, rhs []certgraphapi.OnDiskCertKeyPairLocation) *certgraphapi.CertKeyPair {
 	out := in.DeepCopy()
 	for _, curr := range rhs {
 		found := false
@@ -83,22 +56,7 @@ func CombineCertOnDiskLocations(in *certgraphapi.CertKeyPair, rhs []certgraphapi
 			}
 		}
 		if !found {
-			// Store key to be merged into Cert
-			if len(curr.Cert.Path) == 0 {
-				keyLocation = curr.Key
-				continue
-			}
 			out.Spec.OnDiskLocations = append(out.Spec.OnDiskLocations, curr)
-		}
-	}
-
-	// Fill in Key property if it was found earlier and unset
-	if len(keyLocation.Path) == 0 {
-		return out
-	}
-	for idx, loc := range out.Spec.OnDiskLocations {
-		if len(loc.Key.Path) == 0 {
-			out.Spec.OnDiskLocations[idx].Key = keyLocation
 		}
 	}
 
@@ -108,19 +66,18 @@ func CombineCertOnDiskLocations(in *certgraphapi.CertKeyPair, rhs []certgraphapi
 func deduplicateCABundles(in []*certgraphapi.CertificateAuthorityBundle) []*certgraphapi.CertificateAuthorityBundle {
 	ret := []*certgraphapi.CertificateAuthorityBundle{}
 	for _, currIn := range in {
-		if currIn == nil {
-			panic("one")
-		}
-
 		found := false
 		for j, currOut := range ret {
+			if currIn == nil {
+				panic("one")
+			}
 			if currOut == nil {
 				panic("two")
 			}
 			if currOut.Name == currIn.Name {
+				ret[j] = combineConfigMapLocations(ret[j], currIn.Spec.ConfigMapLocations)
+				ret[j] = combineCABundleOnDiskLocations(ret[j], currIn.Spec.OnDiskLocations)
 				found = true
-				ret[j] = CombineConfigMapLocations(ret[j], currIn.Spec.ConfigMapLocations)
-				ret[j] = CombineCABundleOnDiskLocations(ret[j], currIn.Spec.OnDiskLocations)
 				break
 			}
 		}
@@ -133,23 +90,7 @@ func deduplicateCABundles(in []*certgraphapi.CertificateAuthorityBundle) []*cert
 	return ret
 }
 
-func deduplicateCABundlesList(in *certgraphapi.CertificateAuthorityBundleList) *certgraphapi.CertificateAuthorityBundleList {
-	ret := &certgraphapi.CertificateAuthorityBundleList{
-		Items: []certgraphapi.CertificateAuthorityBundle{},
-	}
-	bundles := []*certgraphapi.CertificateAuthorityBundle{}
-	for idx := range in.Items {
-		bundles = append(bundles, &in.Items[idx])
-	}
-	dedup := deduplicateCABundles(bundles)
-	for idx := range dedup {
-		ret.Items = append(ret.Items, *dedup[idx])
-	}
-	return ret
-}
-
-// CombineConfigMapLocations returns a CertificateAuthorityBundle with all in-cluster locations from in and rhs de-duplicated into a single list
-func CombineConfigMapLocations(in *certgraphapi.CertificateAuthorityBundle, rhs []certgraphapi.InClusterConfigMapLocation) *certgraphapi.CertificateAuthorityBundle {
+func combineConfigMapLocations(in *certgraphapi.CertificateAuthorityBundle, rhs []certgraphapi.InClusterConfigMapLocation) *certgraphapi.CertificateAuthorityBundle {
 	out := in.DeepCopy()
 	for _, curr := range rhs {
 		found := false
@@ -166,8 +107,7 @@ func CombineConfigMapLocations(in *certgraphapi.CertificateAuthorityBundle, rhs 
 	return out
 }
 
-// CombineCABundleOnDiskLocations returns a CertificateAuthorityBundle with all on-disk locations from in and rhs de-duplicated into a single list
-func CombineCABundleOnDiskLocations(in *certgraphapi.CertificateAuthorityBundle, rhs []certgraphapi.OnDiskLocation) *certgraphapi.CertificateAuthorityBundle {
+func combineCABundleOnDiskLocations(in *certgraphapi.CertificateAuthorityBundle, rhs []certgraphapi.OnDiskLocation) *certgraphapi.CertificateAuthorityBundle {
 	out := in.DeepCopy()
 	for _, curr := range rhs {
 		found := false
