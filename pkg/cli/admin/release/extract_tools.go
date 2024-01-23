@@ -814,6 +814,22 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		if (target.InjectReleaseVersion || target.InjectReleaseImage) && target.SignMachOBinary {
 			if err = codesign.ResignMacho(layer.Mapping.To, target.AsArchive, target.Command, target.LinkTo); err != nil {
 				klog.Infof("Unable to resign macho binaries:  %v", err)
+			} else {
+				if target.AsArchive {
+					// Since we rewrite tarball after signing mach-o files in darwin/arm64,
+					// we should reflect the modified hash sum of this tarball to prevent mismatches.
+					h := hashFn()
+					archived, err := os.Open(layer.Mapping.To)
+					if err != nil {
+						return false, err
+					}
+					if _, err = io.Copy(h, archived); err != nil {
+						archived.Close()
+						return false, err
+					}
+					hash = h
+					archived.Close()
+				}
 			}
 		}
 
@@ -1032,6 +1048,7 @@ func copyAndReplace(errorOutput io.Writer, w io.Writer, r io.Reader, bufferSize 
 		copy(buf[:writeTo], buf[writeTo:end])
 		offset = end - writeTo
 	}
+
 }
 
 func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfigPath string) (manifestInclusionConfiguration, error) {
