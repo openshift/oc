@@ -88,8 +88,8 @@ func (o *RegenerateMCOOptions) Run(ctx context.Context) error {
 			Client:        clientset.CoreV1(),
 			EventRecorder: recorder,
 		},
-		nil, // no operatorclient needed
 		recorder,
+		nil, // no operatorclient needed
 	)
 
 	inf.Start(ctx.Done())
