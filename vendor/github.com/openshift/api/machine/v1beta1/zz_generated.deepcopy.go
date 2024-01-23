@@ -1784,11 +1784,6 @@ func (in *VSphereMachineProviderSpec) DeepCopyInto(out *VSphereMachineProviderSp
 		**out = **in
 	}
 	in.Network.DeepCopyInto(&out.Network)
-	if in.TagIDs != nil {
-		in, out := &in.TagIDs, &out.TagIDs
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	return
 }
 

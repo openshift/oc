@@ -30,8 +30,6 @@ type KubeSchedulerExpansion interface{}
 
 type KubeStorageVersionMigratorExpansion interface{}
 
-type MachineConfigurationExpansion interface{}
-
 type NetworkExpansion interface{}
 
 type OpenShiftAPIServerExpansion interface{}

@@ -18,7 +18,7 @@ package genericclioptions
 
 import (
 	"fmt"
-	"os"
+	"io/ioutil"
 	"sort"
 	"strings"
 
@@ -88,7 +88,7 @@ func (f *JSONPathPrintFlags) ToPrinter(templateFormat string) (printers.Resource
 	}
 
 	if templateFormat == "jsonpath-file" {
-		data, err := os.ReadFile(templateValue)
+		data, err := ioutil.ReadFile(templateValue)
 		if err != nil {
 			return nil, fmt.Errorf("error reading --template %s, %v", templateValue, err)
 		}

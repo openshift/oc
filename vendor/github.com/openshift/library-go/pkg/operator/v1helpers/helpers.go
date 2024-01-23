@@ -144,7 +144,7 @@ func UpdateSpec(ctx context.Context, client OperatorClient, updateFuncs ...Updat
 	return operatorSpec, updated, err
 }
 
-// UpdateObservedConfigFn returns a func to update the config.
+// UpdateSpecConfigFn returns a func to update the config.
 func UpdateObservedConfigFn(config map[string]interface{}) UpdateOperatorSpecFunc {
 	return func(oldSpec *operatorv1.OperatorSpec) error {
 		oldSpec.ObservedConfig = runtime.RawExtension{Object: &unstructured.Unstructured{Object: config}}
@@ -159,21 +159,8 @@ type UpdateStatusFunc func(status *operatorv1.OperatorStatus) error
 func UpdateStatus(ctx context.Context, client OperatorClient, updateFuncs ...UpdateStatusFunc) (*operatorv1.OperatorStatus, bool, error) {
 	updated := false
 	var updatedOperatorStatus *operatorv1.OperatorStatus
-	numberOfAttempts := 0
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		defer func() {
-			numberOfAttempts++
-		}()
-		var oldStatus *operatorv1.OperatorStatus
-		var resourceVersion string
-		var err error
-
-		if numberOfAttempts < 1 { // prefer lister if we haven't already failed.
-			_, oldStatus, resourceVersion, err = client.GetOperatorState()
-
-		} else { // if we have failed enough times (chose 1 as a starting point, do a live GET
-			_, oldStatus, resourceVersion, err = client.GetOperatorStateWithQuorum(ctx)
-		}
+		_, oldStatus, resourceVersion, err := client.GetOperatorState()
 		if err != nil {
 			return err
 		}
@@ -199,7 +186,7 @@ func UpdateStatus(ctx context.Context, client OperatorClient, updateFuncs ...Upd
 	return updatedOperatorStatus, updated, err
 }
 
-// UpdateConditionFn returns a func to update a condition.
+// UpdateConditionFunc returns a func to update a condition.
 func UpdateConditionFn(cond operatorv1.OperatorCondition) UpdateStatusFunc {
 	return func(oldStatus *operatorv1.OperatorStatus) error {
 		SetOperatorCondition(&oldStatus.Conditions, cond)
@@ -207,28 +194,15 @@ func UpdateConditionFn(cond operatorv1.OperatorCondition) UpdateStatusFunc {
 	}
 }
 
-// UpdateStaticPodStatusFunc is a func that mutates an operator status.
+// UpdateStatusFunc is a func that mutates an operator status.
 type UpdateStaticPodStatusFunc func(status *operatorv1.StaticPodOperatorStatus) error
 
 // UpdateStaticPodStatus applies the update funcs to the oldStatus abd tries to update via the client.
 func UpdateStaticPodStatus(ctx context.Context, client StaticPodOperatorClient, updateFuncs ...UpdateStaticPodStatusFunc) (*operatorv1.StaticPodOperatorStatus, bool, error) {
 	updated := false
 	var updatedOperatorStatus *operatorv1.StaticPodOperatorStatus
-	numberOfAttempts := 0
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		defer func() {
-			numberOfAttempts++
-		}()
-		var oldStatus *operatorv1.StaticPodOperatorStatus
-		var resourceVersion string
-		var err error
-
-		if numberOfAttempts < 1 { // prefer lister if we haven't already failed.
-			_, oldStatus, resourceVersion, err = client.GetStaticPodOperatorState()
-
-		} else { // if we have failed enough times (chose 1 as a starting point, do a live GET
-			_, oldStatus, resourceVersion, err = client.GetStaticPodOperatorStateWithQuorum(ctx)
-		}
+		_, oldStatus, resourceVersion, err := client.GetStaticPodOperatorState()
 		if err != nil {
 			return err
 		}

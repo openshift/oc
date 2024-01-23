@@ -62,10 +62,8 @@ type Factory interface {
 
 	// Returns a schema that can validate objects stored on disk.
 	Validator(validationDirective string) (validation.Schema, error)
-
-	// Used for retrieving openapi v2 resources.
-	openapi.OpenAPIResourcesGetter
-
+	// OpenAPISchema returns the parsed openapi schema definition
+	OpenAPISchema() (openapi.Resources, error)
 	// OpenAPIV3Schema returns a client for fetching parsed schemas for
 	// any group version
 	OpenAPIV3Client() (openapiclient.Client, error)

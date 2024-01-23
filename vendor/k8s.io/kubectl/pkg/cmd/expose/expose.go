@@ -532,7 +532,12 @@ func (o *ExposeServiceOptions) createService() (*corev1.Service, error) {
 	}
 	targetPortString := o.TargetPort
 	if len(targetPortString) > 0 {
-		targetPort := intstr.Parse(targetPortString)
+		var targetPort intstr.IntOrString
+		if portNum, err := strconv.Atoi(targetPortString); err != nil {
+			targetPort = intstr.FromString(targetPortString)
+		} else {
+			targetPort = intstr.FromInt(portNum)
+		}
 		// Use the same target-port for every port
 		for i := range service.Spec.Ports {
 			service.Spec.Ports[i].TargetPort = targetPort

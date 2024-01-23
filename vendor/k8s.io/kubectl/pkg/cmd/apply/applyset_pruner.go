@@ -77,29 +77,27 @@ func (a *ApplySet) FindAllObjectsToPrune(ctx context.Context, dynamicClient dyna
 
 	// We run discovery in parallel, in as many goroutines as priority and fairness will allow
 	// (We don't expect many requests in real-world scenarios - maybe tens, unlikely to be hundreds)
-	for gvk, resource := range a.AllPrunableResources() {
-		scope := resource.restMapping.Scope
-
-		switch scope.Name() {
+	for _, restMapping := range a.AllPrunableResources() {
+		switch restMapping.Scope.Name() {
 		case meta.RESTScopeNameNamespace:
 			for _, namespace := range a.AllPrunableNamespaces() {
 				if namespace == "" {
 					// Just double-check because otherwise we get cryptic error messages
-					return nil, fmt.Errorf("unexpectedly encountered empty namespace during prune of namespace-scoped resource %v", gvk)
+					return nil, fmt.Errorf("unexpectedly encountered empty namespace during prune of namespace-scoped resource %v", restMapping.GroupVersionKind)
 				}
 				tasks = append(tasks, &task{
 					namespace:   namespace,
-					restMapping: resource.restMapping,
+					restMapping: restMapping,
 				})
 			}
 
 		case meta.RESTScopeNameRoot:
 			tasks = append(tasks, &task{
-				restMapping: resource.restMapping,
+				restMapping: restMapping,
 			})
 
 		default:
-			return nil, fmt.Errorf("unhandled scope %q", scope.Name())
+			return nil, fmt.Errorf("unhandled scope %q", restMapping.Scope.Name())
 		}
 	}
 
