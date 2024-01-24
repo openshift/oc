@@ -10,11 +10,13 @@ import (
 	"sort"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
+
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	imageapi "github.com/openshift/api/image/v1"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
-	"k8s.io/klog/v2"
 )
 
 type Payload struct {
@@ -174,6 +176,7 @@ func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingI
 	// load all version values from the input stream, including any defaults, to perform
 	// version substitution in the returned manifests.
 	versions := make(ComponentVersions)
+	kubectlVersions := sets.New[string]()
 	tagsByName := make(map[string][]string)
 	for _, tag := range input.Spec.Tags {
 		if _, ok := references[tag.Name]; !ok {
@@ -189,33 +192,28 @@ func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingI
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("input image stream has an invalid version annotation for tag %q: %v", tag.Name, value)
 		}
-		var differentImageKubectlVersion string
 		for k, v := range items {
+			if k == "kubectl" {
+				kubectlVersions.Insert(v.Version)
+				if tag.Name != "cli" && tag.Name != "cli-artifacts" {
+					continue
+				}
+			}
 			existing, ok := versions[k]
 			if ok {
 				if existing.Version != v.Version {
-					if k == "kubectl" && tag.Name != "cli" && tag.Name != "cli-artifact" {
-						if differentImageKubectlVersion == "" || differentImageKubectlVersion == v.Version {
-							differentImageKubectlVersion = v.Version
-							continue
-						}
-					}
-
 					return nil, nil, nil, fmt.Errorf("input image stream has multiple versions defined for version %s: %s defines %s but was already set to %s on %s", k, tag.Name, v, existing, strings.Join(tagsByName[k], ", "))
 				}
 			} else {
-				if k == "kubectl" && tag.Name != "cli" && tag.Name != "cli-artifact" {
-					if differentImageKubectlVersion != "" && differentImageKubectlVersion != v.Version {
-						return nil, nil, nil, fmt.Errorf("input image stream has multiple versions defined for version %s: %s defines %s but was already set to %s on %s", k, tag.Name, v, existing, strings.Join(tagsByName[k], ", "))
-					}
-					differentImageKubectlVersion = v.Version
-					continue
-				}
 				versions[k] = v
 				klog.V(4).Infof("Found version %s=%s from %s", k, v.Version, tag.Name)
 			}
 			tagsByName[k] = append(tagsByName[k], tag.Name)
 		}
+	}
+
+	if kubectlVersions.Len() > 2 {
+		return nil, nil, nil, fmt.Errorf("input image stream has multiple versions defined for version kubectl for all the tags %s", strings.Join(kubectlVersions.UnsortedList(), ","))
 	}
 
 	defaults, err := parseComponentVersionsLabel(input.Annotations[annotationBuildVersions], input.Annotations[annotationBuildVersionsDisplayNames])

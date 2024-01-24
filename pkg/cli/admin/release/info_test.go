@@ -316,6 +316,172 @@ func Test_readComponentVersions(t *testing.T) {
 			},
 			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): a1")},
 		},
+		{
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "cli",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "test2",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"kubectl": {Version: "1.1.0"},
+			},
+		},
+		{
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "cli",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "cli-artifacts",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"kubectl": {Version: "1.0.0"},
+			},
+			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): kubectl")},
+		},
+		{
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "cli",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "cli-artifacts",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.1",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"kubectl": {Version: "1.1.0"},
+			},
+			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): kubectl")},
+		},
+		{
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "cli",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "cli-artifacts",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.1",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"kubectl": {Version: "1.1.0"},
+			},
+			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): kubectl")},
+		},
+		{
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "cli",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "cli-artifacts",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+						{
+							Name: "test4",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"kubectl": {Version: "1.1.0"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
