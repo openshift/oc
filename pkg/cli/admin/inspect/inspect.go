@@ -169,7 +169,7 @@ func (o *InspectOptions) Complete(args []string) error {
 	if len(o.sinceTime) > 0 {
 		o.sinceTimestamp, err = util.ParseRFC3339(o.sinceTime, metav1.Now)
 		if err != nil {
-			return err
+			return fmt.Errorf("--since-time only accepts times matching RFC3339, eg '2006-01-02T15:04:05Z'")
 		}
 	}
 
