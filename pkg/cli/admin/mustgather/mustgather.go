@@ -984,6 +984,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 							},
 						},
 					},
+					TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "must-gather-output",
@@ -993,10 +994,11 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 					},
 				},
 				{
-					Name:            "copy",
-					Image:           image,
-					ImagePullPolicy: corev1.PullIfNotPresent,
-					Command:         []string{"/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait"},
+					Name:                     "copy",
+					Image:                    image,
+					ImagePullPolicy:          corev1.PullIfNotPresent,
+					Command:                  []string{"/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait"},
+					TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "must-gather-output",
