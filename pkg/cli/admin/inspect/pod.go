@@ -249,6 +249,12 @@ func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, co
 			Previous:   true,
 			Timestamps: true,
 		}
+		if len(o.sinceTime) > 0 {
+			logOptions.SinceTime = &o.sinceTimestamp
+		}
+		if o.since != 0 {
+			logOptions.SinceSeconds = &o.sinceInt
+		}
 		logsReq := o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
 		filename := "previous.log"
 		if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
