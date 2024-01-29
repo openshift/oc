@@ -139,17 +139,12 @@ func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 			}
 		}
 	} else if err == nil {
-		if kcmdutil.CmdPluginAsSubcommand.IsEnabled() {
+		if !kcmdutil.CmdPluginAsSubcommand.IsDisabled() {
 			// Command exists(e.g. kubectl create), but it is not certain that
 			// subcommand also exists (e.g. kubectl create networkpolicy)
-			if kubecmd.IsSubcommandPluginAllowed(foundCmd.Name()) {
-				var subcommand string
-				for _, arg := range foundArgs { // first "non-flag" argument as subcommand
-					if !strings.HasPrefix(arg, "-") {
-						subcommand = arg
-						break
-					}
-				}
+			// we also have to eliminate kubectl create -f
+			if kubecmd.IsSubcommandPluginAllowed(foundCmd.Name()) && len(foundArgs) >= 1 && !strings.HasPrefix(foundArgs[0], "-") {
+				subcommand := foundArgs[0]
 				builtinSubcmdExist := false
 				for _, subcmd := range foundCmd.Commands() {
 					if subcmd.Name() == subcommand {
@@ -218,7 +213,7 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 
 	kubeConfigFlags := o.ConfigFlags
 	if kubeConfigFlags == nil {
-		kubeConfigFlags = defaultConfigFlags()
+		kubeConfigFlags = defaultConfigFlags().WithWarningPrinter(o.IOStreams)
 	}
 	kubeConfigFlags.AddFlags(flags)
 	matchVersionKubeConfigFlags := kcmdutil.NewMatchVersionFlags(kubeConfigFlags)
@@ -411,11 +406,13 @@ func CommandFor(basename string) *cobra.Command {
 		cmd = recycle.NewCommandRecycle(basename, out)
 	default:
 		shimKubectlForOc()
+
+		ioStreams := genericiooptions.IOStreams{In: in, Out: out, ErrOut: err}
 		cmd = NewDefaultOcCommand(kubecmd.KubectlOptions{
 			PluginHandler: kubecmd.NewDefaultPluginHandler(plugin.ValidPluginFilenamePrefixes),
 			Arguments:     os.Args,
-			ConfigFlags:   defaultConfigFlags(),
-			IOStreams:     genericiooptions.IOStreams{In: in, Out: out, ErrOut: err},
+			ConfigFlags:   defaultConfigFlags().WithWarningPrinter(ioStreams),
+			IOStreams:     ioStreams,
 		})
 
 		// treat oc as a kubectl plugin
