@@ -21,6 +21,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/createproviderselectiontemplate"
 	"github.com/openshift/oc/pkg/cli/admin/groups"
 	"github.com/openshift/oc/pkg/cli/admin/inspect"
+	"github.com/openshift/oc/pkg/cli/admin/inspectalerts"
 	"github.com/openshift/oc/pkg/cli/admin/migrate"
 	migrateteicsp "github.com/openshift/oc/pkg/cli/admin/migrate/icsp"
 	migratetemplateinstances "github.com/openshift/oc/pkg/cli/admin/migrate/templateinstances"
@@ -47,6 +48,9 @@ var adminLong = ktemplates.LongDesc(`
 
 	Actions for administering an OpenShift cluster are exposed here.`)
 
+// inspectAlertsFeatureGate is an environment variable used to gate the inclusion of the inspect-alerts subcommand.
+const inspectAlertsFeatureGate = "OC_ENABLE_CMD_INSPECT_ALERTS"
+
 func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	// Main command
 	cmds := &cobra.Command{
@@ -56,17 +60,23 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 
+	clusterManagement := []*cobra.Command{
+		upgrade.New(f, streams),
+		top.NewCommandTop(f, streams),
+		mustgather.NewMustGatherCommand(f, streams),
+		ocpcertificates.NewCommandOCPCertificates(f, streams),
+		waitforstable.NewCmdWaitForStableClusterOperators(f, streams),
+		inspect.NewCmdInspect(streams),
+	}
+
+	if kcmdutil.FeatureGate(inspectAlertsFeatureGate).IsEnabled() {
+		clusterManagement = append(clusterManagement, inspectalerts.New(f, streams))
+	}
+
 	groups := ktemplates.CommandGroups{
 		{
-			Message: "Cluster Management:",
-			Commands: []*cobra.Command{
-				upgrade.New(f, streams),
-				top.NewCommandTop(f, streams),
-				mustgather.NewMustGatherCommand(f, streams),
-				inspect.NewCmdInspect(streams),
-				ocpcertificates.NewCommandOCPCertificates(f, streams),
-				waitforstable.NewCmdWaitForStableClusterOperators(f, streams),
-			},
+			Message:  "Cluster Management:",
+			Commands: clusterManagement,
 		},
 		{
 			Message: "Node Management:",
