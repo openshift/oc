@@ -73,19 +73,37 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 }
 
 func (o *options) Run(ctx context.Context) error {
-	alertBytes, err := GetWithBearer(ctx, o.getRoute, "openshift-monitoring", "alertmanager-main", "/api/v2/alerts", o.RESTConfig.BearerToken)
+	alertBytes, err := GetAlerts(ctx, o.getRoute, o.RESTConfig.BearerToken)
 	if err != nil {
 		return err
 	}
 
 	_, err = o.Out.Write(alertBytes)
-	return nil
+	return err
 }
 
-// GetWithBearer gets a Route by namespace/name, contructs a URI using
+// GetAlerts gets alerts (both firing and pending) from openshift-monitoring Thanos.
+func GetAlerts(ctx context.Context, getRoute RouteGetter, bearerToken string) ([]byte, error) {
+	uri := &url.URL{ // configure everything except Host, which will come from the Route
+		Scheme: "https",
+		Path:   "/api/v1/alerts",
+	}
+
+	// if we end up going this way, probably port to github.com/prometheus/client_golang/api/prometheus/v1 NewAPI
+	alertBytes, err := getWithBearer(ctx, getRoute, "openshift-monitoring", "thanos-querier", uri, bearerToken)
+	if err != nil {
+		return alertBytes, err
+	}
+
+	// if we end up going this way, probably check and error on 'result' being an empty set (it should at least contain Watchdog)
+
+	return alertBytes, nil
+}
+
+// getWithBearer gets a Route by namespace/name, contructs a URI using
 // status.ingress[].host and the path argument, and performs GETs on that
 // URI using Bearer authentication with the token argument.
-func GetWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name, path, bearerToken string) ([]byte, error) {
+func getWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name string, baseURI *url.URL, bearerToken string) ([]byte, error) {
 	if len(bearerToken) == 0 {
 		return nil, fmt.Errorf("no token is currently in use for this session")
 	}
@@ -98,11 +116,8 @@ func GetWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name, p
 	client := &http.Client{}
 	uris := make([]string, 0, len(route.Status.Ingress))
 	for _, ingress := range route.Status.Ingress {
-		uri := &url.URL{
-			Scheme: "https",
-			Host:   ingress.Host,
-			Path:   path,
-		}
+		uri := *baseURI
+		uri.Host = ingress.Host
 		uris = append(uris, uri.String())
 		req, err := http.NewRequest("GET", uri.String(), nil)
 		if err != nil {
@@ -125,5 +140,5 @@ func GetWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name, p
 		return body, err
 	}
 
-	return nil, fmt.Errorf("unable to get %s from any of %d URIs in the %s Route in the %s namespace: %s", path, len(uris), name, namespace, strings.Join(uris, ", "))
+	return nil, fmt.Errorf("unable to get %s from any of %d URIs in the %s Route in the %s namespace: %s", baseURI.Path, len(uris), name, namespace, strings.Join(uris, ", "))
 }
