@@ -72,12 +72,7 @@ func (o *PerNodePodOptions) AddFlags(cmd *cobra.Command) {
 	o.ResourceBuilderFlags.AddFlags(cmd.Flags())
 
 	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Set to true to use server-side dry run.")
-	// this "hack" ensures we don't put single % sign, which breaks formatting in flag printing
-	parallelism := o.Parallelism
-	if strings.Count(parallelism, "%") == 1 {
-		parallelism = parallelism + "%"
-	}
-	cmd.Flags().StringVar(&o.Parallelism, "parallelism", parallelism, "parallelism is a raw number or a percentage of the nodes to work with concurrently.")
+	cmd.Flags().StringVar(&o.Parallelism, "parallelism", o.Parallelism, "parallelism is a raw number or a percentage of the nodes to work with concurrently.")
 }
 
 func (o *PerNodePodOptions) ToRuntime(args []string) (*PerNodePodRuntime, error) {
