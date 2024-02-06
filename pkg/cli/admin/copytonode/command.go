@@ -36,7 +36,7 @@ type CopyToNodeOptions struct {
 	genericiooptions.IOStreams
 }
 
-func NewCopyToNode(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *CopyToNodeOptions {
+func NewRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *CopyToNodeOptions {
 	return &CopyToNodeOptions{
 		PerNodePodOptions: pernodepod.NewPerNodePodOptions(
 			"openshift-copy-to-node-",
@@ -50,7 +50,7 @@ func NewCopyToNode(restClientGetter genericclioptions.RESTClientGetter, streams 
 }
 
 func NewCmdCopyToNode(restClientGetter genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
-	o := NewCopyToNode(restClientGetter, streams)
+	o := NewRestartKubelet(restClientGetter, streams)
 
 	cmd := &cobra.Command{
 		Use:                   "copy-to-node",
