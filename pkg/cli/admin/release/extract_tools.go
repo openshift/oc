@@ -59,11 +59,12 @@ type extractTarget struct {
 	InjectReleaseVersion bool
 	SignMachOBinary      bool
 
-	ArchiveFormat string
-	AsArchive     bool
-	AsZip         bool
-	Readme        string
-	LinkTo        []string
+	ArchiveFormat     string
+	AsArchive         bool
+	AsZip             bool
+	Readme            string
+	LinkTo            []string
+	TargetCommandName string
 
 	Mapping extract.Mapping
 }
@@ -268,6 +269,30 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		},
 		{
 			OS:      "linux",
+			Arch:    "amd64",
+			Command: "oc.rhel9",
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/linux_amd64/oc.rhel9"},
+
+			LinkTo:               []string{"kubectl"},
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-linux-amd64-rhel9-%s.tar.gz",
+			TargetCommandName:    "oc",
+		},
+		{
+			OS:      "linux",
+			Arch:    "amd64",
+			Command: "oc.rhel8",
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/linux_amd64/oc.rhel8"},
+
+			LinkTo:               []string{"kubectl"},
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-linux-amd64-rhel8-%s.tar.gz",
+			TargetCommandName:    "oc",
+		},
+		{
+			OS:      "linux",
 			Arch:    "arm64",
 			Command: "oc",
 			NewArch: true,
@@ -277,6 +302,32 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Readme:               readmeCLIUnix,
 			InjectReleaseVersion: true,
 			ArchiveFormat:        "openshift-client-linux-arm64-%s.tar.gz",
+		},
+		{
+			OS:      "linux",
+			Arch:    "arm64",
+			Command: "oc.rhel9",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/linux_arm64/oc.rhel9"},
+
+			LinkTo:               []string{"kubectl"},
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-linux-arm64-rhel9-%s.tar.gz",
+			TargetCommandName:    "oc",
+		},
+		{
+			OS:      "linux",
+			Arch:    "arm64",
+			Command: "oc.rhel8",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/linux_arm64/oc.rhel8"},
+
+			LinkTo:               []string{"kubectl"},
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-linux-arm64-rhel8-%s.tar.gz",
+			TargetCommandName:    "oc",
 		},
 		{
 			OS:      "windows",
@@ -499,6 +550,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	}
 	exactReleaseImage := refExact.String()
 
+	targetArchCommands := make(map[string]struct{})
 	// resolve target image references to their pull specs
 	missing := sets.NewString()
 	var validTargets []extractTarget
@@ -513,9 +565,23 @@ func (o *ExtractOptions) extractCommand(command string) error {
 				continue
 			}
 		}
+
+		if target.Arch == targetReleaseArch {
+			targetArchCommands[target.Command] = struct{}{}
+		}
+
 		if target.OS == "linux" && target.Arch == releaseArch {
-			klog.V(2).Infof("Skipping duplicate %s", target.ArchiveFormat)
-			continue
+			if _, ok := targetArchCommands[target.Command]; ok {
+				// Some target commands have release-arch types that defines extracting
+				// the command in whatever release architecture type is set(e.g. linux/amd64)
+				// But there is also another target type for these commands specifically set to
+				// each architecture type(linux/amd64, linux/arm64) and it is expected that
+				// one of these arch types collide with release-arch type. Thus,
+				// to prevent duplicate extraction, we have to skip the one colliding with release-arch type.
+				// However, we need to skip per command name because some command may not have release-arch type.
+				klog.V(2).Infof("Skipping duplicate %s", target.ArchiveFormat)
+				continue
+			}
 		}
 		spec, err := findImageSpec(release.References, target.Mapping.Image, o.From)
 		if err != nil && !target.NewArch {
@@ -529,6 +595,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		}
 		target.Mapping.Image = spec
 		target.Mapping.ImageRef = imagesource.TypedImageReference{Ref: ref, Type: imagesource.DestinationRegistry}
+		// if the name of the extracted binary is set to different from the
+		// actual command name, we set it to new target command name.
+		if target.TargetCommandName != "" {
+			target.Command = target.TargetCommandName
+		}
 		if target.AsArchive {
 			willArchive = true
 			target.Mapping.Name = fmt.Sprintf(target.ArchiveFormat, releaseName)
@@ -827,6 +898,13 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		var missing []string
 		for _, target := range targetsByName {
 			if target.NewArch {
+				continue
+			}
+			if command == "" && (strings.Contains(target.Mapping.From, "rhel9") || strings.Contains(target.Mapping.From, "rhel8")) {
+				// if user explicitly wants to extract oc.rhel9(or installer.rhel9) via --command=oc.rhel9 and
+				// if release does not have this binary, we can safely return error.
+				// On the other hand, if user wants to extract all the tooling in older versions via --tools flag,
+				// we shouldn't print any error indicating that oc.rhel9 does not exist in this release payload.
 				continue
 			}
 			missing = append(missing, target.Mapping.From)
