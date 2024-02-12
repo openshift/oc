@@ -50,16 +50,16 @@ require (
 	golang.org/x/sync v0.5.0
 	golang.org/x/sys v0.16.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.29.1
-	k8s.io/apiextensions-apiserver v0.29.1
-	k8s.io/apimachinery v0.29.1
-	k8s.io/apiserver v0.29.1
-	k8s.io/cli-runtime v0.29.1
-	k8s.io/client-go v0.29.1
-	k8s.io/component-base v0.29.1
+	k8s.io/api v0.29.0
+	k8s.io/apiextensions-apiserver v0.29.0
+	k8s.io/apimachinery v0.29.0
+	k8s.io/apiserver v0.29.0
+	k8s.io/cli-runtime v0.29.0
+	k8s.io/client-go v0.29.0
+	k8s.io/component-base v0.29.0
 	k8s.io/klog/v2 v2.110.1
-	k8s.io/kubectl v0.29.1
-	k8s.io/pod-security-admission v0.29.1
+	k8s.io/kubectl v0.29.0
+	k8s.io/pod-security-admission v0.29.0
 	k8s.io/utils v0.0.0-20231127182322-b307cd553661
 	sigs.k8s.io/yaml v1.3.0
 )
@@ -180,21 +180,21 @@ require (
 	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
-	golang.org/x/mod v0.14.0 // indirect
+	golang.org/x/mod v0.13.0 // indirect
 	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.16.1 // indirect
+	golang.org/x/tools v0.14.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/go-jose/go-jose.v2 v2.6.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/component-helpers v0.29.1 // indirect
+	k8s.io/component-helpers v0.29.0 // indirect
 	k8s.io/kube-aggregator v0.29.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
-	k8s.io/metrics v0.29.1 // indirect
+	k8s.io/metrics v0.29.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kube-storage-version-migrator v0.0.6-0.20230721195810-5c8923c5ff96 // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
