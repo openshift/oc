@@ -36,6 +36,7 @@ RUN INSTALL_PKGS="\
   xfsprogs \
   fio \
   stress-ng \
+  python36 \
   " && \
   yum -y install $INSTALL_PKGS && rpm -V --nosize --nofiledigest --nomtime --nomode $INSTALL_PKGS && yum clean all && rm -rf /var/cache/*
   # Disabled until they are buildable on s390x
