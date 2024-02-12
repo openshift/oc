@@ -12,6 +12,20 @@ Completion:      97%
 Duration:        1h58m50s
 Operator Status: 33 Total, 32 Available, 1 Progressing, 4 Degraded
 
+= Worker Upgrade =
+
+= Worker Pool =
+Worker Pool:     worker
+Assessment:      Pending
+Completion:      0%
+Worker Status:   3 Total, 3 Available, 0 Progressing, 3 Outdated, 0 Draining, 0 Excluded, 0 Degraded
+
+Worker Pool Node(s)
+NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+ip-10-0-20-162.us-east-2.compute.internal   Outdated     Pending   4.14.0-rc.3   ?     
+ip-10-0-4-159.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3   ?     
+ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3   ?     
+
 = Update Health =
 SINCE     LEVEL   IMPACT             MESSAGE
 58m18s    Error   API Availability   Cluster Operator kube-apiserver is degraded | NodeController_MasterNodesReady: NodeControllerDegraded: The master nodes not ready: node "ip-10-0-12-74.ec2.internal" not ready since 2023-11-03 16:28:43 +0000 UTC because KubeletNotReady (container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: No CNI configuration file in /etc/kubernetes/cni/net.d/. Has your network provider started?)
