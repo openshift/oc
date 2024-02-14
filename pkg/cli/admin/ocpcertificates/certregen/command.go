@@ -25,11 +25,8 @@ var (
 	`)
 
 	regenerateSignersExample = templates.Examples(`
-		# Regenerate all known signing certificates on the cluster.
-		oc adm certificates regenerate-signers -A --all
-
 		# Regenerate the signing certificate contained in a particular secret.
-		oc adm certificates regenerate-signers -n openshift-kube-apiserver-operator loadbalancer-serving-signer
+		oc adm ocp-certificates regenerate-top-level -n openshift-kube-apiserver-operator secret/loadbalancer-serving-signer-key
 	`)
 
 	regenerateLeafLong = templates.LongDesc(`
@@ -42,11 +39,8 @@ var (
 	`)
 
 	regenerateLeafExample = templates.Examples(`
-		# Regenerate all known leaf certificates on the cluster.
-		oc adm certificates regenerate-leaf -A --all
-
 		# Regenerate a leaf certificate contained in a particular secret.
-		oc adm ocp-certificates regenerate-leaf -n openshift-config-managed kube-controller-manager-client-cert
+		oc adm ocp-certificates regenerate-leaf -n openshift-config-managed secret/kube-controller-manager-client-cert-key
 	`)
 )
 
