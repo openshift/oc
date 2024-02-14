@@ -772,7 +772,7 @@ func (o *NewOptions) Run(ctx context.Context) error {
 	pr, pw := io.Pipe()
 	go func() {
 		var err error
-		operators, err = writePayload(pw, is, cm, ordered, metadata, o.AllowMissingImages, verifiers)
+		operators, err = writePayload(pw, is, cm, ordered, metadata, o.AllowMissingImages, verifiers, o.ErrOut)
 		pw.CloseWithError(err)
 	}()
 
@@ -1331,7 +1331,7 @@ func writeNestedTarHeader(tw *tar.Writer, parts []string, existing map[string]st
 	return nil
 }
 
-func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata, ordered []string, metadata map[string]imageData, allowMissingImages bool, verifiers []PayloadVerifier) ([]string, error) {
+func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata, ordered []string, metadata map[string]imageData, allowMissingImages bool, verifiers []PayloadVerifier, errOut io.Writer) ([]string, error) {
 	var operators []string
 	directories := make(map[string]struct{})
 	files := make(map[string]int)
@@ -1397,7 +1397,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 		if fi := takeFileByName(&contents, "image-references"); fi != nil {
 			path := filepath.Join(image.Directory, fi.Name())
 			klog.V(2).Infof("Perform image replacement based on inclusion of %s", path)
-			transform, err = NewTransformFromImageStreamFile(path, is, allowMissingImages)
+			transform, err = NewTransformFromImageStreamFile(path, is, allowMissingImages, errOut)
 			if err != nil {
 				return fmt.Errorf("operator %q contained an invalid image-references file: %s", name, err)
 			}

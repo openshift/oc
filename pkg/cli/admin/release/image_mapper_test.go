@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+
 	imageapi "github.com/openshift/api/image/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/diff"
@@ -697,7 +699,8 @@ func Test_loadImageStreamTransforms(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, err := loadImageStreamTransforms(tt.input, tt.local, tt.allowMissingImages, tt.src)
+			ioStream := genericiooptions.NewTestIOStreamsDiscard()
+			got, got1, got2, err := loadImageStreamTransforms(tt.input, tt.local, tt.allowMissingImages, tt.src, ioStream.ErrOut)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("loadImageStreamTransforms() error = %v, wantErr %v", err, tt.wantErr)
 			}
