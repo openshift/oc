@@ -44,7 +44,6 @@ RPM_EXTRAFLAGS := \
 	--define 'local_build true' \
 	--define 'os_git_vars ignore' \
 	--define 'version $(RPM_VERSION)' \
-	--define 'dist .el7' \
 	--define 'release 1'
 
 IMAGE_REGISTRY :=registry.ci.openshift.org
