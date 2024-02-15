@@ -3,6 +3,7 @@ package release
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -121,13 +122,13 @@ func readReleaseImageReferences(data []byte) (*imageapi.ImageStream, error) {
 
 type ManifestMapper func(data []byte) ([]byte, error)
 
-func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, allowMissingImages bool) (ManifestMapper, error) {
+func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, allowMissingImages bool, errOut io.Writer) (ManifestMapper, error) {
 	is, err := parseImageStream(path)
 	if err != nil {
 		return nil, err
 	}
 
-	versions, tagsByName, references, err := loadImageStreamTransforms(input, is, allowMissingImages, path)
+	versions, tagsByName, references, err := loadImageStreamTransforms(input, is, allowMissingImages, path, errOut)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +148,7 @@ func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, a
 	}, nil
 }
 
-func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingImages bool, src string) (ComponentVersions, map[string][]string, map[string]ImageReference, error) {
+func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingImages bool, src string, errOut io.Writer) (ComponentVersions, map[string][]string, map[string]ImageReference, error) {
 	references := make(map[string]ImageReference)
 	for _, tag := range local.Spec.Tags {
 		if tag.From == nil || tag.From.Kind != "DockerImage" {
@@ -213,7 +214,7 @@ func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingI
 	}
 
 	if kubectlVersions.Len() > 2 {
-		return nil, nil, nil, fmt.Errorf("input image stream has multiple versions defined for version kubectl for all the tags %s", strings.Join(kubectlVersions.UnsortedList(), ","))
+		fmt.Fprintf(errOut, "warning: input image stream has multiple versions defined for version kubectl for all the tags %s\n", strings.Join(kubectlVersions.UnsortedList(), ","))
 	}
 
 	defaults, err := parseComponentVersionsLabel(input.Annotations[annotationBuildVersions], input.Annotations[annotationBuildVersionsDisplayNames])

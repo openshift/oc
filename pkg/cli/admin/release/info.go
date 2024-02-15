@@ -860,7 +860,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 		return nil, fmt.Errorf("release image did not contain an image-references file")
 	}
 
-	release.ComponentVersions, errs = readComponentVersions(release.References)
+	release.ComponentVersions, errs = readComponentVersions(release.References, o.ErrOut)
 	for _, err := range errs {
 		release.Warnings = append(release.Warnings, err.Error())
 	}
@@ -932,7 +932,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	return release, nil
 }
 
-func readComponentVersions(is *imageapi.ImageStream) (ComponentVersions, []error) {
+func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (ComponentVersions, []error) {
 	var errs []error
 	combined := make(map[string]sets.String)
 	combinedDisplayNames := make(map[string]sets.String)
@@ -971,7 +971,7 @@ func readComponentVersions(is *imageapi.ImageStream) (ComponentVersions, []error
 
 	multiples := sets.NewString()
 	if kubectlVersions.Len() > 2 {
-		multiples.Insert("kubectl")
+		fmt.Fprintf(errOut, "warning: multiple versions reported for the kubectl: %v\n", strings.Join(kubectlVersions.UnsortedList(), ","))
 	}
 	var out ComponentVersions
 	var keys []string

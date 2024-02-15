@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+
 	digest "github.com/opencontainers/go-digest"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"k8s.io/apimachinery/pkg/util/diff"
@@ -409,7 +411,6 @@ func Test_readComponentVersions(t *testing.T) {
 			want: ComponentVersions{
 				"kubectl": {Version: "1.1.0"},
 			},
-			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): kubectl")},
 		},
 		{
 			is: &imageapi.ImageStream{
@@ -445,7 +446,6 @@ func Test_readComponentVersions(t *testing.T) {
 			want: ComponentVersions{
 				"kubectl": {Version: "1.1.0"},
 			},
-			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): kubectl")},
 		},
 		{
 			is: &imageapi.ImageStream{
@@ -485,7 +485,8 @@ func Test_readComponentVersions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := readComponentVersions(tt.is)
+			ioStreams := genericiooptions.NewTestIOStreamsDiscard()
+			got, got1 := readComponentVersions(tt.is, ioStreams.ErrOut)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("%s", diff.ObjectReflectDiff(got, tt.want))
 			}
