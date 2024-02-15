@@ -16,6 +16,10 @@ or problems you encounter, ask questions on the OpenShift IRC channel
 and [kubernetes project](https://github.com/kubernetes/kubernetes) at the container
 runtime layer.
 
+New commands are newly accepted through a [CLI plugin](https://docs.openshift.com/container-platform/latest/cli_reference/openshift_cli/extending-cli-plugins.html) promotion.
+Similar to a [TechPreview](https://access.redhat.com/support/offerings/techpreview) a plugin provides means to invite communities for a broader adoption and maturity.
+Until the implementation get functionally complete, fully supported and suitable for deployment in production.
+
 ## Building
 
 To build oc invoke `make oc`. At any time you can invoke `make help` and you'll
