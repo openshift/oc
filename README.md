@@ -18,7 +18,7 @@ runtime layer.
 
 New commands are newly accepted through a [CLI plugin](https://docs.openshift.com/container-platform/latest/cli_reference/openshift_cli/extending-cli-plugins.html) promotion.
 Similar to a [TechPreview](https://access.redhat.com/support/offerings/techpreview) a plugin provides means to invite communities for a broader adoption and maturity.
-Until the implementation get functionally complete, fully supported and suitable for deployment in production.
+Until the implementation get functionally complete, fully supported and suitable for moving it under oc.
 
 ## Building
 
