@@ -59,10 +59,10 @@ var (
 
 	regenerateMCOExample = templates.Examples(`
 	    # Regenerate the MCO certs without modifying user-data secrets
-		oc adm certificates regenerate-machine-config-server-serving-cert --update-ignition=false
+		oc adm ocp-certificates regenerate-machine-config-server-serving-cert --update-ignition=false
 
 		# Update the user-data secrets to use new MCS certs
-		oc adm certificates update-ignition-ca-bundle-for-machine-config-server
+		oc adm ocp-certificates update-ignition-ca-bundle-for-machine-config-server
 	`)
 )
 
