@@ -1,0 +1,40 @@
+An update is in progress for 14m4s: Working towards 4.14.1: 734 of 859 done (85% complete), waiting on machine-config
+
+= Control Plane =
+Assessment:      Progressing
+Completion:      97%
+Duration:        14m4s
+Operator Status: 33 Total, 32 Available, 1 Progressing, 0 Degraded
+
+= Worker Upgrade =
+
+= Worker Pool =
+Worker Pool:     worker
+Assessment:      Progressing
+Completion:      0%
+Worker Status:   3 Total, 2 Available, 1 Progressing, 3 Outdated, 1 Draining, 0 Excluded, 0 Degraded
+
+Worker Pool Node(s)
+NAME                                        ASSESSMENT    PHASE      VERSION   EST    MESSAGE
+ip-10-0-4-159.us-east-2.compute.internal    Progressing   Draining   4.14.0    +30m   
+ip-10-0-20-162.us-east-2.compute.internal   Outdated      Pending    4.14.0    ?      
+ip-10-0-99-40.us-east-2.compute.internal    Outdated      Pending    4.14.0    ?      
+
+= Worker Pool =
+Worker Pool:     infra
+Assessment:      Progressing
+Completion:      0%
+Worker Status:   2 Total, 1 Available, 1 Progressing, 2 Outdated, 1 Draining, 0 Excluded, 0 Degraded
+
+Worker Pool Node(s)
+NAME                                              ASSESSMENT    PHASE      VERSION   EST    MESSAGE
+ip-10-0-4-159-infra.us-east-2.compute.internal    Progressing   Draining   4.14.0    +30m   
+ip-10-0-20-162-infra.us-east-2.compute.internal   Outdated      Pending    4.14.0    ?      
+
+= Update Health =
+Message: Upgrade is proceeding well
+  Since:       14m4s
+  Level:       Info
+  Impact:      None
+  Reference:   
+  Description: 

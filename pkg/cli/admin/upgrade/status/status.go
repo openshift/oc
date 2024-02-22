@@ -49,6 +49,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	// TODO: We can remove these flags once the idea about `oc adm upgrade status` stabilizes and the command
 	//       is promoted out of the OC_ENABLE_CMD_UPGRADE_STATUS feature gate
 	flags.StringVar(&o.mockData.cvPath, "mock-clusterversion", "", "Path to a YAML ClusterVersion object to use for testing (will be removed later). Files in the same directory with the same name and suffixes -co.yaml, -mcp.yaml, -mc.yaml, and -node.yaml are required.")
+	flags.BoolVar(&o.detailedOutput, "details", false, "Show upgrade health insights with detailed information and remediating links")
 
 	return cmd
 }
@@ -61,6 +62,8 @@ type options struct {
 	ConfigClient        configv1client.Interface
 	CoreClient          corev1client.CoreV1Interface
 	MachineConfigClient machineconfigv1client.Interface
+
+	detailedOutput bool
 }
 
 func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
@@ -255,7 +258,7 @@ func (o *options) Run(ctx context.Context) error {
 
 	fmt.Fprintf(o.Out, "\n")
 	upgradeHealth := assessUpdateInsights(updateInsights, updatingFor, now)
-	_ = upgradeHealth.Write(o.Out)
+	_ = upgradeHealth.Write(o.Out, o.detailedOutput)
 	return nil
 }
 

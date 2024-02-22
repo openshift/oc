@@ -1,0 +1,29 @@
+An update is in progress for 6s: Working towards 4.14.1: 139 of 859 done (16% complete), waiting on kube-scheduler
+
+= Control Plane =
+Assessment:      Progressing
+Completion:      12%
+Duration:        6s
+Operator Status: 33 Total, 33 Available, 0 Progressing, 0 Degraded
+
+= Worker Upgrade =
+
+= Worker Pool =
+Worker Pool:     worker
+Assessment:      Excluded
+Completion:      0%
+Worker Status:   3 Total, 3 Available, 0 Progressing, 3 Outdated, 0 Draining, 3 Excluded, 0 Degraded
+
+Worker Pool Node(s)
+NAME                                        ASSESSMENT   PHASE    VERSION   EST   MESSAGE
+ip-10-0-20-162.us-east-2.compute.internal   Excluded     Paused   4.14.0    -     
+ip-10-0-4-159.us-east-2.compute.internal    Excluded     Paused   4.14.0    -     
+ip-10-0-99-40.us-east-2.compute.internal    Excluded     Paused   4.14.0    -     
+
+= Update Health =
+Message: Worker pool worker is paused | Outdated nodes in a paused pool will not be updated.
+  Since:       -
+  Level:       Warning
+  Impact:      Update Stalled
+  Reference:   
+  Description: 
