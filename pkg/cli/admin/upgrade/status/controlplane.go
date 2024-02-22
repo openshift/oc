@@ -48,10 +48,12 @@ func coInsights(name string, available v1.ClusterOperatorStatusCondition, degrad
 			startedAt: available.LastTransitionTime.Time,
 			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: name}}},
 			impact: updateInsightImpact{
-				level:      warningImpactLevel,
-				impactType: apiAvailabilityImpactType,
-				summary:    fmt.Sprintf("Cluster Operator %s is unavailable | %s: %s", name, available.Reason, strings.ReplaceAll(available.Message, "\n", ` // `)),
+				level:       warningImpactLevel,
+				impactType:  apiAvailabilityImpactType,
+				summary:     fmt.Sprintf("Cluster Operator %s is unavailable (%s)", name, available.Reason),
+				description: strings.ReplaceAll(available.Message, "\n", ` // `),
 			},
+			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDown.md"},
 		}
 		if evaluated.After(available.LastTransitionTime.Time.Add(unavailableErrorThreshold)) {
 			insight.impact.level = errorImpactLevel
@@ -63,10 +65,12 @@ func coInsights(name string, available v1.ClusterOperatorStatusCondition, degrad
 			startedAt: degraded.LastTransitionTime.Time,
 			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: name}}},
 			impact: updateInsightImpact{
-				level:      warningImpactLevel,
-				impactType: apiAvailabilityImpactType,
-				summary:    fmt.Sprintf("Cluster Operator %s is degraded | %s: %s", name, degraded.Reason, strings.ReplaceAll(degraded.Message, "\n", ` // `)),
+				level:       warningImpactLevel,
+				impactType:  apiAvailabilityImpactType,
+				summary:     fmt.Sprintf("Cluster Operator %s is degraded (%s)", name, degraded.Reason),
+				description: strings.ReplaceAll(degraded.Message, "\n", ` // `),
 			},
+			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
 		}
 		if evaluated.After(degraded.LastTransitionTime.Time.Add(degradedErrorThreshold)) {
 			insight.impact.level = errorImpactLevel

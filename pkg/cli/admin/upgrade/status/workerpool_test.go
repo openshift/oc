@@ -464,13 +464,17 @@ func Test_assessNodesStatus(t *testing.T) {
 			expectedUpdateInsight: []updateInsight{
 				{
 					impact: updateInsightImpact{
-						level:      errorImpactLevel,
-						impactType: updateStalledImpactType,
-						summary:    "Node a is degraded | PDB prohibits draining",
+						level:       errorImpactLevel,
+						impactType:  updateStalledImpactType,
+						summary:     "Node a is degraded",
+						description: "PDB prohibits draining",
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeControlPlane,
 						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
 					},
 				},
 			},
@@ -502,13 +506,17 @@ func Test_assessNodesStatus(t *testing.T) {
 			expectedUpdateInsight: []updateInsight{
 				{
 					impact: updateInsightImpact{
-						level:      warningImpactLevel,
-						impactType: updateSpeedImpactType,
-						summary:    "Node a is unavailable | Node is unavailable",
+						level:       warningImpactLevel,
+						impactType:  updateSpeedImpactType,
+						summary:     "Node a is unavailable",
+						description: "Node is unavailable",
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeControlPlane,
 						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
 					},
 				},
 			}},
@@ -677,13 +685,17 @@ func Test_nodeInsights(t *testing.T) {
 			expectedUpdateInsight: []updateInsight{
 				{
 					impact: updateInsightImpact{
-						level:      warningImpactLevel,
-						impactType: updateSpeedImpactType,
-						summary:    "Node a is unavailable | Node is unavailable",
+						level:       warningImpactLevel,
+						impactType:  updateSpeedImpactType,
+						summary:     "Node a is unavailable",
+						description: "Node is unavailable",
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeControlPlane,
 						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
 					},
 				},
 			},
@@ -699,13 +711,17 @@ func Test_nodeInsights(t *testing.T) {
 			expectedUpdateInsight: []updateInsight{
 				{
 					impact: updateInsightImpact{
-						level:      warningImpactLevel,
-						impactType: updateSpeedImpactType,
-						summary:    "Node a is unavailable | Node is unavailable",
+						level:       warningImpactLevel,
+						impactType:  updateSpeedImpactType,
+						summary:     "Node a is unavailable",
+						description: "Node is unavailable",
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
 						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
 					},
 				},
 			},
@@ -723,13 +739,17 @@ func Test_nodeInsights(t *testing.T) {
 			expectedUpdateInsight: []updateInsight{
 				{
 					impact: updateInsightImpact{
-						level:      errorImpactLevel,
-						impactType: updateStalledImpactType,
-						summary:    "Node a is degraded | PDB prohibits draining",
+						level:       errorImpactLevel,
+						impactType:  updateStalledImpactType,
+						summary:     "Node a is degraded",
+						description: "PDB prohibits draining",
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
 						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
 					},
 				},
 			},
@@ -957,13 +977,17 @@ func Test_assessMachineConfigPool(t *testing.T) {
 			expectedUpdateInsight: []updateInsight{
 				{
 					impact: updateInsightImpact{
-						level:      warningImpactLevel,
-						impactType: updateStalledImpactType,
-						summary:    "Worker pool worker is paused | Outdated nodes in a paused pool will not be updated.",
+						level:       warningImpactLevel,
+						impactType:  updateStalledImpactType,
+						summary:     "Worker pool worker is paused",
+						description: "Outdated nodes in a paused pool will not be updated",
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
 						resources: []scopeResource{{kind: scopeKindMachineConfigPool, name: "worker"}},
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://docs.openshift.com/container-platform/4.15/support/troubleshooting/troubleshooting-operator-issues.html#troubleshooting-disabling-autoreboot-mco_troubleshooting-operator-issues",
 					},
 				},
 			}},
@@ -1049,13 +1073,17 @@ func Test_machineConfigPoolInsights(t *testing.T) {
 			expectedUpdateInsight: []updateInsight{
 				{
 					impact: updateInsightImpact{
-						level:      warningImpactLevel,
-						impactType: updateStalledImpactType,
-						summary:    "Worker pool worker is paused | Outdated nodes in a paused pool will not be updated.",
+						level:       warningImpactLevel,
+						impactType:  updateStalledImpactType,
+						summary:     "Worker pool worker is paused",
+						description: "Outdated nodes in a paused pool will not be updated",
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
 						resources: []scopeResource{{kind: scopeKindMachineConfigPool, name: "worker"}},
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://docs.openshift.com/container-platform/4.15/support/troubleshooting/troubleshooting-operator-issues.html#troubleshooting-disabling-autoreboot-mco_troubleshooting-operator-issues",
 					},
 				},
 			},

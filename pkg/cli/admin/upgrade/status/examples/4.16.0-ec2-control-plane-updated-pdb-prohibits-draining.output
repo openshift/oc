@@ -44,11 +44,11 @@ Pass along --details to see all information.
 
 = Update Health =
 SINCE   LEVEL     IMPACT           MESSAGE
--       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-9lztv is degraded | failed to drain node: build0-gstfj-ci-prowjobs-worker-b-9lztv after 1 hour. Please see machine-config-controller logs for more information
--       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-bg9f5 is degraded | failed to drain node: build0-gstfj-ci-prowjobs-worker-b-bg9f5 after 1 hour. Please see machine-config-controller logs for more information
--       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-mrxwn is degraded | failed to drain node: build0-gstfj-ci-prowjobs-worker-b-mrxwn after 1 hour. Please see machine-config-controller logs for more information
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-4h7pn is degraded | failed to drain node: build0-gstfj-ci-tests-worker-b-4h7pn after 1 hour. Please see machine-config-controller logs for more information
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded | failed to drain node: build0-gstfj-ci-tests-worker-b-jv5bg after 1 hour. Please see machine-config-controller logs for more information
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded | failed to drain node: build0-gstfj-ci-tests-worker-b-kj6gk after 1 hour. Please see machine-config-controller logs for more information
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded | failed to drain node: build0-gstfj-ci-tests-worker-c-dcz9p after 1 hour. Please see machine-config-controller logs for more information
--       Warning   Update Speed     Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable | Node is unavailable
+-       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-9lztv is degraded
+-       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-bg9f5 is degraded
+-       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-mrxwn is degraded
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-4h7pn is degraded
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
+-       Warning   Update Speed     Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable

@@ -21,9 +21,9 @@ ip-10-0-4-159.us-east-2.compute.internal    Excluded     Paused   4.14.0    -
 ip-10-0-99-40.us-east-2.compute.internal    Excluded     Paused   4.14.0    -     
 
 = Update Health =
-Message: Worker pool worker is paused | Outdated nodes in a paused pool will not be updated.
+Message: Worker pool worker is paused
   Since:       -
   Level:       Warning
   Impact:      Update Stalled
-  Reference:   
-  Description: 
+  Reference:   https://docs.openshift.com/container-platform/4.15/support/troubleshooting/troubleshooting-operator-issues.html#troubleshooting-disabling-autoreboot-mco_troubleshooting-operator-issues
+  Description: Outdated nodes in a paused pool will not be updated
