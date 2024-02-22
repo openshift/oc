@@ -104,6 +104,65 @@ func TestAssessUpdateInsights_NoInsightsCreatesAllIsWellInfo(t *testing.T) {
 	}
 }
 
+func TestAssessUpdateInsights_FiltersOutIncompleteInsights(t *testing.T) {
+	assessedAt := now
+	var insights = []updateInsight{
+		{
+			startedAt: now.Add(-20 * time.Second),
+			impact: updateInsightImpact{
+				level:      errorImpactLevel,
+				impactType: clusterCapacityImpactType,
+				// empty summary
+				summary:     "",
+				description: "Autoscaler is disabled, you should enable it",
+			},
+			remediation: updateInsightRemediation{reference: "https://docs.openshift.com/container-platform/4.14/nodes/pods/nodes-pods-autoscaling.html"},
+		},
+		{
+			startedAt: now.Add(-5 * time.Second),
+			impact: updateInsightImpact{
+				level:      errorImpactLevel,
+				impactType: apiAvailabilityImpactType,
+				summary:    "Something that broke API and happened recently",
+				// empty description
+				description: "",
+			},
+			remediation: updateInsightRemediation{reference: "https://docs.openshift.com/container-platform/4.14/authentication/understanding-authentication.html"},
+		},
+		{
+			startedAt: now.Add(-time.Hour),
+			impact: updateInsightImpact{
+				level:       criticalInfoLevel,
+				impactType:  dataLossImpactType,
+				summary:     "KTHXBAI DATA",
+				description: "You lost all your data, hope you have a backup",
+			},
+			// empty reference
+			remediation: updateInsightRemediation{reference: ""},
+		},
+	}
+
+	healthData := assessUpdateInsights(insights, 2*time.Hour, assessedAt)
+	// All incomplete insights are filtered out, so we only get the synthetic "All is well" insight
+	expected := updateHealthData{
+		evaluatedAt: assessedAt,
+		insights: []updateInsight{
+			{
+				startedAt: assessedAt.Add(-2 * time.Hour),
+				impact: updateInsightImpact{
+					level:      infoImpactLevel,
+					impactType: noneImpactType,
+					summary:    "Upgrade is proceeding well",
+				},
+			},
+		},
+	}
+
+	if diff := cmp.Diff(expected, healthData, cmp.AllowUnexported(updateHealthData{}, updateInsight{}, updateInsightScope{}, updateInsightImpact{}, updateInsightRemediation{})); diff != "" {
+		t.Fatalf("Output differs from expected :\n%s", diff)
+	}
+}
+
 func TestUpdateHealthData_Write(t *testing.T) {
 	testCases := []struct {
 		name     string

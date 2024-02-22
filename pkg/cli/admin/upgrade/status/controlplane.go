@@ -55,6 +55,10 @@ func coInsights(name string, available v1.ClusterOperatorStatusCondition, degrad
 			},
 			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDown.md"},
 		}
+		if available.Message == "" {
+			// Backfill the description if CO doesn't provide one
+			insight.impact.description = "<no message>"
+		}
 		if evaluated.After(available.LastTransitionTime.Time.Add(unavailableErrorThreshold)) {
 			insight.impact.level = errorImpactLevel
 		}
@@ -71,6 +75,10 @@ func coInsights(name string, available v1.ClusterOperatorStatusCondition, degrad
 				description: degraded.Message,
 			},
 			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
+		}
+		if degraded.Message == "" {
+			// Backfill the description if CO doesn't provide one
+			insight.impact.description = "<no message>"
 		}
 		if evaluated.After(degraded.LastTransitionTime.Time.Add(degradedErrorThreshold)) {
 			insight.impact.level = errorImpactLevel
