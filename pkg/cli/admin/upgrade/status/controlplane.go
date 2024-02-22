@@ -51,7 +51,7 @@ func coInsights(name string, available v1.ClusterOperatorStatusCondition, degrad
 				level:       warningImpactLevel,
 				impactType:  apiAvailabilityImpactType,
 				summary:     fmt.Sprintf("Cluster Operator %s is unavailable (%s)", name, available.Reason),
-				description: strings.ReplaceAll(available.Message, "\n", ` // `),
+				description: available.Message,
 			},
 			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDown.md"},
 		}
@@ -68,7 +68,7 @@ func coInsights(name string, available v1.ClusterOperatorStatusCondition, degrad
 				level:       warningImpactLevel,
 				impactType:  apiAvailabilityImpactType,
 				summary:     fmt.Sprintf("Cluster Operator %s is degraded (%s)", name, degraded.Reason),
-				description: strings.ReplaceAll(degraded.Message, "\n", ` // `),
+				description: degraded.Message,
 			},
 			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
 		}
