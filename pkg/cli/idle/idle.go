@@ -233,7 +233,6 @@ func scanLinesFromFile(filename string) ([]string, error) {
 // idleUpdateInfo contains the required info to annotate an endpoints object
 // with the scalable resources that it should unidle
 type idleUpdateInfo struct {
-	obj       *corev1.Endpoints
 	service   *corev1.Service
 	scaleRefs map[unidlingapi.CrossGroupObjectReference]struct{}
 }
@@ -340,7 +339,6 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 		}
 
 		idleInfo := idleUpdateInfo{
-			obj:       endpoints,
 			service:   svc,
 			scaleRefs: nonNamespacedScaleRefs,
 		}
@@ -692,14 +690,11 @@ func (o *IdleOptions) RunIdle() error {
 
 	// annotate the endpoints objects to indicate which scalable resources need to be unidled on traffic
 	for serviceName, info := range byService {
-		if info.obj.Annotations == nil {
-			info.obj.Annotations = make(map[string]string)
-		}
 		if info.service.Annotations == nil {
 			info.service.Annotations = make(map[string]string)
 		}
 
-		refsWithScale, err := pairScalesWithScaleRefs(serviceName, info.obj.Annotations, info.scaleRefs, replicas)
+		refsWithScale, err := pairScalesWithScaleRefs(serviceName, info.service.Annotations, info.scaleRefs, replicas)
 		if err != nil {
 			fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
 			continue
@@ -715,12 +710,6 @@ func (o *IdleOptions) RunIdle() error {
 			}
 
 			if err := patchObjWithIdleAnnotations(info.service, refsWithScale, nowTime); err != nil {
-				fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
-				hadError = true
-				continue
-			}
-
-			if err := patchObjWithIdleAnnotations(info.obj, refsWithScale, nowTime); err != nil {
 				fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
 				hadError = true
 				continue
