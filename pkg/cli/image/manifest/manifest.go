@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"runtime"
 	"sync"
@@ -45,6 +46,7 @@ type SecurityOptions struct {
 	RegistryConfig   string
 	Insecure         bool
 	SkipVerification bool
+	CAData           string
 
 	CachedContext *registryclient.Context
 }
@@ -54,6 +56,7 @@ func (o *SecurityOptions) Bind(flags *pflag.FlagSet) {
 	flags.StringVarP(&o.RegistryConfig, "registry-config", "a", o.RegistryConfig, "Path to your registry credentials. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Defaults to ${XDG_RUNTIME_DIR}/containers/auth.json, /run/containers/${UID}/auth.json, ${XDG_CONFIG_HOME}/containers/auth.json, ${DOCKER_CONFIG}, ~/.docker/config.json, ~/.dockercfg. The order can be changed via the REGISTRY_AUTH_PREFERENCE env variable (deprecated) to a \"docker\" value to prioritizes Docker credentials over Podman's.")
 	flags.BoolVar(&o.Insecure, "insecure", o.Insecure, "Allow push and pull operations to registries to be made over HTTP")
 	flags.BoolVar(&o.SkipVerification, "skip-verification", o.SkipVerification, "Skip verifying the integrity of the retrieved content. This is not recommended, but may be necessary when importing images from older image registries. Only bypass verification if the registry is known to be trustworthy.")
+	flags.StringVar(&o.CAData, "certificate-authority", o.CAData, "The path to a certificate authority bundle to use when communicating with the managed container image registries. If --insecure is used, this flag will be ignored. ")
 }
 
 // ReferentialHTTPClient returns an http.Client that is appropriate for accessing
@@ -116,9 +119,24 @@ func (o *SecurityOptions) Context() (*registryclient.Context, error) {
 
 func (o *SecurityOptions) NewContext() (*registryclient.Context, error) {
 	userAgent := rest.DefaultKubernetesUserAgent()
-	rt, err := rest.TransportFor(&rest.Config{UserAgent: userAgent})
-	if err != nil {
-		return nil, err
+	var rt http.RoundTripper
+	var err error
+	if len(o.CAData) > 0 {
+		cadata, err := os.ReadFile(o.CAData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read registry ca bundle: %v", err)
+		}
+
+		rt, err = rest.TransportFor(&rest.Config{UserAgent: userAgent, TLSClientConfig: rest.TLSClientConfig{CAData: cadata}})
+		if err != nil {
+			return nil, err
+		}
+
+	} else {
+		rt, err = rest.TransportFor(&rest.Config{UserAgent: userAgent})
+		if err != nil {
+			return nil, err
+		}
 	}
 	insecureRT, err := rest.TransportFor(&rest.Config{TLSClientConfig: rest.TLSClientConfig{Insecure: true}, UserAgent: userAgent})
 	if err != nil {
