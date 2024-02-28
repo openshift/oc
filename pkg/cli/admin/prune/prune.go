@@ -12,6 +12,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/prune/builds"
 	"github.com/openshift/oc/pkg/cli/admin/prune/deployments"
 	"github.com/openshift/oc/pkg/cli/admin/prune/images"
+	"github.com/openshift/oc/pkg/cli/admin/prune/machineconfigs"
 )
 
 var pruneLong = templates.LongDesc(`
@@ -34,5 +35,6 @@ func NewCommandPrune(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 	cmds.AddCommand(images.NewCmdPruneImages(f, streams))
 	cmds.AddCommand(groups.NewCmdPruneGroups("groups", "prune groups", f, streams))
 	cmds.AddCommand(auth.NewCmdPruneAuth(f, streams))
+	cmds.AddCommand(machineconfigs.NewCmdPruneMachineConfigs(f, streams))
 	return cmds
 }

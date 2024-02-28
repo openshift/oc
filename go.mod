@@ -33,9 +33,9 @@ require (
 	github.com/moby/term v0.5.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc5
-	github.com/openshift/api v0.0.0-20240116232628-6d48d55c0598
+	github.com/openshift/api v0.0.0-20240214213616-e741d64e9f22
 	github.com/openshift/build-machinery-go v0.0.0-20231128094528-1e9b1b0595c8
-	github.com/openshift/client-go v0.0.0-20240115204758-e6bf7d631d5e
+	github.com/openshift/client-go v0.0.0-20240215090359-b71f6f2731f5
 	github.com/openshift/library-go v0.0.0-20240116081341-964bcb3f545c
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/pkg/errors v0.9.1

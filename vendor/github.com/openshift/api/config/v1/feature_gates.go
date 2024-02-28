@@ -441,4 +441,24 @@ var (
 		ResponsiblePerson:   "pmuller",
 		OwningProduct:       ocpSpecific,
 	}
+
+	FeatureGateTranslateStreamCloseWebsocketRequests = FeatureGateName("TranslateStreamCloseWebsocketRequests")
+	translateStreamCloseWebsocketRequests            = FeatureGateDescription{
+		FeatureGateAttributes: FeatureGateAttributes{
+			Name: FeatureGateTranslateStreamCloseWebsocketRequests,
+		},
+		OwningJiraComponent: "kube-apiserver",
+		ResponsiblePerson:   "akashem",
+		OwningProduct:       kubernetes,
+	}
+
+	FeatureGateVolumeGroupSnapshot = FeatureGateName("VolumeGroupSnapshot")
+	volumeGroupSnapshot            = FeatureGateDescription{
+		FeatureGateAttributes: FeatureGateAttributes{
+			Name: FeatureGateVolumeGroupSnapshot,
+		},
+		OwningJiraComponent: "Storage / Kubernetes External Components",
+		ResponsiblePerson:   "fbertina",
+		OwningProduct:       kubernetes,
+	}
 )
