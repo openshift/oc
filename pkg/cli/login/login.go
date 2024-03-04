@@ -97,7 +97,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().StringVar(&o.OIDCClientID, "client-id", o.OIDCClientID, "Experimental: Client ID for external OIDC issuer. Only supports Auth Code + PKCE. Required.")
 	cmds.Flags().StringVar(&o.OIDCClientSecret, "client-secret", o.OIDCClientSecret, "Experimental: Client secret for external OIDC issuer. Optional.")
 	cmds.Flags().StringSliceVar(&o.OIDCExtraScopes, "extra-scopes", o.OIDCExtraScopes, "Experimental: Extra scopes for external OIDC issuer. Optional.")
-	cmds.Flags().StringVar(&o.OIDCIssuerURL, "issuer-url", o.OIDCIssuerURL, "Experimental: Issuer url for external issuer. Optional.")
+	cmds.Flags().StringVar(&o.OIDCIssuerURL, "issuer-url", o.OIDCIssuerURL, "Experimental: Issuer url for external issuer. Required.")
 	return cmds
 }
 
@@ -198,6 +198,10 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 
 	if o.OIDCExecPluginType != "" && (o.WebLogin || o.Username != "" || o.Password != "" || o.Token != "") {
 		return errors.New("--exec-plugin cannot be used along with --web, --username, --password or --token")
+	}
+
+	if o.OIDCExecPluginType == string(OCOIDC) && (o.OIDCIssuerURL == "" || o.OIDCClientID == "") {
+		return fmt.Errorf("--issuer-url and --client-id are required fields for oc-oidc type")
 	}
 
 	if o.OIDCIssuerURL != "" {
