@@ -221,7 +221,11 @@ func (o *options) Run(ctx context.Context) error {
 		return nil
 	}
 
-	updatingFor := now.Sub(progressing.LastTransitionTime.Time).Round(time.Second)
+	startedAt := progressing.LastTransitionTime.Time
+	if len(cv.Status.History) > 0 {
+		startedAt = cv.Status.History[0].StartedTime.Time
+	}
+	updatingFor := now.Sub(startedAt).Round(time.Second)
 	fmt.Fprintf(o.Out, "An update is in progress for %s: %s\n", updatingFor, progressing.Message)
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil {
