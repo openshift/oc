@@ -87,6 +87,7 @@ type LoginOptions struct {
 	OIDCClientID       string
 	OIDCClientSecret   string
 	OIDCExtraScopes    []string
+	OIDCIssuerURL      string
 
 	Token string
 
@@ -336,9 +337,12 @@ func (o *LoginOptions) gatherAuthInfo() error {
 // prepareBuiltinExecPlugin sets up the ExecConfig correctly
 // with the given values
 func (o *LoginOptions) prepareBuiltinExecPlugin() (*kclientcmdapi.ExecConfig, error) {
-	issuerUrl, err := o.extractIssuerURLForOIDC()
-	if err != nil {
-		return nil, err
+	var err error
+	if o.OIDCIssuerURL == "" {
+		o.OIDCIssuerURL, err = o.extractIssuerURLForOIDC()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	execProvider := &kclientcmdapi.ExecConfig{
@@ -346,7 +350,7 @@ func (o *LoginOptions) prepareBuiltinExecPlugin() (*kclientcmdapi.ExecConfig, er
 		Command:    "oc",
 		Args: []string{
 			"get-token",
-			fmt.Sprintf("--issuer-url=%s", issuerUrl),
+			fmt.Sprintf("--issuer-url=%s", o.OIDCIssuerURL),
 			fmt.Sprintf("--client-id=%s", o.OIDCClientID),
 			fmt.Sprintf("--callback-address=127.0.0.1:%d", o.CallbackPort),
 		},
