@@ -15,6 +15,9 @@ type assessmentState string
 const (
 	assessmentStateProgressing assessmentState = "Progressing"
 	assessmentStateCompleted   assessmentState = "Completed"
+	assessmentStatePending     assessmentState = "Pending"
+	assessmentStateExcluded    assessmentState = "Excluded"
+	assessmentStateDegraded    assessmentState = "Degraded"
 )
 
 type operators struct {
@@ -43,7 +46,7 @@ func coInsights(name string, available v1.ClusterOperatorStatusCondition, degrad
 	if available.Status == v1.ConditionFalse && evaluated.After(available.LastTransitionTime.Time.Add(unavailableWarningThreshold)) {
 		insight := updateInsight{
 			startedAt: available.LastTransitionTime.Time,
-			scope:     updateInsightScope{scopeType: scopeControlPlane, resources: []scopeResource{{kind: clusterOperator, name: name}}},
+			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: name}}},
 			impact: updateInsightImpact{
 				level:      warningImpactLevel,
 				impactType: apiAvailabilityImpactType,
@@ -58,7 +61,7 @@ func coInsights(name string, available v1.ClusterOperatorStatusCondition, degrad
 	if degraded.Status == v1.ConditionTrue && evaluated.After(degraded.LastTransitionTime.Time.Add(degradedWarningThreshold)) {
 		insight := updateInsight{
 			startedAt: degraded.LastTransitionTime.Time,
-			scope:     updateInsightScope{scopeType: scopeControlPlane, resources: []scopeResource{{kind: clusterOperator, name: name}}},
+			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: name}}},
 			impact: updateInsightImpact{
 				level:      warningImpactLevel,
 				impactType: apiAvailabilityImpactType,

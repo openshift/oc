@@ -41,12 +41,8 @@ func TestExamples(t *testing.T) {
 		cv := cv
 		t.Run(cv, func(t *testing.T) {
 			t.Parallel()
-			co := strings.Replace(cv, "-cv.yaml", "-co.yaml", 1)
 
-			opts := &options{
-				mockCvPath:        cv,
-				mockOperatorsPath: co,
-			}
+			opts := &options{mockData: mockData{cvPath: cv}}
 			if err := opts.Complete(nil, nil, nil); err != nil {
 				t.Fatalf("Error when completing options: %v", err)
 			}
