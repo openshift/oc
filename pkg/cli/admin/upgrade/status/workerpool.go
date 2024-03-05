@@ -13,8 +13,6 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
 	mcfgv1client "github.com/openshift/client-go/machineconfiguration/clientset/versioned"
-	mcfgcommon "github.com/openshift/machine-config-operator/pkg/controller/common"
-	mcfgconst "github.com/openshift/machine-config-operator/pkg/daemon/constants"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -148,10 +146,11 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 	var nodesStatusData []nodeDisplayData
 	var insights []updateInsight
 	for _, node := range nodes {
-		currentVersion := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mcfgconst.CurrentMachineConfigAnnotationKey])
-		desiredVersion := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mcfgconst.DesiredMachineConfigAnnotationKey])
+		currentVersion := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[("machineconfiguration.openshift.io/currentConfig")])
+		desiredVersion := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[("machineconfiguration.openshift.io/desiredConfig")])
 
-		isUnavailable := isNodeUnavailable(node, pool)
+		lns := NewLayeredNodeState(&node)
+		isUnavailable := lns.IsUnavailable(&pool)
 		isDegraded := isNodeDegraded(node)
 		isUpdated := isNodeUpdated(cv, currentVersion)
 		isUpdating := isNodeUpdating(cv, currentVersion, desiredVersion)
@@ -193,7 +192,7 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 
 		if isDegraded {
 			assessment = nodeAssessmentDegraded
-			message = node.Annotations[mcfgconst.MachineConfigDaemonReasonAnnotationKey]
+			message = node.Annotations[("machineconfiguration.openshift.io/reason")]
 			estimate = "?"
 			if isUpdated {
 				estimate = "-"
@@ -232,23 +231,23 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 func getOpenShiftVersionOfMachineConfig(machineConfigs []mcfgv1.MachineConfig, name string) string {
 	for _, mc := range machineConfigs {
 		if mc.Name == name {
-			return mc.Annotations[mcfgcommon.ReleaseImageVersionAnnotationKey]
+			return mc.Annotations[("machineconfiguration.openshift.io/release-image-version")]
 		}
 	}
 	return "?"
 }
 
 func isNodeDraining(node corev1.Node, isUpdating bool) bool {
-	desiredDrain := node.Annotations[mcfgconst.DesiredDrainerAnnotationKey]
-	appliedDrain := node.Annotations[mcfgconst.LastAppliedDrainerAnnotationKey]
+	desiredDrain := node.Annotations[("machineconfiguration.openshift.io/desiredDrain")]
+	appliedDrain := node.Annotations[("machineconfiguration.openshift.io/lastAppliedDrain")]
 	if desiredDrain != appliedDrain {
 		desiredVerb := strings.Split(desiredDrain, "-")[0]
-		if desiredVerb == mcfgconst.DrainerStateDrain {
+		if desiredVerb == ("drain") {
 			return true
 		}
 	}
 
-	mcdState := node.Annotations[mcfgconst.MachineConfigDaemonStateAnnotationKey]
+	mcdState := node.Annotations[("machineconfiguration.openshift.io/state")]
 	if isUpdating && mcdUpdatingStateToPhase(mcdState) == phaseStateUpdated {
 		// Node is supposed to be updating but MCD hasn't had the time to update
 		// its state from original `Done` to `Working` and start the drain process.
@@ -271,26 +270,21 @@ func isNodeUpdated(cv *configv1.ClusterVersion, nodeVersion string) bool {
 	return false
 }
 
-func isNodeUnavailable(node corev1.Node, pool mcfgv1.MachineConfigPool) bool {
-	lns := mcfgcommon.NewLayeredNodeState(&node)
-	return lns.IsUnavailable(&pool)
-}
-
 func isNodeDegraded(node corev1.Node) bool {
 	// Inspired by: https://github.com/openshift/machine-config-operator/blob/master/pkg/controller/node/status.go
 	if node.Annotations == nil {
 		return false
 	}
-	dconfig, ok := node.Annotations[mcfgconst.DesiredMachineConfigAnnotationKey]
+	dconfig, ok := node.Annotations[("machineconfiguration.openshift.io/desiredConfig")]
 	if !ok || dconfig == "" {
 		return false
 	}
-	dstate, ok := node.Annotations[mcfgconst.MachineConfigDaemonStateAnnotationKey]
+	dstate, ok := node.Annotations[("machineconfiguration.openshift.io/state")]
 	if !ok || dstate == "" {
 		return false
 	}
 
-	if dstate == mcfgconst.MachineConfigDaemonStateDegraded || dstate == mcfgconst.MachineConfigDaemonStateUnreconcilable {
+	if dstate == ("Degraded") || dstate == ("Unreconcilable") {
 		return true
 	}
 	return false
@@ -302,7 +296,7 @@ func calculatePhase(pool mcfgv1.MachineConfigPool, node corev1.Node, isUpdating,
 	case isUpdating && isNodeDraining(node, isUpdating):
 		phase = phaseStateDraining
 	case isUpdating:
-		phase = mcdUpdatingStateToPhase(node.Annotations[mcfgconst.MachineConfigDaemonStateAnnotationKey])
+		phase = mcdUpdatingStateToPhase(node.Annotations[("machineconfiguration.openshift.io/state")])
 	case isUpdated:
 		phase = phaseStateUpdated
 	case pool.Spec.Paused:
@@ -315,11 +309,11 @@ func calculatePhase(pool mcfgv1.MachineConfigPool, node corev1.Node, isUpdating,
 
 func mcdUpdatingStateToPhase(state string) nodePhase {
 	switch state {
-	case mcfgconst.MachineConfigDaemonStateWorking:
+	case "Working":
 		return phaseStateUpdating
-	case mcfgconst.MachineConfigDaemonStateRebooting:
+	case "Rebooting":
 		return phaseStateRebooting
-	case mcfgconst.MachineConfigDaemonStateDone:
+	case "Done":
 		return phaseStateUpdated
 	default:
 		// For other MCD states during an update default to updating
