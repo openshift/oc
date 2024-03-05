@@ -55,6 +55,7 @@ func NewInfoOptions(streams genericiooptions.IOStreams) *InfoOptions {
 		IOStreams:              streams,
 		KubeTemplatePrintFlags: *genericclioptions.NewKubeTemplatePrintFlags(),
 		ParallelOptions:        imagemanifest.ParallelOptions{MaxPerRegistry: 4},
+		GitHubEndpoint:         "https://api.github.com",
 	}
 }
 
@@ -149,6 +150,11 @@ func NewInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Comm
 	flags.BoolVar(&o.IncludeImages, "include-images", o.IncludeImages, "When displaying JSON output of a release output the images the release references.")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
 	flags.BoolVar(&o.SkipBugCheck, "skip-bug-check", o.SkipBugCheck, "Do not check bug statuses when running generating bug listing with --output=name")
+	flags.BoolVar(&o.ChangelogGitHub, "changelog-gh", o.ChangelogGitHub, "Generate changelog output using the GitHub API")
+	flags.BoolVar(&o.BugsGitHub, "bugs-gh", o.BugsGitHub, "Generate bug listings from changelogs generated using the GitHub API")
+	flags.StringVar(&o.GitHubEndpoint, "github-endpoint", o.GitHubEndpoint, "Endpoint for GitHub API (only valid when used with `changelog-gh` or `bugs-gh` flags)")
+	flags.StringVar(&o.GitHubTokenPath, "github-token-path", o.GitHubTokenPath, "Path to the file containing the GitHub OAuth secret (only valid when used with `changelog-gh` or `bugs-gh` flags)")
+	flags.StringVar(&o.GitHubFallbackDir, "github-fallback-dir", "", "Path to use for `git` as fallback when using the GitHub API and encountering an image whose repository changed. If unset, repository will be ignored.")
 	return cmd
 }
 
@@ -175,6 +181,12 @@ type InfoOptions struct {
 	ChangelogDir string
 	BugsDir      string
 	SkipBugCheck bool
+
+	ChangelogGitHub   bool
+	BugsGitHub        bool
+	GitHubEndpoint    string
+	GitHubTokenPath   string
+	GitHubFallbackDir string
 
 	ParallelOptions imagemanifest.ParallelOptions
 	SecurityOptions imagemanifest.SecurityOptions
@@ -416,32 +428,47 @@ func (o *InfoOptions) Validate() error {
 	if len(o.ImageFor) > 0 && len(o.Output) > 0 {
 		return fmt.Errorf("--output and --image-for may not both be specified")
 	}
-	if o.SkipBugCheck && len(o.BugsDir) == 0 {
-		return fmt.Errorf("--skip-bug-check requires --bugs")
+	if o.SkipBugCheck && (len(o.BugsDir) == 0 && !o.BugsGitHub) {
+		return fmt.Errorf("--skip-bug-check requires --bugs or --bugs-gh")
 	}
 	if o.SkipBugCheck && o.Output != "name" && o.Output != "json" {
 		return fmt.Errorf("--skip-bug-check requires --output to be set to 'name' or 'json'")
 	}
-	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 {
+	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 || o.BugsGitHub || o.ChangelogGitHub {
 		if len(o.From) == 0 {
 			return fmt.Errorf("--changelog/--bugs require --changes-from")
 		}
 	}
-	if len(o.ChangelogDir) > 0 && len(o.BugsDir) > 0 {
-		return fmt.Errorf("--changelog and --bugs may not both be specified")
+	enabledChangelogOptions := 0
+	if len(o.ChangelogDir) > 0 {
+		enabledChangelogOptions++
+	}
+	if len(o.BugsDir) > 0 {
+		enabledChangelogOptions++
+	}
+	if o.BugsGitHub {
+		enabledChangelogOptions++
+	}
+	if o.ChangelogGitHub {
+		enabledChangelogOptions++
+	}
+	if enabledChangelogOptions > 1 {
+		return fmt.Errorf("--changelog, --bugs, --changelog-gh, and --bugs-gh may not both be specified")
 	}
 	switch {
 	case len(o.BugsDir) > 0:
+	case o.BugsGitHub:
 		switch o.Output {
 		case "", "name", "json":
 		default:
-			return fmt.Errorf("--output only supports 'name' or 'json' for --bugs")
+			return fmt.Errorf("--output only supports 'name' or 'json' for --bugs or --bugs-gh")
 		}
 	case len(o.ChangelogDir) > 0:
+	case o.ChangelogGitHub:
 		switch o.Output {
 		case "", "json":
 		default:
-			return fmt.Errorf("--output only supports 'json' for --changelog")
+			return fmt.Errorf("--output only supports 'json' for --changelog or --changelog-gh")
 		}
 	default:
 		output := strings.SplitN(o.Output, "=", 2)[0]
@@ -465,6 +492,15 @@ func (o *InfoOptions) Validate() error {
 }
 
 func (o *InfoOptions) Run() error {
+	var g *github
+	if o.ChangelogGitHub || o.BugsGitHub {
+		var err error
+		g, err = NewGitHubClient(o.GitHubEndpoint, o.GitHubTokenPath)
+		if err != nil {
+			return fmt.Errorf("Failed to create github client: %w", err)
+		}
+	}
+
 	fetchImages := o.ShowSize || o.Verify || o.IncludeImages
 
 	if len(o.From) > 0 && !o.Verify {
@@ -494,11 +530,11 @@ func (o *InfoOptions) Run() error {
 		if err != nil {
 			return err
 		}
-		if len(o.BugsDir) > 0 {
-			return describeBugs(o.Out, o.ErrOut, diff, o.BugsDir, o.Output, o.SkipBugCheck)
+		if len(o.BugsDir) > 0 || o.BugsGitHub {
+			return describeBugs(o.Out, o.ErrOut, diff, o.BugsDir, o.Output, o.SkipBugCheck, g, o.GitHubFallbackDir)
 		}
-		if len(o.ChangelogDir) > 0 {
-			return describeChangelog(o.Out, o.ErrOut, diff, o.ChangelogDir, o.Output)
+		if len(o.ChangelogDir) > 0 || o.ChangelogGitHub {
+			return describeChangelog(o.Out, o.ErrOut, diff, o.ChangelogDir, o.Output, g, o.GitHubFallbackDir)
 		}
 		return describeReleaseDiff(o.Out, diff, o.ShowCommit, o.Output)
 	}
@@ -1611,7 +1647,7 @@ var replaceUnsafeInput = strings.NewReplacer(
 	`>`, "&gt;",
 )
 
-func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format string) error {
+func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format string, g *github, fallbackDir string) error {
 	if diff.To.Digest == diff.From.Digest {
 		return fmt.Errorf("releases are identical")
 	}
@@ -1693,11 +1729,27 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 			}
 		}
 		for _, change := range codeChanges {
-			u, commits, err := commitsForRepo(dir, change, out, errOut)
-			if err != nil {
-				fmt.Fprintf(errOut, "error: %v\n", err)
-				hasError = true
-				continue
+			var u *url.URL
+			var commits []MergeCommit
+			var err error
+			if g != nil && (fallbackDir == "" || len(change.AlternateRepos) == 0) {
+				u, commits, err = commitsForRepoGitHub(g, change)
+				if err != nil {
+					fmt.Fprintf(errOut, "error: %v\n", err)
+					hasError = true
+					continue
+				}
+			} else {
+				useDir := dir
+				if fallbackDir != "" {
+					useDir = fallbackDir
+				}
+				u, commits, err = commitsForRepo(useDir, change, out, errOut)
+				if err != nil {
+					fmt.Fprintf(errOut, "error: %v\n", err)
+					hasError = true
+					continue
+				}
 			}
 			if len(commits) > 0 {
 				info := ChangeLogImageInfo{
@@ -1803,11 +1855,27 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 		}
 
 		for _, change := range codeChanges {
-			u, commits, err := commitsForRepo(dir, change, out, errOut)
-			if err != nil {
-				fmt.Fprintf(errOut, "error: %v\n", err)
-				hasError = true
-				continue
+			var u *url.URL
+			var commits []MergeCommit
+			var err error
+			if g != nil && (fallbackDir == "" || len(change.AlternateRepos) == 0) {
+				u, commits, err = commitsForRepoGitHub(g, change)
+				if err != nil {
+					fmt.Fprintf(errOut, "error: %v\n", err)
+					hasError = true
+					continue
+				}
+			} else {
+				useDir := dir
+				if fallbackDir != "" {
+					useDir = fallbackDir
+				}
+				u, commits, err = commitsForRepo(useDir, change, out, errOut)
+				if err != nil {
+					fmt.Fprintf(errOut, "error: %v\n", err)
+					hasError = true
+					continue
+				}
 			}
 			if len(commits) > 0 {
 				if u.Host == "github.com" {
@@ -1845,7 +1913,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 	return nil
 }
 
-func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format string, skipBugCheck bool) error {
+func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format string, skipBugCheck bool, g *github, fallbackDir string) error {
 	if diff.To.Digest == diff.From.Digest {
 		return fmt.Errorf("releases are identical")
 	}
@@ -1855,11 +1923,26 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 
 	bugIDs := make(map[string]Ref)
 	for _, change := range codeChanges {
-		_, commits, err := commitsForRepo(dir, change, out, errOut)
-		if err != nil {
-			fmt.Fprintf(errOut, "error: %v\n", err)
-			hasError = true
-			continue
+		var commits []MergeCommit
+		var err error
+		if g != nil && (fallbackDir == "" || len(change.AlternateRepos) == 0) {
+			_, commits, err = commitsForRepoGitHub(g, change)
+			if err != nil {
+				fmt.Fprintf(errOut, "error: %v\n", err)
+				hasError = true
+				continue
+			}
+		} else {
+			useDir := dir
+			if fallbackDir != "" {
+				useDir = fallbackDir
+			}
+			_, commits, err = commitsForRepo(useDir, change, out, errOut)
+			if err != nil {
+				fmt.Fprintf(errOut, "error: %v\n", err)
+				hasError = true
+				continue
+			}
 		}
 		for _, commit := range commits {
 			if len(commit.Refs.Refs) == 0 {
@@ -1979,6 +2062,18 @@ func (c CodeChange) ToShort() string {
 		return c.To[:8]
 	}
 	return c.To
+}
+
+func commitsForRepoGitHub(g *github, change CodeChange) (*url.URL, []MergeCommit, error) {
+	u, err := sourceLocationAsURL(change.Repo)
+	if err != nil {
+		return nil, nil, fmt.Errorf("The source repository cannot be parsed %s: %v", change.Repo, err)
+	}
+	commits, err := g.MergeLogForRepo(change.Repo, change.From, change.To)
+	if err != nil {
+		return nil, nil, fmt.Errorf("GitHub: Could not load commits for %s %s...%s: %v", change.Repo, change.From, change.To, err)
+	}
+	return u, commits, nil
 }
 
 func commitsForRepo(dir string, change CodeChange, out, errOut io.Writer) (*url.URL, []MergeCommit, error) {
