@@ -464,32 +464,30 @@ func (pool *poolDisplayData) WriteNodes(w io.Writer) {
 	_, _ = w.Write([]byte("Worker Pool Node(s)\n"))
 	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	_, _ = tabw.Write([]byte("NAME\tASSESSMENT\tPHASE\tVERSION\tEST\tMESSAGE\n"))
-	var total, completed, available, progressing, outdated, draining, excluded, degraded int
+	var total, completed, available, progressing, outdated, draining, excluded int
 	for i, node := range pool.Nodes {
 		if i >= 10 {
-			total++
-			available++
-			if node.Phase == phaseStateDraining {
-				draining++
-			}
+			// Limit displaying too many nodes
 			// Display nodes in undesired states regardless their count
-			switch node.Assessment {
-			case nodeAssessmentDegraded:
-				total--
-			case nodeAssessmentUnavailable:
-				total--
-				available--
-			case nodeAssessmentProgressing:
-				progressing++
-				continue
-			case nodeAssessmentExcluded:
-				excluded++
-				continue
-			case nodeAssessmentOutdated:
-				outdated++
-				continue
-			case nodeAssessmentCompleted:
-				completed++
+			if !node.isDegraded && (!node.isUnavailable || node.isUpdating) {
+				total++
+				if node.isUpdated {
+					completed++
+				} else {
+					outdated++
+				}
+				if !node.isUnavailable {
+					available++
+				}
+				if node.Phase == phaseStateDraining {
+					draining++
+				}
+				if node.Phase == phaseStatePaused {
+					excluded++
+				}
+				if node.Assessment == nodeAssessmentProgressing {
+					progressing++
+				}
 				continue
 			}
 		}
@@ -503,6 +501,6 @@ func (pool *poolDisplayData) WriteNodes(w io.Writer) {
 	}
 	tabw.Flush()
 	if total > 0 {
-		fmt.Fprintf(w, "...\nOmitted additional %d Total, %d Completed, %d Available, %d Progressing, %d Outdated, %d Draining, %d Excluded, and %d Degraded nodes.\nPass along --details to see all information.\n", total, completed, available, progressing, outdated, draining, excluded, degraded)
+		fmt.Fprintf(w, "...\nOmitted additional %d Total, %d Completed, %d Available, %d Progressing, %d Outdated, %d Draining, %d Excluded, and 0 Degraded nodes.\nPass along --details to see all information.\n", total, completed, available, progressing, outdated, draining, excluded)
 	}
 }
