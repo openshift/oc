@@ -936,7 +936,7 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 	var errs []error
 	combined := make(map[string]sets.String)
 	combinedDisplayNames := make(map[string]sets.String)
-	kubectlVersions := sets.New[string]()
+	kubectlVersions := make(map[string]sets.Set[string])
 	for _, tag := range is.Spec.Tags {
 		versions, ok := tag.Annotations[annotationBuildVersions]
 		if !ok {
@@ -948,7 +948,11 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 		}
 		for k, v := range all {
 			if k == "kubectl" {
-				kubectlVersions.Insert(v.Version)
+				if val, exist := kubectlVersions[v.Version]; exist {
+					kubectlVersions[v.Version] = val.Insert(tag.Name)
+				} else {
+					kubectlVersions[v.Version] = sets.New[string](tag.Name)
+				}
 				if tag.Name != "cli" && tag.Name != "cli-artifacts" {
 					continue
 				}
@@ -970,8 +974,13 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 	}
 
 	multiples := sets.NewString()
-	if kubectlVersions.Len() > 2 {
-		fmt.Fprintf(errOut, "warning: multiple versions reported for the kubectl: %v\n", strings.Join(kubectlVersions.UnsortedList(), ","))
+	if len(kubectlVersions) > 2 {
+		var kubectlFormattedWarning []string
+		for k, v := range kubectlVersions {
+			kubectlFormattedWarning = append(kubectlFormattedWarning, fmt.Sprintf("%s (%s)", k, strings.Join(v.UnsortedList(), ", ")))
+		}
+
+		fmt.Fprintf(errOut, "warning: multiple versions reported for the kubectl: %s\n", strings.Join(kubectlFormattedWarning, ", "))
 	}
 	var out ComponentVersions
 	var keys []string
