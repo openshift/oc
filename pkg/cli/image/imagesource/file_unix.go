@@ -13,3 +13,8 @@ import "path/filepath"
 func generateDigestPath(digest string, elem ...string) string {
 	return filepath.Join(append(elem, digest)...)
 }
+
+// reconstructDigest is a no-op on Unix. See file_windows.go for more details.
+func reconstructDigest(digest string) string {
+	return digest
+}

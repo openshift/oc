@@ -696,7 +696,7 @@ func (n *copyFromPattern) Alter(hdr *tar.Header) (bool, error) {
 			return false, nil
 		}
 		matchName = hdr.Name
-		if i := strings.Index(matchName, "/"); i != -1 {
+		if i := strings.Index(matchName, string(filepath.Separator)); i != -1 {
 			matchName = matchName[:i]
 		}
 	}
@@ -721,19 +721,19 @@ func changeTarEntryName(hdr *tar.Header, name string) bool {
 }
 
 func changeTarEntryParent(hdr *tar.Header, from string) bool {
-	if !strings.HasPrefix(hdr.Name, from) {
-		klog.V(5).Infof("Exclude %s due to missing prefix %s", hdr.Name, from)
+	if !strings.HasPrefix(filepath.ToSlash(hdr.Name), from) {
+		klog.V(5).Infof("Exclude %s due to missing prefix %s", filepath.ToSlash(hdr.Name), from)
 		return false
 	}
 	if len(hdr.Linkname) > 0 {
-		if strings.HasPrefix(hdr.Linkname, from) {
-			hdr.Linkname = strings.TrimPrefix(hdr.Linkname, from)
+		if strings.HasPrefix(filepath.ToSlash(hdr.Linkname), from) {
+			hdr.Linkname = filepath.FromSlash(strings.TrimPrefix(filepath.ToSlash(hdr.Linkname), from))
 			klog.V(5).Infof("Updated link to %s", hdr.Linkname)
 		} else {
 			klog.V(4).Infof("Name %s won't correctly point to %s outside of %s", hdr.Name, hdr.Linkname, from)
 		}
 	}
-	hdr.Name = strings.TrimPrefix(hdr.Name, from)
+	hdr.Name = filepath.FromSlash(strings.TrimPrefix(filepath.ToSlash(hdr.Name), from))
 	klog.V(5).Infof("Updated name %s", hdr.Name)
 	return true
 }
