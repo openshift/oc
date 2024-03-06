@@ -11,14 +11,16 @@ import (
 type scopeType string
 
 const (
-	scopeControlPlane scopeType = "ControlPlane"
-	scopeWorkerPool   scopeType = "WorkerPool"
+	scopeTypeControlPlane scopeType = "ControlPlane"
+	scopeTypeWorkerPool   scopeType = "WorkerPool"
 )
 
 type allowedScopeKind string
 
 const (
-	clusterOperator allowedScopeKind = "ClusterOperator"
+	scopeKindClusterOperator   allowedScopeKind = "ClusterOperator"
+	scopeKindNode              allowedScopeKind = "Node"
+	scopeKindMachineConfigPool allowedScopeKind = "MachineConfigPool"
 )
 
 type scopeResource struct {
@@ -144,12 +146,21 @@ func shortDuration(d time.Duration) string {
 	return orig
 }
 
+func stringSince(health *updateHealthData, insight updateInsight) string {
+	if insight.startedAt.IsZero() {
+		// On client it is not possible to calculate the precise time of all insights
+		// On server side we can backfill with firstObserved
+		return "-"
+	}
+	return shortDuration(health.evaluatedAt.Sub(insight.startedAt).Truncate(time.Second))
+}
+
 func (i *updateHealthData) Write(w io.Writer) error {
 	_, _ = w.Write([]byte("= Update Health =\n"))
 	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	_, _ = tabw.Write([]byte("SINCE\tLEVEL\tIMPACT\tMESSAGE\n"))
 	for _, insight := range i.insights {
-		_, _ = tabw.Write([]byte(shortDuration(i.evaluatedAt.Sub(insight.startedAt).Truncate(time.Second)) + "\t"))
+		_, _ = tabw.Write([]byte(stringSince(i, insight) + "\t"))
 		_, _ = tabw.Write([]byte(insight.impact.level.String() + "\t"))
 		_, _ = tabw.Write([]byte(insight.impact.impactType + "\t"))
 		_, _ = tabw.Write([]byte(insight.impact.summary + "\n"))

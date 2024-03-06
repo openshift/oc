@@ -1,0 +1,48 @@
+An update is in progress for 4h3m46s: Error while reconciling 4.16.0-ec.3: the cluster operator machine-config is degraded
+
+Failing=True:
+
+  Reason: ClusterOperatorDegraded
+  Message: Cluster operator machine-config is degraded
+
+
+= Control Plane =
+Assessment:      Completed
+Completion:      100%
+Duration:        3h30m31s
+Operator Status: 36 Total, 36 Available, 0 Progressing, 1 Degraded
+
+= Worker Upgrade =
+
+= Worker Pool =
+Worker Pool:     worker
+Assessment:      Degraded
+Completion:      39%
+Worker Status:   59 Total, 46 Available, 5 Progressing, 36 Outdated, 12 Draining, 0 Excluded, 7 Degraded
+
+Worker Pool Node(s)
+NAME                                      ASSESSMENT    PHASE      VERSION       EST    MESSAGE
+build0-gstfj-ci-prowjobs-worker-b-9lztv   Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-9lztv after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-b-bg9f5   Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-bg9f5 after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-b-mrxwn   Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-mrxwn after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-4h7pn      Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-b-4h7pn after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-jv5bg      Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-b-jv5bg after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-kj6gk      Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-b-kj6gk after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-c-dcz9p      Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-c-dcz9p after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-c-jq5rk      Unavailable   Updated    4.16.0-ec.3   -      Node is unavailable
+build0-gstfj-ci-tests-worker-c-2kz4m      Progressing   Draining   4.16.0-ec.2   +30m   
+build0-gstfj-ci-tests-worker-c-55hpj      Progressing   Draining   4.16.0-ec.2   +30m   
+...
+Omitted additional 49 Total, 22 Completed, 46 Available, 3 Progressing, 27 Outdated, 3 Draining, 0 Excluded, and 0 Degraded nodes.
+Pass along --details to see all information.
+
+= Update Health =
+SINCE   LEVEL     IMPACT           MESSAGE
+-       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-9lztv is degraded | failed to drain node: build0-gstfj-ci-prowjobs-worker-b-9lztv after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-bg9f5 is degraded | failed to drain node: build0-gstfj-ci-prowjobs-worker-b-bg9f5 after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-mrxwn is degraded | failed to drain node: build0-gstfj-ci-prowjobs-worker-b-mrxwn after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-4h7pn is degraded | failed to drain node: build0-gstfj-ci-tests-worker-b-4h7pn after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded | failed to drain node: build0-gstfj-ci-tests-worker-b-jv5bg after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded | failed to drain node: build0-gstfj-ci-tests-worker-b-kj6gk after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded | failed to drain node: build0-gstfj-ci-tests-worker-c-dcz9p after 1 hour. Please see machine-config-controller logs for more information
+-       Warning   Update Speed     Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable | Node is unavailable
