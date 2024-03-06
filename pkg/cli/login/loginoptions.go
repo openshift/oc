@@ -5,12 +5,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -32,7 +30,6 @@ import (
 	kterm "k8s.io/kubectl/pkg/util/term"
 
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
-	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
 	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
 	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
 
@@ -87,6 +84,7 @@ type LoginOptions struct {
 	OIDCClientID       string
 	OIDCClientSecret   string
 	OIDCExtraScopes    []string
+	OIDCIssuerURL      string
 
 	Token string
 
@@ -336,17 +334,12 @@ func (o *LoginOptions) gatherAuthInfo() error {
 // prepareBuiltinExecPlugin sets up the ExecConfig correctly
 // with the given values
 func (o *LoginOptions) prepareBuiltinExecPlugin() (*kclientcmdapi.ExecConfig, error) {
-	issuerUrl, err := o.extractIssuerURLForOIDC()
-	if err != nil {
-		return nil, err
-	}
-
 	execProvider := &kclientcmdapi.ExecConfig{
 		APIVersion: clientauthentication.GroupName + "/v1",
 		Command:    "oc",
 		Args: []string{
 			"get-token",
-			fmt.Sprintf("--issuer-url=%s", issuerUrl),
+			fmt.Sprintf("--issuer-url=%s", o.OIDCIssuerURL),
 			fmt.Sprintf("--client-id=%s", o.OIDCClientID),
 			fmt.Sprintf("--callback-address=127.0.0.1:%d", o.CallbackPort),
 		},
@@ -571,38 +564,6 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 	}
 
 	return created, nil
-}
-
-func (o *LoginOptions) extractIssuerURLForOIDC() (string, error) {
-	rt, err := restclient.TransportFor(o.Config)
-	if err != nil {
-		return "", err
-	}
-
-	requestURL := strings.TrimRight(o.Config.Host, "/") + "/.well-known/oauth-authorization-server"
-
-	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("X-CSRF-Token", "1")
-
-	resp, err := rt.RoundTrip(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("couldn't get %v: unexpected response status %v", requestURL, resp.StatusCode)
-	}
-
-	metadata := &oauthdiscovery.OauthAuthorizationServerMetadata{}
-	if err := json.NewDecoder(resp.Body).Decode(metadata); err != nil {
-		return "", err
-	}
-
-	return metadata.Issuer, nil
 }
 
 func (o *LoginOptions) usernameProvided() bool {

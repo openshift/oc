@@ -97,6 +97,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().StringVar(&o.OIDCClientID, "client-id", o.OIDCClientID, "Experimental: Client ID for external OIDC issuer. Only supports Auth Code + PKCE. Required.")
 	cmds.Flags().StringVar(&o.OIDCClientSecret, "client-secret", o.OIDCClientSecret, "Experimental: Client secret for external OIDC issuer. Optional.")
 	cmds.Flags().StringSliceVar(&o.OIDCExtraScopes, "extra-scopes", o.OIDCExtraScopes, "Experimental: Extra scopes for external OIDC issuer. Optional.")
+	cmds.Flags().StringVar(&o.OIDCIssuerURL, "issuer-url", o.OIDCIssuerURL, "Experimental: Issuer url for external issuer. Required.")
 	return cmds
 }
 
@@ -186,15 +187,31 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 	}
 
 	if o.OIDCExecPluginType != "" && o.OIDCExecPluginType != string(OCOIDC) {
-		return errors.New("currently only oc is supported")
+		return errors.New("currently only oc-oidc is supported")
 	}
 
-	if o.OIDCExecPluginType == "" && (o.OIDCClientID != "" || o.OIDCClientSecret != "" || len(o.OIDCExtraScopes) > 0) {
+	oidcOptionsSet := o.OIDCClientID != "" || o.OIDCClientSecret != "" || len(o.OIDCExtraScopes) > 0 || o.OIDCIssuerURL != ""
+
+	if o.OIDCExecPluginType == "" && oidcOptionsSet {
 		return errors.New("please specify --exec-plugin type. Currently only oc-oidc is supported")
 	}
 
 	if o.OIDCExecPluginType != "" && (o.WebLogin || o.Username != "" || o.Password != "" || o.Token != "") {
 		return errors.New("--exec-plugin cannot be used along with --web, --username, --password or --token")
+	}
+
+	if o.OIDCExecPluginType == string(OCOIDC) && (o.OIDCIssuerURL == "" || o.OIDCClientID == "") {
+		return fmt.Errorf("--issuer-url and --client-id are required fields for oc-oidc type")
+	}
+
+	if o.OIDCIssuerURL != "" {
+		issuer, err := url.Parse(o.OIDCIssuerURL)
+		if err != nil {
+			return fmt.Errorf("invalid --issuer-url %s err: %w", o.OIDCIssuerURL, err)
+		}
+		if issuer.Scheme != "https" {
+			return fmt.Errorf("only supported scheme for --issuer-url is HTTPS")
+		}
 	}
 
 	if o.CallbackPort != 0 && !o.WebLogin && o.OIDCExecPluginType == "" {
