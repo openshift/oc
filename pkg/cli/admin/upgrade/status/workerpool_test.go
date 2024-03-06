@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/google/go-cmp/cmp"
 	configv1 "github.com/openshift/api/config/v1"
 	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
-	mcfgcommon "github.com/openshift/machine-config-operator/pkg/controller/common"
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/status/mco"
 )
 
 var allowUnexportedWorkerPools = cmp.AllowUnexported(nodeDisplayData{}, nodesOverviewDisplayData{}, poolDisplayData{})
@@ -65,7 +66,7 @@ func mc(name string) *mcBuilder {
 
 func (mc *mcBuilder) version(version string) *mcBuilder {
 	mc.machineConfig.Annotations = map[string]string{
-		mcfgcommon.ReleaseImageVersionAnnotationKey: version,
+		mco.ReleaseImageVersionAnnotationKey: version,
 	}
 	return mc
 }

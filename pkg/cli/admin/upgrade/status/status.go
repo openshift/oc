@@ -19,7 +19,7 @@ import (
 	machineconfigv1 "github.com/openshift/api/machineconfiguration/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	machineconfigv1client "github.com/openshift/client-go/machineconfiguration/clientset/versioned"
-	machineconfigconst "github.com/openshift/machine-config-operator/pkg/daemon/constants"
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/status/mco"
 )
 
 const (
@@ -174,7 +174,7 @@ func (o *options) Run(ctx context.Context) error {
 	if machineConfigs = o.mockData.machineConfigs; machineConfigs == nil {
 		machineConfigs = &machineconfigv1.MachineConfigList{}
 		for _, node := range allNodes.Items {
-			for _, key := range []string{machineconfigconst.CurrentMachineConfigAnnotationKey, machineconfigconst.DesiredMachineConfigAnnotationKey} {
+			for _, key := range []string{mco.CurrentMachineConfigAnnotationKey, mco.DesiredMachineConfigAnnotationKey} {
 				mc, err := getMachineConfig(ctx, o.MachineConfigClient, machineConfigs.Items, node.Annotations[key])
 				if err != nil {
 					return err
