@@ -26,6 +26,7 @@ RUN INSTALL_PKGS="\
   procps-ng \
   psmisc \
   perf \
+  sos \
   strace \
   sysstat \
   tcpdump \
