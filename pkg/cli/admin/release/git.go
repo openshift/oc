@@ -68,7 +68,7 @@ func (g *git) ChangeContext(path string) (*git, error) {
 }
 
 func (g *git) Clone(repository string, out, errOut io.Writer) error {
-	cmd := exec.Command("git", "clone", repository, g.path)
+	cmd := exec.Command("git", "clone", "--filter=blob:none", "--bare", repository, g.path)
 	cmd.Stdout = out
 	cmd.Stderr = errOut
 	return cmd.Run()
