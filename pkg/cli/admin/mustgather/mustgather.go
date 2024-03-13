@@ -191,6 +191,13 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	if len(o.DestDir) == 0 {
 		o.DestDir = fmt.Sprintf("must-gather.local.%06d", rand.Int63())
 	}
+	if strings.HasPrefix(o.DestDir, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		o.DestDir = strings.Replace(o.DestDir, "~", homeDir, 1)
+	}
 	// TODO: this should be in Validate() method, but added here because of the call to o.completeImages() below
 	if o.AllImages {
 		errStr := fmt.Sprintf("and --all-images are mutually exclusive: please specify one or the other")
