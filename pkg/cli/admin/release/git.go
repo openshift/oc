@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"os/exec"
@@ -97,7 +98,13 @@ func (g *git) VerifyCommit(repo, commit string) (bool, error) {
 	return err == nil, nil
 }
 
-func (g *git) CheckoutCommit(repo, commit string) error {
+func (g *git) CheckoutCommit(repo, commit string, out, errOut io.Writer) error {
+	// to reduce size requirements, clones are normally bare; to checkout a git commit, we must convert it to a normal
+	// git directory
+	if err := g.ensureFullClone(out, errOut); err != nil {
+		return err
+	}
+
 	_, err := g.exec("checkout", commit)
 	if err == nil {
 		return nil
@@ -114,6 +121,46 @@ func (g *git) CheckoutCommit(repo, commit string) error {
 	}
 
 	return fmt.Errorf("could not locate commit %s", commit)
+}
+
+func (g *git) ensureFullClone(out, errOut io.Writer) error {
+	isBare, err := g.exec("config", "core.bare")
+	if err != nil {
+		return err
+	}
+	if isBare == "false\n" {
+		return nil
+	}
+	// move all files to a `.git` subdirectory
+	if err := os.Mkdir(filepath.Join(g.path, ".git"), 0755); err != nil {
+		return fmt.Errorf("Failed to create .git subdirectory: %v", err)
+	}
+	if err := filepath.WalkDir(g.path, func(path string, d fs.DirEntry, err error) error {
+		if path == g.path {
+			return nil
+		}
+		if d.Name() == ".git" {
+			return fs.SkipDir
+		}
+		if err := os.Rename(filepath.Join(path), filepath.Join(g.path, ".git", d.Name())); err != nil {
+			return fmt.Errorf("Failed to move bare git contents to .git subdirectory: %v", err)
+		}
+		if d.IsDir() {
+			return fs.SkipDir
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	if out, err := g.exec("config", "core.bare", "false"); err != nil {
+		return fmt.Errorf("Failed to mark git directory as not bare: %s", out)
+	}
+	out.Write([]byte(fmt.Sprintf("Converting %s to a non-bare git repo", g.path)))
+	cmd := exec.Command("git", "reset", "--hard")
+	cmd.Dir = g.path
+	cmd.Stdout = out
+	cmd.Stderr = errOut
+	return cmd.Run()
 }
 
 var reMatch = regexp.MustCompile(`^([a-zA-Z0-9\-\_]+)@([^:]+):(.+)$`)
