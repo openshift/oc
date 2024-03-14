@@ -68,7 +68,7 @@ func (g *git) ChangeContext(path string) (*git, error) {
 }
 
 func (g *git) Clone(repository string, out, errOut io.Writer) error {
-	cmd := exec.Command("git", "clone", "--filter=blob:none", "--bare", repository, g.path)
+	cmd := exec.Command("git", "clone", "--filter=blob:none", "--bare", "--origin="+remoteNameForRepo(repository), repository, g.path)
 	cmd.Stdout = out
 	cmd.Stderr = errOut
 	return cmd.Run()
@@ -303,7 +303,7 @@ func ensureCloneForRepo(dir string, repo string, alternateRepos []string, out, e
 			return nil, err
 		}
 	} else {
-		if err := ensureRemoteForRepo(extractedRepo, repo); err != nil {
+		if err := ensureFetchedRemoteForRepo(extractedRepo, repo); err != nil {
 			return nil, err
 		}
 	}
@@ -312,7 +312,7 @@ func ensureCloneForRepo(dir string, repo string, alternateRepos []string, out, e
 		if altRepo == repo {
 			continue
 		}
-		if err := ensureRemoteForRepo(extractedRepo, altRepo); err != nil {
+		if err := ensureFetchedRemoteForRepo(extractedRepo, altRepo); err != nil {
 			return nil, err
 		}
 	}
@@ -326,21 +326,16 @@ func remoteNameForRepo(repo string) string {
 	return repoName
 }
 
-func ensureRemoteForRepo(g *git, repo string) error {
-	repoName := remoteNameForRepo(repo)
-	if out, err := g.exec("remote", "add", repoName, repo); err != nil && !strings.Contains(out, "already exists") {
-		return gitOutputToError(err, out)
-	}
-	return nil
-}
-
 func ensureFetchedRemoteForRepo(g *git, repo string) error {
 	repoName := remoteNameForRepo(repo)
-	if out, err := g.exec("remote", "add", repoName, repo); err != nil && !strings.Contains(out, "already exists") {
-		return gitOutputToError(err, out)
-	}
-	if out, err := g.exec("fetch", repoName); err != nil {
-		return gitOutputToError(err, out)
+	remoteOut, err := g.exec("remote", "add", repoName, repo)
+	if !strings.Contains(remoteOut, "already exists") {
+		if err != nil {
+			return gitOutputToError(err, remoteOut)
+		}
+		if out, err := g.exec("fetch", "--filter=blob:none", repoName); err != nil {
+			return gitOutputToError(err, out)
+		}
 	}
 	return nil
 }
