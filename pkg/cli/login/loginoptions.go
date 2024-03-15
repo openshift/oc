@@ -279,7 +279,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	}
 
 	if o.OIDCExecPluginType == string(OCOIDC) {
-		execProvider, err := o.prepareBuiltinExecPlugin()
+		execProvider, err := o.prepareBuiltinExecPlugin(clientConfig.CAFile)
 		if err != nil {
 			return err
 		}
@@ -333,7 +333,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 
 // prepareBuiltinExecPlugin sets up the ExecConfig correctly
 // with the given values
-func (o *LoginOptions) prepareBuiltinExecPlugin() (*kclientcmdapi.ExecConfig, error) {
+func (o *LoginOptions) prepareBuiltinExecPlugin(caFile string) (*kclientcmdapi.ExecConfig, error) {
 	execProvider := &kclientcmdapi.ExecConfig{
 		APIVersion: clientauthentication.GroupName + "/v1",
 		Command:    "oc",
@@ -359,8 +359,8 @@ func (o *LoginOptions) prepareBuiltinExecPlugin() (*kclientcmdapi.ExecConfig, er
 		execProvider.Args = append(execProvider.Args, "--insecure-skip-tls-verify")
 	}
 
-	if len(o.Config.CAFile) > 0 {
-		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.Config.CAFile))
+	if len(caFile) > 0 {
+		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--certificate-authority=%s", caFile))
 	}
 
 	return execProvider, nil
