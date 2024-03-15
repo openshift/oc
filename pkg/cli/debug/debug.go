@@ -179,6 +179,7 @@ type DebugOptions struct {
 	Image              string
 	ImageStream        string
 	ToNamespace        string
+	PriorityClass      string
 
 	// IsNode is set after we see the object we're debugging.  We use it to be able to print pertinent advice.
 	IsNode bool
@@ -261,6 +262,7 @@ func addDebugFlags(cmd *cobra.Command, o *DebugOptions) {
 	cmd.Flags().StringVar(&o.ImageStream, "image-stream", o.ImageStream, "Specify an image stream (namespace/name:tag) containing a debug image to run.")
 	cmd.Flags().StringVar(&o.ToNamespace, "to-namespace", o.ToNamespace, "Override the namespace to create the pod into (instead of using --namespace).")
 	cmd.Flags().BoolVar(&o.PreservePod, "preserve-pod", o.PreservePod, "If true, the pod will not be deleted after the debug command exits.")
+	cmd.Flags().StringVar(&o.PriorityClass, "priorityclass", o.PriorityClass, "specify priorityclass for the debug pod.")
 
 	o.PrintFlags.AddFlags(cmd)
 	kcmdutil.AddDryRunFlag(cmd)
@@ -1044,6 +1046,10 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 			klog.V(2).Infof("Falling to 'registry.redhat.io/rhel8/support-tools' image")
 			image = "registry.redhat.io/rhel8/support-tools"
 		}
+		priorityclass := o.PriorityClass
+                if len(priorityclass) == 0 {
+                        o.PriorityClass = "openshift-user-critical"
+                }
 		zero := int64(0)
 		isTrue := true
 		hostPathType := corev1.HostPathDirectory
@@ -1064,7 +1070,7 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 						},
 					},
 				},
-				PriorityClassName: "openshift-user-critical",
+				PriorityClassName: o.PriorityClass,
 				RestartPolicy:     corev1.RestartPolicyNever,
 				Containers: []corev1.Container{
 					{
