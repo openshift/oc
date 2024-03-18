@@ -134,6 +134,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().MarkHidden("keep")
 	cmd.Flags().StringVar(&o.SinceTime, "since-time", o.SinceTime, "Experimental: only return logs after a specific date (RFC3339). Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used.")
 	cmd.Flags().DurationVar(&o.Since, "since", o.Since, "Experimental: only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used.")
+	cmd.Flags().StringVar(&o.PullPolicy, "pull", o.PullPolicy, "Specify a must-gather container's image pull policy (Never, IfNotPresent and Always). If not specified, IfNotPresent will be used.")
 
 	return cmd
 }
@@ -241,6 +242,20 @@ func (o *MustGatherOptions) completeImages() error {
 			image = "registry.redhat.io/openshift4/ose-must-gather:latest"
 		}
 		o.Images = append(o.Images, image)
+	}
+	if len(o.PullPolicy) != 0 {
+	    switch o.PullPolicy {
+            case "Always", "always":
+	        o.ImagePullPolicy = corev1.PullAlways
+            case "Never", "never":
+	        o.ImagePullPolicy = corev1.PullNever
+            case "IfNotPresent", "ifnotpresent":
+	        o.ImagePullPolicy = corev1.PullIfNotPresent
+            default:
+		return fmt.Errorf("unknown --pull option: %v", o.PullPolicy)
+            }
+	} else {
+	        o.ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if o.AllImages {
 		// find all csvs and clusteroperators with the annotation "operators.openshift.io/must-gather-image"
@@ -366,6 +381,8 @@ type MustGatherOptions struct {
 
 	LogWriter    *os.File
 	LogWriterMux sync.Mutex
+	PullPolicy  string
+	ImagePullPolicy  corev1.PullPolicy
 }
 
 func (o *MustGatherOptions) Validate() error {
@@ -496,7 +513,7 @@ func (o *MustGatherOptions) Run() error {
 				return err
 			}
 			for _, node := range nodes.Items {
-				pods = append(pods, o.newPod(node.Name, image, hasMaster))
+				pods = append(pods, o.newPod(node.Name, image, o.ImagePullPolicy, hasMaster))
 			}
 		} else {
 			if o.NodeName != "" {
@@ -506,7 +523,7 @@ func (o *MustGatherOptions) Run() error {
 					return err
 				}
 			}
-			pods = append(pods, o.newPod(o.NodeName, image, hasMaster))
+			pods = append(pods, o.newPod(o.NodeName, image, o.ImagePullPolicy, hasMaster))
 		}
 	}
 
@@ -919,7 +936,7 @@ func newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
 // newPod creates a pod with 2 containers with a shared volume mount:
 // - gather: init containers that run gather command
 // - copy: no-op container we can exec into
-func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.Pod {
+func (o *MustGatherOptions) newPod(node, image string, imagePullPolicy corev1.PullPolicy, hasMaster bool) *corev1.Pod {
 	zero := int64(0)
 
 	nodeSelector := map[string]string{
@@ -963,7 +980,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 				{
 					Name:            gatherContainerName,
 					Image:           image,
-					ImagePullPolicy: corev1.PullIfNotPresent,
+					ImagePullPolicy: imagePullPolicy,
 					// always force disk flush to ensure that all data gathered is accessible in the copy container
 					Command: []string{"/bin/bash", "-c", fmt.Sprintf("%s & %s; sync", volumeUsageChecker, executedCommand)},
 					Env: []corev1.EnvVar{
@@ -996,7 +1013,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 				{
 					Name:                     "copy",
 					Image:                    image,
-					ImagePullPolicy:          corev1.PullIfNotPresent,
+					ImagePullPolicy:          imagePullPolicy,
 					Command:                  []string{"/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait"},
 					TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 					VolumeMounts: []corev1.VolumeMount{
