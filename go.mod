@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go v1.45.20
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/containers/image/v5 v5.29.0
-	github.com/coreos/go-oidc/v3 v3.9.0
+	github.com/coreos/go-oidc/v3 v3.10.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/distribution/distribution/v3 v3.0.0-20230519140516-983358f8e250
 	github.com/docker/docker v24.0.7+incompatible
@@ -44,11 +44,11 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/vincent-petithory/dataurl v1.0.0
-	golang.org/x/crypto v0.18.0
+	golang.org/x/crypto v0.19.0
 	golang.org/x/net v0.20.0
 	golang.org/x/oauth2 v0.16.0
 	golang.org/x/sync v0.5.0
-	golang.org/x/sys v0.16.0
+	golang.org/x/sys v0.17.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.29.1
 	k8s.io/apiextensions-apiserver v0.29.1
@@ -94,7 +94,7 @@ require (
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.5.0 // indirect
 	github.com/go-git/go-git/v5 v5.11.0 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
 	github.com/go-openapi/errors v0.20.4 // indirect
@@ -181,7 +181,7 @@ require (
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/term v0.16.0 // indirect
+	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
