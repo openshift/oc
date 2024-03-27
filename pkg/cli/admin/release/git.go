@@ -69,10 +69,30 @@ func (g *git) ChangeContext(path string) (*git, error) {
 }
 
 func (g *git) Clone(repository string, out, errOut io.Writer) error {
-	cmd := exec.Command("git", "clone", "--filter=blob:none", "--bare", "--origin="+remoteNameForRepo(repository), repository, g.path)
+	// The version of git in RHEL/CentOS 8 does not support `--bare` and `--origin` to both
+	// be set during a clone. When the cli images are moved to RHEL/CentOS 9, the `--origin`
+	// flag can be added here to remove the extra renaming complexity below
+	cmd := exec.Command("git", "clone", "--filter=blob:none", "--bare", repository, g.path)
 	cmd.Stdout = out
 	cmd.Stderr = errOut
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	// The version of git in RHEL/CentOS 8 has a bug with the `remote rename` command that
+	// result in an exit status of 128 with the message `could not unset 'remote.up-XXX.fetch'`
+	// Manually removing origin and adding the hashed remote name avoids this issue.
+	cmdRename := exec.Command("git", "remote", "remove", "origin")
+	cmdRename.Dir = g.path
+	cmdRename.Stdout = out
+	cmdRename.Stderr = errOut
+	if err := cmdRename.Run(); err != nil {
+		return err
+	}
+	cmdAdd := exec.Command("git", "remote", "add", remoteNameForRepo(repository), repository)
+	cmdAdd.Dir = g.path
+	cmdAdd.Stdout = out
+	cmdAdd.Stderr = errOut
+	return cmdAdd.Run()
 }
 
 func (g *git) parent() *git {
