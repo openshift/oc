@@ -183,3 +183,19 @@ func CombineCABundleOnDiskLocations(in *certgraphapi.CertificateAuthorityBundle,
 
 	return out
 }
+
+func deduplicateOnDiskMetadata(in certgraphapi.PerOnDiskResourceData) certgraphapi.PerOnDiskResourceData {
+	out := certgraphapi.PerOnDiskResourceData{}
+	for _, curr := range in.TLSArtifact {
+		found := false
+		for _, existing := range out.TLSArtifact {
+			if existing.Path == curr.Path {
+				found = true
+			}
+		}
+		if !found {
+			out.TLSArtifact = append(out.TLSArtifact, curr)
+		}
+	}
+	return out
+}
