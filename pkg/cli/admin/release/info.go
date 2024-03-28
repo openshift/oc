@@ -42,6 +42,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	imageapi "github.com/openshift/api/image/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
+	"github.com/openshift/library-go/pkg/features"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/image/extract"
@@ -1185,65 +1186,81 @@ func describeReleaseDiff(out io.Writer, diff *ReleaseDiff, showCommit bool, outp
 		})
 	}
 
-	printFeatureSetSection(diff, "Default", w)
-	printFeatureSetSection(diff, string(configv1.TechPreviewNoUpgrade), w)
+	printFeatureSetSection(diff, w)
 
 	fmt.Fprintln(w)
 	return nil
 }
 
-func printFeatureSetSection(diff *ReleaseDiff, featureSetName string, w io.Writer) {
-	newFeatures, newlyEnabledFeatures, newlyDisabledFeatures, newlyRemovedFeatures, changed := FeatureGatesForFeatureSetChanged(diff, featureSetName)
-	if newFeatures == nil || !changed {
+func printFeatureSetSection(diff *ReleaseDiff, w io.Writer) {
+	featureSetDiff, err := calculateFeatureSetDiff(diff)
+	if err != nil {
+		fmt.Fprintf(w, "error reading .From release feature info: %v", err)
 		return
 	}
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "FeatureGate changes for %q (%d enabled, %d disabled, %d removed)\n",
-		featureSetName, len(newlyEnabledFeatures), len(newlyDisabledFeatures), len(newlyRemovedFeatures))
-	if len(newlyEnabledFeatures) > 0 {
-		fmt.Fprintf(w, "Enabled:\n")
-		for _, featureGate := range newFeatures.Status.FeatureGates[0].Enabled {
-			if newlyEnabledFeatures.Has(featureGate.Name) {
-				fmt.Fprintf(w, "  %v\n", featureGate.Name)
-			}
+
+	if false {
+		// TODO if we have a use for this on the CLI, then we can try to produce an ascii table
+		// for now, this does nothing and we'll only render it for mardown.
+		content, err := produceDiffMarkdown(featureSetDiff)
+		if err != nil {
+			fmt.Fprintf(w, "error producing diff: %v", err)
+			return
 		}
-	}
-	if len(newlyDisabledFeatures) > 0 {
-		fmt.Fprintf(w, "Disabled:\n")
-		for _, featureGate := range newFeatures.Status.FeatureGates[0].Disabled {
-			if newlyDisabledFeatures.Has(featureGate.Name) {
-				fmt.Fprintf(w, "  %v\n", featureGate.Name)
-			}
-		}
-	}
-	if len(newlyRemovedFeatures) > 0 {
-		fmt.Fprintf(w, "Removed:\n")
-		for _, featureGate := range sets.List[string](newlyRemovedFeatures) {
-			fmt.Fprintf(w, "  %v\n", featureGate)
-		}
+		w.Write(content)
+		fmt.Fprintln(w)
+		fmt.Fprintln(w)
 	}
 }
 
-func markdownFeatureSetSection(diff *ReleaseDiff, featureSetName string, w io.Writer) {
-	newFeatures, newlyEnabledFeatures, newlyDisabledFeatures, newlyRemovedFeatures, changed := FeatureGatesForFeatureSetChanged(diff, featureSetName)
-	if newFeatures == nil || !changed {
+func calculateFeatureSetDiff(diff *ReleaseDiff) (*features.ReleaseFeatureDiffInfo, error) {
+	toFiles := features.FilenameToContent{}
+	for filename, featureGateBytes := range diff.To.ManifestFiles {
+		if !strings.Contains(filename, "featureGate-") {
+			continue
+		}
+		toFiles[filename] = featureGateBytes
+	}
+	fromFiles := features.FilenameToContent{}
+	for filename, featureGateBytes := range diff.From.ManifestFiles {
+		if !strings.Contains(filename, "featureGate-") {
+			continue
+		}
+		fromFiles[filename] = featureGateBytes
+	}
+
+	toReleaseFeatureInfo, err := features.ReadReleaseFeatureInfo(context.TODO(), toFiles)
+	if err != nil {
+		return nil, fmt.Errorf("error reading .To release feature info: %v", err)
+	}
+	fromReleaseFeatureInfo, err := features.ReadReleaseFeatureInfo(context.TODO(), fromFiles)
+	if err != nil {
+		return nil, fmt.Errorf("error reading .From release feature info: %v", err)
+	}
+
+	return toReleaseFeatureInfo.CalculateDiff(context.TODO(), fromReleaseFeatureInfo), nil
+}
+
+func markdownFeatureSetSection(diff *ReleaseDiff, w io.Writer) {
+	featureSetDiff, err := calculateFeatureSetDiff(diff)
+	if err != nil {
+		fmt.Fprintf(w, "error reading .From release feature info: %v", err)
 		return
 	}
+
+	if len(featureSetDiff.GetOrderedFeatureGates()) == 0 {
+		return
+	}
+
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "### New %v FeatureGates\n", featureSetName)
-	for _, featureGate := range newFeatures.Status.FeatureGates[0].Enabled {
-		if newlyEnabledFeatures.Has(featureGate.Name) {
-			fmt.Fprintf(w, "* Enabled %v\n", featureGate.Name)
-		}
+	fmt.Fprintln(w, "### FeatureGate Changes")
+
+	content, err := produceDiffMarkdown(featureSetDiff)
+	if err != nil {
+		fmt.Fprintf(w, "error producing diff: %v", err)
+		return
 	}
-	for _, featureGate := range newFeatures.Status.FeatureGates[0].Disabled {
-		if newlyDisabledFeatures.Has(featureGate.Name) {
-			fmt.Fprintf(w, "* Disabled %v\n", featureGate.Name)
-		}
-	}
-	for _, featureGate := range sets.List[string](newlyRemovedFeatures) {
-		fmt.Fprintf(w, "* Hardcoded (state unknown) %v\n", featureGate)
-	}
+	w.Write(content)
 	fmt.Fprintln(w)
 	fmt.Fprintln(w)
 }
@@ -1778,8 +1795,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 			fmt.Fprintln(out)
 		}
 
-		markdownFeatureSetSection(diff, "Default", out)
-		markdownFeatureSetSection(diff, string(configv1.TechPreviewNoUpgrade), out)
+		markdownFeatureSetSection(diff, out)
 
 		if len(added) > 0 {
 			fmt.Fprintf(out, "### New images\n\n")

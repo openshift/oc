@@ -29,7 +29,7 @@ import (
 // in this package uses the container signature format defined at https://github.com/containers/image
 // to authenticate that a given release image digest has been signed by a trusted party.
 type Interface interface {
-	// Verify should return nil if the provided release digest has suffient signatures to be considered
+	// Verify should return nil if the provided release digest has sufficient signatures to be considered
 	// valid. It should return an error in all other cases.
 	Verify(ctx context.Context, releaseDigest string) error
 

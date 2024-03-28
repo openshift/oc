@@ -36,7 +36,7 @@ require (
 	github.com/openshift/api v0.0.0-20240116232628-6d48d55c0598
 	github.com/openshift/build-machinery-go v0.0.0-20231128094528-1e9b1b0595c8
 	github.com/openshift/client-go v0.0.0-20240115204758-e6bf7d631d5e
-	github.com/openshift/library-go v0.0.0-20240116081341-964bcb3f545c
+	github.com/openshift/library-go v0.0.0-20240328145150-f840ed4b8db3
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.17.0
@@ -157,6 +157,7 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/opencontainers/runc v1.1.10 // indirect
 	github.com/opencontainers/runtime-spec v1.1.0 // indirect
+	github.com/opencontainers/selinux v1.11.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/profile v1.3.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
