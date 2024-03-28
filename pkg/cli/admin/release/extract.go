@@ -636,7 +636,7 @@ func (o *ExtractOptions) extractGit(dir string) error {
 				case "":
 					klog.V(2).Infof("Checkout %s from %s ...", commit, repo)
 					buf.Reset()
-					if err := extractedRepo.CheckoutCommit(repo, commit, buf, buf); err != nil {
+					if err := extractedRepo.CheckoutCommit(repo, commit); err != nil {
 						once.Do(func() { hadErrors = true })
 						fmt.Fprintf(o.ErrOut, "error: checking out commit for %s: %v\n%s\n", repo, err, buf.String())
 						return
