@@ -16,7 +16,7 @@ or problems you encounter, ask questions on the OpenShift IRC channel
 and [kubernetes project](https://github.com/kubernetes/kubernetes) at the container
 runtime layer.
 
-## Building
+## Building 
 
 To build oc invoke `make oc`. At any time you can invoke `make help` and you'll
 get a list of all supported make sub-commands.
