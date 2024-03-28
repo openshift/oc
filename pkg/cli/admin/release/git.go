@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net/url"
 	"os"
 	"os/exec"
@@ -69,7 +68,7 @@ func (g *git) ChangeContext(path string) (*git, error) {
 }
 
 func (g *git) Clone(repository string, out, errOut io.Writer) error {
-	cmd := exec.Command("git", "clone", "--filter=blob:none", "--bare", "--origin="+remoteNameForRepo(repository), repository, g.path)
+	cmd := exec.Command("git", "clone", repository, g.path)
 	cmd.Stdout = out
 	cmd.Stderr = errOut
 	return cmd.Run()
@@ -98,13 +97,7 @@ func (g *git) VerifyCommit(repo, commit string) (bool, error) {
 	return err == nil, nil
 }
 
-func (g *git) CheckoutCommit(repo, commit string, out, errOut io.Writer) error {
-	// to reduce size requirements, clones are normally bare; to checkout a git commit, we must convert it to a normal
-	// git directory
-	if err := g.ensureFullClone(out, errOut); err != nil {
-		return err
-	}
-
+func (g *git) CheckoutCommit(repo, commit string) error {
 	_, err := g.exec("checkout", commit)
 	if err == nil {
 		return nil
@@ -121,46 +114,6 @@ func (g *git) CheckoutCommit(repo, commit string, out, errOut io.Writer) error {
 	}
 
 	return fmt.Errorf("could not locate commit %s", commit)
-}
-
-func (g *git) ensureFullClone(out, errOut io.Writer) error {
-	isBare, err := g.exec("config", "core.bare")
-	if err != nil {
-		return err
-	}
-	if isBare == "false\n" {
-		return nil
-	}
-	// move all files to a `.git` subdirectory
-	if err := os.Mkdir(filepath.Join(g.path, ".git"), 0755); err != nil {
-		return fmt.Errorf("Failed to create .git subdirectory: %v", err)
-	}
-	if err := filepath.WalkDir(g.path, func(path string, d fs.DirEntry, err error) error {
-		if path == g.path {
-			return nil
-		}
-		if d.Name() == ".git" {
-			return fs.SkipDir
-		}
-		if err := os.Rename(filepath.Join(path), filepath.Join(g.path, ".git", d.Name())); err != nil {
-			return fmt.Errorf("Failed to move bare git contents to .git subdirectory: %v", err)
-		}
-		if d.IsDir() {
-			return fs.SkipDir
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	if out, err := g.exec("config", "core.bare", "false"); err != nil {
-		return fmt.Errorf("Failed to mark git directory as not bare: %s", out)
-	}
-	out.Write([]byte(fmt.Sprintf("Converting %s to a non-bare git repo", g.path)))
-	cmd := exec.Command("git", "reset", "--hard")
-	cmd.Dir = g.path
-	cmd.Stdout = out
-	cmd.Stderr = errOut
-	return cmd.Run()
 }
 
 var reMatch = regexp.MustCompile(`^([a-zA-Z0-9\-\_]+)@([^:]+):(.+)$`)
@@ -350,7 +303,7 @@ func ensureCloneForRepo(dir string, repo string, alternateRepos []string, out, e
 			return nil, err
 		}
 	} else {
-		if err := ensureFetchedRemoteForRepo(extractedRepo, repo); err != nil {
+		if err := ensureRemoteForRepo(extractedRepo, repo); err != nil {
 			return nil, err
 		}
 	}
@@ -359,7 +312,7 @@ func ensureCloneForRepo(dir string, repo string, alternateRepos []string, out, e
 		if altRepo == repo {
 			continue
 		}
-		if err := ensureFetchedRemoteForRepo(extractedRepo, altRepo); err != nil {
+		if err := ensureRemoteForRepo(extractedRepo, altRepo); err != nil {
 			return nil, err
 		}
 	}
@@ -373,16 +326,21 @@ func remoteNameForRepo(repo string) string {
 	return repoName
 }
 
+func ensureRemoteForRepo(g *git, repo string) error {
+	repoName := remoteNameForRepo(repo)
+	if out, err := g.exec("remote", "add", repoName, repo); err != nil && !strings.Contains(out, "already exists") {
+		return gitOutputToError(err, out)
+	}
+	return nil
+}
+
 func ensureFetchedRemoteForRepo(g *git, repo string) error {
 	repoName := remoteNameForRepo(repo)
-	remoteOut, err := g.exec("remote", "add", repoName, repo)
-	if !strings.Contains(remoteOut, "already exists") {
-		if err != nil {
-			return gitOutputToError(err, remoteOut)
-		}
-		if out, err := g.exec("fetch", "--filter=blob:none", repoName); err != nil {
-			return gitOutputToError(err, out)
-		}
+	if out, err := g.exec("remote", "add", repoName, repo); err != nil && !strings.Contains(out, "already exists") {
+		return gitOutputToError(err, out)
+	}
+	if out, err := g.exec("fetch", repoName); err != nil {
+		return gitOutputToError(err, out)
 	}
 	return nil
 }
