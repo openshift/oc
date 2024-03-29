@@ -115,13 +115,21 @@ func (i *ReleaseFeatureInfo) CalculateDiff(ctx context.Context, from *ReleaseFea
 				toFeatureInfo := to.FeatureInfoFor(clusterProfile, featureSet)
 				switch {
 				case toFeatureInfo == nil && fromFeatureInfo != nil:
-					currDiffInfo.ChangedFeatureGates[featureGate] = "Not Available"
+					currDiffInfo.ChangedFeatureGates[featureGate] = "Not Available (Changed)"
 					continue
 				case toFeatureInfo == nil && fromFeatureInfo == nil:
-					currDiffInfo.ChangedFeatureGates[featureGate] = "Remaining Not Available"
+					currDiffInfo.ChangedFeatureGates[featureGate] = "Not Available"
 					continue
 				case toFeatureInfo != nil && fromFeatureInfo == nil:
-					currDiffInfo.ChangedFeatureGates[featureGate] = "None to Enabled"
+					toEnabled, toOk := toFeatureInfo.AllFeatureGates[featureGate]
+					switch {
+					case !toOk:
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditional (New)"
+					case toEnabled:
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Enabled (New)"
+					case !toEnabled:
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Disabled (New)"
+					}
 					continue
 				case toFeatureInfo != nil && fromFeatureInfo != nil:
 				}
@@ -132,31 +140,31 @@ func (i *ReleaseFeatureInfo) CalculateDiff(ctx context.Context, from *ReleaseFea
 				case toOk && !fromOk:
 					switch {
 					case toEnabled:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Adding as Enabled"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Enabled (New)"
 					case !toEnabled:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Adding as Disabled"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Disabled (New)"
 					}
 				case toOk && fromOk:
 					switch {
 					case toEnabled && !fromEnabled:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Disabled to Enabled"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Enabled (Changed)"
 					case toEnabled && fromEnabled:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Remaining Enabled"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Enabled"
 					case !toEnabled && fromEnabled:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Enabled to Disabled"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Disabled (Changed)"
 						changedFeatureGates.Insert(featureGate)
 					case !toEnabled && !fromEnabled:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Remaining Disabled"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Disabled"
 					}
 				case !toOk && fromOk:
 					switch {
 					case fromEnabled:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Enabled to Unconditional"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditional (Changed)"
 					case !fromEnabled:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Disabled to Unconditional"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditional (Changed)"
 					}
 				case !toOk && !fromOk:
-					currDiffInfo.ChangedFeatureGates[featureGate] = "Remaining Unconditional"
+					currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditional"
 				}
 			}
 			releaseFeatureDiffInfo.featureInfo[clusterProfile][featureSet] = currDiffInfo
