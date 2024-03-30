@@ -24,15 +24,15 @@ func produceDiffMarkdown(releaseFeatureDiffInfo *features.ReleaseFeatureDiffInfo
 				FeatureSet:     featureSet,
 			})
 			md.NextTableColumn()
-			md.Exact(fmt.Sprintf("%v on %v ", featureSet, clusterProfile))
+			md.Exact(fmt.Sprintf("%v<br/>%v ", featureSet, clusterProfile))
 		}
 	}
 	md.EndTableRow()
 	md.NextTableColumn()
-	md.Exact("------ ")
+	md.Exact(":------ ")
 	for i := 0; i < len(cols); i++ {
 		md.NextTableColumn()
-		md.Exact("--- ")
+		md.Exact(":---: ")
 	}
 	md.EndTableRow()
 
@@ -43,21 +43,11 @@ func produceDiffMarkdown(releaseFeatureDiffInfo *features.ReleaseFeatureDiffInfo
 		for _, col := range cols {
 			change := releaseFeatureDiffInfo.FeatureInfoFor(col.ClusterProfile, col.FeatureSet).ChangedFeatureGates[featureGate]
 			md.NextTableColumn()
-			switch {
-			case strings.Contains(change, "to Enabled"):
-				md.Exact(fmt.Sprintf("<span style=\"background-color: #519450\">%s</span> ", change))
-			case strings.Contains(change, "as Enabled"):
-				md.Exact(fmt.Sprintf("<span style=\"background-color: #519450\">%s</span> ", change))
-			case strings.Contains(change, "Enabled to Disabled"):
-				md.Exact(fmt.Sprintf("<span style=\"background-color: #a63030\">%s</span> ", change))
-			case strings.Contains(change, "as Disabled"):
-				md.Exact(change)
-			case strings.Contains(change, "to Unconditional"):
-				md.Exact(fmt.Sprintf("<span style=\"background-color: #519450\">%s</span> ", change))
-			case strings.Contains(change, "Not Available"):
-				md.Exact(fmt.Sprintf("<span style=\"background-color: #a63030\">%s</span> ", change))
-			default:
-				md.Exact(change)
+
+			if change == "Disabled (New)" {
+				md.Exact(" ")
+			} else {
+				md.Exact(strings.ReplaceAll(change, " (", "<br/>("))
 			}
 		}
 		md.EndTableRow()

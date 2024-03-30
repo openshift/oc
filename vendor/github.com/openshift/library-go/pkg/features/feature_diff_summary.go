@@ -74,10 +74,24 @@ func (i *ReleaseFeatureDiffInfo) GetOrderedFeatureGates() []string {
 			if strings.HasSuffix(changedFeatureGate, "Unconditional") {
 				counts[featureGate] = counts[featureGate] - 100
 			}
-			if strings.HasSuffix(changedFeatureGate, "Enabled") {
+			if strings.HasSuffix(changedFeatureGate, "(Changed)") {
+				switch curr.FeatureSet {
+				case "Default":
+					counts[featureGate] = counts[featureGate] - 100
+				}
+				counts[featureGate] = counts[featureGate] - 10
+			}
+			if strings.HasSuffix(changedFeatureGate, "Enabled (New)") {
 				switch curr.FeatureSet {
 				case "Default":
 					counts[featureGate] = counts[featureGate] - 10
+				}
+				counts[featureGate] = counts[featureGate] - 1
+			}
+			if strings.HasSuffix(changedFeatureGate, "Disabled (New)") {
+				switch curr.FeatureSet {
+				case "Default":
+					counts[featureGate] = counts[featureGate] - 1
 				}
 				counts[featureGate] = counts[featureGate] - 1
 			}
