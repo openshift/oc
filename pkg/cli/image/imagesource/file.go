@@ -101,7 +101,7 @@ func (s *fileTagStore) Get(ctx context.Context, tag string) (distribution.Descri
 		return distribution.Descriptor{}, err
 	}
 	return distribution.Descriptor{
-		Digest: godigest.Digest(filepath.Base(target)),
+		Digest: godigest.Digest(reconstructDigest(filepath.Base(target))),
 		Size:   fi.Size(),
 	}, nil
 }
