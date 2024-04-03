@@ -1,4 +1,12 @@
-FROM registry.ci.openshift.org/ocp/4.16:cli
+FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.21-openshift-4.16 AS builder
+WORKDIR /go/src/github.com/openshift/oc
+COPY . .
+RUN make build --warn-undefined-variables
+
+FROM registry.ci.openshift.org/ocp/4.16:base
+COPY --from=builder /go/src/github.com/openshift/oc/oc /usr/bin/
+RUN for i in kubectl openshift-deploy openshift-docker-build openshift-sti-build openshift-git-clone openshift-manage-dockerfile openshift-extract-image-content openshift-recycle; do ln -sf /usr/bin/oc /usr/bin/$i; done
+
 RUN INSTALL_PKGS="\
   bash-completion \
   bc \
