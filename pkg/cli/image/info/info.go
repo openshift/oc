@@ -53,6 +53,8 @@ func NewInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Comm
 
 			Images in manifest list format will be shown for your current operating system.
 			To see the image for a particular OS use the --filter-by-os=OS/ARCH flag.
+			When --filter-by-os is used against an image which is not in manifest list format,
+			--filter-by-os flag will be ignored.
 		`),
 		Example: templates.Examples(`
 			# Show information about an image
