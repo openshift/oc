@@ -449,6 +449,18 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			ArchiveFormat:        "openshift-baremetal-install-linux-%s.tar.gz",
 		},
 		{
+			OS:       "linux",
+			Arch:     targetReleaseArch,
+			Command:  "openshift-install-fips",
+			Optional: true,
+			Mapping:  extract.Mapping{Image: "baremetal-installer", From: "usr/bin/openshift-install"},
+
+			Readme:               readmeInstallUnix,
+			InjectReleaseImage:   true,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-install-rhel-%s.tar.gz",
+		},
+		{
 			OS:      "linux",
 			Arch:    targetReleaseArch,
 			Command: "ccoctl",
