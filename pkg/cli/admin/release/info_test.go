@@ -9,13 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/cli-runtime/pkg/genericiooptions"
-
 	digest "github.com/opencontainers/go-digest"
+	imageapi "github.com/openshift/api/image/v1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"k8s.io/apimachinery/pkg/util/diff"
-
-	imageapi "github.com/openshift/api/image/v1"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 )
 
 func TestReleaseInfoPlatform(t *testing.T) {
