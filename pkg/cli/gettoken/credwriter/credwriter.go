@@ -11,6 +11,10 @@ import (
 	v1 "k8s.io/client-go/pkg/apis/clientauthentication/v1"
 )
 
+type CredWriter interface {
+	Write(token string, expiry time.Time) error
+}
+
 // Writer writes ExecCredentials and basically
 // populates the status with the retrieved
 // token and expiration time.

@@ -58,8 +58,8 @@ type GetTokenOptions struct {
 	AutoOpenBrowser bool
 
 	authenticator         oidc.Authenticator
-	tokenCache            *tokencache.Repository
-	credWriter            *credwriter.Writer
+	tokenCache            tokencache.TokenCacher
+	credWriter            credwriter.CredWriter
 	tokenCacheDir         string
 	authenticationTimeout time.Duration
 

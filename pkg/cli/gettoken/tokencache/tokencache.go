@@ -33,6 +33,11 @@ type tokenCacheEntity struct {
 	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
+type TokenCacher interface {
+	FindByKey(dir string, key Key) (*Set, error)
+	Save(dir string, key Key, tokenSet Set) error
+}
+
 type Repository struct{}
 
 // FindByKey finds the key from the given cache directory and
