@@ -5,6 +5,7 @@ RUN INSTALL_PKGS="\
   bind-utils \
   blktrace \
   crash \
+  cri-tools \
   e2fsprogs \
   ethtool \
   file \
