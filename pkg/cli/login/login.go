@@ -98,6 +98,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().StringVar(&o.OIDCClientSecret, "client-secret", o.OIDCClientSecret, "Experimental: Client secret for external OIDC issuer. Optional.")
 	cmds.Flags().StringSliceVar(&o.OIDCExtraScopes, "extra-scopes", o.OIDCExtraScopes, "Experimental: Extra scopes for external OIDC issuer. Optional.")
 	cmds.Flags().StringVar(&o.OIDCIssuerURL, "issuer-url", o.OIDCIssuerURL, "Experimental: Issuer url for external issuer. Required.")
+	cmds.Flags().StringVar(&o.OIDCCAFile, "oidc-certificate-authority", o.OIDCCAFile, "Experimental: The path to a certificate authority bundle to use when communicating with external OIDC issuer.")
 	return cmds
 }
 

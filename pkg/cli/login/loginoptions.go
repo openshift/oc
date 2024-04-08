@@ -85,6 +85,7 @@ type LoginOptions struct {
 	OIDCClientSecret   string
 	OIDCExtraScopes    []string
 	OIDCIssuerURL      string
+	OIDCCAFile         string
 
 	Token string
 
@@ -359,8 +360,8 @@ func (o *LoginOptions) prepareBuiltinExecPlugin() (*kclientcmdapi.ExecConfig, er
 		execProvider.Args = append(execProvider.Args, "--insecure-skip-tls-verify")
 	}
 
-	if len(o.Config.CAFile) > 0 {
-		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.Config.CAFile))
+	if len(o.OIDCCAFile) > 0 {
+		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.OIDCCAFile))
 	}
 
 	return execProvider, nil
