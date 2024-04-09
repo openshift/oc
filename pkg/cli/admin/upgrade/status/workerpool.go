@@ -121,13 +121,14 @@ func getMachineConfig(ctx context.Context, client mcfgv1client.Interface, machin
 	return client.MachineconfigurationV1().MachineConfigs().Get(ctx, machineConfigName, v1.GetOptions{})
 }
 
-func separateMasterAndWorkerPools(poolList *mcfgv1.MachineConfigPoolList) (mcfgv1.MachineConfigPool, []mcfgv1.MachineConfigPool) {
-	for i := range poolList.Items {
-		if poolList.Items[i].Name == "master" {
-			return poolList.Items[i], append(poolList.Items[:i], poolList.Items[i+1:]...)
+func separateMasterAndWorkerPools(pools []poolDisplayData) (poolDisplayData, []poolDisplayData) {
+	for i := range pools {
+		if pools[i].Name == mco.MachineConfigPoolMaster {
+			controlPlane := pools[i]
+			return controlPlane, append(pools[:i], pools[i+1:]...)
 		}
 	}
-	return mcfgv1.MachineConfigPool{}, poolList.Items
+	return poolDisplayData{}, pools
 }
 
 func selectNodesFromPool(pool mcfgv1.MachineConfigPool, allNodes []corev1.Node) ([]corev1.Node, error) {
@@ -461,7 +462,6 @@ Worker Status:   {{ .NodesOverview.Total }} Total, {{ .NodesOverview.Available }
 `
 
 func (pool *poolDisplayData) WriteNodes(w io.Writer) {
-	_, _ = w.Write([]byte("Worker Pool Node(s)\n"))
 	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	_, _ = tabw.Write([]byte("NAME\tASSESSMENT\tPHASE\tVERSION\tEST\tMESSAGE\n"))
 	var total, completed, available, progressing, outdated, draining, excluded int
