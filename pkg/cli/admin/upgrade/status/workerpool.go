@@ -121,16 +121,6 @@ func getMachineConfig(ctx context.Context, client mcfgv1client.Interface, machin
 	return client.MachineconfigurationV1().MachineConfigs().Get(ctx, machineConfigName, v1.GetOptions{})
 }
 
-func separateMasterAndWorkerPools(pools []poolDisplayData) (poolDisplayData, []poolDisplayData) {
-	for i := range pools {
-		if pools[i].Name == mco.MachineConfigPoolMaster {
-			controlPlane := pools[i]
-			return controlPlane, append(pools[:i], pools[i+1:]...)
-		}
-	}
-	return poolDisplayData{}, pools
-}
-
 func selectNodesFromPool(pool mcfgv1.MachineConfigPool, allNodes []corev1.Node) ([]corev1.Node, error) {
 	var res []corev1.Node
 	selector, err := v1.LabelSelectorAsSelector(pool.Spec.NodeSelector)
@@ -217,7 +207,7 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 		})
 	}
 
-	sort.Slice(nodesStatusData[:], func(i, j int) bool {
+	sort.Slice(nodesStatusData, func(i, j int) bool {
 		if nodesStatusData[i].Assessment == nodesStatusData[j].Assessment {
 			if nodesStatusData[i].Phase == nodesStatusData[j].Phase {
 				return nodesStatusData[i].Name < nodesStatusData[j].Name
@@ -413,15 +403,17 @@ func assessMachineConfigPool(pool mcfgv1.MachineConfigPool, nodes []nodeDisplayD
 		}
 	}
 
-	poolStatusData.Assessment = assessmentStateProgressing
-	if updatedCount == len(nodes) {
+	switch {
+	case updatedCount == len(nodes):
 		poolStatusData.Assessment = assessmentStateCompleted
-	} else if pendingCount == len(nodes) {
+	case pendingCount == len(nodes):
 		poolStatusData.Assessment = assessmentStatePending
-	} else if poolStatusData.NodesOverview.Degraded > 0 {
+	case poolStatusData.NodesOverview.Degraded > 0:
 		poolStatusData.Assessment = assessmentStateDegraded
-	} else if poolStatusData.NodesOverview.Excluded > 0 {
+	case poolStatusData.NodesOverview.Excluded > 0:
 		poolStatusData.Assessment = assessmentStateExcluded
+	default:
+		poolStatusData.Assessment = assessmentStateProgressing
 	}
 
 	insights = machineConfigPoolInsights(poolStatusData, pool)
@@ -462,8 +454,17 @@ Worker Status:   {{ .NodesOverview.Total }} Total, {{ .NodesOverview.Available }
 `
 
 func (pool *poolDisplayData) WriteNodes(w io.Writer) {
+	if pool.Name == mco.MachineConfigPoolMaster {
+		fmt.Fprintf(w, "\nControl Plane Node")
+	} else {
+		fmt.Fprintf(w, "\nWorker Pool Node")
+	}
+	if len(pool.Nodes) > 1 {
+		fmt.Fprintf(w, "s")
+	}
+
 	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-	_, _ = tabw.Write([]byte("NAME\tASSESSMENT\tPHASE\tVERSION\tEST\tMESSAGE\n"))
+	_, _ = tabw.Write([]byte("\nNAME\tASSESSMENT\tPHASE\tVERSION\tEST\tMESSAGE\n"))
 	var total, completed, available, progressing, outdated, draining, excluded int
 	for i, node := range pool.Nodes {
 		if i >= 10 {

@@ -6,7 +6,7 @@ Completion:      3%
 Duration:        1m29s
 Operator Status: 33 Total, 33 Available, 2 Progressing, 0 Degraded
 
-Control Plane Node(s)
+Control Plane Nodes
 NAME                                        ASSESSMENT   PHASE     VERSION   EST   MESSAGE
 ip-10-0-30-217.us-east-2.compute.internal   Outdated     Pending   4.14.1    ?     
 ip-10-0-53-40.us-east-2.compute.internal    Outdated     Pending   4.14.1    ?     
@@ -20,7 +20,7 @@ Assessment:      Pending
 Completion:      0%
 Worker Status:   3 Total, 3 Available, 0 Progressing, 3 Outdated, 0 Draining, 0 Excluded, 0 Degraded
 
-Worker Pool Node(s)
+Worker Pool Nodes
 NAME                                        ASSESSMENT   PHASE     VERSION   EST   MESSAGE
 ip-10-0-20-162.us-east-2.compute.internal   Outdated     Pending   4.14.1    ?     
 ip-10-0-4-159.us-east-2.compute.internal    Outdated     Pending   4.14.1    ?     
