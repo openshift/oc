@@ -329,53 +329,6 @@ items:
           status: "True"
           type: Ready
       volumesInUse: []
-  - apiVersion: v1
-    kind: Node
-    metadata:
-      annotations:
-        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
-        machineconfiguration.openshift.io/currentConfig: rendered-worker-4cec9ed3a634560e5c083a187c8f93a7
-        machineconfiguration.openshift.io/desiredConfig: rendered-worker-4cec9ed3a634560e5c083a187c8f93a7
-        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-4cec9ed3a634560e5c083a187c8f93a7
-        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-4cec9ed3a634560e5c083a187c8f93a7
-        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "40375"
-        machineconfiguration.openshift.io/reason: ""
-        machineconfiguration.openshift.io/state: Done
-      creationTimestamp: "2024-02-07T16:09:53Z"
-      labels:
-        machine.openshift.io/interruptible-instance: ""
-        node-role.kubernetes.io/infra: ""
-      name: ip-10-0-20-162-infra.us-east-2.compute.internal
-      resourceVersion: "41345"
-      uid: 88626d63-b4f4-44a5-b0bc-4de955567fbe
-    spec: {}
-    status:
-      conditions:
-        - lastHeartbeatTime: "2024-02-07T16:45:05Z"
-          lastTransitionTime: "2024-02-07T16:09:53Z"
-          message: kubelet has sufficient memory available
-          reason: KubeletHasSufficientMemory
-          status: "False"
-          type: MemoryPressure
-        - lastHeartbeatTime: "2024-02-07T16:45:05Z"
-          lastTransitionTime: "2024-02-07T16:09:53Z"
-          message: kubelet has no disk pressure
-          reason: KubeletHasNoDiskPressure
-          status: "False"
-          type: DiskPressure
-        - lastHeartbeatTime: "2024-02-07T16:45:05Z"
-          lastTransitionTime: "2024-02-07T16:09:53Z"
-          message: kubelet has sufficient PID available
-          reason: KubeletHasSufficientPID
-          status: "False"
-          type: PIDPressure
-        - lastHeartbeatTime: "2024-02-07T16:45:05Z"
-          lastTransitionTime: "2024-02-07T16:10:36Z"
-          message: kubelet is posting ready status
-          reason: KubeletReady
-          status: "True"
-          type: Ready
-      volumesInUse: []
 kind: List
 metadata:
   resourceVersion: ""

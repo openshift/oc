@@ -187,7 +187,8 @@ func (o *options) Run(ctx context.Context) error {
 	}
 
 	var updateInsights []updateInsight
-	var poolsStatusData []poolDisplayData
+	var workerPoolsStatusData []poolDisplayData
+	var controlPlanePoolStatusData poolDisplayData
 	for _, pool := range pools.Items {
 		nodes, err := selectNodesFromPool(pool, allNodes.Items)
 		if err != nil {
@@ -197,9 +198,12 @@ func (o *options) Run(ctx context.Context) error {
 		updateInsights = append(updateInsights, insights...)
 		poolStatus, insights := assessMachineConfigPool(pool, nodesStatusData)
 		updateInsights = append(updateInsights, insights...)
-		poolsStatusData = append(poolsStatusData, poolStatus)
+		if poolStatus.Name == mco.MachineConfigPoolMaster {
+			controlPlanePoolStatusData = poolStatus
+		} else {
+			workerPoolsStatusData = append(workerPoolsStatusData, poolStatus)
+		}
 	}
-	controlPlanePoolStatusData, workerPoolsStatusData := separateMasterAndWorkerPools(poolsStatusData)
 
 	var isWorkerPoolOutdated bool
 	for _, pool := range workerPoolsStatusData {
@@ -240,14 +244,12 @@ func (o *options) Run(ctx context.Context) error {
 	updateInsights = append(updateInsights, insights...)
 	fmt.Fprintf(o.Out, "\n")
 	_ = controlPlaneStatusData.Write(o.Out)
-	fmt.Fprintf(o.Out, "\nControl Plane Node(s)\n")
 	controlPlanePoolStatusData.WriteNodes(o.Out)
 
 	fmt.Fprintf(o.Out, "\n= Worker Upgrade =\n")
 	for _, pool := range workerPoolsStatusData {
 		fmt.Fprintf(o.Out, "\n")
 		_ = pool.WritePool(o.Out)
-		fmt.Fprintf(o.Out, "\nWorker Pool Node(s)\n")
 		pool.WriteNodes(o.Out)
 	}
 
