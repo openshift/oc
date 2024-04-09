@@ -257,8 +257,8 @@ func (o *options) Run(ctx context.Context) error {
 	}
 
 	fmt.Fprintf(o.Out, "\n")
-	upgradeHealth := assessUpdateInsights(updateInsights, updatingFor, now)
-	_ = upgradeHealth.Write(o.Out, o.detailedOutput)
+	upgradeHealth, allowDetailed := assessUpdateInsights(updateInsights, updatingFor, now)
+	_ = upgradeHealth.Write(o.Out, o.detailedOutput && allowDetailed)
 	return nil
 }
 

@@ -12,6 +12,12 @@ Completion:      100%
 Duration:        3h30m31s
 Operator Status: 36 Total, 36 Available, 0 Progressing, 1 Degraded
 
+Control Plane Node(s)
+NAME                                                  ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+build0-gstfj-m-0.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
+build0-gstfj-m-1.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
+build0-gstfj-m-2.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
+
 = Worker Upgrade =
 
 = Worker Pool =

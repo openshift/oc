@@ -6,6 +6,12 @@ Completion:      3%
 Duration:        1m29s
 Operator Status: 33 Total, 33 Available, 2 Progressing, 0 Degraded
 
+Control Plane Node(s)
+NAME                                        ASSESSMENT   PHASE     VERSION   EST   MESSAGE
+ip-10-0-30-217.us-east-2.compute.internal   Outdated     Pending   4.14.1    ?     
+ip-10-0-53-40.us-east-2.compute.internal    Outdated     Pending   4.14.1    ?     
+ip-10-0-92-180.us-east-2.compute.internal   Outdated     Pending   4.14.1    ?     
+
 = Worker Upgrade =
 
 = Worker Pool =
@@ -21,9 +27,5 @@ ip-10-0-4-159.us-east-2.compute.internal    Outdated     Pending   4.14.1    ?
 ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.14.1    ?     
 
 = Update Health =
-Message: Upgrade is proceeding well
-  Since:       1m29s
-  Level:       Info
-  Impact:      None
-  Reference:   
-  Description: 
+SINCE   LEVEL   IMPACT   MESSAGE
+1m29s   Info    None     Upgrade is proceeding well

@@ -431,6 +431,8 @@ func assessMachineConfigPool(pool mcfgv1.MachineConfigPool, nodes []nodeDisplayD
 }
 
 func machineConfigPoolInsights(poolDisplay poolDisplayData, pool mcfgv1.MachineConfigPool) (insights []updateInsight) {
+	// TODO: Only generate this insight if the pool has some work remaining that will not finish
+	// Depends on how MCO actually works: will it stop updating a node that already started e.g. draining?)
 	if poolDisplay.NodesOverview.Excluded > 0 && pool.Spec.Paused {
 		insights = append(insights, updateInsight{
 			startedAt: time.Time{},
@@ -441,8 +443,8 @@ func machineConfigPoolInsights(poolDisplay poolDisplayData, pool mcfgv1.MachineC
 			impact: updateInsightImpact{
 				level:       warningImpactLevel,
 				impactType:  updateStalledImpactType,
-				summary:     fmt.Sprintf("Worker pool %s is paused", pool.Name),
-				description: "Outdated nodes in a paused pool will not be updated",
+				summary:     fmt.Sprintf("Outdated nodes in a paused pool '%s' will not be updated", pool.Name),
+				description: "Pool is paused, which stops all changes to the nodes in the pool, including updates. The nodes will not be updated until the pool is unpaused by the administrator.",
 			},
 			remediation: updateInsightRemediation{
 				reference: "https://docs.openshift.com/container-platform/4.15/support/troubleshooting/troubleshooting-operator-issues.html#troubleshooting-disabling-autoreboot-mco_troubleshooting-operator-issues",

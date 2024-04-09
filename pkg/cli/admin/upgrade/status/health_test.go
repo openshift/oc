@@ -65,7 +65,7 @@ var insights = []updateInsight{
 
 func TestAssessUpdateInsights_Sorts(t *testing.T) {
 	assessedAt := now
-	healthData := assessUpdateInsights(insights, 2*time.Hour, assessedAt)
+	healthData, allowDetailed := assessUpdateInsights(insights, 2*time.Hour, assessedAt)
 	var messages []string
 	for _, insights := range healthData.insights {
 		messages = append(messages, insights.impact.summary)
@@ -77,6 +77,11 @@ func TestAssessUpdateInsights_Sorts(t *testing.T) {
 		"Something that slows the update",
 		"Something with no impact that happened right now",
 	}
+
+	if !allowDetailed {
+		t.Error("Non-artificial insights should be allowed for detailed output")
+	}
+
 	if diff := cmp.Diff(expected, messages); diff != "" {
 		t.Fatalf("Output differs from expected :\n%s", diff)
 	}
@@ -84,7 +89,7 @@ func TestAssessUpdateInsights_Sorts(t *testing.T) {
 
 func TestAssessUpdateInsights_NoInsightsCreatesAllIsWellInfo(t *testing.T) {
 	assessedAt := now
-	healthData := assessUpdateInsights(nil, 2*time.Hour, assessedAt)
+	healthData, allowDetailed := assessUpdateInsights(nil, 2*time.Hour, assessedAt)
 	expected := updateHealthData{
 		evaluatedAt: assessedAt,
 		insights: []updateInsight{
@@ -97,6 +102,10 @@ func TestAssessUpdateInsights_NoInsightsCreatesAllIsWellInfo(t *testing.T) {
 				},
 			},
 		},
+	}
+
+	if allowDetailed {
+		t.Error("All is well insight should not be allowed for detailed output")
 	}
 
 	if diff := cmp.Diff(expected, healthData, cmp.AllowUnexported(updateHealthData{}, updateInsight{}, updateInsightScope{}, updateInsightImpact{}, updateInsightRemediation{})); diff != "" {
@@ -142,7 +151,7 @@ func TestAssessUpdateInsights_FiltersOutIncompleteInsights(t *testing.T) {
 		},
 	}
 
-	healthData := assessUpdateInsights(insights, 2*time.Hour, assessedAt)
+	healthData, allowDetailed := assessUpdateInsights(insights, 2*time.Hour, assessedAt)
 	// All incomplete insights are filtered out, so we only get the synthetic "All is well" insight
 	expected := updateHealthData{
 		evaluatedAt: assessedAt,
@@ -156,6 +165,10 @@ func TestAssessUpdateInsights_FiltersOutIncompleteInsights(t *testing.T) {
 				},
 			},
 		},
+	}
+
+	if allowDetailed {
+		t.Error("All is well insight should not be allowed for detailed output")
 	}
 
 	if diff := cmp.Diff(expected, healthData, cmp.AllowUnexported(updateHealthData{}, updateInsight{}, updateInsightScope{}, updateInsightImpact{}, updateInsightRemediation{})); diff != "" {
@@ -194,7 +207,7 @@ func TestUpdateHealthData_Write(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var w strings.Builder
-			healthData := assessUpdateInsights(insights, 2*time.Hour, now)
+			healthData, _ := assessUpdateInsights(insights, 2*time.Hour, now)
 			if err := healthData.Write(&w, tc.detailed); err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}

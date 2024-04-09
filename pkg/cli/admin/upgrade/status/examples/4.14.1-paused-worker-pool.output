@@ -28,4 +28,4 @@ ip-10-0-99-40.us-east-2.compute.internal    Excluded     Paused   4.14.0    -
 
 = Update Health =
 SINCE   LEVEL     IMPACT           MESSAGE
--       Warning   Update Stalled   Worker pool worker is paused
+-       Warning   Update Stalled   Outdated nodes in a paused pool 'worker' will not be updated

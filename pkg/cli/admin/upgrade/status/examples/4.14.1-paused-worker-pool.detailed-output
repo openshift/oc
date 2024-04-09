@@ -6,6 +6,12 @@ Completion:      12%
 Duration:        6s
 Operator Status: 33 Total, 33 Available, 0 Progressing, 0 Degraded
 
+Control Plane Node(s)
+NAME                                        ASSESSMENT   PHASE     VERSION   EST   MESSAGE
+ip-10-0-30-217.us-east-2.compute.internal   Outdated     Pending   4.14.0    ?     
+ip-10-0-53-40.us-east-2.compute.internal    Outdated     Pending   4.14.0    ?     
+ip-10-0-92-180.us-east-2.compute.internal   Outdated     Pending   4.14.0    ?     
+
 = Worker Upgrade =
 
 = Worker Pool =
@@ -21,9 +27,9 @@ ip-10-0-4-159.us-east-2.compute.internal    Excluded     Paused   4.14.0    -
 ip-10-0-99-40.us-east-2.compute.internal    Excluded     Paused   4.14.0    -     
 
 = Update Health =
-Message: Worker pool worker is paused
+Message: Outdated nodes in a paused pool 'worker' will not be updated
   Since:       -
   Level:       Warning
   Impact:      Update Stalled
   Reference:   https://docs.openshift.com/container-platform/4.15/support/troubleshooting/troubleshooting-operator-issues.html#troubleshooting-disabling-autoreboot-mco_troubleshooting-operator-issues
-  Description: Outdated nodes in a paused pool will not be updated
+  Description: Pool is paused, which stops all changes to the nodes in the pool, including updates. The nodes will not be updated until the pool is unpaused by the administrator.

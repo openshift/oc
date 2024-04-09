@@ -979,8 +979,8 @@ func Test_assessMachineConfigPool(t *testing.T) {
 					impact: updateInsightImpact{
 						level:       warningImpactLevel,
 						impactType:  updateStalledImpactType,
-						summary:     "Worker pool worker is paused",
-						description: "Outdated nodes in a paused pool will not be updated",
+						summary:     "Outdated nodes in a paused pool 'worker' will not be updated",
+						description: "Pool is paused, which stops all changes to the nodes in the pool, including updates. The nodes will not be updated until the pool is unpaused by the administrator.",
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
@@ -1075,8 +1075,8 @@ func Test_machineConfigPoolInsights(t *testing.T) {
 					impact: updateInsightImpact{
 						level:       warningImpactLevel,
 						impactType:  updateStalledImpactType,
-						summary:     "Worker pool worker is paused",
-						description: "Outdated nodes in a paused pool will not be updated",
+						summary:     "Outdated nodes in a paused pool 'worker' will not be updated",
+						description: "Pool is paused, which stops all changes to the nodes in the pool, including updates. The nodes will not be updated until the pool is unpaused by the administrator.",
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
