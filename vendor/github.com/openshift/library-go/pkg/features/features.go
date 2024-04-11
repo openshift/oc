@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/component-base/cli/flag"
-	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/featuregate"
 )
 
@@ -17,8 +16,8 @@ type FeatureGateOptions struct {
 	featureGates    featuregate.FeatureGate
 }
 
-func NewFeatureGateOptions(featureGates featuregate.MutableFeatureGate, usedFeatures ...configv1.FeatureGateName) (*FeatureGateOptions, error) {
-	err := InitializeFeatureGates(featureGates, usedFeatures...)
+func NewFeatureGateOptions(featureGates featuregate.MutableFeatureGate, profileName configv1.ClusterProfileName, usedFeatures ...configv1.FeatureGateName) (*FeatureGateOptions, error) {
+	err := InitializeFeatureGates(featureGates, profileName, usedFeatures...)
 	if err != nil {
 		return nil, err
 	}
@@ -28,8 +27,8 @@ func NewFeatureGateOptions(featureGates featuregate.MutableFeatureGate, usedFeat
 	}, nil
 }
 
-func NewFeatureGateOptionsOrDie(featureGates featuregate.MutableFeatureGate, usedFeatures ...configv1.FeatureGateName) *FeatureGateOptions {
-	ret, err := NewFeatureGateOptions(featureGates, usedFeatures...)
+func NewFeatureGateOptionsOrDie(featureGates featuregate.MutableFeatureGate, profileName configv1.ClusterProfileName, usedFeatures ...configv1.FeatureGateName) *FeatureGateOptions {
+	ret, err := NewFeatureGateOptions(featureGates, profileName, usedFeatures...)
 	if err != nil {
 		panic(err)
 	}
@@ -38,7 +37,7 @@ func NewFeatureGateOptionsOrDie(featureGates featuregate.MutableFeatureGate, use
 
 func (o *FeatureGateOptions) AddFlags(cmd *cobra.Command) {
 	flags := cmd.Flags()
-	flags.Var(cliflag.NewMapStringBool(&o.featureGateArgs), "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
+	flags.Var(flag.NewMapStringBool(&o.featureGateArgs), "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n"+strings.Join(o.featureGates.KnownFeatures(), "\n"))
 }
 
@@ -87,14 +86,15 @@ func setFeatureGates(featureGatesMap map[string]bool, featureGates featuregate.M
 
 // InitializeFeatureGates should be called when your binary is starting with your featuregate instance and the list of
 // featuregates that your process will honor.
-func InitializeFeatureGates(featureGates featuregate.MutableFeatureGate, usedFeatures ...configv1.FeatureGateName) error {
-	defaultFeatures := sets.String{}
-	enabledDefaultFeatures := sets.String{}
-	for _, enabled := range configv1.FeatureSets[configv1.Default].Enabled {
+func InitializeFeatureGates(featureGates featuregate.MutableFeatureGate, profileName configv1.ClusterProfileName, usedFeatures ...configv1.FeatureGateName) error {
+	defaultFeatures := sets.Set[string]{}
+	enabledDefaultFeatures := sets.Set[string]{}
+	allFeatureSets := configv1.AllFeatureSets()[profileName]
+	for _, enabled := range allFeatureSets[configv1.Default].Enabled {
 		defaultFeatures.Insert(string(enabled.FeatureGateAttributes.Name))
 		enabledDefaultFeatures.Insert(string(enabled.FeatureGateAttributes.Name))
 	}
-	for _, disabled := range configv1.FeatureSets[configv1.Default].Disabled {
+	for _, disabled := range allFeatureSets[configv1.Default].Disabled {
 		defaultFeatures.Insert(string(disabled.FeatureGateAttributes.Name))
 	}
 

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -297,7 +296,7 @@ func (s *fileStore) Signatures(ctx context.Context, name string, digest string, 
 		}
 
 		path := base + strconv.Itoa(i)
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if os.IsNotExist(err) {
 			break
 		}
@@ -332,7 +331,7 @@ func verifySignatureWithKeyring(r io.Reader, keyring openpgp.EntityList) ([]byte
 	if !md.IsSigned {
 		return nil, "", fmt.Errorf("not signed")
 	}
-	content, err := ioutil.ReadAll(md.UnverifiedBody)
+	content, err := io.ReadAll(md.UnverifiedBody)
 	if err != nil {
 		return nil, "", err
 	}
