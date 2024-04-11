@@ -33,7 +33,7 @@ require (
 	github.com/moby/term v0.5.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc5
-	github.com/openshift/api v0.0.0-20240116232628-6d48d55c0598
+	github.com/openshift/api v0.0.0-20240410141538-3c0461467316
 	github.com/openshift/build-machinery-go v0.0.0-20231128094528-1e9b1b0595c8
 	github.com/openshift/client-go v0.0.0-20240115204758-e6bf7d631d5e
 	github.com/openshift/library-go v0.0.0-20240329173834-0f907b20fed1
@@ -61,6 +61,7 @@ require (
 	k8s.io/kubectl v0.29.1
 	k8s.io/pod-security-admission v0.29.1
 	k8s.io/utils v0.0.0-20231127182322-b307cd553661
+	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -200,7 +201,6 @@ require (
 	sigs.k8s.io/kube-storage-version-migrator v0.0.6-0.20230721195810-5c8923c5ff96 // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/kustomize/kustomize/v5 v5.0.4-0.20230601165947-6ce0bf390ce3 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
 
