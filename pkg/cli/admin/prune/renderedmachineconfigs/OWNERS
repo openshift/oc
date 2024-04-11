@@ -1,0 +1,20 @@
+# See the OWNERS docs: https://git.k8s.io/community/contributors/guide/owners.md
+
+approvers:
+  - cdoern
+  - djoshy
+  - dkhater-redhat
+  - sinnykumari
+  - yuqi-zhang
+  - cheesesashimi
+  - CourtCourt521 
+reviewers:
+  - cdoern
+  - djoshy
+  - dkhater-redhat
+  - sinnykumari
+  - yuqi-zhang
+  - cheesesashimi
+  - CourtCourt521 
+
+component: "Machine Config Operator"
