@@ -12,7 +12,7 @@ Completion:      100%
 Duration:        3h30m31s
 Operator Status: 36 Total, 36 Available, 0 Progressing, 1 Degraded
 
-Control Plane Node(s)
+Control Plane Nodes
 NAME                                                  ASSESSMENT   PHASE     VERSION       EST   MESSAGE
 build0-gstfj-m-0.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
 build0-gstfj-m-1.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
@@ -26,7 +26,7 @@ Assessment:      Degraded
 Completion:      39%
 Worker Status:   59 Total, 46 Available, 5 Progressing, 36 Outdated, 12 Draining, 0 Excluded, 7 Degraded
 
-Worker Pool Node(s)
+Worker Pool Nodes
 NAME                                      ASSESSMENT    PHASE      VERSION       EST    MESSAGE
 build0-gstfj-ci-prowjobs-worker-b-9lztv   Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-9lztv after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-prowjobs-worker-b-bg9f5   Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-bg9f5 after 1 hour. Please see machine-config-controller logs for more information
