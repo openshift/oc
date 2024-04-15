@@ -578,7 +578,7 @@ github.com/opencontainers/runtime-spec/specs-go
 ## explicit; go 1.19
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/openshift/api v0.0.0-20240116232628-6d48d55c0598
+# github.com/openshift/api v0.0.0-20240410141538-3c0461467316
 ## explicit; go 1.21
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -663,7 +663,7 @@ github.com/openshift/build-machinery-go/make/targets/golang
 github.com/openshift/build-machinery-go/make/targets/openshift
 github.com/openshift/build-machinery-go/make/targets/openshift/operator
 github.com/openshift/build-machinery-go/scripts
-# github.com/openshift/client-go v0.0.0-20240115204758-e6bf7d631d5e
+# github.com/openshift/client-go v0.0.0-20240405120947-c67c8325cdd8
 ## explicit; go 1.21
 github.com/openshift/client-go/apps/applyconfigurations/apps/v1
 github.com/openshift/client-go/apps/applyconfigurations/internal
@@ -767,7 +767,7 @@ github.com/openshift/client-go/user/clientset/versioned/fake
 github.com/openshift/client-go/user/clientset/versioned/scheme
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
-# github.com/openshift/library-go v0.0.0-20240329173834-0f907b20fed1
+# github.com/openshift/library-go v0.0.0-20240411091851-558ed29cc1dd
 ## explicit; go 1.21
 github.com/openshift/library-go/pkg/apps/appsserialization
 github.com/openshift/library-go/pkg/apps/appsutil

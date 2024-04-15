@@ -38,6 +38,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
+	"sigs.k8s.io/yaml"
 
 	configv1 "github.com/openshift/api/config/v1"
 	imageapi "github.com/openshift/api/image/v1"
@@ -499,7 +500,7 @@ func (o *InfoOptions) Run() error {
 			return describeBugs(o.Out, o.ErrOut, diff, o.BugsDir, o.Output, o.SkipBugCheck)
 		}
 		if len(o.ChangelogDir) > 0 {
-			return describeChangelog(o.Out, o.ErrOut, diff, o.ChangelogDir, o.Output)
+			return describeChangelog(o.Out, o.ErrOut, release, diff, o.ChangelogDir, o.Output)
 		}
 		return describeReleaseDiff(o.Out, diff, o.ShowCommit, o.Output)
 	}
@@ -1202,7 +1203,7 @@ func printFeatureSetSection(diff *ReleaseDiff, w io.Writer) {
 	if false {
 		// TODO if we have a use for this on the CLI, then we can try to produce an ascii table
 		// for now, this does nothing and we'll only render it for mardown.
-		content, err := produceDiffMarkdown(featureSetDiff)
+		content, err := produceDiffMarkdown(nil, featureSetDiff)
 		if err != nil {
 			fmt.Fprintf(w, "error producing diff: %v", err)
 			return
@@ -1241,7 +1242,15 @@ func calculateFeatureSetDiff(diff *ReleaseDiff) (*features.ReleaseFeatureDiffInf
 	return toReleaseFeatureInfo.CalculateDiff(context.TODO(), fromReleaseFeatureInfo), nil
 }
 
-func markdownFeatureSetSection(diff *ReleaseDiff, w io.Writer) {
+func markdownFeatureSetSection(info *ReleaseInfo, diff *ReleaseDiff, w io.Writer) {
+	testReportBytes := info.ManifestFiles["0000_50_tests_test-reporting.yaml"]
+	testReport := &configv1.TestReporting{}
+	if len(testReportBytes) > 0 {
+		if err := yaml.Unmarshal(testReportBytes, testReport); err != nil {
+			fmt.Fprintf(w, "error reading test-reporting.yaml release feature info: %v", err)
+		}
+	}
+
 	featureSetDiff, err := calculateFeatureSetDiff(diff)
 	if err != nil {
 		fmt.Fprintf(w, "error reading .From release feature info: %v", err)
@@ -1255,7 +1264,7 @@ func markdownFeatureSetSection(diff *ReleaseDiff, w io.Writer) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "### FeatureGate Changes")
 
-	content, err := produceDiffMarkdown(featureSetDiff)
+	content, err := produceDiffMarkdown(testReport, featureSetDiff)
 	if err != nil {
 		fmt.Fprintf(w, "error producing diff: %v", err)
 		return
@@ -1637,7 +1646,7 @@ var replaceUnsafeInput = strings.NewReplacer(
 	`>`, "&gt;",
 )
 
-func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format string) error {
+func describeChangelog(out, errOut io.Writer, releaseInfo *ReleaseInfo, diff *ReleaseDiff, dir, format string) error {
 	if diff.To.Digest == diff.From.Digest {
 		return fmt.Errorf("releases are identical")
 	}
@@ -1795,7 +1804,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 			fmt.Fprintln(out)
 		}
 
-		markdownFeatureSetSection(diff, out)
+		markdownFeatureSetSection(releaseInfo, diff, out)
 
 		if len(added) > 0 {
 			fmt.Fprintf(out, "### New images\n\n")

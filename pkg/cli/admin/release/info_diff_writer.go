@@ -2,13 +2,14 @@ package release
 
 import (
 	"fmt"
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/library-go/pkg/features"
 	"github.com/openshift/library-go/pkg/markdown"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"strings"
 )
 
-func produceDiffMarkdown(releaseFeatureDiffInfo *features.ReleaseFeatureDiffInfo) ([]byte, error) {
+func produceDiffMarkdown(testReporting *configv1.TestReporting, releaseFeatureDiffInfo *features.ReleaseFeatureDiffInfo) ([]byte, error) {
 	allFeatureSets := releaseFeatureDiffInfo.AllFeatureSets()
 	allFeatureSets.Delete("LatencySensitive") // this was a dead-end featureset we removed.
 	allClusterProfiles := releaseFeatureDiffInfo.AllClusterProfiles()
@@ -39,7 +40,7 @@ func produceDiffMarkdown(releaseFeatureDiffInfo *features.ReleaseFeatureDiffInfo
 	orderedFeatureGates := releaseFeatureDiffInfo.GetOrderedFeatureGates()
 	for _, featureGate := range orderedFeatureGates {
 		md.NextTableColumn()
-		md.Exact(featureGate)
+		md.Exact(fmt.Sprintf("%s <br/> %s", featureGate, testMarkdownForFeatureGate(testReporting, featureGate)))
 		for _, col := range cols {
 			change := releaseFeatureDiffInfo.FeatureInfoFor(col.ClusterProfile, col.FeatureSet).ChangedFeatureGates[featureGate]
 			md.NextTableColumn()
@@ -53,4 +54,21 @@ func produceDiffMarkdown(releaseFeatureDiffInfo *features.ReleaseFeatureDiffInfo
 		md.EndTableRow()
 	}
 	return md.ExactBytes(), nil
+}
+
+func testMarkdownForFeatureGate(testReport *configv1.TestReporting, featureGate string) string {
+	var testDetails *configv1.FeatureGateTests
+	for _, curr := range testReport.Spec.TestsForFeatureGates {
+		if curr.FeatureGate == featureGate {
+			testDetails = &curr
+			break
+		}
+	}
+
+	if testDetails == nil {
+		return "(0 tests)"
+	}
+
+	// TODO add link to these tests on ComponentReadiness
+	return fmt.Sprintf("(%d tests)", len(testDetails.Tests))
 }

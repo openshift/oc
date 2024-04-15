@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"sync"
@@ -468,8 +469,8 @@ func (f blobMirroredBlobstore) ServeBlob(ctx context.Context, w http.ResponseWri
 	return err
 }
 
-func (f blobMirroredBlobstore) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
-	var rsc distribution.ReadSeekCloser
+func (f blobMirroredBlobstore) Open(ctx context.Context, dgst digest.Digest) (io.ReadSeekCloser, error) {
+	var rsc io.ReadSeekCloser
 	err := f.repo.alternates(ctx, func(r RepositoryWithLocation) error {
 		var err error
 		rsc, err = r.Blobs(ctx).Open(ctx, dgst)

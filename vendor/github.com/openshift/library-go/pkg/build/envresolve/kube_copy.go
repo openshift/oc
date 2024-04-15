@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -18,11 +18,11 @@ import (
 // FormatMap formats map[string]string to a string.
 func FormatMap(m map[string]string) (fmtStr string) {
 	// output with keys in sorted order to provide stable output
-	keys := sets.NewString()
+	keys := sets.New[string]()
 	for key := range m {
 		keys.Insert(key)
 	}
-	for _, key := range keys.List() {
+	for _, key := range sets.List(keys) {
 		fmtStr += fmt.Sprintf("%v=%q\n", key, m[key])
 	}
 	fmtStr = strings.TrimSuffix(fmtStr, "\n")
