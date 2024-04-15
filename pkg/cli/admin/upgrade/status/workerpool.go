@@ -198,7 +198,7 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 			Assessment:    assessment,
 			Estimate:      estimate,
 			Phase:         phase,
-			Message:       message,
+			Message:       strings.Replace(message, node.Name, ellipsize(node.Name), -1),
 			Version:       currentVersion,
 			isUnavailable: isUnavailable,
 			isDegraded:    isDegraded,
@@ -218,6 +218,13 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 	})
 
 	return nodesStatusData, insights
+}
+
+func ellipsize(name string) string {
+	if len(name) <= 10 {
+		return name
+	}
+	return "<name>"
 }
 
 func getOpenShiftVersionOfMachineConfig(machineConfigs []mcfgv1.MachineConfig, name string) string {
