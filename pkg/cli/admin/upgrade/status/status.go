@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -34,6 +35,23 @@ func newOptions(streams genericiooptions.IOStreams) *options {
 	}
 }
 
+const (
+	detailedOutputNone   = "none"
+	detailedOutputNodes  = "nodes"
+	detailedOutputHealth = "health"
+	detailedOutputAll    = "all"
+)
+
+func detailedHealthEnabled(detailedOutput string) bool {
+	return detailedOutput == detailedOutputHealth || detailedOutput == detailedOutputAll
+}
+
+func detailedNodesEnabled(detailedOutput string) bool {
+	return detailedOutput == detailedOutputNodes || detailedOutput == detailedOutputAll
+}
+
+var allDetailedOutputValues = sets.New[string](detailedOutputNone, detailedOutputNodes, detailedOutputHealth, detailedOutputAll)
+
 func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
@@ -49,7 +67,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	// TODO: We can remove these flags once the idea about `oc adm upgrade status` stabilizes and the command
 	//       is promoted out of the OC_ENABLE_CMD_UPGRADE_STATUS feature gate
 	flags.StringVar(&o.mockData.cvPath, "mock-clusterversion", "", "Path to a YAML ClusterVersion object to use for testing (will be removed later). Files in the same directory with the same name and suffixes -co.yaml, -mcp.yaml, -mc.yaml, and -node.yaml are required.")
-	flags.BoolVar(&o.detailedOutput, "details", false, "Show upgrade health insights with detailed information and remediating links")
+	flags.StringVar(&o.detailedOutput, "details", detailedOutputNone, fmt.Sprintf("Show more detailed output in some sections. One of %s", strings.Join(sets.List(allDetailedOutputValues), ", ")))
 
 	return cmd
 }
@@ -63,12 +81,16 @@ type options struct {
 	CoreClient          corev1client.CoreV1Interface
 	MachineConfigClient machineconfigv1client.Interface
 
-	detailedOutput bool
+	detailedOutput string
 }
 
 func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return kcmdutil.UsageErrorf(cmd, "positional arguments given")
+	}
+
+	if !allDetailedOutputValues.Has(o.detailedOutput) {
+		return kcmdutil.UsageErrorf(cmd, "invalid value for --details: %s (must be one of: %s)", o.detailedOutput, strings.Join(allDetailedOutputValues.UnsortedList(), ", "))
 	}
 
 	cvSuffix := "-cv.yaml"
@@ -247,18 +269,18 @@ func (o *options) Run(ctx context.Context) error {
 	updateInsights = append(updateInsights, insights...)
 	fmt.Fprintf(o.Out, "\n")
 	_ = controlPlaneStatusData.Write(o.Out)
-	controlPlanePoolStatusData.WriteNodes(o.Out)
+	controlPlanePoolStatusData.WriteNodes(o.Out, detailedNodesEnabled(o.detailedOutput))
 
 	fmt.Fprintf(o.Out, "\n= Worker Upgrade =\n")
 	for _, pool := range workerPoolsStatusData {
 		fmt.Fprintf(o.Out, "\n")
 		_ = pool.WritePool(o.Out)
-		pool.WriteNodes(o.Out)
+		pool.WriteNodes(o.Out, detailedNodesEnabled(o.detailedOutput))
 	}
 
 	fmt.Fprintf(o.Out, "\n")
 	upgradeHealth, allowDetailed := assessUpdateInsights(updateInsights, updatingFor, now)
-	_ = upgradeHealth.Write(o.Out, o.detailedOutput && allowDetailed)
+	_ = upgradeHealth.Write(o.Out, detailedHealthEnabled(o.detailedOutput) && allowDetailed)
 	return nil
 }
 

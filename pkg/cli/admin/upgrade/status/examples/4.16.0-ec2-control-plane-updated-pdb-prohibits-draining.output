@@ -40,7 +40,7 @@ build0-gstfj-ci-tests-worker-c-2kz4m      Progressing   Draining   4.16.0-ec.2  
 build0-gstfj-ci-tests-worker-c-55hpj      Progressing   Draining   4.16.0-ec.2   +30m   
 ...
 Omitted additional 49 Total, 22 Completed, 46 Available, 3 Progressing, 27 Outdated, 3 Draining, 0 Excluded, and 0 Degraded nodes.
-Pass along --details to see all information.
+Pass along --details=nodes to see all information.
 
 = Update Health =
 SINCE   LEVEL     IMPACT           MESSAGE

@@ -45,17 +45,17 @@ func TestExamples(t *testing.T) {
 
 	variants := []struct {
 		name         string
-		detailed     bool
+		detailed     string
 		outputSuffix string
 	}{
 		{
 			name:         "normal output",
-			detailed:     false,
+			detailed:     "none",
 			outputSuffix: ".output",
 		},
 		{
 			name:         "detailed output",
-			detailed:     true,
+			detailed:     "all",
 			outputSuffix: ".detailed-output",
 		},
 	}

@@ -596,7 +596,7 @@ Completion:      {{ printf "%.0f" .Completion }}%
 Worker Status:   {{ .NodesOverview.Total }} Total, {{ .NodesOverview.Available }} Available, {{ .NodesOverview.Progressing }} Progressing, {{ .NodesOverview.Outdated }} Outdated, {{ .NodesOverview.Draining }} Draining, {{ .NodesOverview.Excluded }} Excluded, {{ .NodesOverview.Degraded }} Degraded
 `
 
-func (pool *poolDisplayData) WriteNodes(w io.Writer) {
+func (pool *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
 	if pool.Name == mco.MachineConfigPoolMaster {
 		fmt.Fprintf(w, "\nControl Plane Node")
 	} else {
@@ -610,7 +610,7 @@ func (pool *poolDisplayData) WriteNodes(w io.Writer) {
 	_, _ = tabw.Write([]byte("\nNAME\tASSESSMENT\tPHASE\tVERSION\tEST\tMESSAGE\n"))
 	var total, completed, available, progressing, outdated, draining, excluded int
 	for i, node := range pool.Nodes {
-		if i >= 10 {
+		if i >= 10 && !detailed {
 			// Limit displaying too many nodes
 			// Display nodes in undesired states regardless their count
 			if !node.isDegraded && (!node.isUnavailable || node.isUpdating) {
@@ -645,6 +645,6 @@ func (pool *poolDisplayData) WriteNodes(w io.Writer) {
 	}
 	tabw.Flush()
 	if total > 0 {
-		fmt.Fprintf(w, "...\nOmitted additional %d Total, %d Completed, %d Available, %d Progressing, %d Outdated, %d Draining, %d Excluded, and 0 Degraded nodes.\nPass along --details to see all information.\n", total, completed, available, progressing, outdated, draining, excluded)
+		fmt.Fprintf(w, "...\nOmitted additional %d Total, %d Completed, %d Available, %d Progressing, %d Outdated, %d Draining, %d Excluded, and 0 Degraded nodes.\nPass along --details=nodes to see all information.\n", total, completed, available, progressing, outdated, draining, excluded)
 	}
 }
