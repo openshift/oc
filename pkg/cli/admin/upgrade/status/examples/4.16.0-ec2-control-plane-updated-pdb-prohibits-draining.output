@@ -44,11 +44,5 @@ Pass along --details to see all information.
 
 = Update Health =
 SINCE   LEVEL     IMPACT           MESSAGE
--       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-9lztv is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-bg9f5 is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-mrxwn is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-4h7pn is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
+-       Error     Update Stalled   7 nodes in pool worker are degraded while draining: failed to drain node: <name> after 1 hour. Please see machine-config-controller logs for more information
 -       Warning   Update Speed     Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable

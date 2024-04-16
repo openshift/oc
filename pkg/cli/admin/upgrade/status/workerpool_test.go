@@ -466,7 +466,7 @@ func Test_assessNodesStatus(t *testing.T) {
 					impact: updateInsightImpact{
 						level:       errorImpactLevel,
 						impactType:  updateStalledImpactType,
-						summary:     "Node a is degraded",
+						summary:     "Node a in pool master is degraded while draining: PDB prohibits draining",
 						description: "PDB prohibits draining",
 					},
 					scope: updateInsightScope{
@@ -657,6 +657,7 @@ func Test_nodeInsights(t *testing.T) {
 		pool          mcfgv1.MachineConfigPool
 		node          corev1.Node
 		reason        string
+		phase         nodePhase
 		isUnavailable bool
 		isUpdating    bool
 		isDegraded    bool
@@ -664,7 +665,7 @@ func Test_nodeInsights(t *testing.T) {
 	testCases := []struct {
 		name                  string
 		args                  args
-		expectedUpdateInsight []updateInsight
+		expectedUpdateInsight []multipleNodeInsight
 	}{
 		{
 			name: "node is updated - all is well",
@@ -680,22 +681,25 @@ func Test_nodeInsights(t *testing.T) {
 				pool:          mcpMaster,
 				node:          node("a").updated(mcNew.Name, mcNew.Name).unavailable().node,
 				reason:        "Node is unavailable",
+				phase:         phaseStateUpdated,
 				isUnavailable: true,
 			},
-			expectedUpdateInsight: []updateInsight{
-				{
-					impact: updateInsightImpact{
-						level:       warningImpactLevel,
-						impactType:  updateSpeedImpactType,
-						summary:     "Node a is unavailable",
-						description: "Node is unavailable",
-					},
-					scope: updateInsightScope{
-						scopeType: scopeTypeControlPlane,
-						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
-					},
-					remediation: updateInsightRemediation{
-						reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
+			expectedUpdateInsight: []multipleNodeInsight{
+				&unavailableNodesInsight{
+					updateInsight{
+						impact: updateInsightImpact{
+							level:       warningImpactLevel,
+							impactType:  updateSpeedImpactType,
+							summary:     "Node a is unavailable",
+							description: "Node is unavailable",
+						},
+						scope: updateInsightScope{
+							scopeType: scopeTypeControlPlane,
+							resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+						},
+						remediation: updateInsightRemediation{
+							reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
+						},
 					},
 				},
 			},
@@ -708,20 +712,22 @@ func Test_nodeInsights(t *testing.T) {
 				reason:        "Node is unavailable",
 				isUnavailable: true,
 			},
-			expectedUpdateInsight: []updateInsight{
-				{
-					impact: updateInsightImpact{
-						level:       warningImpactLevel,
-						impactType:  updateSpeedImpactType,
-						summary:     "Node a is unavailable",
-						description: "Node is unavailable",
-					},
-					scope: updateInsightScope{
-						scopeType: scopeTypeWorkerPool,
-						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
-					},
-					remediation: updateInsightRemediation{
-						reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
+			expectedUpdateInsight: []multipleNodeInsight{
+				&unavailableNodesInsight{
+					updateInsight{
+						impact: updateInsightImpact{
+							level:       warningImpactLevel,
+							impactType:  updateSpeedImpactType,
+							summary:     "Node a is unavailable",
+							description: "Node is unavailable",
+						},
+						scope: updateInsightScope{
+							scopeType: scopeTypeWorkerPool,
+							resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+						},
+						remediation: updateInsightRemediation{
+							reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
+						},
 					},
 				},
 			},
@@ -732,32 +738,27 @@ func Test_nodeInsights(t *testing.T) {
 				pool:          mcpWorker,
 				node:          node("a").degraded_draining(mcOld.Name, mcNew.Name, "PDB prohibits draining").node,
 				reason:        "PDB prohibits draining",
+				phase:         phaseStateDraining,
 				isUnavailable: true,
 				isUpdating:    true,
 				isDegraded:    true,
 			},
-			expectedUpdateInsight: []updateInsight{
-				{
-					impact: updateInsightImpact{
-						level:       errorImpactLevel,
-						impactType:  updateStalledImpactType,
-						summary:     "Node a is degraded",
-						description: "PDB prohibits draining",
-					},
+			expectedUpdateInsight: []multipleNodeInsight{
+				&degradedNodesInsight{
+					pool:  mcpWorker.Name,
+					phase: phaseStateDraining,
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
 						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
 					},
-					remediation: updateInsightRemediation{
-						reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
-					},
+					description: "PDB prohibits draining",
 				},
 			},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			updateInsights := nodeInsights(tc.args.pool, tc.args.node, tc.args.reason, tc.args.isUnavailable, tc.args.isUpdating, tc.args.isDegraded)
+			updateInsights := nodeInsights(tc.args.pool, tc.args.node, tc.args.reason, tc.args.phase, tc.args.isUnavailable, tc.args.isUpdating, tc.args.isDegraded)
 			if diff := cmp.Diff(tc.expectedUpdateInsight, updateInsights, allowUnexportedInsightStructs); diff != "" {
 				t.Errorf("updateInsight differ from expected:\n%s", diff)
 			}

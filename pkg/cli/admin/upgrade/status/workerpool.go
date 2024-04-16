@@ -1,9 +1,11 @@
 package status
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -13,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	configv1 "github.com/openshift/api/config/v1"
 	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
@@ -135,9 +138,112 @@ func selectNodesFromPool(pool mcfgv1.MachineConfigPool, allNodes []corev1.Node) 
 	return res, nil
 }
 
+type multipleNodeInsight interface {
+	merge(insight multipleNodeInsight) bool
+	render() updateInsight
+}
+
+type unavailableNodesInsight struct {
+	// TODO(muller): Unwrap this
+	insight updateInsight
+}
+
+func (a *unavailableNodesInsight) merge(_ multipleNodeInsight) bool {
+	return false
+}
+
+func (a *unavailableNodesInsight) render() updateInsight {
+	return a.insight
+}
+
+type degradedNodesInsight struct {
+	pool        string
+	phase       nodePhase
+	startedAt   time.Time
+	scope       updateInsightScope
+	description string
+}
+
+func (d *degradedNodesInsight) merge(insight multipleNodeInsight) bool {
+	other, ok := insight.(*degradedNodesInsight)
+	if !ok {
+		return false
+	}
+
+	if d.scope.scopeType != other.scope.scopeType {
+		return false
+	}
+
+	myDesc := d.description
+	if len(d.scope.resources) == 1 {
+		nodeName := d.scope.resources[0].name
+		myDesc = strings.Replace(myDesc, nodeName, ellipsize(nodeName, 5), -1)
+	}
+	otherDesc := other.description
+	if len(other.scope.resources) == 1 {
+		nodeName := other.scope.resources[0].name
+		otherDesc = strings.Replace(otherDesc, nodeName, ellipsize(nodeName, 5), -1)
+	}
+
+	if myDesc != otherDesc {
+		return false
+	}
+	d.description = myDesc
+	d.scope.resources = append(d.scope.resources, other.scope.resources...)
+
+	if other.startedAt.Before(d.startedAt) {
+		d.startedAt = other.startedAt
+	}
+
+	return true
+}
+
+func (d *degradedNodesInsight) render() updateInsight {
+	// Deduplicate and sort resources
+	resources := sets.New[scopeResource](d.scope.resources...)
+	d.scope.resources = resources.UnsortedList()
+	slices.SortFunc(d.scope.resources, func(a, b scopeResource) int {
+		if n := cmp.Compare(a.kind, b.kind); n != 0 {
+			return n
+		}
+		if n := cmp.Compare(a.namespace, b.namespace); n != 0 {
+			return n
+		}
+		return cmp.Compare(a.name, b.name)
+	})
+
+	var node uint
+	for _, resource := range d.scope.resources {
+		if resource.kind == scopeKindNode {
+			node += 1
+		}
+	}
+
+	var summary string
+	if nodes := len(d.scope.resources); nodes > 1 {
+		summary = fmt.Sprintf("%d nodes in pool %s are degraded while %s: %s", nodes, d.pool, strings.ToLower(d.phase.String()), d.description)
+	} else {
+		summary = fmt.Sprintf("Node %s in pool %s is degraded while %s: %s", d.scope.resources[0].name, d.pool, strings.ToLower(d.phase.String()), d.description)
+	}
+
+	return updateInsight{
+		startedAt: d.startedAt,
+		scope:     d.scope,
+		remediation: updateInsightRemediation{
+			reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
+		},
+		impact: updateInsightImpact{
+			level:       errorImpactLevel,
+			impactType:  updateStalledImpactType,
+			summary:     summary,
+			description: d.description,
+		},
+	}
+}
+
 func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPool, nodes []corev1.Node, machineConfigs []mcfgv1.MachineConfig) ([]nodeDisplayData, []updateInsight) {
 	var nodesStatusData []nodeDisplayData
-	var insights []updateInsight
+	var multipleNodeInsights []multipleNodeInsight
 	for _, node := range nodes {
 		currentVersion := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.CurrentMachineConfigAnnotationKey])
 		desiredVersion := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.DesiredMachineConfigAnnotationKey])
@@ -191,14 +297,27 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 			}
 		}
 
-		insights = append(insights, nodeInsights(pool, node, message, isUnavailable, isUpdating, isDegraded)...)
+		singleNodeInsights := nodeInsights(pool, node, message, phase, isUnavailable, isUpdating, isDegraded)
+		for si := range singleNodeInsights {
+			merged := false
+			insight := singleNodeInsights[si]
+			for mi := range multipleNodeInsights {
+				if ok := multipleNodeInsights[mi].merge(insight); ok {
+					merged = true
+					break
+				}
+			}
+			if !merged {
+				multipleNodeInsights = append(multipleNodeInsights, insight)
+			}
+		}
 
 		nodesStatusData = append(nodesStatusData, nodeDisplayData{
 			Name:          node.Name,
 			Assessment:    assessment,
 			Estimate:      estimate,
 			Phase:         phase,
-			Message:       strings.Replace(message, node.Name, ellipsize(node.Name), -1),
+			Message:       strings.Replace(message, node.Name, ellipsize(node.Name, 10), -1),
 			Version:       currentVersion,
 			isUnavailable: isUnavailable,
 			isDegraded:    isDegraded,
@@ -217,11 +336,18 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 		return nodesStatusData[i].Assessment < nodesStatusData[j].Assessment
 	})
 
+	var insights []updateInsight
+	if len(multipleNodeInsights) > 0 {
+		insights = make([]updateInsight, 0, len(multipleNodeInsights))
+		for i := range multipleNodeInsights {
+			insights = append(insights, multipleNodeInsights[i].render())
+		}
+	}
 	return nodesStatusData, insights
 }
 
-func ellipsize(name string) string {
-	if len(name) <= 10 {
+func ellipsize(name string, aboveLen int) string {
+	if len(name) <= aboveLen {
 		return name
 	}
 	return "<name>"
@@ -325,46 +451,42 @@ func mcdUpdatingStateToPhase(state string) nodePhase {
 	}
 }
 
-func nodeInsights(pool mcfgv1.MachineConfigPool, node corev1.Node, reason string, isUnavailable, isUpdating, isDegraded bool) []updateInsight {
-	var insights []updateInsight
+func nodeInsights(pool mcfgv1.MachineConfigPool, node corev1.Node, reason string, phase nodePhase, isUnavailable, isUpdating, isDegraded bool) []multipleNodeInsight {
+	var insights []multipleNodeInsight
 	scope := scopeTypeWorkerPool
 	if pool.Name == "master" {
 		scope = scopeTypeControlPlane
 	}
 	if isUnavailable && !isUpdating {
-		insights = append(insights, updateInsight{
-			startedAt: time.Time{},
-			scope: updateInsightScope{
-				scopeType: scope,
-				resources: []scopeResource{{kind: scopeKindNode, name: node.Name}},
-			},
-			impact: updateInsightImpact{
-				level:       warningImpactLevel,
-				impactType:  updateSpeedImpactType,
-				summary:     fmt.Sprintf("Node %s is unavailable", node.Name),
-				description: reason,
-			},
-			remediation: updateInsightRemediation{
-				reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
+		insights = append(insights, &unavailableNodesInsight{
+			insight: updateInsight{
+				startedAt: time.Time{},
+				scope: updateInsightScope{
+					scopeType: scope,
+					resources: []scopeResource{{kind: scopeKindNode, name: node.Name}},
+				},
+				impact: updateInsightImpact{
+					level:       warningImpactLevel,
+					impactType:  updateSpeedImpactType,
+					summary:     fmt.Sprintf("Node %s is unavailable", node.Name),
+					description: reason,
+				},
+				remediation: updateInsightRemediation{
+					reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
+				},
 			},
 		})
 	}
 	if isDegraded {
-		insights = append(insights, updateInsight{
+		insights = append(insights, &degradedNodesInsight{
+			pool:      pool.Name,
+			phase:     phase,
 			startedAt: time.Time{},
 			scope: updateInsightScope{
 				scopeType: scope,
 				resources: []scopeResource{{kind: scopeKindNode, name: node.Name}},
 			},
-			impact: updateInsightImpact{
-				level:       errorImpactLevel,
-				impactType:  updateStalledImpactType,
-				summary:     fmt.Sprintf("Node %s is degraded", node.Name),
-				description: reason,
-			},
-			remediation: updateInsightRemediation{
-				reference: "https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
-			},
+			description: reason,
 		})
 	}
 	return insights
