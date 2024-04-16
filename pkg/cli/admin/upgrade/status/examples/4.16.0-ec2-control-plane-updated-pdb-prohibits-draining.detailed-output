@@ -48,6 +48,8 @@ Message: 7 nodes in pool worker are degraded while draining: failed to drain nod
   Level:       Error
   Impact:      Update Stalled
   Reference:   https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    Nodes: build0-gstfj-ci-prowjobs-worker-b-9lztv build0-gstfj-ci-prowjobs-worker-b-bg9f5 build0-gstfj-ci-prowjobs-worker-b-mrxwn build0-gstfj-ci-tests-worker-b-4h7pn build0-gstfj-ci-tests-worker-b-jv5bg build0-gstfj-ci-tests-worker-b-kj6gk build0-gstfj-ci-tests-worker-c-dcz9p
   Description: failed to drain node: <name> after 1 hour. Please see machine-config-controller logs for more information
 
 Message: Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable
@@ -55,4 +57,6 @@ Message: Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable
   Level:       Warning
   Impact:      Update Speed
   Reference:   https://docs.openshift.com/container-platform/4.15/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    Nodes: build0-gstfj-ci-tests-worker-c-jq5rk
   Description: Node is unavailable

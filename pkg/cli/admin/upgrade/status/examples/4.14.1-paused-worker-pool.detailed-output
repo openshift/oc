@@ -32,4 +32,6 @@ Message: Outdated nodes in a paused pool 'worker' will not be updated
   Level:       Warning
   Impact:      Update Stalled
   Reference:   https://docs.openshift.com/container-platform/4.15/support/troubleshooting/troubleshooting-operator-issues.html#troubleshooting-disabling-autoreboot-mco_troubleshooting-operator-issues
+  Resources:
+    MachineConfigPools: worker
   Description: Pool is paused, which stops all changes to the nodes in the pool, including updates. The nodes will not be updated until the pool is unpaused by the administrator.

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 type scopeType string
@@ -28,6 +30,14 @@ type scopeResource struct {
 	kind      allowedScopeKind
 	namespace string
 	name      string
+}
+
+func (r scopeResource) namespacedName() string {
+	if r.namespace == "" {
+		return r.name
+	} else {
+		return fmt.Sprintf("%s/%s", r.namespace, r.name)
+	}
 }
 
 type updateInsightScope struct {
@@ -194,6 +204,7 @@ type displayItem struct {
 	message     string
 	description string
 	reference   string
+	resources   []scopeResource
 }
 
 func (i *updateHealthData) Write(w io.Writer, detailed bool) error {
@@ -209,6 +220,7 @@ func (i *updateHealthData) Write(w io.Writer, detailed bool) error {
 			message:     insight.impact.summary,
 			description: insight.impact.description,
 			reference:   insight.remediation.reference,
+			resources:   insight.scope.resources,
 		})
 	}
 	if detailed {
@@ -220,6 +232,31 @@ func (i *updateHealthData) Write(w io.Writer, detailed bool) error {
 	return nil
 }
 
+func detailedResourceOutput(w io.Writer, resources []scopeResource) {
+	if len(resources) == 0 {
+		return
+	}
+	_, _ = w.Write([]byte(fmt.Sprintf("  %s\n", "Resources:")))
+	var pad int
+	byKind := make(map[allowedScopeKind][]string)
+
+	kinds := sets.New[allowedScopeKind]()
+	for _, resource := range resources {
+		byKind[resource.kind] = append(byKind[resource.kind], resource.namespacedName())
+		kinds.Insert(resource.kind)
+		if n := len(resource.kind); n > pad {
+			pad = n
+		}
+	}
+
+	for _, kind := range sets.List(kinds) {
+		_, _ = w.Write([]byte(fmt.Sprintf("    %-*ss: ", pad, kind)))
+		sort.Strings(byKind[kind])
+		_, _ = w.Write([]byte(strings.Join(byKind[kind], " ") + "\n"))
+	}
+
+}
+
 func detailedOutput(w io.Writer, items []displayItem) {
 	pad := len("Description: ")
 	for i, item := range items {
@@ -228,6 +265,8 @@ func detailedOutput(w io.Writer, items []displayItem) {
 		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Level:", item.level)))
 		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Impact:", item.impact)))
 		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Reference:", item.reference)))
+
+		detailedResourceOutput(w, item.resources)
 		// Respect the "  Description: " indentation when description has linebreaks
 		item.description = strings.ReplaceAll(item.description, "\n", fmt.Sprintf("\n%s, ", strings.Repeat(" ", pad+2)))
 		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Description:", item.description)))
