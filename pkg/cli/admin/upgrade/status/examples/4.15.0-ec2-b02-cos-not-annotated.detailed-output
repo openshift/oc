@@ -1,0 +1,31 @@
+An update is in progress for 52m56s: Working towards 4.15.0-ec.2: 357 of 1021 done (34% complete), waiting up to 40 minutes on cluster-api
+
+= Control Plane =
+Assessment:      Progressing
+Completion:      43%
+Duration:        52m56s
+Operator Status: 7 Total, 7 Available, 0 Progressing, 0 Degraded
+
+Control Plane Nodes
+NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+ip-10-0-30-217.us-east-2.compute.internal   Outdated     Pending   4.15.0-ec.1   ?     
+ip-10-0-53-40.us-east-2.compute.internal    Outdated     Pending   4.15.0-ec.1   ?     
+ip-10-0-92-180.us-east-2.compute.internal   Outdated     Pending   4.15.0-ec.1   ?     
+
+= Worker Upgrade =
+
+= Worker Pool =
+Worker Pool:     worker
+Assessment:      Pending
+Completion:      0%
+Worker Status:   3 Total, 3 Available, 0 Progressing, 3 Outdated, 0 Draining, 0 Excluded, 0 Degraded
+
+Worker Pool Nodes
+NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+ip-10-0-20-162.us-east-2.compute.internal   Outdated     Pending   4.15.0-ec.1   ?     
+ip-10-0-4-159.us-east-2.compute.internal    Outdated     Pending   4.15.0-ec.1   ?     
+ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.15.0-ec.1   ?     
+
+= Update Health =
+SINCE    LEVEL   IMPACT   MESSAGE
+52m56s   Info    None     Upgrade is proceeding well
