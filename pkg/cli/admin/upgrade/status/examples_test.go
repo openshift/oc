@@ -42,7 +42,7 @@ func TestExamples(t *testing.T) {
 		t.Run(cv, func(t *testing.T) {
 			t.Parallel()
 
-			opts := &options{mockData: mockData{cvPath: cv}}
+			opts := &options{mockData: mockData{cvPath: cv}, detailedOutput: detailedOutputNone}
 			if err := opts.Complete(nil, nil, nil); err != nil {
 				t.Fatalf("Error when completing options: %v", err)
 			}
