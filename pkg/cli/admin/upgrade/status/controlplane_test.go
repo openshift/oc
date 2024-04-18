@@ -481,7 +481,7 @@ func TestCoInsights(t *testing.T) {
 			},
 		},
 		{
-			name: "insights flatten linebreaks in messages",
+			name: "insights do not flatten linebreaks in messages",
 			available: configv1.ClusterOperatorStatusCondition{
 				Type:               configv1.OperatorAvailable,
 				Status:             configv1.ConditionFalse,
@@ -501,7 +501,7 @@ func TestCoInsights(t *testing.T) {
 						level:       errorImpactLevel,
 						impactType:  apiAvailabilityImpactType,
 						summary:     `Cluster Operator testOperator is unavailable (Broken)`,
-						description: "Operator is broken // and message has linebreaks",
+						description: "Operator is broken\nand message has linebreaks",
 					},
 					remediation: updateInsightRemediation{
 						reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDown.md",
