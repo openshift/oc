@@ -1,6 +1,7 @@
 package status
 
 import (
+	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -88,15 +89,21 @@ const (
 )
 
 type updateInsightImpact struct {
-	level      impactLevel
-	impactType impactType
-	summary    string
+	level       impactLevel
+	impactType  impactType
+	summary     string
+	description string
+}
+
+type updateInsightRemediation struct {
+	reference string
 }
 
 type updateInsight struct {
-	startedAt time.Time
-	scope     updateInsightScope
-	impact    updateInsightImpact
+	startedAt   time.Time
+	scope       updateInsightScope
+	impact      updateInsightImpact
+	remediation updateInsightRemediation
 }
 
 type updateHealthData struct {
@@ -155,17 +162,62 @@ func stringSince(health *updateHealthData, insight updateInsight) string {
 	return shortDuration(health.evaluatedAt.Sub(insight.startedAt).Truncate(time.Second))
 }
 
-func (i *updateHealthData) Write(w io.Writer) error {
+type displayItem struct {
+	since       string
+	level       string
+	impact      string
+	message     string
+	description string
+	reference   string
+}
+
+func (i *updateHealthData) Write(w io.Writer, detailed bool) error {
 	_, _ = w.Write([]byte("= Update Health =\n"))
-	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-	_, _ = tabw.Write([]byte("SINCE\tLEVEL\tIMPACT\tMESSAGE\n"))
+	displayData := make([]displayItem, 0, len(i.insights))
 	for _, insight := range i.insights {
-		_, _ = tabw.Write([]byte(stringSince(i, insight) + "\t"))
-		_, _ = tabw.Write([]byte(insight.impact.level.String() + "\t"))
-		_, _ = tabw.Write([]byte(insight.impact.impactType + "\t"))
-		_, _ = tabw.Write([]byte(insight.impact.summary + "\n"))
+		displayData = append(displayData, displayItem{
+			since:       stringSince(i, insight),
+			level:       insight.impact.level.String(),
+			impact:      string(insight.impact.impactType),
+			message:     insight.impact.summary,
+			description: insight.impact.description,
+			reference:   insight.remediation.reference,
+		})
 	}
-	tabw.Flush()
+
+	if detailed {
+		detailedOutput(w, displayData)
+	} else {
+		tabulatedOutput(w, displayData)
+	}
 
 	return nil
+}
+
+func detailedOutput(w io.Writer, items []displayItem) {
+	pad := len("Description: ")
+	for i, item := range items {
+		_, _ = w.Write([]byte(fmt.Sprintf("Message: %s\n", item.message)))
+		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Since:", item.since)))
+		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Level:", item.level)))
+		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Impact:", item.impact)))
+		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Reference:", item.reference)))
+		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Description:", item.description)))
+		if len(items) > i+1 {
+			_, _ = w.Write([]byte("\n"))
+
+		}
+	}
+}
+
+func tabulatedOutput(w io.Writer, items []displayItem) {
+	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
+	_, _ = tabw.Write([]byte("SINCE\tLEVEL\tIMPACT\tMESSAGE\n"))
+	for _, item := range items {
+		_, _ = tabw.Write([]byte(item.since + "\t"))
+		_, _ = tabw.Write([]byte(item.level + "\t"))
+		_, _ = tabw.Write([]byte(item.impact + "\t"))
+		_, _ = tabw.Write([]byte(item.message + "\n"))
+	}
+	_ = tabw.Flush()
 }

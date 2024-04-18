@@ -27,5 +27,9 @@ ip-10-0-4-159.us-east-2.compute.internal    Outdated     Pending   4.14.1    ?
 ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.14.1    ?     
 
 = Update Health =
-SINCE   LEVEL   IMPACT   MESSAGE
-1m29s   Info    None     Upgrade is proceeding well
+Message: Upgrade is proceeding well
+  Since:       1m29s
+  Level:       Info
+  Impact:      None
+  Reference:   
+  Description: 

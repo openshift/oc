@@ -37,5 +37,9 @@ NAME                                             ASSESSMENT    PHASE      VERSIO
 ip-10-0-4-159-infra.us-east-2.compute.internal   Progressing   Draining   4.14.0    +30m   
 
 = Update Health =
-SINCE   LEVEL   IMPACT   MESSAGE
-14m4s   Info    None     Upgrade is proceeding well
+Message: Upgrade is proceeding well
+  Since:       14m4s
+  Level:       Info
+  Impact:      None
+  Reference:   
+  Description: 

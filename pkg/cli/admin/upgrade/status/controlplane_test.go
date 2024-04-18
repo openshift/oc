@@ -129,7 +129,14 @@ var cvFixture = configv1.ClusterVersion{
 	},
 }
 
-var allowUnexportedInsightStructs = cmp.AllowUnexported(updateInsight{}, updateInsightScope{}, scopeResource{}, updateInsightImpact{})
+var allowUnexportedInsightStructs = cmp.AllowUnexported(
+	updateInsight{},
+	updateInsightScope{},
+	scopeResource{},
+	updateInsightImpact{},
+	updateInsightRemediation{},
+	updateHealthData{},
+)
 
 func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 	testCases := []struct {
