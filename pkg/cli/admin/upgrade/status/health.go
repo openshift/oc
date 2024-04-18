@@ -95,8 +95,16 @@ type updateInsightImpact struct {
 	description string
 }
 
+func (i updateInsightImpact) incomplete() bool {
+	return i.description == "" || i.summary == ""
+}
+
 type updateInsightRemediation struct {
 	reference string
+}
+
+func (r updateInsightRemediation) incomplete() bool {
+	return r.reference == ""
 }
 
 type updateInsight struct {
@@ -106,6 +114,10 @@ type updateInsight struct {
 	remediation updateInsightRemediation
 }
 
+func (i updateInsight) incomplete() bool {
+	return i.impact.incomplete() || i.remediation.incomplete()
+}
+
 type updateHealthData struct {
 	evaluatedAt time.Time
 	insights    []updateInsight
@@ -113,7 +125,13 @@ type updateHealthData struct {
 
 func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, evaluatedAt time.Time) updateHealthData {
 	sorted := make([]updateInsight, 0, len(insights))
-	sorted = append(sorted, insights...)
+	for _, insight := range insights {
+		if insight.incomplete() {
+			continue
+		}
+		sorted = append(sorted, insight)
+	}
+
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].startedAt.After(sorted[j].startedAt)
 	})
