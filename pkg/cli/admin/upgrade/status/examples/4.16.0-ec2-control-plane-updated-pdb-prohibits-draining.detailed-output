@@ -1,0 +1,100 @@
+An update is in progress for 4h3m46s: Error while reconciling 4.16.0-ec.3: the cluster operator machine-config is degraded
+
+Failing=True:
+
+  Reason: ClusterOperatorDegraded
+  Message: Cluster operator machine-config is degraded
+
+
+= Control Plane =
+Assessment:      Completed
+Completion:      100%
+Duration:        3h30m31s
+Operator Status: 36 Total, 36 Available, 0 Progressing, 1 Degraded
+
+Control Plane Nodes
+NAME                                                  ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+build0-gstfj-m-0.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
+build0-gstfj-m-1.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
+build0-gstfj-m-2.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
+
+= Worker Upgrade =
+
+= Worker Pool =
+Worker Pool:     worker
+Assessment:      Degraded
+Completion:      39%
+Worker Status:   59 Total, 46 Available, 5 Progressing, 36 Outdated, 12 Draining, 0 Excluded, 7 Degraded
+
+Worker Pool Nodes
+NAME                                                              ASSESSMENT    PHASE      VERSION       EST    MESSAGE
+build0-gstfj-ci-prowjobs-worker-b-9lztv                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-9lztv after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-b-bg9f5                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-bg9f5 after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-b-mrxwn                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-mrxwn after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-4h7pn                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-b-4h7pn after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-jv5bg                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-b-jv5bg after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-kj6gk                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-b-kj6gk after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-c-dcz9p                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-c-dcz9p after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-c-jq5rk                              Unavailable   Updated    4.16.0-ec.3   -      Node is unavailable
+build0-gstfj-ci-tests-worker-c-2kz4m                              Progressing   Draining   4.16.0-ec.2   +30m   
+build0-gstfj-ci-tests-worker-c-55hpj                              Progressing   Draining   4.16.0-ec.2   +30m   
+build0-gstfj-ci-tests-worker-c-8tmjv                              Progressing   Draining   4.16.0-ec.2   +30m   
+build0-gstfj-ci-tests-worker-c-lfz8m                              Progressing   Draining   4.16.0-ec.2   +30m   
+build0-gstfj-ci-tests-worker-c-r55wv                              Progressing   Draining   4.16.0-ec.2   +30m   
+build0-gstfj-ci-longtests-worker-c-vspm9                          Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-longtests-worker-d-hksc9                          Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-prowjobs-worker-c-f6dkk                           Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-prowjobs-worker-c-kkm72                           Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-prowjobs-worker-c-p5df7                           Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-prowjobs-worker-c-tgrsc                           Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-prowjobs-worker-d-ddnxd                           Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-2c4vg                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-5twk4                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-65n48                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-79nrd                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-82z85                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-glhn7                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-hnxl9                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-jpzfm                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-lxqgs                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-rqch4                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-zd9c7                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-d-6hddk                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-d-kc6xt                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-d-r2k42                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-d-r9zqc                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-d-w2bgd                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-w-d-7rj9w.c.openshift-ci-build-farm.internal         Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-builds-worker-b-65df4                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-b-dvrd2                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-b-f7rlh                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-b-m4vgr                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-b-mg8bd                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-c-2hzgm                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-c-dmjft                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-c-ng8s5                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-c-vmmfj                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-d-4pjlz                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-d-z49wm                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-tests-worker-b-d9vz2                              Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-tests-worker-b-fkn28                              Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-tests-worker-b-mc7fm                              Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-tests-worker-b-pqz8t                              Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-b-f7dkq.c.openshift-ci-build-farm.internal         Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-b-infra-2stfh.c.openshift-ci-build-farm.internal   Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-b-infra-mhb8g.c.openshift-ci-build-farm.internal   Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-b-infra-n9kc5.c.openshift-ci-build-farm.internal   Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-b-mwf8t.c.openshift-ci-build-farm.internal         Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-c-nsmn5.c.openshift-ci-build-farm.internal         Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-c-qjbdl.c.openshift-ci-build-farm.internal         Completed     Updated    4.16.0-ec.3   -      
+
+= Update Health =
+SINCE   LEVEL     IMPACT           MESSAGE
+-       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-9lztv is degraded | failed to drain node: build0-gstfj-ci-prowjobs-worker-b-9lztv after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-bg9f5 is degraded | failed to drain node: build0-gstfj-ci-prowjobs-worker-b-bg9f5 after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-mrxwn is degraded | failed to drain node: build0-gstfj-ci-prowjobs-worker-b-mrxwn after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-4h7pn is degraded | failed to drain node: build0-gstfj-ci-tests-worker-b-4h7pn after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded | failed to drain node: build0-gstfj-ci-tests-worker-b-jv5bg after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded | failed to drain node: build0-gstfj-ci-tests-worker-b-kj6gk after 1 hour. Please see machine-config-controller logs for more information
+-       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded | failed to drain node: build0-gstfj-ci-tests-worker-c-dcz9p after 1 hour. Please see machine-config-controller logs for more information
+-       Warning   Update Speed     Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable | Node is unavailable

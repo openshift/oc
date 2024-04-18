@@ -1,0 +1,31 @@
+An update is in progress for 58m53s: Working towards 4.15.0-ec.2: 110 of 863 done (12% complete), waiting up to 40 minutes on etcd
+
+= Control Plane =
+Assessment:      Progressing
+Completion:      97%
+Duration:        58m53s
+Operator Status: 33 Total, 31 Available, 1 Progressing, 1 Degraded
+
+Control Plane Nodes
+NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+ip-10-0-30-217.us-east-2.compute.internal   Outdated     Pending   4.14.0-rc.3   ?     
+ip-10-0-53-40.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3   ?     
+ip-10-0-92-180.us-east-2.compute.internal   Outdated     Pending   4.14.0-rc.3   ?     
+
+= Worker Upgrade =
+
+= Worker Pool =
+Worker Pool:     worker
+Assessment:      Pending
+Completion:      0%
+Worker Status:   3 Total, 3 Available, 0 Progressing, 3 Outdated, 0 Draining, 0 Excluded, 0 Degraded
+
+Worker Pool Nodes
+NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+ip-10-0-20-162.us-east-2.compute.internal   Outdated     Pending   4.14.0-rc.3   ?     
+ip-10-0-4-159.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3   ?     
+ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3   ?     
+
+= Update Health =
+SINCE    LEVEL   IMPACT             MESSAGE
+20m24s   Error   API Availability   Cluster Operator machine-config is unavailable | MachineConfigControllerFailed: Cluster not available for [{operator 4.14.0-rc.3}]: ControllerConfig.machineconfiguration.openshift.io "machine-config-controller" is invalid: [status.controllerCertificates[0].notAfter: Required value, status.controllerCertificates[0].notBefore: Required value, status.controllerCertificates[1].notAfter: Required value, status.controllerCertificates[1].notBefore: Required value, status.controllerCertificates[2].notAfter: Required value, status.controllerCertificates[2].notBefore: Required value, status.controllerCertificates[3].notAfter: Required value, status.controllerCertificates[3].notBefore: Required value, status.controllerCertificates[4].notAfter: Required value, status.controllerCertificates[4].notBefore: Required value, status.controllerCertificates[5].notAfter: Required value, status.controllerCertificates[5].notBefore: Required value, status.controllerCertificates[6].notAfter: Required value, status.controllerCertificates[6].notBefore: Required value, status.controllerCertificates[7].notAfter: Required value, status.controllerCertificates[7].notBefore: Required value, status.controllerCertificates[8].notAfter: Required value, status.controllerCertificates[8].notBefore: Required value, status.controllerCertificates[9].notAfter: Required value, status.controllerCertificates[9].notBefore: Required value, <nil>: Invalid value: "null": some validation rules were not checked because the object was invalid; correct the existing errors to complete validation]
