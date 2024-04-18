@@ -123,7 +123,9 @@ type updateHealthData struct {
 	insights    []updateInsight
 }
 
-func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, evaluatedAt time.Time) updateHealthData {
+// assessUpdateInsights processes insights to be displayed and returns matching displayable data. If the displayable data are not
+// worth showing in detailed mode, returns false as the second return value.
+func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, evaluatedAt time.Time) (updateHealthData, bool) {
 	sorted := make([]updateInsight, 0, len(insights))
 	for _, insight := range insights {
 		if insight.incomplete() {
@@ -140,20 +142,25 @@ func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, 
 	})
 
 	if len(sorted) == 0 {
-		sorted = append(sorted, updateInsight{
-			startedAt: evaluatedAt.Add(-upgradingFor),
-			impact: updateInsightImpact{
-				level:      infoImpactLevel,
-				impactType: noneImpactType,
-				summary:    "Upgrade is proceeding well",
+		return updateHealthData{
+			evaluatedAt: evaluatedAt,
+			insights: []updateInsight{
+				{
+					startedAt: evaluatedAt.Add(-upgradingFor),
+					impact: updateInsightImpact{
+						level:      infoImpactLevel,
+						impactType: noneImpactType,
+						summary:    "Upgrade is proceeding well",
+					},
+				},
 			},
-		})
+		}, false
 	}
 
 	return updateHealthData{
 		evaluatedAt: evaluatedAt,
 		insights:    sorted,
-	}
+	}, true
 }
 
 func shortDuration(d time.Duration) string {
