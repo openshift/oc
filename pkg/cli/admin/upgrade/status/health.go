@@ -290,4 +290,8 @@ func tabulatedOutput(w io.Writer, items []displayItem) {
 		_, _ = tabw.Write([]byte(item.message + "\n"))
 	}
 	_ = tabw.Flush()
+
+	if len(items) > 1 || items[0].level != infoImpactLevel.String() {
+		_, _ = w.Write([]byte("\nRun with --details=health for additional description and links to related online documentation\n"))
+	}
 }

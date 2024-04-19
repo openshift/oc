@@ -52,3 +52,5 @@ SINCE   LEVEL     IMPACT           MESSAGE
 -       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded
 -       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
 -       Warning   Update Speed     Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable
+
+Run with --details=health for additional description and links to related online documentation

@@ -29,3 +29,5 @@ ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3  
 = Update Health =
 SINCE    LEVEL   IMPACT             MESSAGE
 20m24s   Error   API Availability   Cluster Operator machine-config is unavailable (MachineConfigControllerFailed)
+
+Run with --details=health for additional description and links to related online documentation

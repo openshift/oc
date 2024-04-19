@@ -191,7 +191,8 @@ func TestUpdateHealthData_Write(t *testing.T) {
 				"5s      Error      API Availability   Something that broke API and happened recently\n" +
 				"20s     Error      Cluster Capacity   Something that limits cluster capacity\n" +
 				"10s     Warning    Update Speed       Something that slows the update\n" +
-				"0s      Info       None               Something with no impact that happened right now\n",
+				"0s      Info       None               Something with no impact that happened right now\n\n" +
+				"Run with --details=health for additional description and links to related online documentation\n",
 		},
 		{
 			name:     "detailed",

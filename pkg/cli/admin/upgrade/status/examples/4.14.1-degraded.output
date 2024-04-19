@@ -39,3 +39,5 @@ SINCE     LEVEL   IMPACT             MESSAGE
 58m18s    Error   API Availability   Cluster Operator kube-scheduler is degraded (NodeController_MasterNodesReady)
 58m38s    Error   API Availability   Cluster Operator etcd is degraded (EtcdEndpoints_ErrorUpdatingEtcdEndpoints::EtcdMembers_UnhealthyMembers::NodeController_MasterNodesReady)
 1h0m17s   Error   API Availability   Cluster Operator control-plane-machine-set is unavailable (UnavailableReplicas)
+
+Run with --details=health for additional description and links to related online documentation
