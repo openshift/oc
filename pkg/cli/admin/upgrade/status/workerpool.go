@@ -135,6 +135,14 @@ func selectNodesFromPool(pool mcfgv1.MachineConfigPool, allNodes []corev1.Node) 
 	return res, nil
 }
 
+func ellipsizeNames(message string, name string) string {
+	if len(name) < 8 {
+		return message
+	}
+
+	return strings.Replace(message, name, "<node>", -1)
+}
+
 func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPool, nodes []corev1.Node, machineConfigs []mcfgv1.MachineConfig) ([]nodeDisplayData, []updateInsight) {
 	var nodesStatusData []nodeDisplayData
 	var insights []updateInsight
@@ -198,7 +206,7 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 			Assessment:    assessment,
 			Estimate:      estimate,
 			Phase:         phase,
-			Message:       message,
+			Message:       ellipsizeNames(message, node.Name),
 			Version:       currentVersion,
 			isUnavailable: isUnavailable,
 			isDegraded:    isDegraded,
