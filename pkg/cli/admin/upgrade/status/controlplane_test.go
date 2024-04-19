@@ -129,7 +129,14 @@ var cvFixture = configv1.ClusterVersion{
 	},
 }
 
-var allowUnexportedInsightStructs = cmp.AllowUnexported(updateInsight{}, updateInsightScope{}, scopeResource{}, updateInsightImpact{})
+var allowUnexportedInsightStructs = cmp.AllowUnexported(
+	updateInsight{},
+	updateInsightScope{},
+	scopeResource{},
+	updateInsightImpact{},
+	updateInsightRemediation{},
+	updateHealthData{},
+)
 
 func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 	testCases := []struct {
@@ -404,18 +411,26 @@ func TestCoInsights(t *testing.T) {
 					startedAt: anchorTime.Add(-unavailableWarningThreshold).Add(-time.Second),
 					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: "testOperator"}}},
 					impact: updateInsightImpact{
-						level:      warningImpactLevel,
-						impactType: apiAvailabilityImpactType,
-						summary:    "Cluster Operator testOperator is unavailable | Broken: Operator is broken",
+						level:       warningImpactLevel,
+						impactType:  apiAvailabilityImpactType,
+						summary:     "Cluster Operator testOperator is unavailable (Broken)",
+						description: "Operator is broken",
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDown.md",
 					},
 				},
 				{
 					startedAt: anchorTime.Add(-degradedWarningThreshold).Add(-time.Second),
 					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: "testOperator"}}},
 					impact: updateInsightImpact{
-						level:      warningImpactLevel,
-						impactType: apiAvailabilityImpactType,
-						summary:    "Cluster Operator testOperator is degraded | Slow: Networking is hard",
+						level:       warningImpactLevel,
+						impactType:  apiAvailabilityImpactType,
+						summary:     "Cluster Operator testOperator is degraded (Slow)",
+						description: "Networking is hard",
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md",
 					},
 				},
 			},
@@ -441,24 +456,32 @@ func TestCoInsights(t *testing.T) {
 					startedAt: anchorTime.Add(-unavailableErrorThreshold).Add(-time.Second),
 					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: "testOperator"}}},
 					impact: updateInsightImpact{
-						level:      errorImpactLevel,
-						impactType: apiAvailabilityImpactType,
-						summary:    "Cluster Operator testOperator is unavailable | Broken: Operator is broken",
+						level:       errorImpactLevel,
+						impactType:  apiAvailabilityImpactType,
+						summary:     "Cluster Operator testOperator is unavailable (Broken)",
+						description: "Operator is broken",
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDown.md",
 					},
 				},
 				{
 					startedAt: anchorTime.Add(-degradedErrorThreshold).Add(-time.Second),
 					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: "testOperator"}}},
 					impact: updateInsightImpact{
-						level:      errorImpactLevel,
-						impactType: apiAvailabilityImpactType,
-						summary:    "Cluster Operator testOperator is degraded | Slow: Networking is hard",
+						level:       errorImpactLevel,
+						impactType:  apiAvailabilityImpactType,
+						summary:     "Cluster Operator testOperator is degraded (Slow)",
+						description: "Networking is hard",
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md",
 					},
 				},
 			},
 		},
 		{
-			name: "insights flatten linebreaks in messages",
+			name: "insights do not flatten linebreaks in messages",
 			available: configv1.ClusterOperatorStatusCondition{
 				Type:               configv1.OperatorAvailable,
 				Status:             configv1.ConditionFalse,
@@ -475,9 +498,13 @@ func TestCoInsights(t *testing.T) {
 					startedAt: anchorTime.Add(-unavailableErrorThreshold).Add(-time.Second),
 					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: "testOperator"}}},
 					impact: updateInsightImpact{
-						level:      errorImpactLevel,
-						impactType: apiAvailabilityImpactType,
-						summary:    `Cluster Operator testOperator is unavailable | Broken: Operator is broken // and message has linebreaks`,
+						level:       errorImpactLevel,
+						impactType:  apiAvailabilityImpactType,
+						summary:     `Cluster Operator testOperator is unavailable (Broken)`,
+						description: "Operator is broken\nand message has linebreaks",
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDown.md",
 					},
 				},
 			},

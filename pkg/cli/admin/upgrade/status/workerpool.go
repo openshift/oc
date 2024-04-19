@@ -332,9 +332,13 @@ func nodeInsights(pool mcfgv1.MachineConfigPool, node corev1.Node, reason string
 				resources: []scopeResource{{kind: scopeKindNode, name: node.Name}},
 			},
 			impact: updateInsightImpact{
-				level:      warningImpactLevel,
-				impactType: updateSpeedImpactType,
-				summary:    fmt.Sprintf("Node %s is unavailable | %s", node.Name, reason),
+				level:       warningImpactLevel,
+				impactType:  updateSpeedImpactType,
+				summary:     fmt.Sprintf("Node %s is unavailable", node.Name),
+				description: reason,
+			},
+			remediation: updateInsightRemediation{
+				reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
 			},
 		})
 	}
@@ -346,9 +350,13 @@ func nodeInsights(pool mcfgv1.MachineConfigPool, node corev1.Node, reason string
 				resources: []scopeResource{{kind: scopeKindNode, name: node.Name}},
 			},
 			impact: updateInsightImpact{
-				level:      errorImpactLevel,
-				impactType: updateStalledImpactType,
-				summary:    fmt.Sprintf("Node %s is degraded | %s", node.Name, reason),
+				level:       errorImpactLevel,
+				impactType:  updateStalledImpactType,
+				summary:     fmt.Sprintf("Node %s is degraded", node.Name),
+				description: reason,
+			},
+			remediation: updateInsightRemediation{
+				reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
 			},
 		})
 	}
@@ -423,6 +431,8 @@ func assessMachineConfigPool(pool mcfgv1.MachineConfigPool, nodes []nodeDisplayD
 }
 
 func machineConfigPoolInsights(poolDisplay poolDisplayData, pool mcfgv1.MachineConfigPool) (insights []updateInsight) {
+	// TODO: Only generate this insight if the pool has some work remaining that will not finish
+	// Depends on how MCO actually works: will it stop updating a node that already started e.g. draining?)
 	if poolDisplay.NodesOverview.Excluded > 0 && pool.Spec.Paused {
 		insights = append(insights, updateInsight{
 			startedAt: time.Time{},
@@ -431,9 +441,13 @@ func machineConfigPoolInsights(poolDisplay poolDisplayData, pool mcfgv1.MachineC
 				resources: []scopeResource{{kind: scopeKindMachineConfigPool, name: pool.Name}},
 			},
 			impact: updateInsightImpact{
-				level:      warningImpactLevel,
-				impactType: updateStalledImpactType,
-				summary:    fmt.Sprintf("Worker pool %s is paused | Outdated nodes in a paused pool will not be updated.", pool.Name),
+				level:       warningImpactLevel,
+				impactType:  updateStalledImpactType,
+				summary:     fmt.Sprintf("Outdated nodes in a paused pool '%s' will not be updated", pool.Name),
+				description: "Pool is paused, which stops all changes to the nodes in the pool, including updates. The nodes will not be updated until the pool is unpaused by the administrator.",
+			},
+			remediation: updateInsightRemediation{
+				reference: "https://docs.openshift.com/container-platform/latest/support/troubleshooting/troubleshooting-operator-issues.html#troubleshooting-disabling-autoreboot-mco_troubleshooting-operator-issues",
 			},
 		})
 	}

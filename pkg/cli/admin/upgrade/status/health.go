@@ -1,6 +1,7 @@
 package status
 
 import (
+	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -88,15 +89,33 @@ const (
 )
 
 type updateInsightImpact struct {
-	level      impactLevel
-	impactType impactType
-	summary    string
+	level       impactLevel
+	impactType  impactType
+	summary     string
+	description string
+}
+
+func (i updateInsightImpact) incomplete() bool {
+	return i.description == "" || i.summary == ""
+}
+
+type updateInsightRemediation struct {
+	reference string
+}
+
+func (r updateInsightRemediation) incomplete() bool {
+	return r.reference == ""
 }
 
 type updateInsight struct {
-	startedAt time.Time
-	scope     updateInsightScope
-	impact    updateInsightImpact
+	startedAt   time.Time
+	scope       updateInsightScope
+	impact      updateInsightImpact
+	remediation updateInsightRemediation
+}
+
+func (i updateInsight) incomplete() bool {
+	return i.impact.incomplete() || i.remediation.incomplete()
 }
 
 type updateHealthData struct {
@@ -104,9 +123,17 @@ type updateHealthData struct {
 	insights    []updateInsight
 }
 
-func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, evaluatedAt time.Time) updateHealthData {
+// assessUpdateInsights processes insights to be displayed and returns matching displayable data. If the displayable data are not
+// worth showing in detailed mode, returns false as the second return value.
+func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, evaluatedAt time.Time) (updateHealthData, bool) {
 	sorted := make([]updateInsight, 0, len(insights))
-	sorted = append(sorted, insights...)
+	for _, insight := range insights {
+		if insight.incomplete() {
+			continue
+		}
+		sorted = append(sorted, insight)
+	}
+
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].startedAt.After(sorted[j].startedAt)
 	})
@@ -115,20 +142,25 @@ func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, 
 	})
 
 	if len(sorted) == 0 {
-		sorted = append(sorted, updateInsight{
-			startedAt: evaluatedAt.Add(-upgradingFor),
-			impact: updateInsightImpact{
-				level:      infoImpactLevel,
-				impactType: noneImpactType,
-				summary:    "Upgrade is proceeding well",
+		return updateHealthData{
+			evaluatedAt: evaluatedAt,
+			insights: []updateInsight{
+				{
+					startedAt: evaluatedAt.Add(-upgradingFor),
+					impact: updateInsightImpact{
+						level:      infoImpactLevel,
+						impactType: noneImpactType,
+						summary:    "Upgrade is proceeding well",
+					},
+				},
 			},
-		})
+		}, false
 	}
 
 	return updateHealthData{
 		evaluatedAt: evaluatedAt,
 		insights:    sorted,
-	}
+	}, true
 }
 
 func shortDuration(d time.Duration) string {
@@ -155,17 +187,64 @@ func stringSince(health *updateHealthData, insight updateInsight) string {
 	return shortDuration(health.evaluatedAt.Sub(insight.startedAt).Truncate(time.Second))
 }
 
-func (i *updateHealthData) Write(w io.Writer) error {
+type displayItem struct {
+	since       string
+	level       string
+	impact      string
+	message     string
+	description string
+	reference   string
+}
+
+func (i *updateHealthData) Write(w io.Writer, detailed bool) error {
 	_, _ = w.Write([]byte("= Update Health =\n"))
-	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-	_, _ = tabw.Write([]byte("SINCE\tLEVEL\tIMPACT\tMESSAGE\n"))
+	displayData := make([]displayItem, 0, len(i.insights))
 	for _, insight := range i.insights {
-		_, _ = tabw.Write([]byte(stringSince(i, insight) + "\t"))
-		_, _ = tabw.Write([]byte(insight.impact.level.String() + "\t"))
-		_, _ = tabw.Write([]byte(insight.impact.impactType + "\t"))
-		_, _ = tabw.Write([]byte(insight.impact.summary + "\n"))
+		displayData = append(displayData, displayItem{
+			since:       stringSince(i, insight),
+			level:       insight.impact.level.String(),
+			impact:      string(insight.impact.impactType),
+			message:     insight.impact.summary,
+			description: insight.impact.description,
+			reference:   insight.remediation.reference,
+		})
 	}
-	tabw.Flush()
+
+	if detailed {
+		detailedOutput(w, displayData)
+	} else {
+		tabulatedOutput(w, displayData)
+	}
 
 	return nil
+}
+
+func detailedOutput(w io.Writer, items []displayItem) {
+	pad := len("Description: ")
+	for i, item := range items {
+		_, _ = w.Write([]byte(fmt.Sprintf("Message: %s\n", item.message)))
+		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Since:", item.since)))
+		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Level:", item.level)))
+		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Impact:", item.impact)))
+		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Reference:", item.reference)))
+		// Respect the "  Description: " indentation when description has linebreaks
+		item.description = strings.ReplaceAll(item.description, "\n", fmt.Sprintf("\n%s, ", strings.Repeat(" ", pad+2)))
+		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Description:", item.description)))
+		if len(items) > i+1 {
+			_, _ = w.Write([]byte("\n"))
+
+		}
+	}
+}
+
+func tabulatedOutput(w io.Writer, items []displayItem) {
+	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
+	_, _ = tabw.Write([]byte("SINCE\tLEVEL\tIMPACT\tMESSAGE\n"))
+	for _, item := range items {
+		_, _ = tabw.Write([]byte(item.since + "\t"))
+		_, _ = tabw.Write([]byte(item.level + "\t"))
+		_, _ = tabw.Write([]byte(item.impact + "\t"))
+		_, _ = tabw.Write([]byte(item.message + "\n"))
+	}
+	_ = tabw.Flush()
 }
