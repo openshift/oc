@@ -145,8 +145,8 @@ func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions
 		Timeout:          10 * time.Minute,
 		VolumePercentage: 30,
 	}
-	opts.LogOut = opts.newPrefixWriter(streams.Out, "[must-gather      ] OUT", false)
-	opts.RawOut = opts.newPrefixWriter(streams.Out, "", false)
+	opts.LogOut = opts.newPrefixWriter(streams.Out, "[must-gather      ] OUT", false, true)
+	opts.RawOut = opts.newPrefixWriter(streams.Out, "", false, false)
 	return opts
 }
 
@@ -420,7 +420,7 @@ func (o *MustGatherOptions) Run() error {
 		o.LogWriter = f
 		o.LogWriterMux.Lock()
 		// gets invoked in Complete step before must-gather.logs is created
-		o.LogWriter.WriteString(fmt.Sprintf("[must-gather      ] OUT Using must-gather plug-in image: %s\n", strings.Join(o.Images, ", ")))
+		o.LogWriter.WriteString(fmt.Sprintf("[must-gather      ] OUT %v Using must-gather plug-in image: %s\n", time.Now().UTC().Format(time.RFC3339Nano), strings.Join(o.Images, ", ")))
 		o.LogWriterMux.Unlock()
 
 		defer func() {
@@ -631,7 +631,7 @@ func (o *MustGatherOptions) processNextWorkItem(ns string, pod *corev1.Pod) erro
 }
 
 func (o *MustGatherOptions) newPodOutLogger(out io.Writer, podName string) func(string, ...interface{}) {
-	writer := o.newPrefixWriter(out, fmt.Sprintf("[%s] OUT", podName), false)
+	writer := o.newPrefixWriter(out, fmt.Sprintf("[%s] OUT", podName), false, true)
 	return func(format string, a ...interface{}) {
 		fmt.Fprintf(writer, format+"\n", a...)
 	}
@@ -652,7 +652,7 @@ func (o *MustGatherOptions) logTimestamp() error {
 
 func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	streams := o.IOStreams
-	streams.Out = o.newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name), false)
+	streams.Out = o.newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name), false, true)
 	imageFolder := regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.ContainerStatuses[0].ImageID, "-")
 	var destDir string
 	if o.NodeSelector != "" {
@@ -726,7 +726,7 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 		Object:           pod,
 		ConsumeRequestFn: logs.DefaultConsumeRequest,
 		LogsForObject:    polymorphichelpers.LogsForObjectFn,
-		IOStreams:        genericiooptions.IOStreams{Out: o.newPrefixWriter(o.Out, fmt.Sprintf("[%s] POD", pod.Name), true)},
+		IOStreams:        genericiooptions.IOStreams{Out: o.newPrefixWriter(o.Out, fmt.Sprintf("[%s] POD", pod.Name), true, false)},
 	}
 
 	for {
@@ -746,7 +746,7 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 	}
 }
 
-func (o *MustGatherOptions) newPrefixWriter(out io.Writer, prefix string, ignoreFileWriter bool) io.Writer {
+func (o *MustGatherOptions) newPrefixWriter(out io.Writer, prefix string, ignoreFileWriter bool, timestamp bool) io.Writer {
 	reader, writer := io.Pipe()
 	scanner := bufio.NewScanner(reader)
 	if prefix != "" {
@@ -755,12 +755,16 @@ func (o *MustGatherOptions) newPrefixWriter(out io.Writer, prefix string, ignore
 	go func() {
 		for scanner.Scan() {
 			text := scanner.Text()
+			ts := ""
+			if timestamp {
+				ts = time.Now().UTC().Format(time.RFC3339Nano) + " "
+			}
 			if !ignoreFileWriter && o.LogWriter != nil {
 				o.LogWriterMux.Lock()
-				o.LogWriter.WriteString(fmt.Sprintf("%s%s\n", prefix, text))
+				o.LogWriter.WriteString(fmt.Sprintf("%s%s%s\n", prefix, ts, text))
 				o.LogWriterMux.Unlock()
 			}
-			fmt.Fprintf(out, "%s%s\n", prefix, text)
+			fmt.Fprintf(out, "%s%s%s\n", prefix, ts, text)
 		}
 	}()
 	return writer
@@ -1060,7 +1064,10 @@ func (o *MustGatherOptions) BackupGathering(ctx context.Context, errs []error) {
 	fmt.Fprintf(o.ErrOut, "Error running must-gather collection:\n    %v\n\n", errors.NewAggregate(errs))
 	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect clusteroperators.v1.config.openshift.io` to collect basic cluster information.\n")
 
-	inspectOptions := inspect.NewInspectOptions(o.IOStreams)
+	streams := o.IOStreams
+	streams.Out = o.newPrefixWriter(streams.Out, fmt.Sprintf("[must-gather      ] OUT"), false, true)
+
+	inspectOptions := inspect.NewInspectOptions(streams)
 	inspectOptions.RESTConfig = rest.CopyConfig(o.Config)
 	inspectOptions.DestDir = path.Join(o.DestDir, fmt.Sprintf("inspect.local.%06d", rand.Int63()))
 
