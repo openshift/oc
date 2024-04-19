@@ -16,16 +16,20 @@ const (
 	scopeTypeWorkerPool   scopeType = "WorkerPool"
 )
 
-type allowedScopeKind string
+type scopeGroupKind struct {
+	group string
+	kind  string
+}
 
-const (
-	scopeKindClusterOperator   allowedScopeKind = "ClusterOperator"
-	scopeKindNode              allowedScopeKind = "Node"
-	scopeKindMachineConfigPool allowedScopeKind = "MachineConfigPool"
-)
+func (r scopeResource) namespacedName() string {
+	if r.namespace == "" {
+		return r.name
+	}
+	return fmt.Sprintf("%s/%s", r.namespace, r.name)
+}
 
 type scopeResource struct {
-	kind      allowedScopeKind
+	kind      scopeGroupKind
 	namespace string
 	name      string
 }
@@ -194,19 +198,48 @@ type displayItem struct {
 	message     string
 	description string
 	reference   string
+
+	resourceKindPad int
+	// resourceKinds contains keys of resources map
+	resourceKinds []string
+	// Nodes: node1, node2, node3
+	resources map[string][]string
 }
 
 func (i *updateHealthData) Write(w io.Writer, detailed bool) error {
 	_, _ = w.Write([]byte("= Update Health =\n"))
 	displayData := make([]displayItem, 0, len(i.insights))
 	for _, insight := range i.insights {
+		var resourceKinds []string
+		var resources map[string][]string
+		var resourceKindPad int
+		for _, resource := range insight.scope.resources {
+			if resources == nil {
+				resources = map[string][]string{}
+			}
+
+			kind := fmt.Sprintf("%ss", strings.ToLower(resource.kind.kind))
+			if resource.kind.group != "" {
+				kind = fmt.Sprintf("%s.%s", kind, resource.kind.group)
+			}
+			kind = fmt.Sprintf("%s: ", kind)
+			if len(kind) > resourceKindPad {
+				resourceKindPad = len(kind)
+			}
+			resourceKinds = append(resourceKinds, kind)
+			resources[kind] = append(resources[kind], resource.namespacedName())
+		}
+
 		displayData = append(displayData, displayItem{
-			since:       stringSince(i, insight),
-			level:       insight.impact.level.String(),
-			impact:      string(insight.impact.impactType),
-			message:     insight.impact.summary,
-			description: insight.impact.description,
-			reference:   insight.remediation.reference,
+			since:           stringSince(i, insight),
+			level:           insight.impact.level.String(),
+			impact:          string(insight.impact.impactType),
+			message:         insight.impact.summary,
+			description:     insight.impact.description,
+			reference:       insight.remediation.reference,
+			resourceKindPad: resourceKindPad,
+			resourceKinds:   resourceKinds,
+			resources:       resources,
 		})
 	}
 
@@ -229,10 +262,20 @@ func detailedOutput(w io.Writer, items []displayItem) {
 		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Reference:", item.reference)))
 		// Respect the "  Description: " indentation when description has linebreaks
 		item.description = strings.ReplaceAll(item.description, "\n", fmt.Sprintf("\n%s, ", strings.Repeat(" ", pad+2)))
+
+		if len(item.resourceKinds) > 0 {
+			_, _ = w.Write([]byte(fmt.Sprintf("  %s\n", "Resources:")))
+			sort.Strings(item.resourceKinds)
+			for _, kind := range item.resourceKinds {
+				sort.Strings(item.resources[kind])
+				_, _ = w.Write([]byte(fmt.Sprintf("    %-*s%s\n", item.resourceKindPad, kind, strings.Join(item.resources[kind], ", "))))
+			}
+		}
+
 		_, _ = w.Write([]byte(fmt.Sprintf("  %-*s%s\n", pad, "Description:", item.description)))
+
 		if len(items) > i+1 {
 			_, _ = w.Write([]byte("\n"))
-
 		}
 	}
 }
