@@ -452,11 +452,11 @@ func (o *Options) Run() error {
 		if o.IncludeNotRecommended {
 			if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
 				sortConditionalUpdatesBySemanticVersions(cv.Status.ConditionalUpdates)
-				fmt.Fprintf(o.Out, "\nSupported but not recommended updates:\n")
+				fmt.Fprintf(o.Out, "\nUpdates with known issues:\n")
 				for _, update := range cv.Status.ConditionalUpdates {
 					if c := findCondition(update.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
 						fmt.Fprintf(o.Out, "\n  Version: %s\n  Image: %s\n", update.Release.Version, update.Release.Image)
-						fmt.Fprintf(o.Out, "  Recommended: %s\n  Reason: %s\n  Message: %s\n", c.Status, c.Reason, strings.ReplaceAll(strings.TrimSpace(c.Message), "\n", "\n  "))
+						fmt.Fprintf(o.Out, "  Reason: %s\n  Message: %s\n", c.Reason, strings.ReplaceAll(strings.TrimSpace(c.Message), "\n", "\n  "))
 					}
 				}
 			} else {
