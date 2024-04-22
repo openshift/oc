@@ -407,6 +407,8 @@ func (o *ExtractOptions) Run() error {
 						if err != nil {
 							return err
 						}
+					} else {
+						return fmt.Errorf("failed to retrieve manifests from image %s: %v", from, err)
 					}
 				}
 
