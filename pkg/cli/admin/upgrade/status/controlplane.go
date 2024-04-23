@@ -22,9 +22,20 @@ const (
 
 type operators struct {
 	Total       int
-	Available   int
-	Progressing int
-	Degraded    int
+	Unavailable int
+	// Degraded is the count of operators that are available but degraded
+	Degraded int
+}
+
+func (o operators) StatusSummary() string {
+	res := []string{fmt.Sprintf("%d Healthy", o.Total-o.Unavailable-o.Degraded)}
+	if o.Unavailable > 0 {
+		res = append(res, fmt.Sprintf("%d Unavailable", o.Unavailable))
+	}
+	if o.Degraded > 0 {
+		res = append(res, fmt.Sprintf("%d Available but degraded", o.Degraded))
+	}
+	return strings.Join(res, ", ")
 }
 
 type controlPlaneStatusDisplayData struct {
@@ -41,9 +52,9 @@ const (
 	degradedErrorThreshold      = 40 * time.Minute
 )
 
-func coInsights(name string, available v1.ClusterOperatorStatusCondition, degraded v1.ClusterOperatorStatusCondition, evaluated time.Time) []updateInsight {
+func coInsights(name string, available *v1.ClusterOperatorStatusCondition, degraded *v1.ClusterOperatorStatusCondition, evaluated time.Time) []updateInsight {
 	var insights []updateInsight
-	if available.Status == v1.ConditionFalse && evaluated.After(available.LastTransitionTime.Time.Add(unavailableWarningThreshold)) {
+	if available != nil && available.Status == v1.ConditionFalse && evaluated.After(available.LastTransitionTime.Time.Add(unavailableWarningThreshold)) {
 		insight := updateInsight{
 			startedAt: available.LastTransitionTime.Time,
 			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: name}}},
@@ -64,7 +75,7 @@ func coInsights(name string, available v1.ClusterOperatorStatusCondition, degrad
 		}
 		insights = append(insights, insight)
 	}
-	if degraded.Status == v1.ConditionTrue && evaluated.After(degraded.LastTransitionTime.Time.Add(degradedWarningThreshold)) {
+	if degraded != nil && degraded.Status == v1.ConditionTrue && evaluated.After(degraded.LastTransitionTime.Time.Add(degradedWarningThreshold)) {
 		insight := updateInsight{
 			startedAt: degraded.LastTransitionTime.Time,
 			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: name}}},
@@ -108,38 +119,30 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 			continue
 		}
 
-		var updated bool
 		for _, version := range operator.Status.Versions {
 			if version.Name == "operator" && version.Version == targetVersion {
-				updated = true
 				completed++
 				break
 			}
 		}
-		available := v1.ClusterOperatorStatusCondition{}
-		progressing := v1.ClusterOperatorStatusCondition{}
-		degraded := v1.ClusterOperatorStatusCondition{}
+		var available *v1.ClusterOperatorStatusCondition
+		var degraded *v1.ClusterOperatorStatusCondition
 
 		displayData.Operators.Total++
 		for _, condition := range operator.Status.Conditions {
+			condition := condition
 			switch {
 			case condition.Type == v1.OperatorAvailable:
-				available = condition
-			case condition.Type == v1.OperatorProgressing:
-				progressing = condition
+				available = &condition
 			case condition.Type == v1.OperatorDegraded:
-				degraded = condition
+				degraded = &condition
 			}
 		}
 
-		if available.Status == v1.ConditionTrue {
-			displayData.Operators.Available++
-		}
-		if degraded.Status == v1.ConditionTrue {
+		if available == nil || available.Status != v1.ConditionTrue {
+			displayData.Operators.Unavailable++
+		} else if degraded != nil && degraded.Status == v1.ConditionTrue {
 			displayData.Operators.Degraded++
-		}
-		if progressing.Status == v1.ConditionTrue && !updated {
-			displayData.Operators.Progressing++
 		}
 		insights = append(insights, coInsights(operator.Name, available, degraded, at)...)
 	}
@@ -173,5 +176,5 @@ const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
 Completion:      {{ printf "%.0f" .Completion }}%
 Duration:        {{ .Duration }}
-Operator Status: {{ .Operators.Total }} Total, {{ .Operators.Available }} Available, {{ .Operators.Progressing }} Progressing, {{ .Operators.Degraded }} Degraded
+Operator Status: {{ .Operators.StatusSummary }}
 `

@@ -10,7 +10,7 @@ Failing=True:
 Assessment:      Progressing
 Completion:      97%
 Duration:        1h58m50s
-Operator Status: 33 Total, 32 Available, 1 Progressing, 4 Degraded
+Operator Status: 28 Healthy, 1 Unavailable, 4 Available but degraded
 
 Control Plane Nodes
 NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE

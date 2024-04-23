@@ -4,7 +4,7 @@ An update is in progress for 52m56s: Working towards 4.15.0-ec.2: 357 of 1021 do
 Assessment:      Progressing
 Completion:      43%
 Duration:        52m56s
-Operator Status: 7 Total, 7 Available, 0 Progressing, 0 Degraded
+Operator Status: 7 Healthy
 
 Control Plane Nodes
 NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE

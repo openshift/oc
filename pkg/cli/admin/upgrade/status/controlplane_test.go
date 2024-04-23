@@ -150,7 +150,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").operator,
 				co("two").operator,
 			},
-			expected: operators{Total: 2, Available: 2},
+			expected: operators{Total: 2},
 		},
 		{
 			name: "one out of two progressing",
@@ -158,23 +158,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").operator,
 				co("two").progressing(configv1.ConditionTrue).operator,
 			},
-			expected: operators{Total: 2, Available: 2, Progressing: 1},
-		},
-		{
-			name: "two are progressing but one is already updated so we dont count it",
-			operators: []configv1.ClusterOperator{
-				co("one").progressing(configv1.ConditionTrue).operator,
-				co("two").progressing(configv1.ConditionTrue).version("new").operator,
-			},
-			expected: operators{Total: 2, Available: 2, Progressing: 1},
-		},
-		{
-			name: "progressing=unknown or missing implies progressing=false",
-			operators: []configv1.ClusterOperator{
-				co("one").progressing(configv1.ConditionUnknown).operator,
-				co("two").without(configv1.OperatorProgressing).operator,
-			},
-			expected: operators{Total: 2, Available: 2},
+			expected: operators{Total: 2},
 		},
 		{
 			name: "one out of two not available",
@@ -182,7 +166,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").operator,
 				co("two").available(configv1.ConditionFalse).operator,
 			},
-			expected: operators{Total: 2, Available: 1},
+			expected: operators{Total: 2, Unavailable: 1},
 		},
 		{
 			name: "only count operators with *.release.openshift.io annotations",
@@ -194,7 +178,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("five").annotated(map[string]string{}).degraded(configv1.ConditionTrue).operator,
 				co("six").annotated(nil).available(configv1.ConditionUnknown).operator,
 			},
-			expected: operators{Total: 3, Available: 3},
+			expected: operators{Total: 3},
 		},
 		{
 			name: "available=unknown or missing implies available=false",
@@ -202,7 +186,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").available(configv1.ConditionUnknown).operator,
 				co("two").without(configv1.OperatorAvailable).operator,
 			},
-			expected: operators{Total: 2, Available: 0},
+			expected: operators{Total: 2, Unavailable: 2},
 		},
 		{
 			name: "one out of two degraded",
@@ -210,7 +194,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").operator,
 				co("two").degraded(configv1.ConditionTrue).operator,
 			},
-			expected: operators{Total: 2, Available: 2, Degraded: 1},
+			expected: operators{Total: 2, Degraded: 1},
 		},
 		{
 			name: "degraded=unknown or missing implies degraded=false",
@@ -218,7 +202,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").degraded(configv1.ConditionUnknown).operator,
 				co("two").without(configv1.OperatorDegraded).operator,
 			},
-			expected: operators{Total: 2, Available: 2},
+			expected: operators{Total: 2},
 		},
 		{
 			name: "one out of two degraded, processing, not available",
@@ -229,7 +213,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 					available(configv1.ConditionFalse).
 					progressing(configv1.ConditionTrue).operator,
 			},
-			expected: operators{Total: 2, Available: 1, Degraded: 1, Progressing: 1},
+			expected: operators{Total: 2, Unavailable: 1},
 		},
 	}
 
@@ -515,8 +499,56 @@ func TestCoInsights(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			actual := coInsights("testOperator", tc.available, tc.degraded, anchorTime)
+			actual := coInsights("testOperator", &tc.available, &tc.degraded, anchorTime)
 			if diff := cmp.Diff(tc.expected, actual, allowUnexportedInsightStructs); diff != "" {
+				t.Errorf("insights differ from expected:\n%s", diff)
+			}
+		})
+	}
+}
+
+func Test_operators_StatusSummary(t *testing.T) {
+	tests := []struct {
+		name      string
+		operators operators
+		want      string
+	}{
+		{
+			name: "all healthy",
+			operators: operators{
+				Total: 2,
+			},
+			want: "2 Healthy",
+		},
+		{
+			name: "some unavailable",
+			operators: operators{
+				Total:       3,
+				Unavailable: 1,
+			},
+			want: "2 Healthy, 1 Unavailable",
+		},
+		{
+			name: "some degraded",
+			operators: operators{
+				Total:    3,
+				Degraded: 1,
+			},
+			want: "2 Healthy, 1 Available but degraded",
+		},
+		{
+			name: "some degraded and unavailable",
+			operators: operators{
+				Total:       3,
+				Unavailable: 1,
+				Degraded:    1,
+			},
+			want: "1 Healthy, 1 Unavailable, 1 Available but degraded",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if diff := cmp.Diff(tt.want, tt.operators.StatusSummary()); diff != "" {
 				t.Errorf("insights differ from expected:\n%s", diff)
 			}
 		})
