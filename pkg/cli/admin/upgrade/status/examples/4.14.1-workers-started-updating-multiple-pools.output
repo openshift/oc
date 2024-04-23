@@ -4,7 +4,7 @@ An update is in progress for 14m4s: Working towards 4.14.1: 734 of 859 done (85%
 Assessment:      Progressing
 Completion:      97%
 Duration:        14m4s
-Operator Status: 33 Total, 32 Available, 1 Progressing, 0 Degraded
+Operator Status: 32 Healthy, 1 Unavailable
 
 Control Plane Nodes
 NAME                                        ASSESSMENT    PHASE      VERSION   EST    MESSAGE
