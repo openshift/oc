@@ -470,6 +470,28 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Readme:        readmeCCOUnix,
 			ArchiveFormat: "ccoctl-linux-%s.tar.gz",
 		},
+		{
+			OS:      "linux",
+			Arch:    targetReleaseArch,
+			Command: "ccoctl.rhel8",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "cloud-credential-operator", From: "usr/bin/ccoctl.rhel8"},
+
+			Readme:            readmeCCOUnix,
+			ArchiveFormat:     "ccoctl-linux-rhel8-%s.tar.gz",
+			TargetCommandName: "ccoctl",
+		},
+		{
+			OS:      "linux",
+			Arch:    targetReleaseArch,
+			Command: "ccoctl.rhel9",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "cloud-credential-operator", From: "usr/bin/ccoctl.rhel9"},
+
+			Readme:            readmeCCOUnix,
+			ArchiveFormat:     "ccoctl-linux-rhel9-%s.tar.gz",
+			TargetCommandName: "ccoctl",
+		},
 	}
 
 	currentArch := runtime.GOARCH
