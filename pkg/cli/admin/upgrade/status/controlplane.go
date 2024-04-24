@@ -18,6 +18,10 @@ const (
 	assessmentStatePending     assessmentState = "Pending"
 	assessmentStateExcluded    assessmentState = "Excluded"
 	assessmentStateDegraded    assessmentState = "Degraded"
+
+	// clusterStatusFailing is set on the ClusterVersion status when a cluster
+	// cannot reach the desired state.
+	clusterStatusFailing = v1.ClusterStatusConditionType("Failing")
 )
 
 type operators struct {
@@ -106,6 +110,36 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	var insights []updateInsight
 
 	targetVersion := cv.Status.Desired.Version
+	cvGvk := cv.GroupVersionKind()
+	cvGroupKind := scopeGroupKind{group: cvGvk.Group, kind: cvGvk.Kind}
+
+	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c == nil {
+		insight := updateInsight{
+			startedAt: at,
+			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: cvGroupKind, name: cv.Name}}},
+			impact: updateInsightImpact{
+				level:       warningImpactLevel,
+				impactType:  updateStalledImpactType,
+				summary:     fmt.Sprintf("Cluster Version %s has no %s condition", cv.Name, clusterStatusFailing),
+				description: "Current status of Cluster Version reconciliation is unclear.  See 'oc -n openshift-cluster-version logs -l k8s-app=cluster-version-operator --tail -1' to debug.",
+			},
+			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
+		}
+		insights = append(insights, insight)
+	} else if c.Status != v1.ConditionFalse {
+		insight := updateInsight{
+			startedAt: c.LastTransitionTime.Time,
+			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: cvGroupKind, name: cv.Name}}},
+			impact: updateInsightImpact{
+				level:       warningImpactLevel,
+				impactType:  updateStalledImpactType,
+				summary:     fmt.Sprintf("Cluster Version %s is failing to proceed with the update (%s)", cv.Name, c.Reason),
+				description: c.Message,
+			},
+			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
+		}
+		insights = append(insights, insight)
+	}
 
 	for _, operator := range operators {
 		var isPlatformOperator bool

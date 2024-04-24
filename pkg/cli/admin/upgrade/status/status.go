@@ -23,12 +23,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/status/mco"
 )
 
-const (
-	// clusterStatusFailing is set on the ClusterVersion status when a cluster
-	// cannot reach the desired state.
-	clusterStatusFailing = configv1.ClusterStatusConditionType("Failing")
-)
-
 func newOptions(streams genericiooptions.IOStreams) *options {
 	return &options{
 		IOStreams: streams,
@@ -251,14 +245,6 @@ func (o *options) Run(ctx context.Context) error {
 	}
 	updatingFor := now.Sub(startedAt).Round(time.Second)
 	fmt.Fprintf(o.Out, "An update is in progress for %s: %s\n", updatingFor, progressing.Message)
-
-	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil {
-		if c.Status != configv1.ConditionFalse {
-			fmt.Fprintf(o.Out, "\n%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-		}
-	} else {
-		fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", clusterStatusFailing)
-	}
 
 	controlPlaneStatusData, insights := assessControlPlaneStatus(cv, operators.Items, now)
 	updateInsights = append(updateInsights, insights...)

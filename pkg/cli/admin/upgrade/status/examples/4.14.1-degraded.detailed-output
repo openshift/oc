@@ -1,11 +1,5 @@
 An update is in progress for 1h58m50s: Unable to apply 4.14.1: wait has exceeded 40 minutes for these operators: etcd, kube-apiserver
 
-Failing=True:
-
-  Reason: ClusterOperatorsDegraded
-  Message: Cluster operators etcd, kube-apiserver are degraded
-
-
 = Control Plane =
 Assessment:      Progressing
 Completion:      97%
@@ -79,3 +73,12 @@ Message: Cluster Operator control-plane-machine-set is unavailable (UnavailableR
   Resources:
     clusteroperators.config.openshift.io: control-plane-machine-set
   Description: Missing 1 available replica(s)
+
+Message: Cluster Version version is failing to proceed with the update (ClusterOperatorsDegraded)
+  Since:       0s
+  Level:       Warning
+  Impact:      Update Stalled
+  Reference:   https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md
+  Resources:
+    clusterversions.config.openshift.io: version
+  Description: Cluster operators etcd, kube-apiserver are degraded

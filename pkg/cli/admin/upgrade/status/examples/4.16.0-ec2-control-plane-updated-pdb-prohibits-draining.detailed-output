@@ -1,11 +1,5 @@
 An update is in progress for 4h3m46s: Error while reconciling 4.16.0-ec.3: the cluster operator machine-config is degraded
 
-Failing=True:
-
-  Reason: ClusterOperatorDegraded
-  Message: Cluster operator machine-config is degraded
-
-
 = Control Plane =
 Assessment:      Completed
 Completion:      100%
@@ -151,6 +145,15 @@ Message: Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
   Resources:
     nodes: build0-gstfj-ci-tests-worker-c-dcz9p
   Description: failed to drain node: build0-gstfj-ci-tests-worker-c-dcz9p after 1 hour. Please see machine-config-controller logs for more information
+
+Message: Cluster Version version is failing to proceed with the update (ClusterOperatorDegraded)
+  Since:       0s
+  Level:       Warning
+  Impact:      Update Stalled
+  Reference:   https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md
+  Resources:
+    clusterversions.config.openshift.io: version
+  Description: Cluster operator machine-config is degraded
 
 Message: Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable
   Since:       -
