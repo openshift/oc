@@ -28,13 +28,13 @@ Worker Status:   59 Total, 46 Available, 5 Progressing, 36 Outdated, 12 Draining
 
 Worker Pool Nodes
 NAME                                                              ASSESSMENT    PHASE      VERSION       EST    MESSAGE
-build0-gstfj-ci-prowjobs-worker-b-9lztv                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-9lztv after 1 hour. Please see machine-config-controller logs for more information
-build0-gstfj-ci-prowjobs-worker-b-bg9f5                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-bg9f5 after 1 hour. Please see machine-config-controller logs for more information
-build0-gstfj-ci-prowjobs-worker-b-mrxwn                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-prowjobs-worker-b-mrxwn after 1 hour. Please see machine-config-controller logs for more information
-build0-gstfj-ci-tests-worker-b-4h7pn                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-b-4h7pn after 1 hour. Please see machine-config-controller logs for more information
-build0-gstfj-ci-tests-worker-b-jv5bg                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-b-jv5bg after 1 hour. Please see machine-config-controller logs for more information
-build0-gstfj-ci-tests-worker-b-kj6gk                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-b-kj6gk after 1 hour. Please see machine-config-controller logs for more information
-build0-gstfj-ci-tests-worker-c-dcz9p                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: build0-gstfj-ci-tests-worker-c-dcz9p after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-b-9lztv                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-b-bg9f5                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-b-mrxwn                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-4h7pn                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-jv5bg                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-kj6gk                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-c-dcz9p                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-tests-worker-c-jq5rk                              Unavailable   Updated    4.16.0-ec.3   -      Node is unavailable
 build0-gstfj-ci-tests-worker-c-2kz4m                              Progressing   Draining   4.16.0-ec.2   +30m   
 build0-gstfj-ci-tests-worker-c-55hpj                              Progressing   Draining   4.16.0-ec.2   +30m   
@@ -94,6 +94,8 @@ Message: Node build0-gstfj-ci-prowjobs-worker-b-9lztv is degraded
   Level:       Error
   Impact:      Update Stalled
   Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-prowjobs-worker-b-9lztv
   Description: failed to drain node: build0-gstfj-ci-prowjobs-worker-b-9lztv after 1 hour. Please see machine-config-controller logs for more information
 
 Message: Node build0-gstfj-ci-prowjobs-worker-b-bg9f5 is degraded
@@ -101,6 +103,8 @@ Message: Node build0-gstfj-ci-prowjobs-worker-b-bg9f5 is degraded
   Level:       Error
   Impact:      Update Stalled
   Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-prowjobs-worker-b-bg9f5
   Description: failed to drain node: build0-gstfj-ci-prowjobs-worker-b-bg9f5 after 1 hour. Please see machine-config-controller logs for more information
 
 Message: Node build0-gstfj-ci-prowjobs-worker-b-mrxwn is degraded
@@ -108,6 +112,8 @@ Message: Node build0-gstfj-ci-prowjobs-worker-b-mrxwn is degraded
   Level:       Error
   Impact:      Update Stalled
   Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-prowjobs-worker-b-mrxwn
   Description: failed to drain node: build0-gstfj-ci-prowjobs-worker-b-mrxwn after 1 hour. Please see machine-config-controller logs for more information
 
 Message: Node build0-gstfj-ci-tests-worker-b-4h7pn is degraded
@@ -115,6 +121,8 @@ Message: Node build0-gstfj-ci-tests-worker-b-4h7pn is degraded
   Level:       Error
   Impact:      Update Stalled
   Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-b-4h7pn
   Description: failed to drain node: build0-gstfj-ci-tests-worker-b-4h7pn after 1 hour. Please see machine-config-controller logs for more information
 
 Message: Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded
@@ -122,6 +130,8 @@ Message: Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded
   Level:       Error
   Impact:      Update Stalled
   Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-b-jv5bg
   Description: failed to drain node: build0-gstfj-ci-tests-worker-b-jv5bg after 1 hour. Please see machine-config-controller logs for more information
 
 Message: Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded
@@ -129,6 +139,8 @@ Message: Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded
   Level:       Error
   Impact:      Update Stalled
   Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-b-kj6gk
   Description: failed to drain node: build0-gstfj-ci-tests-worker-b-kj6gk after 1 hour. Please see machine-config-controller logs for more information
 
 Message: Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
@@ -136,6 +148,8 @@ Message: Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
   Level:       Error
   Impact:      Update Stalled
   Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-c-dcz9p
   Description: failed to drain node: build0-gstfj-ci-tests-worker-c-dcz9p after 1 hour. Please see machine-config-controller logs for more information
 
 Message: Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable
@@ -143,4 +157,6 @@ Message: Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable
   Level:       Warning
   Impact:      Update Speed
   Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-c-jq5rk
   Description: Node is unavailable

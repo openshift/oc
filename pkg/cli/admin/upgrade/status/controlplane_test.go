@@ -133,6 +133,7 @@ var allowUnexportedInsightStructs = cmp.AllowUnexported(
 	updateInsight{},
 	updateInsightScope{},
 	scopeResource{},
+	scopeGroupKind{},
 	updateInsightImpact{},
 	updateInsightRemediation{},
 	updateHealthData{},
@@ -344,6 +345,7 @@ func TestAssessControlPlaneStatus_Duration(t *testing.T) {
 func TestCoInsights(t *testing.T) {
 	t.Parallel()
 	anchorTime := time.Now()
+	coKind := scopeGroupKind{group: configv1.GroupName, kind: "ClusterOperator"}
 	testCases := []struct {
 		name      string
 		available configv1.ClusterOperatorStatusCondition
@@ -393,7 +395,7 @@ func TestCoInsights(t *testing.T) {
 			expected: []updateInsight{
 				{
 					startedAt: anchorTime.Add(-unavailableWarningThreshold).Add(-time.Second),
-					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: "testOperator"}}},
+					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: coKind, name: "testOperator"}}},
 					impact: updateInsightImpact{
 						level:       warningImpactLevel,
 						impactType:  apiAvailabilityImpactType,
@@ -406,7 +408,7 @@ func TestCoInsights(t *testing.T) {
 				},
 				{
 					startedAt: anchorTime.Add(-degradedWarningThreshold).Add(-time.Second),
-					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: "testOperator"}}},
+					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: coKind, name: "testOperator"}}},
 					impact: updateInsightImpact{
 						level:       warningImpactLevel,
 						impactType:  apiAvailabilityImpactType,
@@ -438,7 +440,7 @@ func TestCoInsights(t *testing.T) {
 			expected: []updateInsight{
 				{
 					startedAt: anchorTime.Add(-unavailableErrorThreshold).Add(-time.Second),
-					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: "testOperator"}}},
+					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: coKind, name: "testOperator"}}},
 					impact: updateInsightImpact{
 						level:       errorImpactLevel,
 						impactType:  apiAvailabilityImpactType,
@@ -451,7 +453,7 @@ func TestCoInsights(t *testing.T) {
 				},
 				{
 					startedAt: anchorTime.Add(-degradedErrorThreshold).Add(-time.Second),
-					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: "testOperator"}}},
+					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: coKind, name: "testOperator"}}},
 					impact: updateInsightImpact{
 						level:       errorImpactLevel,
 						impactType:  apiAvailabilityImpactType,
@@ -480,7 +482,7 @@ func TestCoInsights(t *testing.T) {
 			expected: []updateInsight{
 				{
 					startedAt: anchorTime.Add(-unavailableErrorThreshold).Add(-time.Second),
-					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: "testOperator"}}},
+					scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: coKind, name: "testOperator"}}},
 					impact: updateInsightImpact{
 						level:       errorImpactLevel,
 						impactType:  apiAvailabilityImpactType,

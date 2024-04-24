@@ -53,11 +53,12 @@ const (
 )
 
 func coInsights(name string, available *v1.ClusterOperatorStatusCondition, degraded *v1.ClusterOperatorStatusCondition, evaluated time.Time) []updateInsight {
+	coGroupKind := scopeGroupKind{group: v1.GroupName, kind: "ClusterOperator"}
 	var insights []updateInsight
 	if available != nil && available.Status == v1.ConditionFalse && evaluated.After(available.LastTransitionTime.Time.Add(unavailableWarningThreshold)) {
 		insight := updateInsight{
 			startedAt: available.LastTransitionTime.Time,
-			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: name}}},
+			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: coGroupKind, name: name}}},
 			impact: updateInsightImpact{
 				level:       warningImpactLevel,
 				impactType:  apiAvailabilityImpactType,
@@ -78,7 +79,7 @@ func coInsights(name string, available *v1.ClusterOperatorStatusCondition, degra
 	if degraded != nil && degraded.Status == v1.ConditionTrue && evaluated.After(degraded.LastTransitionTime.Time.Add(degradedWarningThreshold)) {
 		insight := updateInsight{
 			startedAt: degraded.LastTransitionTime.Time,
-			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: scopeKindClusterOperator, name: name}}},
+			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: coGroupKind, name: name}}},
 			impact: updateInsightImpact{
 				level:       warningImpactLevel,
 				impactType:  apiAvailabilityImpactType,

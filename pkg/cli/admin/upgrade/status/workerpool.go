@@ -135,6 +135,14 @@ func selectNodesFromPool(pool mcfgv1.MachineConfigPool, allNodes []corev1.Node) 
 	return res, nil
 }
 
+func ellipsizeNames(message string, name string) string {
+	if len(name) < 8 {
+		return message
+	}
+
+	return strings.Replace(message, name, "<node>", -1)
+}
+
 func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPool, nodes []corev1.Node, machineConfigs []mcfgv1.MachineConfig) ([]nodeDisplayData, []updateInsight) {
 	var nodesStatusData []nodeDisplayData
 	var insights []updateInsight
@@ -198,7 +206,7 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 			Assessment:    assessment,
 			Estimate:      estimate,
 			Phase:         phase,
-			Message:       message,
+			Message:       ellipsizeNames(message, node.Name),
 			Version:       currentVersion,
 			isUnavailable: isUnavailable,
 			isDegraded:    isDegraded,
@@ -324,12 +332,14 @@ func nodeInsights(pool mcfgv1.MachineConfigPool, node corev1.Node, reason string
 	if pool.Name == "master" {
 		scope = scopeTypeControlPlane
 	}
+	nodeGvk := node.GroupVersionKind()
+	nodeGroupKind := scopeGroupKind{group: nodeGvk.Group, kind: nodeGvk.Kind}
 	if isUnavailable && !isUpdating {
 		insights = append(insights, updateInsight{
 			startedAt: time.Time{},
 			scope: updateInsightScope{
 				scopeType: scope,
-				resources: []scopeResource{{kind: scopeKindNode, name: node.Name}},
+				resources: []scopeResource{{kind: nodeGroupKind, name: node.Name}},
 			},
 			impact: updateInsightImpact{
 				level:       warningImpactLevel,
@@ -347,7 +357,7 @@ func nodeInsights(pool mcfgv1.MachineConfigPool, node corev1.Node, reason string
 			startedAt: time.Time{},
 			scope: updateInsightScope{
 				scopeType: scope,
-				resources: []scopeResource{{kind: scopeKindNode, name: node.Name}},
+				resources: []scopeResource{{kind: nodeGroupKind, name: node.Name}},
 			},
 			impact: updateInsightImpact{
 				level:       errorImpactLevel,
@@ -434,11 +444,12 @@ func machineConfigPoolInsights(poolDisplay poolDisplayData, pool mcfgv1.MachineC
 	// TODO: Only generate this insight if the pool has some work remaining that will not finish
 	// Depends on how MCO actually works: will it stop updating a node that already started e.g. draining?)
 	if poolDisplay.NodesOverview.Excluded > 0 && pool.Spec.Paused {
+		poolGvk := pool.GroupVersionKind()
 		insights = append(insights, updateInsight{
 			startedAt: time.Time{},
 			scope: updateInsightScope{
 				scopeType: scopeTypeWorkerPool,
-				resources: []scopeResource{{kind: scopeKindMachineConfigPool, name: pool.Name}},
+				resources: []scopeResource{{kind: scopeGroupKind{group: poolGvk.Group, kind: poolGvk.Kind}, name: pool.Name}},
 			},
 			impact: updateInsightImpact{
 				level:       warningImpactLevel,

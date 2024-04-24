@@ -14,7 +14,11 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/status/mco"
 )
 
-var allowUnexportedWorkerPools = cmp.AllowUnexported(nodeDisplayData{}, nodesOverviewDisplayData{}, poolDisplayData{})
+var allowUnexportedWorkerPools = cmp.AllowUnexported(
+	nodeDisplayData{},
+	nodesOverviewDisplayData{},
+	poolDisplayData{},
+)
 
 type mcpBuilder struct {
 	machineConfigPool mcfgv1.MachineConfigPool
@@ -23,6 +27,10 @@ type mcpBuilder struct {
 func mcp(name string) *mcpBuilder {
 	return &mcpBuilder{
 		machineConfigPool: mcfgv1.MachineConfigPool{
+			TypeMeta: v1.TypeMeta{
+				Kind:       "MachineConfigPool",
+				APIVersion: mcfgv1.GroupVersion.String(),
+			},
 			ObjectMeta: v1.ObjectMeta{
 				Name: name,
 				Labels: map[string]string{
@@ -78,6 +86,9 @@ type nodeBuilder struct {
 func node(name string) *nodeBuilder {
 	return &nodeBuilder{
 		node: corev1.Node{
+			TypeMeta: v1.TypeMeta{
+				Kind: "Node",
+			},
 			ObjectMeta: v1.ObjectMeta{
 				Name:        name,
 				Annotations: map[string]string{},
@@ -229,7 +240,10 @@ func (n *nodeBuilder) degraded_draining(currentConfig, desiredConfig, reason str
 	return n.annotated(annotations).unavailable()
 }
 
+var nodeGroupKind = scopeGroupKind{group: corev1.GroupName, kind: "Node"}
+
 func Test_assessNodesStatus(t *testing.T) {
+
 	oldOCPVersion := "3.10.0"
 	newOCPVersion := "4.16.0"
 	mcOld := mc("old").version(oldOCPVersion).machineConfig
@@ -471,7 +485,7 @@ func Test_assessNodesStatus(t *testing.T) {
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeControlPlane,
-						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+						resources: []scopeResource{{kind: nodeGroupKind, name: "a"}},
 					},
 					remediation: updateInsightRemediation{
 						reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
@@ -513,7 +527,7 @@ func Test_assessNodesStatus(t *testing.T) {
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeControlPlane,
-						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+						resources: []scopeResource{{kind: nodeGroupKind, name: "a"}},
 					},
 					remediation: updateInsightRemediation{
 						reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
@@ -692,7 +706,7 @@ func Test_nodeInsights(t *testing.T) {
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeControlPlane,
-						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+						resources: []scopeResource{{kind: nodeGroupKind, name: "a"}},
 					},
 					remediation: updateInsightRemediation{
 						reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
@@ -718,7 +732,7 @@ func Test_nodeInsights(t *testing.T) {
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
-						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+						resources: []scopeResource{{kind: nodeGroupKind, name: "a"}},
 					},
 					remediation: updateInsightRemediation{
 						reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
@@ -746,7 +760,7 @@ func Test_nodeInsights(t *testing.T) {
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
-						resources: []scopeResource{{kind: scopeKindNode, name: "a"}},
+						resources: []scopeResource{{kind: nodeGroupKind, name: "a"}},
 					},
 					remediation: updateInsightRemediation{
 						reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
@@ -763,6 +777,11 @@ func Test_nodeInsights(t *testing.T) {
 			}
 		})
 	}
+}
+
+var mcpGroupKind = scopeGroupKind{
+	group: mcfgv1.GroupName,
+	kind:  "MachineConfigPool",
 }
 
 func Test_assessMachineConfigPool(t *testing.T) {
@@ -984,7 +1003,7 @@ func Test_assessMachineConfigPool(t *testing.T) {
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
-						resources: []scopeResource{{kind: scopeKindMachineConfigPool, name: "worker"}},
+						resources: []scopeResource{{kind: mcpGroupKind, name: "worker"}},
 					},
 					remediation: updateInsightRemediation{
 						reference: "https://docs.openshift.com/container-platform/latest/support/troubleshooting/troubleshooting-operator-issues.html#troubleshooting-disabling-autoreboot-mco_troubleshooting-operator-issues",
@@ -1080,7 +1099,7 @@ func Test_machineConfigPoolInsights(t *testing.T) {
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeWorkerPool,
-						resources: []scopeResource{{kind: scopeKindMachineConfigPool, name: "worker"}},
+						resources: []scopeResource{{kind: mcpGroupKind, name: "worker"}},
 					},
 					remediation: updateInsightRemediation{
 						"https://docs.openshift.com/container-platform/latest/support/troubleshooting/troubleshooting-operator-issues.html#troubleshooting-disabling-autoreboot-mco_troubleshooting-operator-issues",
