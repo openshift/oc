@@ -14,6 +14,7 @@ type scopeType string
 const (
 	scopeTypeControlPlane scopeType = "ControlPlane"
 	scopeTypeWorkerPool   scopeType = "WorkerPool"
+	scopeTypeCluster      scopeType = "Cluster"
 )
 
 type scopeGroupKind struct {
@@ -83,6 +84,7 @@ type impactType string
 // considered whether these are exactly the ones that we need.
 const (
 	noneImpactType                    impactType = "None"
+	unknownImpactType                 impactType = "Unknown"
 	apiAvailabilityImpactType         impactType = "API Availability"
 	clusterCapacityImpactType         impactType = "Cluster Capacity"
 	applicationAvailabilityImpactType impactType = "Application Availability"
