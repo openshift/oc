@@ -7,7 +7,7 @@ Each example consists of five inputs and two outputs, matched by a common substr
 4.  `TESTCASE-mcp.yaml`(input): list of MachineConfigPools (created by `oc get machineconfigpools -o yaml`)
 5.  `TESTCASE-node.yaml`(input): list of Nodes (created by `oc get nodes -o yaml`)
 6. `TESTCASE.output`(output): expected output of `oc adm upgrade status`
-7. `TESTCASE.detailed-output`(output): expected output of `oc adm upgrade status --detailed=all`
+7. `TESTCASE.detailed-output`(output): expected output of `oc adm upgrade status --details=all`
 
 The `TestExamples` test in `examples_test.go` file above validates all examples. When the testcase
 is executed with a non-empty `UPDATE` environmental variable, it will update the `TESTCASE.out`
