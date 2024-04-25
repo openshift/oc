@@ -551,9 +551,9 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	if len(targets) == 0 {
 		switch {
 		case len(command) > 0 && currentOS != "*":
-			return fmt.Errorf("command %q does not support the operating system %q", o.Command, currentOS)
+			return fmt.Errorf("command %q does not exist in targets or does not support the operating system %q", o.Command, currentOS)
 		case len(command) > 0:
-			return fmt.Errorf("the supported commands are 'oc' and 'openshift-install'")
+			return fmt.Errorf("the supported commands are 'oc', 'openshift-install', `openshift-baremetal-install` and 'ccoctl'")
 		default:
 			return fmt.Errorf("no available commands")
 		}
