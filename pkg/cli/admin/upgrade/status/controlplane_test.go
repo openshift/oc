@@ -126,6 +126,11 @@ func (c *coBuilder) annotated(annotations map[string]string) *coBuilder {
 var cvFixture = configv1.ClusterVersion{
 	Status: configv1.ClusterVersionStatus{
 		Desired: configv1.Release{Version: "new"},
+		Conditions: []configv1.ClusterOperatorStatusCondition{{
+			Type:   clusterStatusFailing,
+			Status: configv1.ConditionFalse,
+			Reason: "AsExpected",
+		}},
 	},
 }
 
