@@ -1041,8 +1041,8 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 			}
 		}
 		if len(image) == 0 {
-			klog.V(2).Infof("Falling to 'registry.redhat.io/rhel8/support-tools' image")
-			image = "registry.redhat.io/rhel8/support-tools"
+			klog.V(2).Infof("Falling to 'registry.redhat.io/rhel9/support-tools' image")
+			image = "registry.redhat.io/rhel9/support-tools"
 		}
 		zero := int64(0)
 		isTrue := true
