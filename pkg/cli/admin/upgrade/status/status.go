@@ -244,11 +244,9 @@ func (o *options) Run(ctx context.Context) error {
 		startedAt = cv.Status.History[0].StartedTime.Time
 	}
 	updatingFor := now.Sub(startedAt).Round(time.Second)
-	fmt.Fprintf(o.Out, "An update is in progress for %s: %s\n", updatingFor, progressing.Message)
 
 	controlPlaneStatusData, insights := assessControlPlaneStatus(cv, operators.Items, now)
 	updateInsights = append(updateInsights, insights...)
-	fmt.Fprintf(o.Out, "\n")
 	_ = controlPlaneStatusData.Write(o.Out)
 	controlPlanePoolStatusData.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
 
