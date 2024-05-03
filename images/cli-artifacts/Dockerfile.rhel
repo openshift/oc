@@ -12,7 +12,7 @@ RUN make cross-build --warn-undefined-variables
 
 FROM registry.ci.openshift.org/ocp/4.16:cli
 
-COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/ /usr/share/openshift/
+COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/ /usr/share/openshift/
 
 RUN cd /usr/share/openshift && \
     ln -sf /usr/share/openshift/linux_$(uname -m | sed 's/aarch64/arm64/;s/x86_64/amd64/')/oc /usr/bin/oc && \
