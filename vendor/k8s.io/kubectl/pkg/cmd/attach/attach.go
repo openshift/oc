@@ -164,7 +164,7 @@ func (*DefaultRemoteAttach) Attach(url *url.URL, config *restclient.Config, stdi
 	if err != nil {
 		return err
 	}
-	if cmdutil.RemoteCommandWebsockets.IsEnabled() {
+	if !cmdutil.RemoteCommandWebsockets.IsDisabled() {
 		// WebSocketExecutor must be "GET" method as described in RFC 6455 Sec. 4.1 (page 17).
 		websocketExec, err := remotecommand.NewWebSocketExecutor(config, "GET", url.String())
 		if err != nil {
