@@ -1,5 +1,6 @@
 = Control Plane =
 Assessment:      Completed
+Target Version:  4.16.0-ec.3 (from 4.16.0-ec.2)
 Completion:      100%
 Duration:        3h30m31s
 Operator Status: 35 Healthy, 1 Available but degraded

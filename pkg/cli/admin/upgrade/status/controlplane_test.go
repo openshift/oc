@@ -561,3 +561,287 @@ func Test_operators_StatusSummary(t *testing.T) {
 		})
 	}
 }
+
+func Test_versionsFromHistory(t *testing.T) {
+	hourAgo := now.Add(-time.Hour)
+	type args struct {
+		history               []configv1.UpdateHistory
+		cvScope               scopeResource
+		controlPlaneCompleted bool
+	}
+	tests := []struct {
+		name                   string
+		args                   args
+		expectedVersions       versions
+		expectedUpdateInsights []updateInsight
+	}{
+		{
+			name: "empty history",
+			args: args{
+				history:               []configv1.UpdateHistory{},
+				cvScope:               scopeResource{},
+				controlPlaneCompleted: false,
+			},
+			expectedVersions: versions{
+				target:            "unknown",
+				previous:          "unknown",
+				isPreviousPartial: false,
+			},
+		},
+		{
+			name: "single history item - partial",
+			args: args{
+				history: []configv1.UpdateHistory{
+					{
+						State:   configv1.PartialUpdate,
+						Version: "X.Y.Z",
+					},
+				},
+			},
+			expectedVersions: versions{
+				target:            "X.Y.Z",
+				previous:          "unknown",
+				isPreviousPartial: false,
+			},
+		},
+		{
+			name: "single history item - completed",
+			args: args{
+				history: []configv1.UpdateHistory{
+					{
+						State:   configv1.CompletedUpdate,
+						Version: "X.Y.Z",
+					},
+				},
+			},
+			expectedVersions: versions{
+				target:            "X.Y.Z",
+				previous:          "unknown",
+				isPreviousPartial: false,
+			},
+		},
+		{
+			name: "update in progress, previous version completed",
+			args: args{
+				history: []configv1.UpdateHistory{
+					{
+						State:   configv1.PartialUpdate,
+						Version: "X.Y.Z",
+					},
+					{
+						State:   configv1.CompletedUpdate,
+						Version: "X.Y.Z-1",
+					},
+					{
+						State:   configv1.PartialUpdate,
+						Version: "X.Y.Z-2",
+					},
+				},
+			},
+			expectedVersions: versions{
+				target:            "X.Y.Z",
+				previous:          "X.Y.Z-1",
+				isPreviousPartial: false,
+			},
+		},
+		{
+			name: "update in progress, previous version partial, last completed version does not exist",
+			args: args{
+				history: []configv1.UpdateHistory{
+					{
+						State:       configv1.PartialUpdate,
+						StartedTime: metav1.NewTime(hourAgo),
+						Version:     "X.Y.Z",
+					},
+					{
+						State:       configv1.PartialUpdate,
+						StartedTime: metav1.NewTime(hourAgo.Add(-time.Hour)),
+						Version:     "X.Y.Z-1",
+					},
+				},
+			},
+			expectedVersions: versions{
+				target:            "X.Y.Z",
+				previous:          "X.Y.Z-1",
+				isPreviousPartial: true,
+			},
+			expectedUpdateInsights: []updateInsight{
+				{
+					startedAt: hourAgo,
+					scope: updateInsightScope{
+						scopeType: scopeTypeControlPlane,
+						resources: []scopeResource{{}},
+					},
+					impact: updateInsightImpact{
+						level:       warningImpactLevel,
+						impactType:  noneImpactType,
+						summary:     "Previous update to X.Y.Z-1 never completed, last complete update was unknown",
+						description: "Current update to X.Y.Z was initiated while the previous update to version X.Y.Z-1 was still in progress",
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://docs.openshift.com/container-platform/latest/updating/troubleshooting_updates/gathering-data-cluster-update.html#gathering-clusterversion-history-cli_troubleshooting_updates",
+					},
+				},
+			},
+		},
+		{
+			name: "update in progress, previous version partial, last completed version exists",
+			args: args{
+				history: []configv1.UpdateHistory{
+					{
+						State:       configv1.PartialUpdate,
+						StartedTime: metav1.NewTime(hourAgo),
+						Version:     "X.Y.Z",
+					},
+					{
+						State:       configv1.PartialUpdate,
+						StartedTime: metav1.NewTime(hourAgo.Add(-time.Hour)),
+						Version:     "X.Y.Z-1",
+					},
+					{
+						State:       configv1.PartialUpdate,
+						StartedTime: metav1.NewTime(hourAgo.Add(-2 * time.Hour)),
+						Version:     "X.Y.Z-2",
+					},
+					{
+						State:       configv1.CompletedUpdate,
+						StartedTime: metav1.NewTime(hourAgo.Add(-3 * time.Hour)),
+						Version:     "X.Y.Z-3",
+					},
+					{
+						State:       configv1.PartialUpdate,
+						StartedTime: metav1.NewTime(hourAgo.Add(-4 * time.Hour)),
+						Version:     "X.Y.Z-4",
+					},
+				},
+			},
+			expectedVersions: versions{
+				target:            "X.Y.Z",
+				previous:          "X.Y.Z-1",
+				isPreviousPartial: true,
+			},
+			expectedUpdateInsights: []updateInsight{
+				{
+					startedAt: hourAgo,
+					scope: updateInsightScope{
+						scopeType: scopeTypeControlPlane,
+						resources: []scopeResource{{}},
+					},
+					impact: updateInsightImpact{
+						level:       warningImpactLevel,
+						impactType:  noneImpactType,
+						summary:     "Previous update to X.Y.Z-1 never completed, last complete update was X.Y.Z-3",
+						description: "Current update to X.Y.Z was initiated while the previous update to version X.Y.Z-1 was still in progress",
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://docs.openshift.com/container-platform/latest/updating/troubleshooting_updates/gathering-data-cluster-update.html#gathering-clusterversion-history-cli_troubleshooting_updates",
+					},
+				},
+			},
+		},
+		{
+			name: "update in progress, previous version partial, function copies over the scope resource",
+			args: args{
+				history: []configv1.UpdateHistory{
+					{
+						State:       configv1.PartialUpdate,
+						StartedTime: metav1.NewTime(hourAgo),
+						Version:     "X.Y.Z",
+					},
+					{
+						State:       configv1.PartialUpdate,
+						StartedTime: metav1.NewTime(hourAgo.Add(-2 * time.Hour)),
+						Version:     "X.Y.Z-2",
+					},
+					{
+						State:       configv1.CompletedUpdate,
+						StartedTime: metav1.NewTime(hourAgo.Add(-3 * time.Hour)),
+						Version:     "X.Y.Z-3",
+					},
+				},
+				cvScope: scopeResource{
+					kind: scopeGroupKind{
+						group: "group",
+						kind:  "ClusterVersion",
+					},
+					namespace: "",
+					name:      "version",
+				},
+			},
+			expectedVersions: versions{
+				target:            "X.Y.Z",
+				previous:          "X.Y.Z-2",
+				isPreviousPartial: true,
+			},
+			expectedUpdateInsights: []updateInsight{
+				{
+					startedAt: hourAgo,
+					scope: updateInsightScope{
+						scopeType: scopeTypeControlPlane,
+						resources: []scopeResource{
+							{
+								kind: scopeGroupKind{
+									group: "group",
+									kind:  "ClusterVersion",
+								},
+								namespace: "",
+								name:      "version",
+							},
+						},
+					},
+					impact: updateInsightImpact{
+						level:       warningImpactLevel,
+						impactType:  noneImpactType,
+						summary:     "Previous update to X.Y.Z-2 never completed, last complete update was X.Y.Z-3",
+						description: "Current update to X.Y.Z was initiated while the previous update to version X.Y.Z-2 was still in progress",
+					},
+					remediation: updateInsightRemediation{
+						reference: "https://docs.openshift.com/container-platform/latest/updating/troubleshooting_updates/gathering-data-cluster-update.html#gathering-clusterversion-history-cli_troubleshooting_updates",
+					},
+				},
+			},
+		},
+		{
+			name: "update in progress, previous version partial, control plane is updated - insight is not needed",
+			args: args{
+				history: []configv1.UpdateHistory{
+					{
+						State:       configv1.PartialUpdate,
+						StartedTime: metav1.NewTime(hourAgo),
+						Version:     "X.Y.Z",
+					},
+					{
+						State:       configv1.PartialUpdate,
+						StartedTime: metav1.NewTime(hourAgo.Add(-2 * time.Hour)),
+						Version:     "X.Y.Z-2",
+					},
+					{
+						State:       configv1.CompletedUpdate,
+						StartedTime: metav1.NewTime(hourAgo.Add(-3 * time.Hour)),
+						Version:     "X.Y.Z-3",
+					},
+				},
+				controlPlaneCompleted: true,
+			},
+			expectedVersions: versions{
+				target:            "X.Y.Z",
+				previous:          "X.Y.Z-2",
+				isPreviousPartial: true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualVersions, actualInsights := versionsFromHistory(tt.args.history, tt.args.cvScope, tt.args.controlPlaneCompleted)
+
+			if diff := cmp.Diff(tt.expectedVersions, actualVersions, cmp.AllowUnexported(versions{})); diff != "" {
+				t.Errorf("versions differ from expected:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tt.expectedUpdateInsights, actualInsights, allowUnexportedInsightStructs); diff != "" {
+				t.Errorf("updateInsight differ from expected:\n%s", diff)
+			}
+		})
+	}
+}
