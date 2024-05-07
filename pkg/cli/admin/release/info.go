@@ -93,7 +93,7 @@ func NewInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Comm
 			a tag when verifying an image is recommended since it ensures an attacker cannot trick you
 			into installing an older, potentially vulnerable version.
 
-			The --bugs and --changelog flags will use git to clone the source of the release and display
+			The --bugs and --changelog flags will use git to clone the git history of the release and display
 			the code changes that occurred between the two release arguments. This operation is slow
 			and requires sufficient disk space on the selected drive to clone all repositories.
 
