@@ -412,6 +412,16 @@ func (w *fileWriter) ReadFrom(r io.Reader) (int64, error) {
 		}
 		w.size = n
 		w.digest = blobDigest
+
+		if read, err := os.ReadFile(path); err != nil {
+			return 0, err
+		} else {
+			actualDigest := godigest.FromBytes(read)
+			if actualDigest.String() != w.digest.String() {
+				return 0, fmt.Errorf("actual digest %s of image does not match the expected digest %s. This is mostly happening due to network hiccups. Please retry", actualDigest, w.digest)
+			}
+		}
+
 		return n, err
 	}
 
@@ -433,6 +443,18 @@ func (w *fileWriter) ReadFrom(r io.Reader) (int64, error) {
 	if err := os.Rename(w.path+".download", w.path); err != nil {
 		return 0, err
 	}
+
+	if read, err := os.ReadFile(w.path); err != nil {
+		return 0, err
+	} else {
+		actualDigest := godigest.FromBytes(read)
+		// w.path contains the expected sha256 value of the blob,
+		// so that we are comparing it to the actual digest value of the file.
+		if !strings.Contains(w.path, actualDigest.String()) {
+			return 0, fmt.Errorf("actual digest %s of image does not match the digest in the path %s. This is mostly happening due to network hiccups. Please retry", actualDigest, w.path)
+		}
+	}
+
 	return n, nil
 }
 
