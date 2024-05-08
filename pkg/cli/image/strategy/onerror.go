@@ -1,8 +1,11 @@
 package strategy
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -16,6 +19,7 @@ import (
 	operatorv1alpha1scheme "github.com/openshift/client-go/operator/clientset/versioned/scheme"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
+	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 )
 
 type onErrorICSPStrategy struct {
@@ -323,15 +327,27 @@ func readIDMSsFromFile(idmsFile string) ([]apicfgv1.ImageDigestMirrorSet, error)
 	if len(idmsData) == 0 {
 		return nil, fmt.Errorf("no data found in ImageDigestMirrorSet %s", idmsFile)
 	}
-	idmsObj, err := runtime.Decode(apicfgv1scheme.Codecs.UniversalDeserializer(), idmsData)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding ImageDigestMirrorSet from %s: %v", idmsFile, err)
+	reader := utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(idmsData)))
+	var idmss []apicfgv1.ImageDigestMirrorSet
+	for {
+		idmsBytes, err := reader.Read()
+		if err != nil && err != io.EOF {
+			return nil, fmt.Errorf("unable to read ImageDigestMirrorSet %s: %v", idmsFile, err)
+		}
+		if idmsBytes == nil {
+			break
+		}
+		idmsObj, err := runtime.Decode(apicfgv1scheme.Codecs.UniversalDeserializer(), idmsBytes)
+		if err != nil {
+			return nil, fmt.Errorf("error decoding ImageDigestMirrorSet from %s: %v", idmsFile, err)
+		}
+		idms, ok := idmsObj.(*apicfgv1.ImageDigestMirrorSet)
+		if !ok {
+			return nil, fmt.Errorf("could not decode ImageDigestMirrorSet from %s", idmsFile)
+		}
+		idmss = append(idmss, *idms)
 	}
-	idms, ok := idmsObj.(*apicfgv1.ImageDigestMirrorSet)
-	if !ok {
-		return nil, fmt.Errorf("could not decode ImageDigestMirrorSet from %s", idmsFile)
-	}
-	return []apicfgv1.ImageDigestMirrorSet{*idms}, nil
+	return idmss, nil
 }
 
 func isSubrepo(repo, ancestor string) bool {
