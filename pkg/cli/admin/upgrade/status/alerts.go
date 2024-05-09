@@ -30,6 +30,7 @@ type AlertLabels struct {
 type AlertAnnotations struct {
 	Description string `json:"description,omitempty"`
 	Summary     string `json:"summary,omitempty"`
+	Runbook     string `json:"runbook_url,omitempty"`
 }
 
 type Alert struct {
@@ -59,13 +60,18 @@ func parseAlertDataToInsights(alertData AlertData, startedAt time.Time) []update
 		if startedAt.After(alert.ActiveAt) && !allowedAlerts.Contains(alert.Labels.AlertName) {
 			continue
 		}
+		if alert.State == "pending" {
+			continue
+		}
 		updateInsights = append(updateInsights, updateInsight{
 			startedAt: alert.ActiveAt,
 			impact: updateInsightImpact{
-				level:      alertImpactLevel(alert.Labels.Severity),
-				impactType: unknownImpactType,
-				summary:    "Alert: " + alert.Annotations.Summary,
+				level:       alertImpactLevel(alert.Labels.Severity),
+				impactType:  unknownImpactType,
+				summary:     "Alert: " + alert.Annotations.Summary,
+				description: alert.Annotations.Description,
 			},
+			remediation: updateInsightRemediation{reference: alert.Annotations.Runbook},
 			scope: updateInsightScope{
 				scopeType: scopeTypeCluster,
 				resources: []scopeResource{{
