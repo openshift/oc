@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	// "sort"
 	"strings"
 	"time"
 
@@ -283,7 +284,6 @@ func (o *options) Run(ctx context.Context) error {
 		if err := json.Unmarshal(alertBytes, &alertData); err != nil {
 			fmt.Println("Ignoring alerts in 'Update Health'. Error unmarshaling alerts: %w", err)
 		}
-
 		updateInsights = append(updateInsights, parseAlertDataToInsights(alertData, startedAt)...)
 	}
 
