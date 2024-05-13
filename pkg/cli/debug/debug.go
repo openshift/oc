@@ -47,6 +47,7 @@ import (
 	appsv1 "github.com/openshift/api/apps/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
+	securityv1 "github.com/openshift/api/security/v1"
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
@@ -485,6 +486,10 @@ func (o *DebugOptions) RunDebug() error {
 
 	o.Annotations[debugPodAnnotationSourceResource] = fmt.Sprintf("%s/%s", infos[0].Mapping.Resource, infos[0].Name)
 	o.Annotations[debugPodAnnotationSourceContainer] = o.ContainerName
+
+	if infos[0].Mapping.GroupVersionKind.Kind == "Node" {
+		o.Annotations[securityv1.RequiredSCCAnnotation] = "privileged"
+	}
 
 	pod, originalCommand := o.transformPodForDebug(o.Annotations)
 	var commandString string
