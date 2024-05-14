@@ -189,7 +189,11 @@ func (o *options) Run(ctx context.Context) error {
 		machineConfigs = &machineconfigv1.MachineConfigList{}
 		for _, node := range allNodes.Items {
 			for _, key := range []string{mco.CurrentMachineConfigAnnotationKey, mco.DesiredMachineConfigAnnotationKey} {
-				mc, err := getMachineConfig(ctx, o.MachineConfigClient, machineConfigs.Items, node.Annotations[key])
+				machineConfigName, ok := node.Annotations[key]
+				if !ok || machineConfigName == "" {
+					continue
+				}
+				mc, err := getMachineConfig(ctx, o.MachineConfigClient, machineConfigs.Items, machineConfigName)
 				if err != nil {
 					return err
 				}

@@ -1090,7 +1090,8 @@ items:
       annotations:
         cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
         machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
-        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        # This simulates ephemeral conditions when Nodes do not have all annotations we expect
+        # machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
         machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
         machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
         machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311

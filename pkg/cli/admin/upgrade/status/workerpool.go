@@ -147,16 +147,19 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 	var nodesStatusData []nodeDisplayData
 	var insights []updateInsight
 	for _, node := range nodes {
-		currentVersion := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.CurrentMachineConfigAnnotationKey])
-		desiredVersion := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.DesiredMachineConfigAnnotationKey])
+		currentVersion, foundCurrent := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.CurrentMachineConfigAnnotationKey])
+		desiredVersion, foundDesired := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.DesiredMachineConfigAnnotationKey])
 
 		isUnavailable := isNodeUnavailable(node, pool)
 		isDegraded := isNodeDegraded(node)
-		isUpdated := isNodeUpdated(cv, currentVersion)
-		isUpdating := isNodeUpdating(cv, currentVersion, desiredVersion)
+		isUpdated := foundCurrent && isLatestUpdateHistoryVersionEqualTo(cv.Status.History, currentVersion)
+
+		// foundCurrent makes sure we don't blip phase "updating" for nodes that we are not sure
+		// of their actual phase, even though the conservative assumption is that the node is
+		// at least updating or is updated.
+		isUpdating := !isUpdated && foundCurrent && foundDesired && isLatestUpdateHistoryVersionEqualTo(cv.Status.History, desiredVersion)
 
 		phase := calculatePhase(pool, node, isUpdating, isUpdated)
-
 		var estimate string
 		var assessment nodeAssessment
 		switch phase {
@@ -228,18 +231,24 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 	return nodesStatusData, insights
 }
 
-func getOpenShiftVersionOfMachineConfig(machineConfigs []mcfgv1.MachineConfig, name string) string {
+func getOpenShiftVersionOfMachineConfig(machineConfigs []mcfgv1.MachineConfig, name string) (string, bool) {
 	for _, mc := range machineConfigs {
 		if mc.Name == name {
-			return mc.Annotations[mco.ReleaseImageVersionAnnotationKey]
+			openshiftVersion := mc.Annotations[mco.ReleaseImageVersionAnnotationKey]
+			return openshiftVersion, openshiftVersion != ""
 		}
 	}
-	return "?"
+	return "", false
 }
 
 func isNodeDraining(node corev1.Node, isUpdating bool) bool {
 	desiredDrain := node.Annotations[mco.DesiredDrainerAnnotationKey]
 	appliedDrain := node.Annotations[mco.LastAppliedDrainerAnnotationKey]
+
+	if appliedDrain == "" || desiredDrain == "" {
+		return false
+	}
+
 	if desiredDrain != appliedDrain {
 		desiredVerb := strings.Split(desiredDrain, "-")[0]
 		if desiredVerb == mco.DrainerStateDrain {
@@ -247,25 +256,18 @@ func isNodeDraining(node corev1.Node, isUpdating bool) bool {
 		}
 	}
 
+	// Node is supposed to be updating but MCD hasn't had the time to update
+	// its state from original `Done` to `Working` and start the drain process.
+	// Default to drain process so that we don't report completed.
 	mcdState := node.Annotations[mco.MachineConfigDaemonStateAnnotationKey]
-	if isUpdating && mcdUpdatingStateToPhase(mcdState) == phaseStateUpdated {
-		// Node is supposed to be updating but MCD hasn't had the time to update
-		// its state from original `Done` to `Working` and start the drain process.
-		// Default to drain process so that we don't report completed.
-		return true
-	}
-	return false
+	return isUpdating && mcdState == mco.MachineConfigDaemonStateDone
 }
 
-func isNodeUpdating(cv *configv1.ClusterVersion, currentNodeVersion string, desiredNodeVersion string) bool {
-	return !isNodeUpdated(cv, currentNodeVersion) && isNodeUpdated(cv, desiredNodeVersion)
-}
-
-func isNodeUpdated(cv *configv1.ClusterVersion, nodeVersion string) bool {
-	if len(cv.Status.History) > 0 {
+func isLatestUpdateHistoryVersionEqualTo(history []configv1.UpdateHistory, version string) bool {
+	if len(history) > 0 {
 		// Check the version of a node against the new entry in the history of CV
 		// A paused MCP will not contain the MC of the new history entry
-		return cv.Status.History[0].Version == nodeVersion
+		return history[0].Version == version
 	}
 	return false
 }
@@ -320,6 +322,9 @@ func mcdUpdatingStateToPhase(state string) nodePhase {
 		return phaseStateRebooting
 	case mco.MachineConfigDaemonStateDone:
 		return phaseStateUpdated
+	// The MCD state annotation is not set
+	case "":
+		return phaseStateUpdating
 	default:
 		// For other MCD states during an update default to updating
 		return phaseStateUpdating
@@ -518,10 +523,15 @@ func (pool *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
 			}
 		}
 
+		version := node.Version
+		if version == "" {
+			version = "?"
+		}
+
 		_, _ = tabw.Write([]byte(node.Name + "\t"))
 		_, _ = tabw.Write([]byte(node.Assessment.String() + "\t"))
 		_, _ = tabw.Write([]byte(node.Phase.String() + "\t"))
-		_, _ = tabw.Write([]byte(node.Version + "\t"))
+		_, _ = tabw.Write([]byte(version + "\t"))
 		_, _ = tabw.Write([]byte(node.Estimate + "\t"))
 		_, _ = tabw.Write([]byte(node.Message + "\n"))
 	}

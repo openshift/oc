@@ -150,6 +150,11 @@ func (n *nodeBuilder) annotated(annotations map[string]string) *nodeBuilder {
 	return n
 }
 
+func (n *nodeBuilder) without_annotation(key string) *nodeBuilder {
+	delete(n.node.Annotations, key)
+	return n
+}
+
 func (n *nodeBuilder) unavailable() *nodeBuilder {
 	n.node.Spec.Unschedulable = true
 	return n
@@ -241,6 +246,23 @@ func (n *nodeBuilder) degraded_draining(currentConfig, desiredConfig, reason str
 }
 
 var nodeGroupKind = scopeGroupKind{group: corev1.GroupName, kind: "Node"}
+
+// TODO: Potentially create a more robust builder in the future
+var updateInsightControlPlaneNodeUnavailable = updateInsight{
+	impact: updateInsightImpact{
+		level:       warningImpactLevel,
+		impactType:  updateSpeedImpactType,
+		summary:     "Node a is unavailable",
+		description: "Node is unavailable",
+	},
+	scope: updateInsightScope{
+		scopeType: scopeTypeControlPlane,
+		resources: []scopeResource{{kind: nodeGroupKind, name: "a"}},
+	},
+	remediation: updateInsightRemediation{
+		reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
+	},
+}
 
 func Test_assessNodesStatus(t *testing.T) {
 
@@ -492,6 +514,286 @@ func Test_assessNodesStatus(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name: "updated node is missing an MCD annotation machineconfiguration.openshift.io/desiredConfig",
+			args: args{
+				cv:   &cvUpdated,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").updated(mcNew.Name, mcNew.Name).without_annotation("machineconfiguration.openshift.io/desiredConfig").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentUnavailable,
+					Phase:         phaseStateUpdated,
+					Version:       newOCPVersion,
+					Estimate:      "-",
+					Message:       "Node is unavailable",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    false,
+					isUpdated:     true,
+				},
+			},
+			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+		},
+		{
+			name: "updated node is missing an MCD annotation machineconfiguration.openshift.io/currentConfig",
+			args: args{
+				cv:   &cvUpdated,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").updated(mcNew.Name, mcNew.Name).without_annotation("machineconfiguration.openshift.io/currentConfig").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentUnavailable,
+					Phase:         phaseStatePending,
+					Version:       "",
+					Estimate:      "?",
+					Message:       "Node is unavailable",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    false,
+					isUpdated:     false,
+				},
+			},
+			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+		},
+		{
+			name: "draining node is missing an MCD annotation machineconfiguration.openshift.io/desiredDrain",
+			args: args{
+				cv:   &cvUpdating,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").progressing_draining(mcOld.Name, mcNew.Name).without_annotation("machineconfiguration.openshift.io/desiredDrain").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentProgressing,
+					Phase:         phaseStateUpdating,
+					Version:       oldOCPVersion,
+					Estimate:      "+20m",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    true,
+					isUpdated:     false,
+				},
+			},
+		},
+		{
+			name: "draining node is missing an MCD annotation machineconfiguration.openshift.io/lastAppliedDrain",
+			args: args{
+				cv:   &cvUpdating,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").progressing_draining(mcOld.Name, mcNew.Name).without_annotation("machineconfiguration.openshift.io/lastAppliedDrain").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentProgressing,
+					Phase:         phaseStateUpdating,
+					Version:       oldOCPVersion,
+					Estimate:      "+20m",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    true,
+					isUpdated:     false,
+				},
+			},
+		},
+		{
+			name: "pending node is missing an MCD annotation machineconfiguration.openshift.io/state",
+			args: args{
+				cv:   &cvUpdating,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").pending(mcOld.Name, mcOld.Name).without_annotation("machineconfiguration.openshift.io/state").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentUnavailable,
+					Phase:         phaseStatePending,
+					Version:       oldOCPVersion,
+					Estimate:      "?",
+					Message:       "Node is unavailable",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    false,
+					isUpdated:     false,
+				},
+			},
+			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+		},
+		{
+			name: "draining node is missing an MCD annotation machineconfiguration.openshift.io/state",
+			args: args{
+				cv:   &cvUpdating,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").progressing_draining(mcOld.Name, mcNew.Name).without_annotation("machineconfiguration.openshift.io/state").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentProgressing,
+					Phase:         phaseStateDraining,
+					Version:       oldOCPVersion,
+					Estimate:      "+30m",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    true,
+					isUpdated:     false,
+				},
+			},
+		},
+		{
+			name: "updated node is missing an MCD annotation machineconfiguration.openshift.io/state",
+			args: args{
+				cv:   &cvUpdated,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").updated(mcNew.Name, mcNew.Name).without_annotation("machineconfiguration.openshift.io/state").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentUnavailable,
+					Phase:         phaseStateUpdated,
+					Version:       newOCPVersion,
+					Estimate:      "-",
+					Message:       "Node is unavailable",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    false,
+					isUpdated:     true,
+				},
+			},
+			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+		},
+		{
+			name: "updating node is missing MCD annotations - desiredConfig and state",
+			args: args{
+				cv:   &cvUpdating,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").progressing_updating(mcOld.Name, mcNew.Name).without_annotation("machineconfiguration.openshift.io/desiredConfig").without_annotation("machineconfiguration.openshift.io/state").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentUnavailable,
+					Phase:         phaseStatePending,
+					Version:       oldOCPVersion,
+					Estimate:      "?",
+					Message:       "Node is unavailable",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    false,
+					isUpdated:     false,
+				},
+			},
+			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+		},
+		{
+			name: "updating node is missing MCD annotations - currentConfig and state",
+			args: args{
+				cv:   &cvUpdating,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").progressing_updating(mcOld.Name, mcNew.Name).without_annotation("machineconfiguration.openshift.io/currentConfig").without_annotation("machineconfiguration.openshift.io/state").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentUnavailable,
+					Phase:         phaseStatePending,
+					Version:       "",
+					Estimate:      "?",
+					Message:       "Node is unavailable",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    false,
+					isUpdated:     false,
+				},
+			},
+			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+		},
+		{
+			name: "updating node is missing MCD annotations - currentConfig and desiredConfig",
+			args: args{
+				cv:   &cvUpdating,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").progressing_updating(mcOld.Name, mcNew.Name).without_annotation("machineconfiguration.openshift.io/currentConfig").without_annotation("machineconfiguration.openshift.io/desiredConfig").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentUnavailable,
+					Phase:         phaseStatePending,
+					Version:       "",
+					Estimate:      "?",
+					Message:       "Node is unavailable",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    false,
+					isUpdated:     false,
+				},
+			},
+			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+		},
+		{
+			name: "node without MCD annotations",
+			args: args{
+				cv:   &cvUpdated,
+				pool: mcpMaster,
+				nodes: []corev1.Node{
+					node("a").node,
+				},
+				machineConfigs: machineConfigs,
+			},
+			expectedNodeDisplayData: []nodeDisplayData{
+				{
+					Name:          "a",
+					Assessment:    nodeAssessmentUnavailable,
+					Phase:         phaseStatePending,
+					Version:       "",
+					Estimate:      "?",
+					Message:       "Node is unavailable",
+					isUnavailable: true,
+					isDegraded:    false,
+					isUpdating:    false,
+					isUpdated:     false,
+				},
+			},
+			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
 		},
 		{
 			name: "node is updated but unavailable",
