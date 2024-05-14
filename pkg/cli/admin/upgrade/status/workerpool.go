@@ -523,10 +523,15 @@ func (pool *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
 			}
 		}
 
+		version := node.Version
+		if version == "" {
+			version = "<unknown>"
+		}
+
 		_, _ = tabw.Write([]byte(node.Name + "\t"))
 		_, _ = tabw.Write([]byte(node.Assessment.String() + "\t"))
 		_, _ = tabw.Write([]byte(node.Phase.String() + "\t"))
-		_, _ = tabw.Write([]byte(node.Version + "\t"))
+		_, _ = tabw.Write([]byte(version + "\t"))
 		_, _ = tabw.Write([]byte(node.Estimate + "\t"))
 		_, _ = tabw.Write([]byte(node.Message + "\n"))
 	}

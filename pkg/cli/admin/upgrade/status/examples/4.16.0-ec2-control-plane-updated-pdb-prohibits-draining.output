@@ -18,7 +18,7 @@ build0-gstfj-m-2.c.openshift-ci-build-farm.internal   Completed    Updated   4.1
 Worker Pool:     worker
 Assessment:      Degraded
 Completion:      39%
-Worker Status:   59 Total, 46 Available, 5 Progressing, 36 Outdated, 12 Draining, 0 Excluded, 7 Degraded
+Worker Status:   59 Total, 45 Available, 5 Progressing, 36 Outdated, 12 Draining, 0 Excluded, 7 Degraded
 
 Worker Pool Nodes
 NAME                                      ASSESSMENT    PHASE      VERSION       EST    MESSAGE
@@ -29,11 +29,11 @@ build0-gstfj-ci-tests-worker-b-4h7pn      Degraded      Draining   4.16.0-ec.2  
 build0-gstfj-ci-tests-worker-b-jv5bg      Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-tests-worker-b-kj6gk      Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-tests-worker-c-dcz9p      Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-d-ddnxd   Unavailable   Pending    <unknown>     ?      Node is unavailable
 build0-gstfj-ci-tests-worker-c-jq5rk      Unavailable   Updated    4.16.0-ec.3   -      Node is unavailable
 build0-gstfj-ci-tests-worker-c-2kz4m      Progressing   Draining   4.16.0-ec.2   +30m   
-build0-gstfj-ci-tests-worker-c-55hpj      Progressing   Draining   4.16.0-ec.2   +30m   
 ...
-Omitted additional 49 Total, 22 Completed, 46 Available, 3 Progressing, 27 Outdated, 3 Draining, 0 Excluded, and 0 Degraded nodes.
+Omitted additional 49 Total, 22 Completed, 45 Available, 4 Progressing, 27 Outdated, 4 Draining, 0 Excluded, and 0 Degraded nodes.
 Pass along --details=nodes to see all information.
 
 = Update Health =
@@ -46,6 +46,7 @@ SINCE   LEVEL     IMPACT           MESSAGE
 -       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded
 -       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
 0s      Warning   Update Stalled   Cluster Version version is failing to proceed with the update (ClusterOperatorDegraded)
+-       Warning   Update Speed     Node build0-gstfj-ci-prowjobs-worker-d-ddnxd is unavailable
 -       Warning   Update Speed     Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable
 
 Run with --details=health for additional description and links to related online documentation
