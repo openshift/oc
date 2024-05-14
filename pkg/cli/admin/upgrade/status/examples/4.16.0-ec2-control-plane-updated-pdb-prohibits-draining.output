@@ -29,7 +29,7 @@ build0-gstfj-ci-tests-worker-b-4h7pn      Degraded      Draining   4.16.0-ec.2  
 build0-gstfj-ci-tests-worker-b-jv5bg      Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-tests-worker-b-kj6gk      Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-tests-worker-c-dcz9p      Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
-build0-gstfj-ci-prowjobs-worker-d-ddnxd   Unavailable   Pending    <unknown>     ?      Node is unavailable
+build0-gstfj-ci-prowjobs-worker-d-ddnxd   Unavailable   Pending    ?             ?      Node is unavailable
 build0-gstfj-ci-tests-worker-c-jq5rk      Unavailable   Updated    4.16.0-ec.3   -      Node is unavailable
 build0-gstfj-ci-tests-worker-c-2kz4m      Progressing   Draining   4.16.0-ec.2   +30m   
 ...
