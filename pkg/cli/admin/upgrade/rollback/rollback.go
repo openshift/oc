@@ -33,11 +33,12 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 		Long: templates.LongDesc(`
 			Rollback the cluster to the previous release.
 
-			Only patch version rollbacks within the same z stream, e.g. 4.y.newer to 4.y.older, are supported.
-			Minor version rollbacks from 4.newer to 4.older are not supported.  Updates to releases other than
-			the most-recent previous release that the cluster was attempting are not supported.  Rolling back
-			re-exposes the cluster to all the bugs which had been fixed from 4.y.older to 4.y.newer.  In most
-			cases, you probably want to understand what's having trouble and roll forward with fixes.
+			Only patch version rollbacks within the same z stream, e.g. 4.y.newer to 4.y.older, are accepted by
+			the cluster-version operator.  Minor version rollbacks from 4.newer to 4.older are not accepted.
+			Updates to releases other than the most-recent previous release that the cluster was attempting are
+			not accepted.  Rolling back re-exposes the cluster to all the bugs which had been fixed from
+			4.y.older to 4.y.newer.  In most cases, you probably want to understand what is having trouble and
+			roll forward with fixes.
 		`),
 
 		Run: func(cmd *cobra.Command, args []string) {
