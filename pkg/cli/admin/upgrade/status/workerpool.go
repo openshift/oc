@@ -256,14 +256,11 @@ func isNodeDraining(node corev1.Node, isUpdating bool) bool {
 		}
 	}
 
+	// Node is supposed to be updating but MCD hasn't had the time to update
+	// its state from original `Done` to `Working` and start the drain process.
+	// Default to drain process so that we don't report completed.
 	mcdState := node.Annotations[mco.MachineConfigDaemonStateAnnotationKey]
-	if isUpdating && mcdState == mco.MachineConfigDaemonStateDone {
-		// Node is supposed to be updating but MCD hasn't had the time to update
-		// its state from original `Done` to `Working` and start the drain process.
-		// Default to drain process so that we don't report completed.
-		return true
-	}
-	return false
+	return isUpdating && mcdState == mco.MachineConfigDaemonStateDone
 }
 
 func isLatestUpdateHistoryVersionEqualTo(history []configv1.UpdateHistory, version string) bool {
@@ -325,6 +322,9 @@ func mcdUpdatingStateToPhase(state string) nodePhase {
 		return phaseStateRebooting
 	case mco.MachineConfigDaemonStateDone:
 		return phaseStateUpdated
+	// The MCD state annotation is not set
+	case "":
+		return phaseStateUpdating
 	default:
 		// For other MCD states during an update default to updating
 		return phaseStateUpdating
@@ -525,7 +525,7 @@ func (pool *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
 
 		version := node.Version
 		if version == "" {
-			version = "<unknown>"
+			version = "?"
 		}
 
 		_, _ = tabw.Write([]byte(node.Name + "\t"))
