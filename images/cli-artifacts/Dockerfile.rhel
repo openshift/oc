@@ -3,30 +3,39 @@
 FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.21-openshift-4.16 AS builder
 WORKDIR /go/src/github.com/openshift/oc
 COPY . .
-RUN make cross-build --warn-undefined-variables
+
+RUN make build --warn-undefined-variables
 
 FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.21-openshift-4.16 AS builder-rhel-9
 WORKDIR /go/src/github.com/openshift/oc
 COPY . .
-RUN make cross-build --warn-undefined-variables
 
-FROM registry.ci.openshift.org/ocp/4.16:cli
+RUN make cross-build-linux-$(uname -m | sed 's/aarch64/arm64/;s/x86_64/amd64/') --warn-undefined-variables
 
+RUN if [ "$(uname -m)" == x86_64 ]; then \
+      make cross-build-darwin-amd64 --warn-undefined-variables && \
+      make cross-build-windows-amd64 --warn-undefined-variables; \
+    elif [ "$(uname -m)" == aarch64 ]; then \
+      make cross-build-darwin-arm64 --warn-undefined-variables; \
+    fi
+
+FROM registry.ci.openshift.org/ocp/4.16:base-rhel9
+
+COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/LICENSE /usr/share/openshift/LICENSE
 COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/ /usr/share/openshift/
+COPY --from=builder /go/src/github.com/openshift/oc/oc /tmp/oc
 
 RUN cd /usr/share/openshift && \
-    ln -sf /usr/share/openshift/linux_$(uname -m | sed 's/aarch64/arm64/;s/x86_64/amd64/')/oc /usr/bin/oc && \
-    mv windows_amd64 windows && mv darwin_amd64 mac && mv darwin_arm64 mac_arm64
-
-COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_amd64/oc /usr/share/openshift/linux_amd64/oc.rhel8
-COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_arm64/oc /usr/share/openshift/linux_arm64/oc.rhel8
-COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_ppc64le/oc /usr/share/openshift/linux_ppc64le/oc.rhel8
-
-COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/linux_amd64/oc /usr/share/openshift/linux_amd64/oc.rhel9
-COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/linux_arm64/oc /usr/share/openshift/linux_arm64/oc.rhel9
-COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/linux_ppc64le/oc /usr/share/openshift/linux_ppc64le/oc.rhel9
-
-COPY --from=builder /go/src/github.com/openshift/oc/LICENSE /usr/share/openshift/LICENSE
+    arch=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/amd64/') && \
+    mv /tmp/oc /usr/share/openshift/linux_$arch/oc.rhel8 && \
+    cp linux_$arch/oc linux_$arch/oc.rhel9 && \
+    ln -sf /usr/share/openshift/linux_$arch/oc.rhel9 /usr/bin/oc && \
+    for i in kubectl openshift-deploy openshift-docker-build openshift-sti-build openshift-git-clone openshift-manage-dockerfile openshift-extract-image-content openshift-recycle; do \
+      ln -sf /usr/bin/oc /usr/bin/$i; \
+    done && \
+    if [ -d windows_$arch ]; then mv windows_$arch windows; fi && \
+    if [ -d darwin_$arch ]; then mv darwin_$arch mac_$arch; fi && \
+    find /usr/share/openshift -type f
 
 LABEL io.k8s.display-name="OpenShift Clients" \
       io.k8s.description="OpenShift is a platform for developing, building, and deploying containerized applications." \
