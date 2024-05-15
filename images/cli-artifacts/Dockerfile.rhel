@@ -21,10 +21,12 @@ RUN cd /usr/share/openshift && \
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_amd64/oc /usr/share/openshift/linux_amd64/oc.rhel8
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_arm64/oc /usr/share/openshift/linux_arm64/oc.rhel8
 COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_ppc64le/oc /usr/share/openshift/linux_ppc64le/oc.rhel8
+COPY --from=builder /go/src/github.com/openshift/oc/_output/bin/linux_s390x/oc /usr/share/openshift/linux_s390x/oc.rhel8
 
 COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/linux_amd64/oc /usr/share/openshift/linux_amd64/oc.rhel9
 COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/linux_arm64/oc /usr/share/openshift/linux_arm64/oc.rhel9
 COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/linux_ppc64le/oc /usr/share/openshift/linux_ppc64le/oc.rhel9
+COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/linux_s390x/oc /usr/share/openshift/linux_s390x/oc.rhel9
 
 COPY --from=builder /go/src/github.com/openshift/oc/LICENSE /usr/share/openshift/LICENSE
 
