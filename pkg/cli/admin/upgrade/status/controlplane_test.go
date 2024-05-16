@@ -602,6 +602,7 @@ func Test_versionsFromHistory(t *testing.T) {
 				target:            "X.Y.Z",
 				previous:          "unknown",
 				isPreviousPartial: false,
+				isTargetInstall:   true,
 			},
 		},
 		{
@@ -618,6 +619,7 @@ func Test_versionsFromHistory(t *testing.T) {
 				target:            "X.Y.Z",
 				previous:          "unknown",
 				isPreviousPartial: false,
+				isTargetInstall:   true,
 			},
 		},
 		{

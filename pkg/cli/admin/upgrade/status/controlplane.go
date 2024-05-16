@@ -45,10 +45,14 @@ func (o operators) StatusSummary() string {
 type versions struct {
 	target            string
 	previous          string
+	isTargetInstall   bool
 	isPreviousPartial bool
 }
 
 func (v versions) String() string {
+	if v.isTargetInstall {
+		return fmt.Sprintf("%s (a new install)", v.target)
+	}
 	if v.isPreviousPartial {
 		return fmt.Sprintf("%s (from incomplete %s)", v.target, v.previous)
 	}
@@ -228,6 +232,10 @@ func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, cont
 	}
 	if len(history) > 0 {
 		versionData.target = history[0].Version
+	}
+	if len(history) == 1 {
+		versionData.isTargetInstall = true
+		return versionData, nil
 	}
 	if len(history) > 1 {
 		versionData.previous = history[1].Version
