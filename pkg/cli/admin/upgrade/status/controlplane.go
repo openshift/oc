@@ -42,11 +42,29 @@ func (o operators) StatusSummary() string {
 	return strings.Join(res, ", ")
 }
 
+type versions struct {
+	target            string
+	previous          string
+	isTargetInstall   bool
+	isPreviousPartial bool
+}
+
+func (v versions) String() string {
+	if v.isTargetInstall {
+		return fmt.Sprintf("%s (a new install)", v.target)
+	}
+	if v.isPreviousPartial {
+		return fmt.Sprintf("%s (from incomplete %s)", v.target, v.previous)
+	}
+	return fmt.Sprintf("%s (from %s)", v.target, v.previous)
+}
+
 type controlPlaneStatusDisplayData struct {
-	Assessment assessmentState
-	Completion float64
-	Duration   time.Duration
-	Operators  operators
+	Assessment    assessmentState
+	Completion    float64
+	Duration      time.Duration
+	Operators     operators
+	TargetVersion versions
 }
 
 const (
@@ -112,11 +130,12 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	targetVersion := cv.Status.Desired.Version
 	cvGvk := cv.GroupVersionKind()
 	cvGroupKind := scopeGroupKind{group: cvGvk.Group, kind: cvGvk.Kind}
+	cvScope := scopeResource{kind: cvGroupKind, name: cv.Name}
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c == nil {
 		insight := updateInsight{
 			startedAt: at,
-			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: cvGroupKind, name: cv.Name}}},
+			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{cvScope}},
 			impact: updateInsightImpact{
 				level:       warningImpactLevel,
 				impactType:  updateStalledImpactType,
@@ -182,7 +201,8 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		insights = append(insights, coInsights(operator.Name, available, degraded, at)...)
 	}
 
-	if completed == displayData.Operators.Total {
+	controlPlaneCompleted := completed == displayData.Operators.Total
+	if controlPlaneCompleted {
 		displayData.Assessment = assessmentStateCompleted
 	} else {
 		displayData.Assessment = assessmentStateProgressing
@@ -197,8 +217,63 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		}
 	}
 
+	versionData, versionInsights := versionsFromHistory(cv.Status.History, cvScope, controlPlaneCompleted)
+	displayData.TargetVersion = versionData
+	insights = append(insights, versionInsights...)
+
 	displayData.Completion = float64(completed) / float64(displayData.Operators.Total) * 100.0
 	return displayData, insights
+}
+
+func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, controlPlaneCompleted bool) (versions, []updateInsight) {
+	versionData := versions{
+		target:   "unknown",
+		previous: "unknown",
+	}
+	if len(history) > 0 {
+		versionData.target = history[0].Version
+	}
+	if len(history) == 1 {
+		versionData.isTargetInstall = true
+		return versionData, nil
+	}
+	if len(history) > 1 {
+		versionData.previous = history[1].Version
+		versionData.isPreviousPartial = history[1].State == v1.PartialUpdate
+	}
+
+	var insights []updateInsight
+	if !controlPlaneCompleted && versionData.isPreviousPartial {
+		lastComplete := "unknown"
+		if len(history) > 2 {
+			for _, item := range history[2:] {
+				if item.State == v1.CompletedUpdate {
+					lastComplete = item.Version
+					break
+				}
+			}
+		}
+		insights = []updateInsight{
+			{
+				startedAt: history[0].StartedTime.Time,
+				scope: updateInsightScope{
+					scopeType: scopeTypeControlPlane,
+					resources: []scopeResource{cvScope},
+				},
+				impact: updateInsightImpact{
+					level:       warningImpactLevel,
+					impactType:  noneImpactType,
+					summary:     fmt.Sprintf("Previous update to %s never completed, last complete update was %s", versionData.previous, lastComplete),
+					description: fmt.Sprintf("Current update to %s was initiated while the previous update to version %s was still in progress", versionData.target, versionData.previous),
+				},
+				remediation: updateInsightRemediation{
+					reference: "https://docs.openshift.com/container-platform/latest/updating/troubleshooting_updates/gathering-data-cluster-update.html#gathering-clusterversion-history-cli_troubleshooting_updates",
+				},
+			},
+		}
+	}
+
+	return versionData, insights
 }
 
 var controlPlaneStatusTemplate = template.Must(template.New("controlPlaneStatus").Parse(controlPlaneStatusTemplateRaw))
@@ -209,6 +284,7 @@ func (d *controlPlaneStatusDisplayData) Write(f io.Writer) error {
 
 const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
+Target Version:  {{ .TargetVersion }}
 Completion:      {{ printf "%.0f" .Completion }}%
 Duration:        {{ .Duration }}
 Operator Status: {{ .Operators.StatusSummary }}
