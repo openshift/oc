@@ -157,7 +157,7 @@ func TestParseAlertDataToInsightsWithData(t *testing.T) {
 				},
 			},
 			startedAt:        now,
-			expectedInsights: []updateInsight{},
+			expectedInsights: nil,
 		},
 	}
 
