@@ -367,6 +367,32 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			TargetCommandName:    "oc",
 		},
 		{
+			OS:      "linux",
+			Arch:    "s390x",
+			Command: "oc.rhel9",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/linux_s390x/oc.rhel9"},
+
+			LinkTo:               []string{"kubectl"},
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-linux-s390x-rhel9-%s.tar.gz",
+			TargetCommandName:    "oc",
+		},
+		{
+			OS:      "linux",
+			Arch:    "s390x",
+			Command: "oc.rhel8",
+			NewArch: true,
+			Mapping: extract.Mapping{Image: "cli-artifacts", From: "usr/share/openshift/linux_s390x/oc.rhel8"},
+
+			LinkTo:               []string{"kubectl"},
+			Readme:               readmeCLIUnix,
+			InjectReleaseVersion: true,
+			ArchiveFormat:        "openshift-client-linux-s390x-rhel8-%s.tar.gz",
+			TargetCommandName:    "oc",
+		},
+		{
 			OS:      "windows",
 			Arch:    "amd64",
 			Command: "oc",
