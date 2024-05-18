@@ -26,7 +26,9 @@ ip-10-0-4-159.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3  
 ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3   ?     
 
 = Update Health =
-SINCE    LEVEL   IMPACT             MESSAGE
-20m24s   Error   API Availability   Cluster Operator machine-config is unavailable (MachineConfigControllerFailed)
+SINCE      LEVEL     IMPACT             MESSAGE
+20m24s     Error     API Availability   Cluster Operator machine-config is unavailable (MachineConfigControllerFailed)
+6m35s      Warning   Unknown            Alert: Pod has been in a non-ready state for more than 15 minutes.
+24h8m54s   Warning   Unknown            Alert: PodDisruptionBudgetAtLimit for pods <>
 
 Run with --details=health for additional description and links to related online documentation

@@ -3,7 +3,10 @@ package status
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	// "sort"
 	"strings"
 	"time"
 
@@ -18,8 +21,11 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	machineconfigv1 "github.com/openshift/api/machineconfiguration/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	machineconfigv1client "github.com/openshift/client-go/machineconfiguration/clientset/versioned"
+	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
+	"github.com/openshift/oc/pkg/cli/admin/inspectalerts"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/status/mco"
 )
 
@@ -67,6 +73,8 @@ type options struct {
 	ConfigClient        configv1client.Interface
 	CoreClient          corev1client.CoreV1Interface
 	MachineConfigClient machineconfigv1client.Interface
+	RouteClient         routev1client.RouteV1Interface
+	getAlerts           func(ctx context.Context) ([]byte, error)
 }
 
 func (o *options) enabledDetailed(what string) bool {
@@ -88,6 +96,7 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		o.mockData.machineConfigPoolsPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-mcp.yaml", 1)
 		o.mockData.machineConfigsPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-mc.yaml", 1)
 		o.mockData.nodesPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-node.yaml", 1)
+		o.mockData.alertsPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-alerts.json", 1)
 	}
 
 	if o.mockData.cvPath == "" {
@@ -110,6 +119,19 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 			return err
 		}
 		o.CoreClient = coreClient
+
+		routeClient, err := routev1client.NewForConfig(cfg)
+		if err != nil {
+			return err
+		}
+		o.RouteClient = routeClient
+
+		routeGetter := func(ctx context.Context, namespace string, name string, opts metav1.GetOptions) (*routev1.Route, error) {
+			return routeClient.Routes(namespace).Get(ctx, name, opts)
+		}
+		o.getAlerts = func(ctx context.Context) ([]byte, error) {
+			return inspectalerts.GetAlerts(ctx, routeGetter, cfg.BearerToken)
+		}
 	} else {
 		err := o.mockData.load()
 		if err != nil {
@@ -248,6 +270,26 @@ func (o *options) Run(ctx context.Context) error {
 		startedAt = cv.Status.History[0].StartedTime.Time
 	}
 	updatingFor := now.Sub(startedAt).Round(time.Second)
+
+	// get the alerts for the cluster. if we're unable to fetch the alerts, we'll let the user know that alerts
+	// are not being fetched, but rest of the command should work.
+	var alertData AlertData
+	var alertBytes []byte
+	var err error
+	if ap := o.mockData.alertsPath; ap != "" {
+		alertBytes, err = os.ReadFile(o.mockData.alertsPath)
+	} else {
+		alertBytes, err = o.getAlerts(ctx)
+	}
+	if err != nil {
+		fmt.Println("Unable to fetch alerts, ignoring alerts in 'Update Health': ", err)
+	} else {
+		// Unmarshal the JSON data into the struct
+		if err := json.Unmarshal(alertBytes, &alertData); err != nil {
+			fmt.Println("Ignoring alerts in 'Update Health'. Error unmarshaling alerts: %w", err)
+		}
+		updateInsights = append(updateInsights, parseAlertDataToInsights(alertData, startedAt)...)
+	}
 
 	controlPlaneStatusData, insights := assessControlPlaneStatus(cv, operators.Items, now)
 	updateInsights = append(updateInsights, insights...)

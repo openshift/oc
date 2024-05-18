@@ -17,6 +17,7 @@ type mockData struct {
 	machineConfigPoolsPath string
 	machineConfigsPath     string
 	nodesPath              string
+	alertsPath             string
 	clusterVersion         *configv1.ClusterVersion
 	clusterOperators       *configv1.ClusterOperatorList
 	machineConfigPools     *machineconfigv1.MachineConfigPoolList
