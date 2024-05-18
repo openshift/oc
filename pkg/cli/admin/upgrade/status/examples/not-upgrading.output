@@ -1,4 +1,1 @@
-The cluster version is not updating (Progressing=False).
-
-  Reason: <none>
-  Message: Cluster version is 4.14.1
+The cluster is not updating.
