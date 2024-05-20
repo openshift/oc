@@ -2,7 +2,7 @@
 Assessment:      Progressing
 Target Version:  4.14.1 (from 4.14.0-rc.3)
 Completion:      97%
-Duration:        1h58m50s
+Duration:        1h58m50.000368975s
 Operator Status: 28 Healthy, 1 Unavailable, 4 Available but degraded
 
 Control Plane Nodes

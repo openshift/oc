@@ -156,10 +156,11 @@ func (o *options) Run(ctx context.Context) error {
 		}
 	} else {
 		// mock "now" to be the latest time when something happened in the mocked data
+		// add some nanoseconds to exercise rounding
 		now = time.Time{}
 		for _, condition := range cv.Status.Conditions {
 			if condition.LastTransitionTime.After(now) {
-				now = condition.LastTransitionTime.Time
+				now = condition.LastTransitionTime.Time.Add(368975 * time.Nanosecond)
 			}
 		}
 	}
@@ -176,7 +177,7 @@ func (o *options) Run(ctx context.Context) error {
 		for _, co := range operators.Items {
 			for _, condition := range co.Status.Conditions {
 				if condition.LastTransitionTime.After(now) {
-					now = condition.LastTransitionTime.Time
+					now = condition.LastTransitionTime.Time.Add(368975 * time.Nanosecond)
 				}
 			}
 		}
