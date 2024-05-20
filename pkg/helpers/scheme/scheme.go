@@ -16,8 +16,6 @@ import (
 	securityv1 "github.com/openshift/api/security/v1"
 	"github.com/openshift/api/template"
 	"github.com/openshift/api/user"
-
-	"github.com/openshift/oc/pkg/helpers/legacy"
 )
 
 func InstallSchemes(scheme *apimachineryruntime.Scheme) {
@@ -31,7 +29,6 @@ func InstallSchemes(scheme *apimachineryruntime.Scheme) {
 	utilruntime.Must(InstallNonCRDSecurity(scheme))
 	utilruntime.Must(template.Install(scheme))
 	utilruntime.Must(user.Install(scheme))
-	legacy.InstallExternalLegacyAll(scheme)
 }
 
 func InstallNonCRDSecurity(scheme *apimachineryruntime.Scheme) error {
