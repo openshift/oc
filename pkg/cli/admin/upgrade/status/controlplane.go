@@ -212,11 +212,13 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 
 	if len(cv.Status.History) > 0 {
 		currentHistoryItem := cv.Status.History[0]
+		var updatingFor time.Duration
 		if currentHistoryItem.State == v1.CompletedUpdate {
-			displayData.Duration = currentHistoryItem.CompletionTime.Time.Sub(currentHistoryItem.StartedTime.Time)
+			updatingFor = currentHistoryItem.CompletionTime.Time.Sub(currentHistoryItem.StartedTime.Time)
 		} else {
-			displayData.Duration = at.Sub(currentHistoryItem.StartedTime.Time)
+			updatingFor = at.Sub(currentHistoryItem.StartedTime.Time)
 		}
+		displayData.Duration = updatingFor
 	}
 
 	versionData, versionInsights := versionsFromHistory(cv.Status.History, cvScope, controlPlaneCompleted)
