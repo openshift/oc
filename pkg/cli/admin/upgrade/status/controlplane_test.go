@@ -872,32 +872,47 @@ func Test_versionsFromHistory(t *testing.T) {
 }
 
 func TestEstimateCompletion(t *testing.T) {
-	now := time.Now()
-
 	testCases := []struct {
 		name string
 
-		started time.Time
-		now     time.Time
+		updatingFor time.Duration
+		coComplete  float64
 
-		expectedEstimateFinish         time.Time
-		expectedEstimateTimeToComplete time.Duration
+		expectedEstimate time.Duration
 	}{
 		{
-			name:                           "baseline is 60m: after 20m expect 40m to go",
-			started:                        now.Add(-20 * time.Minute),
-			now:                            now,
-			expectedEstimateFinish:         now.Add(40 * time.Minute),
-			expectedEstimateTimeToComplete: 40 * time.Minute,
+			name:        "No CO complete after 30m: estimate 60m as a baseline",
+			updatingFor: 30 * time.Minute,
+			coComplete:  0,
+
+			expectedEstimate: time.Hour,
+		},
+		{
+			name:        "20% CO complete after 30m: estimate 120m remaining",
+			updatingFor: 30 * time.Minute,
+			coComplete:  0.2,
+
+			expectedEstimate: 120 * time.Minute,
+		},
+		{
+			name:        "75% CO complete after 30m: estimate 10m remaining",
+			updatingFor: 30 * time.Minute,
+			coComplete:  0.75,
+
+			expectedEstimate: 10 * time.Minute,
+		},
+		{
+			name:        "100% CO complete after 30m: estimate 0 remaining",
+			updatingFor: 30 * time.Minute,
+			coComplete:  1,
+
+			expectedEstimate: 0,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			estimateFinish, estimateTimeToComplete := estimateCompletion(tc.started, tc.now)
-			if diff := cmp.Diff(tc.expectedEstimateFinish, estimateFinish); diff != "" {
-				t.Errorf("estimate finish differs from expected:\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.expectedEstimateTimeToComplete, estimateTimeToComplete); diff != "" {
+			estimate := estimateCompletion(tc.updatingFor, tc.coComplete)
+			if diff := cmp.Diff(tc.expectedEstimate, estimate); diff != "" {
 				t.Errorf("estimate time to complete differs from expected:\n%s", diff)
 			}
 		})
