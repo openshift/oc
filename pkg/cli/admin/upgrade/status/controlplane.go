@@ -63,11 +63,13 @@ func (v versions) String() string {
 }
 
 type controlPlaneStatusDisplayData struct {
-	Assessment    assessmentState
-	Completion    float64
-	Duration      time.Duration
-	Operators     operators
-	TargetVersion versions
+	Assessment        assessmentState
+	Completion        float64
+	Duration          time.Duration
+	EstCompletion     time.Time
+	EstTimeToComplete time.Duration
+	Operators         operators
+	TargetVersion     versions
 }
 
 const (
@@ -210,13 +212,16 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		displayData.Assessment = assessmentStateProgressing
 	}
 
+	var started time.Time
+
 	if len(cv.Status.History) > 0 {
 		currentHistoryItem := cv.Status.History[0]
 		var updatingFor time.Duration
+		started = currentHistoryItem.StartedTime.Time
 		if currentHistoryItem.State == v1.CompletedUpdate {
-			updatingFor = currentHistoryItem.CompletionTime.Time.Sub(currentHistoryItem.StartedTime.Time)
+			updatingFor = currentHistoryItem.CompletionTime.Time.Sub(started)
 		} else {
-			updatingFor = at.Sub(currentHistoryItem.StartedTime.Time)
+			updatingFor = at.Sub(started)
 		}
 		// precision to seconds when under 60s
 		if updatingFor > 10*time.Minute {
@@ -232,7 +237,16 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	insights = append(insights, versionInsights...)
 
 	displayData.Completion = float64(completed) / float64(displayData.Operators.Total) * 100.0
+	displayData.EstCompletion, displayData.EstTimeToComplete = estimateCompletion(started, at)
+	displayData.EstTimeToComplete = displayData.EstTimeToComplete.Truncate(time.Minute)
 	return displayData, insights
+}
+
+func estimateCompletion(started, now time.Time) (time.Time, time.Duration) {
+	estimateFinish := started.Add(time.Hour)
+	estimateTimeToComplete := estimateFinish.Sub(now)
+
+	return estimateFinish, estimateTimeToComplete
 }
 
 func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, controlPlaneCompleted bool) (versions, []updateInsight) {
@@ -299,6 +313,6 @@ const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
 Target Version:  {{ .TargetVersion }}
 Completion:      {{ printf "%.0f" .Completion }}%
-Duration:        {{ shortDuration .Duration }}
+Duration:        {{ shortDuration .Duration }} (Est. Time Remaining: {{ shortDuration .EstTimeToComplete }})
 Operator Status: {{ .Operators.StatusSummary }}
 `
