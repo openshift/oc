@@ -218,7 +218,13 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		} else {
 			updatingFor = at.Sub(currentHistoryItem.StartedTime.Time)
 		}
-		displayData.Duration = updatingFor
+		// precision to seconds when under 60s
+		if updatingFor > 10*time.Minute {
+			displayData.Duration = updatingFor.Truncate(time.Minute)
+		} else {
+			displayData.Duration = updatingFor.Truncate(time.Second)
+		}
+
 	}
 
 	versionData, versionInsights := versionsFromHistory(cv.Status.History, cvScope, controlPlaneCompleted)
@@ -280,7 +286,10 @@ func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, cont
 	return versionData, insights
 }
 
-var controlPlaneStatusTemplate = template.Must(template.New("controlPlaneStatus").Parse(controlPlaneStatusTemplateRaw))
+var controlPlaneStatusTemplate = template.Must(
+	template.New("controlPlaneStatus").
+		Funcs(template.FuncMap{"shortDuration": shortDuration}).
+		Parse(controlPlaneStatusTemplateRaw))
 
 func (d *controlPlaneStatusDisplayData) Write(f io.Writer) error {
 	return controlPlaneStatusTemplate.Execute(f, d)
@@ -290,6 +299,6 @@ const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
 Target Version:  {{ .TargetVersion }}
 Completion:      {{ printf "%.0f" .Completion }}%
-Duration:        {{ .Duration }}
+Duration:        {{ shortDuration .Duration }}
 Operator Status: {{ .Operators.StatusSummary }}
 `

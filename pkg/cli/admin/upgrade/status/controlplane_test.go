@@ -303,9 +303,14 @@ func TestAssessControlPlaneStatus_Completion(t *testing.T) {
 }
 
 func TestAssessControlPlaneStatus_Duration(t *testing.T) {
+	// Inject ns skew to exercise expected rounding
+	nsSkew := 12315 * time.Nanosecond
+
 	now := time.Now()
-	hourAgo := metav1.NewTime(now.Add(-time.Hour))
-	halfHourAgo := metav1.NewTime(now.Add(-time.Minute * 30))
+	hourAgo := metav1.NewTime(now.Add(-time.Hour - nsSkew))
+	halfHourAgo := metav1.NewTime(now.Add(-time.Minute*30 - nsSkew))
+	underTenMinutesAgo := metav1.NewTime(now.Add(-333*time.Second - nsSkew))
+	overTenMinutesAgo := metav1.NewTime(now.Add(-637*time.Second - nsSkew))
 
 	testCases := []struct {
 		name             string
@@ -330,6 +335,24 @@ func TestAssessControlPlaneStatus_Duration(t *testing.T) {
 				Version:        "new",
 			},
 			expectedDuration: 30 * time.Minute,
+		},
+		{
+			name: "partial update started 10s ago -> 10s duration",
+			firstHistoryItem: configv1.UpdateHistory{
+				State:       configv1.PartialUpdate,
+				StartedTime: underTenMinutesAgo,
+				Version:     "new",
+			},
+			expectedDuration: 333 * time.Second, // precision to seconds when under 10m
+		},
+		{
+			name: "partial update started over 10m ago ago -> 1m duration",
+			firstHistoryItem: configv1.UpdateHistory{
+				State:       configv1.PartialUpdate,
+				StartedTime: overTenMinutesAgo,
+				Version:     "new",
+			},
+			expectedDuration: 10 * time.Minute, // precision to minutes when over 10ms
 		},
 	}
 
