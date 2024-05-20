@@ -212,12 +212,11 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		displayData.Assessment = assessmentStateProgressing
 	}
 
-	var started time.Time
+	var updatingFor time.Duration
 
 	if len(cv.Status.History) > 0 {
 		currentHistoryItem := cv.Status.History[0]
-		var updatingFor time.Duration
-		started = currentHistoryItem.StartedTime.Time
+		started := currentHistoryItem.StartedTime.Time
 		if currentHistoryItem.State == v1.CompletedUpdate {
 			updatingFor = currentHistoryItem.CompletionTime.Time.Sub(started)
 		} else {
@@ -225,9 +224,9 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		}
 		// precision to seconds when under 60s
 		if updatingFor > 10*time.Minute {
-			displayData.Duration = updatingFor.Truncate(time.Minute)
+			displayData.Duration = updatingFor.Round(time.Minute)
 		} else {
-			displayData.Duration = updatingFor.Truncate(time.Second)
+			displayData.Duration = updatingFor.Round(time.Second)
 		}
 
 	}
@@ -236,17 +235,26 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	displayData.TargetVersion = versionData
 	insights = append(insights, versionInsights...)
 
-	displayData.Completion = float64(completed) / float64(displayData.Operators.Total) * 100.0
-	displayData.EstCompletion, displayData.EstTimeToComplete = estimateCompletion(started, at)
-	displayData.EstTimeToComplete = displayData.EstTimeToComplete.Truncate(time.Minute)
+	coCompletion := float64(completed) / float64(displayData.Operators.Total)
+	displayData.Completion = coCompletion * 100.0
+	if estimate := estimateCompletion(updatingFor, coCompletion); estimate > 10*time.Minute {
+		displayData.EstTimeToComplete = estimate.Round(time.Minute)
+	} else {
+		displayData.EstTimeToComplete = estimate.Round(time.Second)
+	}
 	return displayData, insights
 }
 
-func estimateCompletion(started, now time.Time) (time.Time, time.Duration) {
-	estimateFinish := started.Add(time.Hour)
-	estimateTimeToComplete := estimateFinish.Sub(now)
+func estimateCompletion(updatingFor time.Duration, coCompletion float64) time.Duration {
+	if !(coCompletion > 0) {
+		return time.Hour
+	}
+	elapsedSeconds := updatingFor.Seconds()
+	estimateTotalSeconds := elapsedSeconds / coCompletion
+	remainingSeconds := estimateTotalSeconds - elapsedSeconds
+	estimateTimeToComplete := time.Duration(remainingSeconds) * time.Second
 
-	return estimateFinish, estimateTimeToComplete
+	return estimateTimeToComplete
 }
 
 func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, controlPlaneCompleted bool) (versions, []updateInsight) {
