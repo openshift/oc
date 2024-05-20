@@ -3,6 +3,7 @@ package status
 import (
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"text/template"
 	"time"
@@ -249,12 +250,36 @@ func estimateCompletion(updatingFor time.Duration, coCompletion float64) time.Du
 	if !(coCompletion > 0) {
 		return time.Hour
 	}
+	if coCompletion >= 1 {
+		return 0
+	}
+
+	completion := timewiseComplete(coCompletion)
 	elapsedSeconds := updatingFor.Seconds()
-	estimateTotalSeconds := elapsedSeconds / coCompletion
+	estimateTotalSeconds := elapsedSeconds / completion
 	remainingSeconds := estimateTotalSeconds - elapsedSeconds
 	estimateTimeToComplete := time.Duration(remainingSeconds) * time.Second
 
 	return estimateTimeToComplete
+}
+
+// timewiseComplete returns the estimated timewise completion given the cluster operator completion percentage
+// Typical cluster achieves 97% cluster operator completion in 67% of the time it takes to reach 100% completion
+// The function is a combination of 3 polynomial functions that approximate the curve of the completion percentage
+// The polynomes were obtained by curve fitting update progress on b01 cluster
+func timewiseComplete(coCompletion float64) float64 {
+	x := coCompletion
+	x2 := math.Pow(x, 2)
+	x3 := math.Pow(x, 3)
+	x4 := math.Pow(x, 4)
+	switch {
+	case coCompletion < 0.25:
+		return -0.03078788 + 2.62886*x - 3.823954*x2
+	case coCompletion < 0.9:
+		return 0.1851215 + 1.64994*x - 4.676898*x2 + 5.451824*x3 - 2.125286*x4
+	default: // >0.9
+		return 25053.32 - 107394.3*x + 172527.2*x2 - 123107*x3 + 32921.81*x4
+	}
 }
 
 func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, controlPlaneCompleted bool) (versions, []updateInsight) {
