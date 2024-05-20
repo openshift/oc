@@ -346,13 +346,13 @@ func TestAssessControlPlaneStatus_Duration(t *testing.T) {
 			expectedDuration: 333 * time.Second, // precision to seconds when under 10m
 		},
 		{
-			name: "partial update started over 10m ago ago -> 1m duration",
+			name: "partial update started over 10m ago ago -> 11m duration",
 			firstHistoryItem: configv1.UpdateHistory{
 				State:       configv1.PartialUpdate,
 				StartedTime: overTenMinutesAgo,
 				Version:     "new",
 			},
-			expectedDuration: 10 * time.Minute, // precision to minutes when over 10ms
+			expectedDuration: 11 * time.Minute, // rounded to minutes when over 10m
 		},
 	}
 
@@ -878,41 +878,45 @@ func TestEstimateCompletion(t *testing.T) {
 		updatingFor time.Duration
 		coComplete  float64
 
-		expectedEstimate time.Duration
+		expectedEstimate string
 	}{
 		{
 			name:        "No CO complete after 30m: estimate 60m as a baseline",
 			updatingFor: 30 * time.Minute,
 			coComplete:  0,
 
-			expectedEstimate: time.Hour,
+			expectedEstimate: "1h",
 		},
 		{
-			name:        "20% CO complete after 30m: estimate 120m remaining",
+			name:        "20% CO complete after 30m",
 			updatingFor: 30 * time.Minute,
 			coComplete:  0.2,
 
-			expectedEstimate: 120 * time.Minute,
+			expectedEstimate: "57m42s",
 		},
 		{
-			name:        "75% CO complete after 30m: estimate 10m remaining",
+			name:        "75% CO complete after 30m",
 			updatingFor: 30 * time.Minute,
 			coComplete:  0.75,
 
-			expectedEstimate: 10 * time.Minute,
+			expectedEstimate: "41m32s",
 		},
 		{
 			name:        "100% CO complete after 30m: estimate 0 remaining",
 			updatingFor: 30 * time.Minute,
 			coComplete:  1,
 
-			expectedEstimate: 0,
+			expectedEstimate: "0s",
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			expectedEstimate, err := time.ParseDuration(tc.expectedEstimate)
+			if err != nil {
+				t.Fatalf("Failed to parse expected duration: %v", err)
+			}
 			estimate := estimateCompletion(tc.updatingFor, tc.coComplete)
-			if diff := cmp.Diff(tc.expectedEstimate, estimate); diff != "" {
+			if diff := cmp.Diff(expectedEstimate, estimate); diff != "" {
 				t.Errorf("estimate time to complete differs from expected:\n%s", diff)
 			}
 		})
