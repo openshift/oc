@@ -5,12 +5,12 @@ WORKDIR /go/src/github.com/openshift/oc
 COPY . .
 RUN make cross-build --warn-undefined-variables
 
-FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.21-openshift-4.16 AS builder-rhel-9
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.22-openshift-4.17 AS builder-rhel-9
 WORKDIR /go/src/github.com/openshift/oc
 COPY . .
 RUN make cross-build --warn-undefined-variables
 
-FROM registry.ci.openshift.org/ocp/4.16:cli
+FROM registry.ci.openshift.org/ocp/4.17:cli
 
 COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/ /usr/share/openshift/
 
