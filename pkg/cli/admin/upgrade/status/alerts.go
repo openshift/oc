@@ -6,7 +6,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 )
 
-// Alerts that will be included in the health upgrade evaluation, even if they were triggered before the upgrade began.
+// AllowedAlerts will be included in the health upgrade evaluation, even if they were triggered before the upgrade began.
 type AllowedAlerts map[string]struct{}
 
 var allowedAlerts AllowedAlerts = map[string]struct{}{
@@ -42,7 +42,7 @@ type Alert struct {
 	PartialResponseStrategy string           `json:"partialResponseStrategy,omitempty"`
 }
 
-// Stores alert data returned by thanos
+// AlertData stores alert data returned by thanos
 type AlertData struct {
 	Status string `json:"status"`
 	Data   Data   `json:"data"`
@@ -53,8 +53,8 @@ type Data struct {
 }
 
 func parseAlertDataToInsights(alertData AlertData, startedAt time.Time) []updateInsight {
-	var alerts []Alert = alertData.Data.Alerts
-	var updateInsights []updateInsight = []updateInsight{}
+	var alerts = alertData.Data.Alerts
+	var updateInsights []updateInsight
 
 	for _, alert := range alerts {
 		if startedAt.After(alert.ActiveAt) && !allowedAlerts.Contains(alert.Labels.AlertName) {

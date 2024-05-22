@@ -22,6 +22,9 @@ const (
 	// clusterStatusFailing is set on the ClusterVersion status when a cluster
 	// cannot reach the desired state.
 	clusterStatusFailing = v1.ClusterStatusConditionType("Failing")
+
+	clusterVersionKind  string = "ClusterVersion"
+	clusterOperatorKind string = "ClusterOperator"
 )
 
 type operators struct {
@@ -75,7 +78,7 @@ const (
 )
 
 func coInsights(name string, available *v1.ClusterOperatorStatusCondition, degraded *v1.ClusterOperatorStatusCondition, evaluated time.Time) []updateInsight {
-	coGroupKind := scopeGroupKind{group: v1.GroupName, kind: "ClusterOperator"}
+	coGroupKind := scopeGroupKind{group: v1.GroupName, kind: clusterOperatorKind}
 	var insights []updateInsight
 	if available != nil && available.Status == v1.ConditionFalse && evaluated.After(available.LastTransitionTime.Time.Add(unavailableWarningThreshold)) {
 		insight := updateInsight{
@@ -128,8 +131,7 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	var insights []updateInsight
 
 	targetVersion := cv.Status.Desired.Version
-	cvGvk := cv.GroupVersionKind()
-	cvGroupKind := scopeGroupKind{group: cvGvk.Group, kind: cvGvk.Kind}
+	cvGroupKind := scopeGroupKind{group: v1.GroupName, kind: clusterVersionKind}
 	cvScope := scopeResource{kind: cvGroupKind, name: cv.Name}
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c == nil {
