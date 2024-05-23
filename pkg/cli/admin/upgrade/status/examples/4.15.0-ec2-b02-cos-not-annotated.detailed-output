@@ -27,4 +27,4 @@ ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.15.0-ec.1  
 
 = Update Health =
 SINCE    LEVEL   IMPACT   MESSAGE
-52m56s   Info    None     Upgrade is proceeding well
+52m56s   Info    None     Update is proceeding well
