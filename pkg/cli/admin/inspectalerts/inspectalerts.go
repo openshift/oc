@@ -2,7 +2,9 @@
 package inspectalerts
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/transport"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -100,7 +104,7 @@ func GetAlerts(ctx context.Context, getRoute RouteGetter, bearerToken string) ([
 	return alertBytes, nil
 }
 
-// getWithBearer gets a Route by namespace/name, contructs a URI using
+// getWithBearer gets a Route by namespace/name, constructs a URI using
 // status.ingress[].host and the path argument, and performs GETs on that
 // URI using Bearer authentication with the token argument.
 func getWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name string, baseURI *url.URL, bearerToken string) ([]byte, error) {
@@ -113,7 +117,18 @@ func getWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name st
 		return nil, err
 	}
 
-	client := &http.Client{}
+	withDebugWrappers, err := transport.HTTPWrappersForConfig(
+		&transport.Config{
+			UserAgent:   rest.DefaultKubernetesUserAgent() + "(inspect-alerts)",
+			BearerToken: bearerToken,
+		},
+		http.DefaultTransport,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{Transport: withDebugWrappers}
 	uris := make([]string, 0, len(route.Status.Ingress))
 	for _, ingress := range route.Status.Ingress {
 		uri := *baseURI
@@ -123,8 +138,6 @@ func getWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name st
 		if err != nil {
 			return nil, err
 		}
-
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
 
 		resp, err := client.Do(req)
 		if err != nil {
@@ -137,6 +150,8 @@ func getWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name st
 			return nil, err
 		}
 
+		glogBody("Response Body", body)
+
 		if resp.StatusCode != http.StatusOK {
 			return body, fmt.Errorf("failed to get alerts from Thanos (GET status code=%d)", resp.StatusCode)
 		}
@@ -145,4 +160,41 @@ func getWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name st
 	}
 
 	return nil, fmt.Errorf("unable to get %s from any of %d URIs in the %s Route in the %s namespace: %s", baseURI.Path, len(uris), name, namespace, strings.Join(uris, ", "))
+}
+
+// glogBody and truncateBody taken from client-go Request
+// https://github.com/openshift/oc/blob/4be3c8609f101a8c5867abc47bda33caae629113/vendor/k8s.io/client-go/rest/request.go#L1183-L1215
+
+// truncateBody decides if the body should be truncated, based on the glog Verbosity.
+func truncateBody(body string) string {
+	max := 0
+	switch {
+	case bool(klog.V(10).Enabled()):
+		return body
+	case bool(klog.V(9).Enabled()):
+		max = 10240
+	case bool(klog.V(8).Enabled()):
+		max = 1024
+	}
+
+	if len(body) <= max {
+		return body
+	}
+
+	return body[:max] + fmt.Sprintf(" [truncated %d chars]", len(body)-max)
+}
+
+// glogBody logs a body output that could be either JSON or protobuf. It explicitly guards against
+// allocating a new string for the body output unless necessary. Uses a simple heuristic to determine
+// whether the body is printable.
+func glogBody(prefix string, body []byte) {
+	if klogV := klog.V(8); klogV.Enabled() {
+		if bytes.IndexFunc(body, func(r rune) bool {
+			return r < 0x0a
+		}) != -1 {
+			klogV.Infof("%s:\n%s", prefix, truncateBody(hex.Dump(body)))
+		} else {
+			klogV.Infof("%s: %s", prefix, truncateBody(string(body)))
+		}
+	}
 }
