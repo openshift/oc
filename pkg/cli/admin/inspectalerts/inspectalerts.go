@@ -137,6 +137,10 @@ func getWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name st
 			return nil, err
 		}
 
+		if resp.StatusCode != http.StatusOK {
+			return body, fmt.Errorf("failed to get alerts from Thanos (GET status code=%d)", resp.StatusCode)
+		}
+
 		return body, err
 	}
 
