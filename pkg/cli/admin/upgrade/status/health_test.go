@@ -98,7 +98,7 @@ func TestAssessUpdateInsights_NoInsightsCreatesAllIsWellInfo(t *testing.T) {
 				impact: updateInsightImpact{
 					level:      infoImpactLevel,
 					impactType: noneImpactType,
-					summary:    "Upgrade is proceeding well",
+					summary:    "Update is proceeding well",
 				},
 			},
 		},
@@ -161,7 +161,7 @@ func TestAssessUpdateInsights_FiltersOutIncompleteInsights(t *testing.T) {
 				impact: updateInsightImpact{
 					level:      infoImpactLevel,
 					impactType: noneImpactType,
-					summary:    "Upgrade is proceeding well",
+					summary:    "Update is proceeding well",
 				},
 			},
 		},
