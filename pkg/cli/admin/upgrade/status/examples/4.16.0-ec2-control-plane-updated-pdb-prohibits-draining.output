@@ -44,7 +44,7 @@ SINCE   LEVEL     IMPACT           MESSAGE
 -       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded
 -       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded
 -       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
-0s      Warning   Update Stalled   Cluster Version version is failing to proceed with the update (ClusterOperatorDegraded)
+now     Warning   Update Stalled   Cluster Version version is failing to proceed with the update (ClusterOperatorDegraded)
 -       Warning   Update Speed     Node build0-gstfj-ci-prowjobs-worker-d-ddnxd is unavailable
 -       Warning   Update Speed     Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable
 

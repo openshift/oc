@@ -31,6 +31,7 @@ type AlertAnnotations struct {
 	Description string `json:"description,omitempty"`
 	Summary     string `json:"summary,omitempty"`
 	Runbook     string `json:"runbook_url,omitempty"`
+	Message     string `json:"message,omitempty"`
 }
 
 type Alert struct {
@@ -57,27 +58,72 @@ func parseAlertDataToInsights(alertData AlertData, startedAt time.Time) []update
 	var updateInsights []updateInsight = []updateInsight{}
 
 	for _, alert := range alerts {
-		if startedAt.After(alert.ActiveAt) && !allowedAlerts.Contains(alert.Labels.AlertName) {
+		var alertName string
+		if alertName = alert.Labels.AlertName; alertName == "" {
 			continue
 		}
+
+		var description string
+		startedDuringUpdate := startedAt.Before(alert.ActiveAt)
+		affectsUpdates := allowedAlerts.Contains(alertName)
+
+		if affectsUpdates {
+			if startedDuringUpdate {
+				description = "Alert known to affect updates started firing during the update."
+			} else {
+				description = "Alert known to affect updates has been firing since before the update started."
+			}
+		} else if startedDuringUpdate {
+			description = "Alert started firing during the update."
+		} else {
+			// Do not show alerts that were firing before the update started unless they are on the allowlist
+			continue
+		}
+
 		if alert.State == "pending" {
 			continue
 		}
+		var level impactLevel
+		if level = alertImpactLevel(alert.Labels.Severity); level < warningImpactLevel {
+			continue
+		}
+
+		var runbook string
+		if runbook = alert.Annotations.Runbook; runbook == "" {
+			runbook = "<alert does not have a runbook_url annotation>"
+		}
+
+		switch {
+		case alert.Annotations.Message != "" && alert.Annotations.Description != "":
+			description += " The alert description is: " + alert.Annotations.Description + " | " + alert.Annotations.Message
+		case alert.Annotations.Description != "":
+			description += " The alert description is: " + alert.Annotations.Description
+		case alert.Annotations.Message != "":
+			description += " The alert description is: " + alert.Annotations.Message
+		default:
+			description += " The alert has no description."
+		}
+
+		var summary string
+		if summary = alert.Annotations.Summary; summary == "" {
+			summary = alertName
+		}
+
 		updateInsights = append(updateInsights, updateInsight{
 			startedAt: alert.ActiveAt,
 			impact: updateInsightImpact{
-				level:       alertImpactLevel(alert.Labels.Severity),
+				level:       level,
 				impactType:  unknownImpactType,
-				summary:     "Alert: " + alert.Annotations.Summary,
-				description: alert.Annotations.Description,
+				summary:     "Alert is firing: " + summary,
+				description: description,
 			},
-			remediation: updateInsightRemediation{reference: alert.Annotations.Runbook},
+			remediation: updateInsightRemediation{reference: runbook},
 			scope: updateInsightScope{
 				scopeType: scopeTypeCluster,
 				resources: []scopeResource{{
 					kind:      scopeGroupKind{group: configv1.GroupName, kind: "Alert"},
 					namespace: alert.Labels.Namespace,
-					name:      alert.Labels.AlertName,
+					name:      alertName,
 				}},
 			},
 		})

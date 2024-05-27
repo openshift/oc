@@ -74,7 +74,7 @@ Message: Cluster Operator control-plane-machine-set is unavailable (UnavailableR
   Description: Missing 1 available replica(s)
 
 Message: Cluster Version version is failing to proceed with the update (ClusterOperatorsDegraded)
-  Since:       0s
+  Since:       now
   Level:       Warning
   Impact:      Update Stalled
   Reference:   https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md
