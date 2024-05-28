@@ -232,14 +232,7 @@ func (o *options) Run(ctx context.Context) error {
 	}
 
 	if progressing.Status != configv1.ConditionTrue && !isWorkerPoolOutdated {
-		var reason, message string
-		if reason = progressing.Reason; reason == "" {
-			reason = "<none>"
-		}
-		if message = progressing.Message; message == "" {
-			message = "<none>"
-		}
-		fmt.Fprintf(o.Out, "The cluster version is not updating (%s=%s).\n\n  Reason: %s\n  Message: %s\n", progressing.Type, progressing.Status, reason, strings.ReplaceAll(message, "\n", "\n  "))
+		fmt.Fprintf(o.Out, "The cluster is not updating.\n")
 		return nil
 	}
 

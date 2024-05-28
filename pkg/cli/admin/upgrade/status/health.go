@@ -154,7 +154,7 @@ func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, 
 					impact: updateInsightImpact{
 						level:      infoImpactLevel,
 						impactType: noneImpactType,
-						summary:    "Upgrade is proceeding well",
+						summary:    "Update is proceeding well",
 					},
 				},
 			},
