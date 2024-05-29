@@ -11,7 +11,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -96,7 +95,7 @@ func (o *CreateUserOptions) Run() error {
 		FullName: o.FullName,
 	}
 
-	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, user, scheme.DefaultJSONEncoder()); err != nil {
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, user, createCmdJSONEncoder()); err != nil {
 		return err
 	}
 

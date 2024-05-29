@@ -13,7 +13,6 @@ import (
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubectl/pkg/cmd/expose"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -159,7 +158,7 @@ func (o *ExposeOptions) Validate() error {
 
 func (o *ExposeOptions) Run() error {
 	r := o.Builder.
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(exposeCmdScheme, exposeCmdScheme.PrioritizedVersionsAllGroups()...).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
 		FilenameParam(o.EnforceNamespace, &o.ExposeServiceOptions.FilenameOptions).
@@ -191,7 +190,7 @@ func (o *ExposeOptions) Run() error {
 		route.Spec.Host = o.Hostname
 		route.Spec.Path = o.Path
 		route.Spec.WildcardPolicy = routev1.WildcardPolicyType(o.WildcardPolicy)
-		if err := util.CreateOrUpdateAnnotation(kcmdutil.GetFlagBool(o.Cmd, kcmdutil.ApplyAnnotationsFlag), route, scheme.DefaultJSONEncoder()); err != nil {
+		if err := util.CreateOrUpdateAnnotation(kcmdutil.GetFlagBool(o.Cmd, kcmdutil.ApplyAnnotationsFlag), route, exposeCmdJSONEncoder()); err != nil {
 			return err
 		}
 
