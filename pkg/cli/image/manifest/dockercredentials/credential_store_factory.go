@@ -6,7 +6,7 @@ import (
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/distribution/distribution/v3/registry/client/auth"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 )
 
@@ -39,19 +39,19 @@ func (c *credentialStoreFactory) CredentialStoreFor(image string) auth.Credentia
 		return nocreds
 	}
 
-	return NewDynamicCredentialStore(&types.AuthConfig{
+	return NewDynamicCredentialStore(&registry.AuthConfig{
 		Username:      authCfg.Username,
 		Password:      authCfg.Password,
 		IdentityToken: authCfg.IdentityToken,
 	})
 }
 
-func NewDynamicCredentialStore(auth *types.AuthConfig) auth.CredentialStore {
+func NewDynamicCredentialStore(auth *registry.AuthConfig) auth.CredentialStore {
 	return &DynamicCredentialStore{authConfig: auth}
 }
 
 type DynamicCredentialStore struct {
-	authConfig *types.AuthConfig
+	authConfig *registry.AuthConfig
 	mutex      sync.Mutex
 }
 
