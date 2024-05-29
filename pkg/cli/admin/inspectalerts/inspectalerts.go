@@ -9,10 +9,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
@@ -96,7 +96,7 @@ func GetAlerts(ctx context.Context, getRoute RouteGetter, bearerToken string) ([
 	// if we end up going this way, probably port to github.com/prometheus/client_golang/api/prometheus/v1 NewAPI
 	alertBytes, err := getWithBearer(ctx, getRoute, "openshift-monitoring", "thanos-querier", uri, bearerToken)
 	if err != nil {
-		return alertBytes, err
+		return alertBytes, fmt.Errorf("failed to get alerts from Thanos: %w", err)
 	}
 
 	// if we end up going this way, probably check and error on 'result' being an empty set (it should at least contain Watchdog)
@@ -129,37 +129,50 @@ func getWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name st
 	}
 
 	client := &http.Client{Transport: withDebugWrappers}
-	uris := make([]string, 0, len(route.Status.Ingress))
+	errs := make([]error, 0, len(route.Status.Ingress))
 	for _, ingress := range route.Status.Ingress {
 		uri := *baseURI
 		uri.Host = ingress.Host
-		uris = append(uris, uri.String())
-		req, err := http.NewRequest("GET", uri.String(), nil)
-		if err != nil {
-			return nil, err
+		content, err := checkedGet(uri, client)
+		if err == nil {
+			return content, nil
+		} else {
+			errs = append(errs, fmt.Errorf("%s->%w", ingress.Host, err))
 		}
-
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-
-		glogBody("Response Body", body)
-
-		if resp.StatusCode != http.StatusOK {
-			return body, fmt.Errorf("failed to get alerts from Thanos (GET status code=%d)", resp.StatusCode)
-		}
-
-		return body, err
 	}
 
-	return nil, fmt.Errorf("unable to get %s from any of %d URIs in the %s Route in the %s namespace: %s", baseURI.Path, len(uris), name, namespace, strings.Join(uris, ", "))
+	if len(errs) == 1 {
+		return nil, fmt.Errorf("unable to get %s from URI in the %s/%s Route: %s", baseURI.Path, namespace, name, errors.NewAggregate(errs))
+	} else {
+		return nil, fmt.Errorf("unable to get %s from any of %d URIs in the %s/%s Route: %s", baseURI.Path, len(errs), namespace, name, errors.NewAggregate(errs))
+	}
+
+}
+
+func checkedGet(uri url.URL, client *http.Client) ([]byte, error) {
+	req, err := http.NewRequest("GET", uri.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	glogBody("Response Body", body)
+
+	if resp.StatusCode != http.StatusOK {
+		return body, fmt.Errorf("GET status code=%d", resp.StatusCode)
+	}
+
+	return body, nil
 }
 
 // glogBody and truncateBody taken from client-go Request
