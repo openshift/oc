@@ -17,7 +17,7 @@ items:
       name: frontend
     sessionAffinity: None
     type: ClusterIP
-- apiVersion: v1
+- apiVersion: route.openshift.io/v1
   kind: Route
   metadata:
     name: route-edge

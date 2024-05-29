@@ -23,7 +23,6 @@ import (
 	imagegraph "github.com/openshift/oc/pkg/helpers/graph/imagegraph/nodes"
 	kubegraph "github.com/openshift/oc/pkg/helpers/graph/kubegraph/nodes"
 	routegraph "github.com/openshift/oc/pkg/helpers/graph/routegraph/nodes"
-	"github.com/openshift/oc/pkg/helpers/legacy"
 )
 
 // typeToEnsureMethod stores types to Ensure*Node methods
@@ -133,7 +132,6 @@ func BuildGraph(path string) (osgraph.Graph, []runtime.Object, error) {
 	scheme := runtime.NewScheme()
 	kubernetesscheme.AddToScheme(scheme)
 	api.Install(scheme)
-	legacy.InstallExternalLegacyAll(scheme)
 	codecs := serializer.NewCodecFactory(scheme)
 	decoder := codecs.UniversalDeserializer()
 	obj, err := runtime.Decode(decoder, data)
