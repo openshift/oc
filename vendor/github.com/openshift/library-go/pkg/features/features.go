@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	configv1 "github.com/openshift/api/config/v1"
+	features "github.com/openshift/api/features"
+
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/component-base/cli/flag"
@@ -16,7 +18,7 @@ type FeatureGateOptions struct {
 	featureGates    featuregate.FeatureGate
 }
 
-func NewFeatureGateOptions(featureGates featuregate.MutableFeatureGate, profileName configv1.ClusterProfileName, usedFeatures ...configv1.FeatureGateName) (*FeatureGateOptions, error) {
+func NewFeatureGateOptions(featureGates featuregate.MutableFeatureGate, profileName features.ClusterProfileName, usedFeatures ...configv1.FeatureGateName) (*FeatureGateOptions, error) {
 	err := InitializeFeatureGates(featureGates, profileName, usedFeatures...)
 	if err != nil {
 		return nil, err
@@ -27,7 +29,7 @@ func NewFeatureGateOptions(featureGates featuregate.MutableFeatureGate, profileN
 	}, nil
 }
 
-func NewFeatureGateOptionsOrDie(featureGates featuregate.MutableFeatureGate, profileName configv1.ClusterProfileName, usedFeatures ...configv1.FeatureGateName) *FeatureGateOptions {
+func NewFeatureGateOptionsOrDie(featureGates featuregate.MutableFeatureGate, profileName features.ClusterProfileName, usedFeatures ...configv1.FeatureGateName) *FeatureGateOptions {
 	ret, err := NewFeatureGateOptions(featureGates, profileName, usedFeatures...)
 	if err != nil {
 		panic(err)
@@ -86,10 +88,10 @@ func setFeatureGates(featureGatesMap map[string]bool, featureGates featuregate.M
 
 // InitializeFeatureGates should be called when your binary is starting with your featuregate instance and the list of
 // featuregates that your process will honor.
-func InitializeFeatureGates(featureGates featuregate.MutableFeatureGate, profileName configv1.ClusterProfileName, usedFeatures ...configv1.FeatureGateName) error {
+func InitializeFeatureGates(featureGates featuregate.MutableFeatureGate, profileName features.ClusterProfileName, usedFeatures ...configv1.FeatureGateName) error {
 	defaultFeatures := sets.Set[string]{}
 	enabledDefaultFeatures := sets.Set[string]{}
-	allFeatureSets := configv1.AllFeatureSets()[profileName]
+	allFeatureSets := features.AllFeatureSets()[profileName]
 	for _, enabled := range allFeatureSets[configv1.Default].Enabled {
 		defaultFeatures.Insert(string(enabled.FeatureGateAttributes.Name))
 		enabledDefaultFeatures.Insert(string(enabled.FeatureGateAttributes.Name))
