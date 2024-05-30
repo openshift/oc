@@ -854,7 +854,7 @@ func (o *MustGatherOptions) createTempNamespace() (*corev1.Namespace, func(), er
 	}
 	o.PrinterCreated.PrintObj(ns, o.LogOut)
 
-	crb, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), newClusterRoleBinding(ns.Name), metav1.CreateOptions{})
+	crb, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), newClusterRoleBinding(ns), metav1.CreateOptions{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating temp clusterRoleBinding: %w", err)
 	}
@@ -865,12 +865,6 @@ func (o *MustGatherOptions) createTempNamespace() (*corev1.Namespace, func(), er
 			fmt.Printf("%v\n", err)
 		} else {
 			o.PrinterDeleted.PrintObj(ns, o.LogOut)
-		}
-
-		if err := o.Client.RbacV1().ClusterRoleBindings().Delete(context.TODO(), crb.Name, metav1.DeleteOptions{}); err != nil {
-			fmt.Printf("%v\n", err)
-		} else {
-			o.PrinterDeleted.PrintObj(crb, o.LogOut)
 		}
 	}
 
@@ -896,12 +890,20 @@ func newNamespace() *corev1.Namespace {
 	}
 }
 
-func newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
+func newClusterRoleBinding(ns *corev1.Namespace) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "must-gather-",
 			Annotations: map[string]string{
 				"oc.openshift.io/command": "oc adm must-gather",
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Namespace",
+					Name:       ns.GetName(),
+					UID:        ns.GetUID(),
+				},
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -913,7 +915,7 @@ func newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
 			{
 				Kind:      "ServiceAccount",
 				Name:      "default",
-				Namespace: ns,
+				Namespace: ns.GetName(),
 			},
 		},
 	}
