@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
+	"github.com/openshift/api"
 	"github.com/openshift/api/route"
 
 	schemehelper "github.com/openshift/oc/pkg/helpers/scheme"
@@ -17,6 +18,7 @@ var (
 )
 
 func init() {
+	utilruntime.Must(api.InstallKube(exposeCmdScheme))
 	schemehelper.InstallSchemes(exposeCmdScheme)
 	// All the other commands can use route object
 	// as CRD and there is no benefit installing route
