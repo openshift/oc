@@ -274,7 +274,7 @@ func (o *MustGatherOptions) completeImages() error {
 }
 
 func (o *MustGatherOptions) annotatedCSVs() (map[string]struct{}, error) {
-	var csvGVR = schema.GroupVersionResource{
+	csvGVR := schema.GroupVersionResource{
 		Group:    "operators.coreos.com",
 		Version:  "v1alpha1",
 		Resource: "clusterserviceversions",
@@ -553,7 +553,6 @@ func (o *MustGatherOptions) Run() error {
 	if len(errs) == 0 {
 		// If we didn't have an error during collection, then we don't need to do our backup collection.
 		runBackCollection = false
-
 	} else if len(o.Command) > 0 {
 		// If we had errors, but the user specified a command, he probably just typoed the command.
 		// If the command was specified, don't run the backup collection.
@@ -642,7 +641,7 @@ func (o *MustGatherOptions) log(format string, a ...interface{}) {
 }
 
 func (o *MustGatherOptions) logTimestamp() error {
-	f, err := os.OpenFile(path.Join(o.DestDir, "timestamp"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	f, err := os.OpenFile(path.Join(o.DestDir, "timestamp"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
 	if err != nil {
 		return err
 	}
@@ -668,7 +667,7 @@ func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 
 	// get must-gather gather container logs
 	if err := func() error {
-		dest, err := os.OpenFile(path.Join(destDir, "/gather.logs"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+		dest, err := os.OpenFile(path.Join(destDir, "/gather.logs"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o755)
 		if err != nil {
 			return err
 		}
