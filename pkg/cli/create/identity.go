@@ -12,7 +12,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/discovery"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -107,7 +106,7 @@ func (o *CreateIdentityOptions) Run() error {
 		ProviderUserName: o.ProviderUserName,
 	}
 
-	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, identity, scheme.DefaultJSONEncoder()); err != nil {
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, identity, createCmdJSONEncoder()); err != nil {
 		return err
 	}
 
