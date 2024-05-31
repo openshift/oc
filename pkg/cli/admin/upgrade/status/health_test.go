@@ -191,7 +191,7 @@ func TestUpdateHealthData_Write(t *testing.T) {
 				"5s      Error      API Availability   Something that broke API and happened recently\n" +
 				"20s     Error      Cluster Capacity   Something that limits cluster capacity\n" +
 				"10s     Warning    Update Speed       Something that slows the update\n" +
-				"0s      Info       None               Something with no impact that happened right now\n\n" +
+				"now     Info       None               Something with no impact that happened right now\n\n" +
 				"Run with --details=health for additional description and links to related online documentation\n",
 		},
 		{
@@ -202,7 +202,7 @@ func TestUpdateHealthData_Write(t *testing.T) {
 				"Message: Something that broke API and happened recently\n  Since:       5s\n  Level:       Error\n  Impact:      API Availability\n  Reference:   https://docs.openshift.com/container-platform/4.14/authentication/understanding-authentication.html\n  Description: Only one auth replica is available\n\n" +
 				"Message: Something that limits cluster capacity\n  Since:       20s\n  Level:       Error\n  Impact:      Cluster Capacity\n  Reference:   https://docs.openshift.com/container-platform/4.14/nodes/pods/nodes-pods-autoscaling.html\n  Description: Autoscaler is disabled, you should enable it\n\n" +
 				"Message: Something that slows the update\n  Since:       10s\n  Level:       Warning\n  Impact:      Update Speed\n  Reference:   https://cs.wikipedia.org/wiki/Hardware\n  Description: Your pathetic hardware is slowing OCP down\n\n" +
-				"Message: Something with no impact that happened right now\n  Since:       0s\n  Level:       Info\n  Impact:      None\n  Reference:   https://docs.openshift.com\n  Description: This is a test\n",
+				"Message: Something with no impact that happened right now\n  Since:       now\n  Level:       Info\n  Impact:      None\n  Reference:   https://docs.openshift.com\n  Description: This is a test\n",
 		},
 	}
 	for _, tc := range testCases {
@@ -213,6 +213,63 @@ func TestUpdateHealthData_Write(t *testing.T) {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 			if diff := cmp.Diff(tc.expected, w.String()); diff != "" {
+				t.Fatalf("Output differs from expected :\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestShortDuration(t *testing.T) {
+	testCases := []struct {
+		duration string
+		expected string
+	}{
+		{
+			duration: "1s",
+			expected: "1s",
+		},
+		{
+			duration: "1m",
+			expected: "1m",
+		},
+		{
+			duration: "1h",
+			expected: "1h",
+		}, {
+			duration: "1h1m1s",
+			expected: "1h1m1s",
+		}, {
+			duration: "1h10m",
+			expected: "1h10m",
+		}, {
+			duration: "1h0m10s",
+			expected: "1h0m10s",
+		},
+		{
+			duration: "10h10m0s",
+			expected: "10h10m",
+		},
+		{
+			duration: "10h10m10s",
+			expected: "10h10m10s",
+		},
+		{
+			duration: "0h10m0s",
+			expected: "10m",
+		},
+		{
+			duration: "0h0m0s",
+			expected: "now",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.duration, func(t *testing.T) {
+			d, err := time.ParseDuration(tc.duration)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.expected, shortDuration(d)); diff != "" {
 				t.Fatalf("Output differs from expected :\n%s", diff)
 			}
 		})

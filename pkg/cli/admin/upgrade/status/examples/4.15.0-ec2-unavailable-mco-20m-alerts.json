@@ -178,12 +178,45 @@
                     "severity": "warning"
                 },
                 "annotations": {
-                    "description": "PodDisruptionBudgetAtLimit. in namespace <>",
+                    "description": "PodDisruptionBudgetAtLimit in namespace <>",
                     "runbook_url": "https://<mock_data>/PDB.md",
                     "summary": "PodDisruptionBudgetAtLimit for pods <>"
                 },
                 "state": "firing",
                 "activeAt": "2023-11-23T15:39:33.014999722Z",
+                "value": "6.708842592592593e-01",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "PodDisruptionBudgetAtLimit",
+                    "controller": "alertmanager",
+                    "namespace": "openshift-monitoring",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "summary": "PodDisruptionBudgetAtLimit for some reason does not have runbook and description"
+                },
+                "state": "firing",
+                "activeAt": "2023-11-23T15:39:33.014999722Z",
+                "value": "6.708842592592593e-01",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "PodDisruptionBudgetAtLimitWithMessage",
+                    "controller": "alertmanager",
+                    "namespace": "openshift-monitoring",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "summary": "This alert has a message, description, runbook and summary",
+                    "description": "This alert has a description",
+                    "runbook_url": "https://<mock_data>/runbook.md",
+                    "message": "This alert has a message, too"
+                },
+                "state": "firing",
+                "activeAt": "2023-11-24T15:31:52.75038242Z",
                 "value": "6.708842592592593e-01",
                 "partialResponseStrategy": "WARN"
             },

@@ -1,10 +1,10 @@
 package status
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	configv1 "github.com/openshift/api/config/v1"
 )
 
@@ -15,7 +15,6 @@ func TestParseAlertDataToInsights(t *testing.T) {
 	tests := []struct {
 		name          string
 		alertData     AlertData
-		startedAt     time.Time
 		expectedCount int
 	}{
 		{
@@ -23,7 +22,6 @@ func TestParseAlertDataToInsights(t *testing.T) {
 			alertData: AlertData{
 				Data: Data{Alerts: []Alert{}},
 			},
-			startedAt:     now,
 			expectedCount: 0,
 		},
 		{
@@ -36,7 +34,6 @@ func TestParseAlertDataToInsights(t *testing.T) {
 					},
 				},
 			},
-			startedAt:     now,
 			expectedCount: 1,
 		},
 		{
@@ -48,7 +45,6 @@ func TestParseAlertDataToInsights(t *testing.T) {
 					},
 				},
 			},
-			startedAt:     now,
 			expectedCount: 0,
 		},
 		{
@@ -56,12 +52,11 @@ func TestParseAlertDataToInsights(t *testing.T) {
 			alertData: AlertData{
 				Data: Data{
 					Alerts: []Alert{
-						{ActiveAt: now.Add(-20 * time.Minute), Labels: AlertLabels{Severity: "info", Namespace: "default", AlertName: "PodDisruptionBudgetAtLimit"}, Annotations: AlertAnnotations{Summary: "PodDisruptionBudgetAtLimit is at limit"}},
-						{ActiveAt: now.Add(-20 * time.Minute), Labels: AlertLabels{Severity: "info", Namespace: "default", AlertName: "AlertmanagerReceiversNotConfigured"}, Annotations: AlertAnnotations{Summary: "Receivers (notification integrations) are not configured on Alertmanager"}},
+						{ActiveAt: now.Add(-20 * time.Minute), Labels: AlertLabels{Severity: "warning", Namespace: "default", AlertName: "PodDisruptionBudgetAtLimit"}, Annotations: AlertAnnotations{Summary: "PodDisruptionBudgetAtLimit is at limit"}},
+						{ActiveAt: now.Add(-20 * time.Minute), Labels: AlertLabels{Severity: "warning", Namespace: "default", AlertName: "AlertmanagerReceiversNotConfigured"}, Annotations: AlertAnnotations{Summary: "Receivers (notification integrations) are not configured on Alertmanager"}},
 					},
 				},
 			},
-			startedAt:     now,
 			expectedCount: 1,
 		},
 		{
@@ -69,11 +64,32 @@ func TestParseAlertDataToInsights(t *testing.T) {
 			alertData: AlertData{
 				Data: Data{
 					Alerts: []Alert{
-						{ActiveAt: now.Add(-20 * time.Minute), Labels: AlertLabels{Severity: "info", Namespace: "default", AlertName: "AlertmanagerReceiversNotConfigured"}, Annotations: AlertAnnotations{Summary: "Receivers (notification integrations) are not configured on Alertmanager"}},
+						{ActiveAt: now.Add(-20 * time.Minute), Labels: AlertLabels{Severity: "warning", Namespace: "default", AlertName: "AlertmanagerReceiversNotConfigured"}, Annotations: AlertAnnotations{Summary: "Receivers (notification integrations) are not configured on Alertmanager"}},
 					},
 				},
 			},
-			startedAt:     now,
+			expectedCount: 0,
+		},
+		{
+			name: "Info Alert Active After Start Time, Not Allowed",
+			alertData: AlertData{
+				Data: Data{
+					Alerts: []Alert{
+						{ActiveAt: now.Add(10 * time.Minute), Labels: AlertLabels{Severity: "info", Namespace: "default", AlertName: "NodeDown"}, Annotations: AlertAnnotations{Summary: "Node is down"}},
+					},
+				},
+			},
+			expectedCount: 0,
+		},
+		{
+			name: "Info Alert Active After Start Time, Not Allowed",
+			alertData: AlertData{
+				Data: Data{
+					Alerts: []Alert{
+						{ActiveAt: now.Add(10 * time.Minute), Labels: AlertLabels{Severity: "info", Namespace: "default", AlertName: "NodeDown"}, Annotations: AlertAnnotations{Summary: "Node is down"}},
+					},
+				},
+			},
 			expectedCount: 0,
 		},
 	}
@@ -81,7 +97,7 @@ func TestParseAlertDataToInsights(t *testing.T) {
 	// Execute test cases
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			insights := parseAlertDataToInsights(tt.alertData, tt.startedAt)
+			insights := parseAlertDataToInsights(tt.alertData, now)
 			if got := len(insights); got != tt.expectedCount {
 				t.Errorf("parseAlertDataToInsights() = %v, want %v", got, tt.expectedCount)
 			}
@@ -112,10 +128,12 @@ func TestParseAlertDataToInsightsWithData(t *testing.T) {
 				{
 					startedAt: now.Add(10 * time.Minute),
 					impact: updateInsightImpact{
-						level:      alertImpactLevel("critical"),
-						impactType: unknownImpactType,
-						summary:    "Alert: Node is down",
+						level:       alertImpactLevel("critical"),
+						impactType:  unknownImpactType,
+						summary:     "Alert is firing: Node is down",
+						description: "Alert started firing during the update. The alert has no description.",
 					},
+					remediation: updateInsightRemediation{reference: "<alert does not have a runbook_url annotation>"},
 					scope: updateInsightScope{
 						scopeType: scopeTypeCluster,
 						resources: []scopeResource{
@@ -147,8 +165,8 @@ func TestParseAlertDataToInsightsWithData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			insights := parseAlertDataToInsights(tt.alertData, tt.startedAt)
-			if !reflect.DeepEqual(insights, tt.expectedInsights) {
-				t.Errorf("parseAlertDataToInsights() got %#v, want %#v", insights, tt.expectedInsights)
+			if diff := cmp.Diff(tt.expectedInsights, insights, allowUnexportedInsightStructs); diff != "" {
+				t.Errorf("parseAlertDataToInsights() differs from expected:\n%s", diff)
 			}
 		})
 	}
