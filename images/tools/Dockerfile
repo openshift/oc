@@ -1,4 +1,4 @@
-FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.21-openshift-4.17 AS builder
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.22-openshift-4.17 AS builder
 WORKDIR /go/src/github.com/openshift/oc
 COPY . .
 RUN make build --warn-undefined-variables
@@ -54,5 +54,5 @@ RUN INSTALL_PKGS="\
 CMD ["/usr/bin/bash"]
 LABEL io.k8s.display-name="OpenShift Tools" \
       io.k8s.description="Contains debugging and diagnostic tools for use with an OpenShift cluster." \
-      io.openshift.build.versions="kubectl=1.29.1" \
+      io.openshift.build.versions="kubectl=1.30.1" \
       io.openshift.tags="openshift,tools"

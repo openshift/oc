@@ -19,11 +19,10 @@ import (
 	authorizationv1 "github.com/openshift/api/authorization/v1"
 	buildv1 "github.com/openshift/api/build/v1"
 	consolev1 "github.com/openshift/api/console/v1"
-	consolev1alpha1 "github.com/openshift/api/console/v1alpha1"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	dockerpre012 "github.com/openshift/api/image/dockerpre012"
 	imagev1 "github.com/openshift/api/image/v1"
-	monitoringv1alpha1 "github.com/openshift/api/monitoring/v1alpha1"
+	monitoringv1 "github.com/openshift/api/monitoring/v1"
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	projectv1 "github.com/openshift/api/project/v1"
 	securityv1 "github.com/openshift/api/security/v1"
@@ -81,7 +80,7 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&consolev1.ConsoleSample{}),
 	reflect.TypeOf(&consolev1.ConsoleQuickStart{}),
 	reflect.TypeOf(&consolev1.ConsoleYAMLSample{}),
-	reflect.TypeOf(&consolev1alpha1.ConsolePlugin{}),
+	reflect.TypeOf(&consolev1.ConsolePlugin{}),
 
 	// these resources can't be "GET"ed, so you can't make a describer for them
 	reflect.TypeOf(&authorizationv1.SubjectAccessReviewResponse{}),
@@ -97,8 +96,8 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&securityv1.PodSecurityPolicyReview{}),
 	reflect.TypeOf(&securityv1.RangeAllocation{}),
 	reflect.TypeOf(&oauthv1.OAuthRedirectReference{}),
-	reflect.TypeOf(&monitoringv1alpha1.AlertRelabelConfig{}),
-	reflect.TypeOf(&monitoringv1alpha1.AlertingRule{}),
+	reflect.TypeOf(&monitoringv1.AlertRelabelConfig{}),
+	reflect.TypeOf(&monitoringv1.AlertingRule{}),
 }
 
 // MissingDescriberCoverageExceptions is the list of types that were missing describer methods when I started

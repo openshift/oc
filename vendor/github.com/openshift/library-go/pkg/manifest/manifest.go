@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	configv1 "github.com/openshift/api/config/v1"
+	features "github.com/openshift/api/features"
+
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -29,7 +31,7 @@ const (
 var knownFeatureSets = sets.Set[string]{}
 
 func init() {
-	for _, featureSets := range configv1.AllFeatureSets() {
+	for _, featureSets := range features.AllFeatureSets() {
 		for featureSet := range featureSets {
 			if len(featureSet) == 0 {
 				knownFeatureSets.Insert("Default")
