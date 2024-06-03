@@ -7,7 +7,6 @@ import (
 
 	"github.com/gonum/graph/encoding/dot"
 	"github.com/spf13/cobra"
-
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
