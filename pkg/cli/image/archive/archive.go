@@ -323,7 +323,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 
 	case tar.TypeReg, tar.TypeRegA:
-		// Source is regular file. We use system.OpenFileSequential to use sequential
+		// Source is regular file. We use system.OpenFile to use sequential
 		// file access to avoid depleting the standby list on Windows.
 		// On Linux, this equates to a regular os.OpenFile
 		file, err := sequential.OpenFile(path, os.O_CREATE|os.O_WRONLY, hdrInfo.Mode())
