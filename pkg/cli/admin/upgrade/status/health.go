@@ -14,6 +14,7 @@ type scopeType string
 const (
 	scopeTypeControlPlane scopeType = "ControlPlane"
 	scopeTypeWorkerPool   scopeType = "WorkerPool"
+	scopeTypeCluster      scopeType = "Cluster"
 )
 
 type scopeGroupKind struct {
@@ -83,6 +84,7 @@ type impactType string
 // considered whether these are exactly the ones that we need.
 const (
 	noneImpactType                    impactType = "None"
+	unknownImpactType                 impactType = "Unknown"
 	apiAvailabilityImpactType         impactType = "API Availability"
 	clusterCapacityImpactType         impactType = "Cluster Capacity"
 	applicationAvailabilityImpactType impactType = "Application Availability"
@@ -170,9 +172,9 @@ func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, 
 func shortDuration(d time.Duration) string {
 	orig := d.String()
 	switch {
-	case orig == "0h0m0s":
+	case orig == "0h0m0s" || orig == "0s":
 		return "now"
-	case strings.HasSuffix(orig, "0m0s"):
+	case strings.HasSuffix(orig, "h0m0s"):
 		return orig[:len(orig)-4]
 	case strings.HasSuffix(orig, "m0s"):
 		return orig[:len(orig)-2]
