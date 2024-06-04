@@ -70,7 +70,6 @@ import (
 	"github.com/openshift/library-go/pkg/image/imageutil"
 	authorizationhelpers "github.com/openshift/oc/pkg/helpers/authorization"
 	buildhelpers "github.com/openshift/oc/pkg/helpers/build"
-	"github.com/openshift/oc/pkg/helpers/legacy"
 	quotahelpers "github.com/openshift/oc/pkg/helpers/quota"
 	routedisplayhelpers "github.com/openshift/oc/pkg/helpers/route"
 )
@@ -168,10 +167,6 @@ func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host 
 		config.Kind("InsightsDataGather"):            &InsightsDataGatherDescriber{configv1alpha1Client},
 	}
 
-	// Register the legacy ("core") API group for all kinds as well.
-	for gk, d := range m {
-		m[legacy.Kind(gk.Kind)] = d
-	}
 	return m
 }
 
@@ -1460,7 +1455,6 @@ func (d *IdentityDescriber) Describe(namespace, name string, settings describe.D
 		}
 		return nil
 	})
-
 }
 
 // UserIdentityMappingDescriber generates information about a user
@@ -1605,7 +1599,6 @@ func DescribeRole(role *authorizationv1.Role) (string, error) {
 		fmt.Fprint(out, PolicyRuleHeadings+"\n")
 		for _, rule := range role.Rules {
 			DescribePolicyRule(out, rule, "")
-
 		}
 
 		return nil
