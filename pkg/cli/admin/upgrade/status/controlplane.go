@@ -265,7 +265,8 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	coCompletion := float64(completed) / float64(displayData.Operators.Total)
 	displayData.Completion = coCompletion * 100.0
 	if coCompletion <= 1 && displayData.Assessment != assessmentStateCompleted {
-		displayData.EstTimeToComplete = estimateCompletion(toLastObservedProgress, updatingFor, coCompletion)
+		historyBaseline := baselineDuration(cv.Status.History)
+		displayData.EstTimeToComplete = estimateCompletion(historyBaseline, toLastObservedProgress, updatingFor, coCompletion)
 		displayData.EstDuration = (updatingFor + displayData.EstTimeToComplete).Truncate(time.Minute)
 
 		if displayData.EstTimeToComplete < -10*time.Minute {
@@ -278,7 +279,22 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	return displayData, insights
 }
 
-func estimateCompletion(toLastObservedProgress, updatingFor time.Duration, coCompletion float64) time.Duration {
+func baselineDuration(history []v1.UpdateHistory) time.Duration {
+	// First item is current update and last item is likely installation
+	if len(history) < 3 {
+		return time.Hour
+	}
+
+	for _, item := range history[1 : len(history)-1] {
+		if item.State == v1.CompletedUpdate {
+			return item.CompletionTime.Time.Sub(item.StartedTime.Time)
+		}
+	}
+
+	return time.Hour
+}
+
+func estimateCompletion(baseline, toLastObservedProgress, updatingFor time.Duration, coCompletion float64) time.Duration {
 	if coCompletion >= 1 {
 		return 0
 	}
@@ -288,7 +304,7 @@ func estimateCompletion(toLastObservedProgress, updatingFor time.Duration, coCom
 		elapsedSeconds := toLastObservedProgress.Seconds()
 		estimateTotalSeconds = elapsedSeconds / completion
 	} else {
-		estimateTotalSeconds = time.Hour.Seconds()
+		estimateTotalSeconds = baseline.Seconds()
 	}
 
 	remainingSeconds := estimateTotalSeconds - updatingFor.Seconds()
