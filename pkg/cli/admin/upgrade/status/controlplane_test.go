@@ -251,7 +251,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 
 func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 	now := time.Now()
-	minutesAgo := [50]time.Time{}
+	minutesAgo := [250]time.Time{}
 	for i := range minutesAgo {
 		minutesAgo[i] = now.Add(time.Duration(-i) * time.Minute)
 	}
@@ -262,6 +262,7 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 		operators                       []configv1.ClusterOperator
 		assumedToLastProgress           time.Duration
 		assumedClusterOperatorCompleted float64
+		expectedAssessment              assessmentState
 	}{
 		{
 			name:    "last observed progress is most recent updated that stopped progressing",
@@ -274,6 +275,7 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 			},
 			assumedToLastProgress:           15 * time.Minute, // until 222 stopped progressing 15 minutes ago
 			assumedClusterOperatorCompleted: 0.5,
+			expectedAssessment:              assessmentStateProgressing,
 		},
 		{
 			name:    "last observed progress is most recent non-updated that started progressing",
@@ -286,6 +288,7 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 			},
 			assumedToLastProgress:           20 * time.Minute, // until 333 started progressing 10 minutes ago
 			assumedClusterOperatorCompleted: 0.5,
+			expectedAssessment:              assessmentStateProgressing,
 		},
 		{
 			name:    "backfill update duration as last observed progress when no progress is observed",
@@ -299,6 +302,33 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 			},
 			assumedToLastProgress:           30 * time.Minute, // since started
 			assumedClusterOperatorCompleted: 0.5,
+			expectedAssessment:              assessmentStateProgressing,
+		},
+		{
+			name:    "last observed progress too long ago, assessment goes to stalled",
+			started: minutesAgo[240],
+			operators: []configv1.ClusterOperator{
+				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[235])).operator,
+				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[220])).operator,
+				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[215])).operator,
+				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[30])).operator,
+			},
+			assumedToLastProgress:           25 * time.Minute, // until 333 stopped progressing 215 minutes ago
+			assumedClusterOperatorCompleted: 0.75,
+			expectedAssessment:              assessmentStateStalled,
+		},
+		{
+			name:    "slightly over estimation, assessment goes to progressing slow",
+			started: minutesAgo[60],
+			operators: []configv1.ClusterOperator{
+				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[38])).operator,
+				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
+				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[50])).operator,
+				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[30])).operator,
+			},
+			assumedToLastProgress:           22 * time.Minute, // until 111 stopped progressing 215 minutes ago
+			assumedClusterOperatorCompleted: 0.75,
+			expectedAssessment:              assessmentStateProgressingSlow,
 		},
 	}
 
@@ -321,6 +351,9 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 			actual, _ := assessControlPlaneStatus(cv, tc.operators, now)
 			if diff := cmp.Diff(expectedEstCompletion, actual.EstTimeToComplete); diff != "" {
 				t.Errorf("estimate to finish differs:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.expectedAssessment, actual.Assessment); diff != "" {
+				t.Errorf("assessment differs:\n%s", diff)
 			}
 		})
 

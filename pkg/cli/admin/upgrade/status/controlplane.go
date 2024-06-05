@@ -14,11 +14,13 @@ import (
 type assessmentState string
 
 const (
-	assessmentStateProgressing assessmentState = "Progressing"
-	assessmentStateCompleted   assessmentState = "Completed"
-	assessmentStatePending     assessmentState = "Pending"
-	assessmentStateExcluded    assessmentState = "Excluded"
-	assessmentStateDegraded    assessmentState = "Degraded"
+	assessmentStateProgressing     assessmentState = "Progressing"
+	assessmentStateProgressingSlow assessmentState = "Progressing - Slow"
+	assessmentStateCompleted       assessmentState = "Completed"
+	assessmentStatePending         assessmentState = "Pending"
+	assessmentStateExcluded        assessmentState = "Excluded"
+	assessmentStateDegraded        assessmentState = "Degraded"
+	assessmentStateStalled         assessmentState = "Stalled"
 
 	// clusterStatusFailing is set on the ClusterVersion status when a cluster
 	// cannot reach the desired state.
@@ -67,6 +69,7 @@ type controlPlaneStatusDisplayData struct {
 	Assessment        assessmentState
 	Completion        float64
 	Duration          time.Duration
+	EstDuration       time.Duration
 	EstTimeToComplete time.Duration
 	Operators         operators
 	TargetVersion     versions
@@ -263,6 +266,13 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	displayData.Completion = coCompletion * 100.0
 	if coCompletion <= 1 && displayData.Assessment != assessmentStateCompleted {
 		displayData.EstTimeToComplete = estimateCompletion(toLastObservedProgress, updatingFor, coCompletion)
+		displayData.EstDuration = (updatingFor + displayData.EstTimeToComplete).Truncate(time.Minute)
+
+		if displayData.EstTimeToComplete < -10*time.Minute {
+			displayData.Assessment = assessmentStateStalled
+		} else if displayData.EstTimeToComplete < 0 {
+			displayData.Assessment = assessmentStateProgressingSlow
+		}
 	}
 
 	return displayData, insights
@@ -282,7 +292,11 @@ func estimateCompletion(toLastObservedProgress, updatingFor time.Duration, coCom
 	}
 
 	remainingSeconds := estimateTotalSeconds - updatingFor.Seconds()
-	estimateTimeToComplete := time.Duration(remainingSeconds*1.2) * time.Second
+	var overestimate = 1.2
+	if remainingSeconds < 0 {
+		overestimate = 1 / overestimate
+	}
+	estimateTimeToComplete := time.Duration(remainingSeconds*overestimate) * time.Second
 
 	if estimateTimeToComplete > 10*time.Minute {
 		return estimateTimeToComplete.Round(time.Minute)
@@ -361,11 +375,14 @@ func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, cont
 	return versionData, insights
 }
 
-func vagueUnder(actual time.Duration) string {
+func vagueUnder(actual, estimated time.Duration) string {
 	threshold := 10 * time.Minute
-	if actual < threshold {
+	switch {
+	case actual < -10*time.Minute:
+		return fmt.Sprintf("N/A; estimate duration was %s", shortDuration(estimated))
+	case actual < threshold:
 		return fmt.Sprintf("<%s", shortDuration(threshold))
-	} else {
+	default:
 		return shortDuration(actual)
 	}
 }
@@ -383,6 +400,6 @@ const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
 Target Version:  {{ .TargetVersion }}
 Completion:      {{ printf "%.0f" .Completion }}%
-Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ vagueUnder .EstTimeToComplete }}){{ end }}
+Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ vagueUnder .EstTimeToComplete .EstDuration }}){{ end }}
 Operator Status: {{ .Operators.StatusSummary }}
 `
