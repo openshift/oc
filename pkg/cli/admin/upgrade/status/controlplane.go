@@ -282,7 +282,7 @@ func estimateCompletion(toLastObservedProgress, updatingFor time.Duration, coCom
 	}
 
 	remainingSeconds := estimateTotalSeconds - updatingFor.Seconds()
-	estimateTimeToComplete := time.Duration(remainingSeconds) * time.Second
+	estimateTimeToComplete := time.Duration(remainingSeconds*1.2) * time.Second
 
 	if estimateTimeToComplete > 10*time.Minute {
 		return estimateTimeToComplete.Round(time.Minute)
