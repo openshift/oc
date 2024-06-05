@@ -976,7 +976,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            30 * time.Minute,
 			coComplete:             0,
 
-			expectedEstimateTimeToComplete: "30m0s",
+			expectedEstimateTimeToComplete: "36m0s",
 		},
 		{
 			name:                   "No CO complete after 31m, last observable progress is 1m ago: estimate 60m as a baseline and we spent 31m of it",
@@ -984,7 +984,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            31 * time.Minute,
 			coComplete:             0,
 
-			expectedEstimateTimeToComplete: "29m0s",
+			expectedEstimateTimeToComplete: "35m0s",
 		},
 		{
 			name:                   "20% CO complete after 30m",
@@ -992,7 +992,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            30 * time.Minute,
 			coComplete:             0.2,
 
-			expectedEstimateTimeToComplete: "58m0s",
+			expectedEstimateTimeToComplete: "1h9m0s",
 		},
 		{
 			name:                   "20% CO complete after 35m, last observable progress was 5m ago",
@@ -1000,7 +1000,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            35 * time.Minute,
 			coComplete:             0.2,
 
-			expectedEstimateTimeToComplete: "53m0s",
+			expectedEstimateTimeToComplete: "1h3m0s",
 		},
 		{
 			name:                   "75% CO complete after 30m",
@@ -1008,7 +1008,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            30 * time.Minute,
 			coComplete:             0.75,
 
-			expectedEstimateTimeToComplete: "42m0s",
+			expectedEstimateTimeToComplete: "50m0s",
 		},
 		{
 			name:                   "99% CO complete after 20m - short estimate, precision to seconds",
@@ -1016,7 +1016,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            20 * time.Minute,
 			coComplete:             0.99,
 
-			expectedEstimateTimeToComplete: "4m2s",
+			expectedEstimateTimeToComplete: "4m50s",
 		},
 		{
 			name:                   "Avoid projecting too soon - when toLastObservedProgress is <5m estimated baseline",
@@ -1024,7 +1024,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            10 * time.Minute,
 			coComplete:             0.05,
 
-			expectedEstimateTimeToComplete: "50m0s",
+			expectedEstimateTimeToComplete: "1h0m0s",
 		},
 		{
 			name:                   "100% CO complete after 30m: estimate 0 remaining",
