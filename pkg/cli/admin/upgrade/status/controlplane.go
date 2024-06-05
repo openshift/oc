@@ -67,7 +67,6 @@ type controlPlaneStatusDisplayData struct {
 	Assessment        assessmentState
 	Completion        float64
 	Duration          time.Duration
-	EstCompletion     time.Time
 	EstTimeToComplete time.Duration
 	Operators         operators
 	TargetVersion     versions
@@ -262,7 +261,10 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 
 	coCompletion := float64(completed) / float64(displayData.Operators.Total)
 	displayData.Completion = coCompletion * 100.0
-	displayData.EstTimeToComplete = estimateCompletion(toLastObservedProgress, updatingFor, coCompletion)
+	if coCompletion <= 1 && displayData.Assessment != assessmentStateCompleted {
+		displayData.EstTimeToComplete = estimateCompletion(toLastObservedProgress, updatingFor, coCompletion)
+	}
+
 	return displayData, insights
 }
 
@@ -372,6 +374,6 @@ const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
 Target Version:  {{ .TargetVersion }}
 Completion:      {{ printf "%.0f" .Completion }}%
-Duration:        {{ shortDuration .Duration }} (Est. Time Remaining: {{ shortDuration .EstTimeToComplete }})
+Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ shortDuration .EstTimeToComplete }}){{ end }}
 Operator Status: {{ .Operators.StatusSummary }}
 `
