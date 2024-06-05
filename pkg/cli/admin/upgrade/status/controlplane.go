@@ -361,9 +361,18 @@ func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, cont
 	return versionData, insights
 }
 
+func vagueUnder(actual time.Duration) string {
+	threshold := 10 * time.Minute
+	if actual < threshold {
+		return fmt.Sprintf("<%s", shortDuration(threshold))
+	} else {
+		return shortDuration(actual)
+	}
+}
+
 var controlPlaneStatusTemplate = template.Must(
 	template.New("controlPlaneStatus").
-		Funcs(template.FuncMap{"shortDuration": shortDuration}).
+		Funcs(template.FuncMap{"shortDuration": shortDuration, "vagueUnder": vagueUnder}).
 		Parse(controlPlaneStatusTemplateRaw))
 
 func (d *controlPlaneStatusDisplayData) Write(f io.Writer) error {
@@ -374,6 +383,6 @@ const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
 Target Version:  {{ .TargetVersion }}
 Completion:      {{ printf "%.0f" .Completion }}%
-Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ shortDuration .EstTimeToComplete }}){{ end }}
+Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ vagueUnder .EstTimeToComplete }}){{ end }}
 Operator Status: {{ .Operators.StatusSummary }}
 `
