@@ -1019,6 +1019,14 @@ func TestEstimateCompletion(t *testing.T) {
 			expectedEstimateTimeToComplete: "4m2s",
 		},
 		{
+			name:                   "Avoid projecting too soon - when toLastObservedProgress is <5m estimated baseline",
+			toLastObservedProgress: 4 * time.Minute,
+			updatingFor:            10 * time.Minute,
+			coComplete:             0.05,
+
+			expectedEstimateTimeToComplete: "50m0s",
+		},
+		{
 			name:                   "100% CO complete after 30m: estimate 0 remaining",
 			toLastObservedProgress: 30 * time.Minute,
 			updatingFor:            30 * time.Minute,

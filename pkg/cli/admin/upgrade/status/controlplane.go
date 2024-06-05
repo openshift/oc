@@ -274,7 +274,7 @@ func estimateCompletion(toLastObservedProgress, updatingFor time.Duration, coCom
 	}
 
 	var estimateTotalSeconds float64
-	if completion := timewiseComplete(coCompletion); coCompletion > 0 && completion > 0 {
+	if completion := timewiseComplete(coCompletion); coCompletion > 0 && completion > 0 && (toLastObservedProgress > 5*time.Minute) {
 		elapsedSeconds := toLastObservedProgress.Seconds()
 		estimateTotalSeconds = elapsedSeconds / completion
 	} else {
