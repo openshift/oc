@@ -347,7 +347,7 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 					Version:     "old",
 				},
 			}
-			expectedEstCompletion := estimateCompletion(tc.assumedToLastProgress, now.Sub(tc.started), tc.assumedClusterOperatorCompleted)
+			expectedEstCompletion := estimateCompletion(time.Hour, tc.assumedToLastProgress, now.Sub(tc.started), tc.assumedClusterOperatorCompleted)
 			actual, _ := assessControlPlaneStatus(cv, tc.operators, now)
 			if diff := cmp.Diff(expectedEstCompletion, actual.EstTimeToComplete); diff != "" {
 				t.Errorf("estimate to finish differs:\n%s", diff)
@@ -997,6 +997,7 @@ func TestEstimateCompletion(t *testing.T) {
 	testCases := []struct {
 		name string
 
+		baseline               time.Duration
 		toLastObservedProgress time.Duration
 		updatingFor            time.Duration
 		coComplete             float64
@@ -1005,6 +1006,7 @@ func TestEstimateCompletion(t *testing.T) {
 	}{
 		{
 			name:                   "No CO complete after 30m: estimate 60m as a baseline and we spent 30m of it",
+			baseline:               time.Hour,
 			toLastObservedProgress: 30 * time.Minute,
 			updatingFor:            30 * time.Minute,
 			coComplete:             0,
@@ -1013,6 +1015,7 @@ func TestEstimateCompletion(t *testing.T) {
 		},
 		{
 			name:                   "No CO complete after 31m, last observable progress is 1m ago: estimate 60m as a baseline and we spent 31m of it",
+			baseline:               time.Hour,
 			toLastObservedProgress: 30 * time.Minute,
 			updatingFor:            31 * time.Minute,
 			coComplete:             0,
@@ -1021,6 +1024,7 @@ func TestEstimateCompletion(t *testing.T) {
 		},
 		{
 			name:                   "20% CO complete after 30m",
+			baseline:               time.Hour,
 			toLastObservedProgress: 30 * time.Minute,
 			updatingFor:            30 * time.Minute,
 			coComplete:             0.2,
@@ -1029,6 +1033,7 @@ func TestEstimateCompletion(t *testing.T) {
 		},
 		{
 			name:                   "20% CO complete after 35m, last observable progress was 5m ago",
+			baseline:               time.Hour,
 			toLastObservedProgress: 30 * time.Minute,
 			updatingFor:            35 * time.Minute,
 			coComplete:             0.2,
@@ -1037,6 +1042,7 @@ func TestEstimateCompletion(t *testing.T) {
 		},
 		{
 			name:                   "75% CO complete after 30m",
+			baseline:               time.Hour,
 			toLastObservedProgress: 30 * time.Minute,
 			updatingFor:            30 * time.Minute,
 			coComplete:             0.75,
@@ -1045,6 +1051,7 @@ func TestEstimateCompletion(t *testing.T) {
 		},
 		{
 			name:                   "99% CO complete after 20m - short estimate, precision to seconds",
+			baseline:               time.Hour,
 			toLastObservedProgress: 20 * time.Minute,
 			updatingFor:            20 * time.Minute,
 			coComplete:             0.99,
@@ -1053,14 +1060,16 @@ func TestEstimateCompletion(t *testing.T) {
 		},
 		{
 			name:                   "Avoid projecting too soon - when toLastObservedProgress is <5m estimated baseline",
+			baseline:               80 * time.Minute,
 			toLastObservedProgress: 4 * time.Minute,
 			updatingFor:            10 * time.Minute,
 			coComplete:             0.05,
 
-			expectedEstimateTimeToComplete: "1h0m0s",
+			expectedEstimateTimeToComplete: "1h24m0s",
 		},
 		{
 			name:                   "100% CO complete after 30m: estimate 0 remaining",
+			baseline:               time.Hour,
 			toLastObservedProgress: 30 * time.Minute,
 			updatingFor:            30 * time.Minute,
 			coComplete:             1,
@@ -1074,9 +1083,79 @@ func TestEstimateCompletion(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to parse expected duration: %v", err)
 			}
-			estimate := estimateCompletion(tc.toLastObservedProgress, tc.updatingFor, tc.coComplete)
+			estimate := estimateCompletion(tc.baseline, tc.toLastObservedProgress, tc.updatingFor, tc.coComplete)
 			if diff := cmp.Diff(expectedEstimate, estimate); diff != "" {
 				t.Errorf("estimate time to complete differs from expected:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestBaselineDuration(t *testing.T) {
+	baseline := time.Hour
+
+	now := time.Now()
+	minutesAgo := [250]metav1.Time{}
+	for i := range minutesAgo {
+		minutesAgo[i] = metav1.NewTime(now.Add(time.Duration(-i) * time.Minute))
+	}
+
+	testCases := []struct {
+		name     string
+		history  []configv1.UpdateHistory
+		expected time.Duration
+	}{
+		{
+			name:     "empty history -> baseline",
+			history:  []configv1.UpdateHistory{},
+			expected: baseline,
+		},
+		{
+			name: "one item -> baseline",
+			history: []configv1.UpdateHistory{{
+				State:          configv1.CompletedUpdate,
+				StartedTime:    minutesAgo[60],
+				CompletionTime: &minutesAgo[30],
+			}},
+			expected: baseline,
+		},
+		{
+			name: "two items -> baseline",
+			history: []configv1.UpdateHistory{
+				{State: configv1.PartialUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+			},
+			expected: baseline,
+		},
+		{
+			name: "all except install and current are partials -> baseline",
+			history: []configv1.UpdateHistory{
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.PartialUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.PartialUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.PartialUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+			},
+			expected: baseline,
+		},
+		{
+			name: "first complete that is not current or install",
+			history: []configv1.UpdateHistory{
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.PartialUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[10], CompletionTime: &minutesAgo[5]},
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[20], CompletionTime: &minutesAgo[10]},
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+			},
+			expected: 5 * time.Minute,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := baselineDuration(tc.history)
+			if diff := cmp.Diff(tc.expected, actual); diff != "" {
+				t.Errorf("baseline duration differs from expected:\n%s", diff)
 			}
 		})
 	}
