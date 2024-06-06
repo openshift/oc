@@ -30,11 +30,11 @@ build0-gstfj-ci-tests-worker-b-kj6gk                              Degraded      
 build0-gstfj-ci-tests-worker-c-dcz9p                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-prowjobs-worker-d-ddnxd                           Unavailable   Pending    ?             ?      Node is unavailable
 build0-gstfj-ci-tests-worker-c-jq5rk                              Unavailable   Updated    4.16.0-ec.3   -      Node is unavailable
-build0-gstfj-ci-tests-worker-c-2kz4m                              Progressing   Draining   4.16.0-ec.2   +30m   
-build0-gstfj-ci-tests-worker-c-55hpj                              Progressing   Draining   4.16.0-ec.2   +30m   
-build0-gstfj-ci-tests-worker-c-8tmjv                              Progressing   Draining   4.16.0-ec.2   +30m   
-build0-gstfj-ci-tests-worker-c-lfz8m                              Progressing   Draining   4.16.0-ec.2   +30m   
-build0-gstfj-ci-tests-worker-c-r55wv                              Progressing   Draining   4.16.0-ec.2   +30m   
+build0-gstfj-ci-tests-worker-c-2kz4m                              Progressing   Draining   4.16.0-ec.2   +10m   
+build0-gstfj-ci-tests-worker-c-55hpj                              Progressing   Draining   4.16.0-ec.2   +10m   
+build0-gstfj-ci-tests-worker-c-8tmjv                              Progressing   Draining   4.16.0-ec.2   +10m   
+build0-gstfj-ci-tests-worker-c-lfz8m                              Progressing   Draining   4.16.0-ec.2   +10m   
+build0-gstfj-ci-tests-worker-c-r55wv                              Progressing   Draining   4.16.0-ec.2   +10m   
 build0-gstfj-ci-longtests-worker-c-vspm9                          Outdated      Pending    4.16.0-ec.2   ?      
 build0-gstfj-ci-longtests-worker-d-hksc9                          Outdated      Pending    4.16.0-ec.2   ?      
 build0-gstfj-ci-prowjobs-worker-c-f6dkk                           Outdated      Pending    4.16.0-ec.2   ?      
