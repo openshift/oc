@@ -265,7 +265,7 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 		expectedAssessment              assessmentState
 	}{
 		{
-			name:    "last observed progress is most recent updated that stopped progressing",
+			name:    "last observed progress is most recent progressing change",
 			started: minutesAgo[30],
 			operators: []configv1.ClusterOperator{
 				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
@@ -273,12 +273,12 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 				co("333").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[3])).operator,
 				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[6])).operator,
 			},
-			assumedToLastProgress:           15 * time.Minute, // until 222 stopped progressing 15 minutes ago
+			assumedToLastProgress:           27 * time.Minute, // until 333 stopped progressing 3 minutes ago
 			assumedClusterOperatorCompleted: 0.5,
 			expectedAssessment:              assessmentStateProgressing,
 		},
 		{
-			name:    "last observed progress is most recent non-updated that started progressing",
+			name:    "last observed progress is most recent progressing change",
 			started: minutesAgo[30],
 			operators: []configv1.ClusterOperator{
 				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
@@ -286,7 +286,7 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 				co("333").version("old").progressing(configv1.ConditionTrue, changed(minutesAgo[10])).operator,
 				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[6])).operator,
 			},
-			assumedToLastProgress:           20 * time.Minute, // until 333 started progressing 10 minutes ago
+			assumedToLastProgress:           24 * time.Minute, // until 444 stopped progressing 6 minutes ago
 			assumedClusterOperatorCompleted: 0.5,
 			expectedAssessment:              assessmentStateProgressing,
 		},
@@ -294,11 +294,11 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 			name:    "backfill update duration as last observed progress when no progress is observed",
 			started: minutesAgo[30],
 			operators: []configv1.ClusterOperator{
-				co("111").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
-				co("222").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[5])).operator,
+				co("111").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
+				co("222").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[60])).operator,
 				// New version but theirs Proceeding=False condition lastTransitionTime is before we started updating
-				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[35])).operator,
-				co("444").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
+				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[100])).operator,
+				co("444").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[111])).operator,
 			},
 			assumedToLastProgress:           30 * time.Minute, // since started
 			assumedClusterOperatorCompleted: 0.5,
@@ -311,7 +311,7 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[235])).operator,
 				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[220])).operator,
 				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[215])).operator,
-				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[30])).operator,
+				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[220])).operator,
 			},
 			assumedToLastProgress:           25 * time.Minute, // until 333 stopped progressing 215 minutes ago
 			assumedClusterOperatorCompleted: 0.75,
@@ -324,11 +324,24 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[38])).operator,
 				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
 				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[50])).operator,
-				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[30])).operator,
+				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[40])).operator,
 			},
-			assumedToLastProgress:           22 * time.Minute, // until 111 stopped progressing 215 minutes ago
+			assumedToLastProgress:           22 * time.Minute,
 			assumedClusterOperatorCompleted: 0.75,
 			expectedAssessment:              assessmentStateProgressingSlow,
+		},
+		{
+			name:    "machine-config progressing=true wins when it is the last CO updating",
+			started: minutesAgo[60],
+			operators: []configv1.ClusterOperator{
+				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[10])).operator,
+				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[15])).operator,
+				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
+				co("machine-config").version("old").progressing(configv1.ConditionTrue, changed(minutesAgo[30])).operator,
+			},
+			assumedToLastProgress:           30 * time.Minute, // until machine-config stated progressing 30 minutes ago
+			assumedClusterOperatorCompleted: 0.75,
+			expectedAssessment:              assessmentStateProgressing,
 		},
 	}
 

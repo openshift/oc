@@ -168,6 +168,8 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	}
 
 	var lastObservedProgress time.Time
+	var mcoStartedUpdating time.Time
+
 	for _, operator := range operators {
 		var isPlatformOperator bool
 		for annotation := range operator.Annotations {
@@ -211,10 +213,11 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		}
 
 		if progressing != nil {
-			if progressing.Status == v1.ConditionTrue && !updated || progressing.Status == v1.ConditionFalse && updated {
-				if progressing.LastTransitionTime.After(lastObservedProgress) {
-					lastObservedProgress = progressing.LastTransitionTime.Time
-				}
+			if progressing.LastTransitionTime.After(lastObservedProgress) {
+				lastObservedProgress = progressing.LastTransitionTime.Time
+			}
+			if progressing.Status == v1.ConditionTrue && operator.Name == "machine-config" && !updated {
+				mcoStartedUpdating = progressing.LastTransitionTime.Time
 			}
 		}
 
@@ -231,6 +234,13 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		displayData.Assessment = assessmentStateCompleted
 	} else {
 		displayData.Assessment = assessmentStateProgressing
+	}
+
+	// If MCO is the last updating operator, treat its progressing start as last observed progress
+	// to avoid daemonset operators polluting last observed progress by flipping Progressing when
+	// nodes reboot
+	if !mcoStartedUpdating.IsZero() && (displayData.Operators.Total-completed == 1) {
+		lastObservedProgress = mcoStartedUpdating
 	}
 
 	// updatingFor is started until now
