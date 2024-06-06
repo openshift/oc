@@ -174,13 +174,13 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 			estimate = "?"
 		case phaseStateDraining:
 			assessment = nodeAssessmentProgressing
-			estimate = "+30m"
+			estimate = "+10m"
 		case phaseStateUpdating:
 			assessment = nodeAssessmentProgressing
-			estimate = "+20m"
+			estimate = "+5m"
 		case phaseStateRebooting:
 			assessment = nodeAssessmentProgressing
-			estimate = "+10m"
+			estimate = "+5m"
 		case phaseStateUpdated:
 			assessment = nodeAssessmentCompleted
 			estimate = "-"
