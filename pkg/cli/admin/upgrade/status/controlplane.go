@@ -317,12 +317,10 @@ func estimateCompletion(baseline, toLastObservedProgress, updatingFor time.Durat
 		estimateTotalSeconds = baseline.Seconds()
 	}
 
+	estimateTotalSeconds = estimateTotalSeconds * 1.2
 	remainingSeconds := estimateTotalSeconds - updatingFor.Seconds()
-	var overestimate = 1.2
-	if remainingSeconds < 0 {
-		overestimate = 1 / overestimate
-	}
-	estimateTimeToComplete := time.Duration(remainingSeconds*overestimate) * time.Second
+
+	estimateTimeToComplete := time.Duration(remainingSeconds) * time.Second
 
 	if estimateTimeToComplete > 10*time.Minute {
 		return estimateTimeToComplete.Round(time.Minute)
