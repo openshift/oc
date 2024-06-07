@@ -321,12 +321,12 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 			name:    "slightly over estimation, assessment goes to progressing slow",
 			started: minutesAgo[60],
 			operators: []configv1.ClusterOperator{
-				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[40])).operator,
+				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[38])).operator,
 				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
 				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[50])).operator,
 				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[48])).operator,
 			},
-			assumedToLastProgress:           20 * time.Minute,
+			assumedToLastProgress:           22 * time.Minute,
 			assumedClusterOperatorCompleted: 0.75,
 			expectedAssessment:              assessmentStateProgressingSlow,
 		},
@@ -1024,7 +1024,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            30 * time.Minute,
 			coComplete:             0,
 
-			expectedEstimateTimeToComplete: "42m0s",
+			expectedEstimateTimeToComplete: "36m0s",
 		},
 		{
 			name:                   "No CO complete after 31m, last observable progress is 1m ago: estimate 60m as a baseline and we spent 31m of it",
@@ -1033,7 +1033,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            31 * time.Minute,
 			coComplete:             0,
 
-			expectedEstimateTimeToComplete: "41m0s",
+			expectedEstimateTimeToComplete: "35m0s",
 		},
 		{
 			name:                   "20% CO complete after 30m",
@@ -1042,7 +1042,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            30 * time.Minute,
 			coComplete:             0.2,
 
-			expectedEstimateTimeToComplete: "1h15m0s",
+			expectedEstimateTimeToComplete: "1h9m0s",
 		},
 		{
 			name:                   "20% CO complete after 35m, last observable progress was 5m ago",
@@ -1051,7 +1051,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            35 * time.Minute,
 			coComplete:             0.2,
 
-			expectedEstimateTimeToComplete: "1h10m0s",
+			expectedEstimateTimeToComplete: "1h3m0s",
 		},
 		{
 			name:                   "75% CO complete after 30m",
@@ -1060,7 +1060,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            30 * time.Minute,
 			coComplete:             0.75,
 
-			expectedEstimateTimeToComplete: "56m0s",
+			expectedEstimateTimeToComplete: "50m0s",
 		},
 		{
 			name:                   "99% CO complete after 20m - short estimate, precision to seconds",
@@ -1069,7 +1069,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            20 * time.Minute,
 			coComplete:             0.99,
 
-			expectedEstimateTimeToComplete: "8m50s",
+			expectedEstimateTimeToComplete: "4m50s",
 		},
 		{
 			name:                   "Avoid projecting too soon - when toLastObservedProgress is <5m estimated baseline",
@@ -1078,7 +1078,7 @@ func TestEstimateCompletion(t *testing.T) {
 			updatingFor:            10 * time.Minute,
 			coComplete:             0.05,
 
-			expectedEstimateTimeToComplete: "1h26m0s",
+			expectedEstimateTimeToComplete: "1h24m0s",
 		},
 		{
 			name:                   "100% CO complete after 30m: estimate 0 remaining",
