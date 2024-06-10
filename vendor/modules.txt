@@ -244,7 +244,7 @@ github.com/docker/go-units
 # github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
 ## explicit
 github.com/docker/libtrust
-# github.com/elazarl/goproxy v0.0.0-20190911111923-ecfe977594f1
+# github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a
 ## explicit
 github.com/elazarl/goproxy
 # github.com/emicklei/go-restful/v3 v3.10.1
@@ -278,17 +278,18 @@ github.com/go-asn1-ber/asn1-ber
 # github.com/go-errors/errors v1.4.2
 ## explicit; go 1.14
 github.com/go-errors/errors
-# github.com/go-git/gcfg v1.5.0
-## explicit
+# github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376
+## explicit; go 1.13
 github.com/go-git/gcfg
 github.com/go-git/gcfg/scanner
 github.com/go-git/gcfg/token
 github.com/go-git/gcfg/types
-# github.com/go-git/go-billy/v5 v5.1.0
-## explicit; go 1.13
+# github.com/go-git/go-billy/v5 v5.5.0
+## explicit; go 1.19
 github.com/go-git/go-billy/v5
-# github.com/go-git/go-git/v5 v5.3.0
-## explicit; go 1.13
+# github.com/go-git/go-git/v5 v5.11.0
+## explicit; go 1.19
+github.com/go-git/go-git/v5/internal/path_util
 github.com/go-git/go-git/v5/plumbing/format/config
 github.com/go-git/go-git/v5/plumbing/format/gitignore
 github.com/go-git/go-git/v5/utils/ioutil
@@ -465,8 +466,8 @@ github.com/jbenet/go-context/io
 # github.com/jmespath/go-jmespath v0.4.0
 ## explicit; go 1.14
 github.com/jmespath/go-jmespath
-# github.com/joelanford/ignore v0.0.0-20210610194209-63d4919d8fb2
-## explicit; go 1.16
+# github.com/joelanford/ignore v0.1.0
+## explicit; go 1.21
 github.com/joelanford/ignore
 # github.com/jonboulle/clockwork v0.2.2
 ## explicit; go 1.13
