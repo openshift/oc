@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"bytes"
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
@@ -27,6 +28,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
@@ -98,8 +100,14 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringSliceVar(&o.ImageStreams, "image-stream", o.ImageStreams, "Specify an image stream (namespace/name:tag) containing a must-gather plugin image to run.")
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
+	cmd.Flags().StringVar(&o.InputDestDir, "input-dest-dir", o.InputDestDir, "Set a specific directory on the pod to write user data to.")
+	// cmd.Flags().MarkHidden("input-dest-dir")
+	cmd.Flags().StringVar(&o.InputSourceDir, "input-source-dir", o.InputSourceDir, "Set a specific directory on the local machine to copy the user data from.")
+	// cmd.Flags().MarkHidden("input-source-dir")
 	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
 	cmd.Flags().StringVar(&o.RunNamespace, "run-namespace", o.RunNamespace, "An existing privileged namespace where must-gather pods should run. If not specified a temporary namespace will be generated.")
+	cmd.Flags().StringVar(&o.RunAs, "run-as", o.RunAs, "An existing serviceaccount where must-gather pods should run with.")
+	// cmd.Flags().MarkHidden("run-as")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	cmd.Flags().MarkHidden("keep")
 
@@ -153,6 +161,29 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	}
 	if len(o.DestDir) == 0 {
 		o.DestDir = fmt.Sprintf("must-gather.local.%06d", rand.Int63())
+	}
+	if len(o.InputSourceDir) > 0 {
+		// fmt.Fprintln(o.ErrOut, `"--input-source-dir" is an experimental flag, using it is not supported`)
+
+		if len(o.InputDestDir) == 0 {
+			// fmt.Fprintln(o.ErrOut, `"--input-source-dir" is an experimental flag, using it is not supported`)
+			o.log("Setting input destination directory to [/tmp]")
+			o.InputDestDir = "/tmp"
+		}
+
+		file, err := os.Open(o.InputSourceDir)
+		if err != nil {
+			return fmt.Errorf(`ERROR: %v`, err)
+		}
+
+		fileInfo, err := file.Stat()
+		if err != nil {
+			return fmt.Errorf(`ERROR: %v`, err)
+		}
+
+		if ! fileInfo.IsDir() {
+			return fmt.Errorf("Input source directory [%s] is not a directory!", o.InputSourceDir)
+		}
 	}
 	if err := o.completeImages(); err != nil {
 		return err
@@ -238,12 +269,15 @@ type MustGatherOptions struct {
 	HostNetwork  bool
 	DestDir      string
 	SourceDir    string
+	InputDestDir      string
+	InputSourceDir    string
 	Images       []string
 	ImageStreams []string
 	Command      []string
 	Timeout      time.Duration
 	timeoutStr   string
 	RunNamespace string
+	RunAs      string
 	Keep         bool
 
 	RsyncRshCmd string
@@ -344,14 +378,27 @@ func (o *MustGatherOptions) Run() error {
 				return err
 			}
 			for _, node := range nodes.Items {
-				pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(node.Name, image, hasMaster), metav1.CreateOptions{})
-				if err != nil {
-					// ensure the errors bubble up to BackupGathering method for display
-					errs = []error{err}
-					return err
+				if (len(o.RunAs) == 0 ) {
+					pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(node.Name, image, hasMaster, ""), metav1.CreateOptions{})
+
+					if err != nil {
+						// ensure the errors bubble up to BackupGathering method for display
+						errs = []error{err}
+						return err
+					}
+					o.log("pod: %s on node: %s for plug-in image %s created", pod.Name, node.Name, image)
+					pods = append(pods, pod)
+				} else {
+					pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(node.Name, image, hasMaster, o.RunAs), metav1.CreateOptions{})
+
+					if err != nil {
+						// ensure the errors bubble up to BackupGathering method for display
+						errs = []error{err}
+						return err
+					}
+					o.log("pod: %s on node: %s for plug-in image %s created", pod.Name, node.Name, image)
+					pods = append(pods, pod)
 				}
-				o.log("pod: %s on node: %s for plug-in image %s created", pod.Name, node.Name, image)
-				pods = append(pods, pod)
 			}
 		} else {
 			if o.NodeName != "" {
@@ -360,15 +407,28 @@ func (o *MustGatherOptions) Run() error {
 					errs = []error{err}
 					return err
 				}
+			}	
+			if (len(o.RunAs) == 0 ) {
+				pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image, hasMaster, ""), metav1.CreateOptions{})
+					
+				if err != nil {
+					// ensure the errors bubble up to BackupGathering method for display
+					errs = []error{err}
+					return err
+				}
+				o.log("pod for plug-in image %s created", image)
+				pods = append(pods, pod)
+			} else {
+				pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image, hasMaster, o.RunAs), metav1.CreateOptions{})
+					
+				if err != nil {
+					// ensure the errors bubble up to BackupGathering method for display
+					errs = []error{err}
+					return err
+				}
+				o.log("pod for plug-in image %s created", image)
+				pods = append(pods, pod)
 			}
-			pod, err := o.Client.CoreV1().Pods(ns.Name).Create(context.TODO(), o.newPod(o.NodeName, image, hasMaster), metav1.CreateOptions{})
-			if err != nil {
-				// ensure the errors bubble up to BackupGathering method for display
-				errs = []error{err}
-				return err
-			}
-			o.log("pod for plug-in image %s created", image)
-			pods = append(pods, pod)
 		}
 	}
 
@@ -408,11 +468,21 @@ func (o *MustGatherOptions) Run() error {
 			log := newPodOutLogger(o.Out, pod.Name)
 
 			// wait for gather container to be running (gather is running)
-			if err := o.waitForGatherContainerRunning(pod); err != nil {
+			if err := o.waitForGatherContainerRunning(pod,1); err != nil {
 				log("gather did not start: %s", err)
 				errCh <- fmt.Errorf("gather did not start for pod %s: %s", pod.Name, err)
 				return
 			}
+
+			// Copy user data into the pod
+			if len(o.InputSourceDir) > 0 && len(o.InputDestDir) > 0 {
+				if err := o.copyFilesToPod(pod); err != nil {
+					log("user data not imported: %v\n", err)
+					errCh <- fmt.Errorf("user data was not imported %s: %s", pod.Name, err)
+					return
+				}
+			}
+
 			// stream gather container logs
 			if err := o.getGatherContainerLogs(pod); err != nil {
 				log("gather logs unavailable: %v", err)
@@ -486,6 +556,59 @@ func (o *MustGatherOptions) logTimestamp() error {
 		return err
 	}
 	_, err = f.WriteString(fmt.Sprintf("%v\n", time.Now()))
+	return err
+}
+
+func (o *MustGatherOptions) copyFilesToPod(pod *corev1.Pod) error {
+	streams := o.IOStreams
+	streams.Out = newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name))
+	rsyncOptions := &rsync.RsyncOptions{
+		Namespace:     pod.Namespace,
+		Source:        &rsync.PathSpec{PodName: "", Path: path.Clean(o.InputSourceDir) + "/"},
+		ContainerName: "gather",
+		Destination:   &rsync.PathSpec{PodName: pod.Name, Path: path.Clean(o.InputDestDir) + "/"},
+		Client:        o.Client,
+		Config:        o.Config,
+		Compress:      true,
+		RshCmd:        fmt.Sprintf("%s --namespace=%s -c gather", o.RsyncRshCmd, pod.Namespace),
+		IOStreams:     streams,
+	}
+	rsyncOptions.Strategy = rsync.NewDefaultCopyStrategy(rsyncOptions)
+	err := rsyncOptions.RunRsync()
+	if err != nil {
+		klog.V(4).Infof("re-trying rsync after initial failure %v", err)
+		// re-try copying data before letting it go
+		err = rsyncOptions.RunRsync()
+	}
+	
+	if err == nil {
+		// Create /tmp/rsync.done file in 'gather' container
+		buf := &bytes.Buffer{}
+		errBuf := &bytes.Buffer{}
+		request := o.Client.CoreV1().RESTClient().
+				Post().
+				Namespace(pod.Namespace).
+				Resource("pods").
+				Name(pod.Name).
+				SubResource("exec").
+				VersionedParams(&corev1.PodExecOptions{
+					Command:		[]string{"touch", "/tmp/rsync.done"},
+					Container:	"gather",
+					Stdin:		false,
+					Stdout:		true,
+					Stderr:		true,
+					TTY:			true,
+				}, scheme.ParameterCodec)
+		exec, err := remotecommand.NewSPDYExecutor(o.Config, "POST", request.URL())
+		err = exec.Stream(remotecommand.StreamOptions{
+			Stdout: buf,
+			Stderr: errBuf,
+		})
+		
+		if err != nil {
+			return err
+		}
+	}
 	return err
 }
 
@@ -608,8 +731,9 @@ func (o *MustGatherOptions) isGatherDone(pod *corev1.Pod) (bool, error) {
 	return false, nil
 }
 
-func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error {
-	return wait.PollImmediate(10*time.Second, o.Timeout, func() (bool, error) {
+func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod, pollInterval int) error {
+	// return wait.PollImmediate(10*time.Second, o.Timeout, func() (bool, error) {
+	return wait.PollImmediate(time.Duration(pollInterval) * time.Second, o.Timeout, func() (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err == nil {
 			if len(pod.Status.ContainerStatuses) == 0 {
@@ -721,7 +845,7 @@ func newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
 // newPod creates a pod with 2 containers with a shared volume mount:
 // - gather: init containers that run gather command
 // - copy: no-op container we can exec into
-func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.Pod {
+func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, serviceaccount string) *corev1.Pod {
 	zero := int64(0)
 
 	nodeSelector := map[string]string{
@@ -813,10 +937,33 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 			},
 		},
 	}
+
+	var initCmd []string
+
 	if len(o.Command) > 0 {
 		// always force disk flush to ensure that all data gathered is accessible in the copy container
+		initCmd = o.Command
 		ret.Spec.Containers[0].Command = []string{"/bin/bash", "-c", fmt.Sprintf("%s; sync", strings.Join(o.Command, " "))}
+	} else {
+		initCmd[0] = "/usr/bin/gather"
 	}
+
+	if len(o.InputSourceDir) > 0 && len(o.InputDestDir) > 0 {
+		ret.Spec.Containers[0].Command = []string{"/bin/bash", "-c", fmt.Sprintf("%s; %s; sync", "while [ ! -f /tmp/rsync.done ]; do sleep 1; done", strings.Join(initCmd, " "))}
+	}
+	
+	o.log(strings.Join(ret.Spec.Containers[0].Command," "))
+	
+	if len(serviceaccount) > 0 {
+		ns,_,_ := o.getNamespace()
+		
+		if _, err := o.Client.CoreV1().ServiceAccounts(ns.Name).Get(context.TODO(), serviceaccount, metav1.GetOptions{}); err == nil {
+			ret.Spec.ServiceAccountName = serviceaccount
+		} else {
+			o.log("User provided service account [%s] is invalid in namespace [%s]!", serviceaccount, ns.Name)
+		}
+	}
+
 	if o.HostNetwork {
 		// If a user specified hostNetwork he might have intended to perform
 		// packet captures on the host, for that we need to set the correct
