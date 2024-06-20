@@ -24,5 +24,6 @@ func NewCmd(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Comma
 	cmd.AddCommand(NewRelease(f, streams))
 	cmd.AddCommand(NewExtract(f, streams))
 	cmd.AddCommand(NewMirror(f, streams))
+	cmd.AddCommand(NewPackage(f, streams))
 	return cmd
 }
