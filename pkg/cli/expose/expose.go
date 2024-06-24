@@ -8,12 +8,12 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubectl/pkg/cmd/expose"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -78,10 +78,8 @@ type ExposeOptions struct {
 }
 
 func NewExposeFlags(streams genericiooptions.IOStreams) *ExposeFlags {
-	flags := expose.NewExposeFlags(streams)
-	flags.PrintFlags = genericclioptions.NewPrintFlags("exposed").WithTypeSetter(exposeCmdScheme)
 	return &ExposeFlags{
-		ExposeServiceFlags: flags,
+		ExposeServiceFlags: expose.NewExposeFlags(streams),
 	}
 }
 
@@ -161,7 +159,7 @@ func (o *ExposeOptions) Validate() error {
 
 func (o *ExposeOptions) Run() error {
 	r := o.Builder.
-		WithScheme(exposeCmdScheme, exposeCmdScheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
 		FilenameParam(o.EnforceNamespace, &o.ExposeServiceOptions.FilenameOptions).
@@ -193,7 +191,7 @@ func (o *ExposeOptions) Run() error {
 		route.Spec.Host = o.Hostname
 		route.Spec.Path = o.Path
 		route.Spec.WildcardPolicy = routev1.WildcardPolicyType(o.WildcardPolicy)
-		if err := util.CreateOrUpdateAnnotation(kcmdutil.GetFlagBool(o.Cmd, kcmdutil.ApplyAnnotationsFlag), route, exposeCmdJSONEncoder()); err != nil {
+		if err := util.CreateOrUpdateAnnotation(kcmdutil.GetFlagBool(o.Cmd, kcmdutil.ApplyAnnotationsFlag), route, scheme.DefaultJSONEncoder()); err != nil {
 			return err
 		}
 

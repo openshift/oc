@@ -14,6 +14,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -131,7 +132,7 @@ func (o *CreateClusterQuotaOptions) Run() error {
 		clusterQuota.Spec.Quota.Hard[corev1.ResourceName(tokens[0])] = quantity
 	}
 
-	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, clusterQuota, createCmdJSONEncoder()); err != nil {
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, clusterQuota, scheme.DefaultJSONEncoder()); err != nil {
 		return err
 	}
 
