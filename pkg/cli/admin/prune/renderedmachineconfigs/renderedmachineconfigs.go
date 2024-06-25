@@ -178,20 +178,19 @@ func (o *pruneMCOptions) Run(ctx context.Context) error {
 		countToDelete = len(machineConfigs)
 	}
 
+	contextMessage := "deleting"
 	if !o.Confirm {
+		contextMessage = "dry-run deleting"
 		fmt.Fprintln(o.IOStreams.ErrOut, "Dry run enabled - no modifications will be made. Add --confirm to remove rendered machine configs.")
 	}
 
 	for i := 0; i < countToDelete; i++ {
 		if !inuseConfigs.Has(machineConfigs[i].Name) {
 			if err := o.deleteRenderedConfig(ctx, machineConfigs[i].Name, o.Confirm); err != nil {
-				fmt.Fprintf(o.IOStreams.ErrOut, "Error deleting rendered MachineConfig %s: %v \n", machineConfigs[i].Name, err)
+				fmt.Fprintf(o.IOStreams.ErrOut, "Error %v\n", err)
 			}
 		} else {
-			if !o.Confirm {
-				fmt.Fprintf(o.IOStreams.Out, "DRY RUN: ")
-			}
-			fmt.Fprintf(o.IOStreams.ErrOut, "Skipping deletion of rendered MachineConfig %s as it's currently in use\n", machineConfigs[i].Name)
+			fmt.Fprintf(o.IOStreams.ErrOut, "Skip %s rendered MachineConfig %s as it's currently in use\n", contextMessage, machineConfigs[i].Name)
 		}
 	}
 
@@ -377,21 +376,20 @@ func (o *pruneMCOptions) deleteRenderedConfig(ctx context.Context, name string, 
 	}
 
 	deleteOptions := &metav1.DeleteOptions{}
+	contextMessage := "deleting"
 	if !confirm {
 		// Dry run logic
 		deleteOptions.DryRun = []string{metav1.DryRunAll}
+		contextMessage = "dry-run deleting"
 	}
 
 	err = machineConfigClient.MachineconfigurationV1().MachineConfigs().Delete(ctx, name, *deleteOptions)
 	if err != nil {
-		return fmt.Errorf("deleting rendered MachineConfig %s failed: %w", name, err)
+		return fmt.Errorf("%s rendered MachineConfig %s failed: %w", contextMessage, name, err)
 	}
 
 	// Output deletion message
-	if !confirm {
-		fmt.Fprintf(o.IOStreams.Out, "DRY RUN: ")
-	}
-	fmt.Fprintf(o.IOStreams.Out, "Deleted rendered MachineConfig %s\n", name)
+	fmt.Fprintf(o.IOStreams.Out, "%s rendered MachineConfig %s\n", contextMessage, name)
 
 	return nil
 }
