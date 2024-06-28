@@ -56,13 +56,24 @@ func co(name string) *coBuilder {
 	}
 }
 
-func (c *coBuilder) progressing(status configv1.ConditionStatus) *coBuilder {
+type conditionOption func(condition *configv1.ClusterOperatorStatusCondition)
+
+func changed(t time.Time) conditionOption {
+	return func(condition *configv1.ClusterOperatorStatusCondition) {
+		condition.LastTransitionTime = metav1.NewTime(t)
+	}
+}
+
+func (c *coBuilder) progressing(status configv1.ConditionStatus, optionFuncs ...conditionOption) *coBuilder {
 	for i := range c.operator.Status.Conditions {
 		if c.operator.Status.Conditions[i].Type == configv1.OperatorProgressing {
 			c.operator.Status.Conditions[i].Status = status
 			c.operator.Status.Conditions[i].Reason = "ProgressingTowardsDesired"
 			c.operator.Status.Conditions[i].Message = "Operand is operated by operator"
 			c.operator.Status.Conditions[i].LastTransitionTime = metav1.Now()
+			for _, f := range optionFuncs {
+				f(&c.operator.Status.Conditions[i])
+			}
 			break
 		}
 	}
@@ -238,6 +249,130 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 	}
 }
 
+func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
+	now := time.Now()
+	minutesAgo := [250]time.Time{}
+	for i := range minutesAgo {
+		minutesAgo[i] = now.Add(time.Duration(-i) * time.Minute)
+	}
+
+	testCases := []struct {
+		name                            string
+		started                         time.Time
+		operators                       []configv1.ClusterOperator
+		assumedToLastProgress           time.Duration
+		assumedClusterOperatorCompleted float64
+		expectedAssessment              assessmentState
+	}{
+		{
+			name:    "last observed progress is most recent progressing change",
+			started: minutesAgo[30],
+			operators: []configv1.ClusterOperator{
+				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
+				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[15])).operator,
+				co("333").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[3])).operator,
+				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[6])).operator,
+			},
+			assumedToLastProgress:           27 * time.Minute, // until 333 stopped progressing 3 minutes ago
+			assumedClusterOperatorCompleted: 0.5,
+			expectedAssessment:              assessmentStateProgressing,
+		},
+		{
+			name:    "last observed progress is most recent progressing change",
+			started: minutesAgo[30],
+			operators: []configv1.ClusterOperator{
+				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
+				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[15])).operator,
+				co("333").version("old").progressing(configv1.ConditionTrue, changed(minutesAgo[10])).operator,
+				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[6])).operator,
+			},
+			assumedToLastProgress:           24 * time.Minute, // until 444 stopped progressing 6 minutes ago
+			assumedClusterOperatorCompleted: 0.5,
+			expectedAssessment:              assessmentStateProgressing,
+		},
+		{
+			name:    "backfill update duration as last observed progress when no progress is observed",
+			started: minutesAgo[30],
+			operators: []configv1.ClusterOperator{
+				co("111").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
+				co("222").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[60])).operator,
+				// New version but theirs Proceeding=False condition lastTransitionTime is before we started updating
+				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[100])).operator,
+				co("444").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[111])).operator,
+			},
+			assumedToLastProgress:           30 * time.Minute, // since started
+			assumedClusterOperatorCompleted: 0.5,
+			expectedAssessment:              assessmentStateProgressing,
+		},
+		{
+			name:    "last observed progress too long ago, assessment goes to stalled",
+			started: minutesAgo[240],
+			operators: []configv1.ClusterOperator{
+				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[235])).operator,
+				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[220])).operator,
+				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[215])).operator,
+				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[220])).operator,
+			},
+			assumedToLastProgress:           25 * time.Minute, // until 333 stopped progressing 215 minutes ago
+			assumedClusterOperatorCompleted: 0.75,
+			expectedAssessment:              assessmentStateStalled,
+		},
+		{
+			name:    "slightly over estimation, assessment goes to progressing slow",
+			started: minutesAgo[60],
+			operators: []configv1.ClusterOperator{
+				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[38])).operator,
+				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
+				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[50])).operator,
+				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[48])).operator,
+			},
+			assumedToLastProgress:           22 * time.Minute,
+			assumedClusterOperatorCompleted: 0.75,
+			expectedAssessment:              assessmentStateProgressingSlow,
+		},
+		{
+			name:    "machine-config progressing=true wins when it is the last CO updating",
+			started: minutesAgo[60],
+			operators: []configv1.ClusterOperator{
+				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[10])).operator,
+				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[15])).operator,
+				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
+				co("machine-config").version("old").progressing(configv1.ConditionTrue, changed(minutesAgo[30])).operator,
+			},
+			assumedToLastProgress:           30 * time.Minute, // until machine-config stated progressing 30 minutes ago
+			assumedClusterOperatorCompleted: 0.75,
+			expectedAssessment:              assessmentStateProgressing,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cv := cvFixture.DeepCopy()
+			cv.Status.History = []configv1.UpdateHistory{
+				{
+					State:       configv1.PartialUpdate,
+					StartedTime: metav1.NewTime(tc.started),
+					Version:     "new",
+				},
+				{
+					State:       configv1.CompletedUpdate,
+					StartedTime: metav1.NewTime(tc.started.Add(-24 * time.Hour)),
+					Version:     "old",
+				},
+			}
+			expectedEstCompletion := estimateCompletion(time.Hour, tc.assumedToLastProgress, now.Sub(tc.started), tc.assumedClusterOperatorCompleted)
+			actual, _ := assessControlPlaneStatus(cv, tc.operators, now)
+			if diff := cmp.Diff(expectedEstCompletion, actual.EstTimeToComplete); diff != "" {
+				t.Errorf("estimate to finish differs:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.expectedAssessment, actual.Assessment); diff != "" {
+				t.Errorf("assessment differs:\n%s", diff)
+			}
+		})
+
+	}
+}
+
 func TestAssessControlPlaneStatus_Completion(t *testing.T) {
 	testCases := []struct {
 		name               string
@@ -303,9 +438,14 @@ func TestAssessControlPlaneStatus_Completion(t *testing.T) {
 }
 
 func TestAssessControlPlaneStatus_Duration(t *testing.T) {
+	// Inject ns skew to exercise expected rounding
+	nsSkew := 12315 * time.Nanosecond
+
 	now := time.Now()
-	hourAgo := metav1.NewTime(now.Add(-time.Hour))
-	halfHourAgo := metav1.NewTime(now.Add(-time.Minute * 30))
+	hourAgo := metav1.NewTime(now.Add(-time.Hour - nsSkew))
+	halfHourAgo := metav1.NewTime(now.Add(-time.Minute*30 - nsSkew))
+	underTenMinutesAgo := metav1.NewTime(now.Add(-333*time.Second - nsSkew))
+	overTenMinutesAgo := metav1.NewTime(now.Add(-637*time.Second - nsSkew))
 
 	testCases := []struct {
 		name             string
@@ -330,6 +470,24 @@ func TestAssessControlPlaneStatus_Duration(t *testing.T) {
 				Version:        "new",
 			},
 			expectedDuration: 30 * time.Minute,
+		},
+		{
+			name: "partial update started 10s ago -> 10s duration",
+			firstHistoryItem: configv1.UpdateHistory{
+				State:       configv1.PartialUpdate,
+				StartedTime: underTenMinutesAgo,
+				Version:     "new",
+			},
+			expectedDuration: 333 * time.Second, // precision to seconds when under 10m
+		},
+		{
+			name: "partial update started over 10m ago ago -> 11m duration",
+			firstHistoryItem: configv1.UpdateHistory{
+				State:       configv1.PartialUpdate,
+				StartedTime: overTenMinutesAgo,
+				Version:     "new",
+			},
+			expectedDuration: 11 * time.Minute, // rounded to minutes when over 10m
 		},
 	}
 
@@ -843,6 +1001,174 @@ func Test_versionsFromHistory(t *testing.T) {
 
 			if diff := cmp.Diff(tt.expectedUpdateInsights, actualInsights, allowUnexportedInsightStructs); diff != "" {
 				t.Errorf("updateInsight differ from expected:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestEstimateCompletion(t *testing.T) {
+	testCases := []struct {
+		name string
+
+		baseline               time.Duration
+		toLastObservedProgress time.Duration
+		updatingFor            time.Duration
+		coComplete             float64
+
+		expectedEstimateTimeToComplete string
+	}{
+		{
+			name:                   "No CO complete after 30m: estimate 60m as a baseline and we spent 30m of it",
+			baseline:               time.Hour,
+			toLastObservedProgress: 30 * time.Minute,
+			updatingFor:            30 * time.Minute,
+			coComplete:             0,
+
+			expectedEstimateTimeToComplete: "36m0s",
+		},
+		{
+			name:                   "No CO complete after 31m, last observable progress is 1m ago: estimate 60m as a baseline and we spent 31m of it",
+			baseline:               time.Hour,
+			toLastObservedProgress: 30 * time.Minute,
+			updatingFor:            31 * time.Minute,
+			coComplete:             0,
+
+			expectedEstimateTimeToComplete: "35m0s",
+		},
+		{
+			name:                   "20% CO complete after 30m",
+			baseline:               time.Hour,
+			toLastObservedProgress: 30 * time.Minute,
+			updatingFor:            30 * time.Minute,
+			coComplete:             0.2,
+
+			expectedEstimateTimeToComplete: "1h9m0s",
+		},
+		{
+			name:                   "20% CO complete after 35m, last observable progress was 5m ago",
+			baseline:               time.Hour,
+			toLastObservedProgress: 30 * time.Minute,
+			updatingFor:            35 * time.Minute,
+			coComplete:             0.2,
+
+			expectedEstimateTimeToComplete: "1h3m0s",
+		},
+		{
+			name:                   "75% CO complete after 30m",
+			baseline:               time.Hour,
+			toLastObservedProgress: 30 * time.Minute,
+			updatingFor:            30 * time.Minute,
+			coComplete:             0.75,
+
+			expectedEstimateTimeToComplete: "50m0s",
+		},
+		{
+			name:                   "99% CO complete after 20m - short estimate, precision to seconds",
+			baseline:               time.Hour,
+			toLastObservedProgress: 20 * time.Minute,
+			updatingFor:            20 * time.Minute,
+			coComplete:             0.99,
+
+			expectedEstimateTimeToComplete: "4m50s",
+		},
+		{
+			name:                   "Avoid projecting too soon - when toLastObservedProgress is <5m estimated baseline",
+			baseline:               80 * time.Minute,
+			toLastObservedProgress: 4 * time.Minute,
+			updatingFor:            10 * time.Minute,
+			coComplete:             0.05,
+
+			expectedEstimateTimeToComplete: "1h24m0s",
+		},
+		{
+			name:                   "100% CO complete after 30m: estimate 0 remaining",
+			baseline:               time.Hour,
+			toLastObservedProgress: 30 * time.Minute,
+			updatingFor:            30 * time.Minute,
+			coComplete:             1,
+
+			expectedEstimateTimeToComplete: "0s",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			expectedEstimate, err := time.ParseDuration(tc.expectedEstimateTimeToComplete)
+			if err != nil {
+				t.Fatalf("Failed to parse expected duration: %v", err)
+			}
+			estimate := estimateCompletion(tc.baseline, tc.toLastObservedProgress, tc.updatingFor, tc.coComplete)
+			if diff := cmp.Diff(expectedEstimate, estimate); diff != "" {
+				t.Errorf("estimate time to complete differs from expected:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestBaselineDuration(t *testing.T) {
+	baseline := time.Hour
+
+	now := time.Now()
+	minutesAgo := [250]metav1.Time{}
+	for i := range minutesAgo {
+		minutesAgo[i] = metav1.NewTime(now.Add(time.Duration(-i) * time.Minute))
+	}
+
+	testCases := []struct {
+		name     string
+		history  []configv1.UpdateHistory
+		expected time.Duration
+	}{
+		{
+			name:     "empty history -> baseline",
+			history:  []configv1.UpdateHistory{},
+			expected: baseline,
+		},
+		{
+			name: "one item -> baseline",
+			history: []configv1.UpdateHistory{{
+				State:          configv1.CompletedUpdate,
+				StartedTime:    minutesAgo[60],
+				CompletionTime: &minutesAgo[30],
+			}},
+			expected: baseline,
+		},
+		{
+			name: "two items -> baseline",
+			history: []configv1.UpdateHistory{
+				{State: configv1.PartialUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+			},
+			expected: baseline,
+		},
+		{
+			name: "all except install and current are partials -> baseline",
+			history: []configv1.UpdateHistory{
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.PartialUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.PartialUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.PartialUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+			},
+			expected: baseline,
+		},
+		{
+			name: "first complete that is not current or install",
+			history: []configv1.UpdateHistory{
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.PartialUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[10], CompletionTime: &minutesAgo[5]},
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[20], CompletionTime: &minutesAgo[10]},
+				{State: configv1.CompletedUpdate, StartedTime: minutesAgo[60], CompletionTime: &minutesAgo[30]},
+			},
+			expected: 5 * time.Minute,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := baselineDuration(tc.history)
+			if diff := cmp.Diff(tc.expected, actual); diff != "" {
+				t.Errorf("baseline duration differs from expected:\n%s", diff)
 			}
 		})
 	}

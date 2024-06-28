@@ -3,6 +3,7 @@ package status
 import (
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"text/template"
 	"time"
@@ -13,11 +14,13 @@ import (
 type assessmentState string
 
 const (
-	assessmentStateProgressing assessmentState = "Progressing"
-	assessmentStateCompleted   assessmentState = "Completed"
-	assessmentStatePending     assessmentState = "Pending"
-	assessmentStateExcluded    assessmentState = "Excluded"
-	assessmentStateDegraded    assessmentState = "Degraded"
+	assessmentStateProgressing     assessmentState = "Progressing"
+	assessmentStateProgressingSlow assessmentState = "Progressing - Slow"
+	assessmentStateCompleted       assessmentState = "Completed"
+	assessmentStatePending         assessmentState = "Pending"
+	assessmentStateExcluded        assessmentState = "Excluded"
+	assessmentStateDegraded        assessmentState = "Degraded"
+	assessmentStateStalled         assessmentState = "Stalled"
 
 	// clusterStatusFailing is set on the ClusterVersion status when a cluster
 	// cannot reach the desired state.
@@ -63,11 +66,13 @@ func (v versions) String() string {
 }
 
 type controlPlaneStatusDisplayData struct {
-	Assessment    assessmentState
-	Completion    float64
-	Duration      time.Duration
-	Operators     operators
-	TargetVersion versions
+	Assessment        assessmentState
+	Completion        float64
+	Duration          time.Duration
+	EstDuration       time.Duration
+	EstTimeToComplete time.Duration
+	Operators         operators
+	TargetVersion     versions
 }
 
 const (
@@ -162,6 +167,9 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		insights = append(insights, insight)
 	}
 
+	var lastObservedProgress time.Time
+	var mcoStartedUpdating time.Time
+
 	for _, operator := range operators {
 		var isPlatformOperator bool
 		for annotation := range operator.Annotations {
@@ -175,14 +183,21 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 			continue
 		}
 
+		var updated bool
 		for _, version := range operator.Status.Versions {
 			if version.Name == "operator" && version.Version == targetVersion {
-				completed++
+				updated = true
 				break
 			}
 		}
+
+		if updated {
+			completed++
+		}
+
 		var available *v1.ClusterOperatorStatusCondition
 		var degraded *v1.ClusterOperatorStatusCondition
+		var progressing *v1.ClusterOperatorStatusCondition
 
 		displayData.Operators.Total++
 		for _, condition := range operator.Status.Conditions {
@@ -192,6 +207,17 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 				available = &condition
 			case condition.Type == v1.OperatorDegraded:
 				degraded = &condition
+			case condition.Type == v1.OperatorProgressing:
+				progressing = &condition
+			}
+		}
+
+		if progressing != nil {
+			if progressing.LastTransitionTime.After(lastObservedProgress) {
+				lastObservedProgress = progressing.LastTransitionTime.Time
+			}
+			if progressing.Status == v1.ConditionTrue && operator.Name == "machine-config" && !updated {
+				mcoStartedUpdating = progressing.LastTransitionTime.Time
 			}
 		}
 
@@ -210,12 +236,35 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		displayData.Assessment = assessmentStateProgressing
 	}
 
+	// If MCO is the last updating operator, treat its progressing start as last observed progress
+	// to avoid daemonset operators polluting last observed progress by flipping Progressing when
+	// nodes reboot
+	if !mcoStartedUpdating.IsZero() && (displayData.Operators.Total-completed == 1) {
+		lastObservedProgress = mcoStartedUpdating
+	}
+
+	// updatingFor is started until now
+	var updatingFor time.Duration
+	// toLastObservedProgress is started until last observed progress
+	var toLastObservedProgress time.Duration
+
 	if len(cv.Status.History) > 0 {
 		currentHistoryItem := cv.Status.History[0]
+		started := currentHistoryItem.StartedTime.Time
+		if !lastObservedProgress.After(started) {
+			lastObservedProgress = at
+		}
+		toLastObservedProgress = lastObservedProgress.Sub(started)
 		if currentHistoryItem.State == v1.CompletedUpdate {
-			displayData.Duration = currentHistoryItem.CompletionTime.Time.Sub(currentHistoryItem.StartedTime.Time)
+			updatingFor = currentHistoryItem.CompletionTime.Time.Sub(started)
 		} else {
-			displayData.Duration = at.Sub(currentHistoryItem.StartedTime.Time)
+			updatingFor = at.Sub(started)
+		}
+		// precision to seconds when under 60s
+		if updatingFor > 10*time.Minute {
+			displayData.Duration = updatingFor.Round(time.Minute)
+		} else {
+			displayData.Duration = updatingFor.Round(time.Second)
 		}
 	}
 
@@ -223,8 +272,83 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	displayData.TargetVersion = versionData
 	insights = append(insights, versionInsights...)
 
-	displayData.Completion = float64(completed) / float64(displayData.Operators.Total) * 100.0
+	coCompletion := float64(completed) / float64(displayData.Operators.Total)
+	displayData.Completion = coCompletion * 100.0
+	if coCompletion <= 1 && displayData.Assessment != assessmentStateCompleted {
+		historyBaseline := baselineDuration(cv.Status.History)
+		displayData.EstTimeToComplete = estimateCompletion(historyBaseline, toLastObservedProgress, updatingFor, coCompletion)
+		displayData.EstDuration = (updatingFor + displayData.EstTimeToComplete).Truncate(time.Minute)
+
+		if displayData.EstTimeToComplete < -10*time.Minute {
+			displayData.Assessment = assessmentStateStalled
+		} else if displayData.EstTimeToComplete < 0 {
+			displayData.Assessment = assessmentStateProgressingSlow
+		}
+	}
+
 	return displayData, insights
+}
+
+func baselineDuration(history []v1.UpdateHistory) time.Duration {
+	// First item is current update and last item is likely installation
+	if len(history) < 3 {
+		return time.Hour
+	}
+
+	for _, item := range history[1 : len(history)-1] {
+		if item.State == v1.CompletedUpdate {
+			return item.CompletionTime.Time.Sub(item.StartedTime.Time)
+		}
+	}
+
+	return time.Hour
+}
+
+func estimateCompletion(baseline, toLastObservedProgress, updatingFor time.Duration, coCompletion float64) time.Duration {
+	if coCompletion >= 1 {
+		return 0
+	}
+
+	var estimateTotalSeconds float64
+	if completion := timewiseComplete(coCompletion); coCompletion > 0 && completion > 0 && (toLastObservedProgress > 5*time.Minute) {
+		elapsedSeconds := toLastObservedProgress.Seconds()
+		estimateTotalSeconds = elapsedSeconds / completion
+	} else {
+		estimateTotalSeconds = baseline.Seconds()
+	}
+
+	remainingSeconds := estimateTotalSeconds - updatingFor.Seconds()
+	var overestimate = 1.2
+	if remainingSeconds < 0 {
+		overestimate = 1 / overestimate
+	}
+
+	estimateTimeToComplete := time.Duration(remainingSeconds*overestimate) * time.Second
+
+	if estimateTimeToComplete > 10*time.Minute {
+		return estimateTimeToComplete.Round(time.Minute)
+	} else {
+		return estimateTimeToComplete.Round(time.Second)
+	}
+}
+
+// timewiseComplete returns the estimated timewise completion given the cluster operator completion percentage
+// Typical cluster achieves 97% cluster operator completion in 67% of the time it takes to reach 100% completion
+// The function is a combination of 3 polynomial functions that approximate the curve of the completion percentage
+// The polynomes were obtained by curve fitting update progress on b01 cluster
+func timewiseComplete(coCompletion float64) float64 {
+	x := coCompletion
+	x2 := math.Pow(x, 2)
+	x3 := math.Pow(x, 3)
+	x4 := math.Pow(x, 4)
+	switch {
+	case coCompletion < 0.25:
+		return -0.03078788 + 2.62886*x - 3.823954*x2
+	case coCompletion < 0.9:
+		return 0.1851215 + 1.64994*x - 4.676898*x2 + 5.451824*x3 - 2.125286*x4
+	default: // >0.9
+		return 25053.32 - 107394.3*x + 172527.2*x2 - 123107*x3 + 32921.81*x4
+	}
 }
 
 func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, controlPlaneCompleted bool) (versions, []updateInsight) {
@@ -278,7 +402,22 @@ func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, cont
 	return versionData, insights
 }
 
-var controlPlaneStatusTemplate = template.Must(template.New("controlPlaneStatus").Parse(controlPlaneStatusTemplateRaw))
+func vagueUnder(actual, estimated time.Duration) string {
+	threshold := 10 * time.Minute
+	switch {
+	case actual < -10*time.Minute:
+		return fmt.Sprintf("N/A; estimate duration was %s", shortDuration(estimated))
+	case actual < threshold:
+		return fmt.Sprintf("<%s", shortDuration(threshold))
+	default:
+		return shortDuration(actual)
+	}
+}
+
+var controlPlaneStatusTemplate = template.Must(
+	template.New("controlPlaneStatus").
+		Funcs(template.FuncMap{"shortDuration": shortDuration, "vagueUnder": vagueUnder}).
+		Parse(controlPlaneStatusTemplateRaw))
 
 func (d *controlPlaneStatusDisplayData) Write(f io.Writer) error {
 	return controlPlaneStatusTemplate.Execute(f, d)
@@ -288,6 +427,6 @@ const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
 Target Version:  {{ .TargetVersion }}
 Completion:      {{ printf "%.0f" .Completion }}%
-Duration:        {{ .Duration }}
+Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ vagueUnder .EstTimeToComplete .EstDuration }}){{ end }}
 Operator Status: {{ .Operators.StatusSummary }}
 `
