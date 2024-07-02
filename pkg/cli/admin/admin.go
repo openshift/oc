@@ -12,7 +12,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
 
-	"github.com/openshift/oc/pkg/cli/admin/addnodes"
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
 	"github.com/openshift/oc/pkg/cli/admin/catalog"
 	"github.com/openshift/oc/pkg/cli/admin/copytonode"
@@ -91,7 +90,8 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 				copytonode.NewCmdCopyToNode(f, streams),
 				rebootmachineconfigpool.NewCmdRebootMachineConfigPool(f, streams),
 				waitfornodereboot.NewCmdWaitForNodeReboot(f, streams),
-				addnodes.NewCmdAddNodes(f, streams),
+				// Will uncomment when the new command implementation will be ready
+				// addnodes.NewCmdAddNodes(f, streams),
 			},
 		},
 		{
