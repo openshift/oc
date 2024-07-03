@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fsouza/go-dockerclient"
+	docker "github.com/fsouza/go-dockerclient"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 )
@@ -23,7 +23,10 @@ func FindAll(node *parser.Node, cmd string) []int {
 	}
 	var indices []int
 	for i, child := range node.Children {
-		if child != nil && child.Value == cmd {
+		// Originally, the values were lower cased.
+		// It changed after https://github.com/moby/buildkit/pull/2218#discussion_r662726727
+		// due to showing the errors with the original casing.
+		if child != nil && strings.ToLower(child.Value) == cmd {
 			indices = append(indices, i)
 		}
 	}
@@ -184,7 +187,7 @@ func evalVars(n *parser.Node, from, to int, ports []string, shlex *ShellLex) []s
 	}
 	evaledPorts := make([]string, 0)
 	for i := from; i <= to; i++ {
-		switch n.Children[i].Value {
+		switch strings.ToLower(n.Children[i].Value) {
 		case command.Expose:
 			args := nextValues(n.Children[i])
 			for _, arg := range args {
