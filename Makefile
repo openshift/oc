@@ -14,7 +14,7 @@ include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 )
 
 KUBE_GIT_MINOR_VERSION := "30"
-KUBE_GIT_VERSION := "v1.30.1"
+KUBE_GIT_VERSION := "v1.30.2"
 
 GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
                    -X k8s.io/component-base/version.gitMinor=$(KUBE_GIT_MINOR_VERSION) \
