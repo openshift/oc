@@ -15,3 +15,9 @@ if [[ "${KUBECTL_GO_MOD_VERSION}" != "${KUBECTL_DOCKER_VERSION}" ]]; then
   os::log::warning "kubernetes version and kubectl version in images/cli/Dockerfile.rhel must be equal, please update Dockerfile"
   exit 1
 fi
+
+KUBECTL_DOCKER_VERSION=$(grep "kubectl=" images/tools/Dockerfile | sed 's/      io.openshift.build.versions="kubectl=1.//' | sed 's/" \\//')
+if [[ "${KUBECTL_GO_MOD_VERSION}" != "${KUBECTL_DOCKER_VERSION}" ]]; then
+  os::log::warning "kubernetes version and kubectl version in images/tools/Dockerfile must be equal, please update Dockerfile"
+  exit 1
+fi
