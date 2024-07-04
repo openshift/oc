@@ -1,4 +1,4 @@
-package addnodes
+package nodeimage
 
 import (
 	"context"

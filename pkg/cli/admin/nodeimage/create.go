@@ -1,4 +1,4 @@
-package addnodes
+package nodeimage
 
 import (
 	"bytes"
@@ -361,7 +361,7 @@ func (o *CreateOptions) createNamespace(ctx context.Context) error {
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "openshift-node-joiner-",
 			Annotations: map[string]string{
-				"oc.openshift.io/command":    "oc adm add-nodes image",
+				"oc.openshift.io/command":    "oc adm node-image create",
 				"openshift.io/node-selector": "",
 			},
 		},
@@ -392,7 +392,7 @@ func (o *CreateOptions) createServiceAccount(ctx context.Context) error {
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "node-joiner-",
 			Annotations: map[string]string{
-				"oc.openshift.io/command": "oc adm add-nodes create",
+				"oc.openshift.io/command": "oc adm node-image create",
 			},
 			Namespace: o.nodeJoinerNamespace.GetName(),
 		},
@@ -412,7 +412,7 @@ func (o *CreateOptions) createRolesAndBindings(ctx context.Context) error {
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "node-joiner-",
 			Annotations: map[string]string{
-				"oc.openshift.io/command": "oc adm add-nodes create",
+				"oc.openshift.io/command": "oc adm node-image create",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -462,7 +462,7 @@ func (o *CreateOptions) createRolesAndBindings(ctx context.Context) error {
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "node-joiner-",
 			Annotations: map[string]string{
-				"oc.openshift.io/command": "oc adm add-nodes create",
+				"oc.openshift.io/command": "oc adm node-image create",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
