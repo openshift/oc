@@ -1,4 +1,4 @@
-package addnodes
+package nodeimage
 
 import (
 	"github.com/spf13/cobra"
@@ -8,10 +8,10 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-func NewCmdAddNodes(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
+func NewCmdNodeImage(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add-nodes",
-		Short: "Commands for adding new nodes to an OpenShift cluster",
+		Use:   "node-image",
+		Short: "Add nodes to an existing cluster.",
 		Long: templates.LongDesc(`
 			The subcommands allow you to create an ISO image to be used for adding the desired
 			nodes to an OpenShift cluster, and also to monitor the process.

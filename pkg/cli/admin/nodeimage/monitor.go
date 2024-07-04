@@ -1,4 +1,4 @@
-package addnodes
+package nodeimage
 
 import (
 	"context"
@@ -9,11 +9,11 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
-func NewCreate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
-	o := NewCreateOptions(streams)
+func NewMonitor(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
+	o := NewMonitorOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an ISO image for booting the nodes to be added to the target cluster",
+		Use:   "monitor",
+		Short: "Monitor the process of adding new nodes to an OpenShift cluster",
 		Long: templates.LongDesc(`
 			<TODO>
 		`),
@@ -31,24 +31,24 @@ func NewCreate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Co
 
 }
 
-func NewCreateOptions(streams genericiooptions.IOStreams) *CreateOptions {
-	return &CreateOptions{
+func NewMonitorOptions(streams genericiooptions.IOStreams) *MonitorOptions {
+	return &MonitorOptions{
 		IOStreams: streams,
 	}
 }
 
-type CreateOptions struct {
+type MonitorOptions struct {
 	genericiooptions.IOStreams
 }
 
-func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
+func (o *MonitorOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (o *CreateOptions) Validate() error {
+func (o *MonitorOptions) Validate() error {
 	return nil
 }
 
-func (o *CreateOptions) Run(ctx context.Context) error {
+func (o *MonitorOptions) Run(ctx context.Context) error {
 	return nil
 }

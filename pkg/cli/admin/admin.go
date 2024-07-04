@@ -90,8 +90,6 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 				copytonode.NewCmdCopyToNode(f, streams),
 				rebootmachineconfigpool.NewCmdRebootMachineConfigPool(f, streams),
 				waitfornodereboot.NewCmdWaitForNodeReboot(f, streams),
-				// Will uncomment when the new command implementation will be ready
-				// addnodes.NewCmdAddNodes(f, streams),
 			},
 		},
 		{
