@@ -54,9 +54,10 @@ type extractTarget struct {
 	Optional bool
 	NewArch  bool
 
-	InjectReleaseImage   bool
-	InjectReleaseVersion bool
-	SignMachOBinary      bool
+	InjectReleaseImage        bool
+	InjectReleaseVersion      bool
+	InjectReleaseArchitecture bool
+	SignMachOBinary           bool
 
 	ArchiveFormat     string
 	AsArchive         bool
@@ -409,10 +410,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Command: "openshift-install",
 			Mapping: extract.Mapping{Image: "installer-artifacts", From: "usr/share/openshift/mac/openshift-install"},
 
-			Readme:               readmeInstallUnix,
-			InjectReleaseImage:   true,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-install-mac-%s.tar.gz",
+			Readme:                    readmeInstallUnix,
+			InjectReleaseImage:        true,
+			InjectReleaseVersion:      true,
+			InjectReleaseArchitecture: true,
+			ArchiveFormat:             "openshift-install-mac-%s.tar.gz",
 		},
 		{
 			OS:      "darwin",
@@ -421,11 +423,12 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			NewArch: true,
 			Mapping: extract.Mapping{Image: "installer-artifacts", From: "usr/share/openshift/mac_arm64/openshift-install"},
 
-			Readme:               readmeInstallUnix,
-			InjectReleaseImage:   true,
-			InjectReleaseVersion: true,
-			SignMachOBinary:      true,
-			ArchiveFormat:        "openshift-install-mac-arm64-%s.tar.gz",
+			Readme:                    readmeInstallUnix,
+			InjectReleaseImage:        true,
+			InjectReleaseVersion:      true,
+			InjectReleaseArchitecture: true,
+			SignMachOBinary:           true,
+			ArchiveFormat:             "openshift-install-mac-arm64-%s.tar.gz",
 		},
 		{
 			OS:      "linux",
@@ -433,10 +436,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Command: "openshift-install",
 			Mapping: extract.Mapping{Image: "installer", From: "usr/bin/openshift-install"},
 
-			Readme:               readmeInstallUnix,
-			InjectReleaseImage:   true,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-install-linux-%s.tar.gz",
+			Readme:                    readmeInstallUnix,
+			InjectReleaseImage:        true,
+			InjectReleaseVersion:      true,
+			InjectReleaseArchitecture: true,
+			ArchiveFormat:             "openshift-install-linux-%s.tar.gz",
 		},
 		{
 			OS:      "linux",
@@ -445,10 +449,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			NewArch: true,
 			Mapping: extract.Mapping{Image: "installer-artifacts", From: "usr/share/openshift/linux_amd64/openshift-install"},
 
-			Readme:               readmeInstallUnix,
-			InjectReleaseImage:   true,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-install-linux-amd64-%s.tar.gz",
+			Readme:                    readmeInstallUnix,
+			InjectReleaseImage:        true,
+			InjectReleaseVersion:      true,
+			InjectReleaseArchitecture: true,
+			ArchiveFormat:             "openshift-install-linux-amd64-%s.tar.gz",
 		},
 		{
 			OS:      "linux",
@@ -457,10 +462,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			NewArch: true,
 			Mapping: extract.Mapping{Image: "installer-artifacts", From: "usr/share/openshift/linux_arm64/openshift-install"},
 
-			Readme:               readmeInstallUnix,
-			InjectReleaseImage:   true,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-install-linux-arm64-%s.tar.gz",
+			Readme:                    readmeInstallUnix,
+			InjectReleaseImage:        true,
+			InjectReleaseVersion:      true,
+			InjectReleaseArchitecture: true,
+			ArchiveFormat:             "openshift-install-linux-arm64-%s.tar.gz",
 		},
 		{
 			OS:       "linux",
@@ -469,10 +475,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Optional: true,
 			Mapping:  extract.Mapping{Image: "baremetal-installer", From: "usr/bin/openshift-install"},
 
-			Readme:               readmeInstallUnix,
-			InjectReleaseImage:   true,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-baremetal-install-linux-%s.tar.gz",
+			Readme:                    readmeInstallUnix,
+			InjectReleaseImage:        true,
+			InjectReleaseVersion:      true,
+			InjectReleaseArchitecture: true,
+			ArchiveFormat:             "openshift-baremetal-install-linux-%s.tar.gz",
 		},
 		{
 			OS:       "linux",
@@ -481,10 +488,11 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Optional: true,
 			Mapping:  extract.Mapping{Image: "baremetal-installer", From: "usr/bin/openshift-install"},
 
-			Readme:               readmeInstallUnix,
-			InjectReleaseImage:   true,
-			InjectReleaseVersion: true,
-			ArchiveFormat:        "openshift-install-rhel-%s.tar.gz",
+			Readme:                    readmeInstallUnix,
+			InjectReleaseImage:        true,
+			InjectReleaseVersion:      true,
+			InjectReleaseArchitecture: true,
+			ArchiveFormat:             "openshift-install-rhel-%s.tar.gz",
 		},
 		{
 			OS:      "linux",
@@ -637,6 +645,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 	releaseArch := release.Config.Architecture
 	releaseName := release.PreferredName()
 	refExact := release.ImageRef
+	releaseArchitecture := release.Platform()
 	refExact.Ref.Tag = ""
 	// if the release image is manifestlist image, we'll not change digest with
 	// arch based sha. Because we want that the extracted tool can be used for all archs.
@@ -887,6 +896,13 @@ func (o *ExtractOptions) extractCommand(command string) error {
 				value:  releaseName,
 			})
 		}
+		if target.InjectReleaseArchitecture {
+			replacements = append(replacements, replacement{
+				name:   "release architecture",
+				marker: append([]byte{0}, []byte(releaseArchitectureMarker[1:])...),
+				value:  releaseArchitecture,
+			})
+		}
 		err = copyAndReplace(o.ErrOut, w, r, 4*1024, replacements, target.Command)
 		if err != nil {
 			closeFn()
@@ -909,7 +925,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			klog.V(2).Infof("Unable to set extracted file modification time: %v", err)
 		}
 
-		if (target.InjectReleaseVersion || target.InjectReleaseImage) && target.SignMachOBinary {
+		if (target.InjectReleaseVersion || target.InjectReleaseImage || target.InjectReleaseArchitecture) && target.SignMachOBinary {
 			if err = codesign.ResignMacho(layer.Mapping.To, target.AsArchive, target.Command, target.LinkTo); err != nil {
 				klog.Infof("Unable to resign macho binaries:  %v", err)
 			} else {
@@ -1041,6 +1057,8 @@ const (
 	releaseImageMarker = "!_RELEASE_IMAGE_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00"
 	// releaseVersionMarker is the placeholder within a binary for the release image version name string.
 	releaseVersionMarker = "!_RELEASE_VERSION_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00"
+	// releaseArchitectureMarker is the placeholder within a binary for the list of architectures the release image supports.
+	releaseArchitectureMarker = "!_RELEASE_ARCHITECTURE_LOCATION_\x00XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\x00"
 )
 
 type replacement struct {
