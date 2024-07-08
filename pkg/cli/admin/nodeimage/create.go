@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -23,9 +23,7 @@ import (
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	kutils "k8s.io/client-go/util/exec"
@@ -34,7 +32,6 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
-	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/library-go/pkg/operator/resource/retry"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 )
@@ -80,12 +77,12 @@ type CreateOptions struct {
 	genericiooptions.IOStreams
 	SecurityOptions imagemanifest.SecurityOptions
 
-	Config           *rest.Config
-	Client           kubernetes.Interface
-	ConfigClient     configclient.Interface
-	DynamicClient    dynamic.Interface
-	ImageClient      imagev1client.ImageV1Interface
-	RESTClientGetter genericclioptions.RESTClientGetter
+	Config         *rest.Config
+	Client         kubernetes.Interface
+	ConfigClient   configclient.Interface
+	FSys           fs.FS
+	RemoteExecutor exec.RemoteExecutor
+	CopyStrategy   func(*rsync.RsyncOptions) rsync.CopyStrategy
 
 	AssetsDir  string
 	OutputName string
@@ -103,7 +100,6 @@ type CreateOptions struct {
 func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	o.factory = f
 
-	o.RESTClientGetter = f
 	var err error
 	if o.Config, err = f.ToRESTConfig(); err != nil {
 		return err
@@ -114,12 +110,6 @@ func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	if o.ConfigClient, err = configclient.NewForConfig(o.Config); err != nil {
 		return err
 	}
-	if o.DynamicClient, err = dynamic.NewForConfig(o.Config); err != nil {
-		return err
-	}
-	if o.ImageClient, err = imagev1client.NewForConfig(o.Config); err != nil {
-		return err
-	}
 
 	if o.AssetsDir == "" {
 		cwd, err := os.Getwd()
@@ -128,9 +118,12 @@ func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 		}
 		o.AssetsDir = cwd
 	}
-
+	o.FSys = os.DirFS(o.AssetsDir)
+	o.RemoteExecutor = &exec.DefaultRemoteExecutor{}
 	o.rsyncRshCmd = rsync.DefaultRsyncRemoteShellToUse(cmd)
-
+	o.CopyStrategy = func(o *rsync.RsyncOptions) rsync.CopyStrategy {
+		return rsync.NewDefaultCopyStrategy(o)
+	}
 	return nil
 }
 
@@ -150,21 +143,21 @@ func (o *CreateOptions) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	switch o.nodeJoinerExitCode {
-	case 0:
-		err = o.copyArtifactsFromNodeJoinerPod()
-		if err != nil {
-			return err
-		}
-		fmt.Println("Command successfully completed")
-	case 1:
+	// Something went wrong during the node-joiner tool execution,
+	// let's show the logs and return an error
+	if o.nodeJoinerExitCode != 0 {
 		err = o.printLogs(ctx)
 		if err != nil {
 			return err
 		}
+		return fmt.Errorf("image generation error (exit code: %d)", o.nodeJoinerExitCode)
 	}
 
+	err = o.copyArtifactsFromNodeJoinerPod()
+	if err != nil {
+		return err
+	}
+	fmt.Println("Command successfully completed")
 	return nil
 }
 
@@ -197,7 +190,7 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 		IOStreams:     o.IOStreams,
 		Quiet:         true,
 	}
-	rsyncOptions.Strategy = rsync.NewDefaultCopyStrategy(rsyncOptions)
+	rsyncOptions.Strategy = o.CopyStrategy(rsyncOptions)
 	return rsyncOptions.RunRsync()
 }
 
@@ -258,7 +251,7 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 					Stdin: false,
 					Quiet: false,
 				},
-				Executor:  &exec.DefaultRemoteExecutor{},
+				Executor:  o.RemoteExecutor,
 				PodClient: o.Client.CoreV1(),
 				Config:    o.Config,
 				Command: []string{
@@ -495,7 +488,7 @@ func (o *CreateOptions) createRolesAndBindings(ctx context.Context) error {
 }
 
 func (o *CreateOptions) createInputConfigMap(ctx context.Context) error {
-	data, err := os.ReadFile(filepath.Join(o.AssetsDir, nodeJoinerConfigurationFile))
+	data, err := fs.ReadFile(o.FSys, nodeJoinerConfigurationFile)
 	if err != nil {
 		return err
 	}
