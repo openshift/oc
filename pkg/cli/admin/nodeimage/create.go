@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -516,6 +517,7 @@ func (o *CreateOptions) createInputConfigMap(ctx context.Context) error {
 }
 
 func (o *CreateOptions) createPod(ctx context.Context) error {
+	assetsVolSize := resource.MustParse("4Gi")
 	nodeJoinerPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "node-joiner-",
@@ -545,7 +547,9 @@ func (o *CreateOptions) createPod(ctx context.Context) error {
 				{
 					Name: "assets",
 					VolumeSource: corev1.VolumeSource{
-						EmptyDir: &corev1.EmptyDirVolumeSource{},
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							SizeLimit: &assetsVolSize,
+						},
 					},
 				},
 			},
