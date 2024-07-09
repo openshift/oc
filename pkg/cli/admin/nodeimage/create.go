@@ -157,7 +157,7 @@ func (o *CreateOptions) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Command successfully completed")
+	klog.V(1).Info("Command successfully completed")
 	return nil
 }
 
@@ -172,12 +172,12 @@ func (o *CreateOptions) printLogs(ctx context.Context) error {
 	}
 	defer readCloser.Close()
 
-	_, err = io.Copy(os.Stdout, readCloser)
+	_, err = io.Copy(o.IOStreams.ErrOut, readCloser)
 	return err
 }
 
 func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
-	fmt.Println("\nCopying artifacts")
+	klog.V(2).Info("\nCopying artifacts")
 	rsyncOptions := &rsync.RsyncOptions{
 		Namespace:     o.nodeJoinerNamespace.GetName(),
 		Source:        &rsync.PathSpec{PodName: o.nodeJoinerPod.GetName(), Path: path.Join("/assets", "node.x86_64.iso")},
@@ -195,7 +195,7 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 }
 
 func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
-	fmt.Print("Starting command")
+	klog.V(2).Info("Starting command")
 	// Wait for the node-joiner pod to come up
 	err := wait.PollUntilContextTimeout(
 		ctx,
@@ -205,7 +205,7 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 		func(ctx context.Context) (done bool, err error) {
 			pod, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).Get(context.TODO(), o.nodeJoinerPod.GetName(), metav1.GetOptions{})
 			if err == nil {
-				fmt.Print(".")
+				klog.V(2).Info("Waiting for pod")
 				if len(pod.Status.ContainerStatuses) == 0 {
 					return false, nil
 				}
@@ -228,7 +228,6 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 	}
 
 	// Wait for the node-joiner cli tool to complete
-	fmt.Print("\nImage generation in progress, please wait")
 	return wait.PollUntilContextTimeout(
 		ctx,
 		time.Second*5,
@@ -264,7 +263,7 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 				return false, err
 			}
 
-			fmt.Print(".")
+			klog.V(1).Info("Image generation in progress, please wait")
 			err = execOptions.Run()
 			if err != nil {
 				var codeExitErr kutils.CodeExitError
@@ -334,7 +333,7 @@ func (o *CreateOptions) fetchClusterReleaseImage(ctx context.Context) (string, e
 	cv, err := o.ConfigClient.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
 	if err != nil {
 		if kapierrors.IsNotFound(err) || kapierrors.ReasonForError(err) == metav1.StatusReasonUnknown {
-			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
+			klog.Errorf("Unable to find cluster version object from cluster: %v", err)
 			return "", fmt.Errorf("command expects a connection to an OpenShift 4.x server")
 		}
 	}
@@ -376,7 +375,7 @@ func (o *CreateOptions) cleanup(ctx context.Context) {
 
 	err := o.Client.CoreV1().Namespaces().Delete(ctx, o.nodeJoinerNamespace.GetName(), metav1.DeleteOptions{})
 	if err != nil {
-		fmt.Printf("cannot delete namespace %s: %v\n", o.nodeJoinerNamespace.GetName(), err)
+		klog.Errorf("cannot delete namespace %s: %v\n", o.nodeJoinerNamespace.GetName(), err)
 	}
 }
 
