@@ -58,12 +58,8 @@ func NewCreate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Co
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
+	o.AddFlags(cmd)
 
-	flags := cmd.Flags()
-	o.SecurityOptions.Bind(flags)
-
-	flags.StringVar(&o.AssetsDir, "dir", o.AssetsDir, "The path containing the configuration file, used also to store the generated artifacts.")
-	flags.StringVarP(&o.OutputName, "output-name", "o", "node.iso", "The name of the output image.")
 	return cmd
 }
 
@@ -95,6 +91,14 @@ type CreateOptions struct {
 	nodeJoinerPod            *corev1.Pod
 	nodeJoinerExitCode       int
 	rsyncRshCmd              string
+}
+
+func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
+	flags := cmd.Flags()
+	o.SecurityOptions.Bind(flags)
+
+	flags.StringVar(&o.AssetsDir, "dir", o.AssetsDir, "The path containing the configuration file, used also to store the generated artifacts.")
+	flags.StringVarP(&o.OutputName, "output-name", "o", "node.iso", "The name of the output image.")
 }
 
 func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
