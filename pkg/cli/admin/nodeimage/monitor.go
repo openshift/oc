@@ -1,8 +1,6 @@
 package nodeimage
 
 import (
-	"context"
-
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -23,7 +21,7 @@ func NewMonitor(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.C
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run(cmd.Context()))
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 	_ = cmd.Flags()
@@ -49,6 +47,6 @@ func (o *MonitorOptions) Validate() error {
 	return nil
 }
 
-func (o *MonitorOptions) Run(ctx context.Context) error {
+func (o *MonitorOptions) Run() error {
 	return nil
 }

@@ -55,7 +55,7 @@ func NewCreate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Co
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run(cmd.Context()))
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 
@@ -131,7 +131,8 @@ func (o *CreateOptions) Validate() error {
 	return nil
 }
 
-func (o *CreateOptions) Run(ctx context.Context) error {
+func (o *CreateOptions) Run() error {
+	ctx := context.Background()
 	defer o.cleanup(ctx)
 
 	err := o.runNodeJoinerPod(ctx)

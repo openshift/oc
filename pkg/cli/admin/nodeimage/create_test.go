@@ -173,7 +173,7 @@ func TestCreateCommand(t *testing.T) {
 			// the command options accordingly
 			o.SecurityOptions.Insecure = true
 
-			err := o.Run(context.Background())
+			err := o.Run()
 			if tc.expectedError == "" {
 				assert.NoError(t, err)
 				pod, _ := fakeClient.CoreV1().Pods("").Get(context.Background(), "node-joiner-test", metav1.GetOptions{})
