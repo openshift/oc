@@ -42,17 +42,43 @@ const (
 	nodeJoinerContainer         = "node-joiner"
 )
 
+var (
+	createLong = templates.LongDesc(`
+		Create an ISO image from an initial configuration for a given set of nodes, 
+		to add them to an existing on-prem cluster.
+		
+		This command creates a pod in a temporary namespace on the target cluster
+		to retrieve the required information for creating a customized ISO image. 
+		The downloaded ISO image could then be used to boot a previously selected
+		set of nodes, and add them to the target cluster in a fully automated way.
+
+		A nodes-config.yaml config file must be created to provide the required 
+		initial configuration for the selected nodes.
+
+		The command also requires a connection to the target cluster, and a valid
+		registry credentials to retrieve the required information from the target
+		cluster release.
+	`)
+
+	createExample = templates.Examples(`
+		# Create the ISO image and downloads it in the current folder
+		  oc adm node-image create
+
+   	    # Use a different assets folder
+		  oc adm node-image create --dir=/tmp/assets
+
+		# Specify a custom image name
+		  oc adm node-image create --o=my-node.iso
+	`)
+)
+
 func NewCreate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCreateOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an ISO image for booting the nodes to be added to the target cluster",
-		Long: templates.LongDesc(`
-			<TODO>
-		`),
-		Example: templates.Examples(`
-			<TODO>
-		`),
+		Use:     "create",
+		Short:   "Create an ISO image for booting the nodes to be added to the target cluster",
+		Long:    createLong,
+		Example: createExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
