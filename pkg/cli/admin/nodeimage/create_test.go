@@ -160,8 +160,8 @@ func TestCreateCommand(t *testing.T) {
 				ConfigClient:   configv1fake.NewSimpleClientset(objs...),
 				Client:         fakeClient,
 				FSys:           fakeFileSystem,
-				RemoteExecutor: fakeRemoteExec,
-				CopyStrategy: func(o *rsync.RsyncOptions) rsync.CopyStrategy {
+				remoteExecutor: fakeRemoteExec,
+				copyStrategy: func(o *rsync.RsyncOptions) rsync.CopyStrategy {
 					fakeCp.options = o
 					return fakeCp
 				},

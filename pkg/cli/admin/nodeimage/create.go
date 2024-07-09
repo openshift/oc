@@ -78,8 +78,8 @@ type CreateOptions struct {
 	Client         kubernetes.Interface
 	ConfigClient   configclient.Interface
 	FSys           fs.FS
-	RemoteExecutor exec.RemoteExecutor
-	CopyStrategy   func(*rsync.RsyncOptions) rsync.CopyStrategy
+	remoteExecutor exec.RemoteExecutor
+	copyStrategy   func(*rsync.RsyncOptions) rsync.CopyStrategy
 
 	AssetsDir  string
 	OutputName string
@@ -124,9 +124,9 @@ func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 		o.AssetsDir = cwd
 	}
 	o.FSys = os.DirFS(o.AssetsDir)
-	o.RemoteExecutor = &exec.DefaultRemoteExecutor{}
+	o.remoteExecutor = &exec.DefaultRemoteExecutor{}
 	o.rsyncRshCmd = rsync.DefaultRsyncRemoteShellToUse(cmd)
-	o.CopyStrategy = func(o *rsync.RsyncOptions) rsync.CopyStrategy {
+	o.copyStrategy = func(o *rsync.RsyncOptions) rsync.CopyStrategy {
 		return rsync.NewDefaultCopyStrategy(o)
 	}
 	return nil
@@ -196,7 +196,7 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 		IOStreams:     o.IOStreams,
 		Quiet:         true,
 	}
-	rsyncOptions.Strategy = o.CopyStrategy(rsyncOptions)
+	rsyncOptions.Strategy = o.copyStrategy(rsyncOptions)
 	return rsyncOptions.RunRsync()
 }
 
@@ -256,7 +256,7 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 					Stdin: false,
 					Quiet: false,
 				},
-				Executor:  o.RemoteExecutor,
+				Executor:  o.remoteExecutor,
 				PodClient: o.Client.CoreV1(),
 				Config:    o.Config,
 				Command: []string{
