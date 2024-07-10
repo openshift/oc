@@ -45,6 +45,7 @@ require (
 	github.com/russross/blackfriday v1.6.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
+	github.com/stretchr/testify v1.9.0
 	github.com/vincent-petithory/dataurl v1.0.0
 	golang.org/x/crypto v0.21.0
 	golang.org/x/net v0.23.0
@@ -177,7 +178,6 @@ require (
 	github.com/sigstore/rekor v1.2.2 // indirect
 	github.com/sigstore/sigstore v1.8.2 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
