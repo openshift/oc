@@ -31,6 +31,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
+	"sigs.k8s.io/yaml"
 
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/openshift/library-go/pkg/operator/resource/retry"
@@ -159,6 +160,35 @@ func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 }
 
 func (o *CreateOptions) Validate() error {
+	err := o.validateConfigFile()
+	if err != nil {
+		return err
+	}
+
+	// Check output name
+	if o.OutputName == "" {
+		return fmt.Errorf("--output-name cannot be empty")
+	}
+
+	return nil
+}
+
+func (o *CreateOptions) validateConfigFile() error {
+	// Check if configuration file exists
+	fi, err := fs.Stat(o.FSys, nodeJoinerConfigurationFile)
+	if err != nil {
+		return err
+	}
+	// Check if it's a valid yaml
+	data, err := fs.ReadFile(o.FSys, nodeJoinerConfigurationFile)
+	if err != nil {
+		return err
+	}
+	var yamlData interface{}
+	err = yaml.Unmarshal(data, &yamlData)
+	if err != nil {
+		return fmt.Errorf("config file %s is not valid: %w", fi.Name(), err)
+	}
 	return nil
 }
 

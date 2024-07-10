@@ -43,13 +43,74 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCreateCommand(t *testing.T) {
-	defaultNodesConfigYaml := `hosts:
+var (
+	defaultNodesConfigYaml = `hosts:
 - hostname: extra-worker-0
-	interfaces:
-	- name: eth0
-		macAddress: 00:b9:9b:c8:ac:f4`
+  interfaces:
+  - name: eth0
+    macAddress: 00:b9:9b:c8:ac:f4`
+	defaultOutputName = "node.iso"
+)
 
+func TestValidate(t *testing.T) {
+	testCases := []struct {
+		name          string
+		nodesConfig   *string
+		outputName    *string
+		expectedError string
+	}{
+		{
+			name:        "default",
+			nodesConfig: &defaultNodesConfigYaml,
+			outputName:  &defaultOutputName,
+		},
+		{
+			name:          "missing configuration file",
+			expectedError: "open nodes-config.yaml: file does not exist",
+		},
+		{
+			name:          "invalid configuration file",
+			nodesConfig:   strPtr("invalid: yaml\ny\tfile"),
+			expectedError: "config file nodes-config.yaml is not valid",
+		},
+		{
+			name:          "invalid output name",
+			nodesConfig:   &defaultNodesConfigYaml,
+			outputName:    strPtr(""),
+			expectedError: "--output-name cannot be empty",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeFileSystem := fstest.MapFS{}
+			if tc.nodesConfig != nil {
+				fakeFileSystem["nodes-config.yaml"] = &fstest.MapFile{
+					Data: []byte(*tc.nodesConfig),
+				}
+			}
+			o := &CreateOptions{
+				FSys: fakeFileSystem,
+			}
+			if tc.outputName != nil {
+				o.OutputName = *tc.outputName
+			}
+
+			err := o.Validate()
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.Regexp(t, tc.expectedError, err.Error())
+			}
+		})
+	}
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
+func TestRun(t *testing.T) {
 	defaultClusterVersionObjectFn := func(repo string, manifestDigest string) []runtime.Object {
 		return []runtime.Object{
 			&configv1.ClusterVersion{
