@@ -13,13 +13,10 @@ build0-gstfj-m-2.c.openshift-ci-build-farm.internal   Completed    Updated   4.1
 
 = Worker Upgrade =
 
-= Worker Pool =
-Worker Pool:     worker
-Assessment:      Degraded
-Completion:      39%
-Worker Status:   59 Total, 45 Available, 5 Progressing, 36 Outdated, 12 Draining, 0 Excluded, 7 Degraded
+WORKER POOL   ASSESSMENT   COMPLETION   STATUS
+worker        Degraded     39%          59 Total, 45 Available, 5 Progressing, 36 Outdated, 12 Draining, 0 Excluded, 7 Degraded
 
-Worker Pool Nodes
+Worker Pool Nodes: worker
 NAME                                                              ASSESSMENT    PHASE      VERSION       EST    MESSAGE
 build0-gstfj-ci-prowjobs-worker-b-9lztv                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-prowjobs-worker-b-bg9f5                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information

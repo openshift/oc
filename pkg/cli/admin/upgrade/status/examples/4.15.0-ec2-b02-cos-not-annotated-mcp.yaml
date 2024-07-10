@@ -157,6 +157,43 @@ items:
       readyMachineCount: 3
       unavailableMachineCount: 0
       updatedMachineCount: 3
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfigPool
+    metadata:
+      labels:
+        custom-kubelet: cpu96
+      name: zbeast
+    spec:
+      configuration:
+        name: rendered-zbeast-hash
+        source: []
+      machineConfigSelector:
+        matchExpressions:
+          - key: machineconfiguration.openshift.io/role
+            operator: In
+            values:
+              - worker
+              - zbeast
+      maxUnavailable: 50%
+      nodeSelector:
+        matchExpressions:
+          - key: ci-workload
+            operator: In
+            values:
+              - builds
+              - tests
+          - key: node.kubernetes.io/instance-type
+            operator: In
+            values:
+              - some.type
+      paused: false
+    status:
+      conditions: []
+      degradedMachineCount: 0
+      machineCount: 0
+      readyMachineCount: 0
+      unavailableMachineCount: 0
+      updatedMachineCount: 0
 kind: List
 metadata:
   resourceVersion: ""
