@@ -12,9 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	ocrelease "github.com/openshift/oc/pkg/cli/admin/release"
-	"github.com/openshift/oc/pkg/cli/rsync"
-
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
@@ -24,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -35,7 +33,9 @@ import (
 
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/openshift/library-go/pkg/operator/resource/retry"
+	ocrelease "github.com/openshift/oc/pkg/cli/admin/release"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
+	"github.com/openshift/oc/pkg/cli/rsync"
 )
 
 const (
@@ -65,7 +65,7 @@ var (
 		# Create the ISO image and downloads it in the current folder
 		  oc adm node-image create
 
-   	    # Use a different assets folder
+		# Use a different assets folder
 		  oc adm node-image create --dir=/tmp/assets
 
 		# Specify a custom image name
@@ -111,7 +111,7 @@ type CreateOptions struct {
 	AssetsDir  string
 	OutputName string
 
-	factory                  kcmdutil.Factory
+	RESTClientGetter         genericclioptions.RESTClientGetter
 	nodeJoinerImage          string
 	nodeJoinerNamespace      *corev1.Namespace
 	nodeJoinerServiceAccount *corev1.ServiceAccount
@@ -130,7 +130,7 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 }
 
 func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
-	o.factory = f
+	o.RESTClientGetter = f
 
 	var err error
 	if o.Config, err = f.ToRESTConfig(); err != nil {
@@ -165,7 +165,6 @@ func (o *CreateOptions) Validate() error {
 		return err
 	}
 
-	// Check output name
 	if o.OutputName == "" {
 		return fmt.Errorf("--output-name cannot be empty")
 	}
@@ -208,7 +207,7 @@ func (o *CreateOptions) Run() error {
 	// Something went wrong during the node-joiner tool execution,
 	// let's show the logs and return an error
 	if o.nodeJoinerExitCode != 0 {
-		err = o.printLogs(ctx)
+		err = o.printLogsInPod(ctx)
 		if err != nil {
 			return err
 		}
@@ -223,7 +222,7 @@ func (o *CreateOptions) Run() error {
 	return nil
 }
 
-func (o *CreateOptions) printLogs(ctx context.Context) error {
+func (o *CreateOptions) printLogsInPod(ctx context.Context) error {
 	logOptions := &corev1.PodLogOptions{
 		Container:  nodeJoinerContainer,
 		Timestamps: true,
@@ -239,7 +238,7 @@ func (o *CreateOptions) printLogs(ctx context.Context) error {
 }
 
 func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
-	klog.V(2).Info("\nCopying artifacts")
+	klog.V(2).Infof("Copying artifacts from %s", o.nodeJoinerPod.GetName())
 	rsyncOptions := &rsync.RsyncOptions{
 		Namespace:     o.nodeJoinerNamespace.GetName(),
 		Source:        &rsync.PathSpec{PodName: o.nodeJoinerPod.GetName(), Path: path.Join("/assets", "node.x86_64.iso")},
@@ -257,7 +256,7 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 }
 
 func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
-	klog.V(2).Info("Starting command")
+	klog.V(2).Infof("Starting command in pod %s", o.nodeJoinerPod.GetName())
 	// Wait for the node-joiner pod to come up
 	err := wait.PollUntilContextTimeout(
 		ctx,
@@ -265,7 +264,7 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 		time.Minute*5,
 		true,
 		func(ctx context.Context) (done bool, err error) {
-			pod, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).Get(context.TODO(), o.nodeJoinerPod.GetName(), metav1.GetOptions{})
+			pod, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).Get(ctx, o.nodeJoinerPod.GetName(), metav1.GetOptions{})
 			if err == nil {
 				klog.V(2).Info("Waiting for pod")
 				if len(pod.Status.ContainerStatuses) == 0 {
