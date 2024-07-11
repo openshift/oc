@@ -40,7 +40,6 @@ import (
 	configv1fake "github.com/openshift/client-go/config/clientset/versioned/fake"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/oc/pkg/cli/rsync"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -70,7 +69,8 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			name:          "invalid configuration file",
-			nodesConfig:   strPtr("invalid: yaml\ny\tfile"),
+			nodesConfig:   strPtr("invalid: yaml\n\tfile"),
+			outputName:    &defaultOutputName,
 			expectedError: "config file nodes-config.yaml is not valid",
 		},
 		{
@@ -98,9 +98,16 @@ func TestValidate(t *testing.T) {
 			err := o.Validate()
 
 			if tc.expectedError == "" {
-				assert.NoError(t, err)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
 			} else {
-				assert.Regexp(t, tc.expectedError, err.Error())
+				if err == nil {
+					t.Fatalf("expected error not received: %s", tc.expectedError)
+				}
+				if !strings.Contains(err.Error(), tc.expectedError) {
+					t.Fatalf("expected error: %s, actual: %v", tc.expectedError, err.Error())
+				}
 			}
 		})
 	}
@@ -156,12 +163,12 @@ func TestRun(t *testing.T) {
 			nodesConfig:      defaultNodesConfigYaml,
 			objects:          defaultClusterVersionObjectFn,
 			remoteExecOutput: "1",
-			expectedError:    `image generation error \(exit code: 1\)`,
+			expectedError:    `image generation error (exit code: 1)`,
 		},
 		{
 			name:          "missing cluster connection",
 			nodesConfig:   defaultNodesConfigYaml,
-			expectedError: `command expects a connection to an OpenShift 4\.x server`,
+			expectedError: `command expects a connection to an OpenShift 4.x server`,
 		},
 	}
 	for _, tc := range testCases {
@@ -236,15 +243,27 @@ func TestRun(t *testing.T) {
 
 			err := o.Run()
 			if tc.expectedError == "" {
-				assert.NoError(t, err)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
 				pod, _ := fakeClient.CoreV1().Pods("").Get(context.Background(), "node-joiner-test", metav1.GetOptions{})
 				// In case of success, let's verify that the image pullspec used was effectively the one served by the
 				// fake registry.
-				assert.Equal(t, fakeReg.baremetalInstallerPullSpec, pod.Spec.Containers[0].Image)
-				assert.Equal(t, fakeCp.options.Destination.Path, tc.expectedOutputImage)
+				if fakeReg.baremetalInstallerPullSpec != pod.Spec.Containers[0].Image {
+					t.Errorf("expected %v, actual %v", fakeReg.baremetalInstallerPullSpec, pod.Spec.Containers[0].Image)
+				}
+				if fakeCp.options.Destination.Path != tc.expectedOutputImage {
+					t.Errorf("expected %v, actual %v", tc.expectedOutputImage, fakeCp.options.Destination.Path)
+				}
 			} else {
-				assert.Regexp(t, tc.expectedError, err.Error())
+				if err == nil {
+					t.Fatalf("expected error not received: %s", tc.expectedError)
+				}
+				if !strings.Contains(err.Error(), tc.expectedError) {
+					t.Fatalf("expected error: %s, actual: %v", tc.expectedError, err.Error())
+				}
 			}
+
 		})
 	}
 }
@@ -266,7 +285,9 @@ type fakeRegistry struct {
 func newFakeRegistry(t *testing.T) *fakeRegistry {
 	fakeRegistry := &fakeRegistry{}
 	err := fakeRegistry.init()
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return fakeRegistry
 }
 
