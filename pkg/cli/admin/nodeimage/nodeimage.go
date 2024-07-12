@@ -8,6 +8,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
+// NewCmdNodeImage exposes the commands to add nodes to an existing cluster.
 func NewCmdNodeImage(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "node-image",

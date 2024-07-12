@@ -73,6 +73,7 @@ var (
 	`)
 )
 
+// NewCreate creates the command for generating the add nodes ISO.
 func NewCreate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCreateOptions(streams)
 	cmd := &cobra.Command{
@@ -91,6 +92,7 @@ func NewCreate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Co
 	return cmd
 }
 
+// NewCreateOptions creates the options for the create command
 func NewCreateOptions(streams genericiooptions.IOStreams) *CreateOptions {
 	return &CreateOptions{
 		IOStreams: streams,
@@ -108,7 +110,10 @@ type CreateOptions struct {
 	remoteExecutor exec.RemoteExecutor
 	copyStrategy   func(*rsync.RsyncOptions) rsync.CopyStrategy
 
-	AssetsDir  string
+	// AssetsDir it's used to specify the folder used to fetch the configuration
+	// file, and to download the generated image.
+	AssetsDir string
+	// OutputName allows the user to specify the name of the generated image.
 	OutputName string
 
 	RESTClientGetter         genericclioptions.RESTClientGetter
@@ -121,6 +126,7 @@ type CreateOptions struct {
 	rsyncRshCmd              string
 }
 
+// AddFlags defined the required command flags.
 func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 	flags := cmd.Flags()
 	o.SecurityOptions.Bind(flags)
@@ -129,6 +135,7 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 	flags.StringVarP(&o.OutputName, "output-name", "o", "node.iso", "The name of the output image.")
 }
 
+// Complete completes the required options for the create command.
 func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	o.RESTClientGetter = f
 
@@ -159,6 +166,7 @@ func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	return nil
 }
 
+// Validate returns validation errors related to the create command.
 func (o *CreateOptions) Validate() error {
 	err := o.validateConfigFile()
 	if err != nil {
@@ -191,6 +199,9 @@ func (o *CreateOptions) validateConfigFile() error {
 	return nil
 }
 
+// Run creates a temporary namespace to kick-off a pod for running the node-joiner
+// cli tool. If the command is successfull, it will download the generated image
+// from the pod.
 func (o *CreateOptions) Run() error {
 	ctx := context.Background()
 	defer o.cleanup(ctx)
