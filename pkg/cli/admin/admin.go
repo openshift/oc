@@ -28,6 +28,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/mustgather"
 	"github.com/openshift/oc/pkg/cli/admin/network"
 	"github.com/openshift/oc/pkg/cli/admin/node"
+	"github.com/openshift/oc/pkg/cli/admin/nodeimage"
 	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates"
 	"github.com/openshift/oc/pkg/cli/admin/policy"
 	"github.com/openshift/oc/pkg/cli/admin/project"
@@ -90,6 +91,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 				copytonode.NewCmdCopyToNode(f, streams),
 				rebootmachineconfigpool.NewCmdRebootMachineConfigPool(f, streams),
 				waitfornodereboot.NewCmdWaitForNodeReboot(f, streams),
+				nodeimage.NewCmdNodeImage(f, streams),
 			},
 		},
 		{
