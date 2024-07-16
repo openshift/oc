@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestValidate(t *testing.T) {
+func TestValidateMonitor(t *testing.T) {
 	testCases := []struct {
 		name                 string
 		IPAddressesToMonitor string

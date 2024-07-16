@@ -223,12 +223,15 @@ func TestRun(t *testing.T) {
 
 			// Prepare the command options with all the fakes
 			o := &CreateOptions{
-				IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
-				Config:         fakeRestConfig,
-				ConfigClient:   configv1fake.NewSimpleClientset(objs...),
-				Client:         fakeClient,
-				FSys:           fakeFileSystem,
-				remoteExecutor: fakeRemoteExec,
+				CommonOptions: CommonOptions{
+					IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
+					command:        createCommand,
+					ConfigClient:   configv1fake.NewSimpleClientset(objs...),
+					Client:         fakeClient,
+					Config:         fakeRestConfig,
+					remoteExecutor: fakeRemoteExec,
+				},
+				FSys: fakeFileSystem,
 				copyStrategy: func(o *rsync.RsyncOptions) rsync.CopyStrategy {
 					fakeCp.options = o
 					return fakeCp

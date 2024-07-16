@@ -19,7 +19,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -28,9 +27,6 @@ import (
 	utilsexec "k8s.io/utils/exec"
 
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
-	"github.com/openshift/library-go/pkg/operator/resource/retry"
-	ocrelease "github.com/openshift/oc/pkg/cli/admin/release"
-	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 )
 
 const (
@@ -65,6 +61,8 @@ var (
 		  IP address with a comma
 		  oc adm node-image monitor --ip-addresses 192.168.111.83,192.168.111.84
 	`)
+
+	monitorCommand = "oc adm node-image monitor"
 )
 
 // NewMonitor creates the command for monitoring nodes being added to a cluster.
@@ -78,42 +76,30 @@ func NewMonitor(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.C
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			kcmdutil.CheckErr(o.Run(cmd.Context()))
 		},
 	}
 	flags := cmd.Flags()
 	o.SecurityOptions.Bind(flags)
 
 	flags.StringVar(&o.IPAddressesToMonitor, "ip-addresses", "", "IP addresses of nodes to monitor.")
-	flags.StringVar(&o.LogLevel, "log-level", "info", "log level (e.g. \"debug | info | warn | error\") (default \"info\")")
 	return cmd
 }
 
 // NewMonitorOptions creates the options for the monitor command
 func NewMonitorOptions(streams genericiooptions.IOStreams) *MonitorOptions {
 	return &MonitorOptions{
-		IOStreams: streams,
+		CommonOptions: CommonOptions{
+			IOStreams: streams,
+			command:   monitorCommand,
+		},
 	}
 }
 
 type MonitorOptions struct {
-	genericiooptions.IOStreams
-	SecurityOptions imagemanifest.SecurityOptions
-
-	Config         *rest.Config
-	Client         kubernetes.Interface
-	ConfigClient   configclient.Interface
-	remoteExecutor exec.RemoteExecutor
+	CommonOptions
 
 	IPAddressesToMonitor string
-	LogLevel             string
-
-	RESTClientGetter         genericclioptions.RESTClientGetter
-	nodeJoinerImage          string
-	nodeJoinerNamespace      *corev1.Namespace
-	nodeJoinerServiceAccount *corev1.ServiceAccount
-	nodeJoinerRole           *rbacv1.ClusterRole
-	nodeJoinerPod            *corev1.Pod
 }
 
 // Complete completes the required options for the monitor command.
@@ -170,7 +156,7 @@ func (o *MonitorOptions) Run(ctx context.Context) error {
 
 	podName := o.nodeJoinerPod.GetName()
 
-	if err := o.waitForMonitoringContainerRunning(ctx); err != nil {
+	if err := o.waitForContainerRunning(ctx); err != nil {
 		klog.Errorf("monitoring did not start: %s", err)
 		return fmt.Errorf("monitoring did not start for pod %s: %s", podName, err)
 	}
@@ -184,47 +170,6 @@ func (o *MonitorOptions) Run(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (o *MonitorOptions) cleanup(ctx context.Context) {
-	if o.nodeJoinerNamespace == nil {
-		return
-	}
-
-	err := o.Client.CoreV1().Namespaces().Delete(ctx, o.nodeJoinerNamespace.GetName(), metav1.DeleteOptions{})
-	if err != nil {
-		klog.Errorf("cannot delete namespace %s: %v\n", o.nodeJoinerNamespace.GetName(), err)
-	}
-}
-
-func (o *MonitorOptions) waitForMonitoringContainerRunning(ctx context.Context) error {
-	// Wait for the node-joiner pod to come up
-	return wait.PollUntilContextTimeout(
-		ctx,
-		time.Second*1,
-		time.Minute*5,
-		true,
-		func(ctx context.Context) (done bool, err error) {
-			pod, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).Get(context.TODO(), o.nodeJoinerPod.GetName(), metav1.GetOptions{})
-			if err == nil {
-				klog.V(2).Info("Waiting for pod")
-				if len(pod.Status.ContainerStatuses) == 0 {
-					return false, nil
-				}
-				state := pod.Status.ContainerStatuses[0].State
-				if state.Waiting != nil {
-					switch state.Waiting.Reason {
-					case "ErrImagePull", "ImagePullBackOff", "InvalidImageName":
-						return true, fmt.Errorf("unable to pull image: %v: %v", state.Waiting.Reason, state.Waiting.Message)
-					}
-				}
-				return state.Running != nil || state.Terminated != nil, nil
-			}
-			if retry.IsHTTPClientError(err) {
-				return false, nil
-			}
-			return false, err
-		})
 }
 
 func (o *MonitorOptions) waitForMonitoringToComplete(ctx context.Context) error {
@@ -307,98 +252,12 @@ func (o *MonitorOptions) runNodeJoinerPod(ctx context.Context) error {
 	return nil
 }
 
-func (o *MonitorOptions) getNodeJoinerPullSpec(ctx context.Context) error {
-	// Get the current cluster release version.
-	releaseImage, err := o.fetchClusterReleaseImage(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Extract the baremetal-installer image pullspec, since it
-	// provide the node-joiner tool.
-	opts := ocrelease.NewInfoOptions(o.IOStreams)
-	opts.SecurityOptions = o.SecurityOptions
-	release, err := opts.LoadReleaseInfo(releaseImage, false)
-	if err != nil {
-		return err
-	}
-
-	tagName := "baremetal-installer"
-	for _, tag := range release.References.Spec.Tags {
-		if tag.Name == tagName {
-			o.nodeJoinerImage = tag.From.Name
-			return nil
-		}
-	}
-
-	return fmt.Errorf("no image tag %q exists in the release image %s", tagName, releaseImage)
-}
-
-func (o *MonitorOptions) fetchClusterReleaseImage(ctx context.Context) (string, error) {
-	cv, err := o.ConfigClient.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
-	if err != nil {
-		if kapierrors.IsNotFound(err) || kapierrors.ReasonForError(err) == metav1.StatusReasonUnknown {
-			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
-			return "", fmt.Errorf("command expects a connection to an OpenShift 4.x server")
-		}
-	}
-	image := cv.Status.Desired.Image
-	if len(image) == 0 && cv.Spec.DesiredUpdate != nil {
-		image = cv.Spec.DesiredUpdate.Image
-	}
-	if len(image) == 0 {
-		return "", fmt.Errorf("the server is not reporting a release image at this time")
-	}
-
-	return image, nil
-}
-
-func (o *MonitorOptions) createNamespace(ctx context.Context) error {
-	nsNodeJoiner := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "openshift-node-joiner-monitor-",
-			Annotations: map[string]string{
-				"oc.openshift.io/command":    "oc adm node-image monitor",
-				"openshift.io/node-selector": "",
-			},
-		},
-	}
-
-	ns, err := o.Client.CoreV1().Namespaces().Create(ctx, nsNodeJoiner, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot create namespace: %w", err)
-	}
-
-	o.nodeJoinerNamespace = ns
-	return nil
-}
-
-func (o *MonitorOptions) createServiceAccount(ctx context.Context) error {
-	nodeJoinerServiceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "node-joiner-monitor-",
-			Annotations: map[string]string{
-				"oc.openshift.io/command": "oc adm node-image monitor",
-			},
-			Namespace: o.nodeJoinerNamespace.GetName(),
-		},
-	}
-
-	sa, err := o.Client.CoreV1().ServiceAccounts(o.nodeJoinerNamespace.GetName()).Create(ctx, nodeJoinerServiceAccount, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot create service account: %w", err)
-	}
-
-	o.nodeJoinerServiceAccount = sa
-	return nil
-}
-
 func (o *MonitorOptions) createRolesAndBindings(ctx context.Context) error {
 	nodeJoinerRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "node-joiner-monitor-",
 			Annotations: map[string]string{
-				"oc.openshift.io/command": "oc adm node-image monitor",
+				"oc.openshift.io/command": o.command,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -444,35 +303,7 @@ func (o *MonitorOptions) createRolesAndBindings(ctx context.Context) error {
 	}
 	o.nodeJoinerRole = cr
 
-	nodeJoinerRoleBinding := &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "node-joiner-monitor-",
-			Annotations: map[string]string{
-				"oc.openshift.io/command": "oc adm node-image monitor",
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "v1",
-					Kind:       "Namespace",
-					Name:       o.nodeJoinerNamespace.GetName(),
-					UID:        o.nodeJoinerNamespace.GetUID(),
-				},
-			},
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      o.nodeJoinerServiceAccount.GetName(),
-				Namespace: o.nodeJoinerNamespace.GetName(),
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     o.nodeJoinerRole.GetName(),
-		},
-	}
-	_, err = o.Client.RbacV1().ClusterRoleBindings().Create(ctx, nodeJoinerRoleBinding, metav1.CreateOptions{})
+	_, err = o.Client.RbacV1().ClusterRoleBindings().Create(ctx, o.clusterRoleBindings(), metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("cannot create role binding: %w", err)
 	}
@@ -520,8 +351,7 @@ func (o *MonitorOptions) createPod(ctx context.Context) error {
 					},
 					Command: []string{
 						"/bin/bash", "-c",
-						fmt.Sprintf("HOME=/assets node-joiner monitor-add-nodes --dir=/assets --log-level=%s %s",
-							o.LogLevel,
+						fmt.Sprintf("HOME=/assets node-joiner monitor-add-nodes --dir=/assets %s",
 							strings.ReplaceAll(o.IPAddressesToMonitor, ",", " ")),
 					},
 				},
