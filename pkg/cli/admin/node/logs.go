@@ -45,13 +45,13 @@ var (
 	`)
 
 	logsExample = templates.Examples(`
-		# Show kubelet logs from all masters
+		# Show kubelet logs from all control plane nodes
 		oc adm node-logs --role master -u kubelet
 
-		# See what logs are available in masters in /var/log
+		# See what logs are available in control plane nodes in /var/log
 		oc adm node-logs --role master --path=/
 
-		# Display cron log file from all masters
+		# Display cron log file from all control plane nodes
 		oc adm node-logs --role master --path=cron
 	`)
 )

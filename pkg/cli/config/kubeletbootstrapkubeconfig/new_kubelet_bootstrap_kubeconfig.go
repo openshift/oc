@@ -44,7 +44,7 @@ func NewCmdNewKubeletBootstrapKubeconfig(restClientGetter genericclioptions.REST
 	cmd := &cobra.Command{
 		Use:                   "new-kubelet-bootstrap-kubeconfig",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Generate, make the server trust, and display a new kubelet /etc/kubernetes/kubeconfig."),
+		Short:                 i18n.T("Generate, make the server trust, and display a new kubelet /etc/kubernetes/kubeconfig"),
 		Long:                  i18n.T("Generate, make the server trust, and display a new kubelet /etc/kubernetes/kubeconfig."),
 		Example:               newKubeletBootstrapKubeconfigExample,
 		Run: func(cmd *cobra.Command, args []string) {

@@ -42,7 +42,7 @@ var (
 		# Refresh the CA bundle for the cluster named e2e in your kubeconfig
 		oc config refresh-ca-bundle e2e
 
-		# Print the CA bundle from the current OpenShift cluster's apiserver.
+		# Print the CA bundle from the current OpenShift cluster's API server
 		oc config refresh-ca-bundle --dry-run`)
 )
 
@@ -60,7 +60,7 @@ func NewCmdConfigRefreshCABundle(restClientGetter genericclioptions.RESTClientGe
 	cmd := &cobra.Command{
 		Use:                   fmt.Sprintf("refresh-ca-bundle [NAME]"),
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Update the OpenShift CA bundle by contacting the apiserver."),
+		Short:                 i18n.T("Update the OpenShift CA bundle by contacting the API server"),
 		Long:                  setClusterLong,
 		Example:               setClusterExample,
 		Run: func(cmd *cobra.Command, args []string) {

@@ -48,7 +48,7 @@ var (
 		# Log in to the given server through a browser
 		oc login localhost:8443 --web --callback-port 8280
 
-		# Log in to the external OIDC issuer through Auth Code + PKCE by starting a local server listening port 8080
+		# Log in to the external OIDC issuer through Auth Code + PKCE by starting a local server listening on port 8080
 		oc login localhost:8443 --exec-plugin=oc-oidc --client-id=client-id --extra-scopes=email,profile --callback-port=8080
 	`)
 )

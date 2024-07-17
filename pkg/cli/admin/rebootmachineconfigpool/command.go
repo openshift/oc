@@ -27,7 +27,7 @@ var (
 		# Reboot all MachineConfigPools
 		oc adm reboot-machine-config-pool mcp/worker mcp/master
 
-		# Reboot all MachineConfigPools that inherit from worker.  This include all custom MachineConfigPools and infra. 
+		# Reboot all MachineConfigPools that inherit from worker.  This include all custom MachineConfigPools and infra.
 		oc adm reboot-machine-config-pool mcp/worker
 
 		# Reboot masters
@@ -62,7 +62,7 @@ func NewCmdRebootMachineConfigPool(restClientGetter genericclioptions.RESTClient
 	cmd := &cobra.Command{
 		Use:                   "reboot-machine-config-pool",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Initiate reboot of the specified MachineConfigPool."),
+		Short:                 i18n.T("Initiate reboot of the specified MachineConfigPool"),
 		Long:                  rebootMachineConfigPoolLong,
 		Example:               rebootMachineConfigPoolExample,
 		Run: func(cmd *cobra.Command, args []string) {

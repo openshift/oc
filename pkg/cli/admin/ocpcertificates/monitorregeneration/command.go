@@ -18,12 +18,12 @@ import (
 var (
 	monitorCertificatesLong = templates.LongDesc(`
 		Watch the platform certificates in the cluster.
-		
+
 		Experimental: This command is under active development and may change without notice.
 	`)
 
 	monitorCertificatesExample = templates.Examples(`
-		# Watch platform certificates.
+		# Watch platform certificates
 		oc adm ocp-certificates monitor-certificates
 	`)
 )
@@ -48,7 +48,7 @@ func NewCmdMonitorCertificates(restClientGetter genericclioptions.RESTClientGett
 	cmd := &cobra.Command{
 		Use:                   "monitor-certificates",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Watch platform certificates."),
+		Short:                 i18n.T("Watch platform certificates"),
 		Long:                  monitorCertificatesLong,
 		Example:               monitorCertificatesExample,
 		Run: func(cmd *cobra.Command, args []string) {
