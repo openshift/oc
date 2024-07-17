@@ -246,8 +246,6 @@ func (o *options) Run(ctx context.Context) error {
 		}
 	}
 
-	workerPoolsStatusData = removeCustomWorkerNodes(workerPoolsStatusData)
-
 	var isWorkerPoolOutdated bool
 	for _, pool := range workerPoolsStatusData {
 		if pool.Completion != 100 {
@@ -302,44 +300,6 @@ func (o *options) Run(ctx context.Context) error {
 	upgradeHealth, allowDetailed := assessUpdateInsights(updateInsights, updatingFor, now)
 	_ = upgradeHealth.Write(o.Out, allowDetailed && o.enabledDetailed(detailedOutputHealth))
 	return nil
-}
-
-// removeCustomWorkerNodes removes nodes from the worker pool if they belong to a custom pool.
-// A node belongs to one pool at any time.
-// MachineConfigController has this logic as well. See the following docs for details.
-// https://access.redhat.com/solutions/7004527
-// https://docs.openshift.com/container-platform/4.16/updating/updating_a_cluster/update-using-custom-machine-config-pools.html
-func removeCustomWorkerNodes(pools []poolDisplayData) []poolDisplayData {
-	customWorkerNodeNames := sets.New[string]()
-	var workerPool poolDisplayData
-	for _, p := range pools {
-		if p.Name == "worker" {
-			workerPool = p
-		} else {
-			for _, n := range p.Nodes {
-				customWorkerNodeNames.Insert(n.Name)
-			}
-		}
-	}
-	if customWorkerNodeNames.Len() == 0 {
-		return pools
-	}
-	var res []poolDisplayData
-	var nodes []nodeDisplayData
-	for _, n := range workerPool.Nodes {
-		if !customWorkerNodeNames.Has(n.Name) {
-			nodes = append(nodes, n)
-		}
-	}
-	workerPool.Nodes = nodes
-	for _, p := range pools {
-		if p.Name == "worker" {
-			res = append(res, workerPool)
-		} else {
-			res = append(res, p)
-		}
-	}
-	return res
 }
 
 func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorStatusCondition, name configv1.ClusterStatusConditionType) *configv1.ClusterOperatorStatusCondition {
