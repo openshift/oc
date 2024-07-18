@@ -293,9 +293,8 @@ func (o *options) Run(ctx context.Context) error {
 	controlPlanePoolStatusData.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
 
 	fmt.Fprintf(o.Out, "\n= Worker Upgrade =\n")
+	writePools(o.Out, workerPoolsStatusData)
 	for _, pool := range workerPoolsStatusData {
-		fmt.Fprintf(o.Out, "\n")
-		_ = pool.WritePool(o.Out)
 		pool.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
 	}
 

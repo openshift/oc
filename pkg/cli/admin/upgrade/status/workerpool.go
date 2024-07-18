@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 	"text/tabwriter"
-	"text/template"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -472,27 +471,34 @@ func machineConfigPoolInsights(poolDisplay poolDisplayData, pool mcfgv1.MachineC
 	return insights
 }
 
-var workerPoolStatusTemplate = template.Must(template.New("workerPoolStatus").Parse(workerPoolStatusTemplateRaw))
-
-func (pool *poolDisplayData) WritePool(f io.Writer) error {
-	return workerPoolStatusTemplate.Execute(f, pool)
+func writePools(w io.Writer, workerPoolsStatusData []poolDisplayData) {
+	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
+	_, _ = tabw.Write([]byte("\nWORKER POOL\tASSESSMENT\tCOMPLETION\tSTATUS\n"))
+	for _, pool := range workerPoolsStatusData {
+		_, _ = tabw.Write([]byte(pool.Name + "\t"))
+		if len(pool.Nodes) == 0 {
+			_, _ = tabw.Write([]byte("Empty" + "\t"))
+			_, _ = tabw.Write([]byte("\t"))
+			_, _ = tabw.Write([]byte(fmt.Sprintf("%d Total", pool.NodesOverview.Total) + "\n"))
+		} else {
+			_, _ = tabw.Write([]byte(pool.Assessment + "\t"))
+			_, _ = tabw.Write([]byte(fmt.Sprintf("%.0f%%", pool.Completion) + "\t"))
+			_, _ = tabw.Write([]byte(fmt.Sprintf("%d Total, %d Available, %d Progressing, %d Outdated, %d Draining, %d Excluded, %d Degraded",
+				pool.NodesOverview.Total, pool.NodesOverview.Available, pool.NodesOverview.Progressing, pool.NodesOverview.Outdated,
+				pool.NodesOverview.Draining, pool.NodesOverview.Excluded, pool.NodesOverview.Degraded) + "\n"))
+		}
+	}
+	tabw.Flush()
 }
 
-const workerPoolStatusTemplateRaw = `= Worker Pool =
-Worker Pool:     {{ .Name }}
-Assessment:      {{ .Assessment }}
-Completion:      {{ printf "%.0f" .Completion }}%
-Worker Status:   {{ .NodesOverview.Total }} Total, {{ .NodesOverview.Available }} Available, {{ .NodesOverview.Progressing }} Progressing, {{ .NodesOverview.Outdated }} Outdated, {{ .NodesOverview.Draining }} Draining, {{ .NodesOverview.Excluded }} Excluded, {{ .NodesOverview.Degraded }} Degraded
-`
-
 func (pool *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
-	if pool.Name == mco.MachineConfigPoolMaster {
-		fmt.Fprintf(w, "\nControl Plane Node")
-	} else {
-		fmt.Fprintf(w, "\nWorker Pool Node")
+	if len(pool.Nodes) == 0 {
+		return
 	}
-	if len(pool.Nodes) > 1 {
-		fmt.Fprintf(w, "s")
+	if pool.Name == mco.MachineConfigPoolMaster {
+		fmt.Fprintf(w, "\nControl Plane Nodes")
+	} else {
+		fmt.Fprintf(w, "\nWorker Pool Nodes: %s", pool.Name)
 	}
 
 	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
