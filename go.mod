@@ -50,16 +50,16 @@ require (
 	golang.org/x/sync v0.5.0
 	golang.org/x/sys v0.18.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.29.6
-	k8s.io/apiextensions-apiserver v0.29.6
-	k8s.io/apimachinery v0.29.6
-	k8s.io/apiserver v0.29.6
-	k8s.io/cli-runtime v0.29.6
-	k8s.io/client-go v0.29.6
-	k8s.io/component-base v0.29.6
+	k8s.io/api v0.29.7
+	k8s.io/apiextensions-apiserver v0.29.7
+	k8s.io/apimachinery v0.29.7
+	k8s.io/apiserver v0.29.7
+	k8s.io/cli-runtime v0.29.7
+	k8s.io/client-go v0.29.7
+	k8s.io/component-base v0.29.7
 	k8s.io/klog/v2 v2.110.1
-	k8s.io/kubectl v0.29.6
-	k8s.io/pod-security-admission v0.29.6
+	k8s.io/kubectl v0.29.7
+	k8s.io/pod-security-admission v0.29.7
 	k8s.io/utils v0.0.0-20231127182322-b307cd553661
 	sigs.k8s.io/yaml v1.3.0
 )
@@ -193,10 +193,10 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/component-helpers v0.29.6 // indirect
+	k8s.io/component-helpers v0.29.7 // indirect
 	k8s.io/kube-aggregator v0.29.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
-	k8s.io/metrics v0.29.6 // indirect
+	k8s.io/metrics v0.29.7 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kube-storage-version-migrator v0.0.6-0.20230721195810-5c8923c5ff96 // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
