@@ -1,11 +1,18 @@
 package nodeimage
 
 import (
+	"bytes"
+	"context"
 	"strings"
 	"testing"
+
+	configv1fake "github.com/openshift/client-go/config/clientset/versioned/fake"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	cmdlogs "k8s.io/kubectl/pkg/cmd/logs"
 )
 
-func TestValidateMonitor(t *testing.T) {
+func TestMonitorValidate(t *testing.T) {
 	testCases := []struct {
 		name                 string
 		IPAddressesToMonitor string
@@ -51,6 +58,76 @@ func TestValidateMonitor(t *testing.T) {
 				}
 				if !strings.Contains(err.Error(), tc.expectedError) {
 					t.Fatalf("expected error: %s, actual: %v", tc.expectedError, err.Error())
+				}
+			}
+		})
+	}
+}
+
+func TestMonitorRun(t *testing.T) {
+	testCases := []struct {
+		name      string
+		assetsDir string
+
+		objects          func(string, string) []runtime.Object
+		remoteExecOutput string
+
+		expectedError string
+	}{
+		{
+			name:    "default",
+			objects: defaultClusterVersionObjectFn,
+		},
+		{
+			name:          "missing cluster connection",
+			expectedError: `command expects a connection to an OpenShift 4.x server`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeReg, fakeClient, fakeRestConfig, fakeRemoteExec := createFakes(t, nodeJoinerMonitorContainer)
+			defer fakeReg.Close()
+
+			// Allow the test case to use the right digest created by the fake registry.
+			objs := []runtime.Object{}
+			if tc.objects != nil {
+				objs = tc.objects(fakeReg.URL()[len("https://"):], fakeReg.fakeManifestDigest)
+			}
+
+			if tc.remoteExecOutput != "" {
+				fakeRemoteExec.execOut = tc.remoteExecOutput
+			}
+
+			// Prepare the command options with all the fakes
+			o := &MonitorOptions{
+				CommonOptions: CommonOptions{
+					IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
+					command:        createCommand,
+					ConfigClient:   configv1fake.NewSimpleClientset(objs...),
+					Client:         fakeClient,
+					Config:         fakeRestConfig,
+					remoteExecutor: fakeRemoteExec,
+				},
+			}
+
+			var logContents bytes.Buffer
+			o.Out = &logContents
+			fakeLogContent := "fake log content"
+
+			o.updateLogsFn = func(opts *cmdlogs.LogsOptions) error {
+				logContents.WriteString(fakeLogContent)
+				return nil
+			}
+
+			// Since the fake registry creates a self-signed cert, let's configure
+			// the command options accordingly
+			o.SecurityOptions.Insecure = true
+
+			err := o.Run(context.Background())
+			assertContainerImageAndErrors(t, err, fakeReg, fakeClient, tc.expectedError, nodeJoinerMonitorContainer)
+			if tc.expectedError == "" {
+				if fakeLogContent != logContents.String() {
+					t.Errorf("expected %v, actual %v", fakeLogContent, logContents.String())
 				}
 			}
 		})

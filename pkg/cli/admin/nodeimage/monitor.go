@@ -100,6 +100,11 @@ type MonitorOptions struct {
 	CommonOptions
 
 	IPAddressesToMonitor string
+	updateLogsFn         func(*logs.LogsOptions) error
+}
+
+type ConsumeLog interface {
+	Update(opts *logs.LogsOptions) error
 }
 
 // Complete completes the required options for the monitor command.
@@ -117,6 +122,9 @@ func (o *MonitorOptions) Complete(f genericclioptions.RESTClientGetter, cmd *cob
 		return err
 	}
 	o.remoteExecutor = &exec.DefaultRemoteExecutor{}
+	o.updateLogsFn = func(opts *logs.LogsOptions) error {
+		return opts.RunLogs()
+	}
 
 	return nil
 }
@@ -195,7 +203,7 @@ func (o *MonitorOptions) waitForMonitoringToComplete(ctx context.Context) error 
 		time.Minute*90,
 		true,
 		func(ctx context.Context) (done bool, err error) {
-			if err := opts.RunLogs(); err != nil {
+			if err := o.updateLogsFn(opts); err != nil {
 				return false, err
 			}
 
