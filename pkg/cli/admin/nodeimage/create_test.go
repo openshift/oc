@@ -197,7 +197,7 @@ func TestRun(t *testing.T) {
 
 			// Prepare the command options with all the fakes
 			o := &CreateOptions{
-				CommonOptions: CommonOptions{
+				BaseNodeImageCommand: BaseNodeImageCommand{
 					IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 					command:        createCommand,
 					ConfigClient:   configv1fake.NewSimpleClientset(objs...),

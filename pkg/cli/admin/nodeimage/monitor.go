@@ -11,22 +11,17 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubectl/pkg/cmd/exec"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/util/templates"
 	utilsexec "k8s.io/utils/exec"
-
-	configclient "github.com/openshift/client-go/config/clientset/versioned"
 )
 
 const (
@@ -38,10 +33,15 @@ var (
 		Monitor nodes being added to a cluster using an image generated from
 		the "oc adm node-image create" command.
 
-		Each node being added to the cluster has two certificate signing requests
-		(CSRs) that need to be approved before they join the cluster and become 
-		fully functional. The monitor command will display CSRs pending your
-		approval.
+		After the node image ISO has been booted on the host, the monitor command
+		reports any pre-flight validations that may have failed impeding the
+		host from being added to the cluster. If validations are successful, the
+		node installation starts. The node's boot disk is reimaged and the node
+		reboots.
+
+		Before a node joins the cluster and becomes fully functional, two
+		certificate signing requests (CSRs) need to be approved. The monitor
+		command will display CSRs pending your approval.
 
 		The command ends when the nodes have successfully joined the cluster.
 
@@ -76,20 +76,25 @@ func NewMonitor(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.C
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run(cmd.Context()))
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
-	flags := cmd.Flags()
-	o.SecurityOptions.Bind(flags)
+	o.AddFlags(cmd)
+
+	return cmd
+}
+
+// AddFlags defined the required command flags.
+func (o *MonitorOptions) AddFlags(cmd *cobra.Command) {
+	flags := o.addBaseFlags(cmd)
 
 	flags.StringVar(&o.IPAddressesToMonitor, "ip-addresses", "", "IP addresses of nodes to monitor.")
-	return cmd
 }
 
 // NewMonitorOptions creates the options for the monitor command
 func NewMonitorOptions(streams genericiooptions.IOStreams) *MonitorOptions {
 	return &MonitorOptions{
-		CommonOptions: CommonOptions{
+		BaseNodeImageCommand: BaseNodeImageCommand{
 			IOStreams: streams,
 			command:   monitorCommand,
 		},
@@ -97,31 +102,19 @@ func NewMonitorOptions(streams genericiooptions.IOStreams) *MonitorOptions {
 }
 
 type MonitorOptions struct {
-	CommonOptions
+	BaseNodeImageCommand
 
 	IPAddressesToMonitor string
 	updateLogsFn         func(*logs.LogsOptions) error
 }
 
-type ConsumeLog interface {
-	Update(opts *logs.LogsOptions) error
-}
-
 // Complete completes the required options for the monitor command.
 func (o *MonitorOptions) Complete(f genericclioptions.RESTClientGetter, cmd *cobra.Command, args []string) error {
-	o.RESTClientGetter = f
+	err := o.baseComplete(f)
+	if err != nil {
+		return err
+	}
 
-	var err error
-	if o.Config, err = f.ToRESTConfig(); err != nil {
-		return err
-	}
-	if o.Client, err = kubernetes.NewForConfig(o.Config); err != nil {
-		return err
-	}
-	if o.ConfigClient, err = configclient.NewForConfig(o.Config); err != nil {
-		return err
-	}
-	o.remoteExecutor = &exec.DefaultRemoteExecutor{}
 	o.updateLogsFn = func(opts *logs.LogsOptions) error {
 		return opts.RunLogs()
 	}
@@ -149,15 +142,19 @@ func (o *MonitorOptions) Validate() error {
 // Run creates a temporary namespace to kick-off a pod for running the node-joiner
 // monitor cli tool. Logs from node-joiner monitor are streamed from the pod
 // to stdout.
-func (o *MonitorOptions) Run(ctx context.Context) error {
+func (o *MonitorOptions) Run() error {
+	ctx := context.Background()
 	defer o.cleanup(ctx)
 
-	err := o.createNamespace(ctx)
-	if err != nil {
-		return nil
+	tasks := []func(context.Context) error{
+		o.getNodeJoinerPullSpec,
+		o.createNamespace,
+		o.createServiceAccount,
+		o.createRolesAndBindings,
+		o.createPod,
 	}
 
-	err = o.runNodeJoinerPod(ctx)
+	err := o.runNodeJoinerPod(ctx, tasks)
 	if err != nil {
 		return err
 	}
@@ -243,80 +240,6 @@ func (o *MonitorOptions) isMonitoringDone(ctx context.Context) (bool, error) {
 		}
 	}
 	return false, nil
-}
-
-func (o *MonitorOptions) runNodeJoinerPod(ctx context.Context) error {
-	tasks := []func(context.Context) error{
-		o.getNodeJoinerPullSpec,
-		o.createServiceAccount,
-		o.createRolesAndBindings,
-		o.createPod,
-	}
-	for _, task := range tasks {
-		if err := task(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (o *MonitorOptions) createRolesAndBindings(ctx context.Context) error {
-	nodeJoinerRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "node-joiner-monitor-",
-			Annotations: map[string]string{
-				"oc.openshift.io/command": o.command,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "v1",
-					Kind:       "Namespace",
-					Name:       o.nodeJoinerNamespace.GetName(),
-					UID:        o.nodeJoinerNamespace.GetUID(),
-				},
-			},
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{
-					"certificates.k8s.io",
-				},
-				Resources: []string{
-					"certificatesigningrequests",
-					"clusterversions",
-				},
-				Verbs: []string{
-					"get",
-					"list",
-				},
-			},
-			{
-				APIGroups: []string{
-					"",
-				},
-				Resources: []string{
-					"pods",
-					"nodes",
-				},
-				Verbs: []string{
-					"get",
-					"list",
-				},
-			},
-		},
-	}
-	cr, err := o.Client.RbacV1().ClusterRoles().Create(ctx, nodeJoinerRole, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot create role: %w", err)
-	}
-	o.nodeJoinerRole = cr
-
-	_, err = o.Client.RbacV1().ClusterRoleBindings().Create(ctx, o.clusterRoleBindings(), metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot create role binding: %w", err)
-	}
-
-	return nil
 }
 
 func (o *MonitorOptions) createPod(ctx context.Context) error {

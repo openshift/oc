@@ -13,15 +13,19 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	flag "github.com/spf13/pflag"
 	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	kutils "k8s.io/client-go/util/exec"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -29,6 +33,9 @@ import (
 	"sigs.k8s.io/yaml"
 
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
+	"github.com/openshift/library-go/pkg/operator/resource/retry"
+	ocrelease "github.com/openshift/oc/pkg/cli/admin/release"
+	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/rsync"
 )
 
@@ -91,7 +98,7 @@ func NewCreate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Co
 // NewCreateOptions creates the options for the create command
 func NewCreateOptions(streams genericiooptions.IOStreams) *CreateOptions {
 	return &CreateOptions{
-		CommonOptions: CommonOptions{
+		BaseNodeImageCommand: BaseNodeImageCommand{
 			IOStreams: streams,
 			command:   createCommand,
 		},
@@ -99,7 +106,7 @@ func NewCreateOptions(streams genericiooptions.IOStreams) *CreateOptions {
 }
 
 type CreateOptions struct {
-	CommonOptions
+	BaseNodeImageCommand
 
 	FSys         fs.FS
 	copyStrategy func(*rsync.RsyncOptions) rsync.CopyStrategy
@@ -116,8 +123,7 @@ type CreateOptions struct {
 
 // AddFlags defined the required command flags.
 func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
-	flags := cmd.Flags()
-	o.SecurityOptions.Bind(flags)
+	flags := o.addBaseFlags(cmd)
 
 	flags.StringVar(&o.AssetsDir, "dir", o.AssetsDir, "The path containing the configuration file, used also to store the generated artifacts.")
 	flags.StringVarP(&o.OutputName, "output-name", "o", "node.iso", "The name of the output image.")
@@ -125,17 +131,9 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 
 // Complete completes the required options for the create command.
 func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
-	o.RESTClientGetter = f
-
-	var err error
-	if o.Config, err = f.ToRESTConfig(); err != nil {
-		return err
-	}
-	if o.Client, err = kubernetes.NewForConfig(o.Config); err != nil {
-		return err
-	}
-	if o.ConfigClient, err = configclient.NewForConfig(o.Config); err != nil {
-		return err
+	err := o.baseComplete(f)
+	if err != nil {
+		return nil
 	}
 
 	if o.AssetsDir == "" {
@@ -194,7 +192,15 @@ func (o *CreateOptions) Run() error {
 	ctx := context.Background()
 	defer o.cleanup(ctx)
 
-	err := o.runNodeJoinerPod(ctx)
+	tasks := []func(context.Context) error{
+		o.getNodeJoinerPullSpec,
+		o.createNamespace,
+		o.createServiceAccount,
+		o.createRolesAndBindings,
+		o.createInputConfigMap,
+		o.createPod,
+	}
+	err := o.runNodeJoinerPod(ctx, tasks)
 	if err != nil {
 		return err
 	}
@@ -320,82 +326,6 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 		})
 }
 
-func (o *CreateOptions) runNodeJoinerPod(ctx context.Context) error {
-	tasks := []func(context.Context) error{
-		o.getNodeJoinerPullSpec,
-		o.createNamespace,
-		o.createServiceAccount,
-		o.createRolesAndBindings,
-		o.createInputConfigMap,
-		o.createPod,
-	}
-	for _, task := range tasks {
-		if err := task(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (o *CreateOptions) createRolesAndBindings(ctx context.Context) error {
-	nodeJoinerRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "node-joiner-",
-			Annotations: map[string]string{
-				"oc.openshift.io/command": o.command,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "v1",
-					Kind:       "Namespace",
-					Name:       o.nodeJoinerNamespace.GetName(),
-					UID:        o.nodeJoinerNamespace.GetUID(),
-				},
-			},
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{
-					"config.openshift.io",
-				},
-				Resources: []string{
-					"clusterversions",
-					"proxies",
-				},
-				Verbs: []string{
-					"get",
-				},
-			},
-			{
-				APIGroups: []string{
-					"",
-				},
-				Resources: []string{
-					"configmaps",
-					"nodes",
-					"secrets",
-				},
-				Verbs: []string{
-					"get",
-					"list",
-				},
-			},
-		},
-	}
-	cr, err := o.Client.RbacV1().ClusterRoles().Create(ctx, nodeJoinerRole, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot create role: %w", err)
-	}
-	o.nodeJoinerRole = cr
-
-	_, err = o.Client.RbacV1().ClusterRoleBindings().Create(ctx, o.clusterRoleBindings(), metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot create role binding: %w", err)
-	}
-
-	return nil
-}
-
 func (o *CreateOptions) createInputConfigMap(ctx context.Context) error {
 	data, err := fs.ReadFile(o.FSys, nodeJoinerConfigurationFile)
 	if err != nil {
@@ -486,5 +416,286 @@ func (o *CreateOptions) createPod(ctx context.Context) error {
 	}
 	o.nodeJoinerPod = pod
 
+	return nil
+}
+
+type BaseNodeImageCommand struct {
+	genericiooptions.IOStreams
+	SecurityOptions imagemanifest.SecurityOptions
+
+	Config                   *rest.Config
+	remoteExecutor           exec.RemoteExecutor
+	ConfigClient             configclient.Interface
+	Client                   kubernetes.Interface
+	nodeJoinerImage          string
+	nodeJoinerNamespace      *corev1.Namespace
+	nodeJoinerServiceAccount *corev1.ServiceAccount
+	nodeJoinerRole           *rbacv1.ClusterRole
+	RESTClientGetter         genericclioptions.RESTClientGetter
+	nodeJoinerPod            *corev1.Pod
+	command                  string
+}
+
+func (c *BaseNodeImageCommand) getNodeJoinerPullSpec(ctx context.Context) error {
+	// Get the current cluster release version.
+	releaseImage, err := c.fetchClusterReleaseImage(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Extract the baremetal-installer image pullspec, since it
+	// provide the node-joiner tool.
+	opts := ocrelease.NewInfoOptions(c.IOStreams)
+	opts.SecurityOptions = c.SecurityOptions
+	release, err := opts.LoadReleaseInfo(releaseImage, false)
+	if err != nil {
+		return err
+	}
+
+	tagName := "baremetal-installer"
+	for _, tag := range release.References.Spec.Tags {
+		if tag.Name == tagName {
+			c.nodeJoinerImage = tag.From.Name
+			return nil
+		}
+	}
+
+	return fmt.Errorf("no image tag %q exists in the release image %s", tagName, releaseImage)
+}
+
+func (c *BaseNodeImageCommand) fetchClusterReleaseImage(ctx context.Context) (string, error) {
+	cv, err := c.ConfigClient.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
+	if err != nil {
+		if kapierrors.IsNotFound(err) || kapierrors.ReasonForError(err) == metav1.StatusReasonUnknown {
+			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
+			return "", fmt.Errorf("command expects a connection to an OpenShift 4.x server")
+		}
+	}
+	image := cv.Status.Desired.Image
+	if len(image) == 0 && cv.Spec.DesiredUpdate != nil {
+		image = cv.Spec.DesiredUpdate.Image
+	}
+	if len(image) == 0 {
+		return "", fmt.Errorf("the server is not reporting a release image at this time")
+	}
+
+	return image, nil
+}
+
+func (c *BaseNodeImageCommand) createNamespace(ctx context.Context) error {
+	nsNodeJoiner := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "openshift-node-joiner-",
+			Annotations: map[string]string{
+				"oc.openshift.io/command":    c.command,
+				"openshift.io/node-selector": "",
+			},
+		},
+	}
+
+	ns, err := c.Client.CoreV1().Namespaces().Create(ctx, nsNodeJoiner, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("cannot create namespace: %w", err)
+	}
+
+	c.nodeJoinerNamespace = ns
+	return nil
+}
+
+func (c *BaseNodeImageCommand) cleanup(ctx context.Context) {
+	if c.nodeJoinerNamespace == nil {
+		return
+	}
+
+	err := c.Client.CoreV1().Namespaces().Delete(ctx, c.nodeJoinerNamespace.GetName(), metav1.DeleteOptions{})
+	if err != nil {
+		klog.Errorf("cannot delete namespace %s: %v\n", c.nodeJoinerNamespace.GetName(), err)
+	}
+}
+
+func (c *BaseNodeImageCommand) createServiceAccount(ctx context.Context) error {
+	nodeJoinerServiceAccount := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "node-joiner-",
+			Annotations: map[string]string{
+				"oc.openshift.io/command": c.command,
+			},
+			Namespace: c.nodeJoinerNamespace.GetName(),
+		},
+	}
+
+	sa, err := c.Client.CoreV1().ServiceAccounts(c.nodeJoinerNamespace.GetName()).Create(ctx, nodeJoinerServiceAccount, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("cannot create service account: %w", err)
+	}
+
+	c.nodeJoinerServiceAccount = sa
+	return nil
+}
+
+func (c *BaseNodeImageCommand) clusterRoleBindings() *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "node-joiner-monitor-",
+			Annotations: map[string]string{
+				"oc.openshift.io/command": c.command,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Namespace",
+					Name:       c.nodeJoinerNamespace.GetName(),
+					UID:        c.nodeJoinerNamespace.GetUID(),
+				},
+			},
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      c.nodeJoinerServiceAccount.GetName(),
+				Namespace: c.nodeJoinerNamespace.GetName(),
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     c.nodeJoinerRole.GetName(),
+		},
+	}
+}
+
+func (c *BaseNodeImageCommand) waitForContainerRunning(ctx context.Context) error {
+	// Wait for the node-joiner pod to come up
+	return wait.PollUntilContextTimeout(
+		ctx,
+		time.Second*1,
+		time.Minute*5,
+		true,
+		func(ctx context.Context) (done bool, err error) {
+			pod, err := c.Client.CoreV1().Pods(c.nodeJoinerNamespace.GetName()).Get(context.TODO(), c.nodeJoinerPod.GetName(), metav1.GetOptions{})
+			if err == nil {
+				klog.V(2).Info("Waiting for pod")
+				if len(pod.Status.ContainerStatuses) == 0 {
+					return false, nil
+				}
+				state := pod.Status.ContainerStatuses[0].State
+				if state.Waiting != nil {
+					switch state.Waiting.Reason {
+					case "ErrImagePull", "ImagePullBackOff", "InvalidImageName":
+						return true, fmt.Errorf("unable to pull image: %v: %v", state.Waiting.Reason, state.Waiting.Message)
+					}
+				}
+				return state.Running != nil || state.Terminated != nil, nil
+			}
+			if retry.IsHTTPClientError(err) {
+				return false, nil
+			}
+			return false, err
+		})
+}
+
+func (c *BaseNodeImageCommand) createRolesAndBindings(ctx context.Context) error {
+	nodeJoinerRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "node-joiner-",
+			Annotations: map[string]string{
+				"oc.openshift.io/command": c.command,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Namespace",
+					Name:       c.nodeJoinerNamespace.GetName(),
+					UID:        c.nodeJoinerNamespace.GetUID(),
+				},
+			},
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{
+					"config.openshift.io",
+				},
+				Resources: []string{
+					"clusterversions",
+					"proxies",
+				},
+				Verbs: []string{
+					"get",
+				},
+			},
+			{
+				APIGroups: []string{
+					"certificates.k8s.io",
+				},
+				Resources: []string{
+					"certificatesigningrequests",
+					"clusterversions",
+				},
+				Verbs: []string{
+					"get",
+					"list",
+				},
+			},
+			{
+				APIGroups: []string{
+					"",
+				},
+				Resources: []string{
+					"configmaps",
+					"nodes",
+					"secrets",
+					"pods",
+					"nodes",
+				},
+				Verbs: []string{
+					"get",
+					"list",
+				},
+			},
+		},
+	}
+	cr, err := c.Client.RbacV1().ClusterRoles().Create(ctx, nodeJoinerRole, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("cannot create role: %w", err)
+	}
+	c.nodeJoinerRole = cr
+
+	_, err = c.Client.RbacV1().ClusterRoleBindings().Create(ctx, c.clusterRoleBindings(), metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("cannot create role binding: %w", err)
+	}
+
+	return nil
+}
+
+func (c *BaseNodeImageCommand) baseComplete(f genericclioptions.RESTClientGetter) error {
+	c.RESTClientGetter = f
+
+	var err error
+	if c.Config, err = f.ToRESTConfig(); err != nil {
+		return err
+	}
+	if c.Client, err = kubernetes.NewForConfig(c.Config); err != nil {
+		return err
+	}
+	if c.ConfigClient, err = configclient.NewForConfig(c.Config); err != nil {
+		return err
+	}
+	c.remoteExecutor = &exec.DefaultRemoteExecutor{}
+	return nil
+}
+
+func (c *BaseNodeImageCommand) addBaseFlags(cmd *cobra.Command) *flag.FlagSet {
+	f := cmd.Flags()
+	c.SecurityOptions.Bind(f)
+	return f
+}
+
+func (o *BaseNodeImageCommand) runNodeJoinerPod(ctx context.Context, tasks []func(context.Context) error) error {
+	for _, task := range tasks {
+		if err := task(ctx); err != nil {
+			return err
+		}
+	}
 	return nil
 }

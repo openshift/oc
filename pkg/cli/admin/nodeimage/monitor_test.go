@@ -2,7 +2,6 @@ package nodeimage
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -100,7 +99,7 @@ func TestMonitorRun(t *testing.T) {
 
 			// Prepare the command options with all the fakes
 			o := &MonitorOptions{
-				CommonOptions: CommonOptions{
+				BaseNodeImageCommand: BaseNodeImageCommand{
 					IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 					command:        createCommand,
 					ConfigClient:   configv1fake.NewSimpleClientset(objs...),
@@ -123,7 +122,7 @@ func TestMonitorRun(t *testing.T) {
 			// the command options accordingly
 			o.SecurityOptions.Insecure = true
 
-			err := o.Run(context.Background())
+			err := o.Run()
 			assertContainerImageAndErrors(t, err, fakeReg, fakeClient, tc.expectedError, nodeJoinerMonitorContainer)
 			if tc.expectedError == "" {
 				if fakeLogContent != logContents.String() {
