@@ -45,15 +45,15 @@ const (
 
 var (
 	createLong = templates.LongDesc(`
-		Create an ISO image from an initial configuration for a given set of nodes, 
+		Create an ISO image from an initial configuration for a given set of nodes,
 		to add them to an existing on-prem cluster.
-		
+
 		This command creates a pod in a temporary namespace on the target cluster
-		to retrieve the required information for creating a customized ISO image. 
+		to retrieve the required information for creating a customized ISO image.
 		The downloaded ISO image could then be used to boot a previously selected
 		set of nodes, and add them to the target cluster in a fully automated way.
 
-		A nodes-config.yaml config file must be created to provide the required 
+		A nodes-config.yaml config file must be created to provide the required
 		initial configuration for the selected nodes.
 
 		The command also requires a connection to the target cluster, and a valid
@@ -62,7 +62,7 @@ var (
 	`)
 
 	createExample = templates.Examples(`
-		# Create the ISO image and downloads it in the current folder
+		# Create the ISO image and download it in the current folder
 		  oc adm node-image create
 
 		# Use a different assets folder

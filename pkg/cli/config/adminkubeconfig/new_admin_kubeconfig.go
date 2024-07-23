@@ -68,7 +68,7 @@ func NewCmdNewAdminKubeconfigOptions(restClientGetter genericclioptions.RESTClie
 	cmd := &cobra.Command{
 		Use:                   "new-admin-kubeconfig",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Generate, make the server trust, and display a new admin.kubeconfig."),
+		Short:                 i18n.T("Generate, make the server trust, and display a new admin.kubeconfig"),
 		Long:                  newAdminKubeconfigLong,
 		Example:               newAdminKubeconfigExample,
 		Run: func(cmd *cobra.Command, args []string) {

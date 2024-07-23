@@ -20,7 +20,7 @@ var (
 	`)
 
 	copyToNodeExample = templates.Examples(`
-		# copy a new bootstrap kubeconfig file to node-0
+		# Copy a new bootstrap kubeconfig file to node-0
 		oc adm copy-to-node --copy=new-bootstrap-kubeconfig=/etc/kubernetes/kubeconfig node/node-0`)
 )
 
@@ -52,7 +52,7 @@ func NewCmdCopyToNode(restClientGetter genericclioptions.RESTClientGetter, strea
 	cmd := &cobra.Command{
 		Use:                   "copy-to-node",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Copies specified files to the node."),
+		Short:                 i18n.T("Copy specified files to the node"),
 		Long:                  copyToNodeLong,
 		Example:               copyToNodeExample,
 		Run: func(cmd *cobra.Command, args []string) {

@@ -97,8 +97,7 @@ var (
 
 		# Copy specific os/arch manifest of a multi-architecture image
 		# Run 'oc image info myregistry.com/myimage:latest' to see available os/arch for multi-arch images
-		# Note that with multi-arch images, this results in a new manifest list digest that includes only
-		# the filtered manifests
+		# Note that with multi-arch images, this results in a new manifest list digest that includes only the filtered manifests
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--filter-by-os=os/arch
 
@@ -113,8 +112,8 @@ var (
 
 		# Copy specific os/arch manifest of a multi-architecture image
 		# Run 'oc image info myregistry.com/myimage:latest' to see available os/arch for multi-arch images
-		# Note that the target registry may reject a manifest list if the platform specific images do not all
-		# exist. You must use a registry with sparse registry support enabled.
+		# Note that the target registry may reject a manifest list if the platform specific images do not all exist
+		# You must use a registry with sparse registry support enabled
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--filter-by-os=linux/386 \
 			--keep-manifest-list=true

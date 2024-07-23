@@ -39,7 +39,7 @@ var (
 	`)
 
 	waitForStableExample = templates.Examples(`
-		# Wait for all clusteroperators to become stable
+		# Wait for all cluster operators to become stable
 		oc adm wait-for-stable-cluster
 
 		# Consider operators to be stable if they report as such for 5 minutes straight
@@ -64,7 +64,7 @@ func NewCmdWaitForStableClusterOperators(restClientGetter genericclioptions.REST
 
 	cmd := &cobra.Command{
 		Use:     "wait-for-stable-cluster",
-		Short:   "wait for the platform operators to become stable",
+		Short:   "Wait for the platform operators to become stable",
 		Long:    waitForStableLong,
 		Example: waitForStableExample,
 		Run: func(cmd *cobra.Command, args []string) {

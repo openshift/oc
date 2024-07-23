@@ -37,10 +37,10 @@ var (
 	also supports getting client secret to behave as an confidential client.
 `)
 	getTokenExample = templates.Examples(`
-	# Starts an auth code flow to the issuer url with the client id and the given extra scopes
+	# Starts an auth code flow to the issuer URL with the client ID and the given extra scopes
 	oc get-token --client-id=client-id --issuer-url=test.issuer.url --extra-scopes=email,profile
 
-	# Starts an authe code flow to the issuer url with a different callback address.
+	# Starts an auth code flow to the issuer URL with a different callback address
 	oc get-token --client-id=client-id --issuer-url=test.issuer.url --callback-address=127.0.0.1:8343
 `)
 )

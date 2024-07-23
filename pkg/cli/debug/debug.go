@@ -110,8 +110,8 @@ var (
 		# Debug a node as an administrator
 		oc debug node/master-1
 
-		# Debug a Windows Node
-		# Note: the chosen image must match the Windows Server version (2019, 2022) of the Node
+		# Debug a Windows node
+		# Note: the chosen image must match the Windows Server version (2019, 2022) of the node
 		oc debug node/win-worker-1 --image=mcr.microsoft.com/powershell:lts-nanoserver-ltsc2022
 
 		# Launch a shell in a pod using the provided image stream tag

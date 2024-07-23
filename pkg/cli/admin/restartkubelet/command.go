@@ -16,7 +16,7 @@ import (
 var (
 	regenerateSignersLong = templates.LongDesc(`
 		Regenerate certificates provided by an OCP v4 cluster.
-		
+
 		This command does not wait for changes to be acknowledged by the cluster.
 		Some may take a very long time to roll out into a cluster, with different operators and operands involved for each.
 
@@ -24,13 +24,13 @@ var (
 	`)
 
 	regenerateSignersExample = templates.Examples(`
-		# Restart all the nodes,  10% at a time
+		# Restart all the nodes, 10% at a time
 		oc adm restart-kubelet nodes --all --directive=RemoveKubeletKubeconfig
 
-		# Restart all the nodes,  20 nodes at a time
+		# Restart all the nodes, 20 nodes at a time
 		oc adm restart-kubelet nodes --all --parallelism=20 --directive=RemoveKubeletKubeconfig
 
-		# Restart all the nodes,  15% at a time
+		# Restart all the nodes, 15% at a time
 		oc adm restart-kubelet nodes --all --parallelism=15% --directive=RemoveKubeletKubeconfig
 
 		# Restart all the masters at the same time
@@ -65,7 +65,7 @@ func NewCmdRestartKubelet(restClientGetter genericclioptions.RESTClientGetter, s
 	cmd := &cobra.Command{
 		Use:                   "restart-kubelet",
 		DisableFlagsInUseLine: true,
-		Short:                 i18n.T("Restarts kubelet on the specified nodes"),
+		Short:                 i18n.T("Restart kubelet on the specified nodes"),
 		Long:                  regenerateSignersLong,
 		Example:               regenerateSignersExample,
 		Run: func(cmd *cobra.Command, args []string) {

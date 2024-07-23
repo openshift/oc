@@ -17,7 +17,7 @@ import (
 var (
 	regenerateSignersLong = templates.LongDesc(`
 		Regenerate root certificates provided by an OCP v4 cluster.
-		
+
 		This command does not wait for changes to be acknowledged by the cluster.
 		Some may take a very long time to roll out into a cluster, with different operators and operands involved for each.
 
@@ -25,7 +25,7 @@ var (
 	`)
 
 	regenerateSignersExample = templates.Examples(`
-		# Regenerate the signing certificate contained in a particular secret.
+		# Regenerate the signing certificate contained in a particular secret
 		oc adm ocp-certificates regenerate-top-level -n openshift-kube-apiserver-operator secret/loadbalancer-serving-signer-key
 	`)
 
@@ -39,7 +39,7 @@ var (
 	`)
 
 	regenerateLeafExample = templates.Examples(`
-		# Regenerate a leaf certificate contained in a particular secret.
+		# Regenerate a leaf certificate contained in a particular secret
 		oc adm ocp-certificates regenerate-leaf -n openshift-config-managed secret/kube-controller-manager-client-cert-key
 	`)
 )
