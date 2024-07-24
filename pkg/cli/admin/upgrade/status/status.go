@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -227,15 +228,35 @@ func (o *options) Run(ctx context.Context) error {
 		}
 	}
 
+	var masterSelector labels.Selector
+	var workerSelector labels.Selector
+	customSelectors := map[string]labels.Selector{}
+	for _, pool := range pools.Items {
+		s, err := metav1.LabelSelectorAsSelector(pool.Spec.NodeSelector)
+		if err != nil {
+			return fmt.Errorf("failed to get label selector from the pool: %s", pool.Name)
+		}
+		switch pool.Name {
+		case mco.MachineConfigPoolMaster:
+			masterSelector = s
+		case mco.MachineConfigPoolWorker:
+			workerSelector = s
+		default:
+			customSelectors[pool.Name] = s
+		}
+	}
+
+	nodesPerPool := map[string][]corev1.Node{}
+	for _, node := range allNodes.Items {
+		name := whichPool(masterSelector, workerSelector, customSelectors, node)
+		nodesPerPool[name] = append(nodesPerPool[name], node)
+	}
+
 	var updateInsights []updateInsight
 	var workerPoolsStatusData []poolDisplayData
 	var controlPlanePoolStatusData poolDisplayData
 	for _, pool := range pools.Items {
-		nodes, err := selectNodesFromPool(pool, allNodes.Items)
-		if err != nil {
-			return err
-		}
-		nodesStatusData, insights := assessNodesStatus(cv, pool, nodes, machineConfigs.Items)
+		nodesStatusData, insights := assessNodesStatus(cv, pool, nodesPerPool[pool.Name], machineConfigs.Items)
 		updateInsights = append(updateInsights, insights...)
 		poolStatus, insights := assessMachineConfigPool(pool, nodesStatusData)
 		updateInsights = append(updateInsights, insights...)

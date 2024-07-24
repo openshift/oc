@@ -250,6 +250,7 @@ items:
       labels:
         machine.openshift.io/interruptible-instance: ""
         node-role.kubernetes.io/worker: ""
+        node-role.kubernetes.io/infra: ""
       name: ip-10-0-20-162.us-east-2.compute.internal
       resourceVersion: "41345"
       uid: 88626d63-b4f4-44a5-b0bc-4de955567fbe

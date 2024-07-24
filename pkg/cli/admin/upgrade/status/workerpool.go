@@ -123,18 +123,19 @@ func getMachineConfig(ctx context.Context, client mcfgv1client.Interface, machin
 	return client.MachineconfigurationV1().MachineConfigs().Get(ctx, machineConfigName, v1.GetOptions{})
 }
 
-func selectNodesFromPool(pool mcfgv1.MachineConfigPool, allNodes []corev1.Node) ([]corev1.Node, error) {
-	var res []corev1.Node
-	selector, err := v1.LabelSelectorAsSelector(pool.Spec.NodeSelector)
-	if err != nil {
-		return nil, err
+func whichPool(master, worker labels.Selector, custom map[string]labels.Selector, node corev1.Node) string {
+	if master.Matches(labels.Set(node.Labels)) {
+		return "master"
 	}
-	for _, node := range allNodes {
+	for name, selector := range custom {
 		if selector.Matches(labels.Set(node.Labels)) {
-			res = append(res, node)
+			return name
 		}
 	}
-	return res, nil
+	if worker.Matches(labels.Set(node.Labels)) {
+		return "worker"
+	}
+	return ""
 }
 
 func ellipsizeNames(message string, name string) string {

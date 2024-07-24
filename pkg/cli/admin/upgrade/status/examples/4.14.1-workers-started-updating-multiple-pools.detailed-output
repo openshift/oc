@@ -14,18 +14,18 @@ ip-10-0-92-180.us-east-2.compute.internal   Outdated      Pending    4.14.0    ?
 = Worker Upgrade =
 
 WORKER POOL   ASSESSMENT    COMPLETION   STATUS
-worker        Progressing   0%           3 Total, 2 Available, 1 Progressing, 3 Outdated, 1 Draining, 0 Excluded, 0 Degraded
-infra         Progressing   0%           1 Total, 0 Available, 1 Progressing, 1 Outdated, 1 Draining, 0 Excluded, 0 Degraded
+worker        Progressing   0%           2 Total, 1 Available, 1 Progressing, 2 Outdated, 1 Draining, 0 Excluded, 0 Degraded
+infra         Progressing   0%           2 Total, 1 Available, 1 Progressing, 2 Outdated, 1 Draining, 0 Excluded, 0 Degraded
 
 Worker Pool Nodes: worker
-NAME                                        ASSESSMENT    PHASE      VERSION   EST    MESSAGE
-ip-10-0-4-159.us-east-2.compute.internal    Progressing   Draining   4.14.0    +10m   
-ip-10-0-20-162.us-east-2.compute.internal   Outdated      Pending    4.14.0    ?      
-ip-10-0-99-40.us-east-2.compute.internal    Outdated      Pending    4.14.0    ?      
+NAME                                       ASSESSMENT    PHASE      VERSION   EST    MESSAGE
+ip-10-0-4-159.us-east-2.compute.internal   Progressing   Draining   4.14.0    +10m   
+ip-10-0-99-40.us-east-2.compute.internal   Outdated      Pending    4.14.0    ?      
 
 Worker Pool Nodes: infra
 NAME                                             ASSESSMENT    PHASE      VERSION   EST    MESSAGE
 ip-10-0-4-159-infra.us-east-2.compute.internal   Progressing   Draining   4.14.0    +10m   
+ip-10-0-20-162.us-east-2.compute.internal        Outdated      Pending    4.14.0    ?      
 
 = Update Health =
 SINCE   LEVEL   IMPACT   MESSAGE
