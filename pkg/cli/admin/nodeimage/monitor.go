@@ -36,8 +36,7 @@ var (
 		After the node image ISO has been booted on the host, the monitor command
 		reports any pre-flight validations that may have failed impeding the
 		host from being added to the cluster. If validations are successful, the
-		node installation starts. The node's boot disk is reimaged and the node
-		reboots.
+		node installation starts.
 
 		Before a node joins the cluster and becomes fully functional, two
 		certificate signing requests (CSRs) need to be approved. The monitor
