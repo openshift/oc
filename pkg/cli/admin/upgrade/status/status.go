@@ -269,7 +269,7 @@ func (o *options) Run(ctx context.Context) error {
 
 	var isWorkerPoolOutdated bool
 	for _, pool := range workerPoolsStatusData {
-		if pool.Completion != 100 {
+		if pool.NodesOverview.Total > 0 && pool.Completion != 100 {
 			isWorkerPoolOutdated = true
 			break
 		}
