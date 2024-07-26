@@ -3,7 +3,7 @@
 Each example consists of five inputs and two outputs, matched by a common substring:
 1. `TESTCASE-cv.yaml`(input): ClusterVersion object (created by `oc get clusterversion version -o yaml`)
 2. `TESTCASE-co.yaml`(input): list of ClusterOperators (created by `oc get clusteroperators -o yaml`)
-3.  `TESTCASE-mc.yaml`(input): list of MachineConfigs (created by `oc get oc get machineconfigs -o yaml`)
+3.  `TESTCASE-mc.yaml`(input): list of MachineConfigs (created by `oc get machineconfigs -o yaml`)
 4.  `TESTCASE-mcp.yaml`(input): list of MachineConfigPools (created by `oc get machineconfigpools -o yaml`)
 5.  `TESTCASE-node.yaml`(input): list of Nodes (created by `oc get nodes -o yaml`)
 6. `TESTCASE.output`(output): expected output of `oc adm upgrade status`
