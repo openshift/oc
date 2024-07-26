@@ -643,13 +643,26 @@ func (c *BaseNodeImageCommand) createRolesAndBindings(ctx context.Context) error
 				Resources: []string{
 					"configmaps",
 					"nodes",
-					"secrets",
 					"pods",
 					"nodes",
 				},
 				Verbs: []string{
 					"get",
 					"list",
+				},
+			},
+			{
+				APIGroups: []string{
+					"",
+				},
+				Resources: []string{
+					"secrets",
+				},
+				Verbs: []string{
+					"get",
+					"list",
+					"create",
+					"update",
 				},
 			},
 		},
