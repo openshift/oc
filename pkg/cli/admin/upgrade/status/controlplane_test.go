@@ -167,7 +167,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").operator,
 				co("two").operator,
 			},
-			expected: operators{Total: 2},
+			expected: operators{Total: 2, Waiting: 2},
 		},
 		{
 			name: "one out of two progressing",
@@ -175,7 +175,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").operator,
 				co("two").progressing(configv1.ConditionTrue).operator,
 			},
-			expected: operators{Total: 2},
+			expected: operators{Total: 2, Updating: 1, Waiting: 1},
 		},
 		{
 			name: "one out of two not available",
@@ -183,7 +183,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").operator,
 				co("two").available(configv1.ConditionFalse).operator,
 			},
-			expected: operators{Total: 2, Unavailable: 1},
+			expected: operators{Total: 2, Unavailable: 1, Waiting: 2},
 		},
 		{
 			name: "only count operators with *.release.openshift.io annotations",
@@ -195,7 +195,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("five").annotated(map[string]string{}).degraded(configv1.ConditionTrue).operator,
 				co("six").annotated(nil).available(configv1.ConditionUnknown).operator,
 			},
-			expected: operators{Total: 3},
+			expected: operators{Total: 3, Waiting: 3},
 		},
 		{
 			name: "available=unknown or missing implies available=false",
@@ -203,7 +203,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").available(configv1.ConditionUnknown).operator,
 				co("two").without(configv1.OperatorAvailable).operator,
 			},
-			expected: operators{Total: 2, Unavailable: 2},
+			expected: operators{Total: 2, Unavailable: 2, Waiting: 2},
 		},
 		{
 			name: "one out of two degraded",
@@ -211,7 +211,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").operator,
 				co("two").degraded(configv1.ConditionTrue).operator,
 			},
-			expected: operators{Total: 2, Degraded: 1},
+			expected: operators{Total: 2, Degraded: 1, Waiting: 2},
 		},
 		{
 			name: "degraded=unknown or missing implies degraded=false",
@@ -219,7 +219,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").degraded(configv1.ConditionUnknown).operator,
 				co("two").without(configv1.OperatorDegraded).operator,
 			},
-			expected: operators{Total: 2},
+			expected: operators{Total: 2, Waiting: 2},
 		},
 		{
 			name: "one out of two degraded, processing, not available",
@@ -230,7 +230,16 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 					available(configv1.ConditionFalse).
 					progressing(configv1.ConditionTrue).operator,
 			},
-			expected: operators{Total: 2, Unavailable: 1},
+			expected: operators{Total: 2, Unavailable: 1, Updating: 1, Waiting: 1},
+		},
+		{
+			name: "one upgraded",
+			operators: []configv1.ClusterOperator{
+				co("one").
+					version("new").
+					progressing(configv1.ConditionTrue).operator,
+			},
+			expected: operators{Total: 1, Updated: 1},
 		},
 	}
 
@@ -238,7 +247,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actual, insights := assessControlPlaneStatus(&cvFixture, tc.operators, time.Now())
 			if diff := cmp.Diff(tc.expected, actual.Operators, cmp.AllowUnexported(operators{})); diff != "" {
-				t.Errorf("actual output differs from expected:\n%s", diff)
+				t.Errorf("%s, actual output differs from expected:\n%s", tc.name, diff)
 			}
 			// expect empty insights, conditions in this test have LastTransitionTime set to Now()
 			// so they never go over the threshold
