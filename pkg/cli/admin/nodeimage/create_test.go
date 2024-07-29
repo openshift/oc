@@ -173,10 +173,9 @@ func TestRun(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create the fake registry. It will provide the required manifests and image data,
-			// when looking for the baremetal-installer image pullspec.
-			fakeReg := newFakeRegistry(t)
+			fakeReg, fakeClient, fakeRestConfig, fakeRemoteExec := createFakes(t, nodeJoinerContainer)
 			defer fakeReg.Close()
+
 			// Create the fake filesystem, required to provide the command input config file.
 			fakeFileSystem := fstest.MapFS{}
 			if tc.nodesConfig != "" {
@@ -189,32 +188,7 @@ func TestRun(t *testing.T) {
 			if tc.objects != nil {
 				objs = tc.objects(fakeReg.URL()[len("https://"):], fakeReg.fakeManifestDigest)
 			}
-			fakeClient := fake.NewSimpleClientset()
-			// When creating a pod, it's necessary to set a propert name. Also, to simulate the pod execution, its container status
-			// is moved to a terminal state.
-			fakeClient.PrependReactor("create", "pods", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
-				createAction, _ := action.(clientgotesting.CreateAction)
-				pod := createAction.GetObject().(*corev1.Pod)
-				pod.SetName("node-joiner-test")
-				pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, corev1.ContainerStatus{
-					State: corev1.ContainerState{
-						Terminated: &corev1.ContainerStateTerminated{},
-					},
-				})
-				return false, pod, nil
-			})
-			// Create a fake rest config. Required by the exec command.
-			fakeRestConfig := &restclient.Config{
-				Host: fakeReg.URL(),
-				ContentConfig: restclient.ContentConfig{
-					GroupVersion:         &configv1.GroupVersion,
-					NegotiatedSerializer: kubernetesscheme.Codecs,
-				},
-			}
-			// Create a fake remote executor, with a default success result
-			fakeRemoteExec := &fakeRemoteExecutor{
-				execOut: "0",
-			}
+
 			if tc.remoteExecOutput != "" {
 				fakeRemoteExec.execOut = tc.remoteExecOutput
 			}
@@ -223,12 +197,15 @@ func TestRun(t *testing.T) {
 
 			// Prepare the command options with all the fakes
 			o := &CreateOptions{
-				IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
-				Config:         fakeRestConfig,
-				ConfigClient:   configv1fake.NewSimpleClientset(objs...),
-				Client:         fakeClient,
-				FSys:           fakeFileSystem,
-				remoteExecutor: fakeRemoteExec,
+				BaseNodeImageCommand: BaseNodeImageCommand{
+					IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
+					command:        createCommand,
+					ConfigClient:   configv1fake.NewSimpleClientset(objs...),
+					Client:         fakeClient,
+					Config:         fakeRestConfig,
+					remoteExecutor: fakeRemoteExec,
+				},
+				FSys: fakeFileSystem,
 				copyStrategy: func(o *rsync.RsyncOptions) rsync.CopyStrategy {
 					fakeCp.options = o
 					return fakeCp
@@ -242,28 +219,13 @@ func TestRun(t *testing.T) {
 			o.SecurityOptions.Insecure = true
 
 			err := o.Run()
+			assertContainerImageAndErrors(t, err, fakeReg, fakeClient, tc.expectedError, nodeJoinerContainer)
+
 			if tc.expectedError == "" {
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				pod, _ := fakeClient.CoreV1().Pods("").Get(context.Background(), "node-joiner-test", metav1.GetOptions{})
-				// In case of success, let's verify that the image pullspec used was effectively the one served by the
-				// fake registry.
-				if fakeReg.baremetalInstallerPullSpec != pod.Spec.Containers[0].Image {
-					t.Errorf("expected %v, actual %v", fakeReg.baremetalInstallerPullSpec, pod.Spec.Containers[0].Image)
-				}
 				if fakeCp.options.Destination.Path != tc.expectedOutputImage {
 					t.Errorf("expected %v, actual %v", tc.expectedOutputImage, fakeCp.options.Destination.Path)
 				}
-			} else {
-				if err == nil {
-					t.Fatalf("expected error not received: %s", tc.expectedError)
-				}
-				if !strings.Contains(err.Error(), tc.expectedError) {
-					t.Fatalf("expected error: %s, actual: %v", tc.expectedError, err.Error())
-				}
 			}
-
 		})
 	}
 }
@@ -479,4 +441,76 @@ func (f *fakeRemoteExecutor) Execute(url *url.URL, config *restclient.Config, st
 	f.url = url
 	stdout.Write([]byte(f.execOut))
 	return f.execErr
+}
+
+func createFakes(t *testing.T, podName string) (*fakeRegistry, *fake.Clientset, *restclient.Config, *fakeRemoteExecutor) {
+	// Create the fake registry. It will provide the required manifests and image data,
+	// when looking for the baremetal-installer image pullspec.
+	fakeReg := newFakeRegistry(t)
+
+	fakeClient := fake.NewSimpleClientset()
+	// When creating a pod, it's necessary to set a propert name. Also, to simulate the pod execution, its container status
+	// is moved to a terminal state.
+	fakeClient.PrependReactor("create", "pods", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
+		createAction, _ := action.(clientgotesting.CreateAction)
+		pod := createAction.GetObject().(*corev1.Pod)
+		pod.SetName(podName)
+		pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, corev1.ContainerStatus{
+			Name: podName,
+			State: corev1.ContainerState{
+				Terminated: &corev1.ContainerStateTerminated{},
+			},
+		})
+		return false, pod, nil
+	})
+	// Create a fake rest config. Required by the exec command.
+	fakeRestConfig := &restclient.Config{
+		Host: fakeReg.URL(),
+		ContentConfig: restclient.ContentConfig{
+			GroupVersion:         &configv1.GroupVersion,
+			NegotiatedSerializer: kubernetesscheme.Codecs,
+		},
+	}
+	// Create a fake remote executor, with a default success result
+	fakeRemoteExec := &fakeRemoteExecutor{
+		execOut: "0",
+	}
+
+	return fakeReg, fakeClient, fakeRestConfig, fakeRemoteExec
+}
+
+var defaultClusterVersionObjectFn = func(repo string, manifestDigest string) []runtime.Object {
+	return []runtime.Object{
+		&configv1.ClusterVersion{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "version",
+			},
+			Status: configv1.ClusterVersionStatus{
+				Desired: configv1.Release{
+					Image: fmt.Sprintf("%s/ocp/release@%s", repo, manifestDigest),
+				},
+			},
+		},
+	}
+}
+
+func assertContainerImageAndErrors(t *testing.T, runErr error, fakeReg *fakeRegistry, fakeClient *fake.Clientset, expectedError, podName string) {
+	if expectedError == "" {
+		if runErr != nil {
+			t.Fatalf("unexpected error: %v", runErr)
+		}
+		pod, _ := fakeClient.CoreV1().Pods("").Get(context.Background(), podName, metav1.GetOptions{})
+		// In case of success, let's verify that the image pullspec used was effectively the one served by the
+		// fake registry.
+		if fakeReg.baremetalInstallerPullSpec != pod.Spec.Containers[0].Image {
+			t.Errorf("expected %v, actual %v", fakeReg.baremetalInstallerPullSpec, pod.Spec.Containers[0].Image)
+		}
+	} else {
+		if runErr == nil {
+			t.Fatalf("expected error not received: %s", expectedError)
+		}
+		if !strings.Contains(runErr.Error(), expectedError) {
+			t.Fatalf("expected error: %s, actual: %v", expectedError, runErr.Error())
+		}
+	}
 }

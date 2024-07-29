@@ -19,6 +19,6 @@ func NewCmdNodeImage(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 			`),
 	}
 	cmd.AddCommand(NewCreate(f, streams))
-	//cmd.AddCommand(NewMonitor(f, streams))
+	cmd.AddCommand(NewMonitor(f, streams))
 	return cmd
 }
