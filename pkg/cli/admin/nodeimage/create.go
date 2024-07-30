@@ -630,7 +630,6 @@ func (c *BaseNodeImageCommand) createRolesAndBindings(ctx context.Context) error
 				},
 				Resources: []string{
 					"certificatesigningrequests",
-					"clusterversions",
 				},
 				Verbs: []string{
 					"get",
