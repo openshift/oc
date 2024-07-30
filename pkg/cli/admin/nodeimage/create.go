@@ -617,6 +617,7 @@ func (c *BaseNodeImageCommand) createRolesAndBindings(ctx context.Context) error
 				},
 				Resources: []string{
 					"clusterversions",
+					"infrastructures",
 					"proxies",
 				},
 				Verbs: []string{
