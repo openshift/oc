@@ -118,19 +118,12 @@ func strPtr(s string) *string {
 }
 
 func TestRun(t *testing.T) {
-	defaultClusterVersionObjectFn := func(repo string, manifestDigest string) []runtime.Object {
-		return []runtime.Object{
-			&configv1.ClusterVersion{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "version",
-				},
-				Status: configv1.ClusterVersionStatus{
-					Desired: configv1.Release{
-						Image: fmt.Sprintf("%s/ocp/release@%s", repo, manifestDigest),
-					},
-				},
-			},
-		}
+	ClusterVersion_4_16_ObjectFn := func(repo string, manifestDigest string) []runtime.Object {
+		cvobj := defaultClusterVersionObjectFn(repo, manifestDigest)
+		clusterVersion := cvobj[0].(*configv1.ClusterVersion)
+		clusterVersion.Status.Desired.Version = "4.16.6-x86_64"
+
+		return cvobj
 	}
 
 	testCases := []struct {
@@ -164,6 +157,13 @@ func TestRun(t *testing.T) {
 			objects:          defaultClusterVersionObjectFn,
 			remoteExecOutput: "1",
 			expectedError:    `image generation error (exit code: 1)`,
+		},
+		{
+			name:             "node-joiner unsupported prior to 4.17",
+			nodesConfig:      defaultNodesConfigYaml,
+			objects:          ClusterVersion_4_16_ObjectFn,
+			remoteExecOutput: "1",
+			expectedError:    fmt.Sprintf("the 'oc adm node-image' command is only available for OpenShift versions %s and later", nodeJoinerMinimumSupportedVersion),
 		},
 		{
 			name:          "missing cluster connection",
@@ -487,7 +487,8 @@ var defaultClusterVersionObjectFn = func(repo string, manifestDigest string) []r
 			},
 			Status: configv1.ClusterVersionStatus{
 				Desired: configv1.Release{
-					Image: fmt.Sprintf("%s/ocp/release@%s", repo, manifestDigest),
+					Image:   fmt.Sprintf("%s/ocp/release@%s", repo, manifestDigest),
+					Version: "4.18.6-x86_64",
 				},
 			},
 		},

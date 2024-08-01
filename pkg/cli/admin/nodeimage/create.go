@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -40,8 +41,9 @@ import (
 )
 
 const (
-	nodeJoinerConfigurationFile = "nodes-config.yaml"
-	nodeJoinerContainer         = "node-joiner"
+	nodeJoinerConfigurationFile       = "nodes-config.yaml"
+	nodeJoinerContainer               = "node-joiner"
+	nodeJoinerMinimumSupportedVersion = "4.17"
 )
 
 var (
@@ -470,6 +472,14 @@ func (c *BaseNodeImageCommand) fetchClusterReleaseImage(ctx context.Context) (st
 			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
 			return "", fmt.Errorf("command expects a connection to an OpenShift 4.x server")
 		}
+	}
+	// Adds a guardrail for node-image commands which is supported only for Openshift version 4.17 and later
+	currentVersion := cv.Status.Desired.Version
+	matches := regexp.MustCompile(`^(\d+[.]\d+)[.].*`).FindStringSubmatch(currentVersion)
+	if len(matches) < 2 {
+		return "", fmt.Errorf("failed to parse major.minor version from ClusterVersion status.desired.version %q", currentVersion)
+	} else if matches[1] < nodeJoinerMinimumSupportedVersion {
+		return "", fmt.Errorf("the 'oc adm node-image' command is only available for OpenShift versions %s and later", nodeJoinerMinimumSupportedVersion)
 	}
 	image := cv.Status.Desired.Image
 	if len(image) == 0 && cv.Spec.DesiredUpdate != nil {
