@@ -9,9 +9,9 @@ import (
 
 	"k8s.io/klog/v2"
 
+	"github.com/openshift/library-go/pkg/operator/resource/retry"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -177,10 +177,22 @@ func (o *MonitorOptions) Run() error {
 }
 
 func (o *MonitorOptions) waitForMonitoringToComplete(ctx context.Context) error {
-	pod, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.Name).Get(ctx, o.nodeJoinerPod.Name, metav1.GetOptions{})
+	var pod *corev1.Pod
+	var err error
+	retries := 5
+	for i := 0; i < retries; i++ {
+		pod, err = o.Client.CoreV1().Pods(o.nodeJoinerNamespace.Name).Get(ctx, o.nodeJoinerPod.Name, metav1.GetOptions{})
+		if err == nil {
+			break
+		} else {
+			klog.V(2).Infof("could not get node-joiner pod: %v", err)
+		}
+	}
 	if err != nil {
+		klog.Errorf("could not get %v pod after %v retries: %v", o.nodeJoinerPod.Name, retries, err)
 		return err
 	}
+
 	opts := &logs.LogsOptions{
 		Options: &corev1.PodLogOptions{
 			// tail the pod's log instead of printing the entire log every poll
@@ -200,7 +212,7 @@ func (o *MonitorOptions) waitForMonitoringToComplete(ctx context.Context) error 
 		true,
 		func(ctx context.Context) (done bool, err error) {
 			if err := o.updateLogsFn(opts); err != nil {
-				return false, err
+				klog.V(2).Infof("log update failed: %v", err)
 			}
 
 			return o.isMonitoringDone(ctx)
@@ -210,11 +222,12 @@ func (o *MonitorOptions) waitForMonitoringToComplete(ctx context.Context) error 
 func (o *MonitorOptions) isMonitoringDone(ctx context.Context) (bool, error) {
 	pod, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.Name).Get(ctx, o.nodeJoinerPod.Name, metav1.GetOptions{})
 	if err != nil {
-		// at this stage pod should exist, so error if not found
-		if kapierrors.IsNotFound(err) {
-			return true, err
+		// at this stage pod should exist, return false to retry if client error
+		if retry.IsHTTPClientError(err) {
+			return false, nil
 		}
-		return false, nil
+		klog.V(2).Infof("pod should exist but is not found: %v", err)
+		return false, err
 	}
 	var state *corev1.ContainerState
 	for _, cstate := range pod.Status.ContainerStatuses {
