@@ -247,21 +247,42 @@ func (n *nodeBuilder) degraded_draining(currentConfig, desiredConfig, reason str
 
 var nodeGroupKind = scopeGroupKind{group: corev1.GroupName, kind: "Node"}
 
-// TODO: Potentially create a more robust builder in the future
-var updateInsightControlPlaneNodeUnavailable = updateInsight{
-	impact: updateInsightImpact{
-		level:       warningImpactLevel,
-		impactType:  updateSpeedImpactType,
-		summary:     "Node a is unavailable",
-		description: "Node is unavailable",
-	},
-	scope: updateInsightScope{
-		scopeType: scopeTypeControlPlane,
-		resources: []scopeResource{{kind: nodeGroupKind, name: "a"}},
-	},
-	remediation: updateInsightRemediation{
-		reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
-	},
+type updateInsightControlPlaneNodeUnavailableBuilder interface {
+	SetDescription(description string) updateInsightControlPlaneNodeUnavailableBuilder
+	Build() updateInsight
+}
+
+type fakeUpdateInsightControlPlaneNodeUnavailableBuilder struct {
+	updateInsight updateInsight
+}
+
+func newUpdateInsightControlPlaneNodeUnavailableBuilder() updateInsightControlPlaneNodeUnavailableBuilder {
+	return &fakeUpdateInsightControlPlaneNodeUnavailableBuilder{
+		updateInsight: updateInsight{
+			impact: updateInsightImpact{
+				level:       warningImpactLevel,
+				impactType:  updateSpeedImpactType,
+				summary:     "Node a is unavailable",
+				description: "Node is unavailable",
+			},
+			scope: updateInsightScope{
+				scopeType: scopeTypeControlPlane,
+				resources: []scopeResource{{kind: nodeGroupKind, name: "a"}},
+			},
+			remediation: updateInsightRemediation{
+				reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
+			},
+		},
+	}
+}
+
+func (b *fakeUpdateInsightControlPlaneNodeUnavailableBuilder) SetDescription(description string) updateInsightControlPlaneNodeUnavailableBuilder {
+	b.updateInsight.impact.description = description
+	return b
+}
+
+func (b *fakeUpdateInsightControlPlaneNodeUnavailableBuilder) Build() updateInsight {
+	return b.updateInsight
 }
 
 func Test_assessNodesStatus(t *testing.T) {
@@ -532,14 +553,14 @@ func Test_assessNodesStatus(t *testing.T) {
 					Phase:         phaseStateUpdated,
 					Version:       newOCPVersion,
 					Estimate:      "-",
-					Message:       "Node is unavailable",
+					Message:       "node's machine-config daemon state Done is neither Degraded nor Unreconcilable",
 					isUnavailable: true,
 					isDegraded:    false,
 					isUpdating:    false,
 					isUpdated:     true,
 				},
 			},
-			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+			expectedUpdateInsight: []updateInsight{newUpdateInsightControlPlaneNodeUnavailableBuilder().SetDescription("node's machine-config daemon state Done is neither Degraded nor Unreconcilable").Build()},
 		},
 		{
 			name: "updated node is missing an MCD annotation machineconfiguration.openshift.io/currentConfig",
@@ -558,14 +579,14 @@ func Test_assessNodesStatus(t *testing.T) {
 					Phase:         phaseStatePending,
 					Version:       "",
 					Estimate:      "?",
-					Message:       "Node is unavailable",
+					Message:       "node's machine-config daemon state Done is neither Degraded nor Unreconcilable",
 					isUnavailable: true,
 					isDegraded:    false,
 					isUpdating:    false,
 					isUpdated:     false,
 				},
 			},
-			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+			expectedUpdateInsight: []updateInsight{newUpdateInsightControlPlaneNodeUnavailableBuilder().SetDescription("node's machine-config daemon state Done is neither Degraded nor Unreconcilable").Build()},
 		},
 		{
 			name: "draining node is missing an MCD annotation machineconfiguration.openshift.io/desiredDrain",
@@ -632,14 +653,14 @@ func Test_assessNodesStatus(t *testing.T) {
 					Phase:         phaseStatePending,
 					Version:       oldOCPVersion,
 					Estimate:      "?",
-					Message:       "Node is unavailable",
+					Message:       "node's machine-config daemon state  is neither Degraded nor Unreconcilable",
 					isUnavailable: true,
 					isDegraded:    false,
 					isUpdating:    false,
 					isUpdated:     false,
 				},
 			},
-			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+			expectedUpdateInsight: []updateInsight{newUpdateInsightControlPlaneNodeUnavailableBuilder().SetDescription("node's machine-config daemon state  is neither Degraded nor Unreconcilable").Build()},
 		},
 		{
 			name: "draining node is missing an MCD annotation machineconfiguration.openshift.io/state",
@@ -682,14 +703,14 @@ func Test_assessNodesStatus(t *testing.T) {
 					Phase:         phaseStateUpdated,
 					Version:       newOCPVersion,
 					Estimate:      "-",
-					Message:       "Node is unavailable",
+					Message:       "node's machine-config daemon state  is neither Degraded nor Unreconcilable",
 					isUnavailable: true,
 					isDegraded:    false,
 					isUpdating:    false,
 					isUpdated:     true,
 				},
 			},
-			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+			expectedUpdateInsight: []updateInsight{newUpdateInsightControlPlaneNodeUnavailableBuilder().SetDescription("node's machine-config daemon state  is neither Degraded nor Unreconcilable").Build()},
 		},
 		{
 			name: "updating node is missing MCD annotations - desiredConfig and state",
@@ -708,14 +729,14 @@ func Test_assessNodesStatus(t *testing.T) {
 					Phase:         phaseStatePending,
 					Version:       oldOCPVersion,
 					Estimate:      "?",
-					Message:       "Node is unavailable",
+					Message:       "node is reporting Unschedulable",
 					isUnavailable: true,
 					isDegraded:    false,
 					isUpdating:    false,
 					isUpdated:     false,
 				},
 			},
-			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+			expectedUpdateInsight: []updateInsight{newUpdateInsightControlPlaneNodeUnavailableBuilder().SetDescription("node is reporting Unschedulable").Build()},
 		},
 		{
 			name: "updating node is missing MCD annotations - currentConfig and state",
@@ -734,14 +755,14 @@ func Test_assessNodesStatus(t *testing.T) {
 					Phase:         phaseStatePending,
 					Version:       "",
 					Estimate:      "?",
-					Message:       "Node is unavailable",
+					Message:       "node is reporting Unschedulable",
 					isUnavailable: true,
 					isDegraded:    false,
 					isUpdating:    false,
 					isUpdated:     false,
 				},
 			},
-			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+			expectedUpdateInsight: []updateInsight{newUpdateInsightControlPlaneNodeUnavailableBuilder().SetDescription("node is reporting Unschedulable").Build()},
 		},
 		{
 			name: "updating node is missing MCD annotations - currentConfig and desiredConfig",
@@ -760,14 +781,14 @@ func Test_assessNodesStatus(t *testing.T) {
 					Phase:         phaseStatePending,
 					Version:       "",
 					Estimate:      "?",
-					Message:       "Node is unavailable",
+					Message:       "node is reporting Unschedulable",
 					isUnavailable: true,
 					isDegraded:    false,
 					isUpdating:    false,
 					isUpdated:     false,
 				},
 			},
-			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+			expectedUpdateInsight: []updateInsight{newUpdateInsightControlPlaneNodeUnavailableBuilder().SetDescription("node is reporting Unschedulable").Build()},
 		},
 		{
 			name: "node without MCD annotations",
@@ -786,14 +807,14 @@ func Test_assessNodesStatus(t *testing.T) {
 					Phase:         phaseStatePending,
 					Version:       "",
 					Estimate:      "?",
-					Message:       "Node is unavailable",
+					Message:       "node's machine-config daemon state  is neither Degraded nor Unreconcilable",
 					isUnavailable: true,
 					isDegraded:    false,
 					isUpdating:    false,
 					isUpdated:     false,
 				},
 			},
-			expectedUpdateInsight: []updateInsight{updateInsightControlPlaneNodeUnavailable},
+			expectedUpdateInsight: []updateInsight{newUpdateInsightControlPlaneNodeUnavailableBuilder().SetDescription("node's machine-config daemon state  is neither Degraded nor Unreconcilable").Build()},
 		},
 		{
 			name: "node is updated but unavailable",
@@ -812,7 +833,7 @@ func Test_assessNodesStatus(t *testing.T) {
 					Phase:         phaseStateUpdated,
 					Version:       newOCPVersion,
 					Estimate:      "-",
-					Message:       "Node is unavailable",
+					Message:       "node is reporting Unschedulable",
 					isUnavailable: true,
 					isDegraded:    false,
 					isUpdating:    false,
@@ -825,7 +846,7 @@ func Test_assessNodesStatus(t *testing.T) {
 						level:       warningImpactLevel,
 						impactType:  updateSpeedImpactType,
 						summary:     "Node a is unavailable",
-						description: "Node is unavailable",
+						description: "node is reporting Unschedulable",
 					},
 					scope: updateInsightScope{
 						scopeType: scopeTypeControlPlane,
@@ -919,7 +940,7 @@ func Test_assessNodesStatus_DisplayData_Sorting(t *testing.T) {
 					Phase:         phaseStatePending,
 					Version:       oldOCPVersion,
 					Estimate:      "?",
-					Message:       "Node is unavailable",
+					Message:       "node is reporting Unschedulable",
 					isUnavailable: true,
 					isDegraded:    false,
 					isUpdating:    false,
