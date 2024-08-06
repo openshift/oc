@@ -35,6 +35,12 @@ type operators struct {
 	Unavailable int
 	// Degraded is the count of operators that are available but degraded
 	Degraded int
+	// Updated is the count of operators that updated its version, no matter its conditions
+	Updated int
+	// Updating is the count of operators that have not updated its version and are with Progressing=True
+	Updating int
+	// Waiting is the count of operators that have not updated its version and are with Progressing=False
+	Waiting int
 }
 
 func (o operators) StatusSummary() string {
@@ -132,7 +138,6 @@ func coInsights(name string, available *v1.ClusterOperatorStatusCondition, degra
 
 func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOperator, at time.Time) (controlPlaneStatusDisplayData, []updateInsight) {
 	var displayData controlPlaneStatusDisplayData
-	var completed int
 	var insights []updateInsight
 
 	targetVersion := cv.Status.Desired.Version
@@ -192,7 +197,7 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		}
 
 		if updated {
-			completed++
+			displayData.Operators.Updated++
 		}
 
 		var available *v1.ClusterOperatorStatusCondition
@@ -216,6 +221,12 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 			if progressing.LastTransitionTime.After(lastObservedProgress) {
 				lastObservedProgress = progressing.LastTransitionTime.Time
 			}
+			if !updated && progressing.Status == v1.ConditionTrue {
+				displayData.Operators.Updating++
+			}
+			if !updated && progressing.Status == v1.ConditionFalse {
+				displayData.Operators.Waiting++
+			}
 			if progressing.Status == v1.ConditionTrue && operator.Name == "machine-config" && !updated {
 				mcoStartedUpdating = progressing.LastTransitionTime.Time
 			}
@@ -229,7 +240,7 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		insights = append(insights, coInsights(operator.Name, available, degraded, at)...)
 	}
 
-	controlPlaneCompleted := completed == displayData.Operators.Total
+	controlPlaneCompleted := displayData.Operators.Updated == displayData.Operators.Total
 	if controlPlaneCompleted {
 		displayData.Assessment = assessmentStateCompleted
 	} else {
@@ -239,7 +250,7 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	// If MCO is the last updating operator, treat its progressing start as last observed progress
 	// to avoid daemonset operators polluting last observed progress by flipping Progressing when
 	// nodes reboot
-	if !mcoStartedUpdating.IsZero() && (displayData.Operators.Total-completed == 1) {
+	if !mcoStartedUpdating.IsZero() && (displayData.Operators.Total-displayData.Operators.Updated == 1) {
 		lastObservedProgress = mcoStartedUpdating
 	}
 
@@ -272,7 +283,7 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	displayData.TargetVersion = versionData
 	insights = append(insights, versionInsights...)
 
-	coCompletion := float64(completed) / float64(displayData.Operators.Total)
+	coCompletion := float64(displayData.Operators.Updated) / float64(displayData.Operators.Total)
 	displayData.Completion = coCompletion * 100.0
 	if coCompletion <= 1 && displayData.Assessment != assessmentStateCompleted {
 		historyBaseline := baselineDuration(cv.Status.History)
@@ -426,7 +437,7 @@ func (d *controlPlaneStatusDisplayData) Write(f io.Writer) error {
 const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
 Target Version:  {{ .TargetVersion }}
-Completion:      {{ printf "%.0f" .Completion }}%
+Completion:      {{ printf "%.0f" .Completion }}% ({{ .Operators.Updated }} operators updated, {{ .Operators.Updating }} updating, {{ .Operators.Waiting }} waiting)
 Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ vagueUnder .EstTimeToComplete .EstDuration }}){{ end }}
 Operator Status: {{ .Operators.StatusSummary }}
 `

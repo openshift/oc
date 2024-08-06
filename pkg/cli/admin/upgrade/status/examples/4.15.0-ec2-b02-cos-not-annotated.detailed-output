@@ -1,7 +1,7 @@
 = Control Plane =
 Assessment:      Progressing
 Target Version:  4.15.0-ec.2 (from 4.15.0-ec.1)
-Completion:      43%
+Completion:      43% (3 operators updated, 0 updating, 4 waiting)
 Duration:        53m (Est. Time Remaining: 1h39m)
 Operator Status: 7 Healthy
 
