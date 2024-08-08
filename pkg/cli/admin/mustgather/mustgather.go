@@ -988,6 +988,10 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 								},
 							},
 						},
+						{
+							Name:  "MUST_GATHER_IMAGE",
+							Value: image,
+						},
 					},
 					TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 					VolumeMounts: []corev1.VolumeMount{
