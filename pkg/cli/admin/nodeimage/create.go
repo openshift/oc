@@ -70,10 +70,11 @@ var (
 
 		A nodes-config.yaml config file must be created to provide the required
 		initial configuration for the selected nodes. 
-
 		Alternatively, to support simpler configurations for adding just a single
-		node, it is also possible to use a set of flags to configure the host.
-		(Note: Any eventual configuration file present will be ignored).
+		node, it's also possible to use a set of flags to configure the host. In
+		such case the '--mac-address' is the only mandatory flag - while all the
+		others will be optional (note: any eventual configuration file present 
+		will be ignored).
 	`)
 
 	createExample = templates.Examples(`
@@ -160,8 +161,8 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 	flags.StringVar(&o.AssetsDir, "dir", o.AssetsDir, "The path containing the configuration file, used also to store the generated artifacts.")
 	flags.StringVarP(&o.OutputName, "output-name", "o", "node.iso", "The name of the output image.")
 
-	usageFmt := "Single node flag. %s. If specified, the nodes-config.yaml config file will not be used."
-	flags.StringP(snFlagMacAddress, "m", "", fmt.Sprintf(usageFmt, "MAC address used to identify the host to apply the configuration"))
+	flags.StringP(snFlagMacAddress, "m", "", "Single node flag. MAC address used to identify the host to apply the configuration. If specified, the nodes-config.yaml config file will not be used.")
+	usageFmt := "Single node flag. %s. Valid only when `mac-address` is defined."
 	flags.StringP(snFlagCpuArch, "c", "", fmt.Sprintf(usageFmt, "The CPU architecture to be used to install the node"))
 	flags.StringP(snFlagSshKeyPath, "k", "", fmt.Sprintf(usageFmt, "Path to the SSH key used to access the node"))
 	flags.String(snFlagHostname, "", fmt.Sprintf(usageFmt, "The hostname to be set for the node"))
@@ -196,8 +197,11 @@ func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 func (o *CreateOptions) completeSingleNodeOptions(cmd *cobra.Command) error {
 	snOpts := &singleNodeCreateOptions{}
 
+	if err := o.setSingleNodeFlag(cmd, snFlagMacAddress, &snOpts.MacAddress); err != nil {
+		return err
+	}
+
 	for name, field := range map[string]*string{
-		snFlagMacAddress:        &snOpts.MacAddress,
 		snFlagCpuArch:           &snOpts.CPUArchitecture,
 		snFlagSshKeyPath:        &snOpts.SSHKeyPath,
 		snFlagHostname:          &snOpts.Hostname,
@@ -207,10 +211,12 @@ func (o *CreateOptions) completeSingleNodeOptions(cmd *cobra.Command) error {
 		if err := o.setSingleNodeFlag(cmd, name, field); err != nil {
 			return err
 		}
+		if *field != "" && snOpts.MacAddress == "" {
+			return fmt.Errorf("found flag `%s` configured, but it requires also flag `%s` to be set", name, snFlagMacAddress)
+		}
 	}
 
-	if snOpts.MacAddress != "" || snOpts.CPUArchitecture != "" || snOpts.SSHKeyPath != "" ||
-		snOpts.Hostname != "" || snOpts.RootDeviceHints != "" || snOpts.NetworkConfigPath != "" {
+	if snOpts.MacAddress != "" {
 		o.SingleNodeOpts = snOpts
 	}
 	return nil
