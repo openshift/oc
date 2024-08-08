@@ -515,3 +515,91 @@ func assertContainerImageAndErrors(t *testing.T, runErr error, fakeReg *fakeRegi
 		}
 	}
 }
+
+func TestCreateConfigFileFromFlags(t *testing.T) {
+	sshKeyContents := "ssh-key"
+	networkConfigContents := "interfaces:"
+	expectedConfigFile := `hosts:
+- cpuArchitecture: arm64
+  hostname: server1.example.org
+  interfaces:
+  - macAddress: fe:b1:7d:5b:86:e7
+    name: eth0
+  networkConfig:
+    interfaces: null
+  rootDeviceHints:
+    deviceName: /dev/sda
+  sshKey: ssh-key
+`
+	testCases := []struct {
+		name                    string
+		singleNodeCreateOptions *singleNodeCreateOptions
+		expectedConfigFile      string
+		expectedError           string
+	}{
+		{
+			name: "default",
+			singleNodeCreateOptions: &singleNodeCreateOptions{
+				MacAddress:        "fe:b1:7d:5b:86:e7",
+				CPUArchitecture:   "arm64",
+				SSHKeyPath:        "ssh-key.pub",
+				Hostname:          "server1.example.org",
+				RootDeviceHints:   "deviceName:/dev/sda",
+				NetworkConfigPath: "network-config.yaml",
+			},
+			expectedConfigFile: expectedConfigFile,
+		},
+		{
+			name: "ssh-key-path missing or incorrect",
+			singleNodeCreateOptions: &singleNodeCreateOptions{
+				SSHKeyPath: "wrong-ssh-key-file-name",
+			},
+			expectedError: "open wrong-ssh-key-file-name: file does not exist",
+		},
+		{
+			name: "network config path is missing or incorrect",
+			singleNodeCreateOptions: &singleNodeCreateOptions{
+				NetworkConfigPath: "wrong-network-config-file-name",
+			},
+			expectedError: "open wrong-network-config-file-name: file does not exist",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeFileSystem := fstest.MapFS{}
+			if tc.singleNodeCreateOptions.SSHKeyPath != "" {
+				fakeFileSystem["ssh-key.pub"] = &fstest.MapFile{
+					Data: []byte(sshKeyContents),
+				}
+			}
+			if tc.singleNodeCreateOptions.NetworkConfigPath != "" {
+				fakeFileSystem["network-config.yaml"] = &fstest.MapFile{
+					Data: []byte(networkConfigContents),
+				}
+			}
+			o := &CreateOptions{
+				FSys:           fakeFileSystem,
+				SingleNodeOpts: tc.singleNodeCreateOptions,
+			}
+
+			configFileBytes, err := o.createConfigFileFromFlags()
+
+			if tc.expectedError == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				if !bytes.Equal(configFileBytes, []byte(tc.expectedConfigFile)) {
+					t.Fatalf("generated config file does not match expected: %v, actual: %v", tc.expectedConfigFile, string(configFileBytes))
+				}
+			} else {
+				if err == nil {
+					t.Fatalf("expected error not received: %s", tc.expectedError)
+				}
+				if !strings.Contains(err.Error(), tc.expectedError) {
+					t.Fatalf("expected error: %s, actual: %v", tc.expectedError, err.Error())
+				}
+			}
+		})
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"path"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -46,6 +47,15 @@ const (
 	nodeJoinerMinimumSupportedVersion = "4.17"
 )
 
+const (
+	snFlagMacAddress        = "mac-address"
+	snFlagCpuArch           = "cpu-architecture"
+	snFlagSshKeyPath        = "ssh-key-path"
+	snFlagHostname          = "hostname"
+	snFlagRootDeviceHint    = "root-device-hint"
+	snFlagNetworkConfigPath = "network-config-path"
+)
+
 var (
 	createLong = templates.LongDesc(`
 		Create an ISO image from an initial configuration for a given set of nodes,
@@ -56,12 +66,17 @@ var (
 		The downloaded ISO image could then be used to boot a previously selected
 		set of nodes, and add them to the target cluster in a fully automated way.
 
-		A nodes-config.yaml config file must be created to provide the required
-		initial configuration for the selected nodes.
-
 		The command also requires a connection to the target cluster, and a valid
 		registry credentials to retrieve the required information from the target
 		cluster release.
+
+		A nodes-config.yaml config file must be created to provide the required
+		initial configuration for the selected nodes. 
+		Alternatively, to support simpler configurations for adding just a single
+		node, it's also possible to use a set of flags to configure the host. In
+		such case the '--mac-address' is the only mandatory flag - while all the
+		others will be optional (note: any eventual configuration file present 
+		will be ignored).
 	`)
 
 	createExample = templates.Examples(`
@@ -73,6 +88,13 @@ var (
 
 		# Specify a custom image name
 		  oc adm node-image create --o=my-node.iso
+
+		# Create an ISO to add a single node without using the configuration file
+		  oc adm node-image create --mac-address=00:d8:e7:c7:4b:bb
+
+		# Create an ISO to add a single node with a root device hint and without
+		# using the configuration file
+		  oc adm node-image create --mac-address=00:d8:e7:c7:4b:bb --root-device-hint=deviceName:/dev/sda
 	`)
 
 	createCommand = "oc adm node-image create"
@@ -118,9 +140,20 @@ type CreateOptions struct {
 	AssetsDir string
 	// OutputName allows the user to specify the name of the generated image.
 	OutputName string
+	// Simpler interface for creating a single node
+	SingleNodeOpts *singleNodeCreateOptions
 
 	nodeJoinerExitCode int
 	rsyncRshCmd        string
+}
+
+type singleNodeCreateOptions struct {
+	MacAddress        string
+	CPUArchitecture   string
+	SSHKeyPath        string
+	Hostname          string
+	RootDeviceHints   string
+	NetworkConfigPath string
 }
 
 // AddFlags defined the required command flags.
@@ -129,6 +162,14 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 
 	flags.StringVar(&o.AssetsDir, "dir", o.AssetsDir, "The path containing the configuration file, used also to store the generated artifacts.")
 	flags.StringVarP(&o.OutputName, "output-name", "o", "node.iso", "The name of the output image.")
+
+	flags.StringP(snFlagMacAddress, "m", "", "Single node flag. MAC address used to identify the host to apply the configuration. If specified, the nodes-config.yaml config file will not be used.")
+	usageFmt := "Single node flag. %s. Valid only when `mac-address` is defined."
+	flags.StringP(snFlagCpuArch, "c", "", fmt.Sprintf(usageFmt, "The CPU architecture to be used to install the node"))
+	flags.StringP(snFlagSshKeyPath, "k", "", fmt.Sprintf(usageFmt, "Path to the SSH key used to access the node"))
+	flags.String(snFlagHostname, "", fmt.Sprintf(usageFmt, "The hostname to be set for the node"))
+	flags.String(snFlagRootDeviceHint, "", fmt.Sprintf(usageFmt, "Hint for specifying the storage location for the image root filesystem. Format accepted is <hint name>:<value>."))
+	flags.String(snFlagNetworkConfigPath, "", fmt.Sprintf(usageFmt, "YAML file containing the NMState configuration to be applied for the node"))
 }
 
 // Complete completes the required options for the create command.
@@ -151,14 +192,56 @@ func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	o.copyStrategy = func(o *rsync.RsyncOptions) rsync.CopyStrategy {
 		return rsync.NewDefaultCopyStrategy(o)
 	}
+
+	return o.completeSingleNodeOptions(cmd)
+}
+
+func (o *CreateOptions) completeSingleNodeOptions(cmd *cobra.Command) error {
+	snOpts := &singleNodeCreateOptions{}
+
+	if err := o.setSingleNodeFlag(cmd, snFlagMacAddress, &snOpts.MacAddress); err != nil {
+		return err
+	}
+
+	for name, field := range map[string]*string{
+		snFlagCpuArch:           &snOpts.CPUArchitecture,
+		snFlagSshKeyPath:        &snOpts.SSHKeyPath,
+		snFlagHostname:          &snOpts.Hostname,
+		snFlagRootDeviceHint:    &snOpts.RootDeviceHints,
+		snFlagNetworkConfigPath: &snOpts.NetworkConfigPath,
+	} {
+		if err := o.setSingleNodeFlag(cmd, name, field); err != nil {
+			return err
+		}
+		if *field != "" && snOpts.MacAddress == "" {
+			return fmt.Errorf("found flag `%s` configured, but it requires also flag `%s` to be set", name, snFlagMacAddress)
+		}
+	}
+
+	if snOpts.MacAddress != "" {
+		o.SingleNodeOpts = snOpts
+	}
+	return nil
+}
+
+func (o *CreateOptions) setSingleNodeFlag(cmd *cobra.Command, flagName string, dst *string) error {
+	v, err := cmd.Flags().GetString(flagName)
+	if err != nil {
+		return err
+	}
+	*dst = v
 	return nil
 }
 
 // Validate returns validation errors related to the create command.
 func (o *CreateOptions) Validate() error {
-	err := o.validateConfigFile()
-	if err != nil {
-		return err
+	// Validate the configuration file only if there isn't any
+	// single node flags set.
+	if o.SingleNodeOpts == nil {
+		err := o.validateConfigFile()
+		if err != nil {
+			return err
+		}
 	}
 
 	if o.OutputName == "" {
@@ -328,8 +411,68 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 		})
 }
 
+func (o *CreateOptions) createConfigFileFromFlags() ([]byte, error) {
+	host := map[string]interface{}{}
+
+	if o.SingleNodeOpts.MacAddress != "" {
+		host["interfaces"] = []map[string]interface{}{
+			{
+				"name":       "eth0",
+				"macAddress": o.SingleNodeOpts.MacAddress,
+			},
+		}
+	}
+	if o.SingleNodeOpts.Hostname != "" {
+		host["hostname"] = o.SingleNodeOpts.Hostname
+	}
+	if o.SingleNodeOpts.CPUArchitecture != "" {
+		host["cpuArchitecture"] = o.SingleNodeOpts.CPUArchitecture
+	}
+	if o.SingleNodeOpts.SSHKeyPath != "" {
+		sshKeyData, err := fs.ReadFile(o.FSys, o.SingleNodeOpts.SSHKeyPath)
+		if err != nil {
+			return nil, err
+		}
+		host["sshKey"] = string(sshKeyData)
+	}
+	if o.SingleNodeOpts.RootDeviceHints != "" {
+		parts := strings.SplitN(o.SingleNodeOpts.RootDeviceHints, ":", 2)
+		host["rootDeviceHints"] = map[string]interface{}{
+			parts[0]: parts[1],
+		}
+	}
+	if o.SingleNodeOpts.NetworkConfigPath != "" {
+		networkConfigData, err := fs.ReadFile(o.FSys, o.SingleNodeOpts.NetworkConfigPath)
+		if err != nil {
+			return nil, err
+		}
+		var networkConfig map[string]interface{}
+		err = yaml.Unmarshal(networkConfigData, &networkConfig)
+		if err != nil {
+			return nil, err
+		}
+		host["networkConfig"] = networkConfig
+	}
+
+	config := map[string]interface{}{
+		"hosts": []map[string]interface{}{
+			host,
+		},
+	}
+
+	return yaml.Marshal(&config)
+}
+
 func (o *CreateOptions) createInputConfigMap(ctx context.Context) error {
-	data, err := fs.ReadFile(o.FSys, nodeJoinerConfigurationFile)
+	var data []byte
+	var err error
+
+	if o.SingleNodeOpts != nil {
+		klog.V(2).Info("Single node flags found, ignoring configuration file.")
+		data, err = o.createConfigFileFromFlags()
+	} else {
+		data, err = fs.ReadFile(o.FSys, nodeJoinerConfigurationFile)
+	}
 	if err != nil {
 		return err
 	}
