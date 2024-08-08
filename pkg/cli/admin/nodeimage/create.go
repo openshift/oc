@@ -46,12 +46,12 @@ const (
 )
 
 const (
-	snFlagMacAddress     = "mac-address"
-	snFlagCpuArch        = "cpu-architecture"
-	snFlagSshKey         = "ssh-key"
-	snFlagHostname       = "hostname"
-	snFlagRootDeviceHint = "root-device-hint"
-	snFlagNetworkConfig  = "network-config-file"
+	snFlagMacAddress        = "mac-address"
+	snFlagCpuArch           = "cpu-architecture"
+	snFlagSshKeyPath        = "ssh-key-path"
+	snFlagHostname          = "hostname"
+	snFlagRootDeviceHint    = "root-device-hint"
+	snFlagNetworkConfigPath = "network-config-path"
 )
 
 var (
@@ -70,11 +70,10 @@ var (
 
 		A nodes-config.yaml config file must be created to provide the required
 		initial configuration for the selected nodes. 
+
 		Alternatively, to support simpler configurations for adding just a single
-		node, it's also possible to use a set of flags to configure the host. In
-		such case the '--mac-address' is the only mandatory flag - while all the
-		others will be optional (note: any eventual configuration file present 
-		will be ignored).
+		node, it is also possible to use a set of flags to configure the host.
+		(Note: Any eventual configuration file present will be ignored).
 	`)
 
 	createExample = templates.Examples(`
@@ -146,12 +145,12 @@ type CreateOptions struct {
 }
 
 type singleNodeCreateOptions struct {
-	MacAddress      string
-	CPUArchitecture string
-	SSHKey          string
-	Hostname        string
-	RootDeviceHints string
-	NetworkConfig   string
+	MacAddress        string
+	CPUArchitecture   string
+	SSHKeyPath        string
+	Hostname          string
+	RootDeviceHints   string
+	NetworkConfigPath string
 }
 
 // AddFlags defined the required command flags.
@@ -161,13 +160,13 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 	flags.StringVar(&o.AssetsDir, "dir", o.AssetsDir, "The path containing the configuration file, used also to store the generated artifacts.")
 	flags.StringVarP(&o.OutputName, "output-name", "o", "node.iso", "The name of the output image.")
 
-	flags.StringP(snFlagMacAddress, "m", "", "Single node flag. MAC address used to identify the host to apply the configuration. If specified, the nodes-config.yaml config file will not be used.")
-	usageFmt := "Single node flag. %s. Valid only when `mac-address` is defined."
+	usageFmt := "Single node flag. %s. If specified, the nodes-config.yaml config file will not be used."
+	flags.StringP(snFlagMacAddress, "m", "", fmt.Sprintf(usageFmt, "MAC address used to identify the host to apply the configuration"))
 	flags.StringP(snFlagCpuArch, "c", "", fmt.Sprintf(usageFmt, "The CPU architecture to be used to install the node"))
-	flags.StringP(snFlagSshKey, "k", "", fmt.Sprintf(usageFmt, "The SSH key used to access the node"))
+	flags.StringP(snFlagSshKeyPath, "k", "", fmt.Sprintf(usageFmt, "Path to the SSH key used to access the node"))
 	flags.String(snFlagHostname, "", fmt.Sprintf(usageFmt, "The hostname to be set for the node"))
 	flags.String(snFlagRootDeviceHint, "", fmt.Sprintf(usageFmt, "Hint for specifying the storage location for the image root filesystem. Format accepted is <hint name>:<value>."))
-	flags.String(snFlagNetworkConfig, "", fmt.Sprintf(usageFmt, "YAML file containing the NMState configuration to be applied for the node"))
+	flags.String(snFlagNetworkConfigPath, "", fmt.Sprintf(usageFmt, "YAML file containing the NMState configuration to be applied for the node"))
 }
 
 // Complete completes the required options for the create command.
@@ -197,26 +196,21 @@ func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 func (o *CreateOptions) completeSingleNodeOptions(cmd *cobra.Command) error {
 	snOpts := &singleNodeCreateOptions{}
 
-	if err := o.setSingleNodeFlag(cmd, snFlagMacAddress, &snOpts.MacAddress); err != nil {
-		return err
-	}
-
 	for name, field := range map[string]*string{
-		snFlagCpuArch:        &snOpts.CPUArchitecture,
-		snFlagSshKey:         &snOpts.SSHKey,
-		snFlagHostname:       &snOpts.Hostname,
-		snFlagRootDeviceHint: &snOpts.RootDeviceHints,
-		snFlagNetworkConfig:  &snOpts.NetworkConfig,
+		snFlagMacAddress:        &snOpts.MacAddress,
+		snFlagCpuArch:           &snOpts.CPUArchitecture,
+		snFlagSshKeyPath:        &snOpts.SSHKeyPath,
+		snFlagHostname:          &snOpts.Hostname,
+		snFlagRootDeviceHint:    &snOpts.RootDeviceHints,
+		snFlagNetworkConfigPath: &snOpts.NetworkConfigPath,
 	} {
 		if err := o.setSingleNodeFlag(cmd, name, field); err != nil {
 			return err
 		}
-		if *field != "" && snOpts.MacAddress == "" {
-			return fmt.Errorf("found flag `%s` configured, but it requires also flag `%s` to be set", name, snFlagMacAddress)
-		}
 	}
 
-	if snOpts.MacAddress != "" {
+	if snOpts.MacAddress != "" || snOpts.CPUArchitecture != "" || snOpts.SSHKeyPath != "" ||
+		snOpts.Hostname != "" || snOpts.RootDeviceHints != "" || snOpts.NetworkConfigPath != "" {
 		o.SingleNodeOpts = snOpts
 	}
 	return nil
@@ -410,23 +404,28 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 }
 
 func (o *CreateOptions) createConfigFileFromFlags() ([]byte, error) {
-	host := map[string]interface{}{
-		"interfaces": []map[string]interface{}{
+	host := map[string]interface{}{}
+
+	if o.SingleNodeOpts.MacAddress != "" {
+		host["interfaces"] = []map[string]interface{}{
 			{
 				"name":       "eth0",
 				"macAddress": o.SingleNodeOpts.MacAddress,
 			},
-		},
+		}
 	}
-
 	if o.SingleNodeOpts.Hostname != "" {
 		host["hostname"] = o.SingleNodeOpts.Hostname
 	}
 	if o.SingleNodeOpts.CPUArchitecture != "" {
 		host["cpuArchitecture"] = o.SingleNodeOpts.CPUArchitecture
 	}
-	if o.SingleNodeOpts.SSHKey != "" {
-		host["sshKey"] = o.SingleNodeOpts.SSHKey
+	if o.SingleNodeOpts.SSHKeyPath != "" {
+		sshKeyData, err := fs.ReadFile(o.FSys, o.SingleNodeOpts.SSHKeyPath)
+		if err != nil {
+			return nil, err
+		}
+		host["sshKey"] = string(sshKeyData)
 	}
 	if o.SingleNodeOpts.RootDeviceHints != "" {
 		parts := strings.SplitN(o.SingleNodeOpts.RootDeviceHints, ":", 2)
@@ -434,8 +433,8 @@ func (o *CreateOptions) createConfigFileFromFlags() ([]byte, error) {
 			parts[0]: parts[1],
 		}
 	}
-	if o.SingleNodeOpts.NetworkConfig != "" {
-		networkConfigData, err := fs.ReadFile(o.FSys, o.SingleNodeOpts.NetworkConfig)
+	if o.SingleNodeOpts.NetworkConfigPath != "" {
+		networkConfigData, err := fs.ReadFile(o.FSys, o.SingleNodeOpts.NetworkConfigPath)
 		if err != nil {
 			return nil, err
 		}
