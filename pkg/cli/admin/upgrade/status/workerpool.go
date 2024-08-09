@@ -153,7 +153,7 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 		currentVersion, foundCurrent := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.CurrentMachineConfigAnnotationKey])
 		desiredVersion, foundDesired := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.DesiredMachineConfigAnnotationKey])
 
-		isUnavailable := isNodeUnavailable(node, pool)
+		isUnavailable, reasonOfUnavailability := isNodeUnavailable(node, pool)
 		isDegraded := isNodeDegraded(node)
 		isUpdated := foundCurrent && isLatestUpdateHistoryVersionEqualTo(cv.Status.History, currentVersion)
 
@@ -189,7 +189,7 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 		var message string
 		if isUnavailable && !isUpdating {
 			assessment = nodeAssessmentUnavailable
-			message = "Node is unavailable" // TODO: Consider bubbling up the exact reason for --details
+			message = reasonOfUnavailability
 			estimate = "?"
 			if isUpdated {
 				estimate = "-"
@@ -275,9 +275,9 @@ func isLatestUpdateHistoryVersionEqualTo(history []configv1.UpdateHistory, versi
 	return false
 }
 
-func isNodeUnavailable(node corev1.Node, pool mcfgv1.MachineConfigPool) bool {
+func isNodeUnavailable(node corev1.Node, pool mcfgv1.MachineConfigPool) (bool, string) {
 	lns := mco.NewLayeredNodeState(&node)
-	return lns.IsUnavailable(&pool)
+	return lns.IsUnavailable(&pool), lns.ReasonOfUnavailability
 }
 
 func isNodeDegraded(node corev1.Node) bool {

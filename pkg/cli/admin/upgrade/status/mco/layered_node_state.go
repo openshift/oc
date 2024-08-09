@@ -18,7 +18,8 @@ import (
 // status.go with this code, then repackage this so that it can be used by any
 // portion of the MCO which needs to interrogate or mutate node state.
 type LayeredNodeState struct {
-	node *corev1.Node
+	node                   *corev1.Node
+	ReasonOfUnavailability string
 }
 
 func NewLayeredNodeState(n *corev1.Node) *LayeredNodeState {
@@ -28,7 +29,7 @@ func NewLayeredNodeState(n *corev1.Node) *LayeredNodeState {
 // Augements the isNodeDoneAt() check with determining if the current / desired
 // image annotations match the pools' values.
 func (l *LayeredNodeState) IsDoneAt(mcp *mcfgv1.MachineConfigPool) bool {
-	return isNodeDoneAt(l.node, mcp) && l.isDesiredImageEqualToPool(mcp) && l.isCurrentImageEqualToPool(mcp)
+	return isNodeDoneAt(l, mcp) && l.isDesiredImageEqualToPool(mcp) && l.isCurrentImageEqualToPool(mcp)
 }
 
 // The original behavior of getUnavailableMachines is: getUnavailableMachines
@@ -41,7 +42,7 @@ func (l *LayeredNodeState) IsDoneAt(mcp *mcfgv1.MachineConfigPool) bool {
 // This augments this check by determining if the desired iamge annotation is
 // equal to what the pool expects.
 func (l *LayeredNodeState) IsUnavailable(mcp *mcfgv1.MachineConfigPool) bool {
-	return isNodeUnavailable(l.node) && l.isDesiredImageEqualToPool(mcp)
+	return isNodeUnavailable(l) && l.isDesiredImageEqualToPool(mcp)
 }
 
 // Checks that the desired machineconfig and image annotations equal the ones
@@ -80,7 +81,11 @@ func (l *LayeredNodeState) isImageAnnotationEqualToPool(anno string, mcp *mcfgv1
 	if lps.IsLayered() && lps.HasOSImage() {
 		// If the pool is layered and has an OS image, check that it equals the
 		// node annotations' value.
-		return lps.GetOSImage() == val
+		if lps.GetOSImage() == val {
+			return true
+		}
+		l.ReasonOfUnavailability = fmt.Sprintf("the node annotation %s is %s, while the pool is trying to reconcile OS image %s", anno, lps.GetOSImage(), val)
+		return false
 	}
 
 	// If the pool is not layered, this annotation should not exist.
@@ -195,17 +200,19 @@ func isNodeImageDone(node *corev1.Node) bool {
 }
 
 // isNodeDoneAt checks whether a node is fully updated to a targetConfig
-func isNodeDoneAt(node *corev1.Node, pool *mcfgv1.MachineConfigPool) bool {
+func isNodeDoneAt(l *LayeredNodeState, pool *mcfgv1.MachineConfigPool) bool {
+	node := l.node
 	return isNodeDone(node) && node.Annotations[CurrentMachineConfigAnnotationKey] == pool.Spec.Configuration.Name
 }
 
 // isNodeUnavailable is a helper function for getUnavailableMachines
 // See the docs of getUnavailableMachines for more info
-func isNodeUnavailable(node *corev1.Node) bool {
+func isNodeUnavailable(l *LayeredNodeState) bool {
 	// Unready nodes are unavailable
-	if !isNodeReady(node) {
+	if !isNodeReady(l) {
 		return true
 	}
+	node := l.node
 	// Ready nodes are not unavailable
 	if isNodeDone(node) {
 		return false
@@ -215,7 +222,12 @@ func isNodeUnavailable(node *corev1.Node) bool {
 	// If a MCD is in a terminal (failing) state then we can safely retarget it.
 	// to a different config.  Or to say it another way, a node is unavailable
 	// if the MCD is working, or hasn't started work but the configs differ.
-	return !isNodeMCDFailing(node)
+	if isNodeMCDState(node, MachineConfigDaemonStateDegraded) ||
+		isNodeMCDState(node, MachineConfigDaemonStateUnreconcilable) {
+		return false
+	}
+	l.ReasonOfUnavailability = fmt.Sprintf("node's machine-config daemon state %s is neither %s nor %s", node.Annotations[MachineConfigDaemonStateAnnotationKey], MachineConfigDaemonStateDegraded, MachineConfigDaemonStateUnreconcilable)
+	return true
 }
 
 // isNodeMCDState checks the MCD state against the state parameter
@@ -228,7 +240,8 @@ func isNodeMCDState(node *corev1.Node, state string) bool {
 	return dstate == state
 }
 
-func checkNodeReady(node *corev1.Node) error {
+func checkNodeReady(l *LayeredNodeState) error {
+	node := l.node
 	for i := range node.Status.Conditions {
 		cond := &node.Status.Conditions[i]
 		// We consider the node for scheduling only when its:
@@ -236,31 +249,26 @@ func checkNodeReady(node *corev1.Node) error {
 		// - NodeDiskPressure condition status is ConditionFalse,
 		// - NodeNetworkUnavailable condition status is ConditionFalse.
 		if cond.Type == corev1.NodeReady && cond.Status != corev1.ConditionTrue {
+			l.ReasonOfUnavailability = fmt.Sprintf("node is reporting NotReady=%v with message=%q", cond.Status, cond.Message)
 			return fmt.Errorf("node %s is reporting NotReady=%v", node.Name, cond.Status)
 		}
 		if cond.Type == corev1.NodeDiskPressure && cond.Status != corev1.ConditionFalse {
+			l.ReasonOfUnavailability = fmt.Sprintf("node is reporting OutOfDisk=%v with message=%q", cond.Status, cond.Message)
 			return fmt.Errorf("node %s is reporting OutOfDisk=%v", node.Name, cond.Status)
 		}
 		if cond.Type == corev1.NodeNetworkUnavailable && cond.Status != corev1.ConditionFalse {
+			l.ReasonOfUnavailability = fmt.Sprintf("node is reporting NetworkUnavailable=%v with message=%q", cond.Status, cond.Message)
 			return fmt.Errorf("node %s is reporting NetworkUnavailable=%v", node.Name, cond.Status)
 		}
 	}
 	// Ignore nodes that are marked unschedulable
 	if node.Spec.Unschedulable {
+		l.ReasonOfUnavailability = fmt.Sprintf("node is reporting Unschedulable")
 		return fmt.Errorf("node %s is reporting Unschedulable", node.Name)
 	}
 	return nil
 }
 
-func isNodeReady(node *corev1.Node) bool {
-	return checkNodeReady(node) == nil
-}
-
-// isNodeMCDFailing checks if the MCD has unsuccessfully applied an update
-func isNodeMCDFailing(node *corev1.Node) bool {
-	if node.Annotations[CurrentMachineConfigAnnotationKey] == node.Annotations[DesiredMachineConfigAnnotationKey] {
-		return false
-	}
-	return isNodeMCDState(node, MachineConfigDaemonStateDegraded) ||
-		isNodeMCDState(node, MachineConfigDaemonStateUnreconcilable)
+func isNodeReady(l *LayeredNodeState) bool {
+	return checkNodeReady(l) == nil
 }
