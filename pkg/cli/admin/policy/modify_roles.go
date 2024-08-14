@@ -75,6 +75,26 @@ var (
 
 		If the --rolebinding-name argument is supplied, it will look for an existing cluster role binding with that name. The role on the matching cluster role binding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used.
 	`)
+
+	addClusterRoleToUserExample = templates.Examples(`
+		# Add the 'system:build-strategy-docker' cluster role to the 'devuser' user
+		oc adm policy add-cluster-role-to-user system:build-strategy-docker devuser
+	`)
+
+	addClusterRoleToGroupExample = templates.Examples(`
+		# Add the 'cluster-admin' cluster role to the 'cluster-admins' group
+		oc adm policy add-cluster-role-to-group cluster-admin cluster-admins
+	`)
+
+	removeClusterRoleFromUserExample = templates.Examples(`
+		# Remove the 'system:build-strategy-docker' cluster role from the 'devuser' user
+		oc adm policy remove-cluster-role-from-user system:build-strategy-docker devuser
+	`)
+
+	removeClusterRoleFromGroupExample = templates.Examples(`
+		# Remove the 'cluster-admin' cluster role from the 'cluster-admins' group
+		oc adm policy remove-cluster-role-from-group cluster-admin cluster-admins
+	`)
 )
 
 type RoleModificationOptions struct {
@@ -215,9 +235,10 @@ func NewCmdAddClusterRoleToGroup(f kcmdutil.Factory, streams genericiooptions.IO
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	cmd := &cobra.Command{
-		Use:   "add-cluster-role-to-group ROLE GROUP [GROUP...]",
-		Short: "Add a role to groups for all projects in the cluster",
-		Long:  addClusterRoleToGroupLongDesc,
+		Use:     "add-cluster-role-to-group ROLE GROUP [GROUP...]",
+		Short:   "Add a role to groups for all projects in the cluster",
+		Long:    addClusterRoleToGroupLongDesc,
+		Example: addClusterRoleToGroupExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
 			ocmdhelpers.CheckOAuthDisabledErr(o.AddRole(), o.DiscoveryClient)
@@ -237,9 +258,10 @@ func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericiooptions.IOS
 	o.RoleKind = "ClusterRole"
 	o.SANames = []string{}
 	cmd := &cobra.Command{
-		Use:   "add-cluster-role-to-user ROLE (USER | -z serviceaccount) [user]...",
-		Short: "Add a role to users for all projects in the cluster",
-		Long:  addClusterRoleToUserLongDesc,
+		Use:     "add-cluster-role-to-user ROLE (USER | -z serviceaccount) [user]...",
+		Short:   "Add a role to users for all projects in the cluster",
+		Long:    addClusterRoleToUserLongDesc,
+		Example: addClusterRoleToUserExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
 			ocmdhelpers.CheckOAuthDisabledErr(o.AddRole(), o.DiscoveryClient)
@@ -259,9 +281,10 @@ func NewCmdRemoveClusterRoleFromGroup(f kcmdutil.Factory, streams genericiooptio
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	cmd := &cobra.Command{
-		Use:   "remove-cluster-role-from-group ROLE GROUP [GROUP...]",
-		Short: "Remove a role from groups for all projects in the cluster",
-		Long:  `Remove a role from groups for all projects in the cluster`,
+		Use:     "remove-cluster-role-from-group ROLE GROUP [GROUP...]",
+		Short:   "Remove a role from groups for all projects in the cluster",
+		Long:    `Remove a role from groups for all projects in the cluster`,
+		Example: removeClusterRoleFromGroupExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
 			ocmdhelpers.CheckOAuthDisabledErr(o.RemoveRole(), o.DiscoveryClient)
@@ -281,9 +304,10 @@ func NewCmdRemoveClusterRoleFromUser(f kcmdutil.Factory, streams genericiooption
 	o.RoleKind = "ClusterRole"
 	o.SANames = []string{}
 	cmd := &cobra.Command{
-		Use:   "remove-cluster-role-from-user ROLE USER [USER...]",
-		Short: "Remove a role from users for all projects in the cluster",
-		Long:  `Remove a role from users for all projects in the cluster`,
+		Use:     "remove-cluster-role-from-user ROLE USER [USER...]",
+		Short:   "Remove a role from users for all projects in the cluster",
+		Long:    `Remove a role from users for all projects in the cluster`,
+		Example: removeClusterRoleFromUserExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
 			ocmdhelpers.CheckOAuthDisabledErr(o.RemoveRole(), o.DiscoveryClient)
