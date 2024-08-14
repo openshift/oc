@@ -497,6 +497,10 @@ func (pool *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
 		return
 	}
 	if pool.Name == mco.MachineConfigPoolMaster {
+		if pool.Completion == 100 {
+			fmt.Fprintf(w, "\nAll control plane nodes successfully updated to %s\n", pool.Nodes[0].Version)
+			return
+		}
 		fmt.Fprintf(w, "\nControl Plane Nodes")
 	} else {
 		fmt.Fprintf(w, "\nWorker Pool Nodes: %s", pool.Name)

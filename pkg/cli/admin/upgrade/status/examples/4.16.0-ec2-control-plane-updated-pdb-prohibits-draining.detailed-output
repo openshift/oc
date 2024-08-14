@@ -1,15 +1,7 @@
 = Control Plane =
-Assessment:      Completed
-Target Version:  4.16.0-ec.3 (from 4.16.0-ec.2)
-Completion:      100% (36 operators updated, 0 updating, 0 waiting)
-Duration:        3h31m
-Operator Status: 35 Healthy, 1 Available but degraded
+Update to 4.16.0-ec.3 successfully completed at 2024-02-27T15:42:58Z (duration: 3h31m)
 
-Control Plane Nodes
-NAME                                                  ASSESSMENT   PHASE     VERSION       EST   MESSAGE
-build0-gstfj-m-0.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
-build0-gstfj-m-1.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
-build0-gstfj-m-2.c.openshift-ci-build-farm.internal   Completed    Updated   4.16.0-ec.3   -     
+All control plane nodes successfully updated to 4.16.0-ec.3
 
 = Worker Upgrade =
 
