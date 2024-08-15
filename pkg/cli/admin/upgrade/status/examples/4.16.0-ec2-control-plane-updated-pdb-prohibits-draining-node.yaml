@@ -1091,6 +1091,8 @@ items:
         cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
         machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
         # This simulates ephemeral conditions when Nodes do not have all annotations we expect
+        # Not having a single annotation is weird and should not happen except for bugs, someone manually
+        # messing with annotations and similar things.
         # machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
         machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
         machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
@@ -1200,14 +1202,16 @@ items:
       annotations:
         cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
         machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
-        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
-        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
-        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
-        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
-        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
-        machineconfiguration.openshift.io/post-config-action: ""
-        machineconfiguration.openshift.io/reason: ""
-        machineconfiguration.openshift.io/state: Done
+        # This simulates a node that was recently provisioned and MCO did not yet set annotations on it
+        # This is a common situation in scaling clusters. Such node is typically also not Ready yet.
+        # machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        # machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        # machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        # machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        # machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        # machineconfiguration.openshift.io/post-config-action: ""
+        # machineconfiguration.openshift.io/reason: ""
+        # machineconfiguration.openshift.io/state: Done
       creationTimestamp: "2024-02-27T13:28:38Z"
       labels:
         ci-workload: tests
@@ -1216,7 +1220,10 @@ items:
       name: build0-gstfj-ci-tests-worker-b-d9vz2
       resourceVersion: "4865640672"
       uid: 3feb5598-1c68-489e-83a8-7bb65464d87e
-    spec: {}
+    spec:
+      taints:
+      - effect: NoSchedule
+        key: node.kubernetes.io/not-ready
     status:
       conditions:
         - lastHeartbeatTime: "2024-02-27T13:28:38Z"
@@ -1245,9 +1252,9 @@ items:
           type: PIDPressure
         - lastHeartbeatTime: "2024-02-27T16:19:15Z"
           lastTransitionTime: "2024-02-27T15:53:29Z"
-          message: kubelet is posting ready status
-          reason: KubeletReady
-          status: "True"
+          message: kubelet is still setting up stuff
+          reason: KubeletNotReady
+          status: "False"
           type: Ready
   - apiVersion: v1
     kind: Node

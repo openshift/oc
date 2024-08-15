@@ -14,7 +14,7 @@ build0-gstfj-m-2.c.openshift-ci-build-farm.internal   Completed    Updated   4.1
 = Worker Upgrade =
 
 WORKER POOL   ASSESSMENT   COMPLETION   STATUS
-worker        Degraded     39%          59 Total, 45 Available, 5 Progressing, 36 Outdated, 12 Draining, 0 Excluded, 7 Degraded
+worker        Degraded     37%          59 Total, 44 Available, 5 Progressing, 37 Outdated, 12 Draining, 0 Excluded, 7 Degraded
 
 Worker Pool Nodes: worker
 NAME                                                              ASSESSMENT    PHASE      VERSION       EST    MESSAGE
@@ -26,6 +26,7 @@ build0-gstfj-ci-tests-worker-b-jv5bg                              Degraded      
 build0-gstfj-ci-tests-worker-b-kj6gk                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-tests-worker-c-dcz9p                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-prowjobs-worker-d-ddnxd                           Unavailable   Pending    ?             ?      node's machine-config daemon state Done is neither Degraded nor Unreconcilable
+build0-gstfj-ci-tests-worker-b-d9vz2                              Unavailable   Pending    ?             ?      node is reporting NotReady=False with message="kubelet is still setting up stuff"
 build0-gstfj-ci-tests-worker-c-jq5rk                              Unavailable   Updated    4.16.0-ec.3   -      node is reporting Unschedulable
 build0-gstfj-ci-tests-worker-c-2kz4m                              Progressing   Draining   4.16.0-ec.2   +10m   
 build0-gstfj-ci-tests-worker-c-55hpj                              Progressing   Draining   4.16.0-ec.2   +10m   
@@ -66,7 +67,6 @@ build0-gstfj-ci-builds-worker-c-ng8s5                             Completed     
 build0-gstfj-ci-builds-worker-c-vmmfj                             Completed     Updated    4.16.0-ec.3   -      
 build0-gstfj-ci-builds-worker-d-4pjlz                             Completed     Updated    4.16.0-ec.3   -      
 build0-gstfj-ci-builds-worker-d-z49wm                             Completed     Updated    4.16.0-ec.3   -      
-build0-gstfj-ci-tests-worker-b-d9vz2                              Completed     Updated    4.16.0-ec.3   -      
 build0-gstfj-ci-tests-worker-b-fkn28                              Completed     Updated    4.16.0-ec.3   -      
 build0-gstfj-ci-tests-worker-b-mc7fm                              Completed     Updated    4.16.0-ec.3   -      
 build0-gstfj-ci-tests-worker-b-pqz8t                              Completed     Updated    4.16.0-ec.3   -      
@@ -159,6 +159,15 @@ Message: Node build0-gstfj-ci-prowjobs-worker-d-ddnxd is unavailable
   Resources:
     nodes: build0-gstfj-ci-prowjobs-worker-d-ddnxd
   Description: node's machine-config daemon state Done is neither Degraded nor Unreconcilable
+
+Message: Node build0-gstfj-ci-tests-worker-b-d9vz2 is unavailable
+  Since:       -
+  Level:       Warning
+  Impact:      Update Speed
+  Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-b-d9vz2
+  Description: node is reporting NotReady=False with message="kubelet is still setting up stuff"
 
 Message: Node build0-gstfj-ci-tests-worker-c-jq5rk is unavailable
   Since:       -
