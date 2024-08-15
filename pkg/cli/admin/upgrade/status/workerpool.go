@@ -205,14 +205,22 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 			}
 		}
 
-		insights = append(insights, nodeInsights(pool, node, message, isUnavailable, isUpdating, isDegraded)...)
+		var prettyMsg string
+		// MCD will fix the state and no user intervention is required.
+		// For this case we show assessment only (Unavailable) and omit the insight and message.
+		if message != mco.ReasonOfUnavailabilityMCDWorkInProgress {
+			prettyMsg = ellipsizeNames(message, node.Name)
+			insights = append(insights, nodeInsights(pool, node, message, isUnavailable, isUpdating, isDegraded)...)
+		} else {
+			prettyMsg = "Machine Config Daemon is processing the node"
+		}
 
 		nodesStatusData = append(nodesStatusData, nodeDisplayData{
 			Name:          node.Name,
 			Assessment:    assessment,
 			Estimate:      estimate,
 			Phase:         phase,
-			Message:       ellipsizeNames(message, node.Name),
+			Message:       prettyMsg,
 			Version:       currentVersion,
 			isUnavailable: isUnavailable,
 			isDegraded:    isDegraded,
