@@ -85,7 +85,10 @@ func (l *LayeredNodeState) isImageAnnotationEqualToPool(anno string, mcp *mcfgv1
 		if lps.GetOSImage() == val {
 			return true
 		}
-		l.ReasonOfUnavailability = fmt.Sprintf("the node annotation %s is %s, while the pool is trying to reconcile OS image %s", anno, lps.GetOSImage(), val)
+		// According to https://github.com/openshift/machine-config-operator/pull/4510#issuecomment-2271461847
+		// ExperimentalNewestLayeredImageEquivalentConfigAnnotationKey is not used any more and this case should never happen.
+		klog.V(5).Infof("Node annotation %s has value %s different from the OS image %s", anno, val, lps.GetOSImage())
+		l.ReasonOfUnavailability = fmt.Sprintf("Node has an unexpected annotation %s=%s", ExperimentalNewestLayeredImageEquivalentConfigAnnotationKey, lps.GetOSImage())
 		return false
 	}
 
