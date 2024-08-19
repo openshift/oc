@@ -207,7 +207,9 @@ func isNodeDoneAt(l *LayeredNodeState, pool *mcfgv1.MachineConfigPool) bool {
 }
 
 const (
-	ReasonOfUnavailabilityMCDWorkInProgress = "MCDWorkInProgress"
+	// ReasonOfUnavailabilityMCDWorkInProgress indicates MCD will fix the state and no user intervention is required.
+	ReasonOfUnavailabilityMCDWorkInProgress = "Machine Config Daemon is processing the node"
+	ReasonOfUnavailabilityNodeUnschedulable = "Node is marked unschedulable"
 )
 
 // isNodeUnavailable is a helper function for getUnavailableMachines
@@ -270,7 +272,7 @@ func checkNodeReady(l *LayeredNodeState) error {
 	}
 	// Ignore nodes that are marked unschedulable
 	if node.Spec.Unschedulable {
-		l.ReasonOfUnavailability = fmt.Sprintf("node is reporting Unschedulable")
+		l.ReasonOfUnavailability = ReasonOfUnavailabilityNodeUnschedulable
 		return fmt.Errorf("node %s is reporting Unschedulable", node.Name)
 	}
 	return nil
