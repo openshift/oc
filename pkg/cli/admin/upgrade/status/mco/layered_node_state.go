@@ -7,6 +7,7 @@ import (
 
 	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 )
 
 // This is intended to provide a singular way to interrogate node objects to
@@ -205,6 +206,10 @@ func isNodeDoneAt(l *LayeredNodeState, pool *mcfgv1.MachineConfigPool) bool {
 	return isNodeDone(node) && node.Annotations[CurrentMachineConfigAnnotationKey] == pool.Spec.Configuration.Name
 }
 
+const (
+	ReasonOfUnavailabilityMCDWorkInProgress = "MCDWorkInProgress"
+)
+
 // isNodeUnavailable is a helper function for getUnavailableMachines
 // See the docs of getUnavailableMachines for more info
 func isNodeUnavailable(l *LayeredNodeState) bool {
@@ -226,7 +231,9 @@ func isNodeUnavailable(l *LayeredNodeState) bool {
 		isNodeMCDState(node, MachineConfigDaemonStateUnreconcilable) {
 		return false
 	}
-	l.ReasonOfUnavailability = fmt.Sprintf("node's machine-config daemon state %s is neither %s nor %s", node.Annotations[MachineConfigDaemonStateAnnotationKey], MachineConfigDaemonStateDegraded, MachineConfigDaemonStateUnreconcilable)
+	klog.V(5).Infof("Unavailable node %s's machine-config daemon state %s is neither %s nor %s", node.Name,
+		node.Annotations[MachineConfigDaemonStateAnnotationKey], MachineConfigDaemonStateDegraded, MachineConfigDaemonStateUnreconcilable)
+	l.ReasonOfUnavailability = ReasonOfUnavailabilityMCDWorkInProgress
 	return true
 }
 
