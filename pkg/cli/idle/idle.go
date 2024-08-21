@@ -643,6 +643,11 @@ func (o *IdleOptions) RunIdle() error {
 			hadError = true
 			continue
 		}
+		// this CLI command is "do the thing" and doesn't provide a sensible input object for a starting ResourceVersion
+		// the command is an imperative, "do this now" without a precondition, so the desired behavior is deconflicting.
+		// we can do this by having an unconditional scale instance for writing.
+		scale.ResourceVersion = ""
+
 		replicas[scaleRef] = scale.Spec.Replicas
 		toScale[scaleRef] = scaleInfo{scale: scale, obj: obj, namespace: svcName.Namespace}
 	}
