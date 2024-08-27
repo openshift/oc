@@ -967,12 +967,13 @@ func Test_nodeInsights(t *testing.T) {
 	mcpMaster := mcp("master").setMachineConfig("new").machineConfigPool
 	mcpWorker := mcp("worker").setMachineConfig("new").machineConfigPool
 	type args struct {
-		pool          mcfgv1.MachineConfigPool
-		node          corev1.Node
-		reason        string
-		isUnavailable bool
-		isUpdating    bool
-		isDegraded    bool
+		pool             mcfgv1.MachineConfigPool
+		node             corev1.Node
+		reason           string
+		isUnavailable    bool
+		isUpdating       bool
+		isDegraded       bool
+		unavailableSince time.Time
 	}
 	testCases := []struct {
 		name                  string
@@ -990,17 +991,19 @@ func Test_nodeInsights(t *testing.T) {
 		{
 			name: "node is updated - unavailable - master pool",
 			args: args{
-				pool:          mcpMaster,
-				node:          node("a").updated(mcNew.Name, mcNew.Name).unavailable().node,
-				reason:        "Node is unavailable",
-				isUnavailable: true,
+				pool:             mcpMaster,
+				node:             node("a").updated(mcNew.Name, mcNew.Name).unavailable().node,
+				reason:           "Node is unavailable",
+				isUnavailable:    true,
+				unavailableSince: time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC),
 			},
 			expectedUpdateInsight: []updateInsight{
 				{
+					startedAt: time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC),
 					impact: updateInsightImpact{
 						level:       warningImpactLevel,
 						impactType:  updateSpeedImpactType,
-						summary:     "Node a is unavailable",
+						summary:     "Node is unavailable",
 						description: "Node is unavailable",
 					},
 					scope: updateInsightScope{
@@ -1026,7 +1029,7 @@ func Test_nodeInsights(t *testing.T) {
 					impact: updateInsightImpact{
 						level:       warningImpactLevel,
 						impactType:  updateSpeedImpactType,
-						summary:     "Node a is unavailable",
+						summary:     "Node is unavailable",
 						description: "Node is unavailable",
 					},
 					scope: updateInsightScope{
@@ -1070,9 +1073,9 @@ func Test_nodeInsights(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			updateInsights := nodeInsights(tc.args.pool, tc.args.node, tc.args.reason, tc.args.isUnavailable, tc.args.isUpdating, tc.args.isDegraded)
+			updateInsights := nodeInsights(tc.args.pool, tc.args.node.Name, tc.args.reason, tc.args.reason, tc.args.isUnavailable, tc.args.isUpdating, tc.args.isDegraded, tc.args.unavailableSince)
 			if diff := cmp.Diff(tc.expectedUpdateInsight, updateInsights, allowUnexportedInsightStructs); diff != "" {
-				t.Errorf("updateInsight differ from expected:\n%s", diff)
+				t.Errorf("%s: updateInsight differ from expected:\n%s", tc.name, diff)
 			}
 		})
 	}

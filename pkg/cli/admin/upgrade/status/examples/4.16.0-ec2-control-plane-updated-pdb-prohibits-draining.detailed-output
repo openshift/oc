@@ -18,7 +18,7 @@ build0-gstfj-ci-tests-worker-b-jv5bg                              Degraded      
 build0-gstfj-ci-tests-worker-b-kj6gk                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-tests-worker-c-dcz9p                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-prowjobs-worker-d-ddnxd                           Unavailable   Pending    ?             ?      Machine Config Daemon is processing the node
-build0-gstfj-ci-tests-worker-b-d9vz2                              Unavailable   Pending    ?             ?      node is reporting NotReady=False with message="kubelet is still setting up stuff"
+build0-gstfj-ci-tests-worker-b-d9vz2                              Unavailable   Pending    ?             ?      Not ready
 build0-gstfj-ci-tests-worker-c-jq5rk                              Unavailable   Updated    4.16.0-ec.3   -      Node is marked unschedulable
 build0-gstfj-ci-tests-worker-c-2kz4m                              Progressing   Draining   4.16.0-ec.2   +10m   
 build0-gstfj-ci-tests-worker-c-55hpj                              Progressing   Draining   4.16.0-ec.2   +10m   
@@ -143,11 +143,11 @@ Message: Cluster Version version is failing to proceed with the update (ClusterO
     clusterversions.config.openshift.io: version
   Description: Cluster operator machine-config is degraded
 
-Message: Node build0-gstfj-ci-tests-worker-b-d9vz2 is unavailable
-  Since:       -
+Message: Node build0-gstfj-ci-tests-worker-b-d9vz2 is not ready
+  Since:       22m44s
   Level:       Warning
   Impact:      Update Speed
   Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
   Resources:
     nodes: build0-gstfj-ci-tests-worker-b-d9vz2
-  Description: node is reporting NotReady=False with message="kubelet is still setting up stuff"
+  Description: Node has a Ready!=True condition with Reason "Not ready" and message "kubelet is still setting up stuff"

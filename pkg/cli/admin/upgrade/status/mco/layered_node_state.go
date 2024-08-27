@@ -4,6 +4,8 @@ package mco
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,8 +21,99 @@ import (
 // status.go with this code, then repackage this so that it can be used by any
 // portion of the MCO which needs to interrogate or mutate node state.
 type LayeredNodeState struct {
-	node                   *corev1.Node
-	ReasonOfUnavailability string
+	node        *corev1.Node
+	unavailable []badCondition
+}
+
+type badCondition struct {
+	reason             string
+	message            string
+	lastTransitionTime time.Time
+}
+
+// GetUnavailableSince returns the time since when the node has been unavailable.
+// The earliest one is picked up if it has more than one condition to make the node unavailable.
+func (l *LayeredNodeState) GetUnavailableSince() time.Time {
+	var ret time.Time
+	for _, c := range l.unavailable {
+		if c.lastTransitionTime.IsZero() {
+			continue
+		}
+		if ret.IsZero() || c.lastTransitionTime.Before(ret) {
+			ret = c.lastTransitionTime
+		}
+	}
+	return ret
+}
+
+// GetUnavailableReason returns the collected reasons of an unavailable node
+func (l *LayeredNodeState) GetUnavailableReason() string {
+	var reasons []string
+	for _, c := range l.unavailable {
+		reasons = append(reasons, c.reason)
+	}
+	return strings.Join(reasons, " | ")
+}
+
+// SeriouslyUnavailable returns true if the reason of an unavailable node is serious.
+// It usually indicates that the unavailable node is unexpected, and it requires cluster admin to fix it manually.
+func (l *LayeredNodeState) SeriouslyUnavailable() bool {
+	now := time.Now()
+	for _, c := range l.unavailable {
+		if c.reason == reasonOfUnavailabilityNodeUnschedulable ||
+			c.reason == reasonOfUnavailabilityMCDWorkInProgress {
+			continue
+		}
+		if c.reason == reasonOfUnavailabilityNodeNotReady && now.Sub(c.lastTransitionTime) < time.Minute*5 {
+			continue
+		}
+		if c.reason == reasonOfUnavailabilityNodeDiskPressure && now.Sub(c.lastTransitionTime) < time.Minute*1 {
+			continue
+		}
+		if c.reason == reasonOfUnavailabilityNodeNetworkUnavailable && now.Sub(c.lastTransitionTime) < time.Minute*1 {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// GetUnavailableMessage returns the collected messages of an unavailable node
+func (l *LayeredNodeState) GetUnavailableMessage() string {
+	var messages []string
+	for _, c := range l.unavailable {
+		message := c.reason
+		if message == reasonOfUnavailabilityNodeNotReady {
+			message = fmt.Sprintf("Node %s is not ready", l.node.Name)
+		}
+		if message == reasonOfUnavailabilityNodeDiskPressure {
+			message = fmt.Sprintf("Node %s has disk pressure", l.node.Name)
+		}
+		if message == reasonOfUnavailabilityNodeNetworkUnavailable {
+			message = fmt.Sprintf("Node %s has unavailable network", l.node.Name)
+		}
+		messages = append(messages, message)
+	}
+	return strings.Join(messages, " | ")
+}
+
+// GetUnavailableDescription returns the collected descriptions of an unavailable node
+func (l *LayeredNodeState) GetUnavailableDescription() string {
+	var descriptions []string
+	for _, c := range l.unavailable {
+		d := c.reason
+		if d == reasonOfUnavailabilityNodeNotReady {
+			d = fmt.Sprintf("Node has a %s!=%s condition with Reason %q and message %q", corev1.NodeReady, corev1.ConditionTrue, reasonOfUnavailabilityNodeNotReady, c.message)
+		}
+		if d == reasonOfUnavailabilityNodeDiskPressure {
+			d = fmt.Sprintf("Node has a %s!=%s condition with Reason %q and message %q", corev1.NodeDiskPressure, corev1.ConditionFalse, reasonOfUnavailabilityNodeDiskPressure, c.message)
+		}
+		if d == reasonOfUnavailabilityNodeNetworkUnavailable {
+			d = fmt.Sprintf("Node has a %s!=%s condition with Reason %q and message %q", corev1.NodeNetworkUnavailable, corev1.ConditionFalse, reasonOfUnavailabilityNodeNetworkUnavailable, c.message)
+		}
+		descriptions = append(descriptions, d)
+	}
+	return strings.Join(descriptions, " | ")
 }
 
 func NewLayeredNodeState(n *corev1.Node) *LayeredNodeState {
@@ -88,7 +181,9 @@ func (l *LayeredNodeState) isImageAnnotationEqualToPool(anno string, mcp *mcfgv1
 		// According to https://github.com/openshift/machine-config-operator/pull/4510#issuecomment-2271461847
 		// ExperimentalNewestLayeredImageEquivalentConfigAnnotationKey is not used any more and this case should never happen.
 		klog.V(5).Infof("Node annotation %s has value %s different from the OS image %s", anno, val, lps.GetOSImage())
-		l.ReasonOfUnavailability = fmt.Sprintf("Node has an unexpected annotation %s=%s", ExperimentalNewestLayeredImageEquivalentConfigAnnotationKey, lps.GetOSImage())
+		l.unavailable = append(l.unavailable, badCondition{
+			reason: fmt.Sprintf("Node has an unexpected annotation %s=%s", ExperimentalNewestLayeredImageEquivalentConfigAnnotationKey, lps.GetOSImage()),
+		})
 		return false
 	}
 
@@ -211,8 +306,11 @@ func isNodeDoneAt(l *LayeredNodeState, pool *mcfgv1.MachineConfigPool) bool {
 
 const (
 	// ReasonOfUnavailabilityMCDWorkInProgress indicates MCD will fix the state and no user intervention is required.
-	ReasonOfUnavailabilityMCDWorkInProgress = "Machine Config Daemon is processing the node"
-	ReasonOfUnavailabilityNodeUnschedulable = "Node is marked unschedulable"
+	reasonOfUnavailabilityMCDWorkInProgress      = "Machine Config Daemon is processing the node"
+	reasonOfUnavailabilityNodeUnschedulable      = "Node is marked unschedulable"
+	reasonOfUnavailabilityNodeNotReady           = "Not ready"
+	reasonOfUnavailabilityNodeDiskPressure       = "Disk pressure"
+	reasonOfUnavailabilityNodeNetworkUnavailable = "Network unavailable"
 )
 
 // isNodeUnavailable is a helper function for getUnavailableMachines
@@ -238,7 +336,9 @@ func isNodeUnavailable(l *LayeredNodeState) bool {
 	}
 	klog.V(5).Infof("Unavailable node %s's machine-config daemon state %s is neither %s nor %s", node.Name,
 		node.Annotations[MachineConfigDaemonStateAnnotationKey], MachineConfigDaemonStateDegraded, MachineConfigDaemonStateUnreconcilable)
-	l.ReasonOfUnavailability = ReasonOfUnavailabilityMCDWorkInProgress
+	l.unavailable = append(l.unavailable, badCondition{
+		reason: reasonOfUnavailabilityMCDWorkInProgress,
+	})
 	return true
 }
 
@@ -253,32 +353,45 @@ func isNodeMCDState(node *corev1.Node, state string) bool {
 }
 
 func checkNodeReady(l *LayeredNodeState) error {
+	var ret error
 	node := l.node
 	for i := range node.Status.Conditions {
 		cond := &node.Status.Conditions[i]
+		b := badCondition{message: cond.Message, lastTransitionTime: cond.LastTransitionTime.Time}
 		// We consider the node for scheduling only when its:
 		// - NodeReady condition status is ConditionTrue,
 		// - NodeDiskPressure condition status is ConditionFalse,
 		// - NodeNetworkUnavailable condition status is ConditionFalse.
 		if cond.Type == corev1.NodeReady && cond.Status != corev1.ConditionTrue {
-			l.ReasonOfUnavailability = fmt.Sprintf("node is reporting NotReady=%v with message=%q", cond.Status, cond.Message)
-			return fmt.Errorf("node %s is reporting NotReady=%v", node.Name, cond.Status)
+			b.reason = reasonOfUnavailabilityNodeNotReady
+			l.unavailable = append(l.unavailable, b)
+			if ret == nil {
+				ret = fmt.Errorf("node %s is reporting NotReady=%v", node.Name, cond.Status)
+			}
 		}
 		if cond.Type == corev1.NodeDiskPressure && cond.Status != corev1.ConditionFalse {
-			l.ReasonOfUnavailability = fmt.Sprintf("node is reporting OutOfDisk=%v with message=%q", cond.Status, cond.Message)
-			return fmt.Errorf("node %s is reporting OutOfDisk=%v", node.Name, cond.Status)
+			b.reason = reasonOfUnavailabilityNodeDiskPressure
+			l.unavailable = append(l.unavailable, b)
+			if ret == nil {
+				ret = fmt.Errorf("node %s is reporting OutOfDisk=%v", node.Name, cond.Status)
+			}
 		}
 		if cond.Type == corev1.NodeNetworkUnavailable && cond.Status != corev1.ConditionFalse {
-			l.ReasonOfUnavailability = fmt.Sprintf("node is reporting NetworkUnavailable=%v with message=%q", cond.Status, cond.Message)
-			return fmt.Errorf("node %s is reporting NetworkUnavailable=%v", node.Name, cond.Status)
+			b.reason = reasonOfUnavailabilityNodeNetworkUnavailable
+			l.unavailable = append(l.unavailable, b)
+			if ret == nil {
+				ret = fmt.Errorf("node %s is reporting NetworkUnavailable=%v", node.Name, cond.Status)
+			}
 		}
 	}
 	// Ignore nodes that are marked unschedulable
 	if node.Spec.Unschedulable {
-		l.ReasonOfUnavailability = ReasonOfUnavailabilityNodeUnschedulable
-		return fmt.Errorf("node %s is reporting Unschedulable", node.Name)
+		l.unavailable = append(l.unavailable, badCondition{reason: reasonOfUnavailabilityNodeUnschedulable})
+		if ret == nil {
+			ret = fmt.Errorf("node %s is reporting Unschedulable", node.Name)
+		}
 	}
-	return nil
+	return ret
 }
 
 func isNodeReady(l *LayeredNodeState) bool {

@@ -18,22 +18,22 @@ build0-gstfj-ci-tests-worker-b-jv5bg      Degraded      Draining   4.16.0-ec.2  
 build0-gstfj-ci-tests-worker-b-kj6gk      Degraded      Draining   4.16.0-ec.2   ?     failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-tests-worker-c-dcz9p      Degraded      Draining   4.16.0-ec.2   ?     failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
 build0-gstfj-ci-prowjobs-worker-d-ddnxd   Unavailable   Pending    ?             ?     Machine Config Daemon is processing the node
-build0-gstfj-ci-tests-worker-b-d9vz2      Unavailable   Pending    ?             ?     node is reporting NotReady=False with message="kubelet is still setting up stuff"
+build0-gstfj-ci-tests-worker-b-d9vz2      Unavailable   Pending    ?             ?     Not ready
 build0-gstfj-ci-tests-worker-c-jq5rk      Unavailable   Updated    4.16.0-ec.3   -     Node is marked unschedulable
 ...
 Omitted additional 49 Total, 21 Completed, 44 Available, 5 Progressing, 28 Outdated, 5 Draining, 0 Excluded, and 0 Degraded nodes.
 Pass along --details=nodes to see all information.
 
 = Update Health =
-SINCE   LEVEL     IMPACT           MESSAGE
--       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-9lztv is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-bg9f5 is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-mrxwn is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-4h7pn is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded
--       Error     Update Stalled   Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
-now     Warning   Update Stalled   Cluster Version version is failing to proceed with the update (ClusterOperatorDegraded)
--       Warning   Update Speed     Node build0-gstfj-ci-tests-worker-b-d9vz2 is unavailable
+SINCE    LEVEL     IMPACT           MESSAGE
+-        Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-9lztv is degraded
+-        Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-bg9f5 is degraded
+-        Error     Update Stalled   Node build0-gstfj-ci-prowjobs-worker-b-mrxwn is degraded
+-        Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-4h7pn is degraded
+-        Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded
+-        Error     Update Stalled   Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded
+-        Error     Update Stalled   Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
+now      Warning   Update Stalled   Cluster Version version is failing to proceed with the update (ClusterOperatorDegraded)
+22m44s   Warning   Update Speed     Node build0-gstfj-ci-tests-worker-b-d9vz2 is not ready
 
 Run with --details=health for additional description and links to related online documentation
