@@ -9,11 +9,6 @@ Control Plane Nodes
 NAME                        ASSESSMENT   PHASE     VERSION                              EST   MESSAGE
 ip-10-0-8-37.ec2.internal   Outdated     Pending   4.16.0-0.nightly-2024-08-01-082745   ?     
 
-= Worker Upgrade =
-
-WORKER POOL   ASSESSMENT   COMPLETION   STATUS
-worker        Empty                     0 Total
-
 = Update Health =
 SINCE   LEVEL   IMPACT   MESSAGE
 2m54s   Info    None     Update is proceeding well

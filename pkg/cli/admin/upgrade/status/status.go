@@ -311,10 +311,20 @@ func (o *options) Run(ctx context.Context) error {
 	_ = controlPlaneStatusData.Write(o.Out)
 	controlPlanePoolStatusData.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
 
-	fmt.Fprintf(o.Out, "\n= Worker Upgrade =\n")
-	writePools(o.Out, workerPoolsStatusData)
-	for _, pool := range workerPoolsStatusData {
-		pool.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
+	var workerUpgrade bool
+	for _, d := range workerPoolsStatusData {
+		if len(d.Nodes) > 0 {
+			workerUpgrade = true
+			break
+		}
+	}
+
+	if workerUpgrade {
+		fmt.Fprintf(o.Out, "\n= Worker Upgrade =\n")
+		writePools(o.Out, workerPoolsStatusData)
+		for _, pool := range workerPoolsStatusData {
+			pool.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
+		}
 	}
 
 	fmt.Fprintf(o.Out, "\n")
