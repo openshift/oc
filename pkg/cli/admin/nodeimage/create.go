@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -331,15 +330,17 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 	klog.V(2).Infof("Copying artifacts from %s", o.nodeJoinerPod.GetName())
 	rsyncOptions := &rsync.RsyncOptions{
 		Namespace:     o.nodeJoinerNamespace.GetName(),
-		Source:        &rsync.PathSpec{PodName: o.nodeJoinerPod.GetName(), Path: path.Join("/assets", "node.x86_64.iso")},
+		Source:        &rsync.PathSpec{PodName: o.nodeJoinerPod.GetName(), Path: "/assets/"},
 		ContainerName: nodeJoinerContainer,
-		Destination:   &rsync.PathSpec{PodName: "", Path: path.Join(o.AssetsDir, o.OutputName)},
+		Destination:   &rsync.PathSpec{PodName: "", Path: o.AssetsDir},
 		Client:        o.Client,
 		Config:        o.Config,
 		Compress:      true,
 		RshCmd:        fmt.Sprintf("%s --namespace=%s -c %s", o.rsyncRshCmd, o.nodeJoinerNamespace.GetName(), nodeJoinerContainer),
 		IOStreams:     o.IOStreams,
 		Quiet:         true,
+		RsyncInclude:  []string{"*.iso"},
+		RsyncExclude:  []string{"*"},
 	}
 	rsyncOptions.Strategy = o.copyStrategy(rsyncOptions)
 	return rsyncOptions.RunRsync()
