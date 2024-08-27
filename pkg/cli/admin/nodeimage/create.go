@@ -555,12 +555,44 @@ func (o *CreateOptions) createPod(ctx context.Context) error {
 			},
 		},
 	}
+
+	err := o.configurePodProxySetting(ctx, nodeJoinerPod)
+	if err != nil {
+		return err
+	}
+
 	pod, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).Create(ctx, nodeJoinerPod, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("cannot create pod: %w", err)
 	}
 	o.nodeJoinerPod = pod
 
+	return nil
+}
+
+func (o *CreateOptions) configurePodProxySetting(ctx context.Context, pod *corev1.Pod) error {
+	proxy, err := o.ConfigClient.ConfigV1().Proxies().Get(ctx, "cluster", metav1.GetOptions{})
+	if err != nil {
+		if kapierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	proxyVars := []corev1.EnvVar{}
+	if proxy.Status.HTTPProxy != "" {
+		proxyVars = append(proxyVars, corev1.EnvVar{Name: "HTTP_PROXY", Value: proxy.Status.HTTPProxy})
+	}
+	if proxy.Status.HTTPSProxy != "" {
+		proxyVars = append(proxyVars, corev1.EnvVar{Name: "HTTPS_PROXY", Value: proxy.Status.HTTPSProxy})
+	}
+	if proxy.Status.NoProxy != "" {
+		proxyVars = append(proxyVars, corev1.EnvVar{Name: "NO_PROXY", Value: proxy.Status.NoProxy})
+	}
+
+	for i := range pod.Spec.Containers {
+		pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, proxyVars...)
+	}
 	return nil
 }
 
