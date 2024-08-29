@@ -3,7 +3,7 @@ Assessment:      Progressing
 Target Version:  4.15.0-ec.2 (from 4.15.0-ec.1)
 Completion:      43% (3 operators updated, 0 updating, 4 waiting)
 Duration:        53m (Est. Time Remaining: 1h39m)
-Operator Status: 7 Healthy
+Operator Health: 7 Healthy
 
 Control Plane Nodes
 NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE

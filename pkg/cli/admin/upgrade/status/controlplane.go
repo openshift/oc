@@ -445,5 +445,5 @@ Assessment:      {{ .Assessment }}
 Target Version:  {{ .TargetVersion }}
 Completion:      {{ printf "%.0f" .Completion }}% ({{ .Operators.Updated }} operators updated, {{ .Operators.Updating }} updating, {{ .Operators.Waiting }} waiting)
 Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ vagueUnder .EstTimeToComplete .EstDuration }}){{ end }}
-Operator Status: {{ .Operators.StatusSummary }}
+Operator Health: {{ .Operators.StatusSummary }}
 `
