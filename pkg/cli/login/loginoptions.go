@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -70,6 +71,7 @@ type LoginOptions struct {
 	Project      string
 	WebLogin     bool
 	CallbackPort int32
+	ProxyURL     string
 
 	// infra
 	StartingKubeConfig *kclientcmdapi.Config
@@ -167,6 +169,14 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 			clientConfig.CAFile = caFile
 			clientConfig.CAData = caData
 		}
+	}
+
+	if len(o.ProxyURL) > 0 {
+		url, err := url.Parse(o.ProxyURL)
+		if err != nil {
+			return nil, err
+		}
+		clientConfig.Proxy = http.ProxyURL(url)
 	}
 
 	// try to TCP connect to the server to make sure it's reachable, and discover
