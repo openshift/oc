@@ -164,6 +164,7 @@ func (d *destinations) mergeIntoDigests(srcDigest digest.Digest, target pushTarg
 			continue
 		}
 		existing.tags = append(existing.tags, dst.tags...)
+		current[repo] = existing
 	}
 }
 
