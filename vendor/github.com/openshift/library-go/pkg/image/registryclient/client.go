@@ -18,14 +18,13 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/manifest/schema1"
-	"github.com/distribution/distribution/v3/reference"
 	"github.com/distribution/distribution/v3/registry/api/errcode"
-	registryclient "github.com/distribution/distribution/v3/registry/client"
-	"github.com/distribution/distribution/v3/registry/client/auth"
-	"github.com/distribution/distribution/v3/registry/client/auth/challenge"
-	"github.com/distribution/distribution/v3/registry/client/transport"
+	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
+	registryclient "github.com/openshift/library-go/pkg/registry/client"
+	"github.com/openshift/library-go/pkg/registry/client/auth"
+	"github.com/openshift/library-go/pkg/registry/client/auth/challenge"
+	"github.com/openshift/library-go/pkg/registry/client/transport"
 
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 )
@@ -723,20 +722,11 @@ func VerifyManifestIntegrity(manifest distribution.Manifest, dgst digest.Digest)
 
 // ContentDigestForManifest returns the digest in the provided algorithm of the supplied manifest's contents.
 func ContentDigestForManifest(manifest distribution.Manifest, algo digest.Algorithm) (digest.Digest, error) {
-	switch t := manifest.(type) {
-	case *schema1.SignedManifest:
-		// schema1 manifest digests are calculated from the payload
-		if len(t.Canonical) == 0 {
-			return "", fmt.Errorf("the schema1 manifest does not have a canonical representation")
-		}
-		return algo.FromBytes(t.Canonical), nil
-	default:
-		_, payload, err := manifest.Payload()
-		if err != nil {
-			return "", err
-		}
-		return algo.FromBytes(payload), nil
+	_, payload, err := manifest.Payload()
+	if err != nil {
+		return "", err
 	}
+	return algo.FromBytes(payload), nil
 }
 
 // blobStoreVerifier wraps the blobs service and ensures that content retrieved by digest matches that digest.

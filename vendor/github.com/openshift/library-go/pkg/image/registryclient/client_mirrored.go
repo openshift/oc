@@ -11,13 +11,13 @@ import (
 
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/registry/api/errcode"
-	"github.com/distribution/distribution/v3/registry/client"
-	"github.com/distribution/distribution/v3/registry/client/auth"
 	"github.com/opencontainers/go-digest"
 	"github.com/openshift/library-go/pkg/image/reference"
+	"github.com/openshift/library-go/pkg/registry/client"
+	"github.com/openshift/library-go/pkg/registry/client/auth"
 	"k8s.io/klog/v2"
 
-	distributionreference "github.com/distribution/distribution/v3/reference"
+	distributionreference "github.com/distribution/reference"
 )
 
 // AlternateBlobSourceStrategy is consulted when a repository cannot be reached to find alternate

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -139,12 +139,6 @@ type BlobDescriptorService interface {
 type BlobDescriptorServiceFactory interface {
 	BlobAccessController(svc BlobDescriptorService) BlobDescriptorService
 }
-
-// ReadSeekCloser is the primary reader type for blob data, combining
-// io.ReadSeeker with io.Closer.
-//
-// Deprecated: use [io.ReadSeekCloser].
-type ReadSeekCloser = io.ReadSeekCloser
 
 // BlobProvider describes operations for getting blob data.
 type BlobProvider interface {
