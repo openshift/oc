@@ -16,7 +16,7 @@ import (
 
 	man "github.com/containers/image/v5/manifest"
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
 	godigest "github.com/opencontainers/go-digest"
 )
@@ -278,7 +278,7 @@ func (s *fileBlobStore) Get(ctx context.Context, dgst godigest.Digest) ([]byte, 
 	return ioutil.ReadFile(path)
 }
 
-func (s *fileBlobStore) Open(ctx context.Context, dgst godigest.Digest) (distribution.ReadSeekCloser, error) {
+func (s *fileBlobStore) Open(ctx context.Context, dgst godigest.Digest) (io.ReadSeekCloser, error) {
 	path := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "blobs")
 	return os.Open(path)
 }

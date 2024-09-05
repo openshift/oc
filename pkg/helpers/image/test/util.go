@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 
@@ -20,6 +19,10 @@ import (
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
 )
+
+// Deprecated: Docker Image Manifest v2, Schema 1 is deprecated since 2015.
+// Use Docker Image Manifest v2, Schema 2, or the OCI Image Specification.
+const Schema1MediaTypeManifest = "application/vnd.docker.distribution.manifest.v1+json"
 
 const (
 	Layer1 = "tarsum.dev+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -108,7 +111,7 @@ func ImageWithLayers(id, ref string, configName *string, layers ...string) image
 			},
 		},
 		DockerImageReference:         ref,
-		DockerImageManifestMediaType: schema1.MediaTypeManifest,
+		DockerImageManifestMediaType: Schema1MediaTypeManifest,
 	}
 
 	image.DockerImageMetadata = runtime.RawExtension{
