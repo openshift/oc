@@ -26,6 +26,7 @@ import (
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/recommend"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/rollback"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/status"
 )
@@ -113,14 +114,16 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
 	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows upgrade to a version when it is supported but not recommended for updates.")
 
+	cmd.AddCommand(channel.New(f, streams))
+
 	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_STATUS").IsEnabled() {
 		cmd.AddCommand(status.New(f, streams))
 	}
-
-	cmd.AddCommand(channel.New(f, streams))
-
 	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_ROLLBACK").IsEnabled() {
 		cmd.AddCommand(rollback.New(f, streams))
+	}
+	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_RECOMMEND").IsEnabled() {
+		cmd.AddCommand(recommend.New(f, streams))
 	}
 
 	return cmd
