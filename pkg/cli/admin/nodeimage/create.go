@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -307,6 +308,12 @@ func (o *CreateOptions) Run() error {
 	if err != nil {
 		return err
 	}
+
+	err = o.renameImageIfOutputNameIsSpecified()
+	if err != nil {
+		return err
+	}
+
 	klog.V(1).Info("Command successfully completed")
 	return nil
 }
@@ -344,6 +351,50 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 	}
 	rsyncOptions.Strategy = o.copyStrategy(rsyncOptions)
 	return rsyncOptions.RunRsync()
+}
+
+func (o *CreateOptions) renameImageIfOutputNameIsSpecified() error {
+	if o.OutputName == "" {
+		return nil
+	}
+	// AssetDir doesn't exist in unit test fake filesystem
+	_, err := os.Stat(o.AssetsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		} else {
+			return err
+		}
+	}
+
+	err = filepath.Walk(o.AssetsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && info.Name() != o.OutputName && strings.HasSuffix(info.Name(), ".iso") {
+			newPath := filepath.Join(filepath.Dir(path), o.OutputName)
+
+			// Check if another file has the same name
+			if _, err := os.Stat(newPath); err == nil {
+				return fmt.Errorf("file already exists: %s", newPath)
+			}
+
+			err := os.Rename(path, newPath)
+			if err != nil {
+				return err
+			} else {
+				return nil
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
