@@ -57,7 +57,7 @@ var (
 		  oc adm node-image monitor --ip-addresses 192.168.111.83
 
 		# Monitor multiple nodes being added to a cluster by separating each
-		  IP address with a comma
+		# IP address with a comma
 		  oc adm node-image monitor --ip-addresses 192.168.111.83,192.168.111.84
 	`)
 
