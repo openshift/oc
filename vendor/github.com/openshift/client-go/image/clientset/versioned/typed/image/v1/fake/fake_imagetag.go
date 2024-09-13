@@ -23,22 +23,24 @@ var imagetagsKind = v1.SchemeGroupVersion.WithKind("ImageTag")
 
 // Get takes name of the imageTag, and returns the corresponding imageTag object, and an error if there is any.
 func (c *FakeImageTags) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.ImageTag, err error) {
+	emptyResult := &v1.ImageTag{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(imagetagsResource, c.ns, name), &v1.ImageTag{})
+		Invokes(testing.NewGetActionWithOptions(imagetagsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageTag), err
 }
 
 // List takes label and field selectors, and returns the list of ImageTags that match those selectors.
 func (c *FakeImageTags) List(ctx context.Context, opts metav1.ListOptions) (result *v1.ImageTagList, err error) {
+	emptyResult := &v1.ImageTagList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(imagetagsResource, imagetagsKind, c.ns, opts), &v1.ImageTagList{})
+		Invokes(testing.NewListActionWithOptions(imagetagsResource, imagetagsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -56,22 +58,24 @@ func (c *FakeImageTags) List(ctx context.Context, opts metav1.ListOptions) (resu
 
 // Create takes the representation of a imageTag and creates it.  Returns the server's representation of the imageTag, and an error, if there is any.
 func (c *FakeImageTags) Create(ctx context.Context, imageTag *v1.ImageTag, opts metav1.CreateOptions) (result *v1.ImageTag, err error) {
+	emptyResult := &v1.ImageTag{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(imagetagsResource, c.ns, imageTag), &v1.ImageTag{})
+		Invokes(testing.NewCreateActionWithOptions(imagetagsResource, c.ns, imageTag, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageTag), err
 }
 
 // Update takes the representation of a imageTag and updates it. Returns the server's representation of the imageTag, and an error, if there is any.
 func (c *FakeImageTags) Update(ctx context.Context, imageTag *v1.ImageTag, opts metav1.UpdateOptions) (result *v1.ImageTag, err error) {
+	emptyResult := &v1.ImageTag{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(imagetagsResource, c.ns, imageTag), &v1.ImageTag{})
+		Invokes(testing.NewUpdateActionWithOptions(imagetagsResource, c.ns, imageTag, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageTag), err
 }

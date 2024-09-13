@@ -27,20 +27,22 @@ var oauthclientsKind = v1.SchemeGroupVersion.WithKind("OAuthClient")
 
 // Get takes name of the oAuthClient, and returns the corresponding oAuthClient object, and an error if there is any.
 func (c *FakeOAuthClients) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.OAuthClient, err error) {
+	emptyResult := &v1.OAuthClient{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(oauthclientsResource, name), &v1.OAuthClient{})
+		Invokes(testing.NewRootGetActionWithOptions(oauthclientsResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.OAuthClient), err
 }
 
 // List takes label and field selectors, and returns the list of OAuthClients that match those selectors.
 func (c *FakeOAuthClients) List(ctx context.Context, opts metav1.ListOptions) (result *v1.OAuthClientList, err error) {
+	emptyResult := &v1.OAuthClientList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(oauthclientsResource, oauthclientsKind, opts), &v1.OAuthClientList{})
+		Invokes(testing.NewRootListActionWithOptions(oauthclientsResource, oauthclientsKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -59,25 +61,27 @@ func (c *FakeOAuthClients) List(ctx context.Context, opts metav1.ListOptions) (r
 // Watch returns a watch.Interface that watches the requested oAuthClients.
 func (c *FakeOAuthClients) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(oauthclientsResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(oauthclientsResource, opts))
 }
 
 // Create takes the representation of a oAuthClient and creates it.  Returns the server's representation of the oAuthClient, and an error, if there is any.
 func (c *FakeOAuthClients) Create(ctx context.Context, oAuthClient *v1.OAuthClient, opts metav1.CreateOptions) (result *v1.OAuthClient, err error) {
+	emptyResult := &v1.OAuthClient{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(oauthclientsResource, oAuthClient), &v1.OAuthClient{})
+		Invokes(testing.NewRootCreateActionWithOptions(oauthclientsResource, oAuthClient, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.OAuthClient), err
 }
 
 // Update takes the representation of a oAuthClient and updates it. Returns the server's representation of the oAuthClient, and an error, if there is any.
 func (c *FakeOAuthClients) Update(ctx context.Context, oAuthClient *v1.OAuthClient, opts metav1.UpdateOptions) (result *v1.OAuthClient, err error) {
+	emptyResult := &v1.OAuthClient{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(oauthclientsResource, oAuthClient), &v1.OAuthClient{})
+		Invokes(testing.NewRootUpdateActionWithOptions(oauthclientsResource, oAuthClient, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.OAuthClient), err
 }
@@ -91,7 +95,7 @@ func (c *FakeOAuthClients) Delete(ctx context.Context, name string, opts metav1.
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeOAuthClients) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(oauthclientsResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(oauthclientsResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.OAuthClientList{})
 	return err
@@ -99,10 +103,11 @@ func (c *FakeOAuthClients) DeleteCollection(ctx context.Context, opts metav1.Del
 
 // Patch applies the patch and returns the patched oAuthClient.
 func (c *FakeOAuthClients) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.OAuthClient, err error) {
+	emptyResult := &v1.OAuthClient{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(oauthclientsResource, name, pt, data, subresources...), &v1.OAuthClient{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(oauthclientsResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.OAuthClient), err
 }
@@ -120,10 +125,11 @@ func (c *FakeOAuthClients) Apply(ctx context.Context, oAuthClient *oauthv1.OAuth
 	if name == nil {
 		return nil, fmt.Errorf("oAuthClient.Name must be provided to Apply")
 	}
+	emptyResult := &v1.OAuthClient{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(oauthclientsResource, *name, types.ApplyPatchType, data), &v1.OAuthClient{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(oauthclientsResource, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.OAuthClient), err
 }

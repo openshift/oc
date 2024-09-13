@@ -28,22 +28,24 @@ var templateinstancesKind = v1.SchemeGroupVersion.WithKind("TemplateInstance")
 
 // Get takes name of the templateInstance, and returns the corresponding templateInstance object, and an error if there is any.
 func (c *FakeTemplateInstances) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.TemplateInstance, err error) {
+	emptyResult := &v1.TemplateInstance{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(templateinstancesResource, c.ns, name), &v1.TemplateInstance{})
+		Invokes(testing.NewGetActionWithOptions(templateinstancesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.TemplateInstance), err
 }
 
 // List takes label and field selectors, and returns the list of TemplateInstances that match those selectors.
 func (c *FakeTemplateInstances) List(ctx context.Context, opts metav1.ListOptions) (result *v1.TemplateInstanceList, err error) {
+	emptyResult := &v1.TemplateInstanceList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(templateinstancesResource, templateinstancesKind, c.ns, opts), &v1.TemplateInstanceList{})
+		Invokes(testing.NewListActionWithOptions(templateinstancesResource, templateinstancesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -62,40 +64,43 @@ func (c *FakeTemplateInstances) List(ctx context.Context, opts metav1.ListOption
 // Watch returns a watch.Interface that watches the requested templateInstances.
 func (c *FakeTemplateInstances) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(templateinstancesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(templateinstancesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a templateInstance and creates it.  Returns the server's representation of the templateInstance, and an error, if there is any.
 func (c *FakeTemplateInstances) Create(ctx context.Context, templateInstance *v1.TemplateInstance, opts metav1.CreateOptions) (result *v1.TemplateInstance, err error) {
+	emptyResult := &v1.TemplateInstance{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(templateinstancesResource, c.ns, templateInstance), &v1.TemplateInstance{})
+		Invokes(testing.NewCreateActionWithOptions(templateinstancesResource, c.ns, templateInstance, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.TemplateInstance), err
 }
 
 // Update takes the representation of a templateInstance and updates it. Returns the server's representation of the templateInstance, and an error, if there is any.
 func (c *FakeTemplateInstances) Update(ctx context.Context, templateInstance *v1.TemplateInstance, opts metav1.UpdateOptions) (result *v1.TemplateInstance, err error) {
+	emptyResult := &v1.TemplateInstance{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(templateinstancesResource, c.ns, templateInstance), &v1.TemplateInstance{})
+		Invokes(testing.NewUpdateActionWithOptions(templateinstancesResource, c.ns, templateInstance, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.TemplateInstance), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeTemplateInstances) UpdateStatus(ctx context.Context, templateInstance *v1.TemplateInstance, opts metav1.UpdateOptions) (*v1.TemplateInstance, error) {
+func (c *FakeTemplateInstances) UpdateStatus(ctx context.Context, templateInstance *v1.TemplateInstance, opts metav1.UpdateOptions) (result *v1.TemplateInstance, err error) {
+	emptyResult := &v1.TemplateInstance{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(templateinstancesResource, "status", c.ns, templateInstance), &v1.TemplateInstance{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(templateinstancesResource, "status", c.ns, templateInstance, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.TemplateInstance), err
 }
@@ -110,7 +115,7 @@ func (c *FakeTemplateInstances) Delete(ctx context.Context, name string, opts me
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeTemplateInstances) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(templateinstancesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(templateinstancesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.TemplateInstanceList{})
 	return err
@@ -118,11 +123,12 @@ func (c *FakeTemplateInstances) DeleteCollection(ctx context.Context, opts metav
 
 // Patch applies the patch and returns the patched templateInstance.
 func (c *FakeTemplateInstances) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.TemplateInstance, err error) {
+	emptyResult := &v1.TemplateInstance{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(templateinstancesResource, c.ns, name, pt, data, subresources...), &v1.TemplateInstance{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(templateinstancesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.TemplateInstance), err
 }
@@ -140,11 +146,12 @@ func (c *FakeTemplateInstances) Apply(ctx context.Context, templateInstance *tem
 	if name == nil {
 		return nil, fmt.Errorf("templateInstance.Name must be provided to Apply")
 	}
+	emptyResult := &v1.TemplateInstance{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(templateinstancesResource, c.ns, *name, types.ApplyPatchType, data), &v1.TemplateInstance{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(templateinstancesResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.TemplateInstance), err
 }
@@ -163,11 +170,12 @@ func (c *FakeTemplateInstances) ApplyStatus(ctx context.Context, templateInstanc
 	if name == nil {
 		return nil, fmt.Errorf("templateInstance.Name must be provided to Apply")
 	}
+	emptyResult := &v1.TemplateInstance{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(templateinstancesResource, c.ns, *name, types.ApplyPatchType, data, "status"), &v1.TemplateInstance{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(templateinstancesResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions(), "status"), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.TemplateInstance), err
 }

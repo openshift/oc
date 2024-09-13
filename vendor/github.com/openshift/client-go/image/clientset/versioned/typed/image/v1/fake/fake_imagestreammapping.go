@@ -37,22 +37,24 @@ func (c *FakeImageStreamMappings) Apply(ctx context.Context, imageStreamMapping 
 	if name == nil {
 		return nil, fmt.Errorf("imageStreamMapping.Name must be provided to Apply")
 	}
+	emptyResult := &v1.ImageStreamMapping{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(imagestreammappingsResource, c.ns, *name, types.ApplyPatchType, data), &v1.ImageStreamMapping{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(imagestreammappingsResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStreamMapping), err
 }
 
 // Create takes the representation of a imageStreamMapping and creates it.  Returns the server's representation of the status, and an error, if there is any.
 func (c *FakeImageStreamMappings) Create(ctx context.Context, imageStreamMapping *v1.ImageStreamMapping, opts metav1.CreateOptions) (result *metav1.Status, err error) {
+	emptyResult := &metav1.Status{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(imagestreammappingsResource, c.ns, imageStreamMapping), &metav1.Status{})
+		Invokes(testing.NewCreateActionWithOptions(imagestreammappingsResource, c.ns, imageStreamMapping, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*metav1.Status), err
 }

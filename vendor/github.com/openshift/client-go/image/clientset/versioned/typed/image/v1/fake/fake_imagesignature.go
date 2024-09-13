@@ -21,10 +21,11 @@ var imagesignaturesKind = v1.SchemeGroupVersion.WithKind("ImageSignature")
 
 // Create takes the representation of a imageSignature and creates it.  Returns the server's representation of the imageSignature, and an error, if there is any.
 func (c *FakeImageSignatures) Create(ctx context.Context, imageSignature *v1.ImageSignature, opts metav1.CreateOptions) (result *v1.ImageSignature, err error) {
+	emptyResult := &v1.ImageSignature{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(imagesignaturesResource, imageSignature), &v1.ImageSignature{})
+		Invokes(testing.NewRootCreateActionWithOptions(imagesignaturesResource, imageSignature, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageSignature), err
 }

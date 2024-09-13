@@ -40,6 +40,7 @@ func init() {
 			knownFeatureSets.Insert(string(featureSet))
 		}
 	}
+	knownFeatureSets.Insert(string(configv1.CustomNoUpgrade))
 }
 
 // resourceId uniquely identifies a Kubernetes resource.

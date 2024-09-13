@@ -22,11 +22,12 @@ var imagestreamimagesKind = v1.SchemeGroupVersion.WithKind("ImageStreamImage")
 
 // Get takes name of the imageStreamImage, and returns the corresponding imageStreamImage object, and an error if there is any.
 func (c *FakeImageStreamImages) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.ImageStreamImage, err error) {
+	emptyResult := &v1.ImageStreamImage{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(imagestreamimagesResource, c.ns, name), &v1.ImageStreamImage{})
+		Invokes(testing.NewGetActionWithOptions(imagestreamimagesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStreamImage), err
 }

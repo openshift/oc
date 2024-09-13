@@ -23,22 +23,24 @@ var imagestreamtagsKind = v1.SchemeGroupVersion.WithKind("ImageStreamTag")
 
 // Get takes name of the imageStreamTag, and returns the corresponding imageStreamTag object, and an error if there is any.
 func (c *FakeImageStreamTags) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.ImageStreamTag, err error) {
+	emptyResult := &v1.ImageStreamTag{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(imagestreamtagsResource, c.ns, name), &v1.ImageStreamTag{})
+		Invokes(testing.NewGetActionWithOptions(imagestreamtagsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStreamTag), err
 }
 
 // List takes label and field selectors, and returns the list of ImageStreamTags that match those selectors.
 func (c *FakeImageStreamTags) List(ctx context.Context, opts metav1.ListOptions) (result *v1.ImageStreamTagList, err error) {
+	emptyResult := &v1.ImageStreamTagList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(imagestreamtagsResource, imagestreamtagsKind, c.ns, opts), &v1.ImageStreamTagList{})
+		Invokes(testing.NewListActionWithOptions(imagestreamtagsResource, imagestreamtagsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -56,22 +58,24 @@ func (c *FakeImageStreamTags) List(ctx context.Context, opts metav1.ListOptions)
 
 // Create takes the representation of a imageStreamTag and creates it.  Returns the server's representation of the imageStreamTag, and an error, if there is any.
 func (c *FakeImageStreamTags) Create(ctx context.Context, imageStreamTag *v1.ImageStreamTag, opts metav1.CreateOptions) (result *v1.ImageStreamTag, err error) {
+	emptyResult := &v1.ImageStreamTag{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(imagestreamtagsResource, c.ns, imageStreamTag), &v1.ImageStreamTag{})
+		Invokes(testing.NewCreateActionWithOptions(imagestreamtagsResource, c.ns, imageStreamTag, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStreamTag), err
 }
 
 // Update takes the representation of a imageStreamTag and updates it. Returns the server's representation of the imageStreamTag, and an error, if there is any.
 func (c *FakeImageStreamTags) Update(ctx context.Context, imageStreamTag *v1.ImageStreamTag, opts metav1.UpdateOptions) (result *v1.ImageStreamTag, err error) {
+	emptyResult := &v1.ImageStreamTag{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(imagestreamtagsResource, c.ns, imageStreamTag), &v1.ImageStreamTag{})
+		Invokes(testing.NewUpdateActionWithOptions(imagestreamtagsResource, c.ns, imageStreamTag, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStreamTag), err
 }
