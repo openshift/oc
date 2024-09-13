@@ -29,10 +29,16 @@ func (o *RootsRegen) forceRegenerationOnSecret(objPrinter *objectPrinter, kubeCl
 		return nil
 	}
 
-	keyPairInfo, err := certgraphanalysis.InspectSecret(secret)
+	keyPairInfos, err := certgraphanalysis.InspectSecret(secret)
 	if err != nil {
 		return fmt.Errorf("error interpretting content: %w", err)
 	}
+
+	if len(keyPairInfos) == 0 {
+		return fmt.Errorf("no key pairs found for secret")
+	}
+
+	keyPairInfo := keyPairInfos[0]
 	if keyPairInfo.Spec.Details.SignerDetails == nil {
 		// not for this command.
 		return nil
@@ -48,6 +54,7 @@ func (o *RootsRegen) forceRegenerationOnSecret(objPrinter *objectPrinter, kubeCl
 		//fmt.Printf("#### SKIPPING ns/%v secret/%v issuer=%v\n", secret.Namespace, secret.Name, keyPairInfo.Spec.CertMetadata.CertIdentifier.Issuer)
 		return nil
 	}
+
 	if o.ValidBefore != nil {
 		notBefore, err := time.Parse(time.RFC3339, secret.Annotations[certrotation.CertificateNotBeforeAnnotation])
 		if err != nil {
