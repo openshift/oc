@@ -153,7 +153,9 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 		currentVersion, foundCurrent := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.CurrentMachineConfigAnnotationKey])
 		desiredVersion, foundDesired := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.DesiredMachineConfigAnnotationKey])
 
-		isUnavailable, reasonOfUnavailability := isNodeUnavailable(node, pool)
+		lns := mco.NewLayeredNodeState(&node)
+		isUnavailable := lns.IsUnavailable(&pool)
+
 		isDegraded := isNodeDegraded(node)
 		isUpdated := foundCurrent && isLatestUpdateHistoryVersionEqualTo(cv.Status.History, currentVersion)
 
@@ -186,10 +188,12 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 			estimate = "-"
 		}
 
-		var message string
+		var message, insightSummary, insightDescription string
 		if isUnavailable && !isUpdating {
 			assessment = nodeAssessmentUnavailable
-			message = reasonOfUnavailability
+			message = lns.GetUnavailableReason()
+			insightSummary = lns.GetUnavailableMessage()
+			insightDescription = lns.GetUnavailableDescription()
 			estimate = "?"
 			if isUpdated {
 				estimate = "-"
@@ -199,16 +203,14 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 		if isDegraded {
 			assessment = nodeAssessmentDegraded
 			message = node.Annotations[mco.MachineConfigDaemonReasonAnnotationKey]
+			insightDescription = message
 			estimate = "?"
 			if isUpdated {
 				estimate = "-"
 			}
 		}
 
-		// For those cases we show assessment only (Unavailable) and omit the insight.
-		if message != mco.ReasonOfUnavailabilityMCDWorkInProgress && message != mco.ReasonOfUnavailabilityNodeUnschedulable {
-			insights = append(insights, nodeInsights(pool, node, message, isUnavailable, isUpdating, isDegraded)...)
-		}
+		insights = append(insights, nodeInsights(pool, node.Name, insightSummary, insightDescription, lns.SeriouslyUnavailable(), isUpdating, isDegraded, lns.GetUnavailableSince())...)
 
 		nodesStatusData = append(nodesStatusData, nodeDisplayData{
 			Name:          node.Name,
@@ -278,11 +280,6 @@ func isLatestUpdateHistoryVersionEqualTo(history []configv1.UpdateHistory, versi
 	return false
 }
 
-func isNodeUnavailable(node corev1.Node, pool mcfgv1.MachineConfigPool) (bool, string) {
-	lns := mco.NewLayeredNodeState(&node)
-	return lns.IsUnavailable(&pool), lns.ReasonOfUnavailability
-}
-
 func isNodeDegraded(node corev1.Node) bool {
 	// Inspired by: https://github.com/openshift/machine-config-operator/blob/master/pkg/controller/node/status.go
 	if node.Annotations == nil {
@@ -337,7 +334,7 @@ func mcdUpdatingStateToPhase(state string) nodePhase {
 	}
 }
 
-func nodeInsights(pool mcfgv1.MachineConfigPool, node corev1.Node, reason string, isUnavailable, isUpdating, isDegraded bool) []updateInsight {
+func nodeInsights(pool mcfgv1.MachineConfigPool, node, summary, description string, isUnavailable, isUpdating, isDegraded bool, unavailableSince time.Time) []updateInsight {
 	var insights []updateInsight
 	scope := scopeTypeWorkerPool
 	if pool.Name == "master" {
@@ -346,16 +343,16 @@ func nodeInsights(pool mcfgv1.MachineConfigPool, node corev1.Node, reason string
 	nodeGroupKind := scopeGroupKind{kind: nodeKind}
 	if isUnavailable && !isUpdating {
 		insights = append(insights, updateInsight{
-			startedAt: time.Time{},
+			startedAt: unavailableSince,
 			scope: updateInsightScope{
 				scopeType: scope,
-				resources: []scopeResource{{kind: nodeGroupKind, name: node.Name}},
+				resources: []scopeResource{{kind: nodeGroupKind, name: node}},
 			},
 			impact: updateInsightImpact{
 				level:       warningImpactLevel,
 				impactType:  updateSpeedImpactType,
-				summary:     fmt.Sprintf("Node %s is unavailable", node.Name),
-				description: reason,
+				summary:     summary,
+				description: description,
 			},
 			remediation: updateInsightRemediation{
 				reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
@@ -367,13 +364,13 @@ func nodeInsights(pool mcfgv1.MachineConfigPool, node corev1.Node, reason string
 			startedAt: time.Time{},
 			scope: updateInsightScope{
 				scopeType: scope,
-				resources: []scopeResource{{kind: nodeGroupKind, name: node.Name}},
+				resources: []scopeResource{{kind: nodeGroupKind, name: node}},
 			},
 			impact: updateInsightImpact{
 				level:       errorImpactLevel,
 				impactType:  updateStalledImpactType,
-				summary:     fmt.Sprintf("Node %s is degraded", node.Name),
-				description: reason,
+				summary:     fmt.Sprintf("Node %s is degraded", node),
+				description: description,
 			},
 			remediation: updateInsightRemediation{
 				reference: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator",
