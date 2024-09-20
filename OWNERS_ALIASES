@@ -3,10 +3,9 @@
 aliases:
   root-approvers:
     - ardaguclu
+    - atiratree
     - deads2k
-    - mfojtik
-    - smarterclayton
-    - soltysh
+    - ingvagabund
   monitoring-approvers:
     - danielmellado
     - jan--f
