@@ -70,7 +70,7 @@ func (c *coBuilder) progressing(status configv1.ConditionStatus, optionFuncs ...
 			c.operator.Status.Conditions[i].Status = status
 			c.operator.Status.Conditions[i].Reason = "ProgressingTowardsDesired"
 			c.operator.Status.Conditions[i].Message = "Operand is operated by operator"
-			c.operator.Status.Conditions[i].LastTransitionTime = metav1.Now()
+			c.operator.Status.Conditions[i].LastTransitionTime = metav1.Date(2023, 12, 1, 23, 23, 0, 0, time.UTC)
 			for _, f := range optionFuncs {
 				f(&c.operator.Status.Conditions[i])
 			}
@@ -175,7 +175,14 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").operator,
 				co("two").progressing(configv1.ConditionTrue).operator,
 			},
-			expected: operators{Total: 2, Updating: 1, Waiting: 1},
+			expected: operators{Total: 2, Waiting: 1, Updating: []UpdatingClusterOperator{{Name: "two", Condition: &configv1.ClusterOperatorStatusCondition{
+				Type:               "Progressing",
+				Status:             "True",
+				LastTransitionTime: metav1.Date(2023, 12, 1, 23, 23, 0, 0, time.UTC),
+				Reason:             "ProgressingTowardsDesired",
+				Message:            "Operand is operated by operator",
+			},
+			}}},
 		},
 		{
 			name: "one out of two not available",
@@ -230,7 +237,14 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 					available(configv1.ConditionFalse).
 					progressing(configv1.ConditionTrue).operator,
 			},
-			expected: operators{Total: 2, Unavailable: 1, Updating: 1, Waiting: 1},
+			expected: operators{Total: 2, Unavailable: 1, Waiting: 1, Updating: []UpdatingClusterOperator{{Name: "two", Condition: &configv1.ClusterOperatorStatusCondition{
+				Type:               "Progressing",
+				Status:             "True",
+				LastTransitionTime: metav1.Date(2023, 12, 1, 23, 23, 0, 0, time.UTC),
+				Reason:             "ProgressingTowardsDesired",
+				Message:            "Operand is operated by operator",
+			},
+			}}},
 		},
 		{
 			name: "one upgraded",

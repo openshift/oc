@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	// "sort"
 	"strings"
 	"time"
 
@@ -37,13 +36,14 @@ func newOptions(streams genericiooptions.IOStreams) *options {
 }
 
 const (
-	detailedOutputNone   = "none"
-	detailedOutputAll    = "all"
-	detailedOutputNodes  = "nodes"
-	detailedOutputHealth = "health"
+	detailedOutputNone      = "none"
+	detailedOutputAll       = "all"
+	detailedOutputNodes     = "nodes"
+	detailedOutputHealth    = "health"
+	detailedOutputOperators = "operators"
 )
 
-var detailedOutputAllValues = []string{detailedOutputNone, detailedOutputAll, detailedOutputNodes, detailedOutputHealth}
+var detailedOutputAllValues = []string{detailedOutputNone, detailedOutputAll, detailedOutputNodes, detailedOutputHealth, detailedOutputOperators}
 
 func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
@@ -308,7 +308,7 @@ func (o *options) Run(ctx context.Context) error {
 
 	controlPlaneStatusData, insights := assessControlPlaneStatus(cv, operators.Items, now)
 	updateInsights = append(updateInsights, insights...)
-	_ = controlPlaneStatusData.Write(o.Out)
+	_ = controlPlaneStatusData.Write(o.Out, o.enabledDetailed(detailedOutputOperators), now)
 	controlPlanePoolStatusData.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
 
 	var workerUpgrade bool

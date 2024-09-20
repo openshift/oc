@@ -180,6 +180,13 @@ func shortDuration(d time.Duration) string {
 		return orig[:len(orig)-2]
 	case strings.HasSuffix(orig, "h0m"):
 		return orig[:len(orig)-2]
+	case strings.Index(orig, ".") != -1:
+		dStr := orig[:strings.Index(orig, ".")] + "s"
+		newD, err := time.ParseDuration(dStr)
+		if err != nil {
+			return orig
+		}
+		return shortDuration(newD)
 	}
 	return orig
 }
