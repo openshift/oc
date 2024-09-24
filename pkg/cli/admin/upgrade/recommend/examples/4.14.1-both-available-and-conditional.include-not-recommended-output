@@ -1,0 +1,20 @@
+info: An upgrade is in progress. Working towards 4.14.1: 139 of 859 done (16% complete), waiting on kube-scheduler
+
+Upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+Channel: candidate-4.14 (available channels: candidate-4.14, candidate-4.15, eus-4.14, fast-4.14, stable-4.14)
+
+Recommended updates:
+
+  VERSION     IMAGE
+  4.14.11     quay.io/openshift-release-dev/ocp-release@sha256:36783a8b066c96dd6258e818ce51b5a763438adbf56221ea5c4b62ae4f345886
+  4.14.10     quay.io/openshift-release-dev/ocp-release@sha256:03cc63c0c48b2416889e9ee53f2efc2c940323c15f08384b439c00de8e66e8aa
+  4.14.9      quay.io/openshift-release-dev/ocp-release@sha256:f5eaf0248779a0478cfd83f055d56dc7d755937800a68ad55f6047c503977c44
+  4.14.8      quay.io/openshift-release-dev/ocp-release@sha256:073a4e46289be25e2a05f5264c8f1d697410db66b960c9ceeddebd1c61e58717
+  4.14.7      quay.io/openshift-release-dev/ocp-release@sha256:a346fc0c84644e64c726013a98bef0f75e58f246fce1faa83fb6bbbc6d4050aa
+  4.14.6      quay.io/openshift-release-dev/ocp-release@sha256:e5128c3b0ab225e0abf9344dae504e08b82dda4885bbd047e2dbc13cc3d9879b
+  4.14.5      quay.io/openshift-release-dev/ocp-release@sha256:0ec9d715c717b2a592d07dd83860013613529fae69bc9eecb4b2d4ace679f6f3
+  4.14.4      quay.io/openshift-release-dev/ocp-release@sha256:e6e1d90b492d50438034e6edb46bdafa6c86ae3b80ef3328685912d89681fdee
+  4.14.3      quay.io/openshift-release-dev/ocp-release@sha256:e73ab4b33a9c3ff00c9f800a38d69853ca0c4dfa5a88e3df331f66df8f18ec55
+  4.14.2      quay.io/openshift-release-dev/ocp-release@sha256:45a396b169974dcbd8aae481c647bf55bcf9f0f8f6222483d407d7cec450928d
+
+No updates which are not recommended based on your cluster configuration are available.
