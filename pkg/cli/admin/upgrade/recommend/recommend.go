@@ -53,12 +53,17 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	flags := cmd.Flags()
 	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
 
+	// TODO: We can remove this flag once the idea about `oc adm upgrade recommend` stabilizes and the command
+	//       is promoted out of the OC_ENABLE_CMD_UPGRADE_RECOMMEND feature gate
+	flags.StringVar(&o.mockData.cvPath, "mock-clusterversion", "", "Path to a YAML ClusterVersion object to use for testing (will be removed later).")
+
 	return cmd
 }
 
 type options struct {
 	genericiooptions.IOStreams
 
+	mockData              mockData
 	IncludeNotRecommended bool
 
 	Client configv1client.Interface
@@ -67,25 +72,37 @@ type options struct {
 func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	kcmdutil.RequireNoArguments(cmd, args)
 
-	cfg, err := f.ToRESTConfig()
-	if err != nil {
-		return err
+	if o.mockData.cvPath == "" {
+		cfg, err := f.ToRESTConfig()
+		if err != nil {
+			return err
+		}
+		client, err := configv1client.NewForConfig(cfg)
+		if err != nil {
+			return err
+		}
+		o.Client = client
+	} else {
+		err := o.mockData.load()
+		if err != nil {
+			return err
+		}
 	}
-	client, err := configv1client.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-	o.Client = client
+
 	return nil
 }
 
 func (o *options) Run(ctx context.Context) error {
-	cv, err := o.Client.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return fmt.Errorf("No cluster version information available - you must be connected to an OpenShift version 4 server to fetch the current version")
+	var cv *configv1.ClusterVersion
+	if cv = o.mockData.clusterVersion; cv == nil {
+		var err error
+		cv, err = o.Client.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return fmt.Errorf("No cluster version information available - you must be connected to an OpenShift version 4 server to fetch the current version")
+			}
+			return err
 		}
-		return err
 	}
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil {
