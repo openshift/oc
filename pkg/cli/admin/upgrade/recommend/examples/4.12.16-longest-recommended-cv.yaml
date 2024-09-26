@@ -1,0 +1,4057 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2024-09-27T00:36:20Z"
+  generation: 3
+  name: version
+  resourceVersion: "89553"
+  uid: 1fd98ef0-039e-4942-9e38-82724de74069
+spec:
+  channel: stable-4.13
+  clusterID: a93465d5-61b2-42cd-a10a-33840e6add93
+  upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+status:
+  availableUpdates:
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:6afb11e1cac46fd26476ca134072937115256b9c6360f7a1cd1812992c065f02
+    url: https://access.redhat.com/errata/RHSA-2024:6691
+    version: 4.13.50
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:ab6f574665395d809511db9dc57764358278538eaae248c6d199208b3c30ab7d
+    url: https://access.redhat.com/errata/RHSA-2024:6009
+    version: 4.13.49
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:7235b8e139da4ba4c17c2b4b9864c05c93c5f55f7c2f561e7f9796c7e6589917
+    url: https://access.redhat.com/errata/RHSA-2024:5444
+    version: 4.13.48
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:c7e3658ca8f0f1fc8ce1512ecc36785a68b1388dfbfc39642bff8120bfa86a33
+    url: https://access.redhat.com/errata/RHSA-2024:4484
+    version: 4.13.45
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:e58807c46fab369428af73bdfec64ad4b509dcbdb4586694059013c69856e8a5
+    url: https://access.redhat.com/errata/RHSA-2024:3885
+    version: 4.13.44
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:d0da3d9b016e6d693a61c9425598921b6d0da99c52cb0f3404f6dbc126149e5d
+    url: https://access.redhat.com/errata/RHSA-2024:3494
+    version: 4.13.43
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:dcf5c3ad7384f8bee3c275da8f886b0bc9aea7611d166d695d0cf0fff40a0b55
+    url: https://access.redhat.com/errata/RHSA-2024:2875
+    version: 4.13.42
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:dbb8aa0cf53dc5ac663514e259ad2768d8c82fd1fe7181a4cfb484e3ffdbd3ba
+    url: https://access.redhat.com/errata/RHSA-2024:2047
+    version: 4.13.41
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:c1f69e6137bc9cda2c6da56bafbc7ea969900acb5e5c349b1ebb2103b10b424f
+    url: https://access.redhat.com/errata/RHBA-2024:1761
+    version: 4.13.40
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:dd58c982a2166dcac5ce8f390f8b26b36df27ac765c4e012a670a9c0bac909df
+    url: https://access.redhat.com/errata/RHSA-2024:1683
+    version: 4.13.39
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:db7a6fad1d56cf391159d252daabbb44178132081e077ae290317b91633fb1db
+    url: https://access.redhat.com/errata/RHSA-2024:1454
+    version: 4.13.38
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:0fb7bbb4e6771acc99e32c55d4d37edf58ad31901acb78f552ce77ff4ba1eb3c
+    url: https://access.redhat.com/errata/RHBA-2024:1200
+    version: 4.13.37
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:c39085b26665ed9877e208c123ff147cf7939dde4eca79a4f00fda8ea5b13dc9
+    url: https://access.redhat.com/errata/RHSA-2024:0660
+    version: 4.13.32
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:07cf79d6998a9b6a2d19b7fe168a3300ad682de33f190c9eb27bf61e67d3eeee
+    url: https://access.redhat.com/errata/RHSA-2024:0484
+    version: 4.13.31
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:661be5aec551ee1b774a7176ced6f755d5ec0a5e8b957db234a89ebc8dd3c0f5
+    url: https://access.redhat.com/errata/RHBA-2024:0286
+    version: 4.13.30
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:9c4a4471bb93ab11d255925535ff719742cafa8ae06d622b870133787a72abc3
+    url: https://access.redhat.com/errata/RHSA-2024:0193
+    version: 4.13.29
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:1c834045db967d579aa2f1ef6f836dcb21db13d804bdffb972e8f4a7a4d59fc2
+    url: https://access.redhat.com/errata/RHBA-2024:0055
+    version: 4.13.28
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:bc9006f9160663663c6d9a735c4c497f8f3300d94a7ec45cdafef1cebb15ebfe
+    url: https://access.redhat.com/errata/RHSA-2023:7827
+    version: 4.13.27
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:dece136ed888653cae20c2832b9e94de7c7ab24e34cddf49d5d284f41d7b61b1
+    url: https://access.redhat.com/errata/RHSA-2023:7687
+    version: 4.13.26
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:480f2026c07b0f2e19c3fc60a44e4a7147ab821474641952f077573d05747855
+    url: https://access.redhat.com/errata/RHSA-2023:7604
+    version: 4.13.25
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:d6a7e20a8929a3ad985373f05472ea64bada8ff46f0beb89e1b6d04919affde3
+    url: https://access.redhat.com/errata/RHSA-2023:7475
+    version: 4.13.24
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:ca556d3494d08765c90481f15dd965995371168ea7ee7a551000bed4481931c8
+    url: https://access.redhat.com/errata/RHSA-2023:7323
+    version: 4.13.23
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:f323afe3e80d44da7d0caaed8c353fedef37e5fd5e7f765e8440be86f546cba0
+    url: https://access.redhat.com/errata/RHSA-2023:6846
+    version: 4.13.22
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:562c214e9662e3684ac5b8c3d5d2759a83f544da8897a00ebe91a02fcad6d2d9
+    url: https://access.redhat.com/errata/RHSA-2023:6257
+    version: 4.13.21
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:f8ba6f54eae419aba17926417d950ae18e06021beae9d7947a8b8243ad48353a
+    url: https://access.redhat.com/errata/RHSA-2023:6130
+    version: 4.13.19
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:d0fd9d3ab8690605f816c879d74f4e6d6d9f72982f63a3e0ef3e027ecc512e1c
+    url: https://access.redhat.com/errata/RHSA-2023:5902
+    version: 4.13.18
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:c1f2fa2170c02869484a4e049132128e216a363634d38abf292eef181e93b692
+    url: https://access.redhat.com/errata/RHSA-2023:5672
+    version: 4.13.17
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:78f08839886fb2896857f95de0347b8f67ebcff16591b9d7aec87a20406b2897
+    url: https://access.redhat.com/errata/RHBA-2023:5467
+    version: 4.13.15
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:406fcc160c097f61080412afcfa7fd65284ac8741ac7ad5b480e304aba73674b
+    url: https://access.redhat.com/errata/RHBA-2023:5382
+    version: 4.13.14
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:d62495768e335c79a215ba56771ff5ae97e3cbb2bf49ed8fb3f6cefabcdc0f17
+    url: https://access.redhat.com/errata/RHSA-2023:5155
+    version: 4.13.13
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:73946971c03b43a0dc6f7b0946b26a177c2f3c9d37105441315b4e3359373a55
+    url: https://access.redhat.com/errata/RHBA-2023:5011
+    version: 4.13.12
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:e1c2377fdae1d063aaddc753b99acf25972b6997ab9a0b7e80cfef627b9ef3dd
+    url: https://access.redhat.com/errata/RHBA-2023:4905
+    version: 4.13.11
+  - channels:
+    - candidate-4.13
+    - candidate-4.14
+    - eus-4.14
+    - fast-4.13
+    - fast-4.14
+    - stable-4.13
+    - stable-4.14
+    image: quay.io/openshift-release-dev/ocp-release@sha256:28173b4b6efe4f67f8753566e5f3c9831e454609b7f1888e4b6687907f4b7f24
+    url: https://access.redhat.com/errata/RHSA-2023:4731
+    version: 4.13.10
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:669170342e3ae3456b2eb00dd0c45cd817d62af310e0aa2bf214f1da65fae9d0
+    url: https://access.redhat.com/errata/RHSA-2024:5808
+    version: 4.12.64
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:5db6f8dd1db6b9d07dacfa74574a38a6e518145a3c0ab5d895e9c89e029a39e4
+    url: https://access.redhat.com/errata/RHSA-2024:5200
+    version: 4.12.63
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:faa201ea7790bb101de7b9b6f01543136e8c589463b8437a10678da0cdd0197a
+    url: https://access.redhat.com/errata/RHSA-2024:4677
+    version: 4.12.61
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:22174072f8aaef46f80bded25d5a2bdfa6fd8bb01fc5242a07e550f132cafc5a
+    url: https://access.redhat.com/errata/RHSA-2024:4006
+    version: 4.12.60
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:8908e5a46f106e7520faa5f5ee679033c4c2f0026f1b8a339e6b3ea4becdd969
+    url: https://access.redhat.com/errata/RHSA-2024:3713
+    version: 4.12.59
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:b622d947ade4a13754e9d9f6803107f1b321eecd925c897f3c12de1aafccbdc5
+    url: https://access.redhat.com/errata/RHSA-2024:3349
+    version: 4.12.58
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:ebd20cd66e0bbb5bcd7d16559ff4856918b7172e29d6a7bd34d8cc49a556b8f7
+    url: https://access.redhat.com/errata/RHSA-2024:2782
+    version: 4.12.57
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:7446b0c3cc24c6d35c0d0fc968ef27f52da92c60f41951c0e646041db108169a
+    url: https://access.redhat.com/errata/RHSA-2024:1896
+    version: 4.12.56
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:ecf790d11e32ec8c88c4224660eb1a107db5fdf54b0712eededb9d9bf0ab1a6d
+    url: https://access.redhat.com/errata/RHSA-2024:1679
+    version: 4.12.55
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:5bbeeae3698249a41d6bd9987aac42cecbe862e1dd3710ab16ff4da651fc66a8
+    url: https://access.redhat.com/errata/RHSA-2024:1572
+    version: 4.12.54
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:b584f5458fb946115b0cf0f1793dc9224c5e6a4567e74018f0590805a03eb523
+    url: https://access.redhat.com/errata/RHSA-2024:1265
+    version: 4.12.53
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:c31b9b63b8c21d4327201fd0e78a4b6b0af7f1f8162acd29e4cde1cd65a56d19
+    url: https://access.redhat.com/errata/RHSA-2024:0485
+    version: 4.12.48
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:fcc9920ba10ebb02c69bdd9cd597273260eeec1b22e9ef9986a47f4874a21253
+    url: https://access.redhat.com/errata/RHSA-2024:0198
+    version: 4.12.47
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:2dda17736b7b747b463b040cb3b7abba9c4174b0922e2fd84127e3887f6d69c5
+    url: https://access.redhat.com/errata/RHSA-2023:7823
+    version: 4.12.46
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:faf0aebc0abce8890e046eecfa392c24bc24f6c49146c45447fb0977e692db6e
+    url: https://access.redhat.com/errata/RHSA-2023:7608
+    version: 4.12.45
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:304f37f9d7aa290252951751c5bf03a97085f77b4bcde0ed8a2fa455e9600e68
+    url: https://access.redhat.com/errata/RHSA-2023:6894
+    version: 4.12.44
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:10221b3f8f23fe625f3aab8f1e3297eaa340efc64fb5eff8d46cc8461888804e
+    url: https://access.redhat.com/errata/RHSA-2023:6842
+    version: 4.12.43
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:a52419c56d84f2953ddaa121e89a3d806902af4538503d8cf229b1e8a14f8902
+    url: https://access.redhat.com/errata/RHSA-2023:6276
+    version: 4.12.42
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:59c93fdfff4ecca2ca6d6bb0ec722bca2bb08152252ae10ce486a9fc80c82dcf
+    url: https://access.redhat.com/errata/RHSA-2023:6126
+    version: 4.12.41
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:b0b1aac82f9083d20e7e4269b05dd3679299d277d122fa9d29b772f38d2cacff
+    url: https://access.redhat.com/errata/RHSA-2023:5896
+    version: 4.12.40
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:75687feb6344caeb0edb6b1513b53fd07b90b481079415b6545d860fe74059eb
+    url: https://access.redhat.com/errata/RHSA-2023:5677
+    version: 4.12.39
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:ba7544a126dfd1028cfa9e9afde9ae9d2eb21bad26f8da56eb7aebc0fb132c84
+    url: https://access.redhat.com/errata/RHBA-2023:5450
+    version: 4.12.37
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:38ccab25d5895a216a465a9f297541fbbebe7aa115fdaa9f2015c8d5a5d036eb
+    url: https://access.redhat.com/errata/RHSA-2023:5390
+    version: 4.12.36
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:ef892e96305d4f401860304732b06ca4eac5dbcce287ebaa98c48edd6fb91023
+    url: https://access.redhat.com/errata/RHBA-2023:5321
+    version: 4.12.35
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:b411b7157e124ccb5c9cd1c72499759a2cb0d784e5107c03dc73a7c83359bb1b
+    url: https://access.redhat.com/errata/RHBA-2023:5151
+    version: 4.12.34
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:ab18794370bfbb469d7f37fef8ca17b7d3ef3976b7ad3e28b137398c9154ea86
+    url: https://access.redhat.com/errata/RHBA-2023:5016
+    version: 4.12.33
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:008c933f9d2b49721d6729c1e558f3f0c91e8368201d33469dcd5bda5cf7d333
+    url: https://access.redhat.com/errata/RHBA-2023:4900
+    version: 4.12.32
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:4e0e74e9fdfbaec726654fa883b2018beb548e12ad9db2ffbeb7cf2d6862f7e8
+    url: https://access.redhat.com/errata/RHBA-2023:4756
+    version: 4.12.31
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:86ee723d4dc2a83f836232d1d03f8b4193940c50a2636ee86924acb5d14b0b64
+    url: https://access.redhat.com/errata/RHSA-2023:4671
+    version: 4.12.30
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:dac46152be54e0669694e0ae56d66d8fb3c34dc26ec0d3704eef29d6099846c4
+    url: https://access.redhat.com/errata/RHBA-2023:4608
+    version: 4.12.29
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:f3910eae62029cf1108aadc9f9c649625e49a998d3e5547cb8849d0db9c54843
+    url: https://access.redhat.com/errata/RHBA-2023:4440
+    version: 4.12.28
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:e15e52f22247b833d1db59b1507fa67d920e39b75297bc3a74f3f15e560d6d02
+    url: https://access.redhat.com/errata/RHBA-2023:4319
+    version: 4.12.27
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:8d72f29227418d2ae12ee52e25cce9edef7cd645bdaea02410a89fe8a0ec6a47
+    url: https://access.redhat.com/errata/RHBA-2023:4221
+    version: 4.12.26
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:5a4fb052cda1d14d1e306ce87e6b0ded84edddaa76f1cf401bcded99cef2ad84
+    url: https://access.redhat.com/errata/RHBA-2023:4048
+    version: 4.12.25
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:b0b11eedf91175459b5d7aefcf3936d0cabf00f01ced756677483f5f26227328
+    url: https://access.redhat.com/errata/RHBA-2023:3977
+    version: 4.12.24
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:2309578b68c5666dad62aed696f1f9d778ae1a089ee461060ba7b9514b7ca417
+    url: https://access.redhat.com/errata/RHSA-2023:3925
+    version: 4.12.23
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:ba7956f5c2aae61c8ff3ab1ab2ee7e625db9b1c8964a65339764db79c148e4e6
+    url: https://access.redhat.com/errata/RHSA-2023:3615
+    version: 4.12.22
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:71e158c6173ad6aa6e356c119a87459196bbe70e89c0db1e35c1f63a87d90676
+    url: https://access.redhat.com/errata/RHBA-2023:3546
+    version: 4.12.21
+  - channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: quay.io/openshift-release-dev/ocp-release@sha256:7ca5f8aa44bbc537c5a985a523d87365eab3f6e72abc50b7be4caae741e093f4
+    url: https://access.redhat.com/errata/RHBA-2023:2699
+    version: 4.12.17
+  capabilities:
+    enabledCapabilities:
+    - CSISnapshot
+    - Console
+    - Insights
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - CSISnapshot
+    - Console
+    - Insights
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditionalUpdates:
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:6afb11e1cac46fd26476ca134072937115256b9c6360f7a1cd1812992c065f02
+      url: https://access.redhat.com/errata/RHSA-2024:6691
+      version: 4.13.50
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:ab6f574665395d809511db9dc57764358278538eaae248c6d199208b3c30ab7d
+      url: https://access.redhat.com/errata/RHSA-2024:6009
+      version: 4.13.49
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:7235b8e139da4ba4c17c2b4b9864c05c93c5f55f7c2f561e7f9796c7e6589917
+      url: https://access.redhat.com/errata/RHSA-2024:5444
+      version: 4.13.48
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: Azure clusters created on 4.(y<12) or 4.12.(z<54) are experiencing
+        a bug where systemd detects a dependency loop. Systemd deletes these dependencies
+        causing CRI-O and the kublet to never start on nodes. https://issues.redhat.com/browse/MCO-1257
+      reason: AzureSystemDLooping
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:de889d3c3837ff9111765d8e5a4855e8b763dc759cb465fa2ebfcf0395d3f6b9
+      url: https://access.redhat.com/errata/RHSA-2024:4846
+      version: 4.13.46
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: "topk(1,\n  label_replace(group by (version) (cluster_version{_id=\"\",type=\"initial\",version=~\"4[.]([0-9]|1[0-2])[.].*\"}),\"born_by_4_12\",
+            \"yes, born in 4.12 or earlier\", \"\", \"\")\n  or\n  label_replace(0
+            * group by (version) (cluster_version{_id=\"\",type=\"initial\",version!~\"4[.]([0-9]|1[0-2])[.].*\"}),\"born_by_4_12\",
+            \"no, born in 4.13 or later\", \"\", \"\")\n) \n* on () group_left (name)\ntopk(1,\n
+            \ group by (name) (cluster_operator_conditions{_id=\"\",name=\"aro\"})\n
+            \ or\n  0 * topk(1, group by (name) (cluster_operator_conditions{_id=\"\"}))\n)\n"
+        type: PromQL
+      message: ARO clusters created on 4.12.z and below are experiencing a bug where
+        systemd detects a dependency loop. Systemd deletes these dependencies causing
+        kubelet and crio to never start on nodes.
+      name: AROSystemDLooping
+      url: https://access.redhat.com/solutions/7082093
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              label_replace(group by (version) (cluster_version{_id="",type="initial",version=~"4[.](([0-9]|1[01])[.][0-9]*|12[.]([1-4]?[0-9]|5[0-3]))"}),"born_before_4_12_54", "yes, born in 4.11 or 4.12.53 or earlier", "", "")
+              or on ()
+              label_replace(0 * group by (version) (cluster_version{_id="",type="initial",version!~"4[.](([0-9]|1[01])[.][0-9]*|12[.]([1-4]?[0-9]|5[0-3]))"}),"born_before_4_12_54", "no, born in 4.12.54 or 4.13 or later", "", "")
+            )
+            * on () group_left (type)
+            (
+              group by (type) (cluster_infrastructure_provider{_id="",type="Azure"})
+              or on ()
+              0 * group by (type) (cluster_infrastructure_provider{_id=""})
+            )
+        type: PromQL
+      message: Azure clusters created on 4.(y<12) or 4.12.(z<54) are experiencing
+        a bug where systemd detects a dependency loop. Systemd deletes these dependencies
+        causing CRI-O and the kublet to never start on nodes.
+      name: AzureSystemDLooping
+      url: https://issues.redhat.com/browse/MCO-1257
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:c7e3658ca8f0f1fc8ce1512ecc36785a68b1388dfbfc39642bff8120bfa86a33
+      url: https://access.redhat.com/errata/RHSA-2024:4484
+      version: 4.13.45
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:e58807c46fab369428af73bdfec64ad4b509dcbdb4586694059013c69856e8a5
+      url: https://access.redhat.com/errata/RHSA-2024:3885
+      version: 4.13.44
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:d0da3d9b016e6d693a61c9425598921b6d0da99c52cb0f3404f6dbc126149e5d
+      url: https://access.redhat.com/errata/RHSA-2024:3494
+      version: 4.13.43
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:dcf5c3ad7384f8bee3c275da8f886b0bc9aea7611d166d695d0cf0fff40a0b55
+      url: https://access.redhat.com/errata/RHSA-2024:2875
+      version: 4.13.42
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:dbb8aa0cf53dc5ac663514e259ad2768d8c82fd1fe7181a4cfb484e3ffdbd3ba
+      url: https://access.redhat.com/errata/RHSA-2024:2047
+      version: 4.13.41
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            topk(1,
+              label_replace(group(ceph_health_status{_id=""}), "ceph", "yes", "", "")
+              or
+              label_replace(0 * group(cluster_version{_id=""}), "ceph", "no", "", "")
+            )
+        type: PromQL
+      message: Nodes in clusters running workloads that mount Ceph volumes may experience
+        kernel panics due to a CephFS client bug.
+      name: CephCapDropPanic
+      url: https://issues.redhat.com/browse/COS-2781
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:c1f69e6137bc9cda2c6da56bafbc7ea969900acb5e5c349b1ebb2103b10b424f
+      url: https://access.redhat.com/errata/RHBA-2024:1761
+      version: 4.13.40
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            topk(1,
+              label_replace(group(ceph_health_status{_id=""}), "ceph", "yes", "", "")
+              or
+              label_replace(0 * group(cluster_version{_id=""}), "ceph", "no", "", "")
+            )
+        type: PromQL
+      message: Nodes in clusters running workloads that mount Ceph volumes may experience
+        kernel panics due to a CephFS client bug.
+      name: CephCapDropPanic
+      url: https://issues.redhat.com/browse/COS-2781
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:dd58c982a2166dcac5ce8f390f8b26b36df27ac765c4e012a670a9c0bac909df
+      url: https://access.redhat.com/errata/RHSA-2024:1683
+      version: 4.13.39
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: |
+            topk(1,
+              label_replace(group(ceph_health_status{_id=""}), "ceph", "yes", "", "")
+              or
+              label_replace(0 * group(cluster_version{_id=""}), "ceph", "no", "", "")
+            )
+        type: PromQL
+      message: Nodes in clusters running workloads that mount Ceph volumes may experience
+        kernel panics due to a CephFS client bug.
+      name: CephCapDropPanic
+      url: https://issues.redhat.com/browse/COS-2781
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:db7a6fad1d56cf391159d252daabbb44178132081e077ae290317b91633fb1db
+      url: https://access.redhat.com/errata/RHSA-2024:1454
+      version: 4.13.38
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: |
+            topk(1,
+              label_replace(group(ceph_health_status{_id=""}), "ceph", "yes", "", "")
+              or
+              label_replace(0 * group(cluster_version{_id=""}), "ceph", "no", "", "")
+            )
+        type: PromQL
+      message: Nodes in clusters running workloads that mount Ceph volumes may experience
+        kernel panics due to a CephFS client bug.
+      name: CephCapDropPanic
+      url: https://issues.redhat.com/browse/COS-2781
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:0fb7bbb4e6771acc99e32c55d4d37edf58ad31901acb78f552ce77ff4ba1eb3c
+      url: https://access.redhat.com/errata/RHBA-2024:1200
+      version: 4.13.37
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: |
+            topk(1,
+              label_replace(group(ceph_health_status{_id=""}), "ceph", "yes", "", "")
+              or
+              label_replace(0 * group(cluster_version{_id=""}), "ceph", "no", "", "")
+            )
+        type: PromQL
+      message: Nodes in clusters running workloads that mount Ceph volumes may experience
+        kernel panics due to a CephFS client bug.
+      name: CephCapDropPanic
+      url: https://issues.redhat.com/browse/COS-2781
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: An unintended reversion to the default kubelet nodeStatusReportFrequency
+        can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
+      reason: HighNodeStatusReportFrequency
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:9ed18a88ce6242dceab887ee7dc92eecf9e0194a569e1e8c924cbf4b1da7816e
+      url: https://access.redhat.com/errata/RHSA-2024:1037
+      version: 4.13.36
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: |
+            topk(1,
+              label_replace(group(ceph_health_status{_id=""}), "ceph", "yes", "", "")
+              or
+              label_replace(0 * group(cluster_version{_id=""}), "ceph", "no", "", "")
+            )
+        type: PromQL
+      message: Nodes in clusters running workloads that mount Ceph volumes may experience
+        kernel panics due to a CephFS client bug.
+      name: CephCapDropPanic
+      url: https://issues.redhat.com/browse/COS-2781
+    - matchingRules:
+      - type: Always
+      message: An unintended reversion to the default kubelet nodeStatusReportFrequency
+        can cause significant load on the control plane.
+      name: HighNodeStatusReportFrequency
+      url: https://issues.redhat.com/browse/MCO-1094
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: An unintended reversion to the default kubelet nodeStatusReportFrequency
+        can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
+      reason: HighNodeStatusReportFrequency
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:2399ee629b41bf4c4006478260dcffd40849912398c09cba77bfada2fc481247
+      url: https://access.redhat.com/errata/RHSA-2024:0946
+      version: 4.13.35
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - type: Always
+      message: An unintended reversion to the default kubelet nodeStatusReportFrequency
+        can cause significant load on the control plane.
+      name: HighNodeStatusReportFrequency
+      url: https://issues.redhat.com/browse/MCO-1094
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: An unintended reversion to the default kubelet nodeStatusReportFrequency
+        can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
+      reason: HighNodeStatusReportFrequency
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:04081f0cdc3a98eb9b705aceb86d4a035f7e6ccf6d9d10621776d53134f81c33
+      url: https://access.redhat.com/errata/RHSA-2024:0845
+      version: 4.13.34
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - type: Always
+      message: An unintended reversion to the default kubelet nodeStatusReportFrequency
+        can cause significant load on the control plane.
+      name: HighNodeStatusReportFrequency
+      url: https://issues.redhat.com/browse/MCO-1094
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: An unintended reversion to the default kubelet nodeStatusReportFrequency
+        can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
+      reason: HighNodeStatusReportFrequency
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:7083519fd75dc187b7405968ba3d3d764a9807529e955411fd0ca1142dd4b560
+      url: https://access.redhat.com/errata/RHSA-2024:0741
+      version: 4.13.33
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - type: Always
+      message: An unintended reversion to the default kubelet nodeStatusReportFrequency
+        can cause significant load on the control plane.
+      name: HighNodeStatusReportFrequency
+      url: https://issues.redhat.com/browse/MCO-1094
+    - matchingRules:
+      - promql:
+          promql: |
+            topk by (_id) (1,
+              group by (_id, type) (cluster_infrastructure_provider{_id="",type=~"None|BareMetal|VSphere|OpenStack|Nutanix|Libvirt|KubeVirt|EquinixMetal|External"})
+              or
+              0 * group by (_id, type) (cluster_infrastructure_provider{_id=""})
+            )
+            * on (_id) group_left (resource)
+            topk by (_id) (1,
+              group(max_over_time(apiserver_storage_objects{_id="",resource="networkpolicies.networking.k8s.io"}[1h]) > 0)
+              or
+              0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: |-
+        Clusters where Ingress Controller uses HostNetwork endpoint publishing strategy and certain NetworkPolicy configurations
+        may experience network traffic disruptions in namespaces that allowed traffic before the upgrade.
+      name: NetPolicyTimeoutsHostNetworkedPodTraffic
+      url: https://issues.redhat.com/browse/SDN-4481
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:c39085b26665ed9877e208c123ff147cf7939dde4eca79a4f00fda8ea5b13dc9
+      url: https://access.redhat.com/errata/RHSA-2024:0660
+      version: 4.13.32
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: |
+            topk by (_id) (1,
+              group by (_id, type) (cluster_infrastructure_provider{_id="",type=~"None|BareMetal|VSphere|OpenStack|Nutanix|Libvirt|KubeVirt|EquinixMetal|External"})
+              or
+              0 * group by (_id, type) (cluster_infrastructure_provider{_id=""})
+            )
+            * on (_id) group_left (resource)
+            topk by (_id) (1,
+              group(max_over_time(apiserver_storage_objects{_id="",resource="networkpolicies.networking.k8s.io"}[1h]) > 0)
+              or
+              0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: |-
+        Clusters where Ingress Controller uses HostNetwork endpoint publishing strategy and certain NetworkPolicy configurations
+        may experience network traffic disruptions in namespaces that allowed traffic before the upgrade.
+      name: NetPolicyTimeoutsHostNetworkedPodTraffic
+      url: https://issues.redhat.com/browse/SDN-4481
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:07cf79d6998a9b6a2d19b7fe168a3300ad682de33f190c9eb27bf61e67d3eeee
+      url: https://access.redhat.com/errata/RHSA-2024:0484
+      version: 4.13.31
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: |
+            topk by (_id) (1,
+              group by (_id, type) (cluster_infrastructure_provider{_id="",type=~"None|BareMetal|VSphere|OpenStack|Nutanix|Libvirt|KubeVirt|EquinixMetal|External"})
+              or
+              0 * group by (_id, type) (cluster_infrastructure_provider{_id=""})
+            )
+            * on (_id) group_left (resource)
+            topk by (_id) (1,
+              group(max_over_time(apiserver_storage_objects{_id="",resource="networkpolicies.networking.k8s.io"}[1h]) > 0)
+              or
+              0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: |-
+        Clusters where Ingress Controller uses HostNetwork endpoint publishing strategy and certain NetworkPolicy configurations
+        may experience network traffic disruptions in namespaces that allowed traffic before the upgrade.
+      name: NetPolicyTimeoutsHostNetworkedPodTraffic
+      url: https://issues.redhat.com/browse/SDN-4481
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:661be5aec551ee1b774a7176ced6f755d5ec0a5e8b957db234a89ebc8dd3c0f5
+      url: https://access.redhat.com/errata/RHBA-2024:0286
+      version: 4.13.30
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: |
+            topk by (_id) (1,
+              group by (_id, type) (cluster_infrastructure_provider{_id="",type=~"None|BareMetal|VSphere|OpenStack|Nutanix|Libvirt|KubeVirt|EquinixMetal|External"})
+              or
+              0 * group by (_id, type) (cluster_infrastructure_provider{_id=""})
+            )
+            * on (_id) group_left (resource)
+            topk by (_id) (1,
+              group(max_over_time(apiserver_storage_objects{_id="",resource="networkpolicies.networking.k8s.io"}[1h]) > 0)
+              or
+              0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: |-
+        Clusters where Ingress Controller uses HostNetwork endpoint publishing strategy and certain NetworkPolicy configurations
+        may experience network traffic disruptions in namespaces that allowed traffic before the upgrade.
+      name: NetPolicyTimeoutsHostNetworkedPodTraffic
+      url: https://issues.redhat.com/browse/SDN-4481
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:9c4a4471bb93ab11d255925535ff719742cafa8ae06d622b870133787a72abc3
+      url: https://access.redhat.com/errata/RHSA-2024:0193
+      version: 4.13.29
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node will fail for clusters running on ARO.
+      name: AROBrokenDNSMasq
+      url: https://issues.redhat.com/browse/MCO-958
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:1c834045db967d579aa2f1ef6f836dcb21db13d804bdffb972e8f4a7a4d59fc2
+      url: https://access.redhat.com/errata/RHBA-2024:0055
+      version: 4.13.28
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node will fail for clusters running on ARO.
+      name: AROBrokenDNSMasq
+      url: https://issues.redhat.com/browse/MCO-958
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:bc9006f9160663663c6d9a735c4c497f8f3300d94a7ec45cdafef1cebb15ebfe
+      url: https://access.redhat.com/errata/RHSA-2023:7827
+      version: 4.13.27
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node will fail for clusters running on ARO.
+      name: AROBrokenDNSMasq
+      url: https://issues.redhat.com/browse/MCO-958
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:dece136ed888653cae20c2832b9e94de7c7ab24e34cddf49d5d284f41d7b61b1
+      url: https://access.redhat.com/errata/RHSA-2023:7687
+      version: 4.13.26
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node will fail for clusters running on ARO.
+      name: AROBrokenDNSMasq
+      url: https://issues.redhat.com/browse/MCO-958
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:480f2026c07b0f2e19c3fc60a44e4a7147ab821474641952f077573d05747855
+      url: https://access.redhat.com/errata/RHSA-2023:7604
+      version: 4.13.25
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node will fail for clusters running on ARO.
+      name: AROBrokenDNSMasq
+      url: https://issues.redhat.com/browse/MCO-958
+    - matchingRules:
+      - promql:
+          promql: |
+            group(cluster_operator_conditions{_id="",name="aro"})
+            or
+            0 * group(cluster_operator_conditions{_id=""})
+        type: PromQL
+      message: Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition
+        that are blocking the ARO ACR and quay, are not be able to add or replace
+        nodes after an upgrade
+      name: ARODNSWrongBootSequence
+      url: https://access.redhat.com/solutions/7074686
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:d6a7e20a8929a3ad985373f05472ea64bada8ff46f0beb89e1b6d04919affde3
+      url: https://access.redhat.com/errata/RHSA-2023:7475
+      version: 4.13.24
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:ca556d3494d08765c90481f15dd965995371168ea7ee7a551000bed4481931c8
+      url: https://access.redhat.com/errata/RHSA-2023:7323
+      version: 4.13.23
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:f323afe3e80d44da7d0caaed8c353fedef37e5fd5e7f765e8440be86f546cba0
+      url: https://access.redhat.com/errata/RHSA-2023:6846
+      version: 4.13.22
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:562c214e9662e3684ac5b8c3d5d2759a83f544da8897a00ebe91a02fcad6d2d9
+      url: https://access.redhat.com/errata/RHSA-2023:6257
+      version: 4.13.21
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:f8ba6f54eae419aba17926417d950ae18e06021beae9d7947a8b8243ad48353a
+      url: https://access.redhat.com/errata/RHSA-2023:6130
+      version: 4.13.19
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:d0fd9d3ab8690605f816c879d74f4e6d6d9f72982f63a3e0ef3e027ecc512e1c
+      url: https://access.redhat.com/errata/RHSA-2023:5902
+      version: 4.13.18
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:c1f2fa2170c02869484a4e049132128e216a363634d38abf292eef181e93b692
+      url: https://access.redhat.com/errata/RHSA-2023:5672
+      version: 4.13.17
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:78f08839886fb2896857f95de0347b8f67ebcff16591b9d7aec87a20406b2897
+      url: https://access.redhat.com/errata/RHBA-2023:5467
+      version: 4.13.15
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:406fcc160c097f61080412afcfa7fd65284ac8741ac7ad5b480e304aba73674b
+      url: https://access.redhat.com/errata/RHBA-2023:5382
+      version: 4.13.14
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:d62495768e335c79a215ba56771ff5ae97e3cbb2bf49ed8fb3f6cefabcdc0f17
+      url: https://access.redhat.com/errata/RHSA-2023:5155
+      version: 4.13.13
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:73946971c03b43a0dc6f7b0946b26a177c2f3c9d37105441315b4e3359373a55
+      url: https://access.redhat.com/errata/RHBA-2023:5011
+      version: 4.13.12
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:e1c2377fdae1d063aaddc753b99acf25972b6997ab9a0b7e80cfef627b9ef3dd
+      url: https://access.redhat.com/errata/RHBA-2023:4905
+      version: 4.13.11
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:28173b4b6efe4f67f8753566e5f3c9831e454609b7f1888e4b6687907f4b7f24
+      url: https://access.redhat.com/errata/RHSA-2023:4731
+      version: 4.13.10
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
+      reason: SeccompFilterErrno524
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:a266d3d65c433b460cdef7ab5d6531580f5391adbe85d9c475208a56452e4c0b
+      url: https://access.redhat.com/errata/RHSA-2023:4603
+      version: 4.13.9
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - type: Always
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError.
+      name: SeccompFilterErrno524
+      url: https://issues.redhat.com/browse/COS-2437
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
+      reason: SeccompFilterErrno524
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:a956488d295fe5a59c8663a4d9992b9b5d0950f510a7387dbbfb8d20fc5970ce
+      url: https://access.redhat.com/errata/RHSA-2023:4456
+      version: 4.13.8
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - type: Always
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError.
+      name: SeccompFilterErrno524
+      url: https://issues.redhat.com/browse/COS-2437
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
+      reason: SeccompFilterErrno524
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:3ca57045e070978b38c36d4c98e188795a6cb4b128130f9c8d7a08b47c133aba
+      url: https://access.redhat.com/errata/RHSA-2023:4226
+      version: 4.13.6
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - type: Always
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError.
+      name: SeccompFilterErrno524
+      url: https://issues.redhat.com/browse/COS-2437
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
+      reason: SeccompFilterErrno524
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:af19e94813478382e36ae1fa2ae7bbbff1f903dded6180f4eb0624afe6fc6cd4
+      url: https://access.redhat.com/errata/RHSA-2023:4091
+      version: 4.13.5
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - type: Always
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError.
+      name: SeccompFilterErrno524
+      url: https://issues.redhat.com/browse/COS-2437
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
+      reason: SeccompFilterErrno524
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:e3fb8ace9881ae5428ae7f0ac93a51e3daa71fa215b5299cd3209e134cadfc9c
+      url: https://access.redhat.com/errata/RHSA-2023:3614
+      version: 4.13.4
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+    - matchingRules:
+      - promql:
+          promql: |
+            group(max_over_time(apiserver_storage_objects{resource="performanceprofiles.performance.openshift.io"}[1h]) > 0)
+            or
+            0 * group(max_over_time(apiserver_storage_objects[1h]))
+        type: PromQL
+      message: Pods may not execute properly because of CPU quota issues on clusters
+        using PerformanceProfiles.
+      name: PerformanceProfilesCPUQuota
+      url: https://issues.redhat.com/browse/OCPNODE-1705
+    - matchingRules:
+      - type: Always
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError.
+      name: SeccompFilterErrno524
+      url: https://issues.redhat.com/browse/COS-2437
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: |-
+        New PersistentVolumes are created bound to an invalid symlink instead of the correct one and thus fail once updated to 4.13.4 or later as the invalid symlink dispears. https://issues.redhat.com/browse/COS-2349
+
+        Pods scheduled to nodes running a RHCOS/kernel version with a known defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
+      reason: MultipleReasons
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:bc9835804046aa844c874d2cc37387ec95fe7e87d8ce96129fba78d465c932fa
+      url: https://access.redhat.com/errata/RHSA-2023:3537
+      version: 4.13.3
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+    - matchingRules:
+      - promql:
+          promql: |
+            group(max_over_time(apiserver_storage_objects{resource="performanceprofiles.performance.openshift.io"}[1h]) > 0)
+            or
+            0 * group(max_over_time(apiserver_storage_objects[1h]))
+        type: PromQL
+      message: Pods may not execute properly because of CPU quota issues on clusters
+        using PerformanceProfiles.
+      name: PerformanceProfilesCPUQuota
+      url: https://issues.redhat.com/browse/OCPNODE-1705
+    - matchingRules:
+      - type: Always
+      message: New PersistentVolumes are created bound to an invalid symlink instead
+        of the correct one and thus fail once updated to 4.13.4 or later as the invalid
+        symlink dispears.
+      name: PersistentVolumeDiskIDSymlinks
+      url: https://issues.redhat.com/browse/COS-2349
+    - matchingRules:
+      - type: Always
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError.
+      name: SeccompFilterErrno524
+      url: https://issues.redhat.com/browse/COS-2437
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: |-
+        New PersistentVolumes are created bound to an invalid symlink instead of the correct one and thus fail once updated to 4.13.4 or later as the invalid symlink dispears. https://issues.redhat.com/browse/COS-2349
+
+        Pods scheduled to nodes running a RHCOS/kernel version with a known defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
+      reason: MultipleReasons
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:6ef3cf4bed1970d547dce08a6e334b675d361b212427c4493151dcad6e093d27
+      url: https://access.redhat.com/errata/RHSA-2023:3367
+      version: 4.13.2
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+    - matchingRules:
+      - promql:
+          promql: |
+            group(max_over_time(apiserver_storage_objects{resource="performanceprofiles.performance.openshift.io"}[1h]) > 0)
+            or
+            0 * group(max_over_time(apiserver_storage_objects[1h]))
+        type: PromQL
+      message: Pods may not execute properly because of CPU quota issues on clusters
+        using PerformanceProfiles.
+      name: PerformanceProfilesCPUQuota
+      url: https://issues.redhat.com/browse/OCPNODE-1705
+    - matchingRules:
+      - type: Always
+      message: New PersistentVolumes are created bound to an invalid symlink instead
+        of the correct one and thus fail once updated to 4.13.4 or later as the invalid
+        symlink dispears.
+      name: PersistentVolumeDiskIDSymlinks
+      url: https://issues.redhat.com/browse/COS-2349
+    - matchingRules:
+      - type: Always
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError.
+      name: SeccompFilterErrno524
+      url: https://issues.redhat.com/browse/COS-2437
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: |-
+        New PersistentVolumes are created bound to an invalid symlink instead of the correct one and thus fail once updated to 4.13.4 or later as the invalid symlink dispears. https://issues.redhat.com/browse/COS-2349
+
+        Pods scheduled to nodes running a RHCOS/kernel version with a known defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
+      reason: MultipleReasons
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:9c92b5ec203ee7f81626cc4e9f02086484056a76548961e5895916f136302b1f
+      url: https://access.redhat.com/errata/RHSA-2023:3304
+      version: 4.13.1
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+    - matchingRules:
+      - promql:
+          promql: |
+            group(max_over_time(apiserver_storage_objects{resource="performanceprofiles.performance.openshift.io"}[1h]) > 0)
+            or
+            0 * group(max_over_time(apiserver_storage_objects[1h]))
+        type: PromQL
+      message: Pods may not execute properly because of CPU quota issues on clusters
+        using PerformanceProfiles.
+      name: PerformanceProfilesCPUQuota
+      url: https://issues.redhat.com/browse/OCPNODE-1705
+    - matchingRules:
+      - type: Always
+      message: New PersistentVolumes are created bound to an invalid symlink instead
+        of the correct one and thus fail once updated to 4.13.4 or later as the invalid
+        symlink dispears.
+      name: PersistentVolumeDiskIDSymlinks
+      url: https://issues.redhat.com/browse/COS-2349
+    - matchingRules:
+      - type: Always
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError.
+      name: SeccompFilterErrno524
+      url: https://issues.redhat.com/browse/COS-2437
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: |-
+        New PersistentVolumes are created bound to an invalid symlink instead of the correct one and thus fail once updated to 4.13.4 or later as the invalid symlink dispears. https://issues.redhat.com/browse/COS-2349
+
+        Pods scheduled to nodes running a RHCOS/kernel version with a known defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
+      reason: MultipleReasons
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.13
+      - candidate-4.14
+      - eus-4.14
+      - fast-4.13
+      - fast-4.14
+      - stable-4.13
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:74b23ed4bbb593195a721373ed6693687a9b444c97065ce8ac653ba464375711
+      url: https://access.redhat.com/errata/RHSA-2023:1326
+      version: 4.13.0
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            (
+              group(cluster_operator_conditions{name="aro"})
+              or
+              0 * group(cluster_operator_conditions)
+            )
+        type: PromQL
+      message: Adding a new worker node may fail for clusters running on Azure with
+        Accelerated Networking.
+      name: AcceleratedNetworkingRace
+      url: https://issues.redhat.com/browse/OPNET-479
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+    - matchingRules:
+      - promql:
+          promql: |
+            group(max_over_time(apiserver_storage_objects{resource="performanceprofiles.performance.openshift.io"}[1h]) > 0)
+            or
+            0 * group(max_over_time(apiserver_storage_objects[1h]))
+        type: PromQL
+      message: Pods may not execute properly because of CPU quota issues on clusters
+        using PerformanceProfiles.
+      name: PerformanceProfilesCPUQuota
+      url: https://issues.redhat.com/browse/OCPNODE-1705
+    - matchingRules:
+      - type: Always
+      message: New PersistentVolumes are created bound to an invalid symlink instead
+        of the correct one and thus fail once updated to 4.13.4 or later as the invalid
+        symlink dispears.
+      name: PersistentVolumeDiskIDSymlinks
+      url: https://issues.redhat.com/browse/COS-2349
+    - matchingRules:
+      - type: Always
+      message: Pods scheduled to nodes running a RHCOS/kernel version with a known
+        defect may fail to start with a CreateContainerError.
+      name: SeccompFilterErrno524
+      url: https://issues.redhat.com/browse/COS-2437
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:7446b0c3cc24c6d35c0d0fc968ef27f52da92c60f41951c0e646041db108169a
+      url: https://access.redhat.com/errata/RHSA-2024:1896
+      version: 4.12.56
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            topk(1,
+              label_replace(group(ceph_health_status{_id=""}), "ceph", "yes", "", "")
+              or
+              label_replace(0 * group(cluster_version{_id=""}), "ceph", "no", "", "")
+            )
+        type: PromQL
+      message: Nodes in clusters running workloads that mount Ceph volumes may experience
+        kernel panics due to a CephFS client bug.
+      name: CephCapDropPanic
+      url: https://issues.redhat.com/browse/COS-2781
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:ecf790d11e32ec8c88c4224660eb1a107db5fdf54b0712eededb9d9bf0ab1a6d
+      url: https://access.redhat.com/errata/RHSA-2024:1679
+      version: 4.12.55
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            topk(1,
+              label_replace(group(ceph_health_status{_id=""}), "ceph", "yes", "", "")
+              or
+              label_replace(0 * group(cluster_version{_id=""}), "ceph", "no", "", "")
+            )
+        type: PromQL
+      message: Nodes in clusters running workloads that mount Ceph volumes may experience
+        kernel panics due to a CephFS client bug.
+      name: CephCapDropPanic
+      url: https://issues.redhat.com/browse/COS-2781
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:5bbeeae3698249a41d6bd9987aac42cecbe862e1dd3710ab16ff4da651fc66a8
+      url: https://access.redhat.com/errata/RHSA-2024:1572
+      version: 4.12.54
+    risks:
+    - matchingRules:
+      - promql:
+          promql: |
+            topk(1,
+              label_replace(group(ceph_health_status{_id=""}), "ceph", "yes", "", "")
+              or
+              label_replace(0 * group(cluster_version{_id=""}), "ceph", "no", "", "")
+            )
+        type: PromQL
+      message: Nodes in clusters running workloads that mount Ceph volumes may experience
+        kernel panics due to a CephFS client bug.
+      name: CephCapDropPanic
+      url: https://issues.redhat.com/browse/COS-2781
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: |-
+        An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
+
+        After rebooting into kernel-4.18.0-372.88.1.el8_6 or later, kernel nodes experience high load average and io_wait times. The nodes might fail to start or stop pods and probes may fail. Workload and host processes may become unresponsive and workload may be disrupted. https://issues.redhat.com/browse/COS-2705
+      reason: MultipleReasons
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:158ced797e49f6caf7862acccef58484be63b642fdd2f66e6416295fa7958ab0
+      url: https://access.redhat.com/errata/RHSA-2024:1052
+      version: 4.12.51
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, group by (vendor, family) (node_cpu_info{_id="",vendor="AuthenticAMD",family="25"})
+            or 0 * group by (vendor, family) (node_cpu_info{_id=""}) )
+        type: PromQL
+      message: Nodes with AMD 19h family CPUs  (Bergamo, Milan, etc.) can fail to
+        boot after applying operating system updates.
+      name: AMD19hFirmware
+      url: https://issues.redhat.com/browse/COS-2747
+    - matchingRules:
+      - type: Always
+      message: An unintended reversion to the default kubelet nodeStatusReportFrequency
+        can cause significant load on the control plane.
+      name: HighNodeStatusReportFrequency
+      url: https://issues.redhat.com/browse/MCO-1094
+    - matchingRules:
+      - type: Always
+      message: After rebooting into kernel-4.18.0-372.88.1.el8_6 or later, kernel
+        nodes experience high load average and io_wait times. The nodes might fail
+        to start or stop pods and probes may fail. Workload and host processes may
+        become unresponsive and workload may be disrupted.
+      name: RHELKernelHighLoadIOWait
+      url: https://issues.redhat.com/browse/COS-2705
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: After rebooting into kernel-4.18.0-372.88.1.el8_6 or later, kernel
+        nodes experience high load average and io_wait times. The nodes might fail
+        to start or stop pods and probes may fail. Workload and host processes may
+        become unresponsive and workload may be disrupted. https://issues.redhat.com/browse/COS-2705
+      reason: RHELKernelHighLoadIOWait
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:a9d7e4938d224a6a8f9c7a5c05ca2b4d6e92292812b14c4a3e0d9e938e8dc3bf
+      url: https://access.redhat.com/errata/RHSA-2024:0833
+      version: 4.12.50
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, group by (vendor, family) (node_cpu_info{_id="",vendor="AuthenticAMD",family="25"})
+            or 0 * group by (vendor, family) (node_cpu_info{_id=""}) )
+        type: PromQL
+      message: Nodes with AMD 19h family CPUs  (Bergamo, Milan, etc.) can fail to
+        boot after applying operating system updates.
+      name: AMD19hFirmware
+      url: https://issues.redhat.com/browse/COS-2747
+    - matchingRules:
+      - type: Always
+      message: After rebooting into kernel-4.18.0-372.88.1.el8_6 or later, kernel
+        nodes experience high load average and io_wait times. The nodes might fail
+        to start or stop pods and probes may fail. Workload and host processes may
+        become unresponsive and workload may be disrupted.
+      name: RHELKernelHighLoadIOWait
+      url: https://issues.redhat.com/browse/COS-2705
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: After rebooting into kernel-4.18.0-372.88.1.el8_6 or later, kernel
+        nodes experience high load average and io_wait times. The nodes might fail
+        to start or stop pods and probes may fail. Workload and host processes may
+        become unresponsive and workload may be disrupted. https://issues.redhat.com/browse/COS-2705
+      reason: RHELKernelHighLoadIOWait
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:c93133ca1ccb35ea8552065ed7a74dccf5c7ee133e581f5211e465f1914c62d7
+      url: https://access.redhat.com/errata/RHSA-2024:0664
+      version: 4.12.49
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, group by (vendor, family) (node_cpu_info{_id="",vendor="AuthenticAMD",family="25"})
+            or 0 * group by (vendor, family) (node_cpu_info{_id=""}) )
+        type: PromQL
+      message: Nodes with AMD 19h family CPUs  (Bergamo, Milan, etc.) can fail to
+        boot after applying operating system updates.
+      name: AMD19hFirmware
+      url: https://issues.redhat.com/browse/COS-2747
+    - matchingRules:
+      - promql:
+          promql: |
+            topk by (_id) (1,
+              group by (_id, type) (cluster_infrastructure_provider{_id="",type=~"None|BareMetal|VSphere|OpenStack|Nutanix|Libvirt|KubeVirt|EquinixMetal|External"})
+              or
+              0 * group by (_id, type) (cluster_infrastructure_provider{_id=""})
+            )
+            * on (_id) group_left (resource)
+            topk by (_id) (1,
+              group(max_over_time(apiserver_storage_objects{_id="",resource="networkpolicies.networking.k8s.io"}[1h]) > 0)
+              or
+              0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: |-
+        Clusters where Ingress Controller uses HostNetwork endpoint publishing strategy and certain NetworkPolicy configurations
+        may experience network traffic disruptions in namespaces that allowed traffic before the upgrade.
+      name: NetPolicyTimeoutsHostNetworkedPodTraffic
+      url: https://issues.redhat.com/browse/SDN-4481
+    - matchingRules:
+      - type: Always
+      message: After rebooting into kernel-4.18.0-372.88.1.el8_6 or later, kernel
+        nodes experience high load average and io_wait times. The nodes might fail
+        to start or stop pods and probes may fail. Workload and host processes may
+        become unresponsive and workload may be disrupted.
+      name: RHELKernelHighLoadIOWait
+      url: https://issues.redhat.com/browse/COS-2705
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:c31b9b63b8c21d4327201fd0e78a4b6b0af7f1f8162acd29e4cde1cd65a56d19
+      url: https://access.redhat.com/errata/RHSA-2024:0485
+      version: 4.12.48
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, group by (vendor, family) (node_cpu_info{_id="",vendor="AuthenticAMD",family="25"})
+            or 0 * group by (vendor, family) (node_cpu_info{_id=""}) )
+        type: PromQL
+      message: Nodes with AMD 19h family CPUs  (Bergamo, Milan, etc.) can fail to
+        boot after applying operating system updates.
+      name: AMD19hFirmware
+      url: https://issues.redhat.com/browse/COS-2747
+    - matchingRules:
+      - promql:
+          promql: |
+            topk by (_id) (1,
+              group by (_id, type) (cluster_infrastructure_provider{_id="",type=~"None|BareMetal|VSphere|OpenStack|Nutanix|Libvirt|KubeVirt|EquinixMetal|External"})
+              or
+              0 * group by (_id, type) (cluster_infrastructure_provider{_id=""})
+            )
+            * on (_id) group_left (resource)
+            topk by (_id) (1,
+              group(max_over_time(apiserver_storage_objects{_id="",resource="networkpolicies.networking.k8s.io"}[1h]) > 0)
+              or
+              0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: |-
+        Clusters where Ingress Controller uses HostNetwork endpoint publishing strategy and certain NetworkPolicy configurations
+        may experience network traffic disruptions in namespaces that allowed traffic before the upgrade.
+      name: NetPolicyTimeoutsHostNetworkedPodTraffic
+      url: https://issues.redhat.com/browse/SDN-4481
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:fcc9920ba10ebb02c69bdd9cd597273260eeec1b22e9ef9986a47f4874a21253
+      url: https://access.redhat.com/errata/RHSA-2024:0198
+      version: 4.12.47
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, group by (vendor, family) (node_cpu_info{_id="",vendor="AuthenticAMD",family="25"})
+            or 0 * group by (vendor, family) (node_cpu_info{_id=""}) )
+        type: PromQL
+      message: Nodes with AMD 19h family CPUs  (Bergamo, Milan, etc.) can fail to
+        boot after applying operating system updates.
+      name: AMD19hFirmware
+      url: https://issues.redhat.com/browse/COS-2747
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:2dda17736b7b747b463b040cb3b7abba9c4174b0922e2fd84127e3887f6d69c5
+      url: https://access.redhat.com/errata/RHSA-2023:7823
+      version: 4.12.46
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, group by (vendor, family) (node_cpu_info{_id="",vendor="AuthenticAMD",family="25"})
+            or 0 * group by (vendor, family) (node_cpu_info{_id=""}) )
+        type: PromQL
+      message: Nodes with AMD 19h family CPUs  (Bergamo, Milan, etc.) can fail to
+        boot after applying operating system updates.
+      name: AMD19hFirmware
+      url: https://issues.redhat.com/browse/COS-2747
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:faf0aebc0abce8890e046eecfa392c24bc24f6c49146c45447fb0977e692db6e
+      url: https://access.redhat.com/errata/RHSA-2023:7608
+      version: 4.12.45
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, group by (vendor, family) (node_cpu_info{_id="",vendor="AuthenticAMD",family="25"})
+            or 0 * group by (vendor, family) (node_cpu_info{_id=""}) )
+        type: PromQL
+      message: Nodes with AMD 19h family CPUs  (Bergamo, Milan, etc.) can fail to
+        boot after applying operating system updates.
+      name: AMD19hFirmware
+      url: https://issues.redhat.com/browse/COS-2747
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:304f37f9d7aa290252951751c5bf03a97085f77b4bcde0ed8a2fa455e9600e68
+      url: https://access.redhat.com/errata/RHSA-2023:6894
+      version: 4.12.44
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:10221b3f8f23fe625f3aab8f1e3297eaa340efc64fb5eff8d46cc8461888804e
+      url: https://access.redhat.com/errata/RHSA-2023:6842
+      version: 4.12.43
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:a52419c56d84f2953ddaa121e89a3d806902af4538503d8cf229b1e8a14f8902
+      url: https://access.redhat.com/errata/RHSA-2023:6276
+      version: 4.12.42
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:59c93fdfff4ecca2ca6d6bb0ec722bca2bb08152252ae10ce486a9fc80c82dcf
+      url: https://access.redhat.com/errata/RHSA-2023:6126
+      version: 4.12.41
+    risks:
+    - matchingRules:
+      - promql:
+          promql: topk(1, label_replace(group(cluster_version{type="initial",version=~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "yes, born in 4.10 or earlier", "", "") or label_replace(0 * group(cluster_version{type="initial",version!~"4[.]([0-9]|10)[.].*"}),"born_by_4_10",
+            "no, born in 4.11 or later", "", "") ) * on () group_left(resource) (
+            group by (resource) (max_over_time(apiserver_storage_objects{_id="",resource="egressips.k8s.ovn.org"}[1h]))
+            or on () 0 * group(max_over_time(apiserver_storage_objects{_id=""}[1h]))
+            )
+        type: PromQL
+      message: Upgrades can get stuck on OVN clusters that were installed as 4.10
+        or earlier.
+      name: OVNKubeMasterDSPrestop
+      url: https://issues.redhat.com/browse/SDN-4196
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:5a4fb052cda1d14d1e306ce87e6b0ded84edddaa76f1cf401bcded99cef2ad84
+      url: https://access.redhat.com/errata/RHBA-2023:4048
+      version: 4.12.25
+    risks:
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:b0b11eedf91175459b5d7aefcf3936d0cabf00f01ced756677483f5f26227328
+      url: https://access.redhat.com/errata/RHBA-2023:3977
+      version: 4.12.24
+    risks:
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:2309578b68c5666dad62aed696f1f9d778ae1a089ee461060ba7b9514b7ca417
+      url: https://access.redhat.com/errata/RHSA-2023:3925
+      version: 4.12.23
+    risks:
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:ba7956f5c2aae61c8ff3ab1ab2ee7e625db9b1c8964a65339764db79c148e4e6
+      url: https://access.redhat.com/errata/RHSA-2023:3615
+      version: 4.12.22
+    risks:
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: The update is recommended, because none of the conditional update risks
+        apply to this cluster.
+      reason: AsExpected
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:71e158c6173ad6aa6e356c119a87459196bbe70e89c0db1e35c1f63a87d90676
+      url: https://access.redhat.com/errata/RHBA-2023:3546
+      version: 4.12.21
+    risks:
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: Upgrade can get stuck on clusters that use multiple networks together
+        with dual stack. https://issues.redhat.com/browse/SDN-3996
+      reason: DualStackNeedsController
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:5c504578e34e8cf6eb70fad7a9bee92896b6d38d09b6d81891f730ee4f9d268b
+      url: https://access.redhat.com/errata/RHSA-2023:3410
+      version: 4.12.20
+    risks:
+    - matchingRules:
+      - type: Always
+      message: Upgrade can get stuck on clusters that use multiple networks together
+        with dual stack.
+      name: DualStackNeedsController
+      url: https://issues.redhat.com/browse/SDN-3996
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: Upgrade can get stuck on clusters that use multiple networks together
+        with dual stack. https://issues.redhat.com/browse/SDN-3996
+      reason: DualStackNeedsController
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:41fd42cc8b9f86fc86cc8763dcf27e976299ff632a336d393b8e643bd8a5f967
+      url: https://access.redhat.com/errata/RHSA-2023:3287
+      version: 4.12.19
+    risks:
+    - matchingRules:
+      - type: Always
+      message: Upgrade can get stuck on clusters that use multiple networks together
+        with dual stack.
+      name: DualStackNeedsController
+      url: https://issues.redhat.com/browse/SDN-3996
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+  - conditions:
+    - lastTransitionTime: "2024-09-27T03:37:14Z"
+      message: Upgrade can get stuck on clusters that use multiple networks together
+        with dual stack. https://issues.redhat.com/browse/SDN-3996
+      reason: DualStackNeedsController
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-4.12
+      - candidate-4.13
+      - eus-4.12
+      - eus-4.14
+      - fast-4.12
+      - fast-4.13
+      - stable-4.12
+      - stable-4.13
+      image: quay.io/openshift-release-dev/ocp-release@sha256:8465e416a403cec2e6887c8aebe783b976f46f81d513890f17037b652b143de5
+      url: https://access.redhat.com/errata/RHBA-2023:3208
+      version: 4.12.18
+    risks:
+    - matchingRules:
+      - type: Always
+      message: Upgrade can get stuck on clusters that use multiple networks together
+        with dual stack.
+      name: DualStackNeedsController
+      url: https://issues.redhat.com/browse/SDN-3996
+    - matchingRules:
+      - promql:
+          promql: group(network_attachment_definition_instances > 0) or 0 * group(network_attachment_definition_instances)
+        type: PromQL
+      message: Upgrade can get stuck on clusters that have multiple network attachments.
+      name: MultiNetworkAttachmentsWhereaboutsVersion
+      url: https://access.redhat.com/solutions/7024726
+  conditions:
+  - lastTransitionTime: "2024-09-27T00:36:24Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2024-09-27T00:36:24Z"
+    message: Kubernetes 1.26 and therefore OpenShift 4.13 remove several APIs which
+      require admin consideration. Please see the knowledge article https://access.redhat.com/articles/6958394
+      for details and instructions.
+    reason: AdminAckRequired
+    status: "False"
+    type: Upgradeable
+  - lastTransitionTime: "2024-09-27T00:36:24Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2024-09-27T00:36:24Z"
+    message: Payload loaded version="4.12.16" image="registry.build03.ci.openshift.org/ci-ln-xds8hmk/release@sha256:5339b3c4686010dc42990e0addce5aa4fddd071d6d9504dffe08a4b5059f6f38"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2024-09-27T01:01:44Z"
+    message: Done applying 4.12.16
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2024-09-27T01:01:44Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2024-09-27T01:01:44Z"
+    message: Cluster version is 4.12.16
+    status: "False"
+    type: Progressing
+  desired:
+    channels:
+    - candidate-4.12
+    - candidate-4.13
+    - eus-4.12
+    - eus-4.14
+    - fast-4.12
+    - fast-4.13
+    - stable-4.12
+    - stable-4.13
+    image: registry.build03.ci.openshift.org/ci-ln-xds8hmk/release@sha256:5339b3c4686010dc42990e0addce5aa4fddd071d6d9504dffe08a4b5059f6f38
+    url: https://access.redhat.com/errata/RHSA-2023:2110
+    version: 4.12.16
+  history:
+  - completionTime: "2024-09-27T01:01:44Z"
+    image: registry.build03.ci.openshift.org/ci-ln-xds8hmk/release@sha256:5339b3c4686010dc42990e0addce5aa4fddd071d6d9504dffe08a4b5059f6f38
+    startedTime: "2024-09-27T00:36:24Z"
+    state: Completed
+    verified: false
+    version: 4.12.16
+  observedGeneration: 3
+  versionHash: a6BN02qoux4=

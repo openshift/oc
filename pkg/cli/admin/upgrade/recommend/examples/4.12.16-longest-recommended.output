@@ -1,0 +1,87 @@
+Cluster version is 4.12.16
+
+Upgradeable=False
+
+  Reason: AdminAckRequired
+  Message: Kubernetes 1.26 and therefore OpenShift 4.13 remove several APIs which require admin consideration. Please see the knowledge article https://access.redhat.com/articles/6958394 for details and instructions.
+
+Upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+Channel: stable-4.13 (available channels: candidate-4.12, candidate-4.13, eus-4.12, eus-4.14, fast-4.12, fast-4.13, stable-4.12, stable-4.13)
+
+Recommended updates:
+
+  VERSION     IMAGE
+  4.13.50     quay.io/openshift-release-dev/ocp-release@sha256:6afb11e1cac46fd26476ca134072937115256b9c6360f7a1cd1812992c065f02
+  4.13.49     quay.io/openshift-release-dev/ocp-release@sha256:ab6f574665395d809511db9dc57764358278538eaae248c6d199208b3c30ab7d
+  4.13.48     quay.io/openshift-release-dev/ocp-release@sha256:7235b8e139da4ba4c17c2b4b9864c05c93c5f55f7c2f561e7f9796c7e6589917
+  4.13.45     quay.io/openshift-release-dev/ocp-release@sha256:c7e3658ca8f0f1fc8ce1512ecc36785a68b1388dfbfc39642bff8120bfa86a33
+  4.13.44     quay.io/openshift-release-dev/ocp-release@sha256:e58807c46fab369428af73bdfec64ad4b509dcbdb4586694059013c69856e8a5
+  4.13.43     quay.io/openshift-release-dev/ocp-release@sha256:d0da3d9b016e6d693a61c9425598921b6d0da99c52cb0f3404f6dbc126149e5d
+  4.13.42     quay.io/openshift-release-dev/ocp-release@sha256:dcf5c3ad7384f8bee3c275da8f886b0bc9aea7611d166d695d0cf0fff40a0b55
+  4.13.41     quay.io/openshift-release-dev/ocp-release@sha256:dbb8aa0cf53dc5ac663514e259ad2768d8c82fd1fe7181a4cfb484e3ffdbd3ba
+  4.13.40     quay.io/openshift-release-dev/ocp-release@sha256:c1f69e6137bc9cda2c6da56bafbc7ea969900acb5e5c349b1ebb2103b10b424f
+  4.13.39     quay.io/openshift-release-dev/ocp-release@sha256:dd58c982a2166dcac5ce8f390f8b26b36df27ac765c4e012a670a9c0bac909df
+  4.13.38     quay.io/openshift-release-dev/ocp-release@sha256:db7a6fad1d56cf391159d252daabbb44178132081e077ae290317b91633fb1db
+  4.13.37     quay.io/openshift-release-dev/ocp-release@sha256:0fb7bbb4e6771acc99e32c55d4d37edf58ad31901acb78f552ce77ff4ba1eb3c
+  4.13.32     quay.io/openshift-release-dev/ocp-release@sha256:c39085b26665ed9877e208c123ff147cf7939dde4eca79a4f00fda8ea5b13dc9
+  4.13.31     quay.io/openshift-release-dev/ocp-release@sha256:07cf79d6998a9b6a2d19b7fe168a3300ad682de33f190c9eb27bf61e67d3eeee
+  4.13.30     quay.io/openshift-release-dev/ocp-release@sha256:661be5aec551ee1b774a7176ced6f755d5ec0a5e8b957db234a89ebc8dd3c0f5
+  4.13.29     quay.io/openshift-release-dev/ocp-release@sha256:9c4a4471bb93ab11d255925535ff719742cafa8ae06d622b870133787a72abc3
+  4.13.28     quay.io/openshift-release-dev/ocp-release@sha256:1c834045db967d579aa2f1ef6f836dcb21db13d804bdffb972e8f4a7a4d59fc2
+  4.13.27     quay.io/openshift-release-dev/ocp-release@sha256:bc9006f9160663663c6d9a735c4c497f8f3300d94a7ec45cdafef1cebb15ebfe
+  4.13.26     quay.io/openshift-release-dev/ocp-release@sha256:dece136ed888653cae20c2832b9e94de7c7ab24e34cddf49d5d284f41d7b61b1
+  4.13.25     quay.io/openshift-release-dev/ocp-release@sha256:480f2026c07b0f2e19c3fc60a44e4a7147ab821474641952f077573d05747855
+  4.13.24     quay.io/openshift-release-dev/ocp-release@sha256:d6a7e20a8929a3ad985373f05472ea64bada8ff46f0beb89e1b6d04919affde3
+  4.13.23     quay.io/openshift-release-dev/ocp-release@sha256:ca556d3494d08765c90481f15dd965995371168ea7ee7a551000bed4481931c8
+  4.13.22     quay.io/openshift-release-dev/ocp-release@sha256:f323afe3e80d44da7d0caaed8c353fedef37e5fd5e7f765e8440be86f546cba0
+  4.13.21     quay.io/openshift-release-dev/ocp-release@sha256:562c214e9662e3684ac5b8c3d5d2759a83f544da8897a00ebe91a02fcad6d2d9
+  4.13.19     quay.io/openshift-release-dev/ocp-release@sha256:f8ba6f54eae419aba17926417d950ae18e06021beae9d7947a8b8243ad48353a
+  4.13.18     quay.io/openshift-release-dev/ocp-release@sha256:d0fd9d3ab8690605f816c879d74f4e6d6d9f72982f63a3e0ef3e027ecc512e1c
+  4.13.17     quay.io/openshift-release-dev/ocp-release@sha256:c1f2fa2170c02869484a4e049132128e216a363634d38abf292eef181e93b692
+  4.13.15     quay.io/openshift-release-dev/ocp-release@sha256:78f08839886fb2896857f95de0347b8f67ebcff16591b9d7aec87a20406b2897
+  4.13.14     quay.io/openshift-release-dev/ocp-release@sha256:406fcc160c097f61080412afcfa7fd65284ac8741ac7ad5b480e304aba73674b
+  4.13.13     quay.io/openshift-release-dev/ocp-release@sha256:d62495768e335c79a215ba56771ff5ae97e3cbb2bf49ed8fb3f6cefabcdc0f17
+  4.13.12     quay.io/openshift-release-dev/ocp-release@sha256:73946971c03b43a0dc6f7b0946b26a177c2f3c9d37105441315b4e3359373a55
+  4.13.11     quay.io/openshift-release-dev/ocp-release@sha256:e1c2377fdae1d063aaddc753b99acf25972b6997ab9a0b7e80cfef627b9ef3dd
+  4.13.10     quay.io/openshift-release-dev/ocp-release@sha256:28173b4b6efe4f67f8753566e5f3c9831e454609b7f1888e4b6687907f4b7f24
+  4.12.64     quay.io/openshift-release-dev/ocp-release@sha256:669170342e3ae3456b2eb00dd0c45cd817d62af310e0aa2bf214f1da65fae9d0
+  4.12.63     quay.io/openshift-release-dev/ocp-release@sha256:5db6f8dd1db6b9d07dacfa74574a38a6e518145a3c0ab5d895e9c89e029a39e4
+  4.12.61     quay.io/openshift-release-dev/ocp-release@sha256:faa201ea7790bb101de7b9b6f01543136e8c589463b8437a10678da0cdd0197a
+  4.12.60     quay.io/openshift-release-dev/ocp-release@sha256:22174072f8aaef46f80bded25d5a2bdfa6fd8bb01fc5242a07e550f132cafc5a
+  4.12.59     quay.io/openshift-release-dev/ocp-release@sha256:8908e5a46f106e7520faa5f5ee679033c4c2f0026f1b8a339e6b3ea4becdd969
+  4.12.58     quay.io/openshift-release-dev/ocp-release@sha256:b622d947ade4a13754e9d9f6803107f1b321eecd925c897f3c12de1aafccbdc5
+  4.12.57     quay.io/openshift-release-dev/ocp-release@sha256:ebd20cd66e0bbb5bcd7d16559ff4856918b7172e29d6a7bd34d8cc49a556b8f7
+  4.12.56     quay.io/openshift-release-dev/ocp-release@sha256:7446b0c3cc24c6d35c0d0fc968ef27f52da92c60f41951c0e646041db108169a
+  4.12.55     quay.io/openshift-release-dev/ocp-release@sha256:ecf790d11e32ec8c88c4224660eb1a107db5fdf54b0712eededb9d9bf0ab1a6d
+  4.12.54     quay.io/openshift-release-dev/ocp-release@sha256:5bbeeae3698249a41d6bd9987aac42cecbe862e1dd3710ab16ff4da651fc66a8
+  4.12.53     quay.io/openshift-release-dev/ocp-release@sha256:b584f5458fb946115b0cf0f1793dc9224c5e6a4567e74018f0590805a03eb523
+  4.12.48     quay.io/openshift-release-dev/ocp-release@sha256:c31b9b63b8c21d4327201fd0e78a4b6b0af7f1f8162acd29e4cde1cd65a56d19
+  4.12.47     quay.io/openshift-release-dev/ocp-release@sha256:fcc9920ba10ebb02c69bdd9cd597273260eeec1b22e9ef9986a47f4874a21253
+  4.12.46     quay.io/openshift-release-dev/ocp-release@sha256:2dda17736b7b747b463b040cb3b7abba9c4174b0922e2fd84127e3887f6d69c5
+  4.12.45     quay.io/openshift-release-dev/ocp-release@sha256:faf0aebc0abce8890e046eecfa392c24bc24f6c49146c45447fb0977e692db6e
+  4.12.44     quay.io/openshift-release-dev/ocp-release@sha256:304f37f9d7aa290252951751c5bf03a97085f77b4bcde0ed8a2fa455e9600e68
+  4.12.43     quay.io/openshift-release-dev/ocp-release@sha256:10221b3f8f23fe625f3aab8f1e3297eaa340efc64fb5eff8d46cc8461888804e
+  4.12.42     quay.io/openshift-release-dev/ocp-release@sha256:a52419c56d84f2953ddaa121e89a3d806902af4538503d8cf229b1e8a14f8902
+  4.12.41     quay.io/openshift-release-dev/ocp-release@sha256:59c93fdfff4ecca2ca6d6bb0ec722bca2bb08152252ae10ce486a9fc80c82dcf
+  4.12.40     quay.io/openshift-release-dev/ocp-release@sha256:b0b1aac82f9083d20e7e4269b05dd3679299d277d122fa9d29b772f38d2cacff
+  4.12.39     quay.io/openshift-release-dev/ocp-release@sha256:75687feb6344caeb0edb6b1513b53fd07b90b481079415b6545d860fe74059eb
+  4.12.37     quay.io/openshift-release-dev/ocp-release@sha256:ba7544a126dfd1028cfa9e9afde9ae9d2eb21bad26f8da56eb7aebc0fb132c84
+  4.12.36     quay.io/openshift-release-dev/ocp-release@sha256:38ccab25d5895a216a465a9f297541fbbebe7aa115fdaa9f2015c8d5a5d036eb
+  4.12.35     quay.io/openshift-release-dev/ocp-release@sha256:ef892e96305d4f401860304732b06ca4eac5dbcce287ebaa98c48edd6fb91023
+  4.12.34     quay.io/openshift-release-dev/ocp-release@sha256:b411b7157e124ccb5c9cd1c72499759a2cb0d784e5107c03dc73a7c83359bb1b
+  4.12.33     quay.io/openshift-release-dev/ocp-release@sha256:ab18794370bfbb469d7f37fef8ca17b7d3ef3976b7ad3e28b137398c9154ea86
+  4.12.32     quay.io/openshift-release-dev/ocp-release@sha256:008c933f9d2b49721d6729c1e558f3f0c91e8368201d33469dcd5bda5cf7d333
+  4.12.31     quay.io/openshift-release-dev/ocp-release@sha256:4e0e74e9fdfbaec726654fa883b2018beb548e12ad9db2ffbeb7cf2d6862f7e8
+  4.12.30     quay.io/openshift-release-dev/ocp-release@sha256:86ee723d4dc2a83f836232d1d03f8b4193940c50a2636ee86924acb5d14b0b64
+  4.12.29     quay.io/openshift-release-dev/ocp-release@sha256:dac46152be54e0669694e0ae56d66d8fb3c34dc26ec0d3704eef29d6099846c4
+  4.12.28     quay.io/openshift-release-dev/ocp-release@sha256:f3910eae62029cf1108aadc9f9c649625e49a998d3e5547cb8849d0db9c54843
+  4.12.27     quay.io/openshift-release-dev/ocp-release@sha256:e15e52f22247b833d1db59b1507fa67d920e39b75297bc3a74f3f15e560d6d02
+  4.12.26     quay.io/openshift-release-dev/ocp-release@sha256:8d72f29227418d2ae12ee52e25cce9edef7cd645bdaea02410a89fe8a0ec6a47
+  4.12.25     quay.io/openshift-release-dev/ocp-release@sha256:5a4fb052cda1d14d1e306ce87e6b0ded84edddaa76f1cf401bcded99cef2ad84
+  4.12.24     quay.io/openshift-release-dev/ocp-release@sha256:b0b11eedf91175459b5d7aefcf3936d0cabf00f01ced756677483f5f26227328
+  4.12.23     quay.io/openshift-release-dev/ocp-release@sha256:2309578b68c5666dad62aed696f1f9d778ae1a089ee461060ba7b9514b7ca417
+  4.12.22     quay.io/openshift-release-dev/ocp-release@sha256:ba7956f5c2aae61c8ff3ab1ab2ee7e625db9b1c8964a65339764db79c148e4e6
+  4.12.21     quay.io/openshift-release-dev/ocp-release@sha256:71e158c6173ad6aa6e356c119a87459196bbe70e89c0db1e35c1f63a87d90676
+  4.12.17     quay.io/openshift-release-dev/ocp-release@sha256:7ca5f8aa44bbc537c5a985a523d87365eab3f6e72abc50b7be4caae741e093f4
+
+Additional updates which are not recommended for your cluster configuration are available, to view those re-run the command with --include-not-recommended.
