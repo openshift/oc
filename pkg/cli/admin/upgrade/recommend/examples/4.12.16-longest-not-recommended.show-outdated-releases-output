@@ -1,5 +1,3 @@
-Cluster version is 4.12.16
-
 Upgradeable=False
 
   Reason: AdminAckRequired
@@ -8,35 +6,7 @@ Upgradeable=False
 Upstream: https://api.integration.openshift.com/api/upgrades_info/graph
 Channel: stable-4.13 (available channels: candidate-4.12, candidate-4.13, eus-4.12, eus-4.14, fast-4.12, fast-4.13, stable-4.12, stable-4.13)
 
-Recommended updates:
-
-  VERSION     IMAGE
-  4.12.64     quay.io/openshift-release-dev/ocp-release@sha256:669170342e3ae3456b2eb00dd0c45cd817d62af310e0aa2bf214f1da65fae9d0
-  4.12.63     quay.io/openshift-release-dev/ocp-release@sha256:5db6f8dd1db6b9d07dacfa74574a38a6e518145a3c0ab5d895e9c89e029a39e4
-  4.12.61     quay.io/openshift-release-dev/ocp-release@sha256:faa201ea7790bb101de7b9b6f01543136e8c589463b8437a10678da0cdd0197a
-  4.12.60     quay.io/openshift-release-dev/ocp-release@sha256:22174072f8aaef46f80bded25d5a2bdfa6fd8bb01fc5242a07e550f132cafc5a
-  4.12.59     quay.io/openshift-release-dev/ocp-release@sha256:8908e5a46f106e7520faa5f5ee679033c4c2f0026f1b8a339e6b3ea4becdd969
-  4.12.58     quay.io/openshift-release-dev/ocp-release@sha256:b622d947ade4a13754e9d9f6803107f1b321eecd925c897f3c12de1aafccbdc5
-  4.12.57     quay.io/openshift-release-dev/ocp-release@sha256:ebd20cd66e0bbb5bcd7d16559ff4856918b7172e29d6a7bd34d8cc49a556b8f7
-  4.12.53     quay.io/openshift-release-dev/ocp-release@sha256:b584f5458fb946115b0cf0f1793dc9224c5e6a4567e74018f0590805a03eb523
-  4.12.48     quay.io/openshift-release-dev/ocp-release@sha256:c31b9b63b8c21d4327201fd0e78a4b6b0af7f1f8162acd29e4cde1cd65a56d19
-  4.12.40     quay.io/openshift-release-dev/ocp-release@sha256:b0b1aac82f9083d20e7e4269b05dd3679299d277d122fa9d29b772f38d2cacff
-  4.12.39     quay.io/openshift-release-dev/ocp-release@sha256:75687feb6344caeb0edb6b1513b53fd07b90b481079415b6545d860fe74059eb
-  4.12.37     quay.io/openshift-release-dev/ocp-release@sha256:ba7544a126dfd1028cfa9e9afde9ae9d2eb21bad26f8da56eb7aebc0fb132c84
-  4.12.36     quay.io/openshift-release-dev/ocp-release@sha256:38ccab25d5895a216a465a9f297541fbbebe7aa115fdaa9f2015c8d5a5d036eb
-  4.12.35     quay.io/openshift-release-dev/ocp-release@sha256:ef892e96305d4f401860304732b06ca4eac5dbcce287ebaa98c48edd6fb91023
-  4.12.34     quay.io/openshift-release-dev/ocp-release@sha256:b411b7157e124ccb5c9cd1c72499759a2cb0d784e5107c03dc73a7c83359bb1b
-  4.12.33     quay.io/openshift-release-dev/ocp-release@sha256:ab18794370bfbb469d7f37fef8ca17b7d3ef3976b7ad3e28b137398c9154ea86
-  4.12.32     quay.io/openshift-release-dev/ocp-release@sha256:008c933f9d2b49721d6729c1e558f3f0c91e8368201d33469dcd5bda5cf7d333
-  4.12.31     quay.io/openshift-release-dev/ocp-release@sha256:4e0e74e9fdfbaec726654fa883b2018beb548e12ad9db2ffbeb7cf2d6862f7e8
-  4.12.30     quay.io/openshift-release-dev/ocp-release@sha256:86ee723d4dc2a83f836232d1d03f8b4193940c50a2636ee86924acb5d14b0b64
-  4.12.29     quay.io/openshift-release-dev/ocp-release@sha256:dac46152be54e0669694e0ae56d66d8fb3c34dc26ec0d3704eef29d6099846c4
-  4.12.28     quay.io/openshift-release-dev/ocp-release@sha256:f3910eae62029cf1108aadc9f9c649625e49a998d3e5547cb8849d0db9c54843
-  4.12.27     quay.io/openshift-release-dev/ocp-release@sha256:e15e52f22247b833d1db59b1507fa67d920e39b75297bc3a74f3f15e560d6d02
-  4.12.26     quay.io/openshift-release-dev/ocp-release@sha256:8d72f29227418d2ae12ee52e25cce9edef7cd645bdaea02410a89fe8a0ec6a47
-  4.12.17     quay.io/openshift-release-dev/ocp-release@sha256:7ca5f8aa44bbc537c5a985a523d87365eab3f6e72abc50b7be4caae741e093f4
-
-Updates with known issues:
+Updates to 4.13:
 
   Version: 4.13.50
   Image: quay.io/openshift-release-dev/ocp-release@sha256:6afb11e1cac46fd26476ca134072937115256b9c6360f7a1cd1812992c065f02
@@ -504,6 +474,16 @@ Updates with known issues:
   
   Pods scheduled to nodes running a RHCOS/kernel version with a known defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
 
+Updates to 4.12:
+  VERSION     IMAGE
+  4.12.64     quay.io/openshift-release-dev/ocp-release@sha256:669170342e3ae3456b2eb00dd0c45cd817d62af310e0aa2bf214f1da65fae9d0
+  4.12.63     quay.io/openshift-release-dev/ocp-release@sha256:5db6f8dd1db6b9d07dacfa74574a38a6e518145a3c0ab5d895e9c89e029a39e4
+  4.12.61     quay.io/openshift-release-dev/ocp-release@sha256:faa201ea7790bb101de7b9b6f01543136e8c589463b8437a10678da0cdd0197a
+  4.12.60     quay.io/openshift-release-dev/ocp-release@sha256:22174072f8aaef46f80bded25d5a2bdfa6fd8bb01fc5242a07e550f132cafc5a
+  4.12.59     quay.io/openshift-release-dev/ocp-release@sha256:8908e5a46f106e7520faa5f5ee679033c4c2f0026f1b8a339e6b3ea4becdd969
+  4.12.58     quay.io/openshift-release-dev/ocp-release@sha256:b622d947ade4a13754e9d9f6803107f1b321eecd925c897f3c12de1aafccbdc5
+  4.12.57     quay.io/openshift-release-dev/ocp-release@sha256:ebd20cd66e0bbb5bcd7d16559ff4856918b7172e29d6a7bd34d8cc49a556b8f7
+
   Version: 4.12.56
   Image: quay.io/openshift-release-dev/ocp-release@sha256:7446b0c3cc24c6d35c0d0fc968ef27f52da92c60f41951c0e646041db108169a
   Reason: EvaluationFailed
@@ -522,6 +502,9 @@ Updates with known issues:
   Message: Exposure to CephCapDropPanic is unknown due to an evaluation failure: executing PromQL query: Post "https://thanos-querier.openshift-monitoring.svc.cluster.local:9091/api/v1/query": dial tcp: lookup thanos-querier.openshift-monitoring.svc.cluster.local: no such host
   Nodes in clusters running workloads that mount Ceph volumes may experience kernel panics due to a CephFS client bug. https://issues.redhat.com/browse/COS-2781
 
+  VERSION     IMAGE
+  4.12.53     quay.io/openshift-release-dev/ocp-release@sha256:b584f5458fb946115b0cf0f1793dc9224c5e6a4567e74018f0590805a03eb523
+
   Version: 4.12.51
   Image: quay.io/openshift-release-dev/ocp-release@sha256:158ced797e49f6caf7862acccef58484be63b642fdd2f66e6416295fa7958ab0
   Reason: MultipleReasons
@@ -538,6 +521,9 @@ Updates with known issues:
   Image: quay.io/openshift-release-dev/ocp-release@sha256:c93133ca1ccb35ea8552065ed7a74dccf5c7ee133e581f5211e465f1914c62d7
   Reason: RHELKernelHighLoadIOWait
   Message: After rebooting into kernel-4.18.0-372.88.1.el8_6 or later, kernel nodes experience high load average and io_wait times. The nodes might fail to start or stop pods and probes may fail. Workload and host processes may become unresponsive and workload may be disrupted. https://issues.redhat.com/browse/COS-2705
+
+  VERSION     IMAGE
+  4.12.48     quay.io/openshift-release-dev/ocp-release@sha256:c31b9b63b8c21d4327201fd0e78a4b6b0af7f1f8162acd29e4cde1cd65a56d19
 
   Version: 4.12.47
   Image: quay.io/openshift-release-dev/ocp-release@sha256:fcc9920ba10ebb02c69bdd9cd597273260eeec1b22e9ef9986a47f4874a21253
@@ -580,6 +566,22 @@ Updates with known issues:
   Reason: EvaluationFailed
   Message: Exposure to OVNKubeMasterDSPrestop is unknown due to an evaluation failure: client-side throttling: only 8m30.89811573s has elapsed since the last match call completed for this cluster condition backend; this cached cluster condition request has been queued for later execution
   Upgrades can get stuck on OVN clusters that were installed as 4.10 or earlier. https://issues.redhat.com/browse/SDN-4196
+
+  VERSION     IMAGE
+  4.12.40     quay.io/openshift-release-dev/ocp-release@sha256:b0b1aac82f9083d20e7e4269b05dd3679299d277d122fa9d29b772f38d2cacff
+  4.12.39     quay.io/openshift-release-dev/ocp-release@sha256:75687feb6344caeb0edb6b1513b53fd07b90b481079415b6545d860fe74059eb
+  4.12.37     quay.io/openshift-release-dev/ocp-release@sha256:ba7544a126dfd1028cfa9e9afde9ae9d2eb21bad26f8da56eb7aebc0fb132c84
+  4.12.36     quay.io/openshift-release-dev/ocp-release@sha256:38ccab25d5895a216a465a9f297541fbbebe7aa115fdaa9f2015c8d5a5d036eb
+  4.12.35     quay.io/openshift-release-dev/ocp-release@sha256:ef892e96305d4f401860304732b06ca4eac5dbcce287ebaa98c48edd6fb91023
+  4.12.34     quay.io/openshift-release-dev/ocp-release@sha256:b411b7157e124ccb5c9cd1c72499759a2cb0d784e5107c03dc73a7c83359bb1b
+  4.12.33     quay.io/openshift-release-dev/ocp-release@sha256:ab18794370bfbb469d7f37fef8ca17b7d3ef3976b7ad3e28b137398c9154ea86
+  4.12.32     quay.io/openshift-release-dev/ocp-release@sha256:008c933f9d2b49721d6729c1e558f3f0c91e8368201d33469dcd5bda5cf7d333
+  4.12.31     quay.io/openshift-release-dev/ocp-release@sha256:4e0e74e9fdfbaec726654fa883b2018beb548e12ad9db2ffbeb7cf2d6862f7e8
+  4.12.30     quay.io/openshift-release-dev/ocp-release@sha256:86ee723d4dc2a83f836232d1d03f8b4193940c50a2636ee86924acb5d14b0b64
+  4.12.29     quay.io/openshift-release-dev/ocp-release@sha256:dac46152be54e0669694e0ae56d66d8fb3c34dc26ec0d3704eef29d6099846c4
+  4.12.28     quay.io/openshift-release-dev/ocp-release@sha256:f3910eae62029cf1108aadc9f9c649625e49a998d3e5547cb8849d0db9c54843
+  4.12.27     quay.io/openshift-release-dev/ocp-release@sha256:e15e52f22247b833d1db59b1507fa67d920e39b75297bc3a74f3f15e560d6d02
+  4.12.26     quay.io/openshift-release-dev/ocp-release@sha256:8d72f29227418d2ae12ee52e25cce9edef7cd645bdaea02410a89fe8a0ec6a47
 
   Version: 4.12.25
   Image: quay.io/openshift-release-dev/ocp-release@sha256:5a4fb052cda1d14d1e306ce87e6b0ded84edddaa76f1cf401bcded99cef2ad84
@@ -634,3 +636,6 @@ Updates with known issues:
   
   Exposure to MultiNetworkAttachmentsWhereaboutsVersion is unknown due to an evaluation failure: client-side throttling: only 8m30.89814223s has elapsed since the last match call completed for this cluster condition backend; this cached cluster condition request has been queued for later execution
   Upgrade can get stuck on clusters that have multiple network attachments. https://access.redhat.com/solutions/7024726
+
+  VERSION     IMAGE
+  4.12.17     quay.io/openshift-release-dev/ocp-release@sha256:7ca5f8aa44bbc537c5a985a523d87365eab3f6e72abc50b7be4caae741e093f4

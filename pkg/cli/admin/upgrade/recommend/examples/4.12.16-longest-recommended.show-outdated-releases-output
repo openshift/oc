@@ -1,5 +1,3 @@
-Cluster version is 4.12.16
-
 Upgradeable=False
 
   Reason: AdminAckRequired
@@ -8,12 +6,18 @@ Upgradeable=False
 Upstream: https://api.integration.openshift.com/api/upgrades_info/graph
 Channel: stable-4.13 (available channels: candidate-4.12, candidate-4.13, eus-4.12, eus-4.14, fast-4.12, fast-4.13, stable-4.12, stable-4.13)
 
-Recommended updates:
-
+Updates to 4.13:
   VERSION     IMAGE
   4.13.50     quay.io/openshift-release-dev/ocp-release@sha256:6afb11e1cac46fd26476ca134072937115256b9c6360f7a1cd1812992c065f02
   4.13.49     quay.io/openshift-release-dev/ocp-release@sha256:ab6f574665395d809511db9dc57764358278538eaae248c6d199208b3c30ab7d
   4.13.48     quay.io/openshift-release-dev/ocp-release@sha256:7235b8e139da4ba4c17c2b4b9864c05c93c5f55f7c2f561e7f9796c7e6589917
+
+  Version: 4.13.46
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:de889d3c3837ff9111765d8e5a4855e8b763dc759cb465fa2ebfcf0395d3f6b9
+  Reason: AzureSystemDLooping
+  Message: Azure clusters created on 4.(y<12) or 4.12.(z<54) are experiencing a bug where systemd detects a dependency loop. Systemd deletes these dependencies causing CRI-O and the kublet to never start on nodes. https://issues.redhat.com/browse/MCO-1257
+
+  VERSION     IMAGE
   4.13.45     quay.io/openshift-release-dev/ocp-release@sha256:c7e3658ca8f0f1fc8ce1512ecc36785a68b1388dfbfc39642bff8120bfa86a33
   4.13.44     quay.io/openshift-release-dev/ocp-release@sha256:e58807c46fab369428af73bdfec64ad4b509dcbdb4586694059013c69856e8a5
   4.13.43     quay.io/openshift-release-dev/ocp-release@sha256:d0da3d9b016e6d693a61c9425598921b6d0da99c52cb0f3404f6dbc126149e5d
@@ -23,6 +27,28 @@ Recommended updates:
   4.13.39     quay.io/openshift-release-dev/ocp-release@sha256:dd58c982a2166dcac5ce8f390f8b26b36df27ac765c4e012a670a9c0bac909df
   4.13.38     quay.io/openshift-release-dev/ocp-release@sha256:db7a6fad1d56cf391159d252daabbb44178132081e077ae290317b91633fb1db
   4.13.37     quay.io/openshift-release-dev/ocp-release@sha256:0fb7bbb4e6771acc99e32c55d4d37edf58ad31901acb78f552ce77ff4ba1eb3c
+
+  Version: 4.13.36
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:9ed18a88ce6242dceab887ee7dc92eecf9e0194a569e1e8c924cbf4b1da7816e
+  Reason: HighNodeStatusReportFrequency
+  Message: An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
+
+  Version: 4.13.35
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:2399ee629b41bf4c4006478260dcffd40849912398c09cba77bfada2fc481247
+  Reason: HighNodeStatusReportFrequency
+  Message: An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
+
+  Version: 4.13.34
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:04081f0cdc3a98eb9b705aceb86d4a035f7e6ccf6d9d10621776d53134f81c33
+  Reason: HighNodeStatusReportFrequency
+  Message: An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
+
+  Version: 4.13.33
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:7083519fd75dc187b7405968ba3d3d764a9807529e955411fd0ca1142dd4b560
+  Reason: HighNodeStatusReportFrequency
+  Message: An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
+
+  VERSION     IMAGE
   4.13.32     quay.io/openshift-release-dev/ocp-release@sha256:c39085b26665ed9877e208c123ff147cf7939dde4eca79a4f00fda8ea5b13dc9
   4.13.31     quay.io/openshift-release-dev/ocp-release@sha256:07cf79d6998a9b6a2d19b7fe168a3300ad682de33f190c9eb27bf61e67d3eeee
   4.13.30     quay.io/openshift-release-dev/ocp-release@sha256:661be5aec551ee1b774a7176ced6f755d5ec0a5e8b957db234a89ebc8dd3c0f5
@@ -44,72 +70,6 @@ Recommended updates:
   4.13.12     quay.io/openshift-release-dev/ocp-release@sha256:73946971c03b43a0dc6f7b0946b26a177c2f3c9d37105441315b4e3359373a55
   4.13.11     quay.io/openshift-release-dev/ocp-release@sha256:e1c2377fdae1d063aaddc753b99acf25972b6997ab9a0b7e80cfef627b9ef3dd
   4.13.10     quay.io/openshift-release-dev/ocp-release@sha256:28173b4b6efe4f67f8753566e5f3c9831e454609b7f1888e4b6687907f4b7f24
-  4.12.64     quay.io/openshift-release-dev/ocp-release@sha256:669170342e3ae3456b2eb00dd0c45cd817d62af310e0aa2bf214f1da65fae9d0
-  4.12.63     quay.io/openshift-release-dev/ocp-release@sha256:5db6f8dd1db6b9d07dacfa74574a38a6e518145a3c0ab5d895e9c89e029a39e4
-  4.12.61     quay.io/openshift-release-dev/ocp-release@sha256:faa201ea7790bb101de7b9b6f01543136e8c589463b8437a10678da0cdd0197a
-  4.12.60     quay.io/openshift-release-dev/ocp-release@sha256:22174072f8aaef46f80bded25d5a2bdfa6fd8bb01fc5242a07e550f132cafc5a
-  4.12.59     quay.io/openshift-release-dev/ocp-release@sha256:8908e5a46f106e7520faa5f5ee679033c4c2f0026f1b8a339e6b3ea4becdd969
-  4.12.58     quay.io/openshift-release-dev/ocp-release@sha256:b622d947ade4a13754e9d9f6803107f1b321eecd925c897f3c12de1aafccbdc5
-  4.12.57     quay.io/openshift-release-dev/ocp-release@sha256:ebd20cd66e0bbb5bcd7d16559ff4856918b7172e29d6a7bd34d8cc49a556b8f7
-  4.12.56     quay.io/openshift-release-dev/ocp-release@sha256:7446b0c3cc24c6d35c0d0fc968ef27f52da92c60f41951c0e646041db108169a
-  4.12.55     quay.io/openshift-release-dev/ocp-release@sha256:ecf790d11e32ec8c88c4224660eb1a107db5fdf54b0712eededb9d9bf0ab1a6d
-  4.12.54     quay.io/openshift-release-dev/ocp-release@sha256:5bbeeae3698249a41d6bd9987aac42cecbe862e1dd3710ab16ff4da651fc66a8
-  4.12.53     quay.io/openshift-release-dev/ocp-release@sha256:b584f5458fb946115b0cf0f1793dc9224c5e6a4567e74018f0590805a03eb523
-  4.12.48     quay.io/openshift-release-dev/ocp-release@sha256:c31b9b63b8c21d4327201fd0e78a4b6b0af7f1f8162acd29e4cde1cd65a56d19
-  4.12.47     quay.io/openshift-release-dev/ocp-release@sha256:fcc9920ba10ebb02c69bdd9cd597273260eeec1b22e9ef9986a47f4874a21253
-  4.12.46     quay.io/openshift-release-dev/ocp-release@sha256:2dda17736b7b747b463b040cb3b7abba9c4174b0922e2fd84127e3887f6d69c5
-  4.12.45     quay.io/openshift-release-dev/ocp-release@sha256:faf0aebc0abce8890e046eecfa392c24bc24f6c49146c45447fb0977e692db6e
-  4.12.44     quay.io/openshift-release-dev/ocp-release@sha256:304f37f9d7aa290252951751c5bf03a97085f77b4bcde0ed8a2fa455e9600e68
-  4.12.43     quay.io/openshift-release-dev/ocp-release@sha256:10221b3f8f23fe625f3aab8f1e3297eaa340efc64fb5eff8d46cc8461888804e
-  4.12.42     quay.io/openshift-release-dev/ocp-release@sha256:a52419c56d84f2953ddaa121e89a3d806902af4538503d8cf229b1e8a14f8902
-  4.12.41     quay.io/openshift-release-dev/ocp-release@sha256:59c93fdfff4ecca2ca6d6bb0ec722bca2bb08152252ae10ce486a9fc80c82dcf
-  4.12.40     quay.io/openshift-release-dev/ocp-release@sha256:b0b1aac82f9083d20e7e4269b05dd3679299d277d122fa9d29b772f38d2cacff
-  4.12.39     quay.io/openshift-release-dev/ocp-release@sha256:75687feb6344caeb0edb6b1513b53fd07b90b481079415b6545d860fe74059eb
-  4.12.37     quay.io/openshift-release-dev/ocp-release@sha256:ba7544a126dfd1028cfa9e9afde9ae9d2eb21bad26f8da56eb7aebc0fb132c84
-  4.12.36     quay.io/openshift-release-dev/ocp-release@sha256:38ccab25d5895a216a465a9f297541fbbebe7aa115fdaa9f2015c8d5a5d036eb
-  4.12.35     quay.io/openshift-release-dev/ocp-release@sha256:ef892e96305d4f401860304732b06ca4eac5dbcce287ebaa98c48edd6fb91023
-  4.12.34     quay.io/openshift-release-dev/ocp-release@sha256:b411b7157e124ccb5c9cd1c72499759a2cb0d784e5107c03dc73a7c83359bb1b
-  4.12.33     quay.io/openshift-release-dev/ocp-release@sha256:ab18794370bfbb469d7f37fef8ca17b7d3ef3976b7ad3e28b137398c9154ea86
-  4.12.32     quay.io/openshift-release-dev/ocp-release@sha256:008c933f9d2b49721d6729c1e558f3f0c91e8368201d33469dcd5bda5cf7d333
-  4.12.31     quay.io/openshift-release-dev/ocp-release@sha256:4e0e74e9fdfbaec726654fa883b2018beb548e12ad9db2ffbeb7cf2d6862f7e8
-  4.12.30     quay.io/openshift-release-dev/ocp-release@sha256:86ee723d4dc2a83f836232d1d03f8b4193940c50a2636ee86924acb5d14b0b64
-  4.12.29     quay.io/openshift-release-dev/ocp-release@sha256:dac46152be54e0669694e0ae56d66d8fb3c34dc26ec0d3704eef29d6099846c4
-  4.12.28     quay.io/openshift-release-dev/ocp-release@sha256:f3910eae62029cf1108aadc9f9c649625e49a998d3e5547cb8849d0db9c54843
-  4.12.27     quay.io/openshift-release-dev/ocp-release@sha256:e15e52f22247b833d1db59b1507fa67d920e39b75297bc3a74f3f15e560d6d02
-  4.12.26     quay.io/openshift-release-dev/ocp-release@sha256:8d72f29227418d2ae12ee52e25cce9edef7cd645bdaea02410a89fe8a0ec6a47
-  4.12.25     quay.io/openshift-release-dev/ocp-release@sha256:5a4fb052cda1d14d1e306ce87e6b0ded84edddaa76f1cf401bcded99cef2ad84
-  4.12.24     quay.io/openshift-release-dev/ocp-release@sha256:b0b11eedf91175459b5d7aefcf3936d0cabf00f01ced756677483f5f26227328
-  4.12.23     quay.io/openshift-release-dev/ocp-release@sha256:2309578b68c5666dad62aed696f1f9d778ae1a089ee461060ba7b9514b7ca417
-  4.12.22     quay.io/openshift-release-dev/ocp-release@sha256:ba7956f5c2aae61c8ff3ab1ab2ee7e625db9b1c8964a65339764db79c148e4e6
-  4.12.21     quay.io/openshift-release-dev/ocp-release@sha256:71e158c6173ad6aa6e356c119a87459196bbe70e89c0db1e35c1f63a87d90676
-  4.12.17     quay.io/openshift-release-dev/ocp-release@sha256:7ca5f8aa44bbc537c5a985a523d87365eab3f6e72abc50b7be4caae741e093f4
-
-Updates with known issues:
-
-  Version: 4.13.46
-  Image: quay.io/openshift-release-dev/ocp-release@sha256:de889d3c3837ff9111765d8e5a4855e8b763dc759cb465fa2ebfcf0395d3f6b9
-  Reason: AzureSystemDLooping
-  Message: Azure clusters created on 4.(y<12) or 4.12.(z<54) are experiencing a bug where systemd detects a dependency loop. Systemd deletes these dependencies causing CRI-O and the kublet to never start on nodes. https://issues.redhat.com/browse/MCO-1257
-
-  Version: 4.13.36
-  Image: quay.io/openshift-release-dev/ocp-release@sha256:9ed18a88ce6242dceab887ee7dc92eecf9e0194a569e1e8c924cbf4b1da7816e
-  Reason: HighNodeStatusReportFrequency
-  Message: An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
-
-  Version: 4.13.35
-  Image: quay.io/openshift-release-dev/ocp-release@sha256:2399ee629b41bf4c4006478260dcffd40849912398c09cba77bfada2fc481247
-  Reason: HighNodeStatusReportFrequency
-  Message: An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
-
-  Version: 4.13.34
-  Image: quay.io/openshift-release-dev/ocp-release@sha256:04081f0cdc3a98eb9b705aceb86d4a035f7e6ccf6d9d10621776d53134f81c33
-  Reason: HighNodeStatusReportFrequency
-  Message: An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
-
-  Version: 4.13.33
-  Image: quay.io/openshift-release-dev/ocp-release@sha256:7083519fd75dc187b7405968ba3d3d764a9807529e955411fd0ca1142dd4b560
-  Reason: HighNodeStatusReportFrequency
-  Message: An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
 
   Version: 4.13.9
   Image: quay.io/openshift-release-dev/ocp-release@sha256:a266d3d65c433b460cdef7ab5d6531580f5391adbe85d9c475208a56452e4c0b
@@ -164,6 +124,20 @@ Updates with known issues:
   
   Pods scheduled to nodes running a RHCOS/kernel version with a known defect may fail to start with a CreateContainerError. https://issues.redhat.com/browse/COS-2437
 
+Updates to 4.12:
+  VERSION     IMAGE
+  4.12.64     quay.io/openshift-release-dev/ocp-release@sha256:669170342e3ae3456b2eb00dd0c45cd817d62af310e0aa2bf214f1da65fae9d0
+  4.12.63     quay.io/openshift-release-dev/ocp-release@sha256:5db6f8dd1db6b9d07dacfa74574a38a6e518145a3c0ab5d895e9c89e029a39e4
+  4.12.61     quay.io/openshift-release-dev/ocp-release@sha256:faa201ea7790bb101de7b9b6f01543136e8c589463b8437a10678da0cdd0197a
+  4.12.60     quay.io/openshift-release-dev/ocp-release@sha256:22174072f8aaef46f80bded25d5a2bdfa6fd8bb01fc5242a07e550f132cafc5a
+  4.12.59     quay.io/openshift-release-dev/ocp-release@sha256:8908e5a46f106e7520faa5f5ee679033c4c2f0026f1b8a339e6b3ea4becdd969
+  4.12.58     quay.io/openshift-release-dev/ocp-release@sha256:b622d947ade4a13754e9d9f6803107f1b321eecd925c897f3c12de1aafccbdc5
+  4.12.57     quay.io/openshift-release-dev/ocp-release@sha256:ebd20cd66e0bbb5bcd7d16559ff4856918b7172e29d6a7bd34d8cc49a556b8f7
+  4.12.56     quay.io/openshift-release-dev/ocp-release@sha256:7446b0c3cc24c6d35c0d0fc968ef27f52da92c60f41951c0e646041db108169a
+  4.12.55     quay.io/openshift-release-dev/ocp-release@sha256:ecf790d11e32ec8c88c4224660eb1a107db5fdf54b0712eededb9d9bf0ab1a6d
+  4.12.54     quay.io/openshift-release-dev/ocp-release@sha256:5bbeeae3698249a41d6bd9987aac42cecbe862e1dd3710ab16ff4da651fc66a8
+  4.12.53     quay.io/openshift-release-dev/ocp-release@sha256:b584f5458fb946115b0cf0f1793dc9224c5e6a4567e74018f0590805a03eb523
+
   Version: 4.12.51
   Image: quay.io/openshift-release-dev/ocp-release@sha256:158ced797e49f6caf7862acccef58484be63b642fdd2f66e6416295fa7958ab0
   Reason: MultipleReasons
@@ -181,6 +155,35 @@ Updates with known issues:
   Reason: RHELKernelHighLoadIOWait
   Message: After rebooting into kernel-4.18.0-372.88.1.el8_6 or later, kernel nodes experience high load average and io_wait times. The nodes might fail to start or stop pods and probes may fail. Workload and host processes may become unresponsive and workload may be disrupted. https://issues.redhat.com/browse/COS-2705
 
+  VERSION     IMAGE
+  4.12.48     quay.io/openshift-release-dev/ocp-release@sha256:c31b9b63b8c21d4327201fd0e78a4b6b0af7f1f8162acd29e4cde1cd65a56d19
+  4.12.47     quay.io/openshift-release-dev/ocp-release@sha256:fcc9920ba10ebb02c69bdd9cd597273260eeec1b22e9ef9986a47f4874a21253
+  4.12.46     quay.io/openshift-release-dev/ocp-release@sha256:2dda17736b7b747b463b040cb3b7abba9c4174b0922e2fd84127e3887f6d69c5
+  4.12.45     quay.io/openshift-release-dev/ocp-release@sha256:faf0aebc0abce8890e046eecfa392c24bc24f6c49146c45447fb0977e692db6e
+  4.12.44     quay.io/openshift-release-dev/ocp-release@sha256:304f37f9d7aa290252951751c5bf03a97085f77b4bcde0ed8a2fa455e9600e68
+  4.12.43     quay.io/openshift-release-dev/ocp-release@sha256:10221b3f8f23fe625f3aab8f1e3297eaa340efc64fb5eff8d46cc8461888804e
+  4.12.42     quay.io/openshift-release-dev/ocp-release@sha256:a52419c56d84f2953ddaa121e89a3d806902af4538503d8cf229b1e8a14f8902
+  4.12.41     quay.io/openshift-release-dev/ocp-release@sha256:59c93fdfff4ecca2ca6d6bb0ec722bca2bb08152252ae10ce486a9fc80c82dcf
+  4.12.40     quay.io/openshift-release-dev/ocp-release@sha256:b0b1aac82f9083d20e7e4269b05dd3679299d277d122fa9d29b772f38d2cacff
+  4.12.39     quay.io/openshift-release-dev/ocp-release@sha256:75687feb6344caeb0edb6b1513b53fd07b90b481079415b6545d860fe74059eb
+  4.12.37     quay.io/openshift-release-dev/ocp-release@sha256:ba7544a126dfd1028cfa9e9afde9ae9d2eb21bad26f8da56eb7aebc0fb132c84
+  4.12.36     quay.io/openshift-release-dev/ocp-release@sha256:38ccab25d5895a216a465a9f297541fbbebe7aa115fdaa9f2015c8d5a5d036eb
+  4.12.35     quay.io/openshift-release-dev/ocp-release@sha256:ef892e96305d4f401860304732b06ca4eac5dbcce287ebaa98c48edd6fb91023
+  4.12.34     quay.io/openshift-release-dev/ocp-release@sha256:b411b7157e124ccb5c9cd1c72499759a2cb0d784e5107c03dc73a7c83359bb1b
+  4.12.33     quay.io/openshift-release-dev/ocp-release@sha256:ab18794370bfbb469d7f37fef8ca17b7d3ef3976b7ad3e28b137398c9154ea86
+  4.12.32     quay.io/openshift-release-dev/ocp-release@sha256:008c933f9d2b49721d6729c1e558f3f0c91e8368201d33469dcd5bda5cf7d333
+  4.12.31     quay.io/openshift-release-dev/ocp-release@sha256:4e0e74e9fdfbaec726654fa883b2018beb548e12ad9db2ffbeb7cf2d6862f7e8
+  4.12.30     quay.io/openshift-release-dev/ocp-release@sha256:86ee723d4dc2a83f836232d1d03f8b4193940c50a2636ee86924acb5d14b0b64
+  4.12.29     quay.io/openshift-release-dev/ocp-release@sha256:dac46152be54e0669694e0ae56d66d8fb3c34dc26ec0d3704eef29d6099846c4
+  4.12.28     quay.io/openshift-release-dev/ocp-release@sha256:f3910eae62029cf1108aadc9f9c649625e49a998d3e5547cb8849d0db9c54843
+  4.12.27     quay.io/openshift-release-dev/ocp-release@sha256:e15e52f22247b833d1db59b1507fa67d920e39b75297bc3a74f3f15e560d6d02
+  4.12.26     quay.io/openshift-release-dev/ocp-release@sha256:8d72f29227418d2ae12ee52e25cce9edef7cd645bdaea02410a89fe8a0ec6a47
+  4.12.25     quay.io/openshift-release-dev/ocp-release@sha256:5a4fb052cda1d14d1e306ce87e6b0ded84edddaa76f1cf401bcded99cef2ad84
+  4.12.24     quay.io/openshift-release-dev/ocp-release@sha256:b0b11eedf91175459b5d7aefcf3936d0cabf00f01ced756677483f5f26227328
+  4.12.23     quay.io/openshift-release-dev/ocp-release@sha256:2309578b68c5666dad62aed696f1f9d778ae1a089ee461060ba7b9514b7ca417
+  4.12.22     quay.io/openshift-release-dev/ocp-release@sha256:ba7956f5c2aae61c8ff3ab1ab2ee7e625db9b1c8964a65339764db79c148e4e6
+  4.12.21     quay.io/openshift-release-dev/ocp-release@sha256:71e158c6173ad6aa6e356c119a87459196bbe70e89c0db1e35c1f63a87d90676
+
   Version: 4.12.20
   Image: quay.io/openshift-release-dev/ocp-release@sha256:5c504578e34e8cf6eb70fad7a9bee92896b6d38d09b6d81891f730ee4f9d268b
   Reason: DualStackNeedsController
@@ -195,3 +198,6 @@ Updates with known issues:
   Image: quay.io/openshift-release-dev/ocp-release@sha256:8465e416a403cec2e6887c8aebe783b976f46f81d513890f17037b652b143de5
   Reason: DualStackNeedsController
   Message: Upgrade can get stuck on clusters that use multiple networks together with dual stack. https://issues.redhat.com/browse/SDN-3996
+
+  VERSION     IMAGE
+  4.12.17     quay.io/openshift-release-dev/ocp-release@sha256:7ca5f8aa44bbc537c5a985a523d87365eab3f6e72abc50b7be4caae741e093f4

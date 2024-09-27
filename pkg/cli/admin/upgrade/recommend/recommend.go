@@ -51,7 +51,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 		},
 	}
 	flags := cmd.Flags()
-	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
+	flags.BoolVar(&o.showOutdatedReleases, "show-outdated-releases", o.showOutdatedReleases, "Display additional older releases.  These releases may be exposed to known issues which have been fixed in more recent releases.  But all updates will contain fixes not present in your current release.")
 
 	// TODO: We can remove this flag once the idea about `oc adm upgrade recommend` stabilizes and the command
 	//       is promoted out of the OC_ENABLE_CMD_UPGRADE_RECOMMEND feature gate
@@ -63,8 +63,8 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 type options struct {
 	genericiooptions.IOStreams
 
-	mockData              mockData
-	IncludeNotRecommended bool
+	mockData             mockData
+	showOutdatedReleases bool
 
 	Client configv1client.Interface
 }
@@ -113,23 +113,16 @@ func (o *options) Run(ctx context.Context) error {
 		fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", clusterStatusFailing)
 	}
 
-	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && len(c.Message) > 0 {
-		if c.Status == configv1.ConditionTrue {
-			fmt.Fprintf(o.Out, "info: An upgrade is in progress. %s\n", c.Message)
-		} else {
-			fmt.Fprintln(o.Out, c.Message)
-		}
-	} else {
-		fmt.Fprintf(o.ErrOut, "warning: No current %s info, see `oc describe clusterversion` for more details.\n", configv1.OperatorProgressing)
+	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue && len(c.Message) > 0 {
+		fmt.Fprintf(o.Out, "info: An update is in progress.  You may wish to let this update complete before requesting a new update.\n  %s\n", strings.ReplaceAll(c.Message, "\n", "\n  "))
 	}
-	fmt.Fprintln(o.Out)
+
+	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status != configv1.ConditionTrue {
+		fmt.Fprintf(o.ErrOut, "warning: Cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+	}
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
 		fmt.Fprintf(o.Out, "%s=%s\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-	}
-
-	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, "ReleaseAccepted"); c != nil && c.Status != configv1.ConditionTrue {
-		fmt.Fprintf(o.Out, "ReleaseAccepted=%s\n\n  Reason: %s\n  Message: %s\n\n", c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 	}
 
 	if cv.Spec.Channel != "" {
@@ -145,82 +138,134 @@ func (o *options) Run(ctx context.Context) error {
 		}
 	}
 
-	if len(cv.Status.AvailableUpdates) > 0 {
-		fmt.Fprintf(o.Out, "\nRecommended updates:\n\n")
-		// set the minimal cell width to 14 to have a larger space between the columns for shorter versions
-		w := tabwriter.NewWriter(o.Out, 14, 2, 1, ' ', 0)
-		fmt.Fprintf(w, "  VERSION\tIMAGE\n")
-		// TODO: add metadata about version
-		sortReleasesBySemanticVersions(cv.Status.AvailableUpdates)
-		for _, update := range cv.Status.AvailableUpdates {
-			fmt.Fprintf(w, "  %s\t%s\n", update.Version, update.Image)
+	majorMinorBuckets := map[uint64]map[uint64][]configv1.ConditionalUpdate{}
+
+	for i, update := range cv.Status.ConditionalUpdates {
+		version, err := semver.Parse(update.Release.Version)
+		if err != nil {
+			fmt.Fprintf(o.ErrOut, "warning: Cannot parse SemVer available update %q: %v", update.Release.Version, err)
+			continue
 		}
-		w.Flush()
-		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
-			fmt.Fprintf(o.ErrOut, "warning: Cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+
+		if minorBuckets := majorMinorBuckets[version.Major]; minorBuckets == nil {
+			majorMinorBuckets[version.Major] = make(map[uint64][]configv1.ConditionalUpdate, 0)
 		}
-	} else {
-		if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status == configv1.ConditionFalse {
-			fmt.Fprintf(o.ErrOut, "warning: Cannot display available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-		} else {
-			fmt.Fprintf(o.Out, "No updates available. You may still upgrade to a specific release image with --to-image or wait for new updates to be available.\n")
-		}
+
+		majorMinorBuckets[version.Major][version.Minor] = append(majorMinorBuckets[version.Major][version.Minor], cv.Status.ConditionalUpdates[i])
 	}
 
-	if o.IncludeNotRecommended {
-		if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
-			sortConditionalUpdatesBySemanticVersions(cv.Status.ConditionalUpdates)
-			fmt.Fprintf(o.Out, "\nUpdates with known issues:\n")
-			for _, update := range cv.Status.ConditionalUpdates {
-				if c := findCondition(update.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
-					fmt.Fprintf(o.Out, "\n  Version: %s\n  Image: %s\n", update.Release.Version, update.Release.Image)
-					fmt.Fprintf(o.Out, "  Reason: %s\n  Message: %s\n", c.Reason, strings.ReplaceAll(strings.TrimSpace(c.Message), "\n", "\n  "))
-				}
-			}
-		} else {
-			fmt.Fprintf(o.Out, "\nNo updates which are not recommended based on your cluster configuration are available.\n")
-		}
-	} else if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
-		qualifier := ""
-		for _, upgrade := range cv.Status.ConditionalUpdates {
-			if c := findCondition(upgrade.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue && c.Status != metav1.ConditionFalse {
-				qualifier = fmt.Sprintf(", or where the recommended status is %q,", c.Status)
+	for i, update := range cv.Status.AvailableUpdates {
+		found := false
+		for _, conditionalUpdate := range cv.Status.ConditionalUpdates {
+			if conditionalUpdate.Release.Image == update.Image {
+				found = true
 				break
 			}
 		}
-		fmt.Fprintf(o.Out, "\nAdditional updates which are not recommended%s for your cluster configuration are available, to view those re-run the command with --include-not-recommended.\n", qualifier)
+		if found {
+			continue
+		}
+
+		version, err := semver.Parse(update.Version)
+		if err != nil {
+			fmt.Fprintf(o.ErrOut, "warning: Cannot parse SemVer available update %q: %v", update.Version, err)
+			continue
+		}
+
+		if minorBuckets := majorMinorBuckets[version.Major]; minorBuckets == nil {
+			majorMinorBuckets[version.Major] = make(map[uint64][]configv1.ConditionalUpdate, 0)
+		}
+
+		majorMinorBuckets[version.Major][version.Minor] = append(majorMinorBuckets[version.Major][version.Minor], configv1.ConditionalUpdate{
+			Release: cv.Status.AvailableUpdates[i],
+		})
 	}
 
-	// TODO: print previous versions
+	if len(majorMinorBuckets) == 0 {
+		fmt.Fprintf(o.Out, "No updates available. You may still upgrade to a specific release image with --to-image or wait for new updates to be available.\n")
+		return nil
+	}
+
+	majors := make([]uint64, 0, len(majorMinorBuckets))
+	for major := range majorMinorBuckets {
+		majors = append(majors, major)
+	}
+	sort.Slice(majors, func(i, j int) bool {
+		return majors[i] > majors[j] // sort descending, major updates bring lots of features (enough to justify breaking backwards compatibility)
+	})
+	for _, major := range majors {
+		minors := make([]uint64, 0, len(majorMinorBuckets[major]))
+		for minor := range majorMinorBuckets[major] {
+			minors = append(minors, minor)
+		}
+		sort.Slice(minors, func(i, j int) bool {
+			return minors[i] > minors[j] // sort descending, minor updates bring both feature and bugfixes
+		})
+		for _, minor := range minors {
+			fmt.Fprintln(o.Out)
+			fmt.Fprintf(o.Out, "Updates to %d.%d:\n", major, minor)
+			lastWasLong := false
+			headerQueued := true
+
+			// set the minimal cell width to 14 to have a larger space between the columns for shorter versions
+			w := tabwriter.NewWriter(o.Out, 14, 2, 1, ' ', 0)
+			fmt.Fprintf(w, "  VERSION\tIMAGE\n")
+			// TODO: add metadata about version
+
+			sortConditionalUpdatesBySemanticVersions(majorMinorBuckets[major][minor])
+			for i, update := range majorMinorBuckets[major][minor] {
+				c := notRecommendedCondition(update)
+				if lastWasLong || c != nil {
+					fmt.Fprintln(o.Out)
+					if c == nil && !headerQueued {
+						fmt.Fprintf(w, "  VERSION\tIMAGE\n")
+						headerQueued = true
+					}
+					lastWasLong = false
+				}
+				if i == 2 && !o.showOutdatedReleases {
+					fmt.Fprintf(o.Out, "And %d older %d.%d updates you can see with --show-outdated-releases\n", len(majorMinorBuckets[major][minor])-2, major, minor)
+					lastWasLong = true
+					break
+				}
+				if c == nil {
+					fmt.Fprintf(w, "  %s\t%s\n", update.Release.Version, update.Release.Image)
+					w.Flush()
+					headerQueued = false
+				} else {
+					fmt.Fprintf(o.Out, "  Version: %s\n  Image: %s\n", update.Release.Version, update.Release.Image)
+					fmt.Fprintf(o.Out, "  Reason: %s\n  Message: %s\n", c.Reason, strings.ReplaceAll(strings.TrimSpace(c.Message), "\n", "\n  "))
+					lastWasLong = true
+				}
+			}
+		}
+	}
 
 	return nil
 }
 
-func containsNotRecommendedUpdate(updates []configv1.ConditionalUpdate) bool {
-	for _, update := range updates {
-		if c := findCondition(update.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
-			return true
-		}
+func notRecommendedCondition(update configv1.ConditionalUpdate) *metav1.Condition {
+	if len(update.Risks) == 0 {
+		return nil
 	}
-	return false
-}
+	if c := findCondition(update.Conditions, "Recommended"); c != nil {
+		if c.Status == metav1.ConditionTrue {
+			return nil
+		}
+		return c
+	}
 
-// sortReleasesBySemanticVersions sorts the input slice in decreasing order.
-func sortReleasesBySemanticVersions(versions []configv1.Release) {
-	sort.Slice(versions, func(i, j int) bool {
-		a, errA := semver.Parse(versions[i].Version)
-		b, errB := semver.Parse(versions[j].Version)
-		if errA == nil && errB != nil {
-			return true
-		}
-		if errB == nil && errA != nil {
-			return false
-		}
-		if errA != nil && errB != nil {
-			return versions[i].Version > versions[j].Version
-		}
-		return a.GT(b)
-	})
+	risks := make([]string, len(update.Risks))
+	for _, risk := range update.Risks {
+		risks = append(risks, risk.Name)
+	}
+	sort.Strings(risks)
+	return &metav1.Condition{
+		Type:    "Recommended",
+		Status:  "Unknown",
+		Reason:  "NoConditions",
+		Message: fmt.Sprintf("Conditional update to %s has risks (%s), but no conditions.", update.Release.Version, strings.Join(risks, ", ")),
+	}
 }
 
 // sortConditionalUpdatesBySemanticVersions sorts the input slice in decreasing order.
