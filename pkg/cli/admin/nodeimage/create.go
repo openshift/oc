@@ -161,7 +161,7 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 	flags := o.addBaseFlags(cmd)
 
 	flags.StringVar(&o.AssetsDir, "dir", o.AssetsDir, "The path containing the configuration file, used also to store the generated artifacts.")
-	flags.StringVarP(&o.OutputName, "output-name", "o", "node.iso", "The name of the output image.")
+	flags.StringVarP(&o.OutputName, "output-name", "o", "", "The name of the output image.")
 
 	flags.StringP(snFlagMacAddress, "m", "", "Single node flag. MAC address used to identify the host to apply the configuration. If specified, the nodes-config.yaml config file will not be used.")
 	usageFmt := "Single node flag. %s. Valid only when `mac-address` is defined."
@@ -242,10 +242,6 @@ func (o *CreateOptions) Validate() error {
 		if err != nil {
 			return err
 		}
-	}
-
-	if o.OutputName == "" {
-		return fmt.Errorf("--output-name cannot be empty")
 	}
 
 	return nil

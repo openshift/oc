@@ -48,7 +48,6 @@ var (
   interfaces:
   - name: eth0
     macAddress: 00:b9:9b:c8:ac:f4`
-	defaultOutputName = "node.iso"
 )
 
 func TestValidate(t *testing.T) {
@@ -61,7 +60,6 @@ func TestValidate(t *testing.T) {
 		{
 			name:        "default",
 			nodesConfig: &defaultNodesConfigYaml,
-			outputName:  &defaultOutputName,
 		},
 		{
 			name:          "missing configuration file",
@@ -70,14 +68,7 @@ func TestValidate(t *testing.T) {
 		{
 			name:          "invalid configuration file",
 			nodesConfig:   strPtr("invalid: yaml\n\tfile"),
-			outputName:    &defaultOutputName,
 			expectedError: "config file nodes-config.yaml is not valid",
-		},
-		{
-			name:          "invalid output name",
-			nodesConfig:   &defaultNodesConfigYaml,
-			outputName:    strPtr(""),
-			expectedError: "--output-name cannot be empty",
 		},
 	}
 	for _, tc := range testCases {
@@ -90,9 +81,6 @@ func TestValidate(t *testing.T) {
 			}
 			o := &CreateOptions{
 				FSys: fakeFileSystem,
-			}
-			if tc.outputName != nil {
-				o.OutputName = *tc.outputName
 			}
 
 			err := o.Validate()
