@@ -71,11 +71,11 @@ var (
 		cluster release.
 
 		A nodes-config.yaml config file must be created to provide the required
-		initial configuration for the selected nodes. 
+		initial configuration for the selected nodes.
 		Alternatively, to support simpler configurations for adding just a single
 		node, it's also possible to use a set of flags to configure the host. In
 		such case the '--mac-address' is the only mandatory flag - while all the
-		others will be optional (note: any eventual configuration file present 
+		others will be optional (note: any eventual configuration file present
 		will be ignored).
 	`)
 
@@ -87,7 +87,7 @@ var (
 		  oc adm node-image create --dir=/tmp/assets
 
 		# Specify a custom image name
-		  oc adm node-image create --o=my-node.iso
+		  oc adm node-image create -o=my-node.iso
 
 		# Create an ISO to add a single node without using the configuration file
 		  oc adm node-image create --mac-address=00:d8:e7:c7:4b:bb
