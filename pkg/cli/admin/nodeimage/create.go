@@ -89,6 +89,9 @@ var (
 		# Specify a custom image name
 		  oc adm node-image create -o=my-node.iso
 
+		# In place of an ISO, creates files that can be used for PXE boot
+		  oc adm node-image create --pxe
+
 		# Create an ISO to add a single node without using the configuration file
 		  oc adm node-image create --mac-address=00:d8:e7:c7:4b:bb
 
@@ -140,6 +143,9 @@ type CreateOptions struct {
 	AssetsDir string
 	// OutputName allows the user to specify the name of the generated image.
 	OutputName string
+	// GeneratePXEFiles generates files for PXE boot instead of an ISO
+	GeneratePXEFiles bool
+
 	// Simpler interface for creating a single node
 	SingleNodeOpts *singleNodeCreateOptions
 
@@ -162,6 +168,7 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 
 	flags.StringVar(&o.AssetsDir, "dir", o.AssetsDir, "The path containing the configuration file, used also to store the generated artifacts.")
 	flags.StringVarP(&o.OutputName, "output-name", "o", "", "The name of the output image.")
+	flags.BoolVarP(&o.GeneratePXEFiles, "pxe", "p", false, "Instead of an ISO, create files that can be used for PXE boot")
 
 	flags.StringP(snFlagMacAddress, "m", "", "Single node flag. MAC address used to identify the host to apply the configuration. If specified, the nodes-config.yaml config file will not be used.")
 	usageFmt := "Single node flag. %s. Valid only when `mac-address` is defined."
@@ -344,6 +351,10 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 		Quiet:         true,
 		RsyncInclude:  []string{"*.iso"},
 		RsyncExclude:  []string{"*"},
+	}
+	if o.GeneratePXEFiles {
+		rsyncOptions.RsyncInclude = []string{"boot-artifacts/*"}
+		rsyncOptions.RsyncExclude = []string{}
 	}
 	rsyncOptions.Strategy = o.copyStrategy(rsyncOptions)
 	return rsyncOptions.RunRsync()
@@ -543,6 +554,13 @@ func (o *CreateOptions) createInputConfigMap(ctx context.Context) error {
 	return nil
 }
 
+func (o *CreateOptions) nodeJoinerCommand() string {
+	if o.GeneratePXEFiles {
+		return "node-joiner add-nodes --pxe"
+	}
+	return "node-joiner add-nodes"
+}
+
 func (o *CreateOptions) createPod(ctx context.Context) error {
 	assetsVolSize := resource.MustParse("4Gi")
 	nodeJoinerPod := &corev1.Pod{
@@ -597,7 +615,7 @@ func (o *CreateOptions) createPod(ctx context.Context) error {
 					},
 					Command: []string{
 						"/bin/bash", "-c",
-						fmt.Sprintf("cp /config/%s /assets; HOME=/assets node-joiner add-nodes --dir=/assets --log-level=debug; sleep 600", nodeJoinerConfigurationFile),
+						fmt.Sprintf("cp /config/%s /assets; HOME=/assets %s --dir=/assets --log-level=debug; sleep 600", nodeJoinerConfigurationFile, o.nodeJoinerCommand()),
 					},
 				},
 			},
