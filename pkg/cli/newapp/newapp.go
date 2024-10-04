@@ -486,7 +486,7 @@ func (o *AppOptions) RunNewApp() error {
 			if len(t.Spec.Host) > 0 {
 				var route *routev1.Route
 				//check if route processing was completed and host field is prepopulated by router
-				err := wait.PollImmediate(500*time.Millisecond, RoutePollTimeout, func() (bool, error) {
+				err := wait.PollUntilContextTimeout(context.TODO(), 500*time.Millisecond, RoutePollTimeout, true, func(ctx context.Context) (bool, error) {
 					route, err = config.RouteClient.Routes(t.Namespace).Get(context.TODO(), t.Name, metav1.GetOptions{})
 					if err != nil {
 						return false, fmt.Errorf("Error while polling route %s", t.Name)
@@ -557,7 +557,7 @@ func followInstallation(config *newcmd.AppConfig, clientGetter genericclioptions
 	// we cannot retrieve logs until the pod is out of pending
 	// TODO: move this to the server side
 	podClient := config.KubeClient.CoreV1().Pods(pod.Namespace)
-	if err := wait.PollImmediate(500*time.Millisecond, 60*time.Second, installationStarted(podClient, pod.Name, config.KubeClient.CoreV1().Secrets(pod.Namespace))); err != nil {
+	if err := wait.PollUntilContextTimeout(context.TODO(), 500*time.Millisecond, 60*time.Second, true, installationStarted(podClient, pod.Name, config.KubeClient.CoreV1().Secrets(pod.Namespace))); err != nil {
 		return err
 	}
 
@@ -576,7 +576,7 @@ func followInstallation(config *newcmd.AppConfig, clientGetter genericclioptions
 	logErr := opts.RunLogs()
 
 	// status of the pod may take tens of seconds to propagate
-	if err := wait.PollImmediate(500*time.Millisecond, 30*time.Second, installationComplete(podClient, pod.Name, config.Out)); err != nil {
+	if err := wait.PollUntilContextTimeout(context.TODO(), 500*time.Millisecond, 30*time.Second, true, installationComplete(podClient, pod.Name, config.Out)); err != nil {
 		if err == wait.ErrWaitTimeout {
 			if logErr != nil {
 				// output the log error if one occurred
@@ -591,8 +591,8 @@ func followInstallation(config *newcmd.AppConfig, clientGetter genericclioptions
 	return nil
 }
 
-func installationStarted(c corev1typedclient.PodInterface, name string, s corev1typedclient.SecretInterface) wait.ConditionFunc {
-	return func() (bool, error) {
+func installationStarted(c corev1typedclient.PodInterface, name string, s corev1typedclient.SecretInterface) wait.ConditionWithContextFunc {
+	return func(ctx context.Context) (bool, error) {
 		pod, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
@@ -613,8 +613,8 @@ func installationStarted(c corev1typedclient.PodInterface, name string, s corev1
 	}
 }
 
-func installationComplete(c corev1typedclient.PodInterface, name string, out io.Writer) wait.ConditionFunc {
-	return func() (bool, error) {
+func installationComplete(c corev1typedclient.PodInterface, name string, out io.Writer) wait.ConditionWithContextFunc {
+	return func(ctx context.Context) (bool, error) {
 		pod, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			if kapierrors.IsNotFound(err) {

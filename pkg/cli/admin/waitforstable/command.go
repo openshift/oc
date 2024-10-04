@@ -117,7 +117,7 @@ func (o WaitForStableOptions) Run(ctx context.Context) error {
 	var stabilityStarted *time.Time
 	previouslyUnstableOperators := sets.NewString()
 	operatorInstabilityStartTime := map[string]time.Time{}
-	waitErr := wait.PollImmediateUntilWithContext(ctx, o.waitInterval, func(waitCtx context.Context) (bool, error) {
+	waitErr := wait.PollUntilContextCancel(ctx, o.waitInterval, true, func(waitCtx context.Context) (bool, error) {
 		defer fmt.Fprintln(o.Out)
 
 		operators, err := o.configClient.ClusterOperators().List(waitCtx, metav1.ListOptions{})

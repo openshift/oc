@@ -770,7 +770,7 @@ func (o *MustGatherOptions) newPrefixWriter(out io.Writer, prefix string, ignore
 }
 
 func (o *MustGatherOptions) waitForGatherToComplete(pod *corev1.Pod) error {
-	return wait.PollImmediate(10*time.Second, o.Timeout, func() (bool, error) {
+	return wait.PollUntilContextTimeout(context.TODO(), 10*time.Second, o.Timeout, true, func(ctx context.Context) (bool, error) {
 		return o.isGatherDone(pod)
 	})
 }
@@ -810,7 +810,7 @@ func (o *MustGatherOptions) isGatherDone(pod *corev1.Pod) (bool, error) {
 }
 
 func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error {
-	return wait.PollImmediate(10*time.Second, o.Timeout, func() (bool, error) {
+	return wait.PollUntilContextTimeout(context.TODO(), 10*time.Second, o.Timeout, true, func(ctx context.Context) (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err == nil {
 			if len(pod.Status.ContainerStatuses) == 0 {
