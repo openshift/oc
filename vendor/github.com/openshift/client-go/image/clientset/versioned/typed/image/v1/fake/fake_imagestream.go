@@ -28,22 +28,24 @@ var imagestreamsKind = v1.SchemeGroupVersion.WithKind("ImageStream")
 
 // Get takes name of the imageStream, and returns the corresponding imageStream object, and an error if there is any.
 func (c *FakeImageStreams) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.ImageStream, err error) {
+	emptyResult := &v1.ImageStream{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(imagestreamsResource, c.ns, name), &v1.ImageStream{})
+		Invokes(testing.NewGetActionWithOptions(imagestreamsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStream), err
 }
 
 // List takes label and field selectors, and returns the list of ImageStreams that match those selectors.
 func (c *FakeImageStreams) List(ctx context.Context, opts metav1.ListOptions) (result *v1.ImageStreamList, err error) {
+	emptyResult := &v1.ImageStreamList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(imagestreamsResource, imagestreamsKind, c.ns, opts), &v1.ImageStreamList{})
+		Invokes(testing.NewListActionWithOptions(imagestreamsResource, imagestreamsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -62,40 +64,43 @@ func (c *FakeImageStreams) List(ctx context.Context, opts metav1.ListOptions) (r
 // Watch returns a watch.Interface that watches the requested imageStreams.
 func (c *FakeImageStreams) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(imagestreamsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(imagestreamsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a imageStream and creates it.  Returns the server's representation of the imageStream, and an error, if there is any.
 func (c *FakeImageStreams) Create(ctx context.Context, imageStream *v1.ImageStream, opts metav1.CreateOptions) (result *v1.ImageStream, err error) {
+	emptyResult := &v1.ImageStream{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(imagestreamsResource, c.ns, imageStream), &v1.ImageStream{})
+		Invokes(testing.NewCreateActionWithOptions(imagestreamsResource, c.ns, imageStream, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStream), err
 }
 
 // Update takes the representation of a imageStream and updates it. Returns the server's representation of the imageStream, and an error, if there is any.
 func (c *FakeImageStreams) Update(ctx context.Context, imageStream *v1.ImageStream, opts metav1.UpdateOptions) (result *v1.ImageStream, err error) {
+	emptyResult := &v1.ImageStream{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(imagestreamsResource, c.ns, imageStream), &v1.ImageStream{})
+		Invokes(testing.NewUpdateActionWithOptions(imagestreamsResource, c.ns, imageStream, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStream), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeImageStreams) UpdateStatus(ctx context.Context, imageStream *v1.ImageStream, opts metav1.UpdateOptions) (*v1.ImageStream, error) {
+func (c *FakeImageStreams) UpdateStatus(ctx context.Context, imageStream *v1.ImageStream, opts metav1.UpdateOptions) (result *v1.ImageStream, err error) {
+	emptyResult := &v1.ImageStream{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(imagestreamsResource, "status", c.ns, imageStream), &v1.ImageStream{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(imagestreamsResource, "status", c.ns, imageStream, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStream), err
 }
@@ -110,7 +115,7 @@ func (c *FakeImageStreams) Delete(ctx context.Context, name string, opts metav1.
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeImageStreams) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(imagestreamsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(imagestreamsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.ImageStreamList{})
 	return err
@@ -118,11 +123,12 @@ func (c *FakeImageStreams) DeleteCollection(ctx context.Context, opts metav1.Del
 
 // Patch applies the patch and returns the patched imageStream.
 func (c *FakeImageStreams) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.ImageStream, err error) {
+	emptyResult := &v1.ImageStream{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(imagestreamsResource, c.ns, name, pt, data, subresources...), &v1.ImageStream{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(imagestreamsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStream), err
 }
@@ -140,11 +146,12 @@ func (c *FakeImageStreams) Apply(ctx context.Context, imageStream *imagev1.Image
 	if name == nil {
 		return nil, fmt.Errorf("imageStream.Name must be provided to Apply")
 	}
+	emptyResult := &v1.ImageStream{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(imagestreamsResource, c.ns, *name, types.ApplyPatchType, data), &v1.ImageStream{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(imagestreamsResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStream), err
 }
@@ -163,33 +170,36 @@ func (c *FakeImageStreams) ApplyStatus(ctx context.Context, imageStream *imagev1
 	if name == nil {
 		return nil, fmt.Errorf("imageStream.Name must be provided to Apply")
 	}
+	emptyResult := &v1.ImageStream{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(imagestreamsResource, c.ns, *name, types.ApplyPatchType, data, "status"), &v1.ImageStream{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(imagestreamsResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions(), "status"), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStream), err
 }
 
 // Secrets takes name of the imageStream, and returns the corresponding secretList object, and an error if there is any.
 func (c *FakeImageStreams) Secrets(ctx context.Context, imageStreamName string, options metav1.GetOptions) (result *v1.SecretList, err error) {
+	emptyResult := &v1.SecretList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetSubresourceAction(imagestreamsResource, c.ns, "secrets", imageStreamName), &v1.SecretList{})
+		Invokes(testing.NewGetSubresourceActionWithOptions(imagestreamsResource, c.ns, "secrets", imageStreamName, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.SecretList), err
 }
 
 // Layers takes name of the imageStream, and returns the corresponding imageStreamLayers object, and an error if there is any.
 func (c *FakeImageStreams) Layers(ctx context.Context, imageStreamName string, options metav1.GetOptions) (result *v1.ImageStreamLayers, err error) {
+	emptyResult := &v1.ImageStreamLayers{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetSubresourceAction(imagestreamsResource, c.ns, "layers", imageStreamName), &v1.ImageStreamLayers{})
+		Invokes(testing.NewGetSubresourceActionWithOptions(imagestreamsResource, c.ns, "layers", imageStreamName, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStreamLayers), err
 }

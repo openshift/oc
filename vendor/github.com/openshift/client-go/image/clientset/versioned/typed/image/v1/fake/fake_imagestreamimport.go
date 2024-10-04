@@ -22,11 +22,12 @@ var imagestreamimportsKind = v1.SchemeGroupVersion.WithKind("ImageStreamImport")
 
 // Create takes the representation of a imageStreamImport and creates it.  Returns the server's representation of the imageStreamImport, and an error, if there is any.
 func (c *FakeImageStreamImports) Create(ctx context.Context, imageStreamImport *v1.ImageStreamImport, opts metav1.CreateOptions) (result *v1.ImageStreamImport, err error) {
+	emptyResult := &v1.ImageStreamImport{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(imagestreamimportsResource, c.ns, imageStreamImport), &v1.ImageStreamImport{})
+		Invokes(testing.NewCreateActionWithOptions(imagestreamimportsResource, c.ns, imageStreamImport, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ImageStreamImport), err
 }

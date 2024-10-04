@@ -67,7 +67,7 @@ type LogsOptions struct {
 
 func NewLogsOptions(streams genericiooptions.IOStreams) *LogsOptions {
 	return &LogsOptions{
-		LogsOptions: logs.NewLogsOptions(streams, false),
+		LogsOptions: logs.NewLogsOptions(streams),
 	}
 }
 

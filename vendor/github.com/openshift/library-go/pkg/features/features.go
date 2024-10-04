@@ -1,6 +1,7 @@
 package features
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
@@ -9,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/component-base/cli/flag"
+	k8sflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/featuregate"
 )
 
@@ -39,7 +40,16 @@ func NewFeatureGateOptionsOrDie(featureGates featuregate.MutableFeatureGate, pro
 
 func (o *FeatureGateOptions) AddFlags(cmd *cobra.Command) {
 	flags := cmd.Flags()
-	flags.Var(flag.NewMapStringBool(&o.featureGateArgs), "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
+	flags.Var(k8sflag.NewMapStringBool(&o.featureGateArgs), "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
+		"Options are:\n"+strings.Join(o.featureGates.KnownFeatures(), "\n"))
+}
+
+func (o *FeatureGateOptions) AddFlagsToGoFlagSet(flagset *flag.FlagSet) {
+	if flagset == nil {
+		flagset = flag.CommandLine
+	}
+
+	flagset.Var(k8sflag.NewMapStringBool(&o.featureGateArgs), "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n"+strings.Join(o.featureGates.KnownFeatures(), "\n"))
 }
 
@@ -53,7 +63,7 @@ func (o *FeatureGateOptions) ApplyTo(featureGates featuregate.MutableFeatureGate
 // if there was a failure.  If you already have the Map from the CLI version, use featureGates.SetFromMap.
 func SetFeatureGates(flags map[string][]string, featureGates featuregate.MutableFeatureGate) ([]string, error) {
 	featureGatesMap := map[string]bool{}
-	featureGateParser := flag.NewMapStringBool(&featureGatesMap)
+	featureGateParser := k8sflag.NewMapStringBool(&featureGatesMap)
 	for _, val := range flags["feature-gates"] {
 		if err := featureGateParser.Set(val); err != nil {
 			return []string{}, err

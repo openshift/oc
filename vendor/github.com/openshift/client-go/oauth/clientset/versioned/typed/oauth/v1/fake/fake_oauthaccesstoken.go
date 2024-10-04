@@ -27,20 +27,22 @@ var oauthaccesstokensKind = v1.SchemeGroupVersion.WithKind("OAuthAccessToken")
 
 // Get takes name of the oAuthAccessToken, and returns the corresponding oAuthAccessToken object, and an error if there is any.
 func (c *FakeOAuthAccessTokens) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.OAuthAccessToken, err error) {
+	emptyResult := &v1.OAuthAccessToken{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(oauthaccesstokensResource, name), &v1.OAuthAccessToken{})
+		Invokes(testing.NewRootGetActionWithOptions(oauthaccesstokensResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.OAuthAccessToken), err
 }
 
 // List takes label and field selectors, and returns the list of OAuthAccessTokens that match those selectors.
 func (c *FakeOAuthAccessTokens) List(ctx context.Context, opts metav1.ListOptions) (result *v1.OAuthAccessTokenList, err error) {
+	emptyResult := &v1.OAuthAccessTokenList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(oauthaccesstokensResource, oauthaccesstokensKind, opts), &v1.OAuthAccessTokenList{})
+		Invokes(testing.NewRootListActionWithOptions(oauthaccesstokensResource, oauthaccesstokensKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -59,25 +61,27 @@ func (c *FakeOAuthAccessTokens) List(ctx context.Context, opts metav1.ListOption
 // Watch returns a watch.Interface that watches the requested oAuthAccessTokens.
 func (c *FakeOAuthAccessTokens) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(oauthaccesstokensResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(oauthaccesstokensResource, opts))
 }
 
 // Create takes the representation of a oAuthAccessToken and creates it.  Returns the server's representation of the oAuthAccessToken, and an error, if there is any.
 func (c *FakeOAuthAccessTokens) Create(ctx context.Context, oAuthAccessToken *v1.OAuthAccessToken, opts metav1.CreateOptions) (result *v1.OAuthAccessToken, err error) {
+	emptyResult := &v1.OAuthAccessToken{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(oauthaccesstokensResource, oAuthAccessToken), &v1.OAuthAccessToken{})
+		Invokes(testing.NewRootCreateActionWithOptions(oauthaccesstokensResource, oAuthAccessToken, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.OAuthAccessToken), err
 }
 
 // Update takes the representation of a oAuthAccessToken and updates it. Returns the server's representation of the oAuthAccessToken, and an error, if there is any.
 func (c *FakeOAuthAccessTokens) Update(ctx context.Context, oAuthAccessToken *v1.OAuthAccessToken, opts metav1.UpdateOptions) (result *v1.OAuthAccessToken, err error) {
+	emptyResult := &v1.OAuthAccessToken{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(oauthaccesstokensResource, oAuthAccessToken), &v1.OAuthAccessToken{})
+		Invokes(testing.NewRootUpdateActionWithOptions(oauthaccesstokensResource, oAuthAccessToken, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.OAuthAccessToken), err
 }
@@ -91,7 +95,7 @@ func (c *FakeOAuthAccessTokens) Delete(ctx context.Context, name string, opts me
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeOAuthAccessTokens) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(oauthaccesstokensResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(oauthaccesstokensResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.OAuthAccessTokenList{})
 	return err
@@ -99,10 +103,11 @@ func (c *FakeOAuthAccessTokens) DeleteCollection(ctx context.Context, opts metav
 
 // Patch applies the patch and returns the patched oAuthAccessToken.
 func (c *FakeOAuthAccessTokens) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.OAuthAccessToken, err error) {
+	emptyResult := &v1.OAuthAccessToken{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(oauthaccesstokensResource, name, pt, data, subresources...), &v1.OAuthAccessToken{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(oauthaccesstokensResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.OAuthAccessToken), err
 }
@@ -120,10 +125,11 @@ func (c *FakeOAuthAccessTokens) Apply(ctx context.Context, oAuthAccessToken *oau
 	if name == nil {
 		return nil, fmt.Errorf("oAuthAccessToken.Name must be provided to Apply")
 	}
+	emptyResult := &v1.OAuthAccessToken{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(oauthaccesstokensResource, *name, types.ApplyPatchType, data), &v1.OAuthAccessToken{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(oauthaccesstokensResource, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.OAuthAccessToken), err
 }

@@ -19,7 +19,7 @@ import (
 func NewCmdConfig(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	pathOptions := kclientcmd.NewDefaultPathOptions()
 
-	configCommand := config.NewCmdConfig(pathOptions, streams)
+	configCommand := config.NewCmdConfig(f, pathOptions, streams)
 	configCommand.AddCommand(refreshcabundle.NewCmdConfigRefreshCABundle(f, pathOptions, streams))
 	configCommand.AddCommand(adminkubeconfig.NewCmdNewAdminKubeconfigOptions(f, streams))
 	configCommand.AddCommand(kubeletbootstrapkubeconfig.NewCmdNewKubeletBootstrapKubeconfig(f, streams))

@@ -133,7 +133,7 @@ func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 		case "help", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
 			// Don't search for a plugin
 		default:
-			if err := kubecmd.HandlePluginCommand(o.PluginHandler, cmdPathPieces, false); err != nil {
+			if err := kubecmd.HandlePluginCommand(o.PluginHandler, cmdPathPieces, 1); err != nil {
 				fmt.Fprintf(o.IOStreams.ErrOut, "%v\n", err)
 				os.Exit(1)
 			}
@@ -154,7 +154,7 @@ func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 				}
 
 				if !builtinSubcmdExist {
-					if err := kubecmd.HandlePluginCommand(o.PluginHandler, cmdPathPieces, true); err != nil {
+					if err := kubecmd.HandlePluginCommand(o.PluginHandler, cmdPathPieces, len(cmdPathPieces)-len(foundArgs)+1); err != nil {
 						fmt.Fprintf(o.IOStreams.ErrOut, "Error: %v\n", err)
 						os.Exit(1)
 					}

@@ -89,10 +89,16 @@ func IsLeafCertSecret(s *corev1.Secret) (bool, error) {
 		return false, nil
 	}
 
-	keyPairInfo, err := certgraphanalysis.InspectSecret(s)
+	keyPairInfos, err := certgraphanalysis.InspectSecret(s)
 	if err != nil {
 		return false, fmt.Errorf("error interpretting content: %w", err)
 	}
+
+	if len(keyPairInfos) == 0 {
+		return false, fmt.Errorf("no key pair from secret found")
+	}
+
+	keyPairInfo := keyPairInfos[0]
 	if keyPairInfo.Spec.Details.SignerDetails != nil {
 		// not for this command.
 		return false, nil

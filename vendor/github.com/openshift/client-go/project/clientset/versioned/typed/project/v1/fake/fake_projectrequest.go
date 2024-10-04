@@ -36,20 +36,22 @@ func (c *FakeProjectRequests) Apply(ctx context.Context, projectRequest *project
 	if name == nil {
 		return nil, fmt.Errorf("projectRequest.Name must be provided to Apply")
 	}
+	emptyResult := &v1.ProjectRequest{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(projectrequestsResource, *name, types.ApplyPatchType, data), &v1.ProjectRequest{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(projectrequestsResource, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.ProjectRequest), err
 }
 
 // Create takes the representation of a projectRequest and creates it.  Returns the server's representation of the project, and an error, if there is any.
 func (c *FakeProjectRequests) Create(ctx context.Context, projectRequest *v1.ProjectRequest, opts metav1.CreateOptions) (result *v1.Project, err error) {
+	emptyResult := &v1.Project{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(projectrequestsResource, projectRequest), &v1.Project{})
+		Invokes(testing.NewRootCreateActionWithOptions(projectrequestsResource, projectRequest, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.Project), err
 }

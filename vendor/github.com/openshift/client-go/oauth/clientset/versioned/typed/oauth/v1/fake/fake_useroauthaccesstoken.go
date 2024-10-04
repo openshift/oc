@@ -27,20 +27,22 @@ var useroauthaccesstokensKind = v1.SchemeGroupVersion.WithKind("UserOAuthAccessT
 
 // Get takes name of the userOAuthAccessToken, and returns the corresponding userOAuthAccessToken object, and an error if there is any.
 func (c *FakeUserOAuthAccessTokens) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.UserOAuthAccessToken, err error) {
+	emptyResult := &v1.UserOAuthAccessToken{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(useroauthaccesstokensResource, name), &v1.UserOAuthAccessToken{})
+		Invokes(testing.NewRootGetActionWithOptions(useroauthaccesstokensResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.UserOAuthAccessToken), err
 }
 
 // List takes label and field selectors, and returns the list of UserOAuthAccessTokens that match those selectors.
 func (c *FakeUserOAuthAccessTokens) List(ctx context.Context, opts metav1.ListOptions) (result *v1.UserOAuthAccessTokenList, err error) {
+	emptyResult := &v1.UserOAuthAccessTokenList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(useroauthaccesstokensResource, useroauthaccesstokensKind, opts), &v1.UserOAuthAccessTokenList{})
+		Invokes(testing.NewRootListActionWithOptions(useroauthaccesstokensResource, useroauthaccesstokensKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -59,25 +61,27 @@ func (c *FakeUserOAuthAccessTokens) List(ctx context.Context, opts metav1.ListOp
 // Watch returns a watch.Interface that watches the requested userOAuthAccessTokens.
 func (c *FakeUserOAuthAccessTokens) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(useroauthaccesstokensResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(useroauthaccesstokensResource, opts))
 }
 
 // Create takes the representation of a userOAuthAccessToken and creates it.  Returns the server's representation of the userOAuthAccessToken, and an error, if there is any.
 func (c *FakeUserOAuthAccessTokens) Create(ctx context.Context, userOAuthAccessToken *v1.UserOAuthAccessToken, opts metav1.CreateOptions) (result *v1.UserOAuthAccessToken, err error) {
+	emptyResult := &v1.UserOAuthAccessToken{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(useroauthaccesstokensResource, userOAuthAccessToken), &v1.UserOAuthAccessToken{})
+		Invokes(testing.NewRootCreateActionWithOptions(useroauthaccesstokensResource, userOAuthAccessToken, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.UserOAuthAccessToken), err
 }
 
 // Update takes the representation of a userOAuthAccessToken and updates it. Returns the server's representation of the userOAuthAccessToken, and an error, if there is any.
 func (c *FakeUserOAuthAccessTokens) Update(ctx context.Context, userOAuthAccessToken *v1.UserOAuthAccessToken, opts metav1.UpdateOptions) (result *v1.UserOAuthAccessToken, err error) {
+	emptyResult := &v1.UserOAuthAccessToken{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(useroauthaccesstokensResource, userOAuthAccessToken), &v1.UserOAuthAccessToken{})
+		Invokes(testing.NewRootUpdateActionWithOptions(useroauthaccesstokensResource, userOAuthAccessToken, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.UserOAuthAccessToken), err
 }
@@ -91,7 +95,7 @@ func (c *FakeUserOAuthAccessTokens) Delete(ctx context.Context, name string, opt
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeUserOAuthAccessTokens) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(useroauthaccesstokensResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(useroauthaccesstokensResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.UserOAuthAccessTokenList{})
 	return err
@@ -99,10 +103,11 @@ func (c *FakeUserOAuthAccessTokens) DeleteCollection(ctx context.Context, opts m
 
 // Patch applies the patch and returns the patched userOAuthAccessToken.
 func (c *FakeUserOAuthAccessTokens) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.UserOAuthAccessToken, err error) {
+	emptyResult := &v1.UserOAuthAccessToken{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(useroauthaccesstokensResource, name, pt, data, subresources...), &v1.UserOAuthAccessToken{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(useroauthaccesstokensResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.UserOAuthAccessToken), err
 }
@@ -120,10 +125,11 @@ func (c *FakeUserOAuthAccessTokens) Apply(ctx context.Context, userOAuthAccessTo
 	if name == nil {
 		return nil, fmt.Errorf("userOAuthAccessToken.Name must be provided to Apply")
 	}
+	emptyResult := &v1.UserOAuthAccessToken{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(useroauthaccesstokensResource, *name, types.ApplyPatchType, data), &v1.UserOAuthAccessToken{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(useroauthaccesstokensResource, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.UserOAuthAccessToken), err
 }
