@@ -8,11 +8,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
-	"k8s.io/kubectl/pkg/util/term"
 )
 
 const (
@@ -142,7 +142,7 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 	case o.DisableTTY:
 		o.TTY = false
 	default:
-		o.TTY = term.IsTerminal(o.In)
+		o.TTY = printers.IsTerminal(o.In)
 	}
 
 	// Value of argsLenAtDash is -1 since cmd.ArgsLenAtDash() assumes all the flags

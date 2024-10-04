@@ -8,16 +8,15 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
+	"github.com/openshift/oc/pkg/helpers/flagtypes"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
-	"k8s.io/kubectl/pkg/util/term"
-
-	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
-	"github.com/openshift/oc/pkg/helpers/flagtypes"
 )
 
 var (
@@ -171,7 +170,7 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 		return errors.New("--server and passing the server URL as an argument are mutually exclusive")
 	}
 
-	if (len(o.Server) == 0) && !term.IsTerminal(o.In) {
+	if (len(o.Server) == 0) && !printers.IsTerminal(o.In) {
 		return errors.New("A server URL must be specified")
 	}
 
