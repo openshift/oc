@@ -278,7 +278,7 @@ func (s *fileBlobStore) Get(ctx context.Context, dgst godigest.Digest) ([]byte, 
 	return ioutil.ReadFile(path)
 }
 
-func (s *fileBlobStore) Open(ctx context.Context, dgst godigest.Digest) (distribution.ReadSeekCloser, error) {
+func (s *fileBlobStore) Open(ctx context.Context, dgst godigest.Digest) (io.ReadSeekCloser, error) {
 	path := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "blobs")
 	return os.Open(path)
 }

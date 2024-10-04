@@ -315,7 +315,7 @@ func (s *s3BlobStore) Get(ctx context.Context, dgst godigest.Digest) ([]byte, er
 	return nil, fmt.Errorf("unimplemented")
 }
 
-func (s *s3BlobStore) Open(ctx context.Context, dgst godigest.Digest) (distribution.ReadSeekCloser, error) {
+func (s *s3BlobStore) Open(ctx context.Context, dgst godigest.Digest) (io.ReadSeekCloser, error) {
 	return nil, fmt.Errorf("unimplemented")
 }
 
