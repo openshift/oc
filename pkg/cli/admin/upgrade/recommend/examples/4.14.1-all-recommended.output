@@ -1,0 +1,10 @@
+info: An update is in progress.  You may wish to let this update complete before requesting a new update.
+  Working towards 4.14.1: 139 of 859 done (16% complete), waiting on kube-scheduler
+Upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+Channel: candidate-4.14 (available channels: candidate-4.14, candidate-4.15, eus-4.14, fast-4.14, stable-4.14)
+
+Updates to 4.14:
+  VERSION     IMAGE
+  4.14.11     quay.io/openshift-release-dev/ocp-release@sha256:36783a8b066c96dd6258e818ce51b5a763438adbf56221ea5c4b62ae4f345886
+  4.14.10     quay.io/openshift-release-dev/ocp-release@sha256:03cc63c0c48b2416889e9ee53f2efc2c940323c15f08384b439c00de8e66e8aa
+And 8 older 4.14 updates you can see with --show-outdated-releases

@@ -2,7 +2,7 @@
 
 Each example consists of inputs and outputs, matched by a common substring:
 
-* `TESTCASE-cv.yaml` (input): ClusterVersion object (created by `oc get clusterversion version -o yaml`) (FIXME or list?)
+* `TESTCASE-cv.yaml` (input): ClusterVersion object (created by `oc get clusterversion version -o yaml`).  Lists are also supported.
 * `TESTCASE.output` (output): expected output of `oc adm upgrade recommend`.
 * `TESTCASE.include-not-recommended-output` (output): expected output of `oc adm upgrade recommend --include-not-recommended`.
 

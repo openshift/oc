@@ -44,19 +44,19 @@ func TestExamples(t *testing.T) {
 	}
 
 	variants := []struct {
-		name                  string
-		includeNotRecommended bool
-		outputSuffix          string
+		name                 string
+		showOutdatedReleases bool
+		outputSuffix         string
 	}{
 		{
-			name:                  "normal output",
-			includeNotRecommended: false,
-			outputSuffix:          ".output",
+			name:                 "normal output",
+			showOutdatedReleases: false,
+			outputSuffix:         ".output",
 		},
 		{
-			name:                  "include not recommended output",
-			includeNotRecommended: true,
-			outputSuffix:          ".include-not-recommended-output",
+			name:                 "show outdated releases",
+			showOutdatedReleases: true,
+			outputSuffix:         ".show-outdated-releases-output",
 		},
 	}
 
@@ -67,8 +67,8 @@ func TestExamples(t *testing.T) {
 			t.Run(fmt.Sprintf("%s-%s", cv, variant.name), func(t *testing.T) {
 				t.Parallel()
 				opts := &options{
-					mockData:              mockData{cvPath: cv},
-					IncludeNotRecommended: variant.includeNotRecommended,
+					mockData:             mockData{cvPath: cv},
+					showOutdatedReleases: variant.showOutdatedReleases,
 				}
 				if err := opts.Complete(nil, nil, nil); err != nil {
 					t.Fatalf("Error when completing options: %v", err)

@@ -1,10 +1,9 @@
-info: An upgrade is in progress. Working towards 4.14.1: 139 of 859 done (16% complete), waiting on kube-scheduler
-
+info: An update is in progress.  You may wish to let this update complete before requesting a new update.
+  Working towards 4.14.1: 139 of 859 done (16% complete), waiting on kube-scheduler
 Upstream: https://api.integration.openshift.com/api/upgrades_info/graph
 Channel: candidate-4.14 (available channels: candidate-4.14, candidate-4.15, eus-4.14, fast-4.14, stable-4.14)
 
-Recommended updates:
-
+Updates to 4.14:
   VERSION     IMAGE
   4.14.11     quay.io/openshift-release-dev/ocp-release@sha256:36783a8b066c96dd6258e818ce51b5a763438adbf56221ea5c4b62ae4f345886
   4.14.10     quay.io/openshift-release-dev/ocp-release@sha256:03cc63c0c48b2416889e9ee53f2efc2c940323c15f08384b439c00de8e66e8aa
@@ -16,5 +15,3 @@ Recommended updates:
   4.14.4      quay.io/openshift-release-dev/ocp-release@sha256:e6e1d90b492d50438034e6edb46bdafa6c86ae3b80ef3328685912d89681fdee
   4.14.3      quay.io/openshift-release-dev/ocp-release@sha256:e73ab4b33a9c3ff00c9f800a38d69853ca0c4dfa5a88e3df331f66df8f18ec55
   4.14.2      quay.io/openshift-release-dev/ocp-release@sha256:45a396b169974dcbd8aae481c647bf55bcf9f0f8f6222483d407d7cec450928d
-
-No updates which are not recommended based on your cluster configuration are available.
