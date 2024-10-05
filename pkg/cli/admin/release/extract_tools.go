@@ -21,9 +21,10 @@ import (
 	"sync"
 	"syscall"
 
-	"golang.org/x/crypto/ssh/terminal"
+	"k8s.io/utils/ptr"
 
 	"golang.org/x/crypto/openpgp"
+	terminal "golang.org/x/term"
 
 	"k8s.io/klog/v2"
 
@@ -32,7 +33,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"
 
 	"github.com/MakeNowJust/heredoc"
@@ -1193,10 +1193,10 @@ func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfi
 		return config, fmt.Errorf("unrecognized %s API version: %q (expected %q)", installConfigPath, data.APIVersion, "v1")
 	}
 
-	config.RequiredFeatureSet = pointer.String(string(data.FeatureSet))
-	config.Profile = pointer.String(manifest.DefaultClusterProfile) // assumption, but there's no install-config data about profile to give us more insight
+	config.RequiredFeatureSet = ptr.To[string](string(data.FeatureSet))
+	config.Profile = ptr.To[string](manifest.DefaultClusterProfile) // assumption, but there's no install-config data about profile to give us more insight
 	for key := range data.Platform {
-		config.Platform = pointer.String(key)
+		config.Platform = ptr.To[string](key)
 	}
 
 	if data.Capabilities != nil {
@@ -1229,7 +1229,7 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 	if featureGate, err := client.FeatureGates().Get(ctx, "cluster", metav1.GetOptions{}); err != nil {
 		return config, err
 	} else {
-		config.RequiredFeatureSet = pointer.String(string(featureGate.Spec.FeatureSet))
+		config.RequiredFeatureSet = ptr.To[string](string(featureGate.Spec.FeatureSet))
 	}
 
 	if clusterVersion, err := client.ClusterVersions().Get(ctx, "version", metav1.GetOptions{}); err != nil {
@@ -1255,7 +1255,7 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 	} else if infrastructure.Status.PlatformStatus == nil {
 		return config, fmt.Errorf("cluster infrastructure does not declare status.platformStatus: %v", infrastructure.Status)
 	} else {
-		config.Platform = pointer.String(strings.ToLower(string(infrastructure.Status.PlatformStatus.Type)))
+		config.Platform = ptr.To[string](strings.ToLower(string(infrastructure.Status.PlatformStatus.Type)))
 	}
 
 	appsClient, err := appsv1client.NewForConfig(restConfig)
@@ -1269,7 +1269,7 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 		for _, container := range deployment.Spec.Template.Spec.Containers {
 			for _, env := range container.Env {
 				if env.Name == "CLUSTER_PROFILE" {
-					config.Profile = pointer.String(env.Value)
+					config.Profile = ptr.To[string](env.Value)
 					break
 				}
 			}

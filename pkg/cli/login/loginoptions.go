@@ -17,21 +17,20 @@ import (
 
 	"github.com/pkg/browser"
 
+	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/apis/clientauthentication"
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
-	kterm "k8s.io/kubectl/pkg/util/term"
-
-	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
-	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
-	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
 
 	occhallengers "github.com/openshift/oc/pkg/helpers/authchallengers"
 	ocerrors "github.com/openshift/oc/pkg/helpers/errors"
@@ -133,7 +132,7 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 
 	if len(o.Server) == 0 {
 		// we need to have a server to talk to
-		if kterm.IsTerminal(o.In) {
+		if printers.IsTerminal(o.In) {
 			for !o.serverProvided() {
 				defaultServer := defaultClusterURL
 				promptMsg := fmt.Sprintf("Server [%s]: ", defaultServer)

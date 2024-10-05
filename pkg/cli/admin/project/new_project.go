@@ -157,7 +157,7 @@ func (o *NewProjectOptions) Run() error {
 			fmt.Fprintf(o.Out, "%v could not be added to the %v role: %v\n", o.AdminUser, o.AdminRole, err)
 			errs = append(errs, err)
 		} else {
-			if err := wait.PollImmediate(time.Second, time.Minute, func() (bool, error) {
+			if err := wait.PollUntilContextTimeout(context.TODO(), time.Second, time.Minute, true, func(ctx context.Context) (bool, error) {
 				resp, err := o.SARClient.Create(context.TODO(), &authorizationv1.SubjectAccessReview{
 					Action: authorizationv1.Action{
 						Namespace: o.ProjectName,

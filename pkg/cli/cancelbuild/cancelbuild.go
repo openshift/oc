@@ -293,7 +293,7 @@ func (o *CancelBuildOptions) RunCancelBuild() error {
 		wg.Add(1)
 		go func(build *buildv1.Build) {
 			defer wg.Done()
-			err := wait.Poll(500*time.Millisecond, o.timeout, func() (bool, error) {
+			err := wait.PollUntilContextTimeout(context.TODO(), 500*time.Millisecond, o.timeout, false, func(ctx context.Context) (bool, error) {
 				build.Status.Cancelled = true
 				_, err := o.BuildClient.Update(context.TODO(), build, metav1.UpdateOptions{})
 				switch {
@@ -321,7 +321,7 @@ func (o *CancelBuildOptions) RunCancelBuild() error {
 				//the phase
 				timeout = timeout + (3 * time.Minute)
 			}
-			err = wait.Poll(500*time.Millisecond, timeout, func() (bool, error) {
+			err = wait.PollUntilContextTimeout(context.TODO(), 500*time.Millisecond, timeout, false, func(ctx context.Context) (bool, error) {
 				updatedBuild, err := o.BuildClient.Get(context.TODO(), build.Name, metav1.GetOptions{})
 				if err != nil {
 					return true, err

@@ -226,7 +226,7 @@ func (s *RecreateDeploymentStrategy) scaleAndWait(deployment *corev1.Replication
 	alreadyScaled := false
 	// Scale the replication controller.
 	// In case the cache is not fully synced, retry the scaling.
-	err := wait.PollImmediate(1*time.Second, retryTimeout, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, retryTimeout, true, func(ctx context.Context) (bool, error) {
 		updateScaleErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			curScale, err := s.scaleClient.Scales(deployment.Namespace).Get(context.TODO(), corev1.Resource("replicationcontrollers"), deployment.Name, metav1.GetOptions{})
 			if err != nil {
@@ -253,7 +253,7 @@ func (s *RecreateDeploymentStrategy) scaleAndWait(deployment *corev1.Replication
 	// Wait for the scale to take effect.
 	if !alreadyScaled {
 		// FIXME: This should really be a watch, however the scaler client does not implement the watch interface atm.
-		err = wait.PollImmediate(1*time.Second, retryTimeout, func() (bool, error) {
+		err = wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, retryTimeout, true, func(ctx context.Context) (bool, error) {
 			curScale, err := s.scaleClient.Scales(deployment.Namespace).Get(context.TODO(), corev1.Resource("replicationcontrollers"), deployment.Name, metav1.GetOptions{})
 			if err != nil {
 				return false, err
@@ -287,7 +287,7 @@ func hasRunningPod(pods []corev1.Pod) bool {
 // waitForTerminatedPods waits until all pods for the provided replication controller are terminated.
 func (s *RecreateDeploymentStrategy) waitForTerminatedPods(rc *corev1.ReplicationController, timeout time.Duration) {
 	// Decode the config from the deployment.
-	err := wait.PollImmediate(1*time.Second, timeout, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), 1*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 		podList, err := s.podClient.Pods(rc.Namespace).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: labels.SelectorFromValidatedSet(labels.Set(rc.Spec.Selector)).String(),
 		})

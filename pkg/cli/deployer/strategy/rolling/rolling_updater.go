@@ -44,13 +44,13 @@ import (
 
 // ControllerHasDesiredReplicas returns a condition that will be true if and only if
 // the desired replica count for a controller's ReplicaSelector equals the Replicas count.
-func ControllerHasDesiredReplicas(rcClient coreclient.ReplicationControllersGetter, controller *corev1.ReplicationController) wait.ConditionFunc {
+func ControllerHasDesiredReplicas(rcClient coreclient.ReplicationControllersGetter, controller *corev1.ReplicationController) wait.ConditionWithContextFunc {
 
 	// If we're given a controller where the status lags the spec, it either means that the controller is stale,
 	// or that the rc manager hasn't noticed the update yet. Polling status.Replicas is not safe in the latter case.
 	desiredGeneration := controller.Generation
 
-	return func() (bool, error) {
+	return func(ctx context.Context) (bool, error) {
 		ctrl, err := rcClient.ReplicationControllers(controller.Namespace).Get(context.TODO(), controller.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
@@ -543,7 +543,7 @@ func (r *RollingUpdater) cleanupWithClients(oldRc, newRc *corev1.ReplicationCont
 		return err
 	}
 
-	if err = wait.Poll(config.Interval, config.Timeout, ControllerHasDesiredReplicas(r.rcClient, newRc)); err != nil {
+	if err = wait.PollUntilContextTimeout(context.TODO(), config.Interval, config.Timeout, false, ControllerHasDesiredReplicas(r.rcClient, newRc)); err != nil {
 		return err
 	}
 	newRc, err = r.rcClient.ReplicationControllers(r.ns).Get(context.TODO(), newRc.Name, metav1.GetOptions{})
@@ -581,7 +581,7 @@ func Rename(c coreclient.ReplicationControllersGetter, rc *corev1.ReplicationCon
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
-	err = wait.Poll(5*time.Second, 60*time.Second, func() (bool, error) {
+	err = wait.PollUntilContextTimeout(context.TODO(), 5*time.Second, 60*time.Second, false, func(ctx context.Context) (bool, error) {
 		_, err := c.ReplicationControllers(rc.Namespace).Get(context.TODO(), oldName, metav1.GetOptions{})
 		if err == nil {
 			return false, nil
