@@ -852,9 +852,24 @@ func (c *BaseNodeImageCommand) createRolesAndBindings(ctx context.Context) error
 					"clusterversions",
 					"infrastructures",
 					"proxies",
+					"imagedigestmirrorsets",
+					"imagecontentpolicies",
 				},
 				Verbs: []string{
 					"get",
+					"list",
+				},
+			},
+			{
+				APIGroups: []string{
+					"machineconfiguration.openshift.io",
+				},
+				Resources: []string{
+					"machineconfigs",
+				},
+				Verbs: []string{
+					"get",
+					"list",
 				},
 			},
 			{
