@@ -175,7 +175,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 				co("one").operator,
 				co("two").progressing(configv1.ConditionTrue).operator,
 			},
-			expected: operators{Total: 2, Updating: 1, Waiting: 1},
+			expected: operators{Total: 2, Updating: 1, Waiting: 1, UpdatingClusterOperators: []string{"two"}},
 		},
 		{
 			name: "one out of two not available",
@@ -230,7 +230,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 					available(configv1.ConditionFalse).
 					progressing(configv1.ConditionTrue).operator,
 			},
-			expected: operators{Total: 2, Unavailable: 1, Updating: 1, Waiting: 1},
+			expected: operators{Total: 2, Unavailable: 1, Updating: 1, Waiting: 1, UpdatingClusterOperators: []string{"two"}},
 		},
 		{
 			name: "one upgraded",

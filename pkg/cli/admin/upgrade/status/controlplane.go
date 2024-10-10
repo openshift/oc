@@ -41,6 +41,8 @@ type operators struct {
 	Updating int
 	// Waiting is the count of operators that have not updated its version and are with Progressing=False
 	Waiting int
+	// UpdatingClusterOperators is the collection of cluster operator names that are being updated
+	UpdatingClusterOperators []string
 }
 
 func (o operators) StatusSummary() string {
@@ -224,6 +226,7 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 			}
 			if !updated && progressing.Status == v1.ConditionTrue {
 				displayData.Operators.Updating++
+				displayData.Operators.UpdatingClusterOperators = append(displayData.Operators.UpdatingClusterOperators, operator.Name)
 			}
 			if !updated && progressing.Status == v1.ConditionFalse {
 				displayData.Operators.Waiting++
@@ -429,7 +432,14 @@ func vagueUnder(actual, estimated time.Duration) string {
 
 var controlPlaneStatusTemplate = template.Must(
 	template.New("controlPlaneStatus").
-		Funcs(template.FuncMap{"shortDuration": shortDuration, "vagueUnder": vagueUnder}).
+		Funcs(template.FuncMap{"shortDuration": shortDuration, "vagueUnder": vagueUnder,
+			"updatingLine": func(elems []string) string {
+				if len(elems) == 0 {
+					return ""
+				}
+				return fmt.Sprintf("Updating:        %s\n", strings.Join(elems, ", "))
+			},
+		}).
 		Parse(controlPlaneStatusTemplateRaw))
 
 func (d *controlPlaneStatusDisplayData) Write(f io.Writer) error {
@@ -443,7 +453,7 @@ func (d *controlPlaneStatusDisplayData) Write(f io.Writer) error {
 const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
 Target Version:  {{ .TargetVersion }}
-Completion:      {{ printf "%.0f" .Completion }}% ({{ .Operators.Updated }} operators updated, {{ .Operators.Updating }} updating, {{ .Operators.Waiting }} waiting)
+{{ updatingLine .Operators.UpdatingClusterOperators }}Completion:      {{ printf "%.0f" .Completion }}% ({{ .Operators.Updated }} operators updated, {{ .Operators.Updating }} updating, {{ .Operators.Waiting }} waiting)
 Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ vagueUnder .EstTimeToComplete .EstDuration }}){{ end }}
 Operator Health: {{ .Operators.StatusSummary }}
 `
