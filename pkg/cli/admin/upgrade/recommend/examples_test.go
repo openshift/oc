@@ -46,6 +46,7 @@ func TestExamples(t *testing.T) {
 	variants := []struct {
 		name                 string
 		showOutdatedReleases bool
+		version              string
 		outputSuffix         string
 	}{
 		{
@@ -58,6 +59,11 @@ func TestExamples(t *testing.T) {
 			showOutdatedReleases: true,
 			outputSuffix:         ".show-outdated-releases-output",
 		},
+		{
+			name:         "specific version",
+			version:      "4.12.51",
+			outputSuffix: ".version-4.12.51-output",
+		},
 	}
 
 	for _, cv := range cvs {
@@ -69,6 +75,7 @@ func TestExamples(t *testing.T) {
 				opts := &options{
 					mockData:             mockData{cvPath: cv},
 					showOutdatedReleases: variant.showOutdatedReleases,
+					rawVersion:           variant.version,
 				}
 				if err := opts.Complete(nil, nil, nil); err != nil {
 					t.Fatalf("Error when completing options: %v", err)
@@ -79,10 +86,10 @@ func TestExamples(t *testing.T) {
 				opts.ErrOut = &stderr
 
 				if err := opts.Run(context.Background()); err != nil {
-					t.Fatalf("Error when running: %v", err)
+					compareWithFixture(t, bytes.Join([][]byte{stdout.Bytes(), []byte("\nerror: "), []byte(err.Error()), []byte("\n")}, []byte{}), cv, variant.outputSuffix)
+				} else {
+					compareWithFixture(t, stdout.Bytes(), cv, variant.outputSuffix)
 				}
-
-				compareWithFixture(t, stdout.Bytes(), cv, variant.outputSuffix)
 			})
 		}
 	}
