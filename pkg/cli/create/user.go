@@ -2,6 +2,8 @@ package create
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
@@ -86,6 +88,10 @@ func (o *CreateUserOptions) Complete(cmd *cobra.Command, f genericclioptions.RES
 }
 
 func (o *CreateUserOptions) Run() error {
+	if strings.ContainsAny(o.CreateSubcommandOptions.Name, "\r\n") {
+		return fmt.Errorf("new line in user name is not allowed")
+	}
+
 	user := &userv1.User{
 		// this is ok because we know exactly how we want to be serialized
 		TypeMeta: metav1.TypeMeta{APIVersion: userv1.SchemeGroupVersion.String(), Kind: "User"},
