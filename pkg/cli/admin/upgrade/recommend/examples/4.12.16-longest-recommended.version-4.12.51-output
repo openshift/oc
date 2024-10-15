@@ -1,0 +1,15 @@
+Upgradeable=False
+
+  Reason: AdminAckRequired
+  Message: Kubernetes 1.26 and therefore OpenShift 4.13 remove several APIs which require admin consideration. Please see the knowledge article https://access.redhat.com/articles/6958394 for details and instructions.
+
+Upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+Channel: stable-4.13 (available channels: candidate-4.12, candidate-4.13, eus-4.12, eus-4.14, fast-4.12, fast-4.13, stable-4.12, stable-4.13)
+
+Update to 4.12.51 Recommended=False:
+Image: quay.io/openshift-release-dev/ocp-release@sha256:158ced797e49f6caf7862acccef58484be63b642fdd2f66e6416295fa7958ab0
+URL: https://access.redhat.com/errata/RHSA-2024:1052
+Reason: MultipleReasons
+Message: An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
+  
+  After rebooting into kernel-4.18.0-372.88.1.el8_6 or later, kernel nodes experience high load average and io_wait times. The nodes might fail to start or stop pods and probes may fail. Workload and host processes may become unresponsive and workload may be disrupted. https://issues.redhat.com/browse/COS-2705

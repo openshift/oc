@@ -1,0 +1,6 @@
+info: An update is in progress.  You may wish to let this update complete before requesting a new update.
+  Working towards 4.14.1: 139 of 859 done (16% complete), waiting on kube-scheduler
+Upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+Channel: candidate-4.14 (available channels: candidate-4.14, candidate-4.15, eus-4.14, fast-4.14, stable-4.14)
+
+error: no updates to 4.12 available, so cannot display context for the requested release 4.12.51
