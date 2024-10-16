@@ -118,27 +118,18 @@ func TestRun(t *testing.T) {
 		name        string
 		nodesConfig string
 		assetsDir   string
-		outputName  string
 
 		objects          func(string, string) []runtime.Object
 		remoteExecOutput string
 
-		expectedOutputImage string
-		expectedError       string
-		expectedPod         func(t *testing.T, pod *corev1.Pod)
+		expectedError string
+		expectedPod   func(t *testing.T, pod *corev1.Pod)
 	}{
 		{
 			name:        "default",
 			nodesConfig: defaultNodesConfigYaml,
 			objects:     defaultClusterVersionObjectFn,
-		},
-		{
-			name:                "command with options",
-			nodesConfig:         defaultNodesConfigYaml,
-			objects:             defaultClusterVersionObjectFn,
-			assetsDir:           "/my-working-dir",
-			outputName:          "node.iso",
-			expectedOutputImage: "/my-working-dir/node.iso",
+			assetsDir:   "/my-working-dir",
 		},
 		{
 			name:             "node-joiner tool failure",
@@ -241,8 +232,7 @@ func TestRun(t *testing.T) {
 					return fakeCp
 				},
 
-				AssetsDir:  tc.assetsDir,
-				OutputName: tc.outputName,
+				AssetsDir: tc.assetsDir,
 			}
 			// Since the fake registry creates a self-signed cert, let's configure
 			// the command options accordingly
@@ -258,8 +248,8 @@ func TestRun(t *testing.T) {
 			}
 
 			if tc.expectedError == "" {
-				if fakeCp.options.Destination.Path != tc.expectedOutputImage {
-					t.Errorf("expected %v, actual %v", tc.expectedOutputImage, fakeCp.options.Destination.Path)
+				if fakeCp.options.Destination.Path != tc.assetsDir {
+					t.Errorf("expected %v, actual %v", fakeCp.options.Destination.Path, tc.assetsDir)
 				}
 			}
 		})
