@@ -11,6 +11,7 @@ import (
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/certrotation"
 	"github.com/openshift/library-go/pkg/operator/events"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/client-go/informers"
@@ -55,6 +56,10 @@ func (o *RegenerateMCOOptions) Run(ctx context.Context) error {
 		informers.WithNamespace(mcoNamespace))
 
 	caName := mcsName + "-ca"
+
+	if err := o.ensureMCSSecretType(clientset); err != nil {
+		return fmt.Errorf("error trying to ensure tls secret type: %s", err)
+	}
 	cont := certrotation.NewCertRotationController(
 		controllerName,
 		certrotation.RotatedSigningCASecret{
@@ -124,7 +129,38 @@ func (o *RegenerateMCOOptions) Run(ctx context.Context) error {
 	}
 	return nil
 }
+func (o *RegenerateMCOOptions) ensureMCSSecretType(c *kubernetes.Clientset) error {
 
+	// Retrieve the machine-config-server-tls secret
+	mcsTLSSecret, err := c.CoreV1().Secrets(mcoNamespace).Get(context.Background(), mcsTlsSecretName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("cannot get MCS TLS secret: %w", err)
+	}
+
+	// Check if the secret type needs to be updated to kubernetes.io/tls
+	if mcsTLSSecret.Type != corev1.SecretTypeTLS {
+		fmt.Fprintf(o.IOStreams.Out, "Migration to %s for %s required\n", corev1.SecretTypeTLS, mcsTlsSecretName)
+		// Delete the existing secret
+		if err := c.CoreV1().Secrets(mcoNamespace).Delete(context.Background(), mcsTlsSecretName, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+		// Clone a new secret of the correct type, with the same data
+		newSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      mcsTlsSecretName,
+				Namespace: mcoNamespace,
+			},
+			Data: mcsTLSSecret.Data,
+			Type: corev1.SecretTypeTLS,
+		}
+		// Recreate the secret. is this necessary? It will be updated in the first loop
+		if _, err := c.CoreV1().Secrets(mcoNamespace).Create(context.Background(), newSecret, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+		fmt.Fprintf(o.IOStreams.Out, "Migration to %s for %s successful\n", corev1.SecretTypeTLS, mcsTlsSecretName)
+	}
+	return nil
+}
 func getServerIPsFromInfra(cfg *configv1.Infrastructure) []string {
 	if cfg.Status.PlatformStatus == nil {
 		return []string{}
