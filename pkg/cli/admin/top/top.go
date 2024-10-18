@@ -35,6 +35,7 @@ func NewCommandTop(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobr
 
 	cmds.AddCommand(NewCmdTopImages(f, streams))
 	cmds.AddCommand(NewCmdTopImageStreams(f, streams))
+	cmds.AddCommand(NewCmdTopPersistentVolumeClaims(f, streams))
 	cmdTopNode.Long = templates.LongDesc(cmdTopNode.Long)
 	cmdTopNode.Example = templates.Examples(cmdTopNode.Example)
 	cmdTopPod.Long = templates.LongDesc(cmdTopPod.Long)
