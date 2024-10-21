@@ -3,13 +3,15 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/openshift/oc/pkg/helpers/apps"
 	"github.com/spf13/cobra"
-
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest"
@@ -176,8 +178,19 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 		Long:  cliLong,
 		Run:   runHelp,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			rest.SetDefaultWarningHandler(warningHandler)
-
+			switch cmd.Name() {
+			case "status":
+				rest.SetDefaultWarningHandler(apps.NewIgnoreDeploymentConfigWarningHandler(warningHandler))
+			case "get":
+				if slices.ContainsFunc(args, func(s string) bool { return slices.Contains(strings.Split(s, ","), "all") }) {
+					rest.SetDefaultWarningHandler(apps.NewIgnoreDeploymentConfigWarningHandler(warningHandler))
+				} else {
+					rest.SetDefaultWarningHandler(warningHandler)
+				}
+			default:
+				rest.SetDefaultWarningHandler(warningHandler)
+			}
+			slog.Info("PersistentPreRunE", "name", cmd.Name(), "calledAs", cmd.CalledAs(), "args", args)
 			if cmd.Name() == cobra.ShellCompRequestCmd {
 				// This is the __complete or __completeNoDesc command which
 				// indicates shell completion has been requested.
