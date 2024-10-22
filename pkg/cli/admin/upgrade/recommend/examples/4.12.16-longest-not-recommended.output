@@ -20,10 +20,10 @@ Updates to 4.13:
   Message: Exposure to ARODNSWrongBootSequence is unknown due to an evaluation failure: client-side throttling: only 8m30.897666224s has elapsed since the last match call completed for this cluster condition backend; this cached cluster condition request has been queued for later execution
   Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition that are blocking the ARO ACR and quay, are not be able to add or replace nodes after an upgrade https://access.redhat.com/solutions/7074686
 
-And 45 older 4.13 updates you can see with --show-outdated-releases
+And 45 older 4.13 updates you can see with '--show-outdated-releases' or '--version VERSION'.
 
 Updates to 4.12:
-  VERSION     IMAGE
-  4.12.64     quay.io/openshift-release-dev/ocp-release@sha256:669170342e3ae3456b2eb00dd0c45cd817d62af310e0aa2bf214f1da65fae9d0
-  4.12.63     quay.io/openshift-release-dev/ocp-release@sha256:5db6f8dd1db6b9d07dacfa74574a38a6e518145a3c0ab5d895e9c89e029a39e4
-And 43 older 4.12 updates you can see with --show-outdated-releases
+  VERSION     ISSUES
+  4.12.64     
+  4.12.63     
+And 43 older 4.12 updates you can see with '--show-outdated-releases' or '--version VERSION'.
