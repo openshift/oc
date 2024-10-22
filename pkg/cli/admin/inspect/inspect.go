@@ -243,6 +243,10 @@ func (o *InspectOptions) Run() error {
 		return err
 	}
 
+	if err := inspectDiscovery(context.Background(), o.DestDir, discoveryClient); err != nil {
+		allErrs = append(allErrs, fmt.Errorf("failed inspecting discovery: %w", err))
+	}
+
 	// Check if the resource is served by the server
 	_, rList, err := discoveryClient.ServerGroupsAndResources()
 	if err != nil {
