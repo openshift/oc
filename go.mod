@@ -38,7 +38,7 @@ require (
 	github.com/openshift/api v0.0.0-20240912201240-0a8800162826
 	github.com/openshift/build-machinery-go v0.0.0-20240419090851-af9c868bcf52
 	github.com/openshift/client-go v0.0.0-20240528061634-b054aa794d87
-	github.com/openshift/library-go v0.0.0-20240528110646-354b673304be
+	github.com/openshift/library-go v0.0.0-20240731134552-8211143dfde7
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.17.0
@@ -52,16 +52,16 @@ require (
 	golang.org/x/sync v0.6.0
 	golang.org/x/sys v0.20.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.30.2
-	k8s.io/apiextensions-apiserver v0.30.2
-	k8s.io/apimachinery v0.30.2
-	k8s.io/apiserver v0.30.2
-	k8s.io/cli-runtime v0.30.2
-	k8s.io/client-go v0.30.2
-	k8s.io/component-base v0.30.2
+	k8s.io/api v0.30.5
+	k8s.io/apiextensions-apiserver v0.30.5
+	k8s.io/apimachinery v0.30.5
+	k8s.io/apiserver v0.30.5
+	k8s.io/cli-runtime v0.30.5
+	k8s.io/client-go v0.30.5
+	k8s.io/component-base v0.30.5
 	k8s.io/klog/v2 v2.120.1
-	k8s.io/kubectl v0.30.2
-	k8s.io/pod-security-admission v0.30.2
+	k8s.io/kubectl v0.30.5
+	k8s.io/pod-security-admission v0.30.5
 	k8s.io/utils v0.0.0-20231127182322-b307cd553661
 	sigs.k8s.io/yaml v1.4.0
 )
@@ -197,10 +197,10 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/component-helpers v0.30.2 // indirect
+	k8s.io/component-helpers v0.30.5 // indirect
 	k8s.io/kube-aggregator v0.30.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
-	k8s.io/metrics v0.30.2 // indirect
+	k8s.io/metrics v0.30.5 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kube-storage-version-migrator v0.0.6-0.20230721195810-5c8923c5ff96 // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
