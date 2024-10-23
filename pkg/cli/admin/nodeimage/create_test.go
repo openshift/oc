@@ -136,7 +136,7 @@ func TestRun(t *testing.T) {
 			nodesConfig:      defaultNodesConfigYaml,
 			objects:          defaultClusterVersionObjectFn,
 			remoteExecOutput: "1",
-			expectedError:    `image generation error (exit code: 1)`,
+			expectedError:    `image generation error: <nil> (exit code: 1)`,
 		},
 		{
 			name:             "node-joiner unsupported prior to 4.17",
