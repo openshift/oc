@@ -1,9 +1,15 @@
 = Control Plane =
 Assessment:      Progressing
 Target Version:  4.15.0-ec.2 (from incomplete 4.14.1)
+Updating:        etcd: NodeInstaller, kube-apiserver: NodeInstaller
 Completion:      3% (1 operators updated, 2 updating, 30 waiting)
 Duration:        1m29s (Est. Time Remaining: 1h25m)
 Operator Health: 33 Healthy
+
+Updating Cluster Operators
+NAME             SINCE                  REASON          MESSAGE
+etcd             2023-11-21T15:03:30Z   NodeInstaller   NodeInstallerProgressing: 2 nodes are at revision 33; 1 nodes are at revision 34
+kube-apiserver   2023-11-21T15:04:15Z   NodeInstaller   NodeInstallerProgressing: 3 nodes are at revision 274; 0 nodes have achieved new revision 276
 
 Control Plane Nodes
 NAME                                        ASSESSMENT   PHASE     VERSION   EST   MESSAGE

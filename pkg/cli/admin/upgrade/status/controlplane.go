@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"strings"
+	"text/tabwriter"
 	"text/template"
 	"time"
 
@@ -41,6 +42,13 @@ type operators struct {
 	Updating int
 	// Waiting is the count of operators that have not updated its version and are with Progressing=False
 	Waiting int
+	// UpdatingClusterOperators is the collection of cluster operators that are currently being updated
+	UpdatingClusterOperators []UpdatingClusterOperator
+}
+
+type UpdatingClusterOperator struct {
+	Name      string
+	Condition *v1.ClusterOperatorStatusCondition
 }
 
 func (o operators) StatusSummary() string {
@@ -224,6 +232,8 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 			}
 			if !updated && progressing.Status == v1.ConditionTrue {
 				displayData.Operators.Updating++
+				displayData.Operators.UpdatingClusterOperators = append(displayData.Operators.UpdatingClusterOperators,
+					UpdatingClusterOperator{Name: operator.Name, Condition: progressing})
 			}
 			if !updated && progressing.Status == v1.ConditionFalse {
 				displayData.Operators.Waiting++
@@ -429,21 +439,53 @@ func vagueUnder(actual, estimated time.Duration) string {
 
 var controlPlaneStatusTemplate = template.Must(
 	template.New("controlPlaneStatus").
-		Funcs(template.FuncMap{"shortDuration": shortDuration, "vagueUnder": vagueUnder}).
+		Funcs(template.FuncMap{"shortDuration": shortDuration, "vagueUnder": vagueUnder,
+			"updatingLine": func(elems []UpdatingClusterOperator) string {
+				if len(elems) == 0 {
+					return ""
+				}
+				var messages []string
+				for _, e := range elems {
+					message := e.Name
+					if e.Condition.Reason != "" {
+						message = fmt.Sprintf("%s: %s", e.Name, e.Condition.Reason)
+					}
+					messages = append(messages, message)
+				}
+				return fmt.Sprintf("Updating:        %s\n", strings.Join(messages, ", "))
+			},
+		}).
 		Parse(controlPlaneStatusTemplateRaw))
 
-func (d *controlPlaneStatusDisplayData) Write(f io.Writer) error {
+func (d *controlPlaneStatusDisplayData) Write(f io.Writer, detailed bool) error {
 	if d.Operators.Updated == d.Operators.Total {
 		_, err := f.Write([]byte(fmt.Sprintf("= Control Plane =\nUpdate to %s successfully completed at %s (duration: %s)\n", d.TargetVersion.target, d.CompletionAt.UTC().Format(time.RFC3339), shortDuration(d.Duration))))
 		return err
 	}
-	return controlPlaneStatusTemplate.Execute(f, d)
+	if err := controlPlaneStatusTemplate.Execute(f, d); err != nil {
+		return err
+	}
+	if detailed && len(d.Operators.UpdatingClusterOperators) > 0 {
+		table := tabwriter.NewWriter(f, 0, 0, 3, ' ', 0)
+		f.Write([]byte("\nUpdating Cluster Operators"))
+		_, _ = table.Write([]byte("\nNAME\tSINCE\tREASON\tMESSAGE\n"))
+		for _, o := range d.Operators.UpdatingClusterOperators {
+			_, _ = table.Write([]byte(o.Name + "\t"))
+			_, _ = table.Write([]byte(o.Condition.LastTransitionTime.UTC().Format(time.RFC3339) + "\t"))
+			_, _ = table.Write([]byte(o.Condition.Reason + "\t"))
+			_, _ = table.Write([]byte(o.Condition.Message + "\n"))
+		}
+		if err := table.Flush(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 const controlPlaneStatusTemplateRaw = `= Control Plane =
 Assessment:      {{ .Assessment }}
 Target Version:  {{ .TargetVersion }}
-Completion:      {{ printf "%.0f" .Completion }}% ({{ .Operators.Updated }} operators updated, {{ .Operators.Updating }} updating, {{ .Operators.Waiting }} waiting)
+{{ updatingLine .Operators.UpdatingClusterOperators }}Completion:      {{ printf "%.0f" .Completion }}% ({{ .Operators.Updated }} operators updated, {{ .Operators.Updating }} updating, {{ .Operators.Waiting }} waiting)
 Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ vagueUnder .EstTimeToComplete .EstDuration }}){{ end }}
 Operator Health: {{ .Operators.StatusSummary }}
 `
