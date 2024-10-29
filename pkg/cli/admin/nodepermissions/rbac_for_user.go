@@ -3,6 +3,7 @@ package nodepermissions
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"k8s.io/apiserver/pkg/authentication/user"
 )
@@ -26,6 +27,13 @@ var (
 type roleRef struct {
 	namespace string
 	name      string
+}
+
+func newRoleRef(namespace, name string) roleRef {
+	return roleRef{
+		namespace: namespace,
+		name:      name,
+	}
 }
 
 type rbacCache struct {
@@ -130,7 +138,7 @@ func fakeRoleFromClusterRole(in *rbacv1.ClusterRole, namespace string) *rbacv1.R
 		ret.Labels = map[string]string{}
 	}
 	ret.Labels["operator.openshift.io/synthetic"] = "ActuallyClusterRole"
-	ret.Name = "ActuallyClusterRole---" + inCopy.Name
+	ret.Name = "clusterrole/" + inCopy.Name
 	ret.Namespace = namespace
 	return ret
 }
@@ -182,23 +190,32 @@ type nodeRoles struct {
 
 	clusterRolesByName   map[string]*rbacv1.ClusterRole
 	rolesByNamespaceName map[roleRef]*rbacv1.Role
+	allRoleNamespaces    sets.Set[string]
+
+	clusterRolesToOrigins map[string][]podIdentityToCheck
+	rolesToOrigins        map[roleRef][]podIdentityToCheck
 }
 
 func newNodeRules() *nodeRoles {
 	return &nodeRoles{
-		clusterRolesByName:   map[string]*rbacv1.ClusterRole{},
-		rolesByNamespaceName: map[roleRef]*rbacv1.Role{},
+		allRoleNamespaces:     sets.New[string](),
+		clusterRolesByName:    map[string]*rbacv1.ClusterRole{},
+		rolesByNamespaceName:  map[roleRef]*rbacv1.Role{},
+		clusterRolesToOrigins: map[string][]podIdentityToCheck{},
+		rolesToOrigins:        map[roleRef][]podIdentityToCheck{},
 	}
 }
 
 // addRoles returns the rules that didn't previously exist in the nodeRoles. This is useful to know when we need to
 // check for access to more secrets, pods, etc.
-func (r *nodeRoles) addRoles(clusterRoles []*rbacv1.ClusterRole, roles []*rbacv1.Role) ([]*rbacv1.ClusterRole, []*rbacv1.Role) {
+func (r *nodeRoles) addRoles(origin podIdentityToCheck, clusterRoles []*rbacv1.ClusterRole, roles []*rbacv1.Role) ([]*rbacv1.ClusterRole, []*rbacv1.Role) {
 	novelClusterRoles := []*rbacv1.ClusterRole{}
 	novelRoles := []*rbacv1.Role{}
 
 	for i := range clusterRoles {
 		curr := clusterRoles[i]
+		r.clusterRolesToOrigins[curr.Name] = append(r.clusterRolesToOrigins[curr.Name], origin)
+
 		_, existing := r.clusterRolesByName[curr.Name]
 		if existing {
 			continue
@@ -210,6 +227,10 @@ func (r *nodeRoles) addRoles(clusterRoles []*rbacv1.ClusterRole, roles []*rbacv1
 
 	for i := range roles {
 		curr := roles[i]
+		currRoleRef := newRoleRef(curr.Namespace, curr.Name)
+		r.rolesToOrigins[currRoleRef] = append(r.rolesToOrigins[currRoleRef], origin)
+		r.allRoleNamespaces.Insert(curr.Namespace)
+
 		_, existing := r.clusterRolesByName[curr.Name]
 		if existing {
 			continue
@@ -217,10 +238,6 @@ func (r *nodeRoles) addRoles(clusterRoles []*rbacv1.ClusterRole, roles []*rbacv1
 		novelRoles = append(novelRoles, curr)
 		r.roles = append(r.roles, curr)
 
-		currRoleRef := roleRef{
-			namespace: curr.Namespace,
-			name:      curr.Name,
-		}
 		r.rolesByNamespaceName[currRoleRef] = curr
 	}
 

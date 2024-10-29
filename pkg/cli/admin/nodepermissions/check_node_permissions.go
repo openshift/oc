@@ -92,10 +92,11 @@ func (r *CheckNodePermissionsRuntime) Run(ctx context.Context) error {
 		}
 
 		fmt.Fprintf(r.Out, "node/%v Permissions\n", currNode.Name)
+
 		fmt.Fprintf(r.Out, "\tCluster Wide\n")
-		ruleWriter := tabwriter.NewWriter(r.Out, 0, 4, 4, ' ', 0)
+		clusterRuleWriter := tabwriter.NewWriter(r.Out, 0, 4, 4, ' ', 0)
 		if len(nodeRoles.clusterRoles) > 0 {
-			ruleWriter.Write([]byte("\tVerbs\tGroups\tResources\tNames\n"))
+			clusterRuleWriter.Write([]byte("\tOrigin\tClusterRole\tVerbs\tGroups\tResources\tNames\n"))
 		}
 		for _, curr := range nodeRoles.clusterRoles {
 			for _, rule := range curr.Rules {
@@ -103,8 +104,16 @@ func (r *CheckNodePermissionsRuntime) Run(ctx context.Context) error {
 				if len(rule.NonResourceURLs) > 0 {
 					continue
 				}
-				ruleWriter.Write(
-					[]byte(fmt.Sprintf("\t%v\t%v\t%v\t%v\n",
+				origins := nodeRoles.clusterRolesToOrigins[curr.Name]
+				originStrings := []string{}
+				for _, currOrigin := range origins {
+					originStrings = append(originStrings, currOrigin.originString())
+				}
+
+				clusterRuleWriter.Write(
+					[]byte(fmt.Sprintf("\t%v\t%v\t%v\t%v\t%v\t%v\n",
+						strings.Join(originStrings, ","),
+						curr.Name,
 						strings.Join(rule.Verbs, ","),
 						strings.Join(rule.APIGroups, ","),
 						strings.Join(rule.Resources, ","),
@@ -113,7 +122,54 @@ func (r *CheckNodePermissionsRuntime) Run(ctx context.Context) error {
 				)
 			}
 		}
-		ruleWriter.Flush()
+		clusterRuleWriter.Flush()
+		fmt.Fprintf(r.Out, "\n")
+
+		if len(nodeRoles.allRoleNamespaces) > 0 {
+			if len(nodeRoles.clusterRoles) > 0 {
+				fmt.Fprintf(r.Out, "\t\n")
+			}
+			fmt.Fprintf(r.Out, "\tNamespace Scoped\n")
+		}
+		for i, namespace := range sets.List(nodeRoles.allRoleNamespaces) {
+			if i > 0 {
+				fmt.Fprintf(r.Out, "\t\t\n")
+			}
+			fmt.Fprintf(r.Out, "\t\tNamespace: %v\n", namespace)
+
+			namespacedRuleWriting := tabwriter.NewWriter(r.Out, 0, 4, 4, ' ', 0)
+			namespacedRuleWriting.Write([]byte("\t\tOrigin\tRole\tVerbs\tGroups\tResources\tNames\n"))
+			for _, currRole := range nodeRoles.roles {
+				if currRole.Namespace != namespace {
+					continue
+				}
+				currRoleRef := newRoleRef(currRole.Namespace, currRole.Name)
+				for _, rule := range currRole.Rules {
+					// TODO maybe render these
+					if len(rule.NonResourceURLs) > 0 {
+						continue
+					}
+					origins := nodeRoles.rolesToOrigins[currRoleRef]
+					originStrings := []string{}
+					for _, currOrigin := range origins {
+						originStrings = append(originStrings, currOrigin.originString())
+					}
+
+					namespacedRuleWriting.Write(
+						[]byte(fmt.Sprintf("\t\t%v\t%v\t%v\t%v\t%v\t%v\n",
+							strings.Join(originStrings, ","),
+							currRole.Name,
+							strings.Join(rule.Verbs, ","),
+							strings.Join(rule.APIGroups, ","),
+							strings.Join(rule.Resources, ","),
+							strings.Join(rule.ResourceNames, ","),
+						)),
+					)
+				}
+			}
+			namespacedRuleWriting.Flush()
+		}
+
 	}
 
 	return nil
@@ -124,6 +180,47 @@ type secretRef struct {
 	name      string
 }
 
+func newSecretRef(namespace, name string) secretRef {
+	return secretRef{
+		namespace: namespace,
+		name:      name,
+	}
+}
+
+type podRef struct {
+	namespace string
+	name      string
+}
+
+func newPodRef(namespace, name string) podRef {
+	return podRef{
+		namespace: namespace,
+		name:      name,
+	}
+}
+
+type podIdentityToCheck struct {
+	// when we handle the transitive permissions of permissions, this is needed.
+	parentPodRef *podIdentityToCheck
+
+	podRef  podRef
+	users   []user.Info
+	secrets []secretRef
+}
+
+func (p podIdentityToCheck) originString() string {
+	parentString := ""
+	if p.parentPodRef != nil {
+		parentString = p.parentPodRef.originString()
+	}
+
+	if len(parentString) == 0 {
+		return fmt.Sprintf("pod/%s[%s]", p.podRef.name, p.podRef.namespace)
+	}
+
+	return parentString + fmt.Sprintf("->pod/%s[%s]", p.podRef.name, p.podRef.namespace)
+}
+
 func (r *CheckNodePermissionsRuntime) checkNode(ctx context.Context, node *corev1.Node) (*nodeRoles, error) {
 	podsOnNode, err := r.KubeClient.CoreV1().Pods("").List(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("spec.nodeName=%v", node.Name),
@@ -132,53 +229,52 @@ func (r *CheckNodePermissionsRuntime) checkNode(ctx context.Context, node *corev
 		return nil, fmt.Errorf("unable to check permissions on nodes/%v: %w", node.Name, err)
 	}
 
-	errs := []error{}
+	//errs := []error{}
 
-	usersOnNode := []user.Info{}
-	firstOrderSecretsToCheck := sets.New[secretRef]()
+	podIdentities := []podIdentityToCheck{}
 	for _, pod := range podsOnNode.Items {
+		currPodIdentity := podIdentityToCheck{
+			podRef: newPodRef(pod.Namespace, pod.Name),
+		}
 		// check service account permissions
 		if len(pod.Spec.ServiceAccountName) > 0 {
-			usersOnNode = append(usersOnNode, serviceaccount.UserInfo(pod.Namespace, pod.Spec.ServiceAccountName, ""))
+			currPodIdentity.users = append(currPodIdentity.users, serviceaccount.UserInfo(pod.Namespace, pod.Spec.ServiceAccountName, ""))
 		}
 		// check all mounted secrets for kubeconfigs
 		for _, currVolume := range pod.Spec.Volumes {
 			if currVolume.Secret != nil {
-				firstOrderSecretsToCheck.Insert(secretRef{
-					namespace: pod.Namespace,
-					name:      currVolume.Secret.SecretName,
-				})
+				currPodIdentity.secrets = append(currPodIdentity.secrets, newSecretRef(pod.Namespace, currVolume.Secret.SecretName))
 			}
 			if currVolume.Projected != nil {
 				for _, currSource := range currVolume.Projected.Sources {
 					if currSource.Secret != nil {
-						firstOrderSecretsToCheck.Insert(secretRef{
-							namespace: pod.Namespace,
-							name:      currSource.Secret.Name,
-						})
+						currPodIdentity.secrets = append(currPodIdentity.secrets, newSecretRef(pod.Namespace, currSource.Secret.Name))
 					}
 				}
 			}
 		}
+		podIdentities = append(podIdentities, currPodIdentity)
 	}
 
-	for _, currSecretRef := range firstOrderSecretsToCheck.UnsortedList() {
-		currSecretUser, err := r.userInfoFromSecret(ctx, currSecretRef)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("unable to check permissions on nodes/%v: %w", node.Name, err))
-			continue
-		}
-		if currSecretUser != nil {
-			usersOnNode = append(usersOnNode, currSecretUser)
-		}
-	}
+	//for _, currSecretRef := range firstOrderSecretsToCheck.UnsortedList() {
+	//	currSecretUser, err := r.userInfoFromSecret(ctx, currSecretRef)
+	//	if err != nil {
+	//		errs = append(errs, fmt.Errorf("unable to check permissions on nodes/%v: %w", node.Name, err))
+	//		continue
+	//	}
+	//	if currSecretUser != nil {
+	//		usersOnNode = append(usersOnNode, currSecretUser)
+	//	}
+	//}
 
 	nodeRules := newNodeRules()
 	newRolesToCheck := newNodeRules()
-	for _, user := range usersOnNode {
-		userClusterRoles, userRoles := r.rbacCache.logicalRolesForUser(user)
-		newClusterRoles, newRoles := nodeRules.addRoles(userClusterRoles, userRoles)
-		newRolesToCheck.addRoles(newClusterRoles, newRoles)
+	for _, podIdentity := range podIdentities {
+		for _, user := range podIdentity.users {
+			userClusterRoles, userRoles := r.rbacCache.logicalRolesForUser(user)
+			newClusterRoles, newRoles := nodeRules.addRoles(podIdentity, userClusterRoles, userRoles)
+			newRolesToCheck.addRoles(podIdentity, newClusterRoles, newRoles)
+		}
 	}
 
 	for len(newRolesToCheck.roles) == 0 && len(newRolesToCheck.clusterRoles) == 0 {
