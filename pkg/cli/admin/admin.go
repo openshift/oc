@@ -2,6 +2,7 @@ package admin
 
 import (
 	"fmt"
+	"github.com/openshift/oc/pkg/cli/admin/nodepermissions"
 
 	"github.com/spf13/cobra"
 
@@ -92,6 +93,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 				rebootmachineconfigpool.NewCmdRebootMachineConfigPool(f, streams),
 				waitfornodereboot.NewCmdWaitForNodeReboot(f, streams),
 				nodeimage.NewCmdNodeImage(f, streams),
+				nodepermissions.NewCmdCheckNodePermissions(f, streams),
 			},
 		},
 		{
