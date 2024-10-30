@@ -11,6 +11,9 @@ import (
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/certrotation"
 	"github.com/openshift/library-go/pkg/operator/events"
+
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/client-go/informers"
@@ -55,6 +58,11 @@ func (o *RegenerateMCOOptions) Run(ctx context.Context) error {
 		informers.WithNamespace(mcoNamespace))
 
 	caName := mcsName + "-ca"
+
+	if err := o.ensureMCSSecretType(ctx, clientset); err != nil {
+		return fmt.Errorf("error trying to ensure tls secret type: %s", err)
+	}
+
 	cont := certrotation.NewCertRotationController(
 		controllerName,
 		certrotation.RotatedSigningCASecret{
@@ -122,6 +130,44 @@ func (o *RegenerateMCOOptions) Run(ctx context.Context) error {
 	if o.ModifyUserData {
 		return o.RunUserDataUpdate(ctx)
 	}
+	return nil
+}
+
+func (o *RegenerateMCOOptions) ensureMCSSecretType(ctx context.Context, c *kubernetes.Clientset) error {
+	// Retrieve the machine-config-server-tls secret
+	mcsTLSSecret, err := c.CoreV1().Secrets(mcoNamespace).Get(ctx, mcsTlsSecretName, metav1.GetOptions{})
+
+	// If it doesn't exist, conversion is required, the controller will create a new secret.
+	if err != nil && apierrors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		// return any other error
+		return fmt.Errorf("cannot get MCS TLS secret: %w", err)
+	}
+
+	// Check if the existing secret is of the kubernetes.io/tls type
+	if mcsTLSSecret.Type == corev1.SecretTypeTLS {
+		return nil
+	}
+
+	fmt.Fprintf(o.IOStreams.Out, "Migration to %s for %s required\n", corev1.SecretTypeTLS, mcsTlsSecretName)
+	// Delete the existing secret
+	if err := c.CoreV1().Secrets(mcoNamespace).Delete(ctx, mcsTlsSecretName, metav1.DeleteOptions{}); err != nil {
+		return fmt.Errorf("cannot delete old MCS TLS secret: %w", err)
+	}
+	// Create a new secret of the kubernetes.io/tls type, with the same data
+	newSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      mcsTlsSecretName,
+			Namespace: mcoNamespace,
+		},
+		Data: mcsTLSSecret.Data,
+		Type: corev1.SecretTypeTLS,
+	}
+	if _, err := c.CoreV1().Secrets(mcoNamespace).Create(ctx, newSecret, metav1.CreateOptions{}); err != nil {
+		return fmt.Errorf("cannot create new MCS TLS secret: %w", err)
+	}
+	fmt.Fprintf(o.IOStreams.Out, "Migration to %s for %s successful\n", corev1.SecretTypeTLS, mcsTlsSecretName)
 	return nil
 }
 
