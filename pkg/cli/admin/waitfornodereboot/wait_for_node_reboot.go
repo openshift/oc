@@ -204,7 +204,7 @@ func (r *WaitForNodeRebootRuntime) waitForNodes(ctx context.Context, nodes []*co
 				}
 			}
 			if !previouslyPrinted {
-				fmt.Fprintf(r.Out, "nodes/%v has started the cordon, drain, reboot to (or beyond) the our desired reboot number\n", nodeName)
+				fmt.Fprintf(r.Out, "nodes/%v has started the cordon, drain, reboot to (or beyond) the desired reboot number\n", nodeName)
 			}
 			newNodesActivelyRebooting = append(newNodesActivelyRebooting, currNode)
 			remainingNodes = append(remainingNodes, currNode)
