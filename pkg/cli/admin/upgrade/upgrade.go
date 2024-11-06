@@ -153,8 +153,8 @@ func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 	if o.Clear && (len(o.ToImage) > 0 || len(o.To) > 0 || o.ToLatestAvailable || o.ToMultiArch) {
 		return fmt.Errorf("--clear may not be specified with any other flags")
 	}
-	if o.ToMultiArch && (len(o.To) > 0 || len(o.ToImage) > 0) {
-		return fmt.Errorf("--to-multi-arch may not be used with --to or --to-image")
+	if o.ToMultiArch && (len(o.To) > 0 || len(o.ToImage) > 0 || o.ToLatestAvailable) {
+		return fmt.Errorf("--to-multi-arch may not be used with --to, --to-image, or --to-latest")
 	}
 	if len(o.To) > 0 && len(o.ToImage) > 0 {
 		return fmt.Errorf("only one of --to or --to-image may be provided")
