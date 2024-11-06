@@ -146,10 +146,6 @@ func (o *options) Run(ctx context.Context) error {
 		fmt.Fprintf(o.ErrOut, "warning: Cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 	}
 
-	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
-		fmt.Fprintf(o.Out, "%s=%s\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-	}
-
 	if cv.Spec.Channel != "" {
 		if cv.Spec.Upstream == "" {
 			fmt.Fprint(o.Out, "Upstream is unset, so the cluster will use an appropriate default.\n")
@@ -204,6 +200,12 @@ func (o *options) Run(ctx context.Context) error {
 		majorMinorBuckets[version.Major][version.Minor] = append(majorMinorBuckets[version.Major][version.Minor], configv1.ConditionalUpdate{
 			Release: cv.Status.AvailableUpdates[i],
 		})
+	}
+
+	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
+		if err := injectUpgradeableAsCondition(cv.Status.Desired.Version, c, majorMinorBuckets); err != nil {
+			fmt.Fprintf(o.ErrOut, "warning: Cannot inject %s=%s as a conditional update risk: %s\n\nReason: %s\n  Message: %s\n\n", c.Type, c.Status, err, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+		}
 	}
 
 	if o.version != nil {
@@ -359,4 +361,78 @@ func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorSta
 		}
 	}
 	return nil
+}
+
+func injectUpgradeableAsCondition(version string, condition *configv1.ClusterOperatorStatusCondition, majorMinorBuckets map[uint64]map[uint64][]configv1.ConditionalUpdate) error {
+	current, err := semver.Parse(version)
+	if err != nil {
+		return fmt.Errorf("cannot parse SemVer version %q: %v", version, err)
+	}
+
+	upgradeableURI := fmt.Sprintf("https://docs.openshift.com/container-platform/%d.%d/updating/preparing_for_updates/updating-cluster-prepare.html#cluster-upgradeable_updating-cluster-prepare", current.Major, current.Minor)
+	if current.Minor <= 13 {
+		upgradeableURI = fmt.Sprintf("https://docs.openshift.com/container-platform/%d.%d/updating/index.html#understanding_clusteroperator_conditiontypes_updating-clusters-overview", current.Major, current.Minor)
+	}
+
+	for major, minors := range majorMinorBuckets {
+		if major < current.Major {
+			continue
+		}
+
+		for minor, targets := range minors {
+			if major == current.Major && minor <= current.Minor {
+				continue
+			}
+
+			for i := 0; i < len(targets); i++ {
+				majorMinorBuckets[major][minor][i] = ensureUpgradeableRisk(majorMinorBuckets[major][minor][i], condition, upgradeableURI)
+			}
+		}
+	}
+
+	return nil
+}
+
+func ensureUpgradeableRisk(target configv1.ConditionalUpdate, condition *configv1.ClusterOperatorStatusCondition, upgradeableURI string) configv1.ConditionalUpdate {
+	if hasUpgradeableRisk(target, condition) {
+		return target
+	}
+
+	target.Risks = append(target.Risks, configv1.ConditionalUpdateRisk{
+		URL:           upgradeableURI,
+		Name:          "UpgradeableFalse",
+		Message:       condition.Message,
+		MatchingRules: []configv1.ClusterCondition{{Type: "Always"}},
+	})
+
+	for i, c := range target.Conditions {
+		if c.Type == "Recommended" {
+			if c.Status == metav1.ConditionTrue {
+				target.Conditions[i].Reason = condition.Reason
+				target.Conditions[i].Message = condition.Message
+			} else {
+				target.Conditions[i].Reason = "MultipleReasons"
+				target.Conditions[i].Message = fmt.Sprintf("%s\n\n%s", condition.Message, c.Message)
+			}
+			target.Conditions[i].Status = metav1.ConditionFalse
+			return target
+		}
+	}
+
+	target.Conditions = append(target.Conditions, metav1.Condition{
+		Type:    "Recommended",
+		Status:  metav1.ConditionFalse,
+		Reason:  condition.Reason,
+		Message: condition.Message,
+	})
+	return target
+}
+
+func hasUpgradeableRisk(target configv1.ConditionalUpdate, condition *configv1.ClusterOperatorStatusCondition) bool {
+	for _, risk := range target.Risks {
+		if strings.Contains(risk.Message, condition.Message) {
+			return true
+		}
+	}
+	return false
 }
