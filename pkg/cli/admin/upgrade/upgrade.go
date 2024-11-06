@@ -240,8 +240,17 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s\n", err)
 		}
 
-		if err := patchDesiredUpdate(ctx, &configv1.Update{Architecture: configv1.ClusterVersionArchitectureMulti,
-			Version: cv.Status.Desired.Version}, o.Client, cv.Name); err != nil {
+		update := &configv1.Update{
+			Architecture: configv1.ClusterVersionArchitectureMulti,
+			Version:      cv.Status.Desired.Version,
+		}
+
+		if o.Force {
+			update.Force = true
+			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
+		}
+
+		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
 
 			return err
 		}
