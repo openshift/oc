@@ -3,7 +3,7 @@ Channel: stable-4.13 (available channels: candidate-4.12, candidate-4.13, eus-4.
 
 Update to 4.12.51 Recommended=False:
 Image: quay.io/openshift-release-dev/ocp-release@sha256:158ced797e49f6caf7862acccef58484be63b642fdd2f66e6416295fa7958ab0
-URL: https://access.redhat.com/errata/RHSA-2024:1052
+Release URL: https://access.redhat.com/errata/RHSA-2024:1052
 Reason: MultipleReasons
 Message: An unintended reversion to the default kubelet nodeStatusReportFrequency can cause significant load on the control plane. https://issues.redhat.com/browse/MCO-1094
   
