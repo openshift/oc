@@ -817,8 +817,8 @@ func (c *BaseNodeImageCommand) waitForContainerRunning(ctx context.Context) erro
 	// Wait for the node-joiner pod to come up
 	return wait.PollUntilContextTimeout(
 		ctx,
-		time.Second*1,
-		time.Minute*5,
+		time.Second*5,
+		time.Minute*15,
 		true,
 		func(ctx context.Context) (done bool, err error) {
 			pod, err := c.Client.CoreV1().Pods(c.nodeJoinerNamespace.GetName()).Get(context.TODO(), c.nodeJoinerPod.GetName(), metav1.GetOptions{})
@@ -830,8 +830,11 @@ func (c *BaseNodeImageCommand) waitForContainerRunning(ctx context.Context) erro
 				state := pod.Status.ContainerStatuses[0].State
 				if state.Waiting != nil {
 					switch state.Waiting.Reason {
-					case "ErrImagePull", "ImagePullBackOff", "InvalidImageName":
+					case "InvalidImageName":
 						return true, fmt.Errorf("unable to pull image: %v: %v", state.Waiting.Reason, state.Waiting.Message)
+					case "ErrImagePull", "ImagePullBackOff":
+						klog.V(2).Infof("Unable to pull image (%s), retrying", state.Waiting.Reason)
+						return false, nil
 					}
 				}
 				return state.Running != nil || state.Terminated != nil, nil
