@@ -229,7 +229,7 @@ func (o *options) Run(ctx context.Context) error {
 					return nil
 				}
 			}
-			return fmt.Errorf("no updates to %d.%d available, so cannot display context for the requested release %s", o.version.Major, o.version.Minor, o.version)
+			return fmt.Errorf("no update to %s available, so cannot display context for the requested release", o.version)
 		}
 	}
 
