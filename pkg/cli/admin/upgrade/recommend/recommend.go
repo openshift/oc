@@ -281,7 +281,7 @@ func (o *options) Run(ctx context.Context) error {
 					break
 				}
 				if c == nil {
-					fmt.Fprintf(w, "  %s\t\n", update.Release.Version)
+					fmt.Fprintf(w, "  %s\t%s\n", update.Release.Version, "no known issues relevant to this cluster")
 					if !o.showOutdatedReleases {
 						headerQueued = false
 						w.Flush()
