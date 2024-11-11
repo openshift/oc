@@ -1015,14 +1015,14 @@ func TestNewAppRunBuilds(t *testing.T) {
 			name: "successful build from dockerfile",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM openshift/origin:v1.0.6\nUSER foo",
+					Dockerfile: "FROM centos:centos8\nUSER foo",
 				},
 			},
 			expected: map[string][]string{
-				"buildConfig": {"origin"},
+				"buildConfig": {"centos"},
 				// There's a single image stream, but different tags: input from
 				// openshift/origin:v1.0.6, output to openshift/origin:latest.
-				"imageStream": {"origin"},
+				"imageStream": {"centos"},
 			},
 		},
 		{
