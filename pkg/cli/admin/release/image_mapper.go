@@ -335,7 +335,7 @@ func ComponentReferencesForImageStream(is *imageapi.ImageStream) (func(string) i
 	}, nil
 }
 
-var componentVersionRe = regexp.MustCompile(`([\W]|^)0\.0\.1-snapshot([a-z0-9\-]*)`)
+var componentVersionRe = regexp.MustCompile(`(\W|^)0\.0\.1-snapshot([a-z0-9\-]*)`)
 
 // NewComponentVersionsMapper substitutes strings of the form 0.0.1-snapshot with releaseName and strings
 // of the form 0.0.1-snapshot-[component] with the version value located in versions, or returns an error.
@@ -408,7 +408,7 @@ var (
 	// reAllowedVersionKey limits the allowed component name to a strict subset
 	reAllowedVersionKey = regexp.MustCompile(`^[a-z0-9]+[\-a-z0-9]*[a-z0-9]+$`)
 	// reAllowedDisplayNameKey limits the allowed component name to a strict subset
-	reAllowedDisplayNameKey = regexp.MustCompile(`^[a-zA-Z0-9\-\:\s\(\)]+$`)
+	reAllowedDisplayNameKey = regexp.MustCompile(`^[a-zA-Z0-9\-:\s()]+$`)
 )
 
 // ComponentVersion includes the version and optional display name.
