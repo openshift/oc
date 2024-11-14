@@ -346,10 +346,7 @@ func (o *NewOptions) Run(ctx context.Context) error {
 		o.AlwaysInclude = append(o.AlwaysInclude, o.ToImageBaseTag)
 	}
 
-	exclude := sets.NewString()
-	for _, s := range o.Exclude {
-		exclude.Insert(s)
-	}
+	exclude := sets.New[string](o.Exclude...)
 
 	metadata := make(map[string]imageData)
 	var ordered []string
@@ -795,7 +792,7 @@ func (o *NewOptions) Run(ctx context.Context) error {
 	return nil
 }
 
-func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, referenceMode string, exclude sets.String) error {
+func resolveImageStreamTagsToReferenceMode(inputIS, is *imageapi.ImageStream, referenceMode string, exclude sets.Set[string]) error {
 	switch referenceMode {
 	case "public", "", "source":
 		forceExternal := referenceMode == "public" || referenceMode == ""

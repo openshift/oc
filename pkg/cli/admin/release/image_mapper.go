@@ -66,7 +66,7 @@ func (p *Payload) Rewrite(allowTags bool, fn func(component string) imagereferen
 			continue
 		}
 		path := filepath.Join(p.path, file.Name())
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
@@ -78,7 +78,7 @@ func (p *Payload) Rewrite(allowTags bool, fn func(component string) imagereferen
 			continue
 		}
 		klog.V(6).Infof("Rewrote\n%s\n\nto\n\n%s\n", string(data), string(out))
-		if err := ioutil.WriteFile(path, out, file.Mode()); err != nil {
+		if err := os.WriteFile(path, out, file.Mode()); err != nil {
 			return err
 		}
 	}
@@ -99,7 +99,7 @@ func (p *Payload) References() (*imageapi.ImageStream, error) {
 }
 
 func parseImageStream(path string) (*imageapi.ImageStream, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return nil, err
 	}
