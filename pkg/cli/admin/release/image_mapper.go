@@ -275,7 +275,7 @@ func NewImageMapper(images map[string]ImageReference) (ManifestMapper, error) {
 			ref := images[name]
 
 			suffix := parts[3]
-			klog.V(2).Infof("found repository %q with locator %q in the input, switching to %q (from pattern %s)", string(repository), string(suffix), ref.TargetPullSpec, pattern)
+			klog.V(2).Infof("found repository %q with locator %q in the input, switching to %q (from pattern %s)", repository, string(suffix), ref.TargetPullSpec, pattern)
 			switch {
 			case len(suffix) == 0:
 				// we found a repository, but no tag or digest (implied latest), or we got an exact match
@@ -434,7 +434,7 @@ func (v ComponentVersion) String() string {
 // labels removed, but prerelease segments are preserved.
 type ComponentVersions map[string]ComponentVersion
 
-// OrderedKeys returns the keys in this map in lexigraphic order.
+// OrderedKeys returns the keys in this map in lexicographic order.
 func (v ComponentVersions) OrderedKeys() []string {
 	keys := make([]string, 0, len(v))
 	for k := range v {
