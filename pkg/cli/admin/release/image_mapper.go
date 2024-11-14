@@ -335,9 +335,7 @@ func ComponentReferencesForImageStream(is *imageapi.ImageStream) (func(string) i
 	}, nil
 }
 
-const (
-	componentVersionFormat = `([\W]|^)0\.0\.1-snapshot([a-z0-9\-]*)`
-)
+var componentVersionRe = regexp.MustCompile(`([\W]|^)0\.0\.1-snapshot([a-z0-9\-]*)`)
 
 // NewComponentVersionsMapper substitutes strings of the form 0.0.1-snapshot with releaseName and strings
 // of the form 0.0.1-snapshot-[component] with the version value located in versions, or returns an error.
@@ -352,17 +350,12 @@ func NewComponentVersionsMapper(releaseName string, versions ComponentVersions, 
 	} else {
 		releaseName = ""
 	}
-	re, err := regexp.Compile(componentVersionFormat)
-	if err != nil {
-		return func([]byte) ([]byte, error) {
-			return nil, fmt.Errorf("component versions mapper regex: %v", err)
-		}
-	}
+
 	return func(data []byte) ([]byte, error) {
 		var missing []string
 		var conflicts []string
-		data = re.ReplaceAllFunc(data, func(part []byte) []byte {
-			matches := re.FindSubmatch(part)
+		data = componentVersionRe.ReplaceAllFunc(data, func(part []byte) []byte {
+			matches := componentVersionRe.FindSubmatch(part)
 			if matches == nil {
 				return part
 			}
