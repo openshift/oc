@@ -1412,24 +1412,26 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			if fi.IsDir() || fi.Name() == imageReferencesImageStreamFilename {
 				continue
 			}
-			filename := fi.Name()
+
+			srcFilename := fi.Name()
+			dstFilename := srcFilename
 
 			// components that don't declare that they need to be part of the global order
 			// get put in a scoped bucket at the end. Only a few components should need to
 			// be in the global order.
-			if !strings.HasPrefix(filename, "0000_") {
-				filename = fmt.Sprintf("0000_50_%s_%s", operator, filename)
+			if !strings.HasPrefix(srcFilename, "0000_") {
+				dstFilename = fmt.Sprintf("0000_50_%s_%s", operator, srcFilename)
 			}
-			if count, ok := files[filename]; ok {
-				ext := path.Ext(path.Base(filename))
-				files[filename] = count + 1
-				filename = fmt.Sprintf("%s_%d%s", strings.TrimSuffix(filename, ext), count+1, ext)
-				files[filename] = 1
-			} else {
-				files[filename] = 1
+			if count, ok := files[dstFilename]; ok {
+				ext := path.Ext(path.Base(dstFilename))
+				files[dstFilename] = count + 1
+				dstFilename = fmt.Sprintf("%s_%d%s", strings.TrimSuffix(dstFilename, ext), count+1, ext)
 			}
-			src := filepath.Join(directory, fi.Name())
-			dst := path.Join(append(append([]string{}, parts...), filename)...)
+
+			files[dstFilename] = 1
+
+			src := filepath.Join(directory, srcFilename)
+			dst := path.Join(append(append([]string{}, parts...), dstFilename)...)
 			klog.V(4).Infof("Copying %s to %s", src, dst)
 
 			data, err := os.ReadFile(src)
@@ -1438,7 +1440,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			}
 
 			for _, fn := range verifiers {
-				if err := fn(filepath.Join(filepath.Base(directory), fi.Name()), data); err != nil {
+				if err := fn(filepath.Join(filepath.Base(directory), srcFilename), data); err != nil {
 					return err
 				}
 			}
