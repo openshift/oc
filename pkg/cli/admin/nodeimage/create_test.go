@@ -173,8 +173,8 @@ func TestRun(t *testing.T) {
 					ErrorMessage: "Some error message",
 				},
 			}),
-			expectedErrorCode: 127,
-			expectedError:     `command execution failed. Reason: Some error message`,
+			expectedErrorCode: 1,
+			expectedError:     `exit`,
 		},
 		{
 			name:          "node-joiner unsupported prior to 4.17",
@@ -268,6 +268,8 @@ func TestRun(t *testing.T) {
 			// Create another fake for the copy action
 			fakeCp := &fakeCopier{}
 
+			var logBuffer bytes.Buffer
+
 			// Prepare the command options with all the fakes
 			o := &CreateOptions{
 				BaseNodeImageCommand: BaseNodeImageCommand{
@@ -277,6 +279,7 @@ func TestRun(t *testing.T) {
 					Client:         fakeClient,
 					Config:         fakeRestConfig,
 					remoteExecutor: fakeRemoteExec,
+					LogOut:         &logBuffer,
 				},
 				FSys: fakeFileSystem,
 				copyStrategy: func(o *rsync.RsyncOptions) rsync.CopyStrategy {
