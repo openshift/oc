@@ -217,7 +217,7 @@ type NewOptions struct {
 	cleanupFns []func()
 }
 
-func (o *NewOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
+func (o *NewOptions) Complete(f kcmdutil.Factory, _ *cobra.Command, args []string) error {
 	overlap := make(map[string]string)
 	var mappings []Mapping
 	for _, filename := range o.MappingFilenames {
@@ -1495,26 +1495,6 @@ func hasTag(tags []imageapi.TagReference, tag string) *imageapi.TagReference {
 		}
 	}
 	return nil
-}
-
-func pruneEmptyDirectories(dir string) error {
-	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			return nil
-		}
-		names, err := os.ReadDir(path)
-		if err != nil {
-			return err
-		}
-		if len(names) > 0 {
-			return nil
-		}
-		klog.V(4).Infof("Component %s does not have any manifests", path)
-		return os.Remove(path)
-	})
 }
 
 type Mapping struct {

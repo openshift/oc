@@ -265,8 +265,6 @@ func TestNewExactMapper(t *testing.T) {
 }
 
 func TestNewComponentVersionsMapper(t *testing.T) {
-	type args struct {
-	}
 	tests := []struct {
 		name        string
 		releaseName string
@@ -372,8 +370,6 @@ func TestNewComponentVersionsMapper(t *testing.T) {
 }
 
 func Test_parseComponentVersionsLabel(t *testing.T) {
-	type args struct {
-	}
 	tests := []struct {
 		name         string
 		label        string
