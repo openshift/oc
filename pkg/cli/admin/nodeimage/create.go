@@ -3,6 +3,7 @@ package nodeimage
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -32,6 +33,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
+	utilexec "k8s.io/utils/exec"
 	"sigs.k8s.io/yaml"
 
 	ocpv1 "github.com/openshift/api/config/v1"
@@ -150,8 +152,8 @@ type CreateOptions struct {
 	// Simpler interface for creating a single node
 	SingleNodeOpts *singleNodeCreateOptions
 
-	nodeJoinerExitCode int
-	rsyncRshCmd        string
+	report      report
+	rsyncRshCmd string
 }
 
 type singleNodeCreateOptions struct {
@@ -295,15 +297,20 @@ func (o *CreateOptions) Run() error {
 		return err
 	}
 
-	err = o.waitForCompletion(ctx)
-	// Something went wrong during the node-joiner tool execution,
-	// let's show the logs and return an error
-	if err != nil || o.nodeJoinerExitCode != 0 {
+	if err = o.waitForCompletion(ctx); err != nil {
+		// Something went wrong during the node-joiner tool execution,
+		// let's show the logs and return an error
 		printErr := o.printLogsInPod(ctx)
 		if printErr != nil {
 			return printErr
 		}
-		return fmt.Errorf("image generation error: %v (exit code: %d)", err, o.nodeJoinerExitCode)
+		return fmt.Errorf("image generation error: %v", err)
+	}
+	if o.report.Result.ExitCode != 0 {
+		return utilexec.CodeExitError{
+			Code: o.report.Result.ExitCode,
+			Err:  fmt.Errorf("command execution failed. Reason: %s", o.report.Result.ErrorMessage),
+		}
 	}
 
 	err = o.copyArtifactsFromNodeJoinerPod()
@@ -404,24 +411,16 @@ func (o *CreateOptions) renameImageIfOutputNameIsSpecified() error {
 	return nil
 }
 
-func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
-	klog.V(2).Infof("Starting command in pod %s", o.nodeJoinerPod.GetName())
-	// Wait for the node-joiner pod to come up
-	err := o.waitForContainerRunning(ctx)
-	if err != nil {
-		return err
-	}
+func (o *CreateOptions) nodeJoinerPodExec(ctx context.Context, command ...string) ([]byte, error) {
+	w := &bytes.Buffer{}
+	wErr := &bytes.Buffer{}
 
-	// Wait for the node-joiner cli tool to complete
-	return wait.PollUntilContextTimeout(
+	err := wait.PollUntilContextTimeout(
 		ctx,
 		time.Second*5,
 		time.Minute*15,
 		true,
 		func(ctx context.Context) (done bool, err error) {
-			w := &bytes.Buffer{}
-			wErr := &bytes.Buffer{}
-
 			execOptions := &exec.ExecOptions{
 				StreamOptions: exec.StreamOptions{
 					Namespace:     o.nodeJoinerNamespace.GetName(),
@@ -438,9 +437,7 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 				Executor:  o.remoteExecutor,
 				PodClient: o.Client.CoreV1(),
 				Config:    o.Config,
-				Command: []string{
-					"cat", "/assets/exit_code",
-				},
+				Command:   command,
 			}
 
 			err = execOptions.Validate()
@@ -448,7 +445,7 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 				return false, err
 			}
 
-			klog.V(1).Info("Image generation in progress, please wait")
+			klog.V(2).Infof("Running command on pod %s/%s: %v", o.nodeJoinerNamespace.GetName(), o.nodeJoinerPod.GetName(), command)
 			err = execOptions.Run()
 			if err != nil {
 				var codeExitErr kutils.CodeExitError
@@ -461,13 +458,104 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 				return false, nil
 			}
 
-			// Extract node-joiner tool exit code on completion
-			o.nodeJoinerExitCode, err = strconv.Atoi(w.String())
-			if err != nil {
-				return false, err
-			}
 			return true, nil
 		})
+
+	if err != nil {
+		return nil, fmt.Errorf("error caught while executing remote command: %w. Error output: %s", err, wErr.String())
+	}
+
+	klog.V(3).Infof("Remote command output: %s. Error output: %s", w.String(), wErr.String())
+	return w.Bytes(), nil
+}
+
+func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
+	klog.V(2).Infof("Starting command in pod %s", o.nodeJoinerPod.GetName())
+	// Wait for the node-joiner pod to come up
+	err := o.waitForContainerRunning(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Prior than version 4.18, node-joiner tool generated only an
+	// exit_code file on command completion, to signal it was done and
+	// to provide the exit result.
+	useOnlyExitCodeFile, err := o.isClusterVersionLessThan(ctx, "4.18")
+	if err != nil {
+		return err
+	}
+	if useOnlyExitCodeFile {
+		return o.monitorExitCodeFile(ctx)
+	}
+	return o.monitorWorkflowReport(ctx)
+}
+
+func (o *CreateOptions) monitorExitCodeFile(ctx context.Context) error {
+	cmdOutput, err := o.nodeJoinerPodExec(ctx, "cat", "/assets/exit_code")
+	if err != nil {
+		return err
+	}
+
+	// Extract node-joiner tool exit code on completion
+	exitCode, err := strconv.Atoi(string(cmdOutput))
+	if err != nil {
+		return err
+	}
+	o.report = report{
+		stageHeader: stageHeader{},
+		Result: &reportResult{
+			ExitCode: exitCode,
+		},
+	}
+
+	return nil
+}
+
+type report struct {
+	stageHeader
+	Stages []*stage      `json:"stages,omitempty"`
+	Result *reportResult `json:"result"`
+}
+
+type stageHeader struct {
+	Identifier string    `json:"id"`
+	Desc       string    `json:"description,omitempty"`
+	StartTime  time.Time `json:"start_time"`
+	EndTime    time.Time `json:"end_time"`
+}
+
+type stage struct {
+	stageHeader
+	Result    string   `json:"result,omitempty"`
+	SubStages []*stage `json:"sub_stages,omitempty"`
+}
+
+type reportResult struct {
+	ExitCode             int    `json:"exit_code"`
+	ErrorMessage         string `json:"error_message,omitempty"`
+	DetailedErrorMessage string `json:"detailed_error_message,omitempty"`
+}
+
+func (o *CreateOptions) monitorWorkflowReport(ctx context.Context) error {
+	for {
+		cmdOutput, err := o.nodeJoinerPodExec(ctx, "cat", "/assets/report.json")
+		if err != nil {
+			return err
+		}
+		var r report
+		if err := json.Unmarshal(cmdOutput, &r); err != nil {
+			return fmt.Errorf("error while parsing the report: %w", err)
+		}
+
+		klog.V(1).Info(r)
+
+		// Wait until the report is mark as completed.
+		if r.EndTime.IsZero() {
+			continue
+		}
+		o.report = r
+		return nil
+	}
 }
 
 func (o *CreateOptions) createConfigFileFromFlags() ([]byte, error) {
