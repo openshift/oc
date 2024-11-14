@@ -146,6 +146,7 @@ func (o *MonitorOptions) Run() error {
 	defer o.cleanup(ctx)
 
 	tasks := []func(context.Context) error{
+		o.checkMinSupportedVersion,
 		o.getNodeJoinerPullSpec,
 		o.createNamespace,
 		o.createServiceAccount,

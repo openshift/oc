@@ -34,6 +34,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 	"sigs.k8s.io/yaml"
 
+	ocpv1 "github.com/openshift/api/config/v1"
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/openshift/library-go/pkg/operator/resource/retry"
 	ocrelease "github.com/openshift/oc/pkg/cli/admin/release"
@@ -281,6 +282,7 @@ func (o *CreateOptions) Run() error {
 	defer o.cleanup(ctx)
 
 	tasks := []func(context.Context) error{
+		o.checkMinSupportedVersion,
 		o.getNodeJoinerPullSpec,
 		o.createNamespace,
 		o.createServiceAccount,
@@ -705,21 +707,11 @@ func (c *BaseNodeImageCommand) getNodeJoinerPullSpec(ctx context.Context) error 
 }
 
 func (c *BaseNodeImageCommand) fetchClusterReleaseImage(ctx context.Context) (string, error) {
-	cv, err := c.ConfigClient.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
+	cv, err := c.getCurrentClusterVersion(ctx)
 	if err != nil {
-		if kapierrors.IsNotFound(err) || kapierrors.ReasonForError(err) == metav1.StatusReasonUnknown {
-			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
-			return "", fmt.Errorf("command expects a connection to an OpenShift 4.x server")
-		}
+		return "", err
 	}
-	// Adds a guardrail for node-image commands which is supported only for Openshift version 4.17 and later
-	currentVersion := cv.Status.Desired.Version
-	matches := regexp.MustCompile(`^(\d+[.]\d+)[.].*`).FindStringSubmatch(currentVersion)
-	if len(matches) < 2 {
-		return "", fmt.Errorf("failed to parse major.minor version from ClusterVersion status.desired.version %q", currentVersion)
-	} else if matches[1] < nodeJoinerMinimumSupportedVersion {
-		return "", fmt.Errorf("the 'oc adm node-image' command is only available for OpenShift versions %s and later", nodeJoinerMinimumSupportedVersion)
-	}
+
 	image := cv.Status.Desired.Image
 	if len(image) == 0 && cv.Spec.DesiredUpdate != nil {
 		image = cv.Spec.DesiredUpdate.Image
@@ -729,6 +721,43 @@ func (c *BaseNodeImageCommand) fetchClusterReleaseImage(ctx context.Context) (st
 	}
 
 	return image, nil
+}
+
+func (c *BaseNodeImageCommand) getCurrentClusterVersion(ctx context.Context) (*ocpv1.ClusterVersion, error) {
+	cv, err := c.ConfigClient.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
+	if err != nil {
+		if kapierrors.IsNotFound(err) || kapierrors.ReasonForError(err) == metav1.StatusReasonUnknown {
+			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
+			return nil, fmt.Errorf("command expects a connection to an OpenShift 4.x server")
+		}
+	}
+	return cv, nil
+}
+
+func (c *BaseNodeImageCommand) isClusterVersionLessThan(ctx context.Context, version string) (bool, error) {
+	cv, err := c.getCurrentClusterVersion(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	currentVersion := cv.Status.Desired.Version
+	matches := regexp.MustCompile(`^(\d+[.]\d+)[.].*`).FindStringSubmatch(currentVersion)
+	if len(matches) < 2 {
+		return false, fmt.Errorf("failed to parse major.minor version from ClusterVersion status.desired.version %q", currentVersion)
+	}
+	return matches[1] < version, nil
+}
+
+// Adds a guardrail for node-image commands which is supported only for Openshift version 4.17 and later
+func (c *BaseNodeImageCommand) checkMinSupportedVersion(ctx context.Context) error {
+	notSupported, err := c.isClusterVersionLessThan(ctx, nodeJoinerMinimumSupportedVersion)
+	if err != nil {
+		return err
+	}
+	if notSupported {
+		return fmt.Errorf("the 'oc adm node-image' command is only available for OpenShift versions %s and later", nodeJoinerMinimumSupportedVersion)
+	}
+	return nil
 }
 
 func (c *BaseNodeImageCommand) createNamespace(ctx context.Context) error {
