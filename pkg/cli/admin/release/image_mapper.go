@@ -337,7 +337,7 @@ func ComponentReferencesForImageStream(is *imageapi.ImageStream) (func(string) i
 	}, nil
 }
 
-var componentVersionRe = regexp.MustCompile(`(\W|^)0\.0\.1-snapshot([a-z0-9\-]*)`)
+var componentVersionRe = regexp.MustCompile(`(\W|^)0\.0\.1-snapshot(?:-([a-z0-9-]+)|(\W)|$)`)
 
 // NewComponentVersionsMapper substitutes strings of the form 0.0.1-snapshot with releaseName and strings
 // of the form 0.0.1-snapshot-[component] with the version value located in versions, or returns an error.
@@ -358,44 +358,46 @@ func NewComponentVersionsMapper(releaseName string, versions ComponentVersions, 
 		var conflicts []string
 		data = componentVersionRe.ReplaceAllFunc(data, func(part []byte) []byte {
 			matches := componentVersionRe.FindSubmatch(part)
-			if matches == nil {
-				return part
-			}
-			key := string(matches[2])
-			if len(key) == 0 && len(releaseName) > 0 {
+			prefix := matches[1]
+			// component and suffix are mutually exclusive
+			component := string(matches[2])
+			suffix := string(matches[3])
+
+			withVersion := func(version string) []byte {
 				buf := &bytes.Buffer{}
-				buf.Write(matches[1])
-				buf.WriteString(releaseName)
+				buf.Write(prefix)
+				buf.WriteString(version)
+				// if version includes the component, suffix is empty
+				buf.WriteString(suffix)
 				return buf.Bytes()
 			}
-			if !strings.HasPrefix(key, "-") {
-				return part
-			}
-			key = key[1:]
-			value, ok := versions[key]
-			if !ok {
-				missing = append(missing, key)
-				return part
-			}
-			if len(tagsByName[key]) > 1 {
-				conflicts = append(conflicts, key)
-				return part
-			}
-			buf := &bytes.Buffer{}
-			buf.Write(matches[1])
-			buf.WriteString(value.Version)
-			return buf.Bytes()
-		})
-		if len(missing) > 0 {
-			switch len(missing) {
-			case 1:
-				if len(missing[0]) == 0 {
-					return nil, fmt.Errorf("empty version references are not allowed")
+
+			if component == "" && suffix != "-" {
+				if releaseName != "" {
+					return withVersion(releaseName)
 				}
-				return nil, fmt.Errorf("unknown version reference %q", missing[0])
-			default:
-				return nil, fmt.Errorf("unknown version references: %s", strings.Join(missing, ", "))
+				return part
 			}
+
+			value, ok := versions[component]
+			if !ok {
+				missing = append(missing, component)
+				return part
+			}
+			if len(tagsByName[component]) > 1 {
+				conflicts = append(conflicts, component)
+				return part
+			}
+			return withVersion(value.Version)
+		})
+		switch {
+		case len(missing) == 1 && len(missing[0]) == 0:
+			return nil, fmt.Errorf("empty version references are not allowed")
+		case len(missing) == 1:
+			return nil, fmt.Errorf("unknown version reference %q", missing[0])
+		case len(missing) > 1:
+			return nil, fmt.Errorf("unknown version references: %s", strings.Join(missing, ", "))
+		default:
 		}
 		if len(conflicts) > 0 {
 			allImageTags := tagsByName[conflicts[0]]
