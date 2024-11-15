@@ -67,6 +67,9 @@ var (
 		such case the '--mac-address' is the only mandatory flag - while all the
 		others will be optional (note: any eventual configuration file present
 		will be ignored).
+
+		In case of a command failure a report.json file is automatically created
+		with the error details, and additional troubleshooting information.
 	`)
 
 	createExample = templates.Examples(`
@@ -132,6 +135,8 @@ type CreateOptions struct {
 	OutputName string
 	// GeneratePXEFiles generates files for PXE boot instead of an ISO
 	GeneratePXEFiles bool
+	// GenerateReport allows to save the report in the asset folder
+	GenerateReport bool
 
 	// Simpler interface for creating a single node
 	SingleNodeOpts *singleNodeCreateOptions
@@ -157,6 +162,7 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 	flags.StringVar(&o.AssetsDir, "dir", o.AssetsDir, "The path containing the configuration file, used also to store the generated artifacts.")
 	flags.StringVarP(&o.OutputName, "output-name", "o", "", "The name of the output image.")
 	flags.BoolVarP(&o.GeneratePXEFiles, "pxe", "p", false, "Instead of an ISO, create files that can be used for PXE boot")
+	flags.BoolVarP(&o.GenerateReport, "report", "r", false, "When set, the report.json is always generated in the asset folder")
 
 	flags.StringP(snFlagMacAddress, "m", "", "Single node flag. MAC address used to identify the host to apply the configuration. If specified, the nodes-config.yaml config file will not be used.")
 	usageFmt := "Single node flag. %s. Valid only when `mac-address` is defined."
@@ -310,6 +316,12 @@ func (o *CreateOptions) Run() error {
 	err = o.renameImageIfOutputNameIsSpecified()
 	if err != nil {
 		return err
+	}
+
+	if o.GenerateReport {
+		if err = o.saveReport(); err != nil {
+			return err
+		}
 	}
 
 	o.log("Command successfully completed")
