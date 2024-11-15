@@ -14,7 +14,7 @@ ip-10-0-92-180.us-east-2.compute.internal   Outdated     Pending   4.15.0-ec.1  
 = Worker Upgrade =
 
 WORKER POOL   ASSESSMENT   COMPLETION   STATUS
-worker        Pending      0%           3 Total, 3 Available, 0 Progressing, 3 Outdated, 0 Draining, 0 Excluded, 0 Degraded
+worker        Pending      0% (0/3)     3 Available, 0 Progressing, 0 Draining
 zbeast        Empty                     0 Total
 
 Worker Pool Nodes: worker
