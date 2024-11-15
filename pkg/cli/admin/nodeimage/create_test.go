@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -289,6 +290,7 @@ func TestRun(t *testing.T) {
 
 				AssetsDir:        tc.assetsDir,
 				GeneratePXEFiles: tc.generatePXEFiles,
+				fileWriter:       mockFileWriter{},
 			}
 			// Since the fake registry creates a self-signed cert, let's configure
 			// the command options accordingly
@@ -316,6 +318,12 @@ func TestRun(t *testing.T) {
 			}
 		})
 	}
+}
+
+type mockFileWriter struct{}
+
+func (mockFileWriter) WriteFile(name string, data []byte, perm os.FileMode) error {
+	return nil
 }
 
 // fakeRegistry creates a fake Docker registry configured to serve the minimum

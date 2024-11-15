@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -137,8 +136,9 @@ type CreateOptions struct {
 	// Simpler interface for creating a single node
 	SingleNodeOpts *singleNodeCreateOptions
 
-	report      report
+	report      *report
 	rsyncRshCmd string
+	fileWriter  fileWriter
 }
 
 type singleNodeCreateOptions struct {
@@ -187,8 +187,16 @@ func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	o.copyStrategy = func(o *rsync.RsyncOptions) rsync.CopyStrategy {
 		return rsync.NewDefaultCopyStrategy(o)
 	}
-
+	o.fileWriter = o
 	return o.completeSingleNodeOptions(cmd)
+}
+
+type fileWriter interface {
+	WriteFile(name string, data []byte, perm os.FileMode) error
+}
+
+func (o *CreateOptions) WriteFile(name string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(name, data, perm)
 }
 
 func (o *CreateOptions) completeSingleNodeOptions(cmd *cobra.Command) error {
@@ -283,17 +291,14 @@ func (o *CreateOptions) Run() error {
 	}
 
 	if err = o.waitForCompletion(ctx); err != nil {
-		// Something went wrong during the node-joiner tool execution,
-		// let's show the logs and return an error
-		printErr := o.printLogsInPod(ctx)
-		if printErr != nil {
-			return printErr
-		}
-		o.log("image generation error: %v", err)
-		return kcmdutil.ErrExit
+		// Something went wrong during the node-joiner tool execution
+		o.attachPodLogsToReport(ctx, err)
 	}
 	if o.report.Result.ExitCode != 0 {
 		o.log("command execution failed. Reason: %s", o.report.Result.ErrorMessage)
+		if err = o.saveReport(); err != nil {
+			return err
+		}
 		return kcmdutil.ErrExit
 	}
 
@@ -307,24 +312,43 @@ func (o *CreateOptions) Run() error {
 		return err
 	}
 
-	o.log("Command successfully completed in %00.0fs.", o.report.EndTime.Sub(o.report.StartTime).Seconds())
+	o.log("Command successfully completed")
 	return nil
 }
 
-func (o *CreateOptions) printLogsInPod(ctx context.Context) error {
-	klog.V(2).Info("Printing pod logs")
+func (o *CreateOptions) attachPodLogsToReport(ctx context.Context, err error) {
+	o.log("unexpected error caught while running the command, storing pod logs in report")
+
+	// Create a new report if not already present
+	if o.report == nil {
+		o.report = &report{
+			stageHeader: stageHeader{},
+			Result:      &reportResult{},
+		}
+	}
+
+	detailedErrorMessage := ""
 	logOptions := &corev1.PodLogOptions{
 		Container:  nodeJoinerContainer,
 		Timestamps: true,
 	}
-	readCloser, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).GetLogs(o.nodeJoinerPod.GetName(), logOptions).Stream(ctx)
-	if err != nil {
-		return err
+	readCloser, getLogsErr := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).GetLogs(o.nodeJoinerPod.GetName(), logOptions).Stream(ctx)
+	if getLogsErr != nil {
+		detailedErrorMessage = getLogsErr.Error()
+	} else {
+		defer readCloser.Close()
+		var buf bytes.Buffer
+		_, readErr := buf.ReadFrom(readCloser)
+		if readErr != nil {
+			detailedErrorMessage = readErr.Error()
+		} else {
+			detailedErrorMessage = buf.String()
+		}
 	}
-	defer readCloser.Close()
 
-	_, err = io.Copy(o.IOStreams.ErrOut, readCloser)
-	return err
+	o.report.Result.ExitCode = 1
+	o.report.Result.ErrorMessage = err.Error()
+	o.report.Result.DetailedErrorMessage = detailedErrorMessage
 }
 
 func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
@@ -397,6 +421,15 @@ func (o *CreateOptions) renameImageIfOutputNameIsSpecified() error {
 	return nil
 }
 
+func (o *CreateOptions) saveReport() error {
+	o.log("Saving report file")
+	data, err := json.MarshalIndent(o.report, "", " ")
+	if err != nil {
+		return err
+	}
+	return o.fileWriter.WriteFile(filepath.Join(o.AssetsDir, "report.json"), data, 0644)
+}
+
 func (o *CreateOptions) nodeJoinerPodExec(ctx context.Context, command ...string) ([]byte, error) {
 	w := &bytes.Buffer{}
 	wErr := &bytes.Buffer{}
@@ -405,7 +438,7 @@ func (o *CreateOptions) nodeJoinerPodExec(ctx context.Context, command ...string
 		ctx,
 		time.Second*5,
 		time.Minute*15,
-		false,
+		true,
 		func(ctx context.Context) (done bool, err error) {
 			execOptions := &exec.ExecOptions{
 				StreamOptions: exec.StreamOptions{
@@ -487,7 +520,7 @@ func (o *CreateOptions) monitorExitCodeFile(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	o.report = report{
+	o.report = &report{
 		stageHeader: stageHeader{},
 		Result: &reportResult{
 			ExitCode: exitCode,
@@ -523,38 +556,45 @@ type reportResult struct {
 }
 
 func (o *CreateOptions) monitorWorkflowReport(ctx context.Context) error {
+	var r report
 	shownStages := map[string]bool{}
 
-	for {
-		cmdOutput, err := o.nodeJoinerPodExec(ctx, "cat", "/assets/report.json")
-		if err != nil {
-			return err
-		}
-		var r report
-		if err := json.Unmarshal(cmdOutput, &r); err != nil {
-			return fmt.Errorf("error while parsing the report: %w", err)
-		}
-
-		for _, s := range r.Stages {
-			if _, found := shownStages[s.Identifier]; !found {
-				shownStages[s.Identifier] = true
-				o.log("%s", s.Desc)
+	err := wait.PollUntilContextTimeout(
+		ctx,
+		time.Second*5,
+		time.Minute*15,
+		true,
+		func(ctx context.Context) (done bool, err error) {
+			cmdOutput, err := o.nodeJoinerPodExec(ctx, "cat", "/assets/report.json")
+			if err != nil {
+				return false, err
 			}
-			for _, sub := range s.SubStages {
-				if _, found := shownStages[sub.Identifier]; !found {
-					shownStages[sub.Identifier] = true
-					o.log("  %s", sub.Desc)
+			if err := json.Unmarshal(cmdOutput, &r); err != nil {
+				return false, fmt.Errorf("error while parsing the report: %w", err)
+			}
+
+			for _, s := range r.Stages {
+				if _, found := shownStages[s.Identifier]; !found {
+					shownStages[s.Identifier] = true
+					o.log("%s", s.Desc)
+				}
+				for _, sub := range s.SubStages {
+					if _, found := shownStages[sub.Identifier]; !found {
+						shownStages[sub.Identifier] = true
+						o.log("  %s", sub.Desc)
+					}
 				}
 			}
-		}
 
-		// Wait until the report is mark as completed.
-		if r.EndTime.IsZero() {
-			continue
-		}
-		o.report = r
-		return nil
+			// Wait until the report is mark as completed.
+			return !r.EndTime.IsZero(), nil
+		})
+	if err != nil {
+		return err
 	}
+
+	o.report = &r
+	return nil
 }
 
 func (o *CreateOptions) createConfigFileFromFlags() ([]byte, error) {

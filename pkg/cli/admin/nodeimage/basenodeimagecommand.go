@@ -245,6 +245,7 @@ func (c *BaseNodeImageCommand) waitForRunningPod(ctx context.Context) error {
 		time.Minute*15,
 		true,
 		func(ctx context.Context) (done bool, err error) {
+			klog.V(2).Infof("Waiting for running pod %s/%s", c.nodeJoinerNamespace.GetName(), c.nodeJoinerPod.GetName())
 			pod, err := c.Client.CoreV1().Pods(c.nodeJoinerNamespace.GetName()).Get(context.TODO(), c.nodeJoinerPod.GetName(), metav1.GetOptions{})
 			if err == nil {
 				if len(pod.Status.ContainerStatuses) == 0 {
