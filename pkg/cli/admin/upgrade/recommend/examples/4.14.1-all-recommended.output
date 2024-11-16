@@ -5,6 +5,6 @@ Channel: candidate-4.14 (available channels: candidate-4.14, candidate-4.15, eus
 
 Updates to 4.14:
   VERSION     ISSUES
-  4.14.11     
-  4.14.10     
+  4.14.11     no known issues relevant to this cluster
+  4.14.10     no known issues relevant to this cluster
 And 8 older 4.14 updates you can see with '--show-outdated-releases' or '--version VERSION'.

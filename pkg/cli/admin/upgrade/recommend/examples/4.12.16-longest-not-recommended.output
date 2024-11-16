@@ -23,6 +23,6 @@ And 45 older 4.13 updates you can see with '--show-outdated-releases' or '--vers
 
 Updates to 4.12:
   VERSION     ISSUES
-  4.12.64     
-  4.12.63     
+  4.12.64     no known issues relevant to this cluster
+  4.12.63     no known issues relevant to this cluster
 And 43 older 4.12 updates you can see with '--show-outdated-releases' or '--version VERSION'.

@@ -222,14 +222,14 @@ func (o *options) Run(ctx context.Context) error {
 				if update.Release.Version == o.version.String() {
 					fmt.Fprintln(o.Out)
 					if c := notRecommendedCondition(update); c == nil {
-						fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster.\nImage: %s\nURL: %s\n", update.Release.Version, update.Release.Image, update.Release.URL)
+						fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster.\nImage: %s\nRelease URL: %s\n", update.Release.Version, update.Release.Image, update.Release.URL)
 					} else {
-						fmt.Fprintf(o.Out, "Update to %s %s=%s:\nImage: %s\nURL: %s\nReason: %s\nMessage: %s\n", update.Release.Version, c.Type, c.Status, update.Release.Image, update.Release.URL, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+						fmt.Fprintf(o.Out, "Update to %s %s=%s:\nImage: %s\nRelease URL: %s\nReason: %s\nMessage: %s\n", update.Release.Version, c.Type, c.Status, update.Release.Image, update.Release.URL, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 					}
 					return nil
 				}
 			}
-			return fmt.Errorf("no updates to %d.%d available, so cannot display context for the requested release %s", o.version.Major, o.version.Minor, o.version)
+			return fmt.Errorf("no update to %s available, so cannot display context for the requested release", o.version)
 		}
 	}
 
@@ -281,7 +281,7 @@ func (o *options) Run(ctx context.Context) error {
 					break
 				}
 				if c == nil {
-					fmt.Fprintf(w, "  %s\t\n", update.Release.Version)
+					fmt.Fprintf(w, "  %s\t%s\n", update.Release.Version, "no known issues relevant to this cluster")
 					if !o.showOutdatedReleases {
 						headerQueued = false
 						w.Flush()
