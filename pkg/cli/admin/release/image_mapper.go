@@ -66,7 +66,7 @@ func (p *Payload) Rewrite(allowTags bool, fn func(component string) imagereferen
 			continue
 		}
 		path := filepath.Join(p.path, file.Name())
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
@@ -78,7 +78,7 @@ func (p *Payload) Rewrite(allowTags bool, fn func(component string) imagereferen
 			continue
 		}
 		klog.V(6).Infof("Rewrote\n%s\n\nto\n\n%s\n", string(data), string(out))
-		if err := ioutil.WriteFile(path, out, file.Mode()); err != nil {
+		if err := os.WriteFile(path, out, file.Mode()); err != nil {
 			return err
 		}
 	}
@@ -99,7 +99,7 @@ func (p *Payload) References() (*imageapi.ImageStream, error) {
 }
 
 func parseImageStream(path string) (*imageapi.ImageStream, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return nil, err
 	}
@@ -275,7 +275,7 @@ func NewImageMapper(images map[string]ImageReference) (ManifestMapper, error) {
 			ref := images[name]
 
 			suffix := parts[3]
-			klog.V(2).Infof("found repository %q with locator %q in the input, switching to %q (from pattern %s)", string(repository), string(suffix), ref.TargetPullSpec, pattern)
+			klog.V(2).Infof("found repository %q with locator %q in the input, switching to %q (from pattern %s)", repository, string(suffix), ref.TargetPullSpec, pattern)
 			switch {
 			case len(suffix) == 0:
 				// we found a repository, but no tag or digest (implied latest), or we got an exact match
@@ -335,9 +335,7 @@ func ComponentReferencesForImageStream(is *imageapi.ImageStream) (func(string) i
 	}, nil
 }
 
-const (
-	componentVersionFormat = `([\W]|^)0\.0\.1-snapshot([a-z0-9\-]*)`
-)
+var componentVersionRe = regexp.MustCompile(`(\W|^)0\.0\.1-snapshot([a-z0-9\-]*)`)
 
 // NewComponentVersionsMapper substitutes strings of the form 0.0.1-snapshot with releaseName and strings
 // of the form 0.0.1-snapshot-[component] with the version value located in versions, or returns an error.
@@ -352,17 +350,12 @@ func NewComponentVersionsMapper(releaseName string, versions ComponentVersions, 
 	} else {
 		releaseName = ""
 	}
-	re, err := regexp.Compile(componentVersionFormat)
-	if err != nil {
-		return func([]byte) ([]byte, error) {
-			return nil, fmt.Errorf("component versions mapper regex: %v", err)
-		}
-	}
+
 	return func(data []byte) ([]byte, error) {
 		var missing []string
 		var conflicts []string
-		data = re.ReplaceAllFunc(data, func(part []byte) []byte {
-			matches := re.FindSubmatch(part)
+		data = componentVersionRe.ReplaceAllFunc(data, func(part []byte) []byte {
+			matches := componentVersionRe.FindSubmatch(part)
 			if matches == nil {
 				return part
 			}
@@ -415,7 +408,7 @@ var (
 	// reAllowedVersionKey limits the allowed component name to a strict subset
 	reAllowedVersionKey = regexp.MustCompile(`^[a-z0-9]+[\-a-z0-9]*[a-z0-9]+$`)
 	// reAllowedDisplayNameKey limits the allowed component name to a strict subset
-	reAllowedDisplayNameKey = regexp.MustCompile(`^[a-zA-Z0-9\-\:\s\(\)]+$`)
+	reAllowedDisplayNameKey = regexp.MustCompile(`^[a-zA-Z0-9\-:\s()]+$`)
 )
 
 // ComponentVersion includes the version and optional display name.
@@ -434,7 +427,7 @@ func (v ComponentVersion) String() string {
 // labels removed, but prerelease segments are preserved.
 type ComponentVersions map[string]ComponentVersion
 
-// OrderedKeys returns the keys in this map in lexigraphic order.
+// OrderedKeys returns the keys in this map in lexicographic order.
 func (v ComponentVersions) OrderedKeys() []string {
 	keys := make([]string, 0, len(v))
 	for k := range v {
