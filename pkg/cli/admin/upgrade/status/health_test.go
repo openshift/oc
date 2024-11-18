@@ -261,6 +261,14 @@ func TestShortDuration(t *testing.T) {
 			duration: "0h0m0s",
 			expected: "now",
 		},
+		{
+			duration: "45.000368975s",
+			expected: "45s",
+		},
+		{
+			duration: "2m0.000368975s",
+			expected: "2m",
+		},
 	}
 
 	for _, tc := range testCases {

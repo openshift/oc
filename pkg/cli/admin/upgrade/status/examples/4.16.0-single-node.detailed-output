@@ -1,9 +1,14 @@
 = Control Plane =
 Assessment:      Progressing
 Target Version:  4.17.0-ec.0 (from 4.16.0-0.nightly-2024-08-01-082745)
+Updating:        kube-apiserver
 Completion:      6% (2 operators updated, 1 updating, 30 waiting)
 Duration:        2m54s (Est. Time Remaining: 1h9m)
 Operator Health: 32 Healthy, 1 Available but degraded
+
+Updating Cluster Operators
+NAME             SINCE   REASON          MESSAGE
+kube-apiserver   2m      NodeInstaller   NodeInstallerProgressing: 1 node is at revision 8; 0 nodes have achieved new revision 10
 
 Control Plane Nodes
 NAME                        ASSESSMENT   PHASE     VERSION                              EST   MESSAGE
