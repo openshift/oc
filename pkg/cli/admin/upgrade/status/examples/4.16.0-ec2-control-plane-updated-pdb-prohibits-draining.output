@@ -6,7 +6,7 @@ All control plane nodes successfully updated to 4.16.0-ec.3
 = Worker Upgrade =
 
 WORKER POOL   ASSESSMENT   COMPLETION    STATUS
-worker        Degraded     37% (22/59)   44 Available, 5 Progressing, 12 Draining, 7 Degraded
+worker        Degraded     37% (22/59)   44 Available (23 Outdated), 15 Unavailable (5 Progressing), 5 Progressing, 12 Draining, 7 Degraded
 
 Worker Pool Nodes: worker
 NAME                                      ASSESSMENT    PHASE      VERSION       EST   MESSAGE

@@ -1131,10 +1131,11 @@ func Test_assessMachineConfigPool(t *testing.T) {
 				Assessment: assessmentStateProgressing,
 				Completion: 50,
 				NodesOverview: nodesOverviewDisplayData{
-					Total:       2,
-					Available:   1,
-					Progressing: 1,
-					Outdated:    1,
+					Total:                     2,
+					Available:                 1,
+					Progressing:               1,
+					Outdated:                  1,
+					UnavailableAndProgressing: 1,
 				},
 				Nodes: []nodeDisplayData{
 					{
@@ -1279,10 +1280,11 @@ func Test_assessMachineConfigPool(t *testing.T) {
 				Assessment: assessmentStateExcluded,
 				Completion: 0,
 				NodesOverview: nodesOverviewDisplayData{
-					Total:     1,
-					Available: 1,
-					Excluded:  1,
-					Outdated:  1,
+					Total:                1,
+					Available:            1,
+					Excluded:             1,
+					Outdated:             1,
+					AvailableAndOutdated: 1,
 				},
 				Nodes: []nodeDisplayData{
 					{

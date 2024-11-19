@@ -96,13 +96,15 @@ type nodeDisplayData struct {
 }
 
 type nodesOverviewDisplayData struct {
-	Total       int
-	Available   int
-	Progressing int
-	Outdated    int
-	Draining    int
-	Excluded    int
-	Degraded    int
+	Total                     int
+	Available                 int
+	Progressing               int
+	Outdated                  int
+	Draining                  int
+	Excluded                  int
+	Degraded                  int
+	AvailableAndOutdated      int
+	UnavailableAndProgressing int
 }
 
 type poolDisplayData struct {
@@ -393,6 +395,7 @@ func assessMachineConfigPool(pool mcfgv1.MachineConfigPool, nodes []nodeDisplayD
 	updatedCount := 0
 	pendingCount := 0
 	for _, node := range nodes {
+		outdated, progressing := poolStatusData.NodesOverview.Outdated, poolStatusData.NodesOverview.Progressing
 		if !node.isUnavailable {
 			poolStatusData.NodesOverview.Available++
 		}
@@ -425,6 +428,12 @@ func assessMachineConfigPool(pool mcfgv1.MachineConfigPool, nodes []nodeDisplayD
 			}
 		case phaseStateUpdated:
 			updatedCount++
+		}
+		if !node.isUnavailable && outdated < poolStatusData.NodesOverview.Outdated {
+			poolStatusData.NodesOverview.AvailableAndOutdated++
+		}
+		if node.isUnavailable && progressing < poolStatusData.NodesOverview.Progressing {
+			poolStatusData.NodesOverview.UnavailableAndProgressing++
 		}
 	}
 
@@ -484,7 +493,14 @@ func writePools(w io.Writer, workerPoolsStatusData []poolDisplayData) {
 		} else {
 			_, _ = tabw.Write([]byte(pool.Assessment + "\t"))
 			_, _ = tabw.Write([]byte(fmt.Sprintf("%.0f%% (%d/%d)", pool.Completion, pool.NodesOverview.Total-pool.NodesOverview.Outdated, pool.NodesOverview.Total) + "\t"))
-			status := fmt.Sprintf("%d Available, %d Progressing, %d Draining", pool.NodesOverview.Available, pool.NodesOverview.Progressing, pool.NodesOverview.Draining)
+			status := fmt.Sprintf("%d Available", pool.NodesOverview.Available)
+			if pool.NodesOverview.Total > pool.NodesOverview.Outdated {
+				status = fmt.Sprintf("%s (%d Outdated)", status, pool.NodesOverview.AvailableAndOutdated)
+			}
+			if unavailable := pool.NodesOverview.Total - pool.NodesOverview.Available; unavailable > 0 {
+				status = fmt.Sprintf("%s, %d Unavailable (%d Progressing)", status, unavailable, pool.NodesOverview.UnavailableAndProgressing)
+			}
+			status = fmt.Sprintf("%s, %d Progressing, %d Draining", status, pool.NodesOverview.Progressing, pool.NodesOverview.Draining)
 			for k, v := range map[string]int{"Excluded": pool.NodesOverview.Excluded, "Degraded": pool.NodesOverview.Degraded} {
 				if v > 0 {
 					status = fmt.Sprintf("%s, %d %s", status, v, k)

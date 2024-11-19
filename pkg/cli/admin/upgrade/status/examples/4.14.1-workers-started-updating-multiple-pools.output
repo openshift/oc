@@ -15,8 +15,8 @@ ip-10-0-92-180.us-east-2.compute.internal   Outdated      Pending    4.14.0    ?
 = Worker Upgrade =
 
 WORKER POOL   ASSESSMENT    COMPLETION   STATUS
-worker        Progressing   0% (0/2)     1 Available, 1 Progressing, 1 Draining
-infra         Progressing   0% (0/2)     1 Available, 1 Progressing, 1 Draining
+worker        Progressing   0% (0/2)     1 Available, 1 Unavailable (1 Progressing), 1 Progressing, 1 Draining
+infra         Progressing   0% (0/2)     1 Available, 1 Unavailable (1 Progressing), 1 Progressing, 1 Draining
 
 Worker Pool Nodes: worker
 NAME                                       ASSESSMENT    PHASE      VERSION   EST    MESSAGE
