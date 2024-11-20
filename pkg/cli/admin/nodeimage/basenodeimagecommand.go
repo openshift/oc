@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -64,6 +65,10 @@ func (c *BaseNodeImageCommand) newPrefixWriter(out io.Writer, prefix string) io.
 		for scanner.Scan() {
 			text := scanner.Text()
 			ts := time.Now().UTC().Format(time.RFC3339)
+			// In case of pod logs, capture only the relevant message portion
+			if idx := strings.Index(text, "msg="); idx != -1 {
+				text = text[idx+len("msg="):]
+			}
 			fmt.Fprintf(out, "%s [node-image %s] %s\n", ts, prefix, text)
 		}
 	}()
@@ -238,6 +243,7 @@ func (c *BaseNodeImageCommand) clusterRoleBindings() *rbacv1.ClusterRoleBinding 
 }
 
 func (c *BaseNodeImageCommand) waitForRunningPod(ctx context.Context) error {
+	klog.V(2).Infof("Starting command in pod %s", c.nodeJoinerPod.GetName())
 	// Wait for the node-joiner pod to come up
 	return wait.PollUntilContextTimeout(
 		ctx,

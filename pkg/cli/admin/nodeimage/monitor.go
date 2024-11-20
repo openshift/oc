@@ -93,10 +93,7 @@ func (o *MonitorOptions) AddFlags(cmd *cobra.Command) {
 // NewMonitorOptions creates the options for the monitor command
 func NewMonitorOptions(streams genericiooptions.IOStreams) *MonitorOptions {
 	return &MonitorOptions{
-		BaseNodeImageCommand: BaseNodeImageCommand{
-			IOStreams: streams,
-			command:   monitorCommand,
-		},
+		BaseNodeImageCommand: *newBaseNodeImageCommand(streams, monitorCommand, "monitor"),
 	}
 }
 
@@ -153,33 +150,28 @@ func (o *MonitorOptions) Run() error {
 		o.createRolesAndBindings,
 		o.createPod,
 	}
-
 	err := o.runNodeJoinerPod(ctx, tasks)
 	if err != nil {
 		return err
 	}
 
-	podName := o.nodeJoinerPod.GetName()
-
-	if err := o.waitForRunningPod(ctx); err != nil {
-		klog.Errorf("monitoring did not start: %s", err)
-		return fmt.Errorf("monitoring did not start for pod %s: %s", podName, err)
+	if err := o.waitForCompletion(ctx); err != nil {
+		o.log("command execution failed. Reason: %v", err)
+		return kcmdutil.ErrExit
 	}
 
-	if err := o.waitForMonitoringToComplete(ctx); err != nil {
-		klog.Errorf("monitoring never finished: %v", err)
-		if exiterr, ok := err.(*utilsexec.CodeExitError); ok {
-			return exiterr
-		}
-		return fmt.Errorf("monitoring never finished for pod %s: %s", podName, err)
-	}
-
+	o.log("Command successfully completed")
 	return nil
 }
 
-func (o *MonitorOptions) waitForMonitoringToComplete(ctx context.Context) error {
+func (o *MonitorOptions) waitForCompletion(ctx context.Context) error {
+	// Wait for the node-joiner pod to come up
+	err := o.waitForRunningPod(ctx)
+	if err != nil {
+		return err
+	}
+
 	var pod *corev1.Pod
-	var err error
 	retries := 5
 	for i := 0; i < retries; i++ {
 		pod, err = o.Client.CoreV1().Pods(o.nodeJoinerNamespace.Name).Get(ctx, o.nodeJoinerPod.Name, metav1.GetOptions{})
@@ -203,7 +195,8 @@ func (o *MonitorOptions) waitForMonitoringToComplete(ctx context.Context) error 
 		Object:           pod,
 		ConsumeRequestFn: logs.DefaultConsumeRequest,
 		LogsForObject:    polymorphichelpers.LogsForObjectFn,
-		IOStreams:        genericiooptions.IOStreams{Out: o.Out},
+		IOStreams:        genericiooptions.IOStreams{Out: o.LogOut}, // redirects the pod logs to the base command logging
+		Prefix:           false,                                     // required to avoid additional prefix and to use base command writer
 	}
 
 	return wait.PollUntilContextTimeout(
@@ -302,6 +295,7 @@ func (o *MonitorOptions) createPod(ctx context.Context) error {
 			},
 		},
 	}
+	o.log("Launching command")
 	pod, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).Create(ctx, nodeJoinerPod, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("cannot create pod: %w", err)
