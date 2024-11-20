@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -34,6 +35,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	clientgotesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/remotecommand"
+	utilexec "k8s.io/utils/exec"
 
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	configv1 "github.com/openshift/api/config/v1"
@@ -106,12 +108,26 @@ func strPtr(s string) *string {
 	return &s
 }
 
+func createCmdOutput(t *testing.T, r report) string {
+	t.Helper()
+	out, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
+}
+
 func TestRun(t *testing.T) {
 	ClusterVersion_4_16_ObjectFn := func(repo string, manifestDigest string) []runtime.Object {
 		cvobj := defaultClusterVersionObjectFn(repo, manifestDigest)
 		clusterVersion := cvobj[0].(*configv1.ClusterVersion)
 		clusterVersion.Status.Desired.Version = "4.16.6-x86_64"
-
+		return cvobj
+	}
+	ClusterVersion_4_17_ObjectFn := func(repo string, manifestDigest string) []runtime.Object {
+		cvobj := defaultClusterVersionObjectFn(repo, manifestDigest)
+		clusterVersion := cvobj[0].(*configv1.ClusterVersion)
+		clusterVersion.Status.Desired.Version = "4.17.4-x86_64"
 		return cvobj
 	}
 
@@ -124,6 +140,7 @@ func TestRun(t *testing.T) {
 		objects          func(string, string) []runtime.Object
 		remoteExecOutput string
 
+		expectedErrorCode    int
 		expectedError        string
 		expectedPod          func(t *testing.T, pod *corev1.Pod)
 		expectedRsyncInclude string
@@ -145,18 +162,26 @@ func TestRun(t *testing.T) {
 			expectedRsyncInclude: "boot-artifacts/*",
 		},
 		{
-			name:             "node-joiner tool failure",
-			nodesConfig:      defaultNodesConfigYaml,
-			objects:          defaultClusterVersionObjectFn,
-			remoteExecOutput: "1",
-			expectedError:    `image generation error: <nil> (exit code: 1)`,
+			name:        "node-joiner tool failure",
+			nodesConfig: defaultNodesConfigYaml,
+			objects:     defaultClusterVersionObjectFn,
+			remoteExecOutput: createCmdOutput(t, report{
+				stageHeader: stageHeader{
+					EndTime: time.Date(2024, 11, 14, 0, 0, 0, 0, time.UTC),
+				},
+				Result: &reportResult{
+					ExitCode:     127,
+					ErrorMessage: "Some error message",
+				},
+			}),
+			expectedErrorCode: 1,
+			expectedError:     `exit`,
 		},
 		{
-			name:             "node-joiner unsupported prior to 4.17",
-			nodesConfig:      defaultNodesConfigYaml,
-			objects:          ClusterVersion_4_16_ObjectFn,
-			remoteExecOutput: "1",
-			expectedError:    fmt.Sprintf("the 'oc adm node-image' command is only available for OpenShift versions %s and later", nodeJoinerMinimumSupportedVersion),
+			name:          "node-joiner unsupported prior to 4.17",
+			nodesConfig:   defaultNodesConfigYaml,
+			objects:       ClusterVersion_4_16_ObjectFn,
+			expectedError: fmt.Sprintf("the 'oc adm node-image' command is only available for OpenShift versions %s and later", nodeJoinerMinimumSupportedVersion),
 		},
 		{
 			name:          "missing cluster connection",
@@ -204,6 +229,12 @@ func TestRun(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:             "basic report for ocp < 4.18",
+			nodesConfig:      defaultNodesConfigYaml,
+			objects:          ClusterVersion_4_17_ObjectFn,
+			remoteExecOutput: "0",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -223,11 +254,22 @@ func TestRun(t *testing.T) {
 				objs = tc.objects(fakeReg.URL()[len("https://"):], fakeReg.fakeManifestDigest)
 			}
 
+			fakeRemoteExec.execOut = createCmdOutput(t, report{
+				stageHeader: stageHeader{
+					Identifier: "report-test",
+					EndTime:    time.Date(2024, 11, 14, 0, 0, 0, 0, time.UTC),
+				},
+				Result: &reportResult{
+					ExitCode: 0,
+				},
+			})
 			if tc.remoteExecOutput != "" {
 				fakeRemoteExec.execOut = tc.remoteExecOutput
 			}
 			// Create another fake for the copy action
 			fakeCp := &fakeCopier{}
+
+			var logBuffer bytes.Buffer
 
 			// Prepare the command options with all the fakes
 			o := &CreateOptions{
@@ -238,6 +280,7 @@ func TestRun(t *testing.T) {
 					Client:         fakeClient,
 					Config:         fakeRestConfig,
 					remoteExecutor: fakeRemoteExec,
+					LogOut:         &logBuffer,
 				},
 				FSys: fakeFileSystem,
 				copyStrategy: func(o *rsync.RsyncOptions) rsync.CopyStrategy {
@@ -247,13 +290,14 @@ func TestRun(t *testing.T) {
 
 				AssetsDir:        tc.assetsDir,
 				GeneratePXEFiles: tc.generatePXEFiles,
+				fileWriter:       mockFileWriter{},
 			}
 			// Since the fake registry creates a self-signed cert, let's configure
 			// the command options accordingly
 			o.SecurityOptions.Insecure = true
 
 			err := o.Run()
-			assertContainerImageAndErrors(t, err, fakeReg, fakeClient, tc.expectedError, nodeJoinerContainer)
+			assertContainerImageAndErrors(t, err, fakeReg, fakeClient, tc.expectedErrorCode, tc.expectedError, nodeJoinerContainer)
 
 			// Perform additional checks on the generated node-joiner pod
 			if tc.expectedPod != nil {
@@ -274,6 +318,12 @@ func TestRun(t *testing.T) {
 			}
 		})
 	}
+}
+
+type mockFileWriter struct{}
+
+func (mockFileWriter) WriteFile(name string, data []byte, perm os.FileMode) error {
+	return nil
 }
 
 // fakeRegistry creates a fake Docker registry configured to serve the minimum
@@ -546,7 +596,7 @@ func getTestPod(fakeClient *fake.Clientset, podName string) *corev1.Pod {
 	return pod
 }
 
-func assertContainerImageAndErrors(t *testing.T, runErr error, fakeReg *fakeRegistry, fakeClient *fake.Clientset, expectedError, podName string) {
+func assertContainerImageAndErrors(t *testing.T, runErr error, fakeReg *fakeRegistry, fakeClient *fake.Clientset, expectedErrorCode int, expectedError, podName string) {
 	if expectedError == "" {
 		if runErr != nil {
 			t.Fatalf("unexpected error: %v", runErr)
@@ -561,8 +611,13 @@ func assertContainerImageAndErrors(t *testing.T, runErr error, fakeReg *fakeRegi
 		if runErr == nil {
 			t.Fatalf("expected error not received: %s", expectedError)
 		}
-		if !strings.Contains(runErr.Error(), expectedError) {
-			t.Fatalf("expected error: %s, actual: %v", expectedError, runErr.Error())
+		if codeExitErr, ok := runErr.(utilexec.CodeExitError); ok {
+			if codeExitErr.Code != expectedErrorCode {
+				t.Fatalf("expected error code: %d, actual: %d", expectedErrorCode, codeExitErr.Code)
+			}
+		}
+		if runErr.Error() != expectedError {
+			t.Fatalf("expected error: %s, actual: %s", expectedError, runErr.Error())
 		}
 	}
 }

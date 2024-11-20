@@ -146,6 +146,7 @@ func (o *MonitorOptions) Run() error {
 	defer o.cleanup(ctx)
 
 	tasks := []func(context.Context) error{
+		o.checkMinSupportedVersion,
 		o.getNodeJoinerPullSpec,
 		o.createNamespace,
 		o.createServiceAccount,
@@ -160,7 +161,7 @@ func (o *MonitorOptions) Run() error {
 
 	podName := o.nodeJoinerPod.GetName()
 
-	if err := o.waitForContainerRunning(ctx); err != nil {
+	if err := o.waitForRunningPod(ctx); err != nil {
 		klog.Errorf("monitoring did not start: %s", err)
 		return fmt.Errorf("monitoring did not start for pod %s: %s", podName, err)
 	}

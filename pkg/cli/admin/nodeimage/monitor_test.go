@@ -123,7 +123,7 @@ func TestMonitorRun(t *testing.T) {
 			o.SecurityOptions.Insecure = true
 
 			err := o.Run()
-			assertContainerImageAndErrors(t, err, fakeReg, fakeClient, tc.expectedError, nodeJoinerMonitorContainer)
+			assertContainerImageAndErrors(t, err, fakeReg, fakeClient, -1, tc.expectedError, nodeJoinerMonitorContainer)
 			if tc.expectedError == "" {
 				if fakeLogContent != logContents.String() {
 					t.Errorf("expected %v, actual %v", fakeLogContent, logContents.String())

@@ -3,41 +3,31 @@ package nodeimage
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	flag "github.com/spf13/pflag"
 	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	kutils "k8s.io/client-go/util/exec"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 	"sigs.k8s.io/yaml"
 
-	configclient "github.com/openshift/client-go/config/clientset/versioned"
-	"github.com/openshift/library-go/pkg/operator/resource/retry"
-	ocrelease "github.com/openshift/oc/pkg/cli/admin/release"
-	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/rsync"
 )
 
@@ -77,6 +67,9 @@ var (
 		such case the '--mac-address' is the only mandatory flag - while all the
 		others will be optional (note: any eventual configuration file present
 		will be ignored).
+
+		In case of a command failure a report.json file is automatically created
+		with the error details, and additional troubleshooting information.
 	`)
 
 	createExample = templates.Examples(`
@@ -125,10 +118,7 @@ func NewCreate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Co
 // NewCreateOptions creates the options for the create command
 func NewCreateOptions(streams genericiooptions.IOStreams) *CreateOptions {
 	return &CreateOptions{
-		BaseNodeImageCommand: BaseNodeImageCommand{
-			IOStreams: streams,
-			command:   createCommand,
-		},
+		BaseNodeImageCommand: *newBaseNodeImageCommand(streams, createCommand, "create"),
 	}
 }
 
@@ -145,12 +135,15 @@ type CreateOptions struct {
 	OutputName string
 	// GeneratePXEFiles generates files for PXE boot instead of an ISO
 	GeneratePXEFiles bool
+	// GenerateReport allows to save the report in the asset folder
+	GenerateReport bool
 
 	// Simpler interface for creating a single node
 	SingleNodeOpts *singleNodeCreateOptions
 
-	nodeJoinerExitCode int
-	rsyncRshCmd        string
+	report      *report
+	rsyncRshCmd string
+	fileWriter  fileWriter
 }
 
 type singleNodeCreateOptions struct {
@@ -169,6 +162,7 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 	flags.StringVar(&o.AssetsDir, "dir", o.AssetsDir, "The path containing the configuration file, used also to store the generated artifacts.")
 	flags.StringVarP(&o.OutputName, "output-name", "o", "", "The name of the output image.")
 	flags.BoolVarP(&o.GeneratePXEFiles, "pxe", "p", false, "Instead of an ISO, create files that can be used for PXE boot")
+	flags.BoolVarP(&o.GenerateReport, "report", "r", false, "When set, the report.json is always generated in the asset folder")
 
 	flags.StringP(snFlagMacAddress, "m", "", "Single node flag. MAC address used to identify the host to apply the configuration. If specified, the nodes-config.yaml config file will not be used.")
 	usageFmt := "Single node flag. %s. Valid only when `mac-address` is defined."
@@ -199,8 +193,16 @@ func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	o.copyStrategy = func(o *rsync.RsyncOptions) rsync.CopyStrategy {
 		return rsync.NewDefaultCopyStrategy(o)
 	}
-
+	o.fileWriter = o
 	return o.completeSingleNodeOptions(cmd)
+}
+
+type fileWriter interface {
+	WriteFile(name string, data []byte, perm os.FileMode) error
+}
+
+func (o *CreateOptions) WriteFile(name string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(name, data, perm)
 }
 
 func (o *CreateOptions) completeSingleNodeOptions(cmd *cobra.Command) error {
@@ -281,6 +283,7 @@ func (o *CreateOptions) Run() error {
 	defer o.cleanup(ctx)
 
 	tasks := []func(context.Context) error{
+		o.checkMinSupportedVersion,
 		o.getNodeJoinerPullSpec,
 		o.createNamespace,
 		o.createServiceAccount,
@@ -293,15 +296,16 @@ func (o *CreateOptions) Run() error {
 		return err
 	}
 
-	err = o.waitForCompletion(ctx)
-	// Something went wrong during the node-joiner tool execution,
-	// let's show the logs and return an error
-	if err != nil || o.nodeJoinerExitCode != 0 {
-		printErr := o.printLogsInPod(ctx)
-		if printErr != nil {
-			return printErr
+	if err = o.waitForCompletion(ctx); err != nil {
+		// Something went wrong during the node-joiner tool execution
+		o.attachPodLogsToReport(ctx, err)
+	}
+	if o.report.Result.ExitCode != 0 {
+		o.log("command execution failed. Reason: %s", o.report.Result.ErrorMessage)
+		if err = o.saveReport(); err != nil {
+			return err
 		}
-		return fmt.Errorf("image generation error: %v (exit code: %d)", err, o.nodeJoinerExitCode)
+		return kcmdutil.ErrExit
 	}
 
 	err = o.copyArtifactsFromNodeJoinerPod()
@@ -314,28 +318,53 @@ func (o *CreateOptions) Run() error {
 		return err
 	}
 
-	klog.V(1).Info("Command successfully completed")
+	if o.GenerateReport {
+		if err = o.saveReport(); err != nil {
+			return err
+		}
+	}
+
+	o.log("Command successfully completed")
 	return nil
 }
 
-func (o *CreateOptions) printLogsInPod(ctx context.Context) error {
-	klog.V(1).Info("Printing pod logs")
+func (o *CreateOptions) attachPodLogsToReport(ctx context.Context, err error) {
+	o.log("unexpected error caught while running the command, storing pod logs in report")
+
+	// Create a new report if not already present
+	if o.report == nil {
+		o.report = &report{
+			stageHeader: stageHeader{},
+			Result:      &reportResult{},
+		}
+	}
+
+	detailedErrorMessage := ""
 	logOptions := &corev1.PodLogOptions{
 		Container:  nodeJoinerContainer,
 		Timestamps: true,
 	}
-	readCloser, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).GetLogs(o.nodeJoinerPod.GetName(), logOptions).Stream(ctx)
-	if err != nil {
-		return err
+	readCloser, getLogsErr := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).GetLogs(o.nodeJoinerPod.GetName(), logOptions).Stream(ctx)
+	if getLogsErr != nil {
+		detailedErrorMessage = getLogsErr.Error()
+	} else {
+		defer readCloser.Close()
+		var buf bytes.Buffer
+		_, readErr := buf.ReadFrom(readCloser)
+		if readErr != nil {
+			detailedErrorMessage = readErr.Error()
+		} else {
+			detailedErrorMessage = buf.String()
+		}
 	}
-	defer readCloser.Close()
 
-	_, err = io.Copy(o.IOStreams.ErrOut, readCloser)
-	return err
+	o.report.Result.ExitCode = 1
+	o.report.Result.ErrorMessage = err.Error()
+	o.report.Result.DetailedErrorMessage = detailedErrorMessage
 }
 
 func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
-	klog.V(2).Infof("Copying artifacts from %s", o.nodeJoinerPod.GetName())
+	logMessage := "Saving ISO image to %s"
 	rsyncOptions := &rsync.RsyncOptions{
 		Namespace:     o.nodeJoinerNamespace.GetName(),
 		Source:        &rsync.PathSpec{PodName: o.nodeJoinerPod.GetName(), Path: "/assets/"},
@@ -353,8 +382,10 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 	if o.GeneratePXEFiles {
 		rsyncOptions.RsyncInclude = []string{"boot-artifacts/*"}
 		rsyncOptions.RsyncExclude = []string{}
+		logMessage = "Saving PXE artifacts to %s"
 	}
 	rsyncOptions.Strategy = o.copyStrategy(rsyncOptions)
+	o.log(logMessage, o.AssetsDir)
 	return rsyncOptions.RunRsync()
 }
 
@@ -402,24 +433,25 @@ func (o *CreateOptions) renameImageIfOutputNameIsSpecified() error {
 	return nil
 }
 
-func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
-	klog.V(2).Infof("Starting command in pod %s", o.nodeJoinerPod.GetName())
-	// Wait for the node-joiner pod to come up
-	err := o.waitForContainerRunning(ctx)
+func (o *CreateOptions) saveReport() error {
+	o.log("Saving report file")
+	data, err := json.MarshalIndent(o.report, "", " ")
 	if err != nil {
 		return err
 	}
+	return o.fileWriter.WriteFile(filepath.Join(o.AssetsDir, "report.json"), data, 0644)
+}
 
-	// Wait for the node-joiner cli tool to complete
-	return wait.PollUntilContextTimeout(
+func (o *CreateOptions) nodeJoinerPodExec(ctx context.Context, command ...string) ([]byte, error) {
+	w := &bytes.Buffer{}
+	wErr := &bytes.Buffer{}
+
+	err := wait.PollUntilContextTimeout(
 		ctx,
 		time.Second*5,
 		time.Minute*15,
 		true,
 		func(ctx context.Context) (done bool, err error) {
-			w := &bytes.Buffer{}
-			wErr := &bytes.Buffer{}
-
 			execOptions := &exec.ExecOptions{
 				StreamOptions: exec.StreamOptions{
 					Namespace:     o.nodeJoinerNamespace.GetName(),
@@ -436,9 +468,7 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 				Executor:  o.remoteExecutor,
 				PodClient: o.Client.CoreV1(),
 				Config:    o.Config,
-				Command: []string{
-					"cat", "/assets/exit_code",
-				},
+				Command:   command,
 			}
 
 			err = execOptions.Validate()
@@ -446,7 +476,7 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 				return false, err
 			}
 
-			klog.V(1).Info("Image generation in progress, please wait")
+			klog.V(2).Infof("Running command on pod %s/%s: %v", o.nodeJoinerNamespace.GetName(), o.nodeJoinerPod.GetName(), command)
 			err = execOptions.Run()
 			if err != nil {
 				var codeExitErr kutils.CodeExitError
@@ -459,13 +489,124 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 				return false, nil
 			}
 
-			// Extract node-joiner tool exit code on completion
-			o.nodeJoinerExitCode, err = strconv.Atoi(w.String())
+			return true, nil
+		})
+
+	if err != nil {
+		return nil, fmt.Errorf("error caught while executing remote command: %w. Error output: %s", err, wErr.String())
+	}
+
+	klog.V(2).Infof("Remote command output: %s. Error output: %s", w.String(), wErr.String())
+	return w.Bytes(), nil
+}
+
+func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
+	klog.V(2).Infof("Starting command in pod %s", o.nodeJoinerPod.GetName())
+	// Wait for the node-joiner pod to come up
+	err := o.waitForRunningPod(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Prior than version 4.18, node-joiner tool generated only an
+	// exit_code file on command completion, to signal it was done and
+	// to provide the exit result.
+	useOnlyExitCodeFile, err := o.isClusterVersionLessThan(ctx, "4.18")
+	if err != nil {
+		return err
+	}
+	if useOnlyExitCodeFile {
+		return o.monitorExitCodeFile(ctx)
+	}
+	return o.monitorWorkflowReport(ctx)
+}
+
+func (o *CreateOptions) monitorExitCodeFile(ctx context.Context) error {
+	cmdOutput, err := o.nodeJoinerPodExec(ctx, "cat", "/assets/exit_code")
+	if err != nil {
+		return err
+	}
+
+	// Extract node-joiner tool exit code on completion
+	exitCode, err := strconv.Atoi(string(cmdOutput))
+	if err != nil {
+		return err
+	}
+	o.report = &report{
+		stageHeader: stageHeader{},
+		Result: &reportResult{
+			ExitCode: exitCode,
+		},
+	}
+
+	return nil
+}
+
+type report struct {
+	stageHeader
+	Stages []*stage      `json:"stages,omitempty"`
+	Result *reportResult `json:"result"`
+}
+
+type stageHeader struct {
+	Identifier string    `json:"id"`
+	Desc       string    `json:"description,omitempty"`
+	StartTime  time.Time `json:"start_time"`
+	EndTime    time.Time `json:"end_time"`
+}
+
+type stage struct {
+	stageHeader
+	Result    string   `json:"result,omitempty"`
+	SubStages []*stage `json:"sub_stages,omitempty"`
+}
+
+type reportResult struct {
+	ExitCode             int    `json:"exit_code"`
+	ErrorMessage         string `json:"error_message,omitempty"`
+	DetailedErrorMessage string `json:"detailed_error_message,omitempty"`
+}
+
+func (o *CreateOptions) monitorWorkflowReport(ctx context.Context) error {
+	var r report
+	shownStages := map[string]bool{}
+
+	err := wait.PollUntilContextTimeout(
+		ctx,
+		time.Second*5,
+		time.Minute*15,
+		true,
+		func(ctx context.Context) (done bool, err error) {
+			cmdOutput, err := o.nodeJoinerPodExec(ctx, "cat", "/assets/report.json")
 			if err != nil {
 				return false, err
 			}
-			return true, nil
+			if err := json.Unmarshal(cmdOutput, &r); err != nil {
+				return false, fmt.Errorf("error while parsing the report: %w", err)
+			}
+
+			for _, s := range r.Stages {
+				if _, found := shownStages[s.Identifier]; !found {
+					shownStages[s.Identifier] = true
+					o.log("%s", s.Desc)
+				}
+				for _, sub := range s.SubStages {
+					if _, found := shownStages[sub.Identifier]; !found {
+						shownStages[sub.Identifier] = true
+						o.log("  %s", sub.Desc)
+					}
+				}
+			}
+
+			// Wait until the report is mark as completed.
+			return !r.EndTime.IsZero(), nil
 		})
+	if err != nil {
+		return err
+	}
+
+	o.report = &r
+	return nil
 }
 
 func (o *CreateOptions) createConfigFileFromFlags() ([]byte, error) {
@@ -625,6 +766,7 @@ func (o *CreateOptions) createPod(ctx context.Context) error {
 		return err
 	}
 
+	o.log("Launching command")
 	pod, err := o.Client.CoreV1().Pods(o.nodeJoinerNamespace.GetName()).Create(ctx, nodeJoinerPod, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("cannot create pod: %w", err)
@@ -656,326 +798,6 @@ func (o *CreateOptions) configurePodProxySetting(ctx context.Context, pod *corev
 
 	for i := range pod.Spec.Containers {
 		pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, proxyVars...)
-	}
-	return nil
-}
-
-type BaseNodeImageCommand struct {
-	genericiooptions.IOStreams
-	SecurityOptions imagemanifest.SecurityOptions
-
-	Config                   *rest.Config
-	remoteExecutor           exec.RemoteExecutor
-	ConfigClient             configclient.Interface
-	Client                   kubernetes.Interface
-	nodeJoinerImage          string
-	nodeJoinerNamespace      *corev1.Namespace
-	nodeJoinerServiceAccount *corev1.ServiceAccount
-	nodeJoinerRole           *rbacv1.ClusterRole
-	RESTClientGetter         genericclioptions.RESTClientGetter
-	nodeJoinerPod            *corev1.Pod
-	command                  string
-}
-
-func (c *BaseNodeImageCommand) getNodeJoinerPullSpec(ctx context.Context) error {
-	// Get the current cluster release version.
-	releaseImage, err := c.fetchClusterReleaseImage(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Extract the baremetal-installer image pullspec, since it
-	// provide the node-joiner tool.
-	opts := ocrelease.NewInfoOptions(c.IOStreams)
-	opts.SecurityOptions = c.SecurityOptions
-	release, err := opts.LoadReleaseInfo(releaseImage, false)
-	if err != nil {
-		return err
-	}
-
-	tagName := "baremetal-installer"
-	for _, tag := range release.References.Spec.Tags {
-		if tag.Name == tagName {
-			c.nodeJoinerImage = tag.From.Name
-			return nil
-		}
-	}
-
-	return fmt.Errorf("no image tag %q exists in the release image %s", tagName, releaseImage)
-}
-
-func (c *BaseNodeImageCommand) fetchClusterReleaseImage(ctx context.Context) (string, error) {
-	cv, err := c.ConfigClient.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
-	if err != nil {
-		if kapierrors.IsNotFound(err) || kapierrors.ReasonForError(err) == metav1.StatusReasonUnknown {
-			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
-			return "", fmt.Errorf("command expects a connection to an OpenShift 4.x server")
-		}
-	}
-	// Adds a guardrail for node-image commands which is supported only for Openshift version 4.17 and later
-	currentVersion := cv.Status.Desired.Version
-	matches := regexp.MustCompile(`^(\d+[.]\d+)[.].*`).FindStringSubmatch(currentVersion)
-	if len(matches) < 2 {
-		return "", fmt.Errorf("failed to parse major.minor version from ClusterVersion status.desired.version %q", currentVersion)
-	} else if matches[1] < nodeJoinerMinimumSupportedVersion {
-		return "", fmt.Errorf("the 'oc adm node-image' command is only available for OpenShift versions %s and later", nodeJoinerMinimumSupportedVersion)
-	}
-	image := cv.Status.Desired.Image
-	if len(image) == 0 && cv.Spec.DesiredUpdate != nil {
-		image = cv.Spec.DesiredUpdate.Image
-	}
-	if len(image) == 0 {
-		return "", fmt.Errorf("the server is not reporting a release image at this time")
-	}
-
-	return image, nil
-}
-
-func (c *BaseNodeImageCommand) createNamespace(ctx context.Context) error {
-	nsNodeJoiner := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "openshift-node-joiner-",
-			Annotations: map[string]string{
-				"oc.openshift.io/command":    c.command,
-				"openshift.io/node-selector": "",
-			},
-		},
-	}
-
-	ns, err := c.Client.CoreV1().Namespaces().Create(ctx, nsNodeJoiner, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot create namespace: %w", err)
-	}
-
-	c.nodeJoinerNamespace = ns
-	return nil
-}
-
-func (c *BaseNodeImageCommand) cleanup(ctx context.Context) {
-	if c.nodeJoinerNamespace == nil {
-		return
-	}
-
-	err := c.Client.CoreV1().Namespaces().Delete(ctx, c.nodeJoinerNamespace.GetName(), metav1.DeleteOptions{})
-	if err != nil {
-		klog.Errorf("cannot delete namespace %s: %v\n", c.nodeJoinerNamespace.GetName(), err)
-	}
-}
-
-func (c *BaseNodeImageCommand) createServiceAccount(ctx context.Context) error {
-	nodeJoinerServiceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "node-joiner-",
-			Annotations: map[string]string{
-				"oc.openshift.io/command": c.command,
-			},
-			Namespace: c.nodeJoinerNamespace.GetName(),
-		},
-	}
-
-	sa, err := c.Client.CoreV1().ServiceAccounts(c.nodeJoinerNamespace.GetName()).Create(ctx, nodeJoinerServiceAccount, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot create service account: %w", err)
-	}
-
-	c.nodeJoinerServiceAccount = sa
-	return nil
-}
-
-func (c *BaseNodeImageCommand) clusterRoleBindings() *rbacv1.ClusterRoleBinding {
-	return &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "node-joiner-monitor-",
-			Annotations: map[string]string{
-				"oc.openshift.io/command": c.command,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "v1",
-					Kind:       "Namespace",
-					Name:       c.nodeJoinerNamespace.GetName(),
-					UID:        c.nodeJoinerNamespace.GetUID(),
-				},
-			},
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      c.nodeJoinerServiceAccount.GetName(),
-				Namespace: c.nodeJoinerNamespace.GetName(),
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     c.nodeJoinerRole.GetName(),
-		},
-	}
-}
-
-func (c *BaseNodeImageCommand) waitForContainerRunning(ctx context.Context) error {
-	// Wait for the node-joiner pod to come up
-	return wait.PollUntilContextTimeout(
-		ctx,
-		time.Second*5,
-		time.Minute*15,
-		true,
-		func(ctx context.Context) (done bool, err error) {
-			pod, err := c.Client.CoreV1().Pods(c.nodeJoinerNamespace.GetName()).Get(context.TODO(), c.nodeJoinerPod.GetName(), metav1.GetOptions{})
-			if err == nil {
-				klog.V(2).Info("Waiting for pod")
-				if len(pod.Status.ContainerStatuses) == 0 {
-					return false, nil
-				}
-				state := pod.Status.ContainerStatuses[0].State
-				if state.Waiting != nil {
-					switch state.Waiting.Reason {
-					case "InvalidImageName":
-						return true, fmt.Errorf("unable to pull image: %v: %v", state.Waiting.Reason, state.Waiting.Message)
-					case "ErrImagePull", "ImagePullBackOff":
-						klog.V(2).Infof("Unable to pull image (%s), retrying", state.Waiting.Reason)
-						return false, nil
-					}
-				}
-				return state.Running != nil || state.Terminated != nil, nil
-			}
-			if retry.IsHTTPClientError(err) {
-				return false, nil
-			}
-			return false, err
-		})
-}
-
-func (c *BaseNodeImageCommand) createRolesAndBindings(ctx context.Context) error {
-	nodeJoinerRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "node-joiner-",
-			Annotations: map[string]string{
-				"oc.openshift.io/command": c.command,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "v1",
-					Kind:       "Namespace",
-					Name:       c.nodeJoinerNamespace.GetName(),
-					UID:        c.nodeJoinerNamespace.GetUID(),
-				},
-			},
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{
-					"config.openshift.io",
-				},
-				Resources: []string{
-					"clusterversions",
-					"infrastructures",
-					"proxies",
-					"imagedigestmirrorsets",
-					"imagecontentpolicies",
-				},
-				Verbs: []string{
-					"get",
-					"list",
-				},
-			},
-			{
-				APIGroups: []string{
-					"machineconfiguration.openshift.io",
-				},
-				Resources: []string{
-					"machineconfigs",
-				},
-				Verbs: []string{
-					"get",
-					"list",
-				},
-			},
-			{
-				APIGroups: []string{
-					"certificates.k8s.io",
-				},
-				Resources: []string{
-					"certificatesigningrequests",
-				},
-				Verbs: []string{
-					"get",
-					"list",
-				},
-			},
-			{
-				APIGroups: []string{
-					"",
-				},
-				Resources: []string{
-					"configmaps",
-					"nodes",
-					"pods",
-					"nodes",
-				},
-				Verbs: []string{
-					"get",
-					"list",
-				},
-			},
-			{
-				APIGroups: []string{
-					"",
-				},
-				Resources: []string{
-					"secrets",
-				},
-				Verbs: []string{
-					"get",
-					"list",
-					"create",
-					"update",
-				},
-			},
-		},
-	}
-	cr, err := c.Client.RbacV1().ClusterRoles().Create(ctx, nodeJoinerRole, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot create role: %w", err)
-	}
-	c.nodeJoinerRole = cr
-
-	_, err = c.Client.RbacV1().ClusterRoleBindings().Create(ctx, c.clusterRoleBindings(), metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("cannot create role binding: %w", err)
-	}
-
-	return nil
-}
-
-func (c *BaseNodeImageCommand) baseComplete(f genericclioptions.RESTClientGetter) error {
-	c.RESTClientGetter = f
-
-	var err error
-	if c.Config, err = f.ToRESTConfig(); err != nil {
-		return err
-	}
-	if c.Client, err = kubernetes.NewForConfig(c.Config); err != nil {
-		return err
-	}
-	if c.ConfigClient, err = configclient.NewForConfig(c.Config); err != nil {
-		return err
-	}
-	c.remoteExecutor = &exec.DefaultRemoteExecutor{}
-	return nil
-}
-
-func (c *BaseNodeImageCommand) addBaseFlags(cmd *cobra.Command) *flag.FlagSet {
-	f := cmd.Flags()
-	c.SecurityOptions.Bind(f)
-	return f
-}
-
-func (o *BaseNodeImageCommand) runNodeJoinerPod(ctx context.Context, tasks []func(context.Context) error) error {
-	for _, task := range tasks {
-		if err := task(ctx); err != nil {
-			return err
-		}
 	}
 	return nil
 }
