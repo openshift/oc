@@ -75,7 +75,6 @@ type InspectOptions struct {
 	rotatedPodLogs bool
 	sinceInt       int64
 	sinceTimestamp metav1.Time
-	nodeSelector   string
 
 	// directory where all gathered data will be stored
 	DestDir string
@@ -92,11 +91,10 @@ func NewInspectOptions(streams genericiooptions.IOStreams) *InspectOptions {
 		printFlags.JSONYamlPrintFlags.ShowManagedFields = true
 	}
 	return &InspectOptions{
-		printFlags:   printFlags,
-		configFlags:  genericclioptions.NewConfigFlags(true),
-		nodeSelector: "node-role.kubernetes.io/control-plane",
-		overwrite:    true,
-		IOStreams:    streams,
+		printFlags:  printFlags,
+		configFlags: genericclioptions.NewConfigFlags(true),
+		overwrite:   true,
+		IOStreams:   streams,
 	}
 }
 
@@ -119,7 +117,6 @@ func NewCmdInspect(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 	cmd.Flags().StringVar(&o.sinceTime, "since-time", o.sinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Only one of since-time / since may be used.")
 	cmd.Flags().DurationVar(&o.since, "since", o.since, "Only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Only one of since-time / since may be used.")
-	cmd.Flags().StringVar(&o.nodeSelector, "node-selector", o.nodeSelector, "Set a specific node selector to use - only relevant for the daemonset pods. If the cluster's worker node count is less than or equal to 18, this flag will be ignored and every daemonset pod in all nodes will be collected.")
 	cmd.Flags().BoolVar(&o.rotatedPodLogs, "rotated-pod-logs", o.rotatedPodLogs, "Experimental: If present, retrieve rotated log files that are available for selected pods. This can significantly increase the collected logs size. since/since-time will be matched against the date in the log file name.")
 
 	// The rotated-pod-logs option should be removed once support for retrieving rotated logs is added to kubelet
