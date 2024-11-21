@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 
@@ -75,6 +77,7 @@ type options struct {
 	CoreClient          corev1client.CoreV1Interface
 	MachineConfigClient machineconfigv1client.Interface
 	RouteClient         routev1client.RouteV1Interface
+	AppsClient          appsv1client.AppsV1Interface
 	getAlerts           func(ctx context.Context) ([]byte, error)
 }
 
@@ -98,6 +101,7 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		o.mockData.machineConfigsPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-mc.yaml", 1)
 		o.mockData.nodesPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-node.yaml", 1)
 		o.mockData.alertsPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-alerts.json", 1)
+		o.mockData.mcoDeploymentPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-mco-deployment.yaml", 1)
 	}
 
 	if o.mockData.cvPath == "" {
@@ -130,6 +134,13 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		routeGetter := func(ctx context.Context, namespace string, name string, opts metav1.GetOptions) (*routev1.Route, error) {
 			return routeClient.Routes(namespace).Get(ctx, name, opts)
 		}
+
+		appsClient, err := appsv1client.NewForConfig(cfg)
+		if err != nil {
+			return err
+		}
+		o.AppsClient = appsClient
+
 		o.getAlerts = func(ctx context.Context) ([]byte, error) {
 			return inspectalerts.GetAlerts(ctx, routeGetter, cfg.BearerToken)
 		}
@@ -228,6 +239,15 @@ func (o *options) Run(ctx context.Context) error {
 		}
 	}
 
+	var mcoDeployment *appsv1.Deployment
+	if mcoDeployment = o.mockData.mcoDeployment; mcoDeployment == nil && o.AppsClient != nil {
+		var err error
+		mcoDeployment, err = o.AppsClient.Deployments("openshift-machine-config-operator").Get(ctx, "machine-config-operator", metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
 	var masterSelector labels.Selector
 	var workerSelector labels.Selector
 	customSelectors := map[string]labels.Selector{}
@@ -306,7 +326,7 @@ func (o *options) Run(ctx context.Context) error {
 		updateInsights = append(updateInsights, parseAlertDataToInsights(alertData, startedAt)...)
 	}
 
-	controlPlaneStatusData, insights := assessControlPlaneStatus(cv, operators.Items, now)
+	controlPlaneStatusData, insights := assessControlPlaneStatus(cv, operators.Items, mcoDeployment, now)
 	updateInsights = append(updateInsights, insights...)
 	_ = controlPlaneStatusData.Write(o.Out, o.enabledDetailed(detailedOutputOperators), now)
 	controlPlanePoolStatusData.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
