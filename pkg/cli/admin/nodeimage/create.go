@@ -501,7 +501,6 @@ func (o *CreateOptions) nodeJoinerPodExec(ctx context.Context, command ...string
 }
 
 func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
-	klog.V(2).Infof("Starting command in pod %s", o.nodeJoinerPod.GetName())
 	// Wait for the node-joiner pod to come up
 	err := o.waitForRunningPod(ctx)
 	if err != nil {

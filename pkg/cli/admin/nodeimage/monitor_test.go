@@ -97,6 +97,8 @@ func TestMonitorRun(t *testing.T) {
 				fakeRemoteExec.execOut = tc.remoteExecOutput
 			}
 
+			var logBuffer bytes.Buffer
+
 			// Prepare the command options with all the fakes
 			o := &MonitorOptions{
 				BaseNodeImageCommand: BaseNodeImageCommand{
@@ -106,6 +108,7 @@ func TestMonitorRun(t *testing.T) {
 					Client:         fakeClient,
 					Config:         fakeRestConfig,
 					remoteExecutor: fakeRemoteExec,
+					LogOut:         &logBuffer,
 				},
 			}
 
