@@ -6,6 +6,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	machineconfigv1 "github.com/openshift/api/machineconfiguration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -18,11 +19,13 @@ type mockData struct {
 	machineConfigsPath     string
 	nodesPath              string
 	alertsPath             string
+	mcoDeploymentPath      string
 	clusterVersion         *configv1.ClusterVersion
 	clusterOperators       *configv1.ClusterOperatorList
 	machineConfigPools     *machineconfigv1.MachineConfigPoolList
 	machineConfigs         *machineconfigv1.MachineConfigList
 	nodes                  *corev1.NodeList
+	mcoDeployment          *appsv1.Deployment
 }
 
 func asResourceList[T any](objects *corev1.List, decoder runtime.Decoder) ([]T, error) {
@@ -50,10 +53,13 @@ func (o *mockData) load() error {
 	if err := corev1.AddToScheme(scheme); err != nil {
 		return err
 	}
+	if err := appsv1.AddToScheme(scheme); err != nil {
+		return err
+	}
 	if err := machineconfigv1.Install(scheme); err != nil {
 		return err
 	}
-	decoder := codecs.UniversalDecoder(configv1.GroupVersion, corev1.SchemeGroupVersion, machineconfigv1.GroupVersion)
+	decoder := codecs.UniversalDecoder(configv1.GroupVersion, corev1.SchemeGroupVersion, machineconfigv1.GroupVersion, appsv1.SchemeGroupVersion)
 
 	cvBytes, err := os.ReadFile(o.cvPath)
 	if err != nil {
@@ -168,6 +174,23 @@ func (o *mockData) load() error {
 		}
 	default:
 		return fmt.Errorf("unexpected object type %T in --mock-machineconfigs=%s content", mcpListObj, o.machineConfigsPath)
+	}
+
+	if _, err := os.Stat(o.mcoDeploymentPath); err == nil {
+		mcoDeploymentBytes, err := os.ReadFile(o.mcoDeploymentPath)
+		if err != nil {
+			return err
+		}
+		mcoDeploymentObj, err := runtime.Decode(decoder, mcoDeploymentBytes)
+		if err != nil {
+			return err
+		}
+		switch mcoDeploymentObj := mcoDeploymentObj.(type) {
+		case *appsv1.Deployment:
+			o.mcoDeployment = mcoDeploymentObj
+		default:
+			return fmt.Errorf("unexpected object type %T in --mock-mco-deployment=%s content", mcoDeploymentObj, o.mcoDeploymentPath)
+		}
 	}
 	return nil
 }

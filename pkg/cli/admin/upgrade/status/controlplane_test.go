@@ -259,7 +259,7 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, insights := assessControlPlaneStatus(&cvFixture, tc.operators, time.Now())
+			actual, insights := assessControlPlaneStatus(&cvFixture, tc.operators, nil, time.Now())
 			if diff := cmp.Diff(tc.expected, actual.Operators, cmp.AllowUnexported(operators{})); diff != "" {
 				t.Errorf("%s, actual output differs from expected:\n%s", tc.name, diff)
 			}
@@ -384,7 +384,7 @@ func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 				},
 			}
 			expectedEstCompletion := estimateCompletion(time.Hour, tc.assumedToLastProgress, now.Sub(tc.started), tc.assumedClusterOperatorCompleted)
-			actual, _ := assessControlPlaneStatus(cv, tc.operators, now)
+			actual, _ := assessControlPlaneStatus(cv, tc.operators, nil, now)
 			if diff := cmp.Diff(expectedEstCompletion, actual.EstTimeToComplete); diff != "" {
 				t.Errorf("estimate to finish differs:\n%s", diff)
 			}
@@ -448,7 +448,7 @@ func TestAssessControlPlaneStatus_Completion(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, _ := assessControlPlaneStatus(&cvFixture, tc.operators, time.Now())
+			actual, _ := assessControlPlaneStatus(&cvFixture, tc.operators, nil, time.Now())
 			if diff := cmp.Diff(tc.expectedCompletion, actual.Completion, cmpopts.EquateApprox(0, 0.1)); diff != "" {
 				t.Errorf("expected completion %f, got %f", tc.expectedCompletion, actual.Completion)
 			}
@@ -520,7 +520,7 @@ func TestAssessControlPlaneStatus_Duration(t *testing.T) {
 			cv := cvFixture.DeepCopy()
 			cv.Status.History = append(cv.Status.History, tc.firstHistoryItem)
 
-			actual, _ := assessControlPlaneStatus(cv, nil, now)
+			actual, _ := assessControlPlaneStatus(cv, nil, nil, now)
 			if diff := cmp.Diff(tc.expectedDuration, actual.Duration); diff != "" {
 				t.Errorf("expected completion %s, got %s", tc.expectedDuration, actual.Duration)
 			}
