@@ -9,8 +9,6 @@ import (
 	"text/template"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
-
 	v1 "github.com/openshift/api/config/v1"
 )
 
@@ -145,7 +143,7 @@ func coInsights(name string, available *v1.ClusterOperatorStatusCondition, degra
 	return insights
 }
 
-func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOperator, mcoDeployment *appsv1.Deployment, at time.Time) (controlPlaneStatusDisplayData, []updateInsight) {
+func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOperator, mcoImagePullSpec string, at time.Time) (controlPlaneStatusDisplayData, []updateInsight) {
 	var displayData controlPlaneStatusDisplayData
 	var insights []updateInsight
 
@@ -202,7 +200,7 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		if operator.Name == "machine-config" {
 			for _, version := range operator.Status.Versions {
 				if version.Name == "operator-image" {
-					if targetImagePullSpec := getMCOImagePullSpec(mcoDeployment); targetImagePullSpec != version.Version {
+					if mcoImagePullSpec != version.Version {
 						mcoOperatorImageUpgrading = true
 						break
 					}
@@ -323,18 +321,6 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 	}
 
 	return displayData, insights
-}
-
-func getMCOImagePullSpec(deployment *appsv1.Deployment) string {
-	if deployment == nil {
-		return ""
-	}
-	for _, c := range deployment.Spec.Template.Spec.Containers {
-		if c.Name == "machine-config-operator" {
-			return c.Image
-		}
-	}
-	return ""
 }
 
 func baselineDuration(history []v1.UpdateHistory) time.Duration {

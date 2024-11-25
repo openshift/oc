@@ -239,6 +239,12 @@ func (o *options) Run(ctx context.Context) error {
 		}
 	}
 
+	// The cluster stays within the same version number when it is migrated to multi-arch
+	// and thus the comparison of version numbers in a normal cluster upgrade does not work.
+	// To overcome this, the image pull spec that is going to be checked against the one from
+	// cluster operator's status is also taken into account to tell if the migration is ongoing.
+	// Because the status command does not hold the manifest of MCO's deployment from the release payload,
+	// the image pull spec is taken from the MCO's deployment on the cluster.
 	var mcoDeployment *appsv1.Deployment
 	if mcoDeployment = o.mockData.mcoDeployment; mcoDeployment == nil && o.AppsClient != nil {
 		var err error
@@ -247,6 +253,7 @@ func (o *options) Run(ctx context.Context) error {
 			return err
 		}
 	}
+	mcoImagePullSpec := getMCOImagePullSpec(mcoDeployment)
 
 	var masterSelector labels.Selector
 	var workerSelector labels.Selector
@@ -326,7 +333,7 @@ func (o *options) Run(ctx context.Context) error {
 		updateInsights = append(updateInsights, parseAlertDataToInsights(alertData, startedAt)...)
 	}
 
-	controlPlaneStatusData, insights := assessControlPlaneStatus(cv, operators.Items, mcoDeployment, now)
+	controlPlaneStatusData, insights := assessControlPlaneStatus(cv, operators.Items, mcoImagePullSpec, now)
 	updateInsights = append(updateInsights, insights...)
 	_ = controlPlaneStatusData.Write(o.Out, o.enabledDetailed(detailedOutputOperators), now)
 	controlPlanePoolStatusData.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
@@ -360,4 +367,16 @@ func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorSta
 		}
 	}
 	return nil
+}
+
+func getMCOImagePullSpec(deployment *appsv1.Deployment) string {
+	if deployment == nil {
+		return ""
+	}
+	for _, c := range deployment.Spec.Template.Spec.Containers {
+		if c.Name == "machine-config-operator" {
+			return c.Image
+		}
+	}
+	return ""
 }
