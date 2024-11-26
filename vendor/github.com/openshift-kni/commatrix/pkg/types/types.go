@@ -183,7 +183,7 @@ func (m *ComMatrix) SeparateMatrixByRole() (ComMatrix, ComMatrix) {
 }
 
 func (m *ComMatrix) writeMatrixToFile(utilsHelpers utils.UtilsInterface, fileName, format string, destDir string) error {
-	res, err := m.print(format)
+	res, err := m.Print(format)
 	if err != nil {
 		return err
 	}
