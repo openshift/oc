@@ -154,7 +154,7 @@ func (m *ComMatrix) WriteMatrixToFileByType(utilsHelpers utils.UtilsInterface, f
 	return nil
 }
 
-func (m *ComMatrix) print(format string) ([]byte, error) {
+func (m *ComMatrix) Print(format string) ([]byte, error) {
 	switch format {
 	case FormatJSON:
 		return m.ToJSON()
