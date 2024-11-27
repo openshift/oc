@@ -150,14 +150,17 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 	var nodesStatusData []nodeDisplayData
 	var insights []updateInsight
 	for _, node := range nodes {
+		desiredConfig, ok := node.Annotations[mco.DesiredMachineConfigAnnotationKey]
 		currentVersion, foundCurrent := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.CurrentMachineConfigAnnotationKey])
-		desiredVersion, foundDesired := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.DesiredMachineConfigAnnotationKey])
+		desiredVersion, foundDesired := getOpenShiftVersionOfMachineConfig(machineConfigs, desiredConfig)
 
 		lns := mco.NewLayeredNodeState(&node)
 		isUnavailable := lns.IsUnavailable(&pool)
 
 		isDegraded := isNodeDegraded(node)
-		isUpdated := foundCurrent && isLatestUpdateHistoryVersionEqualTo(cv.Status.History, currentVersion)
+		isUpdated := foundCurrent && isLatestUpdateHistoryVersionEqualTo(cv.Status.History, currentVersion) &&
+			// The following condition is to handle the multi-arch migration because the version number stays the same there
+			(!ok || node.Annotations[mco.CurrentMachineConfigAnnotationKey] == desiredConfig)
 
 		// foundCurrent makes sure we don't blip phase "updating" for nodes that we are not sure
 		// of their actual phase, even though the conservative assumption is that the node is
