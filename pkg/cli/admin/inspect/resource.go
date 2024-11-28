@@ -101,6 +101,12 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 		}
 		return nil
 
+	case configv1.GroupVersion.WithResource("proxies").GroupResource():
+		if err := inspectProxyInfo(info, o); err != nil {
+			return err
+		}
+		return nil
+
 	case admissionregistrationv1.SchemeGroupVersion.WithResource("mutatingwebhookconfigurations").GroupResource():
 		if err := gatherMutatingAdmissionWebhook(context, info, o); err != nil {
 			return err
@@ -141,6 +147,9 @@ func newListAccessor(structuredList interface{}) (listAccessor, error) {
 
 	case *routev1.RouteList:
 		return &routeList{castObj}, nil
+
+	case *configv1.ProxyList:
+		return &proxyList{castObj}, nil
 
 	default:
 		return nil, fmt.Errorf("unhandledStructuredListType: %T", castObj)
