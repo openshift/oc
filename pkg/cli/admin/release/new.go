@@ -1337,7 +1337,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 
 	// find the newest content date in the input
 	var newest time.Time
-	if err := iterateExtractedManifests(ordered, metadata, func(contents []os.FileInfo, name string, image imageData) error {
+	if err := iterateExtractedManifests(ordered, metadata, func(_ string, contents []os.FileInfo, _ string) error {
 		for _, fi := range contents {
 			if fi.IsDir() {
 				continue
@@ -1388,15 +1388,15 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 	}
 
 	// read each directory, processing the manifests in order and updating the contents into the tar output
-	if err := iterateExtractedManifests(ordered, metadata, func(contents []os.FileInfo, name string, image imageData) error {
+	if err := iterateExtractedManifests(ordered, metadata, func(directory string, contents []os.FileInfo, operator string) error {
 		transform := NopManifestMapper
 
 		if fi := takeFileByName(&contents, "image-references"); fi != nil {
-			path := filepath.Join(image.Directory, fi.Name())
+			path := filepath.Join(directory, fi.Name())
 			klog.V(2).Infof("Perform image replacement based on inclusion of %s", path)
 			transform, err = NewTransformFromImageStreamFile(path, is, allowMissingImages, errOut)
 			if err != nil {
-				return fmt.Errorf("operator %q contained an invalid image-references file: %s", name, err)
+				return fmt.Errorf("operator %q contained an invalid image-references file: %s", operator, err)
 			}
 		}
 
@@ -1410,7 +1410,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			// get put in a scoped bucket at the end. Only a few components should need to
 			// be in the global order.
 			if !strings.HasPrefix(filename, "0000_") {
-				filename = fmt.Sprintf("0000_50_%s_%s", name, filename)
+				filename = fmt.Sprintf("0000_50_%s_%s", operator, filename)
 			}
 			if count, ok := files[filename]; ok {
 				ext := path.Ext(path.Base(filename))
@@ -1420,7 +1420,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			} else {
 				files[filename] = 1
 			}
-			src := filepath.Join(image.Directory, fi.Name())
+			src := filepath.Join(directory, fi.Name())
 			dst := path.Join(append(append([]string{}, parts...), filename)...)
 			klog.V(4).Infof("Copying %s to %s", src, dst)
 
@@ -1430,7 +1430,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			}
 
 			for _, fn := range verifiers {
-				if err := fn(filepath.Join(filepath.Base(image.Directory), fi.Name()), data); err != nil {
+				if err := fn(filepath.Join(filepath.Base(directory), fi.Name()), data); err != nil {
 					return err
 				}
 			}
@@ -1447,7 +1447,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 				return err
 			}
 		}
-		operators = append(operators, name)
+		operators = append(operators, operator)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -1462,7 +1462,9 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 	return operators, nil
 }
 
-func iterateExtractedManifests(ordered []string, metadata map[string]imageData, fn func(contents []os.FileInfo, name string, image imageData) error) error {
+type handleOperatorManifestsFn func(directory string, contents []os.FileInfo, operator string) error
+
+func iterateExtractedManifests(ordered []string, metadata map[string]imageData, fn handleOperatorManifestsFn) error {
 	for _, name := range ordered {
 		image, ok := metadata[name]
 		if !ok {
@@ -1478,7 +1480,7 @@ func iterateExtractedManifests(ordered []string, metadata map[string]imageData, 
 			continue
 		}
 
-		if err := fn(contents, name, image); err != nil {
+		if err := fn(image.Directory, contents, name); err != nil {
 			return err
 		}
 	}
