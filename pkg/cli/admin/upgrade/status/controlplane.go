@@ -61,10 +61,11 @@ func (o operators) StatusSummary() string {
 }
 
 type versions struct {
-	target            string
-	previous          string
-	isTargetInstall   bool
-	isPreviousPartial bool
+	target               string
+	previous             string
+	isTargetInstall      bool
+	isPreviousPartial    bool
+	isMultiArchMigration bool
 }
 
 func (v versions) String() string {
@@ -74,18 +75,22 @@ func (v versions) String() string {
 	if v.isPreviousPartial {
 		return fmt.Sprintf("%s (from incomplete %s)", v.target, v.previous)
 	}
+	if v.isMultiArchMigration {
+		return fmt.Sprintf("%s to Multi-Architecture", v.target)
+	}
 	return fmt.Sprintf("%s (from %s)", v.target, v.previous)
 }
 
 type controlPlaneStatusDisplayData struct {
-	Assessment        assessmentState
-	Completion        float64
-	CompletionAt      time.Time
-	Duration          time.Duration
-	EstDuration       time.Duration
-	EstTimeToComplete time.Duration
-	Operators         operators
-	TargetVersion     versions
+	Assessment           assessmentState
+	Completion           float64
+	CompletionAt         time.Time
+	Duration             time.Duration
+	EstDuration          time.Duration
+	EstTimeToComplete    time.Duration
+	Operators            operators
+	TargetVersion        versions
+	IsMultiArchMigration bool
 }
 
 const (
@@ -302,8 +307,9 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		}
 	}
 
-	versionData, versionInsights := versionsFromHistory(cv.Status.History, cvScope, controlPlaneCompleted)
+	versionData, versionInsights := versionsFromHistory(cv.Status.History, cv.Spec.DesiredUpdate, cvScope, controlPlaneCompleted)
 	displayData.TargetVersion = versionData
+	displayData.IsMultiArchMigration = versionData.isMultiArchMigration
 	insights = append(insights, versionInsights...)
 
 	coCompletion := float64(displayData.Operators.Updated) / float64(displayData.Operators.Total)
@@ -385,7 +391,7 @@ func timewiseComplete(coCompletion float64) float64 {
 	}
 }
 
-func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, controlPlaneCompleted bool) (versions, []updateInsight) {
+func versionsFromHistory(history []v1.UpdateHistory, desired *v1.Update, cvScope scopeResource, controlPlaneCompleted bool) (versions, []updateInsight) {
 	versionData := versions{
 		target:   "unknown",
 		previous: "unknown",
@@ -400,6 +406,12 @@ func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, cont
 	if len(history) > 1 {
 		versionData.previous = history[1].Version
 		versionData.isPreviousPartial = history[1].State == v1.PartialUpdate
+		if history[0].Version == history[1].Version &&
+			history[0].Image != history[1].Image &&
+			desired != nil &&
+			desired.Architecture == v1.ClusterVersionArchitectureMulti {
+			versionData.isMultiArchMigration = true
+		}
 	}
 
 	var insights []updateInsight
@@ -436,7 +448,10 @@ func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, cont
 	return versionData, insights
 }
 
-func vagueUnder(actual, estimated time.Duration) string {
+func vagueUnder(actual, estimated time.Duration, isMultiArchMigration bool) string {
+	if isMultiArchMigration {
+		return "N/A for Multi-Architecture Migration"
+	}
 	threshold := 10 * time.Minute
 	switch {
 	case actual < -10*time.Minute:
@@ -497,6 +512,6 @@ Target Version:  {{ .TargetVersion }}
 Updating:        {{ . }}
 {{ end -}}
 Completion:      {{ printf "%.0f" .Completion }}% ({{ .Operators.Updated }} operators updated, {{ len .Operators.Updating }} updating, {{ .Operators.Waiting }} waiting)
-Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ vagueUnder .EstTimeToComplete .EstDuration }}){{ end }}
+Duration:        {{ shortDuration .Duration }}{{ if .EstTimeToComplete }} (Est. Time Remaining: {{ vagueUnder .EstTimeToComplete .EstDuration .IsMultiArchMigration }}){{ end }}
 Operator Health: {{ .Operators.StatusSummary }}
 `
