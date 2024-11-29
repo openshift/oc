@@ -116,7 +116,7 @@ func NewCmdData(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.C
 		&o.FileSources,
 		"from-file",
 		[]string{},
-		"Specify a file using its file path, in which case the file basename will be used as the key"+
+		"Specify a file using its file path, in which case the file basename will be used as the key "+
 			"or optionally with a key and file path, in which case the given key will be used.  Specifying a "+
 			"directory will iterate each named file in the directory whose basename is a valid secret key.")
 	cmd.Flags().StringArrayVar(
