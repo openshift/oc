@@ -10,6 +10,8 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 )
 
+var _ listAccessor = &secretList{}
+
 type secretList struct {
 	*corev1.SecretList
 }

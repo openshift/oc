@@ -13,6 +13,8 @@ import (
 
 var proxyRegex = regexp.MustCompile(`(https?://)([^:]+):([^@]+)@`)
 
+var _ listAccessor = &proxyList{}
+
 type proxyList struct {
 	*configv1.ProxyList
 }

@@ -9,6 +9,8 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 )
 
+var _ listAccessor = &routeList{}
+
 type routeList struct {
 	*routev1.RouteList
 }
