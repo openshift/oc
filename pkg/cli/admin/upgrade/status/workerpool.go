@@ -158,14 +158,17 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 		isUnavailable := lns.IsUnavailable(&pool)
 
 		isDegraded := isNodeDegraded(node)
+		annotationMatched := node.Annotations[mco.CurrentMachineConfigAnnotationKey] == desiredConfig
+		desiredAnnotationUpdated := desiredConfig == pool.Spec.Configuration.Name
 		isUpdated := foundCurrent && isLatestUpdateHistoryVersionEqualTo(cv.Status.History, currentVersion) &&
 			// The following condition is to handle the multi-arch migration because the version number stays the same there
-			(!ok || node.Annotations[mco.CurrentMachineConfigAnnotationKey] == desiredConfig)
+			(!ok || (annotationMatched && desiredAnnotationUpdated))
 
 		// foundCurrent makes sure we don't blip phase "updating" for nodes that we are not sure
 		// of their actual phase, even though the conservative assumption is that the node is
 		// at least updating or is updated.
-		isUpdating := !isUpdated && foundCurrent && foundDesired && isLatestUpdateHistoryVersionEqualTo(cv.Status.History, desiredVersion)
+		isUpdating := !isUpdated && foundCurrent && foundDesired && isLatestUpdateHistoryVersionEqualTo(cv.Status.History, desiredVersion) &&
+			(!annotationMatched && desiredAnnotationUpdated)
 
 		phase := calculatePhase(pool, node, isUpdating, isUpdated)
 		var estimate string

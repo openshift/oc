@@ -51,7 +51,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	o := newOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Display the status of current cluster version updates.",
+		Short: "Display the status of the current cluster update.",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run(cmd.Context()))
