@@ -1,0 +1,109 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2024-11-20T22:31:53Z"
+  generation: 3
+  name: version
+  resourceVersion: "49973"
+  uid: 511796c9-a6b5-4361-8d60-5e22d2aa9701
+spec:
+  channel: candidate-4.18
+  clusterID: 1f96e9e9-83d0-4310-baca-ef36fd539304
+  desiredUpdate:
+    architecture: Multi
+    force: false
+    image: ""
+    version: 4.18.0-ec.3
+  upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+status:
+  availableUpdates: null
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2024-11-20T22:32:17Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2024-11-20T22:32:17Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2024-11-20T22:32:17Z"
+    message: Payload loaded version="4.18.0-ec.3" image="quay.io/openshift-release-dev/ocp-release@sha256:79347bc3313a05e374a40fe47de804e23cc14f795ee51699721e459706cfe2c0"
+      architecture="Multi"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2024-11-20T22:57:53Z"
+    message: Done applying 4.18.0-ec.3
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2024-11-20T23:26:27Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2024-11-20T23:22:25Z"
+    message: 'Working towards 4.18.0-ec.3: 761 of 890 done (85% complete), waiting
+      on machine-config'
+    reason: ClusterOperatorUpdating
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2024-11-20T23:25:12Z"
+    message: 'Cluster operator machine-config should not be upgraded between minor
+      versions: One or more machine config pools are updating, please see `oc get
+      mcp` for further details'
+    reason: PoolUpdating
+    status: "False"
+    type: Upgradeable
+  desired:
+    channels:
+    - candidate-4.18
+    image: quay.io/openshift-release-dev/ocp-release@sha256:79347bc3313a05e374a40fe47de804e23cc14f795ee51699721e459706cfe2c0
+    version: 4.18.0-ec.3
+  history:
+  - completionTime: null
+    image: quay.io/openshift-release-dev/ocp-release@sha256:79347bc3313a05e374a40fe47de804e23cc14f795ee51699721e459706cfe2c0
+    startedTime: "2024-11-20T23:22:25Z"
+    state: Partial
+    verified: true
+    version: 4.18.0-ec.3
+  - completionTime: "2024-11-20T22:57:53Z"
+    image: registry.build09.ci.openshift.org/ci-ln-hz4dqct/release@sha256:d2d34aafe0adda79953dd928b946ecbda34673180ee9a80d2ee37c123a0f510c
+    startedTime: "2024-11-20T22:32:17Z"
+    state: Completed
+    verified: false
+    version: 4.18.0-ec.3
+  observedGeneration: 3
+  versionHash: jHUy9-YG7Pw=

@@ -1,0 +1,28 @@
+= Control Plane =
+Assessment:      Progressing
+Target Version:  4.15.0-ec.2 (from 4.15.0-ec.1)
+Completion:      43% (3 operators updated, 0 updating, 4 waiting)
+Duration:        53m (Est. Time Remaining: 1h39m)
+Operator Health: 7 Healthy
+
+Control Plane Nodes
+NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+ip-10-0-30-217.us-east-2.compute.internal   Outdated     Pending   4.15.0-ec.1   ?     
+ip-10-0-53-40.us-east-2.compute.internal    Outdated     Pending   4.15.0-ec.1   ?     
+ip-10-0-92-180.us-east-2.compute.internal   Outdated     Pending   4.15.0-ec.1   ?     
+
+= Worker Upgrade =
+
+WORKER POOL   ASSESSMENT   COMPLETION   STATUS
+worker        Pending      0% (0/3)     3 Available, 0 Progressing, 0 Draining
+zbeast        Empty                     0 Total
+
+Worker Pool Nodes: worker
+NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+ip-10-0-20-162.us-east-2.compute.internal   Outdated     Pending   4.15.0-ec.1   ?     
+ip-10-0-4-159.us-east-2.compute.internal    Outdated     Pending   4.15.0-ec.1   ?     
+ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.15.0-ec.1   ?     
+
+= Update Health =
+SINCE    LEVEL   IMPACT   MESSAGE
+52m56s   Info    None     Update is proceeding well

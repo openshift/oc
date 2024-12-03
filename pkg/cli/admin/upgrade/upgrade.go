@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -26,6 +27,7 @@ import (
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/status"
 )
 
 var upgradeExample = templates.Examples(`
@@ -100,6 +102,11 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows upgrade to a version when it is supported but not recommended for updates")
 
 	cmd.AddCommand(channel.New(f, streams))
+
+	// if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_STATUS").IsEnabled() {
+	if os.Getenv("OC_ENABLE_CMD_UPGRADE_STATUS") == "true" {
+		cmd.AddCommand(status.New(f, streams))
+	}
 
 	return cmd
 }

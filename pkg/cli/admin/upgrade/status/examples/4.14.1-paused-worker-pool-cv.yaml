@@ -1,0 +1,430 @@
+apiVersion: v1
+items:
+- apiVersion: config.openshift.io/v1
+  kind: ClusterVersion
+  metadata:
+    creationTimestamp: "2024-02-07T15:59:55Z"
+    generation: 3
+    name: version
+    resourceVersion: "33786"
+    uid: 16ac3a1e-7f9a-414c-83a4-d67f415835a5
+  spec:
+    channel: candidate-4.14
+    clusterID: 4acee7ef-728d-43bd-ab41-401873c444ea
+    desiredUpdate:
+      image: quay.io/openshift-release-dev/ocp-release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd
+      version: 4.14.1
+    upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+  status:
+    availableUpdates:
+    - channels:
+      - candidate-4.14
+      - candidate-4.15
+      image: quay.io/openshift-release-dev/ocp-release@sha256:36783a8b066c96dd6258e818ce51b5a763438adbf56221ea5c4b62ae4f345886
+      url: https://access.redhat.com/errata/RHSA-2024:0642
+      version: 4.14.11
+    - channels:
+      - candidate-4.14
+      - candidate-4.15
+      - eus-4.14
+      - fast-4.14
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:03cc63c0c48b2416889e9ee53f2efc2c940323c15f08384b439c00de8e66e8aa
+      url: https://access.redhat.com/errata/RHSA-2024:0290
+      version: 4.14.10
+    - channels:
+      - candidate-4.14
+      - candidate-4.15
+      - eus-4.14
+      - fast-4.14
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:f5eaf0248779a0478cfd83f055d56dc7d755937800a68ad55f6047c503977c44
+      url: https://access.redhat.com/errata/RHSA-2024:0204
+      version: 4.14.9
+    - channels:
+      - candidate-4.14
+      - candidate-4.15
+      - eus-4.14
+      - fast-4.14
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:073a4e46289be25e2a05f5264c8f1d697410db66b960c9ceeddebd1c61e58717
+      url: https://access.redhat.com/errata/RHSA-2024:0050
+      version: 4.14.8
+    - channels:
+      - candidate-4.14
+      - candidate-4.15
+      - eus-4.14
+      - fast-4.14
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:a346fc0c84644e64c726013a98bef0f75e58f246fce1faa83fb6bbbc6d4050aa
+      url: https://access.redhat.com/errata/RHSA-2023:7831
+      version: 4.14.7
+    - channels:
+      - candidate-4.14
+      - candidate-4.15
+      - eus-4.14
+      - fast-4.14
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:e5128c3b0ab225e0abf9344dae504e08b82dda4885bbd047e2dbc13cc3d9879b
+      url: https://access.redhat.com/errata/RHSA-2023:7682
+      version: 4.14.6
+    - channels:
+      - candidate-4.14
+      - candidate-4.15
+      - eus-4.14
+      - fast-4.14
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:0ec9d715c717b2a592d07dd83860013613529fae69bc9eecb4b2d4ace679f6f3
+      url: https://access.redhat.com/errata/RHSA-2023:7599
+      version: 4.14.5
+    - channels:
+      - candidate-4.14
+      - candidate-4.15
+      - eus-4.14
+      - fast-4.14
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:e6e1d90b492d50438034e6edb46bdafa6c86ae3b80ef3328685912d89681fdee
+      url: https://access.redhat.com/errata/RHSA-2023:7470
+      version: 4.14.4
+    - channels:
+      - candidate-4.14
+      - candidate-4.15
+      - eus-4.14
+      - fast-4.14
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:e73ab4b33a9c3ff00c9f800a38d69853ca0c4dfa5a88e3df331f66df8f18ec55
+      url: https://access.redhat.com/errata/RHSA-2023:7315
+      version: 4.14.3
+    - channels:
+      - candidate-4.14
+      - candidate-4.15
+      - eus-4.14
+      - fast-4.14
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:45a396b169974dcbd8aae481c647bf55bcf9f0f8f6222483d407d7cec450928d
+      url: https://access.redhat.com/errata/RHSA-2023:6837
+      version: 4.14.2
+    capabilities:
+      enabledCapabilities:
+      - Build
+      - CSISnapshot
+      - Console
+      - DeploymentConfig
+      - ImageRegistry
+      - Insights
+      - MachineAPI
+      - NodeTuning
+      - Storage
+      - baremetal
+      - marketplace
+      - openshift-samples
+      knownCapabilities:
+      - Build
+      - CSISnapshot
+      - Console
+      - DeploymentConfig
+      - ImageRegistry
+      - Insights
+      - MachineAPI
+      - NodeTuning
+      - Storage
+      - baremetal
+      - marketplace
+      - openshift-samples
+    conditionalUpdates:
+    - conditions:
+      - lastTransitionTime: "2024-02-07T16:31:06Z"
+        message: The update is recommended, because none of the conditional update
+          risks apply to this cluster.
+        reason: AsExpected
+        status: "True"
+        type: Recommended
+      release:
+        channels:
+        - candidate-4.14
+        - candidate-4.15
+        - eus-4.14
+        - fast-4.14
+        - stable-4.14
+        image: quay.io/openshift-release-dev/ocp-release@sha256:f5eaf0248779a0478cfd83f055d56dc7d755937800a68ad55f6047c503977c44
+        url: https://access.redhat.com/errata/RHSA-2024:0204
+        version: 4.14.9
+      risks:
+      - matchingRules:
+        - promql:
+            promql: |
+              (
+                group(cluster_operator_conditions{name="aro"})
+                or
+                0 * group(cluster_operator_conditions)
+              )
+          type: PromQL
+        message: Adding a new worker node will fail for clusters running on ARO.
+        name: AROBrokenDNSMasq
+        url: https://issues.redhat.com/browse/MCO-958
+    - conditions:
+      - lastTransitionTime: "2024-02-07T16:31:06Z"
+        message: The update is recommended, because none of the conditional update
+          risks apply to this cluster.
+        reason: AsExpected
+        status: "True"
+        type: Recommended
+      release:
+        channels:
+        - candidate-4.14
+        - candidate-4.15
+        - eus-4.14
+        - fast-4.14
+        - stable-4.14
+        image: quay.io/openshift-release-dev/ocp-release@sha256:073a4e46289be25e2a05f5264c8f1d697410db66b960c9ceeddebd1c61e58717
+        url: https://access.redhat.com/errata/RHSA-2024:0050
+        version: 4.14.8
+      risks:
+      - matchingRules:
+        - promql:
+            promql: |
+              (
+                group(cluster_operator_conditions{name="aro"})
+                or
+                0 * group(cluster_operator_conditions)
+              )
+          type: PromQL
+        message: Adding a new worker node will fail for clusters running on ARO.
+        name: AROBrokenDNSMasq
+        url: https://issues.redhat.com/browse/MCO-958
+    - conditions:
+      - lastTransitionTime: "2024-02-07T16:31:06Z"
+        message: The update is recommended, because none of the conditional update
+          risks apply to this cluster.
+        reason: AsExpected
+        status: "True"
+        type: Recommended
+      release:
+        channels:
+        - candidate-4.14
+        - candidate-4.15
+        - eus-4.14
+        - fast-4.14
+        - stable-4.14
+        image: quay.io/openshift-release-dev/ocp-release@sha256:a346fc0c84644e64c726013a98bef0f75e58f246fce1faa83fb6bbbc6d4050aa
+        url: https://access.redhat.com/errata/RHSA-2023:7831
+        version: 4.14.7
+      risks:
+      - matchingRules:
+        - promql:
+            promql: |
+              (
+                group(cluster_operator_conditions{name="aro"})
+                or
+                0 * group(cluster_operator_conditions)
+              )
+          type: PromQL
+        message: Adding a new worker node will fail for clusters running on ARO.
+        name: AROBrokenDNSMasq
+        url: https://issues.redhat.com/browse/MCO-958
+    - conditions:
+      - lastTransitionTime: "2024-02-07T16:31:06Z"
+        message: The update is recommended, because none of the conditional update
+          risks apply to this cluster.
+        reason: AsExpected
+        status: "True"
+        type: Recommended
+      release:
+        channels:
+        - candidate-4.14
+        - candidate-4.15
+        - eus-4.14
+        - fast-4.14
+        - stable-4.14
+        image: quay.io/openshift-release-dev/ocp-release@sha256:e5128c3b0ab225e0abf9344dae504e08b82dda4885bbd047e2dbc13cc3d9879b
+        url: https://access.redhat.com/errata/RHSA-2023:7682
+        version: 4.14.6
+      risks:
+      - matchingRules:
+        - promql:
+            promql: |
+              (
+                group(cluster_operator_conditions{name="aro"})
+                or
+                0 * group(cluster_operator_conditions)
+              )
+          type: PromQL
+        message: Adding a new worker node will fail for clusters running on ARO.
+        name: AROBrokenDNSMasq
+        url: https://issues.redhat.com/browse/MCO-958
+    - conditions:
+      - lastTransitionTime: "2024-02-07T16:31:06Z"
+        message: The update is recommended, because none of the conditional update
+          risks apply to this cluster.
+        reason: AsExpected
+        status: "True"
+        type: Recommended
+      release:
+        channels:
+        - candidate-4.14
+        - candidate-4.15
+        - eus-4.14
+        - fast-4.14
+        - stable-4.14
+        image: quay.io/openshift-release-dev/ocp-release@sha256:0ec9d715c717b2a592d07dd83860013613529fae69bc9eecb4b2d4ace679f6f3
+        url: https://access.redhat.com/errata/RHSA-2023:7599
+        version: 4.14.5
+      risks:
+      - matchingRules:
+        - promql:
+            promql: |
+              (
+                group(cluster_operator_conditions{name="aro"})
+                or
+                0 * group(cluster_operator_conditions)
+              )
+          type: PromQL
+        message: Adding a new worker node will fail for clusters running on ARO.
+        name: AROBrokenDNSMasq
+        url: https://issues.redhat.com/browse/MCO-958
+    - conditions:
+      - lastTransitionTime: "2024-02-07T16:31:06Z"
+        message: The update is recommended, because none of the conditional update
+          risks apply to this cluster.
+        reason: AsExpected
+        status: "True"
+        type: Recommended
+      release:
+        channels:
+        - candidate-4.14
+        - candidate-4.15
+        - eus-4.14
+        - fast-4.14
+        - stable-4.14
+        image: quay.io/openshift-release-dev/ocp-release@sha256:e6e1d90b492d50438034e6edb46bdafa6c86ae3b80ef3328685912d89681fdee
+        url: https://access.redhat.com/errata/RHSA-2023:7470
+        version: 4.14.4
+      risks:
+      - matchingRules:
+        - promql:
+            promql: |
+              (
+                group(cluster_operator_conditions{name="aro"})
+                or
+                0 * group(cluster_operator_conditions)
+              )
+          type: PromQL
+        message: Adding a new worker node will fail for clusters running on ARO.
+        name: AROBrokenDNSMasq
+        url: https://issues.redhat.com/browse/MCO-958
+    - conditions:
+      - lastTransitionTime: "2024-02-07T16:31:06Z"
+        message: The update is recommended, because none of the conditional update
+          risks apply to this cluster.
+        reason: AsExpected
+        status: "True"
+        type: Recommended
+      release:
+        channels:
+        - candidate-4.14
+        - candidate-4.15
+        - eus-4.14
+        - fast-4.14
+        - stable-4.14
+        image: quay.io/openshift-release-dev/ocp-release@sha256:e73ab4b33a9c3ff00c9f800a38d69853ca0c4dfa5a88e3df331f66df8f18ec55
+        url: https://access.redhat.com/errata/RHSA-2023:7315
+        version: 4.14.3
+      risks:
+      - matchingRules:
+        - promql:
+            promql: |
+              (
+                group(cluster_operator_conditions{name="aro"})
+                or
+                0 * group(cluster_operator_conditions)
+              )
+          type: PromQL
+        message: Adding a new worker node will fail for clusters running on ARO
+        name: AROBrokenDNSMasq
+        url: https://issues.redhat.com/browse/MCO-958
+    - conditions:
+      - lastTransitionTime: "2024-02-07T16:31:06Z"
+        message: The update is recommended, because none of the conditional update
+          risks apply to this cluster.
+        reason: AsExpected
+        status: "True"
+        type: Recommended
+      release:
+        channels:
+        - candidate-4.14
+        - candidate-4.15
+        - eus-4.14
+        - fast-4.14
+        - stable-4.14
+        image: quay.io/openshift-release-dev/ocp-release@sha256:45a396b169974dcbd8aae481c647bf55bcf9f0f8f6222483d407d7cec450928d
+        url: https://access.redhat.com/errata/RHSA-2023:6837
+        version: 4.14.2
+      risks:
+      - matchingRules:
+        - promql:
+            promql: |
+              (
+                group(cluster_operator_conditions{name="aro"})
+                or
+                0 * group(cluster_operator_conditions)
+              )
+          type: PromQL
+        message: Adding a new worker node will fail for clusters running on ARO
+        name: AROBrokenDNSMasq
+        url: https://issues.redhat.com/browse/MCO-958
+    conditions:
+    - lastTransitionTime: "2024-02-07T15:59:57Z"
+      status: "True"
+      type: RetrievedUpdates
+    - lastTransitionTime: "2024-02-07T15:59:57Z"
+      message: Capabilities match configured spec
+      reason: AsExpected
+      status: "False"
+      type: ImplicitlyEnabledCapabilities
+    - lastTransitionTime: "2024-02-07T15:59:57Z"
+      message: Payload loaded version="4.14.1" image="quay.io/openshift-release-dev/ocp-release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd"
+        architecture="amd64"
+      reason: PayloadLoaded
+      status: "True"
+      type: ReleaseAccepted
+    - lastTransitionTime: "2024-02-07T16:17:57Z"
+      message: Done applying 4.14.0
+      status: "True"
+      type: Available
+    - lastTransitionTime: "2024-02-07T16:17:57Z"
+      status: "False"
+      type: Failing
+    - lastTransitionTime: "2024-02-07T16:31:03Z"
+      message: 'Working towards 4.14.1: 139 of 859 done (16% complete), waiting on
+        kube-scheduler'
+      reason: ClusterOperatorUpdating
+      status: "True"
+      type: Progressing
+    desired:
+      channels:
+      - candidate-4.14
+      - candidate-4.15
+      - eus-4.14
+      - fast-4.14
+      - stable-4.14
+      image: quay.io/openshift-release-dev/ocp-release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd
+      url: https://access.redhat.com/errata/RHBA-2023:6153
+      version: 4.14.1
+    history:
+    - completionTime: null
+      image: quay.io/openshift-release-dev/ocp-release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd
+      startedTime: "2024-02-07T16:31:03Z"
+      state: Partial
+      verified: true
+      version: 4.14.1
+    - completionTime: "2024-02-07T16:17:57Z"
+      image: registry.build05.ci.openshift.org/ci-ln-lyxhrwb/release@sha256:e2c70fca183e380c6121a1c847806f11e839482123277235a8579db472b9ccf2
+      startedTime: "2024-02-07T15:59:57Z"
+      state: Completed
+      verified: false
+      version: 4.14.0
+    observedGeneration: 3
+    versionHash: I3skQa0FyxU=
+kind: List
+metadata:
+  resourceVersion: ""

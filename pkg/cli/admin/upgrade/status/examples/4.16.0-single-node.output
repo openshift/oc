@@ -1,0 +1,15 @@
+= Control Plane =
+Assessment:      Progressing
+Target Version:  4.17.0-ec.0 (from 4.16.0-0.nightly-2024-08-01-082745)
+Updating:        kube-apiserver
+Completion:      6% (2 operators updated, 1 updating, 30 waiting)
+Duration:        2m54s (Est. Time Remaining: 1h9m)
+Operator Health: 32 Healthy, 1 Available but degraded
+
+Control Plane Nodes
+NAME                        ASSESSMENT   PHASE     VERSION                              EST   MESSAGE
+ip-10-0-8-37.ec2.internal   Outdated     Pending   4.16.0-0.nightly-2024-08-01-082745   ?     
+
+= Update Health =
+SINCE   LEVEL   IMPACT   MESSAGE
+2m54s   Info    None     Update is proceeding well

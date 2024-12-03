@@ -1,0 +1,257 @@
+{
+    "status": "success",
+    "data": {
+        "alerts": [
+            {
+                "labels": {
+                    "alertname": "ClusterOperatorDegraded",
+                    "name": "kube-apiserver",
+                    "namespace": "openshift-cluster-version",
+                    "reason": "NodeInstaller_InstallerPodFailed",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "The kube-apiserver operator is degraded because NodeInstaller_InstallerPodFailed, and the components it manages may have reduced quality of service.  Cluster upgrades may not complete. For more information refer to 'oc get -o yaml clusteroperator kube-apiserver' or https://console-openshift-console.apps.ci-ln-kwszvwk-76ef8.aws-2.ci.openshift.org/settings/cluster/.",
+                    "summary": "Cluster operator has been degraded for 30 minutes."
+                },
+                "state": "pending",
+                "activeAt": "2023-11-24T15:43:23.156620559Z",
+                "value": "1e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "ClusterOperatorDown",
+                    "name": "authentication",
+                    "namespace": "openshift-cluster-version",
+                    "reason": "WellKnown_NotReady",
+                    "severity": "critical"
+                },
+                "annotations": {
+                    "description": "The authentication operator may be down or disabled because WellKnown_NotReady, and the components it manages may be unavailable or degraded.  Cluster upgrades may not complete. For more information refer to 'oc get -o yaml clusteroperator authentication' or https://console-openshift-console.apps.ci-ln-kwszvwk-76ef8.aws-2.ci.openshift.org/settings/cluster/.",
+                    "summary": "Cluster operator has not been available for 10 minutes."
+                },
+                "state": "pending",
+                "activeAt": "2023-11-24T15:53:23.156620559Z",
+                "value": "0e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "UpdateAvailable",
+                    "channel": "candidate-4.15",
+                    "namespace": "openshift-cluster-version",
+                    "severity": "info",
+                    "upstream": "https://api.integration.openshift.com/api/upgrades_info/graph"
+                },
+                "annotations": {
+                    "description": "For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-kwszvwk-76ef8.aws-2.ci.openshift.org/settings/cluster/.",
+                    "summary": "Your upstream update recommendation service recommends you update your cluster."
+                },
+                "state": "firing",
+                "activeAt": "2023-11-24T15:31:53.183007399Z",
+                "value": "1e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "Watchdog",
+                    "namespace": "openshift-monitoring",
+                    "severity": "none"
+                },
+                "annotations": {
+                    "description": "This is an alert meant to ensure that the entire alerting pipeline is functional.\nThis alert is always firing, therefore it should always be firing in Alertmanager\nand always fire against a receiver. There are integrations with various notification\nmechanisms that send a notification when this alert is not firing. For example the\n\"DeadMansSnitch\" integration in PagerDuty.\n",
+                    "summary": "An alert that should always be firing to certify that Alertmanager is working properly."
+                },
+                "state": "firing",
+                "activeAt": "2023-11-24T15:27:54.164800319Z",
+                "value": "1e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "TargetDown",
+                    "job": "marketplace-operator-metrics",
+                    "namespace": "openshift-marketplace",
+                    "service": "marketplace-operator-metrics",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "100% of the marketplace-operator-metrics/marketplace-operator-metrics targets in openshift-marketplace namespace have been unreachable for more than 15 minutes. This may be a symptom of network connectivity issues, down nodes, or failures within these components. Assess the health of the infrastructure and nodes running these targets and then contact support.",
+                    "summary": "Some targets were not reachable from the monitoring server for an extended period of time."
+                },
+                "state": "pending",
+                "activeAt": "2023-11-24T15:53:23.163229601Z",
+                "value": "1e+02",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "AlertmanagerReceiversNotConfigured",
+                    "namespace": "openshift-monitoring",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "Alerts are not configured to be sent to a notification system, meaning that you may not be notified in a timely fashion when important failures occur. Check the OpenShift documentation to learn how to configure notifications with Alertmanager.",
+                    "summary": "Receivers (notification integrations) are not configured on Alertmanager",
+                    "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/AlertManager.md"
+                },
+                "state": "firing",
+                "activeAt": "2023-11-23T15:47:42Z",
+                "value": "0e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "KubeStateMetricsWatchErrors",
+                    "namespace": "openshift-monitoring",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "kube-state-metrics is experiencing errors at an elevated rate in watch operations. This is likely causing it to not be able to expose metrics about Kubernetes objects correctly or at all.",
+                    "summary": "kube-state-metrics is experiencing errors in watch operations."
+                },
+                "state": "pending",
+                "activeAt": "2023-11-24T15:42:13.192504153Z",
+                "value": "4.166666666666665e-01",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "KubePodNotReady",
+                    "namespace": "openshift-kube-apiserver",
+                    "pod": "kube-apiserver-startup-monitor-ip-10-0-60-26.us-west-1.compute.internal",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "Pod openshift-kube-apiserver/kube-apiserver-startup-monitor-ip-10-0-60-26.us-west-1.compute.internal has been in a non-ready state for longer than 15 minutes.",
+                    "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/KubePodNotReady.md",
+                    "summary": "Pod has been in a non-ready state for more than 15 minutes."
+                },
+                "state": "firing",
+                "activeAt": "2023-11-24T15:41:52.75038242Z",
+                "value": "1e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "KubeAPIDown",
+                    "severity": "critical"
+                },
+                "annotations": {
+                    "description": "KubeAPI has disappeared from Prometheus target discovery.",
+                    "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/KubeAPIDown.md",
+                    "summary": "Target disappeared from Prometheus target discovery."
+                },
+                "state": "pending",
+                "activeAt": "2023-11-24T15:45:26.218594457Z",
+                "value": "1e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertmanager": "https://10.128.0.127:9095/api/v2/alerts",
+                    "alertname": "PrometheusErrorSendingAlertsToSomeAlertmanagers",
+                    "container": "kube-rbac-proxy",
+                    "endpoint": "metrics",
+                    "instance": "10.128.0.132:9092",
+                    "job": "prometheus-k8s",
+                    "namespace": "openshift-monitoring",
+                    "pod": "prometheus-k8s-0",
+                    "service": "prometheus-k8s",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "21.7% errors while sending alerts from Prometheus openshift-monitoring/prometheus-k8s-0 to Alertmanager https://10.128.0.127:9095/api/v2/alerts.",
+                    "summary": "Prometheus has encountered more than 1% errors sending alerts to a specific Alertmanager."
+                },
+                "state": "pending",
+                "activeAt": "2023-11-24T15:42:43.329697712Z",
+                "value": "2.1701925925925927e+01",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "PodDisruptionBudgetAtLimit",
+                    "controller": "alertmanager",
+                    "namespace": "openshift-monitoring",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "PodDisruptionBudgetAtLimit in namespace <>",
+                    "runbook_url": "https://<mock_data>/PDB.md",
+                    "summary": "PodDisruptionBudgetAtLimit for pods <>"
+                },
+                "state": "firing",
+                "activeAt": "2023-11-23T15:39:33.014999722Z",
+                "value": "6.708842592592593e-01",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "PodDisruptionBudgetAtLimit",
+                    "controller": "alertmanager",
+                    "namespace": "openshift-monitoring",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "summary": "PodDisruptionBudgetAtLimit for some reason does not have runbook and description"
+                },
+                "state": "firing",
+                "activeAt": "2023-11-23T15:39:33.014999722Z",
+                "value": "6.708842592592593e-01",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "PodDisruptionBudgetAtLimitWithMessage",
+                    "controller": "alertmanager",
+                    "namespace": "openshift-monitoring",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "summary": "This alert has a message, description, runbook and summary",
+                    "description": "This alert has a description",
+                    "runbook_url": "https://<mock_data>/runbook.md",
+                    "message": "This alert has a message, too"
+                },
+                "state": "firing",
+                "activeAt": "2023-11-24T15:31:52.75038242Z",
+                "value": "6.708842592592593e-01",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "PrometheusOperatorWatchErrors",
+                    "controller": "prometheus",
+                    "namespace": "openshift-monitoring",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "Errors while performing watch operations in controller prometheus in openshift-monitoring namespace.",
+                    "summary": "Errors while performing watch operations in controller."
+                },
+                "state": "pending",
+                "activeAt": "2023-11-24T15:39:33.014999722Z",
+                "value": "7.103480392156862e-01",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "PrometheusOperatorWatchErrors",
+                    "controller": "thanos",
+                    "namespace": "openshift-monitoring",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "Errors while performing watch operations in controller thanos in openshift-monitoring namespace.",
+                    "summary": "Errors while performing watch operations in controller."
+                },
+                "state": "pending",
+                "activeAt": "2023-11-24T15:39:33.014999722Z",
+                "value": "6.557058823529411e-01",
+                "partialResponseStrategy": "WARN"
+            }
+        ]
+    }
+}

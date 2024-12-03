@@ -1,0 +1,3387 @@
+apiVersion: v1
+items:
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T15:42:50Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-builds-worker-b-65df4
+      resourceVersion: "4865640760"
+      uid: 77b9c587-0f86-410d-bb64-e57219a83991
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T15:42:50Z"
+          lastTransitionTime: "2024-02-27T15:42:50Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T15:42:50Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T15:42:50Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T15:42:50Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T15:43:40Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T15:59:29Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-builds-worker-b-dvrd2
+      resourceVersion: "4865640697"
+      uid: df2721c7-bdb2-41e2-af66-8ef2d67d4da3
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T15:59:29Z"
+          lastTransitionTime: "2024-02-27T15:59:29Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:59:29Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:59:29Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:59:29Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T16:00:19Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:54:10Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-builds-worker-b-f7rlh
+      resourceVersion: "4865640842"
+      uid: fae19a5f-9eb5-4258-801d-4c7e40ec11f7
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:54:10Z"
+          lastTransitionTime: "2024-02-27T13:54:10Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T16:00:24Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T16:00:24Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T16:00:24Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T16:00:30Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T16:02:47Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-builds-worker-b-m4vgr
+      resourceVersion: "4865640889"
+      uid: 7088603e-36c4-4420-96c0-3340661bcfc2
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T16:02:48Z"
+          lastTransitionTime: "2024-02-27T16:02:48Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T16:02:47Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T16:02:47Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T16:02:47Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T16:03:36Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T15:22:55Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-builds-worker-b-mg8bd
+      resourceVersion: "4865640737"
+      uid: ca9f63ce-e196-4948-be48-ae3cb2345ae3
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T15:22:55Z"
+          lastTransitionTime: "2024-02-27T15:22:56Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:22:55Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:22:55Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:22:55Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:23:45Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T15:21:54Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-builds-worker-c-2hzgm
+      resourceVersion: "4865640709"
+      uid: 585f25af-4c59-4b7e-9273-5217805e0a21
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T15:21:54Z"
+          lastTransitionTime: "2024-02-27T15:21:54Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:21:54Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:21:54Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:21:54Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:22:42Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T15:21:52Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-builds-worker-c-dmjft
+      resourceVersion: "4865640707"
+      uid: 324da999-e772-4786-b5f4-ab5aeff10be6
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T15:21:52Z"
+          lastTransitionTime: "2024-02-27T15:21:52Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:21:52Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:21:52Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:21:52Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:22:39Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T15:22:08Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-builds-worker-c-ng8s5
+      resourceVersion: "4865640604"
+      uid: aa6d2b6c-77f7-465e-91e0-bd9da1ea3091
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T15:22:08Z"
+          lastTransitionTime: "2024-02-27T15:22:09Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T15:22:08Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T15:22:08Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T15:22:08Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T15:22:56Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T15:22:05Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-builds-worker-c-vmmfj
+      resourceVersion: "4865641101"
+      uid: 8ad18d8e-81e6-4e47-9ade-a630023431fb
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T15:22:05Z"
+          lastTransitionTime: "2024-02-27T15:22:05Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:22:05Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:22:05Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:22:05Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:22:57Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T16:00:28Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-ci-builds-worker-d-4pjlz
+      resourceVersion: "4865640631"
+      uid: 34b712af-aaa9-49ad-9a19-85e591ed5005
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T16:00:28Z"
+          lastTransitionTime: "2024-02-27T16:00:29Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T16:00:28Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T16:00:28Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T16:00:28Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T16:01:16Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T16:00:25Z"
+      labels:
+        ci-workload: builds
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-ci-builds-worker-d-z49wm
+      resourceVersion: "4865640564"
+      uid: 3fb2537f-1709-4836-b845-99816e389042
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T16:00:26Z"
+          lastTransitionTime: "2024-02-27T16:00:26Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T16:00:25Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T16:00:25Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T16:00:25Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T16:01:13Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T12:58:35Z"
+      labels:
+        ci-workload: longtests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-longtests-worker-c-vspm9
+      resourceVersion: "4865641085"
+      uid: 9177ec01-a44a-410e-bf32-60171a1b77d8
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T12:58:36Z"
+          lastTransitionTime: "2024-02-27T12:58:36Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T12:58:35Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T12:58:35Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T12:58:35Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T12:59:30Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T12:19:55Z"
+      labels:
+        ci-workload: longtests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-ci-longtests-worker-d-hksc9
+      resourceVersion: "4865640850"
+      uid: dd9c678a-9dd0-4c23-8b59-548e7622285a
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T12:19:56Z"
+          lastTransitionTime: "2024-02-27T12:19:56Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T12:19:55Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T12:19:55Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T12:19:55Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T12:20:40Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-4108bf4a0655b41fdd3ac3a3db3d47ea
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: 'failed to drain node: build0-gstfj-ci-prowjobs-worker-b-9lztv after 1 hour. Please see machine-config-controller logs for more information'
+        machineconfiguration.openshift.io/state: Degraded
+      creationTimestamp: "2024-02-22T10:20:00Z"
+      labels:
+        ci-workload: prowjobs
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-prowjobs-worker-b-9lztv
+      resourceVersion: "4865640670"
+      uid: fe1e1ab1-a304-4194-8e26-d3aec1cec6a5
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-22T10:20:01Z"
+          lastTransitionTime: "2024-02-22T10:20:01Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-22T10:20:00Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-22T10:20:00Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-22T10:20:00Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-22T10:20:43Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-4108bf4a0655b41fdd3ac3a3db3d47ea
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: 'failed to drain node: build0-gstfj-ci-prowjobs-worker-b-bg9f5 after 1 hour. Please see machine-config-controller logs for more information'
+        machineconfiguration.openshift.io/state: Degraded
+      creationTimestamp: "2024-02-26T14:02:10Z"
+      labels:
+        ci-workload: prowjobs
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-prowjobs-worker-b-bg9f5
+      resourceVersion: "4865640572"
+      uid: bf5a649a-2b80-4372-a9a0-0b2504e9d0c0
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-26T14:02:10Z"
+          lastTransitionTime: "2024-02-26T14:02:10Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T14:02:10Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T14:02:10Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T14:02:10Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T14:02:52Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-4108bf4a0655b41fdd3ac3a3db3d47ea
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: 'failed to drain node: build0-gstfj-ci-prowjobs-worker-b-mrxwn after 1 hour. Please see machine-config-controller logs for more information'
+        machineconfiguration.openshift.io/state: Degraded
+      creationTimestamp: "2024-02-27T09:14:05Z"
+      labels:
+        ci-workload: prowjobs
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-prowjobs-worker-b-mrxwn
+      resourceVersion: "4865640619"
+      uid: 411a56e5-7554-44c5-ac07-533f3910b227
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T09:14:05Z"
+          lastTransitionTime: "2024-02-27T09:14:05Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T09:14:05Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T09:14:05Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T09:14:05Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T09:14:48Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T12:57:16Z"
+      labels:
+        ci-workload: prowjobs
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-prowjobs-worker-c-f6dkk
+      resourceVersion: "4865640731"
+      uid: 75d6bf57-2570-4e03-9e11-9a5b0c186b5c
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T12:57:17Z"
+          lastTransitionTime: "2024-02-27T12:57:17Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T12:57:16Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T12:57:16Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T12:57:16Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T12:58:02Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:41:17Z"
+      labels:
+        ci-workload: prowjobs
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-prowjobs-worker-c-kkm72
+      resourceVersion: "4865640642"
+      uid: ccd60553-8326-4151-8ab0-57d6d9908df1
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:41:17Z"
+          lastTransitionTime: "2024-02-27T13:41:17Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T13:41:17Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T13:41:17Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T13:41:17Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T13:42:11Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:41:48Z"
+      labels:
+        ci-workload: prowjobs
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-prowjobs-worker-c-p5df7
+      resourceVersion: "4865640806"
+      uid: 7f2bb1f8-b761-4ee5-a0c2-836d0cbbb43c
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:41:49Z"
+          lastTransitionTime: "2024-02-27T13:41:49Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T13:41:48Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T13:41:48Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T13:41:48Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T13:42:41Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T12:57:13Z"
+      labels:
+        ci-workload: prowjobs
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-prowjobs-worker-c-tgrsc
+      resourceVersion: "4865640906"
+      uid: e7b120f8-d3f4-4f12-b710-9e9946c0d50b
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T12:57:14Z"
+          lastTransitionTime: "2024-02-27T12:57:14Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T12:57:13Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T12:57:13Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T12:57:13Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T12:57:58Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        # This simulates ephemeral conditions when Nodes do not have all annotations we expect
+        # Not having a single annotation is weird and should not happen except for bugs, someone manually
+        # messing with annotations and similar things.
+        # machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-26T22:09:44Z"
+      labels:
+        ci-workload: prowjobs
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-ci-prowjobs-worker-d-ddnxd
+      resourceVersion: "4865641095"
+      uid: 7a33f90a-02e2-45a7-a235-9505de5af685
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-26T22:09:44Z"
+          lastTransitionTime: "2024-02-26T22:09:44Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-26T22:09:44Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-26T22:09:44Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-26T22:09:44Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-26T22:10:24Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-4108bf4a0655b41fdd3ac3a3db3d47ea
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: 'failed to drain node: build0-gstfj-ci-tests-worker-b-4h7pn after 1 hour. Please see machine-config-controller logs for more information'
+        machineconfiguration.openshift.io/state: Degraded
+      creationTimestamp: "2024-02-26T18:36:06Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-tests-worker-b-4h7pn
+      resourceVersion: "4865640733"
+      uid: ad3073ef-7371-49cc-b716-cd83c31b4280
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-26T18:36:06Z"
+          lastTransitionTime: "2024-02-26T18:36:06Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-26T18:36:06Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-26T18:36:06Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-26T18:36:06Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-26T18:36:46Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        # This simulates a node that was recently provisioned and MCO did not yet set annotations on it
+        # This is a common situation in scaling clusters. Such node is typically also not Ready yet.
+        # machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        # machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        # machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        # machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        # machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        # machineconfiguration.openshift.io/post-config-action: ""
+        # machineconfiguration.openshift.io/reason: ""
+        # machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:28:38Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-tests-worker-b-d9vz2
+      resourceVersion: "4865640672"
+      uid: 3feb5598-1c68-489e-83a8-7bb65464d87e
+    spec:
+      taints:
+      - effect: NoSchedule
+        key: node.kubernetes.io/not-ready
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:28:38Z"
+          lastTransitionTime: "2024-02-27T13:28:38Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:53:29Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:53:29Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:53:29Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:53:29Z"
+          message: kubelet is still setting up stuff
+          reason: KubeletNotReady
+          status: "False"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T09:11:49Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-tests-worker-b-fkn28
+      resourceVersion: "4865640757"
+      uid: 91805eef-452d-4b6c-911c-0c28d9d755da
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T09:11:50Z"
+          lastTransitionTime: "2024-02-27T09:11:50Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T15:53:42Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T15:53:42Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T15:53:42Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T15:53:42Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-4108bf4a0655b41fdd3ac3a3db3d47ea
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: 'failed to drain node: build0-gstfj-ci-tests-worker-b-jv5bg after 1 hour. Please see machine-config-controller logs for more information'
+        machineconfiguration.openshift.io/state: Degraded
+      creationTimestamp: "2024-02-27T13:29:53Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-tests-worker-b-jv5bg
+      resourceVersion: "4865640616"
+      uid: b97e40bd-c0c7-4301-8615-edc0751cb595
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:29:53Z"
+          lastTransitionTime: "2024-02-27T13:29:53Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T13:29:53Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T13:29:53Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T13:29:53Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T13:30:44Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-4108bf4a0655b41fdd3ac3a3db3d47ea
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: 'failed to drain node: build0-gstfj-ci-tests-worker-b-kj6gk after 1 hour. Please see machine-config-controller logs for more information'
+        machineconfiguration.openshift.io/state: Degraded
+      creationTimestamp: "2024-02-27T13:53:21Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-tests-worker-b-kj6gk
+      resourceVersion: "4865641084"
+      uid: 29a897b3-7362-4753-9886-282e9b7cad61
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:53:21Z"
+          lastTransitionTime: "2024-02-27T13:53:21Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:53:21Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:53:21Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:53:21Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:54:13Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T10:10:48Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-tests-worker-b-mc7fm
+      resourceVersion: "4865641089"
+      uid: 327c62b7-8a58-4d50-aa2a-e666e6d8bfe1
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T10:10:48Z"
+          lastTransitionTime: "2024-02-27T10:10:48Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:51:36Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:51:36Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:51:36Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:51:36Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T10:10:45Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-ci-tests-worker-b-pqz8t
+      resourceVersion: "4865641024"
+      uid: 68c245a6-755b-4a39-8654-c0bd1391e2bd
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T10:10:46Z"
+          lastTransitionTime: "2024-02-27T10:10:46Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:20Z"
+          lastTransitionTime: "2024-02-27T15:25:22Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:20Z"
+          lastTransitionTime: "2024-02-27T15:25:22Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:20Z"
+          lastTransitionTime: "2024-02-27T15:25:22Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:20Z"
+          lastTransitionTime: "2024-02-27T15:27:18Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:57:40Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-2c4vg
+      resourceVersion: "4865641132"
+      uid: 1dce7872-d929-41d4-92a0-a383bcc1f50b
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:57:41Z"
+          lastTransitionTime: "2024-02-27T13:57:41Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-27T13:57:40Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-27T13:57:40Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-27T13:57:40Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-27T13:58:34Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Working
+      creationTimestamp: "2024-02-27T03:02:22Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-2kz4m
+      resourceVersion: "4865641140"
+      uid: 9a087ae7-e163-4a9b-bd1f-920040dbc61c
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T03:02:23Z"
+          lastTransitionTime: "2024-02-27T03:02:23Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-27T03:02:22Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-27T03:02:22Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-27T03:02:22Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-27T03:03:04Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Working
+      creationTimestamp: "2024-02-26T16:35:20Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-55hpj
+      resourceVersion: "4865640812"
+      uid: d11448cc-2211-496a-85c8-92fdff95e699
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-26T16:35:20Z"
+          lastTransitionTime: "2024-02-26T16:35:21Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-26T16:35:20Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-26T16:35:20Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-26T16:35:20Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-26T16:36:02Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:21:54Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-5twk4
+      resourceVersion: "4865641090"
+      uid: ad52811e-4d16-4bd7-8098-68d70ab5231c
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:21:54Z"
+          lastTransitionTime: "2024-02-27T13:21:54Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:21:54Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:21:54Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:21:54Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:22:45Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:57:33Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-65n48
+      resourceVersion: "4865640787"
+      uid: 481e52bf-d129-4895-83e3-0cd117d64f24
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:57:33Z"
+          lastTransitionTime: "2024-02-27T13:57:33Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T13:57:33Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T13:57:33Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T13:57:33Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:17Z"
+          lastTransitionTime: "2024-02-27T13:58:17Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:17:58Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-79nrd
+      resourceVersion: "4865640568"
+      uid: 256f07f7-7c36-4c05-947f-cfae542451f7
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:17:58Z"
+          lastTransitionTime: "2024-02-27T13:17:58Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T13:17:58Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T13:17:58Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T13:17:58Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T13:18:50Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T14:10:13Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-82z85
+      resourceVersion: "4865640845"
+      uid: aae4bbe1-302f-4d68-8872-8579b676ce82
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T14:10:13Z"
+          lastTransitionTime: "2024-02-27T14:10:13Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T14:10:13Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T14:10:13Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T14:10:13Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T14:11:07Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Working
+      creationTimestamp: "2024-02-27T03:02:03Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-8tmjv
+      resourceVersion: "4865640453"
+      uid: 151f76df-209c-460f-af36-37fc4a6cef07
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T03:02:03Z"
+          lastTransitionTime: "2024-02-27T03:02:03Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T03:02:03Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T03:02:03Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T03:02:03Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T03:02:36Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-4108bf4a0655b41fdd3ac3a3db3d47ea
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: 'failed to drain node: build0-gstfj-ci-tests-worker-c-dcz9p after 1 hour. Please see machine-config-controller logs for more information'
+        machineconfiguration.openshift.io/state: Degraded
+      creationTimestamp: "2024-02-26T12:11:50Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-dcz9p
+      resourceVersion: "4865641122"
+      uid: abb4803f-048f-431b-bc6a-2c897acfb5df
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-26T12:11:51Z"
+          lastTransitionTime: "2024-02-26T12:11:51Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-26T12:11:50Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-26T12:11:50Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-26T12:11:50Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:22Z"
+          lastTransitionTime: "2024-02-26T12:12:23Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T10:47:28Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-glhn7
+      resourceVersion: "4865640958"
+      uid: 92c711c8-025f-4045-91fd-db2ec01ec22b
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T10:47:29Z"
+          lastTransitionTime: "2024-02-27T10:47:29Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T10:47:28Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T10:47:28Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T10:47:28Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T10:48:09Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T10:47:30Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-hnxl9
+      resourceVersion: "4865641094"
+      uid: 8ddba160-05e2-48fa-800f-391f9193d5cb
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T10:47:30Z"
+          lastTransitionTime: "2024-02-27T10:47:30Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T10:47:30Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T10:47:30Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T10:47:30Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T10:48:11Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T10:47:33Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-jpzfm
+      resourceVersion: "4865640541"
+      uid: fcb80648-4fd2-49c9-9e3b-28218d7f02d9
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T10:47:33Z"
+          lastTransitionTime: "2024-02-27T10:47:33Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T10:47:33Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T10:47:33Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T10:47:33Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T10:48:15Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-26T16:41:44Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-jq5rk
+      resourceVersion: "4865639791"
+      uid: a2fa0db1-3966-4b53-97d2-2042ef511418
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-26T16:41:44Z"
+          lastTransitionTime: "2024-02-26T16:41:44Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:03Z"
+          lastTransitionTime: "2024-02-27T16:14:57Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:03Z"
+          lastTransitionTime: "2024-02-27T16:14:57Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:03Z"
+          lastTransitionTime: "2024-02-27T16:14:57Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:03Z"
+          lastTransitionTime: "2024-02-27T16:14:57Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Working
+      creationTimestamp: "2024-02-26T16:17:24Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-lfz8m
+      resourceVersion: "4865640562"
+      uid: e666578e-40ed-453b-9b19-2b9cd53af2b0
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-26T16:17:24Z"
+          lastTransitionTime: "2024-02-26T16:17:24Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T16:17:24Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T16:17:24Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T16:17:24Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T16:18:05Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T14:08:44Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-lxqgs
+      resourceVersion: "4865640934"
+      uid: bd011090-fc93-49de-a0f2-7a56fc899432
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T14:08:44Z"
+          lastTransitionTime: "2024-02-27T14:08:44Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T14:08:44Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T14:08:44Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T14:08:44Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T14:09:37Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: drain-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Working
+      creationTimestamp: "2024-02-27T10:08:41Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-r55wv
+      resourceVersion: "4865640602"
+      uid: b8268723-944c-4676-a365-fbd872129fcb
+    spec:
+      unschedulable: true
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T10:08:41Z"
+          lastTransitionTime: "2024-02-27T10:08:41Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T10:08:41Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T10:08:41Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T10:08:41Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T10:09:22Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T14:03:36Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-rqch4
+      resourceVersion: "4865641077"
+      uid: 936f5d0e-fac5-4b0b-a634-02a3df1cba02
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T14:03:36Z"
+          lastTransitionTime: "2024-02-27T14:03:36Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T14:03:36Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T14:03:36Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T14:03:36Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T14:04:34Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:47:17Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-ci-tests-worker-c-zd9c7
+      resourceVersion: "4865641097"
+      uid: 2843b4f9-c3ca-4288-b94b-36aec64ea45f
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:47:17Z"
+          lastTransitionTime: "2024-02-27T13:47:17Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:47:17Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:47:17Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:47:17Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T13:48:02Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:58:52Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-ci-tests-worker-d-6hddk
+      resourceVersion: "4865640745"
+      uid: e9bad2ea-c736-4434-82e9-05b82678b206
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:58:52Z"
+          lastTransitionTime: "2024-02-27T13:58:52Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T13:58:52Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T13:58:52Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T13:58:52Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T13:59:47Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:46:17Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-ci-tests-worker-d-kc6xt
+      resourceVersion: "4865640917"
+      uid: 28a80658-74ef-4e52-9bb6-38db2704c476
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:46:17Z"
+          lastTransitionTime: "2024-02-27T13:46:17Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T13:46:17Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T13:46:17Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T13:46:17Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:19Z"
+          lastTransitionTime: "2024-02-27T13:47:10Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-26T08:45:46Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-ci-tests-worker-d-r2k42
+      resourceVersion: "4865640841"
+      uid: 2830de4b-74ef-436e-a328-33b2d359803b
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-26T08:45:46Z"
+          lastTransitionTime: "2024-02-26T08:45:46Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-26T08:45:46Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-26T08:45:46Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-26T08:45:46Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-26T08:46:29Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-26T19:44:01Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-ci-tests-worker-d-r9zqc
+      resourceVersion: "4865640590"
+      uid: f8299511-d078-435c-a32d-12329f3bee64
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-26T19:44:02Z"
+          lastTransitionTime: "2024-02-26T19:44:02Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T19:44:01Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T19:44:01Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T19:44:01Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-26T19:44:44Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/scale-down-disabled: "true"
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T13:31:12Z"
+      labels:
+        ci-workload: tests
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-ci-tests-worker-d-w2bgd
+      resourceVersion: "4865640690"
+      uid: 78f5dd25-3268-430f-be23-b07d1a6bc4b9
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T13:31:13Z"
+          lastTransitionTime: "2024-02-27T13:31:13Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T13:31:12Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T13:31:12Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T13:31:12Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T13:32:05Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/desiredConfig: rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/ssh: accessed
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2020-05-21T19:30:38Z"
+      labels:
+        node-role.kubernetes.io/master: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-m-0.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865640679"
+      uid: 7d4aa28d-b049-4277-a54d-6f7938fe823f
+    spec:
+      podCIDR: 10.128.0.0/24
+      podCIDRs:
+        - 10.128.0.0/24
+    status:
+      conditions:
+        - lastHeartbeatTime: null
+          lastTransitionTime: "2020-05-21T19:32:15Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:22:52Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:22:52Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:22:52Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T15:23:40Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/desiredConfig: rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/ssh: accessed
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2020-05-21T19:31:06Z"
+      labels:
+        node-role.kubernetes.io/master: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-m-1.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865640839"
+      uid: b088b9bb-307b-4997-b951-54d0eb55e7be
+    spec:
+      podCIDR: 10.128.4.0/24
+      podCIDRs:
+        - 10.128.4.0/24
+    status:
+      conditions:
+        - lastHeartbeatTime: null
+          lastTransitionTime: "2020-05-21T19:32:16Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:27:51Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:27:51Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:27:51Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:28:28Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/desiredConfig: rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-master-e3c7b185390e28b7535bc5d0855940ad
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/ssh: accessed
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2020-05-21T19:31:06Z"
+      labels:
+        node-role.kubernetes.io/master: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-m-2.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865640831"
+      uid: 0cf8b966-14fd-40de-9cc2-f2edd22c70e3
+    spec:
+      podCIDR: 10.128.5.0/24
+      podCIDRs:
+        - 10.128.5.0/24
+    status:
+      conditions:
+        - lastHeartbeatTime: null
+          lastTransitionTime: "2020-05-21T19:32:15Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:39:18Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:39:18Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:39:18Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:39:53Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-08T15:27:50Z"
+      labels:
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-w-b-f7dkq.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865640833"
+      uid: e7147551-d28f-41c1-acc6-37a9e8c76955
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-08T15:27:50Z"
+          lastTransitionTime: "2024-02-08T15:27:50Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:22:53Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:22:53Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:22:53Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:18Z"
+          lastTransitionTime: "2024-02-27T15:22:58Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+      volumesInUse: []
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T15:24:00Z"
+      labels:
+        node-role.kubernetes.io: infra
+        node-role.kubernetes.io/infra: ""
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-w-b-infra-2stfh.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865640567"
+      uid: c2363372-e01a-4c11-8d5c-6045b5de4f5e
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T15:24:01Z"
+          lastTransitionTime: "2024-02-27T15:24:01Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T15:24:00Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T15:24:00Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T15:24:00Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T15:24:46Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-01-19T20:09:29Z"
+      labels:
+        node-role.kubernetes.io: infra
+        node-role.kubernetes.io/infra: ""
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-w-b-infra-mhb8g.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865641096"
+      uid: 8a08364a-1f7e-4675-9b94-136cab14827f
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-01-19T20:09:29Z"
+          lastTransitionTime: "2024-01-19T20:09:30Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:14:18Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:14:18Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:14:18Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:21Z"
+          lastTransitionTime: "2024-02-27T15:14:23Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-01-19T20:09:30Z"
+      labels:
+        node-role.kubernetes.io: infra
+        node-role.kubernetes.io/infra: ""
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-w-b-infra-n9kc5.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865640735"
+      uid: de05c649-b565-4c41-a1b9-12e2227f502e
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-01-19T20:09:30Z"
+          lastTransitionTime: "2024-01-19T20:09:30Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:17:44Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:17:44Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:17:44Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:16Z"
+          lastTransitionTime: "2024-02-27T15:17:50Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T15:26:02Z"
+      labels:
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-b
+      name: build0-gstfj-w-b-mwf8t.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865640534"
+      uid: 3222e38a-e138-441b-b2b0-730be564dda2
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T15:26:02Z"
+          lastTransitionTime: "2024-02-27T15:26:02Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T15:26:02Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T15:26:02Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T15:26:02Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:12Z"
+          lastTransitionTime: "2024-02-27T15:26:47Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-27T03:45:50Z"
+      labels:
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-w-c-nsmn5.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865640644"
+      uid: 0322d13a-a707-4b3d-9430-8a48af57b62a
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-27T03:45:51Z"
+          lastTransitionTime: "2024-02-27T03:45:51Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T16:08:51Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T16:08:51Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T16:08:51Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:15Z"
+          lastTransitionTime: "2024-02-27T16:08:51Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/post-config-action: ""
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-26T17:30:19Z"
+      labels:
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-c
+      name: build0-gstfj-w-c-qjbdl.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865640589"
+      uid: 9e85fd60-91ed-4dbc-9c58-207a2aff4b7c
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-26T17:30:19Z"
+          lastTransitionTime: "2024-02-26T17:30:20Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T15:48:56Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T15:48:56Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T15:48:56Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:13Z"
+          lastTransitionTime: "2024-02-27T15:48:56Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+      volumesInUse: []
+  - apiVersion: v1
+    kind: Node
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/controlPlaneTopology: HighlyAvailable
+        machineconfiguration.openshift.io/currentConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredConfig: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/desiredDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastAppliedDrain: uncordon-rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+        machineconfiguration.openshift.io/lastSyncedControllerConfigResourceVersion: "4865176381"
+        machineconfiguration.openshift.io/reason: ""
+        machineconfiguration.openshift.io/state: Done
+      creationTimestamp: "2024-02-20T03:33:03Z"
+      labels:
+        node-role.kubernetes.io/worker: ""
+        topology.gke.io/zone: us-east1-d
+      name: build0-gstfj-w-d-7rj9w.c.openshift-ci-build-farm.internal
+      resourceVersion: "4865640641"
+      uid: 49ddbf50-b29e-482c-a1c3-d912b4f35f03
+    spec: {}
+    status:
+      conditions:
+        - lastHeartbeatTime: "2024-02-20T03:33:04Z"
+          lastTransitionTime: "2024-02-20T03:33:04Z"
+          message: openshift-sdn cleared kubelet-set NoRouteCreated
+          reason: RouteCreated
+          status: "False"
+          type: NetworkUnavailable
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-27T05:13:27Z"
+          message: kubelet has sufficient memory available
+          reason: KubeletHasSufficientMemory
+          status: "False"
+          type: MemoryPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-20T03:33:03Z"
+          message: kubelet has no disk pressure
+          reason: KubeletHasNoDiskPressure
+          status: "False"
+          type: DiskPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-20T03:33:03Z"
+          message: kubelet has sufficient PID available
+          reason: KubeletHasSufficientPID
+          status: "False"
+          type: PIDPressure
+        - lastHeartbeatTime: "2024-02-27T16:19:14Z"
+          lastTransitionTime: "2024-02-20T03:33:40Z"
+          message: kubelet is posting ready status
+          reason: KubeletReady
+          status: "True"
+          type: Ready
+      volumesInUse: []
+kind: List
+metadata:
+  resourceVersion: ""

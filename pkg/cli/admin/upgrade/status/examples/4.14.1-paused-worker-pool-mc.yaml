@@ -1,0 +1,293 @@
+apiVersion: v1
+items:
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 2
+      labels:
+        machineconfiguration.openshift.io/role: master
+      name: 00-master
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: ControllerConfig
+          name: machine-config-controller
+          uid: dbc1af39-95c0-4346-9489-5306026e8392
+      resourceVersion: "24839"
+      uid: b08f1a9c-7481-4b49-8aa9-2444051576fb
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 2
+      labels:
+        machineconfiguration.openshift.io/role: worker
+      name: 00-worker
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: ControllerConfig
+          name: machine-config-controller
+          uid: dbc1af39-95c0-4346-9489-5306026e8392
+      resourceVersion: "24840"
+      uid: a7addc79-0ce7-4a4a-a195-b17a21533396
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: master
+      name: 01-master-container-runtime
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: ControllerConfig
+          name: machine-config-controller
+          uid: dbc1af39-95c0-4346-9489-5306026e8392
+      resourceVersion: "8834"
+      uid: de9332ff-2a1d-4d31-be98-226f26fb870c
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: master
+      name: 01-master-kubelet
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: ControllerConfig
+          name: machine-config-controller
+          uid: dbc1af39-95c0-4346-9489-5306026e8392
+      resourceVersion: "8835"
+      uid: 2a6a1cdb-5b79-49d3-983a-cfcced78b29e
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: worker
+      name: 01-worker-container-runtime
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: ControllerConfig
+          name: machine-config-controller
+          uid: dbc1af39-95c0-4346-9489-5306026e8392
+      resourceVersion: "8838"
+      uid: 68ae0e75-b66a-45e8-9c00-85d0dbbac77d
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: worker
+      name: 01-worker-kubelet
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: ControllerConfig
+          name: machine-config-controller
+          uid: dbc1af39-95c0-4346-9489-5306026e8392
+      resourceVersion: "8846"
+      uid: ae1a342c-4feb-4f38-89af-cfe8c235d49b
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: master
+      name: 97-master-generated-kubelet
+      resourceVersion: "8840"
+      uid: 316f2737-0397-49fe-85e5-df4e37944b1b
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:29Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: worker
+      name: 97-worker-generated-kubelet
+      resourceVersion: "8855"
+      uid: b2480713-fc2b-440a-9dd4-d5bf8cd15d14
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: master
+      name: 98-master-generated-kubelet
+      resourceVersion: "8837"
+      uid: e11eb47e-ce7f-48b8-9bdd-d125359b43d4
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: worker
+      name: 98-worker-generated-kubelet
+      resourceVersion: "8847"
+      uid: 901f3569-042f-445c-99cc-b34eb2bfc9f0
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: master
+      name: 99-master-generated-registries
+      ownerReferences:
+        - apiVersion: config.openshift.io/v1
+          kind: Image
+          name: cluster
+          uid: 6fff58ed-d8b4-4ed3-9b7f-d37ffdeb0665
+      resourceVersion: "8839"
+      uid: 50011095-9bde-4b05-84b5-c826eab55cdc
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      creationTimestamp: "2024-02-07T16:00:15Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: master
+      name: 99-master-ssh
+      resourceVersion: "1626"
+      uid: 9d3e5253-fa32-471d-872f-9b3c9fc54014
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+      creationTimestamp: "2024-02-07T16:03:28Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: worker
+      name: 99-worker-generated-registries
+      ownerReferences:
+        - apiVersion: config.openshift.io/v1
+          kind: Image
+          name: cluster
+          uid: 6fff58ed-d8b4-4ed3-9b7f-d37ffdeb0665
+      resourceVersion: "8843"
+      uid: b5101ea4-7deb-4501-89f6-b25d6a8e5c4e
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      creationTimestamp: "2024-02-07T16:00:16Z"
+      generation: 1
+      labels:
+        machineconfiguration.openshift.io/role: worker
+      name: 99-worker-ssh
+      resourceVersion: "1650"
+      uid: 3152721d-116e-41a5-b9ee-f978fffc80ab
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+        machineconfiguration.openshift.io/release-image-version: 4.14.0
+      creationTimestamp: "2024-02-07T16:11:40Z"
+      generation: 1
+      name: rendered-master-354cc9845ab33037fa7121a44dafecfd
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: MachineConfigPool
+          name: master
+          uid: d9c888d5-14f1-4bf9-9f7c-9dc7ecfa2c7a
+      resourceVersion: "25018"
+      uid: f24cdff8-23e0-4247-bc10-2806c65cac85
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+        machineconfiguration.openshift.io/release-image-version: 4.14.0
+      creationTimestamp: "2024-02-07T16:03:30Z"
+      generation: 1
+      name: rendered-master-5386b830f950f01bb6bb51c80fb3c072
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: MachineConfigPool
+          name: master
+          uid: d9c888d5-14f1-4bf9-9f7c-9dc7ecfa2c7a
+      resourceVersion: "8910"
+      uid: 811b316d-b1aa-43ba-8a7b-daf14ed7ca5f
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+        machineconfiguration.openshift.io/release-image-version: 4.14.0
+      creationTimestamp: "2024-02-07T16:11:40Z"
+      generation: 1
+      name: rendered-worker-4cec9ed3a634560e5c083a187c8f93a7
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: MachineConfigPool
+          name: worker
+          uid: 9f08ae73-d4b9-4213-b303-33a3c953fca1
+      resourceVersion: "25021"
+      uid: 16b2d6db-d799-4646-b156-8354630e422a
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 5ac7b4ae0bca76358e4d40f546306775a8e0ea2c
+        machineconfiguration.openshift.io/release-image-version: 4.14.0
+      creationTimestamp: "2024-02-07T16:03:30Z"
+      generation: 1
+      name: rendered-worker-9afa40a716fbeaa9be7388d0061948d3
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: MachineConfigPool
+          name: worker
+          uid: 9f08ae73-d4b9-4213-b303-33a3c953fca1
+      resourceVersion: "8909"
+      uid: 41a76c2c-9c02-443a-8191-e18a316714be
+kind: List
+metadata:
+  resourceVersion: ""

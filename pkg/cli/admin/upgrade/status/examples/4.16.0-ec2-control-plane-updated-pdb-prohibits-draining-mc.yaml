@@ -1,0 +1,59 @@
+apiVersion: v1
+items:
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 54cf6ad21230d373b6870d7fd5cfebe76f5cd7df
+        machineconfiguration.openshift.io/release-image-version: 4.16.0-ec.3
+      creationTimestamp: "2024-02-27T14:42:22Z"
+      generation: 1
+      name: rendered-worker-55c03f1f59ad9bd3b224c96a3618ce1d
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: MachineConfigPool
+          name: worker
+          uid: 5e1239a2-9fcb-4c9c-b778-20b5ce4d0c7e
+      resourceVersion: "4865176529"
+      uid: 07f14f1a-bbc3-4d9e-8072-353e997407ea
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: c5f53e25f337f003a388d9108713a6230f197044
+        machineconfiguration.openshift.io/release-image-version: 4.16.0-ec.2
+      creationTimestamp: "2024-02-14T15:08:31Z"
+      generation: 1
+      name: rendered-worker-6b0cfe9b92e34c641ac59510e408b311
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: MachineConfigPool
+          name: worker
+          uid: 5e1239a2-9fcb-4c9c-b778-20b5ce4d0c7e
+      resourceVersion: "4817097035"
+      uid: a34028b1-2e4a-4773-abc1-ccb170a84f3c
+  - apiVersion: machineconfiguration.openshift.io/v1
+    kind: MachineConfig
+    metadata:
+      annotations:
+        machineconfiguration.openshift.io/generated-by-controller-version: 54cf6ad21230d373b6870d7fd5cfebe76f5cd7df
+        machineconfiguration.openshift.io/release-image-version: 4.16.0-ec.3
+      creationTimestamp: "2024-02-27T15:01:57Z"
+      generation: 1
+      name: rendered-master-e3c7b185390e28b7535bc5d0855940ad
+      ownerReferences:
+        - apiVersion: machineconfiguration.openshift.io/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: MachineConfigPool
+          name: master
+          uid: 0542312a-13ce-4a1d-bd20-24528ced2dea
+      resourceVersion: "4865280056"
+      uid: fe21e396-b9bb-4733-9112-9b6ac8616f2e
+kind: List
+metadata:
+  resourceVersion: ""
