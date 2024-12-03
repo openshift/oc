@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -102,7 +103,8 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 
 	cmd.AddCommand(channel.New(f, streams))
 
-	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_STATUS").IsEnabled() {
+	// if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_STATUS").IsEnabled() {
+	if os.Getenv("OC_ENABLE_CMD_UPGRADE_STATUS") == "true" {
 		cmd.AddCommand(status.New(f, streams))
 	}
 
