@@ -1328,6 +1328,8 @@ func writeNestedTarHeader(tw *tar.Writer, parts []string, existing map[string]st
 	return nil
 }
 
+const imageReferencesImageStreamFilename = "image-references"
+
 func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata, ordered []string, metadata map[string]imageData, allowMissingImages bool, verifiers []PayloadVerifier, errOut io.Writer) ([]string, error) {
 	var operators []string
 	directories := make(map[string]struct{})
@@ -1366,7 +1368,8 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 	if err != nil {
 		return nil, err
 	}
-	if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: newest, Typeflag: tar.TypeReg, Name: path.Join(append(append([]string{}, parts...), "image-references")...), Size: int64(len(data))}); err != nil {
+
+	if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: newest, Typeflag: tar.TypeReg, Name: path.Join(append(append([]string{}, parts...), imageReferencesImageStreamFilename)...), Size: int64(len(data))}); err != nil {
 		return nil, err
 	}
 	if _, err := tw.Write(data); err != nil {
@@ -1391,17 +1394,22 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 	if err := iterateExtractedManifests(ordered, metadata, func(directory string, contents []os.FileInfo, operator string) error {
 		transform := NopManifestMapper
 
-		if fi := takeFileByName(&contents, "image-references"); fi != nil {
-			path := filepath.Join(directory, fi.Name())
-			klog.V(2).Infof("Perform image replacement based on inclusion of %s", path)
-			transform, err = NewTransformFromImageStreamFile(path, is, allowMissingImages, errOut)
-			if err != nil {
-				return fmt.Errorf("operator %q contained an invalid image-references file: %s", operator, err)
+		// If there is an image-references file in the directory, we will need to replace image references in the manifests
+		// See: https://github.com/openshift/enhancements/blob/068e863988b58f70b5184e4ef49c0ad1c2913dfb/dev-guide/cluster-version-operator/dev/operators.md?plain=1#L157-L189
+		for _, fi := range contents {
+			if fi.Name() == imageReferencesImageStreamFilename && !fi.IsDir() {
+				imageReferencesPath := filepath.Join(directory, imageReferencesImageStreamFilename)
+				klog.V(2).Infof("Perform image replacement based on inclusion of %s", imageReferencesImageStreamFilename)
+				var err error
+				if transform, err = NewTransformFromImageStreamFile(imageReferencesPath, is, allowMissingImages, errOut); err != nil {
+					return fmt.Errorf("operator %q contained an invalid image-references file: %s", operator, err)
+				}
+				break
 			}
 		}
 
 		for _, fi := range contents {
-			if fi.IsDir() {
+			if fi.IsDir() || fi.Name() == imageReferencesImageStreamFilename {
 				continue
 			}
 			filename := fi.Name()
@@ -1556,17 +1564,6 @@ func parseFile(filename string, overlap map[string]string) ([]Mapping, error) {
 		return nil, err
 	}
 	return fileMappings, nil
-}
-
-func takeFileByName(files *[]os.FileInfo, name string) os.FileInfo {
-	for i, fi := range *files {
-		if fi.IsDir() || fi.Name() != name {
-			continue
-		}
-		*files = append((*files)[:i], (*files)[i+1:]...)
-		return fi
-	}
-	return nil
 }
 
 type PayloadVerifier func(filename string, data []byte) error
