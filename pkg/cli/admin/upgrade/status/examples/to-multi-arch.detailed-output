@@ -1,9 +1,9 @@
 = Control Plane =
 Assessment:      Progressing
-Target Version:  4.18.0-ec.3 to Multi-Architecture
+Target Version:  4.18.0-ec.3 (from 4.18.0-ec.3)
 Updating:        machine-config
 Completion:      97% (32 operators updated, 1 updating, 0 waiting)
-Duration:        6m55s (Est. Time Remaining: N/A for Multi-Architecture Migration)
+Duration:        6m55s (Est. Time Remaining: 1h4m)
 Operator Health: 33 Healthy
 
 Updating Cluster Operators
