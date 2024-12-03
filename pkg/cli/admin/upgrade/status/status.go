@@ -22,12 +22,11 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	configv1 "github.com/openshift/api/config/v1"
-	machineconfigv1 "github.com/openshift/api/machineconfiguration/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
-	machineconfigv1client "github.com/openshift/client-go/machineconfiguration/clientset/versioned"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
-	"github.com/openshift/oc/pkg/cli/admin/inspectalerts"
+	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+	machineconfigv1client "github.com/openshift/machine-config-operator/pkg/generated/clientset/versioned"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/status/mco"
 )
 
@@ -90,7 +89,7 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		return kcmdutil.UsageErrorf(cmd, "positional arguments given")
 	}
 
-	if !sets.New[string](detailedOutputAllValues...).Has(o.detailedOutput) {
+	if !sets.NewString(detailedOutputAllValues...).Has(o.detailedOutput) {
 		return fmt.Errorf("invalid value for --details: %s (must be one of %s)", o.detailedOutput, strings.Join(detailedOutputAllValues, ", "))
 	}
 
@@ -142,7 +141,7 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		o.AppsClient = appsClient
 
 		o.getAlerts = func(ctx context.Context) ([]byte, error) {
-			return inspectalerts.GetAlerts(ctx, routeGetter, cfg.BearerToken)
+			return GetAlerts(ctx, routeGetter, cfg.BearerToken)
 		}
 	} else {
 		err := o.mockData.load()
