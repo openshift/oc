@@ -1,0 +1,74 @@
+= Control Plane =
+Assessment:      Progressing - Slow
+Target Version:  4.15.0-ec.2 (from 4.14.0-rc.3)
+Updating:        machine-config
+Completion:      97% (32 operators updated, 1 updating, 0 waiting)
+Duration:        59m (Est. Time Remaining: <10m)
+Operator Health: 30 Healthy, 2 Unavailable, 1 Available but degraded
+
+Updating Cluster Operators
+NAME             SINCE    REASON   MESSAGE
+machine-config   21m20s   -        Working towards 4.15.0-ec.2
+
+Control Plane Nodes
+NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+ip-10-0-30-217.us-east-2.compute.internal   Outdated     Pending   4.14.0-rc.3   ?     
+ip-10-0-53-40.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3   ?     
+ip-10-0-92-180.us-east-2.compute.internal   Outdated     Pending   4.14.0-rc.3   ?     
+
+= Worker Upgrade =
+
+WORKER POOL   ASSESSMENT   COMPLETION   STATUS
+worker        Pending      0% (0/3)     3 Available, 0 Progressing, 0 Draining
+
+Worker Pool Nodes: worker
+NAME                                        ASSESSMENT   PHASE     VERSION       EST   MESSAGE
+ip-10-0-20-162.us-east-2.compute.internal   Outdated     Pending   4.14.0-rc.3   ?     
+ip-10-0-4-159.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3   ?     
+ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.14.0-rc.3   ?     
+
+= Update Health =
+Message: Cluster Operator machine-config is unavailable (MachineConfigControllerFailed)
+  Since:       20m24s
+  Level:       Error
+  Impact:      API Availability
+  Reference:   https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDown.md
+  Resources:
+    clusteroperators.config.openshift.io: machine-config
+  Description: Cluster not available for [{operator 4.14.0-rc.3}]: ControllerConfig.machineconfiguration.openshift.io "machine-config-controller" is invalid: [status.controllerCertificates[0].notAfter: Required value, status.controllerCertificates[0].notBefore: Required value, status.controllerCertificates[1].notAfter: Required value, status.controllerCertificates[1].notBefore: Required value, status.controllerCertificates[2].notAfter: Required value, status.controllerCertificates[2].notBefore: Required value, status.controllerCertificates[3].notAfter: Required value, status.controllerCertificates[3].notBefore: Required value, status.controllerCertificates[4].notAfter: Required value, status.controllerCertificates[4].notBefore: Required value, status.controllerCertificates[5].notAfter: Required value, status.controllerCertificates[5].notBefore: Required value, status.controllerCertificates[6].notAfter: Required value, status.controllerCertificates[6].notBefore: Required value, status.controllerCertificates[7].notAfter: Required value, status.controllerCertificates[7].notBefore: Required value, status.controllerCertificates[8].notAfter: Required value, status.controllerCertificates[8].notBefore: Required value, status.controllerCertificates[9].notAfter: Required value, status.controllerCertificates[9].notBefore: Required value, <nil>: Invalid value: "null": some validation rules were not checked because the object was invalid; correct the existing errors to complete validation]
+
+Message: Alert is firing: Pod has been in a non-ready state for more than 15 minutes.
+  Since:       6m35s
+  Level:       Warning
+  Impact:      Unknown
+  Reference:   https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/KubePodNotReady.md
+  Resources:
+    alerts.config.openshift.io: openshift-kube-apiserver/KubePodNotReady
+  Description: Alert started firing during the update. The alert description is: Pod openshift-kube-apiserver/kube-apiserver-startup-monitor-ip-10-0-60-26.us-west-1.compute.internal has been in a non-ready state for longer than 15 minutes.
+
+Message: Alert is firing: This alert has a message, description, runbook and summary
+  Since:       16m35s
+  Level:       Warning
+  Impact:      Unknown
+  Reference:   https://<mock_data>/runbook.md
+  Resources:
+    alerts.config.openshift.io: openshift-monitoring/PodDisruptionBudgetAtLimitWithMessage
+  Description: Alert started firing during the update. The alert description is: This alert has a description | This alert has a message, too
+
+Message: Alert is firing: PodDisruptionBudgetAtLimit for pods <>
+  Since:       24h8m54s
+  Level:       Warning
+  Impact:      Unknown
+  Reference:   https://<mock_data>/PDB.md
+  Resources:
+    alerts.config.openshift.io: openshift-monitoring/PodDisruptionBudgetAtLimit
+  Description: Alert known to affect updates has been firing since before the update started. The alert description is: PodDisruptionBudgetAtLimit in namespace <>
+
+Message: Alert is firing: PodDisruptionBudgetAtLimit for some reason does not have runbook and description
+  Since:       24h8m54s
+  Level:       Warning
+  Impact:      Unknown
+  Reference:   <alert does not have a runbook_url annotation>
+  Resources:
+    alerts.config.openshift.io: openshift-monitoring/PodDisruptionBudgetAtLimit
+  Description: Alert known to affect updates has been firing since before the update started. The alert has no description.

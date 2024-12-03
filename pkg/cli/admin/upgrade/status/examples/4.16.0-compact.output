@@ -1,0 +1,16 @@
+= Control Plane =
+Assessment:      Progressing
+Target Version:  4.17.0-ec.0 (from 4.16.0-0.nightly-2024-08-01-082745)
+Completion:      91% (30 operators updated, 0 updating, 3 waiting)
+Duration:        28m (Est. Time Remaining: 30m)
+Operator Health: 33 Healthy
+
+Control Plane Nodes
+NAME                                        ASSESSMENT   PHASE     VERSION                              EST   MESSAGE
+ip-10-0-27-170.us-west-1.compute.internal   Outdated     Pending   4.16.0-0.nightly-2024-08-01-082745   ?     
+ip-10-0-60-117.us-west-1.compute.internal   Outdated     Pending   4.16.0-0.nightly-2024-08-01-082745   ?     
+ip-10-0-96-173.us-west-1.compute.internal   Outdated     Pending   4.16.0-0.nightly-2024-08-01-082745   ?     
+
+= Update Health =
+SINCE    LEVEL   IMPACT   MESSAGE
+27m58s   Info    None     Update is proceeding well

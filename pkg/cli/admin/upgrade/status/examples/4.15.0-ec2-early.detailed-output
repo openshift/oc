@@ -1,0 +1,39 @@
+= Control Plane =
+Assessment:      Progressing
+Target Version:  4.15.0-ec.2 (from incomplete 4.14.1)
+Updating:        etcd, kube-apiserver
+Completion:      3% (1 operators updated, 2 updating, 30 waiting)
+Duration:        1m29s (Est. Time Remaining: 1h25m)
+Operator Health: 33 Healthy
+
+Updating Cluster Operators
+NAME             SINCE   REASON          MESSAGE
+etcd             45s     NodeInstaller   NodeInstallerProgressing: 2 nodes are at revision 33; 1 nodes are at revision 34
+kube-apiserver   6m8s    NodeInstaller   NodeInstallerProgressing: 3 nodes are at revision 274; 0 nodes have achieved new revision 276
+
+Control Plane Nodes
+NAME                                        ASSESSMENT   PHASE     VERSION   EST   MESSAGE
+ip-10-0-30-217.us-east-2.compute.internal   Outdated     Pending   4.14.1    ?     
+ip-10-0-53-40.us-east-2.compute.internal    Outdated     Pending   4.14.1    ?     
+ip-10-0-92-180.us-east-2.compute.internal   Outdated     Pending   4.14.1    ?     
+
+= Worker Upgrade =
+
+WORKER POOL   ASSESSMENT   COMPLETION   STATUS
+worker        Pending      0% (0/3)     3 Available, 0 Progressing, 0 Draining
+
+Worker Pool Nodes: worker
+NAME                                        ASSESSMENT   PHASE     VERSION   EST   MESSAGE
+ip-10-0-20-162.us-east-2.compute.internal   Outdated     Pending   4.14.1    ?     
+ip-10-0-4-159.us-east-2.compute.internal    Outdated     Pending   4.14.1    ?     
+ip-10-0-99-40.us-east-2.compute.internal    Outdated     Pending   4.14.1    ?     
+
+= Update Health =
+Message: Previous update to 4.14.1 never completed, last complete update was 4.14.0-rc.7
+  Since:       1m29s
+  Level:       Warning
+  Impact:      None
+  Reference:   https://docs.openshift.com/container-platform/latest/updating/troubleshooting_updates/gathering-data-cluster-update.html#gathering-clusterversion-history-cli_troubleshooting_updates
+  Resources:
+    clusterversions.config.openshift.io: version
+  Description: Current update to 4.15.0-ec.2 was initiated while the previous update to version 4.14.1 was still in progress
