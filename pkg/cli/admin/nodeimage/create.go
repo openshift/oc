@@ -287,17 +287,14 @@ func (o *CreateOptions) Run() error {
 	}
 
 	err = o.waitForCompletion(ctx)
-	if err != nil {
-		return err
-	}
 	// Something went wrong during the node-joiner tool execution,
 	// let's show the logs and return an error
-	if o.nodeJoinerExitCode != 0 {
-		err = o.printLogsInPod(ctx)
-		if err != nil {
-			return err
+	if err != nil || o.nodeJoinerExitCode != 0 {
+		printErr := o.printLogsInPod(ctx)
+		if printErr != nil {
+			return printErr
 		}
-		return fmt.Errorf("image generation error (exit code: %d)", o.nodeJoinerExitCode)
+		return fmt.Errorf("image generation error: %v (exit code: %d)", err, o.nodeJoinerExitCode)
 	}
 
 	err = o.copyArtifactsFromNodeJoinerPod()
@@ -315,6 +312,7 @@ func (o *CreateOptions) Run() error {
 }
 
 func (o *CreateOptions) printLogsInPod(ctx context.Context) error {
+	klog.V(1).Info("Printing pod logs")
 	logOptions := &corev1.PodLogOptions{
 		Container:  nodeJoinerContainer,
 		Timestamps: true,
@@ -405,7 +403,7 @@ func (o *CreateOptions) waitForCompletion(ctx context.Context) error {
 	return wait.PollUntilContextTimeout(
 		ctx,
 		time.Second*5,
-		time.Minute*5,
+		time.Minute*15,
 		true,
 		func(ctx context.Context) (done bool, err error) {
 			w := &bytes.Buffer{}
