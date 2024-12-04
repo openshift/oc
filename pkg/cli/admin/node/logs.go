@@ -383,7 +383,9 @@ func outputDirectoryEntriesOrContent(out io.Writer, in io.Reader, prefix []byte)
 
 	// turn href links into lines of output
 	content, _ := buf.Peek(bufferSize)
-	if bytes.HasPrefix(content, []byte("<pre>")) {
+	// Until Go 1.23, kubelet returned with the prefix <pre>, but now
+	// it returns with standard html prefix. We need to support both of them.
+	if bytes.HasPrefix(content, []byte("<pre>")) || bytes.HasPrefix(content, []byte("<!doctype html>")) {
 		reLink := regexp.MustCompile(`href="([^"]+)"`)
 		s := bufio.NewScanner(buf)
 		s.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
