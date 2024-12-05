@@ -70,10 +70,8 @@ func (p *Payload) Rewrite(allowTags bool, fn func(component string) imagereferen
 		if err != nil {
 			return err
 		}
-		out, err := mapper(data)
-		if err != nil {
-			return fmt.Errorf("unable to rewrite the contents of %s: %v", path, err)
-		}
+		out := mapper(data)
+
 		if bytes.Equal(data, out) {
 			continue
 		}
@@ -120,6 +118,8 @@ func readReleaseImageReferences(data []byte) (*imageapi.ImageStream, error) {
 	return is, nil
 }
 
+type SafeManifestMapper func(data []byte) []byte
+
 type ManifestMapper func(data []byte) ([]byte, error)
 
 func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, allowMissingImages bool, errOut io.Writer) (ManifestMapper, error) {
@@ -140,11 +140,7 @@ func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, a
 
 	versionMapper := NewComponentVersionsMapper(input.Name, versions, tagsByName)
 	return func(data []byte) ([]byte, error) {
-		data, err := imageMapper(data)
-		if err != nil {
-			return nil, err
-		}
-		return versionMapper(data)
+		return versionMapper(imageMapper(data))
 	}, nil
 }
 
@@ -234,8 +230,14 @@ type ImageReference struct {
 	TargetPullSpec   string
 }
 
-func NopManifestMapper(data []byte) ([]byte, error) {
-	return data, nil
+func NopManifestMapper(data []byte) []byte {
+	return data
+}
+
+func fallible(mapper SafeManifestMapper) ManifestMapper {
+	return func(data []byte) ([]byte, error) {
+		return mapper(data), nil
+	}
 }
 
 // patternImageFormat attempts to match a docker pull spec by prefix (%s) and capture the
@@ -243,7 +245,7 @@ func NopManifestMapper(data []byte) ([]byte, error) {
 // end of file.
 const patternImageFormat = `([\W]|^)(%s)(:[\w][\w.-]{0,127}|@[A-Za-z][A-Za-z0-9]*(?:[-_+.][A-Za-z][A-Za-z0-9]*)*[:][[:xdigit:]]{2,})?([\s"']|$)`
 
-func NewImageMapper(images map[string]ImageReference) (ManifestMapper, error) {
+func NewImageMapper(images map[string]ImageReference) (SafeManifestMapper, error) {
 	repositories := make([]string, 0, len(images))
 	bySource := make(map[string]string)
 	for name, ref := range images {
@@ -263,7 +265,7 @@ func NewImageMapper(images map[string]ImageReference) (ManifestMapper, error) {
 	pattern := fmt.Sprintf(patternImageFormat, strings.Join(repositories, "|"))
 	re := regexp.MustCompile(pattern)
 
-	return func(data []byte) ([]byte, error) {
+	return func(data []byte) []byte {
 		out := re.ReplaceAllFunc(data, func(in []byte) []byte {
 			parts := re.FindSubmatch(in)
 			repository := string(parts[2])
@@ -288,14 +290,14 @@ func NewImageMapper(images map[string]ImageReference) (ManifestMapper, error) {
 				return []byte(string(parts[1]) + ref.TargetPullSpec + string(parts[4]))
 			}
 		})
-		return out, nil
+		return out
 	}, nil
 }
 
 // exactImageFormat attempts to match a string on word boundaries
 const exactImageFormat = `\b%s\b`
 
-func NewExactMapper(mappings map[string]string) (ManifestMapper, error) {
+func NewExactMapper(mappings map[string]string) (SafeManifestMapper, error) {
 	patterns := make(map[string]*regexp.Regexp)
 	for from, to := range mappings {
 		pattern := fmt.Sprintf(exactImageFormat, regexp.QuoteMeta(from))
@@ -306,11 +308,11 @@ func NewExactMapper(mappings map[string]string) (ManifestMapper, error) {
 		patterns[to] = re
 	}
 
-	return func(data []byte) ([]byte, error) {
+	return func(data []byte) []byte {
 		for to, pattern := range patterns {
 			data = pattern.ReplaceAll(data, []byte(to))
 		}
-		return data, nil
+		return data
 	}, nil
 }
 

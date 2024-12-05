@@ -1392,7 +1392,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 
 	// read each directory, processing the manifests in order and updating the contents into the tar output
 	if err := iterateExtractedManifests(ordered, metadata, func(directory string, contents []os.FileInfo, operator string) error {
-		transform := NopManifestMapper
+		transform := fallible(NopManifestMapper)
 
 		// If there is an image-references file in the directory, we will need to replace image references in the manifests
 		// See: https://github.com/openshift/enhancements/blob/068e863988b58f70b5184e4ef49c0ad1c2913dfb/dev-guide/cluster-version-operator/dev/operators.md?plain=1#L157-L189

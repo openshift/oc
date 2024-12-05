@@ -202,13 +202,7 @@ func TestNewImageMapper(t *testing.T) {
 			if err != nil {
 				return
 			}
-			out, err := m([]byte(tt.input))
-			if (err != nil) != tt.wantErr {
-				t.Fatal(err)
-			}
-			if err != nil {
-				return
-			}
+			out := m([]byte(tt.input))
 			if string(out) != tt.output {
 				t.Errorf("unexpected output, wanted\n%s\ngot\n%s", tt.output, string(out))
 			}
@@ -250,13 +244,7 @@ func TestNewExactMapper(t *testing.T) {
 			if err != nil {
 				return
 			}
-			out, err := m([]byte(tt.input))
-			if (err != nil) != tt.wantErr {
-				t.Fatal(err)
-			}
-			if err != nil {
-				return
-			}
+			out := m([]byte(tt.input))
 			if string(out) != tt.output {
 				t.Errorf("unexpected output, wanted\n%s\ngot\n%s", tt.output, string(out))
 			}
