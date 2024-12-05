@@ -34,6 +34,7 @@ var (
 		   * deployments
 		   * daemonsets
 		   * statefulsets
+		   * deploymentConfigs (deprecated)
 		`
 )
 
