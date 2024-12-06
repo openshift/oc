@@ -51,7 +51,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	o := newOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Display the status of the current cluster update.",
+		Short: "Display the status of the current cluster version update or multi-arch migration",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run(cmd.Context()))
@@ -282,8 +282,9 @@ func (o *options) Run(ctx context.Context) error {
 	var updateInsights []updateInsight
 	var workerPoolsStatusData []poolDisplayData
 	var controlPlanePoolStatusData poolDisplayData
+	multiArchMigrationInProgress := multiArchMigration(cv.Status.History) && progressing.Status == configv1.ConditionTrue
 	for _, pool := range pools.Items {
-		nodesStatusData, insights := assessNodesStatus(cv, pool, nodesPerPool[pool.Name], machineConfigs.Items)
+		nodesStatusData, insights := assessNodesStatus(cv, pool, nodesPerPool[pool.Name], machineConfigs.Items, multiArchMigrationInProgress)
 		updateInsights = append(updateInsights, insights...)
 		poolStatus, insights := assessMachineConfigPool(pool, nodesStatusData)
 		updateInsights = append(updateInsights, insights...)
