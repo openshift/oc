@@ -13,10 +13,10 @@ import (
 
 var (
 	rolloutLong = templates.LongDesc(`
-		Manage the rollout of one or many resources.` + rolloutValidResources)
+		Manage the rollout of one or more resources.` + rolloutValidResources)
 
 	rolloutExample = templates.Examples(`
-		# Rollback to the previous deployment
+		# Roll back to the previous deployment
 		oc rollout undo deployment/abc
 
 		# Check the rollout status of a daemonset
@@ -90,7 +90,7 @@ var (
 
 		Paused resources will not be reconciled by a controller.
 		Use "oc rollout resume" to resume a paused resource.
-		Currently only deployments support being paused.`)
+		Currently, only deployments support being paused.`)
 
 	pauseExample = templates.Examples(`
 		# Mark the nginx deployment as paused
@@ -162,7 +162,7 @@ var (
 		Show the status of the rollout.
 
 		By default 'rollout status' will watch the status of the latest rollout
-		until it's done. If you don't want to wait for the rollout to finish then
+		until it is done. If you do not want to wait for the rollout to finish then
 		you can use --watch=false. Note that if a new rollout starts in-between, then
 		'rollout status' will continue watching the latest revision. If you want to
 		pin to a specific revision and abort if it is rolled over by another revision,
