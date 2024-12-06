@@ -283,7 +283,7 @@ func (o *options) Run(ctx context.Context) error {
 	var workerPoolsStatusData []poolDisplayData
 	var controlPlanePoolStatusData poolDisplayData
 	for _, pool := range pools.Items {
-		nodesStatusData, insights := assessNodesStatus(cv, pool, nodesPerPool[pool.Name], machineConfigs.Items)
+		nodesStatusData, insights := assessNodesStatus(cv, pool, nodesPerPool[pool.Name], machineConfigs.Items, multiArchMigration(cv.Status.History, cv.Spec.DesiredUpdate))
 		updateInsights = append(updateInsights, insights...)
 		poolStatus, insights := assessMachineConfigPool(pool, nodesStatusData)
 		updateInsights = append(updateInsights, insights...)
