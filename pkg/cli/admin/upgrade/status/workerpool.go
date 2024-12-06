@@ -146,7 +146,7 @@ func ellipsizeNames(message string, name string) string {
 	return strings.Replace(message, name, "<node>", -1)
 }
 
-func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPool, nodes []corev1.Node, machineConfigs []mcfgv1.MachineConfig) ([]nodeDisplayData, []updateInsight) {
+func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPool, nodes []corev1.Node, machineConfigs []mcfgv1.MachineConfig, multiArchMigrationInProgress bool) ([]nodeDisplayData, []updateInsight) {
 	var nodesStatusData []nodeDisplayData
 	var insights []updateInsight
 	for _, node := range nodes {
@@ -162,7 +162,7 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 		desiredAnnotationUpdated := desiredConfig == pool.Spec.Configuration.Name
 		isUpdated := foundCurrent && isLatestUpdateHistoryVersionEqualTo(cv.Status.History, currentVersion) &&
 			// The following condition is to handle the multi-arch migration because the version number stays the same there
-			(!ok || (annotationMatched && desiredAnnotationUpdated))
+			(!multiArchMigrationInProgress || !ok || (annotationMatched && desiredAnnotationUpdated))
 
 		// foundCurrent makes sure we don't blip phase "updating" for nodes that we are not sure
 		// of their actual phase, even though the conservative assumption is that the node is

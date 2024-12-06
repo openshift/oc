@@ -51,7 +51,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	o := newOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Display the status of the current cluster update.",
+		Short: "Display the status of the current cluster version update or multi-arch migration",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Run(cmd.Context()))
@@ -282,8 +282,14 @@ func (o *options) Run(ctx context.Context) error {
 	var updateInsights []updateInsight
 	var workerPoolsStatusData []poolDisplayData
 	var controlPlanePoolStatusData poolDisplayData
+	// It is known that using "progressing.Status == configv1.ConditionTrue" to express multi-arch migration in progress
+	// leads to the fact that migration could be claimed completely while the update of data planes is still ongoing.
+	// This is arguably an expected behaviour because the cluster is ready for creating the cross-arch machines by that time.
+	// Ideally MCO do not have to reboot the existing machines for the machine-config changes caused by the multi-arch migration,
+	// but it cannot be opted out at the moment.
+	multiArchMigrationInProgress := multiArchMigration(cv.Status.History) && progressing.Status == configv1.ConditionTrue
 	for _, pool := range pools.Items {
-		nodesStatusData, insights := assessNodesStatus(cv, pool, nodesPerPool[pool.Name], machineConfigs.Items)
+		nodesStatusData, insights := assessNodesStatus(cv, pool, nodesPerPool[pool.Name], machineConfigs.Items, multiArchMigrationInProgress)
 		updateInsights = append(updateInsights, insights...)
 		poolStatus, insights := assessMachineConfigPool(pool, nodesStatusData)
 		updateInsights = append(updateInsights, insights...)

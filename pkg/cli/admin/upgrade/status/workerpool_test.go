@@ -836,7 +836,7 @@ func Test_assessNodesStatus(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			nodeDisplayData, updateInsight := assessNodesStatus(tc.args.cv, tc.args.pool, tc.args.nodes, tc.args.machineConfigs)
+			nodeDisplayData, updateInsight := assessNodesStatus(tc.args.cv, tc.args.pool, tc.args.nodes, tc.args.machineConfigs, false)
 			if diff := cmp.Diff(tc.expectedNodeDisplayData, nodeDisplayData, allowUnexportedWorkerPools); diff != "" {
 				t.Errorf("nodeDisplayData differ from expected:\n%s", diff)
 			}
@@ -951,7 +951,7 @@ func Test_assessNodesStatus_DisplayData_Sorting(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			nodeDisplayData, _ := assessNodesStatus(tc.args.cv, tc.args.pool, tc.args.nodes, tc.args.machineConfigs)
+			nodeDisplayData, _ := assessNodesStatus(tc.args.cv, tc.args.pool, tc.args.nodes, tc.args.machineConfigs, false)
 			if diff := cmp.Diff(tc.expectedNodeDisplayData, nodeDisplayData, allowUnexportedWorkerPools); diff != "" {
 				t.Errorf("nodeDisplayData differ from expected:\n%s", diff)
 			}
