@@ -391,6 +391,14 @@ func timewiseComplete(coCompletion float64) float64 {
 	}
 }
 
+func multiArchMigration(history []v1.UpdateHistory, desired *v1.Update) bool {
+	return len(history) > 1 &&
+		history[0].Version == history[1].Version &&
+		history[0].Image != history[1].Image &&
+		desired != nil &&
+		desired.Architecture == v1.ClusterVersionArchitectureMulti
+}
+
 func versionsFromHistory(history []v1.UpdateHistory, desired *v1.Update, cvScope scopeResource, controlPlaneCompleted bool) (versions, []updateInsight) {
 	versionData := versions{
 		target:   "unknown",
@@ -406,12 +414,7 @@ func versionsFromHistory(history []v1.UpdateHistory, desired *v1.Update, cvScope
 	if len(history) > 1 {
 		versionData.previous = history[1].Version
 		versionData.isPreviousPartial = history[1].State == v1.PartialUpdate
-		if history[0].Version == history[1].Version &&
-			history[0].Image != history[1].Image &&
-			desired != nil &&
-			desired.Architecture == v1.ClusterVersionArchitectureMulti {
-			versionData.isMultiArchMigration = true
-		}
+		versionData.isMultiArchMigration = multiArchMigration(history, desired)
 	}
 
 	var insights []updateInsight
