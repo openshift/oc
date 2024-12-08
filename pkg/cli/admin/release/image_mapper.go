@@ -234,12 +234,6 @@ func NopManifestMapper(data []byte) []byte {
 	return data
 }
 
-func fallible(mapper SafeManifestMapper) ManifestMapper {
-	return func(data []byte) ([]byte, error) {
-		return mapper(data), nil
-	}
-}
-
 // patternImageFormat attempts to match a docker pull spec by prefix (%s) and capture the
 // prefix and either a tag or digest. It requires leading and trailing whitespace, quotes, or
 // end of file.
@@ -335,6 +329,14 @@ func ComponentReferencesForImageStream(is *imageapi.ImageStream) (func(string) i
 		}
 		return ref
 	}, nil
+}
+
+// NewSimpleVersionsMapper substitutes strings of the form 0.0.1-snapshot with releaseName, and
+// errors out if the manifest contains any other version references.
+//
+// If the input release name is not a semver, a request for `0.0.1-snapshot` will be left unmodified.
+func NewSimpleVersionsMapper(releaseName string) ManifestMapper {
+	return NewComponentVersionsMapper(releaseName, nil, nil)
 }
 
 var componentVersionRe = regexp.MustCompile(`(\W|^)0\.0\.1-snapshot([a-z0-9\-]*)`)
