@@ -14,6 +14,7 @@ import (
 
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
 	"github.com/openshift/oc/pkg/cli/admin/catalog"
+	"github.com/openshift/oc/pkg/cli/admin/commatrix"
 	"github.com/openshift/oc/pkg/cli/admin/copytonode"
 	"github.com/openshift/oc/pkg/cli/admin/createbootstrapprojecttemplate"
 	"github.com/openshift/oc/pkg/cli/admin/createerrortemplate"
@@ -102,6 +103,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 				groups.NewCmdGroups(f, streams),
 				withShortDescription(cmdutil.ReplaceCommandName("kubectl", "oc adm", ktemplates.Normalize(certificates.NewCmdCertificate(f, streams))), "Approve or reject certificate requests"),
 				network.NewCmdPodNetwork(f, streams),
+				commatrix.NewCmdCommatrix(f, streams),
 			},
 		},
 		{
