@@ -734,14 +734,10 @@ github.com/openshift/client-go/operator/clientset/versioned
 github.com/openshift/client-go/operator/clientset/versioned/scheme
 github.com/openshift/client-go/operator/clientset/versioned/typed/operator/v1
 github.com/openshift/client-go/operator/clientset/versioned/typed/operator/v1alpha1
-github.com/openshift/client-go/project/applyconfigurations
 github.com/openshift/client-go/project/applyconfigurations/internal
 github.com/openshift/client-go/project/applyconfigurations/project/v1
-github.com/openshift/client-go/project/clientset/versioned
-github.com/openshift/client-go/project/clientset/versioned/fake
 github.com/openshift/client-go/project/clientset/versioned/scheme
 github.com/openshift/client-go/project/clientset/versioned/typed/project/v1
-github.com/openshift/client-go/project/clientset/versioned/typed/project/v1/fake
 github.com/openshift/client-go/quota/applyconfigurations/internal
 github.com/openshift/client-go/quota/applyconfigurations/quota/v1
 github.com/openshift/client-go/quota/clientset/versioned/scheme
