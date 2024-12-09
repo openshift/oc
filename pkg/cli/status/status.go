@@ -18,7 +18,6 @@ import (
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	buildv1client "github.com/openshift/client-go/build/clientset/versioned/typed/build/v1"
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
-	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/openshift/oc/pkg/helpers/describe"
 	dotutil "github.com/openshift/oc/pkg/helpers/dot"
@@ -110,10 +109,6 @@ func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	if err != nil {
 		return err
 	}
-	projectClient, err := projectv1client.NewForConfig(clientConfig)
-	if err != nil {
-		return err
-	}
 	buildClient, err := buildv1client.NewForConfig(clientConfig)
 	if err != nil {
 		return err
@@ -147,7 +142,7 @@ func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 		if err != nil {
 			return err
 		}
-		_, err = projectClient.Projects().Get(context.TODO(), namespace, metav1.GetOptions{})
+		_, err = kclientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
 		switch {
 		case kapierrors.IsForbidden(err), kapierrors.IsNotFound(err):
 			return fmt.Errorf("you do not have rights to view project %q specified in your config or the project doesn't exist", namespace)
@@ -166,15 +161,14 @@ func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	canRequestProjects, _ := loginutil.CanRequestProjects(clientConfig, o.namespace)
 
 	o.describer = &describe.ProjectStatusDescriber{
-		KubeClient:    kclientset,
-		RESTMapper:    restMapper,
-		ProjectClient: projectClient,
-		BuildClient:   buildClient,
-		ImageClient:   imageClient,
-		AppsClient:    appsClient,
-		RouteClient:   routeClient,
-		Suggest:       o.suggest,
-		Server:        clientConfig.Host,
+		KubeClient:  kclientset,
+		RESTMapper:  restMapper,
+		BuildClient: buildClient,
+		ImageClient: imageClient,
+		AppsClient:  appsClient,
+		RouteClient: routeClient,
+		Suggest:     o.suggest,
+		Server:      clientConfig.Host,
 
 		RequestedNamespace: nsFlag,
 		CurrentNamespace:   currentNamespace,
