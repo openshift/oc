@@ -1016,7 +1016,7 @@ func Test_versionsFromHistory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualVersions, actualInsights := versionsFromHistory(tt.args.history, nil, tt.args.cvScope, tt.args.controlPlaneCompleted)
+			actualVersions, actualInsights := versionsFromHistory(tt.args.history, tt.args.cvScope, tt.args.controlPlaneCompleted)
 
 			if diff := cmp.Diff(tt.expectedVersions, actualVersions, cmp.AllowUnexported(versions{})); diff != "" {
 				t.Errorf("versions differ from expected:\n%s", diff)
