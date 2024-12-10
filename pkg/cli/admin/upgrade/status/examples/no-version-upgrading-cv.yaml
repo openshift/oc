@@ -1,0 +1,114 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2024-12-09T23:27:56Z"
+  generation: 2
+  name: version
+  resourceVersion: "33707"
+  uid: bc748c3a-3350-4ee7-a643-ed6166313d5b
+spec:
+  channel: candidate-4.18
+  clusterID: 91b679e0-3b01-4ba4-ae90-ad05ddef9f55
+  upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+status:
+  availableUpdates:
+  - channels:
+    - candidate-4.18
+    - candidate-4.19
+    image: quay.io/openshift-release-dev/ocp-release@sha256:5274f17dc4375df73cdeccf43aa4fc268230f1ca2867738f56807d026f2aa8ba
+    url: https://access.redhat.com/errata/RHEA-2024:6122
+    version: 4.18.0-rc.1
+  - channels:
+    - candidate-4.18
+    - candidate-4.19
+    image: quay.io/openshift-release-dev/ocp-release@sha256:054e75395dd0879e8c29cd059cf6b782742123177a303910bf78f28880431d1c
+    url: https://access.redhat.com/errata/RHEA-2024:6122
+    version: 4.18.0-rc.0
+  - channels:
+    - candidate-4.18
+    - candidate-4.19
+    image: quay.io/openshift-release-dev/ocp-release@sha256:8e097e389656b8b6e362c596b08f929d9271b4f841570f310b13b497a4f2b7d9
+    version: 4.18.0-ec.4
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2024-12-09T23:28:27Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2024-12-09T23:28:27Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2024-12-09T23:28:27Z"
+    message: Payload loaded version="4.18.0-ec.3" image="registry.build09.ci.openshift.org/ci-ln-mbvlrx2/release@sha256:d2d34aafe0adda79953dd928b946ecbda34673180ee9a80d2ee37c123a0f510c"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2024-12-09T23:49:58Z"
+    message: Done applying 4.18.0-ec.3
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2024-12-09T23:49:58Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2024-12-09T23:49:58Z"
+    message: Cluster version is 4.18.0-ec.3
+    status: "False"
+    type: Progressing
+  - lastTransitionTime: "2024-12-10T00:06:17Z"
+    message: 'Cluster operator machine-config should not be upgraded between minor
+      versions: One or more machine config pools are updating, please see `oc get
+      mcp` for further details'
+    reason: PoolUpdating
+    status: "False"
+    type: Upgradeable
+  desired:
+    channels:
+    - candidate-4.18
+    - candidate-4.19
+    image: registry.build09.ci.openshift.org/ci-ln-mbvlrx2/release@sha256:d2d34aafe0adda79953dd928b946ecbda34673180ee9a80d2ee37c123a0f510c
+    version: 4.18.0-ec.3
+  history:
+  - completionTime: "2024-12-09T23:49:58Z"
+    image: registry.build09.ci.openshift.org/ci-ln-mbvlrx2/release@sha256:d2d34aafe0adda79953dd928b946ecbda34673180ee9a80d2ee37c123a0f510c
+    startedTime: "2024-12-09T23:28:27Z"
+    state: Completed
+    verified: false
+    version: 4.18.0-ec.3
+  observedGeneration: 2
+  versionHash: u6HtCDQyYRE=
