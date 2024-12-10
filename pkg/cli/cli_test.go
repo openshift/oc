@@ -38,9 +38,9 @@ func TestOCSubcommandShadowPlugin(t *testing.T) {
 	}{
 		{
 			name:             "test that a plugin executable is found based on command args when builtin subcommand does not exist",
-			args:             []string{"oc", "create", "foo", "--bar", "--bar2", "--namespace", "test-namespace"},
+			args:             []string{"oc", "create", "foo", "--bar3", "--bar2", "--namespace", "test-namespace"},
 			expectPlugin:     "./../../testdata/plugin/kubectl-create-foo",
-			expectPluginArgs: []string{"--bar", "--bar2", "--namespace", "test-namespace"},
+			expectPluginArgs: []string{"--bar3", "--bar2", "--namespace", "test-namespace"},
 		},
 		{
 			name:              "test that a plugin executable is not found based on command args when also builtin subcommand does not exist",
