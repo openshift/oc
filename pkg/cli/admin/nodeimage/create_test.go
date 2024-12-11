@@ -143,7 +143,7 @@ func TestRun(t *testing.T) {
 		expectedErrorCode    int
 		expectedError        string
 		expectedPod          func(t *testing.T, pod *corev1.Pod)
-		expectedRsyncInclude string
+		expectedRsyncInclude []string
 	}{
 		{
 			name:                 "default",
@@ -151,7 +151,7 @@ func TestRun(t *testing.T) {
 			objects:              defaultClusterVersionObjectFn,
 			assetsDir:            "/my-working-dir",
 			generatePXEFiles:     false,
-			expectedRsyncInclude: "*.iso",
+			expectedRsyncInclude: []string{"*.iso"},
 		},
 		{
 			name:                 "default pxe",
@@ -159,7 +159,7 @@ func TestRun(t *testing.T) {
 			objects:              defaultClusterVersionObjectFn,
 			assetsDir:            "/my-working-dir",
 			generatePXEFiles:     true,
-			expectedRsyncInclude: "boot-artifacts/*",
+			expectedRsyncInclude: []string{"*.img", "*.*vmlinuz", "*.ipxe"},
 		},
 		{
 			name:        "node-joiner tool failure",
@@ -311,9 +311,9 @@ func TestRun(t *testing.T) {
 				}
 			}
 
-			if tc.expectedRsyncInclude != "" {
-				if !slices.Contains(fakeCp.options.RsyncInclude, tc.expectedRsyncInclude) {
-					t.Errorf("expected RSyncOptions to include %v, but doesn't", tc.expectedRsyncInclude)
+			for _, ext := range tc.expectedRsyncInclude {
+				if !slices.Contains(fakeCp.options.RsyncInclude, ext) {
+					t.Errorf("expected RSyncOptions to include %s, but doesn't", ext)
 				}
 			}
 		})
