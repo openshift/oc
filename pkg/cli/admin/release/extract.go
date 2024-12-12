@@ -21,17 +21,20 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imagev1 "github.com/openshift/api/image/v1"
+	configv1client "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/library-go/pkg/manifest"
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
+	"github.com/openshift/oc/pkg/version"
 	"github.com/pkg/errors"
 )
 
@@ -94,7 +97,8 @@ func NewExtract(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.C
 			If --install-config is set, it will be used to determine the expected cluster configuration,
 			otherwise the command will interrogate your current cluster to determine its configuration.
 			This command is most accurate when the version of the extracting client matches the version
-			of the cluster under consideration.
+			of the cluster under consideration. Otherwise, for example, newly introduced capabilities in
+			the version of the extracting client might be considered enabled.
 
 			Instead of extracting the manifests, you can specify --git=DIR to perform a Git
 			checkout of the source code that comprises the release. A warning will be printed
@@ -359,10 +363,27 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		if o.Included {
 			context := "connected cluster"
 			inclusionConfig := manifestInclusionConfiguration{}
+
+			clientVersion, reportedVersion, versionErr := version.ExtractVersion()
+			if versionErr != nil {
+				return versionErr
+			}
+			if reportedVersion == "" {
+				reportedVersion = clientVersion.String()
+			}
+
 			if o.InstallConfig == "" {
-				inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig)
+				configv1client, configv1clientErr := configv1client.NewForConfig(o.RESTConfig)
+				if configv1clientErr != nil {
+					return configv1clientErr
+				}
+				appsv1client, appsv1clientErr := appsv1client.NewForConfig(o.RESTConfig)
+				if appsv1clientErr != nil {
+					return appsv1clientErr
+				}
+				inclusionConfig, err = findClusterIncludeConfig(ctx, configv1client, appsv1client, reportedVersion)
 			} else {
-				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig)
+				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig, reportedVersion)
 				context = o.InstallConfig
 			}
 			if err != nil {

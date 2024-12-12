@@ -14,7 +14,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -32,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/yaml"
 
 	"github.com/MakeNowJust/heredoc"
@@ -43,7 +41,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/internal/codesign"
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
-	"github.com/openshift/oc/pkg/version"
 )
 
 // extractTarget describes how a file in the release image can be extracted to disk.
@@ -1167,16 +1164,8 @@ func copyAndReplace(errorOutput io.Writer, w io.Writer, r io.Reader, bufferSize 
 
 }
 
-func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfigPath string) (manifestInclusionConfiguration, error) {
+func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfigPath, ocVersion string) (manifestInclusionConfiguration, error) {
 	config := manifestInclusionConfiguration{}
-
-	clientVersion, reportedVersion, err := version.ExtractVersion()
-	if err != nil {
-		return config, err
-	}
-	if reportedVersion == "" {
-		reportedVersion = clientVersion.String()
-	}
 
 	installConfigBytes, err := os.ReadFile(installConfigPath)
 	if err != nil {
@@ -1205,54 +1194,61 @@ func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfi
 			return config, fmt.Errorf("unrecognized baselineCapabilitySet %q", data.Capabilities.BaselineCapabilitySet)
 		} else {
 			if data.Capabilities.BaselineCapabilitySet == configv1.ClusterVersionCapabilitySetCurrent {
-				klog.Infof("If the eventual cluster will not be the same minor version as this %s 'oc', the actual %s capability set may differ.", reportedVersion, data.Capabilities.BaselineCapabilitySet)
+				klog.Infof("If the eventual cluster will not be the same minor version as this %s 'oc', the actual %s capability set may differ.", ocVersion, data.Capabilities.BaselineCapabilitySet)
 			}
 			config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, enabled...)
 		}
 		config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, data.Capabilities.AdditionalEnabledCapabilities...)
 
-		klog.Infof("If the eventual cluster will not be the same minor version as this %s 'oc', the known capability sets may differ.", reportedVersion)
+		klog.Infof("If the eventual cluster will not be the same minor version as this %s 'oc', the known capability sets may differ.", ocVersion)
 		config.Capabilities.KnownCapabilities = configv1.KnownClusterVersionCapabilities
 	}
 
 	return config, nil
 }
 
-func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (manifestInclusionConfiguration, error) {
+func findClusterIncludeConfig(ctx context.Context, configv1client configv1client.ConfigV1Interface, appsv1client appsv1client.AppsV1Interface, ocVersion string) (manifestInclusionConfiguration, error) {
 	config := manifestInclusionConfiguration{}
 
-	client, err := configv1client.NewForConfig(restConfig)
-	if err != nil {
-		return config, err
-	}
-
-	if featureGate, err := client.FeatureGates().Get(ctx, "cluster", metav1.GetOptions{}); err != nil {
+	if featureGate, err := configv1client.FeatureGates().Get(ctx, "cluster", metav1.GetOptions{}); err != nil {
 		return config, err
 	} else {
 		config.RequiredFeatureSet = ptr.To[string](string(featureGate.Spec.FeatureSet))
 	}
 
-	if clusterVersion, err := client.ClusterVersions().Get(ctx, "version", metav1.GetOptions{}); err != nil {
+	if clusterVersion, err := configv1client.ClusterVersions().Get(ctx, "version", metav1.GetOptions{}); err != nil {
 		return config, err
 	} else {
 		config.Overrides = clusterVersion.Spec.Overrides
 		config.Capabilities = &clusterVersion.Status.Capabilities
 
-		// FIXME: eventually pull in GetImplicitlyEnabledCapabilities from https://github.com/openshift/cluster-version-operator/blob/86e24d66119a73f50282b66a8d6f2e3518aa0e15/pkg/payload/payload.go#L237-L240 for cases where a minor update would implicitly enable some additional capabilities.  For now, 4.13 to 4.14 will always enable MachineAPI, ImageRegistry, etc..
-		currentVersion := clusterVersion.Status.Desired.Version
-		matches := regexp.MustCompile(`^(\d+[.]\d+)[.].*`).FindStringSubmatch(currentVersion)
-		if len(matches) < 2 {
-			return config, fmt.Errorf("failed to parse major.minor version from ClusterVersion status.desired.version %q", currentVersion)
-		} else if matches[1] == "4.13" {
-			build := configv1.ClusterVersionCapability("Build")
-			deploymentConfig := configv1.ClusterVersionCapability("DeploymentConfig")
-			imageRegistry := configv1.ClusterVersionCapability("ImageRegistry")
-			config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, configv1.ClusterVersionCapabilityMachineAPI, build, deploymentConfig, imageRegistry)
-			config.Capabilities.KnownCapabilities = append(config.Capabilities.KnownCapabilities, configv1.ClusterVersionCapabilityMachineAPI, build, deploymentConfig, imageRegistry)
+		known := sets.New[configv1.ClusterVersionCapability](configv1.KnownClusterVersionCapabilities...)
+		previouslyKnown := sets.New[configv1.ClusterVersionCapability](config.Capabilities.KnownCapabilities...)
+		config.Capabilities.KnownCapabilities = previouslyKnown.Union(known).UnsortedList()
+
+		// refresh BaselineCapabilitySet as more capabilities might be included across versions
+		key := configv1.ClusterVersionCapabilitySetCurrent
+		if clusterVersion.Spec.Capabilities != nil && clusterVersion.Spec.Capabilities.BaselineCapabilitySet != "" {
+			key = clusterVersion.Spec.Capabilities.BaselineCapabilitySet
 		}
+		enabled := sets.New[configv1.ClusterVersionCapability](configv1.ClusterVersionCapabilitySets[key]...)
+		// The set of the capabilities may grow over time. Without downloading the payload that is running on the cluster,
+		// it is hard to project all the enabled capabilities after upgrading to the incoming release.
+		// As an approximation, all newly introduced capabilities are considered enabled to check if a manifest from the
+		// release should be included while some of them might not be actually enabled on the cluster.
+		// As a result, unexpected manifests could be included. The number of such manifests is likely small, provided that
+		// only a small amount of capabilities are added over time and that happens only for minor level updates:
+		// #Cap(4.11)=4 -> #Cap(4.17)=15, averagely less than two per minor update.
+		// https://docs.openshift.com/container-platform/4.17/installing/overview/cluster-capabilities.html
+		deltaKnown := known.Difference(previouslyKnown)
+		if deltaKnown.Len() > 0 {
+			klog.Infof("The new capabilities that are introduced in this oc version %s are considered enabled on checking if a manifest is included: %s. They may be disabled on the eventual cluster", ocVersion, deltaKnown.UnsortedList())
+		}
+		enabled = enabled.Union(deltaKnown)
+		config.Capabilities.EnabledCapabilities = sets.New[configv1.ClusterVersionCapability](config.Capabilities.EnabledCapabilities...).Union(enabled).UnsortedList()
 	}
 
-	if infrastructure, err := client.Infrastructures().Get(ctx, "cluster", metav1.GetOptions{}); err != nil {
+	if infrastructure, err := configv1client.Infrastructures().Get(ctx, "cluster", metav1.GetOptions{}); err != nil {
 		return config, err
 	} else if infrastructure.Status.PlatformStatus == nil {
 		return config, fmt.Errorf("cluster infrastructure does not declare status.platformStatus: %v", infrastructure.Status)
@@ -1260,12 +1256,7 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 		config.Platform = ptr.To[string](strings.ToLower(string(infrastructure.Status.PlatformStatus.Type)))
 	}
 
-	appsClient, err := appsv1client.NewForConfig(restConfig)
-	if err != nil {
-		return config, err
-	}
-
-	if deployment, err := appsClient.Deployments("openshift-cluster-version").Get(ctx, "cluster-version-operator", metav1.GetOptions{}); err != nil {
+	if deployment, err := appsv1client.Deployments("openshift-cluster-version").Get(ctx, "cluster-version-operator", metav1.GetOptions{}); err != nil {
 		return config, err
 	} else {
 		for _, container := range deployment.Spec.Template.Spec.Containers {
