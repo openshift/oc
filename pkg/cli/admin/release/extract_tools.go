@@ -1238,15 +1238,17 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 		config.Overrides = clusterVersion.Spec.Overrides
 		config.Capabilities = &clusterVersion.Status.Capabilities
 
-		// FIXME: eventually pull in GetImplicitlyEnabledCapabilities from https://github.com/openshift/cluster-version-operator/blob/86e24d66119a73f50282b66a8d6f2e3518aa0e15/pkg/payload/payload.go#L237-L240 for cases where a minor update would implicitly enable some additional capabilities.  For now, 4.13 to 4.14 will always enable MachineAPI.
+		// FIXME: eventually pull in GetImplicitlyEnabledCapabilities from https://github.com/openshift/cluster-version-operator/blob/86e24d66119a73f50282b66a8d6f2e3518aa0e15/pkg/payload/payload.go#L237-L240 for cases where a minor update would implicitly enable some additional capabilities.  For now, 4.13 to 4.14 will always enable MachineAPI, ImageRegistry, etc..
 		currentVersion := clusterVersion.Status.Desired.Version
 		matches := regexp.MustCompile(`^(\d+[.]\d+)[.].*`).FindStringSubmatch(currentVersion)
 		if len(matches) < 2 {
 			return config, fmt.Errorf("failed to parse major.minor version from ClusterVersion status.desired.version %q", currentVersion)
 		} else if matches[1] == "4.13" {
-			machineAPI := configv1.ClusterVersionCapability("MachineAPI")
-			config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, machineAPI)
-			config.Capabilities.KnownCapabilities = append(config.Capabilities.KnownCapabilities, machineAPI)
+			build := configv1.ClusterVersionCapability("Build")
+			deploymentConfig := configv1.ClusterVersionCapability("DeploymentConfig")
+			imageRegistry := configv1.ClusterVersionCapability("ImageRegistry")
+			config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, configv1.ClusterVersionCapabilityMachineAPI, build, deploymentConfig, imageRegistry)
+			config.Capabilities.KnownCapabilities = append(config.Capabilities.KnownCapabilities, configv1.ClusterVersionCapabilityMachineAPI, build, deploymentConfig, imageRegistry)
 		}
 	}
 
