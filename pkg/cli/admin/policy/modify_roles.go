@@ -109,6 +109,7 @@ type RoleModificationOptions struct {
 	RoleBindingNamespace string
 	RbacClient           rbacv1client.RbacV1Interface
 	SANames              []string
+	SANamespace         string
 
 	UserClient           userv1client.UserV1Interface
 	ServiceAccountClient corev1client.ServiceAccountsGetter
@@ -178,6 +179,7 @@ func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericiooptions.IOStreams,
 	cmd.Flags().StringVar(&o.RoleBindingName, "rolebinding-name", o.RoleBindingName, "Name of the rolebinding to modify or create. If left empty creates a new rolebinding with a default name")
 	cmd.Flags().StringVar(&o.RoleNamespace, "role-namespace", o.RoleNamespace, "namespace where the role is located: empty means a role defined in cluster policy")
 	cmd.Flags().StringSliceVarP(&o.SANames, "serviceaccount", "z", o.SANames, "service account in the current namespace to use as a user")
+	cmd.Flags().StringVar(&o.SANamespace, "serviceaccount-namespace", o.SANamespace, "namespace where the service account is located: empty means the default namespace")
 
 	kcmdutil.AddDryRunFlag(cmd)
 	o.PrintFlags.AddFlags(cmd)
@@ -224,6 +226,7 @@ func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericiooptions.IOStr
 	cmd.Flags().StringVar(&o.RoleBindingName, "rolebinding-name", o.RoleBindingName, "Name of the rolebinding to modify. If left empty it will operate on all rolebindings")
 	cmd.Flags().StringVar(&o.RoleNamespace, "role-namespace", o.RoleNamespace, "namespace where the role is located: empty means a role defined in cluster policy")
 	cmd.Flags().StringSliceVarP(&o.SANames, "serviceaccount", "z", o.SANames, "service account in the current namespace to use as a user")
+	cmd.Flags().StringVar(&o.SANamespace, "serviceaccount-namespace", o.SANamespace, "namespace where the service account is located: empty means the default namespace")
 
 	kcmdutil.AddDryRunFlag(cmd)
 	o.PrintFlags.AddFlags(cmd)
@@ -270,6 +273,7 @@ func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericiooptions.IOS
 
 	cmd.Flags().StringVar(&o.RoleBindingName, "rolebinding-name", o.RoleBindingName, "Name of the rolebinding to modify or create. If left empty creates a new rolebindo.RoleBindingNameg with a default name")
 	cmd.Flags().StringSliceVarP(&o.SANames, "serviceaccount", "z", o.SANames, "service account in the current namespace to use o.SANamess a user")
+	cmd.Flags().StringVar(&o.SANamespace, "serviceaccount-namespace", o.SANamespace, "namespace where the service account is located: empty means the default namespace")
 
 	kcmdutil.AddDryRunFlag(cmd)
 	o.PrintFlags.AddFlags(cmd)
@@ -316,6 +320,7 @@ func NewCmdRemoveClusterRoleFromUser(f kcmdutil.Factory, streams genericiooption
 
 	cmd.Flags().StringVar(&o.RoleBindingName, "rolebinding-name", o.RoleBindingName, "Name of the rolebinding to modify. If left empty it will operate on all rolebindings")
 	cmd.Flags().StringSliceVarP(&o.SANames, "serviceaccount", "z", o.SANames, "service account in the current namespace to use as a user")
+	cmd.Flags().StringVar(&o.SANamespace, "serviceaccount-namespace", o.SANamespace, "namespace where the service account is located: empty means the default namespace")
 
 	kcmdutil.AddDryRunFlag(cmd)
 	o.PrintFlags.AddFlags(cmd)
@@ -408,14 +413,16 @@ func (o *RoleModificationOptions) CompleteUserWithSA(f kcmdutil.Factory, cmd *co
 		return err
 	}
 
-	defaultNamespace, _, err := f.ToRawKubeConfigLoader().Namespace()
-	if err != nil {
-		return err
+	if len(o.SANamespace) == 0 {
+		o.SANamespace, _, err = f.ToRawKubeConfigLoader().Namespace()
+			if err != nil {
+				return err
+			}
 	}
 
 	for _, sa := range o.SANames {
 		o.Targets = append(o.Targets, sa)
-		o.Subjects = append(o.Subjects, rbacv1.Subject{Namespace: defaultNamespace, Name: sa, Kind: rbacv1.ServiceAccountKind})
+		o.Subjects = append(o.Subjects, rbacv1.Subject{Namespace: o.SANamespace, Name: sa, Kind: rbacv1.ServiceAccountKind})
 	}
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
