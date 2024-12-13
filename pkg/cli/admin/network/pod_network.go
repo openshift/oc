@@ -27,5 +27,7 @@ func NewCmdPodNetwork(f kcmdutil.Factory, streams genericiooptions.IOStreams) *c
 	cmds.AddCommand(NewCmdJoinProjectsNetwork(f, streams))
 	cmds.AddCommand(NewCmdMakeGlobalProjectsNetwork(f, streams))
 	cmds.AddCommand(NewCmdIsolateProjectsNetwork(f, streams))
+	cmds.Hidden = true
+	cmds.Deprecated = "pod-network command only works on OpenShift SDN which has been deprecated."
 	return cmds
 }
