@@ -307,7 +307,7 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		}
 	}
 
-	versionData, versionInsights := versionsFromHistory(cv.Status.History, cv.Spec.DesiredUpdate, cvScope, controlPlaneCompleted)
+	versionData, versionInsights := versionsFromHistory(cv.Status.History, cvScope, controlPlaneCompleted)
 	displayData.TargetVersion = versionData
 	displayData.IsMultiArchMigration = versionData.isMultiArchMigration
 	insights = append(insights, versionInsights...)
@@ -391,7 +391,13 @@ func timewiseComplete(coCompletion float64) float64 {
 	}
 }
 
-func versionsFromHistory(history []v1.UpdateHistory, desired *v1.Update, cvScope scopeResource, controlPlaneCompleted bool) (versions, []updateInsight) {
+func multiArchMigration(history []v1.UpdateHistory) bool {
+	return len(history) > 1 &&
+		history[0].Version == history[1].Version &&
+		history[0].Image != history[1].Image
+}
+
+func versionsFromHistory(history []v1.UpdateHistory, cvScope scopeResource, controlPlaneCompleted bool) (versions, []updateInsight) {
 	versionData := versions{
 		target:   "unknown",
 		previous: "unknown",
@@ -406,12 +412,7 @@ func versionsFromHistory(history []v1.UpdateHistory, desired *v1.Update, cvScope
 	if len(history) > 1 {
 		versionData.previous = history[1].Version
 		versionData.isPreviousPartial = history[1].State == v1.PartialUpdate
-		if history[0].Version == history[1].Version &&
-			history[0].Image != history[1].Image &&
-			desired != nil &&
-			desired.Architecture == v1.ClusterVersionArchitectureMulti {
-			versionData.isMultiArchMigration = true
-		}
+		versionData.isMultiArchMigration = multiArchMigration(history)
 	}
 
 	var insights []updateInsight
