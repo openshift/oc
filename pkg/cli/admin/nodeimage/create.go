@@ -380,8 +380,8 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 		RsyncExclude:  []string{"*"},
 	}
 	if o.GeneratePXEFiles {
-		rsyncOptions.RsyncInclude = []string{"boot-artifacts/*"}
-		rsyncOptions.RsyncExclude = []string{}
+		rsyncOptions.Source.Path = "/assets/boot-artifacts/"
+		rsyncOptions.RsyncInclude = []string{"*.img", "*.*vmlinuz", "*.ipxe"}
 		logMessage = "Saving PXE artifacts to %s"
 	}
 	rsyncOptions.Strategy = o.copyStrategy(rsyncOptions)
