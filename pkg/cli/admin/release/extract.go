@@ -94,7 +94,8 @@ func NewExtract(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.C
 			If --install-config is set, it will be used to determine the expected cluster configuration,
 			otherwise the command will interrogate your current cluster to determine its configuration.
 			This command is most accurate when the version of the extracting client matches the version
-			of the cluster under consideration.
+			of the cluster under consideration. Otherwise, for example, newly introduced capacities in
+            the version of the extracting client are considered enabled.
 
 			Instead of extracting the manifests, you can specify --git=DIR to perform a Git
 			checkout of the source code that comprises the release. A warning will be printed

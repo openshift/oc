@@ -14,7 +14,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -1238,18 +1237,33 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 		config.Overrides = clusterVersion.Spec.Overrides
 		config.Capabilities = &clusterVersion.Status.Capabilities
 
-		// FIXME: eventually pull in GetImplicitlyEnabledCapabilities from https://github.com/openshift/cluster-version-operator/blob/86e24d66119a73f50282b66a8d6f2e3518aa0e15/pkg/payload/payload.go#L237-L240 for cases where a minor update would implicitly enable some additional capabilities.  For now, 4.13 to 4.14 will always enable MachineAPI, ImageRegistry, etc..
-		currentVersion := clusterVersion.Status.Desired.Version
-		matches := regexp.MustCompile(`^(\d+[.]\d+)[.].*`).FindStringSubmatch(currentVersion)
-		if len(matches) < 2 {
-			return config, fmt.Errorf("failed to parse major.minor version from ClusterVersion status.desired.version %q", currentVersion)
-		} else if matches[1] == "4.13" {
-			build := configv1.ClusterVersionCapability("Build")
-			deploymentConfig := configv1.ClusterVersionCapability("DeploymentConfig")
-			imageRegistry := configv1.ClusterVersionCapability("ImageRegistry")
-			config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, configv1.ClusterVersionCapabilityMachineAPI, build, deploymentConfig, imageRegistry)
-			config.Capabilities.KnownCapabilities = append(config.Capabilities.KnownCapabilities, configv1.ClusterVersionCapabilityMachineAPI, build, deploymentConfig, imageRegistry)
+		// The set of the capabilities defined in configv1.ClusterVersionCapabilitySets may grow over time.
+		// Here we refresh "known" and "enabled" from lib so the new capabilities are included.
+		known := sets.New[configv1.ClusterVersionCapability]()
+		for _, s := range configv1.ClusterVersionCapabilitySets {
+			known.Insert(s...)
 		}
+		previouslyKnown := sets.New[configv1.ClusterVersionCapability](config.Capabilities.KnownCapabilities...)
+		config.Capabilities.KnownCapabilities = previouslyKnown.Union(known).UnsortedList()
+
+		key := configv1.ClusterVersionCapabilitySetCurrent
+		if clusterVersion.Spec.Capabilities != nil && clusterVersion.Spec.Capabilities.BaselineCapabilitySet != "" {
+			key = clusterVersion.Spec.Capabilities.BaselineCapabilitySet
+		}
+		enabled := sets.New[configv1.ClusterVersionCapability](configv1.ClusterVersionCapabilitySets[key]...)
+		// Without downloading the payload that is running on the cluster, it is hard to collect all the enabled capabilities.
+		// We may create a manifest in dry-run mode on the cluster and check if the output contains the existing error
+		// which indicates the capabilities of the manifest are all enabled. We have to wait until all manifests are checked
+		// this way to collect the complete set of enabled capabilities.It might not be worth the effort to calculate the
+		// exact enabled capabilities.
+		// Instead, newly introduced capabilities are blindly enabled and some of them might not be actually enabled on the cluster.
+		// As a result, unexpected manifests could be included. The number of such manifests is likely small, provided that
+		// only a small amount of capabilities are added over time and that happens only for minor level updates:
+		// #C(4.11)=4 -> #C(4.17)=15, averagely less than two per minor update.
+		// https://docs.openshift.com/container-platform/4.17/installing/overview/cluster-capabilities.html
+		deltaKnown := known.Difference(previouslyKnown)
+		enabled = enabled.Union(deltaKnown)
+		config.Capabilities.EnabledCapabilities = sets.New[configv1.ClusterVersionCapability](config.Capabilities.EnabledCapabilities...).Union(enabled).UnsortedList()
 	}
 
 	if infrastructure, err := client.Infrastructures().Get(ctx, "cluster", metav1.GetOptions{}); err != nil {
