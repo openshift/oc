@@ -15,6 +15,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -72,6 +73,7 @@ type options struct {
 
 	mockData             mockData
 	showOutdatedReleases bool
+	precheckEnabled      bool
 
 	// rawVersion is parsed into version by options.Complete.  Do not consume it directly outside of that early option handling.
 	rawVersion string
@@ -79,7 +81,8 @@ type options struct {
 	// version is the parsed form of rawVersion.  Consumers after options.Complete should prefer this property.
 	version *semver.Version
 
-	Client configv1client.Interface
+	RESTConfig *rest.Config
+	Client     configv1client.Interface
 }
 
 func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
@@ -96,6 +99,8 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		}
 		o.Client = client
 	} else {
+		cvSuffix := "-cv.yaml"
+		o.mockData.alertsPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-alerts.json", 1)
 		err := o.mockData.load()
 		if err != nil {
 			return err
@@ -113,6 +118,8 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 			o.version = &version
 		}
 	}
+
+	o.precheckEnabled = kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_RECOMMEND_PRECHECK").IsEnabled()
 
 	return nil
 }
@@ -140,6 +147,36 @@ func (o *options) Run(ctx context.Context) error {
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue && len(c.Message) > 0 {
 		fmt.Fprintf(o.Out, "info: An update is in progress.  You may wish to let this update complete before requesting a new update.\n  %s\n\n", strings.ReplaceAll(c.Message, "\n", "\n  "))
+	}
+
+	if o.precheckEnabled {
+		conditions, err := o.precheck(ctx)
+		if err != nil {
+			fmt.Fprintf(o.Out, "Failed to check for at least some preconditions: %v\n", err)
+		}
+		var happyConditions []string
+		var unhappyConditions []string
+		for _, condition := range conditions {
+			if condition.Status == metav1.ConditionTrue {
+				happyConditions = append(happyConditions, fmt.Sprintf("%s (%s)", condition.Type, condition.Reason))
+			} else {
+				unhappyConditions = append(unhappyConditions, condition.Type)
+			}
+		}
+		if len(happyConditions) > 0 {
+			sort.Strings(happyConditions)
+			fmt.Fprintf(o.Out, "The following conditions found no cause for concern in updating this cluster to later releases: %s\n\n", strings.Join(happyConditions, ", "))
+		}
+		if len(unhappyConditions) > 0 {
+			sort.Strings(unhappyConditions)
+			fmt.Fprintf(o.Out, "The following conditions found cause for concern in updating this cluster to later releases: %s\n\n", strings.Join(unhappyConditions, ", "))
+
+			for _, c := range conditions {
+				if c.Status != metav1.ConditionTrue {
+					fmt.Fprintf(o.Out, "%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+				}
+			}
+		}
 	}
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status != configv1.ConditionTrue {

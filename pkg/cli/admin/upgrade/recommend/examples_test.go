@@ -80,6 +80,7 @@ func TestExamples(t *testing.T) {
 				if err := opts.Complete(nil, nil, nil); err != nil {
 					t.Fatalf("Error when completing options: %v", err)
 				}
+				opts.precheckEnabled = true
 
 				var stdout, stderr bytes.Buffer
 				opts.Out = &stdout
