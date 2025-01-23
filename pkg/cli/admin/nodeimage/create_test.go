@@ -138,6 +138,7 @@ func TestRun(t *testing.T) {
 		generatePXEFiles bool
 
 		objects          func(string, string) []runtime.Object
+		configObjects    func(string, string) []runtime.Object
 		remoteExecOutput string
 
 		expectedErrorCode    int
@@ -148,7 +149,7 @@ func TestRun(t *testing.T) {
 		{
 			name:                 "default",
 			nodesConfig:          defaultNodesConfigYaml,
-			objects:              defaultClusterVersionObjectFn,
+			configObjects:        defaultClusterVersionObjectFn,
 			assetsDir:            "/my-working-dir",
 			generatePXEFiles:     false,
 			expectedRsyncInclude: []string{"*.iso"},
@@ -156,15 +157,15 @@ func TestRun(t *testing.T) {
 		{
 			name:                 "default pxe",
 			nodesConfig:          defaultNodesConfigYaml,
-			objects:              defaultClusterVersionObjectFn,
+			configObjects:        defaultClusterVersionObjectFn,
 			assetsDir:            "/my-working-dir",
 			generatePXEFiles:     true,
 			expectedRsyncInclude: []string{"*.img", "*.*vmlinuz", "*.ipxe"},
 		},
 		{
-			name:        "node-joiner tool failure",
-			nodesConfig: defaultNodesConfigYaml,
-			objects:     defaultClusterVersionObjectFn,
+			name:          "node-joiner tool failure",
+			nodesConfig:   defaultNodesConfigYaml,
+			configObjects: defaultClusterVersionObjectFn,
 			remoteExecOutput: createCmdOutput(t, report{
 				stageHeader: stageHeader{
 					EndTime: time.Date(2024, 11, 14, 0, 0, 0, 0, time.UTC),
@@ -180,7 +181,7 @@ func TestRun(t *testing.T) {
 		{
 			name:          "node-joiner unsupported prior to 4.17",
 			nodesConfig:   defaultNodesConfigYaml,
-			objects:       ClusterVersion_4_16_ObjectFn,
+			configObjects: ClusterVersion_4_16_ObjectFn,
 			expectedError: fmt.Sprintf("the 'oc adm node-image' command is only available for OpenShift versions %s and later", nodeJoinerMinimumSupportedVersion),
 		},
 		{
@@ -191,7 +192,7 @@ func TestRun(t *testing.T) {
 		{
 			name:        "use proxy settings when defined",
 			nodesConfig: defaultNodesConfigYaml,
-			objects: func(repo, manifestDigest string) []runtime.Object {
+			configObjects: func(repo, manifestDigest string) []runtime.Object {
 				objs := defaultClusterVersionObjectFn(repo, manifestDigest)
 				return append(objs, &configv1.Proxy{
 					ObjectMeta: metav1.ObjectMeta{
@@ -230,15 +231,64 @@ func TestRun(t *testing.T) {
 			},
 		},
 		{
+			name:        "node-joiner pod should mount user-ca-bundle as a volume if it is available and a proxy is configured",
+			nodesConfig: defaultNodesConfigYaml,
+			objects: func(repo, manifestDigest string) []runtime.Object {
+				return []runtime.Object{
+					&corev1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "user-ca-bundle",
+							Namespace: "openshift-config",
+						},
+						Data: map[string]string{
+							"ca-bundle.crt": "certificate-contents",
+						},
+					}}
+			},
+			configObjects: func(repo, manifestDigest string) []runtime.Object {
+				objs := defaultClusterVersionObjectFn(repo, manifestDigest)
+				objs = append(objs, &configv1.Proxy{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cluster",
+					},
+					Status: configv1.ProxyStatus{
+						HTTPProxy:  "http://192.168.111.1:8215",
+						HTTPSProxy: "https://192.168.111.1:8215",
+					},
+				})
+				return objs
+			},
+			expectedPod: func(t *testing.T, pod *corev1.Pod) {
+				containsUserCABundleVolume := false
+				for _, vol := range pod.Spec.Volumes {
+					if vol.Name == "user-ca-bundle" {
+						containsUserCABundleVolume = true
+					}
+				}
+				if !containsUserCABundleVolume {
+					t.Error("expected pod to contain user-ca-bundle volume but it doesn't")
+				}
+				containsVolumeMount := false
+				for _, volMount := range pod.Spec.Containers[0].VolumeMounts {
+					if volMount.Name == "user-ca-bundle" {
+						containsVolumeMount = true
+					}
+				}
+				if !containsVolumeMount {
+					t.Error("expected pod to contain user-ca-bundle volume mount, but it doesn't")
+				}
+			},
+		},
+		{
 			name:             "basic report for ocp < 4.18",
 			nodesConfig:      defaultNodesConfigYaml,
-			objects:          ClusterVersion_4_17_ObjectFn,
+			configObjects:    ClusterVersion_4_17_ObjectFn,
 			remoteExecOutput: "0",
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			fakeReg, fakeClient, fakeRestConfig, fakeRemoteExec := createFakes(t, nodeJoinerContainer)
+			fakeReg, fakeClient, fakeRestConfig, fakeRemoteExec := createFakes(t, nodeJoinerContainer, tc.objects)
 			defer fakeReg.Close()
 
 			// Create the fake filesystem, required to provide the command input config file.
@@ -250,8 +300,8 @@ func TestRun(t *testing.T) {
 			}
 			// Allow the test case to use the right digest created by the fake registry.
 			objs := []runtime.Object{}
-			if tc.objects != nil {
-				objs = tc.objects(fakeReg.URL()[len("https://"):], fakeReg.fakeManifestDigest)
+			if tc.configObjects != nil {
+				objs = tc.configObjects(fakeReg.URL()[len("https://"):], fakeReg.fakeManifestDigest)
 			}
 
 			fakeRemoteExec.execOut = createCmdOutput(t, report{
@@ -539,14 +589,20 @@ func (f *fakeRemoteExecutor) Execute(url *url.URL, config *restclient.Config, st
 	return f.execErr
 }
 
-func createFakes(t *testing.T, podName string) (*fakeRegistry, *fake.Clientset, *restclient.Config, *fakeRemoteExecutor) {
+func createFakes(t *testing.T, podName string, clientObjs func(string, string) []runtime.Object) (*fakeRegistry, *fake.Clientset, *restclient.Config, *fakeRemoteExecutor) {
 	// Create the fake registry. It will provide the required manifests and image data,
 	// when looking for the baremetal-installer image pullspec.
 	fakeReg := newFakeRegistry(t)
 
-	fakeClient := fake.NewSimpleClientset()
-	// When creating a pod, it's necessary to set a propert name. Also, to simulate the pod execution, its container status
-	// is moved to a terminal state.
+	// Allow the test case to use the right digest created by the fake registry.
+	objects := []runtime.Object{}
+	if clientObjs != nil {
+		objects = clientObjs(fakeReg.URL()[len("https://"):], fakeReg.fakeManifestDigest)
+	}
+
+	fakeClient := fake.NewSimpleClientset(objects...)
+	// // When creating a pod, it's necessary to set a propert name. Also, to simulate the pod execution, its container status
+	// // is moved to a terminal state.
 	fakeClient.PrependReactor("create", "pods", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
 		createAction, _ := action.(clientgotesting.CreateAction)
 		pod := createAction.GetObject().(*corev1.Pod)
