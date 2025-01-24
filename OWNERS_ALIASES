@@ -32,3 +32,21 @@ aliases:
     - coreydaley
   build-approvers:
     - coreydaley
+  storage-reviewers:
+    - jsafrane
+    - tsmetana
+    - gnufied
+    - dobsonj
+    - RomanBednar
+    - mpatlasov
+    - rhrmo
+    - dfajmon
+  storage-approvers: 
+    - jsafrane
+    - tsmetana
+    - gnufied
+    - dobsonj
+    - RomanBednar
+    - mpatlasov
+    - rhrmo
+    - dfajmon
