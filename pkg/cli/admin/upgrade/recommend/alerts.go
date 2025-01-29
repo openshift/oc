@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	routev1 "github.com/openshift/api/route/v1"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
@@ -51,6 +52,7 @@ func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
 	}
 
 	var conditions []metav1.Condition
+	i := 0
 	haveCritical := false
 	havePodDisruptionBudget := false
 	havePullWaiting := false
@@ -60,7 +62,87 @@ func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
 		if alertName = alert.Labels.AlertName; alertName == "" {
 			continue
 		}
-		fmt.Printf("alert: %v\n", alert)
+		if alert.State == "pending" {
+			continue
+		}
+
+		var summary string
+		if summary = alert.Annotations.Summary; summary == "" {
+			summary = alertName
+		}
+		if !strings.HasSuffix(summary, ".") {
+			summary += "."
+		}
+
+		var description string
+		switch {
+		case alert.Annotations.Message != "" && alert.Annotations.Description != "":
+			description += " The alert description is: " + alert.Annotations.Description + " | " + alert.Annotations.Message
+		case alert.Annotations.Description != "":
+			description += " The alert description is: " + alert.Annotations.Description
+		case alert.Annotations.Message != "":
+			description += " The alert description is: " + alert.Annotations.Message
+		default:
+			description += " The alert has no description."
+		}
+
+		var runbook string
+		if runbook = alert.Annotations.Runbook; runbook == "" {
+			runbook = "<alert does not have a runbook_url annotation>"
+		}
+
+		details := fmt.Sprintf("%s%s %s", summary, description, runbook)
+
+		if alert.Labels.Severity == "critical" {
+			haveCritical = true
+			if alertName == "PodDisruptionBudgetLimit" {
+				havePodDisruptionBudget = true
+			}
+			conditions = append(conditions, metav1.Condition{
+				Type:    fmt.Sprintf("recommended/CriticalAlerts/%s/%d", alertName, i),
+				Status:  metav1.ConditionFalse,
+				Reason:  fmt.Sprintf("Alert:%s", alert.State),
+				Message: fmt.Sprintf("%s alert %s %s, suggesting significant cluster issues worth investigating. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+			})
+			i += 1
+			continue
+		}
+
+		if alertName == "PodDisruptionBudgetAtLimit" {
+			havePodDisruptionBudget = true
+			conditions = append(conditions, metav1.Condition{
+				Type:    fmt.Sprintf("recommended/PodDisruptionBudgetAlerts/%s/%d", alertName, i),
+				Status:  metav1.ConditionFalse,
+				Reason:  fmt.Sprintf("Alert:%s", alert.State),
+				Message: fmt.Sprintf("%s alert %s %s, which might slow node drains. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+			})
+			i += 1
+			continue
+		}
+
+		if alertName == "KubeContainerWaiting" {
+			havePullWaiting = true
+			conditions = append(conditions, metav1.Condition{
+				Type:    fmt.Sprintf("recommended/PodImagePullAlerts/%s/%d", alertName, i),
+				Status:  metav1.ConditionFalse,
+				Reason:  fmt.Sprintf("Alert:%s", alert.State),
+				Message: fmt.Sprintf("%s alert %s %s, which may slow workload redistribution during rolling node updates. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+			})
+			i += 1
+			continue
+		}
+
+		if alertName == "KubeNodeNotReady" || alertName == "KubeNodeReadinessFlapping" || alertName == "KubeNodeUnreachable" {
+			haveNodes = true
+			conditions = append(conditions, metav1.Condition{
+				Type:    fmt.Sprintf("recommended/NodeAlerts/%s/%d", alertName, i),
+				Status:  metav1.ConditionFalse,
+				Reason:  fmt.Sprintf("Alert:%s", alert.State),
+				Message: fmt.Sprintf("%s alert %s %s, which may slow workload redistribution during rolling node updates. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+			})
+			i += 1
+			continue
+		}
 	}
 
 	if !haveCritical {
