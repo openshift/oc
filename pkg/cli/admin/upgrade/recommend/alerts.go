@@ -97,6 +97,8 @@ func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
 			haveCritical = true
 			if alertName == "PodDisruptionBudgetLimit" {
 				havePodDisruptionBudget = true
+				// ideally the upstream PodDisruptionBudget*Limit alerts templated in the namespace and PDB, but until they do, inject those ourselves
+				details = fmt.Sprintf("Namespace=%s, PodDisruptionBudget=%s. %s", alert.Labels.Namespace, alert.Labels.PodDisruptionBudget, details)
 			}
 			conditions = append(conditions, metav1.Condition{
 				Type:    fmt.Sprintf("recommended/CriticalAlerts/%s/%d", alertName, i),
@@ -110,6 +112,8 @@ func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
 
 		if alertName == "PodDisruptionBudgetAtLimit" {
 			havePodDisruptionBudget = true
+			// ideally the upstream PodDisruptionBudget*Limit alerts templated in the namespace and PDB, but until they do, inject those ourselves
+			details = fmt.Sprintf("Namespace=%s, PodDisruptionBudget=%s. %s", alert.Labels.Namespace, alert.Labels.PodDisruptionBudget, details)
 			conditions = append(conditions, metav1.Condition{
 				Type:    fmt.Sprintf("recommended/PodDisruptionBudgetAlerts/%s/%d", alertName, i),
 				Status:  metav1.ConditionFalse,

@@ -20,11 +20,12 @@ func (al AllowedAlerts) Contains(alert string) bool {
 }
 
 type AlertLabels struct {
-	AlertName string `json:"alertname,omitempty"`
-	Name      string `json:"name,omitempty"`
-	Namespace string `json:"namespace,omitempty"`
-	Reason    string `json:"reason,omitempty"`
-	Severity  string `json:"severity,omitempty"`
+	AlertName           string `json:"alertname,omitempty"`
+	Name                string `json:"name,omitempty"`
+	Namespace           string `json:"namespace,omitempty"`
+	PodDisruptionBudget string `json:"poddisruptionbudget,omitempty"`
+	Reason              string `json:"reason,omitempty"`
+	Severity            string `json:"severity,omitempty"`
 }
 
 type AlertAnnotations struct {
