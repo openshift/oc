@@ -13,35 +13,35 @@ type FakeImageV1 struct {
 }
 
 func (c *FakeImageV1) Images() v1.ImageInterface {
-	return &FakeImages{c}
+	return newFakeImages(c)
 }
 
 func (c *FakeImageV1) ImageSignatures() v1.ImageSignatureInterface {
-	return &FakeImageSignatures{c}
+	return newFakeImageSignatures(c)
 }
 
 func (c *FakeImageV1) ImageStreams(namespace string) v1.ImageStreamInterface {
-	return &FakeImageStreams{c, namespace}
+	return newFakeImageStreams(c, namespace)
 }
 
 func (c *FakeImageV1) ImageStreamImages(namespace string) v1.ImageStreamImageInterface {
-	return &FakeImageStreamImages{c, namespace}
+	return newFakeImageStreamImages(c, namespace)
 }
 
 func (c *FakeImageV1) ImageStreamImports(namespace string) v1.ImageStreamImportInterface {
-	return &FakeImageStreamImports{c, namespace}
+	return newFakeImageStreamImports(c, namespace)
 }
 
 func (c *FakeImageV1) ImageStreamMappings(namespace string) v1.ImageStreamMappingInterface {
-	return &FakeImageStreamMappings{c, namespace}
+	return newFakeImageStreamMappings(c, namespace)
 }
 
 func (c *FakeImageV1) ImageStreamTags(namespace string) v1.ImageStreamTagInterface {
-	return &FakeImageStreamTags{c, namespace}
+	return newFakeImageStreamTags(c, namespace)
 }
 
 func (c *FakeImageV1) ImageTags(namespace string) v1.ImageTagInterface {
-	return &FakeImageTags{c, namespace}
+	return newFakeImageTags(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

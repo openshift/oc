@@ -13,7 +13,7 @@ type FakeAppsV1 struct {
 }
 
 func (c *FakeAppsV1) DeploymentConfigs(namespace string) v1.DeploymentConfigInterface {
-	return &FakeDeploymentConfigs{c, namespace}
+	return newFakeDeploymentConfigs(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

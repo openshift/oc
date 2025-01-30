@@ -13,23 +13,23 @@ type FakeOauthV1 struct {
 }
 
 func (c *FakeOauthV1) OAuthAccessTokens() v1.OAuthAccessTokenInterface {
-	return &FakeOAuthAccessTokens{c}
+	return newFakeOAuthAccessTokens(c)
 }
 
 func (c *FakeOauthV1) OAuthAuthorizeTokens() v1.OAuthAuthorizeTokenInterface {
-	return &FakeOAuthAuthorizeTokens{c}
+	return newFakeOAuthAuthorizeTokens(c)
 }
 
 func (c *FakeOauthV1) OAuthClients() v1.OAuthClientInterface {
-	return &FakeOAuthClients{c}
+	return newFakeOAuthClients(c)
 }
 
 func (c *FakeOauthV1) OAuthClientAuthorizations() v1.OAuthClientAuthorizationInterface {
-	return &FakeOAuthClientAuthorizations{c}
+	return newFakeOAuthClientAuthorizations(c)
 }
 
 func (c *FakeOauthV1) UserOAuthAccessTokens() v1.UserOAuthAccessTokenInterface {
-	return &FakeUserOAuthAccessTokens{c}
+	return newFakeUserOAuthAccessTokens(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

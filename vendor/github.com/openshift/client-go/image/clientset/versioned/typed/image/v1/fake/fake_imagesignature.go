@@ -3,36 +3,26 @@
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/openshift/api/image/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	testing "k8s.io/client-go/testing"
+	imagev1 "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeImageSignatures implements ImageSignatureInterface
-type FakeImageSignatures struct {
+// fakeImageSignatures implements ImageSignatureInterface
+type fakeImageSignatures struct {
+	*gentype.FakeClient[*v1.ImageSignature]
 	Fake *FakeImageV1
 }
 
-var imagesignaturesResource = v1.SchemeGroupVersion.WithResource("imagesignatures")
-
-var imagesignaturesKind = v1.SchemeGroupVersion.WithKind("ImageSignature")
-
-// Create takes the representation of a imageSignature and creates it.  Returns the server's representation of the imageSignature, and an error, if there is any.
-func (c *FakeImageSignatures) Create(ctx context.Context, imageSignature *v1.ImageSignature, opts metav1.CreateOptions) (result *v1.ImageSignature, err error) {
-	emptyResult := &v1.ImageSignature{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(imagesignaturesResource, imageSignature, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeImageSignatures(fake *FakeImageV1) imagev1.ImageSignatureInterface {
+	return &fakeImageSignatures{
+		gentype.NewFakeClient[*v1.ImageSignature](
+			fake.Fake,
+			"",
+			v1.SchemeGroupVersion.WithResource("imagesignatures"),
+			v1.SchemeGroupVersion.WithKind("ImageSignature"),
+			func() *v1.ImageSignature { return &v1.ImageSignature{} },
+		),
+		fake,
 	}
-	return obj.(*v1.ImageSignature), err
-}
-
-// Delete takes name of the imageSignature and deletes it. Returns an error if one occurs.
-func (c *FakeImageSignatures) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(imagesignaturesResource, name, opts), &v1.ImageSignature{})
-	return err
 }

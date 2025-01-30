@@ -3,55 +3,40 @@
 package fake
 
 import (
-	"context"
-	json "encoding/json"
-	"fmt"
+	context "context"
 
 	v1 "github.com/openshift/api/image/v1"
 	imagev1 "github.com/openshift/client-go/image/applyconfigurations/image/v1"
+	typedimagev1 "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	types "k8s.io/apimachinery/pkg/types"
+	gentype "k8s.io/client-go/gentype"
 	testing "k8s.io/client-go/testing"
 )
 
-// FakeImageStreamMappings implements ImageStreamMappingInterface
-type FakeImageStreamMappings struct {
+// fakeImageStreamMappings implements ImageStreamMappingInterface
+type fakeImageStreamMappings struct {
+	*gentype.FakeClientWithApply[*v1.ImageStreamMapping, *imagev1.ImageStreamMappingApplyConfiguration]
 	Fake *FakeImageV1
-	ns   string
 }
 
-var imagestreammappingsResource = v1.SchemeGroupVersion.WithResource("imagestreammappings")
-
-var imagestreammappingsKind = v1.SchemeGroupVersion.WithKind("ImageStreamMapping")
-
-// Apply takes the given apply declarative configuration, applies it and returns the applied imageStreamMapping.
-func (c *FakeImageStreamMappings) Apply(ctx context.Context, imageStreamMapping *imagev1.ImageStreamMappingApplyConfiguration, opts metav1.ApplyOptions) (result *v1.ImageStreamMapping, err error) {
-	if imageStreamMapping == nil {
-		return nil, fmt.Errorf("imageStreamMapping provided to Apply must not be nil")
+func newFakeImageStreamMappings(fake *FakeImageV1, namespace string) typedimagev1.ImageStreamMappingInterface {
+	return &fakeImageStreamMappings{
+		gentype.NewFakeClientWithApply[*v1.ImageStreamMapping, *imagev1.ImageStreamMappingApplyConfiguration](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("imagestreammappings"),
+			v1.SchemeGroupVersion.WithKind("ImageStreamMapping"),
+			func() *v1.ImageStreamMapping { return &v1.ImageStreamMapping{} },
+		),
+		fake,
 	}
-	data, err := json.Marshal(imageStreamMapping)
-	if err != nil {
-		return nil, err
-	}
-	name := imageStreamMapping.Name
-	if name == nil {
-		return nil, fmt.Errorf("imageStreamMapping.Name must be provided to Apply")
-	}
-	emptyResult := &v1.ImageStreamMapping{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(imagestreammappingsResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.ImageStreamMapping), err
 }
 
 // Create takes the representation of a imageStreamMapping and creates it.  Returns the server's representation of the status, and an error, if there is any.
-func (c *FakeImageStreamMappings) Create(ctx context.Context, imageStreamMapping *v1.ImageStreamMapping, opts metav1.CreateOptions) (result *metav1.Status, err error) {
+func (c *fakeImageStreamMappings) Create(ctx context.Context, imageStreamMapping *v1.ImageStreamMapping, opts metav1.CreateOptions) (result *metav1.Status, err error) {
 	emptyResult := &metav1.Status{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(imagestreammappingsResource, c.ns, imageStreamMapping, opts), emptyResult)
+		Invokes(testing.NewCreateActionWithOptions(c.Resource(), c.Namespace(), imageStreamMapping, opts), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
