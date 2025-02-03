@@ -2,8 +2,10 @@ package nodeimage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"strings"
 	"time"
 
@@ -218,6 +220,11 @@ func (o *MonitorOptions) isMonitoringDone(ctx context.Context) (bool, error) {
 	if err != nil {
 		// at this stage pod should exist, return false to retry if client error
 		if retry.IsHTTPClientError(err) {
+			return false, nil
+		}
+		// api server may become temporarily unavailable, return false to retry
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
 			return false, nil
 		}
 		klog.V(2).Infof("pod should exist but is not found: %v", err)
