@@ -8,6 +8,7 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	toppvc "github.com/openshift/oc/pkg/cli/admin/toppvc"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
@@ -35,6 +36,7 @@ func NewCommandTop(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobr
 
 	cmds.AddCommand(NewCmdTopImages(f, streams))
 	cmds.AddCommand(NewCmdTopImageStreams(f, streams))
+	cmds.AddCommand(toppvc.NewCmdTopPersistentVolumeClaims(f, streams))
 	cmdTopNode.Long = templates.LongDesc(cmdTopNode.Long)
 	cmdTopNode.Example = templates.Examples(cmdTopNode.Example)
 	cmdTopPod.Long = templates.LongDesc(cmdTopPod.Long)
