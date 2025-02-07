@@ -139,7 +139,7 @@ func (o *options) Run(ctx context.Context) error {
 	}
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing); c != nil && c.Status == configv1.ConditionTrue && len(c.Message) > 0 {
-		fmt.Fprintf(o.Out, "info: An update is in progress.  You may wish to let this update complete before requesting a new update.\n  %s\n", strings.ReplaceAll(c.Message, "\n", "\n  "))
+		fmt.Fprintf(o.Out, "info: An update is in progress.  You may wish to let this update complete before requesting a new update.\n  %s\n\n", strings.ReplaceAll(c.Message, "\n", "\n  "))
 	}
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status != configv1.ConditionTrue {
