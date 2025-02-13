@@ -159,10 +159,10 @@ func (o *options) Run(ctx context.Context, args []string) error {
 
 	if len(promOutput.Data.Result) == 0 {
 		if o.namespace == "" {
-			return fmt.Errorf("no persistentvolumeclaims found.")
+			return fmt.Errorf("no persistentvolumeclaims found or mounted.")
 		}
 		if len(args) == 0 {
-			return fmt.Errorf("no persistentvolumeclaims found in %s namespace.", o.namespace)
+			return fmt.Errorf("no persistentvolumeclaims found or mounted in %s namespace.", o.namespace)
 		}
 		return fmt.Errorf("persistentvolumeclaim %q not found in %s namespace.", args[0], o.namespace)
 
@@ -190,7 +190,7 @@ func (o *options) Run(ctx context.Context, args []string) error {
 		pvcName := promOutputDataResult.Metric["persistentvolumeclaim"]
 		usagePercentage := promOutputDataResult.Value[1]
 		valueFloatLong, _ := strconv.ParseFloat(usagePercentage.(string), 64)
-		valueFloat := fmt.Sprintf("%.2f", valueFloatLong)
+		valueFloat := fmt.Sprintf("%.2f%%", valueFloatLong)
 		if len(pvcInfos) > 0 {
 			if !(namespaceName == pvcInfos[len(pvcInfos)-1].namespace && pvcName == pvcInfos[len(pvcInfos)-1].name) {
 				pvcInfos = append(pvcInfos, persistentVolumeClaimInfo{namespace: namespaceName, name: pvcName, usagePercentage: valueFloat})
