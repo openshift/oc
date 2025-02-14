@@ -431,8 +431,8 @@ func (t *stiTar) ExtractTarStreamFromTarReader(dir string, tarReader Reader, log
 }
 
 func (t *stiTar) extractLink(dir string, header *tar.Header, tarReader io.Reader) error {
-	dest := filepath.Join(dir, header.Name)
-	source := header.Linkname
+	dest := filepath.Clean(filepath.Join(dir, header.Name))
+	source := filepath.Clean(header.Linkname)
 
 	if t.disallowOutsidePaths {
 		target := filepath.Clean(filepath.Join(dest, "..", source))
