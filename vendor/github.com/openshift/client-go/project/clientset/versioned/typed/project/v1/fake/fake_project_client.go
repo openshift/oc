@@ -13,11 +13,11 @@ type FakeProjectV1 struct {
 }
 
 func (c *FakeProjectV1) Projects() v1.ProjectInterface {
-	return &FakeProjects{c}
+	return newFakeProjects(c)
 }
 
 func (c *FakeProjectV1) ProjectRequests() v1.ProjectRequestInterface {
-	return &FakeProjectRequests{c}
+	return newFakeProjectRequests(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

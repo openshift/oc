@@ -71,7 +71,7 @@ func (i *ReleaseFeatureDiffInfo) GetOrderedFeatureGates() []string {
 	counts := map[string]int{}
 	for _, curr := range allInfo {
 		for featureGate, changedFeatureGate := range curr.ChangedFeatureGates {
-			if strings.HasSuffix(changedFeatureGate, "Unconditional") {
+			if strings.HasSuffix(changedFeatureGate, "Unconditionally Enabled") {
 				counts[featureGate] = counts[featureGate] - 100
 			}
 			if strings.HasSuffix(changedFeatureGate, "(Changed)") {

@@ -13,15 +13,15 @@ type FakeTemplateV1 struct {
 }
 
 func (c *FakeTemplateV1) BrokerTemplateInstances() v1.BrokerTemplateInstanceInterface {
-	return &FakeBrokerTemplateInstances{c}
+	return newFakeBrokerTemplateInstances(c)
 }
 
 func (c *FakeTemplateV1) Templates(namespace string) v1.TemplateInterface {
-	return &FakeTemplates{c, namespace}
+	return newFakeTemplates(c, namespace)
 }
 
 func (c *FakeTemplateV1) TemplateInstances(namespace string) v1.TemplateInstanceInterface {
-	return &FakeTemplateInstances{c, namespace}
+	return newFakeTemplateInstances(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

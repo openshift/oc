@@ -3,87 +3,30 @@
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/openshift/api/image/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	testing "k8s.io/client-go/testing"
+	imagev1 "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeImageTags implements ImageTagInterface
-type FakeImageTags struct {
+// fakeImageTags implements ImageTagInterface
+type fakeImageTags struct {
+	*gentype.FakeClientWithList[*v1.ImageTag, *v1.ImageTagList]
 	Fake *FakeImageV1
-	ns   string
 }
 
-var imagetagsResource = v1.SchemeGroupVersion.WithResource("imagetags")
-
-var imagetagsKind = v1.SchemeGroupVersion.WithKind("ImageTag")
-
-// Get takes name of the imageTag, and returns the corresponding imageTag object, and an error if there is any.
-func (c *FakeImageTags) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.ImageTag, err error) {
-	emptyResult := &v1.ImageTag{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(imagetagsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeImageTags(fake *FakeImageV1, namespace string) imagev1.ImageTagInterface {
+	return &fakeImageTags{
+		gentype.NewFakeClientWithList[*v1.ImageTag, *v1.ImageTagList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("imagetags"),
+			v1.SchemeGroupVersion.WithKind("ImageTag"),
+			func() *v1.ImageTag { return &v1.ImageTag{} },
+			func() *v1.ImageTagList { return &v1.ImageTagList{} },
+			func(dst, src *v1.ImageTagList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.ImageTagList) []*v1.ImageTag { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.ImageTagList, items []*v1.ImageTag) { list.Items = gentype.FromPointerSlice(items) },
+		),
+		fake,
 	}
-	return obj.(*v1.ImageTag), err
-}
-
-// List takes label and field selectors, and returns the list of ImageTags that match those selectors.
-func (c *FakeImageTags) List(ctx context.Context, opts metav1.ListOptions) (result *v1.ImageTagList, err error) {
-	emptyResult := &v1.ImageTagList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(imagetagsResource, imagetagsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.ImageTagList{ListMeta: obj.(*v1.ImageTagList).ListMeta}
-	for _, item := range obj.(*v1.ImageTagList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Create takes the representation of a imageTag and creates it.  Returns the server's representation of the imageTag, and an error, if there is any.
-func (c *FakeImageTags) Create(ctx context.Context, imageTag *v1.ImageTag, opts metav1.CreateOptions) (result *v1.ImageTag, err error) {
-	emptyResult := &v1.ImageTag{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(imagetagsResource, c.ns, imageTag, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.ImageTag), err
-}
-
-// Update takes the representation of a imageTag and updates it. Returns the server's representation of the imageTag, and an error, if there is any.
-func (c *FakeImageTags) Update(ctx context.Context, imageTag *v1.ImageTag, opts metav1.UpdateOptions) (result *v1.ImageTag, err error) {
-	emptyResult := &v1.ImageTag{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(imagetagsResource, c.ns, imageTag, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.ImageTag), err
-}
-
-// Delete takes name of the imageTag and deletes it. Returns an error if one occurs.
-func (c *FakeImageTags) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(imagetagsResource, c.ns, name, opts), &v1.ImageTag{})
-
-	return err
 }

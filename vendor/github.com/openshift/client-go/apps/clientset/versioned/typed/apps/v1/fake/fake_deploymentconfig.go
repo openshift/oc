@@ -3,189 +3,47 @@
 package fake
 
 import (
-	"context"
-	json "encoding/json"
-	"fmt"
+	context "context"
 
 	v1 "github.com/openshift/api/apps/v1"
 	appsv1 "github.com/openshift/client-go/apps/applyconfigurations/apps/v1"
+	typedappsv1 "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
+	gentype "k8s.io/client-go/gentype"
 	testing "k8s.io/client-go/testing"
 )
 
-// FakeDeploymentConfigs implements DeploymentConfigInterface
-type FakeDeploymentConfigs struct {
+// fakeDeploymentConfigs implements DeploymentConfigInterface
+type fakeDeploymentConfigs struct {
+	*gentype.FakeClientWithListAndApply[*v1.DeploymentConfig, *v1.DeploymentConfigList, *appsv1.DeploymentConfigApplyConfiguration]
 	Fake *FakeAppsV1
-	ns   string
 }
 
-var deploymentconfigsResource = v1.SchemeGroupVersion.WithResource("deploymentconfigs")
-
-var deploymentconfigsKind = v1.SchemeGroupVersion.WithKind("DeploymentConfig")
-
-// Get takes name of the deploymentConfig, and returns the corresponding deploymentConfig object, and an error if there is any.
-func (c *FakeDeploymentConfigs) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.DeploymentConfig, err error) {
-	emptyResult := &v1.DeploymentConfig{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(deploymentconfigsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeDeploymentConfigs(fake *FakeAppsV1, namespace string) typedappsv1.DeploymentConfigInterface {
+	return &fakeDeploymentConfigs{
+		gentype.NewFakeClientWithListAndApply[*v1.DeploymentConfig, *v1.DeploymentConfigList, *appsv1.DeploymentConfigApplyConfiguration](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("deploymentconfigs"),
+			v1.SchemeGroupVersion.WithKind("DeploymentConfig"),
+			func() *v1.DeploymentConfig { return &v1.DeploymentConfig{} },
+			func() *v1.DeploymentConfigList { return &v1.DeploymentConfigList{} },
+			func(dst, src *v1.DeploymentConfigList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.DeploymentConfigList) []*v1.DeploymentConfig { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.DeploymentConfigList, items []*v1.DeploymentConfig) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.DeploymentConfig), err
-}
-
-// List takes label and field selectors, and returns the list of DeploymentConfigs that match those selectors.
-func (c *FakeDeploymentConfigs) List(ctx context.Context, opts metav1.ListOptions) (result *v1.DeploymentConfigList, err error) {
-	emptyResult := &v1.DeploymentConfigList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(deploymentconfigsResource, deploymentconfigsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.DeploymentConfigList{ListMeta: obj.(*v1.DeploymentConfigList).ListMeta}
-	for _, item := range obj.(*v1.DeploymentConfigList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested deploymentConfigs.
-func (c *FakeDeploymentConfigs) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(deploymentconfigsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a deploymentConfig and creates it.  Returns the server's representation of the deploymentConfig, and an error, if there is any.
-func (c *FakeDeploymentConfigs) Create(ctx context.Context, deploymentConfig *v1.DeploymentConfig, opts metav1.CreateOptions) (result *v1.DeploymentConfig, err error) {
-	emptyResult := &v1.DeploymentConfig{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(deploymentconfigsResource, c.ns, deploymentConfig, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.DeploymentConfig), err
-}
-
-// Update takes the representation of a deploymentConfig and updates it. Returns the server's representation of the deploymentConfig, and an error, if there is any.
-func (c *FakeDeploymentConfigs) Update(ctx context.Context, deploymentConfig *v1.DeploymentConfig, opts metav1.UpdateOptions) (result *v1.DeploymentConfig, err error) {
-	emptyResult := &v1.DeploymentConfig{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(deploymentconfigsResource, c.ns, deploymentConfig, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.DeploymentConfig), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeDeploymentConfigs) UpdateStatus(ctx context.Context, deploymentConfig *v1.DeploymentConfig, opts metav1.UpdateOptions) (result *v1.DeploymentConfig, err error) {
-	emptyResult := &v1.DeploymentConfig{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(deploymentconfigsResource, "status", c.ns, deploymentConfig, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.DeploymentConfig), err
-}
-
-// Delete takes name of the deploymentConfig and deletes it. Returns an error if one occurs.
-func (c *FakeDeploymentConfigs) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(deploymentconfigsResource, c.ns, name, opts), &v1.DeploymentConfig{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeDeploymentConfigs) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(deploymentconfigsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.DeploymentConfigList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched deploymentConfig.
-func (c *FakeDeploymentConfigs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.DeploymentConfig, err error) {
-	emptyResult := &v1.DeploymentConfig{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(deploymentconfigsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.DeploymentConfig), err
-}
-
-// Apply takes the given apply declarative configuration, applies it and returns the applied deploymentConfig.
-func (c *FakeDeploymentConfigs) Apply(ctx context.Context, deploymentConfig *appsv1.DeploymentConfigApplyConfiguration, opts metav1.ApplyOptions) (result *v1.DeploymentConfig, err error) {
-	if deploymentConfig == nil {
-		return nil, fmt.Errorf("deploymentConfig provided to Apply must not be nil")
-	}
-	data, err := json.Marshal(deploymentConfig)
-	if err != nil {
-		return nil, err
-	}
-	name := deploymentConfig.Name
-	if name == nil {
-		return nil, fmt.Errorf("deploymentConfig.Name must be provided to Apply")
-	}
-	emptyResult := &v1.DeploymentConfig{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(deploymentconfigsResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions()), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.DeploymentConfig), err
-}
-
-// ApplyStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
-func (c *FakeDeploymentConfigs) ApplyStatus(ctx context.Context, deploymentConfig *appsv1.DeploymentConfigApplyConfiguration, opts metav1.ApplyOptions) (result *v1.DeploymentConfig, err error) {
-	if deploymentConfig == nil {
-		return nil, fmt.Errorf("deploymentConfig provided to Apply must not be nil")
-	}
-	data, err := json.Marshal(deploymentConfig)
-	if err != nil {
-		return nil, err
-	}
-	name := deploymentConfig.Name
-	if name == nil {
-		return nil, fmt.Errorf("deploymentConfig.Name must be provided to Apply")
-	}
-	emptyResult := &v1.DeploymentConfig{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(deploymentconfigsResource, c.ns, *name, types.ApplyPatchType, data, opts.ToPatchOptions(), "status"), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.DeploymentConfig), err
 }
 
 // Instantiate takes the representation of a deploymentRequest and creates it.  Returns the server's representation of the deploymentConfig, and an error, if there is any.
-func (c *FakeDeploymentConfigs) Instantiate(ctx context.Context, deploymentConfigName string, deploymentRequest *v1.DeploymentRequest, opts metav1.CreateOptions) (result *v1.DeploymentConfig, err error) {
+func (c *fakeDeploymentConfigs) Instantiate(ctx context.Context, deploymentConfigName string, deploymentRequest *v1.DeploymentRequest, opts metav1.CreateOptions) (result *v1.DeploymentConfig, err error) {
 	emptyResult := &v1.DeploymentConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateSubresourceActionWithOptions(deploymentconfigsResource, deploymentConfigName, "instantiate", c.ns, deploymentRequest, opts), emptyResult)
+		Invokes(testing.NewCreateSubresourceActionWithOptions(c.Resource(), deploymentConfigName, "instantiate", c.Namespace(), deploymentRequest, opts), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
@@ -194,10 +52,10 @@ func (c *FakeDeploymentConfigs) Instantiate(ctx context.Context, deploymentConfi
 }
 
 // Rollback takes the representation of a deploymentConfigRollback and creates it.  Returns the server's representation of the deploymentConfig, and an error, if there is any.
-func (c *FakeDeploymentConfigs) Rollback(ctx context.Context, deploymentConfigName string, deploymentConfigRollback *v1.DeploymentConfigRollback, opts metav1.CreateOptions) (result *v1.DeploymentConfig, err error) {
+func (c *fakeDeploymentConfigs) Rollback(ctx context.Context, deploymentConfigName string, deploymentConfigRollback *v1.DeploymentConfigRollback, opts metav1.CreateOptions) (result *v1.DeploymentConfig, err error) {
 	emptyResult := &v1.DeploymentConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateSubresourceActionWithOptions(deploymentconfigsResource, deploymentConfigName, "rollback", c.ns, deploymentConfigRollback, opts), emptyResult)
+		Invokes(testing.NewCreateSubresourceActionWithOptions(c.Resource(), deploymentConfigName, "rollback", c.Namespace(), deploymentConfigRollback, opts), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
@@ -206,10 +64,10 @@ func (c *FakeDeploymentConfigs) Rollback(ctx context.Context, deploymentConfigNa
 }
 
 // GetScale takes name of the deploymentConfig, and returns the corresponding scale object, and an error if there is any.
-func (c *FakeDeploymentConfigs) GetScale(ctx context.Context, deploymentConfigName string, options metav1.GetOptions) (result *v1beta1.Scale, err error) {
+func (c *fakeDeploymentConfigs) GetScale(ctx context.Context, deploymentConfigName string, options metav1.GetOptions) (result *v1beta1.Scale, err error) {
 	emptyResult := &v1beta1.Scale{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetSubresourceActionWithOptions(deploymentconfigsResource, c.ns, "scale", deploymentConfigName, options), emptyResult)
+		Invokes(testing.NewGetSubresourceActionWithOptions(c.Resource(), c.Namespace(), "scale", deploymentConfigName, options), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
@@ -218,10 +76,10 @@ func (c *FakeDeploymentConfigs) GetScale(ctx context.Context, deploymentConfigNa
 }
 
 // UpdateScale takes the representation of a scale and updates it. Returns the server's representation of the scale, and an error, if there is any.
-func (c *FakeDeploymentConfigs) UpdateScale(ctx context.Context, deploymentConfigName string, scale *v1beta1.Scale, opts metav1.UpdateOptions) (result *v1beta1.Scale, err error) {
+func (c *fakeDeploymentConfigs) UpdateScale(ctx context.Context, deploymentConfigName string, scale *v1beta1.Scale, opts metav1.UpdateOptions) (result *v1beta1.Scale, err error) {
 	emptyResult := &v1beta1.Scale{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(deploymentconfigsResource, "scale", c.ns, scale, opts), &v1beta1.Scale{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(c.Resource(), "scale", c.Namespace(), scale, opts), &v1beta1.Scale{})
 
 	if obj == nil {
 		return emptyResult, err

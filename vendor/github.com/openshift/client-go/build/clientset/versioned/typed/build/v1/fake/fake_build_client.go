@@ -13,11 +13,11 @@ type FakeBuildV1 struct {
 }
 
 func (c *FakeBuildV1) Builds(namespace string) v1.BuildInterface {
-	return &FakeBuilds{c, namespace}
+	return newFakeBuilds(c, namespace)
 }
 
 func (c *FakeBuildV1) BuildConfigs(namespace string) v1.BuildConfigInterface {
-	return &FakeBuildConfigs{c, namespace}
+	return newFakeBuildConfigs(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

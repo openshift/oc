@@ -3,31 +3,26 @@
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/openshift/api/image/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	testing "k8s.io/client-go/testing"
+	imagev1 "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeImageStreamImages implements ImageStreamImageInterface
-type FakeImageStreamImages struct {
+// fakeImageStreamImages implements ImageStreamImageInterface
+type fakeImageStreamImages struct {
+	*gentype.FakeClient[*v1.ImageStreamImage]
 	Fake *FakeImageV1
-	ns   string
 }
 
-var imagestreamimagesResource = v1.SchemeGroupVersion.WithResource("imagestreamimages")
-
-var imagestreamimagesKind = v1.SchemeGroupVersion.WithKind("ImageStreamImage")
-
-// Get takes name of the imageStreamImage, and returns the corresponding imageStreamImage object, and an error if there is any.
-func (c *FakeImageStreamImages) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.ImageStreamImage, err error) {
-	emptyResult := &v1.ImageStreamImage{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(imagestreamimagesResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeImageStreamImages(fake *FakeImageV1, namespace string) imagev1.ImageStreamImageInterface {
+	return &fakeImageStreamImages{
+		gentype.NewFakeClient[*v1.ImageStreamImage](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("imagestreamimages"),
+			v1.SchemeGroupVersion.WithKind("ImageStreamImage"),
+			func() *v1.ImageStreamImage { return &v1.ImageStreamImage{} },
+		),
+		fake,
 	}
-	return obj.(*v1.ImageStreamImage), err
 }

@@ -3,6 +3,7 @@ package regeneratemco
 import (
 	"context"
 	"fmt"
+	"k8s.io/utils/clock"
 	"net/url"
 	"time"
 
@@ -21,7 +22,7 @@ import (
 )
 
 func (o *RegenerateMCOOptions) Run(ctx context.Context) error {
-	recorder := events.NewLoggingEventRecorder("oc")
+	recorder := events.NewLoggingEventRecorder("oc", &clock.RealClock{})
 
 	clientConfig, err := o.RESTClientGetter.ToRESTConfig()
 	if err != nil {
