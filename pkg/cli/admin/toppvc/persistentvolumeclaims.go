@@ -159,10 +159,10 @@ func (o *options) Run(ctx context.Context, args []string) error {
 
 	if len(promOutput.Data.Result) == 0 {
 		if o.namespace == "" {
-			return fmt.Errorf("no persistentvolumeclaims found or mounted.")
+			return fmt.Errorf("no persistentvolumeclaims found in use.")
 		}
 		if len(args) == 0 {
-			return fmt.Errorf("no persistentvolumeclaims found or mounted in %s namespace.", o.namespace)
+			return fmt.Errorf("no persistentvolumeclaims found in use in %s namespace.", o.namespace)
 		}
 		return fmt.Errorf("persistentvolumeclaim %q not found in %s namespace.", args[0], o.namespace)
 
