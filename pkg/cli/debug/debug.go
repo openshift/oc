@@ -1091,6 +1091,11 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 								Name:  "TMOUT",
 								Value: "900",
 							},
+							{
+								//  to collect more sos report requires this env var is set
+								Name:  "HOST",
+								Value: "/host",
+							},
 						},
 					},
 				},
