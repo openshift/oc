@@ -5,7 +5,7 @@ Each example consists of inputs and outputs, matched by a common substring:
 * `TESTCASE-cv.yaml` (input): ClusterVersion object (created by `oc get clusterversion version -o yaml`).  Lists are also supported.
 * `TESTCASE.output` (output): expected output of `oc adm upgrade recommend`.
 * `TESTCASE.show-outdated-releases-output` (output): expected output of `oc adm upgrade recommend --show-outdated-releases`.
-* `TESTCASE.version-4.12.51-output` (output): expected output of `oc adm upgrade recommend --to 4.12.51`.
+* `TESTCASE.version-<VERSION>-output` (output): expected output of `oc adm upgrade recommend --to <VERSION>`.
 
 The `TestExamples` test in [`examples_test.go`](../examples_test.go) file above validates all examples.
 When the testcase is executed with a non-empty `UPDATE` environmental variable, it will update the `TESTCASE.out` fixture:
