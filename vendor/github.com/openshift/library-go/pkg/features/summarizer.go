@@ -124,7 +124,7 @@ func (i *ReleaseFeatureInfo) CalculateDiff(ctx context.Context, from *ReleaseFea
 					toEnabled, toOk := toFeatureInfo.AllFeatureGates[featureGate]
 					switch {
 					case !toOk:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditional (New)"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditionally Enabled (New)"
 					case toEnabled:
 						currDiffInfo.ChangedFeatureGates[featureGate] = "Enabled (New)"
 					case !toEnabled:
@@ -159,12 +159,12 @@ func (i *ReleaseFeatureInfo) CalculateDiff(ctx context.Context, from *ReleaseFea
 				case !toOk && fromOk:
 					switch {
 					case fromEnabled:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditional (Changed)"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditionally Enabled (Changed)"
 					case !fromEnabled:
-						currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditional (Changed)"
+						currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditionally Enabled (Changed)"
 					}
 				case !toOk && !fromOk:
-					currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditional"
+					currDiffInfo.ChangedFeatureGates[featureGate] = "Unconditionally Enabled"
 				}
 			}
 			releaseFeatureDiffInfo.featureInfo[clusterProfile][featureSet] = currDiffInfo
