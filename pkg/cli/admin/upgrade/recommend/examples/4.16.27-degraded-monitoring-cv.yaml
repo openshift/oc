@@ -1,0 +1,151 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2025-01-28T22:03:56Z"
+  generation: 2
+  name: version
+  resourceVersion: "43835"
+  uid: 492c0a24-2d2f-48af-93d9-6520a4c852a7
+spec:
+  channel: candidate-4.16
+  clusterID: bb39d7b1-588e-4cd6-bc8e-b8f2f8509321
+  upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+status:
+  availableUpdates:
+  - channels:
+    - candidate-4.16
+    - candidate-4.17
+    - candidate-4.18
+    image: quay.io/openshift-release-dev/ocp-release@sha256:0e71cb61694473b40e8d95f530eaf250a62616debb98199f31b4034808687dae
+    url: https://access.redhat.com/errata/RHSA-2025:0650
+    version: 4.16.32
+  - channels:
+    - candidate-4.16
+    - candidate-4.17
+    - candidate-4.18
+    - eus-4.16
+    - fast-4.16
+    - fast-4.17
+    - stable-4.16
+    - stable-4.17
+    image: quay.io/openshift-release-dev/ocp-release@sha256:7aacace57ab6ec468dd98b0b3e0f3fc440b29afce21b90bd716fed0db487e9e9
+    url: https://access.redhat.com/errata/RHSA-2025:0140
+    version: 4.16.30
+  - channels:
+    - candidate-4.16
+    - candidate-4.17
+    - candidate-4.18
+    - eus-4.16
+    - fast-4.16
+    - fast-4.17
+    - stable-4.16
+    - stable-4.17
+    image: quay.io/openshift-release-dev/ocp-release@sha256:8e858891fc917f250351ba434f64fce6ec5666232a164310053097c570cba002
+    url: https://access.redhat.com/errata/RHBA-2025:0018
+    version: 4.16.29
+  - channels:
+    - candidate-4.16
+    - candidate-4.17
+    - candidate-4.18
+    - eus-4.16
+    - fast-4.16
+    - fast-4.17
+    - stable-4.16
+    - stable-4.17
+    image: quay.io/openshift-release-dev/ocp-release@sha256:7708f832ae02919f2cdb2798fdbc64e17ce7a576d1e3baabdd78a000d2d62f40
+    url: https://access.redhat.com/errata/RHBA-2024:11502
+    version: 4.16.28
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2025-01-28T22:04:43Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2025-01-28T22:04:43Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2025-01-28T22:04:43Z"
+    message: Payload loaded version="4.16.27" image="registry.build02.ci.openshift.org/ci-ln-4xlhr32/release@sha256:efc3a4f3db634bc6733dcad71cd57040da05c5f203df9447fa7f7a1a9067fa39"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2025-01-28T22:28:59Z"
+    message: Done applying 4.16.27
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2025-01-28T23:17:29Z"
+    message: Cluster operator monitoring is not available
+    reason: ClusterOperatorNotAvailable
+    status: "True"
+    type: Failing
+  - lastTransitionTime: "2025-01-28T22:28:59Z"
+    message: 'Error while reconciling 4.16.27: the cluster operator monitoring is
+      not available'
+    reason: ClusterOperatorNotAvailable
+    status: "False"
+    type: Progressing
+  - lastTransitionTime: "2025-01-28T23:00:40Z"
+    message: 'Cluster operator machine-config should not be upgraded between minor
+      versions: One or more machine config pools are updating, please see `oc get
+      mcp` for further details'
+    reason: PoolUpdating
+    status: "False"
+    type: Upgradeable
+  desired:
+    channels:
+    - candidate-4.16
+    - candidate-4.17
+    - candidate-4.18
+    - eus-4.16
+    - fast-4.16
+    - fast-4.17
+    - stable-4.16
+    - stable-4.17
+    image: registry.build02.ci.openshift.org/ci-ln-4xlhr32/release@sha256:efc3a4f3db634bc6733dcad71cd57040da05c5f203df9447fa7f7a1a9067fa39
+    url: https://access.redhat.com/errata/RHBA-2024:10973
+    version: 4.16.27
+  history:
+  - completionTime: "2025-01-28T22:28:59Z"
+    image: registry.build02.ci.openshift.org/ci-ln-4xlhr32/release@sha256:efc3a4f3db634bc6733dcad71cd57040da05c5f203df9447fa7f7a1a9067fa39
+    startedTime: "2025-01-28T22:04:43Z"
+    state: Completed
+    verified: false
+    version: 4.16.27
+  observedGeneration: 2
+  versionHash: O3k_U_qyZ_Q=

@@ -1,0 +1,270 @@
+{
+  "status": "success",
+  "data": {
+    "alerts": [
+      {
+        "labels": {
+          "alertname": "ClusterNotUpgradeable",
+          "condition": "Upgradeable",
+          "endpoint": "metrics",
+          "name": "version",
+          "namespace": "openshift-cluster-version",
+          "severity": "info"
+        },
+        "annotations": {
+          "description": "In most cases, you will still be able to apply patch releases. Reason PoolUpdating. For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-4xlhr32-72292.origin-ci-int-gce.dev.rhcloud.com/settings/cluster/.",
+          "summary": "One or more cluster operators have been blocking minor version cluster upgrades for at least an hour."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T23:00:54.844366438Z",
+        "value": "0e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "ClusterOperatorDegraded",
+          "name": "monitoring",
+          "namespace": "openshift-cluster-version",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "The monitoring operator is degraded because , and the components it manages may have reduced quality of service.  Cluster upgrades may not complete. For more information refer to 'oc get -o yaml clusteroperator monitoring' or https://console-openshift-console.apps.ci-ln-4xlhr32-72292.origin-ci-int-gce.dev.rhcloud.com/settings/cluster/.",
+          "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md",
+          "summary": "Cluster operator has been degraded for 30 minutes."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T23:16:24.844366438Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "ClusterOperatorDegraded",
+          "name": "version",
+          "namespace": "openshift-cluster-version",
+          "reason": "ClusterOperatorNotAvailable",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "The version operator is degraded because ClusterOperatorNotAvailable, and the components it manages may have reduced quality of service.  Cluster upgrades may not complete. For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-4xlhr32-72292.origin-ci-int-gce.dev.rhcloud.com/settings/cluster/.",
+          "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md",
+          "summary": "Cluster operator has been degraded for 30 minutes."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T23:17:54.844366438Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "ClusterOperatorDown",
+          "name": "monitoring",
+          "namespace": "openshift-cluster-version",
+          "reason": "UpdatingPrometheusFailed",
+          "severity": "critical"
+        },
+        "annotations": {
+          "description": "The monitoring operator may be down or disabled because UpdatingPrometheusFailed, and the components it manages may be unavailable or degraded.  Cluster upgrades may not complete. For more information refer to 'oc get -o yaml clusteroperator monitoring' or https://console-openshift-console.apps.ci-ln-4xlhr32-72292.origin-ci-int-gce.dev.rhcloud.com/settings/cluster/.",
+          "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDown.md",
+          "summary": "Cluster operator has not been available for 10 minutes."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T23:16:24.844366438Z",
+        "value": "0e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "UpdateAvailable",
+          "channel": "candidate-4.16",
+          "namespace": "openshift-cluster-version",
+          "severity": "info",
+          "upstream": "https://api.integration.openshift.com/api/upgrades_info/graph"
+        },
+        "annotations": {
+          "description": "For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-4xlhr32-72292.origin-ci-int-gce.dev.rhcloud.com/settings/cluster/.",
+          "summary": "Your upstream update recommendation service recommends you update your cluster."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T22:23:02.808943997Z",
+        "value": "4e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "InsightsRecommendationActive",
+          "container": "insights-operator",
+          "description": "MachineConfigPool will never finish updating when the 'unavailableMachineCount' is greater than 'maxUnavailable' in the MachineConfigPool",
+          "endpoint": "https",
+          "info_link": "https://console.redhat.com/openshift/insights/advisor/clusters/bb39d7b1-588e-4cd6-bc8e-b8f2f8509321?first=ccx_rules_ocp.external.rules.mcp_unavailable_machine_count%7CERROR_MCP_UNAVAILABLEMACHINECOUNT",
+          "instance": "10.128.0.23:8443",
+          "job": "metrics",
+          "namespace": "openshift-insights",
+          "pod": "insights-operator-56ddd7744b-fbwrm",
+          "service": "metrics",
+          "severity": "info",
+          "total_risk": "Moderate"
+        },
+        "annotations": {
+          "description": "Insights recommendation \"MachineConfigPool will never finish updating when the 'unavailableMachineCount' is greater than 'maxUnavailable' in the MachineConfigPool\" with total risk \"Moderate\" was detected on the cluster. More information is available at https://console.redhat.com/openshift/insights/advisor/clusters/bb39d7b1-588e-4cd6-bc8e-b8f2f8509321?first=ccx_rules_ocp.external.rules.mcp_unavailable_machine_count%7CERROR_MCP_UNAVAILABLEMACHINECOUNT.",
+          "summary": "An Insights recommendation is active for this cluster."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-29T00:37:28.265768529Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "PodDisruptionBudgetAtLimit",
+          "namespace": "openshift-monitoring",
+          "poddisruptionbudget": "prometheus-k8s",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "The pod disruption budget is at the minimum disruptions allowed level. The number of current healthy pods is equal to the desired healthy pods.",
+          "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-kube-controller-manager-operator/PodDisruptionBudgetAtLimit.md",
+          "summary": "The pod disruption budget is preventing further disruption to pods."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T23:00:23.82540834Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "Watchdog",
+          "namespace": "openshift-monitoring",
+          "severity": "none"
+        },
+        "annotations": {
+          "description": "This is an alert meant to ensure that the entire alerting pipeline is functional.\nThis alert is always firing, therefore it should always be firing in Alertmanager\nand always fire against a receiver. There are integrations with various notification\nmechanisms that send a notification when this alert is not firing. For example the\n\"DeadMansSnitch\" integration in PagerDuty.\n",
+          "summary": "An alert that should always be firing to certify that Alertmanager is working properly."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T22:23:13.047963988Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "AlertmanagerReceiversNotConfigured",
+          "namespace": "openshift-monitoring",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "Alerts are not configured to be sent to a notification system, meaning that you may not be notified in a timely fashion when important failures occur. Check the OpenShift documentation to learn how to configure notifications with Alertmanager.",
+          "summary": "Receivers (notification integrations) are not configured on Alertmanager"
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T22:23:02.529246298Z",
+        "value": "0e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "ClusterMonitoringOperatorReconciliationErrors",
+          "container": "cluster-monitoring-operator",
+          "endpoint": "https",
+          "instance": "10.128.0.25:8443",
+          "job": "cluster-monitoring-operator",
+          "namespace": "openshift-monitoring",
+          "pod": "cluster-monitoring-operator-78dd644bb4-hkhln",
+          "service": "cluster-monitoring-operator",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "Errors are occurring during reconciliation cycles. Inspect the cluster-monitoring-operator log for potential root causes.",
+          "summary": "Cluster Monitoring Operator is experiencing unexpected reconciliation errors."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T23:11:02.529246298Z",
+        "value": "0e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "KubePodNotScheduled",
+          "container": "kube-rbac-proxy-main",
+          "endpoint": "https-main",
+          "job": "kube-state-metrics",
+          "namespace": "openshift-operator-lifecycle-manager",
+          "pod": "collect-profiles-28968525-bqxg9",
+          "service": "kube-state-metrics",
+          "severity": "warning",
+          "uid": "231f8f39-ba85-41fb-9fba-eaa61f0eb6db"
+        },
+        "annotations": {
+          "description": "Pod openshift-operator-lifecycle-manager/collect-profiles-28968525-bqxg9 cannot be scheduled for more than 30 minutes.\nCheck the details of the pod with the following command:\noc describe -n openshift-operator-lifecycle-manager pod collect-profiles-28968525-bqxg9",
+          "summary": "Pod cannot be scheduled."
+        },
+        "state": "pending",
+        "activeAt": "2025-01-29T00:46:02.529246298Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "KubePodNotScheduled",
+          "container": "kube-rbac-proxy-main",
+          "endpoint": "https-main",
+          "job": "kube-state-metrics",
+          "namespace": "openshift-image-registry",
+          "pod": "image-pruner-28968480-vdfbf",
+          "service": "kube-state-metrics",
+          "severity": "warning",
+          "uid": "168e2f86-478a-44a7-bfe6-5f575a984217"
+        },
+        "annotations": {
+          "description": "Pod openshift-image-registry/image-pruner-28968480-vdfbf cannot be scheduled for more than 30 minutes.\nCheck the details of the pod with the following command:\noc describe -n openshift-image-registry pod image-pruner-28968480-vdfbf",
+          "summary": "Pod cannot be scheduled."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-29T00:01:02.529246298Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "KubePodNotScheduled",
+          "container": "kube-rbac-proxy-main",
+          "endpoint": "https-main",
+          "job": "kube-state-metrics",
+          "namespace": "openshift-monitoring",
+          "pod": "prometheus-k8s-0",
+          "service": "kube-state-metrics",
+          "severity": "warning",
+          "uid": "e31b2560-9c9b-4be5-853a-75757b45d3e2"
+        },
+        "annotations": {
+          "description": "Pod openshift-monitoring/prometheus-k8s-0 cannot be scheduled for more than 30 minutes.\nCheck the details of the pod with the following command:\noc describe -n openshift-monitoring pod prometheus-k8s-0",
+          "summary": "Pod cannot be scheduled."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T23:00:02.529246298Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "KubeStatefulSetReplicasMismatch",
+          "container": "kube-rbac-proxy-main",
+          "endpoint": "https-main",
+          "job": "kube-state-metrics",
+          "namespace": "openshift-monitoring",
+          "service": "kube-state-metrics",
+          "severity": "warning",
+          "statefulset": "prometheus-k8s"
+        },
+        "annotations": {
+          "description": "StatefulSet openshift-monitoring/prometheus-k8s has not matched the expected number of replicas for longer than 15 minutes.",
+          "summary": "StatefulSet has not matched the expected number of replicas."
+        },
+        "state": "firing",
+        "activeAt": "2025-01-28T23:00:06.08339311Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      }
+    ]
+  }
+}

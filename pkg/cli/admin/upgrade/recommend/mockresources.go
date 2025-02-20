@@ -1,6 +1,7 @@
 package recommend
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -11,8 +12,13 @@ import (
 )
 
 type mockData struct {
-	cvPath         string
+	// inputs
+	cvPath     string
+	alertsPath string
+
+	// outputs
 	clusterVersion *configv1.ClusterVersion
+	alerts         []byte
 }
 
 func asResourceList[T any](objects *corev1.List, decoder runtime.Decoder) ([]T, error) {
@@ -63,6 +69,13 @@ func (o *mockData) load() error {
 		o.clusterVersion = &cvs[0]
 	default:
 		return fmt.Errorf("unexpected object type %T in --mock-clusterversion=%s content", cvObj, o.cvPath)
+	}
+
+	if o.alertsPath != "" {
+		o.alerts, err = os.ReadFile(o.alertsPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
 	}
 
 	return nil
