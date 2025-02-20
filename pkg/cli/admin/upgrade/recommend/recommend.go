@@ -185,9 +185,9 @@ func (o *options) Run(ctx context.Context) error {
 
 	if cv.Spec.Channel != "" {
 		if cv.Spec.Upstream == "" {
-			fmt.Fprint(o.Out, "Upstream is unset, so the cluster will use an appropriate default.\n")
+			fmt.Fprint(o.Out, "Upstream update service is unset, so the cluster will use an appropriate default.\n")
 		} else {
-			fmt.Fprintf(o.Out, "Upstream: %s\n", cv.Spec.Upstream)
+			fmt.Fprintf(o.Out, "Upstream update service: %s\n", cv.Spec.Upstream)
 		}
 		if len(cv.Status.Desired.Channels) > 0 {
 			fmt.Fprintf(o.Out, "Channel: %s (available channels: %s)\n", cv.Spec.Channel, strings.Join(cv.Status.Desired.Channels, ", "))
