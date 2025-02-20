@@ -798,5 +798,76 @@ func (o *CreateOptions) configurePodProxySetting(ctx context.Context, pod *corev
 	for i := range pod.Spec.Containers {
 		pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, proxyVars...)
 	}
+
+	// An external proxy may be configured with a self-signed certificate.
+	// In such cases, the cluster's proxy would be configured to contain
+	// the certificate by including it in the additionalTrustBundle in the
+	// install-config.
+	//
+	// If the certificate is configured, it is saved
+	// to the "user-ca-bundle" config map in the "openshift-config"
+	// namespace.
+	//
+	// The certificate must be made available to the node-joiner pod
+	// and in its namespace so that the certificate can be read
+	// when the proxy is accessed by node-joiner to pull container
+	// images.
+
+	if proxy.Status.HTTPProxy == "" && proxy.Status.HTTPSProxy == "" {
+		// proxy is not configured, the user-ca-bundle does not need
+		// to be copied to the node-joiner namespace.
+		return nil
+	}
+
+	klog.V(2).Infof("Copying user-ca-bundle to node-joiner pod")
+
+	userCABundle, err := o.Client.CoreV1().ConfigMaps("openshift-config").Get(ctx, "user-ca-bundle", metav1.GetOptions{})
+	if err != nil {
+		if kapierrors.IsNotFound(err) {
+			// The self-signed certificate could be missing if
+			// the external proxy was not configured with one.
+			klog.V(2).Infof("user-ca-bundle not found")
+			return nil
+		}
+		klog.V(2).Infof("Error reading user-ca-bundle from openshift-config namespace: %v", err)
+		return err
+	}
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "user-ca-bundle",
+			Namespace: o.nodeJoinerNamespace.GetName(),
+		},
+		Data: userCABundle.Data,
+	}
+
+	_, err = o.Client.CoreV1().ConfigMaps(o.nodeJoinerNamespace.GetName()).Create(ctx, cm, metav1.CreateOptions{})
+
+	if err != nil {
+		klog.V(2).Infof("Error writing user-ca-bundle to %s namespace: %v", o.nodeJoinerNamespace, err)
+		return err
+	}
+
+	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+		Name: "user-ca-bundle",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: "user-ca-bundle",
+				},
+				Items: []corev1.KeyToPath{
+					// The path must be tls-ca-bundle.pem or the container's
+					// CA trust flow will not be able to read the certificate.
+					{Key: "ca-bundle.crt", Path: "tls-ca-bundle.pem"},
+				},
+			},
+		},
+	})
+
+	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+		Name:      "user-ca-bundle",
+		MountPath: "/etc/pki/ca-trust/extracted/pem",
+	})
+
 	return nil
 }
