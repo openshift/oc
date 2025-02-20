@@ -46,8 +46,9 @@ func TestExamples(t *testing.T) {
 	variants := []struct {
 		name                 string
 		showOutdatedReleases bool
-		version              string
+		versions             map[string]string
 		outputSuffix         string
+		outputSuffixPattern  string
 	}{
 		{
 			name:                 "normal output",
@@ -60,9 +61,14 @@ func TestExamples(t *testing.T) {
 			outputSuffix:         ".show-outdated-releases-output",
 		},
 		{
-			name:         "specific version",
-			version:      "4.12.51",
-			outputSuffix: ".version-4.12.51-output",
+			name: "specific version",
+			versions: map[string]string{
+				"examples/4.12.16-longest-not-recommended-cv.yaml": "4.12.51",
+				"examples/4.12.16-longest-recommended-cv.yaml":     "4.12.51",
+				"examples/4.14.1-all-recommended-cv.yaml":          "4.12.51",
+				"examples/4.16.27-degraded-monitoring-cv.yaml":     "4.16.32",
+			},
+			outputSuffixPattern: ".version-%s-output",
 		},
 	}
 
@@ -70,12 +76,16 @@ func TestExamples(t *testing.T) {
 		cv := cv
 		for _, variant := range variants {
 			variant := variant
+			var version string
+			if version = variant.versions[cv]; version != "" {
+				variant.outputSuffix = fmt.Sprintf(variant.outputSuffixPattern, version)
+			}
 			t.Run(fmt.Sprintf("%s-%s", cv, variant.name), func(t *testing.T) {
 				t.Parallel()
 				opts := &options{
 					mockData:             mockData{cvPath: cv},
 					showOutdatedReleases: variant.showOutdatedReleases,
-					rawVersion:           variant.version,
+					rawVersion:           version,
 				}
 				if err := opts.Complete(nil, nil, nil); err != nil {
 					t.Fatalf("Error when completing options: %v", err)
