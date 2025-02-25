@@ -87,6 +87,11 @@ func TestExtractBugs(t *testing.T) {
 			},
 			msg: "test",
 		},
+		{
+			input: "ocpbugs-17: test",
+			bugs:  RefList{},
+			msg:   "ocpbugs-17: test",
+		},
 	}
 
 	for _, tt := range tests {
