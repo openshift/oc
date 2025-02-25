@@ -2,15 +2,19 @@ package release
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -97,6 +101,12 @@ func NewInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Comm
 			the code changes that occurred between the two release arguments. This operation is slow
 			and requires sufficient disk space on the selected drive to clone all repositories.
 
+			Additionally, the --rpmdb-cache flag will cache rpmdb content for images in the release. Then,
+			the --rpmdb flag will display the RPM contents of an image. The --rpmdb-diff flag will display
+			RPM changes that occurred between the two release arguments. Like --changelog, this operation is
+			also slow and requires sufficient disk space. By default, the image containing the machine-os
+			component is targeted for RPM queries. Other images can be targeted with --rpmdb-image.
+
 			If the specified image supports multiple operating systems, the image that matches the
 			current operating system will be chosen. Otherwise you must pass --filter-by-os to
 			select the desired image.
@@ -147,6 +157,10 @@ func NewInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Comm
 	flags.StringVar(&o.ImageFor, "image-for", o.ImageFor, "Print the pull spec of the specified image or an error if it does not exist.")
 	flags.StringVarP(&o.Output, "output", "o", o.Output, "Display the release info in an alternative format: digest|json|name|pullspec|template|jsonpath.")
 	flags.StringVar(&o.ChangelogDir, "changelog", o.ChangelogDir, "Generate changelog output from the git directories extracted to this path.")
+	flags.StringVar(&o.RpmdbCacheDir, "rpmdb-cache", o.RpmdbCacheDir, "Cache rpmdb content in this directory.")
+	flags.BoolVar(&o.RpmdbList, "rpmdb", o.RpmdbList, "List RPM packages in image.")
+	flags.BoolVar(&o.RpmdbDiff, "rpmdb-diff", o.RpmdbDiff, "Generate RPM package diff.")
+	flags.StringVar(&o.RpmdbImage, "rpmdb-image", "", "The image to use for RPM queries.")
 	flags.StringVar(&o.BugsDir, "bugs", o.BugsDir, "Generate bug listings from the changelogs in the git repositories extracted to this path.")
 	flags.BoolVar(&o.IncludeImages, "include-images", o.IncludeImages, "When displaying JSON output of a release output the images the release references.")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
@@ -174,9 +188,13 @@ type InfoOptions struct {
 	ICSPFile      string
 	IDMSFile      string
 
-	ChangelogDir string
-	BugsDir      string
-	SkipBugCheck bool
+	ChangelogDir  string
+	RpmdbCacheDir string
+	RpmdbList     bool
+	RpmdbDiff     bool
+	RpmdbImage    string
+	BugsDir       string
+	SkipBugCheck  bool
 
 	ParallelOptions imagemanifest.ParallelOptions
 	SecurityOptions imagemanifest.SecurityOptions
@@ -424,13 +442,26 @@ func (o *InfoOptions) Validate() error {
 	if o.SkipBugCheck && o.Output != "name" && o.Output != "json" {
 		return fmt.Errorf("--skip-bug-check requires --output to be set to 'name' or 'json'")
 	}
-	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 {
+	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 || o.RpmdbDiff {
 		if len(o.From) == 0 {
-			return fmt.Errorf("--changelog/--bugs require --changes-from")
+			return fmt.Errorf("--changelog/--bugs/--rpmdb-diff require --changes-from")
 		}
 	}
-	if len(o.ChangelogDir) > 0 && len(o.BugsDir) > 0 {
-		return fmt.Errorf("--changelog and --bugs may not both be specified")
+	if o.RpmdbList && o.RpmdbDiff {
+		return fmt.Errorf("--rpmdb/--rpmdb-diff are mutually exclusive")
+	}
+	if o.RpmdbList || o.RpmdbDiff {
+		if o.RpmdbCacheDir == "" {
+			return fmt.Errorf("--rpmdb/--rpmdb-diff require --rpmdb-cache")
+		}
+		_, err := exec.LookPath("rpm")
+		if err != nil {
+			return fmt.Errorf("--rpmdb/--rpmdb-diff currently requires rpm in the running environment")
+		}
+	}
+	exclusiveOps := boolToInt(len(o.ChangelogDir) > 0) + boolToInt(len(o.BugsDir) > 0) + boolToInt(o.RpmdbDiff)
+	if exclusiveOps > 1 {
+		return fmt.Errorf("--changelog/--bugs/--rpmdb-diff are mutually exclusive")
 	}
 	switch {
 	case len(o.BugsDir) > 0:
@@ -444,6 +475,12 @@ func (o *InfoOptions) Validate() error {
 		case "", "json":
 		default:
 			return fmt.Errorf("--output only supports 'json' for --changelog")
+		}
+	case o.RpmdbList || o.RpmdbDiff:
+		switch o.Output {
+		case "", "json":
+		default:
+			return fmt.Errorf("--output only supports 'json' for --rpmdb/--rpmdb-diff")
 		}
 	default:
 		output := strings.SplitN(o.Output, "=", 2)[0]
@@ -464,6 +501,14 @@ func (o *InfoOptions) Validate() error {
 	}
 
 	return o.FilterOptions.Validate()
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	} else {
+		return 0
+	}
 }
 
 func (o *InfoOptions) Run() error {
@@ -502,6 +547,9 @@ func (o *InfoOptions) Run() error {
 		if len(o.ChangelogDir) > 0 {
 			return describeChangelog(o.Out, o.ErrOut, release, diff, o.ChangelogDir, o.Output)
 		}
+		if o.RpmdbDiff {
+			return o.describeRpmDiff(release, diff, o.RpmdbCacheDir, o.Output, o.RpmdbImage)
+		}
 		return describeReleaseDiff(o.Out, diff, o.ShowCommit, o.Output)
 	}
 
@@ -516,6 +564,9 @@ func (o *InfoOptions) Run() error {
 		if o.Verify {
 			fmt.Fprintf(o.Out, "%s %s %s\n", release.Digest, release.References.CreationTimestamp.UTC().Format(time.RFC3339), release.PreferredName())
 			continue
+		}
+		if o.RpmdbList {
+			return o.listRpmdb(release, o.RpmdbCacheDir, o.Output, o.RpmdbImage)
 		}
 		if err := o.describeImage(release); err != nil {
 			exitErr = kcmdutil.ErrExit
@@ -716,6 +767,7 @@ type ReleaseInfo struct {
 	// ComponentVersions.
 	DeprecatedComponentVersions map[string]string `json:"versions"`
 	ComponentVersions           ComponentVersions `json:"displayVersions"`
+	ComponentTags               map[string]string `json:"versionsTags"`
 
 	Images map[string]*Image `json:"images"`
 
@@ -862,7 +914,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 		return nil, fmt.Errorf("release image did not contain an image-references file")
 	}
 
-	release.ComponentVersions, errs = readComponentVersions(release.References, o.ErrOut)
+	release.ComponentVersions, release.ComponentTags, errs = readComponentVersions(release.References, o.ErrOut)
 	for _, err := range errs {
 		release.Warnings = append(release.Warnings, err.Error())
 	}
@@ -934,10 +986,11 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	return release, nil
 }
 
-func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (ComponentVersions, []error) {
+func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (ComponentVersions, map[string]string, []error) {
 	var errs []error
 	combined := make(map[string]sets.String)
 	combinedDisplayNames := make(map[string]sets.String)
+	componentTags := make(map[string]string)
 	kubectlVersions := make(map[string]sets.Set[string])
 	for _, tag := range is.Spec.Tags {
 		versions, ok := tag.Annotations[annotationBuildVersions]
@@ -949,6 +1002,8 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 			errs = append(errs, fmt.Errorf("the referenced image %s had an invalid version annotation: %v", tag.Name, err))
 		}
 		for k, v := range all {
+			// just let the last one win in case a component is defined multiple times
+			componentTags[k] = tag.Name
 			if k == "kubectl" {
 				if val, exist := kubectlVersions[v.Version]; exist {
 					kubectlVersions[v.Version] = val.Insert(tag.Name)
@@ -1025,7 +1080,7 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 	if len(multiples) > 0 {
 		errs = append(errs, fmt.Errorf("multiple versions or display names reported for the following component(s): %v", strings.Join(multiples.List(), ",  ")))
 	}
-	return out, errs
+	return out, componentTags, errs
 }
 
 func errorList(errs []error) string {
@@ -1985,6 +2040,334 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 		return kcmdutil.ErrExit
 	}
 	return nil
+}
+
+func (o *InfoOptions) listRpmdb(releaseInfo *ReleaseInfo, dir, format, targetImage string) error {
+	if targetImage == "" {
+		// find image for machine-os component
+		if tag, ok := releaseInfo.ComponentTags["machine-os"]; !ok {
+			return fmt.Errorf("component machine-os not found in release")
+		} else {
+			targetImage = tag
+		}
+	}
+
+	var err error
+	var targetTag *imageapi.TagReference
+	for _, tag := range releaseInfo.References.Spec.Tags {
+		if tag.Name == targetImage {
+			targetTag = &tag
+			break
+		}
+	}
+	if targetTag == nil {
+		return fmt.Errorf("tag %s not found in release", targetImage)
+	}
+
+	ref, err := imagereference.Parse(targetTag.From.Name)
+	if err != nil {
+		return err
+	}
+
+	// not sure this can ever happen, but just sanity-check anyway
+	if ref.ID == "" {
+		return fmt.Errorf("%s image not digest-based: %s", targetImage, ref)
+	}
+
+	dbpath := filepath.Join(dir, ref.ID)
+	if err = o.downloadRpmdbIfMissing(ref, dbpath); err != nil {
+		return err
+	}
+
+	db, err := loadRpmdb(dbpath)
+	if err != nil {
+		return err
+	}
+
+	if format == "json" {
+		data, err := json.MarshalIndent(db, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(o.Out, string(data))
+	} else {
+		pkgs := make([]string, 0, len(db))
+		for pkg := range db {
+			pkgs = append(pkgs, pkg)
+		}
+		sort.Strings(pkgs)
+		fmt.Fprintf(o.Out, "Package contents:\n")
+		for _, pkg := range pkgs {
+			fmt.Fprintf(o.Out, "  %s-%s\n", pkg, db[pkg])
+		}
+	}
+
+	return nil
+}
+
+func (o *InfoOptions) describeRpmDiff(releaseInfo *ReleaseInfo, diff *ReleaseDiff, dir, format, targetImage string) error {
+	if diff.To.Digest == diff.From.Digest {
+		return fmt.Errorf("releases are identical")
+	}
+
+	if targetImage == "" {
+		// find image for machine-os component
+		if tag, ok := releaseInfo.ComponentTags["machine-os"]; !ok {
+			return fmt.Errorf("component machine-os not found in release")
+		} else {
+			targetImage = tag
+		}
+	}
+
+	osDiff, ok := diff.ChangedImages[targetImage]
+	if !ok {
+		// image didn't change; we're done!
+		if format == "json" {
+			fmt.Fprintln(o.Out, "{}")
+		} else {
+			fmt.Fprintf(o.Out, "Releases have the same %s image.\n", targetImage)
+		}
+		return nil
+	}
+
+	var err error
+	var fromRef, toRef imagereference.DockerImageReference
+	if fromRef, err = imagereference.Parse(osDiff.From.From.Name); err != nil {
+		return err
+	}
+	if toRef, err = imagereference.Parse(osDiff.To.From.Name); err != nil {
+		return err
+	}
+
+	// not sure this can ever happen, but just sanity-check anyway
+	if fromRef.ID == "" {
+		return fmt.Errorf("%s image from first release not digest-based: %s", targetImage, fromRef)
+	}
+	if toRef.ID == "" {
+		return fmt.Errorf("%s image from second release not digest-based: %s", targetImage, toRef)
+	}
+
+	fromDbPath := filepath.Join(dir, fromRef.ID)
+	if err := o.downloadRpmdbIfMissing(fromRef, fromDbPath); err != nil {
+		return err
+	}
+
+	toDbPath := filepath.Join(dir, toRef.ID)
+	if err := o.downloadRpmdbIfMissing(toRef, toDbPath); err != nil {
+		return err
+	}
+
+	fromDb, err := loadRpmdb(fromDbPath)
+	if err != nil {
+		return err
+	}
+
+	toDb, err := loadRpmdb(toDbPath)
+	if err != nil {
+		return err
+	}
+
+	rpmDiff := RpmDiff{
+		Changed: make(map[string]RpmChangedDiff),
+		Added:   toDb,
+		Removed: make(map[string]string),
+	}
+	for pkg, v := range fromDb {
+		if newVersion, ok := rpmDiff.Added[pkg]; ok {
+			if v != newVersion {
+				rpmDiff.Changed[pkg] = RpmChangedDiff{
+					Old: v,
+					New: newVersion,
+				}
+			}
+			delete(rpmDiff.Added, pkg)
+		} else {
+			rpmDiff.Removed[pkg] = v
+		}
+	}
+
+	if format == "json" {
+		data, err := json.MarshalIndent(rpmDiff, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(o.Out, string(data))
+	} else {
+		writeList := func(header string, elements []string) {
+			fmt.Fprintln(o.Out, header)
+			sort.Strings(elements)
+			for _, elem := range elements {
+				fmt.Fprintln(o.Out, elem)
+			}
+		}
+
+		if len(rpmDiff.Changed) > 0 {
+			elements := []string{}
+			for pkg, v := range rpmDiff.Changed {
+				elements = append(elements, fmt.Sprintf("  %s %s → %s", pkg, v.Old, v.New))
+			}
+			writeList("Changed:", elements)
+		}
+		if len(rpmDiff.Removed) > 0 {
+			elements := []string{}
+			for pkg, v := range rpmDiff.Removed {
+				elements = append(elements, fmt.Sprintf("  %s %s", pkg, v))
+			}
+			writeList("Removed:", elements)
+		}
+		if len(rpmDiff.Added) > 0 {
+			elements := []string{}
+			for pkg, v := range rpmDiff.Added {
+				elements = append(elements, fmt.Sprintf("  %s %s", pkg, v))
+			}
+			writeList("Added:", elements)
+		}
+	}
+
+	return nil
+}
+
+type RpmDiff struct {
+	Changed map[string]RpmChangedDiff `json:"changed,omitempty"`
+	Added   map[string]string         `json:"added,omitempty"`
+	Removed map[string]string         `json:"removed,omitempty"`
+}
+
+type RpmChangedDiff struct {
+	Old string `json:"old,omitempty"`
+	New string `json:"new,omitempty"`
+}
+
+func (o *InfoOptions) downloadRpmdbIfMissing(image imagereference.DockerImageReference, dir string) error {
+	parentDir := filepath.Dir(dir)
+
+	if err := os.MkdirAll(parentDir, 0755); err != nil {
+		return err
+	}
+
+	// Lock the parent dir before doing the "check & download if missing" to ensure we can
+	// safely handle concurrent invocations for the same image. Obviously could make
+	// this ID-scoped instead for more parallelism, but that'd require e.g. a per-ID
+	// lockfile that lingers around. Anyway, it'd probably be downloaded from the
+	// same place which ideally we're already saturating.
+	dfd, err := os.OpenFile(parentDir, os.O_RDONLY, 0)
+	if err != nil {
+		return err
+	}
+	defer dfd.Close()
+
+	klog.V(2).Infof("Locking rpmdb cache dir %s", parentDir)
+	if err := flock(int(dfd.Fd()), true); err != nil {
+		return err
+	}
+	klog.V(3).Infof("Got lock for rpmdb cache dir %s", parentDir)
+
+	if _, err = os.Stat(dir); os.IsNotExist(err) {
+		err = o.downloadRpmdb(image, dir)
+	}
+
+	funlock(int(dfd.Fd()))
+	klog.V(3).Infof("Released lock for rpmdb cache dir %s", parentDir)
+	return err
+}
+
+func (o *InfoOptions) downloadRpmdb(image imagereference.DockerImageReference, dir string) (err error) {
+	// NOTE: in the future, should check if there's an SBOM and get the rpmlist from that instead
+
+	ref := imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: image}
+
+	tmpDir := dir + ".work"
+	if err = os.RemoveAll(tmpDir); err != nil {
+		return
+	}
+	if err = os.MkdirAll(tmpDir, 0755); err != nil {
+		return
+	}
+
+	defer func() {
+		if tmperr := os.RemoveAll(tmpDir); tmperr != nil {
+			err = stderrors.Join(err, tmperr)
+			return
+		}
+	}()
+
+	// We could be a lot more efficient here by filtering the layers which don't
+	// contain the rpmdb. Though we'd still need to make sure we pick up any user-added
+	// layers in case they added more packages.
+
+	opts := extract.NewExtractOptions(genericiooptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts.SecurityOptions = o.SecurityOptions
+	opts.FilterOptions = o.FilterOptions
+	opts.FileDir = o.FileDir
+	opts.ICSPFile = o.ICSPFile
+	opts.IDMSFile = o.IDMSFile
+	opts.PreservePermissions = false
+
+	opts.Mappings = []extract.Mapping{{
+		ImageRef: ref,
+		// ideally we'd have `From: "usr/share/rpm"` here for the machine-os case, but
+		// the extractor can't handle the rpmdb actually being hardlinks to ostree
+		// objects in the tar stream, which would be filtered out
+		To: tmpDir,
+	}}
+
+	if err = opts.Run(); err != nil {
+		return
+	}
+
+	var rpmdbPath string
+	rpmdbLocations := []string{"var/lib/rpm", "usr/lib/sysimage/rpm", "usr/share/rpm"}
+	for _, location := range rpmdbLocations {
+		tryPath := filepath.Join(tmpDir, location)
+		if fileinfo, err := os.Lstat(tryPath); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return err
+		} else if fileinfo.IsDir() {
+			rpmdbPath = tryPath
+			break
+		} else {
+			continue
+		}
+	}
+
+	if rpmdbPath == "" {
+		err = fmt.Errorf("no rpmdb found in %s", image)
+		return
+	}
+
+	if err = os.Rename(rpmdbPath, dir); err != nil {
+		return
+	}
+
+	return
+}
+
+func loadRpmdb(dir string) (map[string]string, error) {
+	var out bytes.Buffer
+	// A pitfall here is that we're using the `rpm` from the release controller
+	// environment to query the rpmdb of the target image. they may not be
+	// compatible, but normally should be. A better approach would be to run the rpm
+	// query from within a container with the target rootfs.
+	cmd := exec.Command("rpm", "-qa", "--qf", "%{name}\\t%{evr}.%{arch}\\n", "--dbpath", dir)
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return nil, err
+	}
+
+	db := make(map[string]string)
+	scanner := bufio.NewScanner(&out)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			return nil, fmt.Errorf("invalid rpmdb query output line: %s", line)
+		}
+		db[fields[0]] = fields[1]
+	}
+
+	return db, nil
 }
 
 type ImageChange struct {
