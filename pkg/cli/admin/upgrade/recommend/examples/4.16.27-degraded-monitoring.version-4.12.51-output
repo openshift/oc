@@ -17,7 +17,7 @@ recommended/PodDisruptionBudgetAlerts/PodDisruptionBudgetAtLimit/1=False:
   Reason: Alert:firing
   Message: warning alert PodDisruptionBudgetAtLimit firing, which might slow node drains. Namespace=openshift-monitoring, PodDisruptionBudget=prometheus-k8s. The pod disruption budget is preventing further disruption to pods. The alert description is: The pod disruption budget is at the minimum disruptions allowed level. The number of current healthy pods is equal to the desired healthy pods. https://github.com/openshift/runbooks/blob/master/alerts/cluster-kube-controller-manager-operator/PodDisruptionBudgetAtLimit.md
 
-Upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+Upstream update service: https://api.integration.openshift.com/api/upgrades_info/graph
 Channel: candidate-4.16 (available channels: candidate-4.16, candidate-4.17, candidate-4.18, eus-4.16, fast-4.16, fast-4.17, stable-4.16, stable-4.17)
 
 error: no updates to 4.12 available, so cannot display context for the requested release 4.12.51
