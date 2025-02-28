@@ -363,6 +363,86 @@ func (o *CreateOptions) attachPodLogsToReport(ctx context.Context, err error) {
 	o.report.Result.DetailedErrorMessage = detailedErrorMessage
 }
 
+
+const (
+    kernelOffsetHex        = "0x00000000"
+    kernelCmdlineOffsetHex = "0x00010480"
+    initrdAddrSizeOffsetHex = "0x00010408"
+    bytePerMib             = 1024 * 1024
+)
+
+// generateINSAndAddrSize creates the .ins and initrd.img.addrsize files for IBM Z LPAR
+func (o *CreateOptions) generateINSAndAddrSize() error {
+    o.log("🔧 [DEBUG] Entering generateINSAndAddrSize function")
+
+    kernelImgPath := filepath.Join(o.AssetsDir, "node.s390x-kernel.img")
+    initrdImgPath := filepath.Join(o.AssetsDir, "node.s390x-initrd.img")
+    cmdlinePath := filepath.Join(o.AssetsDir, "generic.prm")
+    initrdAddrSizePath := filepath.Join(o.AssetsDir, "initrd.img.addrsize")
+    insFilePath := filepath.Join(o.AssetsDir, "generic.ins")
+
+    o.log("📂 Kernel Path: %s", kernelImgPath)
+    o.log("📂 Initrd Path: %s", initrdImgPath)
+    o.log("📂 Cmdline Path: %s", cmdlinePath)
+
+    kernelSize, err := getFileSize(kernelImgPath)
+    if err != nil {
+        o.log("❌ [ERROR] Kernel size error: %v", err)
+        return err
+    }
+    o.log("✅ Kernel size: %d bytes", kernelSize)
+
+    initrdSize, err := getFileSize(initrdImgPath)
+    if err != nil {
+        o.log("❌ [ERROR] Initrd size error: %v", err)
+        return err
+    }
+    o.log("✅ Initrd size: %d bytes", initrdSize)
+
+    offset := (kernelSize + bytePerMib - 1) / bytePerMib * bytePerMib
+    offsetHex := fmt.Sprintf("0x%08x", offset)
+    o.log("🔢 Calculated Offset: %s", offsetHex)
+
+    // Write initrd.img.addrsize file
+    initrdSizeHex := fmt.Sprintf("%016x", initrdSize)
+    err = os.WriteFile(initrdAddrSizePath, []byte(initrdSizeHex), 0644)
+    if err != nil {
+        o.log("❌ [ERROR] Failed to create initrd.img.addrsize: %v", err)
+        return err
+    }
+    o.log("✅ Created initrd.img.addrsize file")
+
+    // Write generic.ins file
+    insContent := fmt.Sprintf(`%s %s\n%s %s\n%s %s\n%s %s\n`,
+        kernelImgPath, kernelOffsetHex,
+        initrdImgPath, offsetHex,
+        initrdAddrSizePath, initrdAddrSizeOffsetHex,
+        cmdlinePath, kernelCmdlineOffsetHex,
+    )
+
+    err = os.WriteFile(insFilePath, []byte(insContent), 0644)
+    if err != nil {
+        o.log("❌ [ERROR] Failed to create generic.ins: %v", err)
+        return err
+    }
+    o.log("✅ Created generic.ins file")
+
+    return nil
+}
+
+// getFileSize returns the size of a file in bytes
+func getFileSize(filePath string) (int64, error) {
+    fileInfo, err := os.Stat(filePath)
+    if os.IsNotExist(err) {
+        return 0, fmt.Errorf("file not found: %s", filePath)
+    }
+    if err != nil {
+        return 0, fmt.Errorf("failed to get file size: %v", err)
+    }
+    return fileInfo.Size(), nil
+}
+
+
 func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 	logMessage := "Saving ISO image to %s"
 	rsyncOptions := &rsync.RsyncOptions{
@@ -381,7 +461,7 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 	}
 	if o.GeneratePXEFiles {
 		rsyncOptions.Source.Path = "/assets/boot-artifacts/"
-		rsyncOptions.RsyncInclude = []string{"*.img", "*.*vmlinuz", "*.ipxe"}
+		rsyncOptions.RsyncInclude = []string{"*.img", "*.*vmlinuz", "*.ipxe", "*.ins", "*.addrsize"}
 		logMessage = "Saving PXE artifacts to %s"
 	}
 	rsyncOptions.Strategy = o.copyStrategy(rsyncOptions)
