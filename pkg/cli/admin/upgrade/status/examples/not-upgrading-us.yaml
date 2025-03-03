@@ -1,0 +1,29 @@
+apiVersion: update.openshift.io/v1alpha1
+kind: UpdateStatus
+metadata:
+  name: cluster
+spec: {}
+status:
+  controlPlane:
+    informers:
+    - name: cpi
+      insights:
+      - uid: cv-version
+        type: ClusterVersion
+        clusterVersion:
+          conditions:
+          - type: Updating
+            status: "False"
+            reason: "Completed"
+  workerPools:
+  - name: worker
+    informers:
+    - name: nodes
+      insights:
+      - uid: mcp-worker
+        type: MachineConfigPool
+        machineConfigPool:
+          conditions:
+          - type: Updating
+            status: "False"
+            reason: "Completed"
