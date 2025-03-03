@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	configv1 "github.com/openshift/api/config/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -155,378 +154,378 @@ var allowUnexportedInsightStructs = cmp.AllowUnexported(
 	updateHealthData{},
 )
 
-func TestAssessControlPlaneStatus_Operators(t *testing.T) {
-	testCases := []struct {
-		name      string
-		operators []configv1.ClusterOperator
-		expected  operators
-	}{
-		{
-			name: "all operators good",
-			operators: []configv1.ClusterOperator{
-				co("one").operator,
-				co("two").operator,
-			},
-			expected: operators{Total: 2, Waiting: 2},
-		},
-		{
-			name: "one out of two progressing",
-			operators: []configv1.ClusterOperator{
-				co("one").operator,
-				co("two").progressing(configv1.ConditionTrue).operator,
-			},
-			expected: operators{Total: 2, Waiting: 1, Updating: []UpdatingClusterOperator{{Name: "two", Condition: &configv1.ClusterOperatorStatusCondition{
-				Type:               "Progressing",
-				Status:             "True",
-				LastTransitionTime: metav1.Date(2023, 12, 1, 23, 23, 0, 0, time.UTC),
-				Reason:             "ProgressingTowardsDesired",
-				Message:            "Operand is operated by operator",
-			},
-			}}},
-		},
-		{
-			name: "one out of two not available",
-			operators: []configv1.ClusterOperator{
-				co("one").operator,
-				co("two").available(configv1.ConditionFalse).operator,
-			},
-			expected: operators{Total: 2, Unavailable: 1, Waiting: 2},
-		},
-		{
-			name: "only count operators with *.release.openshift.io annotations",
-			operators: []configv1.ClusterOperator{
-				co("one").operator, // annotated by default
-				co("two").annotated(map[string]string{"exclude.release.openshift.io/internal-openshift-hosted": "true"}).operator,
-				co("three").annotated(map[string]string{"include.release.openshift.io/single-node-developer": "true"}).operator,
-				co("four").annotated(map[string]string{"random-nonsense": "true"}).operator,
-				co("five").annotated(map[string]string{}).degraded(configv1.ConditionTrue).operator,
-				co("six").annotated(nil).available(configv1.ConditionUnknown).operator,
-			},
-			expected: operators{Total: 3, Waiting: 3},
-		},
-		{
-			name: "available=unknown or missing implies available=false",
-			operators: []configv1.ClusterOperator{
-				co("one").available(configv1.ConditionUnknown).operator,
-				co("two").without(configv1.OperatorAvailable).operator,
-			},
-			expected: operators{Total: 2, Unavailable: 2, Waiting: 2},
-		},
-		{
-			name: "one out of two degraded",
-			operators: []configv1.ClusterOperator{
-				co("one").operator,
-				co("two").degraded(configv1.ConditionTrue).operator,
-			},
-			expected: operators{Total: 2, Degraded: 1, Waiting: 2},
-		},
-		{
-			name: "degraded=unknown or missing implies degraded=false",
-			operators: []configv1.ClusterOperator{
-				co("one").degraded(configv1.ConditionUnknown).operator,
-				co("two").without(configv1.OperatorDegraded).operator,
-			},
-			expected: operators{Total: 2, Waiting: 2},
-		},
-		{
-			name: "one out of two degraded, processing, not available",
-			operators: []configv1.ClusterOperator{
-				co("one").operator,
-				co("two").
-					degraded(configv1.ConditionTrue).
-					available(configv1.ConditionFalse).
-					progressing(configv1.ConditionTrue).operator,
-			},
-			expected: operators{Total: 2, Unavailable: 1, Waiting: 1, Updating: []UpdatingClusterOperator{{Name: "two", Condition: &configv1.ClusterOperatorStatusCondition{
-				Type:               "Progressing",
-				Status:             "True",
-				LastTransitionTime: metav1.Date(2023, 12, 1, 23, 23, 0, 0, time.UTC),
-				Reason:             "ProgressingTowardsDesired",
-				Message:            "Operand is operated by operator",
-			},
-			}}},
-		},
-		{
-			name: "one upgraded",
-			operators: []configv1.ClusterOperator{
-				co("one").
-					version("new").
-					progressing(configv1.ConditionTrue).operator,
-			},
-			expected: operators{Total: 1, Updated: 1},
-		},
-	}
+// func TestAssessControlPlaneStatus_Operators(t *testing.T) {
+// 	testCases := []struct {
+// 		name      string
+// 		operators []configv1.ClusterOperator
+// 		expected  operators
+// 	}{
+// 		{
+// 			name: "all operators good",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").operator,
+// 				co("two").operator,
+// 			},
+// 			expected: operators{Total: 2, Waiting: 2},
+// 		},
+// 		{
+// 			name: "one out of two progressing",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").operator,
+// 				co("two").progressing(configv1.ConditionTrue).operator,
+// 			},
+// 			expected: operators{Total: 2, Waiting: 1, Updating: []UpdatingClusterOperator{{Name: "two", Condition: &configv1.ClusterOperatorStatusCondition{
+// 				Type:               "Progressing",
+// 				Status:             "True",
+// 				LastTransitionTime: metav1.Date(2023, 12, 1, 23, 23, 0, 0, time.UTC),
+// 				Reason:             "ProgressingTowardsDesired",
+// 				Message:            "Operand is operated by operator",
+// 			},
+// 			}}},
+// 		},
+// 		{
+// 			name: "one out of two not available",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").operator,
+// 				co("two").available(configv1.ConditionFalse).operator,
+// 			},
+// 			expected: operators{Total: 2, Unavailable: 1, Waiting: 2},
+// 		},
+// 		{
+// 			name: "only count operators with *.release.openshift.io annotations",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").operator, // annotated by default
+// 				co("two").annotated(map[string]string{"exclude.release.openshift.io/internal-openshift-hosted": "true"}).operator,
+// 				co("three").annotated(map[string]string{"include.release.openshift.io/single-node-developer": "true"}).operator,
+// 				co("four").annotated(map[string]string{"random-nonsense": "true"}).operator,
+// 				co("five").annotated(map[string]string{}).degraded(configv1.ConditionTrue).operator,
+// 				co("six").annotated(nil).available(configv1.ConditionUnknown).operator,
+// 			},
+// 			expected: operators{Total: 3, Waiting: 3},
+// 		},
+// 		{
+// 			name: "available=unknown or missing implies available=false",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").available(configv1.ConditionUnknown).operator,
+// 				co("two").without(configv1.OperatorAvailable).operator,
+// 			},
+// 			expected: operators{Total: 2, Unavailable: 2, Waiting: 2},
+// 		},
+// 		{
+// 			name: "one out of two degraded",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").operator,
+// 				co("two").degraded(configv1.ConditionTrue).operator,
+// 			},
+// 			expected: operators{Total: 2, Degraded: 1, Waiting: 2},
+// 		},
+// 		{
+// 			name: "degraded=unknown or missing implies degraded=false",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").degraded(configv1.ConditionUnknown).operator,
+// 				co("two").without(configv1.OperatorDegraded).operator,
+// 			},
+// 			expected: operators{Total: 2, Waiting: 2},
+// 		},
+// 		{
+// 			name: "one out of two degraded, processing, not available",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").operator,
+// 				co("two").
+// 					degraded(configv1.ConditionTrue).
+// 					available(configv1.ConditionFalse).
+// 					progressing(configv1.ConditionTrue).operator,
+// 			},
+// 			expected: operators{Total: 2, Unavailable: 1, Waiting: 1, Updating: []UpdatingClusterOperator{{Name: "two", Condition: &configv1.ClusterOperatorStatusCondition{
+// 				Type:               "Progressing",
+// 				Status:             "True",
+// 				LastTransitionTime: metav1.Date(2023, 12, 1, 23, 23, 0, 0, time.UTC),
+// 				Reason:             "ProgressingTowardsDesired",
+// 				Message:            "Operand is operated by operator",
+// 			},
+// 			}}},
+// 		},
+// 		{
+// 			name: "one upgraded",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").
+// 					version("new").
+// 					progressing(configv1.ConditionTrue).operator,
+// 			},
+// 			expected: operators{Total: 1, Updated: 1},
+// 		},
+// 	}
+//
+// 	for _, tc := range testCases {
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			actual, insights := assessControlPlaneStatus(&cvFixture, tc.operators, "", time.Now())
+// 			if diff := cmp.Diff(tc.expected, actual.Operators, cmp.AllowUnexported(operators{})); diff != "" {
+// 				t.Errorf("%s, actual output differs from expected:\n%s", tc.name, diff)
+// 			}
+// 			// expect empty insights, conditions in this test have LastTransitionTime set to Now()
+// 			// so they never go over the threshold
+// 			if diff := cmp.Diff([]updateInsight(nil), insights, allowUnexportedInsightStructs); diff != "" {
+// 				t.Errorf("unexpected non-nil insights:\n%s", diff)
+// 			}
+// 		})
+// 	}
+// }
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual, insights := assessControlPlaneStatus(&cvFixture, tc.operators, "", time.Now())
-			if diff := cmp.Diff(tc.expected, actual.Operators, cmp.AllowUnexported(operators{})); diff != "" {
-				t.Errorf("%s, actual output differs from expected:\n%s", tc.name, diff)
-			}
-			// expect empty insights, conditions in this test have LastTransitionTime set to Now()
-			// so they never go over the threshold
-			if diff := cmp.Diff([]updateInsight(nil), insights, allowUnexportedInsightStructs); diff != "" {
-				t.Errorf("unexpected non-nil insights:\n%s", diff)
-			}
-		})
-	}
-}
+// func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
+// 	now := time.Now()
+// 	minutesAgo := [250]time.Time{}
+// 	for i := range minutesAgo {
+// 		minutesAgo[i] = now.Add(time.Duration(-i) * time.Minute)
+// 	}
+//
+// 	testCases := []struct {
+// 		name                            string
+// 		started                         time.Time
+// 		operators                       []configv1.ClusterOperator
+// 		assumedToLastProgress           time.Duration
+// 		assumedClusterOperatorCompleted float64
+// 		expectedAssessment              assessmentState
+// 	}{
+// 		{
+// 			name:    "last observed progress is most recent progressing change",
+// 			started: minutesAgo[30],
+// 			operators: []configv1.ClusterOperator{
+// 				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
+// 				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[15])).operator,
+// 				co("333").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[3])).operator,
+// 				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[6])).operator,
+// 			},
+// 			assumedToLastProgress:           27 * time.Minute, // until 333 stopped progressing 3 minutes ago
+// 			assumedClusterOperatorCompleted: 0.5,
+// 			expectedAssessment:              assessmentStateProgressing,
+// 		},
+// 		{
+// 			name:    "last observed progress is most recent progressing change",
+// 			started: minutesAgo[30],
+// 			operators: []configv1.ClusterOperator{
+// 				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
+// 				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[15])).operator,
+// 				co("333").version("old").progressing(configv1.ConditionTrue, changed(minutesAgo[10])).operator,
+// 				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[6])).operator,
+// 			},
+// 			assumedToLastProgress:           24 * time.Minute, // until 444 stopped progressing 6 minutes ago
+// 			assumedClusterOperatorCompleted: 0.5,
+// 			expectedAssessment:              assessmentStateProgressing,
+// 		},
+// 		{
+// 			name:    "backfill update duration as last observed progress when no progress is observed",
+// 			started: minutesAgo[30],
+// 			operators: []configv1.ClusterOperator{
+// 				co("111").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
+// 				co("222").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[60])).operator,
+// 				// New version but theirs Proceeding=False condition lastTransitionTime is before we started updating
+// 				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[100])).operator,
+// 				co("444").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[111])).operator,
+// 			},
+// 			assumedToLastProgress:           30 * time.Minute, // since started
+// 			assumedClusterOperatorCompleted: 0.5,
+// 			expectedAssessment:              assessmentStateProgressing,
+// 		},
+// 		{
+// 			name:    "last observed progress too long ago, assessment goes to stalled",
+// 			started: minutesAgo[240],
+// 			operators: []configv1.ClusterOperator{
+// 				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[235])).operator,
+// 				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[220])).operator,
+// 				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[215])).operator,
+// 				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[220])).operator,
+// 			},
+// 			assumedToLastProgress:           25 * time.Minute, // until 333 stopped progressing 215 minutes ago
+// 			assumedClusterOperatorCompleted: 0.75,
+// 			expectedAssessment:              assessmentStateStalled,
+// 		},
+// 		{
+// 			name:    "slightly over estimation, assessment goes to progressing slow",
+// 			started: minutesAgo[60],
+// 			operators: []configv1.ClusterOperator{
+// 				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[38])).operator,
+// 				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
+// 				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[50])).operator,
+// 				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[48])).operator,
+// 			},
+// 			assumedToLastProgress:           22 * time.Minute,
+// 			assumedClusterOperatorCompleted: 0.75,
+// 			expectedAssessment:              assessmentStateProgressingSlow,
+// 		},
+// 		{
+// 			name:    "machine-config progressing=true wins when it is the last CO updating",
+// 			started: minutesAgo[60],
+// 			operators: []configv1.ClusterOperator{
+// 				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[10])).operator,
+// 				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[15])).operator,
+// 				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
+// 				co("machine-config").version("old").progressing(configv1.ConditionTrue, changed(minutesAgo[30])).operator,
+// 			},
+// 			assumedToLastProgress:           30 * time.Minute, // until machine-config stated progressing 30 minutes ago
+// 			assumedClusterOperatorCompleted: 0.75,
+// 			expectedAssessment:              assessmentStateProgressing,
+// 		},
+// 	}
+//
+// 	for _, tc := range testCases {
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			cv := cvFixture.DeepCopy()
+// 			cv.Status.History = []configv1.UpdateHistory{
+// 				{
+// 					State:       configv1.PartialUpdate,
+// 					StartedTime: metav1.NewTime(tc.started),
+// 					Version:     "new",
+// 				},
+// 				{
+// 					State:       configv1.CompletedUpdate,
+// 					StartedTime: metav1.NewTime(tc.started.Add(-24 * time.Hour)),
+// 					Version:     "old",
+// 				},
+// 			}
+// 			expectedEstCompletion := estimateCompletion(time.Hour, tc.assumedToLastProgress, now.Sub(tc.started), tc.assumedClusterOperatorCompleted)
+// 			actual, _ := assessControlPlaneStatus(cv, tc.operators, "", now)
+// 			if diff := cmp.Diff(expectedEstCompletion, actual.EstTimeToComplete); diff != "" {
+// 				t.Errorf("estimate to finish differs:\n%s", diff)
+// 			}
+// 			if diff := cmp.Diff(tc.expectedAssessment, actual.Assessment); diff != "" {
+// 				t.Errorf("assessment differs:\n%s", diff)
+// 			}
+// 		})
+//
+// 	}
+// }
 
-func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
-	now := time.Now()
-	minutesAgo := [250]time.Time{}
-	for i := range minutesAgo {
-		minutesAgo[i] = now.Add(time.Duration(-i) * time.Minute)
-	}
+// func TestAssessControlPlaneStatus_Completion(t *testing.T) {
+// 	testCases := []struct {
+// 		name               string
+// 		operators          []configv1.ClusterOperator
+// 		expectedAssessment assessmentState
+// 		expectedCompletion float64
+// 	}{
+// 		{
+// 			name: "all operators old",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").version("old").operator,
+// 				co("two").version("old").operator,
+// 				co("three").version("old").operator,
+// 			},
+// 			expectedAssessment: assessmentStateProgressing,
+// 			expectedCompletion: 0.0,
+// 		},
+// 		{
+// 			name: "all operators new (done)",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").version("new").operator,
+// 				co("two").version("new").operator,
+// 				co("three").version("new").operator,
+// 			},
+// 			expectedAssessment: assessmentStateCompleted,
+// 			expectedCompletion: 100,
+// 		},
+// 		{
+// 			name: "two operators done, one to go",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").version("new").operator,
+// 				co("two").version("old").operator,
+// 				co("three").version("new").operator,
+// 			},
+// 			expectedAssessment: assessmentStateProgressing,
+// 			expectedCompletion: 2.0 / 3.0 * 100.0,
+// 		},
+// 		{
+// 			name: "non-platform operators do not count",
+// 			operators: []configv1.ClusterOperator{
+// 				co("one").version("new").operator,
+// 				co("two").version("old").operator,
+// 				co("three").version("new").operator,
+// 				co("not-platform").annotated(nil).version("new").operator,
+// 			},
+// 			expectedAssessment: assessmentStateProgressing,
+// 			expectedCompletion: 2.0 / 3.0 * 100.0,
+// 		},
+// 	}
+//
+// 	for _, tc := range testCases {
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			actual, _ := assessControlPlaneStatus(&cvFixture, tc.operators, "", time.Now())
+// 			if diff := cmp.Diff(tc.expectedCompletion, actual.Completion, cmpopts.EquateApprox(0, 0.1)); diff != "" {
+// 				t.Errorf("expected completion %f, got %f", tc.expectedCompletion, actual.Completion)
+// 			}
+//
+// 			if actual.Assessment != tc.expectedAssessment {
+// 				t.Errorf("expected assessment %s, got %s", tc.expectedAssessment, actual.Assessment)
+// 			}
+// 		})
+// 	}
+// }
 
-	testCases := []struct {
-		name                            string
-		started                         time.Time
-		operators                       []configv1.ClusterOperator
-		assumedToLastProgress           time.Duration
-		assumedClusterOperatorCompleted float64
-		expectedAssessment              assessmentState
-	}{
-		{
-			name:    "last observed progress is most recent progressing change",
-			started: minutesAgo[30],
-			operators: []configv1.ClusterOperator{
-				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
-				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[15])).operator,
-				co("333").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[3])).operator,
-				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[6])).operator,
-			},
-			assumedToLastProgress:           27 * time.Minute, // until 333 stopped progressing 3 minutes ago
-			assumedClusterOperatorCompleted: 0.5,
-			expectedAssessment:              assessmentStateProgressing,
-		},
-		{
-			name:    "last observed progress is most recent progressing change",
-			started: minutesAgo[30],
-			operators: []configv1.ClusterOperator{
-				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
-				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[15])).operator,
-				co("333").version("old").progressing(configv1.ConditionTrue, changed(minutesAgo[10])).operator,
-				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[6])).operator,
-			},
-			assumedToLastProgress:           24 * time.Minute, // until 444 stopped progressing 6 minutes ago
-			assumedClusterOperatorCompleted: 0.5,
-			expectedAssessment:              assessmentStateProgressing,
-		},
-		{
-			name:    "backfill update duration as last observed progress when no progress is observed",
-			started: minutesAgo[30],
-			operators: []configv1.ClusterOperator{
-				co("111").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
-				co("222").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[60])).operator,
-				// New version but theirs Proceeding=False condition lastTransitionTime is before we started updating
-				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[100])).operator,
-				co("444").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[111])).operator,
-			},
-			assumedToLastProgress:           30 * time.Minute, // since started
-			assumedClusterOperatorCompleted: 0.5,
-			expectedAssessment:              assessmentStateProgressing,
-		},
-		{
-			name:    "last observed progress too long ago, assessment goes to stalled",
-			started: minutesAgo[240],
-			operators: []configv1.ClusterOperator{
-				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[235])).operator,
-				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[220])).operator,
-				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[215])).operator,
-				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[220])).operator,
-			},
-			assumedToLastProgress:           25 * time.Minute, // until 333 stopped progressing 215 minutes ago
-			assumedClusterOperatorCompleted: 0.75,
-			expectedAssessment:              assessmentStateStalled,
-		},
-		{
-			name:    "slightly over estimation, assessment goes to progressing slow",
-			started: minutesAgo[60],
-			operators: []configv1.ClusterOperator{
-				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[38])).operator,
-				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[45])).operator,
-				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[50])).operator,
-				co("444").version("old").progressing(configv1.ConditionFalse, changed(minutesAgo[48])).operator,
-			},
-			assumedToLastProgress:           22 * time.Minute,
-			assumedClusterOperatorCompleted: 0.75,
-			expectedAssessment:              assessmentStateProgressingSlow,
-		},
-		{
-			name:    "machine-config progressing=true wins when it is the last CO updating",
-			started: minutesAgo[60],
-			operators: []configv1.ClusterOperator{
-				co("111").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[10])).operator,
-				co("222").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[15])).operator,
-				co("333").version("new").progressing(configv1.ConditionFalse, changed(minutesAgo[20])).operator,
-				co("machine-config").version("old").progressing(configv1.ConditionTrue, changed(minutesAgo[30])).operator,
-			},
-			assumedToLastProgress:           30 * time.Minute, // until machine-config stated progressing 30 minutes ago
-			assumedClusterOperatorCompleted: 0.75,
-			expectedAssessment:              assessmentStateProgressing,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			cv := cvFixture.DeepCopy()
-			cv.Status.History = []configv1.UpdateHistory{
-				{
-					State:       configv1.PartialUpdate,
-					StartedTime: metav1.NewTime(tc.started),
-					Version:     "new",
-				},
-				{
-					State:       configv1.CompletedUpdate,
-					StartedTime: metav1.NewTime(tc.started.Add(-24 * time.Hour)),
-					Version:     "old",
-				},
-			}
-			expectedEstCompletion := estimateCompletion(time.Hour, tc.assumedToLastProgress, now.Sub(tc.started), tc.assumedClusterOperatorCompleted)
-			actual, _ := assessControlPlaneStatus(cv, tc.operators, "", now)
-			if diff := cmp.Diff(expectedEstCompletion, actual.EstTimeToComplete); diff != "" {
-				t.Errorf("estimate to finish differs:\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.expectedAssessment, actual.Assessment); diff != "" {
-				t.Errorf("assessment differs:\n%s", diff)
-			}
-		})
-
-	}
-}
-
-func TestAssessControlPlaneStatus_Completion(t *testing.T) {
-	testCases := []struct {
-		name               string
-		operators          []configv1.ClusterOperator
-		expectedAssessment assessmentState
-		expectedCompletion float64
-	}{
-		{
-			name: "all operators old",
-			operators: []configv1.ClusterOperator{
-				co("one").version("old").operator,
-				co("two").version("old").operator,
-				co("three").version("old").operator,
-			},
-			expectedAssessment: assessmentStateProgressing,
-			expectedCompletion: 0.0,
-		},
-		{
-			name: "all operators new (done)",
-			operators: []configv1.ClusterOperator{
-				co("one").version("new").operator,
-				co("two").version("new").operator,
-				co("three").version("new").operator,
-			},
-			expectedAssessment: assessmentStateCompleted,
-			expectedCompletion: 100,
-		},
-		{
-			name: "two operators done, one to go",
-			operators: []configv1.ClusterOperator{
-				co("one").version("new").operator,
-				co("two").version("old").operator,
-				co("three").version("new").operator,
-			},
-			expectedAssessment: assessmentStateProgressing,
-			expectedCompletion: 2.0 / 3.0 * 100.0,
-		},
-		{
-			name: "non-platform operators do not count",
-			operators: []configv1.ClusterOperator{
-				co("one").version("new").operator,
-				co("two").version("old").operator,
-				co("three").version("new").operator,
-				co("not-platform").annotated(nil).version("new").operator,
-			},
-			expectedAssessment: assessmentStateProgressing,
-			expectedCompletion: 2.0 / 3.0 * 100.0,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual, _ := assessControlPlaneStatus(&cvFixture, tc.operators, "", time.Now())
-			if diff := cmp.Diff(tc.expectedCompletion, actual.Completion, cmpopts.EquateApprox(0, 0.1)); diff != "" {
-				t.Errorf("expected completion %f, got %f", tc.expectedCompletion, actual.Completion)
-			}
-
-			if actual.Assessment != tc.expectedAssessment {
-				t.Errorf("expected assessment %s, got %s", tc.expectedAssessment, actual.Assessment)
-			}
-		})
-	}
-}
-
-func TestAssessControlPlaneStatus_Duration(t *testing.T) {
-	// Inject ns skew to exercise expected rounding
-	nsSkew := 12315 * time.Nanosecond
-
-	now := time.Now()
-	hourAgo := metav1.NewTime(now.Add(-time.Hour - nsSkew))
-	halfHourAgo := metav1.NewTime(now.Add(-time.Minute*30 - nsSkew))
-	underTenMinutesAgo := metav1.NewTime(now.Add(-333*time.Second - nsSkew))
-	overTenMinutesAgo := metav1.NewTime(now.Add(-637*time.Second - nsSkew))
-
-	testCases := []struct {
-		name             string
-		firstHistoryItem configv1.UpdateHistory
-		expectedDuration time.Duration
-	}{
-		{
-			name: "partial update -> still in progress",
-			firstHistoryItem: configv1.UpdateHistory{
-				State:       configv1.PartialUpdate,
-				StartedTime: hourAgo,
-				Version:     "new",
-			},
-			expectedDuration: time.Hour,
-		},
-		{
-			name: "completed upgrade",
-			firstHistoryItem: configv1.UpdateHistory{
-				State:          configv1.CompletedUpdate,
-				StartedTime:    hourAgo,
-				CompletionTime: &halfHourAgo,
-				Version:        "new",
-			},
-			expectedDuration: 30 * time.Minute,
-		},
-		{
-			name: "partial update started 10s ago -> 10s duration",
-			firstHistoryItem: configv1.UpdateHistory{
-				State:       configv1.PartialUpdate,
-				StartedTime: underTenMinutesAgo,
-				Version:     "new",
-			},
-			expectedDuration: 333 * time.Second, // precision to seconds when under 10m
-		},
-		{
-			name: "partial update started over 10m ago ago -> 11m duration",
-			firstHistoryItem: configv1.UpdateHistory{
-				State:       configv1.PartialUpdate,
-				StartedTime: overTenMinutesAgo,
-				Version:     "new",
-			},
-			expectedDuration: 11 * time.Minute, // rounded to minutes when over 10m
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-
-			cv := cvFixture.DeepCopy()
-			cv.Status.History = append(cv.Status.History, tc.firstHistoryItem)
-
-			actual, _ := assessControlPlaneStatus(cv, nil, "", now)
-			if diff := cmp.Diff(tc.expectedDuration, actual.Duration); diff != "" {
-				t.Errorf("expected completion %s, got %s", tc.expectedDuration, actual.Duration)
-			}
-		})
-	}
-}
+// func TestAssessControlPlaneStatus_Duration(t *testing.T) {
+// 	// Inject ns skew to exercise expected rounding
+// 	nsSkew := 12315 * time.Nanosecond
+//
+// 	now := time.Now()
+// 	hourAgo := metav1.NewTime(now.Add(-time.Hour - nsSkew))
+// 	halfHourAgo := metav1.NewTime(now.Add(-time.Minute*30 - nsSkew))
+// 	underTenMinutesAgo := metav1.NewTime(now.Add(-333*time.Second - nsSkew))
+// 	overTenMinutesAgo := metav1.NewTime(now.Add(-637*time.Second - nsSkew))
+//
+// 	testCases := []struct {
+// 		name             string
+// 		firstHistoryItem configv1.UpdateHistory
+// 		expectedDuration time.Duration
+// 	}{
+// 		{
+// 			name: "partial update -> still in progress",
+// 			firstHistoryItem: configv1.UpdateHistory{
+// 				State:       configv1.PartialUpdate,
+// 				StartedTime: hourAgo,
+// 				Version:     "new",
+// 			},
+// 			expectedDuration: time.Hour,
+// 		},
+// 		{
+// 			name: "completed upgrade",
+// 			firstHistoryItem: configv1.UpdateHistory{
+// 				State:          configv1.CompletedUpdate,
+// 				StartedTime:    hourAgo,
+// 				CompletionTime: &halfHourAgo,
+// 				Version:        "new",
+// 			},
+// 			expectedDuration: 30 * time.Minute,
+// 		},
+// 		{
+// 			name: "partial update started 10s ago -> 10s duration",
+// 			firstHistoryItem: configv1.UpdateHistory{
+// 				State:       configv1.PartialUpdate,
+// 				StartedTime: underTenMinutesAgo,
+// 				Version:     "new",
+// 			},
+// 			expectedDuration: 333 * time.Second, // precision to seconds when under 10m
+// 		},
+// 		{
+// 			name: "partial update started over 10m ago ago -> 11m duration",
+// 			firstHistoryItem: configv1.UpdateHistory{
+// 				State:       configv1.PartialUpdate,
+// 				StartedTime: overTenMinutesAgo,
+// 				Version:     "new",
+// 			},
+// 			expectedDuration: 11 * time.Minute, // rounded to minutes when over 10m
+// 		},
+// 	}
+//
+// 	for _, tc := range testCases {
+// 		t.Run(tc.name, func(t *testing.T) {
+//
+// 			cv := cvFixture.DeepCopy()
+// 			cv.Status.History = append(cv.Status.History, tc.firstHistoryItem)
+//
+// 			actual, _ := assessControlPlaneStatus(cv, nil, "", now)
+// 			if diff := cmp.Diff(tc.expectedDuration, actual.Duration); diff != "" {
+// 				t.Errorf("expected completion %s, got %s", tc.expectedDuration, actual.Duration)
+// 			}
+// 		})
+// 	}
+// }
 
 func TestCoInsights(t *testing.T) {
 	t.Parallel()

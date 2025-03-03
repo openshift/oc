@@ -12,9 +12,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func compareWithFixture(t *testing.T, actualOut []byte, cvPath string, outputSuffix string) {
+func compareWithFixture(t *testing.T, actualOut []byte, usPath string, outputSuffix string) {
 	t.Helper()
-	expectedOutPath := strings.Replace(cvPath, "-cv.yaml", outputSuffix, 1)
+	expectedOutPath := strings.Replace(usPath, "-us.yaml", outputSuffix, 1)
 
 	if update := os.Getenv("UPDATE"); update != "" {
 		if err := os.WriteFile(expectedOutPath, actualOut, 0644); err != nil {
@@ -38,7 +38,7 @@ func compareWithFixture(t *testing.T, actualOut []byte, cvPath string, outputSuf
 }
 
 func TestExamples(t *testing.T) {
-	cvs, err := filepath.Glob("examples/*-cv.yaml")
+	updateStatuses, err := filepath.Glob("examples/*-us.yaml")
 	if err != nil {
 		t.Fatalf("Error when listing examples: %v", err)
 	}
@@ -60,14 +60,13 @@ func TestExamples(t *testing.T) {
 		},
 	}
 
-	for _, cv := range cvs {
-		cv := cv
+	for _, us := range updateStatuses {
 		for _, variant := range variants {
 			variant := variant
-			t.Run(fmt.Sprintf("%s-%s", cv, variant.name), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s-%s", us, variant.name), func(t *testing.T) {
 				t.Parallel()
 				opts := &options{
-					mockData:       mockData{cvPath: cv},
+					mockData:       mockData{updateStatusPath: us},
 					detailedOutput: variant.detailed,
 				}
 				if err := opts.Complete(nil, nil, nil); err != nil {
@@ -82,7 +81,7 @@ func TestExamples(t *testing.T) {
 					t.Fatalf("Error when running: %v", err)
 				}
 
-				compareWithFixture(t, stdout.Bytes(), cv, variant.outputSuffix)
+				compareWithFixture(t, stdout.Bytes(), us, variant.outputSuffix)
 			})
 		}
 	}
