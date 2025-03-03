@@ -1,2 +1,2 @@
 swaggerdocs:
-  commentPolicy: Warn
+  commentPolicy: Enforce
