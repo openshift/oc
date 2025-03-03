@@ -33,7 +33,7 @@ require (
 	github.com/moby/term v0.5.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
-	github.com/openshift/api v0.0.0-20250130025500-d9e1a2e1fe6b
+	github.com/openshift/api v0.0.0-20250213010142-f5b09d13c01f
 	github.com/openshift/build-machinery-go v0.0.0-20250102153059-e85a1a7ecb5c
 	github.com/openshift/client-go v0.0.0-20250125113824-8e1f0b8fa9a7
 	github.com/openshift/library-go v0.0.0-20250218150059-017e5b6cf27c
@@ -208,3 +208,5 @@ require (
 replace github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 
 replace github.com/openshift/api => github.com/petr-muller/api v0.0.0-20250214154234-86cca2783f9c
+
+replace github.com/openshift/client-go => github.com/petr-muller/openshift-client-go v0.0.0-20250214160202-4d4f62e78664

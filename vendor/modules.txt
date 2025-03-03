@@ -578,7 +578,7 @@ github.com/opencontainers/runtime-spec/specs-go
 ## explicit; go 1.19
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/openshift/api v0.0.0-20250130025500-d9e1a2e1fe6b => github.com/petr-muller/api v0.0.0-20250214154234-86cca2783f9c
+# github.com/openshift/api v0.0.0-20250213010142-f5b09d13c01f => github.com/petr-muller/api v0.0.0-20250214154234-86cca2783f9c
 ## explicit; go 1.23.0
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -663,7 +663,7 @@ github.com/openshift/build-machinery-go/make/targets/golang
 github.com/openshift/build-machinery-go/make/targets/openshift
 github.com/openshift/build-machinery-go/make/targets/openshift/operator
 github.com/openshift/build-machinery-go/scripts
-# github.com/openshift/client-go v0.0.0-20250125113824-8e1f0b8fa9a7
+# github.com/openshift/client-go v0.0.0-20250125113824-8e1f0b8fa9a7 => github.com/petr-muller/openshift-client-go v0.0.0-20250214160202-4d4f62e78664
 ## explicit; go 1.23.0
 github.com/openshift/client-go/apps/applyconfigurations
 github.com/openshift/client-go/apps/applyconfigurations/apps/v1
@@ -1879,3 +1879,4 @@ sigs.k8s.io/yaml/goyaml.v2
 sigs.k8s.io/yaml/goyaml.v3
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 # github.com/openshift/api => github.com/petr-muller/api v0.0.0-20250214154234-86cca2783f9c
+# github.com/openshift/client-go => github.com/petr-muller/openshift-client-go v0.0.0-20250214160202-4d4f62e78664
