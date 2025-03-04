@@ -20,4 +20,6 @@ recommended/PodDisruptionBudgetAlerts/PodDisruptionBudgetAtLimit/1=False:
 Upstream update service: https://api.integration.openshift.com/api/upgrades_info/graph
 Channel: candidate-4.16 (available channels: candidate-4.16, candidate-4.17, candidate-4.18, eus-4.16, fast-4.16, fast-4.17, stable-4.16, stable-4.17)
 
-error: no updates to 4.12 available, so cannot display context for the requested release 4.12.51
+Update to 4.16.32 has no known issues relevant to this cluster.
+Image: quay.io/openshift-release-dev/ocp-release@sha256:0e71cb61694473b40e8d95f530eaf250a62616debb98199f31b4034808687dae
+Release URL: https://access.redhat.com/errata/RHSA-2025:0650
