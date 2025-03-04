@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -164,6 +165,47 @@ func (i *isUpdatingProcessor) acceptNodeInsight(_ string, _ updatev1alpha1.Scope
 func (i *isUpdatingProcessor) acceptHealthInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.HealthInsight) {
 }
 
+type latestTimeFinder struct {
+	latest time.Time
+}
+
+func (l *latestTimeFinder) update(maybe time.Time) {
+	if maybe.After(l.latest) {
+		l.latest = maybe
+	}
+}
+
+func (l *latestTimeFinder) updateFromConditions(conditions []metav1.Condition) {
+	for _, condition := range conditions {
+		l.update(condition.LastTransitionTime.Time)
+	}
+}
+
+func (l *latestTimeFinder) acceptClusterVersionStatusInsight(_ string, insight *updatev1alpha1.ClusterVersionStatusInsight) {
+	l.update(insight.StartedAt.Time)
+	if insight.CompletedAt != nil {
+		l.update(insight.CompletedAt.Time)
+	}
+	l.updateFromConditions(insight.Conditions)
+}
+
+func (l *latestTimeFinder) acceptClusterOperatorStatusInsight(_ string, insight *updatev1alpha1.ClusterOperatorStatusInsight) {
+	l.updateFromConditions(insight.Conditions)
+}
+
+func (l *latestTimeFinder) acceptMachineConfigPoolInsight(_ string, _ updatev1alpha1.ScopeType, insight *updatev1alpha1.MachineConfigPoolStatusInsight) {
+	l.updateFromConditions(insight.Conditions)
+}
+
+func (l *latestTimeFinder) acceptNodeInsight(_ string, _ updatev1alpha1.ScopeType, insight *updatev1alpha1.NodeStatusInsight) {
+	l.updateFromConditions(insight.Conditions)
+
+}
+
+func (l *latestTimeFinder) acceptHealthInsight(_ string, _ updatev1alpha1.ScopeType, insight *updatev1alpha1.HealthInsight) {
+	l.update(insight.StartedAt.Time)
+}
+
 type options struct {
 	genericiooptions.IOStreams
 
@@ -209,7 +251,9 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 
 func (o *options) Run(ctx context.Context) error {
 	var us *updatev1alpha1.UpdateStatus
-	// now := time.Now()
+	now := time.Now
+
+	var processors insightProcessors
 	if us = o.mockData.updateStatus; us == nil {
 		var err error
 		us, err = o.UpdateClient.UpdateV1alpha1().UpdateStatuses().Get(ctx, "cluster", metav1.GetOptions{})
@@ -222,14 +266,11 @@ func (o *options) Run(ctx context.Context) error {
 	} else {
 		// mock "now" to be the latest time when something happened in the mocked data
 		// add some nanoseconds to exercise rounding
-		// now = time.Time{}
-		// TODO: Get reasonable now() from the data
-		// 	if condition.LastTransitionTime.After(now) {
-		// 		now = condition.LastTransitionTime.Time.Add(368975 * time.Nanosecond)
-		// 	}
+		latest := latestTimeFinder{}
+		now = func() time.Time { return latest.latest.Add(368975 * time.Nanosecond) }
+		processors = append(processors, &latest)
+		processors.process(us)
 	}
-
-	var processors insightProcessors
 
 	var isUpdating isUpdatingProcessor
 	processors = append(processors, &isUpdating)
@@ -237,8 +278,8 @@ func (o *options) Run(ctx context.Context) error {
 	// var updateHealth updateHealthData
 	// processors = append(processors, &updateHealth)
 	//
-	// var controlPlaneStatusData controlPlaneStatusDisplayData
-	// processors = append(processors, &controlPlaneStatusData)
+	controlPlaneStatusData := controlPlaneStatusDisplayData{now: now}
+	processors = append(processors, &controlPlaneStatusData)
 	//
 	// var workerPoolsStatusData []poolDisplayData
 	// processors = append(processors, &workerPoolsStatusData)
@@ -251,11 +292,9 @@ func (o *options) Run(ctx context.Context) error {
 	if !(isUpdating.controlPlane || isUpdating.workerPools) {
 		fmt.Fprintf(o.Out, "The cluster is not updating.\n")
 		return nil
-	} else {
-		fmt.Fprintf(o.Out, "The cluster is updating.\n")
 	}
 
-	// _ = controlPlaneStatusData.Write(o.Out, o.enabledDetailed(detailedOutputOperators), now)
+	_ = controlPlaneStatusData.Write(o.Out, o.enabledDetailed(detailedOutputOperators), now())
 	// controlPlanePoolStatusData.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
 	//
 	// // TODO: Encapsulate this in a higher-level processor?

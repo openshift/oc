@@ -10,6 +10,9 @@ import (
 	"time"
 
 	v1 "github.com/openshift/api/config/v1"
+	updatev1alpha1 "github.com/openshift/api/update/v1alpha1"
+	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type assessmentState string
@@ -82,6 +85,8 @@ func (v versions) String() string {
 }
 
 type controlPlaneStatusDisplayData struct {
+	now func() time.Time
+
 	Assessment           assessmentState
 	Completion           float64
 	CompletionAt         time.Time
@@ -91,6 +96,85 @@ type controlPlaneStatusDisplayData struct {
 	Operators            operators
 	TargetVersion        versions
 	IsMultiArchMigration bool
+}
+
+func (d *controlPlaneStatusDisplayData) acceptClusterVersionStatusInsight(_ string, insight *updatev1alpha1.ClusterVersionStatusInsight) {
+	// TODO: Reconcile API assessment type with `assessmentState` here
+	d.Assessment = assessmentState(insight.Assessment)
+	d.Completion = float64(insight.Completion)
+	if insight.CompletedAt != nil {
+		d.CompletionAt = insight.CompletedAt.Time
+	}
+
+	if insight.Assessment == updatev1alpha1.ControlPlaneAssessmentCompleted {
+		d.Duration = insight.CompletedAt.Sub(insight.StartedAt.Time)
+	} else {
+		d.Duration = d.now().Sub(insight.StartedAt.Time)
+	}
+
+	if insight.EstimatedCompletedAt != nil {
+		d.EstDuration = insight.EstimatedCompletedAt.Sub(insight.StartedAt.Time)
+		d.EstTimeToComplete = insight.EstimatedCompletedAt.Sub(d.now())
+	}
+
+	metadataItem := func(metadata []updatev1alpha1.VersionMetadata, key updatev1alpha1.VersionMetadataKey) *updatev1alpha1.VersionMetadata {
+		for i := range metadata {
+			if metadata[i].Key == key {
+				return &metadata[i]
+			}
+		}
+		return nil
+	}
+
+	d.TargetVersion = versions{
+		target:               insight.Versions.Target.Version,
+		previous:             insight.Versions.Previous.Version,
+		isTargetInstall:      metadataItem(insight.Versions.Previous.Metadata, updatev1alpha1.InstallationMetadata) != nil,
+		isPreviousPartial:    metadataItem(insight.Versions.Previous.Metadata, updatev1alpha1.PartialMetadata) != nil,
+		isMultiArchMigration: metadataItem(insight.Versions.Target.Metadata, updatev1alpha1.ArchitectureMetadata) != nil,
+	}
+
+	d.IsMultiArchMigration = d.TargetVersion.isMultiArchMigration
+}
+
+func (d *controlPlaneStatusDisplayData) acceptClusterOperatorStatusInsight(_ string, insight *updatev1alpha1.ClusterOperatorStatusInsight) {
+	d.Operators.Total++
+	if updating := v1helpers.FindCondition(insight.Conditions, string(updatev1alpha1.ClusterOperatorStatusInsightUpdating)); updating != nil {
+		if updating.Status == metav1.ConditionTrue {
+			d.Operators.Updating = append(d.Operators.Updating, UpdatingClusterOperator{Name: insight.Name, Condition: &v1.ClusterOperatorStatusCondition{
+				Type:               v1.OperatorProgressing,
+				Status:             v1.ConditionTrue,
+				LastTransitionTime: updating.LastTransitionTime,
+				Reason:             updating.Reason,
+				Message:            updating.Message,
+			}})
+		} else {
+			if updating.Reason == string(updatev1alpha1.ClusterOperatorUpdatingReasonUpdated) {
+				d.Operators.Updated++
+			} else {
+				d.Operators.Waiting++
+			}
+		}
+	}
+	if healthy := v1helpers.FindCondition(insight.Conditions, string(updatev1alpha1.ClusterOperatorStatusInsightHealthy)); healthy != nil {
+		if healthy.Status != metav1.ConditionTrue {
+			if healthy.Reason == string(updatev1alpha1.ClusterOperatorHealthyReasonUnavailable) {
+				d.Operators.Unavailable++
+			}
+			if healthy.Reason == string(updatev1alpha1.ClusterOperatorHealthyReasonDegraded) {
+				d.Operators.Degraded++
+			}
+		}
+	}
+}
+
+func (d *controlPlaneStatusDisplayData) acceptMachineConfigPoolInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.MachineConfigPoolStatusInsight) {
+}
+
+func (d *controlPlaneStatusDisplayData) acceptNodeInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.NodeStatusInsight) {
+}
+
+func (d *controlPlaneStatusDisplayData) acceptHealthInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.HealthInsight) {
 }
 
 const (

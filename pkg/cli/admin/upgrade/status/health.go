@@ -172,7 +172,7 @@ func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, 
 func shortDuration(d time.Duration) string {
 	orig := d.String()
 	switch {
-	case orig == "0h0m0s" || orig == "0s":
+	case orig == "0h0m0s" || orig == "0s" || strings.HasSuffix(orig, "µs"):
 		return "now"
 	case strings.HasSuffix(orig, "h0m0s"):
 		return orig[:len(orig)-4]
