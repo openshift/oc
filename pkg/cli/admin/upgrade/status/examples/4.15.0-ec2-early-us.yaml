@@ -661,6 +661,93 @@ status:
             resource: ""
         type: ClusterOperator
         uid: co-29
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-30-217.us-east-2.compute.internal
+          poolResource:
+            name: master
+            resource: ""
+          resource:
+            name: ""
+            resource: ""
+          scopeType: ""
+          version: 4.14.1
+        type: Node
+        uid: node-cp-1
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-53-40.us-east-2.compute.internal
+          poolResource:
+            name: master
+            resource: ""
+          resource:
+            name: ""
+            resource: ""
+          scopeType: ""
+          version: 4.14.1
+        type: Node
+        uid: node-cp-2
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-92-180.us-east-2.compute.internal
+          poolResource:
+            name: master
+            resource: ""
+          resource:
+            name: ""
+            resource: ""
+          scopeType: ""
+          version: 4.14.1
+        type: Node
+        uid: node-cp-3
       name: cpi
     resource:
       name: ""

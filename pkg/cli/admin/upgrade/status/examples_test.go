@@ -82,10 +82,21 @@ var coUpdatingFalsePending = metav1.Condition{
 	Reason: string(updatev1alpha1.ClusterOperatorUpdatingReasonPending),
 }
 
-var coUpdatingTrueProgressing = metav1.Condition{
-	Type:   string(updatev1alpha1.ClusterOperatorStatusInsightUpdating),
+var nodeUpdatingPending = metav1.Condition{
+	Type:   string(updatev1alpha1.NodeStatusInsightUpdating),
+	Status: metav1.ConditionFalse,
+	Reason: string(updatev1alpha1.NodeUpdatePending),
+}
+
+var nodeDegradedFalse = metav1.Condition{
+	Type:   string(updatev1alpha1.NodeStatusInsightDegraded),
+	Status: metav1.ConditionFalse,
+	Reason: "AsExpected",
+}
+var nodeAvailableTrue = metav1.Condition{
+	Type:   string(updatev1alpha1.NodeStatusInsightAvailable),
 	Status: metav1.ConditionTrue,
-	Reason: string(updatev1alpha1.ClusterOperatorUpdatingReasonProgressing),
+	Reason: "AsExpected",
 }
 
 func xPendingHealthyClusterOperators(n int) []updatev1alpha1.ControlPlaneInsight {
@@ -260,6 +271,51 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 						thirtyPendingHealthyClusterOperators[27],
 						thirtyPendingHealthyClusterOperators[28],
 						thirtyPendingHealthyClusterOperators[29],
+						{
+							UID: "node-cp-1",
+							ControlPlaneInsightUnion: updatev1alpha1.ControlPlaneInsightUnion{
+								Type: updatev1alpha1.NodeStatusInsightType,
+								NodeStatusInsight: &updatev1alpha1.NodeStatusInsight{
+									PoolResource: updatev1alpha1.PoolResourceRef{
+										ResourceRef: updatev1alpha1.ResourceRef{Name: "master"},
+									},
+									Conditions:    []metav1.Condition{nodeUpdatingPending, nodeDegradedFalse, nodeAvailableTrue},
+									Name:          "ip-10-0-30-217.us-east-2.compute.internal",
+									Version:       "4.14.1",
+									EstToComplete: nil,
+								},
+							},
+						},
+						{
+							UID: "node-cp-2",
+							ControlPlaneInsightUnion: updatev1alpha1.ControlPlaneInsightUnion{
+								Type: updatev1alpha1.NodeStatusInsightType,
+								NodeStatusInsight: &updatev1alpha1.NodeStatusInsight{
+									PoolResource: updatev1alpha1.PoolResourceRef{
+										ResourceRef: updatev1alpha1.ResourceRef{Name: "master"},
+									},
+									Conditions:    []metav1.Condition{nodeUpdatingPending, nodeDegradedFalse, nodeAvailableTrue},
+									Name:          "ip-10-0-53-40.us-east-2.compute.internal",
+									Version:       "4.14.1",
+									EstToComplete: nil,
+								},
+							},
+						},
+						{
+							UID: "node-cp-3",
+							ControlPlaneInsightUnion: updatev1alpha1.ControlPlaneInsightUnion{
+								Type: updatev1alpha1.NodeStatusInsightType,
+								NodeStatusInsight: &updatev1alpha1.NodeStatusInsight{
+									PoolResource: updatev1alpha1.PoolResourceRef{
+										ResourceRef: updatev1alpha1.ResourceRef{Name: "master"},
+									},
+									Conditions:    []metav1.Condition{nodeUpdatingPending, nodeDegradedFalse, nodeAvailableTrue},
+									Name:          "ip-10-0-92-180.us-east-2.compute.internal",
+									Version:       "4.14.1",
+									EstToComplete: nil,
+								},
+							},
+						},
 					},
 				},
 			},

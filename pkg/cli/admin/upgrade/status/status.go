@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/status/mco"
 	"github.com/spf13/cobra"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -284,8 +285,9 @@ func (o *options) Run(ctx context.Context) error {
 	// var workerPoolsStatusData []poolDisplayData
 	// processors = append(processors, &workerPoolsStatusData)
 	//
-	// var controlPlanePoolStatusData poolDisplayData
-	// processors = append(processors, &controlPlanePoolStatusData)
+	var controlPlanePoolStatusData poolDisplayData
+	controlPlanePoolStatusData.Name = mco.MachineConfigPoolMaster
+	processors = append(processors, &controlPlanePoolStatusData)
 
 	processors.process(us)
 
@@ -295,7 +297,7 @@ func (o *options) Run(ctx context.Context) error {
 	}
 
 	_ = controlPlaneStatusData.Write(o.Out, o.enabledDetailed(detailedOutputOperators), now())
-	// controlPlanePoolStatusData.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
+	controlPlanePoolStatusData.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
 	//
 	// // TODO: Encapsulate this in a higher-level processor?
 	// var workerUpgrade bool

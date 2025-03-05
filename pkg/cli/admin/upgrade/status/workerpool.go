@@ -1,7 +1,6 @@
 package status
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"sort"
@@ -10,12 +9,14 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	configv1 "github.com/openshift/api/config/v1"
 	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
-	mcfgv1client "github.com/openshift/client-go/machineconfiguration/clientset/versioned"
+	updatev1alpha1 "github.com/openshift/api/update/v1alpha1"
+
+	"github.com/openshift/library-go/pkg/operator/v1helpers"
+
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/status/mco"
 )
 
@@ -28,6 +29,7 @@ const (
 	phaseStatePaused
 	phaseStatePending
 	phaseStateUpdated
+	phaseStateTodo
 )
 
 func (phase nodePhase) String() string {
@@ -44,6 +46,8 @@ func (phase nodePhase) String() string {
 		return "Pending"
 	case phaseStateUpdated:
 		return "Updated"
+	case phaseStateTodo:
+		return "TODO"
 	default:
 		return ""
 	}
@@ -58,6 +62,7 @@ const (
 	nodeAssessmentExcluded
 	nodeAssessmentOutdated
 	nodeAssessmentCompleted
+	nodeAssessmentTodo
 
 	nodeKind string = "Node"
 	mcpKind  string = "MachineConfigPool"
@@ -77,6 +82,8 @@ func (assessment nodeAssessment) String() string {
 		return "Outdated"
 	case nodeAssessmentCompleted:
 		return "Completed"
+	case nodeAssessmentTodo:
+		return "TODO"
 	default:
 		return ""
 	}
@@ -114,28 +121,88 @@ type poolDisplayData struct {
 	Nodes         []nodeDisplayData
 }
 
-func getMachineConfig(ctx context.Context, client mcfgv1client.Interface, machineConfigs []mcfgv1.MachineConfig, machineConfigName string) (*mcfgv1.MachineConfig, error) {
-	for _, mc := range machineConfigs {
-		if mc.Name == machineConfigName {
-			return nil, nil
+func asNodeDisplayData(insight *updatev1alpha1.NodeStatusInsight) nodeDisplayData {
+	ndd := nodeDisplayData{
+		Name:       insight.Name,
+		Assessment: 0,
+		Phase:      0,
+		Version:    insight.Version,
+		Message:    insight.Message,
+	}
+
+	if updating := v1helpers.FindCondition(insight.Conditions, string(updatev1alpha1.NodeStatusInsightUpdating)); updating != nil {
+		if updating.Status == metav1.ConditionTrue {
+			ndd.isUpdating = true
+			ndd.Assessment = nodeAssessmentProgressing
+			switch updating.Reason {
+			case string(updatev1alpha1.NodeDraining):
+				ndd.Phase = phaseStateDraining
+			case string(updatev1alpha1.NodeRebooting):
+				ndd.Phase = phaseStateRebooting
+			case string(updatev1alpha1.NodeUpdating):
+				ndd.Phase = phaseStateUpdating
+			default:
+				ndd.Phase = phaseStateTodo
+			}
+		}
+		if updating.Status == metav1.ConditionFalse {
+			switch updating.Reason {
+			case string(updatev1alpha1.NodeCompleted):
+				ndd.isUpdated = true
+				ndd.Assessment = nodeAssessmentCompleted
+				ndd.Phase = phaseStateUpdated
+			case string(updatev1alpha1.NodePaused):
+				ndd.Phase = phaseStatePaused
+				ndd.Assessment = nodeAssessmentExcluded
+			case string(updatev1alpha1.NodeUpdatePending):
+				ndd.Phase = phaseStatePending
+				ndd.Assessment = nodeAssessmentOutdated
+			}
 		}
 	}
-	return client.MachineconfigurationV1().MachineConfigs().Get(ctx, machineConfigName, v1.GetOptions{})
+
+	if degraded := v1helpers.FindCondition(insight.Conditions, string(updatev1alpha1.NodeStatusInsightDegraded)); degraded != nil {
+		if degraded.Status == metav1.ConditionTrue {
+			ndd.isDegraded = true
+			ndd.Assessment = nodeAssessmentDegraded
+		}
+	}
+
+	if unavailable := v1helpers.FindCondition(insight.Conditions, string(updatev1alpha1.NodeStatusInsightAvailable)); unavailable != nil {
+		if unavailable.Status == metav1.ConditionFalse {
+			ndd.isUnavailable = true
+			ndd.Assessment = nodeAssessmentUnavailable
+		}
+	}
+
+	switch {
+	case insight.EstToComplete == nil:
+		ndd.Estimate = "?"
+	case insight.EstToComplete.Duration == 0:
+		ndd.Estimate = "-"
+	default:
+		ndd.Estimate = fmt.Sprintf("+%s", shortDuration(insight.EstToComplete.Duration))
+	}
+
+	return ndd
 }
 
-func whichPool(master, worker labels.Selector, custom map[string]labels.Selector, node corev1.Node) string {
-	if master.Matches(labels.Set(node.Labels)) {
-		return "master"
+func (p *poolDisplayData) acceptClusterVersionStatusInsight(_ string, _ *updatev1alpha1.ClusterVersionStatusInsight) {
+}
+
+func (p *poolDisplayData) acceptClusterOperatorStatusInsight(_ string, _ *updatev1alpha1.ClusterOperatorStatusInsight) {
+}
+
+func (p *poolDisplayData) acceptMachineConfigPoolInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.MachineConfigPoolStatusInsight) {
+}
+
+func (p *poolDisplayData) acceptNodeInsight(_ string, _ updatev1alpha1.ScopeType, insight *updatev1alpha1.NodeStatusInsight) {
+	if insight.PoolResource.Name == p.Name {
+		p.Nodes = append(p.Nodes, asNodeDisplayData(insight))
 	}
-	for name, selector := range custom {
-		if selector.Matches(labels.Set(node.Labels)) {
-			return name
-		}
-	}
-	if worker.Matches(labels.Set(node.Labels)) {
-		return "worker"
-	}
-	return ""
+}
+
+func (p *poolDisplayData) acceptHealthInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.HealthInsight) {
 }
 
 func ellipsizeNames(message string, name string) string {
@@ -192,6 +259,9 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 		case phaseStateUpdated:
 			assessment = nodeAssessmentCompleted
 			estimate = "-"
+		case phaseStateTodo:
+			assessment = nodeAssessmentTodo
+			estimate = "TODO"
 		}
 
 		var message, insightSummary, insightDescription string
@@ -431,6 +501,8 @@ func assessMachineConfigPool(pool mcfgv1.MachineConfigPool, nodes []nodeDisplayD
 			}
 		case phaseStateUpdated:
 			updatedCount++
+		case phaseStateTodo:
+
 		}
 	}
 
@@ -503,24 +575,24 @@ func writePools(w io.Writer, workerPoolsStatusData []poolDisplayData) {
 	tabw.Flush()
 }
 
-func (pool *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
-	if len(pool.Nodes) == 0 {
+func (p *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
+	if len(p.Nodes) == 0 {
 		return
 	}
-	if pool.Name == mco.MachineConfigPoolMaster {
-		if pool.Completion == 100 {
-			fmt.Fprintf(w, "\nAll control plane nodes successfully updated to %s\n", pool.Nodes[0].Version)
+	if p.Name == mco.MachineConfigPoolMaster {
+		if p.Completion == 100 {
+			fmt.Fprintf(w, "\nAll control plane nodes successfully updated to %s\n", p.Nodes[0].Version)
 			return
 		}
 		fmt.Fprintf(w, "\nControl Plane Nodes")
 	} else {
-		fmt.Fprintf(w, "\nWorker Pool Nodes: %s", pool.Name)
+		fmt.Fprintf(w, "\nWorker Pool Nodes: %s", p.Name)
 	}
 
 	tabw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	_, _ = tabw.Write([]byte("\nNAME\tASSESSMENT\tPHASE\tVERSION\tEST\tMESSAGE\n"))
 	var total, completed, available, progressing, outdated, draining, excluded int
-	for i, node := range pool.Nodes {
+	for i, node := range p.Nodes {
 		if !detailed && i >= 10 {
 			// Limit displaying too many nodes when not in detailed mode
 			// Display nodes in undesired states regardless their count
