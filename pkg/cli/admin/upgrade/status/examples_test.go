@@ -61,7 +61,7 @@ var mcpUpdatingFalse = metav1.Condition{
 	Reason: MachineConfigPoolStatusInsightUpdatingReasonCompleted,
 }
 
-var anchorLatestTime = metav1.Now()
+var anchorLatestTime = metav1.NewTime(time.Date(2025, 2, 4, 12, 42, 0, 0, time.UTC))
 
 var coHealthyTrue = metav1.Condition{
 	Type:               string(updatev1alpha1.ClusterOperatorStatusInsightHealthy),

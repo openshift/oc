@@ -18,11 +18,11 @@ status:
             reason: ClusterVersionProgressing
             status: "True"
             type: Updating
-          estimatedCompletedAt: "2025-03-04T17:23:26Z"
+          estimatedCompletedAt: "2025-02-04T14:07:01Z"
           resource:
             name: ""
             resource: ""
-          startedAt: "2025-03-04T15:56:56Z"
+          startedAt: "2025-02-04T12:40:31Z"
           versions:
             previous:
               metadata:
@@ -35,7 +35,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -54,12 +54,12 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
             type: Healthy
-          - lastTransitionTime: "2025-03-04T15:57:40Z"
+          - lastTransitionTime: "2025-02-04T12:41:15Z"
             message: 'NodeInstallerProgressing: 2 nodes are at revision 33; 1 nodes
               are at revision 34'
             reason: NodeInstaller
@@ -74,12 +74,12 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
             type: Healthy
-          - lastTransitionTime: "2025-03-04T15:52:17Z"
+          - lastTransitionTime: "2025-02-04T12:35:52Z"
             message: 'NodeInstallerProgressing: 3 nodes are at revision 274; 0 nodes
               have achieved new revision 276'
             reason: NodeInstaller
@@ -94,7 +94,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -113,7 +113,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -132,7 +132,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -151,7 +151,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -170,7 +170,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -189,7 +189,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -208,7 +208,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -227,7 +227,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -246,7 +246,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -265,7 +265,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -284,7 +284,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -303,7 +303,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -322,7 +322,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -341,7 +341,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -360,7 +360,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -379,7 +379,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -398,7 +398,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -417,7 +417,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -436,7 +436,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -455,7 +455,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -474,7 +474,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -493,7 +493,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -512,7 +512,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -531,7 +531,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -550,7 +550,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -569,7 +569,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -588,7 +588,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -607,7 +607,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -626,7 +626,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
@@ -645,7 +645,7 @@ status:
       - acquiredAt: null
         clusterOperator:
           conditions:
-          - lastTransitionTime: "2025-03-04T15:58:25Z"
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
             message: ""
             reason: AsExpected
             status: "True"
