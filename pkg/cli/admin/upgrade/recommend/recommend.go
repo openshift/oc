@@ -89,15 +89,15 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 	kcmdutil.RequireNoArguments(cmd, args)
 
 	if o.mockData.cvPath == "" {
-		cfg, err := f.ToRESTConfig()
+		var err error
+		o.RESTConfig, err = f.ToRESTConfig()
 		if err != nil {
 			return err
 		}
-		client, err := configv1client.NewForConfig(cfg)
+		o.Client, err = configv1client.NewForConfig(o.RESTConfig)
 		if err != nil {
 			return err
 		}
-		o.Client = client
 	} else {
 		cvSuffix := "-cv.yaml"
 		o.mockData.alertsPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-alerts.json", 1)
