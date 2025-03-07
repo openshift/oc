@@ -1,0 +1,25 @@
+updatestatuses.update.openshift.io:
+  Annotations:
+    description: Provides health and status information about OpenShift cluster updates.
+    displayName: UpdateStatuses
+  ApprovedPRNumber: https://github.com/openshift/api/pull/2012
+  CRDName: updatestatuses.update.openshift.io
+  Capability: ""
+  Category: ""
+  FeatureGates:
+  - UpgradeStatus
+  FilenameOperatorName: cluster-version-operator
+  FilenameOperatorOrdering: "02"
+  FilenameRunLevel: "0000_00"
+  GroupName: update.openshift.io
+  HasStatus: true
+  KindName: UpdateStatus
+  Labels: {}
+  PluralName: updatestatuses
+  PrinterColumns: []
+  Scope: Cluster
+  ShortNames: null
+  TopLevelFeatureGates:
+  - UpgradeStatus
+  Version: v1alpha1
+

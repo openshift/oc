@@ -1,0 +1,60 @@
+apiVersion: update.openshift.io/v1alpha1
+kind: UpdateStatus
+metadata:
+  creationTimestamp: null
+  name: cluster
+spec: {}
+status:
+  controlPlane:
+    informers:
+    - insights:
+      - acquiredAt: null
+        clusterVersion:
+          assessment: ""
+          completion: 0
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: ClusterVersionNotProgressing
+            status: "False"
+            type: Updating
+          resource:
+            name: ""
+            resource: ""
+          startedAt: null
+          versions:
+            previous:
+              version: ""
+            target:
+              version: ""
+        type: ClusterVersion
+        uid: cv-version
+      name: cpi
+    resource:
+      name: ""
+      resource: ""
+  workerPools:
+  - informers:
+    - insights:
+      - acquiredAt: null
+        machineConfigPool:
+          assessment: ""
+          completion: 0
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Completed
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+          scopeType: ""
+        type: MachineConfigPool
+        uid: mcp-worker-status
+      name: nodes
+    name: worker
+    resource:
+      name: ""
+      resource: ""
