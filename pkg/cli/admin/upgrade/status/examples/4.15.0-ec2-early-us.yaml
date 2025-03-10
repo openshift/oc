@@ -6,6 +6,12 @@ metadata:
 spec: {}
 status:
   controlPlane:
+    conditions:
+    - lastTransitionTime: null
+      message: ""
+      reason: ClusterVersionProgressing
+      status: "True"
+      type: Updating
     informers:
     - insights:
       - acquiredAt: null
@@ -20,8 +26,9 @@ status:
             type: Updating
           estimatedCompletedAt: "2025-02-04T14:07:01Z"
           resource:
-            name: ""
-            resource: ""
+            group: config.openshift.io
+            name: version
+            resource: clusterversions
           startedAt: "2025-02-04T12:40:31Z"
           versions:
             previous:
@@ -47,8 +54,9 @@ status:
             type: Updating
           name: config-operator
           resource:
-            name: ""
-            resource: ""
+            group: config.openshift.io
+            name: config-operator
+            resource: clusteroperators
         type: ClusterOperator
         uid: co-config-operator
       - acquiredAt: null
@@ -67,8 +75,9 @@ status:
             type: Updating
           name: etcd
           resource:
-            name: ""
-            resource: ""
+            group: config.openshift.io
+            name: etcd
+            resource: clusteroperators
         type: ClusterOperator
         uid: co-etcd
       - acquiredAt: null
@@ -87,8 +96,9 @@ status:
             type: Updating
           name: kube-apiserver
           resource:
-            name: ""
-            resource: ""
+            group: config.openshift.io
+            name: kube-apiserver
+            resource: clusteroperators
         type: ClusterOperator
         uid: co-kube-apiserver
       - acquiredAt: null
@@ -681,12 +691,14 @@ status:
             type: Available
           name: ip-10-0-30-217.us-east-2.compute.internal
           poolResource:
+            group: machineconfiguration.openshift.io
             name: master
-            resource: ""
+            resource: machineconfigpools
           resource:
-            name: ""
-            resource: ""
-          scopeType: ""
+            group: core
+            name: ip-10-0-30-217.us-east-2.compute.internal
+            resource: nodes
+          scopeType: ControlPlane
           version: 4.14.1
         type: Node
         uid: node-cp-1
@@ -710,12 +722,14 @@ status:
             type: Available
           name: ip-10-0-53-40.us-east-2.compute.internal
           poolResource:
+            group: machineconfiguration.openshift.io
             name: master
-            resource: ""
+            resource: machineconfigpools
           resource:
-            name: ""
-            resource: ""
-          scopeType: ""
+            group: core
+            name: ip-10-0-53-40.us-east-2.compute.internal
+            resource: nodes
+          scopeType: ControlPlane
           version: 4.14.1
         type: Node
         uid: node-cp-2
@@ -739,12 +753,14 @@ status:
             type: Available
           name: ip-10-0-92-180.us-east-2.compute.internal
           poolResource:
+            group: machineconfiguration.openshift.io
             name: master
-            resource: ""
+            resource: machineconfigpools
           resource:
-            name: ""
-            resource: ""
-          scopeType: ""
+            group: core
+            name: ip-10-0-92-180.us-east-2.compute.internal
+            resource: nodes
+          scopeType: ControlPlane
           version: 4.14.1
         type: Node
         uid: node-cp-3
@@ -802,9 +818,14 @@ status:
         type: Health
         uid: health-partial-update
       name: cpi
+    poolResource:
+      group: machineconfiguration.openshift.io
+      name: master
+      resource: machineconfigpools
     resource:
-      name: ""
-      resource: ""
+      group: config.openshift.io
+      name: version
+      resource: clusterversions
   workerPools:
   - informers:
     - insights:
@@ -931,5 +952,6 @@ status:
       name: nodes
     name: worker
     resource:
-      name: ""
-      resource: ""
+      group: machineconfiguration.openshift.io
+      name: worker
+      resource: machineconfigpools

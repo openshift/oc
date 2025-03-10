@@ -43,6 +43,12 @@ func compareWithFixture(t *testing.T, actualOut []byte, usPath string, outputSuf
 	}
 }
 
+var cpUpdatingTrue = metav1.Condition{
+	Type:   string(updatev1alpha1.ControlPlaneUpdating),
+	Status: metav1.ConditionTrue,
+	Reason: string(updatev1alpha1.ControlPlaneClusterVersionProgressing),
+}
+
 var cvUpdatingFalse = metav1.Condition{
 	Type:   string(updatev1alpha1.ClusterVersionStatusInsightUpdating),
 	Status: metav1.ConditionFalse,
@@ -167,6 +173,19 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 	},
 	"examples/4.15.0-ec2-early-us.yaml": {
 		ControlPlane: updatev1alpha1.ControlPlane{
+			Conditions: []metav1.Condition{cpUpdatingTrue},
+			Resource: updatev1alpha1.ResourceRef{
+				Group:    "config.openshift.io",
+				Resource: "clusterversions",
+				Name:     "version",
+			},
+			PoolResource: &updatev1alpha1.PoolResourceRef{
+				ResourceRef: updatev1alpha1.ResourceRef{
+					Group:    "machineconfiguration.openshift.io",
+					Resource: "machineconfigpools",
+					Name:     "master",
+				},
+			},
 			Informers: []updatev1alpha1.ControlPlaneInformer{
 				{
 					Name: "cpi",
@@ -176,11 +195,13 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 							ControlPlaneInsightUnion: updatev1alpha1.ControlPlaneInsightUnion{
 								Type: updatev1alpha1.ClusterVersionStatusInsightType,
 								ClusterVersionStatusInsight: &updatev1alpha1.ClusterVersionStatusInsight{
-									Conditions:           []metav1.Condition{cvUpdatingTrue},
-									Assessment:           updatev1alpha1.ControlPlaneAssessmentProgressing,
-									Completion:           3,
-									StartedAt:            metav1.NewTime(anchorLatestTime.Time.Add(-89 * time.Second)),
-									EstimatedCompletedAt: ptr.To(metav1.NewTime(anchorLatestTime.Time.Add(85*time.Minute + 1*time.Second))),
+									Conditions: []metav1.Condition{cvUpdatingTrue},
+									Resource: updatev1alpha1.ResourceRef{
+										Group:    "config.openshift.io",
+										Resource: "clusterversions",
+										Name:     "version",
+									},
+									Assessment: updatev1alpha1.ControlPlaneAssessmentProgressing,
 									Versions: updatev1alpha1.ControlPlaneUpdateVersions{
 										Previous: updatev1alpha1.Version{
 											Version: "4.14.1",
@@ -194,6 +215,9 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 											Version: "4.15.0-ec.2",
 										},
 									},
+									Completion:           3,
+									StartedAt:            metav1.NewTime(anchorLatestTime.Time.Add(-89 * time.Second)),
+									EstimatedCompletedAt: ptr.To(metav1.NewTime(anchorLatestTime.Time.Add(85*time.Minute + 1*time.Second))),
 								},
 							},
 						},
@@ -204,6 +228,11 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 								ClusterOperatorStatusInsight: &updatev1alpha1.ClusterOperatorStatusInsight{
 									Conditions: []metav1.Condition{coHealthyTrue, coUpdatingFalseUpdated},
 									Name:       "config-operator",
+									Resource: updatev1alpha1.ResourceRef{
+										Group:    "config.openshift.io",
+										Resource: "clusteroperators",
+										Name:     "config-operator",
+									},
 								},
 							},
 						},
@@ -224,6 +253,11 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 										},
 									},
 									Name: "etcd",
+									Resource: updatev1alpha1.ResourceRef{
+										Group:    "config.openshift.io",
+										Resource: "clusteroperators",
+										Name:     "etcd",
+									},
 								},
 							},
 						},
@@ -244,6 +278,11 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 										},
 									},
 									Name: "kube-apiserver",
+									Resource: updatev1alpha1.ResourceRef{
+										Group:    "config.openshift.io",
+										Resource: "clusteroperators",
+										Name:     "kube-apiserver",
+									},
 								},
 							},
 						},
@@ -282,10 +321,20 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 							ControlPlaneInsightUnion: updatev1alpha1.ControlPlaneInsightUnion{
 								Type: updatev1alpha1.NodeStatusInsightType,
 								NodeStatusInsight: &updatev1alpha1.NodeStatusInsight{
+									Resource: updatev1alpha1.ResourceRef{
+										Group:    "core",
+										Resource: "nodes",
+										Name:     "ip-10-0-30-217.us-east-2.compute.internal",
+									},
 									PoolResource: updatev1alpha1.PoolResourceRef{
-										ResourceRef: updatev1alpha1.ResourceRef{Name: "master"},
+										ResourceRef: updatev1alpha1.ResourceRef{
+											Group:    "machineconfiguration.openshift.io",
+											Resource: "machineconfigpools",
+											Name:     "master",
+										},
 									},
 									Conditions:    []metav1.Condition{nodeUpdatingPending, nodeDegradedFalse, nodeAvailableTrue},
+									Scope:         updatev1alpha1.ControlPlaneScope,
 									Name:          "ip-10-0-30-217.us-east-2.compute.internal",
 									Version:       "4.14.1",
 									EstToComplete: nil,
@@ -297,10 +346,20 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 							ControlPlaneInsightUnion: updatev1alpha1.ControlPlaneInsightUnion{
 								Type: updatev1alpha1.NodeStatusInsightType,
 								NodeStatusInsight: &updatev1alpha1.NodeStatusInsight{
+									Resource: updatev1alpha1.ResourceRef{
+										Group:    "core",
+										Resource: "nodes",
+										Name:     "ip-10-0-53-40.us-east-2.compute.internal",
+									},
 									PoolResource: updatev1alpha1.PoolResourceRef{
-										ResourceRef: updatev1alpha1.ResourceRef{Name: "master"},
+										ResourceRef: updatev1alpha1.ResourceRef{
+											Group:    "machineconfiguration.openshift.io",
+											Resource: "machineconfigpools",
+											Name:     "master",
+										},
 									},
 									Conditions:    []metav1.Condition{nodeUpdatingPending, nodeDegradedFalse, nodeAvailableTrue},
+									Scope:         updatev1alpha1.ControlPlaneScope,
 									Name:          "ip-10-0-53-40.us-east-2.compute.internal",
 									Version:       "4.14.1",
 									EstToComplete: nil,
@@ -312,10 +371,20 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 							ControlPlaneInsightUnion: updatev1alpha1.ControlPlaneInsightUnion{
 								Type: updatev1alpha1.NodeStatusInsightType,
 								NodeStatusInsight: &updatev1alpha1.NodeStatusInsight{
+									Resource: updatev1alpha1.ResourceRef{
+										Group:    "core",
+										Resource: "nodes",
+										Name:     "ip-10-0-92-180.us-east-2.compute.internal",
+									},
 									PoolResource: updatev1alpha1.PoolResourceRef{
-										ResourceRef: updatev1alpha1.ResourceRef{Name: "master"},
+										ResourceRef: updatev1alpha1.ResourceRef{
+											Group:    "machineconfiguration.openshift.io",
+											Resource: "machineconfigpools",
+											Name:     "master",
+										},
 									},
 									Conditions:    []metav1.Condition{nodeUpdatingPending, nodeDegradedFalse, nodeAvailableTrue},
+									Scope:         updatev1alpha1.ControlPlaneScope,
 									Name:          "ip-10-0-92-180.us-east-2.compute.internal",
 									Version:       "4.14.1",
 									EstToComplete: nil,
@@ -386,6 +455,13 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 		WorkerPools: []updatev1alpha1.Pool{
 			{
 				Name: "worker",
+				Resource: updatev1alpha1.PoolResourceRef{
+					ResourceRef: updatev1alpha1.ResourceRef{
+						Group:    "machineconfiguration.openshift.io",
+						Resource: "machineconfigpools",
+						Name:     "worker",
+					},
+				},
 				Informers: []updatev1alpha1.WorkerPoolInformer{
 					{
 						Name: "nodes",
