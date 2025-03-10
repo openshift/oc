@@ -257,7 +257,7 @@ func (o *options) Run(ctx context.Context) error {
 	var processors insightProcessors
 	if us = o.mockData.updateStatus; us == nil {
 		var err error
-		us, err = o.UpdateClient.UpdateV1alpha1().UpdateStatuses().Get(ctx, "cluster", metav1.GetOptions{})
+		us, err = o.UpdateClient.UpdateV1alpha1().UpdateStatuses().Get(ctx, "status-api-prototype", metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return fmt.Errorf("no update status information available - you must be connected to an OpenShift version 4 server to fetch the current version")
