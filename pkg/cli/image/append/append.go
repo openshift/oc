@@ -559,7 +559,7 @@ func (o *AppendImageOptions) append(ctx context.Context, createdAt *time.Time,
 	if skipTagging {
 		tag = ""
 	}
-	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, manifest, tag, toManifests, toRepo.Named(), fromRepo.Blobs(ctx), configJSON)
+	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, manifest, tag, toManifests, toRepo.Named(), toRepo.Blobs(ctx), configJSON)
 	if err != nil {
 		return fmt.Errorf("unable to convert the image to a compatible schema version: %v", err)
 	}
