@@ -141,6 +141,7 @@ func (i *isUpdatingProcessor) acceptClusterOperatorStatusInsight(_ string, _ *up
 const (
 	MachineConfigPoolStatusInsightUpdating                = "Updating"
 	MachineConfigPoolStatusInsightUpdatingReasonCompleted = "Completed"
+	MachineConfigPoolStatusInsightUpdatingReasonPending   = "Pending"
 )
 
 func (i *isUpdatingProcessor) acceptMachineConfigPoolInsight(_ string, scope updatev1alpha1.ScopeType, insight *updatev1alpha1.MachineConfigPoolStatusInsight) {
@@ -281,10 +282,10 @@ func (o *options) Run(ctx context.Context) error {
 	//
 	controlPlaneStatusData := controlPlaneStatusDisplayData{now: now}
 	processors = append(processors, &controlPlaneStatusData)
-	//
-	// var workerPoolsStatusData []poolDisplayData
-	// processors = append(processors, &workerPoolsStatusData)
-	//
+
+	var workerPoolsStatusData workerPoolsDisplayData
+	processors = append(processors, &workerPoolsStatusData)
+
 	var controlPlanePoolStatusData poolDisplayData
 	controlPlanePoolStatusData.Name = mco.MachineConfigPoolMaster
 	processors = append(processors, &controlPlanePoolStatusData)
@@ -299,22 +300,22 @@ func (o *options) Run(ctx context.Context) error {
 	_ = controlPlaneStatusData.Write(o.Out, o.enabledDetailed(detailedOutputOperators), now())
 	controlPlanePoolStatusData.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
 	//
-	// // TODO: Encapsulate this in a higher-level processor?
-	// var workerUpgrade bool
-	// for _, d := range workerPoolsStatusData {
-	// 	if len(d.Nodes) > 0 {
-	// 		workerUpgrade = true
-	// 		break
-	// 	}
-	// }
-	//
-	// if workerUpgrade {
-	// 	fmt.Fprintf(o.Out, "\n= Worker Upgrade =\n")
-	// 	writePools(o.Out, workerPoolsStatusData)
-	// 	for _, pool := range workerPoolsStatusData {
-	// 		pool.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
-	// 	}
-	// }
+	// TODO: Encapsulate this in a higher-level processor?
+	var workerUpgrade bool
+	for _, d := range workerPoolsStatusData {
+		if len(d.Nodes) > 0 {
+			workerUpgrade = true
+			break
+		}
+	}
+
+	if workerUpgrade {
+		fmt.Fprintf(o.Out, "\n= Worker Upgrade =\n")
+		writePools(o.Out, workerPoolsStatusData)
+		for _, pool := range workerPoolsStatusData {
+			pool.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
+		}
+	}
 	//
 	// fmt.Fprintf(o.Out, "\n")
 	//

@@ -55,10 +55,16 @@ var cvUpdatingTrue = metav1.Condition{
 	Reason: string(updatev1alpha1.ClusterVersionProgressing),
 }
 
-var mcpUpdatingFalse = metav1.Condition{
+var mcpUpdatingFalseCompleted = metav1.Condition{
 	Type:   MachineConfigPoolStatusInsightUpdating,
 	Status: metav1.ConditionFalse,
 	Reason: MachineConfigPoolStatusInsightUpdatingReasonCompleted,
+}
+
+var mcpUpdatingFalsePending = metav1.Condition{
+	Type:   MachineConfigPoolStatusInsightUpdating,
+	Status: metav1.ConditionFalse,
+	Reason: MachineConfigPoolStatusInsightUpdatingReasonPending,
 }
 
 var anchorLatestTime = metav1.NewTime(time.Date(2025, 2, 4, 12, 42, 0, 0, time.UTC))
@@ -149,7 +155,7 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 								WorkerPoolInsightUnion: updatev1alpha1.WorkerPoolInsightUnion{
 									Type: updatev1alpha1.MachineConfigPoolStatusInsightType,
 									MachineConfigPoolStatusInsight: &updatev1alpha1.MachineConfigPoolStatusInsight{
-										Conditions: []metav1.Condition{mcpUpdatingFalse},
+										Conditions: []metav1.Condition{mcpUpdatingFalseCompleted},
 									},
 								},
 							},
@@ -316,6 +322,35 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 								},
 							},
 						},
+						{
+							UID: "mcp-master",
+							ControlPlaneInsightUnion: updatev1alpha1.ControlPlaneInsightUnion{
+								Type: updatev1alpha1.MachineConfigPoolStatusInsightType,
+								MachineConfigPoolStatusInsight: &updatev1alpha1.MachineConfigPoolStatusInsight{
+									Conditions: []metav1.Condition{mcpUpdatingFalsePending},
+									Name:       "master",
+									Resource: updatev1alpha1.PoolResourceRef{
+										ResourceRef: updatev1alpha1.ResourceRef{
+											Group:    "machineconfiguration.openshift.io",
+											Resource: "machineconfigpools",
+											Name:     "master",
+										},
+									},
+									Scope:      updatev1alpha1.ControlPlaneScope,
+									Assessment: updatev1alpha1.PoolPending,
+									Completion: 0,
+									Summaries: []updatev1alpha1.NodeSummary{
+										{Type: updatev1alpha1.NodesTotal, Count: 3},
+										{Type: updatev1alpha1.NodesAvailable, Count: 3},
+										{Type: updatev1alpha1.NodesProgressing, Count: 0},
+										{Type: updatev1alpha1.NodesOutdated, Count: 3},
+										{Type: updatev1alpha1.NodesDraining, Count: 0},
+										{Type: updatev1alpha1.NodesExcluded, Count: 0},
+										{Type: updatev1alpha1.NodesDegraded, Count: 0},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -328,11 +363,76 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 						Name: "nodes",
 						Insights: []updatev1alpha1.WorkerPoolInsight{
 							{
-								UID: "mcp-worker-status",
+								UID: "mcp-worker",
 								WorkerPoolInsightUnion: updatev1alpha1.WorkerPoolInsightUnion{
 									Type: updatev1alpha1.MachineConfigPoolStatusInsightType,
 									MachineConfigPoolStatusInsight: &updatev1alpha1.MachineConfigPoolStatusInsight{
-										Conditions: []metav1.Condition{mcpUpdatingFalse},
+										Conditions: []metav1.Condition{mcpUpdatingFalsePending},
+										Name:       "worker",
+										Resource: updatev1alpha1.PoolResourceRef{
+											ResourceRef: updatev1alpha1.ResourceRef{
+												Group:    "machineconfiguration.openshift.io",
+												Resource: "machineconfigpools",
+												Name:     "worker",
+											},
+										},
+										Scope:      updatev1alpha1.WorkerPoolScope,
+										Assessment: updatev1alpha1.PoolPending,
+										Completion: 0,
+										Summaries: []updatev1alpha1.NodeSummary{
+											{Type: updatev1alpha1.NodesTotal, Count: 3},
+											{Type: updatev1alpha1.NodesAvailable, Count: 3},
+											{Type: updatev1alpha1.NodesProgressing, Count: 0},
+											{Type: updatev1alpha1.NodesOutdated, Count: 3},
+											{Type: updatev1alpha1.NodesDraining, Count: 0},
+											{Type: updatev1alpha1.NodesExcluded, Count: 0},
+											{Type: updatev1alpha1.NodesDegraded, Count: 0},
+										},
+									},
+								},
+							},
+							{
+								UID: "node-wp-1",
+								WorkerPoolInsightUnion: updatev1alpha1.WorkerPoolInsightUnion{
+									Type: updatev1alpha1.NodeStatusInsightType,
+									NodeStatusInsight: &updatev1alpha1.NodeStatusInsight{
+										PoolResource: updatev1alpha1.PoolResourceRef{
+											ResourceRef: updatev1alpha1.ResourceRef{Name: "worker"},
+										},
+										Conditions:    []metav1.Condition{nodeUpdatingPending, nodeDegradedFalse, nodeAvailableTrue},
+										Name:          "ip-10-0-20-162.us-east-2.compute.internal",
+										Version:       "4.14.1",
+										EstToComplete: nil,
+									},
+								},
+							},
+							{
+								UID: "node-wp-2",
+								WorkerPoolInsightUnion: updatev1alpha1.WorkerPoolInsightUnion{
+									Type: updatev1alpha1.NodeStatusInsightType,
+									NodeStatusInsight: &updatev1alpha1.NodeStatusInsight{
+										PoolResource: updatev1alpha1.PoolResourceRef{
+											ResourceRef: updatev1alpha1.ResourceRef{Name: "worker"},
+										},
+										Conditions:    []metav1.Condition{nodeUpdatingPending, nodeDegradedFalse, nodeAvailableTrue},
+										Name:          "ip-10-0-4-159.us-east-2.compute.internal",
+										Version:       "4.14.1",
+										EstToComplete: nil,
+									},
+								},
+							},
+							{
+								UID: "node-wp-3",
+								WorkerPoolInsightUnion: updatev1alpha1.WorkerPoolInsightUnion{
+									Type: updatev1alpha1.NodeStatusInsightType,
+									NodeStatusInsight: &updatev1alpha1.NodeStatusInsight{
+										PoolResource: updatev1alpha1.PoolResourceRef{
+											ResourceRef: updatev1alpha1.ResourceRef{Name: "worker"},
+										},
+										Conditions:    []metav1.Condition{nodeUpdatingPending, nodeDegradedFalse, nodeAvailableTrue},
+										Name:          "ip-10-0-99-40.us-east-2.compute.internal",
+										Version:       "4.14.1",
+										EstToComplete: nil,
 									},
 								},
 							},

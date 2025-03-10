@@ -116,7 +116,6 @@ type poolDisplayData struct {
 	Name          string
 	Assessment    assessmentState
 	Completion    float64
-	Duration      time.Duration
 	NodesOverview nodesOverviewDisplayData
 	Nodes         []nodeDisplayData
 }
@@ -193,7 +192,33 @@ func (p *poolDisplayData) acceptClusterVersionStatusInsight(_ string, _ *updatev
 func (p *poolDisplayData) acceptClusterOperatorStatusInsight(_ string, _ *updatev1alpha1.ClusterOperatorStatusInsight) {
 }
 
-func (p *poolDisplayData) acceptMachineConfigPoolInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.MachineConfigPoolStatusInsight) {
+func (p *poolDisplayData) acceptMachineConfigPoolInsight(_ string, _ updatev1alpha1.ScopeType, insight *updatev1alpha1.MachineConfigPoolStatusInsight) {
+	if insight.Name != p.Name {
+		return
+	}
+
+	p.Assessment = assessmentState(insight.Assessment)
+	p.Completion = float64(insight.Completion)
+	p.NodesOverview = nodesOverviewDisplayData{}
+
+	for i := range insight.Summaries {
+		switch insight.Summaries[i].Type {
+		case updatev1alpha1.NodesTotal:
+			p.NodesOverview.Total = int(insight.Summaries[i].Count)
+		case updatev1alpha1.NodesAvailable:
+			p.NodesOverview.Available = int(insight.Summaries[i].Count)
+		case updatev1alpha1.NodesProgressing:
+			p.NodesOverview.Progressing = int(insight.Summaries[i].Count)
+		case updatev1alpha1.NodesOutdated:
+			p.NodesOverview.Outdated = int(insight.Summaries[i].Count)
+		case updatev1alpha1.NodesDraining:
+			p.NodesOverview.Draining = int(insight.Summaries[i].Count)
+		case updatev1alpha1.NodesExcluded:
+			p.NodesOverview.Excluded = int(insight.Summaries[i].Count)
+		case updatev1alpha1.NodesDegraded:
+			p.NodesOverview.Degraded = int(insight.Summaries[i].Count)
+		}
+	}
 }
 
 func (p *poolDisplayData) acceptNodeInsight(_ string, _ updatev1alpha1.ScopeType, insight *updatev1alpha1.NodeStatusInsight) {
@@ -211,6 +236,57 @@ func ellipsizeNames(message string, name string) string {
 	}
 
 	return strings.Replace(message, name, "<node>", -1)
+}
+
+type workerPoolsDisplayData []poolDisplayData
+
+func (w *workerPoolsDisplayData) acceptClusterVersionStatusInsight(_ string, _ *updatev1alpha1.ClusterVersionStatusInsight) {
+}
+
+func (w *workerPoolsDisplayData) acceptClusterOperatorStatusInsight(_ string, _ *updatev1alpha1.ClusterOperatorStatusInsight) {
+}
+
+func (w *workerPoolsDisplayData) acceptMachineConfigPoolInsight(informer string, scope updatev1alpha1.ScopeType, insight *updatev1alpha1.MachineConfigPoolStatusInsight) {
+	if scope != updatev1alpha1.WorkerPoolScope {
+		return
+	}
+
+	idx := -1
+	for item := range *w {
+		if (*w)[item].Name == insight.Name {
+			idx = item
+			break
+		}
+	}
+	if idx == -1 {
+		*w = append(*w, poolDisplayData{Name: insight.Name})
+		idx = len(*w) - 1
+	}
+	(*w)[idx].acceptMachineConfigPoolInsight(informer, scope, insight)
+}
+
+func (w *workerPoolsDisplayData) acceptNodeInsight(informer string, scope updatev1alpha1.ScopeType, insight *updatev1alpha1.NodeStatusInsight) {
+	if scope != updatev1alpha1.WorkerPoolScope {
+		return
+	}
+
+	idx := -1
+	for item := range *w {
+		if (*w)[item].Name == insight.PoolResource.Name {
+			idx = item
+			break
+		}
+	}
+	if idx == -1 {
+		*w = append(*w, poolDisplayData{Name: insight.PoolResource.Name})
+		idx = len(*w) - 1
+	}
+
+	(*w)[idx].acceptNodeInsight(informer, scope, insight)
+}
+
+func (w *workerPoolsDisplayData) acceptHealthInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.HealthInsight) {
+
 }
 
 func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPool, nodes []corev1.Node, machineConfigs []mcfgv1.MachineConfig, multiArchMigrationInProgress bool) ([]nodeDisplayData, []updateInsight) {
@@ -572,7 +648,7 @@ func writePools(w io.Writer, workerPoolsStatusData []poolDisplayData) {
 			_, _ = tabw.Write([]byte(status))
 		}
 	}
-	tabw.Flush()
+	_ = tabw.Flush()
 }
 
 func (p *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
@@ -631,7 +707,7 @@ func (p *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
 		_, _ = tabw.Write([]byte(node.Estimate + "\t"))
 		_, _ = tabw.Write([]byte(node.Message + "\n"))
 	}
-	tabw.Flush()
+	_ = tabw.Flush()
 	if total > 0 {
 		fmt.Fprintf(w, "...\nOmitted additional %d Total, %d Completed, %d Available, %d Progressing, %d Outdated, %d Draining, %d Excluded, and 0 Degraded nodes.\nPass along --details=nodes to see all information.\n", total, completed, available, progressing, outdated, draining, excluded)
 	}

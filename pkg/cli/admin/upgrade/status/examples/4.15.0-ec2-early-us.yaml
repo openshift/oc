@@ -748,6 +748,39 @@ status:
           version: 4.14.1
         type: Node
         uid: node-cp-3
+      - acquiredAt: null
+        machineConfigPool:
+          assessment: Pending
+          completion: 0
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: master
+          resource:
+            group: machineconfiguration.openshift.io
+            name: master
+            resource: machineconfigpools
+          scopeType: ControlPlane
+          summaries:
+          - count: 3
+            type: Total
+          - count: 3
+            type: Available
+          - count: 0
+            type: Progressing
+          - count: 3
+            type: Outdated
+          - count: 0
+            type: Draining
+          - count: 0
+            type: Excluded
+          - count: 0
+            type: Degraded
+        type: MachineConfigPool
+        uid: mcp-master
       name: cpi
     resource:
       name: ""
@@ -757,21 +790,124 @@ status:
     - insights:
       - acquiredAt: null
         machineConfigPool:
-          assessment: ""
+          assessment: Pending
           completion: 0
           conditions:
           - lastTransitionTime: null
             message: ""
-            reason: Completed
+            reason: Pending
             status: "False"
             type: Updating
-          name: ""
+          name: worker
+          resource:
+            group: machineconfiguration.openshift.io
+            name: worker
+            resource: machineconfigpools
+          scopeType: WorkerPool
+          summaries:
+          - count: 3
+            type: Total
+          - count: 3
+            type: Available
+          - count: 0
+            type: Progressing
+          - count: 3
+            type: Outdated
+          - count: 0
+            type: Draining
+          - count: 0
+            type: Excluded
+          - count: 0
+            type: Degraded
+        type: MachineConfigPool
+        uid: mcp-worker
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-20-162.us-east-2.compute.internal
+          poolResource:
+            name: worker
+            resource: ""
           resource:
             name: ""
             resource: ""
           scopeType: ""
-        type: MachineConfigPool
-        uid: mcp-worker-status
+          version: 4.14.1
+        type: Node
+        uid: node-wp-1
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-4-159.us-east-2.compute.internal
+          poolResource:
+            name: worker
+            resource: ""
+          resource:
+            name: ""
+            resource: ""
+          scopeType: ""
+          version: 4.14.1
+        type: Node
+        uid: node-wp-2
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-99-40.us-east-2.compute.internal
+          poolResource:
+            name: worker
+            resource: ""
+          resource:
+            name: ""
+            resource: ""
+          scopeType: ""
+          version: 4.14.1
+        type: Node
+        uid: node-wp-3
       name: nodes
     name: worker
     resource:
