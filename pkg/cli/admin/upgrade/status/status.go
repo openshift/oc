@@ -277,9 +277,9 @@ func (o *options) Run(ctx context.Context) error {
 	var isUpdating isUpdatingProcessor
 	processors = append(processors, &isUpdating)
 
-	// var updateHealth updateHealthData
-	// processors = append(processors, &updateHealth)
-	//
+	updateHealth := updateHealthData{evaluatedAt: now()}
+	processors = append(processors, &updateHealth)
+
 	controlPlaneStatusData := controlPlaneStatusDisplayData{now: now}
 	processors = append(processors, &controlPlaneStatusData)
 
@@ -316,9 +316,9 @@ func (o *options) Run(ctx context.Context) error {
 			pool.WriteNodes(o.Out, o.enabledDetailed(detailedOutputNodes))
 		}
 	}
-	//
-	// fmt.Fprintf(o.Out, "\n")
-	//
-	// _ = updateHealth.Write(o.Out, o.enabledDetailed(detailedOutputHealth))
+
+	fmt.Fprintf(o.Out, "\n")
+
+	_ = updateHealth.Write(o.Out, o.enabledDetailed(detailedOutputHealth))
 	return nil
 }

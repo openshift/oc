@@ -351,6 +351,34 @@ var fixtures = map[string]updatev1alpha1.UpdateStatusStatus{
 								},
 							},
 						},
+						{
+							UID: "health-partial-update",
+							ControlPlaneInsightUnion: updatev1alpha1.ControlPlaneInsightUnion{
+								Type: updatev1alpha1.HealthInsightType,
+								HealthInsight: &updatev1alpha1.HealthInsight{
+									StartedAt: metav1.NewTime(anchorLatestTime.Time.Add(-89 * time.Second)),
+									Scope: updatev1alpha1.InsightScope{
+										Type: updatev1alpha1.ControlPlaneScope,
+										Resources: []updatev1alpha1.ResourceRef{
+											{
+												Group:    "config.openshift.io",
+												Resource: "clusterversions",
+												Name:     "version",
+											},
+										},
+									},
+									Impact: updatev1alpha1.InsightImpact{
+										Level:       updatev1alpha1.WarningImpactLevel,
+										Type:        updatev1alpha1.NoneImpactType,
+										Summary:     "Previous update to 4.14.1 never completed, last complete update was 4.14.0-rc.7",
+										Description: "Current update to 4.15.0-ec.2 was initiated while the previous update to version 4.14.1 was still in progress",
+									},
+									Remediation: updatev1alpha1.InsightRemediation{
+										Reference: "https://docs.openshift.com/container-platform/latest/updating/troubleshooting_updates/gathering-data-cluster-update.html#gathering-clusterversion-history-cli_troubleshooting_updates",
+									},
+								},
+							},
+						},
 					},
 				},
 			},

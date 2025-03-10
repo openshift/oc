@@ -7,6 +7,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	updatev1alpha1 "github.com/openshift/api/update/v1alpha1"
 )
 
 type scopeType string
@@ -129,6 +131,67 @@ type updateHealthData struct {
 	insights    []updateInsight
 }
 
+var levelsToOurs = map[updatev1alpha1.InsightImpactLevel]impactLevel{
+	updatev1alpha1.InfoImpactLevel:    infoImpactLevel,
+	updatev1alpha1.WarningImpactLevel: warningImpactLevel,
+	updatev1alpha1.ErrorImpactLevel:   errorImpactLevel,
+	updatev1alpha1.CriticalInfoLevel:  criticalInfoLevel,
+	updatev1alpha1.UnknownImpactLevel: infoImpactLevel,
+}
+
+var typesToOurs = map[updatev1alpha1.InsightImpactType]impactType{
+	updatev1alpha1.NoneImpactType:                    noneImpactType,
+	updatev1alpha1.UnknownImpactType:                 unknownImpactType,
+	updatev1alpha1.ApiAvailabilityImpactType:         apiAvailabilityImpactType,
+	updatev1alpha1.ClusterCapacityImpactType:         clusterCapacityImpactType,
+	updatev1alpha1.ApplicationAvailabilityImpactType: applicationAvailabilityImpactType,
+	updatev1alpha1.ApplicationOutageImpactType:       applicationOutageImpactType,
+	updatev1alpha1.DataLossImpactType:                dataLossImpactType,
+	updatev1alpha1.UpdateSpeedImpactType:             updateSpeedImpactType,
+	updatev1alpha1.UpdateStalledImpactType:           updateStalledImpactType,
+}
+
+func (i *updateHealthData) acceptClusterVersionStatusInsight(_ string, _ *updatev1alpha1.ClusterVersionStatusInsight) {
+}
+
+func (i *updateHealthData) acceptClusterOperatorStatusInsight(_ string, _ *updatev1alpha1.ClusterOperatorStatusInsight) {
+}
+
+func (i *updateHealthData) acceptMachineConfigPoolInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.MachineConfigPoolStatusInsight) {
+}
+
+func (i *updateHealthData) acceptNodeInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.NodeStatusInsight) {
+}
+
+func (i *updateHealthData) acceptHealthInsight(_ string, scope updatev1alpha1.ScopeType, insight *updatev1alpha1.HealthInsight) {
+	i.insights = append(i.insights, updateInsight{
+		startedAt: insight.StartedAt.Time,
+		scope: updateInsightScope{
+			scopeType: scopeType(scope),
+			resources: make([]scopeResource, 0, len(insight.Scope.Resources)),
+		},
+		impact: updateInsightImpact{
+			level:       levelsToOurs[insight.Impact.Level],
+			impactType:  typesToOurs[insight.Impact.Type],
+			summary:     insight.Impact.Summary,
+			description: insight.Impact.Description,
+		},
+		remediation: updateInsightRemediation{
+			reference: insight.Remediation.Reference,
+		},
+	})
+	for _, resource := range insight.Scope.Resources {
+		i.insights[len(i.insights)-1].scope.resources = append(i.insights[len(i.insights)-1].scope.resources, scopeResource{
+			kind: scopeGroupKind{
+				group: resource.Group,
+				kind:  resource.Resource,
+			},
+			namespace: resource.Namespace,
+			name:      resource.Name,
+		})
+	}
+}
+
 // assessUpdateInsights processes insights to be displayed and returns matching displayable data. If the displayable data are not
 // worth showing in detailed mode, returns false as the second return value.
 func assessUpdateInsights(insights []updateInsight, upgradingFor time.Duration, evaluatedAt time.Time) (updateHealthData, bool) {
@@ -193,7 +256,7 @@ func shortDuration(d time.Duration) string {
 
 func stringSince(health *updateHealthData, insight updateInsight) string {
 	if insight.startedAt.IsZero() {
-		// On client it is not possible to calculate the precise time of all insights
+		// On client, it is not possible to calculate the precise time of all insights
 		// On server side we can backfill with firstObserved
 		return "-"
 	}
@@ -227,7 +290,7 @@ func (i *updateHealthData) Write(w io.Writer, detailed bool) error {
 				resources = map[string][]string{}
 			}
 
-			kind := fmt.Sprintf("%ss", strings.ToLower(resource.kind.kind))
+			kind := strings.ToLower(resource.kind.kind)
 			if resource.kind.group != "" {
 				kind = fmt.Sprintf("%s.%s", kind, resource.kind.group)
 			}
