@@ -51,6 +51,8 @@ import (
 
 const (
 	gatherContainerName = "gather"
+	unreachableTaintKey = "node.kubernetes.io/unreachable"
+	notReadyTaintKey    = "node.kubernetes.io/not-ready"
 )
 
 var (
@@ -97,6 +99,44 @@ fi
 sleep 5
 done`
 )
+
+var (
+	tolerationNotReady = corev1.Toleration{
+		Key:      "node.kubernetes.io/not-ready",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+
+	tolerationMasterNoSchedule = corev1.Toleration{
+		Key:      "node-role.kubernetes.io/master",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+)
+
+// buildNodeSelector builds a node selector from the provided node names.
+func buildNodeAffinity(nodeNames []string) *corev1.Affinity {
+	if len(nodeNames) == 0 {
+		return nil
+	}
+	return &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   nodeNames,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
 
 const (
 	// number of concurrent must-gather Pods to run if --all-images or multiple --image are provided
@@ -403,6 +443,42 @@ func (o *MustGatherOptions) Validate() error {
 	return nil
 }
 
+// prioritizeHealthyNodes returns a preferred node to run the must-gather pod on, and a fallback node if no preferred node is found.
+func prioritizeHealthyNodes(nodes *corev1.NodeList) (preferred *corev1.Node, fallback *corev1.Node) {
+	var fallbackNode *corev1.Node
+	var latestHeartbeat time.Time
+
+	for _, node := range nodes.Items {
+		var hasUnhealthyTaint bool
+		for _, taint := range node.Spec.Taints {
+			if taint.Key == unreachableTaintKey || taint.Key == notReadyTaintKey {
+				hasUnhealthyTaint = true
+				break
+			}
+		}
+
+		// Look at heartbeat time for readiness hint
+		for _, cond := range node.Status.Conditions {
+			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+				// Check if heartbeat is recent (less than 2m old)
+				if time.Since(cond.LastHeartbeatTime.Time) < 2*time.Minute {
+					if !hasUnhealthyTaint {
+						return &node, nil // return immediately on good candidate
+					}
+				}
+				break
+			}
+		}
+
+		if fallbackNode == nil || node.CreationTimestamp.Time.After(latestHeartbeat) {
+			fallbackNode = &node
+			latestHeartbeat = node.CreationTimestamp.Time
+		}
+	}
+
+	return nil, fallbackNode
+}
+
 // Run creates and runs a must-gather pod
 func (o *MustGatherOptions) Run() error {
 	var errs []error
@@ -459,15 +535,52 @@ func (o *MustGatherOptions) Run() error {
 		defer cleanupNamespace()
 	}
 
-	// Prefer to run in master if there's any but don't be explicit otherwise.
-	// This enables the command to run by default in hypershift where there's no masters.
-	nodes, err := o.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: o.NodeSelector,
-	})
+	nodes, err := o.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	var hasMaster bool
+
+	var cpNodes, workerNodes, unschedulableNodes []corev1.Node
+	for _, node := range nodes.Items {
+		isReady := false
+		for _, cond := range node.Status.Conditions {
+			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+				isReady = true
+				break
+			}
+		}
+		if !isReady {
+			continue
+		}
+		if node.Spec.Unschedulable {
+			unschedulableNodes = append(unschedulableNodes, node)
+			continue
+		}
+		if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
+			cpNodes = append(cpNodes, node)
+		} else {
+			workerNodes = append(workerNodes, node)
+		}
+	}
+
+	selectedNodes := cpNodes
+	if len(selectedNodes) == 0 {
+		selectedNodes = workerNodes
+	}
+	if len(selectedNodes) == 0 {
+		selectedNodes = unschedulableNodes
+	}
+
+	var nodeNames []string
+	for _, n := range selectedNodes {
+		nodeNames = append(nodeNames, n.Name)
+	}
+
+	affinity := buildNodeAffinity(nodeNames)
+	// If we have no nodes, we cannot run the must-gather pod.
+
+	// Determine if there is a master node
+	hasMaster := false
 	for _, node := range nodes.Items {
 		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
 			hasMaster = true
@@ -496,7 +609,7 @@ func (o *MustGatherOptions) Run() error {
 				return err
 			}
 			for _, node := range nodes.Items {
-				pods = append(pods, o.newPod(node.Name, image, hasMaster))
+				pods = append(pods, o.newPod(node.Name, image, hasMaster, affinity))
 			}
 		} else {
 			if o.NodeName != "" {
@@ -506,7 +619,7 @@ func (o *MustGatherOptions) Run() error {
 					return err
 				}
 			}
-			pods = append(pods, o.newPod(o.NodeName, image, hasMaster))
+			pods = append(pods, o.newPod(o.NodeName, image, hasMaster, affinity))
 		}
 	}
 
@@ -923,7 +1036,8 @@ func newClusterRoleBinding(ns string) *rbacv1.ClusterRoleBinding {
 // newPod creates a pod with 2 containers with a shared volume mount:
 // - gather: init containers that run gather command
 // - copy: no-op container we can exec into
-func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.Pod {
+func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity *corev1.Affinity) *corev1.Pod {
+
 	zero := int64(0)
 
 	nodeSelector := map[string]string{
@@ -940,6 +1054,31 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 
 	cleanedSourceDir := path.Clean(o.SourceDir)
 	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
+
+	// Define taints we do not want to tolerate (can be extended with user input in the future)
+	excludedTaints := []corev1.Taint{
+		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoExecute},
+		{Key: notReadyTaintKey, Effect: corev1.TaintEffectNoSchedule},
+	}
+
+	// Define candidate tolerations we may want to apply
+	candidateTolerations := []corev1.Toleration{tolerationNotReady}
+	if node == "" && hasMaster {
+		candidateTolerations = append(candidateTolerations, tolerationMasterNoSchedule)
+	}
+
+	// Build the toleration list by only adding tolerations that do NOT tolerate excluded taints
+	filteredTolerations := make([]corev1.Toleration, 0, len(candidateTolerations))
+TolerationLoop:
+	for _, tol := range candidateTolerations {
+		for _, excluded := range excludedTaints {
+			if tol.ToleratesTaint(&excluded) {
+				// Skip this toleration if it tolerates an excluded taint
+				continue TolerationLoop
+			}
+		}
+		filteredTolerations = append(filteredTolerations, tol)
+	}
 
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1023,6 +1162,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 					Operator: "Exists",
 				},
 			},
+			Affinity: affinity,
 		},
 	}
 	if o.HostNetwork {
