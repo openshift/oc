@@ -10,6 +10,9 @@ import (
 	"time"
 
 	v1 "github.com/openshift/api/config/v1"
+	updatev1alpha1 "github.com/openshift/api/update/v1alpha1"
+	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type assessmentState string
@@ -82,6 +85,8 @@ func (v versions) String() string {
 }
 
 type controlPlaneStatusDisplayData struct {
+	now func() time.Time
+
 	Assessment           assessmentState
 	Completion           float64
 	CompletionAt         time.Time
@@ -91,6 +96,85 @@ type controlPlaneStatusDisplayData struct {
 	Operators            operators
 	TargetVersion        versions
 	IsMultiArchMigration bool
+}
+
+func (d *controlPlaneStatusDisplayData) acceptClusterVersionStatusInsight(_ string, insight *updatev1alpha1.ClusterVersionStatusInsight) {
+	// TODO: Reconcile API assessment type with `assessmentState` here
+	d.Assessment = assessmentState(insight.Assessment)
+	d.Completion = float64(insight.Completion)
+	if insight.CompletedAt != nil {
+		d.CompletionAt = insight.CompletedAt.Time
+	}
+
+	if insight.Assessment == updatev1alpha1.ControlPlaneAssessmentCompleted {
+		d.Duration = insight.CompletedAt.Sub(insight.StartedAt.Time)
+	} else {
+		d.Duration = d.now().Sub(insight.StartedAt.Time)
+	}
+
+	if insight.EstimatedCompletedAt != nil {
+		d.EstDuration = insight.EstimatedCompletedAt.Sub(insight.StartedAt.Time)
+		d.EstTimeToComplete = insight.EstimatedCompletedAt.Sub(d.now())
+	}
+
+	metadataItem := func(metadata []updatev1alpha1.VersionMetadata, key updatev1alpha1.VersionMetadataKey) *updatev1alpha1.VersionMetadata {
+		for i := range metadata {
+			if metadata[i].Key == key {
+				return &metadata[i]
+			}
+		}
+		return nil
+	}
+
+	d.TargetVersion = versions{
+		target:               insight.Versions.Target.Version,
+		previous:             insight.Versions.Previous.Version,
+		isTargetInstall:      metadataItem(insight.Versions.Previous.Metadata, updatev1alpha1.InstallationMetadata) != nil,
+		isPreviousPartial:    metadataItem(insight.Versions.Previous.Metadata, updatev1alpha1.PartialMetadata) != nil,
+		isMultiArchMigration: metadataItem(insight.Versions.Target.Metadata, updatev1alpha1.ArchitectureMetadata) != nil,
+	}
+
+	d.IsMultiArchMigration = d.TargetVersion.isMultiArchMigration
+}
+
+func (d *controlPlaneStatusDisplayData) acceptClusterOperatorStatusInsight(_ string, insight *updatev1alpha1.ClusterOperatorStatusInsight) {
+	d.Operators.Total++
+	if updating := v1helpers.FindCondition(insight.Conditions, string(updatev1alpha1.ClusterOperatorStatusInsightUpdating)); updating != nil {
+		if updating.Status == metav1.ConditionTrue {
+			d.Operators.Updating = append(d.Operators.Updating, UpdatingClusterOperator{Name: insight.Name, Condition: &v1.ClusterOperatorStatusCondition{
+				Type:               v1.OperatorProgressing,
+				Status:             v1.ConditionTrue,
+				LastTransitionTime: updating.LastTransitionTime,
+				Reason:             updating.Reason,
+				Message:            updating.Message,
+			}})
+		} else {
+			if updating.Reason == string(updatev1alpha1.ClusterOperatorUpdatingReasonUpdated) {
+				d.Operators.Updated++
+			} else {
+				d.Operators.Waiting++
+			}
+		}
+	}
+	if healthy := v1helpers.FindCondition(insight.Conditions, string(updatev1alpha1.ClusterOperatorStatusInsightHealthy)); healthy != nil {
+		if healthy.Status != metav1.ConditionTrue {
+			if healthy.Reason == string(updatev1alpha1.ClusterOperatorHealthyReasonUnavailable) {
+				d.Operators.Unavailable++
+			}
+			if healthy.Reason == string(updatev1alpha1.ClusterOperatorHealthyReasonDegraded) {
+				d.Operators.Degraded++
+			}
+		}
+	}
+}
+
+func (d *controlPlaneStatusDisplayData) acceptMachineConfigPoolInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.MachineConfigPoolStatusInsight) {
+}
+
+func (d *controlPlaneStatusDisplayData) acceptNodeInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.NodeStatusInsight) {
+}
+
+func (d *controlPlaneStatusDisplayData) acceptHealthInsight(_ string, _ updatev1alpha1.ScopeType, _ *updatev1alpha1.HealthInsight) {
 }
 
 const (
@@ -148,186 +232,186 @@ func coInsights(name string, available *v1.ClusterOperatorStatusCondition, degra
 	return insights
 }
 
-func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOperator, mcoImagePullSpec string, at time.Time) (controlPlaneStatusDisplayData, []updateInsight) {
-	var displayData controlPlaneStatusDisplayData
-	var insights []updateInsight
-
-	targetVersion := cv.Status.Desired.Version
-	cvGroupKind := scopeGroupKind{group: v1.GroupName, kind: clusterVersionKind}
-	cvScope := scopeResource{kind: cvGroupKind, name: cv.Name}
-
-	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c == nil {
-		insight := updateInsight{
-			startedAt: at,
-			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{cvScope}},
-			impact: updateInsightImpact{
-				level:       warningImpactLevel,
-				impactType:  updateStalledImpactType,
-				summary:     fmt.Sprintf("Cluster Version %s has no %s condition", cv.Name, clusterStatusFailing),
-				description: "Current status of Cluster Version reconciliation is unclear.  See 'oc -n openshift-cluster-version logs -l k8s-app=cluster-version-operator --tail -1' to debug.",
-			},
-			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
-		}
-		insights = append(insights, insight)
-	} else if c.Status != v1.ConditionFalse {
-		insight := updateInsight{
-			startedAt: c.LastTransitionTime.Time,
-			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: cvGroupKind, name: cv.Name}}},
-			impact: updateInsightImpact{
-				level:       warningImpactLevel,
-				impactType:  updateStalledImpactType,
-				summary:     fmt.Sprintf("Cluster Version %s is failing to proceed with the update (%s)", cv.Name, c.Reason),
-				description: c.Message,
-			},
-			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
-		}
-		insights = append(insights, insight)
-	}
-
-	var lastObservedProgress time.Time
-	var mcoStartedUpdating time.Time
-
-	for _, operator := range operators {
-		var isPlatformOperator bool
-		for annotation := range operator.Annotations {
-			if strings.HasPrefix(annotation, "exclude.release.openshift.io/") ||
-				strings.HasPrefix(annotation, "include.release.openshift.io/") {
-				isPlatformOperator = true
-				break
-			}
-		}
-		if !isPlatformOperator {
-			continue
-		}
-
-		var updated bool
-		var mcoOperatorImageUpgrading bool
-		if operator.Name == "machine-config" {
-			for _, version := range operator.Status.Versions {
-				if version.Name == "operator-image" {
-					if mcoImagePullSpec != version.Version {
-						mcoOperatorImageUpgrading = true
-						break
-					}
-				}
-			}
-		}
-
-		if operator.Name != "machine-config" || !mcoOperatorImageUpgrading {
-			for _, version := range operator.Status.Versions {
-				if version.Name == "operator" && version.Version == targetVersion {
-					updated = true
-					break
-				}
-			}
-		}
-
-		if updated {
-			displayData.Operators.Updated++
-		}
-
-		var available *v1.ClusterOperatorStatusCondition
-		var degraded *v1.ClusterOperatorStatusCondition
-		var progressing *v1.ClusterOperatorStatusCondition
-
-		displayData.Operators.Total++
-		for _, condition := range operator.Status.Conditions {
-			condition := condition
-			switch {
-			case condition.Type == v1.OperatorAvailable:
-				available = &condition
-			case condition.Type == v1.OperatorDegraded:
-				degraded = &condition
-			case condition.Type == v1.OperatorProgressing:
-				progressing = &condition
-			}
-		}
-
-		if progressing != nil {
-			if progressing.LastTransitionTime.After(lastObservedProgress) {
-				lastObservedProgress = progressing.LastTransitionTime.Time
-			}
-			if !updated && progressing.Status == v1.ConditionTrue {
-				displayData.Operators.Updating = append(displayData.Operators.Updating,
-					UpdatingClusterOperator{Name: operator.Name, Condition: progressing})
-			}
-			if !updated && progressing.Status == v1.ConditionFalse {
-				displayData.Operators.Waiting++
-			}
-			if progressing.Status == v1.ConditionTrue && operator.Name == "machine-config" && !updated {
-				mcoStartedUpdating = progressing.LastTransitionTime.Time
-			}
-		}
-
-		if available == nil || available.Status != v1.ConditionTrue {
-			displayData.Operators.Unavailable++
-		} else if degraded != nil && degraded.Status == v1.ConditionTrue {
-			displayData.Operators.Degraded++
-		}
-		insights = append(insights, coInsights(operator.Name, available, degraded, at)...)
-	}
-
-	controlPlaneCompleted := displayData.Operators.Updated == displayData.Operators.Total
-	if controlPlaneCompleted {
-		displayData.Assessment = assessmentStateCompleted
-	} else {
-		displayData.Assessment = assessmentStateProgressing
-	}
-
-	// If MCO is the last updating operator, treat its progressing start as last observed progress
-	// to avoid daemonset operators polluting last observed progress by flipping Progressing when
-	// nodes reboot
-	if !mcoStartedUpdating.IsZero() && (displayData.Operators.Total-displayData.Operators.Updated == 1) {
-		lastObservedProgress = mcoStartedUpdating
-	}
-
-	// updatingFor is started until now
-	var updatingFor time.Duration
-	// toLastObservedProgress is started until last observed progress
-	var toLastObservedProgress time.Duration
-
-	if len(cv.Status.History) > 0 {
-		currentHistoryItem := cv.Status.History[0]
-		started := currentHistoryItem.StartedTime.Time
-		if !lastObservedProgress.After(started) {
-			lastObservedProgress = at
-		}
-		toLastObservedProgress = lastObservedProgress.Sub(started)
-		if currentHistoryItem.State == v1.CompletedUpdate {
-			displayData.CompletionAt = currentHistoryItem.CompletionTime.Time
-		} else {
-			displayData.CompletionAt = at
-		}
-		updatingFor = displayData.CompletionAt.Sub(started)
-		// precision to seconds when under 60s
-		if updatingFor > 10*time.Minute {
-			displayData.Duration = updatingFor.Round(time.Minute)
-		} else {
-			displayData.Duration = updatingFor.Round(time.Second)
-		}
-	}
-
-	versionData, versionInsights := versionsFromHistory(cv.Status.History, cvScope, controlPlaneCompleted)
-	displayData.TargetVersion = versionData
-	displayData.IsMultiArchMigration = versionData.isMultiArchMigration
-	insights = append(insights, versionInsights...)
-
-	coCompletion := float64(displayData.Operators.Updated) / float64(displayData.Operators.Total)
-	displayData.Completion = coCompletion * 100.0
-	if coCompletion <= 1 && displayData.Assessment != assessmentStateCompleted {
-		historyBaseline := baselineDuration(cv.Status.History)
-		displayData.EstTimeToComplete = estimateCompletion(historyBaseline, toLastObservedProgress, updatingFor, coCompletion)
-		displayData.EstDuration = (updatingFor + displayData.EstTimeToComplete).Truncate(time.Minute)
-
-		if displayData.EstTimeToComplete < -10*time.Minute {
-			displayData.Assessment = assessmentStateStalled
-		} else if displayData.EstTimeToComplete < 0 {
-			displayData.Assessment = assessmentStateProgressingSlow
-		}
-	}
-
-	return displayData, insights
-}
+// func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOperator, mcoImagePullSpec string, at time.Time) (controlPlaneStatusDisplayData, []updateInsight) {
+// 	var displayData controlPlaneStatusDisplayData
+// 	var insights []updateInsight
+//
+// 	targetVersion := cv.Status.Desired.Version
+// 	cvGroupKind := scopeGroupKind{group: v1.GroupName, kind: clusterVersionKind}
+// 	cvScope := scopeResource{kind: cvGroupKind, name: cv.Name}
+//
+// 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c == nil {
+// 		insight := updateInsight{
+// 			startedAt: at,
+// 			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{cvScope}},
+// 			impact: updateInsightImpact{
+// 				level:       warningImpactLevel,
+// 				impactType:  updateStalledImpactType,
+// 				summary:     fmt.Sprintf("Cluster Version %s has no %s condition", cv.Name, clusterStatusFailing),
+// 				description: "Current status of Cluster Version reconciliation is unclear.  See 'oc -n openshift-cluster-version logs -l k8s-app=cluster-version-operator --tail -1' to debug.",
+// 			},
+// 			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
+// 		}
+// 		insights = append(insights, insight)
+// 	} else if c.Status != v1.ConditionFalse {
+// 		insight := updateInsight{
+// 			startedAt: c.LastTransitionTime.Time,
+// 			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: cvGroupKind, name: cv.Name}}},
+// 			impact: updateInsightImpact{
+// 				level:       warningImpactLevel,
+// 				impactType:  updateStalledImpactType,
+// 				summary:     fmt.Sprintf("Cluster Version %s is failing to proceed with the update (%s)", cv.Name, c.Reason),
+// 				description: c.Message,
+// 			},
+// 			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
+// 		}
+// 		insights = append(insights, insight)
+// 	}
+//
+// 	var lastObservedProgress time.Time
+// 	var mcoStartedUpdating time.Time
+//
+// 	for _, operator := range operators {
+// 		var isPlatformOperator bool
+// 		for annotation := range operator.Annotations {
+// 			if strings.HasPrefix(annotation, "exclude.release.openshift.io/") ||
+// 				strings.HasPrefix(annotation, "include.release.openshift.io/") {
+// 				isPlatformOperator = true
+// 				break
+// 			}
+// 		}
+// 		if !isPlatformOperator {
+// 			continue
+// 		}
+//
+// 		var updated bool
+// 		var mcoOperatorImageUpgrading bool
+// 		if operator.Name == "machine-config" {
+// 			for _, version := range operator.Status.Versions {
+// 				if version.Name == "operator-image" {
+// 					if mcoImagePullSpec != version.Version {
+// 						mcoOperatorImageUpgrading = true
+// 						break
+// 					}
+// 				}
+// 			}
+// 		}
+//
+// 		if operator.Name != "machine-config" || !mcoOperatorImageUpgrading {
+// 			for _, version := range operator.Status.Versions {
+// 				if version.Name == "operator" && version.Version == targetVersion {
+// 					updated = true
+// 					break
+// 				}
+// 			}
+// 		}
+//
+// 		if updated {
+// 			displayData.Operators.Updated++
+// 		}
+//
+// 		var available *v1.ClusterOperatorStatusCondition
+// 		var degraded *v1.ClusterOperatorStatusCondition
+// 		var progressing *v1.ClusterOperatorStatusCondition
+//
+// 		displayData.Operators.Total++
+// 		for _, condition := range operator.Status.Conditions {
+// 			condition := condition
+// 			switch {
+// 			case condition.Type == v1.OperatorAvailable:
+// 				available = &condition
+// 			case condition.Type == v1.OperatorDegraded:
+// 				degraded = &condition
+// 			case condition.Type == v1.OperatorProgressing:
+// 				progressing = &condition
+// 			}
+// 		}
+//
+// 		if progressing != nil {
+// 			if progressing.LastTransitionTime.After(lastObservedProgress) {
+// 				lastObservedProgress = progressing.LastTransitionTime.Time
+// 			}
+// 			if !updated && progressing.Status == v1.ConditionTrue {
+// 				displayData.Operators.Updating = append(displayData.Operators.Updating,
+// 					UpdatingClusterOperator{Name: operator.Name, Condition: progressing})
+// 			}
+// 			if !updated && progressing.Status == v1.ConditionFalse {
+// 				displayData.Operators.Waiting++
+// 			}
+// 			if progressing.Status == v1.ConditionTrue && operator.Name == "machine-config" && !updated {
+// 				mcoStartedUpdating = progressing.LastTransitionTime.Time
+// 			}
+// 		}
+//
+// 		if available == nil || available.Status != v1.ConditionTrue {
+// 			displayData.Operators.Unavailable++
+// 		} else if degraded != nil && degraded.Status == v1.ConditionTrue {
+// 			displayData.Operators.Degraded++
+// 		}
+// 		insights = append(insights, coInsights(operator.Name, available, degraded, at)...)
+// 	}
+//
+// 	controlPlaneCompleted := displayData.Operators.Updated == displayData.Operators.Total
+// 	if controlPlaneCompleted {
+// 		displayData.Assessment = assessmentStateCompleted
+// 	} else {
+// 		displayData.Assessment = assessmentStateProgressing
+// 	}
+//
+// 	// If MCO is the last updating operator, treat its progressing start as last observed progress
+// 	// to avoid daemonset operators polluting last observed progress by flipping Progressing when
+// 	// nodes reboot
+// 	if !mcoStartedUpdating.IsZero() && (displayData.Operators.Total-displayData.Operators.Updated == 1) {
+// 		lastObservedProgress = mcoStartedUpdating
+// 	}
+//
+// 	// updatingFor is started until now
+// 	var updatingFor time.Duration
+// 	// toLastObservedProgress is started until last observed progress
+// 	var toLastObservedProgress time.Duration
+//
+// 	if len(cv.Status.History) > 0 {
+// 		currentHistoryItem := cv.Status.History[0]
+// 		started := currentHistoryItem.StartedTime.Time
+// 		if !lastObservedProgress.After(started) {
+// 			lastObservedProgress = at
+// 		}
+// 		toLastObservedProgress = lastObservedProgress.Sub(started)
+// 		if currentHistoryItem.State == v1.CompletedUpdate {
+// 			displayData.CompletionAt = currentHistoryItem.CompletionTime.Time
+// 		} else {
+// 			displayData.CompletionAt = at
+// 		}
+// 		updatingFor = displayData.CompletionAt.Sub(started)
+// 		// precision to seconds when under 60s
+// 		if updatingFor > 10*time.Minute {
+// 			displayData.Duration = updatingFor.Round(time.Minute)
+// 		} else {
+// 			displayData.Duration = updatingFor.Round(time.Second)
+// 		}
+// 	}
+//
+// 	versionData, versionInsights := versionsFromHistory(cv.Status.History, cvScope, controlPlaneCompleted)
+// 	displayData.TargetVersion = versionData
+// 	displayData.IsMultiArchMigration = versionData.isMultiArchMigration
+// 	insights = append(insights, versionInsights...)
+//
+// 	coCompletion := float64(displayData.Operators.Updated) / float64(displayData.Operators.Total)
+// 	displayData.Completion = coCompletion * 100.0
+// 	if coCompletion <= 1 && displayData.Assessment != assessmentStateCompleted {
+// 		historyBaseline := baselineDuration(cv.Status.History)
+// 		displayData.EstTimeToComplete = estimateCompletion(historyBaseline, toLastObservedProgress, updatingFor, coCompletion)
+// 		displayData.EstDuration = (updatingFor + displayData.EstTimeToComplete).Truncate(time.Minute)
+//
+// 		if displayData.EstTimeToComplete < -10*time.Minute {
+// 			displayData.Assessment = assessmentStateStalled
+// 		} else if displayData.EstTimeToComplete < 0 {
+// 			displayData.Assessment = assessmentStateProgressingSlow
+// 		}
+// 	}
+//
+// 	return displayData, insights
+// }
 
 func baselineDuration(history []v1.UpdateHistory) time.Duration {
 	// First item is current update and last item is likely installation

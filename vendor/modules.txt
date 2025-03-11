@@ -578,7 +578,7 @@ github.com/opencontainers/runtime-spec/specs-go
 ## explicit; go 1.19
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/openshift/api v0.0.0-20250130025500-d9e1a2e1fe6b
+# github.com/openshift/api v0.0.0-20250213010142-f5b09d13c01f => github.com/petr-muller/api v0.0.0-20250214154234-86cca2783f9c
 ## explicit; go 1.23.0
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -651,6 +651,7 @@ github.com/openshift/api/sharedresource/v1alpha1
 github.com/openshift/api/template
 github.com/openshift/api/template/v1
 github.com/openshift/api/unidling/v1alpha1
+github.com/openshift/api/update/v1alpha1
 github.com/openshift/api/user
 github.com/openshift/api/user/v1
 # github.com/openshift/build-machinery-go v0.0.0-20250102153059-e85a1a7ecb5c
@@ -663,7 +664,7 @@ github.com/openshift/build-machinery-go/make/targets/golang
 github.com/openshift/build-machinery-go/make/targets/openshift
 github.com/openshift/build-machinery-go/make/targets/openshift/operator
 github.com/openshift/build-machinery-go/scripts
-# github.com/openshift/client-go v0.0.0-20250125113824-8e1f0b8fa9a7
+# github.com/openshift/client-go v0.0.0-20250125113824-8e1f0b8fa9a7 => github.com/petr-muller/openshift-client-go v0.0.0-20250214160202-4d4f62e78664
 ## explicit; go 1.23.0
 github.com/openshift/client-go/apps/applyconfigurations
 github.com/openshift/client-go/apps/applyconfigurations/apps/v1
@@ -770,6 +771,11 @@ github.com/openshift/client-go/template/clientset/versioned/fake
 github.com/openshift/client-go/template/clientset/versioned/scheme
 github.com/openshift/client-go/template/clientset/versioned/typed/template/v1
 github.com/openshift/client-go/template/clientset/versioned/typed/template/v1/fake
+github.com/openshift/client-go/update/applyconfigurations/internal
+github.com/openshift/client-go/update/applyconfigurations/update/v1alpha1
+github.com/openshift/client-go/update/clientset/versioned
+github.com/openshift/client-go/update/clientset/versioned/scheme
+github.com/openshift/client-go/update/clientset/versioned/typed/update/v1alpha1
 github.com/openshift/client-go/user/applyconfigurations
 github.com/openshift/client-go/user/applyconfigurations/internal
 github.com/openshift/client-go/user/applyconfigurations/user/v1
@@ -1878,3 +1884,5 @@ sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v2
 sigs.k8s.io/yaml/goyaml.v3
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
+# github.com/openshift/api => github.com/petr-muller/api v0.0.0-20250214154234-86cca2783f9c
+# github.com/openshift/client-go => github.com/petr-muller/openshift-client-go v0.0.0-20250214160202-4d4f62e78664

@@ -1,0 +1,957 @@
+apiVersion: update.openshift.io/v1alpha1
+kind: UpdateStatus
+metadata:
+  creationTimestamp: null
+  name: cluster
+spec: {}
+status:
+  controlPlane:
+    conditions:
+    - lastTransitionTime: null
+      message: ""
+      reason: ClusterVersionProgressing
+      status: "True"
+      type: Updating
+    informers:
+    - insights:
+      - acquiredAt: null
+        clusterVersion:
+          assessment: Progressing
+          completion: 3
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: ClusterVersionProgressing
+            status: "True"
+            type: Updating
+          estimatedCompletedAt: "2025-02-04T14:07:01Z"
+          resource:
+            group: config.openshift.io
+            name: version
+            resource: clusterversions
+          startedAt: "2025-02-04T12:40:31Z"
+          versions:
+            previous:
+              metadata:
+              - key: Partial
+              version: 4.14.1
+            target:
+              version: 4.15.0-ec.2
+        type: ClusterVersion
+        uid: cv-version
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Updated
+            status: "False"
+            type: Updating
+          name: config-operator
+          resource:
+            group: config.openshift.io
+            name: config-operator
+            resource: clusteroperators
+        type: ClusterOperator
+        uid: co-config-operator
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: "2025-02-04T12:41:15Z"
+            message: 'NodeInstallerProgressing: 2 nodes are at revision 33; 1 nodes
+              are at revision 34'
+            reason: NodeInstaller
+            status: "True"
+            type: Updating
+          name: etcd
+          resource:
+            group: config.openshift.io
+            name: etcd
+            resource: clusteroperators
+        type: ClusterOperator
+        uid: co-etcd
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: "2025-02-04T12:35:52Z"
+            message: 'NodeInstallerProgressing: 3 nodes are at revision 274; 0 nodes
+              have achieved new revision 276'
+            reason: NodeInstaller
+            status: "True"
+            type: Updating
+          name: kube-apiserver
+          resource:
+            group: config.openshift.io
+            name: kube-apiserver
+            resource: clusteroperators
+        type: ClusterOperator
+        uid: co-kube-apiserver
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-0
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-1
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-2
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-3
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-4
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-5
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-6
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-7
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-8
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-9
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-10
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-11
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-12
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-13
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-14
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-15
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-16
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-17
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-18
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-19
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-20
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-21
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-22
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-23
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-24
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-25
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-26
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-27
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-28
+      - acquiredAt: null
+        clusterOperator:
+          conditions:
+          - lastTransitionTime: "2025-02-04T12:42:00Z"
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Healthy
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: ""
+          resource:
+            name: ""
+            resource: ""
+        type: ClusterOperator
+        uid: co-29
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-30-217.us-east-2.compute.internal
+          poolResource:
+            group: machineconfiguration.openshift.io
+            name: master
+            resource: machineconfigpools
+          resource:
+            group: core
+            name: ip-10-0-30-217.us-east-2.compute.internal
+            resource: nodes
+          scopeType: ControlPlane
+          version: 4.14.1
+        type: Node
+        uid: node-cp-1
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-53-40.us-east-2.compute.internal
+          poolResource:
+            group: machineconfiguration.openshift.io
+            name: master
+            resource: machineconfigpools
+          resource:
+            group: core
+            name: ip-10-0-53-40.us-east-2.compute.internal
+            resource: nodes
+          scopeType: ControlPlane
+          version: 4.14.1
+        type: Node
+        uid: node-cp-2
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-92-180.us-east-2.compute.internal
+          poolResource:
+            group: machineconfiguration.openshift.io
+            name: master
+            resource: machineconfigpools
+          resource:
+            group: core
+            name: ip-10-0-92-180.us-east-2.compute.internal
+            resource: nodes
+          scopeType: ControlPlane
+          version: 4.14.1
+        type: Node
+        uid: node-cp-3
+      - acquiredAt: null
+        machineConfigPool:
+          assessment: Pending
+          completion: 0
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: master
+          resource:
+            group: machineconfiguration.openshift.io
+            name: master
+            resource: machineconfigpools
+          scopeType: ControlPlane
+          summaries:
+          - count: 3
+            type: Total
+          - count: 3
+            type: Available
+          - count: 0
+            type: Progressing
+          - count: 3
+            type: Outdated
+          - count: 0
+            type: Draining
+          - count: 0
+            type: Excluded
+          - count: 0
+            type: Degraded
+        type: MachineConfigPool
+        uid: mcp-master
+      - acquiredAt: null
+        health:
+          impact:
+            description: Current update to 4.15.0-ec.2 was initiated while the previous
+              update to version 4.14.1 was still in progress
+            level: Warning
+            summary: Previous update to 4.14.1 never completed, last complete update
+              was 4.14.0-rc.7
+            type: None
+          remediation:
+            reference: https://docs.openshift.com/container-platform/latest/updating/troubleshooting_updates/gathering-data-cluster-update.html#gathering-clusterversion-history-cli_troubleshooting_updates
+          scope:
+            resources:
+            - group: config.openshift.io
+              name: version
+              resource: clusterversions
+            type: ControlPlane
+          startedAt: "2025-02-04T12:40:31Z"
+        type: Health
+        uid: health-partial-update
+      name: cpi
+    poolResource:
+      group: machineconfiguration.openshift.io
+      name: master
+      resource: machineconfigpools
+    resource:
+      group: config.openshift.io
+      name: version
+      resource: clusterversions
+  workerPools:
+  - informers:
+    - insights:
+      - acquiredAt: null
+        machineConfigPool:
+          assessment: Pending
+          completion: 0
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          name: worker
+          resource:
+            group: machineconfiguration.openshift.io
+            name: worker
+            resource: machineconfigpools
+          scopeType: WorkerPool
+          summaries:
+          - count: 3
+            type: Total
+          - count: 3
+            type: Available
+          - count: 0
+            type: Progressing
+          - count: 3
+            type: Outdated
+          - count: 0
+            type: Draining
+          - count: 0
+            type: Excluded
+          - count: 0
+            type: Degraded
+        type: MachineConfigPool
+        uid: mcp-worker
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-20-162.us-east-2.compute.internal
+          poolResource:
+            name: worker
+            resource: ""
+          resource:
+            name: ""
+            resource: ""
+          scopeType: ""
+          version: 4.14.1
+        type: Node
+        uid: node-wp-1
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-4-159.us-east-2.compute.internal
+          poolResource:
+            name: worker
+            resource: ""
+          resource:
+            name: ""
+            resource: ""
+          scopeType: ""
+          version: 4.14.1
+        type: Node
+        uid: node-wp-2
+      - acquiredAt: null
+        node:
+          conditions:
+          - lastTransitionTime: null
+            message: ""
+            reason: Pending
+            status: "False"
+            type: Updating
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "False"
+            type: Degraded
+          - lastTransitionTime: null
+            message: ""
+            reason: AsExpected
+            status: "True"
+            type: Available
+          name: ip-10-0-99-40.us-east-2.compute.internal
+          poolResource:
+            name: worker
+            resource: ""
+          resource:
+            name: ""
+            resource: ""
+          scopeType: ""
+          version: 4.14.1
+        type: Node
+        uid: node-wp-3
+      name: nodes
+    name: worker
+    resource:
+      group: machineconfiguration.openshift.io
+      name: worker
+      resource: machineconfigpools
