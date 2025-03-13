@@ -272,6 +272,74 @@ func TestAssessControlPlaneStatus_Operators(t *testing.T) {
 	}
 }
 
+func TestAssessControlPlaneStatus_insights(t *testing.T) {
+	testCases := []struct {
+		name     string
+		cv       *configv1.ClusterVersion
+		expected []updateInsight
+	}{
+		{
+			name: "cv: something went wrong",
+			cv: &configv1.ClusterVersion{
+				ObjectMeta: metav1.ObjectMeta{Name: "version"},
+				Status: configv1.ClusterVersionStatus{
+					Desired: configv1.Release{Version: "new"},
+					Conditions: []configv1.ClusterOperatorStatusCondition{{
+						Type:   clusterStatusFailing,
+						Status: configv1.ConditionTrue,
+						Reason: "something went wrong",
+					}},
+				},
+			},
+			expected: []updateInsight{
+				{
+					scope: updateInsightScope{scopeType: "ControlPlane", resources: []scopeResource{{kind: scopeGroupKind{group: "config.openshift.io", kind: "ClusterVersion"}, name: "version"}}},
+					impact: updateInsightImpact{
+						level:      warningImpactLevel,
+						impactType: "Update Stalled",
+						summary:    "Cluster Version version is failing to proceed with the update (something went wrong)",
+					},
+					remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
+				},
+			},
+		},
+		{
+			name: "cv: SlowClusterOperator",
+			cv: &configv1.ClusterVersion{
+				ObjectMeta: metav1.ObjectMeta{Name: "version"},
+				Status: configv1.ClusterVersionStatus{
+					Desired: configv1.Release{Version: "new"},
+					Conditions: []configv1.ClusterOperatorStatusCondition{{
+						Type:   clusterStatusFailing,
+						Status: configv1.ConditionUnknown,
+						Reason: "SlowClusterOperator",
+					}},
+				},
+			},
+			expected: []updateInsight{
+				{
+					scope: updateInsightScope{scopeType: "ControlPlane", resources: []scopeResource{{kind: scopeGroupKind{group: "config.openshift.io", kind: "ClusterVersion"}, name: "version"}}},
+					impact: updateInsightImpact{
+						level:      warningImpactLevel,
+						impactType: "Update Stalled",
+						summary:    "Cluster Version version may be failing to proceed with the update (SlowClusterOperator)",
+					},
+					remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, insights := assessControlPlaneStatus(tc.cv, nil, "", time.Now())
+			if diff := cmp.Diff(tc.expected, insights, allowUnexportedInsightStructs); diff != "" {
+				t.Errorf("%s: expected insights differs from actual:\n%s", tc.name, diff)
+			}
+		})
+	}
+}
+
 func TestAssessControlPlaneStatus_Estimate(t *testing.T) {
 	now := time.Now()
 	minutesAgo := [250]time.Time{}
