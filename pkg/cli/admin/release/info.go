@@ -716,6 +716,7 @@ type ReleaseInfo struct {
 	// ComponentVersions.
 	DeprecatedComponentVersions map[string]string `json:"versions"`
 	ComponentVersions           ComponentVersions `json:"displayVersions"`
+	ComponentTags               map[string]string `json:"versionsTags"`
 
 	Images map[string]*Image `json:"images"`
 
@@ -862,7 +863,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 		return nil, fmt.Errorf("release image did not contain an image-references file")
 	}
 
-	release.ComponentVersions, errs = readComponentVersions(release.References, o.ErrOut)
+	release.ComponentVersions, release.ComponentTags, errs = readComponentVersions(release.References, o.ErrOut)
 	for _, err := range errs {
 		release.Warnings = append(release.Warnings, err.Error())
 	}
@@ -938,6 +939,7 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 	var errs []error
 	combined := make(map[string]sets.String)
 	combinedDisplayNames := make(map[string]sets.String)
+	componentTags := make(map[string]string)
 	kubectlVersions := make(map[string]sets.Set[string])
 	for _, tag := range is.Spec.Tags {
 		versions, ok := tag.Annotations[annotationBuildVersions]
@@ -949,6 +951,8 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 			errs = append(errs, fmt.Errorf("the referenced image %s had an invalid version annotation: %v", tag.Name, err))
 		}
 		for k, v := range all {
+			// just let the last one win in case a component is defined multiple times
+			componentTags[k] = tag.Name
 			if k == "kubectl" {
 				if val, exist := kubectlVersions[v.Version]; exist {
 					kubectlVersions[v.Version] = val.Insert(tag.Name)
@@ -1025,7 +1029,7 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 	if len(multiples) > 0 {
 		errs = append(errs, fmt.Errorf("multiple versions or display names reported for the following component(s): %v", strings.Join(multiples.List(), ",  ")))
 	}
-	return out, errs
+	return out, componentTags, errs
 }
 
 func errorList(errs []error) string {
