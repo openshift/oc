@@ -869,55 +869,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	}
 
 	if retrieveImages {
-		var lock sync.Mutex
-		release.Images = make(map[string]*Image)
-		images := make(map[string]imagesource.TypedImageReference)
-		r := &imageinfo.ImageRetriever{
-			FileDir:         opts.FileDir,
-			SecurityOptions: o.SecurityOptions,
-			ParallelOptions: o.ParallelOptions,
-			ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
-				filtered := make(map[digest.Digest]distribution.Manifest)
-				for _, manifest := range list.Manifests {
-					if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
-						klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
-						continue
-					}
-					filtered[manifest.Digest] = all[manifest.Digest]
-				}
-				if len(filtered) == 1 {
-					return filtered, nil
-				}
-
-				return nil, fmt.Errorf("no matching image found in manifest list")
-			},
-			ImageMetadataCallback: func(name string, image *imageinfo.Image, err error) error {
-				if image != nil {
-					verifier.Verify(image.Digest, image.ContentDigest)
-				}
-				lock.Lock()
-				defer lock.Unlock()
-				if err != nil {
-					release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q: %v", name, err))
-					return nil
-				}
-				copied := Image(*image)
-				release.Images[name] = &copied
-				return nil
-			},
-		}
-		for _, tag := range release.References.Spec.Tags {
-			if tag.From == nil || tag.From.Kind != "DockerImage" {
-				continue
-			}
-			ref, err := imagereference.Parse(tag.From.Name)
-			if err != nil {
-				release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q has an invalid reference: %v", tag.Name, err))
-				continue
-			}
-			images[tag.Name] = imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
-		}
-		if _, err := r.Images(context.TODO(), images); err != nil {
+		if err = o.retrieveReleaseImages(release, verifier); err != nil {
 			return nil, err
 		}
 	}
@@ -935,7 +887,62 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	return release, nil
 }
 
-func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (ComponentVersions, []error) {
+func (o *InfoOptions) retrieveReleaseImages(release *ReleaseInfo, verifier imagemanifest.Verifier) error {
+	var lock sync.Mutex
+	release.Images = make(map[string]*Image)
+	images := make(map[string]imagesource.TypedImageReference)
+	r := &imageinfo.ImageRetriever{
+		FileDir:         o.FileDir,
+		SecurityOptions: o.SecurityOptions,
+		ParallelOptions: o.ParallelOptions,
+		ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
+			filtered := make(map[digest.Digest]distribution.Manifest)
+			for _, manifest := range list.Manifests {
+				if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
+					klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
+					continue
+				}
+				filtered[manifest.Digest] = all[manifest.Digest]
+			}
+			if len(filtered) == 1 {
+				return filtered, nil
+			}
+
+			return nil, fmt.Errorf("no matching image found in manifest list")
+		},
+		ImageMetadataCallback: func(name string, image *imageinfo.Image, err error) error {
+			if image != nil {
+				verifier.Verify(image.Digest, image.ContentDigest)
+			}
+			lock.Lock()
+			defer lock.Unlock()
+			if err != nil {
+				release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q: %v", name, err))
+				return nil
+			}
+			copied := Image(*image)
+			release.Images[name] = &copied
+			return nil
+		},
+	}
+	for _, tag := range release.References.Spec.Tags {
+		if tag.From == nil || tag.From.Kind != "DockerImage" {
+			continue
+		}
+		ref, err := imagereference.Parse(tag.From.Name)
+		if err != nil {
+			release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q has an invalid reference: %v", tag.Name, err))
+			continue
+		}
+		images[tag.Name] = imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
+	}
+	if _, err := r.Images(context.TODO(), images); err != nil {
+		return err
+	}
+	return nil
+}
+
+func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (ComponentVersions, map[string]string, []error) {
 	var errs []error
 	combined := make(map[string]sets.String)
 	combinedDisplayNames := make(map[string]sets.String)
