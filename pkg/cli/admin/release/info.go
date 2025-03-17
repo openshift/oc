@@ -869,7 +869,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	}
 
 	if retrieveImages {
-		if err = o.retrieveReleaseImages(release, verifier); err != nil {
+		if err = o.retrieveReleaseImages(release, verifier, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -887,7 +887,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	return release, nil
 }
 
-func (o *InfoOptions) retrieveReleaseImages(release *ReleaseInfo, verifier imagemanifest.Verifier) error {
+func (o *InfoOptions) retrieveReleaseImages(release *ReleaseInfo, verifier imagemanifest.Verifier, onlyTags map[string]struct{}) error {
 	var lock sync.Mutex
 	release.Images = make(map[string]*Image)
 	images := make(map[string]imagesource.TypedImageReference)
@@ -928,6 +928,11 @@ func (o *InfoOptions) retrieveReleaseImages(release *ReleaseInfo, verifier image
 	for _, tag := range release.References.Spec.Tags {
 		if tag.From == nil || tag.From.Kind != "DockerImage" {
 			continue
+		}
+		if onlyTags != nil {
+			if _, ok := onlyTags[tag.Name]; !ok {
+				continue
+			}
 		}
 		ref, err := imagereference.Parse(tag.From.Name)
 		if err != nil {
