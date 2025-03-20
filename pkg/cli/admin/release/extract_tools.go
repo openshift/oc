@@ -1250,7 +1250,9 @@ func (mr *ManifestReceiver) TarEntryCallbackDoneCallback() error {
 			delta = delta.Difference(sets.New[configv1.ClusterVersionCapability](mr.inclusionConfiguration.Capabilities.EnabledCapabilities...))
 			enabled.Insert(mr.inclusionConfiguration.Capabilities.EnabledCapabilities...)
 		}
-		klog.Infof("Those capabilities become implicitly enabled for the incoming release %s", sets.List(delta))
+		if delta.Len() > 0 {
+			klog.Infof("Those capabilities become implicitly enabled for the incoming release %s", sets.List(delta))
+		}
 
 		mr.enabled = enabled.UnsortedList()
 		mr.enabledResolved = true
