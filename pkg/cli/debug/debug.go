@@ -548,7 +548,7 @@ func (o *DebugOptions) RunDebug() error {
 			}
 			if o.IsNode {
 				if !(template.Spec.OS != nil && template.Spec.OS.Name == corev1.Windows) {
-					fmt.Fprintf(o.ErrOut, "To use host binaries, run `chroot /host`\n")
+					fmt.Fprintf(o.ErrOut, "To use host binaries, run `chroot /host`. Instead, if you need to access host namespaces, run `nsenter -a -t 1`.\n")
 				}
 			}
 		}
