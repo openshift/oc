@@ -1270,7 +1270,7 @@ func (mr *ManifestReceiver) TarEntryCallbackDoneCallback() error {
 	return nil
 }
 
-func findClusterIncludeConfigFromInstallConfig(_ context.Context, installConfigPath, reportedVersion string) (manifestInclusionConfiguration, error) {
+func findClusterIncludeConfigFromInstallConfig(_ context.Context, installConfigPath, reportedVersion, versionInImageConfig string) (manifestInclusionConfiguration, error) {
 	config := manifestInclusionConfiguration{}
 
 	installConfigBytes, err := os.ReadFile(installConfigPath)
@@ -1299,21 +1299,23 @@ func findClusterIncludeConfigFromInstallConfig(_ context.Context, installConfigP
 		if enabled, ok := configv1.ClusterVersionCapabilitySets[data.Capabilities.BaselineCapabilitySet]; !ok {
 			return config, fmt.Errorf("unrecognized baselineCapabilitySet %q", data.Capabilities.BaselineCapabilitySet)
 		} else {
-			if data.Capabilities.BaselineCapabilitySet == configv1.ClusterVersionCapabilitySetCurrent {
-				klog.Infof("If the eventual cluster will not be the same minor version as this %s 'oc', the actual %s capability set may differ.", reportedVersion, data.Capabilities.BaselineCapabilitySet)
+			if reportedVersion != versionInImageConfig {
+				if data.Capabilities.BaselineCapabilitySet == configv1.ClusterVersionCapabilitySetCurrent {
+					klog.Infof("The eventual cluster %s will not be the same minor version as this %s 'oc', the actual %s capability set may differ.", versionInImageConfig, reportedVersion, data.Capabilities.BaselineCapabilitySet)
+				} else {
+					klog.Infof("The eventual cluster %s will not be the same minor version as this %s 'oc', the known capability sets may differ.", versionInImageConfig, reportedVersion)
+				}
 			}
 			config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, enabled...)
 		}
 		config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, data.Capabilities.AdditionalEnabledCapabilities...)
-
-		klog.Infof("If the eventual cluster will not be the same minor version as this %s 'oc', the known capability sets may differ.", reportedVersion)
 		config.Capabilities.KnownCapabilities = configv1.KnownClusterVersionCapabilities
 	}
 
 	return config, nil
 }
 
-func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config, reportedVersion string) (manifestInclusionConfiguration, error) {
+func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config, reportedVersion, versionInImageConfig string) (manifestInclusionConfiguration, error) {
 	config := manifestInclusionConfiguration{}
 
 	client, err := configv1client.NewForConfig(restConfig)
@@ -1338,11 +1340,14 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config, repo
 			capSet = capabilitiesSpec.BaselineCapabilitySet
 		}
 		deepCopy := clusterVersion.Status.Capabilities.DeepCopy()
-		if capSet == configv1.ClusterVersionCapabilitySetCurrent {
-			klog.Infof("If the eventual cluster will not be the same minor version as this %s 'oc', the actual %s capability set may differ.", reportedVersion, capSet)
+		if reportedVersion != versionInImageConfig {
+			if capSet == configv1.ClusterVersionCapabilitySetCurrent {
+				klog.Infof("The eventual cluster %s will not be the same minor version as this %s 'oc', the actual %s capability set may differ.", versionInImageConfig, reportedVersion, capSet)
+			} else {
+				klog.Infof("The eventual cluster %s will not be the same minor version as this %s 'oc', the known capability sets may differ.", versionInImageConfig, reportedVersion)
+			}
 		}
 		deepCopy.EnabledCapabilities = append(deepCopy.EnabledCapabilities, configv1.ClusterVersionCapabilitySets[capSet]...)
-		klog.Infof("If the eventual cluster will not be the same minor version as this %s 'oc', the known capability sets may differ.", reportedVersion)
 		deepCopy.KnownCapabilities = configv1.KnownClusterVersionCapabilities
 		config.Capabilities = deepCopy
 	}

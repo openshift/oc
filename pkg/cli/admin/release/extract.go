@@ -354,6 +354,22 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		}
 	}
 
+	var versionInImageConfig string
+	opts.ImageConfigCallback = func(imageConfig *dockerv1client.DockerImageConfig) {
+		if imageConfig == nil {
+			klog.Info("Cannot retrieve the version because no image configuration is provided in the image to extract")
+			return
+		}
+		if c := imageConfig.Config; c != nil {
+			if v, ok := c.Labels["io.openshift.release"]; ok {
+				klog.V(2).Infof("Retrieved the version from image configuration in the image to extract: %s", v)
+				versionInImageConfig = v
+			} else {
+				klog.Info("Cannot retrieve the version from image configuration in the image to extract")
+			}
+		}
+	}
+
 	var manifestsCallbacks []func(string, []manifest.Manifest, io.Reader, []configv1.ClusterVersionCapability) (bool, error)
 
 	var needEnabledCapabilities bool
@@ -371,9 +387,9 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 			}
 			if o.InstallConfig == "" {
 				needEnabledCapabilities = true
-				inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig, reportedVersion)
+				inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig, reportedVersion, versionInImageConfig)
 			} else {
-				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig, reportedVersion)
+				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig, reportedVersion, versionInImageConfig)
 				context = o.InstallConfig
 			}
 			if err != nil {
