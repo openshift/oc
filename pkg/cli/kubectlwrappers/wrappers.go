@@ -143,7 +143,8 @@ func NewCmdProxy(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 // NewCmdScale is a wrapper for the Kubernetes cli scale command
 func NewCmdScale(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(scale.NewCmdScale(f, streams)))
-	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
+	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
+	cmd.ValidArgsFunction = utilcomp.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }
 
@@ -151,7 +152,8 @@ func NewCmdScale(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 func NewCmdAutoscale(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(autoscale.NewCmdAutoscale(f, streams)))
 	cmd.Short = "Autoscale a deployment config, deployment, replica set, stateful set, or replication controller"
-	cmd.ValidArgs = append(cmd.ValidArgs, "deploymentconfig")
+	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
+	cmd.ValidArgsFunction = utilcomp.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }
 
