@@ -1337,7 +1337,13 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 
 	manifestDestinationDir := "release-manifests"
 	// ensure the directory exists in the tar bundle
-	if err := tw.WriteHeader(&tar.Header{Mode: 0777, ModTime: newest, Typeflag: tar.TypeDir, Name: manifestDestinationDir}); err != nil {
+	releaseManifestsDirHdr := tar.Header{
+		Name:     manifestDestinationDir,
+		Mode:     0777,
+		ModTime:  newest,
+		Typeflag: tar.TypeDir,
+	}
+	if err := tw.WriteHeader(&releaseManifestsDirHdr); err != nil {
 		return nil, err
 	}
 
@@ -1347,7 +1353,14 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 		return nil, err
 	}
 
-	if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: newest, Typeflag: tar.TypeReg, Name: path.Join(manifestDestinationDir, imageReferencesImageStreamFilename), Size: int64(len(data))}); err != nil {
+	imageReferencesHdr := tar.Header{
+		Name:     path.Join(manifestDestinationDir, imageReferencesImageStreamFilename),
+		Mode:     0444,
+		ModTime:  newest,
+		Typeflag: tar.TypeReg,
+		Size:     int64(len(data)),
+	}
+	if err := tw.WriteHeader(&imageReferencesHdr); err != nil {
 		return nil, err
 	}
 	if _, err := tw.Write(data); err != nil {
@@ -1360,7 +1373,14 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 		if err != nil {
 			return nil, err
 		}
-		if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: newest, Typeflag: tar.TypeReg, Name: path.Join(manifestDestinationDir, "release-metadata"), Size: int64(len(data))}); err != nil {
+		releaseMetadataHdr := tar.Header{
+			Name:     path.Join(manifestDestinationDir, "release-metadata"),
+			Mode:     0444,
+			ModTime:  newest,
+			Typeflag: tar.TypeReg,
+			Size:     int64(len(data)),
+		}
+		if err := tw.WriteHeader(&releaseMetadataHdr); err != nil {
 			return nil, err
 		}
 		if _, err := tw.Write(data); err != nil {
@@ -1429,7 +1449,14 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			if err != nil {
 				return err
 			}
-			if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: fi.ModTime(), Typeflag: tar.TypeReg, Name: dst, Size: int64(len(modified))}); err != nil {
+			dstHdr := tar.Header{
+				Name:     dst,
+				Mode:     0444,
+				ModTime:  fi.ModTime(),
+				Typeflag: tar.TypeReg,
+				Size:     int64(len(modified)),
+			}
+			if err := tw.WriteHeader(&dstHdr); err != nil {
 				return err
 			}
 			klog.V(6).Infof("Writing payload to %s\n%s", dst, string(modified))
