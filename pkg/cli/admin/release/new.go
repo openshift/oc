@@ -1331,12 +1331,6 @@ func writeNestedTarHeader(tw *tar.Writer, parts []string, existing map[string]st
 const imageReferencesImageStreamFilename = "image-references"
 
 func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata, ordered []string, metadata map[string]imageData, allowMissingImages bool, verifiers []PayloadVerifier, errOut io.Writer) ([]string, error) {
-	var operators []string
-	directories := make(map[string]struct{})
-	files := make(map[string]int)
-
-	parts := []string{"release-manifests"}
-
 	// find the newest content date in the input
 	var newest time.Time
 	if err := iterateExtractedManifests(ordered, metadata, func(_ string, contents []os.FileInfo, _ string) error {
@@ -1358,8 +1352,10 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 	gw := gzip.NewWriter(w)
 	tw := tar.NewWriter(gw)
 
+	directories := make(map[string]struct{})
+	manifestDestinationDir := "release-manifests"
 	// ensure the directory exists in the tar bundle
-	if err := writeNestedTarHeader(tw, parts, directories, tar.Header{Mode: 0777, ModTime: newest, Typeflag: tar.TypeDir}); err != nil {
+	if err := writeNestedTarHeader(tw, []string{manifestDestinationDir}, directories, tar.Header{Mode: 0777, ModTime: newest, Typeflag: tar.TypeDir}); err != nil {
 		return nil, err
 	}
 
@@ -1369,7 +1365,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 		return nil, err
 	}
 
-	if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: newest, Typeflag: tar.TypeReg, Name: path.Join(append(append([]string{}, parts...), imageReferencesImageStreamFilename)...), Size: int64(len(data))}); err != nil {
+	if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: newest, Typeflag: tar.TypeReg, Name: path.Join(manifestDestinationDir, imageReferencesImageStreamFilename), Size: int64(len(data))}); err != nil {
 		return nil, err
 	}
 	if _, err := tw.Write(data); err != nil {
@@ -1382,7 +1378,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 		if err != nil {
 			return nil, err
 		}
-		if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: newest, Typeflag: tar.TypeReg, Name: path.Join(append(append([]string{}, parts...), "release-metadata")...), Size: int64(len(data))}); err != nil {
+		if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: newest, Typeflag: tar.TypeReg, Name: path.Join(manifestDestinationDir, "release-metadata"), Size: int64(len(data))}); err != nil {
 			return nil, err
 		}
 		if _, err := tw.Write(data); err != nil {
@@ -1390,6 +1386,8 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 		}
 	}
 
+	var operators []string
+	files := make(map[string]int)
 	// read each directory, processing the manifests in order and updating the contents into the tar output
 	if err := iterateExtractedManifests(ordered, metadata, func(directory string, contents []os.FileInfo, operator string) error {
 		transform := NewSimpleVersionsMapper(is.Name)
@@ -1431,7 +1429,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			files[dstFilename] = 1
 
 			src := filepath.Join(directory, srcFilename)
-			dst := path.Join(append(append([]string{}, parts...), dstFilename)...)
+			dst := path.Join(manifestDestinationDir, dstFilename)
 			klog.V(4).Infof("Copying %s to %s", src, dst)
 
 			data, err := os.ReadFile(src)
