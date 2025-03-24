@@ -1311,23 +1311,6 @@ type nopCloser struct {
 
 func (_ nopCloser) Close() error { return nil }
 
-// writeNestedTarHeader writes a series of nested tar headers, starting with parts[0] and joining each
-// successive part, but only if the path does not exist already.
-func writeNestedTarHeader(tw *tar.Writer, parts []string, existing map[string]struct{}, hdr tar.Header) error {
-	for i := range parts {
-		componentDir := path.Join(parts[:i+1]...)
-		if _, ok := existing[componentDir]; ok {
-			continue
-		}
-		existing[componentDir] = struct{}{}
-		hdr.Name = componentDir
-		if err := tw.WriteHeader(&hdr); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 const imageReferencesImageStreamFilename = "image-references"
 
 func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata, ordered []string, metadata map[string]imageData, allowMissingImages bool, verifiers []PayloadVerifier, errOut io.Writer) ([]string, error) {
@@ -1352,10 +1335,9 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 	gw := gzip.NewWriter(w)
 	tw := tar.NewWriter(gw)
 
-	directories := make(map[string]struct{})
 	manifestDestinationDir := "release-manifests"
 	// ensure the directory exists in the tar bundle
-	if err := writeNestedTarHeader(tw, []string{manifestDestinationDir}, directories, tar.Header{Mode: 0777, ModTime: newest, Typeflag: tar.TypeDir}); err != nil {
+	if err := tw.WriteHeader(&tar.Header{Mode: 0777, ModTime: newest, Typeflag: tar.TypeDir, Name: manifestDestinationDir}); err != nil {
 		return nil, err
 	}
 
