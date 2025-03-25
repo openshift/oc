@@ -769,7 +769,7 @@ func (o *NewOptions) Run(ctx context.Context) error {
 	pr, pw := io.Pipe()
 	go func() {
 		var err error
-		operators, err = writePayload(pw, is, cm, ordered, metadata, o.AllowMissingImages, verifiers, o.ErrOut)
+		operators, err = writePayload(pw, is, cm, ordered, metadata, o.AllowMissingImages, verifiers, o.ErrOut, o.ToImageBaseTag)
 		pw.CloseWithError(err)
 	}()
 
@@ -1037,7 +1037,7 @@ func (o *NewOptions) extractManifests(is *imageapi.ImageStream, name string, met
 					tag.Annotations[annotationBuildVersionsDisplayNames] = labels[annotationBuildVersionsDisplayNames]
 				}
 
-				if len(labels[annotationReleaseOperator]) == 0 {
+				if len(labels[annotationReleaseOperator]) == 0 && tag.Name != o.ToImageBaseTag {
 					klog.V(2).Infof("Image %s has no %s label, skipping", m.ImageRef, annotationReleaseOperator)
 					return false, nil
 				}
@@ -1313,7 +1313,7 @@ func (_ nopCloser) Close() error { return nil }
 
 const imageReferencesImageStreamFilename = "image-references"
 
-func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata, ordered []string, metadata map[string]imageData, allowMissingImages bool, verifiers []PayloadVerifier, errOut io.Writer) ([]string, error) {
+func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata, ordered []string, metadata map[string]imageData, allowMissingImages bool, verifiers []PayloadVerifier, errOut io.Writer, baseTag string) ([]string, error) {
 	// find the newest content date in the input
 	var newest time.Time
 	if err := iterateExtractedManifests(ordered, metadata, func(_ string, contents []os.FileInfo, _ string) error {
@@ -1345,6 +1345,21 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 	}
 	if err := tw.WriteHeader(&releaseManifestsDirHdr); err != nil {
 		return nil, err
+	}
+
+	var baseImageManifestsDir string
+	if baseTag != "" {
+		baseImageManifestsDir = "manifests"
+		// ensure the directory exists in the tar bundle
+		baseImageManifestsDirHdr := tar.Header{
+			Name:     baseImageManifestsDir,
+			Mode:     0777,
+			ModTime:  newest,
+			Typeflag: tar.TypeDir,
+		}
+		if err := tw.WriteHeader(&baseImageManifestsDirHdr); err != nil {
+			return nil, err
+		}
 	}
 
 	// write image metadata to release-manifests/image-references
@@ -1394,6 +1409,11 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 	if err := iterateExtractedManifests(ordered, metadata, func(directory string, contents []os.FileInfo, operator string) error {
 		transform := NewSimpleVersionsMapper(is.Name)
 
+		dstDir := manifestDestinationDir
+		if operator == baseTag && len(operator) > 0 {
+			dstDir = baseImageManifestsDir
+		}
+
 		// If there is an image-references file in the directory, we will need to replace image references in the manifests
 		// See: https://github.com/openshift/enhancements/blob/068e863988b58f70b5184e4ef49c0ad1c2913dfb/dev-guide/cluster-version-operator/dev/operators.md?plain=1#L157-L189
 		for _, fi := range contents {
@@ -1431,7 +1451,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			files[dstFilename] = 1
 
 			src := filepath.Join(directory, srcFilename)
-			dst := path.Join(manifestDestinationDir, dstFilename)
+			dst := path.Join(dstDir, dstFilename)
 			klog.V(4).Infof("Copying %s to %s", src, dst)
 
 			data, err := os.ReadFile(src)
