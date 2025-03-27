@@ -18,20 +18,25 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	configv1 "github.com/openshift/api/config/v1"
 	imagev1 "github.com/openshift/api/image/v1"
+	configv1client "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/library-go/pkg/manifest"
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
+	"github.com/openshift/oc/pkg/version"
 	"github.com/pkg/errors"
 )
 
@@ -349,20 +354,42 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		}
 	}
 
-	tarEntryCallbacks := []extract.TarEntryFunc{}
+	var versionInImageConfig string
+	opts.ImageConfigCallback = func(imageConfig *dockerv1client.DockerImageConfig) {
+		if imageConfig == nil {
+			klog.Info("Cannot retrieve the version because no image configuration is provided in the image to extract")
+			return
+		}
+		if c := imageConfig.Config; c != nil {
+			if v, ok := c.Labels["io.openshift.release"]; ok {
+				klog.V(2).Infof("Retrieved the version from image configuration in the image to extract: %s", v)
+				versionInImageConfig = v
+			} else {
+				klog.Info("Cannot retrieve the version from image configuration in the image to extract")
+			}
+		}
+	}
 
-	var manifestErrs []error
+	var manifestsCallbacks []func(string, []manifest.Manifest, io.Reader, []configv1.ClusterVersionCapability) (bool, error)
+
+	var needEnabledCapabilities bool
+	inclusionConfig := manifestInclusionConfiguration{}
 	if o.ExtractManifests {
 		expectedProviderSpecKind := credRequestCloudProviderSpecKindMapping[o.Cloud]
-
-		include := func(m *manifest.Manifest) error { return nil } // default to including everything
 		if o.Included {
 			context := "connected cluster"
-			inclusionConfig := manifestInclusionConfiguration{}
+			clientVersion, reportedVersion, err := version.ExtractVersion()
+			if err != nil {
+				return err
+			}
+			if reportedVersion == "" {
+				reportedVersion = clientVersion.String()
+			}
 			if o.InstallConfig == "" {
-				inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig)
+				needEnabledCapabilities = true
+				inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig, reportedVersion, versionInImageConfig)
 			} else {
-				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig)
+				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig, reportedVersion, versionInImageConfig)
 				context = o.InstallConfig
 			}
 			if err != nil {
@@ -377,11 +404,10 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 					return fmt.Errorf("unrecognized platform for CredentialsRequests: %q", *inclusionConfig.Platform)
 				}
 			}
-			include = newIncluder(inclusionConfig)
 		}
 
-		tarEntryCallbacks = append(tarEntryCallbacks, func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
-			if hdr.Name == "image-references" && !o.CredentialsRequests {
+		manifestsCallbacks = append(manifestsCallbacks, func(name string, ms []manifest.Manifest, r io.Reader, enabled []configv1.ClusterVersionCapability) (cont bool, err error) {
+			if name == "image-references" && !o.CredentialsRequests {
 				buf := &bytes.Buffer{}
 				if _, err := io.Copy(buf, r); err != nil {
 					return false, fmt.Errorf("unable to load image-references from release payload: %w", err)
@@ -399,7 +425,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 
 				out := o.Out
 				if o.Directory != "" {
-					out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
+					out, err = os.Create(filepath.Join(o.Directory, name))
 					if err != nil {
 						return false, err
 					}
@@ -409,10 +435,10 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 					return true, err
 				}
 				return true, nil
-			} else if hdr.Name == "release-metadata" && !o.CredentialsRequests {
+			} else if name == "release-metadata" && !o.CredentialsRequests {
 				out := o.Out
 				if o.Directory != "" {
-					out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
+					out, err = os.Create(filepath.Join(o.Directory, name))
 					if err != nil {
 						return false, err
 					}
@@ -424,22 +450,18 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 				return true, nil
 			}
 
-			if ext := path.Ext(hdr.Name); len(ext) == 0 || !(ext == ".yaml" || ext == ".yml" || ext == ".json") {
-				return true, nil
-			}
-			klog.V(4).Infof("Found manifest %s", hdr.Name)
-			ms, err := manifest.ParseManifests(r)
-			if err != nil {
-				manifestErrs = append(manifestErrs, errors.Wrapf(err, "error parsing %s", hdr.Name))
-				return true, nil
-			}
-
 			for i := len(ms) - 1; i >= 0; i-- {
 				if o.Included && o.CredentialsRequests && ms[i].GVK == credentialsRequestGVK && len(ms[i].Obj.GetAnnotations()) == 0 {
 					klog.V(4).Infof("Including %s for manual CredentialsRequests, despite lack of annotations", ms[i].String())
-				} else if err := include(&ms[i]); err != nil {
-					klog.V(4).Infof("Excluding %s: %s", ms[i].String(), err)
-					ms = append(ms[:i], ms[i+1:]...)
+				} else if o.Included {
+					clusterVersionCapabilitiesStatus := &configv1.ClusterVersionCapabilitiesStatus{
+						KnownCapabilities:   sets.New[configv1.ClusterVersionCapability](append(inclusionConfig.Capabilities.KnownCapabilities, configv1.KnownClusterVersionCapabilities...)...).UnsortedList(),
+						EnabledCapabilities: sets.New[configv1.ClusterVersionCapability](append(inclusionConfig.Capabilities.EnabledCapabilities, enabled...)...).UnsortedList(),
+					}
+					if err := ms[i].Include(inclusionConfig.ExcludeIdentifier, inclusionConfig.RequiredFeatureSet, inclusionConfig.Profile, clusterVersionCapabilitiesStatus, inclusionConfig.Overrides); err != nil {
+						klog.V(4).Infof("Excluding %s: %s", ms[i].String(), err)
+						ms = append(ms[:i], ms[i+1:]...)
+					}
 				}
 			}
 
@@ -470,20 +492,20 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 
 			out := o.Out
 			if o.Directory != "" {
-				out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
+				out, err = os.Create(filepath.Join(o.Directory, name))
 				if err != nil {
-					return false, errors.Wrapf(err, "error creating manifest in %s", hdr.Name)
+					return false, errors.Wrapf(err, "error creating manifest in %s", name)
 				}
 			}
 			if out != nil {
 				for _, m := range manifestsToWrite {
 					yamlBytes, err := yaml.JSONToYAML(m.Raw)
 					if err != nil {
-						return false, errors.Wrapf(err, "error serializing manifest in %s", hdr.Name)
+						return false, errors.Wrapf(err, "error serializing manifest in %s", name)
 					}
 					fmt.Fprintf(out, "---\n")
 					if _, err := out.Write(yamlBytes); err != nil {
-						return false, errors.Wrapf(err, "error writing manifest in %s", hdr.Name)
+						return false, errors.Wrapf(err, "error writing manifest in %s", name)
 					}
 				}
 			}
@@ -493,8 +515,8 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 
 	fileFound := false
 	if o.File != "" {
-		tarEntryCallbacks = append(tarEntryCallbacks, func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
-			if hdr.Name != o.File {
+		manifestsCallbacks = append(manifestsCallbacks, func(name string, _ []manifest.Manifest, r io.Reader, _ []configv1.ClusterVersionCapability) (bool, error) {
+			if name != o.File {
 				return true, nil
 			}
 			fileFound = true
@@ -502,22 +524,21 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 			return false, err
 		})
 	}
-
-	if len(tarEntryCallbacks) > 0 {
-		tarEntryCallbacksDone := make([]bool, len(tarEntryCallbacks))
-		opts.TarEntryCallback = func(hdr *tar.Header, layer extract.LayerInfo, r io.Reader) (bool, error) {
-			for i, callback := range tarEntryCallbacks {
-				if tarEntryCallbacksDone[i] {
+	manifestsCallback := func(name string, ms []manifest.Manifest, r io.Reader, enabled []configv1.ClusterVersionCapability) (bool, error) {
+		if len(manifestsCallbacks) > 0 {
+			callbacksDone := make([]bool, len(manifestsCallbacks))
+			for i, callback := range manifestsCallbacks {
+				if callbacksDone[i] {
 					continue
 				}
-				if cont, err := callback(hdr, layer, r); err != nil {
+				if cont, err := callback(name, ms, r, enabled); err != nil {
 					return cont, err
 				} else if !cont {
-					tarEntryCallbacksDone[i] = true
+					callbacksDone[i] = true
 				}
 			}
 
-			for _, done := range tarEntryCallbacksDone {
+			for _, done := range callbacksDone {
 				if !done {
 					return true, nil // still some callbacks that want to keep working
 				}
@@ -525,7 +546,41 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 
 			return false, nil
 		}
+		return true, nil
 	}
+
+	var currentPayloadManifests []manifest.Manifest
+	if needEnabledCapabilities {
+		optsToGetCurrentPayloadManifests, err := getOptsToGetCurrentPayloadManifests(ctx, opts, o.RESTConfig, inclusionConfig)
+		if err != nil {
+			return fmt.Errorf("error getting opts to get current payload manifests: %w", err)
+		}
+		optsToGetCurrentPayloadManifests.TarEntryCallback = func(h *tar.Header, _ extract.LayerInfo, r io.Reader) (cont bool, err error) {
+			if ext := path.Ext(h.Name); len(ext) == 0 || !(ext == ".yaml" || ext == ".yml" || ext == ".json") {
+				return true, nil
+			}
+			klog.V(4).Infof("Found manifest %s in the current release payload", h.Name)
+			ms, err := manifest.ParseManifests(r)
+			if err != nil {
+				return false, err
+			}
+			for i := len(ms) - 1; i >= 0; i-- {
+				if err := ms[i].Include(inclusionConfig.ExcludeIdentifier, inclusionConfig.RequiredFeatureSet, inclusionConfig.Profile, inclusionConfig.Capabilities, inclusionConfig.Overrides); err != nil {
+					klog.V(4).Infof("Excluding %s in the current release payload: %s", ms[i].String(), err)
+					ms = append(ms[:i], ms[i+1:]...)
+				}
+			}
+			currentPayloadManifests = append(currentPayloadManifests, ms...)
+			return true, nil
+		}
+		if err := optsToGetCurrentPayloadManifests.Run(); err != nil {
+			return fmt.Errorf("error getting current payload manifests: %w", err)
+		}
+
+	}
+	manifestReceiver := NewManifestReceiver(manifestsCallback, needEnabledCapabilities, sets.New[string]("image-references", "release-metadata"), currentPayloadManifests, inclusionConfig)
+	opts.TarEntryCallback = manifestReceiver.TarEntryCallback
+	opts.TarEntryCallbackDoneCallback = manifestReceiver.TarEntryCallbackDoneCallback
 
 	if err := opts.Run(); err != nil {
 		return err
@@ -553,12 +608,46 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 
 	// Only output manifest errors if manifests were being extracted.
 	// Do not return an error so current operation, e.g. mirroring, continues.
-	if o.ExtractManifests && len(manifestErrs) > 0 {
-		fmt.Fprintf(o.ErrOut, "Errors: %s\n", errorList(manifestErrs))
+	if o.ExtractManifests && len(manifestReceiver.ManifestErrs) > 0 {
+		fmt.Fprintf(o.ErrOut, "Errors: %s\n", errorList(manifestReceiver.ManifestErrs))
 	}
 
 	return nil
 
+}
+
+func getOptsToGetCurrentPayloadManifests(ctx context.Context, source *extract.ExtractOptions, config *rest.Config, inclusionConfiguration manifestInclusionConfiguration) (*extract.ExtractOptions, error) {
+	client, err := configv1client.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	clusterVersion, err := client.ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	src := clusterVersion.Status.Desired.Image
+	ref, err := imagesource.ParseReference(src)
+	if err != nil {
+		return nil, err
+	}
+	klog.V(4).Infof("The outgoing release payload from %s is running on the cluster: %s", src, config.Host)
+	opts := extract.NewExtractOptions(genericiooptions.IOStreams{Out: source.Out, ErrOut: source.ErrOut})
+	opts.ParallelOptions = source.ParallelOptions
+	opts.SecurityOptions = source.SecurityOptions
+	opts.FilterOptions = source.FilterOptions
+	opts.FileDir = source.FileDir
+	opts.OnlyFiles = true
+	opts.ICSPFile = source.ICSPFile
+	opts.IDMSFile = source.IDMSFile
+	opts.Mappings = []extract.Mapping{
+		{
+			ImageRef: ref,
+			From:     "release-manifests/",
+		},
+	}
+	return opts, nil
 }
 
 func (o *ExtractOptions) extractGit(dir string) error {
