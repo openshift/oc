@@ -14,6 +14,7 @@ import (
 	kappsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,7 +46,7 @@ var (
 		Idle scalable resources.
 
 		Idling discovers the scalable resources (such as deployment configs and replication controllers)
-		associated with a series of services by examining the endpoints of the service.
+		associated with a series of services by examining the endpointslices of the service.
 		Each service is then marked as idled, the associated resources are recorded, and the resources
 		are scaled down to zero replicas.
 
@@ -230,7 +231,7 @@ func scanLinesFromFile(filename string) ([]string, error) {
 	return lines, nil
 }
 
-// idleUpdateInfo contains the required info to annotate an endpoints object
+// idleUpdateInfo contains the required info to annotate a service object
 // with the scalable resources that it should unidle
 type idleUpdateInfo struct {
 	service   *corev1.Service
@@ -238,8 +239,8 @@ type idleUpdateInfo struct {
 }
 
 // calculateIdlableAnnotationsByService calculates the list of objects involved in the idling process from a list of services in a file.
-// Using the list of services, it figures out the associated scalable objects, and returns a map from the endpoints object for the services to
-// the list of scalable resources associated with that endpoints object, as well as a map from CrossGroupObjectReferences to scale to 0 to the
+// Using the list of services, it figures out the associated scalable objects, and returns a map from the endpointslices object for the services to
+// the list of scalable resources associated with that endpointslices object, as well as a map from CrossGroupObjectReferences to scale to 0 to the
 // name of the associated service.
 func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(resource.VisitorFunc) error) (map[types.NamespacedName]idleUpdateInfo, map[namespacedCrossGroupObjectReference]types.NamespacedName, error) {
 	podsLoaded := make(map[corev1.ObjectReference]*corev1.Pod)
@@ -312,14 +313,19 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 			return err
 		}
 
-		endpoints, isEndpoints := info.Object.(*corev1.Endpoints)
+		endpoints, isEndpoints := info.Object.(*v1.EndpointSlice)
 		if !isEndpoints {
-			return fmt.Errorf("you must specify endpoints, not %v (view available endpoints with \"oc get endpoints\").", info.Mapping.Resource)
+			return fmt.Errorf("you must specify endpointslices, not %v (view available endpointslices with \"oc get endpointslices\").", info.Mapping.Resource)
+		}
+
+		serviceName, ok := endpoints.Labels[v1.LabelServiceName]
+		if !ok {
+			serviceName = endpoints.Name
 		}
 
 		endpointsName := types.NamespacedName{
 			Namespace: endpoints.Namespace,
-			Name:      endpoints.Name,
+			Name:      serviceName,
 		}
 		scaleRefs, err := findScalableResourcesForEndpoints(endpoints, getPod, getController)
 		if err != nil {
@@ -333,9 +339,9 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 			targetScaleRefs[ref] = endpointsName
 		}
 
-		svc, err := o.ClientSet.CoreV1().Services(endpoints.Namespace).Get(context.TODO(), endpoints.Name, metav1.GetOptions{})
+		svc, err := o.ClientSet.CoreV1().Services(endpoints.Namespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("unable to get service %s/%s: %v", endpoints.Namespace, endpoints.Name, err)
+			return fmt.Errorf("unable to get service %s/%s: %v", endpoints.Namespace, serviceName, err)
 		}
 
 		idleInfo := idleUpdateInfo{
@@ -393,24 +399,22 @@ func normalizedNSOwnerRef(namespace string, ownerRef *metav1.OwnerReference) nam
 	return ref
 }
 
-// findScalableResourcesForEndpoints takes an Endpoints object and looks for the associated
+// findScalableResourcesForEndpoints takes an EndpointSlice object and looks for the associated
 // scalable objects by checking each address in each subset to see if it has a pod
 // reference, and the following that pod reference to find the owning controller,
 // and returning the unique set of controllers found this way.
-func findScalableResourcesForEndpoints(endpoints *corev1.Endpoints, getPod func(corev1.ObjectReference) (*corev1.Pod, error), getController func(namespacedOwnerReference) (metav1.Object, error)) (map[namespacedCrossGroupObjectReference]struct{}, error) {
-	// To find all RCs and DCs for an endpoint, we first figure out which pods are pointed to by that endpoint...
+func findScalableResourcesForEndpoints(endpoints *v1.EndpointSlice, getPod func(corev1.ObjectReference) (*corev1.Pod, error), getController func(namespacedOwnerReference) (metav1.Object, error)) (map[namespacedCrossGroupObjectReference]struct{}, error) {
+	// To find all RCs and DCs for an endpointslice, we first figure out which pods are pointed to by that endpointslice...
 	podRefs := map[corev1.ObjectReference]*corev1.Pod{}
-	for _, subset := range endpoints.Subsets {
-		for _, addr := range subset.Addresses {
-			if addr.TargetRef != nil && addr.TargetRef.Kind == "Pod" {
-				pod, err := getPod(*addr.TargetRef)
-				if err != nil && !errors.IsNotFound(err) {
-					return nil, fmt.Errorf("unable to find controller for pod %s/%s: %v", addr.TargetRef.Namespace, addr.TargetRef.Name, err)
-				}
+	for _, endpoint := range endpoints.Endpoints {
+		if endpoint.TargetRef != nil && endpoint.TargetRef.Kind == "Pod" {
+			pod, err := getPod(*endpoint.TargetRef)
+			if err != nil && !errors.IsNotFound(err) {
+				return nil, fmt.Errorf("unable to find controller for pod %s/%s: %v", endpoint.TargetRef.Namespace, endpoint.TargetRef.Name, err)
+			}
 
-				if pod != nil {
-					podRefs[*addr.TargetRef] = pod
-				}
+			if pod != nil {
+				podRefs[*endpoint.TargetRef] = pod
 			}
 		}
 	}
@@ -480,7 +484,7 @@ func pairScalesWithScaleRefs(serviceName types.NamespacedName, annotations map[s
 		var oldTargets []unidlingapi.RecordedScaleReference
 		oldTargetsSet := make(map[unidlingapi.CrossGroupObjectReference]int)
 		if err := json.Unmarshal([]byte(oldTargetsRaw), &oldTargets); err != nil {
-			return nil, fmt.Errorf("unable to extract existing scale information from endpoints %s: %v", serviceName.String(), err)
+			return nil, fmt.Errorf("unable to extract existing scale information from endpointslices %s: %v", serviceName.String(), err)
 		}
 
 		for i, target := range oldTargets {
@@ -569,7 +573,7 @@ type scaleInfo struct {
 }
 
 // RunIdle runs the idling command logic, taking a list of resources or services in a file, scaling the associated
-// scalable resources to zero, and annotating the associated endpoints objects with the scalable resources to unidle
+// scalable resources to zero, and annotating the associated service objects with the scalable resources to unidle
 // when they receive traffic.
 func (o *IdleOptions) RunIdle() error {
 	clusterNetwork, err := o.OperatorClient.OperatorV1().Networks().Get(context.TODO(), "cluster", metav1.GetOptions{})
@@ -593,17 +597,44 @@ func (o *IdleOptions) RunIdle() error {
 		if err != nil {
 			return err
 		}
-		b.ResourceNames("endpoints", targetServiceNames...)
+
+		var endpointSliceNames []string
+		for _, val := range targetServiceNames {
+			endpointSlices, err := o.ClientSet.DiscoveryV1().EndpointSlices(o.Namespace).List(context.Background(), metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=%s", v1.LabelServiceName, val),
+			})
+			if err != nil {
+				return err
+			}
+			for _, slice := range endpointSlices.Items {
+				endpointSliceNames = append(endpointSliceNames, slice.Name)
+			}
+		}
+
+		b.ResourceNames("endpointslices", endpointSliceNames...)
 	} else {
 		// NB: this is a bit weird because the resource builder will complain if we use ResourceTypes and ResourceNames when len(args) > 0
 		if o.selector != "" {
-			b.LabelSelectorParam(o.selector).ResourceTypes("endpoints")
+			b.LabelSelectorParam(o.selector).ResourceTypes("endpointslices")
 		}
 
-		b.ResourceNames("endpoints", o.resources...)
+		var endpointSliceNames []string
+		for _, val := range o.resources {
+			endpointSlices, err := o.ClientSet.DiscoveryV1().EndpointSlices(o.Namespace).List(context.Background(), metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=%s", v1.LabelServiceName, val),
+			})
+			if err != nil {
+				return err
+			}
+			for _, slice := range endpointSlices.Items {
+				endpointSliceNames = append(endpointSliceNames, slice.Name)
+			}
+		}
+
+		b.ResourceNames("endpointslices", endpointSliceNames...)
 
 		if o.all {
-			b.ResourceTypes("endpoints").SelectAllParam(o.all)
+			b.ResourceTypes("endpointslices").SelectAllParam(o.all)
 		}
 	}
 
@@ -693,7 +724,7 @@ func (o *IdleOptions) RunIdle() error {
 		return err
 	}
 
-	// annotate the endpoints objects to indicate which scalable resources need to be unidled on traffic
+	// annotate the service objects to indicate which scalable resources need to be unidled on traffic
 	for serviceName, info := range byService {
 		if info.service.Annotations == nil {
 			info.service.Annotations = make(map[string]string)

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	v1 "k8s.io/api/discovery/v1"
+
 	unidlingapi "github.com/openshift/api/unidling/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -58,49 +60,35 @@ func makeRCRef(name string) *metav1.OwnerReference {
 }
 
 func TestFindIdlablesForEndpoints(t *testing.T) {
-	endpoints := &corev1.Endpoints{
-		Subsets: []corev1.EndpointSubset{
+	endpoints := &v1.EndpointSlice{
+		Endpoints: []v1.Endpoint{
 			{
-				Addresses: []corev1.EndpointAddress{
-					{
-						TargetRef: makePodRef("somepod1", "somens1"),
-					},
-					{
-						TargetRef: makePodRef("somepod2", "somens1"),
-					},
-					{
-						TargetRef: &corev1.ObjectReference{
-							Kind:      "Cheese",
-							Name:      "cheddar",
-							Namespace: "somens",
-						},
-					},
+				TargetRef: makePodRef("somepod1", "somens1"),
+			},
+			{
+				TargetRef: makePodRef("somepod2", "somens1"),
+			},
+			{
+				TargetRef: &corev1.ObjectReference{
+					Kind:      "Cheese",
+					Name:      "cheddar",
+					Namespace: "somens",
 				},
 			},
 			{
-				Addresses: []corev1.EndpointAddress{
-					{},
-					{
-						TargetRef: makePodRef("somepod3", "somens1"),
-					},
-					{
-						TargetRef: makePodRef("somepod4", "somens1"),
-					},
-					{
-						TargetRef: makePodRef("somepod5", "somens1"),
-					},
-					{
-						TargetRef: makePodRef("missingpod", "somens1"),
-					},
-				},
+				TargetRef: makePodRef("somepod3", "somens1"),
 			},
 			{
-				Addresses: []corev1.EndpointAddress{
-					{},
-					{
-						TargetRef: makePodRef("somepod1", "somens2"),
-					},
-				},
+				TargetRef: makePodRef("somepod4", "somens1"),
+			},
+			{
+				TargetRef: makePodRef("somepod5", "somens1"),
+			},
+			{
+				TargetRef: makePodRef("missingpod", "somens1"),
+			},
+			{
+				TargetRef: makePodRef("somepod1", "somens2"),
 			},
 		},
 	}
