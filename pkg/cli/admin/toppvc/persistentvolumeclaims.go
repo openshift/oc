@@ -252,6 +252,7 @@ func getWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name st
 	}
 
 	httpTransport := &http.Transport{
+		Proxy:           http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: InsecureTLS},
 	}
 

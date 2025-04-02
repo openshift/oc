@@ -170,13 +170,17 @@ func assessControlPlaneStatus(cv *v1.ClusterVersion, operators []v1.ClusterOpera
 		}
 		insights = append(insights, insight)
 	} else if c.Status != v1.ConditionFalse {
+		verb := "is"
+		if c.Status == v1.ConditionUnknown {
+			verb = "may be"
+		}
 		insight := updateInsight{
 			startedAt: c.LastTransitionTime.Time,
 			scope:     updateInsightScope{scopeType: scopeTypeControlPlane, resources: []scopeResource{{kind: cvGroupKind, name: cv.Name}}},
 			impact: updateInsightImpact{
 				level:       warningImpactLevel,
 				impactType:  updateStalledImpactType,
-				summary:     fmt.Sprintf("Cluster Version %s is failing to proceed with the update (%s)", cv.Name, c.Reason),
+				summary:     fmt.Sprintf("Cluster Version %s %s failing to proceed with the update (%s)", cv.Name, verb, c.Reason),
 				description: c.Message,
 			},
 			remediation: updateInsightRemediation{reference: "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md"},
