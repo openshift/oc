@@ -946,7 +946,6 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 		o.VolumePercentage,
 		executedCommand
 	)
-	)
 
 	excludedTaints := []corev1.Taint{
 		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoExecute},
