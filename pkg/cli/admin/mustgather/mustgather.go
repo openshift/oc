@@ -942,11 +942,10 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 	cleanedSourceDir := path.Clean(o.SourceDir)
 	volumeUsageChecker := fmt.Sprintf(
 		volumeUsageCheckerScript, 
-		cleanedSourceDir, 
-		cleanedSourceDir, 
-		o.VolumePercentage, 
-		o.VolumePercentage, 
+		cleanedSourceDir,
+		o.VolumePercentage,
 		executedCommand
+	)
 	)
 
 	excludedTaints := []corev1.Taint{
