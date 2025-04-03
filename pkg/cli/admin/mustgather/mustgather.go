@@ -51,6 +51,8 @@ import (
 
 const (
 	gatherContainerName = "gather"
+	unreachableTaintKey      = "node.kubernetes.io/unreachable"
+
 )
 
 var (
