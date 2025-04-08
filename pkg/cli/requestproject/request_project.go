@@ -22,6 +22,7 @@ type RequestProjectOptions struct {
 	ProjectName string
 	DisplayName string
 	Description string
+	UDNName     string
 
 	Server string
 
@@ -92,6 +93,7 @@ func NewCmdRequestProject(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	}
 	cmd.Flags().StringVar(&o.DisplayName, "display-name", o.DisplayName, "Project display name")
 	cmd.Flags().StringVar(&o.Description, "description", o.Description, "Project description")
+	cmd.Flags().StringVar(&o.UDNName, "udn-name", o.UDNName, "UserDefinedNetwork Name")
 	cmd.Flags().BoolVar(&o.SkipConfigWrite, "skip-config-write", o.SkipConfigWrite, "If true, the project will not be set as a cluster entry in kubeconfig after being created")
 
 	return cmd
@@ -140,6 +142,7 @@ func (o *RequestProjectOptions) Run() error {
 	projectRequest.Name = o.ProjectName
 	projectRequest.DisplayName = o.DisplayName
 	projectRequest.Description = o.Description
+	projectRequest.UDNName = o.UDNName
 	projectRequest.Annotations = make(map[string]string)
 
 	project, err := o.Client.ProjectRequests().Create(context.TODO(), projectRequest, metav1.CreateOptions{})

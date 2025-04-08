@@ -32,6 +32,7 @@ type NewProjectOptions struct {
 	ProjectName  string
 	DisplayName  string
 	Description  string
+	UDNName      string
 	NodeSelector string
 
 	UseNodeSelector bool
@@ -82,6 +83,7 @@ func NewCmdNewProject(f kcmdutil.Factory, streams genericiooptions.IOStreams) *c
 	cmd.Flags().StringVar(&o.AdminUser, "admin", o.AdminUser, "Project admin username")
 	cmd.Flags().StringVar(&o.DisplayName, "display-name", o.DisplayName, "Project display name")
 	cmd.Flags().StringVar(&o.Description, "description", o.Description, "Project description")
+	cmd.Flags().StringVar(&o.UDNName, "udn-name", o.UDNName, "UserDefinedNetwork Name")
 	cmd.Flags().StringVar(&o.NodeSelector, "node-selector", o.NodeSelector, "Restrict pods onto nodes matching given label selector. Format: '<key1>=<value1>, <key2>=<value2>...'. Specifying \"\" means any node, not default. If unspecified, cluster default node selector will be used.")
 
 	return cmd
@@ -133,6 +135,7 @@ func (o *NewProjectOptions) Run() error {
 	project.Annotations = make(map[string]string)
 	project.Annotations[annotations.OpenShiftDescription] = o.Description
 	project.Annotations[annotations.OpenShiftDisplayName] = o.DisplayName
+	project.Labels[projectv1.ProjectUDNName] = o.UDNName
 	if o.UseNodeSelector {
 		project.Annotations[projectv1.ProjectNodeSelector] = o.NodeSelector
 	}
