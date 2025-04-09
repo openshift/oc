@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/exec"
+	"sigs.k8s.io/yaml"
 
 	ocpv1 "github.com/openshift/api/config/v1"
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
@@ -87,7 +88,33 @@ func (c *BaseNodeImageCommand) getNodeJoinerPullSpec(ctx context.Context) error 
 	}
 
 	// Extract the baremetal-installer image pullspec, since it
-	// provide the node-joiner tool.
+	// provides the node-joiner tool.
+
+	// First attempt to get the installer image from the configMap created by installer. This will work in disconnected environments.
+	installerImagesConfigMap, err := c.Client.CoreV1().ConfigMaps("openshift-config").Get(ctx, "installer-images", metav1.GetOptions{})
+	if err == nil {
+		images := installerImagesConfigMap.Data["images.json"]
+		if len(images) > 0 {
+			imageMap := make(map[string]string)
+			err := yaml.Unmarshal([]byte(images), &imageMap)
+			if err == nil {
+				installer, exists := imageMap["installer"]
+				if exists {
+					// Found pullSpec from configMap
+					c.log("installer pullspec obtained from installer-images configMap %s", installer)
+					c.nodeJoinerImage = installer
+					return nil
+				}
+			}
+		}
+	} else if !kapierrors.IsNotFound(err) {
+		c.log("failure retrieving installer-images configMap %s", err.Error())
+	} else {
+		c.log("configMap containing installer-images is not available, trying to get image from registry")
+	}
+
+	// If cannot obtain installer image from configMap, get it from the releaseImage
+	// Note that after OCP 4.20 this should not be necessary since the configMap was added to installer in 4.19
 	opts := ocrelease.NewInfoOptions(c.IOStreams)
 	opts.SecurityOptions = c.SecurityOptions
 	release, err := opts.LoadReleaseInfo(releaseImage, false)
