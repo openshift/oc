@@ -206,3 +206,5 @@ require (
 )
 
 replace github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
+
+replace github.com/openshift/api => github.com/miheer/api v0.0.0-20250409031450-327eb2166a3a

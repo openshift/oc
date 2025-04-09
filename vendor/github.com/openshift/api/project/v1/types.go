@@ -32,6 +32,9 @@ const (
 	// ProjectRequesterAnnotation is the username that requested a given project.  Its not guaranteed to be present,
 	// but it is set by the default project template.
 	ProjectRequesterAnnotation = "openshift.io/requester"
+
+	// ProjectUDNName is a label which refers to a UDN Name for a project
+	ProjectUDNName = "k8s.ovn.org/primary-user-defined-network"
 )
 
 // ProjectSpec describes the attributes on a Project
@@ -108,4 +111,9 @@ type ProjectRequest struct {
 	DisplayName string `json:"displayName,omitempty" protobuf:"bytes,2,opt,name=displayName"`
 	// description is the description to apply to a project
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
+	// udnName is the User Defined Networks Name to apply to a project
+	// Reference of regex and max length: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$`
+	UDNName string `json:"udnName,omitempty" protobuf:"bytes,4,opt,name=udnName"`
 }

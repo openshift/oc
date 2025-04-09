@@ -37,6 +37,7 @@ var map_ProjectRequest = map[string]string{
 	"metadata":    "metadata is the standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
 	"displayName": "displayName is the display name to apply to a project",
 	"description": "description is the description to apply to a project",
+	"udnName":     "udnName is the User Defined Networks Name to apply to a project Reference of regex and max length: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set",
 }
 
 func (ProjectRequest) SwaggerDoc() map[string]string {

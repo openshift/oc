@@ -67,6 +67,12 @@ message ProjectRequest {
 
   // description is the description to apply to a project
   optional string description = 3;
+
+  // udnName is the User Defined Networks Name to apply to a project
+  // Reference of regex and max length: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
+  // +kubebuilder:validation:MaxLength=63
+  // +kubebuilder:validation:Pattern=`^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$`
+  optional string udnName = 4;
 }
 
 // ProjectSpec describes the attributes on a Project
