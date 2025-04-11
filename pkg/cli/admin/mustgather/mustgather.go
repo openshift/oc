@@ -51,6 +51,8 @@ import (
 
 const (
 	gatherContainerName = "gather"
+	unreachableTaintKey      = "node.kubernetes.io/unreachable"
+
 )
 
 var (
@@ -941,6 +943,38 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 
 	cleanedSourceDir := path.Clean(o.SourceDir)
 	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
+	//fmt.Sprintf(volumeUsageCheckerScript,cleanedSourceDir,o.VolumePercentage,executedCommand,)
+	
+	excludedTaints := []corev1.Taint{
+		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoExecute},
+		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoSchedule},
+	}
+
+	var tolerations []corev1.Toleration
+	if node == "" && hasMaster {
+		tolerations = append(tolerations, corev1.Toleration{
+			Key:      "node-role.kubernetes.io/master",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		})
+	}
+
+	tolerations = append(tolerations, corev1.Toleration{
+		Key:      "node.kubernetes.io/not-ready",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	})
+
+	filteredTolerations := make([]corev1.Toleration, 0)
+TolerationLoop:
+	for _, tol := range tolerations {
+		for _, excluded := range excludedTaints {
+			if tol.ToleratesTaint(&excluded) {
+				continue TolerationLoop
+			}
+		}
+		filteredTolerations = append(filteredTolerations, tol)
+	}
 
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1016,14 +1050,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 			HostNetwork:                   o.HostNetwork,
 			NodeSelector:                  nodeSelector,
 			TerminationGracePeriodSeconds: &zero,
-			Tolerations: []corev1.Toleration{
-				{
-					// An empty key with operator Exists matches all keys,
-					// values and effects which means this will tolerate everything.
-					// As noted in https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
-					Operator: "Exists",
-				},
-			},
+			Tolerations:                   filteredTolerations,
 		},
 	}
 	if o.HostNetwork {
