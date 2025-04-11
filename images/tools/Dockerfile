@@ -5,6 +5,7 @@ RUN make build --warn-undefined-variables
 
 FROM registry.ci.openshift.org/ocp/4.19:base-rhel9
 COPY --from=builder /go/src/github.com/openshift/oc/oc /usr/bin/
+COPY --from=builder /go/src/github.com/openshift/oc/images/tools/sos.conf /etc/sos/
 RUN for i in kubectl openshift-deploy openshift-docker-build openshift-sti-build openshift-git-clone openshift-manage-dockerfile openshift-extract-image-content openshift-recycle; do ln -sf /usr/bin/oc /usr/bin/$i; done
 RUN INSTALL_PKGS="\
   bash-completion \
