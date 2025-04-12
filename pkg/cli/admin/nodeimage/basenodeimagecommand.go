@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -107,16 +108,24 @@ func (c *BaseNodeImageCommand) getNodeJoinerPullSpec(ctx context.Context) error 
 				}
 			}
 		}
-	} else if !kapierrors.IsNotFound(err) {
-		c.log("failure retrieving installer-images configMap %s", err.Error())
-	} else {
-		c.log("configMap containing installer-images is not available, trying to get image from registry")
 	}
 
-	// If cannot obtain installer image from configMap, get it from the releaseImage
-	// Note that after OCP 4.20 this should not be necessary since the configMap was added to installer in 4.19
+	// If cannot obtain installer image from configMap, get it from the releaseImage.
+	// Note that after OCP 4.20, this should not be necessary since the configMap was added to installer in 4.19.
+	c.log("configMap containing installer-images is not available, trying to get image from registry")
 	opts := ocrelease.NewInfoOptions(c.IOStreams)
 	opts.SecurityOptions = c.SecurityOptions
+	idmsFile, err := c.getIdmsFile(ctx)
+	if err != nil {
+		return err
+	}
+	opts.IDMSFile = idmsFile
+	defer func() {
+		if opts.IDMSFile != "" {
+			os.Remove(opts.IDMSFile)
+		}
+	}()
+
 	release, err := opts.LoadReleaseInfo(releaseImage, false)
 	if err != nil {
 		return err
@@ -435,4 +444,46 @@ func (o *BaseNodeImageCommand) runNodeJoinerPod(ctx context.Context, tasks []fun
 		}
 	}
 	return nil
+}
+
+func (c *BaseNodeImageCommand) getIdmsFile(ctx context.Context) (string, error) {
+	imageDigestMirrorSets, idmsErr := c.ConfigClient.ConfigV1().ImageDigestMirrorSets().List(ctx, metav1.ListOptions{})
+	if idmsErr != nil && !kapierrors.IsNotFound(idmsErr) {
+		return "", idmsErr
+	}
+	imageContentPolicies, icspErr := c.ConfigClient.ConfigV1().ImageContentPolicies().List(ctx, metav1.ListOptions{})
+	if icspErr != nil && !kapierrors.IsNotFound(icspErr) {
+		return "", icspErr
+	}
+	if idmsErr != nil || len(imageDigestMirrorSets.Items) == 0 {
+		imageDigestMirrorSets = nil // handle empty idms
+	}
+	if icspErr != nil || len(imageContentPolicies.Items) == 0 {
+		imageContentPolicies = nil // handle empty icsp
+	}
+	if imageDigestMirrorSets == nil && imageContentPolicies == nil {
+		return "", nil
+	}
+
+	// Build IDMS file from contents of the IDMS and ICSP mirror digests
+	contents, err := getIdmsContents(c.LogOut, imageDigestMirrorSets, imageContentPolicies)
+	if err != nil {
+		c.log("failure parsing imageDigestMirrorSet %s", err.Error())
+		return "", err
+	}
+
+	// create temp file which will be removed by caller
+	idmsFile, err := os.CreateTemp("", "idms-file")
+	if err != nil {
+		return "", err
+	}
+
+	c.log("Building IDMS file with contents %s", contents)
+	if _, err := idmsFile.Write(contents); err != nil {
+		idmsFile.Close()
+		os.Remove(idmsFile.Name())
+		return "", err
+	}
+	idmsFile.Close()
+	return idmsFile.Name(), nil
 }
