@@ -642,6 +642,8 @@ func (_ removePermissions) Alter(hdr *tar.Header) (bool, error) {
 	default:
 		hdr.Mode = int64(os.FileMode(0755))
 	}
+	hdr.Xattrs = map[string]string{}
+	hdr.PAXRecords = map[string]string{}
 	return true, nil
 }
 

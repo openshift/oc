@@ -782,10 +782,7 @@ func (o *NewOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	sort.Strings(operators)
-	switch {
-	case operators == nil:
-	case len(operators) == 0:
+	if len(operators) == 0 {
 		fmt.Fprintf(o.ErrOut, "warning: No operator metadata was found, no operators will be part of the release.\n")
 	}
 
