@@ -39,6 +39,7 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/interrupt"
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/pod-security-admission/api"
@@ -206,10 +207,11 @@ func NewDebugOptions(streams genericiooptions.IOStreams) *DebugOptions {
 func NewCmdDebug(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewDebugOptions(streams)
 	cmd := &cobra.Command{
-		Use:     "debug RESOURCE/NAME [ENV1=VAL1 ...] [-c CONTAINER] [flags] [-- COMMAND]",
-		Short:   "Launch a new instance of a pod for debugging",
-		Long:    debugLong,
-		Example: debugExample,
+		Use:               "debug RESOURCE/NAME [ENV1=VAL1 ...] [-c CONTAINER] [flags] [-- COMMAND]",
+		Short:             "Launch a new instance of a pod for debugging",
+		Long:              debugLong,
+		Example:           debugExample,
+		ValidArgsFunction: debugCompletionFunc(f),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(cmd, f, args))
 			kcmdutil.CheckErr(o.Validate())
@@ -223,7 +225,6 @@ func NewCmdDebug(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 
 		},
 	}
-
 	addDebugFlags(cmd, o)
 
 	return cmd
@@ -1348,4 +1349,59 @@ func (o *DebugOptions) resolveImageStreamTag(namespace, name, tag string) (strin
 		return "", fmt.Errorf("unable to resolve the imagestream tag %s/%s:%s: %v", namespace, name, tag, err)
 	}
 	return image, nil
+}
+
+// debugCompletionFunc Returns a completion function that completes:
+// 1- pod names that match the toComplete prefix
+// 2- resource types acceptable by debug command which match the toComplete prefix
+func debugCompletionFunc(f kcmdutil.Factory) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		var comps []string
+		directive := cobra.ShellCompDirectiveNoFileComp
+		if len(args) != 0 {
+			return comps, directive
+		}
+
+		directive = cobra.ShellCompDirectiveNoFileComp
+		slashIdx := strings.Index(toComplete, "/")
+		if slashIdx == -1 {
+			// Standard case, complete pod names
+			comps = completion.CompGetResource(f, "pod", toComplete)
+
+			validResources := []string{
+				"cronjobs",
+				"daemonsets",
+				"deployments",
+				"imagestreamimages",
+				"imagestreamtags",
+				"jobs",
+				"nodes",
+				"pods",
+				"replicasets",
+				"replicationcontrollers",
+				"statefulsets",
+			}
+
+			if len(comps) == 0 {
+				// If there are no pods to complete, we will only be completing
+				// <type>/.  We should disable adding a space after the /.
+				directive |= cobra.ShellCompDirectiveNoSpace
+			}
+
+			for _, resource := range validResources {
+				if strings.HasPrefix(resource, toComplete) {
+					comps = append(comps, fmt.Sprintf("%s/", resource))
+				}
+			}
+		} else {
+			// Dealing with the <type>/<name> form, use the specified resource type
+			resourceType := toComplete[:slashIdx]
+			toComplete = toComplete[slashIdx+1:]
+			nameComps := completion.CompGetResource(f, resourceType, toComplete)
+			for _, c := range nameComps {
+				comps = append(comps, fmt.Sprintf("%s/%s", resourceType, c))
+			}
+		}
+		return comps, directive
+	}
 }
