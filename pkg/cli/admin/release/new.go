@@ -1308,32 +1308,9 @@ type nopCloser struct {
 
 func (_ nopCloser) Close() error { return nil }
 
-// writeNestedTarHeader writes a series of nested tar headers, starting with parts[0] and joining each
-// successive part, but only if the path does not exist already.
-func writeNestedTarHeader(tw *tar.Writer, parts []string, existing map[string]struct{}, hdr tar.Header) error {
-	for i := range parts {
-		componentDir := path.Join(parts[:i+1]...)
-		if _, ok := existing[componentDir]; ok {
-			continue
-		}
-		existing[componentDir] = struct{}{}
-		hdr.Name = componentDir
-		if err := tw.WriteHeader(&hdr); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 const imageReferencesImageStreamFilename = "image-references"
 
 func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata, ordered []string, metadata map[string]imageData, allowMissingImages bool, verifiers []PayloadVerifier, errOut io.Writer) ([]string, error) {
-	var operators []string
-	directories := make(map[string]struct{})
-	files := make(map[string]int)
-
-	parts := []string{"release-manifests"}
-
 	// find the newest content date in the input
 	var newest time.Time
 	if err := iterateExtractedManifests(ordered, metadata, func(_ string, contents []os.FileInfo, _ string) error {
@@ -1355,8 +1332,15 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 	gw := gzip.NewWriter(w)
 	tw := tar.NewWriter(gw)
 
+	manifestDestinationDir := "release-manifests"
 	// ensure the directory exists in the tar bundle
-	if err := writeNestedTarHeader(tw, parts, directories, tar.Header{Mode: 0777, ModTime: newest, Typeflag: tar.TypeDir}); err != nil {
+	releaseManifestsDirHdr := tar.Header{
+		Name:     manifestDestinationDir,
+		Mode:     0777,
+		ModTime:  newest,
+		Typeflag: tar.TypeDir,
+	}
+	if err := tw.WriteHeader(&releaseManifestsDirHdr); err != nil {
 		return nil, err
 	}
 
@@ -1366,7 +1350,14 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 		return nil, err
 	}
 
-	if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: newest, Typeflag: tar.TypeReg, Name: path.Join(append(append([]string{}, parts...), imageReferencesImageStreamFilename)...), Size: int64(len(data))}); err != nil {
+	imageReferencesHdr := tar.Header{
+		Name:     path.Join(manifestDestinationDir, imageReferencesImageStreamFilename),
+		Mode:     0444,
+		ModTime:  newest,
+		Typeflag: tar.TypeReg,
+		Size:     int64(len(data)),
+	}
+	if err := tw.WriteHeader(&imageReferencesHdr); err != nil {
 		return nil, err
 	}
 	if _, err := tw.Write(data); err != nil {
@@ -1379,7 +1370,14 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 		if err != nil {
 			return nil, err
 		}
-		if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: newest, Typeflag: tar.TypeReg, Name: path.Join(append(append([]string{}, parts...), "release-metadata")...), Size: int64(len(data))}); err != nil {
+		releaseMetadataHdr := tar.Header{
+			Name:     path.Join(manifestDestinationDir, "release-metadata"),
+			Mode:     0444,
+			ModTime:  newest,
+			Typeflag: tar.TypeReg,
+			Size:     int64(len(data)),
+		}
+		if err := tw.WriteHeader(&releaseMetadataHdr); err != nil {
 			return nil, err
 		}
 		if _, err := tw.Write(data); err != nil {
@@ -1387,6 +1385,8 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 		}
 	}
 
+	var operators []string
+	files := make(map[string]int)
 	// read each directory, processing the manifests in order and updating the contents into the tar output
 	if err := iterateExtractedManifests(ordered, metadata, func(directory string, contents []os.FileInfo, operator string) error {
 		transform := NewSimpleVersionsMapper(is.Name)
@@ -1428,7 +1428,7 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			files[dstFilename] = 1
 
 			src := filepath.Join(directory, srcFilename)
-			dst := path.Join(append(append([]string{}, parts...), dstFilename)...)
+			dst := path.Join(manifestDestinationDir, dstFilename)
 			klog.V(4).Infof("Copying %s to %s", src, dst)
 
 			data, err := os.ReadFile(src)
@@ -1446,7 +1446,14 @@ func writePayload(w io.Writer, is *imageapi.ImageStream, cm *CincinnatiMetadata,
 			if err != nil {
 				return err
 			}
-			if err := tw.WriteHeader(&tar.Header{Mode: 0444, ModTime: fi.ModTime(), Typeflag: tar.TypeReg, Name: dst, Size: int64(len(modified))}); err != nil {
+			dstHdr := tar.Header{
+				Name:     dst,
+				Mode:     0444,
+				ModTime:  fi.ModTime(),
+				Typeflag: tar.TypeReg,
+				Size:     int64(len(modified)),
+			}
+			if err := tw.WriteHeader(&dstHdr); err != nil {
 				return err
 			}
 			klog.V(6).Infof("Writing payload to %s\n%s", dst, string(modified))
