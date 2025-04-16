@@ -413,6 +413,7 @@ func (o PruneImagesOptions) Run() error {
 
 	ctx := context.TODO()
 	allImages := map[string]*imagev1.Image{}
+	var acceptableErrors []error
 	err = pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 		return o.ImageClient.Images().List(ctx, opts)
 	}).EachListItem(ctx, metav1.ListOptions{Limit: 5000}, func(obj runtime.Object) error {
@@ -421,7 +422,12 @@ func (o PruneImagesOptions) Run() error {
 		return nil
 	})
 	if err != nil {
-		return err
+		if len(allImages) > 0 {
+			fmt.Fprintf(o.ErrOut, "warning: error retrieving images, but we got %d, so keep going to see if we can prune any of those: %s\n", len(allImages), err)
+			acceptableErrors = append(acceptableErrors, err)
+		} else {
+			return err
+		}
 	}
 
 	var (
@@ -528,6 +534,9 @@ func (o PruneImagesOptions) Run() error {
 		imageDeleter,
 	)
 	fmt.Fprintf(o.Out, "Summary: %s\n", stats)
+	if errs == nil {
+		errs = kutilerrors.NewAggregate(acceptableErrors)
+	}
 	return errs
 }
 
