@@ -381,7 +381,7 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 	}
 	if o.GeneratePXEFiles {
 		rsyncOptions.Source.Path = "/assets/boot-artifacts/"
-		rsyncOptions.RsyncInclude = []string{"*.img", "*.*vmlinuz", "*.ipxe"}
+		rsyncOptions.RsyncInclude = []string{"*.img", "*.*vmlinuz", "*.ipxe", "*.ins", "*.addrsize"}
 		logMessage = "Saving PXE artifacts to %s"
 	}
 	rsyncOptions.Strategy = o.copyStrategy(rsyncOptions)
