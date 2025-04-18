@@ -84,7 +84,7 @@ func TestMonitorRun(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			fakeReg, fakeClient, fakeRestConfig, fakeRemoteExec := createFakes(t, nodeJoinerMonitorContainer)
+			fakeReg, fakeClient, fakeRestConfig, fakeRemoteExec := createFakes(t, nodeJoinerMonitorContainer, nil)
 			defer fakeReg.Close()
 
 			// Allow the test case to use the right digest created by the fake registry.
