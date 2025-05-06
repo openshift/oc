@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/exec"
+	"sigs.k8s.io/yaml"
 
 	ocpv1 "github.com/openshift/api/config/v1"
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
@@ -87,9 +89,43 @@ func (c *BaseNodeImageCommand) getNodeJoinerPullSpec(ctx context.Context) error 
 	}
 
 	// Extract the baremetal-installer image pullspec, since it
-	// provide the node-joiner tool.
+	// provides the node-joiner tool.
+
+	// First attempt to get the installer image from the configMap created by installer. This will work in disconnected environments.
+	installerImagesConfigMap, err := c.Client.CoreV1().ConfigMaps("openshift-config").Get(ctx, "installer-images", metav1.GetOptions{})
+	if err == nil {
+		images := installerImagesConfigMap.Data["images.json"]
+		if len(images) > 0 {
+			imageMap := make(map[string]string)
+			err := yaml.Unmarshal([]byte(images), &imageMap)
+			if err == nil {
+				installer, exists := imageMap["installer"]
+				if exists {
+					// Found pullSpec from configMap
+					c.log("installer pullspec obtained from installer-images configMap %s", installer)
+					c.nodeJoinerImage = installer
+					return nil
+				}
+			}
+		}
+	}
+
+	// If cannot obtain installer image from configMap, get it from the releaseImage.
+	// Note that after OCP 4.20, this should not be necessary since the configMap was added to installer in 4.19.
+	c.log("configMap containing installer-images is not available, trying to get image from registry")
 	opts := ocrelease.NewInfoOptions(c.IOStreams)
 	opts.SecurityOptions = c.SecurityOptions
+	idmsFile, err := c.getIdmsFile(ctx)
+	if err != nil {
+		return err
+	}
+	opts.IDMSFile = idmsFile
+	defer func() {
+		if opts.IDMSFile != "" {
+			os.Remove(opts.IDMSFile)
+		}
+	}()
+
 	release, err := opts.LoadReleaseInfo(releaseImage, false)
 	if err != nil {
 		return err
@@ -408,4 +444,46 @@ func (o *BaseNodeImageCommand) runNodeJoinerPod(ctx context.Context, tasks []fun
 		}
 	}
 	return nil
+}
+
+func (c *BaseNodeImageCommand) getIdmsFile(ctx context.Context) (string, error) {
+	imageDigestMirrorSets, idmsErr := c.ConfigClient.ConfigV1().ImageDigestMirrorSets().List(ctx, metav1.ListOptions{})
+	if idmsErr != nil && !kapierrors.IsNotFound(idmsErr) {
+		return "", idmsErr
+	}
+	imageContentPolicies, icspErr := c.ConfigClient.ConfigV1().ImageContentPolicies().List(ctx, metav1.ListOptions{})
+	if icspErr != nil && !kapierrors.IsNotFound(icspErr) {
+		return "", icspErr
+	}
+	if idmsErr != nil || len(imageDigestMirrorSets.Items) == 0 {
+		imageDigestMirrorSets = nil // handle empty idms
+	}
+	if icspErr != nil || len(imageContentPolicies.Items) == 0 {
+		imageContentPolicies = nil // handle empty icsp
+	}
+	if imageDigestMirrorSets == nil && imageContentPolicies == nil {
+		return "", nil
+	}
+
+	// Build IDMS file from contents of the IDMS and ICSP mirror digests
+	contents, err := getIdmsContents(c.LogOut, imageDigestMirrorSets, imageContentPolicies)
+	if err != nil {
+		c.log("failure parsing imageDigestMirrorSet %s", err.Error())
+		return "", err
+	}
+
+	// create temp file which will be removed by caller
+	idmsFile, err := os.CreateTemp("", "idms-file")
+	if err != nil {
+		return "", err
+	}
+
+	c.log("Building IDMS file with contents %s", contents)
+	if _, err := idmsFile.Write(contents); err != nil {
+		idmsFile.Close()
+		os.Remove(idmsFile.Name())
+		return "", err
+	}
+	idmsFile.Close()
+	return idmsFile.Name(), nil
 }
