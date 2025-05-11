@@ -13,12 +13,10 @@ import (
 	appsv1 "github.com/openshift/api/apps/v1"
 	buildv1 "github.com/openshift/api/build/v1"
 	imagev1 "github.com/openshift/api/image/v1"
-	projectv1 "github.com/openshift/api/project/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	buildv1client "github.com/openshift/client-go/build/clientset/versioned/typed/build/v1"
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
-	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
 	deployutil "github.com/openshift/oc/pkg/helpers/deployment"
@@ -67,13 +65,12 @@ type ProjectStatusDescriber struct {
 	RESTMapper meta.RESTMapper
 
 	// OpenShift clients
-	ProjectClient projectv1client.ProjectV1Interface
-	BuildClient   buildv1client.BuildV1Interface
-	ImageClient   imagev1client.ImageV1Interface
-	AppsClient    appsv1client.AppsV1Interface
-	RouteClient   routev1client.RouteV1Interface
-	Server        string
-	Suggest       bool
+	BuildClient buildv1client.BuildV1Interface
+	ImageClient imagev1client.ImageV1Interface
+	AppsClient  appsv1client.AppsV1Interface
+	RouteClient routev1client.RouteV1Interface
+	Server      string
+	Suggest     bool
 
 	RequestedNamespace string
 	CurrentNamespace   string
@@ -193,9 +190,9 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 	}
 
 	allNamespaces := namespace == metav1.NamespaceAll
-	var project *projectv1.Project
+	var project *corev1.Namespace
 	if !allNamespaces {
-		p, err := d.ProjectClient.Projects().Get(context.TODO(), namespace, metav1.GetOptions{})
+		p, err := d.KubeClient.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
 		if err != nil {
 			// a forbidden error here (without a --namespace value) means that
 			// the user has not created any projects, and is therefore using a
@@ -206,7 +203,7 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 			if !kapierrors.IsNotFound(err) {
 				return "", err
 			}
-			p = &projectv1.Project{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+			p = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 		}
 		project = p
 		f = namespacedFormatter{currentNamespace: namespace}
@@ -726,20 +723,19 @@ func (f namespacedFormatter) ResourceName(obj interface{}) string {
 	}
 }
 
-func describeProjectAndServer(f formatter, project *projectv1.Project, server string) string {
-	projectName := project.Name
-	displayName := project.Annotations[annotations.OpenShiftDisplayName]
+func describeProjectAndServer(f formatter, namespace *corev1.Namespace, server string) string {
+	projectName := namespace.Name
+	displayName := namespace.Annotations[annotations.OpenShiftDisplayName]
 	if len(displayName) == 0 {
-		displayName = project.Annotations["displayName"]
+		displayName = namespace.Annotations["displayName"]
 	}
-	if len(displayName) > 0 && displayName != project.Name {
-		projectName = fmt.Sprintf("%s (%s)", displayName, project.Name)
+	if len(displayName) > 0 && displayName != namespace.Name {
+		projectName = fmt.Sprintf("%s (%s)", displayName, namespace.Name)
 	}
 	if len(server) == 0 {
 		return fmt.Sprintf("In project %s\n", projectName)
 	}
 	return fmt.Sprintf("In project %s on server %s\n", projectName, server)
-
 }
 
 func describeAllProjectsOnServer(f formatter, server string) string {
