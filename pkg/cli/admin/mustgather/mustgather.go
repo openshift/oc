@@ -132,7 +132,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().Uint8Var(&o.VolumePercentage, "volume-percentage", o.VolumePercentage, "Specify maximum percentage of must-gather pod's allocated volume that can be used. If this limit is exceeded, must-gather will stop gathering, but still copy gathered data.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	cmd.Flags().MarkHidden("keep")
-	cmd.Flags().StringVar(&o.SinceTime, "since-time", o.SinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used.")
+	cmd.Flags().StringVar(&o.SinceTime, "since-time", o.SinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used. This may not be applied to all commands in must-gather image (e.g. not every command complies with RFC3339, the use might be limited, etc.).")
 	cmd.Flags().DurationVar(&o.Since, "since", o.Since, "Only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used.")
 
 	return cmd
