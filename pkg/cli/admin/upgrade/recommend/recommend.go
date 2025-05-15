@@ -63,6 +63,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	flags.StringVar(&o.rawVersion, "version", o.rawVersion, "Select a particular target release to display by version.")
 
 	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_RECOMMEND_ACCEPT").IsEnabled() {
+		flags.BoolVar(&o.quiet, "quiet", o.quiet, "When --quiet is true and --version is set, only print unaccepted issue names.")
 		flags.StringSliceVar(&o.accept, "accept", o.accept, "Comma-delimited names for issues that you find acceptable.  With --version, any unaccepted issues will result in a non-zero exit code.")
 	}
 
@@ -79,6 +80,9 @@ type options struct {
 	mockData             mockData
 	showOutdatedReleases bool
 	precheckEnabled      bool
+
+	// quiet configures the verbosity of output.  When 'quiet' is true and 'version' is set, only print unaccepted issue names.
+	quiet bool
 
 	// rawVersion is parsed into version by options.Complete.  Do not consume it directly outside of that early option handling.
 	rawVersion string
@@ -115,7 +119,11 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		}
 	}
 
-	if o.rawVersion != "" {
+	if o.rawVersion == "" {
+		if o.quiet {
+			return errors.New("--quiet can only be set when --version is set")
+		}
+	} else {
 		if o.showOutdatedReleases {
 			return errors.New("when --version is set, --show-outdated-releases is unnecessary")
 		}
@@ -154,7 +162,9 @@ func (o *options) Run(ctx context.Context) error {
 			if accept.Has(string(clusterStatusFailing)) {
 				acceptContext = "accepted "
 			}
-			fmt.Fprintf(o.Out, "%s%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", acceptContext, c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+			if !o.quiet {
+				fmt.Fprintf(o.Out, "%s%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", acceptContext, c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+			}
 			issues.Insert(string(clusterStatusFailing))
 		}
 	} else {
@@ -162,7 +172,9 @@ func (o *options) Run(ctx context.Context) error {
 		if accept.Has(string(clusterStatusFailing)) {
 			acceptContext = "accepted "
 		}
-		fmt.Fprintf(o.ErrOut, "%swarning: No current %s info, see `oc describe clusterversion` for more details.\n", acceptContext, clusterStatusFailing)
+		if !o.quiet {
+			fmt.Fprintf(o.ErrOut, "%swarning: No current %s info, see `oc describe clusterversion` for more details.\n", acceptContext, clusterStatusFailing)
+		}
 		issues.Insert(string(clusterStatusFailing))
 	}
 
@@ -171,14 +183,18 @@ func (o *options) Run(ctx context.Context) error {
 		if accept.Has(string(configv1.OperatorProgressing)) {
 			acceptContext = "accepted "
 		}
-		fmt.Fprintf(o.Out, "%sinfo: An update is in progress.  You may wish to let this update complete before requesting a new update.\n  %s\n\n", acceptContext, strings.ReplaceAll(c.Message, "\n", "\n  "))
+		if !o.quiet {
+			fmt.Fprintf(o.Out, "%sinfo: An update is in progress.  You may wish to let this update complete before requesting a new update.\n  %s\n\n", acceptContext, strings.ReplaceAll(c.Message, "\n", "\n  "))
+		}
 		issues.Insert(string(configv1.OperatorProgressing))
 	}
 
 	if o.precheckEnabled {
 		conditions, err := o.precheck(ctx)
 		if err != nil {
-			fmt.Fprintf(o.Out, "Failed to check for at least some preconditions: %v\n", err)
+			if !o.quiet {
+				fmt.Fprintf(o.Out, "Failed to check for at least some preconditions: %v\n", err)
+			}
 			issues.Insert("FailedToCompletePrecheck")
 		}
 		var happyConditions []string
@@ -196,40 +212,48 @@ func (o *options) Run(ctx context.Context) error {
 				}
 			}
 		}
-		if len(happyConditions) > 0 {
-			sort.Strings(happyConditions)
-			fmt.Fprintf(o.Out, "The following conditions found no cause for concern in updating this cluster to later releases: %s\n\n", strings.Join(happyConditions, ", "))
-		}
-		if len(acceptedConditions) > 0 {
-			sort.Strings(acceptedConditions)
-			fmt.Fprintf(o.Out, "The following conditions found cause for concern in updating this cluster to later releases, but were explicitly accepted via --accept: %s\n\n", strings.Join(acceptedConditions, ", "))
-		}
-		if len(unhappyConditions) > 0 {
-			sort.Strings(unhappyConditions)
-			fmt.Fprintf(o.Out, "The following conditions found cause for concern in updating this cluster to later releases: %s\n\n", strings.Join(unhappyConditions, ", "))
 
-			for _, c := range conditions {
-				if c.Status != metav1.ConditionTrue {
-					fmt.Fprintf(o.Out, "%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+		if !o.quiet {
+			if len(happyConditions) > 0 {
+				sort.Strings(happyConditions)
+				fmt.Fprintf(o.Out, "The following conditions found no cause for concern in updating this cluster to later releases: %s\n\n", strings.Join(happyConditions, ", "))
+			}
+			if len(acceptedConditions) > 0 {
+				sort.Strings(acceptedConditions)
+				fmt.Fprintf(o.Out, "The following conditions found cause for concern in updating this cluster to later releases, but were explicitly accepted via --accept: %s\n\n", strings.Join(acceptedConditions, ", "))
+			}
+			if len(unhappyConditions) > 0 {
+				sort.Strings(unhappyConditions)
+				fmt.Fprintf(o.Out, "The following conditions found cause for concern in updating this cluster to later releases: %s\n\n", strings.Join(unhappyConditions, ", "))
+
+				for _, c := range conditions {
+					if c.Status != metav1.ConditionTrue {
+						fmt.Fprintf(o.Out, "%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+					}
 				}
 			}
 		}
 	}
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.RetrievedUpdates); c != nil && c.Status != configv1.ConditionTrue {
-		fmt.Fprintf(o.ErrOut, "warning: Cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+		if !o.quiet {
+			fmt.Fprintf(o.ErrOut, "warning: Cannot refresh available updates:\n  Reason: %s\n  Message: %s\n\n", c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+		}
+		issues.Insert("CannotRetrieveUpdates")
 	}
 
-	if cv.Spec.Channel != "" {
-		if cv.Spec.Upstream == "" {
-			fmt.Fprint(o.Out, "Upstream update service is unset, so the cluster will use an appropriate default.\n")
-		} else {
-			fmt.Fprintf(o.Out, "Upstream update service: %s\n", cv.Spec.Upstream)
-		}
-		if len(cv.Status.Desired.Channels) > 0 {
-			fmt.Fprintf(o.Out, "Channel: %s (available channels: %s)\n", cv.Spec.Channel, strings.Join(cv.Status.Desired.Channels, ", "))
-		} else {
-			fmt.Fprintf(o.Out, "Channel: %s\n", cv.Spec.Channel)
+	if !o.quiet {
+		if cv.Spec.Channel != "" {
+			if cv.Spec.Upstream == "" {
+				fmt.Fprint(o.Out, "Upstream update service is unset, so the cluster will use an appropriate default.\n")
+			} else {
+				fmt.Fprintf(o.Out, "Upstream update service: %s\n", cv.Spec.Upstream)
+			}
+			if len(cv.Status.Desired.Channels) > 0 {
+				fmt.Fprintf(o.Out, "Channel: %s (available channels: %s)\n", cv.Spec.Channel, strings.Join(cv.Status.Desired.Channels, ", "))
+			} else {
+				fmt.Fprintf(o.Out, "Channel: %s\n", cv.Spec.Channel)
+			}
 		}
 	}
 
@@ -238,7 +262,9 @@ func (o *options) Run(ctx context.Context) error {
 	for i, update := range cv.Status.ConditionalUpdates {
 		version, err := semver.Parse(update.Release.Version)
 		if err != nil {
-			fmt.Fprintf(o.ErrOut, "warning: Cannot parse SemVer available update %q: %v", update.Release.Version, err)
+			if !o.quiet {
+				fmt.Fprintf(o.ErrOut, "warning: Cannot parse SemVer available update %q: %v", update.Release.Version, err)
+			}
 			continue
 		}
 
@@ -263,7 +289,9 @@ func (o *options) Run(ctx context.Context) error {
 
 		version, err := semver.Parse(update.Version)
 		if err != nil {
-			fmt.Fprintf(o.ErrOut, "warning: Cannot parse SemVer available update %q: %v", update.Version, err)
+			if !o.quiet {
+				fmt.Fprintf(o.ErrOut, "warning: Cannot parse SemVer available update %q: %v", update.Version, err)
+			}
 			continue
 		}
 
@@ -277,8 +305,10 @@ func (o *options) Run(ctx context.Context) error {
 	}
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorUpgradeable); c != nil && c.Status == configv1.ConditionFalse {
-		if err := injectUpgradeableAsCondition(cv.Status.Desired.Version, c, majorMinorBuckets); err != nil {
-			fmt.Fprintf(o.ErrOut, "warning: Cannot inject %s=%s as a conditional update risk: %s\n\nReason: %s\n  Message: %s\n\n", c.Type, c.Status, err, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+		if err := injectUpgradeableAsCondition(cv.Status.Desired.Version, c, majorMinorBuckets); err != nil && !o.quiet {
+			if !o.quiet {
+				fmt.Fprintf(o.ErrOut, "warning: Cannot inject %s=%s as a conditional update risk: %s\n\nReason: %s\n  Message: %s\n\n", c.Type, c.Status, err, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+			}
 		}
 	}
 
@@ -294,21 +324,27 @@ func (o *options) Run(ctx context.Context) error {
 		} else {
 			for _, update := range minor {
 				if update.Release.Version == o.version.String() {
-					fmt.Fprintln(o.Out)
+					if !o.quiet {
+						fmt.Fprintln(o.Out)
+					}
 					if c := notRecommendedCondition(update); c == nil {
-						fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster.\nImage: %s\nRelease URL: %s\n", update.Release.Version, update.Release.Image, update.Release.URL)
-					} else {
-						acceptContext := ""
-						if accept.Has("ConditionalUpdateRisk") {
-							acceptContext = "accepted "
+						if !o.quiet {
+							fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster.\nImage: %s\nRelease URL: %s\n", update.Release.Version, update.Release.Image, update.Release.URL)
 						}
-						fmt.Fprintf(o.Out, "Update to %s %s=%s:\nImage: %s\nRelease URL: %s\nReason: %s%s\nMessage: %s\n", update.Release.Version, c.Type, c.Status, update.Release.Image, update.Release.URL, acceptContext, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+					} else {
+						if !o.quiet {
+							acceptContext := ""
+							if accept.Has("ConditionalUpdateRisk") {
+								acceptContext = "accepted "
+							}
+							fmt.Fprintf(o.Out, "Update to %s %s=%s:\nImage: %s\nRelease URL: %s\nReason: %s%s\nMessage: %s\n", update.Release.Version, c.Type, c.Status, update.Release.Image, update.Release.URL, acceptContext, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+						}
 						issues.Insert("ConditionalUpdateRisk")
 					}
 					unaccepted := issues.Difference(accept)
 					if unaccepted.Len() > 0 {
 						return fmt.Errorf("issues that apply to this cluster but which were not included in --accept: %s", strings.Join(sets.List(unaccepted), ","))
-					} else if issues.Len() > 0 {
+					} else if issues.Len() > 0 && !o.quiet {
 						fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster other than the accepted %s.\n", update.Release.Version, strings.Join(sets.List(issues), ","))
 					}
 					return nil
