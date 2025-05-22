@@ -552,7 +552,7 @@ func (o *MustGatherOptions) Run() error {
 	}
 	if len(errs) == 0 {
 		// If we didn't have an error during collection, then we don't need to do our backup collection.
-		runBackCollection = false
+		runBackCollection = true
 	} else if len(o.Command) > 0 {
 		// If we had errors, but the user specified a command, he probably just typoed the command.
 		// If the command was specified, don't run the backup collection.
