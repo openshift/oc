@@ -1061,9 +1061,15 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 // BackupGathering is called if the full must-gather has an error.  This is useful for making sure we get *something*
 // no matter what has failed.  It should be focused on universal openshift failures.
 func (o *MustGatherOptions) BackupGathering(ctx context.Context, errs []error) {
+	targets := []string{
+		"clusterversion.v1.config.openshift.io",
+		"clusteroperators.v1.config.openshift.io",
+		"namespace/openshift-cluster-version",
+	}
+
 	fmt.Fprintf(o.ErrOut, "\n\n") // Space out the output
 	fmt.Fprintf(o.ErrOut, "Error running must-gather collection:\n    %v\n\n", errors.NewAggregate(errs))
-	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect clusteroperators.v1.config.openshift.io` to collect basic cluster information.\n")
+	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect %s` to collect basic cluster information.\n", strings.Join(targets, " "))
 
 	streams := o.IOStreams
 	streams.Out = o.newPrefixWriter(streams.Out, fmt.Sprintf("[must-gather      ] OUT"), false, true)
@@ -1072,7 +1078,7 @@ func (o *MustGatherOptions) BackupGathering(ctx context.Context, errs []error) {
 	inspectOptions.RESTConfig = rest.CopyConfig(o.Config)
 	inspectOptions.DestDir = path.Join(o.DestDir, fmt.Sprintf("inspect.local.%06d", rand.Int63()))
 
-	if err := inspectOptions.Complete([]string{"clusteroperators.v1.config.openshift.io"}); err != nil {
+	if err := inspectOptions.Complete(targets); err != nil {
 		fmt.Fprintf(o.ErrOut, "error completing backup collection: %v\n", err)
 		return
 	}
