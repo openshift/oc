@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -456,7 +457,15 @@ func (t *stiTar) extractLink(dir string, header *tar.Header, tarReader io.Reader
 }
 
 func (t *stiTar) extractFile(dir string, header *tar.Header, tarReader io.Reader) error {
-	path := filepath.Join(dir, header.Name)
+	fileName := header.Name
+	if runtime.GOOS == "windows" {
+		// ":" is special character on Windows. If file name contains ":",
+		// extraction will fail. In order to overcome this problem, we are replacing ":"
+		// to "-".
+		fileName = strings.Replace(fileName, ":", "-", -1)
+	}
+
+	path := filepath.Join(dir, fileName)
 	if t.disallowOverwrite {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			log.Warningf("Refusing to overwrite existing file: %s", path)

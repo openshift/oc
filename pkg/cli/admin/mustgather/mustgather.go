@@ -134,7 +134,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().Uint8Var(&o.VolumePercentage, "volume-percentage", o.VolumePercentage, "Specify maximum percentage of must-gather pod's allocated volume that can be used. If this limit is exceeded, must-gather will stop gathering, but still copy gathered data.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
 	cmd.Flags().MarkHidden("keep")
-	cmd.Flags().StringVar(&o.SinceTime, "since-time", o.SinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used.")
+	cmd.Flags().StringVar(&o.SinceTime, "since-time", o.SinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used. This may not be applied to all commands in must-gather image (e.g. not every command complies with RFC3339, the use might be limited, etc.).")
 	cmd.Flags().DurationVar(&o.Since, "since", o.Since, "Only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used.")
 
 	return cmd
@@ -1087,27 +1087,47 @@ TolerationLoop:
 // BackupGathering is called if the full must-gather has an error.  This is useful for making sure we get *something*
 // no matter what has failed.  It should be focused on universal openshift failures.
 func (o *MustGatherOptions) BackupGathering(ctx context.Context, errs []error) {
+	typeTargets := strings.Join([]string{
+		"clusterversion.v1.config.openshift.io",
+		"clusteroperators.v1.config.openshift.io",
+	}, ",")
+	namedTargets := []string{
+		"namespace/openshift-cluster-version",
+	}
+
 	fmt.Fprintf(o.ErrOut, "\n\n") // Space out the output
 	fmt.Fprintf(o.ErrOut, "Error running must-gather collection:\n    %v\n\n", errors.NewAggregate(errs))
-	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect clusteroperators.v1.config.openshift.io` to collect basic cluster information.\n")
+	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect %s` to collect basic cluster types.\n", typeTargets)
 
 	streams := o.IOStreams
 	streams.Out = o.newPrefixWriter(streams.Out, fmt.Sprintf("[must-gather      ] OUT"), false, true)
+	destDir := path.Join(o.DestDir, fmt.Sprintf("inspect.local.%06d", rand.Int63()))
 
+	if err := runInspect(streams, rest.CopyConfig(o.Config), destDir, []string{typeTargets}); err != nil {
+		fmt.Fprintf(o.ErrOut, "error completing cluster type inspection: %v\n", err)
+	}
+
+	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect %s` to collect basic cluster named resources.\n", strings.Join(namedTargets, " "))
+
+	if err := runInspect(streams, rest.CopyConfig(o.Config), destDir, namedTargets); err != nil {
+		fmt.Fprintf(o.ErrOut, "error completing cluster named resource inspection: %v\n", err)
+	}
+	return
+}
+
+func runInspect(streams genericiooptions.IOStreams, config *rest.Config, destDir string, arguments []string) error {
 	inspectOptions := inspect.NewInspectOptions(streams)
-	inspectOptions.RESTConfig = rest.CopyConfig(o.Config)
-	inspectOptions.DestDir = path.Join(o.DestDir, fmt.Sprintf("inspect.local.%06d", rand.Int63()))
+	inspectOptions.RESTConfig = config
+	inspectOptions.DestDir = destDir
 
-	if err := inspectOptions.Complete([]string{"clusteroperators.v1.config.openshift.io"}); err != nil {
-		fmt.Fprintf(o.ErrOut, "error completing backup collection: %v\n", err)
-		return
+	if err := inspectOptions.Complete(arguments); err != nil {
+		return fmt.Errorf("error completing backup collection: %w", err)
 	}
 	if err := inspectOptions.Validate(); err != nil {
-		fmt.Fprintf(o.ErrOut, "error validating backup collection: %v\n", err)
-		return
+		return fmt.Errorf("error validating backup collection: %w", err)
 	}
 	if err := inspectOptions.Run(); err != nil {
-		fmt.Fprintf(o.ErrOut, "error running backup collection: %v\n", err)
-		return
+		return fmt.Errorf("error running backup collection: %w", err)
 	}
+	return nil
 }
