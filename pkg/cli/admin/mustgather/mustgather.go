@@ -417,6 +417,41 @@ func (o *MustGatherOptions) Validate() error {
 
 	return nil
 }
+// prioritizeHealthyNodes returns a preferred node to run the must-gather pod on, and a fallback node if no preferred node is found.
+func prioritizeHealthyNodes(nodes *corev1.NodeList) (preferred *corev1.Node, fallback *corev1.Node) {
+	var fallbackNode *corev1.Node
+	var latestHeartbeat time.Time
+
+	for _, node := range nodes.Items {
+		var hasUnhealthyTaint bool
+		for _, taint := range node.Spec.Taints {
+			if taint.Key == "node.kubernetes.io/unreachable" || taint.Key == "node.kubernetes.io/not-ready" {
+				hasUnhealthyTaint = true
+				break
+			}
+		}
+
+		// Look at heartbeat time for readiness hint
+		for _, cond := range node.Status.Conditions {
+			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+				// Check if heartbeat is recent (less than 2m old)
+				if time.Since(cond.LastHeartbeatTime.Time) < 2*time.Minute {
+					if !hasUnhealthyTaint {
+						return &node, nil // return immediately on good candidate
+					}
+				}
+				break
+			}
+		}
+
+		if fallbackNode == nil || node.CreationTimestamp.Time.After(latestHeartbeat) {
+			fallbackNode = &node
+			latestHeartbeat = node.CreationTimestamp.Time
+		}
+	}
+
+	return nil, fallbackNode
+}
 
 // Run creates and runs a must-gather pod
 func (o *MustGatherOptions) Run() error {
@@ -482,42 +517,33 @@ func (o *MustGatherOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	if o.NodeName != "" {
-		node, err := o.Client.CoreV1().Nodes().Get(context.TODO(), o.NodeName, metav1.GetOptions{})
-		if err == nil {
+
+	if o.NodeName == "" {
+		preferred, fallback := prioritizeHealthyNodes(nodes)
+		if preferred != nil {
+			o.NodeName = preferred.Name
+		} else if fallback != nil {
+			o.NodeName = fallback.Name
+			o.log("WARNING: No healthy node was available. must-gather will run on tainted node '%s'. This may cause the pod to get stuck.", o.NodeName)
+		}
+	} else {
+		for _, node := range nodes.Items {
+			if node.Name != o.NodeName {
+				continue
+			}
 			for _, taint := range node.Spec.Taints {
 				if taint.Key == "node.kubernetes.io/unreachable" {
 					o.log("WARNING: The must-gather pod is scheduled to node '%s', which is tainted with 'node.kubernetes.io/unreachable'. This may cause the pod to get stuck.", o.NodeName)
-
-					// Suggest alternative nodes without this taint
-					var suggestions []string
-					for _, n := range nodes.Items {
-						if n.Name == o.NodeName {
-							continue
-						}
-						unreachable := false
-						for _, t := range n.Spec.Taints {
-							if t.Key == "node.kubernetes.io/unreachable" {
-								unreachable = true
-								break
-							}
-						}
-						if !unreachable {
-							suggestions = append(suggestions, n.Name)
-						}
-					}
-
-					if len(suggestions) > 0 {
-						o.log("Consider using one of these nodes instead: %s", strings.Join(suggestions, ", "))
-					} else {
-						o.log("No alternative nodes without the 'node.kubernetes.io/unreachable' taint were found.")
-					}
 					break
 				}
 			}
+			break
 		}
 	}
-	// ... check if we have any master nodes ...
+
+	if err != nil {
+		return err
+	}
 	var hasMaster bool
 	for _, node := range nodes.Items {
 		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
