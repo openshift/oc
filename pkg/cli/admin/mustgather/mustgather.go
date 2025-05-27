@@ -417,6 +417,7 @@ func (o *MustGatherOptions) Validate() error {
 
 	return nil
 }
+
 // prioritizeHealthyNodes returns a preferred node to run the must-gather pod on, and a fallback node if no preferred node is found.
 func prioritizeHealthyNodes(nodes *corev1.NodeList) (preferred *corev1.Node, fallback *corev1.Node) {
 	var fallbackNode *corev1.Node
