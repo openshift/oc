@@ -51,8 +51,7 @@ import (
 
 const (
 	gatherContainerName = "gather"
-	unreachableTaintKey      = "node.kubernetes.io/unreachable"
-
+	unreachableTaintKey = "node.kubernetes.io/unreachable"
 )
 
 var (
@@ -483,6 +482,42 @@ func (o *MustGatherOptions) Run() error {
 	if err != nil {
 		return err
 	}
+	if o.NodeName != "" {
+		node, err := o.Client.CoreV1().Nodes().Get(context.TODO(), o.NodeName, metav1.GetOptions{})
+		if err == nil {
+			for _, taint := range node.Spec.Taints {
+				if taint.Key == "node.kubernetes.io/unreachable" {
+					o.log("WARNING: The must-gather pod is scheduled to node '%s', which is tainted with 'node.kubernetes.io/unreachable'. This may cause the pod to get stuck.", o.NodeName)
+
+					// Suggest alternative nodes without this taint
+					var suggestions []string
+					for _, n := range nodes.Items {
+						if n.Name == o.NodeName {
+							continue
+						}
+						unreachable := false
+						for _, t := range n.Spec.Taints {
+							if t.Key == "node.kubernetes.io/unreachable" {
+								unreachable = true
+								break
+							}
+						}
+						if !unreachable {
+							suggestions = append(suggestions, n.Name)
+						}
+					}
+
+					if len(suggestions) > 0 {
+						o.log("Consider using one of these nodes instead: %s", strings.Join(suggestions, ", "))
+					} else {
+						o.log("No alternative nodes without the 'node.kubernetes.io/unreachable' taint were found.")
+					}
+					break
+				}
+			}
+		}
+	}
+	// ... check if we have any master nodes ...
 	var hasMaster bool
 	for _, node := range nodes.Items {
 		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
@@ -957,7 +992,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 
 	cleanedSourceDir := path.Clean(o.SourceDir)
 	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
-	
+
 	excludedTaints := []corev1.Taint{
 		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoExecute},
 		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoSchedule},
@@ -969,7 +1004,10 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 		tolerations = append(tolerations, tolerationMasterNoSchedule)
 	}
 
-	filteredTolerations := make([]corev1.Toleration, 0)
+	// This filters tolerations against excluded taints.
+	// Currently, no matches are possible with hardcoded values,
+	// but this logic supports future dynamic exclusions (e.g., user-provided taints).
+	filteredTolerations := make([]corev1.Toleration, 0, len(tolerations))
 TolerationLoop:
 	for _, tol := range tolerations {
 		for _, excluded := range excludedTaints {
