@@ -100,6 +100,20 @@ sleep 5
 done`
 )
 
+var (
+	tolerationNotReady = corev1.Toleration{
+		Key:      "node.kubernetes.io/not-ready",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+
+	tolerationMasterNoSchedule = corev1.Toleration{
+		Key:      "node-role.kubernetes.io/master",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+)
+
 const (
 	// number of concurrent must-gather Pods to run if --all-images or multiple --image are provided
 	concurrentMG = 4
@@ -949,20 +963,11 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoSchedule},
 	}
 
-	var tolerations []corev1.Toleration
-	if node == "" && hasMaster {
-		tolerations = append(tolerations, corev1.Toleration{
-			Key:      "node-role.kubernetes.io/master",
-			Operator: corev1.TolerationOpExists,
-			Effect:   corev1.TaintEffectNoSchedule,
-		})
-	}
+	tolerations := []corev1.Toleration{tolerationNotReady}
 
-	tolerations = append(tolerations, corev1.Toleration{
-		Key:      "node.kubernetes.io/not-ready",
-		Operator: corev1.TolerationOpExists,
-		Effect:   corev1.TaintEffectNoSchedule,
-	})
+	if node == "" && hasMaster {
+		tolerations = append(tolerations, tolerationMasterNoSchedule)
+	}
 
 	filteredTolerations := make([]corev1.Toleration, 0)
 TolerationLoop:
