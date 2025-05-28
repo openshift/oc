@@ -84,9 +84,7 @@ var (
 	volumeUsageCheckerScript = `
 echo "volume percentage checker started....."
 while true; do
-disk_usage=$(du -s "%s" | awk '{print $1}')
-disk_space=$(df -P "%s" | awk 'NR==2 {print $2}')
-usage_percentage=$(( (disk_usage * 100) / disk_space ))
+usage_percentage=$(df -P "%s" | awk 'NR==2 {print $5}' | sed 's/%%//')
 echo "volume usage percentage $usage_percentage"
 if [ "$usage_percentage" -gt "%d" ]; then
 	echo "Disk usage exceeds the volume percentage of %d for mounted directory. Exiting..."
@@ -940,7 +938,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 	}
 
 	cleanedSourceDir := path.Clean(o.SourceDir)
-	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
+	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
 
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
