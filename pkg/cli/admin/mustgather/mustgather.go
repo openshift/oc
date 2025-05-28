@@ -467,7 +467,7 @@ func (o *MustGatherOptions) Run() error {
 	}
 	var hasMaster bool
 	for _, node := range nodes.Items {
-		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
+		if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
 			hasMaster = true
 			break
 		}
@@ -929,7 +929,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 		corev1.LabelOSStable: "linux",
 	}
 	if node == "" && hasMaster {
-		nodeSelector["node-role.kubernetes.io/master"] = ""
+		nodeSelector["node-role.kubernetes.io/control-plane"] = ""
 	}
 
 	executedCommand := "/usr/bin/gather"
