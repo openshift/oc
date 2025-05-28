@@ -141,7 +141,7 @@ func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions
 		SourceDir:        "/must-gather/",
 		IOStreams:        streams,
 		Timeout:          10 * time.Minute,
-		VolumePercentage: 30,
+		VolumePercentage: 50,
 	}
 	opts.LogOut = opts.newPrefixWriter(streams.Out, "[must-gather      ] OUT", false, true)
 	opts.RawOut = opts.newPrefixWriter(streams.Out, "", false, false)
