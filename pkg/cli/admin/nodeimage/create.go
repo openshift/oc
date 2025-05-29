@@ -378,6 +378,7 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 		Quiet:         true,
 		RsyncInclude:  []string{"*.iso"},
 		RsyncExclude:  []string{"*"},
+		RsyncNoPerms:  true,
 	}
 	if o.GeneratePXEFiles {
 		rsyncOptions.Source.Path = "/assets/boot-artifacts/"
