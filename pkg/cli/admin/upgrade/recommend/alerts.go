@@ -18,15 +18,18 @@ import (
 // Conditions that are True for happy signals, False for sad signals,
 // and Unknown when we do not have enough information to make a
 // happy-or-sad determination.
-func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
+func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 	var alertsBytes []byte
 	if o.mockData.alertsPath != "" {
 		if len(o.mockData.alerts) == 0 {
-			return []metav1.Condition{{
-				Type:    "recommended/Alert",
-				Status:  metav1.ConditionUnknown,
-				Reason:  "NoTestData",
-				Message: fmt.Sprintf("This --mock-clusterversion run did not have alert data available at %v", o.mockData.alertsPath),
+			return []acceptableCondition{{
+				Condition: metav1.Condition{
+					Type:    "recommended/Alert",
+					Status:  metav1.ConditionUnknown,
+					Reason:  "NoTestData",
+					Message: fmt.Sprintf("This --mock-clusterversion run did not have alert data available at %v", o.mockData.alertsPath),
+				},
+				acceptanceName: "AlertNoTestData",
 			}}, nil
 		}
 		alertsBytes = o.mockData.alerts
@@ -51,7 +54,7 @@ func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
 		return nil, fmt.Errorf("parsing alerts: %w", err)
 	}
 
-	var conditions []metav1.Condition
+	var conditions []acceptableCondition
 	i := 0
 	haveCritical := false
 	havePodDisruptionBudget := false
@@ -100,11 +103,14 @@ func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
 				// ideally the upstream PodDisruptionBudget*Limit alerts templated in the namespace and PDB, but until they do, inject those ourselves
 				details = fmt.Sprintf("Namespace=%s, PodDisruptionBudget=%s. %s", alert.Labels.Namespace, alert.Labels.PodDisruptionBudget, details)
 			}
-			conditions = append(conditions, metav1.Condition{
-				Type:    fmt.Sprintf("recommended/CriticalAlerts/%s/%d", alertName, i),
-				Status:  metav1.ConditionFalse,
-				Reason:  fmt.Sprintf("Alert:%s", alert.State),
-				Message: fmt.Sprintf("%s alert %s %s, suggesting significant cluster issues worth investigating. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+			conditions = append(conditions, acceptableCondition{
+				Condition: metav1.Condition{
+					Type:    fmt.Sprintf("recommended/CriticalAlerts/%s/%d", alertName, i),
+					Status:  metav1.ConditionFalse,
+					Reason:  fmt.Sprintf("Alert:%s", alert.State),
+					Message: fmt.Sprintf("%s alert %s %s, suggesting significant cluster issues worth investigating. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+				},
+				acceptanceName: alertName,
 			})
 			i += 1
 			continue
@@ -114,11 +120,14 @@ func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
 			havePodDisruptionBudget = true
 			// ideally the upstream PodDisruptionBudget*Limit alerts templated in the namespace and PDB, but until they do, inject those ourselves
 			details = fmt.Sprintf("Namespace=%s, PodDisruptionBudget=%s. %s", alert.Labels.Namespace, alert.Labels.PodDisruptionBudget, details)
-			conditions = append(conditions, metav1.Condition{
-				Type:    fmt.Sprintf("recommended/PodDisruptionBudgetAlerts/%s/%d", alertName, i),
-				Status:  metav1.ConditionFalse,
-				Reason:  fmt.Sprintf("Alert:%s", alert.State),
-				Message: fmt.Sprintf("%s alert %s %s, which might slow node drains. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+			conditions = append(conditions, acceptableCondition{
+				Condition: metav1.Condition{
+					Type:    fmt.Sprintf("recommended/PodDisruptionBudgetAlerts/%s/%d", alertName, i),
+					Status:  metav1.ConditionFalse,
+					Reason:  fmt.Sprintf("Alert:%s", alert.State),
+					Message: fmt.Sprintf("%s alert %s %s, which might slow node drains. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+				},
+				acceptanceName: alertName,
 			})
 			i += 1
 			continue
@@ -126,11 +135,14 @@ func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
 
 		if alertName == "KubeContainerWaiting" {
 			havePullWaiting = true
-			conditions = append(conditions, metav1.Condition{
-				Type:    fmt.Sprintf("recommended/PodImagePullAlerts/%s/%d", alertName, i),
-				Status:  metav1.ConditionFalse,
-				Reason:  fmt.Sprintf("Alert:%s", alert.State),
-				Message: fmt.Sprintf("%s alert %s %s, which may slow workload redistribution during rolling node updates. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+			conditions = append(conditions, acceptableCondition{
+				Condition: metav1.Condition{
+					Type:    fmt.Sprintf("recommended/PodImagePullAlerts/%s/%d", alertName, i),
+					Status:  metav1.ConditionFalse,
+					Reason:  fmt.Sprintf("Alert:%s", alert.State),
+					Message: fmt.Sprintf("%s alert %s %s, which may slow workload redistribution during rolling node updates. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+				},
+				acceptanceName: alertName,
 			})
 			i += 1
 			continue
@@ -138,11 +150,14 @@ func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
 
 		if alertName == "KubeNodeNotReady" || alertName == "KubeNodeReadinessFlapping" || alertName == "KubeNodeUnreachable" {
 			haveNodes = true
-			conditions = append(conditions, metav1.Condition{
-				Type:    fmt.Sprintf("recommended/NodeAlerts/%s/%d", alertName, i),
-				Status:  metav1.ConditionFalse,
-				Reason:  fmt.Sprintf("Alert:%s", alert.State),
-				Message: fmt.Sprintf("%s alert %s %s, which may slow workload redistribution during rolling node updates. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+			conditions = append(conditions, acceptableCondition{
+				Condition: metav1.Condition{
+					Type:    fmt.Sprintf("recommended/NodeAlerts/%s/%d", alertName, i),
+					Status:  metav1.ConditionFalse,
+					Reason:  fmt.Sprintf("Alert:%s", alert.State),
+					Message: fmt.Sprintf("%s alert %s %s, which may slow workload redistribution during rolling node updates. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+				},
+				acceptanceName: alertName,
 			})
 			i += 1
 			continue
@@ -150,39 +165,39 @@ func (o *options) alerts(ctx context.Context) ([]metav1.Condition, error) {
 	}
 
 	if !haveCritical {
-		conditions = append(conditions, metav1.Condition{
+		conditions = append(conditions, acceptableCondition{Condition: metav1.Condition{
 			Type:    "recommended/CriticalAlerts",
 			Status:  metav1.ConditionTrue,
 			Reason:  "AsExpected",
 			Message: "No critical alerts firing.",
-		})
+		}})
 	}
 
 	if !havePodDisruptionBudget {
-		conditions = append(conditions, metav1.Condition{
+		conditions = append(conditions, acceptableCondition{Condition: metav1.Condition{
 			Type:    "recommended/PodDisruptionBudgetAlerts",
 			Status:  metav1.ConditionTrue,
 			Reason:  "AsExpected",
 			Message: "No PodDisruptionBudget alerts firing.",
-		})
+		}})
 	}
 
 	if !havePullWaiting {
-		conditions = append(conditions, metav1.Condition{
+		conditions = append(conditions, acceptableCondition{Condition: metav1.Condition{
 			Type:    "recommended/PodImagePullAlerts",
 			Status:  metav1.ConditionTrue,
 			Reason:  "AsExpected",
 			Message: "No Pod container image pull alerts firing.",
-		})
+		}})
 	}
 
 	if !haveNodes {
-		conditions = append(conditions, metav1.Condition{
+		conditions = append(conditions, acceptableCondition{Condition: metav1.Condition{
 			Type:    "recommended/NodeAlerts",
 			Status:  metav1.ConditionTrue,
 			Reason:  "AsExpected",
 			Message: "No Node alerts firing.",
-		})
+		}})
 	}
 
 	return conditions, nil
