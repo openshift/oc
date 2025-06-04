@@ -50,7 +50,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/rsh"
 	"github.com/openshift/oc/pkg/cli/rsync"
 	"github.com/openshift/oc/pkg/cli/secrets"
-	"github.com/openshift/oc/pkg/cli/serviceaccounts"
 	"github.com/openshift/oc/pkg/cli/set"
 	"github.com/openshift/oc/pkg/cli/startbuild"
 	"github.com/openshift/oc/pkg/cli/status"
@@ -265,7 +264,6 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 				kubectlwrappers.NewCmdScale(f, o.IOStreams),
 				kubectlwrappers.NewCmdAutoscale(f, o.IOStreams),
 				secretcmds,
-				serviceaccounts.NewCmdServiceAccounts(f, o.IOStreams),
 			},
 		},
 		{
