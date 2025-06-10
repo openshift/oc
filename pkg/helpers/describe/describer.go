@@ -2110,11 +2110,16 @@ func (d *InsightsDataGatherDescriber) Describe(namespace, name string, s describ
 }
 
 func describeInsightsDataGathers(idg *configv1alpha1.InsightsDataGather) (string, error) {
+	disabledGatherers := make([]string, len(idg.Spec.GatherConfig.DisabledGatherers))
+	for i, gatherer := range idg.Spec.GatherConfig.DisabledGatherers {
+		disabledGatherers[i] = string(gatherer)
+	}
+
 	return tabbedString(func(out *tabwriter.Writer) error {
 		fmt.Fprintf(out, "Name:\t%s\n", idg.Name)
 		fmt.Fprintf(out, "GatherConfig:\t\n")
 		fmt.Fprintf(out, "  DataPolicy:\t%s\n", stringOrNone(string(idg.Spec.GatherConfig.DataPolicy)))
-		fmt.Fprintf(out, "  DisabledGatherers:\t%s\n", stringOrNone(strings.Join(idg.Spec.GatherConfig.DisabledGatherers, ",")))
+		fmt.Fprintf(out, "  DisabledGatherers:\t%s\n", stringOrNone(strings.Join(disabledGatherers, ",")))
 
 		return nil
 	})
