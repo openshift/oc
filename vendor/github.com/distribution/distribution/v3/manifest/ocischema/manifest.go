@@ -8,61 +8,74 @@ import (
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// SchemaVersion provides a pre-initialized version structure for this
-// packages version of the manifest.
+// SchemaVersion provides a pre-initialized version structure for OCI Image
+// Manifests.
+//
+// Deprecated: use [specs.Versioned] and set MediaType on the manifest
+// to [v1.MediaTypeImageManifest].
+//
+//nolint:staticcheck // ignore SA1019: manifest.Versioned is deprecated:
 var SchemaVersion = manifest.Versioned{
-	SchemaVersion: 2, // historical value here.. does not pertain to OCI or docker version
+	SchemaVersion: 2,
 	MediaType:     v1.MediaTypeImageManifest,
 }
 
 func init() {
-	ocischemaFunc := func(b []byte) (distribution.Manifest, distribution.Descriptor, error) {
-		if err := validateManifest(b); err != nil {
-			return nil, distribution.Descriptor{}, err
-		}
-		m := new(DeserializedManifest)
-		err := m.UnmarshalJSON(b)
-		if err != nil {
-			return nil, distribution.Descriptor{}, err
-		}
-
-		dgst := digest.FromBytes(b)
-		return m, distribution.Descriptor{Digest: dgst, Size: int64(len(b)), MediaType: v1.MediaTypeImageManifest}, err
-	}
-	err := distribution.RegisterManifestSchema(v1.MediaTypeImageManifest, ocischemaFunc)
-	if err != nil {
+	if err := distribution.RegisterManifestSchema(v1.MediaTypeImageManifest, unmarshalOCISchema); err != nil {
 		panic(fmt.Sprintf("Unable to register manifest: %s", err))
 	}
 }
 
+func unmarshalOCISchema(b []byte) (distribution.Manifest, v1.Descriptor, error) {
+	if err := validateManifest(b); err != nil {
+		return nil, v1.Descriptor{}, err
+	}
+
+	m := &DeserializedManifest{}
+	if err := m.UnmarshalJSON(b); err != nil {
+		return nil, v1.Descriptor{}, err
+	}
+
+	return m, v1.Descriptor{
+		MediaType:   v1.MediaTypeImageManifest,
+		Digest:      digest.FromBytes(b),
+		Size:        int64(len(b)),
+		Annotations: m.Annotations,
+	}, nil
+}
+
 // Manifest defines a ocischema manifest.
 type Manifest struct {
-	manifest.Versioned
+	specs.Versioned
+
+	// MediaType is the media type of this schema.
+	MediaType string `json:"mediaType,omitempty"`
 
 	// Config references the image configuration as a blob.
-	Config distribution.Descriptor `json:"config"`
+	Config v1.Descriptor `json:"config"`
 
 	// Layers lists descriptors for the layers referenced by the
 	// configuration.
-	Layers []distribution.Descriptor `json:"layers"`
+	Layers []v1.Descriptor `json:"layers"`
 
 	// Annotations contains arbitrary metadata for the image manifest.
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // References returns the descriptors of this manifests references.
-func (m Manifest) References() []distribution.Descriptor {
-	references := make([]distribution.Descriptor, 0, 1+len(m.Layers))
+func (m Manifest) References() []v1.Descriptor {
+	references := make([]v1.Descriptor, 0, 1+len(m.Layers))
 	references = append(references, m.Config)
 	references = append(references, m.Layers...)
 	return references
 }
 
 // Target returns the target of this manifest.
-func (m Manifest) Target() distribution.Descriptor {
+func (m Manifest) Target() v1.Descriptor {
 	return m.Config
 }
 
@@ -120,20 +133,16 @@ func (m *DeserializedManifest) MarshalJSON() ([]byte, error) {
 
 // Payload returns the raw content of the manifest. The contents can be used to
 // calculate the content identifier.
-func (m DeserializedManifest) Payload() (string, []byte, error) {
+func (m *DeserializedManifest) Payload() (string, []byte, error) {
 	return v1.MediaTypeImageManifest, m.canonical, nil
-}
-
-// unknownDocument represents a manifest, manifest list, or index that has not
-// yet been validated
-type unknownDocument struct {
-	Manifests interface{} `json:"manifests,omitempty"`
 }
 
 // validateManifest returns an error if the byte slice is invalid JSON or if it
 // contains fields that belong to a index
 func validateManifest(b []byte) error {
-	var doc unknownDocument
+	var doc struct {
+		Manifests interface{} `json:"manifests,omitempty"`
+	}
 	if err := json.Unmarshal(b, &doc); err != nil {
 		return err
 	}
