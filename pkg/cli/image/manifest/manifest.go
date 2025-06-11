@@ -15,13 +15,8 @@ import (
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	"github.com/distribution/distribution/v3/manifest/ocischema"
-	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	"github.com/distribution/distribution/v3/reference"
-	"github.com/distribution/distribution/v3/registry/api/errcode"
-	v2 "github.com/distribution/distribution/v3/registry/api/v2"
-
-	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -31,7 +26,6 @@ import (
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 	"github.com/openshift/oc/pkg/cli/image/manifest/dockercredentials"
-	"github.com/openshift/oc/pkg/helpers/image/dockerlayer/add"
 )
 
 type ParallelOptions struct {
@@ -409,40 +403,6 @@ func ManifestToImageConfig(ctx context.Context, srcManifest distribution.Manifes
 		}
 
 		return base, layers, nil
-
-	case *schema1.SignedManifest:
-		if klog.V(4).Enabled() {
-			_, configJSON, _ := srcManifest.Payload()
-			klog.Infof("Raw image config json:\n%s", string(configJSON))
-		}
-		if len(t.History) == 0 {
-			return nil, nil, fmt.Errorf("input image is in an unknown format: no v1Compatibility history")
-		}
-		config := &dockerv1client.DockerV1CompatibilityImage{}
-		if err := json.Unmarshal([]byte(t.History[0].V1Compatibility), &config); err != nil {
-			return nil, nil, err
-		}
-
-		base := &dockerv1client.DockerImageConfig{}
-		if err := dockerv1client.Convert_DockerV1CompatibilityImage_to_DockerImageConfig(config, base); err != nil {
-			return nil, nil, err
-		}
-
-		// schema1 layers are in reverse order
-		layers := make([]distribution.Descriptor, 0, len(t.FSLayers))
-		for i := len(t.FSLayers) - 1; i >= 0; i-- {
-			layer := distribution.Descriptor{
-				MediaType: schema2.MediaTypeLayer,
-				Digest:    t.FSLayers[i].BlobSum,
-				// size must be reconstructed from the blobs
-			}
-			// we must reconstruct the tar sum from the blobs
-			add.AddLayerToConfig(base, layer, "")
-			layers = append(layers, layer)
-		}
-
-		return base, layers, nil
-
 	case *manifestlist.DeserializedManifestList:
 		return nil, nil, fmt.Errorf("use --keep-manifest-list option for image manifest type %T from %s", srcManifest, location)
 	default:
@@ -541,15 +501,17 @@ func ManifestsFromList(ctx context.Context, srcDigest digest.Digest, srcManifest
 	}
 }
 
-// TODO: Remove support for v2 schema in 4.9
+// PutManifestInCompatibleSchema just calls ManifestService.Put right now.
+// No schema conversion is happening anymore. Instead of using this function,
+// call ManifestService.Put directly.
+//
+// Deprecated
 func PutManifestInCompatibleSchema(
 	ctx context.Context,
 	srcManifest distribution.Manifest,
 	tag string,
 	toManifests distribution.ManifestService,
 	ref reference.Named,
-	blobs distribution.BlobService, // support schema2 -> schema1 downconversion
-	configJSON []byte, // optional, if not passed blobs will be used
 ) (digest.Digest, error) {
 	var options []distribution.ManifestServiceOption
 	if len(tag) > 0 {
@@ -558,155 +520,6 @@ func PutManifestInCompatibleSchema(
 	} else {
 		klog.V(5).Infof("Put manifest %s", ref)
 	}
-	switch t := srcManifest.(type) {
-	case *schema1.SignedManifest:
-		manifest, err := convertToSchema2(ctx, blobs, t)
-		if err != nil {
-			klog.V(2).Infof("Unable to convert manifest to schema2: %v", err)
-			return toManifests.Put(ctx, t, distribution.WithTag(tag))
-		}
-		klog.Infof("warning: Digests are not preserved with schema version 1 images. Support for schema version 1 images will be removed in a future release")
-		return toManifests.Put(ctx, manifest, options...)
-	}
 
-	toDigest, err := toManifests.Put(ctx, srcManifest, options...)
-	if err == nil {
-		return toDigest, nil
-	}
-	errs, ok := err.(errcode.Errors)
-	if !ok || len(errs) == 0 {
-		return toDigest, err
-	}
-	errCode, ok := errs[0].(errcode.Error)
-	if !ok || errCode.ErrorCode() != v2.ErrorCodeManifestInvalid {
-		return toDigest, err
-	}
-	// try downconverting to v2-schema1
-	schema2Manifest, ok := srcManifest.(*schema2.DeserializedManifest)
-	if !ok {
-		return toDigest, err
-	}
-	tagRef, tagErr := reference.WithTag(ref, tag)
-	if tagErr != nil {
-		return toDigest, err
-	}
-	klog.V(5).Infof("Registry reported invalid manifest error, attempting to convert to v2schema1 as ref %s", tagRef)
-	schema1Manifest, convertErr := convertToSchema1(ctx, blobs, configJSON, schema2Manifest, tagRef)
-	if convertErr != nil {
-		if klog.V(6).Enabled() {
-			_, data, _ := schema2Manifest.Payload()
-			klog.Infof("Input schema\n%s", string(data))
-		}
-		klog.V(2).Infof("Unable to convert manifest to schema1: %v", convertErr)
-		return toDigest, err
-	}
-	if klog.V(6).Enabled() {
-		_, data, _ := schema1Manifest.Payload()
-		klog.Infof("Converted to v2schema1\n%s", string(data))
-	}
-	return toManifests.Put(ctx, schema1Manifest, distribution.WithTag(tag))
-}
-
-// convertToSchema2 attempts to build a v2 manifest from a v1 manifest, which requires reading blobs to get layer sizes.
-// Requires the destination layers already exist in the target repository.
-func convertToSchema2(ctx context.Context, blobs distribution.BlobService, srcManifest *schema1.SignedManifest) (distribution.Manifest, error) {
-	if klog.V(6).Enabled() {
-		klog.Infof("Up converting v1 schema image:\n%#v", srcManifest.Manifest)
-	}
-
-	config, layers, err := ManifestToImageConfig(ctx, srcManifest, blobs, ManifestLocation{})
-	if err != nil {
-		return nil, err
-	}
-	if klog.V(6).Enabled() {
-		klog.Infof("Resulting schema: %#v", config)
-	}
-	// create synthetic history
-	// TODO: create restored history?
-	if len(config.History) == 0 {
-		for i := len(config.History); i < len(layers); i++ {
-			config.History = append(config.History, dockerv1client.DockerConfigHistory{
-				Created: config.Created,
-			})
-		}
-	}
-
-	configJSON, err := json.Marshal(config)
-	if err != nil {
-		return nil, err
-	}
-	if klog.V(6).Enabled() {
-		klog.Infof("Resulting config.json:\n%s", string(configJSON))
-	}
-	configDescriptor := distribution.Descriptor{
-		Digest:    digest.FromBytes(configJSON),
-		Size:      int64(len(configJSON)),
-		MediaType: schema2.MediaTypeImageConfig,
-	}
-	b := schema2.NewManifestBuilder(configDescriptor, configJSON)
-	_, err = blobs.Put(ctx, schema2.MediaTypeImageConfig, configJSON)
-	if err != nil {
-		return nil, err
-	}
-	for _, layer := range layers {
-		desc, err := blobs.Stat(ctx, layer.Digest)
-		if err != nil {
-			return nil, err
-		}
-		desc.MediaType = schema2.MediaTypeLayer
-		if err := b.AppendReference(desc); err != nil {
-			return nil, err
-		}
-	}
-	return b.Build(ctx)
-}
-
-// TODO: Remove support for v2 schema in 4.9
-func convertToSchema1(ctx context.Context, blobs distribution.BlobService, configJSON []byte, schema2Manifest *schema2.DeserializedManifest, ref reference.Named) (distribution.Manifest, error) {
-	if configJSON == nil {
-		targetDescriptor := schema2Manifest.Target()
-		config, err := blobs.Get(ctx, targetDescriptor.Digest)
-		if err != nil {
-			return nil, err
-		}
-		configJSON = config
-	}
-	trustKey, err := loadPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	if klog.V(6).Enabled() {
-		klog.Infof("Down converting v2 schema image:\n%#v\n%s", schema2Manifest.Layers, configJSON)
-	}
-	builder := schema1.NewConfigManifestBuilder(blobs, trustKey, ref, configJSON)
-	for _, d := range schema2Manifest.Layers {
-		if err := builder.AppendReference(d); err != nil {
-			return nil, err
-		}
-	}
-	manifest, err := builder.Build(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return manifest, nil
-}
-
-var (
-	privateKeyLock sync.Mutex
-	privateKey     libtrust.PrivateKey
-)
-
-// TODO: Remove support for v2 schema in 4.9
-func loadPrivateKey() (libtrust.PrivateKey, error) {
-	privateKeyLock.Lock()
-	defer privateKeyLock.Unlock()
-	if privateKey != nil {
-		return privateKey, nil
-	}
-	trustKey, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	privateKey = trustKey
-	return privateKey, nil
+	return toManifests.Put(ctx, srcManifest, options...)
 }
