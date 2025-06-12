@@ -132,6 +132,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().MarkHidden("keep")
 	cmd.Flags().StringVar(&o.SinceTime, "since-time", o.SinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used. This may not be applied to all commands in must-gather image (e.g. not every command complies with RFC3339, the use might be limited, etc.).")
 	cmd.Flags().DurationVar(&o.Since, "since", o.Since, "Only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Plugins are encouraged but not required to support this. Only one of since-time / since may be used.")
+	cmd.Flags().BoolVar(&o.PullAlways, "pull-always", false, "If true, always pull the gather image.")
 
 	return cmd
 }
@@ -353,6 +354,7 @@ type MustGatherOptions struct {
 	Keep             bool
 	Since            time.Duration
 	SinceTime        string
+	PullAlways       bool
 
 	RsyncRshCmd string
 
@@ -940,6 +942,11 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 	cleanedSourceDir := path.Clean(o.SourceDir)
 	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
 
+	imagePullPolicy := corev1.PullIfNotPresent
+	if o.PullAlways {
+		imagePullPolicy = corev1.PullAlways
+	}
+
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "must-gather-",
@@ -966,7 +973,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 				{
 					Name:            gatherContainerName,
 					Image:           image,
-					ImagePullPolicy: corev1.PullIfNotPresent,
+					ImagePullPolicy: imagePullPolicy,
 					// always force disk flush to ensure that all data gathered is accessible in the copy container
 					Command: []string{"/bin/bash", "-c", fmt.Sprintf("%s & %s; sync", volumeUsageChecker, executedCommand)},
 					Env: []corev1.EnvVar{
@@ -999,7 +1006,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 				{
 					Name:                     "copy",
 					Image:                    image,
-					ImagePullPolicy:          corev1.PullIfNotPresent,
+					ImagePullPolicy:          imagePullPolicy,
 					Command:                  []string{"/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait"},
 					TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 					VolumeMounts: []corev1.VolumeMount{
