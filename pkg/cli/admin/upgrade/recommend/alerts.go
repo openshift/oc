@@ -108,7 +108,7 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 					Type:    fmt.Sprintf("recommended/CriticalAlerts/%s/%d", alertName, i),
 					Status:  metav1.ConditionFalse,
 					Reason:  fmt.Sprintf("Alert:%s", alert.State),
-					Message: fmt.Sprintf("%s alert %s %s, suggesting significant cluster issues worth investigating. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+					Message: fmt.Sprintf("%s alert %s %s, suggesting significant cluster issues worth investigating, but which may or may not be relevant for cluster update success. In some cases, updating the cluster might help address this alert. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
 				},
 				acceptanceName: alertName,
 			})
@@ -125,7 +125,7 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 					Type:    fmt.Sprintf("recommended/PodDisruptionBudgetAlerts/%s/%d", alertName, i),
 					Status:  metav1.ConditionFalse,
 					Reason:  fmt.Sprintf("Alert:%s", alert.State),
-					Message: fmt.Sprintf("%s alert %s %s, which might slow node drains. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+					Message: fmt.Sprintf("%s alert %s %s, which may or may not not slow node drains. In some cases, updating the cluster might help address this alert. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
 				},
 				acceptanceName: alertName,
 			})
@@ -140,7 +140,7 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 					Type:    fmt.Sprintf("recommended/PodImagePullAlerts/%s/%d", alertName, i),
 					Status:  metav1.ConditionFalse,
 					Reason:  fmt.Sprintf("Alert:%s", alert.State),
-					Message: fmt.Sprintf("%s alert %s %s, which may slow workload redistribution during rolling node updates. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+					Message: fmt.Sprintf("%s alert %s %s, which may or may not slow workload redistribution during rolling node updates. In some cases, updating the cluster might help addres this alert. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
 				},
 				acceptanceName: alertName,
 			})
@@ -155,7 +155,7 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 					Type:    fmt.Sprintf("recommended/NodeAlerts/%s/%d", alertName, i),
 					Status:  metav1.ConditionFalse,
 					Reason:  fmt.Sprintf("Alert:%s", alert.State),
-					Message: fmt.Sprintf("%s alert %s %s, which may slow workload redistribution during rolling node updates. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+					Message: fmt.Sprintf("%s alert %s %s, which may or may not slow workload redistribution during rolling node updates. In some cases, update the cluster might help address this alert. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
 				},
 				acceptanceName: alertName,
 			})
