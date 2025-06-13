@@ -11,7 +11,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/info"
 	"github.com/openshift/oc/pkg/cli/image/mirror"
-	"github.com/openshift/oc/pkg/cli/image/serve"
 )
 
 var (
@@ -41,7 +40,6 @@ func NewCmdImage(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 		{
 			Message: "Advanced commands:",
 			Commands: []*cobra.Command{
-				serve.NewServe(streams),
 				append.NewCmdAppendImage(streams),
 				extract.NewExtract(streams),
 			},

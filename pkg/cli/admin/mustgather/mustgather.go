@@ -85,9 +85,7 @@ var (
 	volumeUsageCheckerScript = `
 echo "volume percentage checker started....."
 while true; do
-disk_usage=$(du -s "%s" | awk '{print $1}')
-disk_space=$(df -P "%s" | awk 'NR==2 {print $2}')
-usage_percentage=$(( (disk_usage * 100) / disk_space ))
+usage_percentage=$(df -P "%s" | awk 'NR==2 {print $5}' | sed 's/%%//')
 echo "volume usage percentage $usage_percentage"
 if [ "$usage_percentage" -gt "%d" ]; then
 	echo "Disk usage exceeds the volume percentage of %d for mounted directory. Exiting..."
@@ -158,7 +156,7 @@ func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions
 		SourceDir:        "/must-gather/",
 		IOStreams:        streams,
 		Timeout:          10 * time.Minute,
-		VolumePercentage: 30,
+		VolumePercentage: 50,
 	}
 	opts.LogOut = opts.newPrefixWriter(streams.Out, "[must-gather      ] OUT", false, true)
 	opts.RawOut = opts.newPrefixWriter(streams.Out, "", false, false)
@@ -547,7 +545,7 @@ func (o *MustGatherOptions) Run() error {
 	}
 	var hasMaster bool
 	for _, node := range nodes.Items {
-		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
+		if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
 			hasMaster = true
 			break
 		}
@@ -1009,7 +1007,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 		corev1.LabelOSStable: "linux",
 	}
 	if node == "" && hasMaster {
-		nodeSelector["node-role.kubernetes.io/master"] = ""
+		nodeSelector["node-role.kubernetes.io/control-plane"] = ""
 	}
 
 	executedCommand := "/usr/bin/gather"
@@ -1018,7 +1016,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 	}
 
 	cleanedSourceDir := path.Clean(o.SourceDir)
-	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
+	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
 
 	excludedTaints := []corev1.Taint{
 		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoExecute},
