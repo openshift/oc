@@ -518,29 +518,6 @@ func (o *MustGatherOptions) Run() error {
 		return err
 	}
 
-	if o.NodeName == "" {
-		preferred, fallback := prioritizeHealthyNodes(nodes)
-		if preferred != nil {
-			o.NodeName = preferred.Name
-		} else if fallback != nil {
-			o.NodeName = fallback.Name
-			o.log("WARNING: No healthy node was available. must-gather will run on tainted node '%s'. This may cause the pod to get stuck.", o.NodeName)
-		}
-	} else {
-		for _, node := range nodes.Items {
-			if node.Name != o.NodeName {
-				continue
-			}
-			for _, taint := range node.Spec.Taints {
-				if taint.Key == unreachableTaintKey {
-					o.log("WARNING: The must-gather pod is scheduled to node '%s', which is tainted with 'node.kubernetes.io/unreachable'. This may cause the pod to get stuck.", o.NodeName)
-					break
-				}
-			}
-			break
-		}
-	}
-
 	if err != nil {
 		return err
 	}
@@ -1019,30 +996,31 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 	cleanedSourceDir := path.Clean(o.SourceDir)
 	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
 
+	// Define taints we do not want to tolerate (can be extended with user input in the future)
 	excludedTaints := []corev1.Taint{
 		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoExecute},
-		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoSchedule},
+		{Key: notReadyTaintKey, Effect: corev1.TaintEffectNoSchedule},
 	}
 
-	tolerations := []corev1.Toleration{tolerationNotReady}
-
+	// Define candidate tolerations we may want to apply
+	candidateTolerations := []corev1.Toleration{tolerationNotReady}
 	if node == "" && hasMaster {
-		tolerations = append(tolerations, tolerationMasterNoSchedule)
+		candidateTolerations = append(candidateTolerations, tolerationMasterNoSchedule)
 	}
 
-	// This filters tolerations against excluded taints.
-	// Currently, no matches are possible with hardcoded values,
-	// but this logic supports future dynamic exclusions (e.g., user-provided taints).
-	filteredTolerations := make([]corev1.Toleration, 0, len(tolerations))
-TolerationLoop:
-	for _, tol := range tolerations {
+	// Build the toleration list by only adding tolerations that do NOT tolerate excluded taints
+	filteredTolerations := make([]corev1.Toleration, 0, len(candidateTolerations))
+	TolerationLoop:
+	for _, tol := range candidateTolerations {
 		for _, excluded := range excludedTaints {
 			if tol.ToleratesTaint(&excluded) {
+				// Skip this toleration if it tolerates an excluded taint
 				continue TolerationLoop
 			}
 		}
 		filteredTolerations = append(filteredTolerations, tol)
 	}
+
 
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1118,7 +1096,7 @@ TolerationLoop:
 			HostNetwork:                   o.HostNetwork,
 			NodeSelector:                  nodeSelector,
 			TerminationGracePeriodSeconds: &zero,
-			Tolerations:                   filteredTolerations,
+			Tolerations: filteredTolerations,
 		},
 	}
 	if o.HostNetwork {
