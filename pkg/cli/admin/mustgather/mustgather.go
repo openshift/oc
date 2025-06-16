@@ -52,6 +52,7 @@ import (
 const (
 	gatherContainerName = "gather"
 	unreachableTaintKey = "node.kubernetes.io/unreachable"
+	notReadyTaintKey = "node.kubernetes.io/not-ready"
 )
 
 var (
@@ -424,7 +425,7 @@ func prioritizeHealthyNodes(nodes *corev1.NodeList) (preferred *corev1.Node, fal
 	for _, node := range nodes.Items {
 		var hasUnhealthyTaint bool
 		for _, taint := range node.Spec.Taints {
-			if taint.Key == "node.kubernetes.io/unreachable" || taint.Key == "node.kubernetes.io/not-ready" {
+			if taint.Key == unreachableTaintKey || taint.Key == notReadyTaintKey {
 				hasUnhealthyTaint = true
 				break
 			}
@@ -531,7 +532,7 @@ func (o *MustGatherOptions) Run() error {
 				continue
 			}
 			for _, taint := range node.Spec.Taints {
-				if taint.Key == "node.kubernetes.io/unreachable" {
+				if taint.Key == unreachableTaintKey {
 					o.log("WARNING: The must-gather pod is scheduled to node '%s', which is tainted with 'node.kubernetes.io/unreachable'. This may cause the pod to get stuck.", o.NodeName)
 					break
 				}
