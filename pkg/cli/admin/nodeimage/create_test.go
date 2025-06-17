@@ -309,6 +309,9 @@ func TestRun(t *testing.T) {
 				if fakeCp.options.Destination.Path != tc.assetsDir {
 					t.Errorf("expected %v, actual %v", fakeCp.options.Destination.Path, tc.assetsDir)
 				}
+				if fakeCp.options.RsyncNoPerms == false {
+					t.Errorf("RsyncNoPerms is disabled")
+				}
 			}
 
 			for _, ext := range tc.expectedRsyncInclude {
