@@ -52,7 +52,7 @@ import (
 const (
 	gatherContainerName = "gather"
 	unreachableTaintKey = "node.kubernetes.io/unreachable"
-	notReadyTaintKey = "node.kubernetes.io/not-ready"
+	notReadyTaintKey    = "node.kubernetes.io/not-ready"
 )
 
 var (
@@ -1010,7 +1010,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 
 	// Build the toleration list by only adding tolerations that do NOT tolerate excluded taints
 	filteredTolerations := make([]corev1.Toleration, 0, len(candidateTolerations))
-	TolerationLoop:
+TolerationLoop:
 	for _, tol := range candidateTolerations {
 		for _, excluded := range excludedTaints {
 			if tol.ToleratesTaint(&excluded) {
@@ -1020,7 +1020,6 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 		}
 		filteredTolerations = append(filteredTolerations, tol)
 	}
-
 
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1096,7 +1095,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 			HostNetwork:                   o.HostNetwork,
 			NodeSelector:                  nodeSelector,
 			TerminationGracePeriodSeconds: &zero,
-			Tolerations: filteredTolerations,
+			Tolerations:                   filteredTolerations,
 		},
 	}
 	if o.HostNetwork {
