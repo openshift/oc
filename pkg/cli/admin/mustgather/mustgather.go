@@ -51,6 +51,8 @@ import (
 
 const (
 	gatherContainerName = "gather"
+	unreachableTaintKey = "node.kubernetes.io/unreachable"
+	notReadyTaintKey    = "node.kubernetes.io/not-ready"
 )
 
 var (
@@ -96,6 +98,20 @@ if [ "$usage_percentage" -gt "%d" ]; then
 fi
 sleep 5
 done`
+)
+
+var (
+	tolerationNotReady = corev1.Toleration{
+		Key:      "node.kubernetes.io/not-ready",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+
+	tolerationMasterNoSchedule = corev1.Toleration{
+		Key:      "node-role.kubernetes.io/master",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
 )
 
 const (
@@ -403,6 +419,42 @@ func (o *MustGatherOptions) Validate() error {
 	return nil
 }
 
+// prioritizeHealthyNodes returns a preferred node to run the must-gather pod on, and a fallback node if no preferred node is found.
+func prioritizeHealthyNodes(nodes *corev1.NodeList) (preferred *corev1.Node, fallback *corev1.Node) {
+	var fallbackNode *corev1.Node
+	var latestHeartbeat time.Time
+
+	for _, node := range nodes.Items {
+		var hasUnhealthyTaint bool
+		for _, taint := range node.Spec.Taints {
+			if taint.Key == unreachableTaintKey || taint.Key == notReadyTaintKey {
+				hasUnhealthyTaint = true
+				break
+			}
+		}
+
+		// Look at heartbeat time for readiness hint
+		for _, cond := range node.Status.Conditions {
+			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+				// Check if heartbeat is recent (less than 2m old)
+				if time.Since(cond.LastHeartbeatTime.Time) < 2*time.Minute {
+					if !hasUnhealthyTaint {
+						return &node, nil // return immediately on good candidate
+					}
+				}
+				break
+			}
+		}
+
+		if fallbackNode == nil || node.CreationTimestamp.Time.After(latestHeartbeat) {
+			fallbackNode = &node
+			latestHeartbeat = node.CreationTimestamp.Time
+		}
+	}
+
+	return nil, fallbackNode
+}
+
 // Run creates and runs a must-gather pod
 func (o *MustGatherOptions) Run() error {
 	var errs []error
@@ -464,6 +516,10 @@ func (o *MustGatherOptions) Run() error {
 	nodes, err := o.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
 		LabelSelector: o.NodeSelector,
 	})
+	if err != nil {
+		return err
+	}
+
 	if err != nil {
 		return err
 	}
@@ -942,6 +998,31 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 	cleanedSourceDir := path.Clean(o.SourceDir)
 	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
 
+	// Define taints we do not want to tolerate (can be extended with user input in the future)
+	excludedTaints := []corev1.Taint{
+		{Key: unreachableTaintKey, Effect: corev1.TaintEffectNoExecute},
+		{Key: notReadyTaintKey, Effect: corev1.TaintEffectNoSchedule},
+	}
+
+	// Define candidate tolerations we may want to apply
+	candidateTolerations := []corev1.Toleration{tolerationNotReady}
+	if node == "" && hasMaster {
+		candidateTolerations = append(candidateTolerations, tolerationMasterNoSchedule)
+	}
+
+	// Build the toleration list by only adding tolerations that do NOT tolerate excluded taints
+	filteredTolerations := make([]corev1.Toleration, 0, len(candidateTolerations))
+TolerationLoop:
+	for _, tol := range candidateTolerations {
+		for _, excluded := range excludedTaints {
+			if tol.ToleratesTaint(&excluded) {
+				// Skip this toleration if it tolerates an excluded taint
+				continue TolerationLoop
+			}
+		}
+		filteredTolerations = append(filteredTolerations, tol)
+	}
+
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "must-gather-",
@@ -1016,14 +1097,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 			HostNetwork:                   o.HostNetwork,
 			NodeSelector:                  nodeSelector,
 			TerminationGracePeriodSeconds: &zero,
-			Tolerations: []corev1.Toleration{
-				{
-					// An empty key with operator Exists matches all keys,
-					// values and effects which means this will tolerate everything.
-					// As noted in https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
-					Operator: "Exists",
-				},
-			},
+			Tolerations:                   filteredTolerations,
 		},
 	}
 	if o.HostNetwork {
