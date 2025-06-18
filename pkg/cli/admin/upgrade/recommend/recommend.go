@@ -333,11 +333,11 @@ func (o *options) Run(ctx context.Context) error {
 						}
 					} else {
 						if !o.quiet {
-							acceptContext := ""
+							reason := c.Reason
 							if accept.Has("ConditionalUpdateRisk") {
-								acceptContext = "accepted "
+								reason = fmt.Sprintf("accepted %s via ConditionalUpdateRisk", c.Reason)
 							}
-							fmt.Fprintf(o.Out, "Update to %s %s=%s:\nImage: %s\nRelease URL: %s\nReason: %s%s\nMessage: %s\n", update.Release.Version, c.Type, c.Status, update.Release.Image, update.Release.URL, acceptContext, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
+							fmt.Fprintf(o.Out, "Update to %s %s=%s:\nImage: %s\nRelease URL: %s\nReason: %s\nMessage: %s\n", update.Release.Version, c.Type, c.Status, update.Release.Image, update.Release.URL, reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 						}
 						issues.Insert("ConditionalUpdateRisk")
 					}
