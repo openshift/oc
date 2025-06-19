@@ -1,8 +1,6 @@
 package ocpcertificates
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -25,7 +23,7 @@ func NewCommandOCPCertificates(f kcmdutil.Factory, streams genericiooptions.IOSt
 	cmds := &cobra.Command{
 		Use:   "ocp-certificates",
 		Short: "Tools for managing a cluster's certificates",
-		Long:  fmt.Sprintf(ocpCertificatesLong),
+		Long:  ocpCertificatesLong,
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 

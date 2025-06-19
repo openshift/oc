@@ -23,7 +23,7 @@ func reapForClusterRole(clusterBindingClient rbacv1client.ClusterRoleBindingsGet
 			if err := clusterBindingClient.ClusterRoleBindings().Delete(context.TODO(), clusterBinding.Name, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
-				fmt.Fprintf(out, "clusterrolebinding.rbac.authorization.k8s.io/"+clusterBinding.Name+" deleted\n")
+				fmt.Fprintf(out, "clusterrolebinding.rbac.authorization.k8s.io/%s deleted\n", clusterBinding.Name)
 			}
 		}
 	}
@@ -37,7 +37,7 @@ func reapForClusterRole(clusterBindingClient rbacv1client.ClusterRoleBindingsGet
 			if err := bindingClient.RoleBindings(namespacedBinding.Namespace).Delete(context.TODO(), namespacedBinding.Name, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
-				fmt.Fprintf(out, "rolebinding.rbac.authorization.k8s.io/"+namespacedBinding.Name+" deleted\n")
+				fmt.Fprintf(out, "rolebinding.rbac.authorization.k8s.io/%s deleted\n", namespacedBinding.Name)
 			}
 		}
 	}

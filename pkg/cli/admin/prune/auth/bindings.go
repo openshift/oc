@@ -36,7 +36,7 @@ func reapClusterBindings(removedSubject corev1.ObjectReference, c authv1client.A
 			if _, err := c.ClusterRoleBindings().Update(context.TODO(), &updatedBinding, metav1.UpdateOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
-				fmt.Fprintf(out, "clusterrolebinding.rbac.authorization.k8s.io/"+updatedBinding.Name+" updated\n")
+				fmt.Fprintf(out, "clusterrolebinding.rbac.authorization.k8s.io/%s updated\n", updatedBinding.Name)
 			}
 		}
 	}
@@ -65,7 +65,7 @@ func reapNamespacedBindings(removedSubject corev1.ObjectReference, c authv1clien
 			if _, err := c.RoleBindings(binding.Namespace).Update(context.TODO(), &updatedBinding, metav1.UpdateOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
-				fmt.Fprintf(out, "rolebinding.rbac.authorization.k8s.io/"+updatedBinding.Name+" updated\n")
+				fmt.Fprintf(out, "rolebinding.rbac.authorization.k8s.io/%s updated\n", updatedBinding.Name)
 			}
 		}
 	}

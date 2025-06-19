@@ -91,7 +91,7 @@ func NewCmdRolloutRetry(f kcmdutil.Factory, streams genericiooptions.IOStreams) 
 func (o *RetryOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	var err error
 	if len(args) == 0 && len(o.FilenameOptions.Filenames) == 0 {
-		return kcmdutil.UsageErrorf(cmd, cmd.Use)
+		return kcmdutil.UsageErrorf(cmd, "%s", cmd.Use)
 	}
 
 	o.Resources = args

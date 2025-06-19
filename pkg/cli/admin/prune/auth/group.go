@@ -44,7 +44,7 @@ func reapForGroup(
 			if _, err := securityClient.Update(context.TODO(), &updatedSCC, metav1.UpdateOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
-				fmt.Fprintf(out, "securitycontextconstraints.security.openshift.io/"+updatedSCC.Name+" updated\n")
+				fmt.Fprintf(out, "securitycontextconstraints.security.openshift.io/%s updated\n", updatedSCC.Name)
 			}
 		}
 	}
