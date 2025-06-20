@@ -25,7 +25,7 @@ import (
 // to one of those three spots.  Doing so improves the self-diagnosis capabilities of our platform and lets *every*
 // client benefit.
 func (o *MustGatherOptions) PrintBasicClusterState(ctx context.Context) {
-	fmt.Fprintf(o.RawOut, "When opening a support case, bugzilla, or issue please include the following summary data along with any other requested information:\n")
+	fmt.Fprint(o.RawOut, "When opening a support case, bugzilla, or issue please include the following summary data along with any other requested information:\n")
 
 	clusterVersion, err := o.ConfigClient.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
 	if err != nil {
@@ -44,11 +44,11 @@ func (o *MustGatherOptions) PrintBasicClusterState(ctx context.Context) {
 	if err != nil {
 		fmt.Fprintf(o.RawOut, "error getting cluster operators: %v\n", err)
 	}
-	fmt.Fprintf(o.RawOut, "ClusterOperators:\n")
-	fmt.Fprintf(o.RawOut, humanSummaryForInterestingClusterOperators(clusterOperators)+"\n")
+	fmt.Fprint(o.RawOut, "ClusterOperators:\n")
+	fmt.Fprint(o.RawOut, humanSummaryForInterestingClusterOperators(clusterOperators)+"\n")
 
 	// TODO gather and display firing alerts
-	fmt.Fprintf(o.RawOut, "\n\n")
+	fmt.Fprint(o.RawOut, "\n\n")
 }
 
 // longExistingOperators is a list of operators that should be present on every variant of every platform and have

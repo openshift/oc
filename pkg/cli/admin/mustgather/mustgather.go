@@ -3,6 +3,7 @@ package mustgather
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -21,7 +22,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/errors"
+	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -483,7 +484,7 @@ func (o *MustGatherOptions) Run() error {
 			line := fmt.Sprintf("unable to parse image reference %s: %v", image, err)
 			o.log(line)
 			// ensure the errors bubble up to BackupGathering method for display
-			errs = []error{fmt.Errorf(line)}
+			errs = []error{errors.New(line)}
 			return err
 		}
 		if o.NodeSelector != "" {
@@ -564,7 +565,7 @@ func (o *MustGatherOptions) Run() error {
 		errs = append(errs, err)
 	}
 
-	return errors.NewAggregate(errs)
+	return kutilerrors.NewAggregate(errs)
 }
 
 // processNextWorkItem creates & processes the must-gather pod and returns error if any
@@ -708,7 +709,7 @@ func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 		err = rsyncOptions.RunRsync()
 		errs = append(errs, err)
 	}
-	return errors.NewAggregate(errs)
+	return kutilerrors.NewAggregate(errs)
 }
 
 func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
@@ -1070,7 +1071,7 @@ func (o *MustGatherOptions) BackupGathering(ctx context.Context, errs []error) {
 	}
 
 	fmt.Fprintf(o.ErrOut, "\n\n") // Space out the output
-	fmt.Fprintf(o.ErrOut, "Error running must-gather collection:\n    %v\n\n", errors.NewAggregate(errs))
+	fmt.Fprintf(o.ErrOut, "Error running must-gather collection:\n    %v\n\n", kutilerrors.NewAggregate(errs))
 	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect %s` to collect basic cluster types.\n", typeTargets)
 
 	streams := o.IOStreams

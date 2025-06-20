@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -33,7 +33,7 @@ import (
 	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
@@ -335,7 +335,7 @@ func replaceClusterSemanticArgs(f kcmdutil.Factory, args []string, semanticArgs 
 	}
 	cv, err := client.ConfigV1().ClusterVersions().Get(context.TODO(), "version", metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) || errors.ReasonForError(err) == metav1.StatusReasonUnknown {
+		if kapierrors.IsNotFound(err) || kapierrors.ReasonForError(err) == metav1.StatusReasonUnknown {
 			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
 			return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server")
 		}
@@ -1840,7 +1840,7 @@ func describeChangelog(out, errOut io.Writer, releaseInfo *ReleaseInfo, diff *Re
 		fmt.Fprintln(out, string(data))
 
 	default:
-		fmt.Fprintf(out, heredoc.Docf(`
+		fmt.Fprint(out, heredoc.Docf(`
 		# %s
 
 		Created: %s
@@ -2297,7 +2297,7 @@ func (o *InfoOptions) downloadRpmdb(image imagereference.DockerImageReference, d
 	defer func() {
 		if tmperr := os.RemoveAll(tmpDir); tmperr != nil {
 			tmperr = fmt.Errorf("nuking %s: %v", tmpDir, tmperr)
-			err = stderrors.Join(err, tmperr)
+			err = errors.Join(err, tmperr)
 			return
 		}
 	}()
@@ -2386,7 +2386,7 @@ func rpmdbToMetalayerMetadata(dir string, outfile string) error {
 	}
 
 	if rpmdbPath == "" {
-		return stderrors.New("no rpmdb found in image")
+		return errors.New("no rpmdb found in image")
 	}
 
 	var out bytes.Buffer

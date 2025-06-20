@@ -1,8 +1,6 @@
 package admin
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -57,7 +55,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 	cmds := &cobra.Command{
 		Use:   "adm",
 		Short: "Tools for managing a cluster",
-		Long:  fmt.Sprintf(adminLong),
+		Long:  adminLong,
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 

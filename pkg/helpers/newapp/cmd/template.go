@@ -39,7 +39,7 @@ func formatString(out io.Writer, tab, s string) {
 	labelVals := strings.Split(strings.TrimSuffix(s, "\n"), "\n")
 
 	for _, lval := range labelVals {
-		fmt.Fprintf(out, fmt.Sprintf("%s%s\n", tab, lval))
+		fmt.Fprintf(out, "%s%s\n", tab, lval)
 	}
 }
 

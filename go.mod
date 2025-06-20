@@ -1,6 +1,6 @@
 module github.com/openshift/oc
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/AaronO/go-git-http v0.0.0-20161214145340-1d9485b3a98f
@@ -33,7 +33,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/openshift/api v0.0.0-20250130025500-d9e1a2e1fe6b
-	github.com/openshift/build-machinery-go v0.0.0-20250102153059-e85a1a7ecb5c
+	github.com/openshift/build-machinery-go v0.0.0-20250602125535-1b6d00b8c37c
 	github.com/openshift/client-go v0.0.0-20250125113824-8e1f0b8fa9a7
 	github.com/openshift/library-go v0.0.0-20250218150059-017e5b6cf27c
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
