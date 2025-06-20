@@ -176,7 +176,7 @@ func (o *CreateOptions) AddFlags(cmd *cobra.Command) {
 func (o *CreateOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	err := o.baseComplete(f)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if o.AssetsDir == "" {
