@@ -141,6 +141,8 @@ type ExtractOptions struct {
 
 	genericiooptions.IOStreams
 
+	// ImageConfigCallback is invoked once image config retrieved
+	ImageConfigCallback func(imageConfig *dockerv1client.DockerImageConfig)
 	// ImageMetadataCallback is invoked once per image retrieved, and may be called in parallel if
 	// MaxPerRegistry is set higher than 1.
 	ImageMetadataCallback ImageMetadataFunc
@@ -148,6 +150,9 @@ type ExtractOptions struct {
 	// by name and only the entry in the highest layer will be passed to the callback. Returning false
 	// will halt processing of the image.
 	TarEntryCallback TarEntryFunc
+	// TarEntryCallbackDoneCallback, if set, is called when all layers image have been handled, i.e., no more
+	// TarEntryCallback is going to be passed. It has no effect if TarEntryCallback is not set.
+	TarEntryCallbackDoneCallback func() error
 	// AllLayers ensures the TarEntryCallback is invoked for all files, and will cause the callback
 	// order to start at the lowest layer and work outwards.
 	AllLayers bool
@@ -418,6 +423,9 @@ func (o *ExtractOptions) Run() error {
 				}
 
 				imageConfig, layers, err := imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), location)
+				if o.ImageConfigCallback != nil {
+					o.ImageConfigCallback(imageConfig)
+				}
 				if err != nil {
 					return fmt.Errorf("unable to parse image %s: %v", from, err)
 				}
@@ -541,6 +549,12 @@ func (o *ExtractOptions) Run() error {
 					}
 					if !cont {
 						break
+					}
+				}
+
+				if o.TarEntryCallback != nil && o.TarEntryCallbackDoneCallback != nil {
+					if err := o.TarEntryCallbackDoneCallback(); err != nil {
+						return err
 					}
 				}
 
