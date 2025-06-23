@@ -10,7 +10,7 @@ import (
 	"github.com/distribution/distribution/v3"
 	digest "github.com/opencontainers/go-digest"
 
-	"github.com/openshift/library-go/pkg/image/registryclient"
+	"github.com/openshift/library-go/pkg/image/registryclient/v2"
 )
 
 // dryRunManifestService emulates a remote registry for dry run behavior
