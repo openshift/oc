@@ -15,7 +15,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -28,6 +27,7 @@ import (
 	terminal "golang.org/x/term"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
@@ -1248,20 +1248,17 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config, vers
 		return config, err
 	} else {
 		config.Overrides = clusterVersion.Spec.Overrides
-		config.Capabilities = &clusterVersion.Status.Capabilities
 
-		// FIXME: eventually pull in GetImplicitlyEnabledCapabilities from https://github.com/openshift/cluster-version-operator/blob/86e24d66119a73f50282b66a8d6f2e3518aa0e15/pkg/payload/payload.go#L237-L240 for cases where a minor update would implicitly enable some additional capabilities.  For now, 4.13 to 4.14 will always enable MachineAPI, ImageRegistry, etc..
-		currentVersion := clusterVersion.Status.Desired.Version
-		matches := regexp.MustCompile(`^(\d+[.]\d+)[.].*`).FindStringSubmatch(currentVersion)
-		if len(matches) < 2 {
-			return config, fmt.Errorf("failed to parse major.minor version from ClusterVersion status.desired.version %q", currentVersion)
-		} else if matches[1] == "4.13" {
-			build := configv1.ClusterVersionCapability("Build")
-			deploymentConfig := configv1.ClusterVersionCapability("DeploymentConfig")
-			imageRegistry := configv1.ClusterVersionCapability("ImageRegistry")
-			config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, configv1.ClusterVersionCapabilityMachineAPI, build, deploymentConfig, imageRegistry)
-			config.Capabilities.KnownCapabilities = append(config.Capabilities.KnownCapabilities, configv1.ClusterVersionCapabilityMachineAPI, build, deploymentConfig, imageRegistry)
+		// known and baseline may grow from the current cluster version to the oc version
+		capSet := configv1.ClusterVersionCapabilitySetCurrent
+		if capabilitiesSpec := clusterVersion.Spec.Capabilities; capabilitiesSpec != nil &&
+			len(capabilitiesSpec.BaselineCapabilitySet) > 0 {
+			capSet = capabilitiesSpec.BaselineCapabilitySet
 		}
+		deepCopy := clusterVersion.Status.Capabilities.DeepCopy()
+		deepCopy.EnabledCapabilities = append(deepCopy.EnabledCapabilities, configv1.ClusterVersionCapabilitySets[capSet]...)
+		deepCopy.KnownCapabilities = configv1.KnownClusterVersionCapabilities
+		config.Capabilities = deepCopy
 
 		if err := logCapabilitySetMayDiffer(clusterVersion.Spec.Capabilities, versionInImageConfig); err != nil {
 			return config, err
@@ -1308,16 +1305,36 @@ func newIncluder(config manifestInclusionConfiguration) includer {
 // * with the manifests from every file whose name is not in skipNames, OR
 // * with the reader that contains the content of each file whose name is in skipNames.
 // All the errors encountered when parsing the manifests are collected in ManifestErrs.
+// If needEnabledCapabilities is not set, manifestsCallback with the argument
+// enabledCapabilities always nil is called right after each TarEntryCallback call from the upstream.
+// Otherwise, manifestsCallback is called only after TarEntryCallbackDoneCallback is invoked by the upstream. By then,
+// all the manifests have been handled. Those manifests, as the payloads of a release to update a cluster, together with
+// the given currentPayloadManifests and manifestInclusionConfiguration, are used to calculate the enabled capabilities
+// after the update. Those enabled capabilities is passed to manifestsCallback.
 type ManifestReceiver struct {
-	manifestsCallback func(filename string, manifests []manifest.Manifest, reader io.Reader) (cont bool, err error)
-	skipNames         sets.Set[string]
+	manifestsCallback       func(filename string, manifests []manifest.Manifest, reader io.Reader, enabledCapabilities []configv1.ClusterVersionCapability) (cont bool, err error)
+	skipNames               sets.Set[string]
+	needEnabledCapabilities bool
+	currentPayloadManifests []manifest.Manifest
+	inclusionConfiguration  manifestInclusionConfiguration
+
+	cache           []cacheData
+	manifests       []manifest.Manifest
+	enabledResolved bool
+	enabled         []configv1.ClusterVersionCapability
 
 	ManifestErrs []error
 }
 
+type cacheData struct {
+	name   string
+	ms     []manifest.Manifest
+	reader io.Reader
+}
+
 func (mr *ManifestReceiver) TarEntryCallback(h *tar.Header, _ extract.LayerInfo, r io.Reader) (cont bool, err error) {
 	if mr.skipNames.Has(h.Name) {
-		return mr.manifestsCallback(h.Name, nil, r)
+		return mr.manifestsCallback(h.Name, nil, r, nil)
 	}
 
 	if ext := path.Ext(h.Name); len(ext) == 0 || !(ext == ".yaml" || ext == ".yml" || ext == ".json") {
@@ -1329,5 +1346,107 @@ func (mr *ManifestReceiver) TarEntryCallback(h *tar.Header, _ extract.LayerInfo,
 		mr.ManifestErrs = append(mr.ManifestErrs, errors.Wrapf(err, "error parsing %s", h.Name))
 		return true, nil
 	}
-	return mr.manifestsCallback(h.Name, ms, nil)
+	mr.manifests = append(mr.manifests, ms...)
+	if mr.needEnabledCapabilities {
+		mr.cache = append(mr.cache, cacheData{name: h.Name, ms: ms})
+		return true, nil
+	}
+
+	return mr.manifestsCallback(h.Name, ms, nil, nil)
+}
+
+func (mr *ManifestReceiver) TarEntryCallbackDoneCallback() error {
+	defer func() {
+		mr.cache = []cacheData{}
+	}()
+
+	if mr.needEnabledCapabilities && !mr.enabledResolved {
+		enabled := GetImplicitlyEnabledCapabilities(
+			mr.manifests,
+			mr.currentPayloadManifests,
+			mr.inclusionConfiguration,
+			sets.New[configv1.ClusterVersionCapability](),
+		)
+
+		delta := enabled.Clone()
+		if mr.inclusionConfiguration.Capabilities != nil {
+			delta = delta.Difference(sets.New[configv1.ClusterVersionCapability](mr.inclusionConfiguration.Capabilities.EnabledCapabilities...))
+			enabled.Insert(mr.inclusionConfiguration.Capabilities.EnabledCapabilities...)
+		}
+		if delta.Len() > 0 {
+			klog.Infof("Those capabilities become implicitly enabled for the incoming release %s", sets.List(delta))
+		}
+
+		mr.enabled = enabled.UnsortedList()
+		mr.enabledResolved = true
+	}
+
+	for _, c := range mr.cache {
+		cont, err := mr.manifestsCallback(c.name, c.ms, c.reader, mr.enabled)
+		if err != nil {
+			mr.ManifestErrs = append(mr.ManifestErrs, errors.Wrapf(err, "error parsing %s", c.name))
+		}
+		if !cont {
+			break
+		}
+	}
+	return kerrors.NewAggregate(mr.ManifestErrs)
+}
+
+// GetImplicitlyEnabledCapabilities returns a set of capabilities that are implicitly enabled after a cluster update.
+// The arguments are two sets of manifests, manifest inclusion configuration, and
+// a set of capabilities that are implicitly enabled on the cluster, i.e., the capabilities
+// that are NOT specified in the cluster version but has to considered enabled on the cluster.
+// The manifest inclusion configuration is used to determine if a manifest should be included.
+// In other words, whether, or not the cluster version operator reconcile that manifest on the cluster.
+// The two sets of manifests are respectively from the release that is currently running on the cluster and
+// from the release that the cluster is updated to.
+// TODO lift this function to library-go
+func GetImplicitlyEnabledCapabilities(
+	updatePayloadManifests []manifest.Manifest,
+	currentPayloadManifests []manifest.Manifest,
+	manifestInclusionConfiguration manifestInclusionConfiguration,
+	currentImplicitlyEnabled sets.Set[configv1.ClusterVersionCapability],
+) sets.Set[configv1.ClusterVersionCapability] {
+	ret := currentImplicitlyEnabled.Clone()
+	for _, updateManifest := range updatePayloadManifests {
+		updateManErr := updateManifest.IncludeAllowUnknownCapabilities(
+			manifestInclusionConfiguration.ExcludeIdentifier,
+			manifestInclusionConfiguration.RequiredFeatureSet,
+			manifestInclusionConfiguration.Profile,
+			manifestInclusionConfiguration.Capabilities,
+			manifestInclusionConfiguration.Overrides,
+			true,
+		)
+		// update manifest is enabled, no need to check
+		if updateManErr == nil {
+			continue
+		}
+		for _, currentManifest := range currentPayloadManifests {
+			if !updateManifest.SameResourceID(currentManifest) {
+				continue
+			}
+			// current manifest is disabled, no need to check
+			if err := currentManifest.IncludeAllowUnknownCapabilities(
+				manifestInclusionConfiguration.ExcludeIdentifier,
+				manifestInclusionConfiguration.RequiredFeatureSet,
+				manifestInclusionConfiguration.Profile,
+				manifestInclusionConfiguration.Capabilities,
+				manifestInclusionConfiguration.Overrides,
+				true,
+			); err != nil {
+				continue
+			}
+			newImplicitlyEnabled := sets.New[configv1.ClusterVersionCapability](updateManifest.GetManifestCapabilities()...).
+				Difference(sets.New[configv1.ClusterVersionCapability](currentManifest.GetManifestCapabilities()...)).
+				Difference(currentImplicitlyEnabled).
+				Difference(sets.New[configv1.ClusterVersionCapability](manifestInclusionConfiguration.Capabilities.EnabledCapabilities...))
+			ret = ret.Union(newImplicitlyEnabled)
+			if newImplicitlyEnabled.Len() > 0 {
+				klog.V(2).Infof("%s has changed and is now part of one or more disabled capabilities. The following capabilities will be implicitly enabled: %s",
+					updateManifest.String(), sets.List(newImplicitlyEnabled))
+			}
+		}
+	}
+	return ret
 }

@@ -150,6 +150,9 @@ type ExtractOptions struct {
 	// by name and only the entry in the highest layer will be passed to the callback. Returning false
 	// will halt processing of the image.
 	TarEntryCallback TarEntryFunc
+	// TarEntryCallbackDoneCallback, if set, is called when all layers image have been handled, i.e., no more
+	// TarEntryCallback is going to be passed. It has no effect if TarEntryCallback is not set.
+	TarEntryCallbackDoneCallback func() error
 	// AllLayers ensures the TarEntryCallback is invoked for all files, and will cause the callback
 	// order to start at the lowest layer and work outwards.
 	AllLayers bool
@@ -546,6 +549,12 @@ func (o *ExtractOptions) Run() error {
 					}
 					if !cont {
 						break
+					}
+				}
+
+				if o.TarEntryCallback != nil && o.TarEntryCallbackDoneCallback != nil {
+					if err := o.TarEntryCallbackDoneCallback(); err != nil {
+						return err
 					}
 				}
 
