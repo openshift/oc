@@ -1053,6 +1053,11 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 		isTrue := true
 		hostPathType := corev1.HostPathDirectory
 		template := &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"debug.openshift.io/managed-by": "oc-debug",
+				},
+			},
 			Spec: corev1.PodSpec{
 				NodeName:    t.Name,
 				HostNetwork: true,
