@@ -342,6 +342,7 @@ func (o *CreateOptions) copyArtifactsFromNodeJoinerPod() error {
 		Quiet:         true,
 		RsyncInclude:  []string{"*.iso"},
 		RsyncExclude:  []string{"*"},
+		RsyncNoPerms:  true,
 	}
 	rsyncOptions.Strategy = o.copyStrategy(rsyncOptions)
 	return rsyncOptions.RunRsync()
