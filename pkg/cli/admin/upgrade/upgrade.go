@@ -3,7 +3,6 @@ package upgrade
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +21,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	configv1 "github.com/openshift/api/config/v1"
+	applyconfigv1 "github.com/openshift/client-go/config/applyconfigurations/config/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 
@@ -250,7 +250,7 @@ func (o *Options) Run() error {
 			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
 		}
 
-		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
+		if err := applyDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
 
 			return err
 		}
@@ -389,7 +389,7 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s\n", err)
 		}
 
-		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
+		if err := applyDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
 			return err
 		}
 
@@ -679,18 +679,35 @@ func targetMatch(target *configv1.Release, to string, toImage string) (bool, err
 	return false, nil
 }
 
-func patchDesiredUpdate(ctx context.Context, update *configv1.Update, client configv1client.Interface,
+// applyDesiredUpdate sends a Server-side Apply request to apply the desired update.
+// It does nothing if the provided update is null.
+func applyDesiredUpdate(ctx context.Context, update *configv1.Update, client configv1client.Interface,
 	clusterVersionName string) error {
-
-	updateJSON, err := json.Marshal(update)
-	if err != nil {
-		return fmt.Errorf("marshal ClusterVersion patch: %v", err)
+	if update == nil {
+		return nil
 	}
-	patch := []byte(fmt.Sprintf(`{"spec":{"desiredUpdate": %s}}`, updateJSON))
-	if _, err := client.ConfigV1().ClusterVersions().Patch(ctx, clusterVersionName, types.MergePatchType, patch,
-		metav1.PatchOptions{}); err != nil {
-
-		return fmt.Errorf("Unable to upgrade: %v", err)
+	applyOptions := metav1.ApplyOptions{
+		Force:        true,
+		FieldManager: "oc-adm-upgrade-command",
 	}
+
+	updateToApply := applyconfigv1.Update().WithForce(update.Force)
+	if update.Version != "" {
+		updateToApply.WithVersion(update.Version)
+	}
+	if update.Image != "" {
+		updateToApply.WithImage(update.Image)
+	}
+	if update.Architecture != "" {
+		updateToApply.WithArchitecture(update.Architecture)
+	}
+
+	cvToApply := applyconfigv1.ClusterVersion(clusterVersionName).
+		WithSpec(applyconfigv1.ClusterVersionSpec().WithDesiredUpdate(updateToApply))
+
+	if _, err := client.ConfigV1().ClusterVersions().Apply(ctx, cvToApply, applyOptions); err != nil {
+		return fmt.Errorf("unable to upgrade: %v", err)
+	}
+
 	return nil
 }
