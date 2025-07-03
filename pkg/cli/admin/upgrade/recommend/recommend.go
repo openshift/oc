@@ -343,9 +343,12 @@ func (o *options) Run(ctx context.Context) error {
 					}
 					unaccepted := issues.Difference(accept)
 					if unaccepted.Len() > 0 {
+						if !o.quiet {
+							fmt.Println(o.Out)
+						}
 						return fmt.Errorf("issues that apply to this cluster but which were not included in --accept: %s", strings.Join(sets.List(unaccepted), ","))
 					} else if issues.Len() > 0 && !o.quiet {
-						fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster other than the accepted %s.\n", update.Release.Version, strings.Join(sets.List(issues), ","))
+						fmt.Fprintf(o.Out, "\nUpdate to %s has no known issues relevant to this cluster other than the accepted %s.\n", update.Release.Version, strings.Join(sets.List(issues), ","))
 					}
 					return nil
 				}
