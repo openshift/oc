@@ -12,7 +12,7 @@ import (
 func NewCmdNodeImage(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "node-image",
-		Short: "Add nodes to an existing cluster.",
+		Short: "Add nodes to an existing cluster",
 		Long: templates.LongDesc(`
 			The subcommands allow you to create an ISO image to be used for adding the desired
 			nodes to an OpenShift cluster, and also to monitor the process.
