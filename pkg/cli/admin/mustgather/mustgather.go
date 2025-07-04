@@ -3,6 +3,7 @@ package mustgather
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -21,7 +22,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/errors"
+	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -86,7 +87,9 @@ var (
 	volumeUsageCheckerScript = `
 echo "volume percentage checker started....."
 while true; do
-usage_percentage=$(df -P "%s" | awk 'NR==2 {print $5}' | sed 's/%%//')
+disk_usage=$(du -s "%s" | awk '{print $1}')
+disk_space=$(df -P "%s" | awk 'NR==2 {print $2}')
+usage_percentage=$(( (disk_usage * 100) / disk_space ))
 echo "volume usage percentage $usage_percentage"
 if [ "$usage_percentage" -gt "%d" ]; then
 	echo "Disk usage exceeds the volume percentage of %d for mounted directory. Exiting..."
@@ -157,7 +160,7 @@ func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions
 		SourceDir:        "/must-gather/",
 		IOStreams:        streams,
 		Timeout:          10 * time.Minute,
-		VolumePercentage: 50,
+		VolumePercentage: 30,
 	}
 	opts.LogOut = opts.newPrefixWriter(streams.Out, "[must-gather      ] OUT", false, true)
 	opts.RawOut = opts.newPrefixWriter(streams.Out, "", false, false)
@@ -523,7 +526,7 @@ func (o *MustGatherOptions) Run() error {
 	}
 	var hasMaster bool
 	for _, node := range nodes.Items {
-		if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
+		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
 			hasMaster = true
 			break
 		}
@@ -537,7 +540,7 @@ func (o *MustGatherOptions) Run() error {
 			line := fmt.Sprintf("unable to parse image reference %s: %v", image, err)
 			o.log(line)
 			// ensure the errors bubble up to BackupGathering method for display
-			errs = []error{fmt.Errorf(line)}
+			errs = []error{errors.New(line)}
 			return err
 		}
 		if o.NodeSelector != "" {
@@ -618,7 +621,7 @@ func (o *MustGatherOptions) Run() error {
 		errs = append(errs, err)
 	}
 
-	return errors.NewAggregate(errs)
+	return kutilerrors.NewAggregate(errs)
 }
 
 // processNextWorkItem creates & processes the must-gather pod and returns error if any
@@ -762,7 +765,7 @@ func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 		err = rsyncOptions.RunRsync()
 		errs = append(errs, err)
 	}
-	return errors.NewAggregate(errs)
+	return kutilerrors.NewAggregate(errs)
 }
 
 func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
@@ -985,7 +988,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 		corev1.LabelOSStable: "linux",
 	}
 	if node == "" && hasMaster {
-		nodeSelector["node-role.kubernetes.io/control-plane"] = ""
+		nodeSelector["node-role.kubernetes.io/master"] = ""
 	}
 
 	executedCommand := "/usr/bin/gather"
@@ -994,7 +997,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 	}
 
 	cleanedSourceDir := path.Clean(o.SourceDir)
-	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
+	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
 
 	// Define taints we do not want to tolerate (can be extended with user input in the future)
 	excludedTaints := []corev1.Taint{
@@ -1142,7 +1145,7 @@ func (o *MustGatherOptions) BackupGathering(ctx context.Context, errs []error) {
 	}
 
 	fmt.Fprintf(o.ErrOut, "\n\n") // Space out the output
-	fmt.Fprintf(o.ErrOut, "Error running must-gather collection:\n    %v\n\n", errors.NewAggregate(errs))
+	fmt.Fprintf(o.ErrOut, "Error running must-gather collection:\n    %v\n\n", kutilerrors.NewAggregate(errs))
 	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect %s` to collect basic cluster types.\n", typeTargets)
 
 	streams := o.IOStreams

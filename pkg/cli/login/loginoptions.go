@@ -134,9 +134,8 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 		// we need to have a server to talk to
 		if printers.IsTerminal(o.In) {
 			for !o.serverProvided() {
-				defaultServer := defaultClusterURL
-				promptMsg := fmt.Sprintf("Server [%s]: ", defaultServer)
-				o.Server = term.PromptForStringWithDefault(o.In, o.Out, defaultServer, promptMsg)
+				o.Server = term.PromptForStringWithDefault(
+					o.In, o.Out, defaultClusterURL, "Server [%s]: ", defaultClusterURL)
 			}
 		}
 	}
@@ -452,7 +451,7 @@ func (o *LoginOptions) gatherProjectInfo() error {
 			return err
 		}
 		msg := ocerrors.NoProjectsExistMessage(canRequest)
-		fmt.Fprintf(o.Out, msg)
+		fmt.Fprint(o.Out, msg)
 		o.Project = ""
 
 	case 1:
@@ -554,7 +553,7 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 		}
 
 		out := &bytes.Buffer{}
-		fmt.Fprintf(out, ocerrors.ErrKubeConfigNotWriteable(o.PathOptions.GetDefaultFilename(), o.PathOptions.IsExplicitFile(), err).Error())
+		fmt.Fprint(out, ocerrors.ErrKubeConfigNotWriteable(o.PathOptions.GetDefaultFilename(), o.PathOptions.IsExplicitFile(), err).Error())
 		return false, fmt.Errorf("%v", out)
 	}
 

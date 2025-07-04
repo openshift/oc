@@ -226,6 +226,6 @@ func (p *revisionPrinter) PrintObj(obj runtime.Object, out io.Writer) error {
 		return fmt.Errorf("%T is not a deployment config", obj)
 	}
 
-	fmt.Fprintf(out, fmt.Sprintf("%d", dc.Status.LatestVersion))
+	fmt.Fprintf(out, "%d", dc.Status.LatestVersion)
 	return nil
 }

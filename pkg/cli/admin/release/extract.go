@@ -349,9 +349,8 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		}
 	}
 
-	tarEntryCallbacks := []extract.TarEntryFunc{}
-
 	var manifestErrs []error
+	// o.ExtractManifests implies o.File == ""
 	if o.ExtractManifests {
 		expectedProviderSpecKind := credRequestCloudProviderSpecKindMapping[o.Cloud]
 
@@ -380,7 +379,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 			include = newIncluder(inclusionConfig)
 		}
 
-		tarEntryCallbacks = append(tarEntryCallbacks, func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
+		opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
 			if hdr.Name == "image-references" && !o.CredentialsRequests {
 				buf := &bytes.Buffer{}
 				if _, err := io.Copy(buf, r); err != nil {
@@ -488,42 +487,18 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 				}
 			}
 			return true, nil
-		})
+		}
 	}
 
 	fileFound := false
 	if o.File != "" {
-		tarEntryCallbacks = append(tarEntryCallbacks, func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
+		opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
 			if hdr.Name != o.File {
 				return true, nil
 			}
 			fileFound = true
 			_, err := io.Copy(o.Out, r)
 			return false, err
-		})
-	}
-
-	if len(tarEntryCallbacks) > 0 {
-		tarEntryCallbacksDone := make([]bool, len(tarEntryCallbacks))
-		opts.TarEntryCallback = func(hdr *tar.Header, layer extract.LayerInfo, r io.Reader) (bool, error) {
-			for i, callback := range tarEntryCallbacks {
-				if tarEntryCallbacksDone[i] {
-					continue
-				}
-				if cont, err := callback(hdr, layer, r); err != nil {
-					return cont, err
-				} else if !cont {
-					tarEntryCallbacksDone[i] = true
-				}
-			}
-
-			for _, done := range tarEntryCallbacksDone {
-				if !done {
-					return true, nil // still some callbacks that want to keep working
-				}
-			}
-
-			return false, nil
 		}
 	}
 

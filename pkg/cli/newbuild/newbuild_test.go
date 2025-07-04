@@ -28,7 +28,7 @@ func TestNewBuildRun(t *testing.T) {
 		{
 			name:        "no input",
 			config:      &newcmd.AppConfig{},
-			expectedErr: ocnewapp.UsageError("oc new-build", newBuildNoInput).Error(),
+			expectedErr: ocnewapp.UsageError("oc new-build", "%s", newBuildNoInput).Error(),
 		},
 		{
 			name: "no matches",

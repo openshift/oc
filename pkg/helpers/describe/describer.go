@@ -543,7 +543,7 @@ func describeBuildTriggers(triggers []buildv1.BuildTriggerPolicy, name, namespac
 			seenHookTypes[webHookType] = true
 			fmt.Fprintf(w, "\tURL:\t%s\n", trigger.URL)
 			if webHookType == string(buildv1.GenericWebHookBuildTriggerType) && trigger.AllowEnv != nil {
-				fmt.Fprintf(w, fmt.Sprintf("\t%s:\t%v\n", "AllowEnv", *trigger.AllowEnv))
+				fmt.Fprintf(w, "\t%s:\t%v\n", "AllowEnv", *trigger.AllowEnv)
 			}
 		}
 	}
@@ -1288,7 +1288,7 @@ func (d *TemplateDescriber) describeObjects(objects []runtime.RawExtension, out 
 				groupKind = gk.String()
 			}
 		}
-		fmt.Fprintf(out, fmt.Sprintf("%s%s\t%s\n", indent, groupKind, name))
+		fmt.Fprintf(out, "%s%s\t%s\n", indent, groupKind, name)
 	}
 }
 
@@ -1400,7 +1400,7 @@ func (d *TemplateInstanceDescriber) DescribeParameters(template templatev1.Templ
 
 	indent := "    "
 	if len(template.Parameters) == 0 {
-		fmt.Fprintf(out, indent+"No parameters found.")
+		fmt.Fprint(out, indent+"No parameters found.")
 	} else {
 		for _, p := range template.Parameters {
 			if val, ok := secret.Data[p.Name]; ok {

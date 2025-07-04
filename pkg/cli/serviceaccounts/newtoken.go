@@ -96,7 +96,7 @@ func NewCommandNewServiceAccountToken(f cmdutil.Factory, streams genericiooption
 
 func (o *ServiceAccountTokenOptions) Complete(args []string, requestedLabels string, f cmdutil.Factory, cmd *cobra.Command) error {
 	if len(args) != 1 {
-		return cmdutil.UsageErrorf(cmd, fmt.Sprintf("expected one service account name as an argument, got %q", args))
+		return cmdutil.UsageErrorf(cmd, "expected one service account name as an argument, got %q", args)
 	}
 
 	o.SAName = args[0]
@@ -104,7 +104,7 @@ func (o *ServiceAccountTokenOptions) Complete(args []string, requestedLabels str
 	if len(requestedLabels) > 0 {
 		labels, err := generate.ParseLabels(requestedLabels)
 		if err != nil {
-			return cmdutil.UsageErrorf(cmd, err.Error())
+			return cmdutil.UsageErrorf(cmd, "%s", err.Error())
 		}
 		o.Labels = labels
 	}
@@ -184,10 +184,10 @@ func (o *ServiceAccountTokenOptions) Run() error {
 		return fmt.Errorf("service account token %q did not contain token data", tokenSecret.Name)
 	}
 
-	fmt.Fprintf(o.Out, string(token))
+	fmt.Fprint(o.Out, string(token))
 	if term.IsTerminalWriter(o.Out) {
 		// pretty-print for a TTY
-		fmt.Fprintf(o.Out, "\n")
+		fmt.Fprint(o.Out, "\n")
 	}
 	return nil
 }

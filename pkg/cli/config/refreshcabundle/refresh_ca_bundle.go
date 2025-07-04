@@ -139,7 +139,7 @@ func (r *RefreshCABundleRuntime) Run(ctx context.Context) error {
 	}
 
 	if r.DryRun {
-		fmt.Fprintf(r.Out, caBundle)
+		fmt.Fprint(r.Out, caBundle)
 		return nil
 	}
 

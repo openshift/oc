@@ -186,7 +186,7 @@ func (o *ExtractOptions) Run() error {
 			}
 		}
 		if len(errs) > 0 {
-			return fmt.Errorf(kcmdutil.MultipleErrors("error: ", errs))
+			return errors.New(kcmdutil.MultipleErrors("error: ", errs))
 		}
 		return nil
 	})

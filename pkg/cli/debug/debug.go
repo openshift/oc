@@ -2,6 +2,7 @@ package debug
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -610,7 +611,7 @@ func (o *DebugOptions) RunDebug() error {
 			if len(o.NodeName) > 0 {
 				msg += fmt.Sprintf(" on node %q", o.NodeName)
 			}
-			return fmt.Errorf(msg)
+			return errors.New(msg)
 			// switch to logging output
 		case err == krun.ErrPodCompleted, err == conditions.ErrContainerTerminated:
 			resultPod, ok := containerRunningEvent.Object.(*corev1.Pod)
@@ -624,7 +625,7 @@ func (o *DebugOptions) RunDebug() error {
 						if len(o.NodeName) > 0 {
 							msg += fmt.Sprintf(" on node %q", o.NodeName)
 						}
-						return fmt.Errorf(msg)
+						return errors.New(msg)
 					}
 				}
 			}
@@ -1052,6 +1053,11 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 		isTrue := true
 		hostPathType := corev1.HostPathDirectory
 		template := &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"debug.openshift.io/managed-by": "oc-debug",
+				},
+			},
 			Spec: corev1.PodSpec{
 				NodeName:    t.Name,
 				HostNetwork: true,

@@ -279,7 +279,7 @@ func transformBuildError(err error, commandPath string, groups ocnewapp.ErrorGro
 	}
 	switch err {
 	case newcmd.ErrNoInputs:
-		groups.Add("", "", "", ocnewapp.UsageError(commandPath, newBuildNoInput))
+		groups.Add("", "", "", ocnewapp.UsageError(commandPath, "%s", newBuildNoInput))
 		return
 	}
 	ocnewapp.TransformRunError(err, commandPath, groups, config)
