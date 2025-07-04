@@ -115,6 +115,30 @@ var (
 	}
 )
 
+// buildNodeSelector builds a node selector from the provided node names.
+func buildNodeAffinity(nodeNames []string) *corev1.Affinity {
+	if len(nodeNames) == 0 {
+		return nil
+	}
+	return &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   nodeNames,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 const (
 	// number of concurrent must-gather Pods to run if --all-images or multiple --image are provided
 	concurrentMG = 4
@@ -512,19 +536,52 @@ func (o *MustGatherOptions) Run() error {
 		defer cleanupNamespace()
 	}
 
-	// Prefer to run in master if there's any but don't be explicit otherwise.
-	// This enables the command to run by default in hypershift where there's no masters.
-	nodes, err := o.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: o.NodeSelector,
-	})
+	nodes, err := o.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	if err != nil {
-		return err
+	var cpNodes, workerNodes, unschedulableNodes []corev1.Node
+	for _, node := range nodes.Items {
+		isReady := false
+		for _, cond := range node.Status.Conditions {
+			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+				isReady = true
+				break
+			}
+		}
+		if !isReady {
+			continue
+		}
+		if node.Spec.Unschedulable {
+			unschedulableNodes = append(unschedulableNodes, node)
+			continue
+		}
+		if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
+			cpNodes = append(cpNodes, node)
+		} else {
+			workerNodes = append(workerNodes, node)
+		}
 	}
-	var hasMaster bool
+
+	selectedNodes := cpNodes
+	if len(selectedNodes) == 0 {
+		selectedNodes = workerNodes
+	}
+	if len(selectedNodes) == 0 {
+		selectedNodes = unschedulableNodes
+	}
+
+	var nodeNames []string
+	for _, n := range selectedNodes {
+		nodeNames = append(nodeNames, n.Name)
+	}
+
+	affinity := buildNodeAffinity(nodeNames)
+	// If we have no nodes, we cannot run the must-gather pod.
+
+	// Determine if there is a master node
+	hasMaster := false
 	for _, node := range nodes.Items {
 		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
 			hasMaster = true
@@ -553,7 +610,7 @@ func (o *MustGatherOptions) Run() error {
 				return err
 			}
 			for _, node := range nodes.Items {
-				pods = append(pods, o.newPod(node.Name, image, hasMaster))
+				pods = append(pods, o.newPod(node.Name, image, hasMaster, affinity))
 			}
 		} else {
 			if o.NodeName != "" {
@@ -563,7 +620,7 @@ func (o *MustGatherOptions) Run() error {
 					return err
 				}
 			}
-			pods = append(pods, o.newPod(o.NodeName, image, hasMaster))
+			pods = append(pods, o.newPod(o.NodeName, image, hasMaster, affinity))
 		}
 	}
 
@@ -981,7 +1038,8 @@ func newClusterRoleBinding(ns *corev1.Namespace) *rbacv1.ClusterRoleBinding {
 // newPod creates a pod with 2 containers with a shared volume mount:
 // - gather: init containers that run gather command
 // - copy: no-op container we can exec into
-func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.Pod {
+func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity *corev1.Affinity) *corev1.Pod {
+
 	zero := int64(0)
 
 	nodeSelector := map[string]string{
@@ -1098,7 +1156,15 @@ TolerationLoop:
 			HostNetwork:                   o.HostNetwork,
 			NodeSelector:                  nodeSelector,
 			TerminationGracePeriodSeconds: &zero,
-			Tolerations:                   filteredTolerations,
+			Tolerations: []corev1.Toleration{
+				{
+					// An empty key with operator Exists matches all keys,
+					// values and effects which means this will tolerate everything.
+					// As noted in https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+					Operator: "Exists",
+				},
+			},
+			Affinity: affinity,
 		},
 	}
 	if o.HostNetwork {
