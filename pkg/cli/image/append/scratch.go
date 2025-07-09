@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 	digest "github.com/opencontainers/go-digest"
 
 	"github.com/openshift/oc/pkg/helpers/image/dockerlayer"
