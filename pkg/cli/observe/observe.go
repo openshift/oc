@@ -407,7 +407,12 @@ func (o *ObserveOptions) Run() error {
 	}
 
 	// watch the given resource for changes
-	store := cache.NewDeltaFIFO(objectArgumentsKeyFunc, o.knownObjects)
+	store := cache.NewDeltaFIFOWithOptions(cache.DeltaFIFOOptions{
+		KeyFunction:  objectArgumentsKeyFunc,
+		KnownObjects: o.knownObjects,
+	})
+	observeReflectorStore := newObserveReflector(store)
+
 	lw := restListWatcher{
 		Helper:   resource.NewHelper(o.client, o.mapping),
 		selector: o.selector,
@@ -457,7 +462,7 @@ func (o *ObserveOptions) Run() error {
 	defer close(stopCh)
 
 	// start the reflector
-	reflector := cache.NewNamedReflector("observer", lw, nil, store, o.resyncPeriod)
+	reflector := cache.NewNamedReflector("observer", lw, nil, observeReflectorStore, o.resyncPeriod)
 	go func() {
 		observedListErrors := 0
 		wait.Until(func() {
@@ -478,7 +483,7 @@ func (o *ObserveOptions) Run() error {
 			time.Sleep(50 * time.Millisecond)
 		}
 		// if the store is empty, there is nothing to sync
-		if store.HasSynced() && len(store.ListKeys()) == 0 {
+		if store.HasSynced() && !observeReflectorStore.populated {
 			fmt.Fprintf(o.ErrOut, "Nothing to sync, exiting immediately\n")
 			return nil
 		}
