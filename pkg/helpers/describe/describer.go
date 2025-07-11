@@ -35,7 +35,7 @@ import (
 	"github.com/openshift/api/build"
 	buildv1 "github.com/openshift/api/build/v1"
 	"github.com/openshift/api/config"
-	configv1alpha1 "github.com/openshift/api/config/v1alpha1"
+	configv1alpha2 "github.com/openshift/api/config/v1alpha2"
 	"github.com/openshift/api/image"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -56,7 +56,7 @@ import (
 	appstypedclient "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	oauthorizationclient "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
 	buildv1clienttyped "github.com/openshift/client-go/build/clientset/versioned/typed/build/v1"
-	configclientv1alpha1 "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1alpha1"
+	configclientv1alpha2 "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1alpha2"
 	imageclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	onetworktypedclient "github.com/openshift/client-go/network/clientset/versioned/typed/network/v1"
 	oauthclient "github.com/openshift/client-go/oauth/clientset/versioned/typed/oauth/v1"
@@ -129,7 +129,7 @@ func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host 
 	if err != nil {
 		klog.V(1).Info(err)
 	}
-	configv1alpha1Client, err := configclientv1alpha1.NewForConfig(clientConfig)
+	configv1alpha2Client, err := configclientv1alpha2.NewForConfig(clientConfig)
 	if err != nil {
 		klog.V(1).Info(err)
 	}
@@ -164,7 +164,7 @@ func describerMap(clientConfig *rest.Config, kclient kubernetes.Interface, host 
 		network.Kind("NetNamespace"):                 &NetNamespaceDescriber{onetworkClient},
 		network.Kind("EgressNetworkPolicy"):          &EgressNetworkPolicyDescriber{onetworkClient},
 		security.Kind("SecurityContextConstraints"):  &SecurityContextConstraintsDescriber{securityClient},
-		config.Kind("InsightsDataGather"):            &InsightsDataGatherDescriber{configv1alpha1Client},
+		config.Kind("InsightsDataGather"):            &InsightsDataGatherDescriber{configv1alpha2Client},
 	}
 
 	return m
@@ -2098,7 +2098,7 @@ func describeSecurityContextConstraints(scc *securityv1.SecurityContextConstrain
 }
 
 type InsightsDataGatherDescriber struct {
-	c configclientv1alpha1.InsightsDataGathersGetter
+	c configclientv1alpha2.InsightsDataGathersGetter
 }
 
 func (d *InsightsDataGatherDescriber) Describe(namespace, name string, s describe.DescriberSettings) (string, error) {
@@ -2109,12 +2109,11 @@ func (d *InsightsDataGatherDescriber) Describe(namespace, name string, s describ
 	return describeInsightsDataGathers(idg)
 }
 
-func describeInsightsDataGathers(idg *configv1alpha1.InsightsDataGather) (string, error) {
+func describeInsightsDataGathers(idg *configv1alpha2.InsightsDataGather) (string, error) {
 	return tabbedString(func(out *tabwriter.Writer) error {
 		fmt.Fprintf(out, "Name:\t%s\n", idg.Name)
 		fmt.Fprintf(out, "GatherConfig:\t\n")
-		fmt.Fprintf(out, "  DataPolicy:\t%s\n", stringOrNone(string(idg.Spec.GatherConfig.DataPolicy)))
-		fmt.Fprintf(out, "  DisabledGatherers:\t%s\n", stringOrNone(strings.Join(idg.Spec.GatherConfig.DisabledGatherers, ",")))
+		fmt.Fprintf(out, "  DataPolicy:\t%s\n", insightsDataPolicyToString(idg.Spec.GatherConfig.DataPolicy))
 
 		return nil
 	})
@@ -2137,6 +2136,14 @@ func fsTypeToString(volumes []securityv1.FSType) string {
 		strVolumes = append(strVolumes, string(v))
 	}
 	return stringOrNone(strings.Join(strVolumes, ","))
+}
+
+func insightsDataPolicyToString(dataPolicies []configv1alpha2.DataPolicyOption) string {
+	strDataPolicies := []string{}
+	for _, v := range dataPolicies {
+		strDataPolicies = append(strDataPolicies, string(v))
+	}
+	return stringOrNone(strings.Join(strDataPolicies, ","))
 }
 
 func flexVolumesToString(flexVolumes []securityv1.AllowedFlexVolume) string {
