@@ -477,65 +477,77 @@ func (o *ObserveOptions) Run() error {
 		for len(reflector.LastSyncResourceVersion()) == 0 {
 			time.Sleep(50 * time.Millisecond)
 		}
-		// if the store is empty, there is nothing to sync
-		if store.HasSynced() && len(store.ListKeys()) == 0 {
-			fmt.Fprintf(o.ErrOut, "Nothing to sync, exiting immediately\n")
-			return nil
-		}
 	}
 
 	// process all changes that occur in the resource
 	syncing := false
 	for {
-		_, err := store.Pop(func(obj interface{}, isInInitialList bool) error {
-			// if we failed to retrieve the list of keys, exit
-			if err := o.argumentStore.ListKeysError(); err != nil {
-				return fmt.Errorf("unable to list known keys: %v", err)
-			}
-
-			deltas := obj.(cache.Deltas)
-			for _, delta := range deltas {
-				if err := func() error {
-					lock.Lock()
-					defer lock.Unlock()
-
-					// handle before and after observe notification
-					switch {
-					case !syncing && delta.Type == cache.Sync:
-						if err := o.startSync(); err != nil {
-							return err
-						}
-						syncing = true
-					case syncing && delta.Type != cache.Sync:
-						if err := o.finishSync(); err != nil {
-							return err
-						}
-						syncing = false
-					}
-
-					// require the user to provide a name function in order to get events beyond added / updated
-					if !syncing && o.knownObjects == nil && !(delta.Type == cache.Added || delta.Type == cache.Updated) {
-						return nil
-					}
-
-					observeCounts.WithLabelValues(string(delta.Type)).Inc()
-
-					// calculate the arguments for the delta and then invoke any command
-					object, arguments, output, err := o.calculateArguments(delta)
-					if err != nil {
-						return err
-					}
-					if err := o.next(delta.Type, object, output, arguments); err != nil {
-						return err
-					}
-
-					return nil
-				}(); err != nil {
-					return err
+		resultCh := make(chan error, 1)
+		go func() {
+			_, popErr := store.Pop(func(obj interface{}, isInInitialList bool) error {
+				// if we failed to retrieve the list of keys, exit
+				if err := o.argumentStore.ListKeysError(); err != nil {
+					return fmt.Errorf("unable to list known keys: %v", err)
 				}
-			}
+
+				deltas := obj.(cache.Deltas)
+				for _, delta := range deltas {
+					if err := func() error {
+						lock.Lock()
+						defer lock.Unlock()
+
+						// handle before and after observe notification
+						switch {
+						case !syncing && delta.Type == cache.Sync:
+							if err := o.startSync(); err != nil {
+								return err
+							}
+							syncing = true
+						case syncing && delta.Type != cache.Sync:
+							if err := o.finishSync(); err != nil {
+								return err
+							}
+							syncing = false
+						}
+
+						// require the user to provide a name function in order to get events beyond added / updated
+						if !syncing && o.knownObjects == nil && !(delta.Type == cache.Added || delta.Type == cache.Updated) {
+							return nil
+						}
+
+						observeCounts.WithLabelValues(string(delta.Type)).Inc()
+
+						// calculate the arguments for the delta and then invoke any command
+						object, arguments, output, err := o.calculateArguments(delta)
+						if err != nil {
+							return err
+						}
+						if err := o.next(delta.Type, object, output, arguments); err != nil {
+							return err
+						}
+
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			resultCh <- popErr
+		}()
+
+		var timeoutCh <-chan time.Time
+		if o.once && store.HasSynced() {
+			timeoutCh = time.After(5 * time.Second)
+		}
+
+		var err error
+		select {
+		case err = <-resultCh:
+		case <-timeoutCh:
+			fmt.Fprintf(o.ErrOut, "Nothing to sync, exiting immediately\n")
 			return nil
-		})
+		}
 		if err != nil {
 			return err
 		}
