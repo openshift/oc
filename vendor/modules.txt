@@ -175,8 +175,8 @@ github.com/containers/storage/pkg/reexec
 github.com/containers/storage/pkg/regexp
 github.com/containers/storage/pkg/system
 github.com/containers/storage/pkg/unshare
-# github.com/coreos/go-oidc/v3 v3.10.0
-## explicit; go 1.21
+# github.com/coreos/go-oidc/v3 v3.14.0
+## explicit; go 1.23.0
 github.com/coreos/go-oidc/v3/oidc
 # github.com/cyberphone/json-canonicalization v0.0.0-20231217050601-ba74d44ecf5f
 ## explicit
@@ -444,11 +444,11 @@ github.com/hashicorp/golang-lru/simplelru
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
-# github.com/int128/listener v1.1.0
-## explicit; go 1.13
+# github.com/int128/listener v1.2.0
+## explicit; go 1.20
 github.com/int128/listener
-# github.com/int128/oauth2cli v1.14.0
-## explicit; go 1.13
+# github.com/int128/oauth2cli v1.17.0
+## explicit; go 1.23.0
 github.com/int128/oauth2cli
 github.com/int128/oauth2cli/oauth2params
 # github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99
@@ -838,7 +838,7 @@ github.com/openshift/library-go/pkg/verify/util
 # github.com/peterbourgon/diskv v2.0.1+incompatible
 ## explicit
 github.com/peterbourgon/diskv
-# github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
+# github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 ## explicit; go 1.14
 github.com/pkg/browser
 # github.com/pkg/errors v0.9.1
