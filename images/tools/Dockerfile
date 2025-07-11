@@ -55,5 +55,5 @@ RUN INSTALL_PKGS="\
 CMD ["/usr/bin/bash"]
 LABEL io.k8s.display-name="OpenShift Tools" \
       io.k8s.description="Contains debugging and diagnostic tools for use with an OpenShift cluster." \
-      io.openshift.build.versions="kubectl=1.32.1" \
+      io.openshift.build.versions="kubectl=1.33.2" \
       io.openshift.tags="openshift,tools"
