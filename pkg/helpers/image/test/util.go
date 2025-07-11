@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 
@@ -107,7 +108,7 @@ func ImageWithLayers(id, ref string, configName *string, layers ...string) image
 			},
 		},
 		DockerImageReference:         ref,
-		DockerImageManifestMediaType: schema2.MediaTypeManifest,
+		DockerImageManifestMediaType: schema1.MediaTypeManifest,
 	}
 
 	image.DockerImageMetadata = runtime.RawExtension{

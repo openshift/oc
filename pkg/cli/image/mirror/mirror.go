@@ -12,6 +12,7 @@ import (
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	"github.com/distribution/distribution/v3/manifest/ocischema"
+	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	"github.com/distribution/distribution/v3/reference"
 	"github.com/distribution/distribution/v3/registry/client"
@@ -608,6 +609,7 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 								addBlobsForManifest := func(srcManifest distribution.Manifest) {
 									switch srcManifest.(type) {
 									case *schema2.DeserializedManifest:
+									case *schema1.SignedManifest:
 									case *ocischema.DeserializedManifest:
 									case *manifestlist.DeserializedManifestList:
 										// we do not need to upload layers in a manifestlist
@@ -880,7 +882,7 @@ func copyManifestToTags(
 		panic(fmt.Sprintf("empty source manifest for %s", srcDigest))
 	}
 	for _, tag := range tags {
-		toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, srcManifest, tag, plan.to, ref)
+		toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, srcManifest, tag, plan.to, ref, plan.toBlobs, nil)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("unable to push manifest to %s:%s: %v", plan.toRef, tag, err))
 			continue
@@ -906,7 +908,7 @@ func copyManifest(
 	if !ok {
 		panic(fmt.Sprintf("empty source manifest for %s", srcDigest))
 	}
-	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, srcManifest, "", plan.to, ref)
+	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, srcManifest, "", plan.to, ref, plan.toBlobs, nil)
 	if err != nil {
 		return fmt.Errorf("unable to push manifest to %s: %v", plan.toRef, err)
 	}

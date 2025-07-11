@@ -350,7 +350,7 @@ func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *
 	}
 
 	// push new manifestlist to registry
-	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, forPush, to.Ref.Tag, toManifests, toRepo.Named())
+	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, forPush, to.Ref.Tag, toManifests, toRepo.Named(), nil, nil)
 	if err != nil {
 		return fmt.Errorf("unable to push manifestlist: %#v", err)
 	}
@@ -559,7 +559,7 @@ func (o *AppendImageOptions) append(ctx context.Context, createdAt *time.Time,
 	if skipTagging {
 		tag = ""
 	}
-	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, manifest, tag, toManifests, toRepo.Named())
+	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, manifest, tag, toManifests, toRepo.Named(), fromRepo.Blobs(ctx), configJSON)
 	if err != nil {
 		return fmt.Errorf("unable to convert the image to a compatible schema version: %v", err)
 	}
