@@ -536,6 +536,10 @@ type fakeRemoteExecutor struct {
 	execOut string
 }
 
+func (f *fakeRemoteExecutor) ExecuteWithContext(ctx context.Context, url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool, terminalSizeQueue remotecommand.TerminalSizeQueue) error {
+	return f.Execute(url, config, stdin, stdout, stderr, tty, terminalSizeQueue)
+}
+
 func (f *fakeRemoteExecutor) Execute(url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool, terminalSizeQueue remotecommand.TerminalSizeQueue) error {
 	f.url = url
 	stdout.Write([]byte(f.execOut))
