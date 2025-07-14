@@ -32,7 +32,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -429,7 +428,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 			klog.V(4).Infof("Found manifest %s", hdr.Name)
 			ms, err := manifest.ParseManifests(r)
 			if err != nil {
-				manifestErrs = append(manifestErrs, errors.Wrapf(err, "error parsing %s", hdr.Name))
+				manifestErrs = append(manifestErrs, fmt.Errorf("error parsing %s: %w", hdr.Name, err))
 				return true, nil
 			}
 
@@ -453,7 +452,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 					if expectedProviderSpecKind != "" {
 						kind, _, err := unstructured.NestedString(m.Obj.Object, "spec", "providerSpec", "kind")
 						if err != nil {
-							return false, errors.Wrap(err, "error extracting cred request kind")
+							return false, fmt.Errorf("error extracting cred request kind: %w", err)
 						}
 						if kind != expectedProviderSpecKind {
 							continue
@@ -471,18 +470,18 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 			if o.Directory != "" {
 				out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
 				if err != nil {
-					return false, errors.Wrapf(err, "error creating manifest in %s", hdr.Name)
+					return false, fmt.Errorf("error creating manifest in %s: %w", hdr.Name, err)
 				}
 			}
 			if out != nil {
 				for _, m := range manifestsToWrite {
 					yamlBytes, err := yaml.JSONToYAML(m.Raw)
 					if err != nil {
-						return false, errors.Wrapf(err, "error serializing manifest in %s", hdr.Name)
+						return false, fmt.Errorf("error serializing manifest in %s: %w", hdr.Name, err)
 					}
 					fmt.Fprintf(out, "---\n")
 					if _, err := out.Write(yamlBytes); err != nil {
-						return false, errors.Wrapf(err, "error writing manifest in %s", hdr.Name)
+						return false, fmt.Errorf("error writing manifest in %s: %w", hdr.Name, err)
 					}
 				}
 			}

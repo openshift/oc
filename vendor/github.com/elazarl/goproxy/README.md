@@ -1,7 +1,11 @@
 # GoProxy
 
-[![GoDoc](https://pkg.go.dev/badge/github.com/elazarl/goproxy)](https://pkg.go.dev/github.com/elazarl/goproxy)
 ![Status](https://github.com/elazarl/goproxy/workflows/Go/badge.svg)
+[![GoDoc](https://pkg.go.dev/badge/github.com/elazarl/goproxy)](https://pkg.go.dev/github.com/elazarl/goproxy)
+[![Go Report](https://goreportcard.com/badge/github.com/elazarl/goproxy)](https://goreportcard.com/report/github.com/elazarl/goproxy)
+[![BSD-3 License](https://img.shields.io/badge/License-BSD%203--Clause-orange.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![Pull Requests](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://makeapullrequest.com)
+[![Awesome Go](https://awesome.re/mentioned-badge.svg)](https://github.com/avelino/awesome-go?tab=readme-ov-file#networking)
 
 GoProxy is a library to create a `customized` HTTP/HTTPS `proxy server` using
 Go (aka Golang), with several configurable settings available.
@@ -18,6 +22,10 @@ Here is how you do that in [Chrome](https://www.wikihow.com/Connect-to-a-Proxy-S
 and in [Firefox](http://www.wikihow.com/Enter-Proxy-Settings-in-Firefox).
 If you decide to start with the `base` example, the URL you should use as
 proxy is `localhost:8080`, which is the default one in our example.
+You also have to [trust](https://github.com/elazarl/goproxy/blob/master/examples/customca/README.md)
+the proxy CA certificate, to avoid any certificate issue in the clients.
+
+> [✈️ Telegram Group](https://telegram.me/goproxygroup)
 
 ## Features
 - Perform certain actions only on `specific hosts`,  with a single equality comparison or with regex evaluation
@@ -26,6 +34,7 @@ proxy is `localhost:8080`, which is the default one in our example.
 - You can specify a `MITM certificates cache`, to reuse them later for other requests to the same host, thus saving CPU. Not enabled by default, but you should use it in production!
 - Redirect normal HTTP traffic to a `custom handler`, when the target is a `relative path` (e.g. `/ping`)
 - You can choose the logger to use, by implementing the `Logger` interface
+- You can `disable` the HTTP request headers `canonicalization`, by setting `PreventCanonicalization` to true
 
 ## Proxy modes
 1. Regular HTTP proxy
@@ -33,9 +42,29 @@ proxy is `localhost:8080`, which is the default one in our example.
 3. HTTPS MITM ("Man in the Middle") proxy server, in which the server generate TLS certificates to parse request/response data and perform actions on them
 4. "Hijacked" proxy connection, where the configured handler can access the raw net.Conn data
 
+## Sponsors
+Does your company use GoProxy? Ask your manager or marketing team
+if your company would be interested in supporting our project.
+Supporting this project will allow the maintainers to dedicate more time
+for maintenance and new features for everyone.
+This will also benefit you, because maintainers will fix problems that will occur
+and keep GoProxy up to date for your projects.
+Moreover, your company logo will be shown on GitHub, in this README section.
+> [Apply Here](https://opencollective.com/goproxy)
+
+[![GoProxy Sponsor](https://opencollective.com/goproxy/tiers/sponsor/0/avatar)](https://opencollective.com/goproxy/tiers/sponsor/0/website)
+[![GoProxy Sponsor](https://opencollective.com/goproxy/tiers/sponsor/1/avatar)](https://opencollective.com/goproxy/tiers/sponsor/1/website)
+[![GoProxy Sponsor](https://opencollective.com/goproxy/tiers/sponsor/2/avatar)](https://opencollective.com/goproxy/tiers/sponsor/2/website)
+[![GoProxy Sponsor](https://opencollective.com/goproxy/tiers/sponsor/3/avatar)](https://opencollective.com/goproxy/tiers/sponsor/3/website)
+
 ## Maintainers
 - [Elazar Leibovich](https://github.com/elazarl): Creator of the project, Software Engineer
 - [Erik Pellizzon](https://github.com/ErikPelli): Maintainer, Freelancer (open to collaborations!)
+
+If you need to integrate GoProxy into your project, or you need some custom
+features to maintain in your fork, you can contact [Erik](mailto:erikpelli@tutamail.com)
+(the current maintainer) by email, and you can discuss together how he
+can help you as a paid independent consultant.
 
 ## Contributions
 If you have any trouble, suggestion, or if you find a bug, feel free to reach
@@ -86,18 +115,6 @@ its value is equivalent to `~/go`, check its value in your machine if you
 aren't sure about it).
 Make sure to include the bin folder in the path of your shell, to be able to
 directly use the `golangci-lint run` command.
-
-## Versioning
-With GitHub, there are 2 version types: release versions (such as `v1.x`)
-and Go branch default versions (such as `v0.0.0-202412xxx`).
-The latter is `automatically` assigned by Go modules command if the
-master branch contains new commits that aren't present in the last
-GitHub release.
-
-We plan to `periodically` publish stable releases (v1.x), after a while that
-no one reports issues with the fixes merged in the master branch.
-You can `safely use both` version types, since we carefully review
-all the pull requests before merging them.
 
 ## A taste of GoProxy
 
