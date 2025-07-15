@@ -2,8 +2,10 @@ package mustgather
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -235,6 +237,204 @@ func TestGetNamespace(t *testing.T) {
 				} else if tc.ShouldBeRetained {
 					t.Error("namespace should still exist")
 				}
+			}
+		})
+	}
+}
+
+func buildTestNode(name string, apply func(*corev1.Node)) *corev1.Node {
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:     name,
+			SelfLink: fmt.Sprintf("/api/v1/nodes/%s", name),
+			Labels:   map[string]string{},
+		},
+		Status: corev1.NodeStatus{
+			Conditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+			},
+		},
+	}
+	if apply != nil {
+		apply(node)
+	}
+	return node
+}
+
+func buildTestControlPlaneNode(name string, apply func(*corev1.Node)) *corev1.Node {
+	node := buildTestNode(name, apply)
+	node.ObjectMeta.Labels[controlPlaneNodeRoleLabel] = ""
+	return node
+}
+
+func TestGetCandidateNodeNames(t *testing.T) {
+	tests := []struct {
+		description string
+		nodeList    *corev1.NodeList
+		hasMaster   bool
+		nodeNames   []string
+	}{
+		{
+			description: "No nodes are ready and reacheable (hasMaster=true)",
+			nodeList:    &corev1.NodeList{},
+			hasMaster:   true,
+			nodeNames:   []string{},
+		},
+		{
+			description: "No nodes are ready and reacheable (hasMaster=false)",
+			nodeList:    &corev1.NodeList{},
+			hasMaster:   false,
+			nodeNames:   []string{},
+		},
+		{
+			description: "Control plane nodes are ready and reacheable",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", nil),
+					*buildTestControlPlaneNode("controlplane2", nil),
+				},
+			},
+			hasMaster: true,
+			nodeNames: []string{"controlplane2", "controlplane1"},
+		},
+		{
+			description: "Some control plane nodes are not ready or reacheable",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane2", nil),
+					*buildTestControlPlaneNode("controlplane3", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: unreachableTaintKey,
+							},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane4", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: notReadyTaintKey,
+							},
+						}
+					}),
+				},
+			},
+			hasMaster: true,
+			nodeNames: []string{"controlplane2"},
+		},
+		{
+			description: "Mix of control plane and worker nodes (at least one reachable and ready control plane node)",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane2", nil),
+					*buildTestNode("controlplane3", nil),
+				},
+			},
+			hasMaster: true,
+			nodeNames: []string{"controlplane2"},
+		},
+		{
+			description: "Mix of control plane and worker nodes (no ready and reachable control plane node)",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane2", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: unreachableTaintKey,
+							},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane3", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: notReadyTaintKey,
+							},
+						}
+					}),
+					*buildTestControlPlaneNode("worker1", nil),
+				},
+			},
+			hasMaster: true,
+			nodeNames: []string{"worker1"},
+		},
+		{
+			description: "Mix of control plane and worker nodes (no ready and not reachable nodes with unschedulable)",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane2", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: unreachableTaintKey,
+							},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane3", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: notReadyTaintKey,
+							},
+						}
+					}),
+					*buildTestControlPlaneNode("worker1", func(node *corev1.Node) {
+						node.Spec.Unschedulable = true
+					}),
+				},
+			},
+			nodeNames: []string{"worker1"},
+		},
+		{
+			description: "No ready and reachable nodes (nodes with the recent teartbeat time are sorted left)",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane2", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{}
+					}),
+					*buildTestNode("worker1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse, LastHeartbeatTime: metav1.Time{Time: time.Date(2025, time.July, 10, 10, 20, 0, 0, time.UTC)}},
+						}
+					}),
+					*buildTestNode("other1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse, LastHeartbeatTime: metav1.Time{Time: time.Date(2025, time.July, 10, 10, 30, 0, 0, time.UTC)}},
+						}
+					}),
+				},
+			},
+			hasMaster: false,
+			nodeNames: []string{"other1", "worker1", "controlplane2", "controlplane1"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			names := getCandidateNodeNames(test.nodeList, test.hasMaster)
+			if !reflect.DeepEqual(test.nodeNames, names) {
+				t.Fatalf("Expected and computed list of node names differ. Expected %#v. Got %#v.", test.nodeNames, names)
 			}
 		})
 	}
