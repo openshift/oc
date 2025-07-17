@@ -1,7 +1,6 @@
 run:
   timeout: 5m
   modules-download-mode: readonly
-  go: '1.20'
 
 # List from https://golangci-lint.run/usage/linters/
 linters:
@@ -20,7 +19,6 @@ linters:
     - containedctx
     - decorder
     - dogsled
-    - dupl
     - durationcheck
     - errchkjson
     - errname
@@ -71,7 +69,6 @@ linters:
     - usestdlibvars
     - wastedassign
     - whitespace
-    - exportloopref
 
   disable:
     - bodyclose
@@ -80,6 +77,7 @@ linters:
     - copyloopvar
     - cyclop
     - depguard
+    - dupl
     - dupword
     - err113
     - exhaustruct

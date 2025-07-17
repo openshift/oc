@@ -1,4 +1,4 @@
-# oauth2cli ![test](https://github.com/int128/oauth2cli/workflows/test/badge.svg) [![GoDoc](https://godoc.org/github.com/int128/oauth2cli?status.svg)](https://godoc.org/github.com/int128/oauth2cli)
+# oauth2cli ![go](https://github.com/int128/oauth2cli/workflows/go/badge.svg) [![GoDoc](https://godoc.org/github.com/int128/oauth2cli?status.svg)](https://godoc.org/github.com/int128/oauth2cli)
 
 This is a Go package for OAuth 2.0 authorization in a command line interface (CLI) tool.
 You can create a CLI tool with the simple authorization flow for better UX.

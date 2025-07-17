@@ -13,9 +13,9 @@ import (
 	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
-	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	yaml "sigs.k8s.io/yaml/goyaml.v3"
 )
 
 func TestWriteToMapping(t *testing.T) {
