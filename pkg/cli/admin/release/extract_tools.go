@@ -13,6 +13,7 @@ import (
 	"hash"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -21,25 +22,25 @@ import (
 	"sync"
 	"syscall"
 
-	"k8s.io/utils/ptr"
-
+	"github.com/MakeNowJust/heredoc"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/openpgp"
 	terminal "golang.org/x/term"
-
-	"k8s.io/klog/v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
-	"github.com/MakeNowJust/heredoc"
 	configv1 "github.com/openshift/api/config/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/manifest"
+
 	"github.com/openshift/oc/pkg/cli/admin/internal/codesign"
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
@@ -1285,4 +1286,33 @@ func newIncluder(config manifestInclusionConfiguration) includer {
 	return func(m *manifest.Manifest) error {
 		return m.Include(config.ExcludeIdentifier, config.RequiredFeatureSet, config.Profile, config.Capabilities, config.Overrides)
 	}
+}
+
+// ManifestReceiver has a TarEntryCallback function which can be used to as a callback to ExtractOptions.TarEntryCallback.
+// It feeds the downstream manifestsCallback
+// * with the manifests from every file whose name is not in skipNames, OR
+// * with the reader that contains the content of each file whose name is in skipNames.
+// All the errors encountered when parsing the manifests are collected in ManifestErrs.
+type ManifestReceiver struct {
+	manifestsCallback func(filename string, manifests []manifest.Manifest, reader io.Reader) (cont bool, err error)
+	skipNames         sets.Set[string]
+
+	ManifestErrs []error
+}
+
+func (mr *ManifestReceiver) TarEntryCallback(h *tar.Header, _ extract.LayerInfo, r io.Reader) (cont bool, err error) {
+	if mr.skipNames.Has(h.Name) {
+		return mr.manifestsCallback(h.Name, nil, r)
+	}
+
+	if ext := path.Ext(h.Name); len(ext) == 0 || !(ext == ".yaml" || ext == ".yml" || ext == ".json") {
+		return true, nil
+	}
+	klog.V(4).Infof("Found manifest %s", h.Name)
+	ms, err := manifest.ParseManifests(r)
+	if err != nil {
+		mr.ManifestErrs = append(mr.ManifestErrs, errors.Wrapf(err, "error parsing %s", h.Name))
+		return true, nil
+	}
+	return mr.manifestsCallback(h.Name, ms, nil)
 }

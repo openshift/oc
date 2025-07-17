@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"sync"
 	"time"
@@ -20,6 +19,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -349,7 +349,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		}
 	}
 
-	var manifestErrs []error
+	manifestReceiver := ManifestReceiver{skipNames: sets.New[string]("image-references", "release-metadata")}
 	// o.ExtractManifests implies o.File == ""
 	if o.ExtractManifests {
 		expectedProviderSpecKind := credRequestCloudProviderSpecKindMapping[o.Cloud]
@@ -379,8 +379,8 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 			include = newIncluder(inclusionConfig)
 		}
 
-		opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
-			if hdr.Name == "image-references" && !o.CredentialsRequests {
+		manifestReceiver.manifestsCallback = func(filename string, ms []manifest.Manifest, r io.Reader) (bool, error) {
+			if filename == "image-references" && !o.CredentialsRequests {
 				buf := &bytes.Buffer{}
 				if _, err := io.Copy(buf, r); err != nil {
 					return false, fmt.Errorf("unable to load image-references from release payload: %w", err)
@@ -398,7 +398,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 
 				out := o.Out
 				if o.Directory != "" {
-					out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
+					out, err = os.Create(filepath.Join(o.Directory, filename))
 					if err != nil {
 						return false, err
 					}
@@ -408,10 +408,10 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 					return true, err
 				}
 				return true, nil
-			} else if hdr.Name == "release-metadata" && !o.CredentialsRequests {
+			} else if filename == "release-metadata" && !o.CredentialsRequests {
 				out := o.Out
 				if o.Directory != "" {
-					out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
+					out, err = os.Create(filepath.Join(o.Directory, filename))
 					if err != nil {
 						return false, err
 					}
@@ -420,16 +420,6 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 					_, err := io.Copy(out, r)
 					return true, err
 				}
-				return true, nil
-			}
-
-			if ext := path.Ext(hdr.Name); len(ext) == 0 || !(ext == ".yaml" || ext == ".yml" || ext == ".json") {
-				return true, nil
-			}
-			klog.V(4).Infof("Found manifest %s", hdr.Name)
-			ms, err := manifest.ParseManifests(r)
-			if err != nil {
-				manifestErrs = append(manifestErrs, errors.Wrapf(err, "error parsing %s", hdr.Name))
 				return true, nil
 			}
 
@@ -469,25 +459,26 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 
 			out := o.Out
 			if o.Directory != "" {
-				out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
+				out, err = os.Create(filepath.Join(o.Directory, filename))
 				if err != nil {
-					return false, errors.Wrapf(err, "error creating manifest in %s", hdr.Name)
+					return false, errors.Wrapf(err, "error creating manifest in %s", filename)
 				}
 			}
 			if out != nil {
 				for _, m := range manifestsToWrite {
 					yamlBytes, err := yaml.JSONToYAML(m.Raw)
 					if err != nil {
-						return false, errors.Wrapf(err, "error serializing manifest in %s", hdr.Name)
+						return false, errors.Wrapf(err, "error serializing manifest in %s", filename)
 					}
 					fmt.Fprintf(out, "---\n")
 					if _, err := out.Write(yamlBytes); err != nil {
-						return false, errors.Wrapf(err, "error writing manifest in %s", hdr.Name)
+						return false, errors.Wrapf(err, "error writing manifest in %s", filename)
 					}
 				}
 			}
 			return true, nil
 		}
+		opts.TarEntryCallback = manifestReceiver.TarEntryCallback
 	}
 
 	fileFound := false
@@ -506,6 +497,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		return err
 	}
 
+	manifestErrs := manifestReceiver.ManifestErrs
 	if metadataVerifyMsg != "" {
 		if o.File == "" && o.Out != nil {
 			fmt.Fprintf(o.Out, "%s\n", metadataVerifyMsg)
