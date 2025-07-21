@@ -115,7 +115,7 @@ func TestImagesAndImageStreams(t *testing.T) {
 				LogOut:       genericiooptions.NewTestIOStreamsDiscard().Out,
 				AllImages:    tc.allImages,
 			}
-			err := options.completeImages()
+			err := options.completeImages(context.TODO())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -210,7 +210,7 @@ func TestGetNamespace(t *testing.T) {
 			tc.Options.PrinterCreated = printers.NewDiscardingPrinter()
 			tc.Options.PrinterDeleted = printers.NewDiscardingPrinter()
 
-			ns, cleanup, err := tc.Options.getNamespace()
+			ns, cleanup, err := tc.Options.getNamespace(context.TODO())
 			if err != nil {
 				if tc.ShouldFail {
 					return
@@ -227,7 +227,7 @@ func TestGetNamespace(t *testing.T) {
 				t.Error("namespace should exist")
 			}
 
-			cleanup()
+			cleanup(context.Background())
 
 			if _, err = tc.Options.Client.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{}); err != nil {
 				if !k8sapierrors.IsNotFound(err) {

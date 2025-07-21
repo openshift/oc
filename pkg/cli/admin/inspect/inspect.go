@@ -108,7 +108,7 @@ func NewCmdInspect(streams genericiooptions.IOStreams) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			kcmdutil.CheckErr(o.Run(context.TODO()))
 		},
 	}
 
@@ -197,7 +197,7 @@ func (o *InspectOptions) Validate() error {
 	return nil
 }
 
-func (o *InspectOptions) Run() error {
+func (o *InspectOptions) Run(ctx context.Context) error {
 	if len(o.eventFile) > 0 {
 		return createEventFilterPageFromFile(o.eventFile, o.DestDir)
 	}
@@ -240,7 +240,7 @@ func (o *InspectOptions) Run() error {
 		return err
 	}
 
-	if err := inspectDiscovery(context.Background(), o.DestDir, discoveryClient); err != nil {
+	if err := inspectDiscovery(ctx, o.DestDir, discoveryClient); err != nil {
 		allErrs = append(allErrs, fmt.Errorf("failed inspecting discovery: %w", err))
 	}
 
@@ -259,9 +259,9 @@ func (o *InspectOptions) Run() error {
 	}
 
 	// finally, gather polymorphic resources specified by the user
-	ctx := NewResourceContext(serverResources)
+	rCtx := NewResourceContext(serverResources)
 	for _, info := range infos {
-		err := InspectResource(info, ctx, o)
+		err := InspectResource(ctx, info, rCtx, o)
 		if err != nil {
 			allErrs = append(allErrs, err)
 		}
@@ -281,13 +281,13 @@ func (o *InspectOptions) Run() error {
 }
 
 // gatherConfigResourceData gathers all config.openshift.io resources
-func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceContext) error {
+func (o *InspectOptions) gatherConfigResourceData(ctx context.Context, destDir string, rCtx *resourceContext) error {
 	// determine if we've already collected configResourceData
-	if ctx.visited.Has(configResourceDataKey) {
+	if rCtx.visited.Has(configResourceDataKey) {
 		klog.V(1).Infof("Skipping previously-collected config.openshift.io resource data")
 		return nil
 	}
-	ctx.visited.Insert(configResourceDataKey)
+	rCtx.visited.Insert(configResourceDataKey)
 
 	klog.V(1).Infof("Gathering config.openshift.io resource data...\n")
 
@@ -303,7 +303,7 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 
 	errs := []error{}
 	for _, resource := range resources {
-		resourceList, err := o.dynamicClient.Resource(resource).List(context.TODO(), metav1.ListOptions{})
+		resourceList, err := o.dynamicClient.Resource(resource).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -311,7 +311,7 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 
 		objToPrint := runtime.Object(resourceList)
 		filename := fmt.Sprintf("%s.yaml", resource.Resource)
-		if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), objToPrint); err != nil {
+		if err := o.fileWriter.WriteFromResource(ctx, path.Join(destDir, "/"+filename), objToPrint); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -324,13 +324,13 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 }
 
 // gatherOperatorResourceData gathers all kubeapiserver.operator.openshift.io resources
-func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourceContext) error {
+func (o *InspectOptions) gatherOperatorResourceData(ctx context.Context, destDir string, rCtx *resourceContext) error {
 	// determine if we've already collected operatorResourceData
-	if ctx.visited.Has(operatorResourceDataKey) {
+	if rCtx.visited.Has(operatorResourceDataKey) {
 		klog.V(1).Infof("Skipping previously-collected operator.openshift.io resource data")
 		return nil
 	}
-	ctx.visited.Insert(operatorResourceDataKey)
+	rCtx.visited.Insert(operatorResourceDataKey)
 
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
@@ -344,7 +344,7 @@ func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourc
 
 	errs := []error{}
 	for _, resource := range resources {
-		resourceList, err := o.dynamicClient.Resource(resource).List(context.TODO(), metav1.ListOptions{})
+		resourceList, err := o.dynamicClient.Resource(resource).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -352,7 +352,7 @@ func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourc
 
 		objToPrint := runtime.Object(resourceList)
 		filename := fmt.Sprintf("%s.yaml", resource.Resource)
-		if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), objToPrint); err != nil {
+		if err := o.fileWriter.WriteFromResource(ctx, path.Join(destDir, "/"+filename), objToPrint); err != nil {
 			errs = append(errs, err)
 			continue
 		}
