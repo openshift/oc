@@ -42,7 +42,7 @@ require (
 	github.com/prometheus/client_golang v1.22.0
 	github.com/russross/blackfriday v1.6.0
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.7
 	github.com/vincent-petithory/dataurl v1.0.0
 	golang.org/x/crypto v0.40.0
 	golang.org/x/net v0.42.0
@@ -50,16 +50,16 @@ require (
 	golang.org/x/sync v0.16.0
 	golang.org/x/sys v0.34.0
 	golang.org/x/term v0.33.0
-	k8s.io/api v0.33.2
-	k8s.io/apiextensions-apiserver v0.33.2
-	k8s.io/apimachinery v0.33.2
-	k8s.io/apiserver v0.33.2
-	k8s.io/cli-runtime v0.33.2
-	k8s.io/client-go v0.33.2
-	k8s.io/component-base v0.33.2
+	k8s.io/api v0.33.3
+	k8s.io/apiextensions-apiserver v0.33.3
+	k8s.io/apimachinery v0.33.3
+	k8s.io/apiserver v0.33.3
+	k8s.io/cli-runtime v0.33.3
+	k8s.io/client-go v0.33.3
+	k8s.io/component-base v0.33.3
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/kubectl v0.33.2
-	k8s.io/pod-security-admission v0.33.2
+	k8s.io/kubectl v0.33.3
+	k8s.io/pod-security-admission v0.33.3
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 	sigs.k8s.io/yaml v1.5.0
 )
@@ -193,10 +193,10 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/component-helpers v0.33.2 // indirect
+	k8s.io/component-helpers v0.33.3 // indirect
 	k8s.io/kube-aggregator v0.33.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
-	k8s.io/metrics v0.33.2 // indirect
+	k8s.io/metrics v0.33.3 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/kube-storage-version-migrator v0.0.6-0.20230721195810-5c8923c5ff96 // indirect
 	sigs.k8s.io/kustomize/api v0.19.0 // indirect
