@@ -1,8 +1,6 @@
 package goproxy
 
 import (
-	"bufio"
-	"errors"
 	"io"
 	"log"
 	"net"
@@ -39,6 +37,12 @@ type ProxyHttpServer struct {
 	CertStore          CertStorage
 	KeepHeader         bool
 	AllowHTTP2         bool
+	// When PreventCanonicalization is true, the header names present in
+	// the request sent through the proxy are directly passed to the destination server,
+	// instead of following the HTTP RFC for their canonicalization.
+	// This is useful when the header name isn't treated as a case-insensitive
+	// value by the target server, because they don't follow the specs.
+	PreventCanonicalization bool
 	// KeepAcceptEncoding, if true, prevents the proxy from dropping
 	// Accept-Encoding headers from the client.
 	//
@@ -61,11 +65,6 @@ func copyHeaders(dst, src http.Header, keepDestHeaders bool) {
 		// direct assignment to avoid canonicalization
 		dst[k] = append([]string(nil), vs...)
 	}
-}
-
-func isEOF(r *bufio.Reader) bool {
-	_, err := r.Peek(1)
-	return errors.Is(err, io.EOF)
 }
 
 func (proxy *ProxyHttpServer) filterRequest(r *http.Request, ctx *ProxyCtx) (req *http.Request, resp *http.Response) {
@@ -111,16 +110,13 @@ func RemoveProxyHeaders(ctx *ProxyCtx, r *http.Request) {
 	//   options that are desired for that particular connection and MUST NOT
 	//   be communicated by proxies over further connections.
 
-	// When server reads http request it sets req.Close to true if
-	// "Connection" header contains "close".
-	// https://github.com/golang/go/blob/master/src/net/http/request.go#L1080
-	// Later, transfer.go adds "Connection: close" back when req.Close is true
-	// https://github.com/golang/go/blob/master/src/net/http/transfer.go#L275
-	// That's why tests that checks "Connection: close" removal fail
-	if r.Header.Get("Connection") == "close" {
-		r.Close = false
+	// We need to keep "Connection: upgrade" header, since it's part of
+	// the WebSocket handshake, and it won't work without it.
+	// For all the other cases (close, keep-alive), we already handle them, by
+	// setting the r.Close variable in the previous lines.
+	if !isWebSocketHandshake(r.Header) {
+		r.Header.Del("Connection")
 	}
-	r.Header.Del("Connection")
 }
 
 type flushWriter struct {

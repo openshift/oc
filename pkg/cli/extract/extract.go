@@ -2,12 +2,11 @@ package extract
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
 
@@ -113,7 +112,7 @@ func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 			}
 
 			if !o.Overwrite {
-				return errors.Wrap(err, "use --confirm if you want to create target directory")
+				return fmt.Errorf("use --confirm if you want to create target directory: %w", err)
 			}
 
 			if err = os.MkdirAll(o.TargetDirectory, os.ModePerm); err != nil {
