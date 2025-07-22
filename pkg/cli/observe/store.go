@@ -99,3 +99,41 @@ func (r *objectArgumentsStore) Remove(key string) {
 	defer r.lock.Unlock()
 	delete(r.arguments, key)
 }
+
+var _ cache.ReflectorStore = &observeReflector{}
+
+type observeReflector struct {
+	delegate  cache.ReflectorStore
+	populated bool
+}
+
+func newObserveReflector(delegate cache.ReflectorStore) *observeReflector {
+	return &observeReflector{delegate: delegate}
+}
+
+func (o *observeReflector) Add(obj interface{}) error {
+	o.populated = true
+	return o.delegate.Add(obj)
+}
+
+func (o *observeReflector) Update(obj interface{}) error {
+	o.populated = true
+	return o.delegate.Update(obj)
+}
+
+func (o *observeReflector) Delete(obj interface{}) error {
+	o.populated = true
+	return o.delegate.Delete(obj)
+}
+
+func (o *observeReflector) Replace(i []interface{}, s string) error {
+	if len(i) == 0 {
+		return o.delegate.Replace(i, s)
+	}
+	o.populated = true
+	return o.delegate.Replace(i, s)
+}
+
+func (o *observeReflector) Resync() error {
+	return o.delegate.Resync()
+}

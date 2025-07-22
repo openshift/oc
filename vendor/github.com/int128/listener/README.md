@@ -1,4 +1,4 @@
-# listener ![build](https://github.com/int128/listener/workflows/build/badge.svg) [![GoDoc](https://godoc.org/github.com/int128/listener?status.svg)](https://godoc.org/github.com/int128/listener)
+# listener [![go](https://github.com/int128/listener/actions/workflows/go.yaml/badge.svg)](https://github.com/int128/listener/actions/workflows/go.yaml) [![GoDoc](https://godoc.org/github.com/int128/listener?status.svg)](https://godoc.org/github.com/int128/listener)
 
 This is a Go package to allocate a net.Listener from address candidates.
 

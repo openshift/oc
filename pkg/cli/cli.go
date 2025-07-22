@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 
+	"k8s.io/kubectl/pkg/kuberc"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
@@ -211,6 +213,11 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 
 	flags.BoolVar(&warningsAsErrors, "warnings-as-errors", warningsAsErrors, "Treat warnings received from the server as errors and exit with a non-zero exit code")
 
+	pref := kuberc.NewPreferences()
+	if kcmdutil.KubeRC.IsEnabled() {
+		pref.AddFlags(flags)
+	}
+
 	kubeConfigFlags := o.ConfigFlags
 	if kubeConfigFlags == nil {
 		kubeConfigFlags = defaultConfigFlags().WithWarningPrinter(o.IOStreams)
@@ -333,6 +340,14 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 	cmds.AddCommand(options.NewCmdOptions(o.IOStreams))
 
 	registerCompletionFuncForGlobalFlags(cmds, f)
+
+	if kcmdutil.KubeRC.IsEnabled() {
+		_, err := pref.Apply(cmds, o.Arguments, o.IOStreams.ErrOut)
+		if err != nil {
+			fmt.Fprintf(o.IOStreams.ErrOut, "error occurred while applying preferences %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	return cmds
 }
