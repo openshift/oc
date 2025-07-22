@@ -10,26 +10,26 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/spf13/pflag"
-
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	"github.com/distribution/distribution/v3/manifest/ocischema"
-	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/manifest/schema2"
-	"github.com/distribution/distribution/v3/reference"
 	"github.com/distribution/distribution/v3/registry/api/errcode"
 	v2 "github.com/distribution/distribution/v3/registry/api/v2"
+	"github.com/distribution/reference"
 
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
+	"github.com/spf13/pflag"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
-	"github.com/openshift/library-go/pkg/image/registryclient"
+	"github.com/openshift/library-go/pkg/image/registryclient/v2"
+	"github.com/openshift/library-go/pkg/image/registryclient/v2/manifest/schema1"
 	"github.com/openshift/oc/pkg/cli/image/manifest/dockercredentials"
 	"github.com/openshift/oc/pkg/helpers/image/dockerlayer/add"
 )
@@ -520,13 +520,11 @@ func ProcessManifestList(ctx context.Context, srcDigest digest.Digest, srcManife
 // ManifestsFromList returns a map of all image manifests for a given manifest. It returns the ManifestList and its digest if
 // srcManifest is a list, or an error.
 func ManifestsFromList(ctx context.Context, srcDigest digest.Digest, srcManifest distribution.Manifest, manifests distribution.ManifestService, ref imagereference.DockerImageReference) (map[digest.Digest]distribution.Manifest, *manifestlist.DeserializedManifestList, digest.Digest, error) {
-	switch t := srcManifest.(type) {
-	case *manifestlist.DeserializedManifestList:
+	processManifestList := func(manifestList *manifestlist.DeserializedManifestList) (map[digest.Digest]distribution.Manifest, *manifestlist.DeserializedManifestList, digest.Digest, error) {
 		allManifests := make(map[digest.Digest]distribution.Manifest)
 		manifestDigest := srcDigest
-		manifestList := t
 
-		for i, manifest := range t.Manifests {
+		for i, manifest := range manifestList.Manifests {
 			childManifest, err := manifests.Get(ctx, manifest.Digest, PreferManifestList)
 			if err != nil {
 				return nil, nil, "", fmt.Errorf("unable to retrieve source image %s manifest #%d from manifest list: %v", ref, i+1, err)
@@ -535,10 +533,43 @@ func ManifestsFromList(ctx context.Context, srcDigest digest.Digest, srcManifest
 		}
 
 		return allManifests, manifestList, manifestDigest, nil
+	}
+	switch t := srcManifest.(type) {
+	case *manifestlist.DeserializedManifestList:
+		return processManifestList(t)
+
+	case *ocischema.DeserializedImageIndex:
+		manifestList, err := manifestListFromIndex(t)
+		if err != nil {
+			return nil, nil, "", err
+		}
+
+		return processManifestList(manifestList)
 
 	default:
 		return map[digest.Digest]distribution.Manifest{srcDigest: srcManifest}, nil, "", nil
 	}
+}
+
+func manifestListFromIndex(index *ocischema.DeserializedImageIndex) (*manifestlist.DeserializedManifestList, error) {
+	descriptors := make([]manifestlist.ManifestDescriptor, len(index.Manifests))
+	for i, m := range index.Manifests {
+		descriptors[i] = manifestlist.ManifestDescriptor{
+			Descriptor: m,
+			Platform: manifestlist.PlatformSpec{
+				Architecture: m.Platform.Architecture,
+				OS:           m.Platform.OS,
+				OSVersion:    m.Platform.OSVersion,
+				OSFeatures:   m.Platform.OSFeatures,
+				Variant:      m.Platform.Variant,
+			},
+		}
+	}
+	list, err := manifestlist.FromDescriptors(descriptors)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert manifest index into list: %w", err)
+	}
+	return list, nil
 }
 
 // TODO: Remove support for v2 schema in 4.9

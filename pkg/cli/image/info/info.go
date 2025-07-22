@@ -26,7 +26,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
-	"github.com/openshift/library-go/pkg/image/registryclient"
+	"github.com/openshift/library-go/pkg/image/registryclient/v2"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/strategy"

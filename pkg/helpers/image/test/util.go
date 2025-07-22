@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 
@@ -19,6 +18,7 @@ import (
 	buildv1 "github.com/openshift/api/build/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
+	"github.com/openshift/library-go/pkg/image/registryclient/v2/manifest/schema1"
 )
 
 const (

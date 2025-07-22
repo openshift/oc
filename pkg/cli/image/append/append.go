@@ -16,8 +16,7 @@ import (
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	"github.com/distribution/distribution/v3/manifest/schema2"
-	"github.com/distribution/distribution/v3/reference"
-	"github.com/distribution/distribution/v3/registry/client"
+	"github.com/distribution/reference"
 	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 
@@ -27,7 +26,8 @@ import (
 
 	"github.com/openshift/api/image/docker10"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
-	"github.com/openshift/library-go/pkg/image/registryclient"
+	"github.com/openshift/library-go/pkg/image/registryclient/v2"
+	"github.com/openshift/oc/internal/distributionopts"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
@@ -587,13 +587,13 @@ func copyBlob(ctx context.Context, fromBlobs, toBlobs distribution.BlobService, 
 	defer r.Close()
 
 	// destination
-	mountOptions := []distribution.BlobCreateOption{WithDescriptor(layer)}
+	mountOptions := []distribution.BlobCreateOption{distributionopts.WithDescriptor(layer)}
 	if mountFrom != nil && !needLayerDigest {
 		source, err := reference.WithDigest(mountFrom, layer.Digest)
 		if err != nil {
 			return distribution.Descriptor{}, "", err
 		}
-		mountOptions = append(mountOptions, client.WithMountFrom(source))
+		mountOptions = append(mountOptions, distributionopts.WithMountFrom(source))
 	}
 	bw, err := toBlobs.Create(ctx, mountOptions...)
 	if err != nil {
@@ -642,26 +642,6 @@ func copyBlob(ctx context.Context, fromBlobs, toBlobs distribution.BlobService, 
 		return distribution.Descriptor{}, "", err
 	}
 	return desc, layerDigest, nil
-}
-
-type optionFunc func(interface{}) error
-
-func (f optionFunc) Apply(v interface{}) error {
-	return f(v)
-}
-
-// WithDescriptor returns a BlobCreateOption which provides the expected blob metadata.
-func WithDescriptor(desc distribution.Descriptor) distribution.BlobCreateOption {
-	return optionFunc(func(v interface{}) error {
-		opts, ok := v.(*distribution.CreateOptions)
-		if !ok {
-			return fmt.Errorf("unexpected options type: %T", v)
-		}
-		if opts.Mount.Stat == nil {
-			opts.Mount.Stat = &desc
-		}
-		return nil
-	})
 }
 
 func appendFileAsLayer(ctx context.Context, name string, layers []distribution.Descriptor, config *dockerv1client.DockerImageConfig, dryRun bool, out io.Writer,

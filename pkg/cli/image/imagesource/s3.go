@@ -22,10 +22,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/reference"
-	"github.com/distribution/distribution/v3/registry/client/auth"
-	"github.com/distribution/distribution/v3/registry/client/transport"
+	"github.com/distribution/reference"
 	godigest "github.com/opencontainers/go-digest"
+
+	"github.com/openshift/library-go/pkg/image/registryclient/v2/auth"
+	"github.com/openshift/library-go/pkg/image/registryclient/v2/transport"
 )
 
 type s3Driver struct {
@@ -91,7 +92,9 @@ func (d *s3Driver) newObject(server *url.URL, region string, insecure bool, secu
 
 	if d.UserAgent != "" {
 		awsConfig.WithHTTPClient(&http.Client{
-			Transport: transport.NewTransport(http.DefaultTransport, transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{d.UserAgent}})),
+			Transport: transport.NewTransport(http.DefaultTransport, transport.NewHeaderRequestModifier(http.Header{
+				http.CanonicalHeaderKey("user-agent"): []string{d.UserAgent},
+			})),
 		})
 	}
 	s, err := session.NewSession(awsConfig)

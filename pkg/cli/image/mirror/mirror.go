@@ -12,10 +12,8 @@ import (
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	"github.com/distribution/distribution/v3/manifest/ocischema"
-	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/manifest/schema2"
-	"github.com/distribution/distribution/v3/reference"
-	"github.com/distribution/distribution/v3/registry/client"
+	"github.com/distribution/reference"
 	units "github.com/docker/go-units"
 	godigest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
@@ -28,7 +26,10 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	"github.com/openshift/library-go/pkg/image/registryclient"
+	"github.com/openshift/library-go/pkg/image/registryclient/v2"
+	"github.com/openshift/library-go/pkg/image/registryclient/v2/clienterrors"
+	"github.com/openshift/library-go/pkg/image/registryclient/v2/manifest/schema1"
+	"github.com/openshift/oc/internal/distributionopts"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 	"github.com/openshift/oc/pkg/cli/image/workqueue"
@@ -526,7 +527,7 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 						srcDigest := godigest.Digest(srcDigestString)
 						srcManifest, err := manifests.Get(ctx, godigest.Digest(srcDigest), imagemanifest.PreferManifestList)
 						if err != nil {
-							var unexpectedHTTPResponseError *client.UnexpectedHTTPResponseError
+							var unexpectedHTTPResponseError *clienterrors.UnexpectedHTTPResponseError
 							if o.SkipMissing && errors.As(err, &unexpectedHTTPResponseError) {
 								if unexpectedHTTPResponseError.StatusCode == 404 {
 									fmt.Fprintf(o.ErrOut, "warning: Image %s does not exist and will not be mirrored\n", err)
@@ -693,7 +694,7 @@ func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob d
 			if err != nil {
 				return fmt.Errorf("unexpected error building named digest: %v", err)
 			}
-			options = append(options, client.WithMountFrom(blobSource), WithDescriptor(blob))
+			options = append(options, distributionopts.WithMountFrom(blobSource), WithDescriptor(blob))
 		}
 	}
 
@@ -854,9 +855,9 @@ func (s *descriptorBlobSource) Open(ctx context.Context, desc distribution.Descr
 			klog.V(5).Infof("Failed to retrieve blob %s from %s: %v", desc.Digest, url, err)
 			continue
 		}
-		if !client.SuccessStatus(resp.StatusCode) {
+		if !clienterrors.SuccessStatus(resp.StatusCode) {
 			resp.Body.Close()
-			if err := client.HandleErrorResponse(resp); err != nil {
+			if err := clienterrors.HandleErrorResponse(resp); err != nil {
 				klog.V(5).Infof("Failed to retrieve blob %s from %s: %v", desc.Digest, url, err)
 				continue
 			}

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/distribution/distribution/v3/registry/client/auth"
 	digest "github.com/opencontainers/go-digest"
 
+	"github.com/openshift/library-go/pkg/image/registryclient/v2/auth"
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
