@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
@@ -151,14 +150,15 @@ func (o *InfoOptions) Run() error {
 			retriever := &ImageRetriever{
 				FileDir:         o.FileDir,
 				SecurityOptions: o.SecurityOptions,
-				ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
+				ManifestListCallback: func(from string, manifestContainer distribution.Manifest, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
 					filtered := make(map[digest.Digest]distribution.Manifest)
-					for _, manifest := range list.Manifests {
-						if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
-							klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
+					descriptors := manifestContainer.References()
+					for _, descriptor := range descriptors {
+						if !o.FilterOptions.Include(descriptor, len(descriptors) > 1) {
+							klog.V(5).Infof("Skipping image for %#v from %s", descriptor.Platform, from)
 							continue
 						}
-						filtered[manifest.Digest] = all[manifest.Digest]
+						filtered[descriptor.Digest] = all[descriptor.Digest]
 					}
 					if len(filtered) == 1 {
 						return filtered, nil
@@ -171,11 +171,11 @@ func (o *InfoOptions) Run() error {
 					buf := &bytes.Buffer{}
 					w := tabwriter.NewWriter(buf, 0, 0, 1, ' ', 0)
 					fmt.Fprintf(w, "  OS\tDIGEST\n")
-					for _, manifest := range list.Manifests {
-						fmt.Fprintf(w, "  %s\t%s\n", imagemanifest.PlatformSpecString(manifest.Platform), manifest.Digest)
+					for _, descriptor := range descriptors {
+						fmt.Fprintf(w, "  %s\t%s\n", imagemanifest.PlatformSpecString(descriptor.Platform), descriptor.Digest)
 					}
 					w.Flush()
-					return nil, fmt.Errorf("the image is a manifest list and contains multiple images - use --filter-by-os to select from:\n\n%s\n", buf.String())
+					return nil, fmt.Errorf("the image is a manifest list and contains multiple images - use --index-filter-by-os to select from:\n\n%s\n", buf.String())
 				},
 
 				ImageMetadataCallback: func(from string, i *Image, err error) error {
@@ -377,11 +377,14 @@ type ImageRetriever struct {
 	// MaxPerRegistry is set higher than 1. If err is passed image is nil. If an error is returned
 	// execution will stop.
 	ImageMetadataCallback func(from string, image *Image, err error) error
-	// ManifestListCallback, if specified, is invoked if the root image is a manifest list. If an
-	// error returned processing stops. If zero manifests are returned the next item is rendered
+	// ManifestListCallback, if specified, is invoked if the root image is a manifest container,
+	// i.e. a manifest list or an image index. The callback must use type assertions if necessary,
+	// the possible types being *manifestlist.DeserializedManifestList or *ocischema.DeserializedImageIndex.
+	//
+	// If an error is returned, processing stops. If zero manifests are returned the next item is rendered
 	// and no ImageMetadataCallback calls occur. If more than one manifest is returned
 	// ImageMetadataCallback will be invoked once for each item.
-	ManifestListCallback func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error)
+	ManifestListCallback func(from string, manifestContainer distribution.Manifest, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error)
 }
 
 // Image returns a single image matching ref.
@@ -433,7 +436,7 @@ func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource
 					return callbackFn(name, nil, fmt.Errorf("unable to connect to image repository %s: %v", from, err))
 				}
 
-				allManifests, manifestList, listDigest, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
+				allManifests, manifest, manifestDigest, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
 				if err != nil {
 					if imagemanifest.IsImageForbidden(err) {
 						msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
@@ -446,8 +449,8 @@ func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource
 					return callbackFn(name, nil, fmt.Errorf("unable to read image %s: %v", from, err))
 				}
 
-				if o.ManifestListCallback != nil && manifestList != nil {
-					allManifests, err = o.ManifestListCallback(name, manifestList, allManifests)
+				if o.ManifestListCallback != nil && imagemanifest.IsManifestContainer(manifest) {
+					allManifests, err = o.ManifestListCallback(name, manifest, allManifests)
 					if err != nil {
 						return err
 					}
@@ -463,7 +466,7 @@ func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource
 						return callbackFn(name, nil, contentErr)
 					}
 
-					imageConfig, layers, manifestErr := imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), imagemanifest.ManifestLocation{ManifestList: listDigest, Manifest: srcDigest})
+					imageConfig, layers, manifestErr := imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), imagemanifest.ManifestLocation{ManifestList: manifestDigest, Manifest: srcDigest})
 					mediaType, _, _ := srcManifest.Payload()
 					if err := callbackFn(name, &Image{
 						Name:          from.Ref.Exact(),
@@ -471,7 +474,7 @@ func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource
 						MediaType:     mediaType,
 						Digest:        srcDigest,
 						ContentDigest: contentDigest,
-						ListDigest:    listDigest,
+						ListDigest:    manifestDigest,
 						Config:        imageConfig,
 						Layers:        layers,
 						Manifest:      srcManifest,

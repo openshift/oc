@@ -15,10 +15,12 @@ import (
 
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest/manifestlist"
+	"github.com/distribution/distribution/v3/manifest/ocischema"
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	"github.com/distribution/reference"
 	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
+	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -291,12 +293,17 @@ func (o *AppendImageOptions) Run() error {
 		// if keep-manifest-list is enabled and the image is a manifestlist, add layers only to the filtered sub manifests specified by filter-by-os.
 		// If no filter-by-os is specified, add layers to all sub manifests
 		if o.KeepManifestList {
-			ismanifestlist, err := imagemanifest.IsManifestList(ctx, from.Ref, repo)
+			manifest, _, err := imagemanifest.GetManifestByDockerReference(ctx, from.Ref, repo)
 			if err != nil {
-				return fmt.Errorf("unable to read image %s: %v", from, err)
+				return err
 			}
-			if ismanifestlist {
-				return o.appendManifestList(ctx, createdAt, from, to, repo, toRepo, toManifests, o.FilterOptions.Include)
+
+			switch fromManifest := manifest.(type) {
+			case *manifestlist.DeserializedManifestList:
+				return o.appendManifestList(ctx, createdAt, from, fromManifest, to, repo, toRepo, toManifests, o.FilterOptions.Include)
+
+			case *ocischema.DeserializedImageIndex:
+				return o.appendImageIndex(ctx, createdAt, from, fromManifest, to, repo, toRepo, toManifests, o.FilterOptions.Include)
 			}
 		}
 		srcManifest, manifestLocation, err = imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
@@ -309,16 +316,22 @@ func (o *AppendImageOptions) Run() error {
 }
 
 func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *time.Time,
-	from *imagesource.TypedImageReference, to imagesource.TypedImageReference,
+	from *imagesource.TypedImageReference, fromManifestList *manifestlist.DeserializedManifestList, to imagesource.TypedImageReference,
 	repo distribution.Repository, toRepo distribution.Repository,
-	toManifests distribution.ManifestService, filterFn imagemanifest.FilterFunc) error {
-	// process manifestlist
-	manifestMap, oldList, _, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
+	toManifests distribution.ManifestService, filterFn imagemanifest.FilterFunc,
+) error {
+	// Get child manifests.
+	manifestMap, _, _, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
+	if err != nil {
+		return err
+	}
+
 	// create new manifestlist from the old one swapping digest with the new ones
+	oldList := fromManifestList
 	newDescriptors := make([]manifestlist.ManifestDescriptor, 0, len(oldList.Manifests))
 	for _, manifest := range oldList.Manifests {
 		// add layers only to the sub manifests that are specified by the filter
-		if !filterFn(&manifest, len(oldList.Manifests) > 1) {
+		if !filterFn(manifest.Descriptor, len(oldList.Manifests) > 1) {
 			klog.V(5).Infof("Skipping append for image %s for %#v from %s", manifest.Digest, manifest.Platform, from.Ref)
 		} else {
 			// create new ManifestLocation for each digest from the manifestlist
@@ -353,6 +366,66 @@ func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *
 	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, forPush, to.Ref.Tag, toManifests, toRepo.Named(), nil, nil)
 	if err != nil {
 		return fmt.Errorf("unable to push manifestlist: %#v", err)
+	}
+	o.ToDigest = toDigest
+	if !o.DryRun {
+		fmt.Fprintf(o.Out, "Pushed %s to %s\n", toDigest, to)
+	}
+
+	return nil
+}
+
+func (o *AppendImageOptions) appendImageIndex(ctx context.Context, createdAt *time.Time,
+	from *imagesource.TypedImageReference, fromImageIndex *ocischema.DeserializedImageIndex, to imagesource.TypedImageReference,
+	repo distribution.Repository, toRepo distribution.Repository,
+	toManifests distribution.ManifestService, filterFn imagemanifest.FilterFunc,
+) error {
+	// Get child manifests.
+	manifestMap, _, _, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
+	if err != nil {
+		return err
+	}
+
+	// create new image index from the old one swapping digest with the new ones
+	oldList := fromImageIndex
+	newDescriptors := make([]imagespecv1.Descriptor, 0, len(oldList.Manifests))
+	for _, manifest := range oldList.Manifests {
+		// add layers only to the sub manifests that are specified by the filter
+		if !filterFn(manifest, len(oldList.Manifests) > 1) {
+			klog.V(5).Infof("Skipping append for image %s for %#v from %s", manifest.Digest, manifest.Platform, from.Ref)
+		} else {
+			// create new ManifestLocation for each digest from the manifestlist
+			// because append function relies on that data
+			dgstManifestLocation := imagemanifest.ManifestLocation{Manifest: manifest.Digest}
+			// to ensure we can read from the Reader multiple times, especially
+			// when dealing with ManifestList, where we copy the same layer contents
+			// (the release-manifests/ directory), we need to wrap it inside TeeReader
+			// which reads copies data to buffer while reading it allowing re-use
+			var buf bytes.Buffer
+			if o.LayerStream != nil {
+				o.LayerStream = io.TeeReader(o.LayerStream, &buf)
+			}
+			err = o.append(ctx, createdAt, from, to, true, repo, manifestMap[manifest.Digest], dgstManifestLocation, toRepo, toManifests)
+			if err != nil {
+				return fmt.Errorf("error appending image %s: %w", manifest.Digest, err)
+			}
+			if buf.Len() > 0 {
+				o.LayerStream = &buf
+			}
+			manifest.Digest = o.ToDigest
+			manifest.Size = o.ToSize
+		}
+		newDescriptors = append(newDescriptors, manifest)
+	}
+	forPush, err := ocischema.FromDescriptors(newDescriptors, oldList.Annotations)
+	if err != nil {
+		return fmt.Errorf("error creating new image index: %#v", err)
+	}
+
+	// push new manifestlist to registry
+	toDigest, err := imagemanifest.PutManifestInCompatibleSchema(ctx, forPush, to.Ref.Tag, toManifests, toRepo.Named(), nil, nil)
+	if err != nil {
+		return fmt.Errorf("unable to push image index: %#v", err)
 	}
 	o.ToDigest = toDigest
 	if !o.DryRun {

@@ -541,7 +541,7 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 
 						// filter or load manifest list as appropriate
 						originalSrcDigest := srcDigest
-						srcChildren, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll, o.KeepManifestList)
+						srcChildren, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, srcRepo, src.ref.Ref, o.FilterOptions.IncludeAll, o.KeepManifestList)
 						if err != nil {
 							plan.AddError(retrieverError{src: src.ref, err: err})
 							return
