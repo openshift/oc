@@ -184,26 +184,20 @@ github.com/cyberphone/json-canonicalization/go/src/webpki.org/jsoncanonicalizer
 # github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/distribution/distribution/v3 v3.0.0-20230519140516-983358f8e250
-## explicit; go 1.18
+# github.com/distribution/distribution/v3 v3.0.0
+## explicit; go 1.23.7
 github.com/distribution/distribution/v3
-github.com/distribution/distribution/v3/context
+github.com/distribution/distribution/v3/internal/dcontext
+github.com/distribution/distribution/v3/internal/requestutil
 github.com/distribution/distribution/v3/manifest
 github.com/distribution/distribution/v3/manifest/manifestlist
 github.com/distribution/distribution/v3/manifest/ocischema
-github.com/distribution/distribution/v3/manifest/schema1
 github.com/distribution/distribution/v3/manifest/schema2
 github.com/distribution/distribution/v3/metrics
-github.com/distribution/distribution/v3/reference
 github.com/distribution/distribution/v3/registry/api/errcode
 github.com/distribution/distribution/v3/registry/api/v2
-github.com/distribution/distribution/v3/registry/client
-github.com/distribution/distribution/v3/registry/client/auth
-github.com/distribution/distribution/v3/registry/client/auth/challenge
-github.com/distribution/distribution/v3/registry/client/transport
 github.com/distribution/distribution/v3/registry/storage/cache
 github.com/distribution/distribution/v3/registry/storage/cache/memory
-github.com/distribution/distribution/v3/uuid
 # github.com/distribution/reference v0.6.0
 ## explicit; go 1.20
 github.com/distribution/reference
@@ -230,7 +224,7 @@ github.com/docker/docker/pkg/longpath
 github.com/docker/docker/pkg/pools
 github.com/docker/docker/pkg/stdcopy
 github.com/docker/docker/pkg/system
-# github.com/docker/docker-credential-helpers v0.8.1
+# github.com/docker/docker-credential-helpers v0.8.2
 ## explicit; go 1.19
 github.com/docker/docker-credential-helpers/client
 github.com/docker/docker-credential-helpers/credentials
@@ -306,7 +300,7 @@ github.com/go-jose/go-jose/v4/json
 # github.com/go-ldap/ldap/v3 v3.4.3
 ## explicit; go 1.13
 github.com/go-ldap/ldap/v3
-# github.com/go-logr/logr v1.4.2
+# github.com/go-logr/logr v1.4.3
 ## explicit; go 1.18
 github.com/go-logr/logr
 # github.com/go-openapi/analysis v0.21.4
@@ -439,10 +433,13 @@ github.com/hashicorp/errwrap
 # github.com/hashicorp/go-multierror v1.1.1
 ## explicit; go 1.13
 github.com/hashicorp/go-multierror
-# github.com/hashicorp/golang-lru v1.0.2
-## explicit; go 1.12
-github.com/hashicorp/golang-lru
-github.com/hashicorp/golang-lru/simplelru
+# github.com/hashicorp/golang-lru/arc/v2 v2.0.7
+## explicit; go 1.18
+github.com/hashicorp/golang-lru/arc/v2
+# github.com/hashicorp/golang-lru/v2 v2.0.7
+## explicit; go 1.18
+github.com/hashicorp/golang-lru/v2/internal
+github.com/hashicorp/golang-lru/v2/simplelru
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
@@ -563,7 +560,7 @@ github.com/oklog/ulid
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.1.0
+# github.com/opencontainers/image-spec v1.1.1
 ## explicit; go 1.18
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
@@ -803,7 +800,6 @@ github.com/openshift/library-go/pkg/image/internal/digest
 github.com/openshift/library-go/pkg/image/internal/reference
 github.com/openshift/library-go/pkg/image/reference
 github.com/openshift/library-go/pkg/image/referencemutator
-github.com/openshift/library-go/pkg/image/registryclient
 github.com/openshift/library-go/pkg/image/trigger
 github.com/openshift/library-go/pkg/legacyapi/legacygroupification
 github.com/openshift/library-go/pkg/manifest
@@ -837,6 +833,17 @@ github.com/openshift/library-go/pkg/verify/store/parallel
 github.com/openshift/library-go/pkg/verify/store/serial
 github.com/openshift/library-go/pkg/verify/store/sigstore
 github.com/openshift/library-go/pkg/verify/util
+# github.com/openshift/library-go/pkg/image/registryclient/v2 v2.0.0-00010101000000-000000000000 => github.com/tchap/library-go/pkg/image/registryclient/v2 v2.0.0-20250722083015-8716d02a8a94
+## explicit; go 1.24.0
+github.com/openshift/library-go/pkg/image/registryclient/v2
+github.com/openshift/library-go/pkg/image/registryclient/v2/auth
+github.com/openshift/library-go/pkg/image/registryclient/v2/clienterrors
+github.com/openshift/library-go/pkg/image/registryclient/v2/internal/client
+github.com/openshift/library-go/pkg/image/registryclient/v2/internal/client/auth
+github.com/openshift/library-go/pkg/image/registryclient/v2/internal/client/auth/challenge
+github.com/openshift/library-go/pkg/image/registryclient/v2/internal/client/transport
+github.com/openshift/library-go/pkg/image/registryclient/v2/manifest/schema1
+github.com/openshift/library-go/pkg/image/registryclient/v2/transport
 # github.com/peterbourgon/diskv v2.0.1+incompatible
 ## explicit
 github.com/peterbourgon/diskv
@@ -864,15 +871,15 @@ github.com/prometheus/client_golang/prometheus/collectors
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
 github.com/prometheus/client_golang/prometheus/promhttp/internal
-# github.com/prometheus/client_model v0.6.1
-## explicit; go 1.19
+# github.com/prometheus/client_model v0.6.2
+## explicit; go 1.22.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.62.0
-## explicit; go 1.21
+# github.com/prometheus/common v0.65.0
+## explicit; go 1.23.0
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.15.1
-## explicit; go 1.20
+# github.com/prometheus/procfs v0.17.0
+## explicit; go 1.23.0
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
@@ -1028,14 +1035,14 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/time v0.9.0
-## explicit; go 1.18
+# golang.org/x/time v0.12.0
+## explicit; go 1.23.0
 golang.org/x/time/rate
 # golang.org/x/tools v0.34.0
 ## explicit; go 1.23.0
 golang.org/x/tools/container/intsets
-# google.golang.org/protobuf v1.36.5
-## explicit; go 1.21
+# google.golang.org/protobuf v1.36.6
+## explicit; go 1.22
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
@@ -1880,3 +1887,4 @@ sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v2
 sigs.k8s.io/yaml/goyaml.v3
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
+# github.com/openshift/library-go/pkg/image/registryclient/v2 => github.com/tchap/library-go/pkg/image/registryclient/v2 v2.0.0-20250722083015-8716d02a8a94
