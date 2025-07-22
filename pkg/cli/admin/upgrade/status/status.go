@@ -59,11 +59,9 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	}
 
 	flags := cmd.Flags()
-	// TODO: We can remove these flags once the idea about `oc adm upgrade status` stabilizes and the command
-	//       is promoted out of the OC_ENABLE_CMD_UPGRADE_STATUS feature gate
 	flags.StringVar(&o.mockData.cvPath, "mock-clusterversion", "", "Path to a YAML ClusterVersion object to use for testing (will be removed later). Files in the same directory with the same name and suffixes -co.yaml, -mcp.yaml, -mc.yaml, and -node.yaml are required.")
 	flags.StringVar(&o.detailedOutput, "details", "none", fmt.Sprintf("Show detailed output in selected section. One of: %s", strings.Join(detailedOutputAllValues, ", ")))
-
+	flags.MarkHidden("mock-clusterversion")
 	return cmd
 }
 
