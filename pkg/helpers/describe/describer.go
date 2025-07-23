@@ -2114,7 +2114,6 @@ func describeInsightsDataGathers(idg *configv1alpha2.InsightsDataGather) (string
 		fmt.Fprintf(out, "Name:\t%s\n", idg.Name)
 		fmt.Fprintf(out, "GatherConfig:\t\n")
 		fmt.Fprintf(out, "  DataPolicy:\t%s\n", insightsDataPolicyToString(idg.Spec.GatherConfig.DataPolicy))
-
 		return nil
 	})
 }
