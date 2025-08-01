@@ -87,17 +87,21 @@ var (
 		  oc adm must-gather --image=my/image:tag --source-dir=/pod/directory -- myspecial-command.sh
 	`)
 
+	// According to https://github.com/openshift/enhancements/blob/master/enhancements/oc/must-gather.md#proposal
+	// we can assume /usr/bin/gather* is always run in the end, even when a custom command is specified.
+	// That's why we always kill all processes matching gather, even though a custom command can be specified.
 	volumeUsageCheckerScript = `
-echo "volume percentage checker started....."
+echo "[disk usage checker] Started"
+target_dir="%s"
+usage_percentage_limit="%d"
 while true; do
-disk_usage=$(du -s "%s" | awk '{print $1}')
-disk_space=$(df -P "%s" | awk 'NR==2 {print $2}')
+disk_usage=$(du -s "$target_dir" | awk '{print $1}')
+disk_space=$(df -P "$target_dir" | awk 'NR==2 {print $2}')
 usage_percentage=$(( (disk_usage * 100) / disk_space ))
-echo "volume usage percentage $usage_percentage"
-if [ "$usage_percentage" -gt "%d" ]; then
-	echo "Disk usage exceeds the volume percentage of %d for mounted directory. Exiting..."
-	# kill gathering process in gather container to prevent disk to use more.
-	pkill --signal SIGKILL -f %s
+echo "[disk usage checker] Volume usage percentage: current = ${usage_percentage} ; allowed = ${usage_percentage_limit}"
+if [ "$usage_percentage" -gt "$usage_percentage_limit" ]; then
+	echo "[disk usage checker] Disk usage exceeds the volume percentage of ${usage_percentage_limit} for mounted directory, terminating..."
+	pkill --signal SIGKILL gather
 	exit 1
 fi
 sleep 5
@@ -429,7 +433,6 @@ func (o *MustGatherOptions) Validate() error {
 			return fmt.Errorf("--since-time only accepts times matching RFC3339, eg '2006-01-02T15:04:05Z'")
 		}
 	}
-
 	return nil
 }
 
@@ -1092,7 +1095,8 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 	}
 
 	cleanedSourceDir := path.Clean(o.SourceDir)
-	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
+	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, o.VolumePercentage)
+	podCmd := buildPodCommand(volumeUsageChecker, executedCommand)
 
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1121,8 +1125,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 					Name:            gatherContainerName,
 					Image:           image,
 					ImagePullPolicy: corev1.PullIfNotPresent,
-					// always force disk flush to ensure that all data gathered is accessible in the copy container
-					Command: []string{"/bin/bash", "-c", fmt.Sprintf("%s & %s; sync", volumeUsageChecker, executedCommand)},
+					Command:         []string{"/bin/bash", "-c", podCmd},
 					Env: []corev1.EnvVar{
 						{
 							Name: "NODE_NAME",
@@ -1257,4 +1260,14 @@ func runInspect(streams genericiooptions.IOStreams, config *rest.Config, destDir
 		return fmt.Errorf("error running backup collection: %w", err)
 	}
 	return nil
+}
+
+func buildPodCommand(
+	volumeCheckerScript string,
+	gatherCommand string,
+) string {
+	// Start the checker in the background,
+	// run the gather command and wait for it to complete/exit.
+	// Make sure all changes are written to disk at the end.
+	return fmt.Sprintf("%s & %s; sync && echo 'Caches written to disk'", volumeCheckerScript, gatherCommand)
 }
