@@ -57,6 +57,7 @@ const (
 	unreachableTaintKey       = "node.kubernetes.io/unreachable"
 	notReadyTaintKey          = "node.kubernetes.io/not-ready"
 	controlPlaneNodeRoleLabel = "node-role.kubernetes.io/control-plane"
+	commandPIDFile            = "/run/bash-must-gather.pid"
 )
 
 var (
@@ -96,8 +97,10 @@ usage_percentage=$(( (disk_usage * 100) / disk_space ))
 echo "volume usage percentage $usage_percentage"
 if [ "$usage_percentage" -gt "%d" ]; then
 	echo "Disk usage exceeds the volume percentage of %d for mounted directory. Exiting..."
-	# kill gathering process in gather container to prevent disk to use more.
-	pkill --signal SIGKILL -f %s
+	# Kill the gathering process in gather container to prevent disk to use more.
+	# The parent bash PID is stored in a PID file.
+	# Send SIGKILL to all child processes.
+	pkill --signal SIGKILL -P "$(cat '%s')"
 	exit 1
 fi
 sleep 5
@@ -1092,7 +1095,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 	}
 
 	cleanedSourceDir := path.Clean(o.SourceDir)
-	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
+	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, commandPIDFile)
 
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1122,7 +1125,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 					Image:           image,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					// always force disk flush to ensure that all data gathered is accessible in the copy container
-					Command: []string{"/bin/bash", "-c", fmt.Sprintf("%s & %s; sync", volumeUsageChecker, executedCommand)},
+					Command: []string{"/bin/bash", "-c", fmt.Sprintf("echo $$ > '%s'; %s & %s; sync", commandPIDFile, volumeUsageChecker, executedCommand)},
 					Env: []corev1.EnvVar{
 						{
 							Name: "NODE_NAME",
