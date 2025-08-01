@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	corev1 "k8s.io/api/core/v1"
 	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -435,6 +437,43 @@ func TestGetCandidateNodeNames(t *testing.T) {
 			names := getCandidateNodeNames(test.nodeList, test.hasMaster)
 			if !reflect.DeepEqual(test.nodeNames, names) {
 				t.Fatalf("Expected and computed list of node names differ. Expected %#v. Got %#v.", test.nodeNames, names)
+			}
+		})
+	}
+}
+
+func TestBuildPodCommand(t *testing.T) {
+	tests := []struct {
+		name                     string
+		volumeUsageCheckerScript string
+		gatherCommand            string
+		expectedCommand          string
+	}{
+		{
+			name:                     "default gather command",
+			volumeUsageCheckerScript: "sleep infinity",
+			gatherCommand:            "/usr/bin/gather",
+			expectedCommand: `sleep infinity & setsid -w bash <<-MUSTGATHER_EOF
+/usr/bin/gather
+MUSTGATHER_EOF
+sync`,
+		},
+		{
+			name:                     "custom gather command",
+			volumeUsageCheckerScript: "sleep infinity",
+			gatherCommand:            "sed -i 's#--rotated-pod-logs# #g' /usr/bin/*gather* && /usr/bin/gather",
+			expectedCommand: `sleep infinity & setsid -w bash <<-MUSTGATHER_EOF
+sed -i 's#--rotated-pod-logs# #g' /usr/bin/*gather* && /usr/bin/gather
+MUSTGATHER_EOF
+sync`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cmd := buildPodCommand(test.volumeUsageCheckerScript, test.gatherCommand)
+			if cmd != test.expectedCommand {
+				t.Errorf("Unexpected pod command was generated: \n%s\n", cmp.Diff(test.expectedCommand, cmd))
 			}
 		})
 	}
