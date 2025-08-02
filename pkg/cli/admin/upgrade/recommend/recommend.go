@@ -342,10 +342,12 @@ func (o *options) Run(ctx context.Context) error {
 						issues.Insert("ConditionalUpdateRisk")
 					}
 					unaccepted := issues.Difference(accept)
-					if unaccepted.Len() > 0 {
-						return fmt.Errorf("issues that apply to this cluster but which were not included in --accept: %s", strings.Join(sets.List(unaccepted), ","))
-					} else if issues.Len() > 0 && !o.quiet {
-						fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster other than the accepted %s.\n", update.Release.Version, strings.Join(sets.List(issues), ","))
+					if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_RECOMMEND_ACCEPT").IsEnabled() {
+						if unaccepted.Len() > 0 {
+							return fmt.Errorf("issues that apply to this cluster but which were not included in --accept: %s", strings.Join(sets.List(unaccepted), ","))
+						} else if issues.Len() > 0 && !o.quiet {
+							fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster other than the accepted %s.\n", update.Release.Version, strings.Join(sets.List(issues), ","))
+						}
 					}
 					return nil
 				}

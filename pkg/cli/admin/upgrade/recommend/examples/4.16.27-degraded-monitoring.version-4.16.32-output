@@ -23,5 +23,3 @@ Channel: candidate-4.16 (available channels: candidate-4.16, candidate-4.17, can
 Update to 4.16.32 has no known issues relevant to this cluster.
 Image: quay.io/openshift-release-dev/ocp-release@sha256:0e71cb61694473b40e8d95f530eaf250a62616debb98199f31b4034808687dae
 Release URL: https://access.redhat.com/errata/RHSA-2025:0650
-
-error: issues that apply to this cluster but which were not included in --accept: ClusterOperatorDown,Failing,PodDisruptionBudgetAtLimit
