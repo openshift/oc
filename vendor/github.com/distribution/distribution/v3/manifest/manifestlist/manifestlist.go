@@ -8,6 +8,7 @@ import (
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -18,65 +19,37 @@ const (
 
 // SchemaVersion provides a pre-initialized version structure for this
 // packages version of the manifest.
+//
+// Deprecated: use [specs.Versioned] and set MediaType on the manifest
+// to [MediaTypeManifestList].
+//
+//nolint:staticcheck // ignore SA1019: manifest.Versioned is deprecated:
 var SchemaVersion = manifest.Versioned{
 	SchemaVersion: 2,
 	MediaType:     MediaTypeManifestList,
 }
 
-// OCISchemaVersion provides a pre-initialized version structure for this
-// packages OCIschema version of the manifest.
-var OCISchemaVersion = manifest.Versioned{
-	SchemaVersion: 2,
-	MediaType:     v1.MediaTypeImageIndex,
-}
-
 func init() {
-	manifestListFunc := func(b []byte) (distribution.Manifest, distribution.Descriptor, error) {
-		m := new(DeserializedManifestList)
-		err := m.UnmarshalJSON(b)
-		if err != nil {
-			return nil, distribution.Descriptor{}, err
-		}
-
-		if m.MediaType != MediaTypeManifestList {
-			err = fmt.Errorf("mediaType in manifest list should be '%s' not '%s'",
-				MediaTypeManifestList, m.MediaType)
-
-			return nil, distribution.Descriptor{}, err
-		}
-
-		dgst := digest.FromBytes(b)
-		return m, distribution.Descriptor{Digest: dgst, Size: int64(len(b)), MediaType: MediaTypeManifestList}, err
-	}
-	err := distribution.RegisterManifestSchema(MediaTypeManifestList, manifestListFunc)
-	if err != nil {
+	if err := distribution.RegisterManifestSchema(MediaTypeManifestList, unmarshalManifestList); err != nil {
 		panic(fmt.Sprintf("Unable to register manifest: %s", err))
 	}
+}
 
-	imageIndexFunc := func(b []byte) (distribution.Manifest, distribution.Descriptor, error) {
-		if err := validateIndex(b); err != nil {
-			return nil, distribution.Descriptor{}, err
-		}
-		m := new(DeserializedManifestList)
-		err := m.UnmarshalJSON(b)
-		if err != nil {
-			return nil, distribution.Descriptor{}, err
-		}
-
-		if m.MediaType != "" && m.MediaType != v1.MediaTypeImageIndex {
-			err = fmt.Errorf("if present, mediaType in image index should be '%s' not '%s'",
-				v1.MediaTypeImageIndex, m.MediaType)
-
-			return nil, distribution.Descriptor{}, err
-		}
-
-		dgst := digest.FromBytes(b)
-		return m, distribution.Descriptor{Digest: dgst, Size: int64(len(b)), MediaType: v1.MediaTypeImageIndex}, err
+func unmarshalManifestList(b []byte) (distribution.Manifest, v1.Descriptor, error) {
+	m := &DeserializedManifestList{}
+	if err := m.UnmarshalJSON(b); err != nil {
+		return nil, v1.Descriptor{}, err
 	}
-	err = distribution.RegisterManifestSchema(v1.MediaTypeImageIndex, imageIndexFunc)
-	if err != nil {
-		panic(fmt.Sprintf("Unable to register OCI Image Index: %s", err))
+
+	if m.MediaType != MediaTypeManifestList {
+		return nil, v1.Descriptor{}, fmt.Errorf("mediaType in manifest list should be '%s' not '%s'", MediaTypeManifestList, m.MediaType)
 	}
+
+	return m, v1.Descriptor{
+		Digest:    digest.FromBytes(b),
+		Size:      int64(len(b)),
+		MediaType: MediaTypeManifestList,
+	}, nil
 }
 
 // PlatformSpec specifies a platform where a particular image manifest is
@@ -108,7 +81,7 @@ type PlatformSpec struct {
 
 // A ManifestDescriptor references a platform-specific manifest.
 type ManifestDescriptor struct {
-	distribution.Descriptor
+	v1.Descriptor
 
 	// Platform specifies which platform the manifest pointed to by the
 	// descriptor runs on.
@@ -117,7 +90,10 @@ type ManifestDescriptor struct {
 
 // ManifestList references manifests for various platforms.
 type ManifestList struct {
-	manifest.Versioned
+	specs.Versioned
+
+	// MediaType is the media type of this schema.
+	MediaType string `json:"mediaType,omitempty"`
 
 	// Manifests references a list of manifests
 	Manifests []ManifestDescriptor `json:"manifests"`
@@ -125,8 +101,8 @@ type ManifestList struct {
 
 // References returns the distribution descriptors for the referenced image
 // manifests.
-func (m ManifestList) References() []distribution.Descriptor {
-	dependencies := make([]distribution.Descriptor, len(m.Manifests))
+func (m ManifestList) References() []v1.Descriptor {
+	dependencies := make([]v1.Descriptor, len(m.Manifests))
 	for i := range m.Manifests {
 		dependencies[i] = m.Manifests[i].Descriptor
 		dependencies[i].Platform = &v1.Platform{
@@ -154,23 +130,14 @@ type DeserializedManifestList struct {
 // DeserializedManifestList which contains the resulting manifest list
 // and its JSON representation.
 func FromDescriptors(descriptors []ManifestDescriptor) (*DeserializedManifestList, error) {
-	var mediaType string
-	if len(descriptors) > 0 && descriptors[0].Descriptor.MediaType == v1.MediaTypeImageManifest {
-		mediaType = v1.MediaTypeImageIndex
-	} else {
-		mediaType = MediaTypeManifestList
-	}
-
-	return FromDescriptorsWithMediaType(descriptors, mediaType)
+	return fromDescriptorsWithMediaType(descriptors, MediaTypeManifestList)
 }
 
-// FromDescriptorsWithMediaType is for testing purposes, it's useful to be able to specify the media type explicitly
-func FromDescriptorsWithMediaType(descriptors []ManifestDescriptor, mediaType string) (*DeserializedManifestList, error) {
+// fromDescriptorsWithMediaType is for testing purposes, it's useful to be able to specify the media type explicitly
+func fromDescriptorsWithMediaType(descriptors []ManifestDescriptor, mediaType string) (*DeserializedManifestList, error) {
 	m := ManifestList{
-		Versioned: manifest.Versioned{
-			SchemaVersion: 2,
-			MediaType:     mediaType,
-		},
+		Versioned: specs.Versioned{SchemaVersion: 2},
+		MediaType: mediaType,
 	}
 
 	m.Manifests = make([]ManifestDescriptor, len(descriptors))
@@ -225,22 +192,18 @@ func (m DeserializedManifestList) Payload() (string, []byte, error) {
 	return mediaType, m.canonical, nil
 }
 
-// unknownDocument represents a manifest, manifest list, or index that has not
-// yet been validated
-type unknownDocument struct {
-	Config interface{} `json:"config,omitempty"`
-	Layers interface{} `json:"layers,omitempty"`
-}
-
-// validateIndex returns an error if the byte slice is invalid JSON or if it
+// validateManifestList returns an error if the byte slice is invalid JSON or if it
 // contains fields that belong to a manifest
-func validateIndex(b []byte) error {
-	var doc unknownDocument
+func validateManifestList(b []byte) error {
+	var doc struct {
+		Config interface{} `json:"config,omitempty"`
+		Layers interface{} `json:"layers,omitempty"`
+	}
 	if err := json.Unmarshal(b, &doc); err != nil {
 		return err
 	}
 	if doc.Config != nil || doc.Layers != nil {
-		return errors.New("index: expected index but found manifest")
+		return errors.New("manifestlist: expected list but found manifest")
 	}
 	return nil
 }

@@ -1,20 +1,18 @@
 package imagesource
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/reference"
-	registryclient "github.com/distribution/distribution/v3/registry/client"
+
+	"github.com/openshift/library-go/pkg/image/registryclient/v2"
 )
 
 func NewDryRun(ref TypedImageReference) (distribution.Repository, error) {
-	named, err := reference.WithName(ref.Ref.RepositoryName())
-	if err != nil {
-		return nil, err
-	}
-	return registryclient.NewRepository(named, ref.Ref.RegistryURL().String(), dryRunRoundTripper)
+	return registryclient.NewContext(dryRunRoundTripper, dryRunRoundTripper).
+		Repository(context.Background(), ref.Ref.RegistryURL(), ref.Ref.RepositoryName(), false)
 }
 
 var dryRunRoundTripper = errorRoundTripper{errors.New("dry-run repository is not available")}
