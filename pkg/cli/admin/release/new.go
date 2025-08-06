@@ -1148,7 +1148,11 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 			if strings.Count(name, "/") > 0 || name == "." || name == ".." || len(name) == 0 {
 				continue
 			}
-			itemPath := filepath.Clean(filepath.Join(o.ToDir, name))
+			// Make sure we never assemble a path outside o.ToDir.
+			if !filepath.IsLocal(name) {
+				continue
+			}
+			itemPath := filepath.Join(o.ToDir, name)
 			f, err := os.OpenFile(itemPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 			if err != nil {
 				return err
@@ -1577,7 +1581,7 @@ type PayloadVerifier func(filename string, data []byte) error
 func pruneUnreferencedImageStreams(out io.Writer, is *imageapi.ImageStream, metadata map[string]imageData, include []string) error {
 	referenced := make(map[string]struct{})
 	for _, v := range metadata {
-		is, err := parseImageStream(filepath.Clean(filepath.Join(v.Directory, "image-references")))
+		is, err := parseImageStream(filepath.Join(v.Directory, "image-references"))
 		if os.IsNotExist(err) {
 			continue
 		}

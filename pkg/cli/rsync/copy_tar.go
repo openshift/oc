@@ -66,10 +66,10 @@ func deleteContents(dir string) error {
 	for _, f := range files {
 		if f.IsDir() {
 			klog.V(5).Infof("Deleting directory: %s", f.Name())
-			err = os.RemoveAll(filepath.Clean(filepath.Join(dir, f.Name())))
+			err = os.RemoveAll(filepath.Join(dir, f.Name()))
 		} else {
 			klog.V(5).Infof("Deleting file: %s", f.Name())
-			err = os.Remove(filepath.Clean(filepath.Join(dir, f.Name())))
+			err = os.Remove(filepath.Join(dir, f.Name()))
 		}
 		if err != nil {
 			klog.V(4).Infof("Error deleting file or directory: %s: %v", f.Name(), err)
