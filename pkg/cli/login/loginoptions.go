@@ -17,6 +17,7 @@ import (
 
 	"github.com/pkg/browser"
 
+	userv1 "github.com/openshift/api/user/v1"
 	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
 	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
@@ -94,6 +95,10 @@ type LoginOptions struct {
 	RequestTimeout time.Duration
 
 	genericiooptions.IOStreams
+
+	// whoAmIFunc is used to mock project.WhoAmI. It's only being used in tests.
+	// See LoginOptions.whoAmI for details.
+	whoAmIFunc func(clientConfig *restclient.Config) (*userv1.User, error)
 }
 
 type passwordPrompter func(r io.Reader, w io.Writer, format string, a ...interface{}) string
@@ -234,7 +239,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	// if a token were explicitly provided, try to use it
 	if o.tokenProvided() {
 		clientConfig.BearerToken = o.Token
-		me, err := project.WhoAmI(clientConfig)
+		me, err := o.whoAmI(clientConfig)
 		if err != nil {
 			if kerrors.IsUnauthorized(err) {
 				return fmt.Errorf("The token provided is invalid or expired.\n\n")
@@ -259,12 +264,17 @@ func (o *LoginOptions) gatherAuthInfo() error {
 			if matchingClusters.Has(context.Cluster) {
 				clientcmdConfig := kclientcmd.NewDefaultClientConfig(kubeconfig, &kclientcmd.ConfigOverrides{CurrentContext: key})
 				if kubeconfigClientConfig, err := clientcmdConfig.ClientConfig(); err == nil {
-					if me, err := project.WhoAmI(kubeconfigClientConfig); err == nil && (o.Username == me.Name) {
+					if me, err := o.whoAmI(kubeconfigClientConfig); err == nil && (o.Username == me.Name) {
 						clientConfig.BearerToken = kubeconfigClientConfig.BearerToken
 						clientConfig.CertFile = kubeconfigClientConfig.CertFile
 						clientConfig.CertData = kubeconfigClientConfig.CertData
 						clientConfig.KeyFile = kubeconfigClientConfig.KeyFile
 						clientConfig.KeyData = kubeconfigClientConfig.KeyData
+
+						// Preserve ExecProvider configuration.
+						if kubeconfigClientConfig.ExecProvider != nil {
+							clientConfig.ExecProvider = kubeconfigClientConfig.ExecProvider.DeepCopy()
+						}
 
 						o.Config = clientConfig
 
@@ -284,7 +294,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 		}
 
 		clientConfig.ExecProvider = execProvider
-		me, err := project.WhoAmI(clientConfig)
+		me, err := o.whoAmI(clientConfig)
 		if err != nil {
 			return err
 		}
@@ -319,7 +329,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 
 	clientConfig.BearerToken = token
 
-	me, err := project.WhoAmI(clientConfig)
+	me, err := o.whoAmI(clientConfig)
 	if err != nil {
 		return err
 	}
@@ -563,6 +573,13 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 	}
 
 	return created, nil
+}
+
+func (o *LoginOptions) whoAmI(clientConfig *restclient.Config) (*userv1.User, error) {
+	if o.whoAmIFunc != nil {
+		return o.whoAmIFunc(clientConfig)
+	}
+	return project.WhoAmI(clientConfig)
 }
 
 func (o *LoginOptions) usernameProvided() bool {
