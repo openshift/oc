@@ -61,6 +61,7 @@ import (
 )
 
 const (
+	debugPodLabelManagedBy            = "debug.openshift.io/managed-by"
 	debugPodAnnotationSourceContainer = "debug.openshift.io/source-container"
 	debugPodAnnotationSourceResource  = "debug.openshift.io/source-resource"
 	// containerResourcesAnnotationPrefix contains resource annotation prefix that will be used by CRI-O to set cpu shares
@@ -900,13 +901,8 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	for k, v := range annotations {
 		pod.Annotations[k] = v
 	}
-	if o.KeepLabels {
-		if pod.Labels == nil {
-			pod.Labels = make(map[string]string)
-		}
-	} else {
-		pod.Labels = map[string]string{}
-	}
+
+	pod.Labels = createLabelMap(pod.Labels, o.KeepLabels)
 
 	pod.ResourceVersion = ""
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
@@ -919,6 +915,21 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	pod.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
 
 	return pod, originalCommand
+}
+
+func createLabelMap(currentLabels map[string]string, keepLabels bool) map[string]string {
+	if keepLabels && currentLabels != nil {
+		return currentLabels
+	}
+
+	newLabels := make(map[string]string)
+	for k, v := range currentLabels {
+		if k == debugPodLabelManagedBy {
+			newLabels[k] = v
+		}
+	}
+
+	return newLabels
 }
 
 // createPod creates the debug pod, and will attempt to delete an existing debug
@@ -1055,7 +1066,7 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 		template := &corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					"debug.openshift.io/managed-by": "oc-debug",
+					debugPodLabelManagedBy: "oc-debug",
 				},
 			},
 			Spec: corev1.PodSpec{
