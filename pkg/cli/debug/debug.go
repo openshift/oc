@@ -923,10 +923,8 @@ func createLabelMap(currentLabels map[string]string, keepLabels bool) map[string
 	}
 
 	newLabels := make(map[string]string)
-	for k, v := range currentLabels {
-		if k == debugPodLabelManagedBy {
-			newLabels[k] = v
-		}
+	if val, ok := currentLabels[debugPodLabelManagedBy]; ok {
+		newLabels[debugPodLabelManagedBy] = val
 	}
 
 	return newLabels
