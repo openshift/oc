@@ -1252,8 +1252,10 @@ items:
       status: "False"
       type: Degraded
     - lastTransitionTime: "2024-08-05T15:58:26Z"
-      message: 'NodeInstallerProgressing: 1 node is at revision 8; 0 nodes have achieved
-        new revision 10'
+      message: |-
+        NodeInstallerProgressing: 1 node is at revision 8; 0 nodes have achieved new revision 10
+        Test line breaks
+        New line
       reason: NodeInstaller
       status: "True"
       type: Progressing
