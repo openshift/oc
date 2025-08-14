@@ -1256,7 +1256,7 @@ items:
         NodeInstallerProgressing: 1 node is at revision 8; 0 nodes have achieved new revision 10
         Test line breaks
         New line
-      reason: NodeInstaller
+      reason: NodeInstaller::PetrDoesNotLikeLongLines::WhichTakeTooMuchSpace
       status: "True"
       type: Progressing
     - lastTransitionTime: "2024-08-05T15:22:32Z"

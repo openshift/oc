@@ -7,10 +7,10 @@ Duration:        2m54s (Est. Time Remaining: 1h9m)
 Operator Health: 32 Healthy, 1 Available but degraded
 
 Updating Cluster Operators
-NAME             SINCE   REASON          MESSAGE
-kube-apiserver   2m      NodeInstaller   NodeInstallerProgressing: 1 node is at revision 8; 0 nodes have achieved new revision 10
-                                         Test line breaks
-                                         New line
+NAME             SINCE   REASON                                                           MESSAGE
+kube-apiserver   2m      NodeInstaller::PetrDoesNotLikeLongLines::WhichTakeTooMuchSpace   NodeInstallerProgressing: 1 node is at revision 8; 0 nodes have achieved new revision 10
+                                                                                          Test line breaks
+                                                                                          New line
 
 Control Plane Nodes
 NAME                        ASSESSMENT   PHASE     VERSION                              EST   MESSAGE
