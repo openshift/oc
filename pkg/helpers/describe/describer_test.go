@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubernetesscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubectl/pkg/describe"
 )
 
 type describeClient struct {
@@ -787,6 +788,85 @@ func Test_describeBuildVolumes(t *testing.T) {
 			for _, match := range tt.want {
 				if got := b.String(); !regexp.MustCompile(match).MatchString(got) {
 					t.Errorf("%s\nshould contain %q", got, match)
+				}
+			}
+		})
+	}
+}
+
+func TestTemplateInstanceDescriberNilSecret(t *testing.T) {
+	tests := []struct {
+		name             string
+		templateInstance *templatev1.TemplateInstance
+		want             []string
+	}{
+		{
+			name: "template instance with nil secret",
+			templateInstance: &templatev1.TemplateInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-template-instance",
+					Namespace: "test-namespace",
+				},
+				Spec: templatev1.TemplateInstanceSpec{
+					Template: templatev1.Template{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-template",
+						},
+					},
+					Secret: nil,
+				},
+				Status: templatev1.TemplateInstanceStatus{
+					Conditions: []templatev1.TemplateInstanceCondition{},
+					Objects:    []templatev1.TemplateInstanceObject{},
+				},
+			},
+			want: []string{
+				"No secret specified for parameters",
+			},
+		},
+		{
+			name: "template instance with secret",
+			templateInstance: &templatev1.TemplateInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-template-instance",
+					Namespace: "test-namespace",
+				},
+				Spec: templatev1.TemplateInstanceSpec{
+					Template: templatev1.Template{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-template",
+						},
+					},
+					Secret: &corev1.LocalObjectReference{
+						Name: "test-secret",
+					},
+				},
+				Status: templatev1.TemplateInstanceStatus{
+					Conditions: []templatev1.TemplateInstanceCondition{},
+					Objects:    []templatev1.TemplateInstanceObject{},
+				},
+			},
+			want: []string{
+				"Parameters",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kubeClient := fake.NewSimpleClientset()
+			describer := &TemplateInstanceDescriber{
+				kubeClient: kubeClient,
+			}
+
+			result, err := describer.DescribeTemplateInstance(tt.templateInstance, "test-namespace", describe.DescriberSettings{})
+			if err != nil {
+				t.Fatalf("DescribeTemplateInstance failed: %v", err)
+			}
+
+			for _, expected := range tt.want {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected output to contain %q, but got:\n%s", expected, result)
 				}
 			}
 		})
