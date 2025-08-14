@@ -498,10 +498,17 @@ func (d *controlPlaneStatusDisplayData) Write(f io.Writer, detailed bool, now ti
 			if reason == "" {
 				reason = "-"
 			}
-			_, _ = table.Write([]byte(o.Name + "\t"))
-			_, _ = table.Write([]byte(shortDuration(now.Sub(o.Condition.LastTransitionTime.Time)) + "\t"))
-			_, _ = table.Write([]byte(reason + "\t"))
-			_, _ = table.Write([]byte(o.Condition.Message + "\n"))
+			lines := strings.Split(o.Condition.Message, "\n")
+			for i, line := range lines {
+				if i == 0 {
+					_, _ = table.Write([]byte(o.Name + "\t"))
+					_, _ = table.Write([]byte(shortDuration(now.Sub(o.Condition.LastTransitionTime.Time)) + "\t"))
+					_, _ = table.Write([]byte(reason + "\t"))
+					_, _ = table.Write([]byte(line + "\n"))
+				} else {
+					_, _ = table.Write([]byte("\t\t\t" + line + "\n"))
+				}
+			}
 		}
 		if err := table.Flush(); err != nil {
 			return err
