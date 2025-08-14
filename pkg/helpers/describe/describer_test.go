@@ -796,9 +796,9 @@ func Test_describeBuildVolumes(t *testing.T) {
 
 func TestTemplateInstanceDescriberNilSecret(t *testing.T) {
 	tests := []struct {
-		name           string
+		name             string
 		templateInstance *templatev1.TemplateInstance
-		want           []string
+		want             []string
 	}{
 		{
 			name: "template instance with nil secret",
