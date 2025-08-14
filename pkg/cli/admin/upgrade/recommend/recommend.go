@@ -67,9 +67,8 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 		flags.StringSliceVar(&o.accept, "accept", o.accept, "Comma-delimited names for issues that you find acceptable.  With --version, any unaccepted issues will result in a non-zero exit code.")
 	}
 
-	// TODO: We can remove this flag once the idea about `oc adm upgrade recommend` stabilizes and the command
-	//       is promoted out of the OC_ENABLE_CMD_UPGRADE_RECOMMEND feature gate
 	flags.StringVar(&o.mockData.cvPath, "mock-clusterversion", "", "Path to a YAML ClusterVersion object to use for testing (will be removed later).")
+	flags.MarkHidden("mock-clusterversion")
 
 	return cmd
 }

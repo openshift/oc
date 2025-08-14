@@ -122,9 +122,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_ROLLBACK").IsEnabled() {
 		cmd.AddCommand(rollback.New(f, streams))
 	}
-	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_RECOMMEND").IsEnabled() {
-		cmd.AddCommand(recommend.New(f, streams))
-	}
+	cmd.AddCommand(recommend.New(f, streams))
 
 	return cmd
 }
