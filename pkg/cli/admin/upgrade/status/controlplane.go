@@ -503,7 +503,7 @@ func (d *controlPlaneStatusDisplayData) Write(f io.Writer, detailed bool, now ti
 				if i == 0 {
 					_, _ = table.Write([]byte(o.Name + "\t"))
 					_, _ = table.Write([]byte(shortDuration(now.Sub(o.Condition.LastTransitionTime.Time)) + "\t"))
-					_, _ = table.Write([]byte(reason + "\t"))
+					_, _ = table.Write([]byte(ellipsis(reason, 20) + "\t"))
 					_, _ = table.Write([]byte(line + "\n"))
 				} else {
 					_, _ = table.Write([]byte("\t\t\t" + line + "\n"))
@@ -515,6 +515,17 @@ func (d *controlPlaneStatusDisplayData) Write(f io.Writer, detailed bool, now ti
 		}
 	}
 	return nil
+}
+
+func ellipsis(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	if maxLen < 3 {
+		maxLen = 3
+	}
+	return string(runes[0:maxLen-3]) + "..."
 }
 
 const controlPlaneStatusTemplateRaw = `= Control Plane =
