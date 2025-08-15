@@ -11,12 +11,15 @@ import (
 	"testing"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/go-cmp/cmp"
 
 	kapierrs "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	restclient "k8s.io/client-go/rest"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
+	userv1 "github.com/openshift/api/user/v1"
 	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 )
@@ -371,6 +374,114 @@ func TestDialToHTTPSServer(t *testing.T) {
 				t.Errorf("%s: expected error but got nothing", name)
 			}
 		}
+	}
+}
+
+func TestPreserveExecProviderOnUsernameLogin(t *testing.T) {
+	// Test that when using -u flag with existing OIDC credentials,
+	// the ExecProvider configuration is preserved
+
+	execProvider := &kclientcmdapi.ExecConfig{
+		APIVersion: "client.authentication.k8s.io/v1",
+		Command:    "oc",
+		Args: []string{
+			"get-token",
+			"--issuer-url=https://oauth.example.com",
+			"--client-id=test-client",
+			"--callback-address=127.0.0.1:8080",
+		},
+		InstallHint:     "Please be sure that oc is defined in $PATH to be executed as credentials exec plugin",
+		InteractiveMode: kclientcmdapi.IfAvailableExecInteractiveMode,
+	}
+
+	testCases := map[string]struct {
+		username             string
+		existingExecProvider *kclientcmdapi.ExecConfig
+		expectedExecProvider *kclientcmdapi.ExecConfig
+	}{
+		"preserve OIDC exec provider": {
+			username:             "oidc-user-test:test@example.com",
+			existingExecProvider: execProvider,
+			expectedExecProvider: execProvider,
+		},
+		"no exec provider preserved when none exists": {
+			username:             "regular-user",
+			existingExecProvider: nil,
+			expectedExecProvider: nil,
+		},
+	}
+
+	for name, test := range testCases {
+		t.Run(name, func(t *testing.T) {
+			// Mock config constants.
+			serverURL := "https://api.test.devcluster.openshift.com:6443"
+			clusterNick := "api-test-devcluster-openshift-com:6443"
+			userNick := test.username + "/" + clusterNick
+			contextNick := "default/" + clusterNick + "/" + test.username
+
+			// Create starting kubeconfig with existing OIDC credentials.
+			startingConfig := &kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					clusterNick: {
+						Server: serverURL,
+					},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					userNick: {
+						Exec: test.existingExecProvider,
+					},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					contextNick: {
+						Cluster:   clusterNick,
+						AuthInfo:  userNick,
+						Namespace: "default",
+					},
+				},
+				CurrentContext: contextNick,
+			}
+
+			// Setup LoginOptions with username and existing config
+			options := &LoginOptions{
+				Username:           test.username,
+				Server:             serverURL,
+				StartingKubeConfig: startingConfig,
+				Config: &restclient.Config{
+					Host:         serverURL,
+					ExecProvider: test.existingExecProvider,
+				},
+				IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
+			}
+
+			// Mock the WhoAmI function to always match the user.
+			whoAmICalled := false
+			options.whoAmIFunc = func(clientConfig *restclient.Config) (*userv1.User, error) {
+				whoAmICalled = true
+				return &userv1.User{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: test.username,
+					},
+				}, nil
+			}
+
+			// Calling gatherAuthInfo should preserve ExecProvider.
+			if err := options.gatherAuthInfo(); err != nil {
+				t.Fatalf("gatherAuthInfo failed: %v", err)
+			}
+
+			// Verify ExecProvider is preserved correctly.
+			if options.Config == nil {
+				t.Fatal("LoginOptions.Config is nil")
+			}
+			if !cmp.Equal(options.Config.ExecProvider, test.expectedExecProvider) {
+				t.Errorf("expected provider mismatch: \n%s\n", cmp.Diff(test.expectedExecProvider, options.Config.ExecProvider))
+			}
+
+			// Just check additionally that whoAmI has been called.
+			if !whoAmICalled {
+				t.Errorf("WhoAmI function has not been called")
+			}
+		})
 	}
 }
 
