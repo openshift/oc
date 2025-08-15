@@ -77,6 +77,11 @@ var (
 		# Gather audit information
 		  oc adm must-gather -- /usr/bin/gather_audit_logs
 
+		# Pass a command string to be executed in the gathering pod.
+		# Note that the command is executed using bash -c "COMMAND" (note the quotes),
+		# which means that the command string must also be wrapped in "" (and not '').
+		  oc adm must-gather -- "echo '1' && /usr/bin/gather"
+
 		# Gather information using multiple plug-in images
 		  oc adm must-gather --image=quay.io/kubevirt/must-gather --image=quay.io/openshift/origin-must-gather
 
@@ -88,16 +93,23 @@ var (
 	`)
 
 	volumeUsageCheckerScript = `
-echo "volume percentage checker started....."
+echo "[disk usage checker] Started"
+target_dir="%s"
+usage_percentage_limit="%d"
 while true; do
-disk_usage=$(du -s "%s" | awk '{print $1}')
-disk_space=$(df -P "%s" | awk 'NR==2 {print $2}')
+disk_usage=$(du -s "$target_dir" | awk '{print $1}')
+disk_space=$(df -P "$target_dir" | awk 'NR==2 {print $2}')
 usage_percentage=$(( (disk_usage * 100) / disk_space ))
-echo "volume usage percentage $usage_percentage"
-if [ "$usage_percentage" -gt "%d" ]; then
-	echo "Disk usage exceeds the volume percentage of %d for mounted directory. Exiting..."
-	# kill gathering process in gather container to prevent disk to use more.
-	pkill --signal SIGKILL -f %s
+echo "[disk usage checker] Volume usage percentage: current = ${usage_percentage} ; allowed = ${usage_percentage_limit}"
+if [ "$usage_percentage" -gt "$usage_percentage_limit" ]; then
+	echo "[disk usage checker] Disk usage exceeds the volume percentage of ${usage_percentage_limit} for mounted directory, terminating..."
+
+	# Kill all process groups but the main one. This can be done in a simple way since this script is included in
+	# the main bash script, so $$ is effectively the main bash PGID.
+	ps -o pgid --no-headers | sort -u | while read pgid; do
+		if [[ "$pgid" == "${$}" ]]; then continue; fi
+		pkill --signal SIGKILL -g "$pgid" 2>/dev/null
+	done
 	exit 1
 fi
 sleep 5
@@ -429,7 +441,6 @@ func (o *MustGatherOptions) Validate() error {
 			return fmt.Errorf("--since-time only accepts times matching RFC3339, eg '2006-01-02T15:04:05Z'")
 		}
 	}
-
 	return nil
 }
 
@@ -1092,7 +1103,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 	}
 
 	cleanedSourceDir := path.Clean(o.SourceDir)
-	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
+	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, o.VolumePercentage)
 
 	ret := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1121,8 +1132,10 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 					Name:            gatherContainerName,
 					Image:           image,
 					ImagePullPolicy: corev1.PullIfNotPresent,
-					// always force disk flush to ensure that all data gathered is accessible in the copy container
-					Command: []string{"/bin/bash", "-c", fmt.Sprintf("%s & %s; sync", volumeUsageChecker, executedCommand)},
+					// Always force disk flush to ensure that all data gathered is accessible in the copy container.
+					// The xargs command is necessary to remove whitespace.
+					Command: []string{"/bin/bash", "-c", fmt.Sprintf(
+						"%s & setsid bash -c \"%s\" & wait -n; sync", volumeUsageChecker, executedCommand)},
 					Env: []corev1.EnvVar{
 						{
 							Name: "NODE_NAME",
