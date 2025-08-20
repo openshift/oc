@@ -212,7 +212,9 @@ func TestGetNamespace(t *testing.T) {
 			tc.Options.PrinterCreated = printers.NewDiscardingPrinter()
 			tc.Options.PrinterDeleted = printers.NewDiscardingPrinter()
 
-			ns, cleanup, err := tc.Options.getNamespace()
+			gatherCtx := newMustGatherContext(tc.Options)
+
+			ns, err := gatherCtx.getNamespace()
 			if err != nil {
 				if tc.ShouldFail {
 					return
@@ -229,7 +231,7 @@ func TestGetNamespace(t *testing.T) {
 				t.Error("namespace should exist")
 			}
 
-			cleanup()
+			gatherCtx.cleanup(context.TODO())
 
 			if _, err = tc.Options.Client.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{}); err != nil {
 				if !k8sapierrors.IsNotFound(err) {
