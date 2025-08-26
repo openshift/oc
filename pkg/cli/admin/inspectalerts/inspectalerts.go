@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 
@@ -64,8 +63,12 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 	}
 
 	o.RESTConfig = cfg
+	o.RESTConfig.UserAgent = rest.DefaultKubernetesUserAgent() + "(inspect-alerts)"
+	if err = ValidateRESTConfig(o.RESTConfig); err != nil {
+		return err
+	}
 
-	routeClient, err := routev1client.NewForConfig(cfg)
+	routeClient, err := routev1client.NewForConfig(o.RESTConfig)
 	if err != nil {
 		return err
 	}
@@ -77,7 +80,12 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 }
 
 func (o *options) Run(ctx context.Context) error {
-	alertBytes, err := GetAlerts(ctx, o.getRoute, o.RESTConfig.BearerToken)
+	roundTripper, err := rest.TransportFor(o.RESTConfig)
+	if err != nil {
+		return err
+	}
+
+	alertBytes, err := GetAlerts(ctx, roundTripper, o.getRoute)
 	if err != nil {
 		return err
 	}
@@ -86,15 +94,25 @@ func (o *options) Run(ctx context.Context) error {
 	return err
 }
 
+// ValidateRESTConfig validates a rest.Config for alert retrieval,
+// requiring the use of BearerToken, because the platform Thanos rejects
+// other forms of authentication.
+func ValidateRESTConfig(restConfig *rest.Config) error {
+	if restConfig.BearerToken == "" && restConfig.BearerTokenFile == "" {
+		return fmt.Errorf("no token is currently in use for this session")
+	}
+	return nil
+}
+
 // GetAlerts gets alerts (both firing and pending) from openshift-monitoring Thanos.
-func GetAlerts(ctx context.Context, getRoute RouteGetter, bearerToken string) ([]byte, error) {
+func GetAlerts(ctx context.Context, roundTripper http.RoundTripper, getRoute RouteGetter) ([]byte, error) {
 	uri := &url.URL{ // configure everything except Host, which will come from the Route
 		Scheme: "https",
 		Path:   "/api/v1/alerts",
 	}
 
 	// if we end up going this way, probably port to github.com/prometheus/client_golang/api/prometheus/v1 NewAPI
-	alertBytes, err := getWithBearer(ctx, getRoute, "openshift-monitoring", "thanos-querier", uri, bearerToken)
+	alertBytes, err := getWithRoundTripper(ctx, roundTripper, getRoute, "openshift-monitoring", "thanos-querier", uri)
 	if err != nil {
 		return alertBytes, fmt.Errorf("failed to get alerts from Thanos: %w", err)
 	}
@@ -104,31 +122,16 @@ func GetAlerts(ctx context.Context, getRoute RouteGetter, bearerToken string) ([
 	return alertBytes, nil
 }
 
-// getWithBearer gets a Route by namespace/name, constructs a URI using
+// getWithRoundTripper gets a Route by namespace/name, constructs a URI using
 // status.ingress[].host and the path argument, and performs GETs on that
-// URI using Bearer authentication with the token argument.
-func getWithBearer(ctx context.Context, getRoute RouteGetter, namespace, name string, baseURI *url.URL, bearerToken string) ([]byte, error) {
-	if len(bearerToken) == 0 {
-		return nil, fmt.Errorf("no token is currently in use for this session")
-	}
-
+// URI.
+func getWithRoundTripper(ctx context.Context, roundTripper http.RoundTripper, getRoute RouteGetter, namespace, name string, baseURI *url.URL) ([]byte, error) {
 	route, err := getRoute(ctx, namespace, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	withDebugWrappers, err := transport.HTTPWrappersForConfig(
-		&transport.Config{
-			UserAgent:   rest.DefaultKubernetesUserAgent() + "(inspect-alerts)",
-			BearerToken: bearerToken,
-		},
-		http.DefaultTransport,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	client := &http.Client{Transport: withDebugWrappers}
+	client := &http.Client{Transport: roundTripper}
 	errs := make([]error, 0, len(route.Status.Ingress))
 	for _, ingress := range route.Status.Ingress {
 		uri := *baseURI

@@ -19,6 +19,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -107,6 +108,12 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		if err != nil {
 			return err
 		}
+		cfg.UserAgent = rest.DefaultKubernetesUserAgent() + "(upgrade-status)"
+
+		roundTripper, err := rest.TransportFor(cfg)
+		if err != nil {
+			return err
+		}
 		configClient, err := configv1client.NewForConfig(cfg)
 		if err != nil {
 			return err
@@ -140,7 +147,11 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		o.AppsClient = appsClient
 
 		o.getAlerts = func(ctx context.Context) ([]byte, error) {
-			return inspectalerts.GetAlerts(ctx, routeGetter, cfg.BearerToken)
+			if err := inspectalerts.ValidateRESTConfig(cfg); err != nil {
+				return nil, err
+			}
+
+			return inspectalerts.GetAlerts(ctx, roundTripper, routeGetter)
 		}
 	} else {
 		err := o.mockData.load()

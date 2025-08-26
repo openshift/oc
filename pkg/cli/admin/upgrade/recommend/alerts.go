@@ -9,6 +9,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 
 	"github.com/openshift/oc/pkg/cli/admin/inspectalerts"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/status"
@@ -34,6 +35,15 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 		}
 		alertsBytes = o.mockData.alerts
 	} else {
+		if err := inspectalerts.ValidateRESTConfig(o.RESTConfig); err != nil {
+			return nil, err
+		}
+
+		roundTripper, err := rest.TransportFor(o.RESTConfig)
+		if err != nil {
+			return nil, err
+		}
+
 		client, err := routev1client.NewForConfig(o.RESTConfig)
 		if err != nil {
 			return nil, err
@@ -42,7 +52,7 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 			return client.Routes(namespace).Get(ctx, name, opts)
 		}
 
-		alertsBytes, err = inspectalerts.GetAlerts(ctx, routeGetter, o.RESTConfig.BearerToken)
+		alertsBytes, err = inspectalerts.GetAlerts(ctx, roundTripper, routeGetter)
 		if err != nil {
 			return nil, err
 		}
