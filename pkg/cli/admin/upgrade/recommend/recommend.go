@@ -105,6 +105,8 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		if err != nil {
 			return err
 		}
+		o.RESTConfig.UserAgent = rest.DefaultKubernetesUserAgent() + "(upgrade-recommend)"
+
 		o.Client, err = configv1client.NewForConfig(o.RESTConfig)
 		if err != nil {
 			return err
