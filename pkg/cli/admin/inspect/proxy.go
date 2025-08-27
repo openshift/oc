@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -28,7 +29,7 @@ func (c *proxyList) addItem(obj interface{}) error {
 	return nil
 }
 
-func inspectProxyInfo(info *resource.Info, o *InspectOptions) error {
+func inspectProxyInfo(ctx context.Context, info *resource.Info, o *InspectOptions) error {
 	structuredObj, err := toStructuredObject[configv1.Proxy, configv1.ProxyList](info.Object)
 	if err != nil {
 		return err
@@ -51,7 +52,7 @@ func inspectProxyInfo(info *resource.Info, o *InspectOptions) error {
 	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
 		return err
 	}
-	return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), structuredObj)
+	return o.fileWriter.WriteFromResource(ctx, path.Join(dirPath, filename), structuredObj)
 }
 
 // elideProxy obfuscates the sensitive information from proxy object.

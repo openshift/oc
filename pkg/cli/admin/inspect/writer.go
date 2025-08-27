@@ -50,14 +50,14 @@ func (r *resourceWriterReadCloser) Close() error {
 
 type simpleFileWriter struct{}
 
-func (f *simpleFileWriter) Write(filepath string, src fileWriterSource) error {
+func (f *simpleFileWriter) Write(ctx context.Context, filepath string, src fileWriterSource) error {
 	dest, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
 	}
 	defer dest.Close()
 
-	readCloser, err := src.Stream(context.TODO())
+	readCloser, err := src.Stream(ctx)
 	if err != nil {
 		return err
 	}
@@ -71,19 +71,19 @@ type MultiSourceFileWriter struct {
 	printer printers.ResourcePrinter
 }
 
-func (f *MultiSourceFileWriter) WriteFromSource(filepath string, source fileWriterSource) error {
+func (f *MultiSourceFileWriter) WriteFromSource(ctx context.Context, filepath string, source fileWriterSource) error {
 	writer := &simpleFileWriter{}
-	return writer.Write(filepath, source)
+	return writer.Write(ctx, filepath, source)
 }
 
-func (f *MultiSourceFileWriter) WriteFromResource(filepath string, obj runtime.Object) error {
+func (f *MultiSourceFileWriter) WriteFromResource(ctx context.Context, filepath string, obj runtime.Object) error {
 	source := &resourceWriterSource{
 		obj:     obj,
 		printer: f.printer,
 	}
 
 	writer := &simpleFileWriter{}
-	return writer.Write(filepath, source)
+	return writer.Write(ctx, filepath, source)
 }
 
 func NewMultiSourceWriter(printer printers.ResourcePrinter) *MultiSourceFileWriter {
