@@ -298,13 +298,13 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 			m = squashRePR.FindStringSubmatch(mergeMsg)
 		}
 
-		if m == nil || len(m) < 2 {
+		if len(m) >= 2 {
+			mergeCommit.PullRequest, err = strconv.Atoi(m[1])
+			if err != nil {
+				return nil, fmt.Errorf("could not extract PR number from %q: %v", mergeMsg, err)
+			}
+		} else {
 			klog.V(2).Infof("Omitted commit %s which has no pull-request", mergeCommit.Commit)
-			continue
-		}
-		mergeCommit.PullRequest, err = strconv.Atoi(m[1])
-		if err != nil {
-			return nil, fmt.Errorf("could not extract PR number from %q: %v", mergeMsg, err)
 		}
 		if len(msg) == 0 {
 			msg = "Merge"
