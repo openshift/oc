@@ -215,9 +215,9 @@ var (
 	rePrefix   = regexp.MustCompile(`^(\[[\w\.\-]+\]\s*)+`)
 )
 
-func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommit, error) {
+func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommit, int, error) {
 	if from == to {
-		return nil, nil
+		return nil, 0, nil
 	}
 
 	args := []string{"log", "--merges", "--topo-order", "--first-parent", "-z", "--pretty=format:%H %P%x1E%ct%x1E%s%x1E%b", fmt.Sprintf("%s..%s", from, to)}
@@ -225,24 +225,25 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 	if err != nil {
 		// retry once if there's a chance we haven't fetched the latest commits
 		if !strings.Contains(out, "Invalid revision range") {
-			return nil, gitOutputToError(err, out)
+			return nil, 0, gitOutputToError(err, out)
 		}
 		if _, err := g.exec("fetch", "--all"); err != nil {
-			return nil, gitOutputToError(err, out)
+			return nil, 0, gitOutputToError(err, out)
 		}
 		if _, err := g.exec("cat-file", "-e", from+"^{commit}"); err != nil {
-			return nil, fmt.Errorf("from commit %s does not exist", from)
+			return nil, 0, fmt.Errorf("from commit %s does not exist", from)
 		}
 		if _, err := g.exec("cat-file", "-e", to+"^{commit}"); err != nil {
-			return nil, fmt.Errorf("to commit %s does not exist", to)
+			return nil, 0, fmt.Errorf("to commit %s does not exist", to)
 		}
 		out, err = g.exec(args...)
 		if err != nil {
-			return nil, gitOutputToError(err, out)
+			return nil, 0, gitOutputToError(err, out)
 		}
 	}
 
 	squash := false
+	elidedCommits := 0
 	if out == "" {
 		// some repositories use squash merging(like insights-operator) and
 		// out which is populated by --merges flag is empty. Thereby,
@@ -251,9 +252,21 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		args = []string{"log", "--no-merges", "--topo-order", "-z", "--pretty=format:%H %P%x1E%ct%x1E%s%x1E%b", fmt.Sprintf("%s..%s", from, to)}
 		out, err = g.exec(args...)
 		if err != nil {
-			return nil, gitOutputToError(err, out)
+			return nil, 0, gitOutputToError(err, out)
 		}
 		squash = true
+	} else {
+		// some repositories use both real merges and squash or rebase merging.
+		// Don't flood the output with single-commit noise, which might be poorly curated,
+		// but do at least mention the fact that there are non-merge commits in the
+		// first-parent line, so folks who are curious can click through to GitHub for
+		// details.
+		args := []string{"log", "--no-merges", "--first-parent", "-z", "--format=%H", fmt.Sprintf("%s..%s", from, to)}
+		out, err := g.exec(args...)
+		if err != nil {
+			return nil, 0, gitOutputToError(err, out)
+		}
+		elidedCommits = strings.Count(out, "\x00")
 	}
 
 	if klog.V(5).Enabled() {
@@ -262,16 +275,16 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 
 	var commits []MergeCommit
 	if len(out) == 0 {
-		return nil, nil
+		return nil, elidedCommits, nil
 	}
 	for _, entry := range strings.Split(out, "\x00") {
 		records := strings.Split(entry, "\x1e")
 		if len(records) != 4 {
-			return nil, fmt.Errorf("unexpected git log output width %d columns", len(records))
+			return nil, elidedCommits, fmt.Errorf("unexpected git log output width %d columns", len(records))
 		}
 		unixTS, err := strconv.ParseInt(records[1], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("unexpected timestamp: %v", err)
+			return nil, elidedCommits, fmt.Errorf("unexpected timestamp: %v", err)
 		}
 		commitValues := strings.Split(records[0], " ")
 
@@ -304,7 +317,7 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		}
 		mergeCommit.PullRequest, err = strconv.Atoi(m[1])
 		if err != nil {
-			return nil, fmt.Errorf("could not extract PR number from %q: %v", mergeMsg, err)
+			return nil, elidedCommits, fmt.Errorf("could not extract PR number from %q: %v", mergeMsg, err)
 		}
 		if len(msg) == 0 {
 			msg = "Merge"
@@ -314,7 +327,7 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		commits = append(commits, mergeCommit)
 	}
 
-	return commits, nil
+	return commits, elidedCommits, nil
 }
 
 // ensureCloneForRepo ensures that the repo exists on disk, is cloned, and has remotes for
