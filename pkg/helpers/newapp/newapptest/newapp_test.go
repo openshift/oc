@@ -1029,13 +1029,13 @@ func TestNewAppRunBuilds(t *testing.T) {
 			name: "successful build with no output",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM centos",
+					Dockerfile: "FROM fedora",
 					NoOutput:   true,
 				},
 			},
 			expected: map[string][]string{
-				"buildConfig": {"centos"},
-				"imageStream": {"centos"},
+				"buildConfig": {"fedora"},
+				"imageStream": {"fedora"},
 			},
 			checkResult: func(res *cmd.AppResult) error {
 				for _, item := range res.List.Items {
@@ -1317,20 +1317,20 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 			name: "successful build from dockerfile with identical input and output image references with warning(1)",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM centos\nRUN yum install -y httpd",
-					To:         "centos",
+					Dockerfile: "FROM fedora\nRUN yum install -y httpd",
+					To:         "fedora",
 				},
 			},
 			expected: map[string][]string{
-				"buildConfig": {"centos"},
-				"imageStream": {"centos"},
+				"buildConfig": {"fedora"},
+				"imageStream": {"fedora"},
 			},
 			checkOutput: func(stdout, stderr io.Reader) error {
 				got, err := io.ReadAll(stderr)
 				if err != nil {
 					return err
 				}
-				want := "--> WARNING: output image of \"centos:latest\" should be different than input\n"
+				want := "--> WARNING: output image of \"fedora:latest\" should be different than input\n"
 				if string(got) != want {
 					return fmt.Errorf("stderr: got %q; want %q", got, want)
 				}
@@ -1341,12 +1341,12 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 			name: "unsuccessful build from dockerfile due to identical input and output image references(1)",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM centos\nRUN yum install -y httpd",
+					Dockerfile: "FROM fedora\nRUN yum install -y httpd",
 				},
 			},
 			expectedErr: func(err error) bool {
 				e := app.CircularOutputReferenceError{
-					Reference: "centos:latest",
+					Reference: "fedora:latest",
 				}
 				return err.Error() == fmt.Errorf("%v, set a different tag with --to", e).Error()
 			},
