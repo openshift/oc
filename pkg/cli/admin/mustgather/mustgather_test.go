@@ -453,13 +453,19 @@ func TestBuildPodCommand(t *testing.T) {
 			name:                     "default gather command",
 			volumeUsageCheckerScript: "sleep infinity",
 			gatherCommand:            "/usr/bin/gather",
-			expectedCommand:          `sleep infinity & /usr/bin/gather; sync && echo 'Caches written to disk'`,
+			expectedCommand: `sleep infinity & setsid -w bash <<-MUSTGATHER_EOF
+/usr/bin/gather
+MUSTGATHER_EOF
+sync && echo 'Caches written to disk'`,
 		},
 		{
 			name:                     "custom gather command",
 			volumeUsageCheckerScript: "sleep infinity",
 			gatherCommand:            "sed -i 's#--rotated-pod-logs# #g' /usr/bin/*gather* && /usr/bin/gather",
-			expectedCommand:          `sleep infinity & sed -i 's#--rotated-pod-logs# #g' /usr/bin/*gather* && /usr/bin/gather; sync && echo 'Caches written to disk'`,
+			expectedCommand: `sleep infinity & setsid -w bash <<-MUSTGATHER_EOF
+sed -i 's#--rotated-pod-logs# #g' /usr/bin/*gather* && /usr/bin/gather
+MUSTGATHER_EOF
+sync && echo 'Caches written to disk'`,
 		},
 	}
 
