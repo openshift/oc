@@ -98,6 +98,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().StringSliceVar(&o.OIDCExtraScopes, "extra-scopes", o.OIDCExtraScopes, "Experimental: Extra scopes for external OIDC issuer. Optional.")
 	cmds.Flags().StringVar(&o.OIDCIssuerURL, "issuer-url", o.OIDCIssuerURL, "Experimental: Issuer url for external issuer. Required.")
 	cmds.Flags().StringVar(&o.OIDCCAFile, "oidc-certificate-authority", o.OIDCCAFile, "Experimental: The path to a certificate authority bundle to use when communicating with external OIDC issuer.")
+	cmds.Flags().BoolVar(&o.OIDCAutoOpenBrowser, "auto-open-browser", o.OIDCAutoOpenBrowser, "Experimental: Specify browser is automatically opened or not for external OIDC issuer. Disabled by default.")
 	return cmds
 }
 
@@ -190,7 +191,7 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 		return errors.New("currently only oc-oidc is supported")
 	}
 
-	oidcOptionsSet := o.OIDCClientID != "" || o.OIDCClientSecret != "" || len(o.OIDCExtraScopes) > 0 || o.OIDCIssuerURL != ""
+	oidcOptionsSet := o.OIDCClientID != "" || o.OIDCClientSecret != "" || len(o.OIDCExtraScopes) > 0 || o.OIDCIssuerURL != "" || o.OIDCAutoOpenBrowser
 
 	if o.OIDCExecPluginType == "" && oidcOptionsSet {
 		return errors.New("please specify --exec-plugin type. Currently only oc-oidc is supported")
