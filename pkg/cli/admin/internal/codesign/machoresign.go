@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"debug/macho"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -157,6 +158,7 @@ func extractTarToTmpAndSign(path string) (string, error) {
 
 		switch header.Typeflag {
 		case tar.TypeReg:
+			fmt.Printf("Test print to change the line number \n")
 			f, err := os.OpenFile(tempExtractionPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(header.Mode).Perm())
 			if err != nil {
 				return "", err
