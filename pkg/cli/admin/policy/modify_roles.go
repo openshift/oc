@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	userv1 "github.com/openshift/api/user/v1"
 	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
@@ -345,19 +346,40 @@ func (o *RoleModificationOptions) innerComplete(f kcmdutil.Factory, cmd *cobra.C
 	if err != nil {
 		return err
 	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
+	if err != nil {
+		return err
+	}
 	o.RbacClient, err = rbacv1client.NewForConfig(clientConfig)
 	if err != nil {
 		return err
 	}
-	o.UserClient, err = userv1client.NewForConfig(clientConfig)
+
+	found := false
+	groupList, err := o.DiscoveryClient.ServerGroups()
+	if discovery.IsGroupDiscoveryFailedError(err) {
+		// proceed with partial results; treat missing groups as "not found"
+		err = nil
+	}
 	if err != nil {
 		return err
+	}
+	for _, group := range groupList.Groups {
+		// We try to determine that built-in OAuth is enabled or not to initialize UserClient.
+		// Because we don't need UserClient, if external OIDC is used.
+		// Simply checking the existence of userv1 in the discovery can signal us whether built-in OAuth is functioning or not.
+		if group.PreferredVersion.GroupVersion == userv1.GroupVersion.String() {
+			found = true
+			break
+		}
+	}
+	if found {
+		o.UserClient, err = userv1client.NewForConfig(clientConfig)
+		if err != nil {
+			return err
+		}
 	}
 	o.ServiceAccountClient, err = corev1client.NewForConfig(clientConfig)
-	if err != nil {
-		return err
-	}
-	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}
