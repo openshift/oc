@@ -80,12 +80,13 @@ type LoginOptions struct {
 	CertFile string
 	KeyFile  string
 
-	OIDCExecPluginType string
-	OIDCClientID       string
-	OIDCClientSecret   string
-	OIDCExtraScopes    []string
-	OIDCIssuerURL      string
-	OIDCCAFile         string
+	OIDCExecPluginType  string
+	OIDCClientID        string
+	OIDCClientSecret    string
+	OIDCExtraScopes     []string
+	OIDCIssuerURL       string
+	OIDCCAFile          string
+	OIDCAutoOpenBrowser bool
 
 	Token string
 
@@ -370,6 +371,10 @@ func (o *LoginOptions) prepareBuiltinExecPlugin() (*kclientcmdapi.ExecConfig, er
 
 	if len(o.OIDCCAFile) > 0 {
 		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.OIDCCAFile))
+	}
+
+	if o.OIDCAutoOpenBrowser {
+		execProvider.Args = append(execProvider.Args, "--auto-open-browser")
 	}
 
 	return execProvider, nil
