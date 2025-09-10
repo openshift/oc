@@ -87,9 +87,6 @@ var (
 		  oc adm must-gather --image=my/image:tag --source-dir=/pod/directory -- myspecial-command.sh
 	`)
 
-	// According to https://github.com/openshift/enhancements/blob/master/enhancements/oc/must-gather.md#proposal
-	// we can assume /usr/bin/gather* is always run in the end, even when a custom command is specified.
-	// That's why we always kill all processes matching gather, even though a custom command can be specified.
 	volumeUsageCheckerScript = `
 echo "[disk usage checker] Started"
 target_dir="%s"
@@ -99,7 +96,10 @@ usage_percentage=$(df -P "$target_dir" | awk 'NR==2 {print $5}' | sed 's/%%//')
 echo "[disk usage checker] Volume usage percentage: current = ${usage_percentage} ; allowed = ${usage_percentage_limit}"
 if [ "$usage_percentage" -gt "$usage_percentage_limit" ]; then
 	echo "[disk usage checker] Disk usage exceeds the volume percentage of ${usage_percentage_limit} for mounted directory, terminating..."
-	pkill --signal SIGKILL gather
+	ps -o sess --no-headers | sort -u | while read sid; do
+		[[ "$sid" -eq "${$}" ]] && continue
+		pkill --signal SIGKILL --session "$sid"
+	done
 	exit 1
 fi
 sleep 5
@@ -1264,8 +1264,18 @@ func buildPodCommand(
 	volumeCheckerScript string,
 	gatherCommand string,
 ) string {
-	// Start the checker in the background,
-	// run the gather command and wait for it to complete/exit.
-	// Make sure all changes are written to disk at the end.
-	return fmt.Sprintf("%s & %s; sync && echo 'Caches written to disk'", volumeCheckerScript, gatherCommand)
+	var cmd strings.Builder
+
+	// Start the checker in the background.
+	cmd.WriteString(volumeCheckerScript)
+	cmd.WriteString(` & `)
+
+	// Start the gather command in a separate session.
+	cmd.WriteString("setsid -w bash <<-MUSTGATHER_EOF\n")
+	cmd.WriteString(gatherCommand)
+	cmd.WriteString("\nMUSTGATHER_EOF\n")
+
+	// Make sure all changes are written to disk.
+	cmd.WriteString(`sync && echo 'Caches written to disk'`)
+	return cmd.String()
 }
