@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -25,7 +26,7 @@ func (c *secretList) addItem(obj interface{}) error {
 	return nil
 }
 
-func inspectSecretInfo(info *resource.Info, o *InspectOptions) error {
+func inspectSecretInfo(ctx context.Context, info *resource.Info, o *InspectOptions) error {
 	structuredObj, err := toStructuredObject[corev1.Secret, corev1.SecretList](info.Object)
 	if err != nil {
 		return err
@@ -49,7 +50,7 @@ func inspectSecretInfo(info *resource.Info, o *InspectOptions) error {
 	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
 		return err
 	}
-	return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), structuredObj)
+	return o.fileWriter.WriteFromResource(ctx, path.Join(dirPath, filename), structuredObj)
 }
 
 var publicSecretKeys = sets.NewString(
