@@ -355,7 +355,7 @@ func (o *RoleModificationOptions) innerComplete(f kcmdutil.Factory, cmd *cobra.C
 		return err
 	}
 
-	found := false
+	userAPIAvailable := false
 	groupList, err := o.DiscoveryClient.ServerGroups()
 	if discovery.IsGroupDiscoveryFailedError(err) {
 		// proceed with partial results; treat missing groups as "not found"
@@ -369,11 +369,11 @@ func (o *RoleModificationOptions) innerComplete(f kcmdutil.Factory, cmd *cobra.C
 		// Because we don't need UserClient, if external OIDC is used.
 		// Simply checking the existence of userv1 in the discovery can signal us whether built-in OAuth is functioning or not.
 		if group.PreferredVersion.GroupVersion == userv1.GroupVersion.String() {
-			found = true
+			userAPIAvailable = true
 			break
 		}
 	}
-	if found {
+	if userAPIAvailable {
 		o.UserClient, err = userv1client.NewForConfig(clientConfig)
 		if err != nil {
 			return err
