@@ -555,6 +555,61 @@ func getCandidateNodeNames(nodes *corev1.NodeList, hasMaster bool) []string {
 
 // Run creates and runs a must-gather pod
 func (o *MustGatherOptions) Run() error {
+	return newMustGatherContext(o).Run()
+}
+
+func (o *MustGatherOptions) log(format string, a ...interface{}) {
+	fmt.Fprintf(o.LogOut, format+"\n", a...)
+}
+
+func (o *mustGatherContext) logTimestamp() error {
+	f, err := os.OpenFile(path.Join(o.DestDir, "timestamp"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.WriteString(fmt.Sprintf("%v\n", time.Now()))
+	return err
+}
+
+func (o *MustGatherOptions) newPrefixWriter(out io.Writer, prefix string, ignoreFileWriter bool, timestamp bool) io.Writer {
+	reader, writer := io.Pipe()
+	scanner := bufio.NewScanner(reader)
+	if prefix != "" {
+		prefix = prefix + " "
+	}
+	go func() {
+		for scanner.Scan() {
+			text := scanner.Text()
+			ts := ""
+			if timestamp {
+				ts = time.Now().UTC().Format(time.RFC3339Nano) + " "
+			}
+			if !ignoreFileWriter && o.LogWriter != nil {
+				o.LogWriterMux.Lock()
+				o.LogWriter.WriteString(fmt.Sprintf("%s%s%s\n", prefix, ts, text))
+				o.LogWriterMux.Unlock()
+			}
+			fmt.Fprintf(out, "%s%s%s\n", prefix, ts, text)
+		}
+	}()
+	return writer
+}
+
+// mustGatherContext is created in MustGatherOptions.Run and it adds cleanup management.
+// The reason this is not stored in MustGatherOptions is that in this way we can make sure the mutex is never copied.
+type mustGatherContext struct {
+	*MustGatherOptions
+	cleanupHooks     []func(context.Context)
+	cleanupTriggered bool
+	cleanupMux       sync.Mutex
+}
+
+func newMustGatherContext(opts *MustGatherOptions) *mustGatherContext {
+	return &mustGatherContext{MustGatherOptions: opts}
+}
+
+func (o *mustGatherContext) Run() error {
 	var errs []error
 
 	if err := os.MkdirAll(o.DestDir, os.ModePerm); err != nil {
@@ -578,13 +633,21 @@ func (o *MustGatherOptions) Run() error {
 		}()
 	}
 
-	// print at both the beginning and at the end.  This information is important enough to be in both spots.
+	// Print at both the beginning and at the end.  This information is important enough to be in both spots.
 	o.PrintBasicClusterState(context.TODO())
 	defer func() {
 		fmt.Fprintf(o.RawOut, "\n\n")
 		fmt.Fprintf(o.RawOut, "Reprinting Cluster State:\n")
 		o.PrintBasicClusterState(context.TODO())
 	}()
+
+	// Ensure to clean up resources unless instructed otherwise.
+	if !o.Keep {
+		defer func() {
+			o.log("Cleaning up cluster resources")
+			o.cleanup(context.Background())
+		}()
+	}
 
 	// Due to 'stack unwiding', this should happen after 'clusterState' printing, to ensure that we always
 	//  print our ClusterState information.
@@ -597,16 +660,11 @@ func (o *MustGatherOptions) Run() error {
 	}()
 
 	// Get or create "working" namespace ...
-	ns, cleanupNamespace, err := o.getNamespace()
+	ns, err := o.getNamespace()
 	if err != nil {
 		// ensure the errors bubble up to BackupGathering method for display
 		errs = []error{err}
 		return err
-	}
-
-	// ... ensure resource cleanup unless instructed otherwise ...
-	if !o.Keep {
-		defer cleanupNamespace()
 	}
 
 	// Prefer to run in master if there's any but don't be explicit otherwise.
@@ -720,7 +778,7 @@ func (o *MustGatherOptions) Run() error {
 }
 
 // processNextWorkItem creates & processes the must-gather pod and returns error if any
-func (o *MustGatherOptions) processNextWorkItem(ns string, pod *corev1.Pod) error {
+func (o *mustGatherContext) processNextWorkItem(ns string, pod *corev1.Pod) error {
 	var err error
 	pod, err = o.Client.CoreV1().Pods(ns).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
@@ -731,17 +789,16 @@ func (o *MustGatherOptions) processNextWorkItem(ns string, pod *corev1.Pod) erro
 	} else {
 		o.log("pod for plug-in image %s created", pod.Spec.Containers[0].Image)
 	}
-	if len(o.RunNamespace) > 0 && !o.Keep {
-		defer func() {
+	if len(o.RunNamespace) > 0 {
+		o.addCleanupHook(func(ctx context.Context) {
 			// must-gather runs in its own separate namespace as default , so after it is completed
 			// it deletes this namespace and all the pods are removed by garbage collector.
 			// However, if user specifies namespace via `run-namespace`, these pods need to
 			// be deleted manually.
-			err = o.Client.CoreV1().Pods(o.RunNamespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
-			if err != nil {
-				klog.V(4).Infof("pod deletion error %v", err)
+			if err := o.Client.CoreV1().Pods(o.RunNamespace).Delete(ctx, pod.Name, metav1.DeleteOptions{}); err != nil {
+				klog.Infof("failed to delete must-gather pod %s: %v", pod.Name, err)
 			}
-		}()
+		})
 	}
 
 	log := o.newPodOutLogger(o.Out, pod.Name)
@@ -781,27 +838,14 @@ func (o *MustGatherOptions) processNextWorkItem(ns string, pod *corev1.Pod) erro
 	return nil
 }
 
-func (o *MustGatherOptions) newPodOutLogger(out io.Writer, podName string) func(string, ...interface{}) {
+func (o *mustGatherContext) newPodOutLogger(out io.Writer, podName string) func(string, ...interface{}) {
 	writer := o.newPrefixWriter(out, fmt.Sprintf("[%s] OUT", podName), false, true)
 	return func(format string, a ...interface{}) {
 		fmt.Fprintf(writer, format+"\n", a...)
 	}
 }
 
-func (o *MustGatherOptions) log(format string, a ...interface{}) {
-	fmt.Fprintf(o.LogOut, format+"\n", a...)
-}
-
-func (o *MustGatherOptions) logTimestamp() error {
-	f, err := os.OpenFile(path.Join(o.DestDir, "timestamp"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
-	if err != nil {
-		return err
-	}
-	_, err = f.WriteString(fmt.Sprintf("%v\n", time.Now()))
-	return err
-}
-
-func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
+func (o *mustGatherContext) copyFilesFromPod(pod *corev1.Pod) error {
 	streams := o.IOStreams
 	streams.Out = o.newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name), false, true)
 	imageFolder := regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.ContainerStatuses[0].ImageID, "-")
@@ -863,7 +907,7 @@ func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	return kutilerrors.NewAggregate(errs)
 }
 
-func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
+func (o *mustGatherContext) getGatherContainerLogs(pod *corev1.Pod) error {
 	since2s := int64(2)
 	opts := &logs.LogsOptions{
 		Namespace:   pod.Namespace,
@@ -897,37 +941,13 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 	}
 }
 
-func (o *MustGatherOptions) newPrefixWriter(out io.Writer, prefix string, ignoreFileWriter bool, timestamp bool) io.Writer {
-	reader, writer := io.Pipe()
-	scanner := bufio.NewScanner(reader)
-	if prefix != "" {
-		prefix = prefix + " "
-	}
-	go func() {
-		for scanner.Scan() {
-			text := scanner.Text()
-			ts := ""
-			if timestamp {
-				ts = time.Now().UTC().Format(time.RFC3339Nano) + " "
-			}
-			if !ignoreFileWriter && o.LogWriter != nil {
-				o.LogWriterMux.Lock()
-				o.LogWriter.WriteString(fmt.Sprintf("%s%s%s\n", prefix, ts, text))
-				o.LogWriterMux.Unlock()
-			}
-			fmt.Fprintf(out, "%s%s%s\n", prefix, ts, text)
-		}
-	}()
-	return writer
-}
-
-func (o *MustGatherOptions) waitForGatherToComplete(pod *corev1.Pod) error {
+func (o *mustGatherContext) waitForGatherToComplete(pod *corev1.Pod) error {
 	return wait.PollUntilContextTimeout(context.TODO(), 10*time.Second, o.Timeout, true, func(ctx context.Context) (bool, error) {
 		return o.isGatherDone(pod)
 	})
 }
 
-func (o *MustGatherOptions) isGatherDone(pod *corev1.Pod) (bool, error) {
+func (o *mustGatherContext) isGatherDone(pod *corev1.Pod) (bool, error) {
 	var err error
 	if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err != nil {
 		// at this stage pod should exist, we've been gathering container logs, so error if not found
@@ -961,7 +981,7 @@ func (o *MustGatherOptions) isGatherDone(pod *corev1.Pod) (bool, error) {
 	return false, nil
 }
 
-func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error {
+func (o *mustGatherContext) waitForGatherContainerRunning(pod *corev1.Pod) error {
 	return wait.PollUntilContextTimeout(context.TODO(), 10*time.Second, o.Timeout, true, func(ctx context.Context) (bool, error) {
 		var err error
 		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err == nil {
@@ -986,41 +1006,40 @@ func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error
 	})
 }
 
-func (o *MustGatherOptions) getNamespace() (*corev1.Namespace, func(), error) {
+func (o *mustGatherContext) getNamespace() (*corev1.Namespace, error) {
 	if o.RunNamespace == "" {
 		return o.createTempNamespace()
 	}
 
 	ns, err := o.Client.CoreV1().Namespaces().Get(context.TODO(), o.RunNamespace, metav1.GetOptions{})
 	if err != nil {
-		return nil, nil, fmt.Errorf("retrieving namespace %q: %w", o.RunNamespace, err)
+		return nil, fmt.Errorf("retrieving namespace %q: %w", o.RunNamespace, err)
 	}
 
-	return ns, func() {}, nil
+	return ns, nil
 }
 
-func (o *MustGatherOptions) createTempNamespace() (*corev1.Namespace, func(), error) {
+func (o *mustGatherContext) createTempNamespace() (*corev1.Namespace, error) {
 	ns, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), newNamespace(), metav1.CreateOptions{})
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating temp namespace: %w", err)
+		return nil, fmt.Errorf("creating temp namespace: %w", err)
 	}
 	o.PrinterCreated.PrintObj(ns, o.LogOut)
 
 	crb, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), newClusterRoleBinding(ns), metav1.CreateOptions{})
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating temp clusterRoleBinding: %w", err)
+		return nil, fmt.Errorf("creating temp clusterRoleBinding: %w", err)
 	}
 	o.PrinterCreated.PrintObj(crb, o.LogOut)
 
-	cleanup := func() {
-		if err := o.Client.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
-			fmt.Printf("%v\n", err)
+	o.addCleanupHook(func(ctx context.Context) {
+		if err := o.Client.CoreV1().Namespaces().Delete(ctx, ns.Name, metav1.DeleteOptions{}); err != nil {
+			klog.Infof("failed to delete temporary namespace %s: %v", ns.Name, err)
 		} else {
 			o.PrinterDeleted.PrintObj(ns, o.LogOut)
 		}
-	}
-
-	return ns, cleanup, nil
+	})
+	return ns, nil
 }
 
 func newNamespace() *corev1.Namespace {
@@ -1241,6 +1260,36 @@ func (o *MustGatherOptions) BackupGathering(ctx context.Context, errs []error) {
 		fmt.Fprintf(o.ErrOut, "error completing cluster named resource inspection: %v\n", err)
 	}
 	return
+}
+
+func (o *mustGatherContext) addCleanupHook(hook func(context.Context)) {
+	if hook == nil {
+		return
+	}
+
+	o.cleanupMux.Lock()
+	defer o.cleanupMux.Unlock()
+	if o.cleanupTriggered {
+		panic("attempted to add cleanup hook after cleanup was triggered")
+	}
+	o.cleanupHooks = append(o.cleanupHooks, hook)
+}
+
+func (o *mustGatherContext) cleanup(ctx context.Context) {
+	o.cleanupMux.Lock()
+	o.cleanupTriggered = true
+	hooks := append([]func(context.Context){}, o.cleanupHooks...)
+	o.cleanupMux.Unlock()
+
+	var wg sync.WaitGroup
+	wg.Add(len(hooks))
+	for _, hook := range hooks {
+		go func() {
+			defer wg.Done()
+			hook(ctx)
+		}()
+	}
+	wg.Wait()
 }
 
 func runInspect(streams genericiooptions.IOStreams, config *rest.Config, destDir string, arguments []string) error {

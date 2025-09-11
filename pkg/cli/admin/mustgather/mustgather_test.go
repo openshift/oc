@@ -214,7 +214,9 @@ func TestGetNamespace(t *testing.T) {
 			tc.Options.PrinterCreated = printers.NewDiscardingPrinter()
 			tc.Options.PrinterDeleted = printers.NewDiscardingPrinter()
 
-			ns, cleanup, err := tc.Options.getNamespace()
+			gatherCtx := newMustGatherContext(tc.Options)
+
+			ns, err := gatherCtx.getNamespace()
 			if err != nil {
 				if tc.ShouldFail {
 					return
@@ -231,7 +233,7 @@ func TestGetNamespace(t *testing.T) {
 				t.Error("namespace should exist")
 			}
 
-			cleanup()
+			gatherCtx.cleanup(context.TODO())
 
 			if _, err = tc.Options.Client.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{}); err != nil {
 				if !k8sapierrors.IsNotFound(err) {
@@ -477,4 +479,36 @@ sync && echo 'Caches written to disk'`,
 			}
 		})
 	}
+}
+
+func TestMustGatherContext_CleanupHelpers(t *testing.T) {
+	t.Run("hooks are called when cleanup is invoked", func(t *testing.T) {
+		var calledA, calledB bool
+		c := newMustGatherContext(nil)
+		c.addCleanupHook(func(_ context.Context) {
+			calledA = true
+		})
+		c.addCleanupHook(func(_ context.Context) {
+			calledB = true
+		})
+		c.cleanup(context.Background())
+		if !calledA {
+			t.Error("expected hook A to be called")
+		}
+		if !calledB {
+			t.Error("expected hook B to be called")
+		}
+	})
+
+	t.Run("registering hook after cleanup panics", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected panic")
+			}
+		}()
+
+		c := newMustGatherContext(nil)
+		c.cleanup(context.Background())
+		c.addCleanupHook(func(_ context.Context) {})
+	})
 }
