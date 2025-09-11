@@ -28,6 +28,7 @@ import (
 
 	ocpv1 "github.com/openshift/api/config/v1"
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
+	operatorclient "github.com/openshift/client-go/operator/clientset/versioned"
 	"github.com/openshift/library-go/pkg/operator/resource/retry"
 	ocrelease "github.com/openshift/oc/pkg/cli/admin/release"
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
@@ -41,6 +42,7 @@ type BaseNodeImageCommand struct {
 	Config                   *rest.Config
 	remoteExecutor           exec.RemoteExecutor
 	ConfigClient             configclient.Interface
+	OpenshiftOperatorClient  operatorclient.Interface
 	Client                   kubernetes.Interface
 	nodeJoinerImage          string
 	nodeJoinerNamespace      *corev1.Namespace
@@ -338,7 +340,18 @@ func (c *BaseNodeImageCommand) createRolesAndBindings(ctx context.Context) error
 					"infrastructures",
 					"proxies",
 					"imagedigestmirrorsets",
-					"imagecontentpolicies",
+				},
+				Verbs: []string{
+					"get",
+					"list",
+				},
+			},
+			{
+				APIGroups: []string{
+					"operator.openshift.io",
+				},
+				Resources: []string{
+					"imagecontentsourcepolicies",
 				},
 				Verbs: []string{
 					"get",
@@ -427,6 +440,9 @@ func (c *BaseNodeImageCommand) baseComplete(f genericclioptions.RESTClientGetter
 	if c.ConfigClient, err = configclient.NewForConfig(c.Config); err != nil {
 		return err
 	}
+	if c.OpenshiftOperatorClient, err = operatorclient.NewForConfig(c.Config); err != nil {
+		return err
+	}
 	c.remoteExecutor = &exec.DefaultRemoteExecutor{}
 	return nil
 }
@@ -451,22 +467,22 @@ func (c *BaseNodeImageCommand) getIdmsFile(ctx context.Context) (string, error) 
 	if idmsErr != nil && !kapierrors.IsNotFound(idmsErr) {
 		return "", idmsErr
 	}
-	imageContentPolicies, icspErr := c.ConfigClient.ConfigV1().ImageContentPolicies().List(ctx, metav1.ListOptions{})
+	imageContentSourcePolicies, icspErr := c.OpenshiftOperatorClient.OperatorV1alpha1().ImageContentSourcePolicies().List(ctx, metav1.ListOptions{})
 	if icspErr != nil && !kapierrors.IsNotFound(icspErr) {
 		return "", icspErr
 	}
 	if idmsErr != nil || len(imageDigestMirrorSets.Items) == 0 {
 		imageDigestMirrorSets = nil // handle empty idms
 	}
-	if icspErr != nil || len(imageContentPolicies.Items) == 0 {
-		imageContentPolicies = nil // handle empty icsp
+	if icspErr != nil || len(imageContentSourcePolicies.Items) == 0 {
+		imageContentSourcePolicies = nil // handle empty icsp
 	}
-	if imageDigestMirrorSets == nil && imageContentPolicies == nil {
+	if imageDigestMirrorSets == nil && imageContentSourcePolicies == nil {
 		return "", nil
 	}
 
 	// Build IDMS file from contents of the IDMS and ICSP mirror digests
-	contents, err := getIdmsContents(c.LogOut, imageDigestMirrorSets, imageContentPolicies)
+	contents, err := getIdmsContents(c.LogOut, imageDigestMirrorSets, imageContentSourcePolicies)
 	if err != nil {
 		c.log("failure parsing imageDigestMirrorSet %s", err.Error())
 		return "", err
