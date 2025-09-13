@@ -1,6 +1,7 @@
 package ldaptestclient
 
 import (
+	"context"
 	"crypto/tls"
 	"time"
 
@@ -47,8 +48,18 @@ func (c *Fake) StartTLS(config *tls.Config) error {
 }
 
 // Close closes an LDAP connection
-func (c *Fake) Close() {
-	return
+func (c *Fake) Close() error {
+	return nil
+}
+
+// GetLastError returns the last recorded error.
+func (c *Fake) GetLastError() error {
+	return nil
+}
+
+// TLSConnectionState returns the client's TLS connection state.
+func (c *Fake) TLSConnectionState() (tls.ConnectionState, bool) {
+	return tls.ConnectionState{}, false
 }
 
 // Bind binds to the LDAP server with a bind DN and password
@@ -59,6 +70,16 @@ func (c *Fake) Bind(username, password string) error {
 // SimpleBind binds to the LDAP server using the Simple Bind mechanism
 func (c *Fake) SimpleBind(simpleBindRequest *ldap.SimpleBindRequest) (*ldap.SimpleBindResult, error) {
 	return c.SimpleBindResponse, nil
+}
+
+// NTLMUnauthenticatedBind performs a bind with an empty password.
+func (c *Fake) NTLMUnauthenticatedBind(domain, username string) error {
+	return nil
+}
+
+// Unbind will perform an unbind request.
+func (c *Fake) Unbind() error {
+	return nil
 }
 
 // Add forwards an addition request to the LDAP server
@@ -91,9 +112,30 @@ func (c *Fake) Search(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, er
 	return c.SearchResponse, nil
 }
 
+// SearchAsync performs a search request and returns all search results asynchronously.
+func (c *Fake) SearchAsync(ctx context.Context, searchRequest *ldap.SearchRequest, bufferSize int) ldap.Response {
+	return nil
+}
+
 // SearchWithPaging forwards a search request to the LDAP server and pages the response
 func (c *Fake) SearchWithPaging(searchRequest *ldap.SearchRequest, pagingSize uint32) (*ldap.SearchResult, error) {
 	return c.SearchResponse, nil
+}
+
+// DirSync does a Search with dirSync Control.
+func (c *Fake) DirSync(searchRequest *ldap.SearchRequest, flags, maxAttrCount int64, cookie []byte) (*ldap.SearchResult, error) {
+	return c.SearchResponse, nil
+}
+
+// DirSyncAsync performs a search request and returns all search results asynchronously.
+func (c *Fake) DirSyncAsync(ctx context.Context, searchRequest *ldap.SearchRequest, bufferSize int, flags, maxAttrCount int64, cookie []byte) ldap.Response {
+	return nil
+}
+
+// Syncrepl is a short name for LDAP Sync Replication engine that works on the consumer-side.
+// This can perform a persistent search and returns an entry when the entry is updated on the server side.
+func (c *Fake) Syncrepl(ctx context.Context, searchRequest *ldap.SearchRequest, bufferSize int, mode ldap.ControlSyncRequestMode, cookie []byte, reloadHint bool) ldap.Response {
+	return nil
 }
 
 // SetTimeout sets a timeout on the client
@@ -117,6 +159,11 @@ func (c *Fake) ModifyDN(request *ldap.ModifyDNRequest) error {
 }
 
 func (c *Fake) ModifyWithResult(request *ldap.ModifyRequest) (*ldap.ModifyResult, error) {
+	return nil, nil
+}
+
+// Extended performs an extended request.
+func (c *Fake) Extended(request *ldap.ExtendedRequest) (*ldap.ExtendedResponse, error) {
 	return nil, nil
 }
 
