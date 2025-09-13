@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	ocpv1 "github.com/openshift/api/config/v1"
+	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,26 +54,26 @@ spec:
 status: {}
 `
 
-var defaultIcspList = ocpv1.ImageContentPolicyList{
+var defaultIcspList = operatorv1alpha1.ImageContentSourcePolicyList{
 	TypeMeta: metav1.TypeMeta{},
 	ListMeta: metav1.ListMeta{
 		ResourceVersion: "15",
 	},
-	Items: []ocpv1.ImageContentPolicy{
+	Items: []operatorv1alpha1.ImageContentSourcePolicy{
 		{
 			TypeMeta:   metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{Name: "image-policy", Namespace: "test"},
-			Spec: ocpv1.ImageContentPolicySpec{
-				RepositoryDigestMirrors: []ocpv1.RepositoryDigestMirrors{
+			Spec: operatorv1alpha1.ImageContentSourcePolicySpec{
+				RepositoryDigestMirrors: []operatorv1alpha1.RepositoryDigestMirrors{
 					{
 						Source: "quay.io/openshift-release-dev/ocp-v4.0-art-dev",
-						Mirrors: []ocpv1.Mirror{
+						Mirrors: []string{
 							"virthost.test:5000/localimages/local-release-image",
 						},
 					},
 					{
 						Source: "registry.ci.openshift.org/ocp/release",
-						Mirrors: []ocpv1.Mirror{
+						Mirrors: []string{
 							"virthost.test:5000/localimages/local-dev",
 						},
 					},
@@ -82,26 +83,26 @@ var defaultIcspList = ocpv1.ImageContentPolicyList{
 	},
 }
 
-var icspListDifferentThanIdms = ocpv1.ImageContentPolicyList{
+var icspListDifferentThanIdms = operatorv1alpha1.ImageContentSourcePolicyList{
 	TypeMeta: metav1.TypeMeta{},
 	ListMeta: metav1.ListMeta{
 		ResourceVersion: "15",
 	},
-	Items: []ocpv1.ImageContentPolicy{
+	Items: []operatorv1alpha1.ImageContentSourcePolicy{
 		{
 			TypeMeta:   metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{Name: "image-policy", Namespace: "test"},
-			Spec: ocpv1.ImageContentPolicySpec{
-				RepositoryDigestMirrors: []ocpv1.RepositoryDigestMirrors{
+			Spec: operatorv1alpha1.ImageContentSourcePolicySpec{
+				RepositoryDigestMirrors: []operatorv1alpha1.RepositoryDigestMirrors{
 					{
 						Source: "example.com/ocp-v4.0-art-dev",
-						Mirrors: []ocpv1.Mirror{
+						Mirrors: []string{
 							"localimages/local-release-image",
 						},
 					},
 					{
 						Source: "example.com/ocp/release",
-						Mirrors: []ocpv1.Mirror{
+						Mirrors: []string{
 							"localimages/local-dev",
 						},
 					},
@@ -137,7 +138,7 @@ func TestGetIdmsContents(t *testing.T) {
 	testCases := []struct {
 		name          string
 		idmsSetList   *ocpv1.ImageDigestMirrorSetList
-		icspSetList   *ocpv1.ImageContentPolicyList
+		icspSetList   *operatorv1alpha1.ImageContentSourcePolicyList
 		expectedIdms  []byte
 		expectedError string
 	}{
