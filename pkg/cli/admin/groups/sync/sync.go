@@ -366,7 +366,13 @@ func (o *SyncOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	defer ldapClient.Close()
+	defer func() {
+		// Unbind does polite quit and closes the connection.
+		// But when it fails, we need to ensure the connection is closed for sure.
+		if err := ldapClient.Unbind(); err != nil {
+			_ = ldapClient.Close()
+		}
+	}()
 
 	errorHandler := o.CreateErrorHandler()
 
