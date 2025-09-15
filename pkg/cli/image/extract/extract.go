@@ -141,6 +141,8 @@ type ExtractOptions struct {
 
 	genericiooptions.IOStreams
 
+	// ImageConfigCallback is invoked once image config retrieved
+	ImageConfigCallback func(imageConfig *dockerv1client.DockerImageConfig)
 	// ImageMetadataCallback is invoked once per image retrieved, and may be called in parallel if
 	// MaxPerRegistry is set higher than 1.
 	ImageMetadataCallback ImageMetadataFunc
@@ -420,6 +422,9 @@ func (o *ExtractOptions) Run() error {
 				imageConfig, layers, err := imagemanifest.ManifestToImageConfig(ctx, srcManifest, repo.Blobs(ctx), location)
 				if err != nil {
 					return fmt.Errorf("unable to parse image %s: %v", from, err)
+				}
+				if o.ImageConfigCallback != nil {
+					o.ImageConfigCallback(imageConfig)
 				}
 
 				if mapping.ConditionFn != nil {
