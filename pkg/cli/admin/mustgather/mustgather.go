@@ -598,6 +598,16 @@ func (o *MustGatherOptions) Run() error {
 		o.PrintBasicClusterState(context.TODO())
 	}()
 
+	// Ensure resource cleanup unless instructed otherwise ...
+	var cleanupNamespace func()
+	if !o.Keep {
+		defer func() {
+			if cleanupNamespace != nil {
+				cleanupNamespace()
+			}
+		}()
+	}
+
 	// Due to 'stack unwiding', this should happen after 'clusterState' printing, to ensure that we always
 	//  print our ClusterState information.
 	runBackCollection := true
@@ -609,16 +619,12 @@ func (o *MustGatherOptions) Run() error {
 	}()
 
 	// Get or create "working" namespace ...
-	ns, cleanupNamespace, err := o.getNamespace()
+	var ns *corev1.Namespace
+	ns, cleanupNamespace, err = o.getNamespace()
 	if err != nil {
 		// ensure the errors bubble up to BackupGathering method for display
 		errs = []error{err}
 		return err
-	}
-
-	// ... ensure resource cleanup unless instructed otherwise ...
-	if !o.Keep {
-		defer cleanupNamespace()
 	}
 
 	// Prefer to run in master if there's any but don't be explicit otherwise.
