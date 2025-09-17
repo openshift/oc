@@ -4,8 +4,12 @@ aliases:
   root-approvers:
     - ardaguclu
     - atiratree
-    - deads2k
     - ingvagabund
+  root-reviewers:
+    - ardaguclu
+    - atiratree
+    - ingvagabund
+    - tchap
   monitoring-approvers:
     - danielmellado
     - jan--f
