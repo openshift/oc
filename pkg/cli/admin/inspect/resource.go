@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -27,12 +28,12 @@ const (
 
 // InspectResource receives an object to gather debugging data for, and a context to keep track of
 // already-seen objects when following related-object reference chains.
-func InspectResource(info *resource.Info, context *resourceContext, o *InspectOptions) error {
-	if context.visited.Has(infoToContextKey(info)) {
+func InspectResource(ctx context.Context, info *resource.Info, resourceCtx *resourceContext, o *InspectOptions) error {
+	if resourceCtx.visited.Has(infoToContextKey(info)) {
 		klog.V(1).Infof("Skipping previously-inspected resource: %q ...", infoToContextKey(info))
 		return nil
 	}
-	context.visited.Insert(infoToContextKey(info))
+	resourceCtx.visited.Insert(infoToContextKey(info))
 
 	switch info.ResourceMapping().Resource.GroupResource() {
 	case configv1.GroupVersion.WithResource("clusteroperators").GroupResource():
@@ -43,22 +44,22 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 		// first, gather config.openshift.io resource data
 		errs := []error{}
-		if err := o.gatherConfigResourceData(path.Join(o.DestDir, "/cluster-scoped-resources/config.openshift.io"), context); err != nil {
+		if err := o.gatherConfigResourceData(ctx, path.Join(o.DestDir, "/cluster-scoped-resources/config.openshift.io"), resourceCtx); err != nil {
 			errs = append(errs, err)
 		}
 
 		// then, gather operator.openshift.io resource data
-		if err := o.gatherOperatorResourceData(path.Join(o.DestDir, "/cluster-scoped-resources/operator.openshift.io"), context); err != nil {
+		if err := o.gatherOperatorResourceData(ctx, path.Join(o.DestDir, "/cluster-scoped-resources/operator.openshift.io"), resourceCtx); err != nil {
 			errs = append(errs, err)
 		}
 
 		// save clusteroperator resources to disk
-		if err := gatherClusterOperatorResource(o.DestDir, unstr, o.fileWriter); err != nil {
+		if err := gatherClusterOperatorResource(ctx, o.DestDir, unstr, o.fileWriter); err != nil {
 			errs = append(errs, err)
 		}
 
 		// obtain associated objects for the current resource
-		if err := gatherRelatedObjects(context, unstr, o); err != nil {
+		if err := gatherRelatedObjects(ctx, resourceCtx, unstr, o); err != nil {
 			errs = append(errs, err)
 		}
 
@@ -66,21 +67,21 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 
 	case corev1.SchemeGroupVersion.WithResource("namespaces").GroupResource():
 		errs := []error{}
-		if err := o.gatherNamespaceData(o.DestDir, info.Name); err != nil {
+		if err := o.gatherNamespaceData(ctx, o.DestDir, info.Name); err != nil {
 			errs = append(errs, err)
 		}
 		resourcesToCollect := namespaceResourcesToCollect()
 		for _, resource := range resourcesToCollect {
-			if context.visited.Has(resourceToContextKey(resource, info.Name)) {
+			if resourceCtx.visited.Has(resourceToContextKey(resource, info.Name)) {
 				continue
 			}
-			resourceInfos, err := groupResourceToInfos(o.configFlags, resource, info.Name, context.serverResources)
+			resourceInfos, err := groupResourceToInfos(o.configFlags, resource, info.Name, resourceCtx.serverResources)
 			if err != nil {
 				errs = append(errs, err)
 				continue
 			}
 			for _, resourceInfo := range resourceInfos {
-				if err := InspectResource(resourceInfo, context, o); err != nil {
+				if err := InspectResource(ctx, resourceInfo, resourceCtx, o); err != nil {
 					errs = append(errs, err)
 					continue
 				}
@@ -90,43 +91,43 @@ func InspectResource(info *resource.Info, context *resourceContext, o *InspectOp
 		return errors.NewAggregate(errs)
 
 	case corev1.SchemeGroupVersion.WithResource("secrets").GroupResource():
-		if err := inspectSecretInfo(info, o); err != nil {
+		if err := inspectSecretInfo(ctx, info, o); err != nil {
 			return err
 		}
 		return nil
 
 	case routev1.GroupVersion.WithResource("routes").GroupResource():
-		if err := inspectRouteInfo(info, o); err != nil {
+		if err := inspectRouteInfo(ctx, info, o); err != nil {
 			return err
 		}
 		return nil
 
 	case configv1.GroupVersion.WithResource("proxies").GroupResource():
-		if err := inspectProxyInfo(info, o); err != nil {
+		if err := inspectProxyInfo(ctx, info, o); err != nil {
 			return err
 		}
 		return nil
 
 	case admissionregistrationv1.SchemeGroupVersion.WithResource("mutatingwebhookconfigurations").GroupResource():
-		if err := gatherMutatingAdmissionWebhook(context, info, o); err != nil {
+		if err := gatherMutatingAdmissionWebhook(ctx, resourceCtx, info, o); err != nil {
 			return err
 		}
 		return nil
 
 	case admissionregistrationv1.SchemeGroupVersion.WithResource("validatingwebhookconfigurations").GroupResource():
-		if err := gatherValidatingAdmissionWebhook(context, info, o); err != nil {
+		if err := gatherValidatingAdmissionWebhook(ctx, resourceCtx, info, o); err != nil {
 			return err
 		}
 		return nil
 
 	case apiextensionsv1.SchemeGroupVersion.WithResource("customresourcedefinitions").GroupResource():
-		if err := gatherCustomResourceDefinition(context, info, o); err != nil {
+		if err := gatherCustomResourceDefinition(ctx, resourceCtx, info, o); err != nil {
 			return err
 		}
 		return nil
 
 	default:
-		return gatherGenericObject(context, info, o)
+		return gatherGenericObject(ctx, resourceCtx, info, o)
 	}
 }
 
@@ -194,12 +195,12 @@ func toStructuredObject[T any, TList any](obj runtime.Object) (runtime.Object, e
 	return nil, fmt.Errorf("unhandled object type")
 }
 
-func gatherGenericObject(context *resourceContext, info *resource.Info, o *InspectOptions) error {
+func gatherGenericObject(ctx context.Context, resourceCtx *resourceContext, info *resource.Info, o *InspectOptions) error {
 	errs := []error{}
 	unstr, ok := info.Object.(*unstructured.Unstructured)
 	if ok {
 		// obtain associated objects for the current resource
-		if err := gatherRelatedObjects(context, unstr, o); err != nil {
+		if err := gatherRelatedObjects(ctx, resourceCtx, unstr, o); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -213,26 +214,26 @@ func gatherGenericObject(context *resourceContext, info *resource.Info, o *Inspe
 		return errors.NewAggregate(errs)
 	}
 
-	if err := o.fileWriter.WriteFromResource(path.Join(dirPath, filename), info.Object); err != nil {
+	if err := o.fileWriter.WriteFromResource(ctx, path.Join(dirPath, filename), info.Object); err != nil {
 		errs = append(errs, err)
 	}
 
 	return errors.NewAggregate(errs)
 }
 
-func gatherRelatedObjects(context *resourceContext, unstr *unstructured.Unstructured, o *InspectOptions) error {
+func gatherRelatedObjects(ctx context.Context, resourceCtx *resourceContext, unstr *unstructured.Unstructured, o *InspectOptions) error {
 	relatedObjReferences, err := obtainRelatedObjects(unstr)
 	if err != nil {
 		return err
 	}
 
-	return gatherMoreObjects(context, o, relatedObjReferences...)
+	return gatherMoreObjects(ctx, resourceCtx, o, relatedObjReferences...)
 }
 
-func gatherMoreObjects(context *resourceContext, o *InspectOptions, relatedObjReferences ...*configv1.ObjectReference) error {
+func gatherMoreObjects(ctx context.Context, resourceCtx *resourceContext, o *InspectOptions, relatedObjReferences ...*configv1.ObjectReference) error {
 	errs := []error{}
 	for _, relatedRef := range relatedObjReferences {
-		if context.visited.Has(objectRefToContextKey(relatedRef)) {
+		if resourceCtx.visited.Has(objectRefToContextKey(relatedRef)) {
 			continue
 		}
 
@@ -243,7 +244,7 @@ func gatherMoreObjects(context *resourceContext, o *InspectOptions, relatedObjRe
 		}
 
 		for _, relatedInfo := range relatedInfos {
-			if err := InspectResource(relatedInfo, context, o); err != nil {
+			if err := InspectResource(ctx, relatedInfo, resourceCtx, o); err != nil {
 				errs = append(errs, fmt.Errorf("skipping gathering %s due to error: %v", objectReferenceToString(relatedRef), err))
 				continue
 			}
@@ -253,7 +254,7 @@ func gatherMoreObjects(context *resourceContext, o *InspectOptions, relatedObjRe
 	return errors.NewAggregate(errs)
 }
 
-func gatherNamespaces(context *resourceContext, o *InspectOptions, namespaces ...string) error {
+func gatherNamespaces(ctx context.Context, resourceCtx *resourceContext, o *InspectOptions, namespaces ...string) error {
 	relatedObjReferences := []*configv1.ObjectReference{}
 
 	for _, namespace := range namespaces {
@@ -263,10 +264,10 @@ func gatherNamespaces(context *resourceContext, o *InspectOptions, namespaces ..
 		})
 	}
 
-	return gatherMoreObjects(context, o, relatedObjReferences...)
+	return gatherMoreObjects(ctx, resourceCtx, o, relatedObjReferences...)
 }
 
-func gatherClusterOperatorResource(baseDir string, obj *unstructured.Unstructured, fileWriter *MultiSourceFileWriter) error {
+func gatherClusterOperatorResource(ctx context.Context, baseDir string, obj *unstructured.Unstructured, fileWriter *MultiSourceFileWriter) error {
 	klog.V(1).Infof("Gathering cluster operator resource data...\n")
 
 	// ensure destination path exists
@@ -276,7 +277,7 @@ func gatherClusterOperatorResource(baseDir string, obj *unstructured.Unstructure
 	}
 
 	filename := fmt.Sprintf("%s.yaml", obj.GetName())
-	return fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), obj)
+	return fileWriter.WriteFromResource(ctx, path.Join(destDir, "/"+filename), obj)
 }
 
 func obtainRelatedObjects(obj *unstructured.Unstructured) ([]*configv1.ObjectReference, error) {
