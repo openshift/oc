@@ -281,22 +281,17 @@ func (o *MustGatherOptions) completeImages() error {
 		pluginImages := make(map[string]struct{})
 		var err error
 
-		// Annotated CSVs (via dynamic client)
-		csvGVR := schema.GroupVersionResource{
-			Group:    "operators.coreos.com",
-			Version:  "v1alpha1",
-			Resource: "clusterserviceversions",
-		}
-		uList, err := o.DynamicClient.Resource(csvGVR).List(context.TODO(), metav1.ListOptions{})
+		// Annotated CSVs
+		csvs, err := o.OperatorClient.OperatorsV1alpha1().ClusterServiceVersions("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to list CSVs: %v", err)
 		}
-		for _, u := range uList.Items {
-			ann := u.GetAnnotations()
+		for _, csv := range csvs.Items {
+			ann := csv.GetAnnotations()
 			if v, ok := ann[mgAnnotation]; ok {
 				pluginImages[v] = struct{}{}
 			} else {
-				o.log("WARNING: CSV operator %s doesn't have the must-gather-image annotation.", u.GetName())
+				o.log("WARNING: CSV operator %s doesn't have the must-gather-image annotation.", csv.GetName())
 			}
 		}
 
@@ -318,7 +313,7 @@ func (o *MustGatherOptions) completeImages() error {
 		}
 	}
 	o.log("Using must-gather plug-in image: %s", strings.Join(o.Images, ", "))
-
+	
 	return nil
 }
 
