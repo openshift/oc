@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -51,6 +52,14 @@ import (
 
 const (
 	gatherContainerName = "gather"
+	// number of concurrent must-gather Pods to run if --all-images or multiple --image are provided
+	concurrentMG = 4
+	// annotation to look for in ClusterServiceVersions and ClusterOperators when using --all-images
+	mgAnnotation = "operators.openshift.io/must-gather-image"
+
+	notReadyTaintKey          = "node.kubernetes.io/not-ready"
+	unreachableTaintKey       = "node.kubernetes.io/unreachable"
+	controlPlaneNodeRoleLabel = "node-role.kubernetes.io/control-plane"
 )
 
 var (
@@ -96,13 +105,6 @@ if [ "$usage_percentage" -gt "%d" ]; then
 fi
 sleep 5
 done`
-)
-
-const (
-	// number of concurrent must-gather Pods to run if --all-images or multiple --image are provided
-	concurrentMG = 4
-	// annotation to look for in ClusterServiceVersions and ClusterOperators when using --all-images
-	mgAnnotation = "operators.openshift.io/must-gather-image"
 )
 
 func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
@@ -476,6 +478,9 @@ func (o *MustGatherOptions) Run() error {
 	}
 
 	// ... and create must-gather pod(s)
+	candidateNames := getCandidateNodeNames(nodes, hasMaster)
+	affinity := buildNodeAffinity(candidateNames)
+
 	var pods []*corev1.Pod
 	for _, image := range o.Images {
 		_, err := imagereference.Parse(image)
@@ -496,7 +501,7 @@ func (o *MustGatherOptions) Run() error {
 				return err
 			}
 			for _, node := range nodes.Items {
-				pods = append(pods, o.newPod(node.Name, image, hasMaster))
+				pods = append(pods, o.newPod(node.Name, image, hasMaster, affinity))
 			}
 		} else {
 			if o.NodeName != "" {
@@ -506,7 +511,7 @@ func (o *MustGatherOptions) Run() error {
 					return err
 				}
 			}
-			pods = append(pods, o.newPod(o.NodeName, image, hasMaster))
+			pods = append(pods, o.newPod(o.NodeName, image, hasMaster, affinity))
 		}
 	}
 
@@ -924,7 +929,7 @@ func newClusterRoleBinding(ns *corev1.Namespace) *rbacv1.ClusterRoleBinding {
 // newPod creates a pod with 2 containers with a shared volume mount:
 // - gather: init containers that run gather command
 // - copy: no-op container we can exec into
-func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.Pod {
+func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity *corev1.Affinity) *corev1.Pod {
 	zero := int64(0)
 
 	nodeSelector := map[string]string{
@@ -956,6 +961,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 			// so setting priority class to system-cluster-critical
 			PriorityClassName: "system-cluster-critical",
 			RestartPolicy:     corev1.RestartPolicyNever,
+			Affinity:          affinity,
 			Volumes: []corev1.Volume{
 				{
 					Name: "must-gather-output",
@@ -1056,6 +1062,121 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool) *corev1.P
 	}
 
 	return ret
+}
+
+func getNodeLastHeartbeatTime(node corev1.Node) *metav1.Time {
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == corev1.NodeReady {
+			if !cond.LastHeartbeatTime.IsZero() {
+				return &cond.LastHeartbeatTime
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
+func isNodeReadyByCondition(node corev1.Node) bool {
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
+func isNodeReadyAndReachableByTaint(node corev1.Node) bool {
+	for _, taint := range node.Spec.Taints {
+		if taint.Key == unreachableTaintKey || taint.Key == notReadyTaintKey {
+			return false
+		}
+	}
+	return true
+}
+
+func getCandidateNodeNames(nodes *corev1.NodeList, hasMaster bool) []string {
+	var controlPlaneNodes, allControlPlaneNodes, workerNodes, unschedulableNodes, remainingNodes, selectedNodes []corev1.Node
+	for _, node := range nodes.Items {
+		if _, ok := node.Labels[controlPlaneNodeRoleLabel]; ok {
+			allControlPlaneNodes = append(allControlPlaneNodes, node)
+		}
+		if !isNodeReadyByCondition(node) || !isNodeReadyAndReachableByTaint(node) {
+			remainingNodes = append(remainingNodes, node)
+			continue
+		}
+		if node.Spec.Unschedulable {
+			unschedulableNodes = append(unschedulableNodes, node)
+			continue
+		}
+		if _, ok := node.Labels[controlPlaneNodeRoleLabel]; ok {
+			controlPlaneNodes = append(controlPlaneNodes, node)
+		} else {
+			workerNodes = append(workerNodes, node)
+		}
+	}
+
+	if hasMaster {
+		if len(controlPlaneNodes) > 0 {
+			selectedNodes = controlPlaneNodes
+		} else {
+			selectedNodes = allControlPlaneNodes
+		}
+	} else {
+		selectedNodes = controlPlaneNodes
+		if len(selectedNodes) == 0 {
+			selectedNodes = workerNodes
+		}
+		if len(selectedNodes) == 0 {
+			selectedNodes = unschedulableNodes
+		}
+		if len(selectedNodes) == 0 {
+			selectedNodes = remainingNodes
+		}
+	}
+
+	sort.SliceStable(selectedNodes, func(i, j int) bool {
+		iTime := getNodeLastHeartbeatTime(selectedNodes[i])
+		jTime := getNodeLastHeartbeatTime(selectedNodes[j])
+		if jTime == nil {
+			return true
+		}
+		if iTime == nil {
+			return false
+		}
+		return jTime.Before(iTime)
+	})
+
+	nodeNames := []string{}
+	for idx, n := range selectedNodes {
+		if idx >= 10 {
+			break
+		}
+		nodeNames = append(nodeNames, n.Name)
+	}
+	return nodeNames
+}
+
+func buildNodeAffinity(nodeHostnames []string) *corev1.Affinity {
+	if len(nodeHostnames) == 0 {
+		return nil
+	}
+	return &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   nodeHostnames,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 // BackupGathering is called if the full must-gather has an error.  This is useful for making sure we get *something*
