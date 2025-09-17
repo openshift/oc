@@ -115,16 +115,12 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows upgrade to a version when it is supported but not recommended for updates.")
 
 	cmd.AddCommand(channel.New(f, streams))
+	cmd.AddCommand(status.New(f, streams))
 
-	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_STATUS").IsEnabled() {
-		cmd.AddCommand(status.New(f, streams))
-	}
 	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_ROLLBACK").IsEnabled() {
 		cmd.AddCommand(rollback.New(f, streams))
 	}
-	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_RECOMMEND").IsEnabled() {
-		cmd.AddCommand(recommend.New(f, streams))
-	}
+	cmd.AddCommand(recommend.New(f, streams))
 
 	return cmd
 }

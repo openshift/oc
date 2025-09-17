@@ -1794,16 +1794,17 @@ func describeChangelog(out, errOut io.Writer, releaseInfo *ReleaseInfo, diff *Re
 			}
 		}
 		for _, change := range codeChanges {
-			u, commits, err := commitsForRepo(dir, change, out, errOut)
+			u, commits, elidedCommits, err := commitsForRepo(dir, change, out, errOut)
 			if err != nil {
 				fmt.Fprintf(errOut, "error: %v\n", err)
 				hasError = true
 				continue
 			}
-			if len(commits) > 0 {
+			if len(commits) > 0 || elidedCommits > 0 {
 				info := ChangeLogImageInfo{
-					Name:    strings.Join(change.ImagesAffected, ", "),
-					Commits: []CommitInfo{},
+					Name:          strings.Join(change.ImagesAffected, ", "),
+					Commits:       []CommitInfo{},
+					ElidedCommits: elidedCommits,
 				}
 				if u.Host == "github.com" {
 					info.Path = fmt.Sprintf("https://github.com%s/tree/%s", u.Path, change.To)
@@ -1903,13 +1904,13 @@ func describeChangelog(out, errOut io.Writer, releaseInfo *ReleaseInfo, diff *Re
 		}
 
 		for _, change := range codeChanges {
-			u, commits, err := commitsForRepo(dir, change, out, errOut)
+			u, commits, elidedCommits, err := commitsForRepo(dir, change, out, errOut)
 			if err != nil {
 				fmt.Fprintf(errOut, "error: %v\n", err)
 				hasError = true
 				continue
 			}
-			if len(commits) > 0 {
+			if len(commits) > 0 || elidedCommits > 0 {
 				if u.Host == "github.com" {
 					fmt.Fprintf(out, "### [%s](https://github.com%s/tree/%s)\n\n", strings.Join(change.ImagesAffected, ", "), u.Path, change.To)
 				} else {
@@ -1929,6 +1930,9 @@ func describeChangelog(out, errOut io.Writer, releaseInfo *ReleaseInfo, diff *Re
 						fmt.Fprintf(out, " %s", commit.Commit[:8])
 					}
 					fmt.Fprintf(out, "\n")
+				}
+				if elidedCommits > 0 {
+					fmt.Fprintf(out, "* And %d elided commits (e.g. from squash or rebase merges)\n", elidedCommits)
 				}
 				if u.Host == "github.com" {
 					fmt.Fprintf(out, "* [Full changelog](%s)\n\n", fmt.Sprintf("https://%s%s/compare/%s...%s", u.Host, u.Path, change.From, change.To))
@@ -1955,7 +1959,7 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 
 	bugIDs := make(map[string]Ref)
 	for _, change := range codeChanges {
-		_, commits, err := commitsForRepo(dir, change, out, errOut)
+		_, commits, _, err := commitsForRepo(dir, change, out, errOut)
 		if err != nil {
 			fmt.Fprintf(errOut, "error: %v\n", err)
 			hasError = true
@@ -2479,20 +2483,20 @@ func (c CodeChange) ToShort() string {
 	return c.To
 }
 
-func commitsForRepo(dir string, change CodeChange, out, errOut io.Writer) (*url.URL, []MergeCommit, error) {
+func commitsForRepo(dir string, change CodeChange, out, errOut io.Writer) (*url.URL, []MergeCommit, int, error) {
 	u, err := sourceLocationAsURL(change.Repo)
 	if err != nil {
-		return nil, nil, fmt.Errorf("The source repository cannot be parsed %s: %v", change.Repo, err)
+		return nil, nil, 0, fmt.Errorf("The source repository cannot be parsed %s: %v", change.Repo, err)
 	}
 	g, err := ensureCloneForRepo(dir, change.Repo, change.AlternateRepos, errOut, errOut)
 	if err != nil {
-		return nil, nil, err
+		return u, nil, 0, err
 	}
-	commits, err := mergeLogForRepo(g, change.Repo, change.From, change.To)
+	commits, elidedCommits, err := mergeLogForRepo(g, change.Repo, change.From, change.To)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Could not load commits for %s: %v", change.Repo, err)
+		return u, commits, elidedCommits, fmt.Errorf("Could not load commits for %s: %v", change.Repo, err)
 	}
-	return u, commits, nil
+	return u, commits, elidedCommits, nil
 }
 
 func releaseDiffContentChanges(diff *ReleaseDiff) ([]CodeChange, []ImageChange, []string) {
@@ -2733,6 +2737,7 @@ type ChangeLogImageInfo struct {
 	Commit        string       `json:"commit,omitempty"`
 	ImageRef      string       `json:"imageRef,omitempty"`
 	Commits       []CommitInfo `json:"commits,omitempty"`
+	ElidedCommits int          `json:"elidedCommits,omitempty"`
 	FullChangeLog string       `json:"fullChangeLog,omitempty"`
 }
 

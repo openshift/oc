@@ -1348,7 +1348,12 @@ func (d *TemplateInstanceDescriber) DescribeTemplateInstance(templateInstance *t
 		d.DescribeObjects(templateInstance.Status.Objects, out)
 		out.Write([]byte("\n"))
 		out.Flush()
-		d.DescribeParameters(templateInstance.Spec.Template, namespace, templateInstance.Spec.Secret.Name, out)
+		if templateInstance.Spec.Secret != nil {
+			d.DescribeParameters(templateInstance.Spec.Template, namespace, templateInstance.Spec.Secret.Name, out)
+		} else {
+			formatString(out, "Parameters", " ")
+			fmt.Fprint(out, "    No secret specified for parameters.")
+		}
 		out.Write([]byte("\n"))
 		out.Flush()
 		return nil

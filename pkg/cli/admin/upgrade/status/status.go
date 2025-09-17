@@ -19,6 +19,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -59,11 +60,9 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	}
 
 	flags := cmd.Flags()
-	// TODO: We can remove these flags once the idea about `oc adm upgrade status` stabilizes and the command
-	//       is promoted out of the OC_ENABLE_CMD_UPGRADE_STATUS feature gate
-	flags.StringVar(&o.mockData.cvPath, "mock-clusterversion", "", "Path to a YAML ClusterVersion object to use for testing (will be removed later). Files in the same directory with the same name and suffixes -co.yaml, -mcp.yaml, -mc.yaml, and -node.yaml are required.")
+	flags.StringVar(&o.mockData.cvPath, "mock-clusterversion", "", "Path to a YAML ClusterVersion object to use for testing. Files in the same directory with the same name and suffixes -co.yaml, -mcp.yaml, -mc.yaml, and -node.yaml are required.")
 	flags.StringVar(&o.detailedOutput, "details", "none", fmt.Sprintf("Show detailed output in selected section. One of: %s", strings.Join(detailedOutputAllValues, ", ")))
-
+	flags.MarkHidden("mock-clusterversion")
 	return cmd
 }
 
@@ -109,6 +108,12 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		if err != nil {
 			return err
 		}
+		cfg.UserAgent = rest.DefaultKubernetesUserAgent() + "(upgrade-status)"
+
+		roundTripper, err := rest.TransportFor(cfg)
+		if err != nil {
+			return err
+		}
 		configClient, err := configv1client.NewForConfig(cfg)
 		if err != nil {
 			return err
@@ -142,7 +147,11 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		o.AppsClient = appsClient
 
 		o.getAlerts = func(ctx context.Context) ([]byte, error) {
-			return inspectalerts.GetAlerts(ctx, routeGetter, cfg.BearerToken)
+			if err := inspectalerts.ValidateRESTConfig(cfg); err != nil {
+				return nil, err
+			}
+
+			return inspectalerts.GetAlerts(ctx, roundTripper, routeGetter)
 		}
 	} else {
 		err := o.mockData.load()

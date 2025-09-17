@@ -62,14 +62,11 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	flags.BoolVar(&o.showOutdatedReleases, "show-outdated-releases", o.showOutdatedReleases, "Display additional older releases.  These releases may be exposed to known issues which have been fixed in more recent releases.  But all updates will contain fixes not present in your current release.")
 	flags.StringVar(&o.rawVersion, "version", o.rawVersion, "Select a particular target release to display by version.")
 
-	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_RECOMMEND_ACCEPT").IsEnabled() {
-		flags.BoolVar(&o.quiet, "quiet", o.quiet, "When --quiet is true and --version is set, only print unaccepted issue names.")
-		flags.StringSliceVar(&o.accept, "accept", o.accept, "Comma-delimited names for issues that you find acceptable.  With --version, any unaccepted issues will result in a non-zero exit code.")
-	}
+	flags.BoolVar(&o.quiet, "quiet", o.quiet, "When --quiet is true and --version is set, only print unaccepted issue names.")
+	flags.StringSliceVar(&o.accept, "accept", o.accept, "Comma-delimited names for issues that you find acceptable.  With --version, any unaccepted issues will result in a non-zero exit code.")
 
-	// TODO: We can remove this flag once the idea about `oc adm upgrade recommend` stabilizes and the command
-	//       is promoted out of the OC_ENABLE_CMD_UPGRADE_RECOMMEND feature gate
 	flags.StringVar(&o.mockData.cvPath, "mock-clusterversion", "", "Path to a YAML ClusterVersion object to use for testing (will be removed later).")
+	flags.MarkHidden("mock-clusterversion")
 
 	return cmd
 }
@@ -106,6 +103,8 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		if err != nil {
 			return err
 		}
+		o.RESTConfig.UserAgent = rest.DefaultKubernetesUserAgent() + "(upgrade-recommend)"
+
 		o.Client, err = configv1client.NewForConfig(o.RESTConfig)
 		if err != nil {
 			return err
@@ -135,7 +134,7 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		}
 	}
 
-	o.precheckEnabled = kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_RECOMMEND_PRECHECK").IsEnabled()
+	o.precheckEnabled = true
 
 	return nil
 }
@@ -342,12 +341,10 @@ func (o *options) Run(ctx context.Context) error {
 						issues.Insert("ConditionalUpdateRisk")
 					}
 					unaccepted := issues.Difference(accept)
-					if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_RECOMMEND_ACCEPT").IsEnabled() {
-						if unaccepted.Len() > 0 {
-							return fmt.Errorf("issues that apply to this cluster but which were not included in --accept: %s", strings.Join(sets.List(unaccepted), ","))
-						} else if issues.Len() > 0 && !o.quiet {
-							fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster other than the accepted %s.\n", update.Release.Version, strings.Join(sets.List(issues), ","))
-						}
+					if unaccepted.Len() > 0 {
+						return fmt.Errorf("issues that apply to this cluster but which were not included in --accept: %s", strings.Join(sets.List(unaccepted), ","))
+					} else if issues.Len() > 0 && !o.quiet {
+						fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster other than the accepted %s.\n", update.Release.Version, strings.Join(sets.List(issues), ","))
 					}
 					return nil
 				}

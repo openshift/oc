@@ -67,6 +67,7 @@ func TestExamples(t *testing.T) {
 				"examples/4.12.16-longest-recommended-cv.yaml":     "4.12.51",
 				"examples/4.14.1-all-recommended-cv.yaml":          "4.12.51",
 				"examples/4.16.27-degraded-monitoring-cv.yaml":     "4.16.32",
+				"examples/4.19.0-okd-scos.16-cv.yaml":              "4.19.0-okd-scos.17",
 			},
 			outputSuffixPattern: ".version-%s-output",
 		},
