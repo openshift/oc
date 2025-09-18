@@ -8,12 +8,15 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"os/signal"
 	"path"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -33,7 +36,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"k8s.io/kubectl/pkg/cmd/logs"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/scheme"
@@ -48,6 +50,7 @@ import (
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/operator/resource/retry"
 	"github.com/openshift/oc/pkg/cli/admin/inspect"
+	"github.com/openshift/oc/pkg/cli/internal/logs"
 	"github.com/openshift/oc/pkg/cli/rsync"
 	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 )
@@ -242,7 +245,7 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 			return fmt.Errorf("--run-namespace %s", errStr)
 		}
 	}
-	if err := o.completeImages(); err != nil {
+	if err := o.completeImages(context.Background()); err != nil {
 		return err
 	}
 	o.PrinterCreated, err = printers.NewTypeSetter(scheme.Scheme).WrapToPrinter(&printers.NamePrinter{Operation: "created"}, nil)
@@ -257,9 +260,9 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	return nil
 }
 
-func (o *MustGatherOptions) completeImages() error {
+func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 	for _, imageStream := range o.ImageStreams {
-		if image, err := o.resolveImageStreamTagString(imageStream); err == nil {
+		if image, err := o.resolveImageStreamTagString(ctx, imageStream); err == nil {
 			o.Images = append(o.Images, image)
 		} else {
 			return fmt.Errorf("unable to resolve image stream '%v': %v", imageStream, err)
@@ -268,7 +271,7 @@ func (o *MustGatherOptions) completeImages() error {
 	if len(o.Images) == 0 || o.AllImages {
 		var image string
 		var err error
-		if image, err = o.resolveImageStreamTag("openshift", "must-gather", "latest"); err != nil {
+		if image, err = o.resolveImageStreamTag(ctx, "openshift", "must-gather", "latest"); err != nil {
 			o.log("%v\n", err)
 			image = "registry.redhat.io/openshift4/ose-must-gather:latest"
 		}
@@ -279,12 +282,12 @@ func (o *MustGatherOptions) completeImages() error {
 		pluginImages := make(map[string]struct{})
 		var err error
 
-		pluginImages, err = o.annotatedCSVs()
+		pluginImages, err = o.annotatedCSVs(ctx)
 		if err != nil {
 			return err
 		}
 
-		cos, err := o.ConfigClient.ConfigV1().ClusterOperators().List(context.TODO(), metav1.ListOptions{})
+		cos, err := o.ConfigClient.ConfigV1().ClusterOperators().List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return err
 		}
@@ -305,7 +308,7 @@ func (o *MustGatherOptions) completeImages() error {
 	return nil
 }
 
-func (o *MustGatherOptions) annotatedCSVs() (map[string]struct{}, error) {
+func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struct{}, error) {
 	csvGVR := schema.GroupVersionResource{
 		Group:    "operators.coreos.com",
 		Version:  "v1alpha1",
@@ -313,7 +316,7 @@ func (o *MustGatherOptions) annotatedCSVs() (map[string]struct{}, error) {
 	}
 	pluginImages := make(map[string]struct{})
 
-	csvs, err := o.DynamicClient.Resource(csvGVR).List(context.TODO(), metav1.ListOptions{})
+	csvs, err := o.DynamicClient.Resource(csvGVR).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -327,12 +330,12 @@ func (o *MustGatherOptions) annotatedCSVs() (map[string]struct{}, error) {
 	return pluginImages, nil
 }
 
-func (o *MustGatherOptions) resolveImageStreamTagString(s string) (string, error) {
+func (o *MustGatherOptions) resolveImageStreamTagString(ctx context.Context, s string) (string, error) {
 	namespace, name, tag := parseImageStreamTagString(s)
 	if len(namespace) == 0 {
 		return "", fmt.Errorf("expected namespace/name:tag")
 	}
-	return o.resolveImageStreamTag(namespace, name, tag)
+	return o.resolveImageStreamTag(ctx, namespace, name, tag)
 }
 
 func parseImageStreamTagString(s string) (string, string, string) {
@@ -349,8 +352,8 @@ func parseImageStreamTagString(s string) (string, string, string) {
 	return namespace, name, tag
 }
 
-func (o *MustGatherOptions) resolveImageStreamTag(namespace, name, tag string) (string, error) {
-	imageStream, err := o.ImageClient.ImageStreams(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func (o *MustGatherOptions) resolveImageStreamTag(ctx context.Context, namespace, name, tag string) (string, error) {
+	imageStream, err := o.ImageClient.ImageStreams(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -398,6 +401,9 @@ type MustGatherOptions struct {
 
 	LogWriter    *os.File
 	LogWriterMux sync.Mutex
+
+	cleanupHooks []func(context.Context)
+	cleanupMux   sync.Mutex
 }
 
 func (o *MustGatherOptions) Validate() error {
@@ -578,37 +584,62 @@ func (o *MustGatherOptions) Run() error {
 		}()
 	}
 
-	// print at both the beginning and at the end.  This information is important enough to be in both spots.
-	o.PrintBasicClusterState(context.TODO())
-	defer func() {
-		fmt.Fprintf(o.RawOut, "\n\n")
-		fmt.Fprintf(o.RawOut, "Reprinting Cluster State:\n")
-		o.PrintBasicClusterState(context.TODO())
-	}()
-
-	// Ensure resource cleanup unless instructed otherwise ...
-	var cleanupNamespace func()
-	if !o.Keep {
+	// Perform cleanup on termination.
+	// handlerRegistered is needed so that we don't print the signal received message
+	// while no signal was actually received, only the context cancelled in defer.
+	var ctx context.Context
+	{
+		var (
+			unregisterHandler func()
+			handlerRegistered atomic.Bool
+		)
+		handlerRegistered.Store(true)
+		ctx, unregisterHandler = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer func() {
-			if cleanupNamespace != nil {
-				cleanupNamespace()
+			if handlerRegistered.CompareAndSwap(true, false) {
+				unregisterHandler()
+			}
+		}()
+		go func() {
+			<-ctx.Done()
+			if handlerRegistered.CompareAndSwap(true, false) {
+				o.log("Signal received, terminating. Another signal will cause immediate shutdown.")
+				unregisterHandler()
 			}
 		}()
 	}
 
-	// Due to 'stack unwiding', this should happen after 'clusterState' printing, to ensure that we always
-	//  print our ClusterState information.
-	runBackCollection := true
+	// Ensure to clean up resources unless instructed otherwise.
+	if !o.Keep {
+		defer func() {
+			o.log("Cleaning up cluster resources")
+			o.cleanup(context.Background())
+		}()
+	}
+
+	// print at both the beginning and at the end.  This information is important enough to be in both spots.
+	o.PrintBasicClusterState(ctx)
 	defer func() {
-		if !runBackCollection {
+		if ctx.Err() != nil {
 			return
 		}
-		o.BackupGathering(context.TODO(), errs)
+		fmt.Fprintf(o.RawOut, "\n\n")
+		fmt.Fprintf(o.RawOut, "Reprinting Cluster State:\n")
+		o.PrintBasicClusterState(ctx)
+	}()
+
+	// Due to 'stack unwinding', this should happen after 'clusterState' printing, to ensure that we always
+	// print our ClusterState information.
+	runBackCollection := true
+	defer func() {
+		if ctx.Err() != nil || !runBackCollection {
+			return
+		}
+		o.BackupGathering(ctx, errs)
 	}()
 
 	// Get or create "working" namespace ...
-	var ns *corev1.Namespace
-	ns, cleanupNamespace, err = o.getNamespace()
+	ns, err := o.getNamespace(ctx)
 	if err != nil {
 		// ensure the errors bubble up to BackupGathering method for display
 		errs = []error{err}
@@ -617,7 +648,7 @@ func (o *MustGatherOptions) Run() error {
 
 	// Prefer to run in master if there's any but don't be explicit otherwise.
 	// This enables the command to run by default in hypershift where there's no masters.
-	nodes, err := o.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+	nodes, err := o.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{
 		LabelSelector: o.NodeSelector,
 	})
 	if err != nil {
@@ -645,7 +676,7 @@ func (o *MustGatherOptions) Run() error {
 			return err
 		}
 		if o.NodeSelector != "" {
-			nodes, err := o.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+			nodes, err := o.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{
 				LabelSelector: o.NodeSelector,
 			})
 			if err != nil {
@@ -658,7 +689,7 @@ func (o *MustGatherOptions) Run() error {
 			}
 		} else {
 			if o.NodeName != "" {
-				if _, err := o.Client.CoreV1().Nodes().Get(context.TODO(), o.NodeName, metav1.GetOptions{}); err != nil {
+				if _, err := o.Client.CoreV1().Nodes().Get(ctx, o.NodeName, metav1.GetOptions{}); err != nil {
 					// ensure the errors bubble up to BackupGathering method for display
 					errs = []error{err}
 					return err
@@ -676,7 +707,7 @@ func (o *MustGatherOptions) Run() error {
 	}
 	defer o.logTimestamp()
 
-	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	queue := workqueue.NewTypedRateLimitingQueue[*corev1.Pod](workqueue.DefaultTypedControllerRateLimiter[*corev1.Pod]())
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(pods))
@@ -685,6 +716,10 @@ func (o *MustGatherOptions) Run() error {
 		queue.Add(pod)
 	}
 	queue.ShutDownWithDrain()
+	go func() {
+		<-ctx.Done()
+		queue.ShutDown()
+	}()
 
 	wg.Add(concurrentMG)
 	for i := 0; i < concurrentMG; i++ {
@@ -695,10 +730,12 @@ func (o *MustGatherOptions) Run() error {
 				if quit {
 					return
 				}
-				defer queue.Done(pod)
-				if err := o.processNextWorkItem(ns.Name, pod.(*corev1.Pod)); err != nil {
-					errCh <- err
-				}
+				func() {
+					defer queue.Done(pod)
+					if err := o.processNextWorkItem(ctx, ns.Name, pod); err != nil {
+						errCh <- err
+					}
+				}()
 			}
 		}()
 	}
@@ -726,9 +763,9 @@ func (o *MustGatherOptions) Run() error {
 }
 
 // processNextWorkItem creates & processes the must-gather pod and returns error if any
-func (o *MustGatherOptions) processNextWorkItem(ns string, pod *corev1.Pod) error {
+func (o *MustGatherOptions) processNextWorkItem(ctx context.Context, ns string, pod *corev1.Pod) error {
 	var err error
-	pod, err = o.Client.CoreV1().Pods(ns).Create(context.TODO(), pod, metav1.CreateOptions{})
+	pod, err = o.Client.CoreV1().Pods(ns).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -737,35 +774,33 @@ func (o *MustGatherOptions) processNextWorkItem(ns string, pod *corev1.Pod) erro
 	} else {
 		o.log("pod for plug-in image %s created", pod.Spec.Containers[0].Image)
 	}
-	if len(o.RunNamespace) > 0 && !o.Keep {
-		defer func() {
-			// must-gather runs in its own separate namespace as default , so after it is completed
-			// it deletes this namespace and all the pods are removed by garbage collector.
-			// However, if user specifies namespace via `run-namespace`, these pods need to
-			// be deleted manually.
-			err = o.Client.CoreV1().Pods(o.RunNamespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
-			if err != nil {
+	if len(o.RunNamespace) > 0 {
+		// must-gather runs in its own separate namespace as default , so after it is completed
+		// it deletes this namespace and all the pods are removed by garbage collector.
+		// However, if user specifies namespace via `run-namespace`, these pods need to
+		// be deleted manually.
+		o.addCleanupHook(func(ctx context.Context) {
+			if err := o.Client.CoreV1().Pods(o.RunNamespace).Delete(ctx, pod.Name, metav1.DeleteOptions{}); err != nil {
 				klog.V(4).Infof("pod deletion error %v", err)
 			}
-		}()
+		})
 	}
 
 	log := o.newPodOutLogger(o.Out, pod.Name)
 
 	// wait for gather container to be running (gather is running)
-	if err := o.waitForGatherContainerRunning(pod); err != nil {
+	if err := o.waitForGatherContainerRunning(ctx, pod); err != nil {
 		log("gather did not start: %s", err)
-		return fmt.Errorf("gather did not start for pod %s: %s", pod.Name, err)
-
+		return fmt.Errorf("gather did not start for pod %s: %w", pod.Name, err)
 	}
 	// stream gather container logs
-	if err := o.getGatherContainerLogs(pod); err != nil {
+	if err := o.getGatherContainerLogs(ctx, pod); err != nil {
 		log("gather logs unavailable: %v", err)
 	}
 
 	// wait for pod to be running (gather has completed)
 	log("waiting for gather to complete")
-	if err := o.waitForGatherToComplete(pod); err != nil {
+	if err := o.waitForGatherToComplete(ctx, pod); err != nil {
 		log("gather never finished: %v", err)
 		if exiterr, ok := err.(*exec.CodeExitError); ok {
 			return exiterr
@@ -775,12 +810,12 @@ func (o *MustGatherOptions) processNextWorkItem(ns string, pod *corev1.Pod) erro
 
 	// copy the gathered files into the local destination dir
 	log("downloading gather output")
-	pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+	pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
 	if err != nil {
 		log("gather output not downloaded: %v\n", err)
 		return fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
 	}
-	if err := o.copyFilesFromPod(pod); err != nil {
+	if err := o.copyFilesFromPod(ctx, pod); err != nil {
 		log("gather output not downloaded: %v\n", err)
 		return fmt.Errorf("unable to download output from pod %s: %s", pod.Name, err)
 	}
@@ -807,7 +842,7 @@ func (o *MustGatherOptions) logTimestamp() error {
 	return err
 }
 
-func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
+func (o *MustGatherOptions) copyFilesFromPod(ctx context.Context, pod *corev1.Pod) error {
 	streams := o.IOStreams
 	streams.Out = o.newPrefixWriter(streams.Out, fmt.Sprintf("[%s] OUT", pod.Name), false, true)
 	imageFolder := regexp.MustCompile("[^A-Za-z0-9]+").ReplaceAllString(pod.Status.ContainerStatuses[0].ImageID, "-")
@@ -835,7 +870,7 @@ func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 			Container:  gatherContainerName,
 			Timestamps: true,
 		}
-		readCloser, err := o.Client.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions).Stream(context.TODO())
+		readCloser, err := o.Client.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions).Stream(ctx)
 		if err != nil {
 			return err
 		}
@@ -869,11 +904,12 @@ func (o *MustGatherOptions) copyFilesFromPod(pod *corev1.Pod) error {
 	return kutilerrors.NewAggregate(errs)
 }
 
-func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
+func (o *MustGatherOptions) getGatherContainerLogs(ctx context.Context, pod *corev1.Pod) error {
 	since2s := int64(2)
 	opts := &logs.LogsOptions{
 		Namespace:   pod.Namespace,
 		ResourceArg: pod.Name,
+		Follow:      true,
 		Options: &corev1.PodLogOptions{
 			Follow:     true,
 			Container:  pod.Spec.Containers[0].Name,
@@ -890,13 +926,13 @@ func (o *MustGatherOptions) getGatherContainerLogs(pod *corev1.Pod) error {
 		// gather script might take longer than the default API server time,
 		// so we should check if the gather script still runs and re-run logs
 		// thus we run this in a loop
-		if err := opts.RunLogs(); err != nil {
+		if err := opts.RunLogsContext(ctx); err != nil {
 			return err
 		}
 
 		// to ensure we don't print all of history set since to past 2 seconds
 		opts.Options.(*corev1.PodLogOptions).SinceSeconds = &since2s
-		if done, _ := o.isGatherDone(pod); done {
+		if done, _ := o.isGatherDone(ctx, pod); done {
 			return nil
 		}
 		klog.V(4).Infof("lost logs, re-trying...")
@@ -927,15 +963,15 @@ func (o *MustGatherOptions) newPrefixWriter(out io.Writer, prefix string, ignore
 	return writer
 }
 
-func (o *MustGatherOptions) waitForGatherToComplete(pod *corev1.Pod) error {
-	return wait.PollUntilContextTimeout(context.TODO(), 10*time.Second, o.Timeout, true, func(ctx context.Context) (bool, error) {
-		return o.isGatherDone(pod)
+func (o *MustGatherOptions) waitForGatherToComplete(ctx context.Context, pod *corev1.Pod) error {
+	return wait.PollUntilContextTimeout(ctx, 10*time.Second, o.Timeout, true, func(ctx context.Context) (bool, error) {
+		return o.isGatherDone(ctx, pod)
 	})
 }
 
-func (o *MustGatherOptions) isGatherDone(pod *corev1.Pod) (bool, error) {
+func (o *MustGatherOptions) isGatherDone(ctx context.Context, pod *corev1.Pod) (bool, error) {
 	var err error
-	if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err != nil {
+	if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{}); err != nil {
 		// at this stage pod should exist, we've been gathering container logs, so error if not found
 		if kerrors.IsNotFound(err) {
 			return true, err
@@ -967,10 +1003,10 @@ func (o *MustGatherOptions) isGatherDone(pod *corev1.Pod) (bool, error) {
 	return false, nil
 }
 
-func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error {
-	return wait.PollUntilContextTimeout(context.TODO(), 10*time.Second, o.Timeout, true, func(ctx context.Context) (bool, error) {
+func (o *MustGatherOptions) waitForGatherContainerRunning(ctx context.Context, pod *corev1.Pod) error {
+	return wait.PollUntilContextTimeout(ctx, 10*time.Second, o.Timeout, true, func(ctx context.Context) (bool, error) {
 		var err error
-		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{}); err == nil {
+		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{}); err == nil {
 			if len(pod.Status.ContainerStatuses) == 0 {
 				return false, nil
 			}
@@ -992,41 +1028,40 @@ func (o *MustGatherOptions) waitForGatherContainerRunning(pod *corev1.Pod) error
 	})
 }
 
-func (o *MustGatherOptions) getNamespace() (*corev1.Namespace, func(), error) {
+func (o *MustGatherOptions) getNamespace(ctx context.Context) (*corev1.Namespace, error) {
 	if o.RunNamespace == "" {
-		return o.createTempNamespace()
+		return o.createTempNamespace(ctx)
 	}
 
-	ns, err := o.Client.CoreV1().Namespaces().Get(context.TODO(), o.RunNamespace, metav1.GetOptions{})
+	ns, err := o.Client.CoreV1().Namespaces().Get(ctx, o.RunNamespace, metav1.GetOptions{})
 	if err != nil {
-		return nil, nil, fmt.Errorf("retrieving namespace %q: %w", o.RunNamespace, err)
+		return nil, fmt.Errorf("retrieving namespace %q: %w", o.RunNamespace, err)
 	}
 
-	return ns, func() {}, nil
+	return ns, nil
 }
 
-func (o *MustGatherOptions) createTempNamespace() (*corev1.Namespace, func(), error) {
-	ns, err := o.Client.CoreV1().Namespaces().Create(context.TODO(), newNamespace(), metav1.CreateOptions{})
+func (o *MustGatherOptions) createTempNamespace(ctx context.Context) (*corev1.Namespace, error) {
+	ns, err := o.Client.CoreV1().Namespaces().Create(ctx, newNamespace(), metav1.CreateOptions{})
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating temp namespace: %w", err)
+		return nil, fmt.Errorf("creating temp namespace: %w", err)
 	}
 	o.PrinterCreated.PrintObj(ns, o.LogOut)
 
-	crb, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), newClusterRoleBinding(ns), metav1.CreateOptions{})
+	crb, err := o.Client.RbacV1().ClusterRoleBindings().Create(ctx, newClusterRoleBinding(ns), metav1.CreateOptions{})
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating temp clusterRoleBinding: %w", err)
+		return nil, fmt.Errorf("creating temp clusterRoleBinding: %w", err)
 	}
 	o.PrinterCreated.PrintObj(crb, o.LogOut)
 
-	cleanup := func() {
-		if err := o.Client.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
+	o.addCleanupHook(func(ctx context.Context) {
+		if err := o.Client.CoreV1().Namespaces().Delete(ctx, ns.Name, metav1.DeleteOptions{}); err != nil {
 			fmt.Printf("%v\n", err)
 		} else {
 			o.PrinterDeleted.PrintObj(ns, o.LogOut)
 		}
-	}
-
-	return ns, cleanup, nil
+	})
+	return ns, nil
 }
 
 func newNamespace() *corev1.Namespace {
@@ -1237,19 +1272,45 @@ func (o *MustGatherOptions) BackupGathering(ctx context.Context, errs []error) {
 	streams.Out = o.newPrefixWriter(streams.Out, fmt.Sprintf("[must-gather      ] OUT"), false, true)
 	destDir := path.Join(o.DestDir, fmt.Sprintf("inspect.local.%06d", rand.Int63()))
 
-	if err := runInspect(streams, rest.CopyConfig(o.Config), destDir, []string{typeTargets}); err != nil {
+	if err := runInspect(ctx, streams, rest.CopyConfig(o.Config), destDir, []string{typeTargets}); err != nil {
 		fmt.Fprintf(o.ErrOut, "error completing cluster type inspection: %v\n", err)
 	}
 
 	fmt.Fprintf(o.ErrOut, "Falling back to `oc adm inspect %s` to collect basic cluster named resources.\n", strings.Join(namedTargets, " "))
 
-	if err := runInspect(streams, rest.CopyConfig(o.Config), destDir, namedTargets); err != nil {
+	if err := runInspect(ctx, streams, rest.CopyConfig(o.Config), destDir, namedTargets); err != nil {
 		fmt.Fprintf(o.ErrOut, "error completing cluster named resource inspection: %v\n", err)
 	}
 	return
 }
 
-func runInspect(streams genericiooptions.IOStreams, config *rest.Config, destDir string, arguments []string) error {
+func (o *MustGatherOptions) addCleanupHook(hook func(context.Context)) {
+	if hook == nil {
+		return
+	}
+
+	o.cleanupMux.Lock()
+	defer o.cleanupMux.Unlock()
+	o.cleanupHooks = append(o.cleanupHooks, hook)
+}
+
+func (o *MustGatherOptions) cleanup(ctx context.Context) {
+	o.cleanupMux.Lock()
+	hooks := append([]func(context.Context){}, o.cleanupHooks...)
+	o.cleanupMux.Unlock()
+
+	var wg sync.WaitGroup
+	wg.Add(len(o.cleanupHooks))
+	for _, hook := range hooks {
+		go func() {
+			defer wg.Done()
+			hook(ctx)
+		}()
+	}
+	wg.Wait()
+}
+
+func runInspect(ctx context.Context, streams genericiooptions.IOStreams, config *rest.Config, destDir string, arguments []string) error {
 	inspectOptions := inspect.NewInspectOptions(streams)
 	inspectOptions.RESTConfig = config
 	inspectOptions.DestDir = destDir
@@ -1260,7 +1321,7 @@ func runInspect(streams genericiooptions.IOStreams, config *rest.Config, destDir
 	if err := inspectOptions.Validate(); err != nil {
 		return fmt.Errorf("error validating backup collection: %w", err)
 	}
-	if err := inspectOptions.Run(); err != nil {
+	if err := inspectOptions.RunContext(ctx); err != nil {
 		return fmt.Errorf("error running backup collection: %w", err)
 	}
 	return nil
