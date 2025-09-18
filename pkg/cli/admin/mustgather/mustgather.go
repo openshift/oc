@@ -258,6 +258,7 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 }
 
 func (o *MustGatherOptions) completeImages() error {
+	// Resolve explicitly provided image streams
 	for _, imageStream := range o.ImageStreams {
 		if image, err := o.resolveImageStreamTagString(imageStream); err == nil {
 			o.Images = append(o.Images, image)
@@ -265,6 +266,7 @@ func (o *MustGatherOptions) completeImages() error {
 			return fmt.Errorf("unable to resolve image stream '%v': %v", imageStream, err)
 		}
 	}
+	// If no images or --all flag is set, use default must-gather image
 	if len(o.Images) == 0 || o.AllImages {
 		var image string
 		var err error
@@ -279,14 +281,24 @@ func (o *MustGatherOptions) completeImages() error {
 		pluginImages := make(map[string]struct{})
 		var err error
 
-		pluginImages, err = o.annotatedCSVs()
+		// Annotated CSVs
+		csvs, err := o.OperatorClient.OperatorsV1alpha1().ClusterServiceVersions("").List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to list CSVs: %v", err)
+		}
+		for _, csv := range csvs.Items {
+			ann := csv.GetAnnotations()
+			if v, ok := ann[mgAnnotation]; ok {
+				pluginImages[v] = struct{}{}
+			} else {
+				o.log("WARNING: CSV operator %s doesn't have the must-gather-image annotation.", csv.GetName())
+			}
 		}
 
+		// Annotated ClusterOperators
 		cos, err := o.ConfigClient.ConfigV1().ClusterOperators().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to list ClusterOperators: %v", err)
 		}
 		for _, item := range cos.Items {
 			ann := item.GetAnnotations()
@@ -301,7 +313,7 @@ func (o *MustGatherOptions) completeImages() error {
 		}
 	}
 	o.log("Using must-gather plug-in image: %s", strings.Join(o.Images, ", "))
-
+	
 	return nil
 }
 
