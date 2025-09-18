@@ -17,14 +17,14 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Pod) error {
+func (o *InspectOptions) gatherPodData(ctx context.Context, destDir, namespace string, pod *corev1.Pod) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
 	}
 
 	filename := fmt.Sprintf("%s.yaml", pod.Name)
-	if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), pod); err != nil {
+	if err := o.fileWriter.WriteFromResource(ctx, path.Join(destDir, "/"+filename), pod); err != nil {
 		return err
 	}
 
@@ -32,13 +32,13 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 
 	// gather data for each container in the given pod
 	for _, container := range pod.Spec.Containers {
-		if err := o.gatherContainerInfo(path.Join(destDir, "/"+container.Name), pod, container); err != nil {
+		if err := o.gatherContainerInfo(ctx, path.Join(destDir, "/"+container.Name), pod, container); err != nil {
 			errs = append(errs, err)
 			continue
 		}
 	}
 	for _, container := range pod.Spec.InitContainers {
-		if err := o.gatherContainerInfo(path.Join(destDir, "/"+container.Name), pod, container); err != nil {
+		if err := o.gatherContainerInfo(ctx, path.Join(destDir, "/"+container.Name), pod, container); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -50,27 +50,27 @@ func (o *InspectOptions) gatherPodData(destDir, namespace string, pod *corev1.Po
 	return nil
 }
 
-func (o *InspectOptions) gatherContainerInfo(destDir string, pod *corev1.Pod, container corev1.Container) error {
-	if err := o.gatherContainerAllLogs(path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
+func (o *InspectOptions) gatherContainerInfo(ctx context.Context, destDir string, pod *corev1.Pod, container corev1.Container) error {
+	if err := o.gatherContainerAllLogs(ctx, path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (o *InspectOptions) gatherContainerAllLogs(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerAllLogs(ctx context.Context, destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
 	}
 
 	errs := []error{}
-	if err := o.gatherContainerLogs(path.Join(destDir, "/logs"), pod, container); err != nil {
+	if err := o.gatherContainerLogs(ctx, path.Join(destDir, "/logs"), pod, container); err != nil {
 		errs = append(errs, filterContainerLogsErrors(err))
 	}
 
 	if o.rotatedPodLogs {
-		if err := o.gatherContainerRotatedLogFiles(path.Join(destDir, "/logs/rotated"), pod, container); err != nil {
+		if err := o.gatherContainerRotatedLogFiles(ctx, path.Join(destDir, "/logs/rotated"), pod, container); err != nil {
 			errs = append(errs, filterContainerLogsErrors(err))
 		}
 	}
@@ -99,7 +99,7 @@ func rotatedLogFilename(pod *corev1.Pod) (string, error) {
 	return pod.Namespace + "_" + pod.Name + "_" + string(pod.GetUID()), nil
 }
 
-func (o *InspectOptions) gatherContainerRotatedLogFiles(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerRotatedLogFiles(ctx context.Context, destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	restClient := o.kubeClient.CoreV1().RESTClient()
 	var innerErrs []error
 
@@ -117,7 +117,7 @@ func (o *InspectOptions) gatherContainerRotatedLogFiles(destDir string, pod *cor
 
 	req := restClient.Get().RequestURI(containerPath).
 		SetHeader("Accept", "text/plain, */*")
-	res, err := req.Stream(context.TODO())
+	res, err := req.Stream(ctx)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (o *InspectOptions) gatherContainerRotatedLogFiles(destDir string, pod *cor
 				SetHeader("Accept", "text/plain, */*").
 				SetHeader("Accept-Encoding", "gzip")
 
-			if err := o.fileWriter.WriteFromSource(path.Join(destDir, fileName), logsReq); err != nil {
+			if err := o.fileWriter.WriteFromSource(ctx, path.Join(destDir, fileName), logsReq); err != nil {
 				innerErrs = append(innerErrs, err)
 			}
 		}
@@ -194,7 +194,7 @@ func (o *InspectOptions) gatherContainerRotatedLogFiles(destDir string, pod *cor
 	return utilerrors.NewAggregate(innerErrs)
 }
 
-func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, container *corev1.Container) error {
+func (o *InspectOptions) gatherContainerLogs(ctx context.Context, destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -222,14 +222,14 @@ func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, co
 		}
 		filename := "current.log"
 		logsReq := o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
-		if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
+		if err := o.fileWriter.WriteFromSource(ctx, path.Join(destDir, "/"+filename), logsReq); err != nil {
 			innerErrs = append(innerErrs, err)
 
 			// if we had an error, we will try again with an insecure backendproxy flag set
 			logOptions.InsecureSkipTLSVerifyBackend = true
 			logsReq = o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
 			filename = "current.insecure.log"
-			if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
+			if err := o.fileWriter.WriteFromSource(ctx, path.Join(destDir, "/"+filename), logsReq); err != nil {
 				innerErrs = append(innerErrs, err)
 			}
 		}
@@ -257,14 +257,14 @@ func (o *InspectOptions) gatherContainerLogs(destDir string, pod *corev1.Pod, co
 		}
 		logsReq := o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
 		filename := "previous.log"
-		if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
+		if err := o.fileWriter.WriteFromSource(ctx, path.Join(destDir, "/"+filename), logsReq); err != nil {
 			innerErrs = append(innerErrs, err)
 
 			// if we had an error, we will try again with an insecure backendproxy flag set
 			logOptions.InsecureSkipTLSVerifyBackend = true
 			logsReq = o.kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
 			filename = "previous.insecure.log"
-			if err := o.fileWriter.WriteFromSource(path.Join(destDir, "/"+filename), logsReq); err != nil {
+			if err := o.fileWriter.WriteFromSource(ctx, path.Join(destDir, "/"+filename), logsReq); err != nil {
 				innerErrs = append(innerErrs, err)
 			}
 		}

@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -21,35 +22,35 @@ func (c *customResourceDefinitionList) addItem(obj interface{}) error {
 	return nil
 }
 
-func gatherCustomResourceDefinition(context *resourceContext, info *resource.Info, o *InspectOptions) error {
+func gatherCustomResourceDefinition(ctx context.Context, resourceCtx *resourceContext, info *resource.Info, o *InspectOptions) error {
 	structuredObj, err := toStructuredObject[apiextensionsv1.CustomResourceDefinition, apiextensionsv1.CustomResourceDefinitionList](info.Object)
 	if err != nil {
-		return gatherGenericObject(context, info, o)
+		return gatherGenericObject(ctx, resourceCtx, info, o)
 	}
 
 	errs := []error{}
 	switch castObj := structuredObj.(type) {
 	case *apiextensionsv1.CustomResourceDefinition:
-		if err := gatherCustomResourceDefinitionRelated(context, o, castObj); err != nil {
+		if err := gatherCustomResourceDefinitionRelated(ctx, resourceCtx, o, castObj); err != nil {
 			errs = append(errs, err)
 		}
 
 	case *apiextensionsv1.CustomResourceDefinitionList:
 		for _, webhook := range castObj.Items {
-			if err := gatherCustomResourceDefinitionRelated(context, o, &webhook); err != nil {
+			if err := gatherCustomResourceDefinitionRelated(ctx, resourceCtx, o, &webhook); err != nil {
 				errs = append(errs, err)
 			}
 		}
 
 	}
 
-	if err := gatherGenericObject(context, info, o); err != nil {
+	if err := gatherGenericObject(ctx, resourceCtx, info, o); err != nil {
 		errs = append(errs, err)
 	}
 	return errors.NewAggregate(errs)
 }
 
-func gatherCustomResourceDefinitionRelated(context *resourceContext, o *InspectOptions, crd *apiextensionsv1.CustomResourceDefinition) error {
+func gatherCustomResourceDefinitionRelated(ctx context.Context, resourceCtx *resourceContext, o *InspectOptions, crd *apiextensionsv1.CustomResourceDefinition) error {
 	if crd.Spec.Conversion == nil {
 		return nil
 	}
@@ -63,5 +64,5 @@ func gatherCustomResourceDefinitionRelated(context *resourceContext, o *InspectO
 		return nil
 	}
 
-	return gatherNamespaces(context, o, crd.Spec.Conversion.Webhook.ClientConfig.Service.Namespace)
+	return gatherNamespaces(ctx, resourceCtx, o, crd.Spec.Conversion.Webhook.ClientConfig.Service.Namespace)
 }

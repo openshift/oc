@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -24,7 +25,7 @@ func (c *routeList) addItem(obj interface{}) error {
 	return nil
 }
 
-func inspectRouteInfo(info *resource.Info, o *InspectOptions) error {
+func inspectRouteInfo(ctx context.Context, info *resource.Info, o *InspectOptions) error {
 	structuredObj, err := toStructuredObject[routev1.Route, routev1.RouteList](info.Object)
 	if err != nil {
 		return err
@@ -47,7 +48,7 @@ func inspectRouteInfo(info *resource.Info, o *InspectOptions) error {
 	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
 		return err
 	}
-	return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), structuredObj)
+	return o.fileWriter.WriteFromResource(ctx, path.Join(dirPath, filename), structuredObj)
 }
 
 func elideRoute(route *routev1.Route) {
