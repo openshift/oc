@@ -2,6 +2,7 @@ package nodeimage
 
 import (
 	"fmt"
+	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
 	"io"
 
 	ocpv1 "github.com/openshift/api/config/v1"
@@ -9,7 +10,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func getIdmsContents(writer io.Writer, idmsMirrorSetList *ocpv1.ImageDigestMirrorSetList, icspMirrorSetList *ocpv1.ImageContentPolicyList) ([]byte, error) {
+func getIdmsContents(writer io.Writer, idmsMirrorSetList *ocpv1.ImageDigestMirrorSetList, icspMirrorSetList *operatorv1alpha1.ImageContentSourcePolicyList) ([]byte, error) {
 	imageDigestSet := ocpv1.ImageDigestMirrorSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: ocpv1.GroupVersion.String(),
@@ -33,7 +34,7 @@ func getIdmsContents(writer io.Writer, idmsMirrorSetList *ocpv1.ImageDigestMirro
 
 	// Add mirrors from ICSP
 	if icspMirrorSetList != nil {
-		log(writer, "Adding mirrors from ImageContentPolicies")
+		log(writer, "Adding mirrors from ImageContentSourcePolicies")
 		for _, icsp := range icspMirrorSetList.Items {
 			for _, digestMirror := range icsp.Spec.RepositoryDigestMirrors {
 				// Skip adding the mirror if the source already exists
