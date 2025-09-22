@@ -695,10 +695,14 @@ func (o *MustGatherOptions) Run() error {
 				if quit {
 					return
 				}
-				defer queue.Done(pod)
-				if err := o.processNextWorkItem(ns.Name, pod.(*corev1.Pod)); err != nil {
-					errCh <- err
-				}
+				func() {
+					// Make sure queue.Done is called inside the current iteration,
+					// not just when the whole worker thread exits.
+					defer queue.Done(pod)
+					if err := o.processNextWorkItem(ctx, ns.Name, pod); err != nil {
+						errCh <- err
+					}
+				}()
 			}
 		}()
 	}
