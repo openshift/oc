@@ -1012,12 +1012,6 @@ func (o *MustGatherOptions) createTempNamespace() (*corev1.Namespace, func(), er
 	}
 	o.PrinterCreated.PrintObj(ns, o.LogOut)
 
-	crb, err := o.Client.RbacV1().ClusterRoleBindings().Create(context.TODO(), newClusterRoleBinding(ns), metav1.CreateOptions{})
-	if err != nil {
-		return nil, nil, fmt.Errorf("creating temp clusterRoleBinding: %w", err)
-	}
-	o.PrinterCreated.PrintObj(crb, o.LogOut)
-
 	cleanup := func() {
 		if err := o.Client.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
 			fmt.Printf("%v\n", err)
@@ -1025,6 +1019,12 @@ func (o *MustGatherOptions) createTempNamespace() (*corev1.Namespace, func(), er
 			o.PrinterDeleted.PrintObj(ns, o.LogOut)
 		}
 	}
+
+	crb, err := o.Client.RbacV1().ClusterRoleBindings().Create(ctx, newClusterRoleBinding(ns), metav1.CreateOptions{})
+	if err != nil {
+		return nil, cleanup, fmt.Errorf("creating temp clusterRoleBinding: %w", err)
+	}
+	o.PrinterCreated.PrintObj(crb, o.LogOut)
 
 	return ns, cleanup, nil
 }
