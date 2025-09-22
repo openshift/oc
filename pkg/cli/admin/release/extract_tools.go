@@ -209,6 +209,27 @@ var (
 	program is [located on github](https://github.com/openshift/cloud-credential-operator).
 	`)
 
+	readmeOCMirror = heredoc.Doc(`
+	# OC Mirror Utility
+
+	The oc-mirror tool assists with mirroring OpenShift release content from a source
+	registry to a target registry for disconnected install scenarios.
+
+	To learn more about OpenShift, visit [docs.openshift.com](https://docs.openshift.com)
+	and select the version of OpenShift you are using.
+
+	## Installing the tools
+
+	After extracting this archive, move the \u0060oc-mirror\u0060 binary to a location on your
+	PATH such as \u0060/usr/local/bin\u0060, or keep it in a temporary directory and
+	reference it via \u0060./oc-mirror\u0060.
+
+	## License
+
+	OpenShift is licensed under the Apache Public License 2.0. The source code for this
+	program is [located on github](https://github.com/openshift/oc-mirror).
+	`)
+
 	// indicates that the architecture of the binary matches the release payload
 	targetReleaseArch = "release-arch"
 )
@@ -526,6 +547,38 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			ArchiveFormat:     "ccoctl-linux-rhel9-%s.tar.gz",
 			TargetCommandName: "ccoctl",
 		},
+		{
+			OS:                   "linux",
+			Arch:                 targetReleaseArch,
+			Command:              "oc-mirror.rhel9",
+			NewArch:              true,
+			InjectReleaseVersion: true,
+			Mapping:              extract.Mapping{Image: "oc-mirror", From: "usr/bin/oc-mirror.rhel9"},
+			Readme:               readmeOCMirror,
+			ArchiveFormat:        "oc-mirror.rhel9-%s.tar.gz",
+			TargetCommandName:    "oc-mirror",
+		},
+		{
+			OS:                   "linux",
+			Arch:                 targetReleaseArch,
+			Command:              "oc-mirror.rhel8",
+			NewArch:              true,
+			InjectReleaseVersion: true,
+			Mapping:              extract.Mapping{Image: "oc-mirror", From: "usr/bin/oc-mirror.rhel8"},
+			Readme:               readmeOCMirror,
+			ArchiveFormat:        "oc-mirror.rhel8-%s.tar.gz",
+			TargetCommandName:    "oc-mirror",
+		},
+		{
+			OS:                   "linux",
+			Arch:                 targetReleaseArch,
+			Command:              "oc-mirror",
+			NewArch:              true,
+			InjectReleaseVersion: true,
+			Mapping:              extract.Mapping{Image: "oc-mirror", From: "usr/bin/oc-mirror"},
+			Readme:               readmeOCMirror,
+			ArchiveFormat:        "oc-mirror-%s.tar.gz",
+		},
 	}
 
 	currentArch := runtime.GOARCH
@@ -587,7 +640,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		case len(command) > 0 && currentOS != "*":
 			return fmt.Errorf("command %q does not exist in targets or does not support the operating system %q", o.Command, currentOS)
 		case len(command) > 0:
-			return fmt.Errorf("the supported commands are 'oc', 'openshift-install', `openshift-baremetal-install` and 'ccoctl'")
+			return fmt.Errorf("the supported commands are 'oc', 'openshift-install', `openshift-baremetal-install`, 'ccoctl', and 'oc-mirror'")
 		default:
 			return fmt.Errorf("no available commands")
 		}
