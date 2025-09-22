@@ -212,7 +212,7 @@ var (
 	readmeOCMirror = heredoc.Doc(`
 	# OC Mirror Utility
 
-	The oc-mirror tool assists with mirroring Openshift release content from a target
+	The oc-mirror tool assists with mirroring OpenShift release content from a target
 	registry to another for disconnected install scenarios.
 
 	To learn more about OpenShift, visit [docs.openshift.com](https://docs.openshift.com)
