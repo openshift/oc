@@ -676,7 +676,7 @@ func (o *MustGatherOptions) Run() error {
 	}
 	defer o.logTimestamp()
 
-	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	queue := workqueue.NewTypedRateLimitingQueue[*corev1.Pod](workqueue.DefaultTypedControllerRateLimiter[*corev1.Pod]())
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(pods))
