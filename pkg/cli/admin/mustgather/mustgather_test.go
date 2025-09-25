@@ -119,7 +119,7 @@ func TestImagesAndImageStreams(t *testing.T) {
 				LogOut:       genericiooptions.NewTestIOStreamsDiscard().Out,
 				AllImages:    tc.allImages,
 			}
-			err := options.completeImages()
+			err := options.completeImages(context.TODO())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -214,7 +214,7 @@ func TestGetNamespace(t *testing.T) {
 			tc.Options.PrinterCreated = printers.NewDiscardingPrinter()
 			tc.Options.PrinterDeleted = printers.NewDiscardingPrinter()
 
-			ns, cleanup, err := tc.Options.getNamespace()
+			ns, cleanup, err := tc.Options.getNamespace(context.TODO())
 			if err != nil {
 				if tc.ShouldFail {
 					return
