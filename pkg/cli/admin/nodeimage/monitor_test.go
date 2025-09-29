@@ -2,6 +2,7 @@ package nodeimage
 
 import (
 	"bytes"
+	fakeoperatorconfig "github.com/openshift/client-go/operator/clientset/versioned/fake"
 	"strings"
 	"testing"
 
@@ -102,13 +103,14 @@ func TestMonitorRun(t *testing.T) {
 			// Prepare the command options with all the fakes
 			o := &MonitorOptions{
 				BaseNodeImageCommand: BaseNodeImageCommand{
-					IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
-					command:        createCommand,
-					ConfigClient:   configv1fake.NewSimpleClientset(objs...),
-					Client:         fakeClient,
-					Config:         fakeRestConfig,
-					remoteExecutor: fakeRemoteExec,
-					LogOut:         &logBuffer,
+					IOStreams:               genericiooptions.NewTestIOStreamsDiscard(),
+					command:                 createCommand,
+					ConfigClient:            configv1fake.NewSimpleClientset(objs...),
+					OpenshiftOperatorClient: fakeoperatorconfig.NewSimpleClientset(),
+					Client:                  fakeClient,
+					Config:                  fakeRestConfig,
+					remoteExecutor:          fakeRemoteExec,
+					LogOut:                  &logBuffer,
 				},
 			}
 

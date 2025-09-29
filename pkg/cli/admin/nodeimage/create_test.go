@@ -41,6 +41,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	imageapi "github.com/openshift/api/image/v1"
 	configv1fake "github.com/openshift/client-go/config/clientset/versioned/fake"
+	fakeoperatorconfig "github.com/openshift/client-go/operator/clientset/versioned/fake"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"github.com/openshift/oc/pkg/cli/rsync"
 )
@@ -274,13 +275,14 @@ func TestRun(t *testing.T) {
 			// Prepare the command options with all the fakes
 			o := &CreateOptions{
 				BaseNodeImageCommand: BaseNodeImageCommand{
-					IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
-					command:        createCommand,
-					ConfigClient:   configv1fake.NewSimpleClientset(objs...),
-					Client:         fakeClient,
-					Config:         fakeRestConfig,
-					remoteExecutor: fakeRemoteExec,
-					LogOut:         &logBuffer,
+					IOStreams:               genericiooptions.NewTestIOStreamsDiscard(),
+					command:                 createCommand,
+					ConfigClient:            configv1fake.NewSimpleClientset(objs...),
+					OpenshiftOperatorClient: fakeoperatorconfig.NewSimpleClientset(),
+					Client:                  fakeClient,
+					Config:                  fakeRestConfig,
+					remoteExecutor:          fakeRemoteExec,
+					LogOut:                  &logBuffer,
 				},
 				FSys: fakeFileSystem,
 				copyStrategy: func(o *rsync.RsyncOptions) rsync.CopyStrategy {
