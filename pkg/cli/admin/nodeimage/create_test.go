@@ -663,6 +663,13 @@ func TestCreateConfigFileFromFlags(t *testing.T) {
 			expectedConfigFile: expectedConfigFile,
 		},
 		{
+			name: "root device hints incorrect",
+			singleNodeCreateOptions: &singleNodeCreateOptions{
+				RootDeviceHints: "/dev/sda",
+			},
+			expectedError: "incorrect rootDeviceHints format provided: /dev/sda. Expected format: <hint name>:<value>, for example: deviceName:/dev/sda",
+		},
+		{
 			name: "ssh-key-path missing or incorrect",
 			singleNodeCreateOptions: &singleNodeCreateOptions{
 				SSHKeyPath: "wrong-ssh-key-file-name",
