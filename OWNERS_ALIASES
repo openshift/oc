@@ -20,9 +20,8 @@ aliases:
     - slashpai
   update-approvers:
     - DavidHurta
-    - LalatenduMohanty
-    - petr-muller
     - wking
+    - hongkailiu
   catalog-approvers:
     - awgreene
     - perdasilva
