@@ -8,17 +8,13 @@ COPY --from=builder /go/src/github.com/openshift/oc/oc /usr/bin/
 COPY --from=builder /go/src/github.com/openshift/oc/images/tools/sos.conf /etc/sos/
 RUN for i in kubectl openshift-deploy openshift-docker-build openshift-sti-build openshift-git-clone openshift-manage-dockerfile openshift-extract-image-content openshift-recycle; do ln -sf /usr/bin/oc /usr/bin/$i; done
 RUN INSTALL_PKGS="\
-  bash-completion \
-  bc \
   bind-utils \
-  blktrace \
   crash \
   e2fsprogs \
   ethtool \
   file \
   fio \
-  git \
-  glibc-utils \
+  git-core \
   gzip \
   hwloc \
   iotop \
@@ -33,17 +29,14 @@ RUN INSTALL_PKGS="\
   pciutils \
   procps-ng \
   psmisc \
-  perf \
   python3 \
   sos \
-  s-nail \
   strace \
   stress-ng \
   sysstat \
   tcpdump \
   tmux \
   util-linux \
-  vim-enhanced \
   wget \
   xfsprogs \
   " && \
