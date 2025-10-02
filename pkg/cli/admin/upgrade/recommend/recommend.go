@@ -76,7 +76,6 @@ type options struct {
 
 	mockData             mockData
 	showOutdatedReleases bool
-	precheckEnabled      bool
 
 	// quiet configures the verbosity of output.  When 'quiet' is true and 'version' is set, only print unaccepted issue names.
 	quiet bool
@@ -134,8 +133,6 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 		}
 	}
 
-	o.precheckEnabled = true
-
 	return nil
 }
 
@@ -188,47 +185,45 @@ func (o *options) Run(ctx context.Context) error {
 		issues.Insert(string(configv1.OperatorProgressing))
 	}
 
-	if o.precheckEnabled {
-		conditions, err := o.precheck(ctx)
-		if err != nil {
-			if !o.quiet {
-				fmt.Fprintf(o.Out, "Failed to check for at least some preconditions: %v\n", err)
-			}
-			issues.Insert("FailedToCompletePrecheck")
-		}
-		var happyConditions []string
-		var acceptedConditions []string
-		var unhappyConditions []string
-		for _, condition := range conditions {
-			if condition.Status == metav1.ConditionTrue {
-				happyConditions = append(happyConditions, fmt.Sprintf("%s (%s)", condition.Type, condition.Reason))
-			} else {
-				issues.Insert(condition.acceptanceName)
-				if accept.Has(condition.acceptanceName) {
-					acceptedConditions = append(acceptedConditions, condition.Type)
-				} else {
-					unhappyConditions = append(unhappyConditions, condition.Type)
-				}
-			}
-		}
-
+	conditions, err := o.precheck(ctx)
+	if err != nil {
 		if !o.quiet {
-			if len(happyConditions) > 0 {
-				sort.Strings(happyConditions)
-				fmt.Fprintf(o.Out, "The following conditions found no cause for concern in updating this cluster to later releases: %s\n\n", strings.Join(happyConditions, ", "))
+			fmt.Fprintf(o.Out, "Failed to check for at least some preconditions: %v\n", err)
+		}
+		issues.Insert("FailedToCompletePrecheck")
+	}
+	var happyConditions []string
+	var acceptedConditions []string
+	var unhappyConditions []string
+	for _, condition := range conditions {
+		if condition.Status == metav1.ConditionTrue {
+			happyConditions = append(happyConditions, fmt.Sprintf("%s (%s)", condition.Type, condition.Reason))
+		} else {
+			issues.Insert(condition.acceptanceName)
+			if accept.Has(condition.acceptanceName) {
+				acceptedConditions = append(acceptedConditions, condition.Type)
+			} else {
+				unhappyConditions = append(unhappyConditions, condition.Type)
 			}
-			if len(acceptedConditions) > 0 {
-				sort.Strings(acceptedConditions)
-				fmt.Fprintf(o.Out, "The following conditions found cause for concern in updating this cluster to later releases, but were explicitly accepted via --accept: %s\n\n", strings.Join(acceptedConditions, ", "))
-			}
-			if len(unhappyConditions) > 0 {
-				sort.Strings(unhappyConditions)
-				fmt.Fprintf(o.Out, "The following conditions found cause for concern in updating this cluster to later releases: %s\n\n", strings.Join(unhappyConditions, ", "))
+		}
+	}
 
-				for _, c := range conditions {
-					if c.Status != metav1.ConditionTrue {
-						fmt.Fprintf(o.Out, "%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
-					}
+	if !o.quiet {
+		if len(happyConditions) > 0 {
+			sort.Strings(happyConditions)
+			fmt.Fprintf(o.Out, "The following conditions found no cause for concern in updating this cluster to later releases: %s\n\n", strings.Join(happyConditions, ", "))
+		}
+		if len(acceptedConditions) > 0 {
+			sort.Strings(acceptedConditions)
+			fmt.Fprintf(o.Out, "The following conditions found cause for concern in updating this cluster to later releases, but were explicitly accepted via --accept: %s\n\n", strings.Join(acceptedConditions, ", "))
+		}
+		if len(unhappyConditions) > 0 {
+			sort.Strings(unhappyConditions)
+			fmt.Fprintf(o.Out, "The following conditions found cause for concern in updating this cluster to later releases: %s\n\n", strings.Join(unhappyConditions, ", "))
+
+			for _, c := range conditions {
+				if c.Status != metav1.ConditionTrue {
+					fmt.Fprintf(o.Out, "%s=%s:\n\n  Reason: %s\n  Message: %s\n\n", c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 				}
 			}
 		}
