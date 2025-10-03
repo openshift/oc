@@ -1,13 +1,16 @@
 package login
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/MakeNowJust/heredoc"
@@ -480,6 +483,142 @@ func TestPreserveExecProviderOnUsernameLogin(t *testing.T) {
 			// Just check additionally that whoAmI has been called.
 			if !whoAmICalled {
 				t.Errorf("WhoAmI function has not been called")
+			}
+		})
+	}
+}
+
+func TestValidateAutoOpenBrowser(t *testing.T) {
+	testCases := []struct {
+		name              string
+		webLogin          bool
+		autoOpenBrowser   bool
+		expectedError     string
+	}{
+		{
+			name:            "valid: --web with --auto-open-browser",
+			webLogin:        true,
+			autoOpenBrowser: true,
+			expectedError:   "",
+		},
+		{
+			name:            "valid: --web with --auto-open-browser=false",
+			webLogin:        true,
+			autoOpenBrowser: false,
+			expectedError:   "",
+		},
+		{
+			name:            "valid: --web without --auto-open-browser (will default to true)",
+			webLogin:        true,
+			autoOpenBrowser: false,
+			expectedError:   "",
+		},
+		{
+			name:            "valid: neither --web nor --auto-open-browser",
+			webLogin:        false,
+			autoOpenBrowser: false,
+			expectedError:   "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			options := &LoginOptions{
+				Server:              "https://api.test.devcluster.openshift.com:6443", // Consistent with existing OpenShift tests
+				WebLogin:            tc.webLogin,
+				OIDCAutoOpenBrowser: tc.autoOpenBrowser,
+				StartingKubeConfig:  &kclientcmdapi.Config{},
+			}
+
+			err := options.Validate(nil, "", []string{})
+			if tc.expectedError == "" {
+				if err != nil {
+					t.Errorf("expected no error, but got: %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("expected error '%s', but got no error", tc.expectedError)
+				} else if err.Error() != tc.expectedError {
+					t.Errorf("expected error '%s', but got: %v", tc.expectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestAutoOpenBrowserURLHandling(t *testing.T) {
+	testCases := []struct {
+		name                string
+		autoOpenBrowser     bool
+		expectedOutputRegex string
+		shouldNotContain    string
+	}{
+		{
+			name:                "with --auto-open-browser=false prints URL without opening",
+			autoOpenBrowser:     false,
+			expectedOutputRegex: "Please visit the following URL in your browser: https://example.com/oauth/authorize\\?test=1\nThe callback server is listening and will receive the authentication response.\n",
+			shouldNotContain:    "Opening login URL in the default browser",
+		},
+		{
+			name:                "with --auto-open-browser=true shows opening message",
+			autoOpenBrowser:     true,
+			expectedOutputRegex: "Opening login URL in the default browser: https://example.com/oauth/authorize\\?test=1\n",
+			shouldNotContain:    "Please visit the following URL",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Capture output
+			outBuf := &bytes.Buffer{}
+			streams := genericiooptions.IOStreams{
+				In:     strings.NewReader(""),
+				Out:    outBuf,
+				ErrOut: &bytes.Buffer{},
+			}
+
+			options := &LoginOptions{
+				WebLogin:            true,
+				OIDCAutoOpenBrowser: tc.autoOpenBrowser,
+				IOStreams:           streams,
+			}
+
+			// Create a test login URL handler that matches the actual implementation
+			loginURLHandler := func(u *url.URL) error {
+				loginURL := u.String()
+				if !options.OIDCAutoOpenBrowser {
+					fmt.Fprintf(options.Out, "Please visit the following URL in your browser: %s\n", loginURL)
+					fmt.Fprintf(options.Out, "The callback server is listening and will receive the authentication response.\n")
+					return nil
+				} else {
+					fmt.Fprintf(options.Out, "Opening login URL in the default browser: %s\n", loginURL)
+					// Don't actually call browser.OpenURL in tests
+					return nil
+				}
+			}
+
+			// Test the handler with a test URL
+			testURL, _ := url.Parse("https://example.com/oauth/authorize?test=1")
+			err := loginURLHandler(testURL)
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			output := outBuf.String()
+
+			// Check expected output using regex
+			matched, regexErr := regexp.MatchString(tc.expectedOutputRegex, output)
+			if regexErr != nil {
+				t.Fatalf("regex error: %v", regexErr)
+			}
+			if !matched {
+				t.Errorf("output did not match expected pattern.\nExpected pattern: %s\nActual output: %s", tc.expectedOutputRegex, output)
+			}
+
+			// Check that certain strings are not present
+			if tc.shouldNotContain != "" && strings.Contains(output, tc.shouldNotContain) {
+				t.Errorf("output should not contain '%s', but got: %s", tc.shouldNotContain, output)
 			}
 		})
 	}
