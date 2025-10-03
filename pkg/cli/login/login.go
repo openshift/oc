@@ -47,6 +47,9 @@ var (
 		# Log in to the given server through a browser
 		oc login localhost:8443 --web --callback-port 8280
 
+		# Log in to the given server through a browser without opening it automatically (print URL only)
+		oc login localhost:8443 --web --auto-open-browser=false --callback-port 8280
+
 		# Log in to the external OIDC issuer through Auth Code + PKCE by starting a local server listening on port 8080
 		oc login localhost:8443 --exec-plugin=oc-oidc --client-id=client-id --extra-scopes=email,profile --callback-port=8080
 	`)
@@ -98,7 +101,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().StringSliceVar(&o.OIDCExtraScopes, "extra-scopes", o.OIDCExtraScopes, "Experimental: Extra scopes for external OIDC issuer. Optional.")
 	cmds.Flags().StringVar(&o.OIDCIssuerURL, "issuer-url", o.OIDCIssuerURL, "Experimental: Issuer url for external issuer. Required.")
 	cmds.Flags().StringVar(&o.OIDCCAFile, "oidc-certificate-authority", o.OIDCCAFile, "Experimental: The path to a certificate authority bundle to use when communicating with external OIDC issuer.")
-	cmds.Flags().BoolVar(&o.OIDCAutoOpenBrowser, "auto-open-browser", o.OIDCAutoOpenBrowser, "Experimental: Specify browser is automatically opened or not for external OIDC issuer. Disabled by default.")
+	cmds.Flags().BoolVar(&o.OIDCAutoOpenBrowser, "auto-open-browser", o.OIDCAutoOpenBrowser, "Experimental: Automatically open browser for login. When used with --web, defaults to true. When used with --exec-plugin for external OIDC, defaults to false.")
 	return cmds
 }
 
@@ -119,6 +122,11 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 		return err
 	}
 	o.RequestTimeout = timeout
+
+	// Set default value for auto-open-browser when using web login
+	if o.WebLogin && !cmd.Flags().Changed("auto-open-browser") {
+		o.OIDCAutoOpenBrowser = true
+	}
 
 	parsedDefaultClusterURL, err := url.Parse(defaultClusterURL)
 	if err != nil {
@@ -191,7 +199,7 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 		return errors.New("currently only oc-oidc is supported")
 	}
 
-	oidcOptionsSet := o.OIDCClientID != "" || o.OIDCClientSecret != "" || len(o.OIDCExtraScopes) > 0 || o.OIDCIssuerURL != "" || o.OIDCAutoOpenBrowser
+	oidcOptionsSet := o.OIDCClientID != "" || o.OIDCClientSecret != "" || len(o.OIDCExtraScopes) > 0 || o.OIDCIssuerURL != ""
 
 	if o.OIDCExecPluginType == "" && oidcOptionsSet {
 		return errors.New("please specify --exec-plugin type. Currently only oc-oidc is supported")
@@ -217,6 +225,10 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 
 	if o.CallbackPort != 0 && !o.WebLogin && o.OIDCExecPluginType == "" {
 		return errors.New("--callback-port can only be specified along with --web or --exec-plugin")
+	}
+
+	if cmd.Flags().Changed("auto-open-browser") && !o.WebLogin && o.OIDCExecPluginType == "" {
+		return errors.New("--auto-open-browser can only be specified along with --web or --exec-plugin")
 	}
 
 	return nil
