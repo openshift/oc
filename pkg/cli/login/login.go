@@ -34,7 +34,8 @@ var (
 		providing the respective flag.
 	`)
 
-	loginExample = templates.Examples(`
+	loginExample = func() string {
+		base := `
 		# Log in interactively
 		oc login --username=myuser
 
@@ -45,11 +46,22 @@ var (
 		oc login localhost:8443 --username=myuser --password=mypass
 
 		# Log in to the given server through a browser
-		oc login localhost:8443 --web --callback-port 8280
+		oc login localhost:8443 --web --callback-port 8280`
+
+		if kcmdutil.FeatureGate("OC_ENABLE_WEB_LOGIN_NO_BROWSER").IsEnabled() {
+			base += `
+
+		# Log in to the given server through a browser without opening it automatically (print URL only)
+		oc login localhost:8443 --web --no-browser --callback-port 8280`
+		}
+
+		base += `
 
 		# Log in to the external OIDC issuer through Auth Code + PKCE by starting a local server listening on port 8080
-		oc login localhost:8443 --exec-plugin=oc-oidc --client-id=client-id --extra-scopes=email,profile --callback-port=8080
-	`)
+		oc login localhost:8443 --exec-plugin=oc-oidc --client-id=client-id --extra-scopes=email,profile --callback-port=8080`
+
+		return templates.Examples(base)
+	}()
 )
 
 // NewCmdLogin implements the OpenShift cli login command
@@ -91,6 +103,11 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 
 	cmds.Flags().BoolVarP(&o.WebLogin, "web", "w", o.WebLogin, "Login with web browser. Starts a local HTTP callback server to perform the OAuth2 Authorization Code Grant flow. Use with caution on multi-user systems, as the server's port will be open to all users.")
 	cmds.Flags().Int32VarP(&o.CallbackPort, "callback-port", "c", o.CallbackPort, "Port for the callback server when using --web. Defaults to a random open port")
+
+	if kcmdutil.FeatureGate("OC_ENABLE_WEB_LOGIN_NO_BROWSER").IsEnabled() {
+		cmds.Flags().BoolVar(&o.NoBrowser, "no-browser", o.NoBrowser, "Print the authorization URL instead of opening it in a browser. Only valid with --web.")
+		cmds.Flags().MarkHidden("no-browser")
+	}
 
 	cmds.Flags().StringVar(&o.OIDCExecPluginType, "exec-plugin", o.OIDCExecPluginType, "Experimental: Specify credentials exec plugin type to be used to authenticate external OIDC issuer. Currently only 'oc-oidc' is supported")
 	cmds.Flags().StringVar(&o.OIDCClientID, "client-id", o.OIDCClientID, "Experimental: Client ID for external OIDC issuer. Only supports Auth Code + PKCE. Required.")
@@ -217,6 +234,10 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 
 	if o.CallbackPort != 0 && !o.WebLogin && o.OIDCExecPluginType == "" {
 		return errors.New("--callback-port can only be specified along with --web or --exec-plugin")
+	}
+
+	if kcmdutil.FeatureGate("OC_ENABLE_WEB_LOGIN_NO_BROWSER").IsEnabled() && o.NoBrowser && !o.WebLogin {
+		return errors.New("--no-browser can only be used with --web")
 	}
 
 	return nil
