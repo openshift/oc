@@ -3,6 +3,7 @@ package imagesource
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,12 +15,11 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go"
 
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/reference"
@@ -34,76 +34,73 @@ type s3Driver struct {
 	Creds     auth.CredentialStore
 	CopyFrom  []string
 
-	repositories map[string]*s3.S3
+	repositories map[string]*s3.Client
 }
 
 type s3CredentialStore struct {
-	store     auth.CredentialStore
-	url       *url.URL
-	retrieved bool
+	store auth.CredentialStore
+	url   *url.URL
 }
 
-func (s *s3CredentialStore) IsExpired() bool { return !s.retrieved }
-
-func (s *s3CredentialStore) Retrieve() (credentials.Value, error) {
-	s.retrieved = false
+func (s *s3CredentialStore) Retrieve(ctx context.Context) (aws.Credentials, error) {
 	accessKeyID, secretAccessKey := s.store.Basic(s.url)
 	if len(accessKeyID) == 0 || len(secretAccessKey) == 0 {
-		return credentials.Value{}, fmt.Errorf("no AWS credentials located for %s", s.url)
+		return aws.Credentials{}, fmt.Errorf("no AWS credentials located for %s", s.url)
 	}
-	s.retrieved = true
 	klog.V(4).Infof("found credentials for %s", s.url)
-	return credentials.Value{
+	return aws.Credentials{
 		AccessKeyID:     accessKeyID,
 		SecretAccessKey: secretAccessKey,
-		ProviderName:    "DockerCfg",
+		Source:          "DockerCfg",
 	}, nil
 }
 
-func (d *s3Driver) newObject(server *url.URL, region string, insecure bool, securityDomain *url.URL) (*s3.S3, error) {
+func (d *s3Driver) newObject(server *url.URL, region string, insecure bool, securityDomain *url.URL) (*s3.Client, error) {
 	key := fmt.Sprintf("%s:%s:%t:%s", server, region, insecure, securityDomain)
 	s3obj, ok := d.repositories[key]
 	if ok {
 		return s3obj, nil
 	}
 
-	awsConfig := aws.NewConfig()
+	ctx := context.Background()
 
-	var creds *credentials.Credentials
-	creds = credentials.NewChainCredentials([]credentials.Provider{
-		&s3CredentialStore{store: d.Creds, url: securityDomain},
-		&credentials.EnvProvider{},
-		&credentials.SharedCredentialsProvider{},
-	})
-
-	awsConfig.WithCredentials(creds)
-	awsConfig.WithRegion(region)
-	awsConfig.WithDisableSSL(insecure)
-
-	switch {
-	case klog.V(10).Enabled():
-		awsConfig.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithSigning)
-	case klog.V(8).Enabled():
-		awsConfig.WithLogLevel(aws.LogDebugWithRequestErrors)
-	case klog.V(6).Enabled():
-		awsConfig.WithLogLevel(aws.LogDebug)
+	configOpts := []func(*config.LoadOptions) error{
+		config.WithRegion(region),
+		config.WithCredentialsProvider(&s3CredentialStore{store: d.Creds, url: securityDomain}),
 	}
 
 	if d.UserAgent != "" {
-		awsConfig.WithHTTPClient(&http.Client{
+		httpClient := &http.Client{
 			Transport: transport.NewTransport(http.DefaultTransport, transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{d.UserAgent}})),
-		})
+		}
+		configOpts = append(configOpts, config.WithHTTPClient(httpClient))
 	}
-	s, err := session.NewSession(awsConfig)
+
+	switch {
+	case klog.V(10).Enabled():
+		configOpts = append(configOpts, config.WithClientLogMode(aws.LogSigning|aws.LogRetries|aws.LogRequest|aws.LogResponse))
+	case klog.V(8).Enabled():
+		configOpts = append(configOpts, config.WithClientLogMode(aws.LogRetries|aws.LogRequest))
+	case klog.V(6).Enabled():
+		configOpts = append(configOpts, config.WithClientLogMode(aws.LogRetries))
+	}
+
+	cfg, err := config.LoadDefaultConfig(ctx, configOpts...)
 	if err != nil {
 		return nil, err
 	}
-	s3obj = s3.New(s)
+
+	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if insecure {
+			o.EndpointOptions.DisableHTTPS = true
+		}
+	})
+
 	if d.repositories == nil {
-		d.repositories = make(map[string]*s3.S3)
+		d.repositories = make(map[string]*s3.Client)
 	}
-	d.repositories[key] = s3obj
-	return s3obj, nil
+	d.repositories[key] = s3Client
+	return s3Client, nil
 }
 
 func (d *s3Driver) Repository(ctx context.Context, server *url.URL, repoName string, insecure bool) (distribution.Repository, error) {
@@ -137,7 +134,7 @@ func (d *s3Driver) Repository(ctx context.Context, server *url.URL, repoName str
 
 type s3Repository struct {
 	ctx      context.Context
-	s3       *s3.S3
+	s3       *s3.Client
 	bucket   string
 	once     sync.Once
 	initErr  error
@@ -168,7 +165,7 @@ func (r *s3Repository) Tags(ctx context.Context) distribution.TagService {
 }
 
 func (r *s3Repository) attemptCopy(id string, bucket, key string) bool {
-	if _, err := r.s3.HeadObject(&s3.HeadObjectInput{
+	if _, err := r.s3.HeadObject(r.ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	}); err == nil {
@@ -190,7 +187,7 @@ func (r *s3Repository) attemptCopy(id string, bucket, key string) bool {
 		} else {
 			sourceKey = path.Join(copyFrom, id)
 		}
-		_, err := r.s3.CopyObject(&s3.CopyObjectInput{
+		_, err := r.s3.CopyObject(r.ctx, &s3.CopyObjectInput{
 			CopySource: aws.String(sourceKey),
 			Bucket:     aws.String(bucket),
 			Key:        aws.String(key),
@@ -199,7 +196,8 @@ func (r *s3Repository) attemptCopy(id string, bucket, key string) bool {
 			klog.V(4).Infof("Copied existing object from %s to %s", sourceKey, key)
 			return true
 		}
-		if a, ok := err.(awserr.Error); ok && a.Code() == "NoSuchKey" {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchKey" {
 			klog.V(4).Infof("No existing object matches source %s", sourceKey)
 			continue
 		}
@@ -208,19 +206,20 @@ func (r *s3Repository) attemptCopy(id string, bucket, key string) bool {
 	return false
 }
 
-func (r *s3Repository) conditionalUpload(input *s3manager.UploadInput, id string) error {
+func (r *s3Repository) conditionalUpload(input *s3.PutObjectInput, id string) error {
 	if r.attemptCopy(id, *input.Bucket, *input.Key) {
 		return nil
 	}
-	_, err := s3manager.NewUploaderWithClient(r.s3).Upload(input)
+	uploader := manager.NewUploader(r.s3)
+	_, err := uploader.Upload(r.ctx, input)
 	return err
 }
 
 func (r *s3Repository) init() error {
 	r.once.Do(func() {
-		r.initErr = r.conditionalUpload(&s3manager.UploadInput{
+		r.initErr = r.conditionalUpload(&s3.PutObjectInput{
 			Bucket:   aws.String(r.bucket),
-			Metadata: map[string]*string{"X-Docker-Distribution-API-Version": aws.String("registry/2.0")},
+			Metadata: map[string]string{"X-Docker-Distribution-API-Version": "registry/2.0"},
 			Body:     bytes.NewBufferString(""),
 			Key:      aws.String("/v2/"),
 		}, "")
@@ -264,7 +263,7 @@ func (s *s3ManifestService) Put(ctx context.Context, manifest distribution.Manif
 	dgst := godigest.FromBytes(payload)
 	blob := fmt.Sprintf("/v2/%s/blobs/%s", s.r.repoName, dgst)
 
-	if err := s.r.conditionalUpload(&s3manager.UploadInput{
+	if err := s.r.conditionalUpload(&s3.PutObjectInput{
 		Bucket:      aws.String(s.r.bucket),
 		ContentType: aws.String(mediaType),
 		Body:        bytes.NewBuffer(payload),
@@ -281,7 +280,7 @@ func (s *s3ManifestService) Put(ctx context.Context, manifest distribution.Manif
 		}
 	}
 	for _, tag := range tags {
-		if _, err := s.r.s3.CopyObject(&s3.CopyObjectInput{
+		if _, err := s.r.s3.CopyObject(s.r.ctx, &s3.CopyObjectInput{
 			Bucket:      aws.String(s.r.bucket),
 			ContentType: aws.String(mediaType),
 			CopySource:  aws.String(path.Join(s.r.bucket, blob)),
@@ -328,7 +327,7 @@ func (s *s3BlobStore) Put(ctx context.Context, mediaType string, p []byte) (dist
 		return distribution.Descriptor{}, err
 	}
 	d := godigest.FromBytes(p)
-	if err := s.r.conditionalUpload(&s3manager.UploadInput{
+	if err := s.r.conditionalUpload(&s3.PutObjectInput{
 		Bucket:      aws.String(s.r.bucket),
 		ContentType: aws.String(mediaType),
 		Body:        bytes.NewBuffer(p),
@@ -409,7 +408,8 @@ func (w *writer) ReadFrom(r io.Reader) (int64, error) {
 	if w.startedAt.IsZero() {
 		w.startedAt = time.Now()
 	}
-	_, err := s3manager.NewUploaderWithClient(w.driver.s3).Upload(&s3manager.UploadInput{
+	uploader := manager.NewUploader(w.driver.s3)
+	_, err := uploader.Upload(w.driver.ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(w.driver.bucket),
 		ContentType: aws.String("application/octet-stream"),
 		Key:         aws.String(w.key),
