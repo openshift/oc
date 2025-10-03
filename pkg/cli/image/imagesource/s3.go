@@ -16,6 +16,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -24,7 +25,6 @@ import (
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/reference"
 	"github.com/distribution/distribution/v3/registry/client/auth"
-	"github.com/distribution/distribution/v3/registry/client/transport"
 	godigest "github.com/opencontainers/go-digest"
 )
 
@@ -69,13 +69,6 @@ func (d *s3Driver) newObject(server *url.URL, region string, insecure bool, secu
 		config.WithCredentialsProvider(&s3CredentialStore{store: d.Creds, url: securityDomain}),
 	}
 
-	if d.UserAgent != "" {
-		httpClient := &http.Client{
-			Transport: transport.NewTransport(http.DefaultTransport, transport.NewHeaderRequestModifier(http.Header{http.CanonicalHeaderKey("User-Agent"): []string{d.UserAgent}})),
-		}
-		configOpts = append(configOpts, config.WithHTTPClient(httpClient))
-	}
-
 	switch {
 	case klog.V(10).Enabled():
 		configOpts = append(configOpts, config.WithClientLogMode(aws.LogSigning|aws.LogRetries|aws.LogRequest|aws.LogResponse))
@@ -93,6 +86,9 @@ func (d *s3Driver) newObject(server *url.URL, region string, insecure bool, secu
 	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		if insecure {
 			o.EndpointOptions.DisableHTTPS = true
+		}
+		if d.UserAgent != "" {
+			o.APIOptions = append(o.APIOptions, awsmiddleware.AddUserAgentKeyValue("oc", d.UserAgent))
 		}
 	})
 
