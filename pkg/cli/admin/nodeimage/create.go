@@ -635,6 +635,9 @@ func (o *CreateOptions) createConfigFileFromFlags() ([]byte, error) {
 	}
 	if o.SingleNodeOpts.RootDeviceHints != "" {
 		parts := strings.SplitN(o.SingleNodeOpts.RootDeviceHints, ":", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("incorrect rootDeviceHints format provided: %s. Expected format: <hint name>:<value>, for example: deviceName:/dev/sda", o.SingleNodeOpts.RootDeviceHints)
+		}
 		host["rootDeviceHints"] = map[string]interface{}{
 			parts[0]: parts[1],
 		}
