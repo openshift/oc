@@ -66,16 +66,20 @@ func (d *s3Driver) newObject(server *url.URL, region string, insecure bool, secu
 
 	configOpts := []func(*config.LoadOptions) error{
 		config.WithRegion(region),
-		config.WithCredentialsProvider(&s3CredentialStore{store: d.Creds, url: securityDomain}),
+	}
+
+	credStore := &s3CredentialStore{store: d.Creds, url: securityDomain}
+	if _, err := credStore.Retrieve(ctx); err == nil {
+		configOpts = append(configOpts, config.WithCredentialsProvider(credStore))
 	}
 
 	switch {
 	case klog.V(10).Enabled():
-		configOpts = append(configOpts, config.WithClientLogMode(aws.LogSigning|aws.LogRetries|aws.LogRequest|aws.LogResponse))
+		configOpts = append(configOpts, config.WithClientLogMode(aws.LogSigning|aws.LogRetries|aws.LogRequest|aws.LogResponse|aws.LogResponseWithBody|aws.LogDeprecatedUsage))
 	case klog.V(8).Enabled():
-		configOpts = append(configOpts, config.WithClientLogMode(aws.LogRetries|aws.LogRequest))
+		configOpts = append(configOpts, config.WithClientLogMode(aws.LogRetries|aws.LogRequest|aws.LogResponse|aws.LogDeprecatedUsage))
 	case klog.V(6).Enabled():
-		configOpts = append(configOpts, config.WithClientLogMode(aws.LogRetries))
+		configOpts = append(configOpts, config.WithClientLogMode(aws.LogRetries|aws.LogRequest|aws.LogDeprecatedUsage))
 	}
 
 	cfg, err := config.LoadDefaultConfig(ctx, configOpts...)
@@ -88,7 +92,7 @@ func (d *s3Driver) newObject(server *url.URL, region string, insecure bool, secu
 			o.EndpointOptions.DisableHTTPS = true
 		}
 		if d.UserAgent != "" {
-			o.APIOptions = append(o.APIOptions, awsmiddleware.AddUserAgentKeyValue("oc", d.UserAgent))
+			o.APIOptions = append(o.APIOptions, awsmiddleware.AddUserAgentKey(d.UserAgent))
 		}
 	})
 
