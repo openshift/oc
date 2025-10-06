@@ -91,14 +91,13 @@ func TestExamples(t *testing.T) {
 				if err := opts.Complete(nil, nil, nil); err != nil {
 					t.Fatalf("Error when completing options: %v", err)
 				}
-				opts.precheckEnabled = true
 
 				var stdout, stderr bytes.Buffer
 				opts.Out = &stdout
 				opts.ErrOut = &stderr
 
 				if err := opts.Run(context.Background()); err != nil {
-					compareWithFixture(t, bytes.Join([][]byte{stdout.Bytes(), []byte("\nerror: "), []byte(err.Error()), []byte("\n")}, []byte{}), cv, variant.outputSuffix)
+					compareWithFixture(t, bytes.Join([][]byte{stdout.Bytes(), []byte("error: "), []byte(err.Error()), []byte("\n")}, []byte{}), cv, variant.outputSuffix)
 				} else {
 					compareWithFixture(t, stdout.Bytes(), cv, variant.outputSuffix)
 				}
