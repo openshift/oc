@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/alessio/shellescape"
+	"al.essio.dev/pkg/shellescape"
 	"github.com/openshift/library-go/pkg/operator/resource/resourceread"
 	"github.com/openshift/oc/pkg/cli/admin/pernodepod"
 	corev1 "k8s.io/api/core/v1"
