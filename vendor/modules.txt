@@ -29,7 +29,7 @@ github.com/Microsoft/go-winio/pkg/guid
 # github.com/RangelReale/osincli v0.0.0-20160924135400-fababb0555f2
 ## explicit
 github.com/RangelReale/osincli
-# github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa
+# github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e
 ## explicit; go 1.13
 github.com/alexbrainman/sspi
 github.com/alexbrainman/sspi/internal/common
