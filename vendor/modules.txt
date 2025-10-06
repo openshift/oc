@@ -1,3 +1,6 @@
+# al.essio.dev/pkg/shellescape v1.6.0
+## explicit; go 1.18
+al.essio.dev/pkg/shellescape
 # github.com/AaronO/go-git-http v0.0.0-20161214145340-1d9485b3a98f
 ## explicit
 github.com/AaronO/go-git-http
@@ -26,9 +29,6 @@ github.com/Microsoft/go-winio/pkg/guid
 # github.com/RangelReale/osincli v0.0.0-20160924135400-fababb0555f2
 ## explicit
 github.com/RangelReale/osincli
-# github.com/alessio/shellescape v1.4.1
-## explicit; go 1.14
-github.com/alessio/shellescape
 # github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa
 ## explicit; go 1.13
 github.com/alexbrainman/sspi
