@@ -188,7 +188,7 @@ func (r *s3Repository) attemptCopy(id string, bucket, key string) bool {
 			sourceKey = path.Join(copyFrom, id)
 		}
 		_, err := r.s3.CopyObject(r.ctx, &s3.CopyObjectInput{
-			CopySource: aws.String(sourceKey),
+			CopySource: aws.String(url.QueryEscape(sourceKey)),
 			Bucket:     aws.String(bucket),
 			Key:        aws.String(key),
 		})
@@ -283,7 +283,7 @@ func (s *s3ManifestService) Put(ctx context.Context, manifest distribution.Manif
 		if _, err := s.r.s3.CopyObject(s.r.ctx, &s3.CopyObjectInput{
 			Bucket:      aws.String(s.r.bucket),
 			ContentType: aws.String(mediaType),
-			CopySource:  aws.String(path.Join(s.r.bucket, blob)),
+			CopySource:  aws.String(path.Join(s.r.bucket, url.QueryEscape(blob))),
 			Key:         aws.String(fmt.Sprintf("/v2/%s/manifests/%s", s.r.repoName, tag)),
 		}); err != nil {
 			return "", err
