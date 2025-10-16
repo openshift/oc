@@ -111,7 +111,7 @@ func (o *CreateDeploymentConfigOptions) Run() error {
 
 	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
 		var err error
-		deploymentConfig, err = o.Client.DeploymentConfigs(o.CreateSubcommandOptions.Namespace).Create(context.TODO(), deploymentConfig, metav1.CreateOptions{})
+		deploymentConfig, err = o.Client.DeploymentConfigs(o.CreateSubcommandOptions.Namespace).Create(context.TODO(), deploymentConfig, o.CreateSubcommandOptions.toCreateOptions())
 		if err != nil {
 			return err
 		}
