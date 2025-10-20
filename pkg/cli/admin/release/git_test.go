@@ -298,7 +298,7 @@ func Test_mergeLogForRepo(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("mergeLogForRepo(): %s", diff.ObjectReflectDiff(tt.want, got))
+				t.Errorf("mergeLogForRepo(): %s", diff.ObjectGoPrintSideBySide(tt.want, got))
 			}
 			if elidedCommits != tt.wantElidedCommits {
 				t.Errorf("mergeLogForRepo(): %d elided commits report differs from expected %d", elidedCommits, tt.wantElidedCommits)

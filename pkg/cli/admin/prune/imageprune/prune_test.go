@@ -1950,7 +1950,7 @@ func TestImagePruning(t *testing.T) {
 
 			expectedImageDeletions := sets.NewString(test.expectedImageDeletions...)
 			if a, e := imageDeleter.invocations, expectedImageDeletions; !reflect.DeepEqual(a, e) {
-				t.Errorf("unexpected image deletions (-actual, +expected): %s", diff.ObjectDiff(a, e))
+				t.Errorf("unexpected image deletions (-actual, +expected): %s", diff.ObjectGoPrintSideBySide(a, e))
 			}
 			if want := expectedImageDeletions.Len() - len(test.expectedImageDeletionFailures); stats.DeletedImages != want {
 				t.Errorf("image deletions: got %d, want %d", stats.DeletedImages, want)
@@ -1958,7 +1958,7 @@ func TestImagePruning(t *testing.T) {
 
 			expectedStreamUpdates := sets.NewString(test.expectedStreamUpdates...)
 			if a, e := streamDeleter.invocations, expectedStreamUpdates; !reflect.DeepEqual(a, e) {
-				t.Errorf("unexpected stream updates (-actual, +expected): %s", diff.ObjectDiff(a, e))
+				t.Errorf("unexpected stream updates (-actual, +expected): %s", diff.ObjectGoPrintSideBySide(a, e))
 			}
 			expectedImageStreamUpdates := sets.NewString()
 			expectedImageStreamItemsDeletions := 0
@@ -1978,7 +1978,7 @@ func TestImagePruning(t *testing.T) {
 
 			expectedLayerLinkDeletions := sets.NewString(test.expectedLayerLinkDeletions...)
 			if a, e := layerLinkDeleter.invocations, expectedLayerLinkDeletions; !reflect.DeepEqual(a, e) {
-				t.Errorf("unexpected layer link deletions (-actual, +expected): %s", diff.ObjectDiff(a, e))
+				t.Errorf("unexpected layer link deletions (-actual, +expected): %s", diff.ObjectGoPrintSideBySide(a, e))
 			}
 			if want := expectedLayerLinkDeletions.Len() - len(test.expectedLayerLinkDeletionFailures); stats.DeletedLayerLinks != want {
 				t.Errorf("layer link deletions: got %d, want %d", stats.DeletedLayerLinks, want)
@@ -1986,7 +1986,7 @@ func TestImagePruning(t *testing.T) {
 
 			expectedManifestLinkDeletions := sets.NewString(test.expectedManifestLinkDeletions...)
 			if a, e := manifestDeleter.invocations, expectedManifestLinkDeletions; !reflect.DeepEqual(a, e) {
-				t.Errorf("unexpected manifest link deletions (-actual, +expected): %s", diff.ObjectDiff(a, e))
+				t.Errorf("unexpected manifest link deletions (-actual, +expected): %s", diff.ObjectGoPrintSideBySide(a, e))
 			}
 			if want := expectedManifestLinkDeletions.Len() - len(test.expectedManifestLinkDeletionFailures); stats.DeletedManifestLinks != want {
 				t.Errorf("manifest link deletions: got %d, want %d", stats.DeletedManifestLinks, want)
@@ -1994,7 +1994,7 @@ func TestImagePruning(t *testing.T) {
 
 			expectedBlobDeletions := sets.NewString(test.expectedBlobDeletions...)
 			if a, e := blobDeleter.invocations, expectedBlobDeletions; !reflect.DeepEqual(a, e) {
-				t.Errorf("unexpected blob deletions (-actual, +expected): %s", diff.ObjectDiff(a, e))
+				t.Errorf("unexpected blob deletions (-actual, +expected): %s", diff.ObjectGoPrintSideBySide(a, e))
 			}
 			if want := expectedBlobDeletions.Len() - len(test.expectedBlobDeletionFailures); stats.DeletedBlobs != want {
 				t.Errorf("blob deletions: got %d, want %d", stats.DeletedBlobs, want)
@@ -2054,7 +2054,7 @@ func TestLayerDeleter(t *testing.T) {
 	layerLinkDeleter.DeleteLayerLink("repo", "layer1")
 
 	if e := []string{"DELETE:http://registry1/v2/repo/blobs/layer1"}; !reflect.DeepEqual(actions, e) {
-		t.Errorf("unexpected actions: %s", diff.ObjectDiff(actions, e))
+		t.Errorf("unexpected actions: %s", diff.ObjectGoPrintSideBySide(actions, e))
 	}
 }
 
@@ -2071,7 +2071,7 @@ func TestNotFoundLayerDeleter(t *testing.T) {
 	layerLinkDeleter.DeleteLayerLink("repo", "layer1")
 
 	if e := []string{"DELETE:https://registry1/v2/repo/blobs/layer1"}; !reflect.DeepEqual(actions, e) {
-		t.Errorf("unexpected actions: %s", diff.ObjectDiff(actions, e))
+		t.Errorf("unexpected actions: %s", diff.ObjectGoPrintSideBySide(actions, e))
 	}
 }
 
@@ -2265,13 +2265,13 @@ func TestRegistryPruning(t *testing.T) {
 			p.Prune(streamDeleter, layerLinkDeleter, manifestDeleter, blobDeleter, imageDeleter)
 
 			if a, e := layerLinkDeleter.invocations, test.expectedLayerLinkDeletions; !reflect.DeepEqual(a, e) {
-				t.Errorf("unexpected layer link deletions: %s", diff.ObjectDiff(a, e))
+				t.Errorf("unexpected layer link deletions: %s", diff.ObjectGoPrintSideBySide(a, e))
 			}
 			if a, e := blobDeleter.invocations, test.expectedBlobDeletions; !reflect.DeepEqual(a, e) {
-				t.Errorf("unexpected blob deletions: %s", diff.ObjectDiff(a, e))
+				t.Errorf("unexpected blob deletions: %s", diff.ObjectGoPrintSideBySide(a, e))
 			}
 			if a, e := manifestDeleter.invocations, test.expectedManifestDeletions; !reflect.DeepEqual(a, e) {
-				t.Errorf("unexpected manifest deletions: %s", diff.ObjectDiff(a, e))
+				t.Errorf("unexpected manifest deletions: %s", diff.ObjectGoPrintSideBySide(a, e))
 			}
 		})
 	}
