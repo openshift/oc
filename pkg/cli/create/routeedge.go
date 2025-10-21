@@ -9,9 +9,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -54,7 +53,7 @@ type CreateEdgeRouteOptions struct {
 }
 
 // NewCmdCreateEdgeRoute is a macro command to create an edge route.
-func NewCmdCreateEdgeRoute(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateEdgeRoute(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CreateEdgeRouteOptions{
 		CreateRouteSubcommandOptions: NewCreateRouteSubcommandOptions(streams),
 	}
@@ -133,7 +132,7 @@ func (o *CreateEdgeRouteOptions) Run() error {
 		route.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyType(o.InsecurePolicy)
 	}
 
-	if err := util.CreateOrUpdateAnnotation(o.CreateRouteSubcommandOptions.CreateAnnotation, route, scheme.DefaultJSONEncoder()); err != nil {
+	if err := util.CreateOrUpdateAnnotation(o.CreateRouteSubcommandOptions.CreateAnnotation, route, createCmdJSONEncoder()); err != nil {
 		return err
 	}
 

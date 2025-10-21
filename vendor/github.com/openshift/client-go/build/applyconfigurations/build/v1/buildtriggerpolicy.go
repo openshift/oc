@@ -3,13 +3,13 @@
 package v1
 
 import (
-	v1 "github.com/openshift/api/build/v1"
+	buildv1 "github.com/openshift/api/build/v1"
 )
 
-// BuildTriggerPolicyApplyConfiguration represents an declarative configuration of the BuildTriggerPolicy type for use
+// BuildTriggerPolicyApplyConfiguration represents a declarative configuration of the BuildTriggerPolicy type for use
 // with apply.
 type BuildTriggerPolicyApplyConfiguration struct {
-	Type             *v1.BuildTriggerType                  `json:"type,omitempty"`
+	Type             *buildv1.BuildTriggerType             `json:"type,omitempty"`
 	GitHubWebHook    *WebHookTriggerApplyConfiguration     `json:"github,omitempty"`
 	GenericWebHook   *WebHookTriggerApplyConfiguration     `json:"generic,omitempty"`
 	ImageChange      *ImageChangeTriggerApplyConfiguration `json:"imageChange,omitempty"`
@@ -17,7 +17,7 @@ type BuildTriggerPolicyApplyConfiguration struct {
 	BitbucketWebHook *WebHookTriggerApplyConfiguration     `json:"bitbucket,omitempty"`
 }
 
-// BuildTriggerPolicyApplyConfiguration constructs an declarative configuration of the BuildTriggerPolicy type for use with
+// BuildTriggerPolicyApplyConfiguration constructs a declarative configuration of the BuildTriggerPolicy type for use with
 // apply.
 func BuildTriggerPolicy() *BuildTriggerPolicyApplyConfiguration {
 	return &BuildTriggerPolicyApplyConfiguration{}
@@ -26,7 +26,7 @@ func BuildTriggerPolicy() *BuildTriggerPolicyApplyConfiguration {
 // WithType sets the Type field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Type field is set to the value of the last call.
-func (b *BuildTriggerPolicyApplyConfiguration) WithType(value v1.BuildTriggerType) *BuildTriggerPolicyApplyConfiguration {
+func (b *BuildTriggerPolicyApplyConfiguration) WithType(value buildv1.BuildTriggerType) *BuildTriggerPolicyApplyConfiguration {
 	b.Type = &value
 	return b
 }

@@ -3,7 +3,7 @@ package prune
 import (
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -12,6 +12,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/prune/builds"
 	"github.com/openshift/oc/pkg/cli/admin/prune/deployments"
 	"github.com/openshift/oc/pkg/cli/admin/prune/images"
+	renderedmachineconfigs "github.com/openshift/oc/pkg/cli/admin/prune/renderedmachineconfigs"
 )
 
 var pruneLong = templates.LongDesc(`
@@ -20,7 +21,7 @@ var pruneLong = templates.LongDesc(`
 	The commands here allow administrators to manage the older versions of resources on
 	the system by removing them.`)
 
-func NewCommandPrune(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandPrune(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
 		Use:   "prune",
@@ -34,5 +35,6 @@ func NewCommandPrune(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 	cmds.AddCommand(images.NewCmdPruneImages(f, streams))
 	cmds.AddCommand(groups.NewCmdPruneGroups("groups", "prune groups", f, streams))
 	cmds.AddCommand(auth.NewCmdPruneAuth(f, streams))
+	cmds.AddCommand(renderedmachineconfigs.NewCmdPruneMachineConfigs(f, streams))
 	return cmds
 }

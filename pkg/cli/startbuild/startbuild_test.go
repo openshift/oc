@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -21,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
 	restfake "k8s.io/client-go/rest/fake"
@@ -92,7 +91,7 @@ func TestStartBuildWebHook(t *testing.T) {
 
 	cfg := &FakeClientConfig{}
 	o := &StartBuildOptions{
-		IOStreams:    genericclioptions.NewTestIOStreamsDiscard(),
+		IOStreams:    genericiooptions.NewTestIOStreamsDiscard(),
 		ClientConfig: cfg.Client,
 		FromWebhook:  server.URL + "/webhook",
 		Mapper:       testrestmapper.TestOnlyStaticRESTMapper(scheme.Scheme),
@@ -103,7 +102,7 @@ func TestStartBuildWebHook(t *testing.T) {
 	<-invoked
 
 	o = &StartBuildOptions{
-		IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
+		IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 		FromWebhook:    server.URL + "/webhook",
 		GitPostReceive: "unknownpath",
 	}
@@ -125,7 +124,7 @@ func TestStartBuildHookPostReceive(t *testing.T) {
 	}))
 	defer server.Close()
 
-	f, _ := ioutil.TempFile("", "test")
+	f, _ := os.CreateTemp("", "test")
 	defer os.Remove(f.Name())
 	fmt.Fprintf(f, `0000 2384 refs/heads/master
 2548 2548 refs/heads/stage`)
@@ -136,7 +135,7 @@ func TestStartBuildHookPostReceive(t *testing.T) {
 		Err: testErr,
 	}
 	o := &StartBuildOptions{
-		IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
+		IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 		ClientConfig:   cfg.Client,
 		FromWebhook:    server.URL + "/webhook",
 		GitPostReceive: f.Name(),
@@ -161,7 +160,7 @@ type FakeBuildConfigs struct {
 }
 
 func (c FakeBuildConfigs) InstantiateBinary(name string, options *buildv1.BinaryBuildRequestOptions, r io.Reader) (result *buildv1.Build, err error) {
-	if binary, err := ioutil.ReadAll(r); err != nil {
+	if binary, err := io.ReadAll(r); err != nil {
 		c.t.Errorf("Error while reading binary over HTTP: %v", err)
 	} else if string(binary) != "hi" {
 		c.t.Errorf("Wrong value while reading binary over HTTP: %q", binary)
@@ -385,12 +384,12 @@ func TestStreamBuildLogs(t *testing.T) {
 					}
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       ioutil.NopCloser(body),
+						Body:       io.NopCloser(body),
 					}, nil
 				}),
 			}
 
-			ioStreams, _, out, _ := genericclioptions.NewTestIOStreams()
+			ioStreams, _, out, _ := genericiooptions.NewTestIOStreams()
 
 			o := &StartBuildOptions{
 				IOStreams:      ioStreams,

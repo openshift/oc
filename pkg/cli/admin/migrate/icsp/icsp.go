@@ -1,24 +1,29 @@
 package icsp
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
 
-	apicfgv1 "github.com/openshift/api/config/v1"
-	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
-	operatorv1alpha1scheme "github.com/openshift/client-go/operator/clientset/versioned/scheme"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+	yaml "sigs.k8s.io/yaml/goyaml.v3"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
+
+	apicfgv1 "github.com/openshift/api/config/v1"
+	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
+	operatorv1alpha1scheme "github.com/openshift/client-go/operator/clientset/versioned/scheme"
 )
 
 var (
@@ -27,23 +32,23 @@ var (
 	`)
 
 	internalMigrateICSPExample = templates.Examples(`
-	# update the imagecontentsourcepolicy.yaml to new imagedigestmirrorset file under directory mydir
+	# Update the imagecontentsourcepolicy.yaml file to a new imagedigestmirrorset file under the mydir directory
 	oc adm migrate icsp imagecontentsourcepolicy.yaml --dest-dir mydir
 `)
 )
 
 type MigrateICSPOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	ICSPFiles []string
 	DestDir   string
 }
 
-func NewCmdMigrateICSP(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMigrateICSP(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMigrateICSPOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "icsp",
-		Short:   "Update imagecontentsourcepolicy file(s) to imagedigestmirrorset file(s).",
+		Short:   "Update imagecontentsourcepolicy file(s) to imagedigestmirrorset file(s)",
 		Long:    internalMigrateICSPLong,
 		Example: internalMigrateICSPExample,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -56,7 +61,7 @@ func NewCmdMigrateICSP(f kcmdutil.Factory, streams genericclioptions.IOStreams) 
 	return cmd
 }
 
-func NewMigrateICSPOptions(streams genericclioptions.IOStreams) *MigrateICSPOptions {
+func NewMigrateICSPOptions(streams genericiooptions.IOStreams) *MigrateICSPOptions {
 	return &MigrateICSPOptions{
 		IOStreams: streams,
 	}
@@ -89,11 +94,11 @@ func (o *MigrateICSPOptions) Run() error {
 	var multiErr []error
 	for _, file := range o.ICSPFiles {
 		if err := func() error {
-			icsp, name, err := readICSPsFromFile(file)
+			icsps, name, err := readICSPsFromFile(file)
 			if err != nil {
 				return err
 			}
-			idmsYml, err := generateIDMS(icsp)
+			idmsYml, err := generateIDMS(icsps)
 			if err != nil {
 				return err
 			}
@@ -131,66 +136,88 @@ func (o *MigrateICSPOptions) ensureDirectoryViable() error {
 	if !baseDirInfo.IsDir() {
 		return fmt.Errorf("%q exists and is a file", o.DestDir)
 	}
-	if _, err = ioutil.ReadDir(o.DestDir); err != nil {
+	if _, err = os.ReadDir(o.DestDir); err != nil {
 		return err
 	}
 	return nil
 }
 
-func generateIDMS(icsp operatorv1alpha1.ImageContentSourcePolicy) ([]byte, error) {
-	imgDigestMirrors := []apicfgv1.ImageDigestMirrors{}
-	for _, rdm := range icsp.Spec.RepositoryDigestMirrors {
-		idm := apicfgv1.ImageDigestMirrors{}
-		idm.Source = rdm.Source
-		mirrors := []apicfgv1.ImageMirror{}
-		for _, m := range rdm.Mirrors {
-			mirrors = append(mirrors, apicfgv1.ImageMirror(m))
-		}
-		idm.Mirrors = mirrors
-		imgDigestMirrors = append(imgDigestMirrors, idm)
-	}
-	idms := apicfgv1.ImageDigestMirrorSet{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: apicfgv1.GroupVersion.String(),
-			Kind:       "ImageDigestMirrorSet",
-		},
-		ObjectMeta: icsp.ObjectMeta,
-		Spec:       apicfgv1.ImageDigestMirrorSetSpec{ImageDigestMirrors: imgDigestMirrors},
-	}
+func generateIDMS(icsps []operatorv1alpha1.ImageContentSourcePolicy) ([]byte, error) {
+	var idmsYml []byte
+	const yamlSeparator = "---\n"
 
-	// Create an unstructured object for removing creationTimestamp, status
-	unstructuredObj := unstructured.Unstructured{}
-	var err error
-	unstructuredObj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(&idms)
-	if err != nil {
-		return nil, fmt.Errorf("error converting to unstructured: %v", err)
-	}
-	delete(unstructuredObj.Object["metadata"].(map[string]interface{}), "creationTimestamp")
-	delete(unstructuredObj.Object, "status")
-	idmsYml, err := yaml.Marshal(unstructuredObj.Object)
-	if err != nil {
-		return nil, fmt.Errorf("unable to marshal ImageDigestMirrorSet yaml: %v", err)
+	for i, icsp := range icsps {
+		imgDigestMirrors := []apicfgv1.ImageDigestMirrors{}
+		for _, rdm := range icsp.Spec.RepositoryDigestMirrors {
+			idm := apicfgv1.ImageDigestMirrors{}
+			idm.Source = rdm.Source
+			mirrors := []apicfgv1.ImageMirror{}
+			for _, m := range rdm.Mirrors {
+				mirrors = append(mirrors, apicfgv1.ImageMirror(m))
+			}
+			idm.Mirrors = mirrors
+			imgDigestMirrors = append(imgDigestMirrors, idm)
+		}
+		idms := apicfgv1.ImageDigestMirrorSet{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: apicfgv1.GroupVersion.String(),
+				Kind:       "ImageDigestMirrorSet",
+			},
+			ObjectMeta: icsp.ObjectMeta,
+			Spec:       apicfgv1.ImageDigestMirrorSetSpec{ImageDigestMirrors: imgDigestMirrors},
+		}
+
+		// Create an unstructured object for removing creationTimestamp, status
+		unstructuredObj := unstructured.Unstructured{}
+		var err error
+		unstructuredObj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(&idms)
+		if err != nil {
+			return nil, fmt.Errorf("error converting to unstructured: %v", err)
+		}
+		delete(unstructuredObj.Object["metadata"].(map[string]interface{}), "creationTimestamp")
+		delete(unstructuredObj.Object, "status")
+		idmsBytes, err := yaml.Marshal(unstructuredObj.Object)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal ImageDigestMirrorSet yaml: %v", err)
+		}
+		if len(icsps) > 1 && i != len(icsps)-1 {
+			idmsBytes = append(idmsBytes, []byte(yamlSeparator)...)
+		}
+		idmsYml = append(idmsYml, idmsBytes...)
 	}
 	return idmsYml, nil
 }
 
 // readICSPsFromFile appends to list of alternative image sources from ICSP file
 // returns error if no icsp object decoded from file data
-func readICSPsFromFile(icspFile string) (operatorv1alpha1.ImageContentSourcePolicy, string, error) {
+func readICSPsFromFile(icspFile string) ([]operatorv1alpha1.ImageContentSourcePolicy, string, error) {
 	icspData, err := os.ReadFile(icspFile)
 	if err != nil {
-		return operatorv1alpha1.ImageContentSourcePolicy{}, "", fmt.Errorf("unable to read ImageContentSourceFile %s: %v", icspFile, err)
+		return []operatorv1alpha1.ImageContentSourcePolicy{}, "", fmt.Errorf("unable to read ImageContentSourceFile %s: %v", icspFile, err)
 	}
 	if len(icspData) == 0 {
-		return operatorv1alpha1.ImageContentSourcePolicy{}, "", fmt.Errorf("no data found in ImageContentSourceFile %s", icspFile)
+		return []operatorv1alpha1.ImageContentSourcePolicy{}, "", fmt.Errorf("no data found in ImageContentSourceFile %s", icspFile)
 	}
-	icspObj, err := runtime.Decode(operatorv1alpha1scheme.Codecs.UniversalDeserializer(), icspData)
-	if err != nil {
-		return operatorv1alpha1.ImageContentSourcePolicy{}, "", fmt.Errorf("error decoding ImageContentSourcePolicy from %s: %v", icspFile, err)
+
+	reader := utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(icspData)))
+	var icsps []operatorv1alpha1.ImageContentSourcePolicy
+	for {
+		icspBytes, err := reader.Read()
+		if err != nil && err != io.EOF {
+			return []operatorv1alpha1.ImageContentSourcePolicy{}, "", fmt.Errorf("error reading ImageContentSourcePolicy from %s: %v", icspFile, err)
+		}
+		if icspBytes == nil {
+			break
+		}
+		icspObj, err := runtime.Decode(operatorv1alpha1scheme.Codecs.UniversalDeserializer(), icspBytes)
+		if err != nil {
+			return []operatorv1alpha1.ImageContentSourcePolicy{}, "", fmt.Errorf("error decoding ImageContentSourcePolicy from %s: %v", icspFile, err)
+		}
+		icsp, ok := icspObj.(*operatorv1alpha1.ImageContentSourcePolicy)
+		if !ok {
+			return []operatorv1alpha1.ImageContentSourcePolicy{}, "", fmt.Errorf("could not decode ImageContentSourcePolicy from %s", icspFile)
+		}
+		icsps = append(icsps, *icsp)
 	}
-	icsp, ok := icspObj.(*operatorv1alpha1.ImageContentSourcePolicy)
-	if !ok {
-		return operatorv1alpha1.ImageContentSourcePolicy{}, "", fmt.Errorf("could not decode ImageContentSourcePolicy from %s", icspFile)
-	}
-	return *icsp, icsp.Name, nil
+	return icsps, icsps[0].Name, nil
 }

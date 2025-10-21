@@ -13,8 +13,14 @@ type RemediationStrategyType string
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MachineHealthCheck is the Schema for the machinehealthchecks API
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:path=machinehealthchecks,scope=Namespaced,shortName=mhc;mhcs
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=mhc;mhcs
+// +openshift:api-approved.openshift.io=https://github.com/openshift/api/pull/1032
+// +openshift:file-pattern=cvoRunLevel=0000_10,operatorName=machine-api,operatorOrdering=01
+// +openshift:capability=MachineAPI
+// +kubebuilder:metadata:annotations="exclude.release.openshift.io/internal-openshift-hosted=true"
+// +kubebuilder:metadata:annotations="include.release.openshift.io/self-managed-high-availability=true"
 // +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="MaxUnhealthy",type="string",JSONPath=".spec.maxUnhealthy",description="Maximum number of unhealthy machines allowed"
 // +kubebuilder:printcolumn:name="ExpectedMachines",type="integer",JSONPath=".status.expectedMachines",description="Number of machines currently monitored"
@@ -22,7 +28,10 @@ type RemediationStrategyType string
 // Compatibility level 2: Stable within a major release for a minimum of 9 months or 3 minor releases (whichever is longer).
 // +openshift:compatibility-gen:level=2
 type MachineHealthCheck struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Specification of machine health check policy
@@ -41,8 +50,12 @@ type MachineHealthCheck struct {
 // +openshift:compatibility-gen:level=2
 type MachineHealthCheckList struct {
 	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard list's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []MachineHealthCheck `json:"items"`
+
+	Items []MachineHealthCheck `json:"items"`
 }
 
 // MachineHealthCheckSpec defines the desired state of MachineHealthCheck
@@ -51,7 +64,7 @@ type MachineHealthCheckSpec struct {
 	// Note: An empty selector will match all machines.
 	Selector metav1.LabelSelector `json:"selector"`
 
-	// UnhealthyConditions contains a list of the conditions that determine
+	// unhealthyConditions contains a list of the conditions that determine
 	// whether a node is considered unhealthy.  The conditions are combined in a
 	// logical OR, i.e. if any of the conditions is met, the node is unhealthy.
 	//
@@ -76,14 +89,13 @@ type MachineHealthCheckSpec struct {
 	// Expects an unsigned duration string of decimal numbers each with optional
 	// fraction and a unit suffix, eg "300ms", "1.5h" or "2h45m".
 	// Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
-	// +optional
 	// +kubebuilder:default:="10m"
 	// +kubebuilder:validation:Pattern="^0|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
 	// +kubebuilder:validation:Type:=string
 	// +optional
 	NodeStartupTimeout *metav1.Duration `json:"nodeStartupTimeout,omitempty"`
 
-	// RemediationTemplate is a reference to a remediation template
+	// remediationTemplate is a reference to a remediation template
 	// provided by an infrastructure provider.
 	//
 	// This field is completely optional, when filled, the MachineHealthCheck controller
@@ -117,19 +129,23 @@ type UnhealthyCondition struct {
 type MachineHealthCheckStatus struct {
 	// total number of machines counted by this machine health check
 	// +kubebuilder:validation:Minimum=0
+	// +optional
 	ExpectedMachines *int `json:"expectedMachines"`
 
 	// total number of machines counted by this machine health check
 	// +kubebuilder:validation:Minimum=0
+	// +optional
 	CurrentHealthy *int `json:"currentHealthy"`
 
-	// RemediationsAllowed is the number of further remediations allowed by this machine health check before
+	// remediationsAllowed is the number of further remediations allowed by this machine health check before
 	// maxUnhealthy short circuiting will be applied
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	RemediationsAllowed int32 `json:"remediationsAllowed"`
 
-	// Conditions defines the current state of the MachineHealthCheck
+	// conditions defines the current state of the MachineHealthCheck
 	// +optional
-	Conditions Conditions `json:"conditions,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	Conditions []Condition `json:"conditions,omitempty"`
 }

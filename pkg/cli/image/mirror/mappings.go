@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/distribution/registry/client/auth"
+	"github.com/distribution/distribution/v3/registry/client/auth"
 	digest "github.com/opencontainers/go-digest"
 
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
@@ -164,6 +164,7 @@ func (d *destinations) mergeIntoDigests(srcDigest digest.Digest, target pushTarg
 			continue
 		}
 		existing.tags = append(existing.tags, dst.tags...)
+		current[repo] = existing
 	}
 }
 

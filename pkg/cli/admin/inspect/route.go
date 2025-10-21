@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -8,6 +9,8 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/cli-runtime/pkg/resource"
 )
+
+var _ listAccessor = &routeList{}
 
 type routeList struct {
 	*routev1.RouteList
@@ -22,7 +25,7 @@ func (c *routeList) addItem(obj interface{}) error {
 	return nil
 }
 
-func inspectRouteInfo(info *resource.Info, o *InspectOptions) error {
+func inspectRouteInfo(ctx context.Context, info *resource.Info, o *InspectOptions) error {
 	structuredObj, err := toStructuredObject[routev1.Route, routev1.RouteList](info.Object)
 	if err != nil {
 		return err
@@ -45,7 +48,7 @@ func inspectRouteInfo(info *resource.Info, o *InspectOptions) error {
 	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
 		return err
 	}
-	return o.fileWriter.WriteFromResource(path.Join(dirPath, filename), structuredObj)
+	return o.fileWriter.WriteFromResource(ctx, path.Join(dirPath, filename), structuredObj)
 }
 
 func elideRoute(route *routev1.Route) {

@@ -3,7 +3,7 @@ package migrate
 import (
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -13,7 +13,7 @@ var migrateLong = templates.LongDesc(`
 
 	These commands assist administrators in performing preventative maintenance on a cluster.`)
 
-func NewCommandMigrate(f cmdutil.Factory, streams genericclioptions.IOStreams, cmds ...*cobra.Command) *cobra.Command {
+func NewCommandMigrate(f cmdutil.Factory, streams genericiooptions.IOStreams, cmds ...*cobra.Command) *cobra.Command {
 	// Parent command to which all subcommands are added.
 	cmd := &cobra.Command{
 		Use:   "migrate",

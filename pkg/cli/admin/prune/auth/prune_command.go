@@ -1,10 +1,12 @@
 package auth
 
 import (
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -30,17 +32,19 @@ type PruneAuthOptions struct {
 	OAuthClient         oauthv1client.OauthV1Interface
 	SecurityClient      securityv1client.SecurityV1Interface
 
-	genericclioptions.IOStreams
+	DiscoveryClient discovery.DiscoveryInterface
+
+	genericiooptions.IOStreams
 }
 
-func NewPruneAuthOptions(streams genericclioptions.IOStreams) *PruneAuthOptions {
+func NewPruneAuthOptions(streams genericiooptions.IOStreams) *PruneAuthOptions {
 	return &PruneAuthOptions{
 		IOStreams: streams,
 	}
 }
 
 // NewCmdPruneRoles implements the OpenShift cli prune roles command.
-func NewCmdPruneAuth(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneAuth(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewPruneAuthOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "auth",
@@ -49,7 +53,7 @@ func NewCmdPruneAuth(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
-			kcmdutil.CheckErr(o.RunPrune())
+			ocmdhelpers.CheckOAuthDisabledErr(o.RunPrune(), o.DiscoveryClient)
 		},
 	}
 
@@ -91,6 +95,11 @@ func (o *PruneAuthOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args
 	o.SecurityClient, err = securityv1client.NewForConfig(clientConfig)
 	if err != nil {
 		return nil
+	}
+
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
+	if err != nil {
+		return err
 	}
 
 	cmdNamespace, enforceNamespace, err := f.ToRawKubeConfigLoader().Namespace()

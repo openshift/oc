@@ -3,7 +3,7 @@ package syncgroups
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -22,8 +22,8 @@ import (
 
 func TestMakeOpenShiftGroup(t *testing.T) {
 	syncer := &LDAPGroupSyncer{
-		Out:  ioutil.Discard,
-		Err:  ioutil.Discard,
+		Out:  io.Discard,
+		Err:  io.Discard,
 		Host: "test-host:port",
 		GroupNameMapper: &TestGroupNameMapper{
 			NameMapping: map[string]string{
@@ -338,8 +338,8 @@ func newTestSyncer() (*LDAPGroupSyncer, *fakeuserv1client.FakeUserV1) {
 		GroupNameMapper:      newTestGroupNameMapper(),
 		GroupClient:          tc.Groups(),
 		Host:                 newTestHost(),
-		Out:                  ioutil.Discard,
-		Err:                  ioutil.Discard,
+		Out:                  io.Discard,
+		Err:                  io.Discard,
 	}, tc
 
 }

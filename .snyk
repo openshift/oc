@@ -1,0 +1,14 @@
+# References:
+# https://docs.snyk.io/scan-applications/snyk-code/using-snyk-code-from-the-cli/excluding-directories-and-files-from-the-snyk-code-cli-test
+# https://docs.snyk.io/snyk-cli/commands/ignore
+exclude:
+  global:
+    - vendor/**
+    - "**/*_test.go"
+    - pkg/cli/admin/internal/codesign/machoresign.go # the paths are fed by oc
+    - pkg/cli/admin/release/new.go # we sanitize the directory
+    - pkg/cli/rsync/copy_tar.go # mostly directories are determined by oc
+    - pkg/helpers/source-to-image/tar/tar.go # we sanitize the directory
+    - pkg/cli/image/archive/archive.go # this is copy of moby/moby/pkg/archive and making any changes is risky that may create uneasy to find bugs.
+    - pkg/cli/admin/inspect/util.go # InsecureSkipVerify is required to show the event page which is managed by CI jobs.
+    - pkg/cli/admin/release/git.go  # md5 is used to generate repo name in remoteNameForRepo func and to be compatible with git, md5 is required.

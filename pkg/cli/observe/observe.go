@@ -3,7 +3,6 @@ package observe
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -27,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/tools/cache"
@@ -133,7 +133,7 @@ var (
 		oc observe services --template '{ .spec.clusterIP }' -- register_dns.sh
 
 		# Observe changes to services filtered by a label selector
-		oc observe namespaces -l regist-dns=true --template '{ .spec.clusterIP }' -- register_dns.sh
+		oc observe services -l regist-dns=true --template '{ .spec.clusterIP }' -- register_dns.sh
 	`)
 )
 
@@ -185,10 +185,10 @@ type ObserveOptions struct {
 	// knownObjects is nil if we do not need to track deletions
 	knownObjects knownObjects
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewObserveOptions(streams genericclioptions.IOStreams) *ObserveOptions {
+func NewObserveOptions(streams genericiooptions.IOStreams) *ObserveOptions {
 	return &ObserveOptions{
 		PrintFlags: (&genericclioptions.PrintFlags{
 			TemplatePrinterFlags: genericclioptions.NewKubeTemplatePrintFlags(),
@@ -202,7 +202,7 @@ func NewObserveOptions(streams genericclioptions.IOStreams) *ObserveOptions {
 }
 
 // NewCmdObserve creates the observe command.
-func NewCmdObserve(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdObserve(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewObserveOptions(streams)
 
 	cmd := &cobra.Command{
@@ -343,7 +343,7 @@ func (o *ObserveOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 	o.printer = printerWrapper{printer: printer}
 
 	if o.quiet {
-		o.debugOut = ioutil.Discard
+		o.debugOut = io.Discard
 	} else {
 		o.debugOut = o.Out
 	}
@@ -407,7 +407,12 @@ func (o *ObserveOptions) Run() error {
 	}
 
 	// watch the given resource for changes
-	store := cache.NewDeltaFIFO(objectArgumentsKeyFunc, o.knownObjects)
+	store := cache.NewDeltaFIFOWithOptions(cache.DeltaFIFOOptions{
+		KeyFunction:  objectArgumentsKeyFunc,
+		KnownObjects: o.knownObjects,
+	})
+	observeReflectorStore := newObserveReflector(store)
+
 	lw := restListWatcher{
 		Helper:   resource.NewHelper(o.client, o.mapping),
 		selector: o.selector,
@@ -457,7 +462,7 @@ func (o *ObserveOptions) Run() error {
 	defer close(stopCh)
 
 	// start the reflector
-	reflector := cache.NewNamedReflector("observer", lw, nil, store, o.resyncPeriod)
+	reflector := cache.NewNamedReflector("observer", lw, nil, observeReflectorStore, o.resyncPeriod)
 	go func() {
 		observedListErrors := 0
 		wait.Until(func() {
@@ -478,7 +483,7 @@ func (o *ObserveOptions) Run() error {
 			time.Sleep(50 * time.Millisecond)
 		}
 		// if the store is empty, there is nothing to sync
-		if store.HasSynced() && len(store.ListKeys()) == 0 {
+		if store.HasSynced() && !observeReflectorStore.populated {
 			fmt.Fprintf(o.ErrOut, "Nothing to sync, exiting immediately\n")
 			return nil
 		}
@@ -487,7 +492,7 @@ func (o *ObserveOptions) Run() error {
 	// process all changes that occur in the resource
 	syncing := false
 	for {
-		_, err := store.Pop(func(obj interface{}) error {
+		_, err := store.Pop(func(obj interface{}, isInInitialList bool) error {
 			// if we failed to retrieve the list of keys, exit
 			if err := o.argumentStore.ListKeysError(); err != nil {
 				return fmt.Errorf("unable to list known keys: %v", err)
@@ -727,7 +732,7 @@ func (o *ObserveOptions) dumpMetrics() {
 	w := httptest.NewRecorder()
 	promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{}).ServeHTTP(w, &http.Request{})
 	if w.Code == http.StatusOK {
-		fmt.Fprintf(o.Out, w.Body.String())
+		fmt.Fprint(o.Out, w.Body.String())
 	}
 }
 

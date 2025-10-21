@@ -5,9 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+
 	imageapi "github.com/openshift/api/image/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/diff"
 )
 
 func TestNewImageMapper(t *testing.T) {
@@ -200,13 +202,7 @@ func TestNewImageMapper(t *testing.T) {
 			if err != nil {
 				return
 			}
-			out, err := m([]byte(tt.input))
-			if (err != nil) != tt.wantErr {
-				t.Fatal(err)
-			}
-			if err != nil {
-				return
-			}
+			out := m([]byte(tt.input))
 			if string(out) != tt.output {
 				t.Errorf("unexpected output, wanted\n%s\ngot\n%s", tt.output, string(out))
 			}
@@ -248,13 +244,7 @@ func TestNewExactMapper(t *testing.T) {
 			if err != nil {
 				return
 			}
-			out, err := m([]byte(tt.input))
-			if (err != nil) != tt.wantErr {
-				t.Fatal(err)
-			}
-			if err != nil {
-				return
-			}
+			out := m([]byte(tt.input))
 			if string(out) != tt.output {
 				t.Errorf("unexpected output, wanted\n%s\ngot\n%s", tt.output, string(out))
 			}
@@ -263,8 +253,6 @@ func TestNewExactMapper(t *testing.T) {
 }
 
 func TestNewComponentVersionsMapper(t *testing.T) {
-	type args struct {
-	}
 	tests := []struct {
 		name        string
 		releaseName string
@@ -370,8 +358,6 @@ func TestNewComponentVersionsMapper(t *testing.T) {
 }
 
 func Test_parseComponentVersionsLabel(t *testing.T) {
-	type args struct {
-	}
 	tests := []struct {
 		name         string
 		label        string
@@ -697,18 +683,19 @@ func Test_loadImageStreamTransforms(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, err := loadImageStreamTransforms(tt.input, tt.local, tt.allowMissingImages, tt.src)
+			ioStream := genericiooptions.NewTestIOStreamsDiscard()
+			got, gotTags, gotRefs, err := loadImageStreamTransforms(tt.input, tt.local, tt.allowMissingImages, tt.src, ioStream.ErrOut)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("loadImageStreamTransforms() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("%s", diff.ObjectReflectDiff(got, tt.want))
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("versions differ (-want +got):\n%s", diff)
 			}
-			if !reflect.DeepEqual(got1, tt.wantTags) {
-				t.Errorf("%s", diff.ObjectReflectDiff(got1, tt.wantTags))
+			if diff := cmp.Diff(tt.wantTags, gotTags); diff != "" {
+				t.Errorf("tags differ (-want +got):\n%s", diff)
 			}
-			if !reflect.DeepEqual(got2, tt.wantRefs) {
-				t.Errorf("%s", diff.ObjectReflectDiff(got2, tt.wantRefs))
+			if diff := cmp.Diff(tt.wantRefs, gotRefs); diff != "" {
+				t.Errorf("refs differ (-want +got):\n%s", diff)
 			}
 		})
 	}

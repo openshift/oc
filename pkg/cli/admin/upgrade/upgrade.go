@@ -17,7 +17,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -26,6 +26,9 @@ import (
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/recommend"
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/rollback"
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/status"
 )
 
 const (
@@ -36,20 +39,20 @@ const (
 )
 
 var upgradeExample = templates.Examples(`
-	# Review the available cluster updates
+	# View the update status and available cluster updates
 	oc adm upgrade
 
 	# Update to the latest version
 	oc adm upgrade --to-latest=true
 `)
 
-func NewOptions(streams genericclioptions.IOStreams) *Options {
+func NewOptions(streams genericiooptions.IOStreams) *Options {
 	return &Options{
 		IOStreams: streams,
 	}
 }
 
-func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "upgrade --to=VERSION",
@@ -82,16 +85,17 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 			downgrading one minor version (4.2 -> 4.1) is likely to cause data corruption or to
 			completely break a cluster.
 
-			If the cluster is already being upgraded, or if the cluster is reporting a failure or
-			other error, the update will not be triggered.  It is usually best to give these conditions
-			time to resolve, or to actively work to resolve them.  But if you decide to trigger the update
+			There are two layers of upgrade guards: client-side and cluster-side.
+
+			Client-side guards include checks for whether the cluster is already being upgraded, or if
+			the cluster is reporting a failure.  It is usually best to give these conditions time to
+			resolve, or to actively work to resolve them.  But if you decide to trigger the update
 			regardless of these concerns, use --allow-upgrade-with-warnings.
 
-			The cluster may report that the upgrade should not be performed due to a content
-			verification error or update precondition failures such as operators blocking upgrades.
-			Do not upgrade to images that are not appropriately signed without understanding the risks
-			of upgrading your cluster to untrusted code. If you must override this protection use
-			the --force flag.
+			Cluster-side guards include checks for release verification and upgradeable conditions.
+			Again, it is usually best to give these conditions time to resolve, or to actively work to
+			resolve them.  But if you decide to trigger the update regardless of these concerns,
+			use --force, which is passed through to ClusterVersion's spec.desiredUpdate.force.
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -101,22 +105,28 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 	flags := cmd.Flags()
 	flags.StringVar(&o.To, "to", o.To, "Specify the version to upgrade to. The version must be on the list of available updates.")
 	flags.StringVar(&o.ToImage, "to-image", o.ToImage, "Provide a release image to upgrade to.")
-	flags.BoolVar(&o.ToLatestAvailable, "to-latest", o.ToLatestAvailable, "Use the next available version.")
+	flags.BoolVar(&o.ToLatestAvailable, "to-latest", o.ToLatestAvailable, "Use the latest (highest Semantic Version) available version.")
 	flags.BoolVar(&o.ToMultiArch, "to-multi-arch", o.ToMultiArch, "Upgrade current version to multi architecture.")
 	flags.BoolVar(&o.Clear, "clear", o.Clear, "If an upgrade has been requested but not yet downloaded, cancel the update. This has no effect once the update has started.")
-	flags.BoolVar(&o.Force, "force", o.Force, "Forcefully upgrade the cluster even when upgrade release image validation fails and the cluster is reporting errors.")
+	flags.BoolVar(&o.Force, "force", o.Force, "Upgrade regardless of cluster-side guard failures, such as release verification or upgradeable conditions.")
 	flags.BoolVar(&o.AllowExplicitUpgrade, "allow-explicit-upgrade", o.AllowExplicitUpgrade, "Upgrade even if the upgrade target is not listed in the available versions list.")
-	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade even if an upgrade is in process or a cluster error is blocking the update.")
+	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade regardless of client-side guard failures, such as upgrades in progress or failing clusters.")
 	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
 	flags.BoolVar(&o.AllowNotRecommended, "allow-not-recommended", o.AllowNotRecommended, "Allows upgrade to a version when it is supported but not recommended for updates.")
 
 	cmd.AddCommand(channel.New(f, streams))
+	cmd.AddCommand(status.New(f, streams))
+
+	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_ROLLBACK").IsEnabled() {
+		cmd.AddCommand(rollback.New(f, streams))
+	}
+	cmd.AddCommand(recommend.New(f, streams))
 
 	return cmd
 }
 
 type Options struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	To                string
 	ToImage           string
@@ -134,11 +144,13 @@ type Options struct {
 }
 
 func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
+	kcmdutil.RequireNoArguments(cmd, args)
+
 	if o.Clear && (len(o.ToImage) > 0 || len(o.To) > 0 || o.ToLatestAvailable || o.ToMultiArch) {
 		return fmt.Errorf("--clear may not be specified with any other flags")
 	}
-	if o.ToMultiArch && (len(o.To) > 0 || len(o.ToImage) > 0) {
-		return fmt.Errorf("--to-multi-arch may not be used with --to or --to-image")
+	if o.ToMultiArch && (len(o.To) > 0 || len(o.ToImage) > 0 || o.ToLatestAvailable) {
+		return fmt.Errorf("--to-multi-arch may not be used with --to, --to-image, or --to-latest")
 	}
 	if len(o.To) > 0 && len(o.ToImage) > 0 {
 		return fmt.Errorf("only one of --to or --to-image may be provided")
@@ -216,8 +228,25 @@ func (o *Options) Run() error {
 		if cv.Spec.DesiredUpdate != nil && cv.Spec.DesiredUpdate.Architecture == configv1.ClusterVersionArchitectureMulti {
 			return fmt.Errorf("info: Update to multi cluster architecture has already been requested")
 		}
-		if err := patchDesiredUpdate(ctx, &configv1.Update{Architecture: configv1.ClusterVersionArchitectureMulti,
-			Version: cv.Status.Desired.Version}, o.Client, cv.Name); err != nil {
+
+		if err := checkForUpgrade(cv); err != nil {
+			if !o.AllowUpgradeWithWarnings {
+				return fmt.Errorf("%s\n\nIf you want to upgrade anyway, use --allow-upgrade-with-warnings.", err)
+			}
+			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s\n", err)
+		}
+
+		update := &configv1.Update{
+			Architecture: configv1.ClusterVersionArchitectureMulti,
+			Version:      cv.Status.Desired.Version,
+		}
+
+		if o.Force {
+			update.Force = true
+			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
+		}
+
+		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
 
 			return err
 		}
@@ -243,9 +272,14 @@ func (o *Options) Run() error {
 		// check for recommended updates
 		for _, available := range cv.Status.AvailableUpdates {
 			if match, err := targetMatch(&available, o.To, o.ToImage); match && err == nil {
+				desired := available.Image
+				// preserve the specifically requested release image
+				if len(o.ToImage) > 0 {
+					desired = o.ToImage
+				}
 				update = &configv1.Update{
 					Version: available.Version,
-					Image:   available.Image,
+					Image:   desired,
 				}
 				break
 			} else if err != nil {
@@ -260,7 +294,7 @@ func (o *Options) Run() error {
 				if c := findCondition(upgrade.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
 					if match, err := targetMatch(&upgrade.Release, o.To, o.ToImage); match && err == nil {
 						if !o.AllowNotRecommended {
-							return fmt.Errorf("the update %s is not one of the recommended updates, but is available as a conditional update."+
+							return fmt.Errorf("the update %s is not one of the recommended updates, but is available as a conditional update. "+
 								"To accept the %s=%s risk and to proceed with update use --allow-not-recommended.\n  Reason: %s\n  Message: %s\n",
 								upgrade.Release.Version, c.Type, c.Status, c.Reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 						}
@@ -287,7 +321,7 @@ func (o *Options) Run() error {
 				Version: "",
 				Image:   o.ToImage,
 			}
-			fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates."+
+			fmt.Fprintln(o.ErrOut, "warning: The requested upgrade image is not one of the available updates. "+
 				"You have used --allow-explicit-upgrade for the update to proceed anyway")
 		}
 
@@ -348,7 +382,7 @@ func (o *Options) Run() error {
 			if !o.AllowUpgradeWithWarnings {
 				return fmt.Errorf("%s\n\nIf you want to upgrade anyway, use --allow-upgrade-with-warnings.", err)
 			}
-			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s", err)
+			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s\n", err)
 		}
 
 		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
@@ -429,18 +463,25 @@ func (o *Options) Run() error {
 		if o.IncludeNotRecommended {
 			if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
 				sortConditionalUpdatesBySemanticVersions(cv.Status.ConditionalUpdates)
-				fmt.Fprintf(o.Out, "\nSupported but not recommended updates:\n")
+				fmt.Fprintf(o.Out, "\nUpdates with known issues:\n")
 				for _, update := range cv.Status.ConditionalUpdates {
 					if c := findCondition(update.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue {
 						fmt.Fprintf(o.Out, "\n  Version: %s\n  Image: %s\n", update.Release.Version, update.Release.Image)
-						fmt.Fprintf(o.Out, "  Recommended: %s\n  Reason: %s\n  Message: %s\n", c.Status, c.Reason, strings.ReplaceAll(strings.TrimSpace(c.Message), "\n", "\n  "))
+						fmt.Fprintf(o.Out, "  Reason: %s\n  Message: %s\n", c.Reason, strings.ReplaceAll(strings.TrimSpace(c.Message), "\n", "\n  "))
 					}
 				}
 			} else {
 				fmt.Fprintf(o.Out, "\nNo updates which are not recommended based on your cluster configuration are available.\n")
 			}
 		} else if containsNotRecommendedUpdate(cv.Status.ConditionalUpdates) {
-			fmt.Fprintf(o.Out, "\nAdditional updates which are not recommended based on your cluster configuration are available, to view those re-run the command with --include-not-recommended.\n")
+			qualifier := ""
+			for _, upgrade := range cv.Status.ConditionalUpdates {
+				if c := findCondition(upgrade.Conditions, "Recommended"); c != nil && c.Status != metav1.ConditionTrue && c.Status != metav1.ConditionFalse {
+					qualifier = fmt.Sprintf(", or where the recommended status is %q,", c.Status)
+					break
+				}
+			}
+			fmt.Fprintf(o.Out, "\nAdditional updates which are not recommended%s for your cluster configuration are available, to view those re-run the command with --include-not-recommended.\n", qualifier)
 		}
 
 		// TODO: print previous versions

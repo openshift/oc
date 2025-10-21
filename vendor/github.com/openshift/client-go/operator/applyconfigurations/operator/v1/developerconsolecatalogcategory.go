@@ -2,14 +2,14 @@
 
 package v1
 
-// DeveloperConsoleCatalogCategoryApplyConfiguration represents an declarative configuration of the DeveloperConsoleCatalogCategory type for use
+// DeveloperConsoleCatalogCategoryApplyConfiguration represents a declarative configuration of the DeveloperConsoleCatalogCategory type for use
 // with apply.
 type DeveloperConsoleCatalogCategoryApplyConfiguration struct {
 	DeveloperConsoleCatalogCategoryMetaApplyConfiguration `json:",inline"`
 	Subcategories                                         []DeveloperConsoleCatalogCategoryMetaApplyConfiguration `json:"subcategories,omitempty"`
 }
 
-// DeveloperConsoleCatalogCategoryApplyConfiguration constructs an declarative configuration of the DeveloperConsoleCatalogCategory type for use with
+// DeveloperConsoleCatalogCategoryApplyConfiguration constructs a declarative configuration of the DeveloperConsoleCatalogCategory type for use with
 // apply.
 func DeveloperConsoleCatalogCategory() *DeveloperConsoleCatalogCategoryApplyConfiguration {
 	return &DeveloperConsoleCatalogCategoryApplyConfiguration{}
@@ -19,7 +19,7 @@ func DeveloperConsoleCatalogCategory() *DeveloperConsoleCatalogCategoryApplyConf
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ID field is set to the value of the last call.
 func (b *DeveloperConsoleCatalogCategoryApplyConfiguration) WithID(value string) *DeveloperConsoleCatalogCategoryApplyConfiguration {
-	b.ID = &value
+	b.DeveloperConsoleCatalogCategoryMetaApplyConfiguration.ID = &value
 	return b
 }
 
@@ -27,7 +27,7 @@ func (b *DeveloperConsoleCatalogCategoryApplyConfiguration) WithID(value string)
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Label field is set to the value of the last call.
 func (b *DeveloperConsoleCatalogCategoryApplyConfiguration) WithLabel(value string) *DeveloperConsoleCatalogCategoryApplyConfiguration {
-	b.Label = &value
+	b.DeveloperConsoleCatalogCategoryMetaApplyConfiguration.Label = &value
 	return b
 }
 
@@ -36,7 +36,7 @@ func (b *DeveloperConsoleCatalogCategoryApplyConfiguration) WithLabel(value stri
 // If called multiple times, values provided by each call will be appended to the Tags field.
 func (b *DeveloperConsoleCatalogCategoryApplyConfiguration) WithTags(values ...string) *DeveloperConsoleCatalogCategoryApplyConfiguration {
 	for i := range values {
-		b.Tags = append(b.Tags, values[i])
+		b.DeveloperConsoleCatalogCategoryMetaApplyConfiguration.Tags = append(b.DeveloperConsoleCatalogCategoryMetaApplyConfiguration.Tags, values[i])
 	}
 	return b
 }

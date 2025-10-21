@@ -7,13 +7,13 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
-// ServiceCatalogControllerManagerSpecApplyConfiguration represents an declarative configuration of the ServiceCatalogControllerManagerSpec type for use
+// ServiceCatalogControllerManagerSpecApplyConfiguration represents a declarative configuration of the ServiceCatalogControllerManagerSpec type for use
 // with apply.
 type ServiceCatalogControllerManagerSpecApplyConfiguration struct {
 	OperatorSpecApplyConfiguration `json:",inline"`
 }
 
-// ServiceCatalogControllerManagerSpecApplyConfiguration constructs an declarative configuration of the ServiceCatalogControllerManagerSpec type for use with
+// ServiceCatalogControllerManagerSpecApplyConfiguration constructs a declarative configuration of the ServiceCatalogControllerManagerSpec type for use with
 // apply.
 func ServiceCatalogControllerManagerSpec() *ServiceCatalogControllerManagerSpecApplyConfiguration {
 	return &ServiceCatalogControllerManagerSpecApplyConfiguration{}
@@ -23,7 +23,7 @@ func ServiceCatalogControllerManagerSpec() *ServiceCatalogControllerManagerSpecA
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ManagementState field is set to the value of the last call.
 func (b *ServiceCatalogControllerManagerSpecApplyConfiguration) WithManagementState(value operatorv1.ManagementState) *ServiceCatalogControllerManagerSpecApplyConfiguration {
-	b.ManagementState = &value
+	b.OperatorSpecApplyConfiguration.ManagementState = &value
 	return b
 }
 
@@ -31,7 +31,7 @@ func (b *ServiceCatalogControllerManagerSpecApplyConfiguration) WithManagementSt
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the LogLevel field is set to the value of the last call.
 func (b *ServiceCatalogControllerManagerSpecApplyConfiguration) WithLogLevel(value operatorv1.LogLevel) *ServiceCatalogControllerManagerSpecApplyConfiguration {
-	b.LogLevel = &value
+	b.OperatorSpecApplyConfiguration.LogLevel = &value
 	return b
 }
 
@@ -39,7 +39,7 @@ func (b *ServiceCatalogControllerManagerSpecApplyConfiguration) WithLogLevel(val
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the OperatorLogLevel field is set to the value of the last call.
 func (b *ServiceCatalogControllerManagerSpecApplyConfiguration) WithOperatorLogLevel(value operatorv1.LogLevel) *ServiceCatalogControllerManagerSpecApplyConfiguration {
-	b.OperatorLogLevel = &value
+	b.OperatorSpecApplyConfiguration.OperatorLogLevel = &value
 	return b
 }
 
@@ -47,7 +47,7 @@ func (b *ServiceCatalogControllerManagerSpecApplyConfiguration) WithOperatorLogL
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the UnsupportedConfigOverrides field is set to the value of the last call.
 func (b *ServiceCatalogControllerManagerSpecApplyConfiguration) WithUnsupportedConfigOverrides(value runtime.RawExtension) *ServiceCatalogControllerManagerSpecApplyConfiguration {
-	b.UnsupportedConfigOverrides = &value
+	b.OperatorSpecApplyConfiguration.UnsupportedConfigOverrides = &value
 	return b
 }
 
@@ -55,6 +55,6 @@ func (b *ServiceCatalogControllerManagerSpecApplyConfiguration) WithUnsupportedC
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ObservedConfig field is set to the value of the last call.
 func (b *ServiceCatalogControllerManagerSpecApplyConfiguration) WithObservedConfig(value runtime.RawExtension) *ServiceCatalogControllerManagerSpecApplyConfiguration {
-	b.ObservedConfig = &value
+	b.OperatorSpecApplyConfiguration.ObservedConfig = &value
 	return b
 }

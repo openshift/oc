@@ -3,6 +3,7 @@ package imageprune
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -11,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/manifest/manifestlist"
-	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/distribution/distribution/v3/manifest/manifestlist"
+	"github.com/distribution/distribution/v3/manifest/schema2"
+	"github.com/distribution/distribution/v3/registry/api/errcode"
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"k8s.io/klog/v2"
 
@@ -1368,7 +1369,7 @@ func deleteFromRegistry(registryClient *http.Client, url string) error {
 	// non-2xx/3xx response doesn't cause an error, so we need to check for it
 	// manually and return it to caller
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf(resp.Status)
+		return errors.New(resp.Status)
 	}
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusAccepted {

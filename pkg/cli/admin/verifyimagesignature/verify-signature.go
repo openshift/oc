@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -15,10 +14,11 @@ import (
 	"github.com/containers/image/v5/signature"
 	sigtypes "github.com/containers/image/v5/types"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -26,6 +26,7 @@ import (
 	imagev1typedclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	imageref "github.com/openshift/library-go/pkg/image/reference"
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 )
 
 var (
@@ -82,12 +83,13 @@ type VerifyImageSignatureOptions struct {
 	RegistryURL       string
 	Insecure          bool
 
-	ImageClient imagev1typedclient.ImageV1Interface
+	ImageClient     imagev1typedclient.ImageV1Interface
+	DiscoveryClient discovery.DiscoveryInterface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewVerifyImageSignatureOptions(streams genericclioptions.IOStreams) *VerifyImageSignatureOptions {
+func NewVerifyImageSignatureOptions(streams genericiooptions.IOStreams) *VerifyImageSignatureOptions {
 	return &VerifyImageSignatureOptions{
 		// TODO: This improves the error message users get when containers/image is not able
 		// to locate the pubring.gpg file (which is default).
@@ -97,7 +99,7 @@ func NewVerifyImageSignatureOptions(streams genericclioptions.IOStreams) *Verify
 	}
 }
 
-func NewCmdVerifyImageSignature(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVerifyImageSignature(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewVerifyImageSignatureOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "verify-image-signature IMAGE --expected-identity=EXPECTED_IDENTITY [--save]",
@@ -106,7 +108,7 @@ func NewCmdVerifyImageSignature(f kcmdutil.Factory, streams genericclioptions.IO
 		Example: verifyImageSignatureExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			ocmdhelpers.CheckOAuthDisabledErr(o.Complete(f, cmd, args), o.DiscoveryClient)
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
@@ -142,7 +144,7 @@ func (o *VerifyImageSignatureOptions) Complete(f kcmdutil.Factory, cmd *cobra.Co
 	var err error
 
 	if len(o.PublicKeyFilename) > 0 {
-		if o.PublicKey, err = ioutil.ReadFile(o.PublicKeyFilename); err != nil {
+		if o.PublicKey, err = os.ReadFile(o.PublicKeyFilename); err != nil {
 			return fmt.Errorf("unable to read --public-key: %v", err)
 		}
 	}
@@ -151,6 +153,10 @@ func (o *VerifyImageSignatureOptions) Complete(f kcmdutil.Factory, cmd *cobra.Co
 		return err
 	}
 	o.ImageClient, err = imagev1typedclient.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}
@@ -311,7 +317,7 @@ func (t dockerTransport) ParseReference(reference string) (sigtypes.ImageReferen
 // scope passed to this function will not be "", that value is always allowed.
 func (t dockerTransport) ValidatePolicyConfigurationScope(scope string) error {
 	// FIXME? We could be verifying the various character set and length restrictions
-	// from docker/distribution/reference.regexp.go, but other than that there
+	// from distribution/distribution/v3/reference.regexp.go, but other than that there
 	// are few semantically invalid strings.
 	return nil
 }
@@ -334,7 +340,7 @@ func parseDockerReference(refString string) (sigtypes.ImageReference, error) {
 		return nil, fmt.Errorf("Docker reference %s has neither a tag nor a digest", reference.FamiliarString(ref))
 	}
 	// A github.com/distribution/reference value can have a tag and a digest at the same time!
-	// The docker/distribution API does not really support that (we can’t ask for an image with a specific
+	// The distribution/distribution/v3 API does not really support that (we can’t ask for an image with a specific
 	// tag and digest), so fail.  This MAY be accepted in the future.
 	// (Even if it were supported, the semantics of policy namespaces are unclear - should we drop
 	// the tag or the digest first?)

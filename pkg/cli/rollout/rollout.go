@@ -2,8 +2,7 @@ package rollout
 
 import (
 	"github.com/spf13/cobra"
-
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/kubectl/pkg/cmd/rollout"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/completion"
@@ -14,31 +13,39 @@ import (
 
 var (
 	rolloutLong = templates.LongDesc(`
-		Start a new rollout, view its status or history, rollback to a previous revision of your app.
+		Manage the rollout of one or more resources.` + rolloutValidResources)
 
-		This command allows you to control a deployment config. Each individual rollout is exposed
-		as a replication controller, and the deployment process manages scaling down old replication
-		controllers and scaling up new ones.
+	rolloutExample = templates.Examples(`
+		# Roll back to the previous deployment
+		oc rollout undo deployment/abc
 
-		There are several deployment strategies defined:
+		# Check the rollout status of a daemonset
+		oc rollout status daemonset/foo
 
-		* Rolling (default) - scales up the new replication controller in stages, gradually reducing the
-			number of old pods. If one of the new deployed pods never becomes "ready", the new rollout
-			will be rolled back (scaled down to zero). Use when your application can tolerate two versions
-			of code running at the same time (many web applications, scalable databases)
-		* Recreate - scales the old replication controller down to zero, then scales the new replication
-			controller up to full. Use when your application cannot tolerate two versions of code running
-			at the same time
-		* Custom - run your own deployment process inside a container using your own scripts.`)
+		# Restart a deployment
+		oc rollout restart deployment/abc
+
+		# Restart deployments with the 'app=nginx' label
+		oc rollout restart deployment --selector=app=nginx`)
+
+	rolloutValidResources = `
+		Valid resource types include:
+
+		   * deployments
+		   * daemonsets
+		   * statefulsets
+		   * deploymentConfigs (deprecated)
+		`
 )
 
 // NewCmdRollout facilitates kubectl rollout subcommands
-func NewCmdRollout(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRollout(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "rollout SUBCOMMAND",
-		Short: "Manage a Kubernetes deployment or OpenShift deployment config",
-		Long:  rolloutLong,
-		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
+		Use:     "rollout SUBCOMMAND",
+		Short:   "Manage the rollout of a resource",
+		Long:    rolloutLong,
+		Example: rolloutExample,
+		Run:     kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 
 	// subcommands
@@ -56,129 +63,121 @@ func NewCmdRollout(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cob
 }
 
 var (
-	rolloutHistoryLong = templates.LongDesc(`
-		View the history of rollouts for a specific deployment config
+	historyLong = templates.LongDesc(`
+		View previous rollout revisions and configurations.`)
 
-		You can also view more detailed information for a specific revision
-		by using the --revision flag.`)
-
-	rolloutHistoryExample = templates.Examples(`
+	historyExample = templates.Examples(`
 		# View the rollout history of a deployment
-		oc rollout history dc/nginx
+		oc rollout history deployment/abc
 
-	  # View the details of deployment revision 3
-		oc rollout history dc/nginx --revision=3`)
+		# View the details of daemonset revision 3
+		oc rollout history daemonset/abc --revision=3`)
 )
 
 // NewCmdRolloutHistory is a wrapper for the Kubernetes cli rollout history command
-func NewCmdRolloutHistory(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutHistory(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := rollout.NewCmdRolloutHistory(f, streams)
-	cmd.Long = rolloutHistoryLong
-	cmd.Example = rolloutHistoryExample
+	cmd.Long = historyLong
+	cmd.Example = historyExample
 	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
 	cmd.ValidArgsFunction = completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }
 
 var (
-	rolloutPauseLong = templates.LongDesc(`
-    Mark the provided resource as paused.
+	pauseLong = templates.LongDesc(`
+		Mark the provided resource as paused.
 
-    Paused resources will not be reconciled by a controller.
-    Use \"oc rollout resume\" to resume a paused resource.`)
+		Paused resources will not be reconciled by a controller.
+		Use "oc rollout resume" to resume a paused resource.
+		Currently, only deployments support being paused.`)
 
-	rolloutPauseExample = templates.Examples(`
-    # Mark the nginx deployment as paused. Any current state of
-    # the deployment will continue its function, new updates to the deployment will not
-    # have an effect as long as the deployment is paused
-    oc rollout pause dc/nginx`)
+	pauseExample = templates.Examples(`
+		# Mark the nginx deployment as paused
+		# Any current state of the deployment will continue its function; new updates
+		# to the deployment will not have an effect as long as the deployment is paused
+		oc rollout pause deployment/nginx`)
 )
 
 // NewCmdRolloutPause is a wrapper for the Kubernetes cli rollout pause command
-func NewCmdRolloutPause(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutPause(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := rollout.NewCmdRolloutPause(f, streams)
-	cmd.Long = rolloutPauseLong
-	cmd.Example = rolloutPauseExample
+	cmd.Long = pauseLong
+	cmd.Example = pauseExample
 	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
 	cmd.ValidArgsFunction = completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }
 
 var (
-	rolloutResumeLong = templates.LongDesc(`
-    Resume a paused resource.
+	resumeLong = templates.LongDesc(`
+		Resume a paused resource.
 
-    Paused resources will not be reconciled by a controller. By resuming a
-    resource, we allow it to be reconciled again.`)
+		Paused resources will not be reconciled by a controller. By resuming a
+		resource, we allow it to be reconciled again.
+		Currently only deployments support being resumed.`)
 
-	rolloutResumeExample = templates.Examples(`
-    # Resume an already paused deployment
-    oc rollout resume dc/nginx`)
+	resumeExample = templates.Examples(`
+		# Resume an already paused deployment
+		oc rollout resume deployment/nginx`)
 )
 
 // NewCmdRolloutResume is a wrapper for the Kubernetes cli rollout resume command
-func NewCmdRolloutResume(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutResume(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := rollout.NewCmdRolloutResume(f, streams)
-	cmd.Long = rolloutResumeLong
-	cmd.Example = rolloutResumeExample
+	cmd.Long = resumeLong
+	cmd.Example = resumeExample
 	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
 	cmd.ValidArgsFunction = completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }
 
 var (
-	rolloutUndoLong = templates.LongDesc(`
-    Revert an application back to a previous deployment.
+	undoLong = templates.LongDesc(`
+		Roll back to a previous rollout.`)
 
-    When you run this command your deployment configuration will be updated to
-    match a previous deployment. By default only the pod and container
-    configuration will be changed and scaling or trigger settings will be left as-
-    is. Note that environment variables and volumes are included in rollbacks, so
-    if you've recently updated security credentials in your environment your
-    previous deployment may not have the correct values.
+	undoExample = templates.Examples(`
+		# Roll back to the previous deployment
+		oc rollout undo deployment/abc
 
-    Any image triggers present in the rolled back configuration will be disabled
-    with a warning. This is to help prevent your rolled back deployment from being
-    replaced by a triggered deployment soon after your rollback. To re-enable the
-    triggers, use the 'oc set triggers --auto' command.
+		# Roll back to daemonset revision 3
+		oc rollout undo daemonset/abc --to-revision=3
 
-    If you would like to review the outcome of the rollback, pass '--dry-run' to print
-    a human-readable representation of the updated deployment configuration instead of
-    executing the rollback. This is useful if you're not quite sure what the outcome
-    will be.`)
-
-	rolloutUndoExample = templates.Examples(`
-    # Roll back to the previous deployment
-    oc rollout undo dc/nginx
-
-    # Roll back to deployment revision 3. The replication controller for that version must exist
-    oc rollout undo dc/nginx --to-revision=3`)
+		# Roll back to the previous deployment with dry-run
+		oc rollout undo --dry-run=server deployment/abc`)
 )
 
 // NewCmdRolloutUndo is a wrapper for the Kubernetes cli rollout undo command
-func NewCmdRolloutUndo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutUndo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := rollout.NewCmdRolloutUndo(f, streams)
-	cmd.Long = rolloutUndoLong
-	cmd.Example = rolloutUndoExample
+	cmd.Long = undoLong
+	cmd.Example = undoExample
 	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
 	cmd.ValidArgsFunction = completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd
 }
 
 var (
-	rolloutStatusLong = templates.LongDesc(`
-		Watch the status of the latest rollout, until it's done.`)
+	statusLong = templates.LongDesc(`
+		Show the status of the rollout.
 
-	rolloutStatusExample = templates.Examples(`
-		# Watch the status of the latest rollout
-		oc rollout status dc/nginx`)
+		By default 'rollout status' will watch the status of the latest rollout
+		until it is done. If you do not want to wait for the rollout to finish then
+		you can use --watch=false. Note that if a new rollout starts in-between, then
+		'rollout status' will continue watching the latest revision. If you want to
+		pin to a specific revision and abort if it is rolled over by another revision,
+		use --revision=N where N is the revision you need to watch for.`)
+
+	statusExample = templates.Examples(`
+		# Watch the rollout status of a deployment
+		oc rollout status deployment/nginx`)
 )
 
 // NewCmdRolloutStatus is a wrapper for the Kubernetes cli rollout status command
-func NewCmdRolloutStatus(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutStatus(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := rollout.NewCmdRolloutStatus(f, streams)
-	cmd.Long = rolloutStatusLong
-	cmd.Example = rolloutStatusExample
+	cmd.Long = statusLong
+	cmd.Example = statusExample
 	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "statefulset", "deploymentconfig"}
 	cmd.ValidArgsFunction = completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 	return cmd

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"net/http"
 	"net/url"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/third_party/forked/golang/netutil"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -138,10 +138,10 @@ type StartBuildOptions struct {
 	Name        string
 	Namespace   string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewStartBuildOptions(streams genericclioptions.IOStreams) *StartBuildOptions {
+func NewStartBuildOptions(streams genericiooptions.IOStreams) *StartBuildOptions {
 	return &StartBuildOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("started").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
@@ -149,7 +149,7 @@ func NewStartBuildOptions(streams genericclioptions.IOStreams) *StartBuildOption
 }
 
 // NewCmdStartBuild implements the OpenShift cli start-build command
-func NewCmdStartBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdStartBuild(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewStartBuildOptions(streams)
 
 	validArgs := []string{"buildconfig"}
@@ -778,7 +778,7 @@ func streamPathToBuild(repo git.Repository, in io.Reader, out io.Writer, client 
 				}
 
 				// Create a temp directory to move the repo contents to
-				tempDirectory, err := ioutil.TempDir(os.TempDir(), "oc_cloning_"+options.Commit)
+				tempDirectory, err := os.MkdirTemp(os.TempDir(), "oc_cloning_"+options.Commit)
 				if err != nil {
 					return nil, err
 				}
@@ -971,11 +971,11 @@ func (o *StartBuildOptions) RunStartBuildWebHook() error {
 	case resp.StatusCode == 301 || resp.StatusCode == 302:
 		// TODO: follow redirect and display output
 	case resp.StatusCode < 200 || resp.StatusCode >= 300:
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("server rejected our request %d\nremote: %s", resp.StatusCode, string(body))
 	}
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	if len(body) > 0 {
 		// In later server versions we return the created Build in the body.
 		newBuild := &buildv1.Build{}

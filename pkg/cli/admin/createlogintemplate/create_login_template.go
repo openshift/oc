@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -33,16 +33,16 @@ var loginExample = templates.Examples(`
 `)
 
 type CreateLoginTemplateOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewCreateLoginTemplateOptions(streams genericclioptions.IOStreams) *CreateLoginTemplateOptions {
+func NewCreateLoginTemplateOptions(streams genericiooptions.IOStreams) *CreateLoginTemplateOptions {
 	return &CreateLoginTemplateOptions{
 		IOStreams: streams,
 	}
 }
 
-func NewCommandCreateLoginTemplate(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateLoginTemplate(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCreateLoginTemplateOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "create-login-template",

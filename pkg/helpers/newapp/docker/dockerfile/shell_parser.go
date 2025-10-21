@@ -9,13 +9,13 @@ package dockerfile
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/scanner"
 	"unicode"
-
-	"github.com/pkg/errors"
 )
 
 // ShellLex performs shell word splitting and variable expansion.
@@ -71,7 +71,7 @@ type shellWord struct {
 func (sw *shellWord) process(source string) (string, []string, error) {
 	word, words, err := sw.processStopOn(scanner.EOF)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to process %q", source)
+		err = fmt.Errorf("failed to process %q: %w", source, err)
 	}
 	return word, words, err
 }
@@ -305,10 +305,10 @@ func (sw *shellWord) processDollar() (string, error) {
 			return newValue, nil
 
 		default:
-			return "", errors.Errorf("unsupported modifier (%c) in substitution", modifier)
+			return "", fmt.Errorf("unsupported modifier (%c) in substitution", modifier)
 		}
 	}
-	return "", errors.Errorf("missing ':' in substitution")
+	return "", fmt.Errorf("missing ':' in substitution")
 }
 
 func (sw *shellWord) processName() string {

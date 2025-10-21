@@ -3,7 +3,7 @@ package registry
 import (
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
 
@@ -19,7 +19,7 @@ var (
 )
 
 // NewCmd exposes commands for working with the registry.
-func NewCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmd(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	image := &cobra.Command{
 		Use:   "registry COMMAND",
 		Short: "Commands for working with the registry",

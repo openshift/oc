@@ -2,6 +2,7 @@ package debug
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -24,8 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -39,12 +42,12 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/interrupt"
 	"k8s.io/kubectl/pkg/util/templates"
-	"k8s.io/kubectl/pkg/util/term"
 	"k8s.io/pod-security-admission/api"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	imagev1 "github.com/openshift/api/image/v1"
+	securityv1 "github.com/openshift/api/security/v1"
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/library-go/pkg/apps/appsutil"
@@ -58,13 +61,13 @@ import (
 )
 
 const (
+	debugPodLabelManagedBy            = "debug.openshift.io/managed-by"
 	debugPodAnnotationSourceContainer = "debug.openshift.io/source-container"
 	debugPodAnnotationSourceResource  = "debug.openshift.io/source-resource"
 	// containerResourcesAnnotationPrefix contains resource annotation prefix that will be used by CRI-O to set cpu shares
 	containerResourcesAnnotationPrefix = "resources.workload.openshift.io/"
 	// podWorkloadTargetAnnotationPrefix contains the prefix for the pod workload target annotation
 	podWorkloadTargetAnnotationPrefix = "target.workload.openshift.io/"
-	kubeOSNodeSelector                = "kubernetes.io/os"
 	commandLinuxShell                 = "/bin/sh"
 	commandWindowsShell               = "cmd.exe"
 )
@@ -107,6 +110,10 @@ var (
 
 		# Debug a node as an administrator
 		oc debug node/master-1
+
+		# Debug a Windows node
+		# Note: the chosen image must match the Windows Server version (2019, 2022) of the node
+		oc debug node/win-worker-1 --image=mcr.microsoft.com/powershell:lts-nanoserver-ltsc2022
 
 		# Launch a shell in a pod using the provided image stream tag
 		oc debug istag/mysql:latest -n openshift
@@ -179,10 +186,10 @@ type DebugOptions struct {
 	IsNode bool
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewDebugOptions(streams genericclioptions.IOStreams) *DebugOptions {
+func NewDebugOptions(streams genericiooptions.IOStreams) *DebugOptions {
 	attachOpts := attach.NewAttachOptions(streams)
 	attachOpts.TTY = true
 	attachOpts.Stdin = true
@@ -198,7 +205,7 @@ func NewDebugOptions(streams genericclioptions.IOStreams) *DebugOptions {
 }
 
 // NewCmdDebug creates a command for debugging pods.
-func NewCmdDebug(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdDebug(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewDebugOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "debug RESOURCE/NAME [ENV1=VAL1 ...] [-c CONTAINER] [flags] [-- COMMAND]",
@@ -296,7 +303,7 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 		o.Attach.TTY = false
 		o.Attach.Stdin = false
 	default:
-		o.Attach.TTY = term.IsTerminal(o.In)
+		o.Attach.TTY = printers.IsTerminal(o.In)
 		klog.V(4).Infof("Defaulting TTY to %t", o.Attach.TTY)
 	}
 	if o.NoStdin {
@@ -451,7 +458,7 @@ func (o *DebugOptions) RunDebug() error {
 	}
 	defer cleanup()
 
-	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug", generateapp.MakeSimpleName(infos[0].Name)), ns
+	pod.Name, pod.Namespace = fmt.Sprintf("%s-debug-%s", generateapp.MakeSimpleName(infos[0].Name), utilrand.String(5)), ns
 	o.Attach.Pod = pod
 
 	if len(o.ContainerName) == 0 && len(pod.Spec.Containers) > 0 {
@@ -480,6 +487,10 @@ func (o *DebugOptions) RunDebug() error {
 
 	o.Annotations[debugPodAnnotationSourceResource] = fmt.Sprintf("%s/%s", infos[0].Mapping.Resource, infos[0].Name)
 	o.Annotations[debugPodAnnotationSourceContainer] = o.ContainerName
+
+	if infos[0].Mapping.GroupVersionKind.Kind == "Node" {
+		o.Annotations[securityv1.RequiredSCCAnnotation] = "privileged"
+	}
 
 	pod, originalCommand := o.transformPodForDebug(o.Annotations)
 	var commandString string
@@ -538,7 +549,9 @@ func (o *DebugOptions) RunDebug() error {
 				fmt.Fprintf(o.ErrOut, "Starting pod/%s ...\n", pod.Name)
 			}
 			if o.IsNode {
-				fmt.Fprintf(o.ErrOut, "To use host binaries, run `chroot /host`\n")
+				if !(template.Spec.OS != nil && template.Spec.OS.Name == corev1.Windows) {
+					fmt.Fprintf(o.ErrOut, "To use host binaries, run `chroot /host`. Instead, if you need to access host namespaces, run `nsenter -a -t 1`.\n")
+				}
 			}
 		}
 
@@ -599,7 +612,7 @@ func (o *DebugOptions) RunDebug() error {
 			if len(o.NodeName) > 0 {
 				msg += fmt.Sprintf(" on node %q", o.NodeName)
 			}
-			return fmt.Errorf(msg)
+			return errors.New(msg)
 			// switch to logging output
 		case err == krun.ErrPodCompleted, err == conditions.ErrContainerTerminated:
 			resultPod, ok := containerRunningEvent.Object.(*corev1.Pod)
@@ -613,7 +626,7 @@ func (o *DebugOptions) RunDebug() error {
 						if len(o.NodeName) > 0 {
 							msg += fmt.Sprintf(" on node %q", o.NodeName)
 						}
-						return fmt.Errorf(msg)
+						return errors.New(msg)
 					}
 				}
 			}
@@ -626,7 +639,29 @@ func (o *DebugOptions) RunDebug() error {
 		case err != nil:
 			return err
 		case !o.Attach.Stdin:
-			return o.getLogs(pod)
+			if err = o.getLogs(pod); err != nil {
+				return err
+			}
+			lastWatchEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodDone)
+			if err != nil {
+				if kapierrors.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}
+
+			resultPod, ok := lastWatchEvent.Object.(*corev1.Pod)
+			if ok {
+				for _, s := range append(append([]corev1.ContainerStatus{}, resultPod.Status.InitContainerStatuses...), resultPod.Status.ContainerStatuses...) {
+					if s.Name != o.ContainerName {
+						continue
+					}
+					if s.State.Terminated != nil && s.State.Terminated.ExitCode != 0 {
+						return conditions.ErrNonZeroExitCode
+					}
+				}
+			}
+			return nil
 		default:
 			if !o.Quiet {
 				// TODO this doesn't do us much good for remote debugging sessions, but until we get a local port
@@ -866,13 +901,8 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	for k, v := range annotations {
 		pod.Annotations[k] = v
 	}
-	if o.KeepLabels {
-		if pod.Labels == nil {
-			pod.Labels = make(map[string]string)
-		}
-	} else {
-		pod.Labels = map[string]string{}
-	}
+
+	pod.Labels = createLabelMap(pod.Labels, o.KeepLabels)
 
 	pod.ResourceVersion = ""
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
@@ -885,6 +915,19 @@ func (o *DebugOptions) transformPodForDebug(annotations map[string]string) (*cor
 	pod.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
 
 	return pod, originalCommand
+}
+
+func createLabelMap(currentLabels map[string]string, keepLabels bool) map[string]string {
+	if keepLabels && currentLabels != nil {
+		return currentLabels
+	}
+
+	newLabels := make(map[string]string)
+	if val, ok := currentLabels[debugPodLabelManagedBy]; ok {
+		newLabels[debugPodLabelManagedBy] = val
+	}
+
+	return newLabels
 }
 
 // createPod creates the debug pod, and will attempt to delete an existing debug
@@ -977,7 +1020,7 @@ func (o *DebugOptions) getContainerCommand() []string {
 	if len(o.Command) == 1 && o.Command[0] == commandLinuxShell {
 		pod := o.Attach.Pod
 
-		if val, ok := pod.Spec.NodeSelector[kubeOSNodeSelector]; ok && val == "windows" {
+		if pod.Spec.OS != nil && pod.Spec.OS.Name == corev1.Windows {
 			return []string{commandWindowsShell}
 		}
 	}
@@ -996,12 +1039,11 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 			// TODO: allow --as-root=false to skip all the namespaces except network
 			return nil, fmt.Errorf("can't debug nodes without running as the root user")
 		}
-		if t.Labels["kubernetes.io/os"] == "windows" {
-			// Windows nodes don't yet support privileged containers, which is required for debug
-			return nil, fmt.Errorf("can't debug Windows nodes")
-		}
 		image := o.Image
 		if len(o.Image) == 0 {
+			if t.Labels[corev1.LabelOSStable] == string(corev1.Windows) {
+				return nil, fmt.Errorf("--image must be set when debugging Windows nodes")
+			}
 			imageStream := o.ImageStream
 			if len(o.ImageStream) == 0 {
 				imageStream = "openshift/tools:latest"
@@ -1013,13 +1055,18 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 			}
 		}
 		if len(image) == 0 {
-			klog.V(2).Infof("Falling to 'registry.redhat.io/rhel8/support-tools' image")
-			image = "registry.redhat.io/rhel8/support-tools"
+			klog.V(2).Infof("Falling to 'registry.redhat.io/rhel9/support-tools' image")
+			image = "registry.redhat.io/rhel9/support-tools"
 		}
 		zero := int64(0)
 		isTrue := true
 		hostPathType := corev1.HostPathDirectory
-		return &corev1.PodTemplateSpec{
+		template := &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					debugPodLabelManagedBy: "oc-debug",
+				},
+			},
 			Spec: corev1.PodSpec{
 				NodeName:    t.Name,
 				HostNetwork: true,
@@ -1058,11 +1105,28 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 								Name:  "TMOUT",
 								Value: "900",
 							},
+							{
+								//  to collect more sos report requires this env var is set
+								Name:  "HOST",
+								Value: "/host",
+							},
 						},
 					},
 				},
 			},
-		}, nil
+		}
+		if t.Labels[corev1.LabelOSStable] == string(corev1.Windows) {
+			template.Spec.OS = &corev1.PodOS{Name: corev1.Windows}
+			template.Spec.HostPID = false
+			template.Spec.HostIPC = false
+			containerUser := "ContainerUser"
+			template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+				WindowsOptions: &corev1.WindowsSecurityContextOptions{
+					RunAsUserName: &containerUser,
+				},
+			}
+		}
+		return template, nil
 	case *imagev1.ImageStreamTag:
 		// create a minimal pod spec that uses the image referenced by the istag without any introspection
 		// it possible that we could someday do a better job introspecting it
@@ -1242,6 +1306,9 @@ func (o *DebugOptions) getNamespace(infoNs string) (string, func(), error) {
 		}
 
 		cleanup := func() {
+			if o.PreservePod {
+				return
+			}
 			if err := o.CoreClient.Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{}); err != nil {
 				klog.V(2).Infof("Unable to delete temporary namespace %s: %v", ns.Name, err)
 			} else {

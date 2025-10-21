@@ -7,12 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
-	"k8s.io/kubectl/pkg/util/term"
 )
 
 const (
@@ -57,7 +57,7 @@ var (
 		oc rsh dc/docker-registry cat config.yml
 
 		# Open a shell session on the container named 'index' inside a pod of your job
-		oc rsh -c index job/sheduled
+		oc rsh -c index job/scheduled
 	`)
 )
 
@@ -69,7 +69,7 @@ type RshOptions struct {
 	*exec.ExecOptions
 }
 
-func NewRshOptions(streams genericclioptions.IOStreams) *RshOptions {
+func NewRshOptions(streams genericiooptions.IOStreams) *RshOptions {
 	return &RshOptions{
 		ForceTTY:   false,
 		DisableTTY: false,
@@ -87,7 +87,7 @@ func NewRshOptions(streams genericclioptions.IOStreams) *RshOptions {
 }
 
 // NewCmdRsh returns a command that attempts to open a shell session to the server.
-func NewCmdRsh(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRsh(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRshOptions(streams)
 	cmd := &cobra.Command{
 		Use:                   rshUsageStr,
@@ -142,7 +142,7 @@ func (o *RshOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []str
 	case o.DisableTTY:
 		o.TTY = false
 	default:
-		o.TTY = term.IsTerminal(o.In)
+		o.TTY = printers.IsTerminal(o.In)
 	}
 
 	// Value of argsLenAtDash is -1 since cmd.ArgsLenAtDash() assumes all the flags

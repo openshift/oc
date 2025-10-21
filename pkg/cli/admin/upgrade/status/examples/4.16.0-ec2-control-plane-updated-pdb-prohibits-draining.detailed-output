@@ -1,0 +1,153 @@
+= Control Plane =
+Update to 4.16.0-ec.3 successfully completed at 2024-02-27T15:42:58Z (duration: 3h31m)
+
+All control plane nodes successfully updated to 4.16.0-ec.3
+
+= Worker Upgrade =
+
+WORKER POOL   ASSESSMENT   COMPLETION    STATUS
+worker        Degraded     37% (22/59)   44 Available, 5 Progressing, 12 Draining, 7 Degraded
+
+Worker Pool Nodes: worker
+NAME                                                              ASSESSMENT    PHASE      VERSION       EST    MESSAGE
+build0-gstfj-ci-prowjobs-worker-b-9lztv                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-b-bg9f5                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-b-mrxwn                           Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-4h7pn                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-jv5bg                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-b-kj6gk                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-tests-worker-c-dcz9p                              Degraded      Draining   4.16.0-ec.2   ?      failed to drain node: <node> after 1 hour. Please see machine-config-controller logs for more information
+build0-gstfj-ci-prowjobs-worker-d-ddnxd                           Unavailable   Pending    ?             ?      Machine Config Daemon is processing the node
+build0-gstfj-ci-tests-worker-b-d9vz2                              Unavailable   Pending    ?             ?      Not ready
+build0-gstfj-ci-tests-worker-c-jq5rk                              Unavailable   Updated    4.16.0-ec.3   -      Node is marked unschedulable
+build0-gstfj-ci-tests-worker-c-2kz4m                              Progressing   Draining   4.16.0-ec.2   +10m   
+build0-gstfj-ci-tests-worker-c-55hpj                              Progressing   Draining   4.16.0-ec.2   +10m   
+build0-gstfj-ci-tests-worker-c-8tmjv                              Progressing   Draining   4.16.0-ec.2   +10m   
+build0-gstfj-ci-tests-worker-c-lfz8m                              Progressing   Draining   4.16.0-ec.2   +10m   
+build0-gstfj-ci-tests-worker-c-r55wv                              Progressing   Draining   4.16.0-ec.2   +10m   
+build0-gstfj-ci-longtests-worker-c-vspm9                          Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-longtests-worker-d-hksc9                          Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-prowjobs-worker-c-f6dkk                           Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-prowjobs-worker-c-kkm72                           Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-prowjobs-worker-c-p5df7                           Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-prowjobs-worker-c-tgrsc                           Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-2c4vg                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-5twk4                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-65n48                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-79nrd                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-82z85                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-glhn7                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-hnxl9                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-jpzfm                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-lxqgs                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-rqch4                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-c-zd9c7                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-d-6hddk                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-d-kc6xt                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-d-r2k42                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-d-r9zqc                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-tests-worker-d-w2bgd                              Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-w-d-7rj9w.c.openshift-ci-build-farm.internal         Outdated      Pending    4.16.0-ec.2   ?      
+build0-gstfj-ci-builds-worker-b-65df4                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-b-dvrd2                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-b-f7rlh                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-b-m4vgr                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-b-mg8bd                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-c-2hzgm                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-c-dmjft                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-c-ng8s5                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-c-vmmfj                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-d-4pjlz                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-builds-worker-d-z49wm                             Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-tests-worker-b-fkn28                              Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-tests-worker-b-mc7fm                              Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-ci-tests-worker-b-pqz8t                              Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-b-f7dkq.c.openshift-ci-build-farm.internal         Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-b-infra-2stfh.c.openshift-ci-build-farm.internal   Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-b-infra-mhb8g.c.openshift-ci-build-farm.internal   Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-b-infra-n9kc5.c.openshift-ci-build-farm.internal   Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-b-mwf8t.c.openshift-ci-build-farm.internal         Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-c-nsmn5.c.openshift-ci-build-farm.internal         Completed     Updated    4.16.0-ec.3   -      
+build0-gstfj-w-c-qjbdl.c.openshift-ci-build-farm.internal         Completed     Updated    4.16.0-ec.3   -      
+
+= Update Health =
+Message: Node build0-gstfj-ci-prowjobs-worker-b-9lztv is degraded
+  Since:       -
+  Level:       Error
+  Impact:      Update Stalled
+  Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-prowjobs-worker-b-9lztv
+  Description: failed to drain node: build0-gstfj-ci-prowjobs-worker-b-9lztv after 1 hour. Please see machine-config-controller logs for more information
+
+Message: Node build0-gstfj-ci-prowjobs-worker-b-bg9f5 is degraded
+  Since:       -
+  Level:       Error
+  Impact:      Update Stalled
+  Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-prowjobs-worker-b-bg9f5
+  Description: failed to drain node: build0-gstfj-ci-prowjobs-worker-b-bg9f5 after 1 hour. Please see machine-config-controller logs for more information
+
+Message: Node build0-gstfj-ci-prowjobs-worker-b-mrxwn is degraded
+  Since:       -
+  Level:       Error
+  Impact:      Update Stalled
+  Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-prowjobs-worker-b-mrxwn
+  Description: failed to drain node: build0-gstfj-ci-prowjobs-worker-b-mrxwn after 1 hour. Please see machine-config-controller logs for more information
+
+Message: Node build0-gstfj-ci-tests-worker-b-4h7pn is degraded
+  Since:       -
+  Level:       Error
+  Impact:      Update Stalled
+  Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-b-4h7pn
+  Description: failed to drain node: build0-gstfj-ci-tests-worker-b-4h7pn after 1 hour. Please see machine-config-controller logs for more information
+
+Message: Node build0-gstfj-ci-tests-worker-b-jv5bg is degraded
+  Since:       -
+  Level:       Error
+  Impact:      Update Stalled
+  Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-b-jv5bg
+  Description: failed to drain node: build0-gstfj-ci-tests-worker-b-jv5bg after 1 hour. Please see machine-config-controller logs for more information
+
+Message: Node build0-gstfj-ci-tests-worker-b-kj6gk is degraded
+  Since:       -
+  Level:       Error
+  Impact:      Update Stalled
+  Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-b-kj6gk
+  Description: failed to drain node: build0-gstfj-ci-tests-worker-b-kj6gk after 1 hour. Please see machine-config-controller logs for more information
+
+Message: Node build0-gstfj-ci-tests-worker-c-dcz9p is degraded
+  Since:       -
+  Level:       Error
+  Impact:      Update Stalled
+  Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-c-dcz9p
+  Description: failed to drain node: build0-gstfj-ci-tests-worker-c-dcz9p after 1 hour. Please see machine-config-controller logs for more information
+
+Message: Cluster Version version is failing to proceed with the update (ClusterOperatorDegraded)
+  Since:       now
+  Level:       Warning
+  Impact:      Update Stalled
+  Reference:   https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDegraded.md
+  Resources:
+    clusterversions.config.openshift.io: version
+  Description: Cluster operator machine-config is degraded
+
+Message: Node build0-gstfj-ci-tests-worker-b-d9vz2 is not ready
+  Since:       22m44s
+  Level:       Warning
+  Impact:      Update Speed
+  Reference:   https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html#understanding-the-machine-config-operator
+  Resources:
+    nodes: build0-gstfj-ci-tests-worker-b-d9vz2
+  Description: Node has a Ready!=True condition with Reason "Not ready" and message "kubelet is still setting up stuff"

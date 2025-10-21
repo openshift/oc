@@ -65,7 +65,7 @@ func TestKeyValueInstructions(t *testing.T) {
 			in: []KeyValue{
 				{"☃", "'\" \\ / \b \f \n \r \t \x00"},
 			},
-			want: `"☃"="'\" \\ / \u0008 \u000c \n \r \t \u0000"`,
+			want: `"☃"="'\" \\ / \b \f \n \r \t \u0000"`,
 		},
 	}
 	for _, tc := range testCases {

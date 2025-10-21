@@ -3,12 +3,12 @@
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/openshift/api/authorization/v1"
+	authorizationv1 "github.com/openshift/api/authorization/v1"
 	scheme "github.com/openshift/client-go/authorization/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // ResourceAccessReviewsGetter has a method to return a ResourceAccessReviewInterface.
@@ -19,27 +19,33 @@ type ResourceAccessReviewsGetter interface {
 
 // ResourceAccessReviewInterface has methods to work with ResourceAccessReview resources.
 type ResourceAccessReviewInterface interface {
-	Create(ctx context.Context, resourceAccessReview *v1.ResourceAccessReview, opts metav1.CreateOptions) (*v1.ResourceAccessReviewResponse, error)
+	Create(ctx context.Context, resourceAccessReview *authorizationv1.ResourceAccessReview, opts metav1.CreateOptions) (*authorizationv1.ResourceAccessReviewResponse, error)
 
 	ResourceAccessReviewExpansion
 }
 
 // resourceAccessReviews implements ResourceAccessReviewInterface
 type resourceAccessReviews struct {
-	client rest.Interface
+	*gentype.Client[*authorizationv1.ResourceAccessReview]
 }
 
 // newResourceAccessReviews returns a ResourceAccessReviews
 func newResourceAccessReviews(c *AuthorizationV1Client) *resourceAccessReviews {
 	return &resourceAccessReviews{
-		client: c.RESTClient(),
+		gentype.NewClient[*authorizationv1.ResourceAccessReview](
+			"resourceaccessreviews",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			"",
+			func() *authorizationv1.ResourceAccessReview { return &authorizationv1.ResourceAccessReview{} },
+		),
 	}
 }
 
 // Create takes the representation of a resourceAccessReview and creates it.  Returns the server's representation of the resourceAccessReviewResponse, and an error, if there is any.
-func (c *resourceAccessReviews) Create(ctx context.Context, resourceAccessReview *v1.ResourceAccessReview, opts metav1.CreateOptions) (result *v1.ResourceAccessReviewResponse, err error) {
-	result = &v1.ResourceAccessReviewResponse{}
-	err = c.client.Post().
+func (c *resourceAccessReviews) Create(ctx context.Context, resourceAccessReview *authorizationv1.ResourceAccessReview, opts metav1.CreateOptions) (result *authorizationv1.ResourceAccessReviewResponse, err error) {
+	result = &authorizationv1.ResourceAccessReviewResponse{}
+	err = c.GetClient().Post().
 		Resource("resourceaccessreviews").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(resourceAccessReview).

@@ -1,0 +1,357 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2021-09-13T16:33:07Z"
+  generation: 58
+  name: version
+  resourceVersion: "1734373352"
+  uid: 95080674-6c97-49ba-a90c-83d977db7d3f
+spec:
+  channel: candidate-4.15
+  clusterID: 1c182977-5663-428d-92a3-3d2bdf3fffb6
+  desiredUpdate:
+    force: false
+    version: 4.15.0-ec.2
+status:
+  availableUpdates: null
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2021-09-13T17:03:05Z"
+    message: Done applying 4.14.1
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2023-11-15T22:27:27Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2023-11-21T15:02:46Z"
+    message: 'Working towards 4.15.0-ec.2: 106 of 863 done (12% complete), waiting
+      on etcd, kube-apiserver'
+    reason: ClusterOperatorsUpdating
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2023-04-06T06:14:42Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2022-10-11T14:16:13Z"
+    message: Payload loaded version="4.15.0-ec.2" image="quay.io/openshift-release-dev/ocp-release@sha256:7dbe1d710f739ae2c73187330788f5c36cbe8b315d816510ded767fb162ffd0c"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2023-11-21T15:02:56Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  desired:
+    channels:
+    - candidate-4.15
+    image: quay.io/openshift-release-dev/ocp-release@sha256:7dbe1d710f739ae2c73187330788f5c36cbe8b315d816510ded767fb162ffd0c
+    version: 4.15.0-ec.2
+  history:
+  - completionTime: null
+    image: quay.io/openshift-release-dev/ocp-release@sha256:7dbe1d710f739ae2c73187330788f5c36cbe8b315d816510ded767fb162ffd0c
+    startedTime: "2023-11-21T15:02:46Z"
+    state: Partial
+    verified: true
+    version: 4.15.0-ec.2
+  - completionTime: "2023-11-01T12:29:27Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd
+    startedTime: "2023-11-01T11:55:20Z"
+    state: Partial
+    verified: true
+    version: 4.14.1
+  - completionTime: "2023-10-25T13:34:28Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:a540a9bbf67ba4dbe00e5b2960193c9ca28dbcee0f1f7338ab9c369b47c518fc
+    startedTime: "2023-10-25T12:22:06Z"
+    state: Completed
+    verified: true
+    version: 4.14.0-rc.7
+  - completionTime: "2023-10-23T13:59:48Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:2a6302117463af43fa45121993ebf33dbbc8cab07bf5850dc3514ce7ffa4bf54
+    startedTime: "2023-10-23T12:56:14Z"
+    state: Completed
+    verified: true
+    version: 4.14.0-rc.6
+  - completionTime: "2023-10-11T14:45:04Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:042899f17f33259ed9f2cfc179930af283733455720f72ea3483fd1905f9b301
+    startedTime: "2023-10-11T12:28:34Z"
+    state: Completed
+    verified: true
+    version: 4.14.0-rc.5
+  - completionTime: "2023-10-04T11:28:17Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:4d3c8199b50cd1e129755336468759342255a0090d09424133df1ea60253da13
+    startedTime: "2023-10-04T10:22:36Z"
+    state: Completed
+    verified: true
+    version: 4.14.0-rc.4
+  - completionTime: "2023-09-12T14:15:47Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:1d2cc38cbd94c532dc822ff793f46b23a93b76b400f7d92b13c1e1da042c88fe
+    startedTime: "2023-09-12T13:04:34Z"
+    state: Completed
+    verified: true
+    version: 4.14.0-rc.0
+  - completionTime: "2023-08-02T13:41:37Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:caf073ce29232978c331d421c06ca5c2736ce5461962775fdd760b05fb2496a0
+    startedTime: "2023-08-02T12:37:56Z"
+    state: Completed
+    verified: true
+    version: 4.14.0-ec.4
+  - completionTime: "2023-07-19T11:53:28Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:3c050cb52fdd3e65c518d4999d238ec026ef724503f275377fee6bf0d33093ab
+    startedTime: "2023-07-19T10:49:54Z"
+    state: Completed
+    verified: true
+    version: 4.14.0-ec.3
+  - completionTime: "2023-06-21T14:06:20Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:f0f30b0a9133a8e9e2bf21e49d39b35650943fc70f3c657e3e80ca0f86a04445
+    startedTime: "2023-06-21T11:51:26Z"
+    state: Completed
+    verified: true
+    version: 4.14.0-ec.2
+  - completionTime: "2023-06-07T10:37:47Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:287a7ba3d0bbe6e135061b6d51810b59a6e6c063a94859dc4f54c9d491b96c87
+    startedTime: "2023-06-07T09:28:25Z"
+    state: Completed
+    verified: true
+    version: 4.14.0-ec.1
+  - completionTime: "2023-05-11T14:22:02Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:28e51227251e0b196fc51c62b57d9181d19b104ff63784d4bde7ba59260132fd
+    startedTime: "2023-05-11T13:44:19Z"
+    state: Completed
+    verified: true
+    version: 4.13.0-rc.8
+  - completionTime: "2023-05-05T12:16:34Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:aae5131ec824c301c11d0bf11d81b3996a222be8b49ce4716e9d464229a2f92b
+    startedTime: "2023-05-05T11:21:07Z"
+    state: Completed
+    verified: true
+    version: 4.13.0-rc.7
+  - completionTime: "2023-04-28T14:34:23Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:fc3b5fdc1064108b2e0e19b6fef7c92dad22a9e3aa9be43d4fc614c00ee9e636
+    startedTime: "2023-04-28T13:25:55Z"
+    state: Completed
+    verified: true
+    version: 4.13.0-rc.5
+  - completionTime: "2023-04-21T16:45:39Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:8a603a30829b2fe3a35ca742934347d4db9c6b7673dee1aba5ad6b3b1627c357
+    startedTime: "2023-04-21T15:18:22Z"
+    state: Completed
+    verified: true
+    version: 4.13.0-rc.4
+  - completionTime: "2023-04-05T20:35:51Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:41be46bc2120f74ea88057ebb1b1c5f91632cd757fd4199dfd3fd99df1fe0069
+    startedTime: "2023-04-05T19:19:51Z"
+    state: Completed
+    verified: true
+    version: 4.13.0-rc.2
+  - completionTime: "2023-04-05T15:35:37Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:96bf74ce789ccb22391deea98e0c5050c41b67cc17defbb38089d32226dba0b8
+    startedTime: "2023-04-05T14:54:40Z"
+    state: Completed
+    verified: true
+    version: 4.12.9
+  - completionTime: "2023-03-20T17:27:11Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:28358de024c01a449b28f27fb4c122f15eb292a2becdf7c651511785c867884a
+    startedTime: "2023-03-20T16:04:43Z"
+    state: Completed
+    verified: true
+    version: 4.12.8
+  - completionTime: "2023-03-08T20:03:19Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:8230ca19fea80ef02f255a9f92688aa2639f68739a2b69114bf9af06080f9edc
+    startedTime: "2023-03-08T19:07:28Z"
+    state: Completed
+    verified: true
+    version: 4.11.30
+  - completionTime: "2023-02-14T14:58:47Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:65e71a774a18c1c191f28655ce245abeecd653e8215b75f87eb23ceadacd530d
+    startedTime: "2023-02-14T13:50:50Z"
+    state: Completed
+    verified: true
+    version: 4.11.27
+  - completionTime: "2022-12-13T21:54:22Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:e86e058f7f66a687e273792f2e4ec70f3cc43ec9d2894bebee5caf5c4d4851a3
+    startedTime: "2022-12-13T20:53:09Z"
+    state: Completed
+    verified: true
+    version: 4.11.20
+  - completionTime: "2022-10-11T23:55:39Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:fe4d499ac9fc7d12fcfccf3d6ae8a916c31e282d18adbebb0456c0fd6aef02c9
+    startedTime: "2022-10-11T14:16:13Z"
+    state: Completed
+    verified: true
+    version: 4.11.5
+  - completionTime: "2022-09-08T15:33:43Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:9f53e05393bcc9bc1ab9666b1e4307ea44be896342b3b64ab465e59bac0dbd34
+    startedTime: "2022-09-08T14:24:12Z"
+    state: Completed
+    verified: true
+    version: 4.10.32
+  - completionTime: "2022-06-14T17:01:01Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:195de2a5ef3af1083620a62a45ea61ac1233ffa27bbce7b30609a69775aeca19
+    startedTime: "2022-06-14T15:51:29Z"
+    state: Completed
+    verified: true
+    version: 4.10.18
+  - completionTime: "2022-03-09T12:13:41Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:7ffe4cd612be27e355a640e5eec5cd8f923c1400d969fd590f806cffdaabcc56
+    startedTime: "2022-03-09T11:44:39Z"
+    state: Completed
+    verified: true
+    version: 4.10.3
+  - completionTime: "2022-03-07T12:08:40Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:b807908afe1b7b25a8727f092cc11a104bf3996908a80f035d079b014b4b96b6
+    startedTime: "2022-03-07T11:40:23Z"
+    state: Completed
+    verified: true
+    version: 4.10.2
+  - completionTime: "2022-03-04T13:42:39Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:95a31c7227c105311eb9f461972d5db90fa22270f017ac6eef4d1f95d3e1675c
+    startedTime: "2022-03-04T13:00:47Z"
+    state: Completed
+    verified: true
+    version: 4.10.1
+  - completionTime: "2022-03-03T07:44:52Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:65e8dbc576556e0296e29ac1ae7496743e3494ad65a111e134c6e7202a498d11
+    startedTime: "2022-03-03T06:54:27Z"
+    state: Completed
+    verified: true
+    version: 4.10.0-rc.8
+  - completionTime: "2022-02-25T08:19:51Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:5ebccbbcbeeb3987f9ee3fa7f593c5e24bdd89efd9c6b2e6d525346e4a235ced
+    startedTime: "2022-02-25T07:27:15Z"
+    state: Completed
+    verified: true
+    version: 4.10.0-rc.5
+  - completionTime: "2022-02-24T07:27:39Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:2473f98871beb6707b3fed4a88594763a2164825bd38a98886af10a276ac0689
+    startedTime: "2022-02-24T06:36:32Z"
+    state: Completed
+    verified: true
+    version: 4.10.0-rc.4
+  - completionTime: "2022-02-22T15:19:05Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:3d4ada825f4aa4d279d6b0b3566e4bf458a36dca1318f124c65e93f3a738c110
+    startedTime: "2022-02-22T14:06:36Z"
+    state: Completed
+    verified: true
+    version: 4.10.0-rc.3
+  - completionTime: "2022-02-22T12:15:23Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:912e4b9986f690b894fcb740881e780600e12ab22f128f6f873bc4e1fcda8d13
+    startedTime: "2022-02-22T11:05:52Z"
+    state: Completed
+    verified: true
+    version: 4.9.22
+  - completionTime: "2022-01-20T12:00:20Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:7b67b0cb5ab016528b8efdb6130c000398efc58f55e2226f3cf4e3be59c78443
+    startedTime: "2022-01-20T11:43:55Z"
+    state: Completed
+    verified: true
+    version: 4.9.17
+  - completionTime: "2022-01-13T13:43:07Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:bb1987fb718f81fb30bec4e0e1cd5772945269b77006576b02546cf84c77498e
+    startedTime: "2022-01-13T13:01:35Z"
+    state: Completed
+    verified: true
+    version: 4.9.15
+  - completionTime: "2022-01-07T10:14:42Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:0ff5adc1199c77c2814c2030642109b24039087a2621b19e553a2315bcdc4801
+    startedTime: "2022-01-07T09:33:47Z"
+    state: Completed
+    verified: true
+    version: 4.9.13
+  - completionTime: "2022-01-03T10:43:26Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:dd71b3cd08ce1e859e0e740a585827c9caa1341819d1121d92879873a127f5e2
+    startedTime: "2022-01-03T09:27:21Z"
+    state: Completed
+    verified: true
+    version: 4.9.12
+  - completionTime: "2021-12-09T08:33:59Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:0f72e150329db15279a1aeda1286c9495258a4892bc5bf1bf5bb89942cd432de
+    startedTime: "2021-12-09T07:54:38Z"
+    state: Completed
+    verified: true
+    version: 4.9.11
+  - completionTime: "2021-12-02T11:58:49Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:e1853d68d8ff093ec353ca7078b6b6df1533729688bb016b8208263ee7423f66
+    startedTime: "2021-12-02T11:00:22Z"
+    state: Completed
+    verified: true
+    version: 4.9.10
+  - completionTime: "2021-11-24T19:42:55Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:dc6d4d8b2f9264c0037ed0222285f19512f112cc85a355b14a66bd6b910a4940
+    startedTime: "2021-11-24T18:47:48Z"
+    state: Completed
+    verified: true
+    version: 4.9.9
+  - completionTime: "2021-11-19T09:39:47Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:c91c0faf7ae3c480724a935b3dab7e5f49aae19d195b12f3a4ae38f8440ea96b
+    startedTime: "2021-11-19T08:30:47Z"
+    state: Completed
+    verified: true
+    version: 4.9.8
+  - completionTime: "2021-11-16T15:35:04Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:5c55be02e32e688ec5a404858a08cf533ba15b50b6f0e028089635b47db5866e
+    startedTime: "2021-11-16T13:28:21Z"
+    state: Completed
+    verified: true
+    version: 4.9.7
+  - completionTime: "2021-11-11T12:44:57Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:321aae3d3748c589bc2011062cee9fd14e106f258807dc2d84ced3f7461160ea
+    startedTime: "2021-11-11T11:23:46Z"
+    state: Completed
+    verified: true
+    version: 4.8.18
+  - completionTime: "2021-11-03T17:57:17Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:1935b6c8277e351550bd7bfcc4d5df7c4ba0f7a90165c022e2ffbe789b15574a
+    startedTime: "2021-11-03T16:34:49Z"
+    state: Completed
+    verified: true
+    version: 4.8.17
+  - completionTime: "2021-10-19T15:10:21Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:bf48faa639523b73131ec7c91637d5c94d33a4afe09ac8bdad672862f5e86ccb
+    startedTime: "2021-10-19T13:49:55Z"
+    state: Completed
+    verified: true
+    version: 4.8.14
+  - completionTime: "2021-10-06T17:36:12Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:5d396ad7d5f3cb527580c735e87dfd3b853bbb531e7f03e3a184d0accc223cdf
+    startedTime: "2021-10-06T16:14:33Z"
+    state: Completed
+    verified: true
+    version: 4.8.13
+  - completionTime: "2021-09-13T17:03:05Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:53576e4df71a5f00f77718f25aec6ac7946eaaab998d99d3e3f03fcb403364db
+    startedTime: "2021-09-13T16:33:18Z"
+    state: Completed
+    verified: false
+    version: 4.8.10
+  observedGeneration: 58
+  versionHash: uPxBW48vlVQ=

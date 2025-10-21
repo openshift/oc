@@ -12,7 +12,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -45,17 +45,17 @@ type TopImageStreamsOptions struct {
 	Images  *imagev1.ImageList
 	Streams *imagev1.ImageStreamList
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewTopImageStreamsOptions(streams genericclioptions.IOStreams) *TopImageStreamsOptions {
+func NewTopImageStreamsOptions(streams genericiooptions.IOStreams) *TopImageStreamsOptions {
 	return &TopImageStreamsOptions{
 		IOStreams: streams,
 	}
 }
 
 // NewCmdTopImageStreams implements the OpenShift cli top imagestreams command.
-func NewCmdTopImageStreams(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTopImageStreams(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewTopImageStreamsOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "imagestreams",

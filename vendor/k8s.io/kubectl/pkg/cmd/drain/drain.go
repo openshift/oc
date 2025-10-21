@@ -28,8 +28,10 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/drain"
 	"k8s.io/kubectl/pkg/scheme"
@@ -48,7 +50,7 @@ type DrainCmdOptions struct {
 	drainer   *drain.Helper
 	nodeInfos []*resource.Info
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 	WarningPrinter *printers.WarningPrinter
 }
 
@@ -61,7 +63,7 @@ var (
 		kubectl cordon foo`))
 )
 
-func NewCmdCordon(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCordon(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	o := NewDrainCmdOptions(f, ioStreams)
 
 	cmd := &cobra.Command{
@@ -90,7 +92,7 @@ var (
 		kubectl uncordon foo`))
 )
 
-func NewCmdUncordon(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdUncordon(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	o := NewDrainCmdOptions(f, ioStreams)
 
 	cmd := &cobra.Command{
@@ -137,14 +139,14 @@ var (
 		![Workflow](https://kubernetes.io/images/docs/kubectl_drain.svg)`))
 
 	drainExample = templates.Examples(i18n.T(`
-		# Drain node "foo", even if there are pods not managed by a replication controller, replica set, job, daemon set or stateful set on it
+		# Drain node "foo", even if there are pods not managed by a replication controller, replica set, job, daemon set, or stateful set on it
 		kubectl drain foo --force
 
-		# As above, but abort if there are pods not managed by a replication controller, replica set, job, daemon set or stateful set, and use a grace period of 15 minutes
+		# As above, but abort if there are pods not managed by a replication controller, replica set, job, daemon set, or stateful set, and use a grace period of 15 minutes
 		kubectl drain foo --grace-period=900`))
 )
 
-func NewDrainCmdOptions(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *DrainCmdOptions {
+func NewDrainCmdOptions(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *DrainCmdOptions {
 	o := &DrainCmdOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("drained").WithTypeSetter(scheme.Scheme),
 		IOStreams:  ioStreams,
@@ -155,28 +157,57 @@ func NewDrainCmdOptions(f cmdutil.Factory, ioStreams genericclioptions.IOStreams
 			ChunkSize:          cmdutil.DefaultChunkSize,
 		},
 	}
-	o.drainer.OnPodDeletedOrEvicted = o.onPodDeletedOrEvicted
+	o.drainer.OnPodDeletionOrEvictionFinished = o.onPodDeletionOrEvictionFinished
+	o.drainer.OnPodDeletionOrEvictionStarted = o.onPodDeletionOrEvictionStarted
 	return o
 }
 
-// onPodDeletedOrEvicted is called by drain.Helper, when the pod has been deleted or evicted
-func (o *DrainCmdOptions) onPodDeletedOrEvicted(pod *corev1.Pod, usingEviction bool) {
+// onPodDeletionOrEvictionFinished is called by drain.Helper, when eviction/deletetion of the pod is finished
+func (o *DrainCmdOptions) onPodDeletionOrEvictionFinished(pod *corev1.Pod, usingEviction bool, err error) {
 	var verbStr string
 	if usingEviction {
-		verbStr = "evicted"
+		if err != nil {
+			verbStr = "eviction failed"
+		} else {
+			verbStr = "evicted"
+		}
 	} else {
-		verbStr = "deleted"
+		if err != nil {
+			verbStr = "deletion failed"
+		} else {
+			verbStr = "deleted"
+		}
 	}
 	printObj, err := o.ToPrinter(verbStr)
 	if err != nil {
 		fmt.Fprintf(o.ErrOut, "error building printer: %v\n", err)
 		fmt.Fprintf(o.Out, "pod %s/%s %s\n", pod.Namespace, pod.Name, verbStr)
 	} else {
-		printObj(pod, o.Out)
+		_ = printObj(pod, o.Out)
 	}
 }
 
-func NewCmdDrain(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
+// onPodDeletionOrEvictionStarted is called by drain.Helper, when eviction/deletion of the pod is started
+func (o *DrainCmdOptions) onPodDeletionOrEvictionStarted(pod *corev1.Pod, usingEviction bool) {
+	if !klog.V(2).Enabled() {
+		return
+	}
+	var verbStr string
+	if usingEviction {
+		verbStr = "eviction started"
+	} else {
+		verbStr = "deletion started"
+	}
+	printObj, err := o.ToPrinter(verbStr)
+	if err != nil {
+		fmt.Fprintf(o.ErrOut, "error building printer: %v\n", err)
+		fmt.Fprintf(o.Out, "pod %s/%s %s\n", pod.Namespace, pod.Name, verbStr)
+	} else {
+		_ = printObj(pod, o.Out)
+	}
+}
+
+func NewCmdDrain(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	o := NewDrainCmdOptions(f, ioStreams)
 
 	cmd := &cobra.Command{
@@ -193,8 +224,6 @@ func NewCmdDrain(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobr
 	}
 	cmd.Flags().BoolVar(&o.drainer.Force, "force", o.drainer.Force, "Continue even if there are pods that do not declare a controller.")
 	cmd.Flags().BoolVar(&o.drainer.IgnoreAllDaemonSets, "ignore-daemonsets", o.drainer.IgnoreAllDaemonSets, "Ignore DaemonSet-managed pods.")
-	cmd.Flags().BoolVar(&o.drainer.DeleteEmptyDirData, "delete-local-data", o.drainer.DeleteEmptyDirData, "Continue even if there are pods using emptyDir (local data that will be deleted when the node is drained).")
-	cmd.Flags().MarkDeprecated("delete-local-data", "This option is deprecated and will be deleted. Use --delete-emptydir-data.")
 	cmd.Flags().BoolVar(&o.drainer.DeleteEmptyDirData, "delete-emptydir-data", o.drainer.DeleteEmptyDirData, "Continue even if there are pods using emptyDir (local data that will be deleted when the node is drained).")
 	cmd.Flags().IntVar(&o.drainer.GracePeriodSeconds, "grace-period", o.drainer.GracePeriodSeconds, "Period of time in seconds given to each pod to terminate gracefully. If negative, the default value specified in the pod will be used.")
 	cmd.Flags().DurationVar(&o.drainer.Timeout, "timeout", o.drainer.Timeout, "The length of time to wait before giving up, zero means infinite")
@@ -214,7 +243,7 @@ func (o *DrainCmdOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args [
 	var err error
 
 	if len(args) == 0 && !cmd.Flags().Changed("selector") {
-		return cmdutil.UsageErrorf(cmd, fmt.Sprintf("USAGE: %s [flags]", cmd.Use))
+		return cmdutil.UsageErrorf(cmd, "USAGE: %s [flags]", cmd.Use)
 	}
 	if len(args) > 0 && len(o.drainer.Selector) > 0 {
 		return cmdutil.UsageErrorf(cmd, "error: cannot specify both a node name and a --selector option")
@@ -224,11 +253,6 @@ func (o *DrainCmdOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args [
 	if err != nil {
 		return err
 	}
-	dynamicClient, err := f.DynamicClient()
-	if err != nil {
-		return err
-	}
-	o.drainer.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, f.OpenAPIGetter(), resource.QueryParamDryRun)
 
 	if o.drainer.Client, err = f.KubernetesClientSet(); err != nil {
 		return err
@@ -302,7 +326,7 @@ func (o *DrainCmdOptions) RunDrain() error {
 		return err
 	}
 
-	drainedNodes := sets.NewString()
+	drainedNodes := sets.New[string]()
 	var fatal []error
 
 	remainingNodes := []string{}
@@ -317,7 +341,7 @@ func (o *DrainCmdOptions) RunDrain() error {
 
 			printObj(info.Object, o.Out)
 		} else {
-			fmt.Fprintf(o.ErrOut, "error: unable to drain node %q due to error:%s, continuing command...\n", info.Name, err)
+			fmt.Fprintf(o.ErrOut, "error: unable to drain node %q due to error: %s, continuing command...\n", info.Name, err)
 
 			if !drainedNodes.Has(info.Name) {
 				fatal = append(fatal, err)
@@ -403,12 +427,6 @@ func (o *DrainCmdOptions) RunCordonOrUncordon(desired bool) error {
 				printObj(nodeInfo.Object, o.Out)
 			} else {
 				if o.drainer.DryRunStrategy != cmdutil.DryRunClient {
-					if o.drainer.DryRunStrategy == cmdutil.DryRunServer {
-						if err := o.drainer.DryRunVerifier.HasSupport(gvk); err != nil {
-							printError(err)
-							continue
-						}
-					}
 					err, patchErr := c.PatchOrReplace(o.drainer.Client, o.drainer.DryRunStrategy == cmdutil.DryRunServer)
 					if patchErr != nil {
 						printError(patchErr)

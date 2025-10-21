@@ -1,0 +1,35 @@
+The following conditions found cause for concern in updating this cluster to later releases: recommended/Alert
+
+recommended/Alert=Unknown:
+
+  Reason: NoTestData
+  Message: This --mock-clusterversion run did not have alert data available at examples/4.12.16-longest-not-recommended-alerts.json
+
+Upstream update service: https://api.integration.openshift.com/api/upgrades_info/graph
+Channel: stable-4.13 (available channels: candidate-4.12, candidate-4.13, eus-4.12, eus-4.14, fast-4.12, fast-4.13, stable-4.12, stable-4.13)
+
+Updates to 4.13:
+
+  Version: 4.13.50
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:6afb11e1cac46fd26476ca134072937115256b9c6360f7a1cd1812992c065f02
+  Reason: MultipleReasons
+  Message: Kubernetes 1.26 and therefore OpenShift 4.13 remove several APIs which require admin consideration. Please see the knowledge article https://access.redhat.com/articles/6958394 for details and instructions.
+  
+  Exposure to ARODNSWrongBootSequence is unknown due to an evaluation failure: client-side throttling: only 8m30.897651224s has elapsed since the last match call completed for this cluster condition backend; this cached cluster condition request has been queued for later execution
+  Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition that are blocking the ARO ACR and quay, are not be able to add or replace nodes after an upgrade https://access.redhat.com/solutions/7074686
+
+  Version: 4.13.49
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:ab6f574665395d809511db9dc57764358278538eaae248c6d199208b3c30ab7d
+  Reason: MultipleReasons
+  Message: Kubernetes 1.26 and therefore OpenShift 4.13 remove several APIs which require admin consideration. Please see the knowledge article https://access.redhat.com/articles/6958394 for details and instructions.
+  
+  Exposure to ARODNSWrongBootSequence is unknown due to an evaluation failure: client-side throttling: only 8m30.897666224s has elapsed since the last match call completed for this cluster condition backend; this cached cluster condition request has been queued for later execution
+  Disconnected ARO clusters or clusters with a UDR 0.0.0.0/0 route definition that are blocking the ARO ACR and quay, are not be able to add or replace nodes after an upgrade https://access.redhat.com/solutions/7074686
+
+And 45 older 4.13 updates you can see with '--show-outdated-releases' or '--version VERSION'.
+
+Updates to 4.12:
+  VERSION     ISSUES
+  4.12.64     no known issues relevant to this cluster
+  4.12.63     no known issues relevant to this cluster
+And 43 older 4.12 updates you can see with '--show-outdated-releases' or '--version VERSION'.

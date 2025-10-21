@@ -10,16 +10,17 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/distribution"
+	"github.com/distribution/distribution/v3"
 	dockerarchive "github.com/docker/docker/pkg/archive"
 	digest "github.com/opencontainers/go-digest"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -70,7 +71,7 @@ var (
 		oc image extract docker.io/library/busybox:latest --path /:/tmp/busybox
 
 		# Extract the busybox image into the current directory for linux/s390x platform
-		# Note: Wildcard filter is not supported with extract. Pass a single os/arch to extract
+		# Note: Wildcard filter is not supported with extract; pass a single os/arch to extract
 		oc image extract docker.io/library/busybox:latest --filter-by-os=linux/s390x
 
 		# Extract a single file from the image into the current directory
@@ -136,8 +137,9 @@ type ExtractOptions struct {
 
 	FileDir  string
 	ICSPFile string
+	IDMSFile string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	// ImageMetadataCallback is invoked once per image retrieved, and may be called in parallel if
 	// MaxPerRegistry is set higher than 1.
@@ -151,7 +153,7 @@ type ExtractOptions struct {
 	AllLayers bool
 }
 
-func NewExtractOptions(streams genericclioptions.IOStreams) *ExtractOptions {
+func NewExtractOptions(streams genericiooptions.IOStreams) *ExtractOptions {
 	return &ExtractOptions{
 		Paths: []string{},
 
@@ -161,7 +163,7 @@ func NewExtractOptions(streams genericclioptions.IOStreams) *ExtractOptions {
 }
 
 // New creates a new command
-func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
+func NewExtract(streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewExtractOptions(streams)
 
 	cmd := &cobra.Command{
@@ -184,6 +186,8 @@ func NewExtract(streams genericclioptions.IOStreams) *cobra.Command {
 	flag.BoolVar(&o.DryRun, "dry-run", o.DryRun, "Print the actions that would be taken and exit without writing any contents.")
 
 	flag.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file. If set, data from this file will be used to find alternative locations for images.")
+	flag.MarkDeprecated("icsp-file", "support for it will be removed in a future release. Use --idms-file instead.")
+	flag.StringVar(&o.IDMSFile, "idms-file", o.IDMSFile, "Path to an ImageDigestMirrorSet file. If set, data from this file will be used to find alternative locations for images.")
 
 	flag.StringSliceVar(&o.Files, "file", o.Files, "Extract the specified files to the current directory.")
 	flag.StringSliceVar(&o.Paths, "path", o.Paths, "Extract only part of an image, or, designate the directory on disk to extract image contents into. Must be SRC:DST where SRC is the path within the image and DST a local directory. If not specified the default is to extract everything to the current directory.")
@@ -339,6 +343,9 @@ func (o *ExtractOptions) Validate() error {
 	if len(o.Mappings) == 0 {
 		return fmt.Errorf("you must specify one or more paths or files")
 	}
+	if len(o.ICSPFile) > 0 && len(o.IDMSFile) > 0 {
+		return fmt.Errorf("icsp-file and idms-file are mutually exclusive")
+	}
 	return o.FilterOptions.Validate()
 }
 
@@ -351,6 +358,9 @@ func (o *ExtractOptions) Run() error {
 	if len(o.ICSPFile) > 0 {
 		fromContext = fromContext.WithAlternateBlobSourceStrategy(strategy.NewICSPOnErrorStrategy(o.ICSPFile))
 	}
+	if len(o.IDMSFile) > 0 {
+		fromContext = fromContext.WithAlternateBlobSourceStrategy(strategy.NewIDMSOnErrorStrategy(o.IDMSFile))
+	}
 	fromOptions := &imagesource.Options{
 		FileDir:         o.FileDir,
 		Insecure:        o.SecurityOptions.Insecure,
@@ -361,13 +371,13 @@ func (o *ExtractOptions) Run() error {
 	defer close(stopCh)
 	q := workqueue.New(o.ParallelOptions.MaxPerRegistry, stopCh)
 	return q.Try(func(q workqueue.Try) {
-		icspWarned := false
+		alternateSourceWarned := false
 		for i := range o.Mappings {
 			mapping := o.Mappings[i]
 			from := mapping.ImageRef
-			if !icspWarned && len(o.ICSPFile) > 0 && len(from.Ref.Tag) > 0 {
-				fmt.Fprintf(o.ErrOut, "warning: --icsp-file only applies to images referenced by digest and will be ignored for tags\n")
-				icspWarned = true
+			if !alternateSourceWarned && (len(o.ICSPFile) > 0 || len(o.IDMSFile) > 0) && len(from.Ref.Tag) > 0 {
+				fmt.Fprintf(o.ErrOut, "warning: --idms-file(and --icsp-file) only applies to images referenced by digest and will be ignored for tags\n")
+				alternateSourceWarned = true
 			}
 			q.Try(func() error {
 				repo, err := fromOptions.Repository(ctx, from)
@@ -375,17 +385,31 @@ func (o *ExtractOptions) Run() error {
 					return fmt.Errorf("unable to connect to image repository %s: %v", from.String(), err)
 				}
 
-				srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+				srcManifest, location, err := retrieveSourceManifest(ctx, from, repo, o)
 				if err != nil {
-					if imagemanifest.IsImageForbidden(err) {
-						msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
-						return imagemanifest.NewImageForbidden(msg, err)
+					if err != imagemanifest.AllImageFilteredErr {
+						return err
 					}
-					if imagemanifest.IsImageNotFound(err) {
-						msg := fmt.Sprintf("image %q not found: %s", from, err.Error())
-						return imagemanifest.NewImageNotFound(msg, err)
+
+					// Translate the current runtime OS to linux when looking through a manifest listed image since a manifest for the particular 'runtime OS'/'archType' may not exist.
+					// In cases where the runtime OS is windows or darwin (i.e. macOS), there is no expectation of a manifest image with those particular OS's.
+					if o.FilterOptions.DefaultOSFilter {
+						runtimeOS := runtime.GOOS
+						arch := runtime.GOARCH
+
+						klog.V(2).Infof("Warning: a manifest image could not be found for this platform: %s/%s. Converting runtime OS, %s, to 'linux' to pull the linux/%s equivalent image.\n", runtimeOS, arch, runtimeOS, arch)
+						o.FilterOptions.OSFilter, err = regexp.Compile("linux/" + arch)
+						if err != nil {
+							return fmt.Errorf("failed to compile OSFilter for linux/%s: %v", arch, err)
+						}
+
+						srcManifest, location, err = retrieveSourceManifest(ctx, from, repo, o)
+						if err != nil {
+							return err
+						}
+					} else {
+						return fmt.Errorf("failed to retrieve manifests from image %s: %v", from, err)
 					}
-					return fmt.Errorf("unable to read image %s: %v", from, err)
 				}
 
 				contentDigest, err := registryclient.ContentDigestForManifest(srcManifest, location.Manifest.Algorithm())
@@ -529,6 +553,27 @@ func (o *ExtractOptions) Run() error {
 	})
 }
 
+// retrieveSourceManifest retrieves the first manifest at the request location that matches the filter function and handles any errors resulting from retrieving the manifest
+func retrieveSourceManifest(ctx context.Context, from imagesource.TypedImageReference, repo distribution.Repository, o *ExtractOptions) (distribution.Manifest, imagemanifest.ManifestLocation, error) {
+	srcManifest, location, err := imagemanifest.FirstManifest(ctx, from.Ref, repo, o.FilterOptions.Include)
+	if err != nil {
+		emptyManifestLocation := imagemanifest.ManifestLocation{}
+		if imagemanifest.IsImageForbidden(err) {
+			msg := fmt.Sprintf("image %q does not exist or you don't have permission to access the repository", from)
+			return nil, emptyManifestLocation, imagemanifest.NewImageForbidden(msg, err)
+		}
+		if imagemanifest.IsImageNotFound(err) {
+			msg := fmt.Sprintf("image %q not found: %s", from, err.Error())
+			return nil, emptyManifestLocation, imagemanifest.NewImageNotFound(msg, err)
+		}
+		if err == imagemanifest.AllImageFilteredErr {
+			return nil, emptyManifestLocation, err
+		}
+		return nil, emptyManifestLocation, fmt.Errorf("unable to read image %s: %v", from, err)
+	}
+	return srcManifest, location, nil
+}
+
 func layerByEntry(r io.Reader, options *archive.TarOptions, layerInfo LayerInfo, fn TarEntryFunc, allLayers bool, alreadySeen map[string]struct{}) (bool, error) {
 	rc, err := dockerarchive.DecompressStream(r)
 	if err != nil {
@@ -597,6 +642,8 @@ func (_ removePermissions) Alter(hdr *tar.Header) (bool, error) {
 	default:
 		hdr.Mode = int64(os.FileMode(0755))
 	}
+	hdr.Xattrs = map[string]string{}
+	hdr.PAXRecords = map[string]string{}
 	return true, nil
 }
 
@@ -653,7 +700,7 @@ func (n *copyFromPattern) Alter(hdr *tar.Header) (bool, error) {
 			return false, nil
 		}
 		matchName = hdr.Name
-		if i := strings.Index(matchName, "/"); i != -1 {
+		if i := strings.Index(matchName, string(filepath.Separator)); i != -1 {
 			matchName = matchName[:i]
 		}
 	}
@@ -678,19 +725,19 @@ func changeTarEntryName(hdr *tar.Header, name string) bool {
 }
 
 func changeTarEntryParent(hdr *tar.Header, from string) bool {
-	if !strings.HasPrefix(hdr.Name, from) {
-		klog.V(5).Infof("Exclude %s due to missing prefix %s", hdr.Name, from)
+	if !strings.HasPrefix(filepath.ToSlash(hdr.Name), from) {
+		klog.V(5).Infof("Exclude %s due to missing prefix %s", filepath.ToSlash(hdr.Name), from)
 		return false
 	}
 	if len(hdr.Linkname) > 0 {
-		if strings.HasPrefix(hdr.Linkname, from) {
-			hdr.Linkname = strings.TrimPrefix(hdr.Linkname, from)
+		if strings.HasPrefix(filepath.ToSlash(hdr.Linkname), from) {
+			hdr.Linkname = filepath.FromSlash(strings.TrimPrefix(filepath.ToSlash(hdr.Linkname), from))
 			klog.V(5).Infof("Updated link to %s", hdr.Linkname)
 		} else {
 			klog.V(4).Infof("Name %s won't correctly point to %s outside of %s", hdr.Name, hdr.Linkname, from)
 		}
 	}
-	hdr.Name = strings.TrimPrefix(hdr.Name, from)
+	hdr.Name = filepath.FromSlash(strings.TrimPrefix(filepath.ToSlash(hdr.Name), from))
 	klog.V(5).Infof("Updated name %s", hdr.Name)
 	return true
 }

@@ -3,20 +3,20 @@
 package v1
 
 import (
-	v1 "github.com/openshift/api/operator/v1"
+	operatorv1 "github.com/openshift/api/operator/v1"
 )
 
-// AdditionalNetworkDefinitionApplyConfiguration represents an declarative configuration of the AdditionalNetworkDefinition type for use
+// AdditionalNetworkDefinitionApplyConfiguration represents a declarative configuration of the AdditionalNetworkDefinition type for use
 // with apply.
 type AdditionalNetworkDefinitionApplyConfiguration struct {
-	Type                *v1.NetworkType                        `json:"type,omitempty"`
+	Type                *operatorv1.NetworkType                `json:"type,omitempty"`
 	Name                *string                                `json:"name,omitempty"`
 	Namespace           *string                                `json:"namespace,omitempty"`
 	RawCNIConfig        *string                                `json:"rawCNIConfig,omitempty"`
 	SimpleMacvlanConfig *SimpleMacvlanConfigApplyConfiguration `json:"simpleMacvlanConfig,omitempty"`
 }
 
-// AdditionalNetworkDefinitionApplyConfiguration constructs an declarative configuration of the AdditionalNetworkDefinition type for use with
+// AdditionalNetworkDefinitionApplyConfiguration constructs a declarative configuration of the AdditionalNetworkDefinition type for use with
 // apply.
 func AdditionalNetworkDefinition() *AdditionalNetworkDefinitionApplyConfiguration {
 	return &AdditionalNetworkDefinitionApplyConfiguration{}
@@ -25,7 +25,7 @@ func AdditionalNetworkDefinition() *AdditionalNetworkDefinitionApplyConfiguratio
 // WithType sets the Type field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Type field is set to the value of the last call.
-func (b *AdditionalNetworkDefinitionApplyConfiguration) WithType(value v1.NetworkType) *AdditionalNetworkDefinitionApplyConfiguration {
+func (b *AdditionalNetworkDefinitionApplyConfiguration) WithType(value operatorv1.NetworkType) *AdditionalNetworkDefinitionApplyConfiguration {
 	b.Type = &value
 	return b
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"sort"
@@ -139,7 +138,7 @@ func LoadEnvironmentFile(filename string, stdin io.Reader) (Environment, error) 
 
 	if filename == "-" && stdin != nil {
 		//once https://github.com/joho/godotenv/pull/20 is merged we can get rid of using tempfile
-		temp, err := ioutil.TempFile("", "origin-env-stdin")
+		temp, err := os.CreateTemp("", "origin-env-stdin")
 		if err != nil {
 			return nil, fmt.Errorf("Cannot create temporary file: %s", err)
 		}

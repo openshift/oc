@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
@@ -41,7 +42,7 @@ type CancelOptions struct {
 	Printer func(string) (printers.ResourcePrinter, error)
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var (
@@ -59,14 +60,14 @@ var (
   		oc rollout cancel dc/nginx`)
 )
 
-func NewRolloutCancelOptions(streams genericclioptions.IOStreams) *CancelOptions {
+func NewRolloutCancelOptions(streams genericiooptions.IOStreams) *CancelOptions {
 	return &CancelOptions{
 		IOStreams:  streams,
 		PrintFlags: genericclioptions.NewPrintFlags("already cancelled"),
 	}
 }
 
-func NewCmdRolloutCancel(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutCancel(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRolloutCancelOptions(streams)
 
 	cmd := &cobra.Command{
@@ -170,7 +171,7 @@ func (o CancelOptions) Run() error {
 				return false
 			}
 
-			patches := set.CalculatePatchesExternal([]*resource.Info{{Object: rc, Mapping: mapping}}, func(info *resource.Info) (bool, error) {
+			patches := set.CalculatePatchesExternal(scheme.DefaultJSONEncoder(), []*resource.Info{{Object: rc, Mapping: mapping}}, func(info *resource.Info) (bool, error) {
 				appsutil.SetCancelledByUserReason(rc)
 				return true, nil
 			})

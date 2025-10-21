@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,8 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
 	knet "k8s.io/apimachinery/pkg/util/net"
+	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	apimachineryversion "k8s.io/apimachinery/pkg/version"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -95,7 +95,7 @@ var (
 	  # To actually perform the prune operation, the confirm flag must be appended
 	  oc adm prune images --prune-over-size-limit --confirm
 
-	  # Force the insecure http protocol with the particular registry host name
+	  # Force the insecure HTTP protocol with the particular registry host name
 	  oc adm prune images --registry-url=http://registry.example.org --confirm
 
 	  # Force a secure connection with a custom certificate authority to the particular registry host name
@@ -138,7 +138,7 @@ type PruneImagesOptions struct {
 }
 
 // NewCmdPruneImages implements the OpenShift cli prune images command.
-func NewCmdPruneImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneImages(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	allImages := true
 	opts := &PruneImagesOptions{
 		Confirm:            false,
@@ -265,14 +265,16 @@ func (o PruneImagesOptions) Validate() error {
 		return fmt.Errorf("--certificate-authority cannot be specified with --force-insecure")
 	}
 	if len(o.CABundle) > 0 && strings.HasPrefix(o.RegistryUrlOverride, "http://") {
-		return fmt.Errorf("--cerificate-authority cannot be specified for insecure http protocol")
+		return fmt.Errorf("--certificate-authority cannot be specified for insecure http protocol")
 	}
 	return nil
 }
 
-var errNoRegistryURLPathAllowed = errors.New("no path after <host>[:<port>] is allowed")
-var errNoRegistryURLQueryAllowed = errors.New("no query arguments are allowed after <host>[:<port>]")
-var errRegistryURLHostEmpty = errors.New("no host name specified")
+var (
+	errNoRegistryURLPathAllowed  = errors.New("no path after <host>[:<port>] is allowed")
+	errNoRegistryURLQueryAllowed = errors.New("no query arguments are allowed after <host>[:<port>]")
+	errRegistryURLHostEmpty      = errors.New("no host name specified")
+)
 
 // validateRegistryURL returns error if the given input is not a valid registry URL. The url may be prefixed
 // with http:// or https:// schema. It may not contain any path or query after the host:[port].
@@ -355,7 +357,7 @@ func (o PruneImagesOptions) Run() error {
 	}
 
 	allDCs, err := o.AppsClient.DeploymentConfigs(o.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
+	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
 
@@ -719,7 +721,7 @@ func getRegistryClient(clientConfig *restclient.Config, registryCABundle string,
 	}
 
 	if len(registryCABundle) > 0 {
-		cadata, err = ioutil.ReadFile(registryCABundle)
+		cadata, err = os.ReadFile(registryCABundle)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read registry ca bundle: %v", err)
 		}
@@ -751,7 +753,7 @@ func getRegistryClient(clientConfig *restclient.Config, registryCABundle string,
 	}
 
 	// we have to set a username to something for the Docker login but it's not actually used
-	registryClientConfig.Username = "unused"
+	registryClientConfig.Username = utilrand.String(5)
 
 	// set the "password" to be the token
 	registryClientConfig.Password = token

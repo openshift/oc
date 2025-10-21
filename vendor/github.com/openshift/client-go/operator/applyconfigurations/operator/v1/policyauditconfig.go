@@ -2,16 +2,17 @@
 
 package v1
 
-// PolicyAuditConfigApplyConfiguration represents an declarative configuration of the PolicyAuditConfig type for use
+// PolicyAuditConfigApplyConfiguration represents a declarative configuration of the PolicyAuditConfig type for use
 // with apply.
 type PolicyAuditConfigApplyConfiguration struct {
 	RateLimit      *uint32 `json:"rateLimit,omitempty"`
 	MaxFileSize    *uint32 `json:"maxFileSize,omitempty"`
+	MaxLogFiles    *int32  `json:"maxLogFiles,omitempty"`
 	Destination    *string `json:"destination,omitempty"`
 	SyslogFacility *string `json:"syslogFacility,omitempty"`
 }
 
-// PolicyAuditConfigApplyConfiguration constructs an declarative configuration of the PolicyAuditConfig type for use with
+// PolicyAuditConfigApplyConfiguration constructs a declarative configuration of the PolicyAuditConfig type for use with
 // apply.
 func PolicyAuditConfig() *PolicyAuditConfigApplyConfiguration {
 	return &PolicyAuditConfigApplyConfiguration{}
@@ -30,6 +31,14 @@ func (b *PolicyAuditConfigApplyConfiguration) WithRateLimit(value uint32) *Polic
 // If called multiple times, the MaxFileSize field is set to the value of the last call.
 func (b *PolicyAuditConfigApplyConfiguration) WithMaxFileSize(value uint32) *PolicyAuditConfigApplyConfiguration {
 	b.MaxFileSize = &value
+	return b
+}
+
+// WithMaxLogFiles sets the MaxLogFiles field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the MaxLogFiles field is set to the value of the last call.
+func (b *PolicyAuditConfigApplyConfiguration) WithMaxLogFiles(value int32) *PolicyAuditConfigApplyConfiguration {
+	b.MaxLogFiles = &value
 	return b
 }
 

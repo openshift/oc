@@ -5,35 +5,53 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/pkg/browser"
+
+	userv1 "github.com/openshift/api/user/v1"
+	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest"
+	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/apis/clientauthentication"
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	kterm "k8s.io/kubectl/pkg/util/term"
+	"k8s.io/klog/v2"
 
-	projectv1typedclient "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
-	"github.com/openshift/oc/pkg/helpers/errors"
+	occhallengers "github.com/openshift/oc/pkg/helpers/authchallengers"
+	ocerrors "github.com/openshift/oc/pkg/helpers/errors"
 	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/motd"
 	"github.com/openshift/oc/pkg/helpers/project"
 	loginutil "github.com/openshift/oc/pkg/helpers/project"
 	"github.com/openshift/oc/pkg/helpers/term"
-	"github.com/openshift/oc/pkg/helpers/tokencmd"
+	"github.com/openshift/oc/pkg/version"
 )
 
 const defaultClusterURL = "https://localhost:8443"
 
 const projectsItemsSuppressThreshold = 50
+
+type ExecPluginType string
+
+const (
+	OCOIDC ExecPluginType = "oc-oidc"
+)
 
 // LoginOptions is a helper for the login and setup process, gathers all information required for a
 // successful login and eventual update of config files.
@@ -47,9 +65,11 @@ type LoginOptions struct {
 	InsecureTLS bool
 
 	// flags and printing helpers
-	Username string
-	Password string
-	Project  string
+	Username     string
+	Password     string
+	Project      string
+	WebLogin     bool
+	CallbackPort int32
 
 	// infra
 	StartingKubeConfig *kclientcmdapi.Config
@@ -60,6 +80,14 @@ type LoginOptions struct {
 	CertFile string
 	KeyFile  string
 
+	OIDCExecPluginType  string
+	OIDCClientID        string
+	OIDCClientSecret    string
+	OIDCExtraScopes     []string
+	OIDCIssuerURL       string
+	OIDCCAFile          string
+	OIDCAutoOpenBrowser bool
+
 	Token string
 
 	PathOptions *kclientcmd.PathOptions
@@ -67,10 +95,20 @@ type LoginOptions struct {
 	CommandName    string
 	RequestTimeout time.Duration
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
+
+	// whoAmIFunc is used to mock project.WhoAmI. It's only being used in tests.
+	// See LoginOptions.whoAmI for details.
+	whoAmIFunc func(clientConfig *restclient.Config) (*userv1.User, error)
 }
 
-func NewLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
+type passwordPrompter func(r io.Reader, w io.Writer, format string, a ...interface{}) string
+
+func (p passwordPrompter) PromptForPassword(r io.Reader, w io.Writer, format string, a ...interface{}) string {
+	return p(r, w, format, a...)
+}
+
+func NewLoginOptions(streams genericiooptions.IOStreams) *LoginOptions {
 	return &LoginOptions{
 		IOStreams:   streams,
 		CommandName: "oc",
@@ -100,11 +138,10 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 
 	if len(o.Server) == 0 {
 		// we need to have a server to talk to
-		if kterm.IsTerminal(o.In) {
+		if printers.IsTerminal(o.In) {
 			for !o.serverProvided() {
-				defaultServer := defaultClusterURL
-				promptMsg := fmt.Sprintf("Server [%s]: ", defaultServer)
-				o.Server = term.PromptForStringWithDefault(o.In, o.Out, defaultServer, promptMsg)
+				o.Server = term.PromptForStringWithDefault(
+					o.In, o.Out, defaultClusterURL, "Server [%s]: ", defaultClusterURL)
 			}
 		}
 	}
@@ -139,6 +176,13 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	// try to TCP connect to the server to make sure it's reachable, and discover
 	// about the need of certificates or insecure TLS
 	if err := dialToServer(*clientConfig); err != nil {
+		// In go 1.20 and upwards versions, x509 errors in the switch statement
+		// are wrapped in tls.CertificateVerificationError.
+		var cerr *tls.CertificateVerificationError
+		if errors.As(err, &cerr) {
+			err = cerr.Unwrap()
+		}
+
 		switch err.(type) {
 		// certificate authority unknown, check or prompt if we want an insecure
 		// connection or if we already have a cluster stanza that tells us to
@@ -196,7 +240,7 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	// if a token were explicitly provided, try to use it
 	if o.tokenProvided() {
 		clientConfig.BearerToken = o.Token
-		me, err := project.WhoAmI(clientConfig)
+		me, err := o.whoAmI(clientConfig)
 		if err != nil {
 			if kerrors.IsUnauthorized(err) {
 				return fmt.Errorf("The token provided is invalid or expired.\n\n")
@@ -221,12 +265,17 @@ func (o *LoginOptions) gatherAuthInfo() error {
 			if matchingClusters.Has(context.Cluster) {
 				clientcmdConfig := kclientcmd.NewDefaultClientConfig(kubeconfig, &kclientcmd.ConfigOverrides{CurrentContext: key})
 				if kubeconfigClientConfig, err := clientcmdConfig.ClientConfig(); err == nil {
-					if me, err := project.WhoAmI(kubeconfigClientConfig); err == nil && (o.Username == me.Name) {
+					if me, err := o.whoAmI(kubeconfigClientConfig); err == nil && (o.Username == me.Name) {
 						clientConfig.BearerToken = kubeconfigClientConfig.BearerToken
 						clientConfig.CertFile = kubeconfigClientConfig.CertFile
 						clientConfig.CertData = kubeconfigClientConfig.CertData
 						clientConfig.KeyFile = kubeconfigClientConfig.KeyFile
 						clientConfig.KeyData = kubeconfigClientConfig.KeyData
+
+						// Preserve ExecProvider configuration.
+						if kubeconfigClientConfig.ExecProvider != nil {
+							clientConfig.ExecProvider = kubeconfigClientConfig.ExecProvider.DeepCopy()
+						}
 
 						o.Config = clientConfig
 
@@ -239,6 +288,24 @@ func (o *LoginOptions) gatherAuthInfo() error {
 		}
 	}
 
+	if o.OIDCExecPluginType == string(OCOIDC) {
+		execProvider, err := o.prepareBuiltinExecPlugin()
+		if err != nil {
+			return err
+		}
+
+		clientConfig.ExecProvider = execProvider
+		me, err := o.whoAmI(clientConfig)
+		if err != nil {
+			return err
+		}
+
+		o.Username = me.Name
+		o.Config = clientConfig
+		fmt.Fprintf(o.Out, "Logged into %q as %q from an external oidc issuer.\n\n", o.Config.Host, o.Username)
+		return nil
+	}
+
 	// if kubeconfig doesn't already have a matching user stanza...
 	clientConfig.BearerToken = ""
 	clientConfig.CertData = []byte{}
@@ -246,13 +313,24 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	clientConfig.CertFile = o.CertFile
 	clientConfig.KeyFile = o.KeyFile
 
-	token, err := tokencmd.RequestToken(o.Config, o.In, o.Username, o.Password)
+	var token string
+	if o.WebLogin {
+		loginURLHandler := func(u *url.URL) error {
+			loginURL := u.String()
+			fmt.Fprintf(o.Out, "Opening login URL in the default browser: %s\n", loginURL)
+			return browser.OpenURL(loginURL)
+		}
+		token, err = tokenrequest.RequestTokenWithLocalCallback(o.Config, loginURLHandler, int(o.CallbackPort))
+	} else {
+		token, err = tokenrequest.RequestTokenWithChallengeHandlers(o.Config, o.getAuthChallengeHandler())
+	}
 	if err != nil {
 		return err
 	}
+
 	clientConfig.BearerToken = token
 
-	me, err := project.WhoAmI(clientConfig)
+	me, err := o.whoAmI(clientConfig)
 	if err != nil {
 		return err
 	}
@@ -261,6 +339,88 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	fmt.Fprint(o.Out, "Login successful.\n\n")
 
 	return nil
+}
+
+// prepareBuiltinExecPlugin sets up the ExecConfig correctly
+// with the given values
+func (o *LoginOptions) prepareBuiltinExecPlugin() (*kclientcmdapi.ExecConfig, error) {
+	execProvider := &kclientcmdapi.ExecConfig{
+		APIVersion: clientauthentication.GroupName + "/v1",
+		Command:    "oc",
+		Args: []string{
+			"get-token",
+			fmt.Sprintf("--issuer-url=%s", o.OIDCIssuerURL),
+			fmt.Sprintf("--client-id=%s", o.OIDCClientID),
+			fmt.Sprintf("--callback-address=127.0.0.1:%d", o.CallbackPort),
+		},
+		InstallHint:     "Please be sure that oc is defined in $PATH to be executed as credentials exec plugin",
+		InteractiveMode: kclientcmdapi.IfAvailableExecInteractiveMode,
+	}
+
+	if len(o.OIDCExtraScopes) > 0 {
+		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--extra-scopes=%s", strings.Join(o.OIDCExtraScopes, ",")))
+	}
+
+	if o.OIDCClientSecret != "" {
+		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--client-secret=%s", o.OIDCClientSecret))
+	}
+
+	if o.InsecureTLS {
+		execProvider.Args = append(execProvider.Args, "--insecure-skip-tls-verify")
+	}
+
+	if len(o.OIDCCAFile) > 0 {
+		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--certificate-authority=%s", o.OIDCCAFile))
+	}
+
+	if o.OIDCAutoOpenBrowser {
+		execProvider.Args = append(execProvider.Args, "--auto-open-browser")
+	}
+
+	return execProvider, nil
+}
+
+func (o *LoginOptions) getAuthChallengeHandler() challengehandlers.ChallengeHandler {
+	var challengeHandlers []challengehandlers.ChallengeHandler
+	var webConsoleURL string
+
+	serverVersionDetector := version.NewServerVersionRetriever(o.Config)
+	serverVersion, err := serverVersionDetector.RetrieveServerVersion()
+	// this feature was introduced in Openshift 4.11 which should correspond to 1.24
+	if err == nil && serverVersion.MajorNumber >= 1 && serverVersion.MinorNumber >= 24 {
+		webConsoleURL = o.Config.Host + "/console"
+	}
+
+	if occhallengers.GSSAPIEnabled() {
+		klog.V(6).Info("GSSAPI Enabled")
+		challengeHandlers = append(challengeHandlers,
+			occhallengers.NewNegotiateChallengeHandler(occhallengers.NewGSSAPINegotiator(o.Username)),
+		)
+	}
+
+	if occhallengers.SSPIEnabled() {
+		klog.V(6).Info("SSPI Enabled")
+		challengeHandlers = append(challengeHandlers,
+			occhallengers.NewNegotiateChallengeHandler(occhallengers.NewSSPINegotiator(o.Username, o.Password, o.Config.Host, webConsoleURL, o.In)))
+	}
+
+	challengeHandlers = append(challengeHandlers,
+		challengehandlers.NewMultiHandler(
+			challengehandlers.NewBasicChallengeHandler(
+				o.Config.Host, webConsoleURL,
+				o.In, o.Out,
+				passwordPrompter(term.PromptForPasswordString),
+				o.Username, o.Password),
+		))
+
+	var handler challengehandlers.ChallengeHandler
+	if len(challengeHandlers) == 1 {
+		handler = challengeHandlers[0]
+	} else {
+		handler = challengehandlers.NewMultiHandler(challengeHandlers...)
+	}
+
+	return handler
 }
 
 // Discover the projects available for the established session and take one to use. It
@@ -305,8 +465,8 @@ func (o *LoginOptions) gatherProjectInfo() error {
 		if err != nil {
 			return err
 		}
-		msg := errors.NoProjectsExistMessage(canRequest)
-		fmt.Fprintf(o.Out, msg)
+		msg := ocerrors.NoProjectsExistMessage(canRequest)
+		fmt.Fprint(o.Out, msg)
 		o.Project = ""
 
 	case 1:
@@ -408,7 +568,7 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 		}
 
 		out := &bytes.Buffer{}
-		fmt.Fprintf(out, errors.ErrKubeConfigNotWriteable(o.PathOptions.GetDefaultFilename(), o.PathOptions.IsExplicitFile(), err).Error())
+		fmt.Fprint(out, ocerrors.ErrKubeConfigNotWriteable(o.PathOptions.GetDefaultFilename(), o.PathOptions.IsExplicitFile(), err).Error())
 		return false, fmt.Errorf("%v", out)
 	}
 
@@ -418,6 +578,13 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 	}
 
 	return created, nil
+}
+
+func (o *LoginOptions) whoAmI(clientConfig *restclient.Config) (*userv1.User, error) {
+	if o.whoAmIFunc != nil {
+		return o.whoAmIFunc(clientConfig)
+	}
+	return project.WhoAmI(clientConfig)
 }
 
 func (o *LoginOptions) usernameProvided() bool {

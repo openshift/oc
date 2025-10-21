@@ -1,0 +1,29 @@
+= Control Plane =
+Assessment:      Progressing
+Target Version:  4.14.1 (from 4.14.0)
+Completion:      12% (4 operators updated, 0 updating, 29 waiting)
+Duration:        6s (Est. Time Remaining: 1h12m)
+Operator Health: 33 Healthy
+
+Control Plane Nodes
+NAME                                        ASSESSMENT   PHASE     VERSION   EST   MESSAGE
+ip-10-0-30-217.us-east-2.compute.internal   Outdated     Pending   4.14.0    ?     
+ip-10-0-53-40.us-east-2.compute.internal    Outdated     Pending   4.14.0    ?     
+ip-10-0-92-180.us-east-2.compute.internal   Outdated     Pending   4.14.0    ?     
+
+= Worker Upgrade =
+
+WORKER POOL   ASSESSMENT   COMPLETION   STATUS
+worker        Excluded     0% (0/3)     3 Available, 0 Progressing, 0 Draining, 3 Excluded
+
+Worker Pool Nodes: worker
+NAME                                        ASSESSMENT   PHASE    VERSION   EST   MESSAGE
+ip-10-0-20-162.us-east-2.compute.internal   Excluded     Paused   4.14.0    -     
+ip-10-0-4-159.us-east-2.compute.internal    Excluded     Paused   4.14.0    -     
+ip-10-0-99-40.us-east-2.compute.internal    Excluded     Paused   4.14.0    -     
+
+= Update Health =
+SINCE   LEVEL     IMPACT           MESSAGE
+-       Warning   Update Stalled   Outdated nodes in a paused pool 'worker' will not be updated
+
+Run with --details=health for additional description and links to related online documentation

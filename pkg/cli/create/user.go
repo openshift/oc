@@ -2,13 +2,17 @@ package create
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -39,11 +43,12 @@ type CreateUserOptions struct {
 
 	FullName string
 
-	UserClient userv1client.UsersGetter
+	UserClient      userv1client.UsersGetter
+	DiscoveryClient discovery.DiscoveryInterface
 }
 
 // NewCmdCreateUser is a macro command to create a new user
-func NewCmdCreateUser(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateUser(f genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CreateUserOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
@@ -54,7 +59,7 @@ func NewCmdCreateUser(f genericclioptions.RESTClientGetter, streams genericcliop
 		Example: userExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
-			cmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 	cmd.Flags().StringVar(&o.FullName, "full-name", o.FullName, "Display name of the user")
@@ -74,11 +79,19 @@ func (o *CreateUserOptions) Complete(cmd *cobra.Command, f genericclioptions.RES
 	if err != nil {
 		return err
 	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
+	if err != nil {
+		return err
+	}
 
 	return o.CreateSubcommandOptions.Complete(f, cmd, args)
 }
 
 func (o *CreateUserOptions) Run() error {
+	if strings.ContainsAny(o.CreateSubcommandOptions.Name, "\r\n") {
+		return fmt.Errorf("new line in user name is not allowed")
+	}
+
 	user := &userv1.User{
 		// this is ok because we know exactly how we want to be serialized
 		TypeMeta: metav1.TypeMeta{APIVersion: userv1.SchemeGroupVersion.String(), Kind: "User"},
@@ -88,7 +101,7 @@ func (o *CreateUserOptions) Run() error {
 		FullName: o.FullName,
 	}
 
-	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, user, scheme.DefaultJSONEncoder()); err != nil {
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, user, createCmdJSONEncoder()); err != nil {
 		return err
 	}
 

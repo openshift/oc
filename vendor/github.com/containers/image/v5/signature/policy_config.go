@@ -19,13 +19,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/signature/internal"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/homedir"
+	"github.com/containers/storage/pkg/regexp"
 )
 
 // systemDefaultPolicyPath is the policy path used for DefaultPolicy().
@@ -65,7 +66,7 @@ func defaultPolicyPathWithHomeDir(sys *types.SystemContext, homeDir string) stri
 		return sys.SignaturePolicyPath
 	}
 	userPolicyFilePath := filepath.Join(homeDir, userPolicyFile)
-	if _, err := os.Stat(userPolicyFilePath); err == nil {
+	if err := fileutils.Exists(userPolicyFilePath); err == nil {
 		return userPolicyFilePath
 	}
 	if sys != nil && sys.RootForImplicitAbsolutePaths != "" {
@@ -104,7 +105,7 @@ var _ json.Unmarshaler = (*Policy)(nil)
 func (p *Policy) UnmarshalJSON(data []byte) error {
 	*p = Policy{}
 	transports := policyTransportsMap{}
-	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) interface{} {
+	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) any {
 		switch key {
 		case "default":
 			return &p.Default
@@ -135,7 +136,7 @@ func (m *policyTransportsMap) UnmarshalJSON(data []byte) error {
 	// We can't unmarshal directly into map values because it is not possible to take an address of a map value.
 	// So, use a temporary map of pointers-to-slices and convert.
 	tmpMap := map[string]*PolicyTransportScopes{}
-	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) interface{} {
+	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) any {
 		// transport can be nil
 		transport := transports.Get(key)
 		// internal.ParanoidUnmarshalJSONObject detects key duplication for us, check just to be safe.
@@ -181,7 +182,7 @@ func (m *policyTransportScopesWithTransport) UnmarshalJSON(data []byte) error {
 	// We can't unmarshal directly into map values because it is not possible to take an address of a map value.
 	// So, use a temporary map of pointers-to-slices and convert.
 	tmpMap := map[string]*PolicyRequirements{}
-	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) interface{} {
+	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) any {
 		// internal.ParanoidUnmarshalJSONObject detects key duplication for us, check just to be safe.
 		if _, ok := tmpMap[key]; ok {
 			return nil
@@ -246,7 +247,7 @@ func newPolicyRequirementFromJSON(data []byte) (PolicyRequirement, error) {
 	case prTypeSigstoreSigned:
 		res = &prSigstoreSigned{}
 	default:
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("Unknown policy requirement type \"%s\"", typeField.Type))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("Unknown policy requirement type %q", typeField.Type))
 	}
 	if err := json.Unmarshal(data, &res); err != nil {
 		return nil, err
@@ -271,14 +272,14 @@ var _ json.Unmarshaler = (*prInsecureAcceptAnything)(nil)
 func (pr *prInsecureAcceptAnything) UnmarshalJSON(data []byte) error {
 	*pr = prInsecureAcceptAnything{}
 	var tmp prInsecureAcceptAnything
-	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]interface{}{
+	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]any{
 		"type": &tmp.Type,
 	}); err != nil {
 		return err
 	}
 
 	if tmp.Type != prTypeInsecureAcceptAnything {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	*pr = *newPRInsecureAcceptAnything()
 	return nil
@@ -301,14 +302,14 @@ var _ json.Unmarshaler = (*prReject)(nil)
 func (pr *prReject) UnmarshalJSON(data []byte) error {
 	*pr = prReject{}
 	var tmp prReject
-	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]interface{}{
+	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]any{
 		"type": &tmp.Type,
 	}); err != nil {
 		return err
 	}
 
 	if tmp.Type != prTypeReject {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	*pr = *newPRReject()
 	return nil
@@ -317,7 +318,7 @@ func (pr *prReject) UnmarshalJSON(data []byte) error {
 // newPRSignedBy returns a new prSignedBy if parameters are valid.
 func newPRSignedBy(keyType sbKeyType, keyPath string, keyPaths []string, keyData []byte, signedIdentity PolicyReferenceMatch) (*prSignedBy, error) {
 	if !keyType.IsValid() {
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("invalid keyType \"%s\"", keyType))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("invalid keyType %q", keyType))
 	}
 	keySources := 0
 	if keyPath != "" {
@@ -384,7 +385,7 @@ func (pr *prSignedBy) UnmarshalJSON(data []byte) error {
 	var tmp prSignedBy
 	var gotKeyPath, gotKeyPaths, gotKeyData = false, false, false
 	var signedIdentity json.RawMessage
-	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) interface{} {
+	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) any {
 		switch key {
 		case "type":
 			return &tmp.Type
@@ -409,7 +410,7 @@ func (pr *prSignedBy) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prTypeSignedBy {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	if signedIdentity == nil {
 		tmp.SignedIdentity = NewPRMMatchRepoDigestOrExact()
@@ -465,7 +466,7 @@ func (kt *sbKeyType) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if !sbKeyType(s).IsValid() {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unrecognized keyType value \"%s\"", s))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unrecognized keyType value %q", s))
 	}
 	*kt = sbKeyType(s)
 	return nil
@@ -495,7 +496,7 @@ func (pr *prSignedBaseLayer) UnmarshalJSON(data []byte) error {
 	*pr = prSignedBaseLayer{}
 	var tmp prSignedBaseLayer
 	var baseLayerIdentity json.RawMessage
-	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]interface{}{
+	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]any{
 		"type":              &tmp.Type,
 		"baseLayerIdentity": &baseLayerIdentity,
 	}); err != nil {
@@ -503,7 +504,7 @@ func (pr *prSignedBaseLayer) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prTypeSignedBaseLayer {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	bli, err := newPolicyReferenceMatchFromJSON(baseLayerIdentity)
 	if err != nil {
@@ -515,107 +516,6 @@ func (pr *prSignedBaseLayer) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*pr = *res
-	return nil
-}
-
-// newPRSigstoreSigned returns a new prSigstoreSigned if parameters are valid.
-func newPRSigstoreSigned(keyPath string, keyData []byte, signedIdentity PolicyReferenceMatch) (*prSigstoreSigned, error) {
-	if len(keyPath) > 0 && len(keyData) > 0 {
-		return nil, InvalidPolicyFormatError("keyType and keyData cannot be used simultaneously")
-	}
-	if signedIdentity == nil {
-		return nil, InvalidPolicyFormatError("signedIdentity not specified")
-	}
-	return &prSigstoreSigned{
-		prCommon:       prCommon{Type: prTypeSigstoreSigned},
-		KeyPath:        keyPath,
-		KeyData:        keyData,
-		SignedIdentity: signedIdentity,
-	}, nil
-}
-
-// newPRSigstoreSignedKeyPath is NewPRSigstoreSignedKeyPath, except it returns the private type.
-func newPRSigstoreSignedKeyPath(keyPath string, signedIdentity PolicyReferenceMatch) (*prSigstoreSigned, error) {
-	return newPRSigstoreSigned(keyPath, nil, signedIdentity)
-}
-
-// NewPRSigstoreSignedKeyPath returns a new "sigstoreSigned" PolicyRequirement using a KeyPath
-func NewPRSigstoreSignedKeyPath(keyPath string, signedIdentity PolicyReferenceMatch) (PolicyRequirement, error) {
-	return newPRSigstoreSignedKeyPath(keyPath, signedIdentity)
-}
-
-// newPRSigstoreSignedKeyData is NewPRSigstoreSignedKeyData, except it returns the private type.
-func newPRSigstoreSignedKeyData(keyData []byte, signedIdentity PolicyReferenceMatch) (*prSigstoreSigned, error) {
-	return newPRSigstoreSigned("", keyData, signedIdentity)
-}
-
-// NewPRSigstoreSignedKeyData returns a new "sigstoreSigned" PolicyRequirement using a KeyData
-func NewPRSigstoreSignedKeyData(keyData []byte, signedIdentity PolicyReferenceMatch) (PolicyRequirement, error) {
-	return newPRSigstoreSignedKeyData(keyData, signedIdentity)
-}
-
-// Compile-time check that prSigstoreSigned implements json.Unmarshaler.
-var _ json.Unmarshaler = (*prSigstoreSigned)(nil)
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (pr *prSigstoreSigned) UnmarshalJSON(data []byte) error {
-	*pr = prSigstoreSigned{}
-	var tmp prSigstoreSigned
-	var gotKeyPath, gotKeyData = false, false
-	var signedIdentity json.RawMessage
-	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) interface{} {
-		switch key {
-		case "type":
-			return &tmp.Type
-		case "keyPath":
-			gotKeyPath = true
-			return &tmp.KeyPath
-		case "keyData":
-			gotKeyData = true
-			return &tmp.KeyData
-		case "signedIdentity":
-			return &signedIdentity
-		default:
-			return nil
-		}
-	}); err != nil {
-		return err
-	}
-
-	if tmp.Type != prTypeSigstoreSigned {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
-	}
-	if signedIdentity == nil {
-		tmp.SignedIdentity = NewPRMMatchRepoDigestOrExact()
-	} else {
-		si, err := newPolicyReferenceMatchFromJSON(signedIdentity)
-		if err != nil {
-			return err
-		}
-		tmp.SignedIdentity = si
-	}
-
-	var res *prSigstoreSigned
-	var err error
-	switch {
-	case gotKeyPath && gotKeyData:
-		return InvalidPolicyFormatError("keyPath and keyData cannot be used simultaneously")
-	case gotKeyPath && !gotKeyData:
-		res, err = newPRSigstoreSignedKeyPath(tmp.KeyPath, tmp.SignedIdentity)
-	case !gotKeyPath && gotKeyData:
-		res, err = newPRSigstoreSignedKeyData(tmp.KeyData, tmp.SignedIdentity)
-	case !gotKeyPath && !gotKeyData:
-		return InvalidPolicyFormatError("At least one of keyPath and keyData must be specified")
-	default: // Coverage: This should never happen
-		return fmt.Errorf("Impossible keyPath/keyData presence combination!?")
-	}
-	if err != nil {
-		// Coverage: This cannot currently happen, creating a prSigstoreSigned only fails
-		// if signedIdentity is nil, which we replace with a default above.
-		return err
-	}
-	*pr = *res
-
 	return nil
 }
 
@@ -640,7 +540,7 @@ func newPolicyReferenceMatchFromJSON(data []byte) (PolicyReferenceMatch, error) 
 	case prmTypeRemapIdentity:
 		res = &prmRemapIdentity{}
 	default:
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("Unknown policy reference match type \"%s\"", typeField.Type))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("Unknown policy reference match type %q", typeField.Type))
 	}
 	if err := json.Unmarshal(data, &res); err != nil {
 		return nil, err
@@ -665,14 +565,14 @@ var _ json.Unmarshaler = (*prmMatchExact)(nil)
 func (prm *prmMatchExact) UnmarshalJSON(data []byte) error {
 	*prm = prmMatchExact{}
 	var tmp prmMatchExact
-	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]interface{}{
+	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]any{
 		"type": &tmp.Type,
 	}); err != nil {
 		return err
 	}
 
 	if tmp.Type != prmTypeMatchExact {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	*prm = *newPRMMatchExact()
 	return nil
@@ -695,14 +595,14 @@ var _ json.Unmarshaler = (*prmMatchRepoDigestOrExact)(nil)
 func (prm *prmMatchRepoDigestOrExact) UnmarshalJSON(data []byte) error {
 	*prm = prmMatchRepoDigestOrExact{}
 	var tmp prmMatchRepoDigestOrExact
-	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]interface{}{
+	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]any{
 		"type": &tmp.Type,
 	}); err != nil {
 		return err
 	}
 
 	if tmp.Type != prmTypeMatchRepoDigestOrExact {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	*prm = *newPRMMatchRepoDigestOrExact()
 	return nil
@@ -725,14 +625,14 @@ var _ json.Unmarshaler = (*prmMatchRepository)(nil)
 func (prm *prmMatchRepository) UnmarshalJSON(data []byte) error {
 	*prm = prmMatchRepository{}
 	var tmp prmMatchRepository
-	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]interface{}{
+	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]any{
 		"type": &tmp.Type,
 	}); err != nil {
 		return err
 	}
 
 	if tmp.Type != prmTypeMatchRepository {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 	*prm = *newPRMMatchRepository()
 	return nil
@@ -742,10 +642,10 @@ func (prm *prmMatchRepository) UnmarshalJSON(data []byte) error {
 func newPRMExactReference(dockerReference string) (*prmExactReference, error) {
 	ref, err := reference.ParseNormalizedNamed(dockerReference)
 	if err != nil {
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("Invalid format of dockerReference %s: %s", dockerReference, err.Error()))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("Invalid format of dockerReference %q: %s", dockerReference, err.Error()))
 	}
 	if reference.IsNameOnly(ref) {
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("dockerReference %s contains neither a tag nor digest", dockerReference))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("dockerReference %q contains neither a tag nor digest", dockerReference))
 	}
 	return &prmExactReference{
 		prmCommon:       prmCommon{Type: prmTypeExactReference},
@@ -765,7 +665,7 @@ var _ json.Unmarshaler = (*prmExactReference)(nil)
 func (prm *prmExactReference) UnmarshalJSON(data []byte) error {
 	*prm = prmExactReference{}
 	var tmp prmExactReference
-	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]interface{}{
+	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]any{
 		"type":            &tmp.Type,
 		"dockerReference": &tmp.DockerReference,
 	}); err != nil {
@@ -773,7 +673,7 @@ func (prm *prmExactReference) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prmTypeExactReference {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 
 	res, err := newPRMExactReference(tmp.DockerReference)
@@ -787,7 +687,7 @@ func (prm *prmExactReference) UnmarshalJSON(data []byte) error {
 // newPRMExactRepository is NewPRMExactRepository, except it returns the private type.
 func newPRMExactRepository(dockerRepository string) (*prmExactRepository, error) {
 	if _, err := reference.ParseNormalizedNamed(dockerRepository); err != nil {
-		return nil, InvalidPolicyFormatError(fmt.Sprintf("Invalid format of dockerRepository %s: %s", dockerRepository, err.Error()))
+		return nil, InvalidPolicyFormatError(fmt.Sprintf("Invalid format of dockerRepository %q: %s", dockerRepository, err.Error()))
 	}
 	return &prmExactRepository{
 		prmCommon:        prmCommon{Type: prmTypeExactRepository},
@@ -807,7 +707,7 @@ var _ json.Unmarshaler = (*prmExactRepository)(nil)
 func (prm *prmExactRepository) UnmarshalJSON(data []byte) error {
 	*prm = prmExactRepository{}
 	var tmp prmExactRepository
-	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]interface{}{
+	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]any{
 		"type":             &tmp.Type,
 		"dockerRepository": &tmp.DockerRepository,
 	}); err != nil {
@@ -815,7 +715,7 @@ func (prm *prmExactRepository) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prmTypeExactRepository {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 
 	res, err := newPRMExactRepository(tmp.DockerRepository)
@@ -829,12 +729,12 @@ func (prm *prmExactRepository) UnmarshalJSON(data []byte) error {
 // Private objects for validateIdentityRemappingPrefix
 var (
 	// remapIdentityDomainRegexp matches exactly a reference domain (name[:port])
-	remapIdentityDomainRegexp = regexp.MustCompile("^" + reference.DomainRegexp.String() + "$")
+	remapIdentityDomainRegexp = regexp.Delayed("^" + reference.DomainRegexp.String() + "$")
 	// remapIdentityDomainPrefixRegexp matches a reference that starts with a domain;
 	// we need this because reference.NameRegexp accepts short names with docker.io implied.
-	remapIdentityDomainPrefixRegexp = regexp.MustCompile("^" + reference.DomainRegexp.String() + "/")
+	remapIdentityDomainPrefixRegexp = regexp.Delayed("^" + reference.DomainRegexp.String() + "/")
 	// remapIdentityNameRegexp matches exactly a reference.Named name (possibly unnormalized)
-	remapIdentityNameRegexp = regexp.MustCompile("^" + reference.NameRegexp.String() + "$")
+	remapIdentityNameRegexp = regexp.Delayed("^" + reference.NameRegexp.String() + "$")
 )
 
 // validateIdentityRemappingPrefix returns an InvalidPolicyFormatError if s is detected to be invalid
@@ -879,7 +779,7 @@ var _ json.Unmarshaler = (*prmRemapIdentity)(nil)
 func (prm *prmRemapIdentity) UnmarshalJSON(data []byte) error {
 	*prm = prmRemapIdentity{}
 	var tmp prmRemapIdentity
-	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]interface{}{
+	if err := internal.ParanoidUnmarshalJSONObjectExactFields(data, map[string]any{
 		"type":         &tmp.Type,
 		"prefix":       &tmp.Prefix,
 		"signedPrefix": &tmp.SignedPrefix,
@@ -888,7 +788,7 @@ func (prm *prmRemapIdentity) UnmarshalJSON(data []byte) error {
 	}
 
 	if tmp.Type != prmTypeRemapIdentity {
-		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type \"%s\"", tmp.Type))
+		return InvalidPolicyFormatError(fmt.Sprintf("Unexpected policy requirement type %q", tmp.Type))
 	}
 
 	res, err := newPRMRemapIdentity(tmp.Prefix, tmp.SignedPrefix)

@@ -3,31 +3,26 @@
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/openshift/api/authorization/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	testing "k8s.io/client-go/testing"
+	authorizationv1 "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeSelfSubjectRulesReviews implements SelfSubjectRulesReviewInterface
-type FakeSelfSubjectRulesReviews struct {
+// fakeSelfSubjectRulesReviews implements SelfSubjectRulesReviewInterface
+type fakeSelfSubjectRulesReviews struct {
+	*gentype.FakeClient[*v1.SelfSubjectRulesReview]
 	Fake *FakeAuthorizationV1
-	ns   string
 }
 
-var selfsubjectrulesreviewsResource = schema.GroupVersionResource{Group: "authorization.openshift.io", Version: "v1", Resource: "selfsubjectrulesreviews"}
-
-var selfsubjectrulesreviewsKind = schema.GroupVersionKind{Group: "authorization.openshift.io", Version: "v1", Kind: "SelfSubjectRulesReview"}
-
-// Create takes the representation of a selfSubjectRulesReview and creates it.  Returns the server's representation of the selfSubjectRulesReview, and an error, if there is any.
-func (c *FakeSelfSubjectRulesReviews) Create(ctx context.Context, selfSubjectRulesReview *v1.SelfSubjectRulesReview, opts metav1.CreateOptions) (result *v1.SelfSubjectRulesReview, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(selfsubjectrulesreviewsResource, c.ns, selfSubjectRulesReview), &v1.SelfSubjectRulesReview{})
-
-	if obj == nil {
-		return nil, err
+func newFakeSelfSubjectRulesReviews(fake *FakeAuthorizationV1, namespace string) authorizationv1.SelfSubjectRulesReviewInterface {
+	return &fakeSelfSubjectRulesReviews{
+		gentype.NewFakeClient[*v1.SelfSubjectRulesReview](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("selfsubjectrulesreviews"),
+			v1.SchemeGroupVersion.WithKind("SelfSubjectRulesReview"),
+			func() *v1.SelfSubjectRulesReview { return &v1.SelfSubjectRulesReview{} },
+		),
+		fake,
 	}
-	return obj.(*v1.SelfSubjectRulesReview), err
 }

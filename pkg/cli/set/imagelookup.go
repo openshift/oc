@@ -11,10 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	imagev1 "github.com/openshift/api/image/v1"
@@ -52,9 +52,7 @@ var (
 				$ oc tag --source=docker myregistry:5000/test/mysql:v1 mysql:v1
 				$ oc set image-lookup deploy/mysql
 
-		Which should trigger a deployment pointing to the imported mysql:v1 tag.
-
-		Experimental: This feature is under active development and may change without notice.`)
+		Which should trigger a deployment pointing to the imported mysql:v1 tag.`)
 
 	imageLookupExample = templates.Examples(`
 		# Print all of the image streams and whether they resolve local names
@@ -97,19 +95,19 @@ type ImageLookupOptions struct {
 	Args              []string
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewImageLookupOptions(streams genericclioptions.IOStreams) *ImageLookupOptions {
+func NewImageLookupOptions(streams genericiooptions.IOStreams) *ImageLookupOptions {
 	return &ImageLookupOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("image lookup updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("image lookup updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 		Enabled:    true,
 	}
 }
 
 // NewCmdImageLookup implements the set image-lookup command
-func NewCmdImageLookup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdImageLookup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewImageLookupOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "image-lookup STREAMNAME [...]",
@@ -178,7 +176,7 @@ func (o *ImageLookupOptions) Validate() error {
 // Run executes the ImageLookupOptions or returns an error.
 func (o *ImageLookupOptions) Run() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -217,7 +215,7 @@ func (o *ImageLookupOptions) Run() error {
 		return o.printImageLookup(infos)
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		switch t := info.Object.(type) {
 		case *imagev1.ImageStream:
 			t.Spec.LookupPolicy.Local = o.Enabled

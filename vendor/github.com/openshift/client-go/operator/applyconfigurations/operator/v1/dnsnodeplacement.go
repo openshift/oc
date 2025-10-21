@@ -3,17 +3,17 @@
 package v1
 
 import (
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
-// DNSNodePlacementApplyConfiguration represents an declarative configuration of the DNSNodePlacement type for use
+// DNSNodePlacementApplyConfiguration represents a declarative configuration of the DNSNodePlacement type for use
 // with apply.
 type DNSNodePlacementApplyConfiguration struct {
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-	Tolerations  []v1.Toleration   `json:"tolerations,omitempty"`
+	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
+	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
-// DNSNodePlacementApplyConfiguration constructs an declarative configuration of the DNSNodePlacement type for use with
+// DNSNodePlacementApplyConfiguration constructs a declarative configuration of the DNSNodePlacement type for use with
 // apply.
 func DNSNodePlacement() *DNSNodePlacementApplyConfiguration {
 	return &DNSNodePlacementApplyConfiguration{}
@@ -36,7 +36,7 @@ func (b *DNSNodePlacementApplyConfiguration) WithNodeSelector(entries map[string
 // WithTolerations adds the given value to the Tolerations field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Tolerations field.
-func (b *DNSNodePlacementApplyConfiguration) WithTolerations(values ...v1.Toleration) *DNSNodePlacementApplyConfiguration {
+func (b *DNSNodePlacementApplyConfiguration) WithTolerations(values ...corev1.Toleration) *DNSNodePlacementApplyConfiguration {
 	for i := range values {
 		b.Tolerations = append(b.Tolerations, values[i])
 	}

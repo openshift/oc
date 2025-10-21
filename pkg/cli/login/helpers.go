@@ -10,12 +10,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/openshift/oc/pkg/helpers/term"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/cli-runtime/pkg/printers"
 	restclient "k8s.io/client-go/rest"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	kterm "k8s.io/kubectl/pkg/util/term"
-
-	"github.com/openshift/oc/pkg/helpers/term"
 )
 
 // getMatchingClusters examines the kubeconfig for all clusters that point to the same server
@@ -98,7 +97,7 @@ func promptForInsecureTLS(reader io.Reader, out io.Writer, reason error) bool {
 		}
 	}
 	var input bool
-	if kterm.IsTerminal(reader) {
+	if printers.IsTerminal(reader) {
 		if len(insecureTLSRequestReason) > 0 {
 			fmt.Fprintln(out, insecureTLSRequestReason)
 		}

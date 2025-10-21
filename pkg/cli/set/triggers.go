@@ -24,10 +24,10 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -118,18 +118,18 @@ type TriggersOptions struct {
 	Args              []string
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewTriggersOptions(streams genericclioptions.IOStreams) *TriggersOptions {
+func NewTriggersOptions(streams genericiooptions.IOStreams) *TriggersOptions {
 	return &TriggersOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("triggers updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("triggers updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 	}
 }
 
 // NewCmdTriggers implements the set triggers command
-func NewCmdTriggers(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTriggers(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewTriggersOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "triggers RESOURCE/NAME [--from-config|--from-image|--from-github|--from-webhook] [--auto|--manual]",
@@ -281,7 +281,7 @@ func (o *TriggersOptions) Validate() error {
 
 func (o *TriggersOptions) Run() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -309,7 +309,7 @@ func (o *TriggersOptions) Run() error {
 		o.updateTriggers(triggers)
 		return nil
 	}
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		return UpdateTriggersForObject(info.Object, updateTriggerFn)
 	})
 	if singleItemImplied && len(patches) == 0 {

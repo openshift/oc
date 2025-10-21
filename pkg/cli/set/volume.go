@@ -24,12 +24,12 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
@@ -75,7 +75,7 @@ var (
 		# /var/lib/myapp
 		oc set volume dc/myapp --add --mount-path=/var/lib/myapp
 
-		# Use an existing persistent volume claim (pvc) to overwrite an existing volume 'v1'
+		# Use an existing persistent volume claim (PVC) to overwrite an existing volume 'v1'
 		oc set volume dc/myapp --add --name=v1 -t pvc --claim-name=pvc1 --overwrite
 
 		# Remove volume 'v1' from deployment config 'myapp'
@@ -130,7 +130,7 @@ type VolumeOptions struct {
 	AddOpts *AddVolumeOptions
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 type AddVolumeOptions struct {
@@ -155,9 +155,9 @@ type AddVolumeOptions struct {
 	ClassChanged bool
 }
 
-func NewVolumeOptions(streams genericclioptions.IOStreams) *VolumeOptions {
+func NewVolumeOptions(streams genericiooptions.IOStreams) *VolumeOptions {
 	return &VolumeOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("volume updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("volume updated").WithTypeSetter(setCmdScheme),
 
 		Containers: "*",
 		AddOpts: &AddVolumeOptions{
@@ -167,7 +167,7 @@ func NewVolumeOptions(streams genericclioptions.IOStreams) *VolumeOptions {
 	}
 }
 
-func NewCmdVolume(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdVolume(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewVolumeOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "volumes RESOURCE/NAME --add|--remove",
@@ -444,7 +444,7 @@ func (a *AddVolumeOptions) Complete() error {
 
 func (o *VolumeOptions) RunVolume() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.DefaultNamespace).DefaultNamespace().
@@ -553,7 +553,7 @@ func (o *VolumeOptions) RunVolume() error {
 
 func (o *VolumeOptions) getVolumeUpdatePatches(infos []*resource.Info, singleItemImplied bool) ([]*Patch, error) {
 	skipped := 0
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		transformed := false
 		ok, err := o.UpdatePodSpecForObject(info.Object, func(spec *corev1.PodSpec) error {
 			var e error
@@ -640,7 +640,7 @@ func (a *AddVolumeOptions) createClaim() *corev1.PersistentVolumeClaim {
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.PersistentVolumeAccessMode(a.ClaimMode)},
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceName(corev1.ResourceStorage): kresource.MustParse(a.ClaimSize),
 				},

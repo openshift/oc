@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -174,25 +173,27 @@ func filenameForInfo(info *resource.Info) string {
 	return info.Name + ".yaml"
 }
 
-// getAllEventsRecursive returns a union (not deconflicted) or all events under a directory
-func getAllEventsRecursive(rootDir string) (*corev1.EventList, error) {
+// getEventsRecursive returns a union (not deconflicted) or all events under a directory
+// it ignores the invalid ones and does this traversal in best-effort.
+func getEventsRecursive(rootDir string) (*corev1.EventList, error) {
 	// now gather all the events into a single file and produce a unified file
 	eventLists := &corev1.EventList{}
 	err := filepath.Walk(rootDir,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to walk err: %v", err)
 			}
 			if info.Name() != "events.yaml" {
 				return nil
 			}
-			eventBytes, err := ioutil.ReadFile(path)
+			eventBytes, err := os.ReadFile(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read file err: %v", err)
 			}
 			events, err := readEvents(eventBytes)
 			if err != nil {
-				return err
+				klog.Warningf("skipping %s, failed to read event err: %v", string(eventBytes), err)
+				return nil
 			}
 			eventLists.Items = append(eventLists.Items, events.Items...)
 			return nil
@@ -271,13 +272,13 @@ func createEventFilterPage(events *corev1.EventList, rootDir string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(filepath.Join(rootDir, "event-filter.html"), out.Bytes(), 0644)
+	return os.WriteFile(filepath.Join(rootDir, "event-filter.html"), out.Bytes(), 0644)
 }
 
 // CreateEventFilterPage reads all events in rootDir recursively, produces a single file, and produces a webpage
 // that can be viewed locally to filter the events.
 func CreateEventFilterPage(rootDir string) error {
-	events, err := getAllEventsRecursive(rootDir)
+	events, err := getEventsRecursive(rootDir)
 	if err != nil {
 		return err
 	}

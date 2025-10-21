@@ -2,13 +2,13 @@
 
 package v1
 
-// SignatureIssuerApplyConfiguration represents an declarative configuration of the SignatureIssuer type for use
+// SignatureIssuerApplyConfiguration represents a declarative configuration of the SignatureIssuer type for use
 // with apply.
 type SignatureIssuerApplyConfiguration struct {
 	SignatureGenericEntityApplyConfiguration `json:",inline"`
 }
 
-// SignatureIssuerApplyConfiguration constructs an declarative configuration of the SignatureIssuer type for use with
+// SignatureIssuerApplyConfiguration constructs a declarative configuration of the SignatureIssuer type for use with
 // apply.
 func SignatureIssuer() *SignatureIssuerApplyConfiguration {
 	return &SignatureIssuerApplyConfiguration{}
@@ -18,7 +18,7 @@ func SignatureIssuer() *SignatureIssuerApplyConfiguration {
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Organization field is set to the value of the last call.
 func (b *SignatureIssuerApplyConfiguration) WithOrganization(value string) *SignatureIssuerApplyConfiguration {
-	b.Organization = &value
+	b.SignatureGenericEntityApplyConfiguration.Organization = &value
 	return b
 }
 
@@ -26,6 +26,6 @@ func (b *SignatureIssuerApplyConfiguration) WithOrganization(value string) *Sign
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the CommonName field is set to the value of the last call.
 func (b *SignatureIssuerApplyConfiguration) WithCommonName(value string) *SignatureIssuerApplyConfiguration {
-	b.CommonName = &value
+	b.SignatureGenericEntityApplyConfiguration.CommonName = &value
 	return b
 }

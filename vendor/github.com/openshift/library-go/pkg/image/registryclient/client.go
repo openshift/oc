@@ -17,14 +17,14 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/api/errcode"
-	registryclient "github.com/docker/distribution/registry/client"
-	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/distribution/registry/client/auth/challenge"
-	"github.com/docker/distribution/registry/client/transport"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest/schema1"
+	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/distribution/v3/registry/api/errcode"
+	registryclient "github.com/distribution/distribution/v3/registry/client"
+	"github.com/distribution/distribution/v3/registry/client/auth"
+	"github.com/distribution/distribution/v3/registry/client/auth/challenge"
+	"github.com/distribution/distribution/v3/registry/client/transport"
 	"github.com/opencontainers/go-digest"
 
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
@@ -382,7 +382,7 @@ func (c *Context) cachedTransport(rt http.RoundTripper, host string, scopes []au
 		}
 	}
 
-	// avoid taking a dependency on kube sets.String for minimal dependencies
+	// avoid taking a dependency on kube sets.Set for minimal dependencies
 	names := make([]string, 0, len(scopeNames))
 	for s := range scopeNames {
 		names = append(names, s)
@@ -595,7 +595,7 @@ func (c retryBlobStore) ServeBlob(ctx context.Context, w http.ResponseWriter, re
 	}
 }
 
-func (c retryBlobStore) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
+func (c retryBlobStore) Open(ctx context.Context, dgst digest.Digest) (io.ReadSeekCloser, error) {
 	for i := 0; ; i++ {
 		if err := c.repo.limiter.Wait(ctx); err != nil {
 			return nil, err
@@ -760,7 +760,7 @@ func (b blobStoreVerifier) Get(ctx context.Context, dgst digest.Digest) ([]byte,
 }
 
 // Open streams the blob identified by the digest and guarantees it matches the content it is retrieved by.
-func (b blobStoreVerifier) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
+func (b blobStoreVerifier) Open(ctx context.Context, dgst digest.Digest) (io.ReadSeekCloser, error) {
 	rsc, err := b.BlobStore.Open(ctx, dgst)
 	if err != nil {
 		return nil, err
@@ -775,10 +775,10 @@ func (b blobStoreVerifier) Open(ctx context.Context, dgst digest.Digest) (distri
 	return rsc, nil
 }
 
-// readSeekCloserVerifier performs validation over the stream returned by a distribution.ReadSeekCloser returned
+// readSeekCloserVerifier performs validation over the stream returned by a io.ReadSeekCloser returned
 // by blobService.Open.
 type readSeekCloserVerifier struct {
-	rsc    distribution.ReadSeekCloser
+	rsc    io.ReadSeekCloser
 	hash   hash.Hash
 	expect digest.Digest
 }

@@ -3,9 +3,10 @@ package newapp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -23,10 +24,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/errors"
+	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -36,7 +38,6 @@ import (
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/generate"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -99,6 +100,9 @@ var (
 		# Use a MySQL image in a private registry to create an app and override application artifacts' names
 		oc new-app --image=myregistry.com/mycompany/mysql --name=private
 
+		# Use an image with the full manifest list to create an app and override application artifacts' names
+		oc new-app --image=myregistry.com/mycompany/image --name=private --import-mode=PreserveOriginal
+
 		# Create an application from a remote repository using its beta4 branch
 		oc new-app https://github.com/openshift/ruby-hello-world#beta4
 
@@ -157,7 +161,7 @@ type ObjectGeneratorOptions struct {
 	LogsForObject polymorphichelpers.LogsForObjectFunc
 	Printer       printers.ResourcePrinter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 type AppOptions struct {
@@ -165,7 +169,7 @@ type AppOptions struct {
 
 	RESTClientGetter genericclioptions.RESTClientGetter
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 // Complete sets all common default options for commands (new-app and new-build)
@@ -185,7 +189,7 @@ func (o *ObjectGeneratorOptions) Complete(f kcmdutil.Factory, c *cobra.Command, 
 	if len(o.Action.Output) == 0 {
 		o.Config.Out = o.Out
 	} else {
-		o.Config.Out = ioutil.Discard
+		o.Config.Out = io.Discard
 	}
 	o.Config.ErrOut = o.ErrOut
 
@@ -202,7 +206,7 @@ func (o *ObjectGeneratorOptions) Complete(f kcmdutil.Factory, c *cobra.Command, 
 		return err
 	}
 
-	o.Action.Bulk.Scheme = newAppScheme
+	o.Action.Bulk.Scheme = newAppBulkScheme
 	o.Action.Bulk.Op = bulk.Creator{Client: dynamicClient, RESTMapper: mapper}.Create
 	// Retry is used to support previous versions of the API server that will
 	// consider the presence of an unknown trigger type to be an error.
@@ -226,7 +230,7 @@ func (o *ObjectGeneratorOptions) Complete(f kcmdutil.Factory, c *cobra.Command, 
 	return nil
 }
 
-func NewAppOptions(streams genericclioptions.IOStreams) *AppOptions {
+func NewAppOptions(streams genericiooptions.IOStreams) *AppOptions {
 	config := newcmd.NewAppConfig()
 	config.Deploy = true
 
@@ -247,7 +251,7 @@ func NewAppOptions(streams genericclioptions.IOStreams) *AppOptions {
 }
 
 // NewCmdNewApplication implements the OpenShift cli new-app command.
-func NewCmdNewApplication(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdNewApplication(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewAppOptions(streams)
 
 	cmd := &cobra.Command{
@@ -298,6 +302,7 @@ func NewCmdNewApplication(f kcmdutil.Factory, streams genericclioptions.IOStream
 	cmd.Flags().StringVar(&o.Config.SourceSecret, "source-secret", o.Config.SourceSecret, "The name of an existing secret that should be used for cloning a private git repository.")
 	cmd.Flags().BoolVar(&o.Config.SkipGeneration, "no-install", o.Config.SkipGeneration, "Do not attempt to run images that describe themselves as being installable")
 	cmd.Flags().BoolVar(&o.Config.BinaryBuild, "binary", o.Config.BinaryBuild, "Instead of expecting a source URL, set the build to expect binary contents. Will disable triggers.")
+	cmd.Flags().StringVar(&o.Config.ImportMode, "import-mode", o.Config.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
 
 	o.Action.BindForOutput(cmd.Flags(), "output", "template")
 	cmd.Flags().String("output-version", "", "The preferred API versions of the output objects")
@@ -439,7 +444,7 @@ func (o *AppOptions) RunNewApp() error {
 			continue
 		}
 
-		obj, err := scheme.Scheme.New(unstructuredObj.GroupVersionKind())
+		obj, err := newapp.NewAppScheme.New(unstructuredObj.GroupVersionKind())
 		if err != nil {
 			return err
 		}
@@ -482,7 +487,7 @@ func (o *AppOptions) RunNewApp() error {
 			if len(t.Spec.Host) > 0 {
 				var route *routev1.Route
 				//check if route processing was completed and host field is prepopulated by router
-				err := wait.PollImmediate(500*time.Millisecond, RoutePollTimeout, func() (bool, error) {
+				err := wait.PollUntilContextTimeout(context.TODO(), 500*time.Millisecond, RoutePollTimeout, true, func(ctx context.Context) (bool, error) {
 					route, err = config.RouteClient.Routes(t.Namespace).Get(context.TODO(), t.Name, metav1.GetOptions{})
 					if err != nil {
 						return false, fmt.Errorf("Error while polling route %s", t.Name)
@@ -529,7 +534,7 @@ func getServices(items []runtime.Object) []*corev1.Service {
 	var svc []*corev1.Service
 	for _, i := range items {
 		unstructuredObj := i.(*unstructured.Unstructured)
-		obj, err := scheme.Scheme.New(unstructuredObj.GroupVersionKind())
+		obj, err := newapp.NewAppScheme.New(unstructuredObj.GroupVersionKind())
 		if err != nil {
 			klog.V(1).Info(err)
 			continue
@@ -553,7 +558,7 @@ func followInstallation(config *newcmd.AppConfig, clientGetter genericclioptions
 	// we cannot retrieve logs until the pod is out of pending
 	// TODO: move this to the server side
 	podClient := config.KubeClient.CoreV1().Pods(pod.Namespace)
-	if err := wait.PollImmediate(500*time.Millisecond, 60*time.Second, installationStarted(podClient, pod.Name, config.KubeClient.CoreV1().Secrets(pod.Namespace))); err != nil {
+	if err := wait.PollUntilContextTimeout(context.TODO(), 500*time.Millisecond, 60*time.Second, true, installationStarted(podClient, pod.Name, config.KubeClient.CoreV1().Secrets(pod.Namespace))); err != nil {
 		return err
 	}
 
@@ -567,12 +572,12 @@ func followInstallation(config *newcmd.AppConfig, clientGetter genericclioptions
 		RESTClientGetter: clientGetter,
 		ConsumeRequestFn: logs.DefaultConsumeRequest,
 		LogsForObject:    logsForObjectFn,
-		IOStreams:        genericclioptions.IOStreams{Out: config.Out},
+		IOStreams:        genericiooptions.IOStreams{Out: config.Out},
 	}
 	logErr := opts.RunLogs()
 
 	// status of the pod may take tens of seconds to propagate
-	if err := wait.PollImmediate(500*time.Millisecond, 30*time.Second, installationComplete(podClient, pod.Name, config.Out)); err != nil {
+	if err := wait.PollUntilContextTimeout(context.TODO(), 500*time.Millisecond, 30*time.Second, true, installationComplete(podClient, pod.Name, config.Out)); err != nil {
 		if err == wait.ErrWaitTimeout {
 			if logErr != nil {
 				// output the log error if one occurred
@@ -587,8 +592,8 @@ func followInstallation(config *newcmd.AppConfig, clientGetter genericclioptions
 	return nil
 }
 
-func installationStarted(c corev1typedclient.PodInterface, name string, s corev1typedclient.SecretInterface) wait.ConditionFunc {
-	return func() (bool, error) {
+func installationStarted(c corev1typedclient.PodInterface, name string, s corev1typedclient.SecretInterface) wait.ConditionWithContextFunc {
+	return func(ctx context.Context) (bool, error) {
 		pod, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
@@ -609,8 +614,8 @@ func installationStarted(c corev1typedclient.PodInterface, name string, s corev1
 	}
 }
 
-func installationComplete(c corev1typedclient.PodInterface, name string, out io.Writer) wait.ConditionFunc {
-	return func() (bool, error) {
+func installationComplete(c corev1typedclient.PodInterface, name string, out io.Writer) wait.ConditionWithContextFunc {
+	return func(ctx context.Context) (bool, error) {
 		pod, err := c.Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			if kapierrors.IsNotFound(err) {
@@ -673,7 +678,7 @@ func CompleteAppConfig(config *newcmd.AppConfig, f kcmdutil.Factory, c *cobra.Co
 		config.Mapper = mapper
 	}
 	if config.Typer == nil {
-		config.Typer = scheme.Scheme
+		config.Typer = newapp.NewAppScheme
 	}
 
 	namespace, _, err := f.ToRawKubeConfigLoader().Namespace()
@@ -720,23 +725,23 @@ func CompleteAppConfig(config *newcmd.AppConfig, f kcmdutil.Factory, c *cobra.Co
 			fmt.Fprintf(buf, "%s:\n", argName)
 			for _, classErr := range config.EnvironmentClassificationErrors {
 				if classErr.Value != nil {
-					fmt.Fprintf(buf, fmt.Sprintf("%s:  %v\n", classErr.Key, classErr.Value))
+					fmt.Fprintf(buf, "%s:  %v\n", classErr.Key, classErr.Value)
 				} else {
-					fmt.Fprintf(buf, fmt.Sprintf("%s\n", classErr.Key))
+					fmt.Fprintf(buf, "%s\n", classErr.Key)
 				}
 			}
 			for _, classErr := range config.SourceClassificationErrors {
-				fmt.Fprintf(buf, fmt.Sprintf("%s:  %v\n", classErr.Key, classErr.Value))
+				fmt.Fprintf(buf, "%s:  %v\n", classErr.Key, classErr.Value)
 			}
 			for _, classErr := range config.TemplateClassificationErrors {
-				fmt.Fprintf(buf, fmt.Sprintf("%s:  %v\n", classErr.Key, classErr.Value))
+				fmt.Fprintf(buf, "%s:  %v\n", classErr.Key, classErr.Value)
 			}
 			for _, classErr := range config.ComponentClassificationErrors {
-				fmt.Fprintf(buf, fmt.Sprintf("%s:  %v\n", classErr.Key, classErr.Value))
+				fmt.Fprintf(buf, "%s:  %v\n", classErr.Key, classErr.Value)
 			}
 			fmt.Fprintln(buf)
 		}
-		return kcmdutil.UsageErrorf(c, heredoc.Docf(buf.String()))
+		return kcmdutil.UsageErrorf(c, "%s", heredoc.Doc(buf.String()))
 	}
 
 	if config.AllowMissingImages && config.AsSearch {
@@ -887,7 +892,7 @@ func HandleError(err error, commandPath string, config *newcmd.AppConfig, transf
 		return nil
 	}
 	errs := []error{err}
-	if agg, ok := err.(errors.Aggregate); ok {
+	if agg, ok := err.(kutilerrors.Aggregate); ok {
 		errs = agg.Errors()
 	}
 	groups := ErrorGroups{}
@@ -900,7 +905,7 @@ func HandleError(err error, commandPath string, config *newcmd.AppConfig, transf
 		if len(group.classification) > 0 {
 			fmt.Fprintln(buf)
 		}
-		fmt.Fprintf(buf, group.classification)
+		fmt.Fprint(buf, group.classification)
 		if len(group.suggestion) > 0 {
 			if len(group.classification) > 0 {
 				fmt.Fprintln(buf)
@@ -909,7 +914,7 @@ func HandleError(err error, commandPath string, config *newcmd.AppConfig, transf
 		}
 		fmt.Fprint(buf, group.suggestion)
 	}
-	return fmt.Errorf(buf.String())
+	return errors.New(buf.String())
 }
 
 type ErrorGroup struct {
@@ -1064,13 +1069,14 @@ func TransformRunError(err error, commandPath string, groups ErrorGroups, config
 	switch err {
 	case errNoTokenAvailable:
 		// TODO: improve by allowing token generation
-		groups.Add("", "", "", fmt.Errorf("to install components you must be logged in with an OAuth token (instead of only a certificate)"))
+		groups.Add("", "", "", errors.New("to install components you must be logged in with an OAuth token (instead of only a certificate)"))
 	case newcmd.ErrNoInputs:
 		// TODO: suggest things to the user
-		groups.Add("", "", "", UsageError(commandPath, newAppNoInput))
+		groups.Add("", "", "", UsageError(commandPath, "%s", newAppNoInput))
 	default:
 		if runtime.IsNotRegisteredError(err) {
-			groups.Add("", "", "", fmt.Errorf(fmt.Sprintf("The template contained an object type unknown to `oc new-app`.  Use `oc process -f <template> | oc create -f -` instead.  Error details: %v", err)))
+			groups.Add("", "", "", fmt.Errorf(
+				"The template contained an object type unknown to `oc new-app`.  Use `oc process -f <template> | oc create -f -` instead.  Error details: %v", err))
 		} else {
 			groups.Add("", "", "", err)
 		}
@@ -1205,7 +1211,7 @@ func (r *configSecretRetriever) CACert() (string, error) {
 		return string(r.config.CAData), nil
 	}
 	if len(r.config.CAFile) > 0 {
-		data, err := ioutil.ReadFile(r.config.CAFile)
+		data, err := os.ReadFile(r.config.CAFile)
 		if err != nil {
 			return "", fmt.Errorf("unable to read CA cert from config %s: %v", r.config.CAFile, err)
 		}

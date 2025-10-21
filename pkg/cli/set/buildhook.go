@@ -10,13 +10,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	buildv1 "github.com/openshift/api/build/v1"
-	"k8s.io/kubectl/pkg/scheme"
 )
 
 var (
@@ -70,18 +70,18 @@ type BuildHookOptions struct {
 	FieldManager      string
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewBuildHookOptions(streams genericclioptions.IOStreams) *BuildHookOptions {
+func NewBuildHookOptions(streams genericiooptions.IOStreams) *BuildHookOptions {
 	return &BuildHookOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("hooks updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("hooks updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 	}
 }
 
 // NewCmdBuildHook implements the set build-hook command
-func NewCmdBuildHook(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdBuildHook(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewBuildHookOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "build-hook BUILDCONFIG --post-commit [--command] [--script] -- CMD",
@@ -167,7 +167,7 @@ func (o *BuildHookOptions) Validate() error {
 
 func (o *BuildHookOptions) Run() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -194,7 +194,7 @@ func (o *BuildHookOptions) Run() error {
 		return fmt.Errorf("no resources found")
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		bc, ok := info.Object.(*buildv1.BuildConfig)
 		if !ok {
 			return false, nil

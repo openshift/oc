@@ -19,6 +19,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -75,17 +76,17 @@ type SCCReviewOptions struct {
 	serviceAccountNames      []string // it contains user inputs it could be long sa name like system:serviceaccount:bob:default or short one
 	shortServiceAccountNames []string // it contains only short sa name for example 'bob'
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewSCCReviewOptions(streams genericclioptions.IOStreams) *SCCReviewOptions {
+func NewSCCReviewOptions(streams genericiooptions.IOStreams) *SCCReviewOptions {
 	return &SCCReviewOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
 	}
 }
 
-func NewCmdSccReview(f kcmdutil.Factory, streams genericclioptions.IOStreams, admin bool) *cobra.Command {
+func NewCmdSccReview(f kcmdutil.Factory, streams genericiooptions.IOStreams, admin bool) *cobra.Command {
 	o := NewSCCReviewOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "scc-review",

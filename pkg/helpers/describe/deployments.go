@@ -28,7 +28,6 @@ import (
 	appsgraph "github.com/openshift/oc/pkg/helpers/graph/appsgraph/nodes"
 	"github.com/openshift/oc/pkg/helpers/graph/genericgraph"
 	kubegraph "github.com/openshift/oc/pkg/helpers/graph/kubegraph/nodes"
-	"github.com/openshift/oc/pkg/helpers/legacy"
 )
 
 const (
@@ -298,8 +297,6 @@ func printDeploymentConfigSpec(kc kubernetes.Interface, dc appsv1.DeploymentConf
 	printAutoscalingInfo(
 		[]schema.GroupResource{
 			apps.Resource("DeploymentConfig"),
-			// this needs to remain as long as HPA supports putting in the "wrong" DC scheme
-			legacy.Resource("DeploymentConfig"),
 		},
 		dc.Namespace, dc.Name, kc, w)
 
@@ -379,7 +376,8 @@ func printDeploymentRc(deployment *corev1.ReplicationController, kubeClient kube
 }
 
 func getPodStatusForDeployment(deployment *corev1.ReplicationController, kubeClient kubernetes.Interface) (running, waiting, succeeded, failed int,
-	err error) {
+	err error,
+) {
 	rcPods, err := kubeClient.CoreV1().Pods(deployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Set(deployment.Spec.Selector).AsSelector().String()})
 	if err != nil {
 		return

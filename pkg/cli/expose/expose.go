@@ -9,11 +9,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubectl/pkg/cmd/expose"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -54,6 +54,14 @@ var (
 	`)
 )
 
+type ExposeFlags struct {
+	Hostname       string
+	Path           string
+	WildcardPolicy string
+
+	*expose.ExposeServiceFlags
+}
+
 type ExposeOptions struct {
 	Hostname       string
 	Path           string
@@ -69,54 +77,60 @@ type ExposeOptions struct {
 	*expose.ExposeServiceOptions
 }
 
-func NewExposeOptions(streams genericclioptions.IOStreams) *ExposeOptions {
-	return &ExposeOptions{
-		ExposeServiceOptions: expose.NewExposeServiceOptions(streams),
+func NewExposeFlags(streams genericiooptions.IOStreams) *ExposeFlags {
+	flags := expose.NewExposeFlags(streams)
+	flags.PrintFlags = genericclioptions.NewPrintFlags("exposed").WithTypeSetter(exposeCmdScheme)
+	return &ExposeFlags{
+		ExposeServiceFlags: flags,
 	}
 }
 
-// NewCmdExpose is a wrapper for the Kubernetes cli expose command
-func NewCmdExpose(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := NewExposeOptions(streams)
-
-	cmd := expose.NewCmdExposeService(f, streams)
-	cmd.Short = "Expose a replicated application as a service or route"
-	cmd.Long = exposeLong
-	cmd.Example = exposeExample
-	cmd.Flags().Set("protocol", "")
-	cmd.Run = func(cmd *cobra.Command, args []string) {
-		kcmdutil.CheckErr(o.Complete(cmd, f, args))
-		kcmdutil.CheckErr(o.Validate())
-		kcmdutil.CheckErr(o.Run())
+func (flags *ExposeFlags) ToOptions(cmd *cobra.Command, args []string) (*ExposeOptions, error) {
+	exposeServiceOpts, err := flags.ExposeServiceFlags.ToOptions(cmd, args)
+	if err != nil {
+		return nil, err
 	}
-	validArgs := []string{"pod", "service", "replicationcontroller", "deployment", "replicaset", "deploymentconfig"}
-	cmd.ValidArgsFunction = completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs)
 
-	cmd.Flags().StringVar(&o.Hostname, "hostname", o.Hostname, "Set a hostname for the new route")
-	cmd.Flags().StringVar(&o.Path, "path", o.Path, "Set a path for the new route")
-	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WildcardPolicy for the hostname, the default is \"None\". Valid values are \"None\" and \"Subdomain\"")
+	return &ExposeOptions{
+		Hostname:             flags.Hostname,
+		Path:                 flags.Path,
+		WildcardPolicy:       flags.WildcardPolicy,
+		Args:                 args,
+		Cmd:                  cmd,
+		ExposeServiceOptions: exposeServiceOpts,
+	}, nil
+}
+
+// NewCmdExpose is a wrapper for the Kubernetes cli expose command
+func NewCmdExpose(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
+	flags := NewExposeFlags(streams)
+
+	validArgs := []string{"pod", "service", "replicationcontroller", "deployment", "replicaset", "deploymentconfig"}
+	cmd := &cobra.Command{
+		Use:               "expose (-f FILENAME | TYPE NAME) [--port=port] [--protocol=TCP|UDP|SCTP] [--target-port=number-or-name] [--name=name] [--external-ip=external-ip-of-service] [--type=type]",
+		Short:             "Expose a replicated application as a service or route",
+		Long:              exposeLong,
+		Example:           exposeExample,
+		ValidArgsFunction: completion.SpecifiedResourceTypeAndNameCompletionFunc(f, validArgs),
+		Run: func(cmd *cobra.Command, args []string) {
+			opts, err := flags.ToOptions(cmd, args)
+			kcmdutil.CheckErr(err)
+			kcmdutil.CheckErr(opts.Complete(cmd, f, args))
+			kcmdutil.CheckErr(opts.Validate())
+			kcmdutil.CheckErr(opts.Run())
+		},
+	}
+
+	flags.ExposeServiceFlags.AddFlags(cmd)
+	cmd.Flags().Set("protocol", "")
+	cmd.Flags().StringVar(&flags.Hostname, "hostname", flags.Hostname, "Set a hostname for the new route")
+	cmd.Flags().StringVar(&flags.Path, "path", flags.Path, "Set a path for the new route")
+	cmd.Flags().StringVar(&flags.WildcardPolicy, "wildcard-policy", flags.WildcardPolicy, "Sets the WildcardPolicy for the hostname, the default is \"None\". Valid values are \"None\" and \"Subdomain\"")
 
 	return cmd
 }
 
 func (o *ExposeOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []string) error {
-	// manually bind all flag values from the upstream command
-	// TODO: once the upstream command supports binding flags
-	// by outside callers, this will no longer be needed.
-	o.ExposeServiceOptions.Protocol = kcmdutil.GetFlagString(cmd, "protocol")
-	o.ExposeServiceOptions.Port = kcmdutil.GetFlagString(cmd, "port")
-	o.ExposeServiceOptions.Type = kcmdutil.GetFlagString(cmd, "type")
-	o.ExposeServiceOptions.LoadBalancerIP = kcmdutil.GetFlagString(cmd, "load-balancer-ip")
-	o.ExposeServiceOptions.Selector = kcmdutil.GetFlagString(cmd, "selector")
-	o.ExposeServiceOptions.Labels = kcmdutil.GetFlagString(cmd, "labels")
-	o.ExposeServiceOptions.TargetPort = kcmdutil.GetFlagString(cmd, "target-port")
-	o.ExposeServiceOptions.ExternalIP = kcmdutil.GetFlagString(cmd, "external-ip")
-	o.ExposeServiceOptions.Name = kcmdutil.GetFlagString(cmd, "name")
-	o.ExposeServiceOptions.SessionAffinity = kcmdutil.GetFlagString(cmd, "session-affinity")
-	o.ExposeServiceOptions.ClusterIP = kcmdutil.GetFlagString(cmd, "cluster-ip")
-	output := kcmdutil.GetFlagString(cmd, "output")
-	o.ExposeServiceOptions.PrintFlags.OutputFormat = &output
-
 	config, err := f.ToRESTConfig()
 	if err != nil {
 		return err
@@ -135,7 +149,7 @@ func (o *ExposeOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []
 		return err
 	}
 
-	return o.ExposeServiceOptions.Complete(f, cmd)
+	return o.ExposeServiceOptions.Complete(f)
 }
 
 func (o *ExposeOptions) Validate() error {
@@ -147,7 +161,7 @@ func (o *ExposeOptions) Validate() error {
 
 func (o *ExposeOptions) Run() error {
 	r := o.Builder.
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(exposeCmdScheme, exposeCmdScheme.PrioritizedVersionsAllGroups()...).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
 		FilenameParam(o.EnforceNamespace, &o.ExposeServiceOptions.FilenameOptions).
@@ -179,7 +193,7 @@ func (o *ExposeOptions) Run() error {
 		route.Spec.Host = o.Hostname
 		route.Spec.Path = o.Path
 		route.Spec.WildcardPolicy = routev1.WildcardPolicyType(o.WildcardPolicy)
-		if err := util.CreateOrUpdateAnnotation(kcmdutil.GetFlagBool(o.Cmd, kcmdutil.ApplyAnnotationsFlag), route, scheme.DefaultJSONEncoder()); err != nil {
+		if err := util.CreateOrUpdateAnnotation(kcmdutil.GetFlagBool(o.Cmd, kcmdutil.ApplyAnnotationsFlag), route, exposeCmdJSONEncoder()); err != nil {
 			return err
 		}
 

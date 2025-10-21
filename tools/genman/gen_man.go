@@ -3,13 +3,16 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	kubecmd "k8s.io/kubectl/pkg/cmd"
 
 	"github.com/openshift/oc/pkg/cli"
 	mangen "github.com/openshift/oc/tools/genman/md2man"
@@ -22,7 +25,7 @@ func main() {
 	}
 
 	if strings.HasSuffix(os.Args[2], "oc") {
-		genCmdMan("oc", cli.NewOcCommand(&bytes.Buffer{}, os.Stdout, ioutil.Discard))
+		genCmdMan("oc", cli.NewOcCommand(kubecmd.KubectlOptions{IOStreams: genericiooptions.IOStreams{In: &bytes.Buffer{}, Out: os.Stdout, ErrOut: io.Discard}}))
 	} else {
 		fmt.Fprintf(os.Stderr, "Root command not specified (oc).")
 		os.Exit(1)
@@ -60,7 +63,7 @@ func genCmdMan(cmdName string, cmd *cobra.Command) {
 	// Set environment variables used by openshift so the output is consistent,
 	// regardless of where we run.
 	os.Setenv("HOME", "/home/username")
-	// TODO os.Stdin should really be something like ioutil.Discard, but a Reader
+	// TODO os.Stdin should really be something like io.Discard, but a Reader
 	genMarkdown(cmd, "", outDir)
 	for _, c := range cmd.Commands() {
 		genMarkdown(c, cmdName, outDir)

@@ -2,7 +2,7 @@
 
 package v1
 
-// GitBuildSourceApplyConfiguration represents an declarative configuration of the GitBuildSource type for use
+// GitBuildSourceApplyConfiguration represents a declarative configuration of the GitBuildSource type for use
 // with apply.
 type GitBuildSourceApplyConfiguration struct {
 	URI                           *string `json:"uri,omitempty"`
@@ -10,7 +10,7 @@ type GitBuildSourceApplyConfiguration struct {
 	ProxyConfigApplyConfiguration `json:",inline"`
 }
 
-// GitBuildSourceApplyConfiguration constructs an declarative configuration of the GitBuildSource type for use with
+// GitBuildSourceApplyConfiguration constructs a declarative configuration of the GitBuildSource type for use with
 // apply.
 func GitBuildSource() *GitBuildSourceApplyConfiguration {
 	return &GitBuildSourceApplyConfiguration{}
@@ -36,7 +36,7 @@ func (b *GitBuildSourceApplyConfiguration) WithRef(value string) *GitBuildSource
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the HTTPProxy field is set to the value of the last call.
 func (b *GitBuildSourceApplyConfiguration) WithHTTPProxy(value string) *GitBuildSourceApplyConfiguration {
-	b.HTTPProxy = &value
+	b.ProxyConfigApplyConfiguration.HTTPProxy = &value
 	return b
 }
 
@@ -44,7 +44,7 @@ func (b *GitBuildSourceApplyConfiguration) WithHTTPProxy(value string) *GitBuild
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the HTTPSProxy field is set to the value of the last call.
 func (b *GitBuildSourceApplyConfiguration) WithHTTPSProxy(value string) *GitBuildSourceApplyConfiguration {
-	b.HTTPSProxy = &value
+	b.ProxyConfigApplyConfiguration.HTTPSProxy = &value
 	return b
 }
 
@@ -52,6 +52,6 @@ func (b *GitBuildSourceApplyConfiguration) WithHTTPSProxy(value string) *GitBuil
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the NoProxy field is set to the value of the last call.
 func (b *GitBuildSourceApplyConfiguration) WithNoProxy(value string) *GitBuildSourceApplyConfiguration {
-	b.NoProxy = &value
+	b.ProxyConfigApplyConfiguration.NoProxy = &value
 	return b
 }

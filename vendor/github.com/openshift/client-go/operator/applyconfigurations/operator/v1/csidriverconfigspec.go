@@ -3,17 +3,21 @@
 package v1
 
 import (
-	v1 "github.com/openshift/api/operator/v1"
+	operatorv1 "github.com/openshift/api/operator/v1"
 )
 
-// CSIDriverConfigSpecApplyConfiguration represents an declarative configuration of the CSIDriverConfigSpec type for use
+// CSIDriverConfigSpecApplyConfiguration represents a declarative configuration of the CSIDriverConfigSpec type for use
 // with apply.
 type CSIDriverConfigSpecApplyConfiguration struct {
-	DriverType *v1.CSIDriverType                             `json:"driverType,omitempty"`
-	VSphere    *VSphereCSIDriverConfigSpecApplyConfiguration `json:"vSphere,omitempty"`
+	DriverType *operatorv1.CSIDriverType                      `json:"driverType,omitempty"`
+	AWS        *AWSCSIDriverConfigSpecApplyConfiguration      `json:"aws,omitempty"`
+	Azure      *AzureCSIDriverConfigSpecApplyConfiguration    `json:"azure,omitempty"`
+	GCP        *GCPCSIDriverConfigSpecApplyConfiguration      `json:"gcp,omitempty"`
+	IBMCloud   *IBMCloudCSIDriverConfigSpecApplyConfiguration `json:"ibmcloud,omitempty"`
+	VSphere    *VSphereCSIDriverConfigSpecApplyConfiguration  `json:"vSphere,omitempty"`
 }
 
-// CSIDriverConfigSpecApplyConfiguration constructs an declarative configuration of the CSIDriverConfigSpec type for use with
+// CSIDriverConfigSpecApplyConfiguration constructs a declarative configuration of the CSIDriverConfigSpec type for use with
 // apply.
 func CSIDriverConfigSpec() *CSIDriverConfigSpecApplyConfiguration {
 	return &CSIDriverConfigSpecApplyConfiguration{}
@@ -22,8 +26,40 @@ func CSIDriverConfigSpec() *CSIDriverConfigSpecApplyConfiguration {
 // WithDriverType sets the DriverType field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the DriverType field is set to the value of the last call.
-func (b *CSIDriverConfigSpecApplyConfiguration) WithDriverType(value v1.CSIDriverType) *CSIDriverConfigSpecApplyConfiguration {
+func (b *CSIDriverConfigSpecApplyConfiguration) WithDriverType(value operatorv1.CSIDriverType) *CSIDriverConfigSpecApplyConfiguration {
 	b.DriverType = &value
+	return b
+}
+
+// WithAWS sets the AWS field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the AWS field is set to the value of the last call.
+func (b *CSIDriverConfigSpecApplyConfiguration) WithAWS(value *AWSCSIDriverConfigSpecApplyConfiguration) *CSIDriverConfigSpecApplyConfiguration {
+	b.AWS = value
+	return b
+}
+
+// WithAzure sets the Azure field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Azure field is set to the value of the last call.
+func (b *CSIDriverConfigSpecApplyConfiguration) WithAzure(value *AzureCSIDriverConfigSpecApplyConfiguration) *CSIDriverConfigSpecApplyConfiguration {
+	b.Azure = value
+	return b
+}
+
+// WithGCP sets the GCP field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the GCP field is set to the value of the last call.
+func (b *CSIDriverConfigSpecApplyConfiguration) WithGCP(value *GCPCSIDriverConfigSpecApplyConfiguration) *CSIDriverConfigSpecApplyConfiguration {
+	b.GCP = value
+	return b
+}
+
+// WithIBMCloud sets the IBMCloud field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the IBMCloud field is set to the value of the last call.
+func (b *CSIDriverConfigSpecApplyConfiguration) WithIBMCloud(value *IBMCloudCSIDriverConfigSpecApplyConfiguration) *CSIDriverConfigSpecApplyConfiguration {
+	b.IBMCloud = value
 	return b
 }
 

@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/completion"
@@ -52,7 +53,7 @@ var (
 		# Update imported data for all tags in an existing image stream
 		oc import-image mystream --all
 
-		# Update imported data for a tag which points to a manifest list to include the full manifest list
+		# Update imported data for a tag that points to a manifest list to include the full manifest list
 		oc import-image mystream --import-mode=PreserveOriginal
 
 		# Import all tags into a new image stream
@@ -91,10 +92,10 @@ type ImportImageOptions struct {
 	imageClient imagev1client.ImageV1Interface
 	isClient    imagev1client.ImageStreamInterface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewImportImageOptions(streams genericclioptions.IOStreams) *ImportImageOptions {
+func NewImportImageOptions(streams genericiooptions.IOStreams) *ImportImageOptions {
 	return &ImportImageOptions{
 		PrintFlags:      genericclioptions.NewPrintFlags("imported"),
 		IOStreams:       streams,
@@ -104,7 +105,7 @@ func NewImportImageOptions(streams genericclioptions.IOStreams) *ImportImageOpti
 }
 
 // NewCmdImportImage implements the OpenShift cli import-image command.
-func NewCmdImportImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdImportImage(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewImportImageOptions(streams)
 
 	validArgs := []string{"imagestream"}

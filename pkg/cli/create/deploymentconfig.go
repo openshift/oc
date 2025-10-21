@@ -8,8 +8,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -40,7 +40,7 @@ type CreateDeploymentConfigOptions struct {
 }
 
 // NewCmdCreateDeploymentConfig is a macro command to create a new deployment config.
-func NewCmdCreateDeploymentConfig(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateDeploymentConfig(f genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CreateDeploymentConfigOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
@@ -105,7 +105,7 @@ func (o *CreateDeploymentConfigOptions) Run() error {
 		},
 	}
 
-	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, deploymentConfig, scheme.DefaultJSONEncoder()); err != nil {
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, deploymentConfig, createCmdJSONEncoder()); err != nil {
 		return err
 	}
 

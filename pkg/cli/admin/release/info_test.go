@@ -10,10 +10,10 @@ import (
 	"testing"
 
 	digest "github.com/opencontainers/go-digest"
+	imageapi "github.com/openshift/api/image/v1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	"k8s.io/apimachinery/pkg/util/diff"
-
-	imageapi "github.com/openshift/api/image/v1"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 )
 
 func TestReleaseInfoPlatform(t *testing.T) {
@@ -124,16 +124,18 @@ func Test_readComponentVersions(t *testing.T) {
 	type args struct {
 	}
 	tests := []struct {
-		name    string
-		is      *imageapi.ImageStream
-		want    ComponentVersions
-		wantErr []error
+		name     string
+		is       *imageapi.ImageStream
+		want     ComponentVersions
+		wantTags map[string]string
+		wantErr  []error
 	}{
 		{
 			is: &imageapi.ImageStream{
 				Spec: imageapi.ImageStreamSpec{
 					Tags: []imageapi.TagReference{
 						{
+							Name: "foo",
 							Annotations: map[string]string{
 								annotationBuildVersions:             "",
 								annotationBuildVersionsDisplayNames: "",
@@ -142,12 +144,14 @@ func Test_readComponentVersions(t *testing.T) {
 					},
 				},
 			},
+			wantTags: map[string]string{},
 		},
 		{
 			is: &imageapi.ImageStream{
 				Spec: imageapi.ImageStreamSpec{
 					Tags: []imageapi.TagReference{
 						{
+							Name: "bar",
 							Annotations: map[string]string{
 								annotationBuildVersions:             "a1=1.0.0",
 								annotationBuildVersionsDisplayNames: "",
@@ -159,12 +163,16 @@ func Test_readComponentVersions(t *testing.T) {
 			want: ComponentVersions{
 				"a1": {Version: "1.0.0"},
 			},
+			wantTags: map[string]string{
+				"a1": "bar",
+			},
 		},
 		{
 			is: &imageapi.ImageStream{
 				Spec: imageapi.ImageStreamSpec{
 					Tags: []imageapi.TagReference{
 						{
+							Name: "foo",
 							Annotations: map[string]string{
 								annotationBuildVersions:             "a1=1.0.0,b1=1.0.1",
 								annotationBuildVersionsDisplayNames: "b1=Test Name",
@@ -176,6 +184,10 @@ func Test_readComponentVersions(t *testing.T) {
 			want: ComponentVersions{
 				"a1": {Version: "1.0.0"},
 				"b1": {Version: "1.0.1", DisplayName: "Test Name"},
+			},
+			wantTags: map[string]string{
+				"a1": "foo",
+				"b1": "foo",
 			},
 		},
 		{
@@ -191,7 +203,8 @@ func Test_readComponentVersions(t *testing.T) {
 					},
 				},
 			},
-			wantErr: []error{fmt.Errorf("the referenced image test1 had an invalid version annotation: the version pair \"a1=\" must have a valid semantic version: Version string empty")},
+			wantTags: map[string]string{},
+			wantErr:  []error{fmt.Errorf("the referenced image test1 had an invalid version annotation: the version pair \"a1=\" must have a valid semantic version: Version string empty")},
 		},
 		{
 			is: &imageapi.ImageStream{
@@ -214,6 +227,9 @@ func Test_readComponentVersions(t *testing.T) {
 			},
 			want: ComponentVersions{
 				"a1": {Version: "1.0.0"},
+			},
+			wantTags: map[string]string{
+				"a1": "test2",
 			},
 		},
 		{
@@ -237,6 +253,9 @@ func Test_readComponentVersions(t *testing.T) {
 			},
 			want: ComponentVersions{
 				"a1": {Version: "1.0.0"},
+			},
+			wantTags: map[string]string{
+				"a1": "test2",
 			},
 			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): a1")},
 		},
@@ -263,6 +282,9 @@ func Test_readComponentVersions(t *testing.T) {
 			want: ComponentVersions{
 				"a1": {Version: "1.0.0", DisplayName: ""},
 			},
+			wantTags: map[string]string{
+				"a1": "test2",
+			},
 			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): a1")},
 		},
 		{
@@ -288,6 +310,9 @@ func Test_readComponentVersions(t *testing.T) {
 			},
 			want: ComponentVersions{
 				"a1": {Version: "1.0.0", DisplayName: "Test Name"},
+			},
+			wantTags: map[string]string{
+				"a1": "test2",
 			},
 		},
 		{
@@ -314,16 +339,202 @@ func Test_readComponentVersions(t *testing.T) {
 			want: ComponentVersions{
 				"a1": {Version: "1.0.0", DisplayName: "Test Name"},
 			},
+			wantTags: map[string]string{
+				"a1": "test2",
+			},
 			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): a1")},
+		},
+		{
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "cli",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "test2",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"kubectl": {Version: "1.1.0"},
+			},
+			wantTags: map[string]string{
+				"kubectl": "test3",
+			},
+		},
+		{
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "cli",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "cli-artifacts",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"kubectl": {Version: "1.0.0"},
+			},
+			wantTags: map[string]string{
+				"kubectl": "test3",
+			},
+			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): kubectl")},
+		},
+		{
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "cli",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "cli-artifacts",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.1",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"kubectl": {Version: "1.1.0"},
+			},
+			wantTags: map[string]string{
+				"kubectl": "test3",
+			},
+		},
+		{
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "cli",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "cli-artifacts",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.1",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"kubectl": {Version: "1.1.0"},
+			},
+			wantTags: map[string]string{
+				"kubectl": "test3",
+			},
+		},
+		{
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "cli",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "cli-artifacts",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+						{
+							Name: "test3",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.0.0",
+							},
+						},
+						{
+							Name: "test4",
+							Annotations: map[string]string{
+								annotationBuildVersions: "kubectl=1.1.0",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"kubectl": {Version: "1.1.0"},
+			},
+			wantTags: map[string]string{
+				"kubectl": "test4",
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := readComponentVersions(tt.is)
+			ioStreams := genericiooptions.NewTestIOStreamsDiscard()
+			got, got1, got2 := readComponentVersions(tt.is, ioStreams.ErrOut)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("%s", diff.ObjectReflectDiff(got, tt.want))
 			}
-			if a, b := asStrings(got1), asStrings(tt.wantErr); !reflect.DeepEqual(a, b) {
+			if !reflect.DeepEqual(got1, tt.wantTags) {
+				t.Errorf("%s", diff.ObjectReflectDiff(got1, tt.wantTags))
+			}
+			if a, b := asStrings(got2), asStrings(tt.wantErr); !reflect.DeepEqual(a, b) {
 				t.Errorf("%s", diff.ObjectReflectDiff(a, b))
 			}
 		})

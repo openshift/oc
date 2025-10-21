@@ -10,7 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/kubectl/pkg/cmd/logs"
 
 	buildv1 "github.com/openshift/api/build/v1"
@@ -19,7 +19,7 @@ import (
 
 // TestLogsFlagParity makes sure that our copied flags don't slip during rebases
 func TestLogsFlagParity(t *testing.T) {
-	streams := genericclioptions.NewTestIOStreamsDiscard()
+	streams := genericiooptions.NewTestIOStreamsDiscard()
 	kubeCmd := logs.NewCmdLogs(nil, streams)
 	originCmd := NewCmdLogs(nil, streams)
 
@@ -53,7 +53,7 @@ func TestRunLogForPipelineStrategy(t *testing.T) {
 	}
 
 	fakebc := buildfake.NewSimpleClientset(&bld)
-	streams, _, out, _ := genericclioptions.NewTestIOStreams()
+	streams, _, out, _ := genericiooptions.NewTestIOStreams()
 
 	testCases := []struct {
 		o runtime.Object

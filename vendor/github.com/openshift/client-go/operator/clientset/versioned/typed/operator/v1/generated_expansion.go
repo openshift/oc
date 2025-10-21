@@ -30,7 +30,11 @@ type KubeSchedulerExpansion interface{}
 
 type KubeStorageVersionMigratorExpansion interface{}
 
+type MachineConfigurationExpansion interface{}
+
 type NetworkExpansion interface{}
+
+type OLMExpansion interface{}
 
 type OpenShiftAPIServerExpansion interface{}
 

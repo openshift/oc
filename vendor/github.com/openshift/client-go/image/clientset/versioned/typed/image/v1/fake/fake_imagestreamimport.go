@@ -3,31 +3,26 @@
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/openshift/api/image/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	testing "k8s.io/client-go/testing"
+	imagev1 "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeImageStreamImports implements ImageStreamImportInterface
-type FakeImageStreamImports struct {
+// fakeImageStreamImports implements ImageStreamImportInterface
+type fakeImageStreamImports struct {
+	*gentype.FakeClient[*v1.ImageStreamImport]
 	Fake *FakeImageV1
-	ns   string
 }
 
-var imagestreamimportsResource = schema.GroupVersionResource{Group: "image.openshift.io", Version: "v1", Resource: "imagestreamimports"}
-
-var imagestreamimportsKind = schema.GroupVersionKind{Group: "image.openshift.io", Version: "v1", Kind: "ImageStreamImport"}
-
-// Create takes the representation of a imageStreamImport and creates it.  Returns the server's representation of the imageStreamImport, and an error, if there is any.
-func (c *FakeImageStreamImports) Create(ctx context.Context, imageStreamImport *v1.ImageStreamImport, opts metav1.CreateOptions) (result *v1.ImageStreamImport, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(imagestreamimportsResource, c.ns, imageStreamImport), &v1.ImageStreamImport{})
-
-	if obj == nil {
-		return nil, err
+func newFakeImageStreamImports(fake *FakeImageV1, namespace string) imagev1.ImageStreamImportInterface {
+	return &fakeImageStreamImports{
+		gentype.NewFakeClient[*v1.ImageStreamImport](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("imagestreamimports"),
+			v1.SchemeGroupVersion.WithKind("ImageStreamImport"),
+			func() *v1.ImageStreamImport { return &v1.ImageStreamImport{} },
+		),
+		fake,
 	}
-	return obj.(*v1.ImageStreamImport), err
 }

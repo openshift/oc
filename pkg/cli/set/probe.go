@@ -17,11 +17,11 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
@@ -114,12 +114,12 @@ type ProbeOptions struct {
 	FailureThreshold *int
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewProbeOptions(streams genericclioptions.IOStreams) *ProbeOptions {
+func NewProbeOptions(streams genericiooptions.IOStreams) *ProbeOptions {
 	return &ProbeOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("probes updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("probes updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 
 		ContainerSelector: "*",
@@ -127,7 +127,7 @@ func NewProbeOptions(streams genericclioptions.IOStreams) *ProbeOptions {
 }
 
 // NewCmdProbe implements the set probe command
-func NewCmdProbe(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProbe(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewProbeOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "probe RESOURCE/NAME --readiness|--liveness [flags] (--get-url=URL|--open-tcp=PORT|-- CMD)",
@@ -286,7 +286,7 @@ func (o *ProbeOptions) Validate() error {
 
 func (o *ProbeOptions) Run() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -306,7 +306,7 @@ func (o *ProbeOptions) Run() error {
 		return err
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		transformed := false
 		name := getObjectName(info)
 		_, err := o.UpdatePodSpecForObject(info.Object, func(spec *corev1.PodSpec) error {

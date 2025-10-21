@@ -12,7 +12,7 @@ import (
 	"k8s.io/klog/v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -31,7 +31,7 @@ type LogoutOptions struct {
 
 	PathOptions *kclientcmd.PathOptions
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var (
@@ -55,14 +55,14 @@ var (
 	`)
 )
 
-func NewLogoutOptions(streams genericclioptions.IOStreams) *LogoutOptions {
+func NewLogoutOptions(streams genericiooptions.IOStreams) *LogoutOptions {
 	return &LogoutOptions{
 		IOStreams: streams,
 	}
 }
 
 // NewCmdLogout implements the OpenShift cli logout command
-func NewCmdLogout(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogout(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewLogoutOptions(streams)
 	cmds := &cobra.Command{
 		Use:     "logout",

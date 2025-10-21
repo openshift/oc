@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/docker/distribution/registry/client/transport"
+	"github.com/distribution/distribution/v3/registry/client/transport"
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -48,24 +48,25 @@ type Options struct {
 	Namespaces []string
 	Client     imageclient.Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRegistryInfoOptions(streams genericclioptions.IOStreams) *Options {
+func NewRegistryInfoOptions(streams genericiooptions.IOStreams) *Options {
 	return &Options{
 		IOStreams: streams,
 	}
 }
 
 // New creates a command that displays info about the registry.
-func NewRegistryInfoCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRegistryInfoCmd(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRegistryInfoOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     "info ",
-		Short:   "Print information about the integrated registry",
-		Long:    desc,
-		Example: example,
+		Use:        "info ",
+		Short:      "Print information about the integrated registry",
+		Long:       desc,
+		Example:    example,
+		Deprecated: "and will be removed in the future version.",
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args))
 			kcmdutil.CheckErr(o.Validate())

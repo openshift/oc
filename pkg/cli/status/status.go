@@ -10,7 +10,7 @@ import (
 
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -18,7 +18,6 @@ import (
 	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	buildv1client "github.com/openshift/client-go/build/clientset/versioned/typed/build/v1"
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
-	projectv1client "github.com/openshift/client-go/project/clientset/versioned/typed/project/v1"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/openshift/oc/pkg/helpers/describe"
 	dotutil "github.com/openshift/oc/pkg/helpers/dot"
@@ -61,10 +60,10 @@ type StatusOptions struct {
 	setProbeCommandName         string
 	patchCommandName            string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewStatusOptions(streams genericclioptions.IOStreams) *StatusOptions {
+func NewStatusOptions(streams genericiooptions.IOStreams) *StatusOptions {
 	return &StatusOptions{
 		IOStreams: streams,
 	}
@@ -72,7 +71,7 @@ func NewStatusOptions(streams genericclioptions.IOStreams) *StatusOptions {
 
 // NewCmdStatus implements the OpenShift cli status command.
 // baseCLIName is the path from root cmd to the parent of this cmd.
-func NewCmdStatus(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdStatus(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewStatusOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "status [-o dot | --suggest ]",
@@ -110,10 +109,6 @@ func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	if err != nil {
 		return err
 	}
-	projectClient, err := projectv1client.NewForConfig(clientConfig)
-	if err != nil {
-		return err
-	}
 	buildClient, err := buildv1client.NewForConfig(clientConfig)
 	if err != nil {
 		return err
@@ -147,7 +142,7 @@ func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 		if err != nil {
 			return err
 		}
-		_, err = projectClient.Projects().Get(context.TODO(), namespace, metav1.GetOptions{})
+		_, err = kclientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
 		switch {
 		case kapierrors.IsForbidden(err), kapierrors.IsNotFound(err):
 			return fmt.Errorf("you do not have rights to view project %q specified in your config or the project doesn't exist", namespace)
@@ -166,15 +161,14 @@ func (o *StatusOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	canRequestProjects, _ := loginutil.CanRequestProjects(clientConfig, o.namespace)
 
 	o.describer = &describe.ProjectStatusDescriber{
-		KubeClient:    kclientset,
-		RESTMapper:    restMapper,
-		ProjectClient: projectClient,
-		BuildClient:   buildClient,
-		ImageClient:   imageClient,
-		AppsClient:    appsClient,
-		RouteClient:   routeClient,
-		Suggest:       o.suggest,
-		Server:        clientConfig.Host,
+		KubeClient:  kclientset,
+		RESTMapper:  restMapper,
+		BuildClient: buildClient,
+		ImageClient: imageClient,
+		AppsClient:  appsClient,
+		RouteClient: routeClient,
+		Suggest:     o.suggest,
+		Server:      clientConfig.Host,
 
 		RequestedNamespace: nsFlag,
 		CurrentNamespace:   currentNamespace,
@@ -228,6 +222,6 @@ func (o StatusOptions) RunStatus() error {
 		return fmt.Errorf("invalid output format provided: %s", o.outputFormat)
 	}
 
-	fmt.Fprintf(o.Out, s)
+	fmt.Fprint(o.Out, s)
 	return nil
 }

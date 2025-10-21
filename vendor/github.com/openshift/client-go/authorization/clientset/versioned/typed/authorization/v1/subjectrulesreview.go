@@ -3,12 +3,12 @@
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/openshift/api/authorization/v1"
+	authorizationv1 "github.com/openshift/api/authorization/v1"
 	scheme "github.com/openshift/client-go/authorization/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // SubjectRulesReviewsGetter has a method to return a SubjectRulesReviewInterface.
@@ -19,33 +19,24 @@ type SubjectRulesReviewsGetter interface {
 
 // SubjectRulesReviewInterface has methods to work with SubjectRulesReview resources.
 type SubjectRulesReviewInterface interface {
-	Create(ctx context.Context, subjectRulesReview *v1.SubjectRulesReview, opts metav1.CreateOptions) (*v1.SubjectRulesReview, error)
+	Create(ctx context.Context, subjectRulesReview *authorizationv1.SubjectRulesReview, opts metav1.CreateOptions) (*authorizationv1.SubjectRulesReview, error)
 	SubjectRulesReviewExpansion
 }
 
 // subjectRulesReviews implements SubjectRulesReviewInterface
 type subjectRulesReviews struct {
-	client rest.Interface
-	ns     string
+	*gentype.Client[*authorizationv1.SubjectRulesReview]
 }
 
 // newSubjectRulesReviews returns a SubjectRulesReviews
 func newSubjectRulesReviews(c *AuthorizationV1Client, namespace string) *subjectRulesReviews {
 	return &subjectRulesReviews{
-		client: c.RESTClient(),
-		ns:     namespace,
+		gentype.NewClient[*authorizationv1.SubjectRulesReview](
+			"subjectrulesreviews",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			namespace,
+			func() *authorizationv1.SubjectRulesReview { return &authorizationv1.SubjectRulesReview{} },
+		),
 	}
-}
-
-// Create takes the representation of a subjectRulesReview and creates it.  Returns the server's representation of the subjectRulesReview, and an error, if there is any.
-func (c *subjectRulesReviews) Create(ctx context.Context, subjectRulesReview *v1.SubjectRulesReview, opts metav1.CreateOptions) (result *v1.SubjectRulesReview, err error) {
-	result = &v1.SubjectRulesReview{}
-	err = c.client.Post().
-		Namespace(c.ns).
-		Resource("subjectrulesreviews").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(subjectRulesReview).
-		Do(ctx).
-		Into(result)
-	return
 }

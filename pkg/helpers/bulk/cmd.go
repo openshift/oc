@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -119,7 +119,7 @@ func (b *Bulk) Run(list *metainternalversion.List, namespace string) []error {
 func NewPrintNameOrErrorAfterIndent(short bool, operation string, out, errs io.Writer, dryRun bool, indent string, prefixForError PrefixForError) AfterFunc {
 	return func(obj *unstructured.Unstructured, err error) bool {
 		if err == nil {
-			fmt.Fprintf(out, indent)
+			fmt.Fprint(out, indent)
 			printSuccess(short, out, obj.GroupVersionKind(), obj.GetName(), dryRun, operation)
 		} else {
 			fmt.Fprintf(errs, "%s%s: %v\n", indent, prefixForError(err), err)
@@ -222,7 +222,7 @@ type BulkAction struct {
 	// output modifiers
 	Action string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 // BindForAction sets flags on this action for when setting -o should only change how the operation results are displayed.

@@ -3,22 +3,22 @@
 package v1
 
 import (
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
-// TagReferenceApplyConfiguration represents an declarative configuration of the TagReference type for use
+// TagReferenceApplyConfiguration represents a declarative configuration of the TagReference type for use
 // with apply.
 type TagReferenceApplyConfiguration struct {
 	Name            *string                               `json:"name,omitempty"`
 	Annotations     map[string]string                     `json:"annotations,omitempty"`
-	From            *v1.ObjectReference                   `json:"from,omitempty"`
+	From            *corev1.ObjectReference               `json:"from,omitempty"`
 	Reference       *bool                                 `json:"reference,omitempty"`
 	Generation      *int64                                `json:"generation,omitempty"`
 	ImportPolicy    *TagImportPolicyApplyConfiguration    `json:"importPolicy,omitempty"`
 	ReferencePolicy *TagReferencePolicyApplyConfiguration `json:"referencePolicy,omitempty"`
 }
 
-// TagReferenceApplyConfiguration constructs an declarative configuration of the TagReference type for use with
+// TagReferenceApplyConfiguration constructs a declarative configuration of the TagReference type for use with
 // apply.
 func TagReference() *TagReferenceApplyConfiguration {
 	return &TagReferenceApplyConfiguration{}
@@ -49,7 +49,7 @@ func (b *TagReferenceApplyConfiguration) WithAnnotations(entries map[string]stri
 // WithFrom sets the From field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the From field is set to the value of the last call.
-func (b *TagReferenceApplyConfiguration) WithFrom(value v1.ObjectReference) *TagReferenceApplyConfiguration {
+func (b *TagReferenceApplyConfiguration) WithFrom(value corev1.ObjectReference) *TagReferenceApplyConfiguration {
 	b.From = &value
 	return b
 }

@@ -9,7 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -48,16 +48,16 @@ type CreateKubeconfigOptions struct {
 	ContextNamespace string
 	Context          string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewCreateKubeconfigOptions(streams genericclioptions.IOStreams) *CreateKubeconfigOptions {
+func NewCreateKubeconfigOptions(streams genericiooptions.IOStreams) *CreateKubeconfigOptions {
 	return &CreateKubeconfigOptions{
 		IOStreams: streams,
 	}
 }
 
-func NewCommandCreateKubeconfig(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandCreateKubeconfig(f cmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	options := NewCreateKubeconfigOptions(streams)
 
 	cmd := &cobra.Command{
@@ -79,7 +79,7 @@ func NewCommandCreateKubeconfig(f cmdutil.Factory, streams genericclioptions.IOS
 
 func (o *CreateKubeconfigOptions) Complete(args []string, f cmdutil.Factory, cmd *cobra.Command) error {
 	if len(args) != 1 {
-		return cmdutil.UsageErrorf(cmd, fmt.Sprintf("expected one service account name as an argument, got %q", args))
+		return cmdutil.UsageErrorf(cmd, "expected one service account name as an argument, got %q", args)
 	}
 	context, err := cmd.Flags().GetString("context")
 	if err != nil {
@@ -182,7 +182,7 @@ func (o *CreateKubeconfigOptions) Run() error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(o.Out, string(out))
+			fmt.Fprint(o.Out, string(out))
 			return nil
 		}
 	}

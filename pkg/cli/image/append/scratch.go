@@ -3,10 +3,11 @@ package append
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/reference"
 	digest "github.com/opencontainers/go-digest"
 
 	"github.com/openshift/oc/pkg/helpers/image/dockerlayer"
@@ -57,7 +58,7 @@ func (_ nopCloseBuffer) Close() error {
 	return nil
 }
 
-func (_ scratchRepo) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
+func (_ scratchRepo) Open(ctx context.Context, dgst digest.Digest) (io.ReadSeekCloser, error) {
 	if dgst != dockerlayer.GzippedEmptyLayerDigest {
 		return nil, distribution.ErrBlobUnknown
 	}

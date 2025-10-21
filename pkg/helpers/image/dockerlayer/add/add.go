@@ -6,12 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"runtime"
 	"time"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/schema2"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest/schema2"
 	digest "github.com/opencontainers/go-digest"
 
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
@@ -62,7 +61,7 @@ func DigestCopy(dst io.ReaderFrom, src io.Reader) (layerDigest, blobDigest diges
 		}
 		_, err = io.Copy(layerhash, gr)
 		if err != nil {
-			io.Copy(ioutil.Discard, pr)
+			io.Copy(io.Discard, pr)
 		}
 		ch <- err
 	}()
@@ -128,7 +127,16 @@ func UploadSchema2Config(ctx context.Context, blobs distribution.BlobService, co
 // putSchema2ImageConfig uploads the provided configJSON to the blob store and returns the generated manifest
 // for the requested image.
 func putSchema2ImageConfig(ctx context.Context, blobs distribution.BlobService, mediaType string, configJSON []byte, layers []distribution.Descriptor) (*schema2.DeserializedManifest, []byte, error) {
-	b := schema2.NewManifestBuilder(blobs, mediaType, configJSON)
+	configDescriptor := distribution.Descriptor{
+		Digest:    digest.FromBytes(configJSON),
+		Size:      int64(len(configJSON)),
+		MediaType: mediaType,
+	}
+	b := schema2.NewManifestBuilder(configDescriptor, configJSON)
+	_, err := blobs.Put(ctx, mediaType, configJSON)
+	if err != nil {
+		return nil, nil, err
+	}
 	for _, layer := range layers {
 		if err := b.AppendReference(layer); err != nil {
 			return nil, nil, err

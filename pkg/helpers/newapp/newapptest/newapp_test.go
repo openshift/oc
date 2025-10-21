@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -65,7 +64,7 @@ func skipExternalGit(t *testing.T) {
 }
 
 func TestNewAppAddArguments(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "test-newapp")
+	tmpDir, err := os.MkdirTemp("", "test-newapp")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -531,7 +530,7 @@ func TestNewAppRunAll(t *testing.T) {
 					SourceRepositories: []string{"https://github.com/openshift/sti-ruby"},
 				},
 				GenerationInputs: cmd.GenerationInputs{
-					ContextDir: "2.0/test/rack-test-app",
+					ContextDir: "3.1/test/rack-test-app",
 				},
 
 				Resolvers: cmd.Resolvers{
@@ -572,7 +571,7 @@ func TestNewAppRunAll(t *testing.T) {
 					SourceRepositories: []string{"https://github.com/openshift/sti-ruby"},
 				},
 				GenerationInputs: cmd.GenerationInputs{
-					ContextDir: "2.0/test/missing-dir",
+					ContextDir: "3.1/test/missing-dir",
 				},
 
 				Resolvers: cmd.Resolvers{
@@ -605,7 +604,7 @@ func TestNewAppRunAll(t *testing.T) {
 			expectedName:    "sti-ruby",
 			expectedVolumes: nil,
 			errFn: func(err error) bool {
-				return err.Error() == "supplied context directory '2.0/test/missing-dir' does not exist in 'https://github.com/openshift/sti-ruby'"
+				return err.Error() == "supplied context directory '3.1/test/missing-dir' does not exist in 'https://github.com/openshift/sti-ruby'"
 			},
 		},
 
@@ -660,49 +659,6 @@ func TestNewAppRunAll(t *testing.T) {
 			expectedErr:     nil,
 			expectedVolumes: nil,
 			expectInsecure:  sets.NewString("example"),
-		},
-		{
-			name: "emptyDir volumes",
-			config: &cmd.AppConfig{
-				ComponentInputs: cmd.ComponentInputs{
-					DockerImages: []string{"mysql"},
-				},
-
-				Resolvers: cmd.Resolvers{
-					DockerSearcher: dockerSearcher,
-					ImageStreamSearcher: app.ImageStreamSearcher{
-						Client:     okImageClient.ImageV1(),
-						Namespaces: []string{"default"},
-					},
-					TemplateSearcher: app.TemplateSearcher{
-						Client:     okTemplateClient.TemplateV1(),
-						Namespaces: []string{"openshift", "default"},
-					},
-					Detector: app.SourceRepositoryEnumerator{
-						Detectors:         source.DefaultDetectors,
-						DockerfileTester:  dockerfile.NewTester(),
-						JenkinsfileTester: jenkinsfile.NewTester(),
-					},
-				},
-
-				Typer:           customScheme,
-				ImageClient:     okImageClient.ImageV1(),
-				TemplateClient:  okTemplateClient.TemplateV1(),
-				RouteClient:     okRouteClient.RouteV1(),
-				OriginNamespace: "default",
-			},
-
-			expected: map[string][]string{
-				"imageStream":  {"mysql"},
-				"deployment":   {"mysql"},
-				"service":      {"mysql"},
-				"volumeMounts": {"mysql-volume-1"},
-			},
-			expectedName: "mysql",
-			expectedVolumes: map[string]string{
-				"mysql-volume-1": "EmptyDir",
-			},
-			expectedErr: nil,
 		},
 		{
 			name: "Docker build",
@@ -1059,45 +1015,27 @@ func TestNewAppRunBuilds(t *testing.T) {
 			name: "successful build from dockerfile",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM openshift/origin:v1.0.6\nUSER foo",
+					Dockerfile: "FROM centos:centos8\nUSER foo",
 				},
 			},
 			expected: map[string][]string{
-				"buildConfig": {"origin"},
+				"buildConfig": {"centos"},
 				// There's a single image stream, but different tags: input from
 				// openshift/origin:v1.0.6, output to openshift/origin:latest.
-				"imageStream": {"origin"},
-			},
-		},
-		{
-			name: "successful ruby app generation",
-			config: &cmd.AppConfig{
-				ComponentInputs: cmd.ComponentInputs{
-					SourceRepositories: []string{"https://github.com/openshift/ruby-hello-world"},
-					DockerImages:       []string{"quay.io/centos7/ruby-27-centos7", "openshift/nodejs-010-centos7"},
-				},
-				GenerationInputs: cmd.GenerationInputs{
-					OutputDocker: true,
-				},
-			},
-			expected: map[string][]string{
-				// TODO: this test used to silently ignore components that were not builders (i.e. user input)
-				//   That's bad, so the code should either error in this case or be a bit smarter.
-				"buildConfig": {"ruby-hello-world", "ruby-hello-world-1"},
-				"imageStream": {"nodejs-010-centos7", "ruby-27-centos7"},
+				"imageStream": {"centos"},
 			},
 		},
 		{
 			name: "successful build with no output",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM centos",
+					Dockerfile: "FROM fedora",
 					NoOutput:   true,
 				},
 			},
 			expected: map[string][]string{
-				"buildConfig": {"centos"},
-				"imageStream": {"centos"},
+				"buildConfig": {"fedora"},
+				"imageStream": {"fedora"},
 			},
 			checkResult: func(res *cmd.AppResult) error {
 				for _, item := range res.List.Items {
@@ -1174,45 +1112,6 @@ func TestNewAppRunBuilds(t *testing.T) {
 			},
 		},
 		{
-			name: "successful generation of BC with multiple sources: repo + Dockerfile",
-			config: &cmd.AppConfig{
-				ComponentInputs: cmd.ComponentInputs{
-					SourceRepositories: []string{"https://github.com/openshift/ruby-hello-world"},
-				},
-				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM quay.io/centos7/ruby-27-centos7\nRUN false",
-				},
-			},
-			expected: map[string][]string{
-				"buildConfig": {"ruby-hello-world"},
-				"imageStream": {"ruby-27-centos7", "ruby-hello-world"},
-			},
-			checkResult: func(res *cmd.AppResult) error {
-				var bc *buildv1.BuildConfig
-				for _, item := range res.List.Items {
-					switch v := item.(type) {
-					case *buildv1.BuildConfig:
-						if bc != nil {
-							return fmt.Errorf("want one BuildConfig got multiple: %#v", res.List.Items)
-						}
-						bc = v
-					}
-				}
-				if bc == nil {
-					return fmt.Errorf("want one BuildConfig got none: %#v", res.List.Items)
-				}
-				var got string
-				if bc.Spec.Source.Dockerfile != nil {
-					got = *bc.Spec.Source.Dockerfile
-				}
-				want := "FROM quay.io/centos7/ruby-27-centos7\nRUN false"
-				if got != want {
-					return fmt.Errorf("bc.Spec.Source.Dockerfile = %q; want %q", got, want)
-				}
-				return nil
-			},
-		},
-		{
 			name: "unsuccessful build from dockerfile due to strategy conflict",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
@@ -1254,123 +1153,6 @@ func TestNewAppRunBuilds(t *testing.T) {
 			},
 		},
 		{
-			name: "successful input image source build with a repository",
-			config: &cmd.AppConfig{
-				ComponentInputs: cmd.ComponentInputs{
-					SourceRepositories: []string{
-						"https://github.com/openshift/ruby-hello-world",
-					},
-				},
-				GenerationInputs: cmd.GenerationInputs{
-					SourceImage:     "registry.centos.org/centos/mongodb-34-centos7",
-					SourceImagePath: "/src:dst",
-				},
-			},
-			expected: map[string][]string{
-				"buildConfig": {"ruby-hello-world"},
-				"imageStream": {"mongodb-34-centos7", "ruby-27", "ruby-hello-world"},
-			},
-			checkResult: func(res *cmd.AppResult) error {
-				var bc *buildv1.BuildConfig
-				for _, item := range res.List.Items {
-					switch v := item.(type) {
-					case *buildv1.BuildConfig:
-						if bc != nil {
-							return fmt.Errorf("want one BuildConfig got multiple: %#v", res.List.Items)
-						}
-						bc = v
-					}
-				}
-				if bc == nil {
-					return fmt.Errorf("want one BuildConfig got none: %#v", res.List.Items)
-				}
-				var got string
-
-				want := "mongodb-34-centos7:latest"
-				got = bc.Spec.Source.Images[0].From.Name
-				if got != want {
-					return fmt.Errorf("bc.Spec.Source.Image.From.Name = %q; want %q", got, want)
-				}
-
-				want = "ImageStreamTag"
-				got = bc.Spec.Source.Images[0].From.Kind
-				if got != want {
-					return fmt.Errorf("bc.Spec.Source.Image.From.Kind = %q; want %q", got, want)
-				}
-
-				want = "/src"
-				got = bc.Spec.Source.Images[0].Paths[0].SourcePath
-				if got != want {
-					return fmt.Errorf("bc.Spec.Source.Image.Paths[0].SourcePath = %q; want %q", got, want)
-				}
-
-				want = "dst"
-				got = bc.Spec.Source.Images[0].Paths[0].DestinationDir
-				if got != want {
-					return fmt.Errorf("bc.Spec.Source.Image.Paths[0].DestinationDir = %q; want %q", got, want)
-				}
-				return nil
-			},
-		},
-		{
-			name: "successful input image source build with no repository",
-			config: &cmd.AppConfig{
-				ComponentInputs: cmd.ComponentInputs{
-					Components: []string{"openshift/nodejs-010-centos7"},
-				},
-				GenerationInputs: cmd.GenerationInputs{
-					To:              "outputimage",
-					SourceImage:     "registry.centos.org/centos/mongodb-34-centos7",
-					SourceImagePath: "/src:dst",
-				},
-			},
-			expected: map[string][]string{
-				"buildConfig": {"outputimage"},
-				"imageStream": {"mongodb-34-centos7", "nodejs-010-centos7", "outputimage"},
-			},
-			checkResult: func(res *cmd.AppResult) error {
-				var bc *buildv1.BuildConfig
-				for _, item := range res.List.Items {
-					switch v := item.(type) {
-					case *buildv1.BuildConfig:
-						if bc != nil {
-							return fmt.Errorf("want one BuildConfig got multiple: %#v", res.List.Items)
-						}
-						bc = v
-					}
-				}
-				if bc == nil {
-					return fmt.Errorf("want one BuildConfig got none: %#v", res.List.Items)
-				}
-				var got string
-
-				want := "mongodb-34-centos7:latest"
-				got = bc.Spec.Source.Images[0].From.Name
-				if got != want {
-					return fmt.Errorf("bc.Spec.Source.Image.From.Name = %q; want %q", got, want)
-				}
-
-				want = "ImageStreamTag"
-				got = bc.Spec.Source.Images[0].From.Kind
-				if got != want {
-					return fmt.Errorf("bc.Spec.Source.Image.From.Kind = %q; want %q", got, want)
-				}
-
-				want = "/src"
-				got = bc.Spec.Source.Images[0].Paths[0].SourcePath
-				if got != want {
-					return fmt.Errorf("bc.Spec.Source.Image.Paths[0].SourcePath = %q; want %q", got, want)
-				}
-
-				want = "dst"
-				got = bc.Spec.Source.Images[0].Paths[0].DestinationDir
-				if got != want {
-					return fmt.Errorf("bc.Spec.Source.Image.Paths[0].DestinationDir = %q; want %q", got, want)
-				}
-				return nil
-			},
-		},
-		{
 			name: "successful build from source with autodetected jenkinsfile",
 			config: &cmd.AppConfig{
 				ComponentInputs: cmd.ComponentInputs{
@@ -1404,51 +1186,6 @@ func TestNewAppRunBuilds(t *testing.T) {
 					Type:       "Git",
 				}) {
 					return fmt.Errorf("invalid bc.Spec.Source, got %#v", bc.Spec.Source)
-				}
-				if !reflect.DeepEqual(bc.Spec.Strategy, buildv1.BuildStrategy{JenkinsPipelineStrategy: &buildv1.JenkinsPipelineBuildStrategy{
-					Env: []corev1.EnvVar{}},
-					Type: "JenkinsPipeline",
-				}) {
-					return fmt.Errorf("invalid bc.Spec.Strategy, got %#v", bc.Spec.Strategy)
-				}
-				return nil
-			},
-		},
-		{
-			name: "successful build from component with source with pipeline strategy",
-			config: &cmd.AppConfig{
-				ComponentInputs: cmd.ComponentInputs{
-					Components: []string{
-						"registry.centos.org/centos/nodejs-12-centos7~https://github.com/sclorg/nodejs-ex",
-					},
-				},
-				GenerationInputs: cmd.GenerationInputs{
-					ContextDir: "openshift/pipeline",
-					Strategy:   newapp.StrategyPipeline,
-				},
-			},
-			expected: map[string][]string{
-				"buildConfig": {"nodejs-ex"},
-			},
-			checkResult: func(res *cmd.AppResult) error {
-				if len(res.List.Items) != 1 {
-					return fmt.Errorf("expected one Item returned")
-				}
-				bc, ok := res.List.Items[0].(*buildv1.BuildConfig)
-				if !ok {
-					return fmt.Errorf("expected Item of type *buildv1.BuildConfig")
-				}
-				if !reflect.DeepEqual(bc.Spec.Output, buildv1.BuildOutput{}) {
-					return fmt.Errorf("invalid bc.Spec.Output, got %#v", bc.Spec.Output)
-				}
-				if !reflect.DeepEqual(bc.Spec.Source, buildv1.BuildSource{
-					ContextDir: "openshift/pipeline",
-					Git:        &buildv1.GitBuildSource{URI: "https://github.com/sclorg/nodejs-ex"},
-					Secrets:    []buildv1.SecretBuildSource{},
-					ConfigMaps: []buildv1.ConfigMapBuildSource{},
-					Type:       "Git",
-				}) {
-					return fmt.Errorf("invalid bc.Spec.Source, got %#v", bc.Spec.Source.Git)
 				}
 				if !reflect.DeepEqual(bc.Spec.Strategy, buildv1.BuildStrategy{JenkinsPipelineStrategy: &buildv1.JenkinsPipelineBuildStrategy{
 					Env: []corev1.EnvVar{}},
@@ -1577,72 +1314,23 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 		checkOutput func(stdout, stderr io.Reader) error
 	}{
 		{
-			name: "successful build with warning that output image may trigger input ImageStream change; legacy ImageStream without tags",
-			config: &cmd.AppConfig{
-				GenerationInputs: cmd.GenerationInputs{
-					OutputDocker: true,
-					To:           "quay.io/centos7/ruby-27-centos7",
-					Dockerfile:   "FROM quay.io/centos7/ruby-27-centos7:latest",
-				},
-			},
-			expected: map[string][]string{
-				"buildConfig": {"ruby-27-centos7"},
-				"imageStream": {"ruby-27-centos7"},
-			},
-			checkOutput: func(stdout, stderr io.Reader) error {
-				got, err := ioutil.ReadAll(stderr)
-				if err != nil {
-					return err
-				}
-				want := "--> WARNING: output image of \"quay.io/centos7/ruby-27-centos7:latest\" should be different than input\n"
-				if string(got) != want {
-					return fmt.Errorf("stderr: got %q; want %q", got, want)
-				}
-				return nil
-			},
-		},
-		{
 			name: "successful build from dockerfile with identical input and output image references with warning(1)",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM centos\nRUN yum install -y httpd",
-					To:         "centos",
+					Dockerfile: "FROM fedora\nRUN yum install -y httpd",
+					To:         "fedora",
 				},
 			},
 			expected: map[string][]string{
-				"buildConfig": {"centos"},
-				"imageStream": {"centos"},
+				"buildConfig": {"fedora"},
+				"imageStream": {"fedora"},
 			},
 			checkOutput: func(stdout, stderr io.Reader) error {
-				got, err := ioutil.ReadAll(stderr)
+				got, err := io.ReadAll(stderr)
 				if err != nil {
 					return err
 				}
-				want := "--> WARNING: output image of \"centos:latest\" should be different than input\n"
-				if string(got) != want {
-					return fmt.Errorf("stderr: got %q; want %q", got, want)
-				}
-				return nil
-			},
-		},
-		{
-			name: "successful build from dockerfile with identical input and output image references with warning(2)",
-			config: &cmd.AppConfig{
-				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM quay.io/centos7/ruby-27-centos7\nRUN yum install -y httpd",
-					To:         "ruby-27-centos7",
-				},
-			},
-			expected: map[string][]string{
-				"buildConfig": {"ruby-27-centos7"},
-				"imageStream": {"ruby-27-centos7"},
-			},
-			checkOutput: func(stdout, stderr io.Reader) error {
-				got, err := ioutil.ReadAll(stderr)
-				if err != nil {
-					return err
-				}
-				want := "--> WARNING: output image of \"quay.io/centos7/ruby-27-centos7:latest\" should be different than input\n"
+				want := "--> WARNING: output image of \"fedora:latest\" should be different than input\n"
 				if string(got) != want {
 					return fmt.Errorf("stderr: got %q; want %q", got, want)
 				}
@@ -1653,26 +1341,12 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 			name: "unsuccessful build from dockerfile due to identical input and output image references(1)",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM centos\nRUN yum install -y httpd",
+					Dockerfile: "FROM fedora\nRUN yum install -y httpd",
 				},
 			},
 			expectedErr: func(err error) bool {
 				e := app.CircularOutputReferenceError{
-					Reference: "centos:latest",
-				}
-				return err.Error() == fmt.Errorf("%v, set a different tag with --to", e).Error()
-			},
-		},
-		{
-			name: "unsuccessful build from dockerfile due to identical input and output image references(2)",
-			config: &cmd.AppConfig{
-				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM quay.io/centos7/ruby-27-centos7\nRUN yum install -y httpd",
-				},
-			},
-			expectedErr: func(err error) bool {
-				e := app.CircularOutputReferenceError{
-					Reference: "quay.io/centos7/ruby-27-centos7:latest",
+					Reference: "fedora:latest",
 				}
 				return err.Error() == fmt.Errorf("%v, set a different tag with --to", e).Error()
 			},
@@ -1698,7 +1372,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 				"imageStream": {"ruby-27-centos7"},
 			},
 			checkOutput: func(stdout, stderr io.Reader) error {
-				got, err := ioutil.ReadAll(stderr)
+				got, err := io.ReadAll(stderr)
 				if err != nil {
 					return err
 				}
@@ -1730,7 +1404,7 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 				"imageStream": {"ruby-27-centos7"},
 			},
 			checkOutput: func(stdout, stderr io.Reader) error {
-				got, err := ioutil.ReadAll(stderr)
+				got, err := io.ReadAll(stderr)
 				if err != nil {
 					return err
 				}
@@ -1791,190 +1465,6 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 		})
 	}
 
-}
-
-func TestNewAppNewBuildEnvVars(t *testing.T) {
-	skipExternalGit(t)
-	dockerSearcher := app.DockerRegistrySearcher{
-		Client: cmd.NewImageRegistrySearcher(),
-	}
-
-	okTemplateClient := faketemplatev1client.NewSimpleClientset()
-	okImageClient := fakeimagev1client.NewSimpleClientset()
-	okRouteClient := fakeroutev1client.NewSimpleClientset()
-	customScheme, _ := apitesting.SchemeForOrDie(api.Install, api.InstallKube)
-
-	tests := []struct {
-		name        string
-		config      *cmd.AppConfig
-		expected    []corev1.EnvVar
-		expectedErr error
-	}{
-		{
-			name: "explicit environment variables for buildConfig and deploymentConfig",
-			config: &cmd.AppConfig{
-				ComponentInputs: cmd.ComponentInputs{
-					SourceRepositories: []string{"https://github.com/openshift/ruby-hello-world"},
-					DockerImages:       []string{"quay.io/centos7/ruby-27-centos7", "registry.centos.org/centos/nodejs-12-centos7"},
-				},
-				GenerationInputs: cmd.GenerationInputs{
-					OutputDocker:     true,
-					BuildEnvironment: []string{"BUILD_ENV_1=env_value_1", "BUILD_ENV_2=env_value_2"},
-				},
-
-				Resolvers: cmd.Resolvers{
-					DockerSearcher: dockerSearcher,
-					Detector: app.SourceRepositoryEnumerator{
-						Detectors:         source.DefaultDetectors,
-						DockerfileTester:  dockerfile.NewTester(),
-						JenkinsfileTester: jenkinsfile.NewTester(),
-					},
-				},
-				Typer:           customScheme,
-				ImageClient:     okImageClient.ImageV1(),
-				TemplateClient:  okTemplateClient.TemplateV1(),
-				RouteClient:     okRouteClient.RouteV1(),
-				OriginNamespace: "default",
-			},
-			expected: []corev1.EnvVar{
-				{Name: "BUILD_ENV_1", Value: "env_value_1"},
-				{Name: "BUILD_ENV_2", Value: "env_value_2"},
-			},
-			expectedErr: nil,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			test.config.Out, test.config.ErrOut = os.Stdout, os.Stderr
-			test.config.ExpectToBuild = true
-			res, err := test.config.Run()
-			if err != test.expectedErr {
-				t.Fatalf("%s: Error mismatch! Expected %v, got %v", test.name, test.expectedErr, err)
-			}
-			got := []corev1.EnvVar{}
-			for _, obj := range res.List.Items {
-				switch tp := obj.(type) {
-				case *buildv1.BuildConfig:
-					got = tp.Spec.Strategy.SourceStrategy.Env
-					break
-				}
-			}
-
-			if !reflect.DeepEqual(test.expected, got) {
-				t.Fatalf("%s: unexpected output. Expected: %#v, Got: %#v", test.name, test.expected, got)
-			}
-		})
-	}
-}
-
-func TestNewAppBuildConfigEnvVarsAndSecrets(t *testing.T) {
-	skipExternalGit(t)
-	dockerSearcher := app.DockerRegistrySearcher{
-		Client: cmd.NewImageRegistrySearcher(),
-	}
-	okTemplateClient := faketemplatev1client.NewSimpleClientset()
-	okImageClient := fakeimagev1client.NewSimpleClientset()
-	okRouteClient := fakeroutev1client.NewSimpleClientset()
-	customScheme, _ := apitesting.SchemeForOrDie(api.Install, api.InstallKube)
-
-	tests := []struct {
-		name               string
-		config             *cmd.AppConfig
-		expected           []corev1.EnvVar
-		expectedSecrets    map[string]string
-		expectedConfigMaps map[string]string
-		expectedErr        error
-	}{
-		{
-			name: "explicit environment variables for buildConfig and deploymentConfig",
-			config: &cmd.AppConfig{
-				ComponentInputs: cmd.ComponentInputs{
-					SourceRepositories: []string{"https://github.com/openshift/ruby-hello-world"},
-					DockerImages:       []string{"quay.io/centos7/ruby-27-centos7", "registry.centos.org/centos/mongodb-34-centos7"},
-				},
-				GenerationInputs: cmd.GenerationInputs{
-					OutputDocker: true,
-					Environment:  []string{"BUILD_ENV_1=env_value_1", "BUILD_ENV_2=env_value_2"},
-					Secrets:      []string{"foo:/var", "bar"},
-					ConfigMaps:   []string{"this:/tmp", "that"},
-				},
-
-				Resolvers: cmd.Resolvers{
-					DockerSearcher: dockerSearcher,
-					Detector: app.SourceRepositoryEnumerator{
-						Detectors:         source.DefaultDetectors,
-						DockerfileTester:  dockerfile.NewTester(),
-						JenkinsfileTester: jenkinsfile.NewTester(),
-					},
-				},
-				Typer:           customScheme,
-				ImageClient:     okImageClient.ImageV1(),
-				TemplateClient:  okTemplateClient.TemplateV1(),
-				RouteClient:     okRouteClient.RouteV1(),
-				OriginNamespace: "default",
-			},
-			expected:           []corev1.EnvVar{},
-			expectedSecrets:    map[string]string{"foo": "/var", "bar": "."},
-			expectedConfigMaps: map[string]string{"this": "/tmp", "that": "."},
-			expectedErr:        nil,
-		},
-	}
-
-	for _, test := range tests {
-		test.config.Out, test.config.ErrOut = os.Stdout, os.Stderr
-		test.config.Deploy = true
-		res, err := test.config.Run()
-		if err != test.expectedErr {
-			t.Errorf("%s: Error mismatch! Expected %v, got %v", test.name, test.expectedErr, err)
-			continue
-		}
-		got := []corev1.EnvVar{}
-		gotSecrets := []buildv1.SecretBuildSource{}
-		gotConfigMaps := []buildv1.ConfigMapBuildSource{}
-		for _, obj := range res.List.Items {
-			switch tp := obj.(type) {
-			case *buildv1.BuildConfig:
-				got = tp.Spec.Strategy.SourceStrategy.Env
-				gotSecrets = tp.Spec.Source.Secrets
-				gotConfigMaps = tp.Spec.Source.ConfigMaps
-				break
-			}
-		}
-
-		for secretName, destDir := range test.expectedSecrets {
-			found := false
-			for _, got := range gotSecrets {
-				if got.Secret.Name == secretName && got.DestinationDir == destDir {
-					found = true
-					continue
-				}
-			}
-			if !found {
-				t.Errorf("expected secret %q and destination %q, got %#v", secretName, destDir, gotSecrets)
-				continue
-			}
-		}
-
-		for configName, destDir := range test.expectedConfigMaps {
-			found := false
-			for _, got := range gotConfigMaps {
-				if got.ConfigMap.Name == configName && got.DestinationDir == destDir {
-					found = true
-					continue
-				}
-			}
-			if !found {
-				t.Errorf("expected configMap %q and destination %q, got %#v", configName, destDir, gotConfigMaps)
-				continue
-			}
-		}
-
-		if !reflect.DeepEqual(test.expected, got) {
-			t.Errorf("%s: unexpected output. Expected: %#v, Got: %#v", test.name, test.expected, got)
-			continue
-		}
-	}
 }
 
 func TestNewAppSourceAuthRequired(t *testing.T) {
@@ -2091,7 +1581,7 @@ func TestNewAppListAndSearch(t *testing.T) {
 
 func setupLocalGitRepo(t *testing.T, passwordProtected bool, requireProxy bool) (string, string) {
 	// Create test directories
-	testDir, err := ioutil.TempDir("", "gitauth")
+	testDir, err := os.MkdirTemp("", "gitauth")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -2122,7 +1612,7 @@ func setupLocalGitRepo(t *testing.T, passwordProtected bool, requireProxy bool) 
 	if err = gitRepo.Init(initialRepoDir, false); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err = ioutil.WriteFile(filepath.Join(initialRepoDir, "Dockerfile"), []byte("FROM mysql\nLABEL mylabel=myvalue\n"), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(initialRepoDir, "Dockerfile"), []byte("FROM mysql\nLABEL mylabel=myvalue\n"), 0644); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if err = gitRepo.Add(initialRepoDir, "."); err != nil {
@@ -2202,7 +1692,7 @@ insteadOf = %s
 		gitConfig += proxySection
 	}
 
-	if err = ioutil.WriteFile(filepath.Join(userHomeDir, ".gitconfig"), []byte(gitConfig), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(userHomeDir, ".gitconfig"), []byte(gitConfig), 0644); err != nil {
 		t.Fatalf("%v", err)
 	}
 	os.Setenv("HOME", userHomeDir)

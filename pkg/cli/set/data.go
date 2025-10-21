@@ -16,10 +16,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -36,9 +36,7 @@ var (
 
 		You may also use this command as part of a chain to modify an object before submitting
 		to the server with the --local and --dry-run flags. This allows you to update local
-		resources to contain additional keys.
-
-		Experimental: This command is under active development and may change without notice.`)
+		resources to contain additional keys.`)
 
 	dataExample = templates.Examples(`
 		# Set the 'password' key of a secret
@@ -85,18 +83,18 @@ type DataOptions struct {
 	FlagSet func(string) bool
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewDataOptions(streams genericclioptions.IOStreams) *DataOptions {
+func NewDataOptions(streams genericiooptions.IOStreams) *DataOptions {
 	return &DataOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("data updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("data updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 	}
 }
 
 // NewCmdData implements the set data command
-func NewCmdData(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdData(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewDataOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "data RESOURCE/NAME [KEY=VALUE|KEY- ...] [--from-file=file|dir|key=path]",
@@ -118,7 +116,7 @@ func NewCmdData(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		&o.FileSources,
 		"from-file",
 		[]string{},
-		"Specify a file using its file path, in which case the file basename will be used as the key"+
+		"Specify a file using its file path, in which case the file basename will be used as the key "+
 			"or optionally with a key and file path, in which case the given key will be used.  Specifying a "+
 			"directory will iterate each named file in the directory whose basename is a valid secret key.")
 	cmd.Flags().StringArrayVar(
@@ -217,7 +215,7 @@ func (o *DataOptions) Validate() error {
 
 func (o *DataOptions) Run() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -239,7 +237,7 @@ func (o *DataOptions) Run() error {
 
 	allErrs := []error{}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		changed := false
 		valid, err := o.UpdateDataForObject(info.Object, func(data map[string][]byte) error {
 			for k, v := range o.SetData {

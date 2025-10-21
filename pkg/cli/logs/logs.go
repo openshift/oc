@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/kubectl/pkg/cmd/logs"
-
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/kubectl/pkg/cmd/logs"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -66,14 +65,14 @@ type LogsOptions struct {
 	*logs.LogsOptions
 }
 
-func NewLogsOptions(streams genericclioptions.IOStreams) *LogsOptions {
+func NewLogsOptions(streams genericiooptions.IOStreams) *LogsOptions {
 	return &LogsOptions{
-		LogsOptions: logs.NewLogsOptions(streams, false),
+		LogsOptions: logs.NewLogsOptions(streams),
 	}
 }
 
 // NewCmdLogs creates a new logs command that supports OpenShift resources.
-func NewCmdLogs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogs(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewLogsOptions(streams)
 	cmd := &cobra.Command{
 		Use:               "logs [-f] [-p] (POD | TYPE/NAME) [-c CONTAINER]",

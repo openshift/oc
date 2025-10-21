@@ -3,8 +3,8 @@
 package versioned
 
 import (
-	"fmt"
-	"net/http"
+	fmt "fmt"
+	http "net/http"
 
 	operatorv1 "github.com/openshift/client-go/operator/clientset/versioned/typed/operator/v1"
 	operatorv1alpha1 "github.com/openshift/client-go/operator/clientset/versioned/typed/operator/v1alpha1"
@@ -19,8 +19,7 @@ type Interface interface {
 	OperatorV1alpha1() operatorv1alpha1.OperatorV1alpha1Interface
 }
 
-// Clientset contains the clients for groups. Each group has exactly one
-// version included in a Clientset.
+// Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
 	operatorV1       *operatorv1.OperatorV1Client

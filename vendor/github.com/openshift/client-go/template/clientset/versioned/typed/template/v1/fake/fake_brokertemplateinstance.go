@@ -3,128 +3,35 @@
 package fake
 
 import (
-	"context"
-	json "encoding/json"
-	"fmt"
-
-	templatev1 "github.com/openshift/api/template/v1"
-	applyconfigurationstemplatev1 "github.com/openshift/client-go/template/applyconfigurations/template/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	v1 "github.com/openshift/api/template/v1"
+	templatev1 "github.com/openshift/client-go/template/applyconfigurations/template/v1"
+	typedtemplatev1 "github.com/openshift/client-go/template/clientset/versioned/typed/template/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeBrokerTemplateInstances implements BrokerTemplateInstanceInterface
-type FakeBrokerTemplateInstances struct {
+// fakeBrokerTemplateInstances implements BrokerTemplateInstanceInterface
+type fakeBrokerTemplateInstances struct {
+	*gentype.FakeClientWithListAndApply[*v1.BrokerTemplateInstance, *v1.BrokerTemplateInstanceList, *templatev1.BrokerTemplateInstanceApplyConfiguration]
 	Fake *FakeTemplateV1
 }
 
-var brokertemplateinstancesResource = schema.GroupVersionResource{Group: "template.openshift.io", Version: "v1", Resource: "brokertemplateinstances"}
-
-var brokertemplateinstancesKind = schema.GroupVersionKind{Group: "template.openshift.io", Version: "v1", Kind: "BrokerTemplateInstance"}
-
-// Get takes name of the brokerTemplateInstance, and returns the corresponding brokerTemplateInstance object, and an error if there is any.
-func (c *FakeBrokerTemplateInstances) Get(ctx context.Context, name string, options v1.GetOptions) (result *templatev1.BrokerTemplateInstance, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(brokertemplateinstancesResource, name), &templatev1.BrokerTemplateInstance{})
-	if obj == nil {
-		return nil, err
+func newFakeBrokerTemplateInstances(fake *FakeTemplateV1) typedtemplatev1.BrokerTemplateInstanceInterface {
+	return &fakeBrokerTemplateInstances{
+		gentype.NewFakeClientWithListAndApply[*v1.BrokerTemplateInstance, *v1.BrokerTemplateInstanceList, *templatev1.BrokerTemplateInstanceApplyConfiguration](
+			fake.Fake,
+			"",
+			v1.SchemeGroupVersion.WithResource("brokertemplateinstances"),
+			v1.SchemeGroupVersion.WithKind("BrokerTemplateInstance"),
+			func() *v1.BrokerTemplateInstance { return &v1.BrokerTemplateInstance{} },
+			func() *v1.BrokerTemplateInstanceList { return &v1.BrokerTemplateInstanceList{} },
+			func(dst, src *v1.BrokerTemplateInstanceList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.BrokerTemplateInstanceList) []*v1.BrokerTemplateInstance {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1.BrokerTemplateInstanceList, items []*v1.BrokerTemplateInstance) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*templatev1.BrokerTemplateInstance), err
-}
-
-// List takes label and field selectors, and returns the list of BrokerTemplateInstances that match those selectors.
-func (c *FakeBrokerTemplateInstances) List(ctx context.Context, opts v1.ListOptions) (result *templatev1.BrokerTemplateInstanceList, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(brokertemplateinstancesResource, brokertemplateinstancesKind, opts), &templatev1.BrokerTemplateInstanceList{})
-	if obj == nil {
-		return nil, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &templatev1.BrokerTemplateInstanceList{ListMeta: obj.(*templatev1.BrokerTemplateInstanceList).ListMeta}
-	for _, item := range obj.(*templatev1.BrokerTemplateInstanceList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested brokerTemplateInstances.
-func (c *FakeBrokerTemplateInstances) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(brokertemplateinstancesResource, opts))
-}
-
-// Create takes the representation of a brokerTemplateInstance and creates it.  Returns the server's representation of the brokerTemplateInstance, and an error, if there is any.
-func (c *FakeBrokerTemplateInstances) Create(ctx context.Context, brokerTemplateInstance *templatev1.BrokerTemplateInstance, opts v1.CreateOptions) (result *templatev1.BrokerTemplateInstance, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(brokertemplateinstancesResource, brokerTemplateInstance), &templatev1.BrokerTemplateInstance{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*templatev1.BrokerTemplateInstance), err
-}
-
-// Update takes the representation of a brokerTemplateInstance and updates it. Returns the server's representation of the brokerTemplateInstance, and an error, if there is any.
-func (c *FakeBrokerTemplateInstances) Update(ctx context.Context, brokerTemplateInstance *templatev1.BrokerTemplateInstance, opts v1.UpdateOptions) (result *templatev1.BrokerTemplateInstance, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(brokertemplateinstancesResource, brokerTemplateInstance), &templatev1.BrokerTemplateInstance{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*templatev1.BrokerTemplateInstance), err
-}
-
-// Delete takes name of the brokerTemplateInstance and deletes it. Returns an error if one occurs.
-func (c *FakeBrokerTemplateInstances) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(brokertemplateinstancesResource, name, opts), &templatev1.BrokerTemplateInstance{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeBrokerTemplateInstances) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(brokertemplateinstancesResource, listOpts)
-
-	_, err := c.Fake.Invokes(action, &templatev1.BrokerTemplateInstanceList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched brokerTemplateInstance.
-func (c *FakeBrokerTemplateInstances) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *templatev1.BrokerTemplateInstance, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(brokertemplateinstancesResource, name, pt, data, subresources...), &templatev1.BrokerTemplateInstance{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*templatev1.BrokerTemplateInstance), err
-}
-
-// Apply takes the given apply declarative configuration, applies it and returns the applied brokerTemplateInstance.
-func (c *FakeBrokerTemplateInstances) Apply(ctx context.Context, brokerTemplateInstance *applyconfigurationstemplatev1.BrokerTemplateInstanceApplyConfiguration, opts v1.ApplyOptions) (result *templatev1.BrokerTemplateInstance, err error) {
-	if brokerTemplateInstance == nil {
-		return nil, fmt.Errorf("brokerTemplateInstance provided to Apply must not be nil")
-	}
-	data, err := json.Marshal(brokerTemplateInstance)
-	if err != nil {
-		return nil, err
-	}
-	name := brokerTemplateInstance.Name
-	if name == nil {
-		return nil, fmt.Errorf("brokerTemplateInstance.Name must be provided to Apply")
-	}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(brokertemplateinstancesResource, *name, types.ApplyPatchType, data), &templatev1.BrokerTemplateInstance{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*templatev1.BrokerTemplateInstance), err
 }

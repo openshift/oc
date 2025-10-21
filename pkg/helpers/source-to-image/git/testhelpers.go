@@ -1,7 +1,6 @@
 package git
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -51,7 +50,7 @@ func CreateLocalGitDirectory() (string, error) {
 func CreateEmptyLocalGitDirectory() (string, error) {
 	cr := cmd.NewCommandRunner()
 
-	dir, err := ioutil.TempDir(os.TempDir(), "gitdir-s2i-test")
+	dir, err := os.MkdirTemp(os.TempDir(), "gitdir-s2i-test")
 	if err != nil {
 		return "", err
 	}
@@ -87,7 +86,8 @@ func CreateLocalGitDirectoryWithSubmodule() (string, error) {
 		return "", err
 	}
 
-	err = cr.RunWithOptions(cmd.CommandOpts{Dir: dir}, "git", "submodule", "add", submodule, "submodule")
+	// Allow submodule from file, see https://github.blog/2022-10-18-git-security-vulnerabilities-announced/#cve-2022-39253
+	err = cr.RunWithOptions(cmd.CommandOpts{Dir: dir}, "git", "-c", "protocol.file.allow=always", "submodule", "add", submodule, "submodule")
 	if err != nil {
 		return "", err
 	}

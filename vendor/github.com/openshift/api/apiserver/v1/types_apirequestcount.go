@@ -11,8 +11,6 @@ const (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:scope="Cluster"
-// +kubebuilder:subresource:status
 // +genclient:nonNamespaced
 // +openshift:compatibility-gen:level=1
 
@@ -20,12 +18,23 @@ const (
 // be of the form `resource.version.group`, matching the resource.
 //
 // Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:path=apirequestcounts,scope=Cluster
+// +openshift:api-approved.openshift.io=https://github.com/openshift/api/pull/897
+// +openshift:file-pattern=operatorName=kube-apiserver
+// +kubebuilder:metadata:annotations=include.release.openshift.io/self-managed-high-availability=true
+// +kubebuilder:printcolumn:name=RemovedInRelease,JSONPath=.status.removedInRelease,type=string,description=Release in which an API will be removed.
+// +kubebuilder:printcolumn:name=RequestsInCurrentHour,JSONPath=.status.currentHour.requestCount,type=integer,description=Number of requests in the current hour.
+// +kubebuilder:printcolumn:name=RequestsInLast24h,JSONPath=.status.requestCount,type=integer,description=Number of requests in the last 24h.
 type APIRequestCount struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
 	// spec defines the characteristics of the resource.
-	// +kubebuilder:validation:Required
 	// +required
 	Spec APIRequestCountSpec `json:"spec"`
 
@@ -48,9 +57,10 @@ type APIRequestCountSpec struct {
 type APIRequestCountStatus struct {
 
 	// conditions contains details of the current status of this API Resource.
-	// +patchMergeKey=type
-	// +patchStrategy=merge
-	Conditions []metav1.Condition `json:"conditions" patchStrategy:"merge" patchMergeKey:"type"`
+	// +listType=map
+	// +listMapKey=type
+	// +optional
+	Conditions []metav1.Condition `json:"conditions"`
 
 	// removedInRelease is when the API will be removed.
 	// +kubebuilder:validation:MinLength=0
@@ -116,7 +126,7 @@ type PerNodeAPIRequestLog struct {
 // PerUserAPIRequestCount contains logs of a user's requests.
 type PerUserAPIRequestCount struct {
 
-	// userName that made the request.
+	// username that made the request.
 	// +kubebuilder:validation:MaxLength=512
 	UserName string `json:"username"`
 
@@ -159,6 +169,9 @@ type PerVerbAPIRequestCount struct {
 // Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
 type APIRequestCountList struct {
 	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard list's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ListMeta `json:"metadata"`
 
 	Items []APIRequestCount `json:"items"`

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"text/tabwriter"
 
+	configv1alpha1 "github.com/openshift/api/config/v1alpha1"
+
 	v1 "github.com/openshift/api/quota/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -17,11 +19,10 @@ import (
 	authorizationv1 "github.com/openshift/api/authorization/v1"
 	buildv1 "github.com/openshift/api/build/v1"
 	consolev1 "github.com/openshift/api/console/v1"
-	consolev1alpha1 "github.com/openshift/api/console/v1alpha1"
 	dockerv10 "github.com/openshift/api/image/docker10"
 	dockerpre012 "github.com/openshift/api/image/dockerpre012"
 	imagev1 "github.com/openshift/api/image/v1"
-	monitoringv1alpha1 "github.com/openshift/api/monitoring/v1alpha1"
+	monitoringv1 "github.com/openshift/api/monitoring/v1"
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	projectv1 "github.com/openshift/api/project/v1"
 	securityv1 "github.com/openshift/api/security/v1"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubernetesscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubectl/pkg/describe"
 )
 
 type describeClient struct {
@@ -48,6 +50,7 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&buildv1.BuildLog{}),                              // normal users don't ever look at these
 	reflect.TypeOf(&buildv1.BuildLogOptions{}),                       // normal users don't ever look at these
 	reflect.TypeOf(&buildv1.BinaryBuildRequestOptions{}),             // normal users don't ever look at these
+	reflect.TypeOf(&configv1alpha1.Backup{}),                         // normal users don't ever look at these
 	reflect.TypeOf(&buildv1.BuildRequest{}),                          // normal users don't ever look at these
 	reflect.TypeOf(&appsv1.DeploymentConfigRollback{}),               // normal users don't ever look at these
 	reflect.TypeOf(&appsv1.DeploymentLog{}),                          // normal users don't ever look at these
@@ -75,9 +78,10 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&consolev1.ConsoleLink{}),
 	reflect.TypeOf(&consolev1.ConsoleNotification{}),
 	reflect.TypeOf(&consolev1.ConsolePlugin{}),
+	reflect.TypeOf(&consolev1.ConsoleSample{}),
 	reflect.TypeOf(&consolev1.ConsoleQuickStart{}),
 	reflect.TypeOf(&consolev1.ConsoleYAMLSample{}),
-	reflect.TypeOf(&consolev1alpha1.ConsolePlugin{}),
+	reflect.TypeOf(&consolev1.ConsolePlugin{}),
 
 	// these resources can't be "GET"ed, so you can't make a describer for them
 	reflect.TypeOf(&authorizationv1.SubjectAccessReviewResponse{}),
@@ -93,8 +97,8 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&securityv1.PodSecurityPolicyReview{}),
 	reflect.TypeOf(&securityv1.RangeAllocation{}),
 	reflect.TypeOf(&oauthv1.OAuthRedirectReference{}),
-	reflect.TypeOf(&monitoringv1alpha1.AlertRelabelConfig{}),
-	reflect.TypeOf(&monitoringv1alpha1.AlertingRule{}),
+	reflect.TypeOf(&monitoringv1.AlertRelabelConfig{}),
+	reflect.TypeOf(&monitoringv1.AlertingRule{}),
 }
 
 // MissingDescriberCoverageExceptions is the list of types that were missing describer methods when I started
@@ -107,6 +111,7 @@ var MissingDescriberCoverageExceptions = []reflect.Type{
 
 var MissingDescriberGroupCoverageExceptions = []schema.GroupVersion{
 	{Group: "config.openshift.io", Version: "v1"},
+	{Group: "config.openshift.io", Version: "v1alpha1"},
 	{Group: "osin.config.openshift.io", Version: "v1"},
 	{Group: "servicecertsigner.config.openshift.io", Version: "v1alpha1"},
 	{Group: "kubecontrolplane.config.openshift.io", Version: "v1"},
@@ -120,6 +125,7 @@ var MissingDescriberGroupCoverageExceptions = []schema.GroupVersion{
 	{Group: "samples.operator.openshift.io", Version: "v1"},
 
 	{Group: "cloud.network.openshift.io", Version: "v1"},
+	{Group: "network.openshift.io", Version: "v1alpha1"},
 
 	{Group: "apiserver.openshift.io", Version: "v1"},
 
@@ -782,6 +788,85 @@ func Test_describeBuildVolumes(t *testing.T) {
 			for _, match := range tt.want {
 				if got := b.String(); !regexp.MustCompile(match).MatchString(got) {
 					t.Errorf("%s\nshould contain %q", got, match)
+				}
+			}
+		})
+	}
+}
+
+func TestTemplateInstanceDescriberNilSecret(t *testing.T) {
+	tests := []struct {
+		name             string
+		templateInstance *templatev1.TemplateInstance
+		want             []string
+	}{
+		{
+			name: "template instance with nil secret",
+			templateInstance: &templatev1.TemplateInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-template-instance",
+					Namespace: "test-namespace",
+				},
+				Spec: templatev1.TemplateInstanceSpec{
+					Template: templatev1.Template{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-template",
+						},
+					},
+					Secret: nil,
+				},
+				Status: templatev1.TemplateInstanceStatus{
+					Conditions: []templatev1.TemplateInstanceCondition{},
+					Objects:    []templatev1.TemplateInstanceObject{},
+				},
+			},
+			want: []string{
+				"No secret specified for parameters",
+			},
+		},
+		{
+			name: "template instance with secret",
+			templateInstance: &templatev1.TemplateInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-template-instance",
+					Namespace: "test-namespace",
+				},
+				Spec: templatev1.TemplateInstanceSpec{
+					Template: templatev1.Template{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-template",
+						},
+					},
+					Secret: &corev1.LocalObjectReference{
+						Name: "test-secret",
+					},
+				},
+				Status: templatev1.TemplateInstanceStatus{
+					Conditions: []templatev1.TemplateInstanceCondition{},
+					Objects:    []templatev1.TemplateInstanceObject{},
+				},
+			},
+			want: []string{
+				"Parameters",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kubeClient := fake.NewSimpleClientset()
+			describer := &TemplateInstanceDescriber{
+				kubeClient: kubeClient,
+			}
+
+			result, err := describer.DescribeTemplateInstance(tt.templateInstance, "test-namespace", describe.DescriberSettings{})
+			if err != nil {
+				t.Fatalf("DescribeTemplateInstance failed: %v", err)
+			}
+
+			for _, expected := range tt.want {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected output to contain %q, but got:\n%s", expected, result)
 				}
 			}
 		})

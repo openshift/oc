@@ -3,7 +3,6 @@ package inspect
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -19,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -39,8 +39,6 @@ var (
 
 		This command downloads the specified resource and any related
 		resources for the purpose of gathering debugging information.
-
-		Experimental: This command is under active development and may change without notice.
 	`)
 
 	inspectExample = templates.Examples(`
@@ -83,11 +81,11 @@ type InspectOptions struct {
 	// whether or not to allow writes to an existing and populated base directory
 	overwrite bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 	eventFile string
 }
 
-func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
+func NewInspectOptions(streams genericiooptions.IOStreams) *InspectOptions {
 	printFlags := genericclioptions.NewPrintFlags("gathered").WithDefaultOutput("yaml").WithTypeSetter(scheme.Scheme)
 	if printFlags.JSONYamlPrintFlags != nil {
 		printFlags.JSONYamlPrintFlags.ShowManagedFields = true
@@ -100,7 +98,7 @@ func NewInspectOptions(streams genericclioptions.IOStreams) *InspectOptions {
 	}
 }
 
-func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdInspect(streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewInspectOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "inspect (TYPE[.VERSION][.GROUP] [NAME] | TYPE[.VERSION][.GROUP]/NAME ...) [flags]",
@@ -119,7 +117,7 @@ func NewCmdInspect(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 	cmd.Flags().StringVar(&o.sinceTime, "since-time", o.sinceTime, "Only return logs after a specific date (RFC3339). Defaults to all logs. Only one of since-time / since may be used.")
 	cmd.Flags().DurationVar(&o.since, "since", o.since, "Only return logs newer than a relative duration like 5s, 2m, or 3h. Defaults to all logs. Only one of since-time / since may be used.")
-	cmd.Flags().BoolVar(&o.rotatedPodLogs, "rotated-pod-logs", o.rotatedPodLogs, "Experimental: If present, retrieve rotated log files that are available for selected pods. This can significantly increase the collected logs size. since/since-time is ignored for rotated logs.")
+	cmd.Flags().BoolVar(&o.rotatedPodLogs, "rotated-pod-logs", o.rotatedPodLogs, "Experimental: If present, retrieve rotated log files that are available for selected pods. This can significantly increase the collected logs size. since/since-time will be matched against the date in the log file name.")
 
 	// The rotated-pod-logs option should be removed once support for retrieving rotated logs is added to kubelet
 	// https://github.com/kubernetes/kubernetes/issues/59902
@@ -171,7 +169,7 @@ func (o *InspectOptions) Complete(args []string) error {
 	if len(o.sinceTime) > 0 {
 		o.sinceTimestamp, err = util.ParseRFC3339(o.sinceTime, metav1.Now)
 		if err != nil {
-			return err
+			return fmt.Errorf("--since-time only accepts times matching RFC3339, eg '2006-01-02T15:04:05Z'")
 		}
 	}
 
@@ -200,6 +198,10 @@ func (o *InspectOptions) Validate() error {
 }
 
 func (o *InspectOptions) Run() error {
+	return o.RunContext(context.TODO())
+}
+
+func (o *InspectOptions) RunContext(ctx context.Context) error {
 	if len(o.eventFile) > 0 {
 		return createEventFilterPageFromFile(o.eventFile, o.DestDir)
 	}
@@ -242,6 +244,10 @@ func (o *InspectOptions) Run() error {
 		return err
 	}
 
+	if err := inspectDiscovery(ctx, o.DestDir, discoveryClient); err != nil {
+		allErrs = append(allErrs, fmt.Errorf("failed inspecting discovery: %w", err))
+	}
+
 	// Check if the resource is served by the server
 	_, rList, err := discoveryClient.ServerGroupsAndResources()
 	if err != nil {
@@ -257,9 +263,9 @@ func (o *InspectOptions) Run() error {
 	}
 
 	// finally, gather polymorphic resources specified by the user
-	ctx := NewResourceContext(serverResources)
+	resourceCtx := NewResourceContext(serverResources)
 	for _, info := range infos {
-		err := InspectResource(info, ctx, o)
+		err := InspectResource(ctx, info, resourceCtx, o)
 		if err != nil {
 			allErrs = append(allErrs, err)
 		}
@@ -272,20 +278,20 @@ func (o *InspectOptions) Run() error {
 
 	fmt.Fprintf(o.Out, "Wrote inspect data to %s.\n", o.DestDir)
 	if len(allErrs) > 0 {
-		return fmt.Errorf("errors occurred while gathering data:\n    %v", errors.NewAggregate(allErrs))
+		return fmt.Errorf("inspection completed with the errors occurred while gathering data:\n    %v", errors.NewAggregate(allErrs))
 	}
 
 	return nil
 }
 
 // gatherConfigResourceData gathers all config.openshift.io resources
-func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceContext) error {
+func (o *InspectOptions) gatherConfigResourceData(ctx context.Context, destDir string, resourceCtx *resourceContext) error {
 	// determine if we've already collected configResourceData
-	if ctx.visited.Has(configResourceDataKey) {
+	if resourceCtx.visited.Has(configResourceDataKey) {
 		klog.V(1).Infof("Skipping previously-collected config.openshift.io resource data")
 		return nil
 	}
-	ctx.visited.Insert(configResourceDataKey)
+	resourceCtx.visited.Insert(configResourceDataKey)
 
 	klog.V(1).Infof("Gathering config.openshift.io resource data...\n")
 
@@ -301,7 +307,7 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 
 	errs := []error{}
 	for _, resource := range resources {
-		resourceList, err := o.dynamicClient.Resource(resource).List(context.TODO(), metav1.ListOptions{})
+		resourceList, err := o.dynamicClient.Resource(resource).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -309,7 +315,7 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 
 		objToPrint := runtime.Object(resourceList)
 		filename := fmt.Sprintf("%s.yaml", resource.Resource)
-		if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), objToPrint); err != nil {
+		if err := o.fileWriter.WriteFromResource(ctx, path.Join(destDir, "/"+filename), objToPrint); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -322,13 +328,13 @@ func (o *InspectOptions) gatherConfigResourceData(destDir string, ctx *resourceC
 }
 
 // gatherOperatorResourceData gathers all kubeapiserver.operator.openshift.io resources
-func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourceContext) error {
+func (o *InspectOptions) gatherOperatorResourceData(ctx context.Context, destDir string, resourceCtx *resourceContext) error {
 	// determine if we've already collected operatorResourceData
-	if ctx.visited.Has(operatorResourceDataKey) {
+	if resourceCtx.visited.Has(operatorResourceDataKey) {
 		klog.V(1).Infof("Skipping previously-collected operator.openshift.io resource data")
 		return nil
 	}
-	ctx.visited.Insert(operatorResourceDataKey)
+	resourceCtx.visited.Insert(operatorResourceDataKey)
 
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
@@ -342,7 +348,7 @@ func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourc
 
 	errs := []error{}
 	for _, resource := range resources {
-		resourceList, err := o.dynamicClient.Resource(resource).List(context.TODO(), metav1.ListOptions{})
+		resourceList, err := o.dynamicClient.Resource(resource).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -350,7 +356,7 @@ func (o *InspectOptions) gatherOperatorResourceData(destDir string, ctx *resourc
 
 		objToPrint := runtime.Object(resourceList)
 		filename := fmt.Sprintf("%s.yaml", resource.Resource)
-		if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), objToPrint); err != nil {
+		if err := o.fileWriter.WriteFromResource(ctx, path.Join(destDir, "/"+filename), objToPrint); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -379,7 +385,7 @@ func (o *InspectOptions) ensureDirectoryViable() error {
 	if !baseDirInfo.IsDir() {
 		return fmt.Errorf("%q exists and is a file", o.DestDir)
 	}
-	files, err := ioutil.ReadDir(o.DestDir)
+	files, err := os.ReadDir(o.DestDir)
 	if err != nil {
 		return err
 	}

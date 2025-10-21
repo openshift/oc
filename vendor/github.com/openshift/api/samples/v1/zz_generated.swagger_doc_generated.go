@@ -12,7 +12,8 @@ package v1
 
 // AUTO-GENERATED FUNCTIONS START HERE
 var map_Config = map[string]string{
-	"": "Config contains the configuration and detailed condition status for the Samples Operator.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"":         "Config contains the configuration and detailed condition status for the Samples Operator.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata": "metadata is the standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
 }
 
 func (Config) SwaggerDoc() map[string]string {
@@ -34,7 +35,8 @@ func (ConfigCondition) SwaggerDoc() map[string]string {
 }
 
 var map_ConfigList = map[string]string{
-	"": "Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"":         "Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata": "metadata is the standard list's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
 }
 
 func (ConfigList) SwaggerDoc() map[string]string {
@@ -48,6 +50,7 @@ var map_ConfigSpec = map[string]string{
 	"architectures":       "architectures determine which hardware architecture(s) to install, where x86_64, ppc64le, and s390x are the only supported choices currently.",
 	"skippedImagestreams": "skippedImagestreams specifies names of image streams that should NOT be created/updated.  Admins can use this to allow them to delete content they don’t want.  They will still have to manually delete the content but the operator will not recreate(or update) anything listed here.",
 	"skippedTemplates":    "skippedTemplates specifies names of templates that should NOT be created/updated.  Admins can use this to allow them to delete content they don’t want.  They will still have to manually delete the content but the operator will not recreate(or update) anything listed here.",
+	"skippedHelmCharts":   "skippedHelmCharts specifies names of helm charts that should NOT be managed. Admins can use this to allow them to delete content they don’t want. They will still have to MANUALLY DELETE the content but the operator will not recreate(or update) anything listed here. Few examples of the name of helmcharts which can be skipped are 'redhat-redhat-perl-imagestreams','redhat-redhat-nodejs-imagestreams','redhat-nginx-imagestreams', 'redhat-redhat-ruby-imagestreams','redhat-redhat-python-imagestreams','redhat-redhat-php-imagestreams', 'redhat-httpd-imagestreams','redhat-redhat-dotnet-imagestreams'. Rest of the names can be obtained from openshift console --> helmcharts -->installed helmcharts. This will display the list of all the 12 helmcharts(of imagestreams)being installed by Samples Operator. The skippedHelmCharts must be a valid Kubernetes resource name. May contain only lowercase alphanumeric characters, hyphens and periods, and each period separated segment must begin and end with an alphanumeric character. It must be non-empty and at most 253 characters in length",
 }
 
 func (ConfigSpec) SwaggerDoc() map[string]string {

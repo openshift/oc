@@ -6,16 +6,18 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	kerrs "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	legacyconfigv1 "github.com/openshift/api/legacyconfig/v1"
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	"github.com/openshift/library-go/pkg/security/ldapclient"
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	syncgroups "github.com/openshift/oc/pkg/helpers/groupsync"
 	ldapsync "github.com/openshift/oc/pkg/helpers/groupsync/ldap"
 )
@@ -37,13 +39,13 @@ var (
 		# Prune all orphaned groups
 		oc adm %[1]s --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-		# Prune all orphaned groups except the ones from the blacklist file
-		oc adm %[1]s --blacklist=/path/to/blacklist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
+		# Prune all orphaned groups except the ones from the denylist file
+		oc adm %[1]s --blacklist=/path/to/denylist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-		# Prune all orphaned groups from a list of specific groups specified in a whitelist file
-		oc adm %[1]s --whitelist=/path/to/whitelist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
+		# Prune all orphaned groups from a list of specific groups specified in an allowlist file
+		oc adm %[1]s --whitelist=/path/to/allowlist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-		# Prune all orphaned groups from a list of specific groups specified in a whitelist
+		# Prune all orphaned groups from a list of specific groups specified in a list
 		oc adm %[1]s groups/group_name groups/other_name --sync-config=/path/to/ldap-sync-config.yaml --confirm
 	`)
 )
@@ -65,19 +67,20 @@ type PruneOptions struct {
 	Confirm bool
 
 	// GroupClient is the interface used to interact with OpenShift Group objects
-	GroupClient userv1typedclient.GroupsGetter
+	GroupClient     userv1typedclient.GroupsGetter
+	DiscoveryClient discovery.DiscoveryInterface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewPruneOptions(streams genericclioptions.IOStreams) *PruneOptions {
+func NewPruneOptions(streams genericiooptions.IOStreams) *PruneOptions {
 	return &PruneOptions{
 		Whitelist: []string{},
 		IOStreams: streams,
 	}
 }
 
-func NewCmdPruneGroups(name, fullName string, f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPruneGroups(name, fullName string, f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewPruneOptions(streams)
 	cmd := &cobra.Command{
 		Use:     fmt.Sprintf("%s [WHITELIST] [--whitelist=WHITELIST-FILE] [--blacklist=BLACKLIST-FILE] --sync-config=CONFIG-SOURCE", name),
@@ -87,7 +90,7 @@ func NewCmdPruneGroups(name, fullName string, f kcmdutil.Factory, streams generi
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 
@@ -129,6 +132,10 @@ func (o *PruneOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 	if err != nil {
 		return err
 	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -161,7 +168,13 @@ func (o *PruneOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	defer ldapClient.Close()
+	defer func() {
+		// Unbind does polite quit and closes the connection.
+		// But when it fails, we need to ensure the connection is closed for sure.
+		if err := ldapClient.Unbind(); err != nil {
+			_ = ldapClient.Close()
+		}
+	}()
 
 	pruneBuilder, err := buildPruneBuilder(ldapClient, o.Config)
 	if err != nil {

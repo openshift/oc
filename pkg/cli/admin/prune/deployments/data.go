@@ -168,7 +168,15 @@ func (d *dataSet) GetDeployment(replica metav1.Object) (metav1.Object, bool, err
 		key := &appsv1.DeploymentConfig{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: v.Namespace}}
 		item, exists, err := d.deploymentStore.Get(key)
 		if exists {
-			deploymentConfig = item.(*appsv1.DeploymentConfig)
+			dc, ok := item.(*appsv1.DeploymentConfig)
+			if !ok {
+				// Normally, this should never happen. But people migrate from
+				// deploymentconfig to deployment, whereas deployment may still point to
+				// replicationcontroller instead of replicaset incorrectly. So that, we should
+				// handle this gracefully by ignoring this.
+				return nil, false, nil
+			}
+			deploymentConfig = dc
 		}
 		return deploymentConfig, exists, err
 	case *kappsv1.ReplicaSet:
@@ -188,7 +196,11 @@ func (d *dataSet) GetDeployment(replica metav1.Object) (metav1.Object, bool, err
 		key := &kappsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: v.Namespace}}
 		item, exists, err := d.deploymentStore.Get(key)
 		if exists {
-			deployment = item.(*kappsv1.Deployment)
+			deploy, ok := item.(*kappsv1.Deployment)
+			if !ok {
+				return nil, false, nil
+			}
+			deployment = deploy
 		}
 		return deployment, exists, err
 	default:
@@ -250,7 +262,11 @@ func (d *dataSet) ListReplicasByDeployment(deployment metav1.Object) ([]metav1.O
 		}
 
 		for _, item := range items {
-			results = append(results, item.(*corev1.ReplicationController))
+			rc, ok := item.(*corev1.ReplicationController)
+			if !ok {
+				continue
+			}
+			results = append(results, rc)
 		}
 	case *kappsv1.Deployment:
 		key := &kappsv1.ReplicaSet{
@@ -272,7 +288,11 @@ func (d *dataSet) ListReplicasByDeployment(deployment metav1.Object) ([]metav1.O
 		}
 
 		for _, item := range items {
-			results = append(results, item.(*kappsv1.ReplicaSet))
+			rs, ok := item.(*kappsv1.ReplicaSet)
+			if !ok {
+				continue
+			}
+			results = append(results, rs)
 		}
 	default:
 		return nil, fmt.Errorf("unknown type: %T", deployment)

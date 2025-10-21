@@ -1,0 +1,86 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2023-11-02T12:48:53Z"
+  generation: 2
+  name: version
+  resourceVersion: "30459"
+  uid: 3ba11aa4-3a62-47d1-9158-ec54d4c49e1d
+spec:
+  channel: candidate-4.14
+  clusterID: ea006e73-1e7a-4fbc-a12d-ae4109affb3d
+  upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+status:
+  availableUpdates: null
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2023-11-02T12:48:56Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2023-11-02T12:48:56Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2023-11-02T12:48:56Z"
+    message: Payload loaded version="4.14.1" image="registry.build05.ci.openshift.org/ci-ln-b1s4wtb/release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2023-11-02T13:09:35Z"
+    message: Done applying 4.14.1
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2023-11-02T13:09:35Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2023-11-02T13:09:35Z"
+    message: Cluster version is 4.14.1
+    status: "False"
+    type: Progressing
+  desired:
+    channels:
+    - candidate-4.14
+    - candidate-4.15
+    - eus-4.14
+    - fast-4.14
+    - stable-4.14
+    image: registry.build05.ci.openshift.org/ci-ln-b1s4wtb/release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd
+    url: https://access.redhat.com/errata/RHBA-2023:6153
+    version: 4.14.1
+  history:
+  - completionTime: "2023-11-02T13:09:35Z"
+    image: registry.build05.ci.openshift.org/ci-ln-b1s4wtb/release@sha256:05ba8e63f8a76e568afe87f182334504a01d47342b6ad5b4c3ff83a2463018bd
+    startedTime: "2023-11-02T12:48:56Z"
+    state: Completed
+    verified: false
+    version: 4.14.1
+  observedGeneration: 2
+  versionHash: XGjSjKwUhkE=

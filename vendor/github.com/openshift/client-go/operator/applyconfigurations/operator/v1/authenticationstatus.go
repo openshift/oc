@@ -2,14 +2,14 @@
 
 package v1
 
-// AuthenticationStatusApplyConfiguration represents an declarative configuration of the AuthenticationStatus type for use
+// AuthenticationStatusApplyConfiguration represents a declarative configuration of the AuthenticationStatus type for use
 // with apply.
 type AuthenticationStatusApplyConfiguration struct {
 	OAuthAPIServer                   *OAuthAPIServerStatusApplyConfiguration `json:"oauthAPIServer,omitempty"`
 	OperatorStatusApplyConfiguration `json:",inline"`
 }
 
-// AuthenticationStatusApplyConfiguration constructs an declarative configuration of the AuthenticationStatus type for use with
+// AuthenticationStatusApplyConfiguration constructs a declarative configuration of the AuthenticationStatus type for use with
 // apply.
 func AuthenticationStatus() *AuthenticationStatusApplyConfiguration {
 	return &AuthenticationStatusApplyConfiguration{}
@@ -27,7 +27,7 @@ func (b *AuthenticationStatusApplyConfiguration) WithOAuthAPIServer(value *OAuth
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ObservedGeneration field is set to the value of the last call.
 func (b *AuthenticationStatusApplyConfiguration) WithObservedGeneration(value int64) *AuthenticationStatusApplyConfiguration {
-	b.ObservedGeneration = &value
+	b.OperatorStatusApplyConfiguration.ObservedGeneration = &value
 	return b
 }
 
@@ -39,7 +39,7 @@ func (b *AuthenticationStatusApplyConfiguration) WithConditions(values ...*Opera
 		if values[i] == nil {
 			panic("nil value passed to WithConditions")
 		}
-		b.Conditions = append(b.Conditions, *values[i])
+		b.OperatorStatusApplyConfiguration.Conditions = append(b.OperatorStatusApplyConfiguration.Conditions, *values[i])
 	}
 	return b
 }
@@ -48,7 +48,7 @@ func (b *AuthenticationStatusApplyConfiguration) WithConditions(values ...*Opera
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Version field is set to the value of the last call.
 func (b *AuthenticationStatusApplyConfiguration) WithVersion(value string) *AuthenticationStatusApplyConfiguration {
-	b.Version = &value
+	b.OperatorStatusApplyConfiguration.Version = &value
 	return b
 }
 
@@ -56,7 +56,15 @@ func (b *AuthenticationStatusApplyConfiguration) WithVersion(value string) *Auth
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ReadyReplicas field is set to the value of the last call.
 func (b *AuthenticationStatusApplyConfiguration) WithReadyReplicas(value int32) *AuthenticationStatusApplyConfiguration {
-	b.ReadyReplicas = &value
+	b.OperatorStatusApplyConfiguration.ReadyReplicas = &value
+	return b
+}
+
+// WithLatestAvailableRevision sets the LatestAvailableRevision field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the LatestAvailableRevision field is set to the value of the last call.
+func (b *AuthenticationStatusApplyConfiguration) WithLatestAvailableRevision(value int32) *AuthenticationStatusApplyConfiguration {
+	b.OperatorStatusApplyConfiguration.LatestAvailableRevision = &value
 	return b
 }
 
@@ -68,7 +76,7 @@ func (b *AuthenticationStatusApplyConfiguration) WithGenerations(values ...*Gene
 		if values[i] == nil {
 			panic("nil value passed to WithGenerations")
 		}
-		b.Generations = append(b.Generations, *values[i])
+		b.OperatorStatusApplyConfiguration.Generations = append(b.OperatorStatusApplyConfiguration.Generations, *values[i])
 	}
 	return b
 }

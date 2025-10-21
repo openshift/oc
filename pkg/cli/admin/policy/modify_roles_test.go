@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -13,9 +14,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	diffutil "k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	fakeclient "k8s.io/client-go/kubernetes/fake"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
+	cmdtesting "k8s.io/kubectl/pkg/cmd/testing"
+	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/utils/ptr"
 
 	userv1 "github.com/openshift/api/user/v1"
 	fakeuserclient "github.com/openshift/client-go/user/clientset/versioned/fake"
@@ -589,6 +594,87 @@ func TestModifyNamedLocalRoleBinding(t *testing.T) {
 		modifyRoleAndCheck(t, o, tcName, tc.action, tc.expectedRoleBindingName, tc.expectedSubjects, tc.expectedRoleBindingList)
 	}
 }
+
+func TestRoleModificationCompleteNonExistUser(t *testing.T) {
+	ioStreams, _, _, _ := genericiooptions.NewTestIOStreams()
+
+	dc := cmdtesting.NewFakeCachedDiscoveryClient()
+	dc.Groups = []*metav1.APIGroup{
+		{
+			Name: "",
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "v1",
+			},
+		},
+		{
+			Name: "foo",
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "foo/v1beta1",
+			},
+		},
+		{
+			Name: "bar",
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "bar/v1",
+			},
+		},
+	}
+
+	tf := cmdtesting.NewTestFactory().WithNamespace("test").WithDiscoveryClient(dc)
+	defer tf.Cleanup()
+
+	opt := NewRoleModificationOptions(ioStreams)
+	cmd := &cobra.Command{}
+	kcmdutil.AddDryRunFlag(cmd)
+	err := opt.Complete(tf, cmd, []string{"test", "test"}, ptr.To([]string{}), "")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if opt.UserClient != nil {
+		t.Fatal("expected UserClient to be nil")
+	}
+}
+
+func TestRoleModificationCompleteExistUser(t *testing.T) {
+	ioStreams, _, _, _ := genericiooptions.NewTestIOStreams()
+
+	dc := cmdtesting.NewFakeCachedDiscoveryClient()
+	dc.Groups = []*metav1.APIGroup{
+		{
+			Name: "",
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "v1",
+			},
+		},
+		{
+			Name: "foo",
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "foo/v1beta1",
+			},
+		},
+		{
+			Name: "user.openshift.io",
+			PreferredVersion: metav1.GroupVersionForDiscovery{
+				GroupVersion: "user.openshift.io/v1",
+			},
+		},
+	}
+
+	tf := cmdtesting.NewTestFactory().WithNamespace("test").WithDiscoveryClient(dc)
+	defer tf.Cleanup()
+
+	opt := NewRoleModificationOptions(ioStreams)
+	cmd := &cobra.Command{}
+	kcmdutil.AddDryRunFlag(cmd)
+	err := opt.Complete(tf, cmd, []string{"test", "test"}, ptr.To([]string{}), "")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if opt.UserClient == nil {
+		t.Fatal("expected UserClient not to be nil")
+	}
+}
+
 func TestModifyRoleBindingWarnings(t *testing.T) {
 	type clusterState struct {
 		roles               *rbacv1.RoleList

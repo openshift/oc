@@ -1,0 +1,12 @@
+The following conditions found no cause for concern in updating this cluster to later releases: recommended/CriticalAlerts (AsExpected), recommended/NodeAlerts (AsExpected), recommended/PodDisruptionBudgetAlerts (AsExpected), recommended/PodImagePullAlerts (AsExpected)
+
+Upstream update service: https://amd64.origin.releases.ci.openshift.org/graph
+Channel: stable-scos-4
+
+Updates to 4.20:
+  VERSION               ISSUES
+  4.20.0-okd-scos.ec.14 no known issues relevant to this cluster
+
+Updates to 4.19:
+  VERSION            ISSUES
+  4.19.0-okd-scos.17 no known issues relevant to this cluster

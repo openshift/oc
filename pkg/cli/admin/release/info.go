@@ -2,16 +2,19 @@ package release
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,8 +24,8 @@ import (
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/blang/semver"
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
@@ -30,18 +33,21 @@ import (
 	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
+	"sigs.k8s.io/yaml"
 
 	configv1 "github.com/openshift/api/config/v1"
 	imageapi "github.com/openshift/api/image/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
+	"github.com/openshift/library-go/pkg/features"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/cli/image/extract"
@@ -50,7 +56,7 @@ import (
 	imagemanifest "github.com/openshift/oc/pkg/cli/image/manifest"
 )
 
-func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
+func NewInfoOptions(streams genericiooptions.IOStreams) *InfoOptions {
 	return &InfoOptions{
 		IOStreams:              streams,
 		KubeTemplatePrintFlags: *genericclioptions.NewKubeTemplatePrintFlags(),
@@ -58,7 +64,7 @@ func NewInfoOptions(streams genericclioptions.IOStreams) *InfoOptions {
 	}
 }
 
-func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewInfoOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "info IMAGE [--changes-from=IMAGE] [--verify|--commits|--pullspecs]",
@@ -91,9 +97,16 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			a tag when verifying an image is recommended since it ensures an attacker cannot trick you
 			into installing an older, potentially vulnerable version.
 
-			The --bugs and --changelog flags will use git to clone the source of the release and display
+			The --bugs and --changelog flags will use git to clone the git history of the release and display
 			the code changes that occurred between the two release arguments. This operation is slow
 			and requires sufficient disk space on the selected drive to clone all repositories.
+
+			Additionally, the --rpmdb-cache flag will cache rpmdb content for images in the release. Then,
+			the --rpmdb flag will display the RPM contents of an image. The --rpmdb-diff flag will display
+			RPM changes that occurred between the two release arguments. For images optimized for this
+			operation (e.g. recent enough machine-os images), this is quite fast and efficient. Otherwise,
+			it is a slow operation that requires sufficient disk space. By default, the image containing the
+			machine-os component is targeted for RPM queries. Other images can be targeted with --rpmdb-image.
 
 			If the specified image supports multiple operating systems, the image that matches the
 			current operating system will be chosen. Otherwise you must pass --filter-by-os to
@@ -113,7 +126,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 			oc adm release info quay.io/openshift-release-dev/ocp-release:4.11.2 --pullspecs
 
 			# Show information about linux/s390x image
-			# Note: Wildcard filter is not supported. Pass a single os/arch to extract
+			# Note: Wildcard filter is not supported; pass a single os/arch to extract
 			oc adm release info quay.io/openshift-release-dev/ocp-release:4.11.2 --filter-by-os=linux/s390x
 
 		`),
@@ -134,6 +147,8 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 	flags.BoolVar(&o.Verify, "verify", o.Verify, "Generate bug listings from the changelogs in the git repositories extracted to this path.")
 
 	flags.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file. If set, data from this file will be used to find alternative locations for images.")
+	flags.MarkDeprecated("icsp-file", "support for it will be removed in a future release. Use --idms-file instead.")
+	flags.StringVar(&o.IDMSFile, "idms-file", o.IDMSFile, "Path to an ImageDigestMirrorSet file. If set, data from this file will be used to find alternative locations for images.")
 
 	flags.BoolVar(&o.ShowContents, "contents", o.ShowContents, "Display the contents of a release.")
 	flags.BoolVar(&o.ShowCommit, "commits", o.ShowCommit, "Display information about the source an image was created with.")
@@ -143,6 +158,10 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 	flags.StringVar(&o.ImageFor, "image-for", o.ImageFor, "Print the pull spec of the specified image or an error if it does not exist.")
 	flags.StringVarP(&o.Output, "output", "o", o.Output, "Display the release info in an alternative format: digest|json|name|pullspec|template|jsonpath.")
 	flags.StringVar(&o.ChangelogDir, "changelog", o.ChangelogDir, "Generate changelog output from the git directories extracted to this path.")
+	flags.StringVar(&o.RpmdbCacheDir, "rpmdb-cache", o.RpmdbCacheDir, "Cache rpmdb content in this directory.")
+	flags.BoolVar(&o.RpmdbList, "rpmdb", o.RpmdbList, "List RPM packages in image.")
+	flags.BoolVar(&o.RpmdbDiff, "rpmdb-diff", o.RpmdbDiff, "Generate RPM package diff.")
+	flags.StringVar(&o.RpmdbImage, "rpmdb-image", "", "The image to use for RPM queries.")
 	flags.StringVar(&o.BugsDir, "bugs", o.BugsDir, "Generate bug listings from the changelogs in the git repositories extracted to this path.")
 	flags.BoolVar(&o.IncludeImages, "include-images", o.IncludeImages, "When displaying JSON output of a release output the images the release references.")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be copied under.")
@@ -151,7 +170,7 @@ func NewInfo(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Com
 }
 
 type InfoOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 	genericclioptions.KubeTemplatePrintFlags
 
 	Images  []string
@@ -168,10 +187,15 @@ type InfoOptions struct {
 	ShowSize      bool
 	Verify        bool
 	ICSPFile      string
+	IDMSFile      string
 
-	ChangelogDir string
-	BugsDir      string
-	SkipBugCheck bool
+	ChangelogDir  string
+	RpmdbCacheDir string
+	RpmdbList     bool
+	RpmdbDiff     bool
+	RpmdbImage    string
+	BugsDir       string
+	SkipBugCheck  bool
 
 	ParallelOptions imagemanifest.ParallelOptions
 	SecurityOptions imagemanifest.SecurityOptions
@@ -217,6 +241,8 @@ type versionGraph struct {
 }
 
 const defaultGraphURL = "https://api.openshift.com/api/upgrades_info/v1/graph"
+
+const metalayerMetadata = "usr/share/openshift/base/meta.json"
 
 // replaceStableSemanticArgs attempts to look up known major versions in existing public stable
 // channels.
@@ -267,10 +293,10 @@ func replaceStableSemanticArgs(args []string, semanticArgs map[string]semver.Ver
 				switch resp.StatusCode {
 				case http.StatusOK:
 				default:
-					io.Copy(ioutil.Discard, resp.Body)
+					io.Copy(io.Discard, resp.Body)
 					return fmt.Errorf("unable to retrieve status for %q: %d", arg, resp.StatusCode)
 				}
-				data, err := ioutil.ReadAll(resp.Body)
+				data, err := io.ReadAll(resp.Body)
 				if err != nil {
 					return err
 				}
@@ -309,7 +335,7 @@ func replaceClusterSemanticArgs(f kcmdutil.Factory, args []string, semanticArgs 
 	}
 	cv, err := client.ConfigV1().ClusterVersions().Get(context.TODO(), "version", metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) || errors.ReasonForError(err) == metav1.StatusReasonUnknown {
+		if kapierrors.IsNotFound(err) || kapierrors.ReasonForError(err) == metav1.StatusReasonUnknown {
 			klog.V(2).Infof("Unable to find cluster version object from cluster: %v", err)
 			return args, fmt.Errorf("info expects one argument, or a connection to an OpenShift 4.x server")
 		}
@@ -419,13 +445,22 @@ func (o *InfoOptions) Validate() error {
 	if o.SkipBugCheck && o.Output != "name" && o.Output != "json" {
 		return fmt.Errorf("--skip-bug-check requires --output to be set to 'name' or 'json'")
 	}
-	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 {
+	if len(o.ChangelogDir) > 0 || len(o.BugsDir) > 0 || o.RpmdbDiff {
 		if len(o.From) == 0 {
-			return fmt.Errorf("--changelog/--bugs require --changes-from")
+			return fmt.Errorf("--changelog/--bugs/--rpmdb-diff require --changes-from")
 		}
 	}
-	if len(o.ChangelogDir) > 0 && len(o.BugsDir) > 0 {
-		return fmt.Errorf("--changelog and --bugs may not both be specified")
+	if o.RpmdbList && o.RpmdbDiff {
+		return fmt.Errorf("--rpmdb/--rpmdb-diff are mutually exclusive")
+	}
+	if o.RpmdbList || o.RpmdbDiff {
+		if o.RpmdbCacheDir == "" {
+			return fmt.Errorf("--rpmdb/--rpmdb-diff require --rpmdb-cache")
+		}
+	}
+	exclusiveOps := boolToInt(len(o.ChangelogDir) > 0) + boolToInt(len(o.BugsDir) > 0) + boolToInt(o.RpmdbDiff)
+	if exclusiveOps > 1 {
+		return fmt.Errorf("--changelog/--bugs/--rpmdb-diff are mutually exclusive")
 	}
 	switch {
 	case len(o.BugsDir) > 0:
@@ -439,6 +474,12 @@ func (o *InfoOptions) Validate() error {
 		case "", "json":
 		default:
 			return fmt.Errorf("--output only supports 'json' for --changelog")
+		}
+	case o.RpmdbList || o.RpmdbDiff:
+		switch o.Output {
+		case "", "json":
+		default:
+			return fmt.Errorf("--output only supports 'json' for --rpmdb/--rpmdb-diff")
 		}
 	default:
 		output := strings.SplitN(o.Output, "=", 2)[0]
@@ -454,7 +495,19 @@ func (o *InfoOptions) Validate() error {
 		return fmt.Errorf("must specify a single release image as argument when comparing to another release image")
 	}
 
+	if len(o.ICSPFile) > 0 && len(o.IDMSFile) > 0 {
+		return fmt.Errorf("icsp-file and idms-file are mutually exclusive")
+	}
+
 	return o.FilterOptions.Validate()
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	} else {
+		return 0
+	}
 }
 
 func (o *InfoOptions) Run() error {
@@ -491,7 +544,10 @@ func (o *InfoOptions) Run() error {
 			return describeBugs(o.Out, o.ErrOut, diff, o.BugsDir, o.Output, o.SkipBugCheck)
 		}
 		if len(o.ChangelogDir) > 0 {
-			return describeChangelog(o.Out, o.ErrOut, diff, o.ChangelogDir, o.Output)
+			return describeChangelog(o.Out, o.ErrOut, release, diff, o.ChangelogDir, o.Output)
+		}
+		if o.RpmdbDiff {
+			return o.describeRpmDiff(release, diff, o.RpmdbCacheDir, o.Output, o.RpmdbImage)
 		}
 		return describeReleaseDiff(o.Out, diff, o.ShowCommit, o.Output)
 	}
@@ -507,6 +563,9 @@ func (o *InfoOptions) Run() error {
 		if o.Verify {
 			fmt.Fprintf(o.Out, "%s %s %s\n", release.Digest, release.References.CreationTimestamp.UTC().Format(time.RFC3339), release.PreferredName())
 			continue
+		}
+		if o.RpmdbList {
+			return o.listRpmdb(release, o.RpmdbCacheDir, o.Output, o.RpmdbImage)
 		}
 		if err := o.describeImage(release); err != nil {
 			exitErr = kcmdutil.ErrExit
@@ -659,7 +718,7 @@ func calculateDiff(from, to *ReleaseInfo) (*ReleaseDiff, error) {
 		}
 		diff.ChangedManifests[name] = &ReleaseManifestDiff{
 			Filename: name,
-			From:     manifest,
+			To:       manifest,
 		}
 	}
 	for k, v := range diff.ChangedManifests {
@@ -707,6 +766,7 @@ type ReleaseInfo struct {
 	// ComponentVersions.
 	DeprecatedComponentVersions map[string]string `json:"versions"`
 	ComponentVersions           ComponentVersions `json:"displayVersions"`
+	ComponentTags               map[string]string `json:"versionsTags"`
 
 	Images map[string]*Image `json:"images"`
 
@@ -764,11 +824,12 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	}
 
 	verifier := imagemanifest.NewVerifier()
-	opts := extract.NewExtractOptions(genericclioptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts := extract.NewExtractOptions(genericiooptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
 	opts.SecurityOptions = o.SecurityOptions
 	opts.FilterOptions = o.FilterOptions
 	opts.FileDir = o.FileDir
 	opts.ICSPFile = o.ICSPFile
+	opts.IDMSFile = o.IDMSFile
 
 	release := &ReleaseInfo{
 		Image:    image,
@@ -798,7 +859,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
 		switch hdr.Name {
 		case "image-references":
-			data, err := ioutil.ReadAll(r)
+			data, err := io.ReadAll(r)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("unable to read release image-references: %v", err))
 				return true, nil
@@ -811,7 +872,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 			}
 			release.References = is
 		case "release-metadata":
-			data, err := ioutil.ReadAll(r)
+			data, err := io.ReadAll(r)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("unable to read release metadata: %v", err))
 				return true, nil
@@ -826,7 +887,7 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 		default:
 			if ext := path.Ext(hdr.Name); len(ext) > 0 && (ext == ".yaml" || ext == ".yml" || ext == ".json") {
 				klog.V(4).Infof("Found manifest %s", hdr.Name)
-				data, err := ioutil.ReadAll(r)
+				data, err := io.ReadAll(r)
 				if err != nil {
 					errs = append(errs, fmt.Errorf("unable to read release manifest %q: %v", hdr.Name, err))
 					return true, nil
@@ -852,61 +913,13 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 		return nil, fmt.Errorf("release image did not contain an image-references file")
 	}
 
-	release.ComponentVersions, errs = readComponentVersions(release.References)
+	release.ComponentVersions, release.ComponentTags, errs = readComponentVersions(release.References, o.ErrOut)
 	for _, err := range errs {
 		release.Warnings = append(release.Warnings, err.Error())
 	}
 
 	if retrieveImages {
-		var lock sync.Mutex
-		release.Images = make(map[string]*Image)
-		images := make(map[string]imagesource.TypedImageReference)
-		r := &imageinfo.ImageRetriever{
-			FileDir:         opts.FileDir,
-			SecurityOptions: o.SecurityOptions,
-			ParallelOptions: o.ParallelOptions,
-			ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
-				filtered := make(map[digest.Digest]distribution.Manifest)
-				for _, manifest := range list.Manifests {
-					if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
-						klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
-						continue
-					}
-					filtered[manifest.Digest] = all[manifest.Digest]
-				}
-				if len(filtered) == 1 {
-					return filtered, nil
-				}
-
-				return nil, fmt.Errorf("no matching image found in manifest list")
-			},
-			ImageMetadataCallback: func(name string, image *imageinfo.Image, err error) error {
-				if image != nil {
-					verifier.Verify(image.Digest, image.ContentDigest)
-				}
-				lock.Lock()
-				defer lock.Unlock()
-				if err != nil {
-					release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q: %v", name, err))
-					return nil
-				}
-				copied := Image(*image)
-				release.Images[name] = &copied
-				return nil
-			},
-		}
-		for _, tag := range release.References.Spec.Tags {
-			if tag.From == nil || tag.From.Kind != "DockerImage" {
-				continue
-			}
-			ref, err := imagereference.Parse(tag.From.Name)
-			if err != nil {
-				release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q has an invalid reference: %v", tag.Name, err))
-				continue
-			}
-			images[tag.Name] = imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
-		}
-		if _, err := r.Images(context.TODO(), images); err != nil {
+		if err = o.retrieveReleaseImages(release, verifier, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -924,10 +937,72 @@ func (o *InfoOptions) LoadReleaseInfo(image string, retrieveImages bool) (*Relea
 	return release, nil
 }
 
-func readComponentVersions(is *imageapi.ImageStream) (ComponentVersions, []error) {
+func (o *InfoOptions) retrieveReleaseImages(release *ReleaseInfo, verifier imagemanifest.Verifier, onlyTags map[string]struct{}) error {
+	var lock sync.Mutex
+	release.Images = make(map[string]*Image)
+	images := make(map[string]imagesource.TypedImageReference)
+	r := &imageinfo.ImageRetriever{
+		FileDir:         o.FileDir,
+		SecurityOptions: o.SecurityOptions,
+		ParallelOptions: o.ParallelOptions,
+		ManifestListCallback: func(from string, list *manifestlist.DeserializedManifestList, all map[digest.Digest]distribution.Manifest) (map[digest.Digest]distribution.Manifest, error) {
+			filtered := make(map[digest.Digest]distribution.Manifest)
+			for _, manifest := range list.Manifests {
+				if !o.FilterOptions.Include(&manifest, len(list.Manifests) > 1) {
+					klog.V(5).Infof("Skipping image for %#v from %s", manifest.Platform, from)
+					continue
+				}
+				filtered[manifest.Digest] = all[manifest.Digest]
+			}
+			if len(filtered) == 1 {
+				return filtered, nil
+			}
+
+			return nil, fmt.Errorf("no matching image found in manifest list")
+		},
+		ImageMetadataCallback: func(name string, image *imageinfo.Image, err error) error {
+			if image != nil {
+				verifier.Verify(image.Digest, image.ContentDigest)
+			}
+			lock.Lock()
+			defer lock.Unlock()
+			if err != nil {
+				release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q: %v", name, err))
+				return nil
+			}
+			copied := Image(*image)
+			release.Images[name] = &copied
+			return nil
+		},
+	}
+	for _, tag := range release.References.Spec.Tags {
+		if tag.From == nil || tag.From.Kind != "DockerImage" {
+			continue
+		}
+		if onlyTags != nil {
+			if _, ok := onlyTags[tag.Name]; !ok {
+				continue
+			}
+		}
+		ref, err := imagereference.Parse(tag.From.Name)
+		if err != nil {
+			release.Warnings = append(release.Warnings, fmt.Sprintf("tag %q has an invalid reference: %v", tag.Name, err))
+			continue
+		}
+		images[tag.Name] = imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: ref}
+	}
+	if _, err := r.Images(context.TODO(), images); err != nil {
+		return err
+	}
+	return nil
+}
+
+func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (ComponentVersions, map[string]string, []error) {
 	var errs []error
 	combined := make(map[string]sets.String)
 	combinedDisplayNames := make(map[string]sets.String)
+	componentTags := make(map[string]string)
+	kubectlVersions := make(map[string]sets.Set[string])
 	for _, tag := range is.Spec.Tags {
 		versions, ok := tag.Annotations[annotationBuildVersions]
 		if !ok {
@@ -938,6 +1013,18 @@ func readComponentVersions(is *imageapi.ImageStream) (ComponentVersions, []error
 			errs = append(errs, fmt.Errorf("the referenced image %s had an invalid version annotation: %v", tag.Name, err))
 		}
 		for k, v := range all {
+			// just let the last one win in case a component is defined multiple times
+			componentTags[k] = tag.Name
+			if k == "kubectl" {
+				if val, exist := kubectlVersions[v.Version]; exist {
+					kubectlVersions[v.Version] = val.Insert(tag.Name)
+				} else {
+					kubectlVersions[v.Version] = sets.New[string](tag.Name)
+				}
+				if tag.Name != "cli" && tag.Name != "cli-artifacts" {
+					continue
+				}
+			}
 			existing, ok := combined[k]
 			if !ok {
 				existing = sets.NewString()
@@ -955,6 +1042,14 @@ func readComponentVersions(is *imageapi.ImageStream) (ComponentVersions, []error
 	}
 
 	multiples := sets.NewString()
+	if len(kubectlVersions) > 2 {
+		var kubectlFormattedWarning []string
+		for k, v := range kubectlVersions {
+			kubectlFormattedWarning = append(kubectlFormattedWarning, fmt.Sprintf("%s (%s)", k, strings.Join(v.UnsortedList(), ", ")))
+		}
+
+		fmt.Fprintf(errOut, "warning: multiple versions reported for the kubectl: %s\n", strings.Join(kubectlFormattedWarning, ", "))
+	}
 	var out ComponentVersions
 	var keys []string
 	for k := range combined {
@@ -996,7 +1091,7 @@ func readComponentVersions(is *imageapi.ImageStream) (ComponentVersions, []error
 	if len(multiples) > 0 {
 		errs = append(errs, fmt.Errorf("multiple versions or display names reported for the following component(s): %v", strings.Join(multiples.List(), ",  ")))
 	}
-	return out, errs
+	return out, componentTags, errs
 }
 
 func errorList(errs []error) string {
@@ -1157,8 +1252,144 @@ func describeReleaseDiff(out io.Writer, diff *ReleaseDiff, showCommit bool, outp
 			}
 		})
 	}
+
+	printFeatureSetSection(diff, w)
+
 	fmt.Fprintln(w)
 	return nil
+}
+
+func printFeatureSetSection(diff *ReleaseDiff, w io.Writer) {
+	featureSetDiff, err := calculateFeatureSetDiff(diff)
+	if err != nil {
+		fmt.Fprintf(w, "error reading .From release feature info: %v", err)
+		return
+	}
+
+	if false {
+		// TODO if we have a use for this on the CLI, then we can try to produce an ascii table
+		// for now, this does nothing and we'll only render it for mardown.
+		content, err := produceDiffMarkdown(nil, featureSetDiff)
+		if err != nil {
+			fmt.Fprintf(w, "error producing diff: %v", err)
+			return
+		}
+		w.Write(content)
+		fmt.Fprintln(w)
+		fmt.Fprintln(w)
+	}
+}
+
+func calculateFeatureSetDiff(diff *ReleaseDiff) (*features.ReleaseFeatureDiffInfo, error) {
+	toFiles := features.FilenameToContent{}
+	for filename, featureGateBytes := range diff.To.ManifestFiles {
+		if !strings.Contains(filename, "featureGate-") {
+			continue
+		}
+		toFiles[filename] = featureGateBytes
+	}
+	fromFiles := features.FilenameToContent{}
+	for filename, featureGateBytes := range diff.From.ManifestFiles {
+		if !strings.Contains(filename, "featureGate-") {
+			continue
+		}
+		fromFiles[filename] = featureGateBytes
+	}
+
+	toReleaseFeatureInfo, err := features.ReadReleaseFeatureInfo(context.TODO(), toFiles)
+	if err != nil {
+		return nil, fmt.Errorf("error reading .To release feature info: %v", err)
+	}
+	fromReleaseFeatureInfo, err := features.ReadReleaseFeatureInfo(context.TODO(), fromFiles)
+	if err != nil {
+		return nil, fmt.Errorf("error reading .From release feature info: %v", err)
+	}
+
+	return toReleaseFeatureInfo.CalculateDiff(context.TODO(), fromReleaseFeatureInfo), nil
+}
+
+func markdownFeatureSetSection(info *ReleaseInfo, diff *ReleaseDiff, w io.Writer) {
+	testReportBytes := info.ManifestFiles["0000_50_tests_test-reporting.yaml"]
+	testReport := &configv1.TestReporting{}
+	if len(testReportBytes) > 0 {
+		if err := yaml.Unmarshal(testReportBytes, testReport); err != nil {
+			fmt.Fprintf(w, "error reading test-reporting.yaml release feature info: %v", err)
+		}
+	}
+
+	featureSetDiff, err := calculateFeatureSetDiff(diff)
+	if err != nil {
+		fmt.Fprintf(w, "error reading .From release feature info: %v", err)
+		return
+	}
+
+	if len(featureSetDiff.GetOrderedFeatureGates()) == 0 {
+		return
+	}
+
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "### FeatureGate Changes")
+
+	content, err := produceDiffMarkdown(testReport, featureSetDiff)
+	if err != nil {
+		fmt.Fprintf(w, "error producing diff: %v", err)
+		return
+	}
+	w.Write(content)
+	fmt.Fprintln(w)
+	fmt.Fprintln(w)
+}
+
+// FeatureGatesForFeatureSetChanged returns newly enabled featureGates, newly disabled featureGates, and newly removed featureGates
+func FeatureGatesForFeatureSetChanged(diff *ReleaseDiff, featureSetName string) (*configv1.FeatureGate, sets.Set[configv1.FeatureGateName], sets.Set[configv1.FeatureGateName], sets.Set[string], bool) {
+	manifestName := fmt.Sprintf("0000_50_cluster-config-api_featureGate-%v.yaml", featureSetName)
+	changed := diff.ChangedManifests[manifestName]
+	if changed == nil || len(changed.To) == 0 {
+		klog.V(2).Infof("featuregate manifest is missing in To")
+		return nil, nil, nil, nil, false
+	}
+	toFeatureGates, err := ReadFeatureGateV1(changed.To)
+	if err != nil {
+		klog.V(2).Infof("failed to decode To %v: %v", manifestName, err)
+		return nil, nil, nil, nil, false
+	}
+
+	toEntireSet := sets.Set[string]{}
+	toEnabledSet := sets.Set[configv1.FeatureGateName]{}
+	toDisabledSet := sets.Set[configv1.FeatureGateName]{}
+	for _, curr := range toFeatureGates.Status.FeatureGates[0].Enabled {
+		toEntireSet.Insert(string(curr.Name))
+		toEnabledSet.Insert(curr.Name)
+	}
+	for _, curr := range toFeatureGates.Status.FeatureGates[0].Disabled {
+		toEntireSet.Insert(string(curr.Name))
+		toDisabledSet.Insert(curr.Name)
+	}
+
+	fromEntireSet := sets.Set[string]{}
+	fromEnabledSet := sets.Set[configv1.FeatureGateName]{}
+	fromDisabledSet := sets.Set[configv1.FeatureGateName]{}
+	if len(changed.From) > 0 {
+		fromFeatureGates, err := ReadFeatureGateV1(changed.From)
+		if err != nil {
+			klog.V(2).Infof("failed to decode From %v: %v", manifestName, err)
+			return nil, nil, nil, nil, false
+		}
+		for _, curr := range fromFeatureGates.Status.FeatureGates[0].Enabled {
+			fromEntireSet.Insert(string(curr.Name))
+			fromEnabledSet.Insert(curr.Name)
+		}
+		for _, curr := range fromFeatureGates.Status.FeatureGates[0].Disabled {
+			fromEntireSet.Insert(string(curr.Name))
+			fromDisabledSet.Insert(curr.Name)
+		}
+	}
+
+	newlyEnabledFeatureGates := toEnabledSet.Difference(fromEnabledSet)
+	newlyDisabledFeatureGates := toDisabledSet.Difference(fromDisabledSet)
+	removedFeatureGates := fromEntireSet.Difference(toEntireSet)
+	haveFeaturesChange := len(newlyEnabledFeatureGates) > 0 || len(newlyDisabledFeatureGates) > 0 || len(removedFeatureGates) > 0
+	return toFeatureGates, newlyEnabledFeatureGates, newlyDisabledFeatureGates, removedFeatureGates, haveFeaturesChange
 }
 
 func repoAndCommit(ref *imageapi.TagReference) string {
@@ -1481,7 +1712,7 @@ var replaceUnsafeInput = strings.NewReplacer(
 	`>`, "&gt;",
 )
 
-func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format string) error {
+func describeChangelog(out, errOut io.Writer, releaseInfo *ReleaseInfo, diff *ReleaseDiff, dir, format string) error {
 	if diff.To.Digest == diff.From.Digest {
 		return fmt.Errorf("releases are identical")
 	}
@@ -1563,16 +1794,17 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 			}
 		}
 		for _, change := range codeChanges {
-			u, commits, err := commitsForRepo(dir, change, out, errOut)
+			u, commits, elidedCommits, err := commitsForRepo(dir, change, out, errOut)
 			if err != nil {
 				fmt.Fprintf(errOut, "error: %v\n", err)
 				hasError = true
 				continue
 			}
-			if len(commits) > 0 {
+			if len(commits) > 0 || elidedCommits > 0 {
 				info := ChangeLogImageInfo{
-					Name:    strings.Join(change.ImagesAffected, ", "),
-					Commits: []CommitInfo{},
+					Name:          strings.Join(change.ImagesAffected, ", "),
+					Commits:       []CommitInfo{},
+					ElidedCommits: elidedCommits,
 				}
 				if u.Host == "github.com" {
 					info.Path = fmt.Sprintf("https://github.com%s/tree/%s", u.Path, change.To)
@@ -1609,7 +1841,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 		fmt.Fprintln(out, string(data))
 
 	default:
-		fmt.Fprintf(out, heredoc.Docf(`
+		fmt.Fprint(out, heredoc.Docf(`
 		# %s
 
 		Created: %s
@@ -1638,6 +1870,8 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 			fmt.Fprintln(out)
 			fmt.Fprintln(out)
 		}
+
+		markdownFeatureSetSection(releaseInfo, diff, out)
 
 		if len(added) > 0 {
 			fmt.Fprintf(out, "### New images\n\n")
@@ -1670,13 +1904,13 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 		}
 
 		for _, change := range codeChanges {
-			u, commits, err := commitsForRepo(dir, change, out, errOut)
+			u, commits, elidedCommits, err := commitsForRepo(dir, change, out, errOut)
 			if err != nil {
 				fmt.Fprintf(errOut, "error: %v\n", err)
 				hasError = true
 				continue
 			}
-			if len(commits) > 0 {
+			if len(commits) > 0 || elidedCommits > 0 {
 				if u.Host == "github.com" {
 					fmt.Fprintf(out, "### [%s](https://github.com%s/tree/%s)\n\n", strings.Join(change.ImagesAffected, ", "), u.Path, change.To)
 				} else {
@@ -1696,6 +1930,9 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir, format str
 						fmt.Fprintf(out, " %s", commit.Commit[:8])
 					}
 					fmt.Fprintf(out, "\n")
+				}
+				if elidedCommits > 0 {
+					fmt.Fprintf(out, "* And %d elided commits (e.g. from squash or rebase merges)\n", elidedCommits)
 				}
 				if u.Host == "github.com" {
 					fmt.Fprintf(out, "* [Full changelog](%s)\n\n", fmt.Sprintf("https://%s%s/compare/%s...%s", u.Host, u.Path, change.From, change.To))
@@ -1722,7 +1959,7 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 
 	bugIDs := make(map[string]Ref)
 	for _, change := range codeChanges {
-		_, commits, err := commitsForRepo(dir, change, out, errOut)
+		_, commits, _, err := commitsForRepo(dir, change, out, errOut)
 		if err != nil {
 			fmt.Fprintf(errOut, "error: %v\n", err)
 			hasError = true
@@ -1820,6 +2057,404 @@ func describeBugs(out, errOut io.Writer, diff *ReleaseDiff, dir string, format s
 	return nil
 }
 
+func (o *InfoOptions) listRpmdb(releaseInfo *ReleaseInfo, cacheDir, format, targetImage string) error {
+	if targetImage == "" {
+		// find image for machine-os component
+		if tag, ok := releaseInfo.ComponentTags["machine-os"]; !ok {
+			return fmt.Errorf("component machine-os not found in release")
+		} else {
+			targetImage = tag
+		}
+	}
+
+	var err error
+	var targetTag *imageapi.TagReference
+	for _, tag := range releaseInfo.References.Spec.Tags {
+		if tag.Name == targetImage {
+			targetTag = &tag
+			break
+		}
+	}
+	if targetTag == nil {
+		return fmt.Errorf("tag %s not found in release", targetImage)
+	}
+
+	var dbpath string
+	if dbpath, err = o.downloadRpmdbIfMissing(releaseInfo, targetTag, cacheDir); err != nil {
+		return fmt.Errorf("fetching rpmdb: %v", err)
+	}
+
+	db, err := loadRpmdb(dbpath)
+	if err != nil {
+		return fmt.Errorf("loading rpmdb: %v", err)
+	}
+
+	if format == "json" {
+		data, err := json.MarshalIndent(db, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshaling rpmdb: %v", err)
+		}
+		fmt.Fprintln(o.Out, string(data))
+	} else {
+		pkgs := make([]string, 0, len(db))
+		for pkg := range db {
+			pkgs = append(pkgs, pkg)
+		}
+		sort.Strings(pkgs)
+		fmt.Fprintf(o.Out, "Package contents:\n")
+		for _, pkg := range pkgs {
+			fmt.Fprintf(o.Out, "  %s-%s\n", pkg, db[pkg])
+		}
+	}
+
+	return nil
+}
+
+func (o *InfoOptions) describeRpmDiff(releaseInfo *ReleaseInfo, diff *ReleaseDiff, cacheDir, format, targetImage string) error {
+	if diff.To.Digest == diff.From.Digest {
+		return fmt.Errorf("releases are identical")
+	}
+
+	if targetImage == "" {
+		// find image for machine-os component
+		if tag, ok := releaseInfo.ComponentTags["machine-os"]; !ok {
+			return fmt.Errorf("component machine-os not found in release")
+		} else {
+			targetImage = tag
+		}
+	}
+
+	osDiff, ok := diff.ChangedImages[targetImage]
+	if !ok {
+		// image didn't change; we're done!
+		if format == "json" {
+			fmt.Fprintln(o.Out, "{}")
+		} else {
+			fmt.Fprintf(o.Out, "Releases have the same %s image.\n", targetImage)
+		}
+		return nil
+	}
+
+	var err error
+	var fromDbPath string
+	if fromDbPath, err = o.downloadRpmdbIfMissing(diff.From, osDiff.From, cacheDir); err != nil {
+		return fmt.Errorf("fetching rpmdb for from image: %v", err)
+	}
+
+	var toDbPath string
+	if toDbPath, err = o.downloadRpmdbIfMissing(diff.To, osDiff.To, cacheDir); err != nil {
+		return fmt.Errorf("fetching rpmdb for to image: %v", err)
+	}
+
+	fromDb, err := loadRpmdb(fromDbPath)
+	if err != nil {
+		return fmt.Errorf("loading rpmdb for from image: %v", err)
+	}
+
+	toDb, err := loadRpmdb(toDbPath)
+	if err != nil {
+		return fmt.Errorf("loading rpmdb for to image: %v", err)
+	}
+
+	rpmDiff := RpmDiff{
+		Changed: make(map[string]RpmChangedDiff),
+		Added:   toDb,
+		Removed: make(map[string]string),
+	}
+	for pkg, v := range fromDb {
+		if newVersion, ok := rpmDiff.Added[pkg]; ok {
+			if v != newVersion {
+				rpmDiff.Changed[pkg] = RpmChangedDiff{
+					Old: v,
+					New: newVersion,
+				}
+			}
+			delete(rpmDiff.Added, pkg)
+		} else {
+			rpmDiff.Removed[pkg] = v
+		}
+	}
+
+	if format == "json" {
+		data, err := json.MarshalIndent(rpmDiff, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(o.Out, string(data))
+	} else {
+		writeList := func(header string, elements []string) {
+			fmt.Fprintln(o.Out, header)
+			sort.Strings(elements)
+			for _, elem := range elements {
+				fmt.Fprintln(o.Out, elem)
+			}
+		}
+
+		if len(rpmDiff.Changed) > 0 {
+			elements := []string{}
+			for pkg, v := range rpmDiff.Changed {
+				elements = append(elements, fmt.Sprintf("  %s %s → %s", pkg, v.Old, v.New))
+			}
+			writeList("Changed:", elements)
+		}
+		if len(rpmDiff.Removed) > 0 {
+			elements := []string{}
+			for pkg, v := range rpmDiff.Removed {
+				elements = append(elements, fmt.Sprintf("  %s %s", pkg, v))
+			}
+			writeList("Removed:", elements)
+		}
+		if len(rpmDiff.Added) > 0 {
+			elements := []string{}
+			for pkg, v := range rpmDiff.Added {
+				elements = append(elements, fmt.Sprintf("  %s %s", pkg, v))
+			}
+			writeList("Added:", elements)
+		}
+	}
+
+	return nil
+}
+
+type RpmDiff struct {
+	Changed map[string]RpmChangedDiff `json:"changed,omitempty"`
+	Added   map[string]string         `json:"added,omitempty"`
+	Removed map[string]string         `json:"removed,omitempty"`
+}
+
+type RpmChangedDiff struct {
+	Old string `json:"old,omitempty"`
+	New string `json:"new,omitempty"`
+}
+
+func (o *InfoOptions) downloadRpmdbIfMissing(releaseInfo *ReleaseInfo, image *imageapi.TagReference, cacheDir string) (string, error) {
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return "", err
+	}
+
+	ref, err := imagereference.Parse(image.From.Name)
+	if err != nil {
+		return "", fmt.Errorf("parsing %s: %v", image.From.Name, err)
+	}
+
+	// not sure this can ever happen, but just sanity-check anyway
+	if ref.ID == "" {
+		return "", fmt.Errorf("%s image not digest-based: %s", image.Name, ref)
+	}
+
+	// be nice to Windows/macOS
+	id_sub := strings.ReplaceAll(ref.ID, ":", "_")
+	dbpath := filepath.Join(cacheDir, id_sub)
+
+	// Lock the cache dir before doing the "check & download if missing" to ensure we can
+	// safely handle concurrent invocations for the same image. Obviously could make
+	// this ID-scoped instead for more parallelism, but that'd require e.g. a per-ID
+	// lockfile that lingers around. Anyway, it'd probably be downloaded from the
+	// same place which ideally we're already saturating.
+	dfd, err := os.OpenFile(cacheDir, os.O_RDONLY, 0)
+	if err != nil {
+		return "", fmt.Errorf("opening cache dir %s: %v", cacheDir, err)
+	}
+	defer dfd.Close()
+
+	klog.V(2).Infof("Locking rpmdb cache dir %s", cacheDir)
+	if err := flock(int(dfd.Fd()), true); err != nil {
+		return "", fmt.Errorf("locking cache dir %s: %v", cacheDir, err)
+	}
+	klog.V(3).Infof("Got lock for rpmdb cache dir %s", cacheDir)
+
+	if _, err = os.Stat(dbpath); os.IsNotExist(err) {
+		hasMetalayer := false
+		if releaseInfo.Images == nil {
+			verifier := imagemanifest.NewVerifier()
+			if err = o.retrieveReleaseImages(releaseInfo, verifier, map[string]struct{}{image.Name: {}}); err != nil {
+				return "", fmt.Errorf("retrieving image config for %s: %v", image.Name, err)
+			}
+		}
+		if val, ok := releaseInfo.Images[image.Name].Config.Config.Labels[annotationMetalayer]; ok {
+			hasMetalayer = val == "true"
+		}
+		klog.V(3).Infof("Image %s (%s) has metalayer: %v", image.Name, image.From.Name, hasMetalayer)
+		err = o.downloadRpmdb(ref, dbpath, hasMetalayer)
+	}
+
+	funlock(int(dfd.Fd()))
+	klog.V(3).Infof("Released lock for rpmdb cache dir %s", cacheDir)
+	return dbpath, err
+}
+
+func (o *InfoOptions) downloadRpmdb(image imagereference.DockerImageReference, dest string, tryMetalayer bool) (err error) {
+	// NOTE: in the future, should check if there's an SBOM and get the rpmlist from that instead
+
+	ref := imagesource.TypedImageReference{Type: imagesource.DestinationRegistry, Ref: image}
+
+	tmpDir := dest + ".work"
+	if err = os.RemoveAll(tmpDir); err != nil {
+		err = fmt.Errorf("nuking %s: %v", tmpDir, err)
+		return
+	}
+	if err = os.MkdirAll(tmpDir, 0755); err != nil {
+		err = fmt.Errorf("creating %s: %v", tmpDir, err)
+		return
+	}
+
+	defer func() {
+		if tmperr := os.RemoveAll(tmpDir); tmperr != nil {
+			tmperr = fmt.Errorf("nuking %s: %v", tmpDir, tmperr)
+			err = errors.Join(err, tmperr)
+			return
+		}
+	}()
+
+	tmpMetaJson := filepath.Join(tmpDir, "meta.json")
+
+	if tryMetalayer {
+		if err = o.downloadImageToDir(ref, tmpDir, metalayerMetadata, extract.NewPositionLayerFilter(-1)); err != nil {
+			err = fmt.Errorf("downloading metalayer for %s: %v", ref, err)
+			return
+		}
+	}
+
+	// This checks if the metalayer path succeeded. A reason it may fail is if the
+	// image had more layers added on top and so the metalayer is no longer last.
+	if _, tmpErr := os.Stat(tmpMetaJson); tmpErr != nil {
+		klog.V(3).Infof("Falling back to full rpmdb fetching for %v", ref)
+
+		// Before doing a lot of work, check upfront if `rpm` is even available and exit
+		// early if not.
+		_, err = exec.LookPath("rpm")
+		if err != nil {
+			err = fmt.Errorf("rpm required in rpmdb query fallback path: %v", err)
+			return
+		}
+
+		// We could be a lot more efficient here by filtering the layers which don't
+		// contain the rpmdb. Though we'd still need to make sure we pick up any user-added
+		// layers in case they added more packages.
+		if err = o.downloadImageToDir(ref, tmpDir, "", nil); err != nil {
+			err = fmt.Errorf("downloading %s: %v", ref, err)
+			return
+		}
+
+		if err = rpmdbToMetalayerMetadata(tmpDir, tmpMetaJson); err != nil {
+			err = fmt.Errorf("converting %s rpmdb to cache format: %v", ref, err)
+			return
+		}
+	}
+
+	if err = os.Rename(tmpMetaJson, dest); err != nil {
+		return
+	}
+
+	return
+}
+
+func (o *InfoOptions) downloadImageToDir(ref imagesource.TypedImageReference, dir string, filterFile string, filter extract.LayerFilter) error {
+	opts := extract.NewExtractOptions(genericiooptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts.SecurityOptions = o.SecurityOptions
+	opts.FilterOptions = o.FilterOptions
+	opts.FileDir = o.FileDir
+	opts.ICSPFile = o.ICSPFile
+	opts.IDMSFile = o.IDMSFile
+	opts.PreservePermissions = false
+
+	opts.Mappings = []extract.Mapping{{
+		ImageRef:    ref,
+		From:        filterFile,
+		To:          dir,
+		LayerFilter: filter,
+	}}
+
+	return opts.Run()
+}
+
+type metalayerData struct {
+	RpmdbPkglist [][5]string `json:"rpmdb.pkglist"`
+}
+
+func rpmdbToMetalayerMetadata(dir string, outfile string) error {
+	var rpmdbPath string
+	rpmdbLocations := []string{"var/lib/rpm", "usr/lib/sysimage/rpm", "usr/share/rpm"}
+	for _, location := range rpmdbLocations {
+		tryPath := filepath.Join(dir, location)
+		if fileinfo, err := os.Lstat(tryPath); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return fmt.Errorf("querying rpmdb location %s: %v", tryPath, err)
+		} else if fileinfo.IsDir() {
+			rpmdbPath = tryPath
+			break
+		} else {
+			continue
+		}
+	}
+
+	if rpmdbPath == "" {
+		return errors.New("no rpmdb found in image")
+	}
+
+	var out bytes.Buffer
+	// A pitfall here is that we're using the `rpm` from the release controller
+	// environment to query the rpmdb of the target image. they may not be
+	// compatible, but normally should be. A better approach would be to run the rpm
+	// query from within a container with the target rootfs.
+	cmd := exec.Command("rpm", "-qa", "--qf", "%{name}\\t%{epoch}\\t%{version}\\t%{release}\\t%{arch}\\n", "--dbpath", rpmdbPath)
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("querying rpmdb: %v", err)
+	}
+
+	meta := metalayerData{}
+	scanner := bufio.NewScanner(&out)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) != 5 {
+			return fmt.Errorf("invalid rpmdb query output line: %s", line)
+		}
+		// Canonicalize epoch like rpm-ostree does.
+		// This is not technically correct, but it's what people are used to.
+		if fields[1] == "(none)" {
+			fields[1] = "0"
+		}
+		// apparently, you can't do a type cast to fixed-sized arrays for some reason...
+		meta.RpmdbPkglist = append(meta.RpmdbPkglist, [5]string{fields[0], fields[1], fields[2], fields[3], fields[4]})
+	}
+
+	data, err := json.Marshal(meta)
+	if err != nil {
+		return fmt.Errorf("marshaling rpmdb cache: %v", err)
+	}
+	if err = os.WriteFile(outfile, data, 0644); err != nil {
+		return fmt.Errorf("writing rpmdb cache %s: %v", outfile, err)
+	}
+
+	return nil
+}
+
+func loadRpmdb(dbpath string) (map[string]string, error) {
+	data, err := os.ReadFile(dbpath)
+	if err != nil {
+		return nil, fmt.Errorf("reading rpmdb cache %s: %v", dbpath, err)
+	}
+
+	var meta metalayerData
+	if err = json.Unmarshal(data, &meta); err != nil {
+		return nil, fmt.Errorf("unmarshaling rpmdb cache %s: %v", dbpath, err)
+	}
+
+	rpmdb := make(map[string]string)
+	for _, pkg := range meta.RpmdbPkglist {
+		if pkg[1] == "0" {
+			rpmdb[pkg[0]] = fmt.Sprintf("%s-%s", pkg[2], pkg[3])
+		} else {
+			rpmdb[pkg[0]] = fmt.Sprintf("%s:%s-%s", pkg[1], pkg[2], pkg[3])
+		}
+	}
+	return rpmdb, nil
+}
+
 type ImageChange struct {
 	Name     string
 	From, To imagereference.DockerImageReference
@@ -1848,20 +2483,20 @@ func (c CodeChange) ToShort() string {
 	return c.To
 }
 
-func commitsForRepo(dir string, change CodeChange, out, errOut io.Writer) (*url.URL, []MergeCommit, error) {
+func commitsForRepo(dir string, change CodeChange, out, errOut io.Writer) (*url.URL, []MergeCommit, int, error) {
 	u, err := sourceLocationAsURL(change.Repo)
 	if err != nil {
-		return nil, nil, fmt.Errorf("The source repository cannot be parsed %s: %v", change.Repo, err)
+		return nil, nil, 0, fmt.Errorf("The source repository cannot be parsed %s: %v", change.Repo, err)
 	}
 	g, err := ensureCloneForRepo(dir, change.Repo, change.AlternateRepos, errOut, errOut)
 	if err != nil {
-		return nil, nil, err
+		return u, nil, 0, err
 	}
-	commits, err := mergeLogForRepo(g, change.Repo, change.From, change.To)
+	commits, elidedCommits, err := mergeLogForRepo(g, change.Repo, change.From, change.To)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Could not load commits for %s: %v", change.Repo, err)
+		return u, commits, elidedCommits, fmt.Errorf("Could not load commits for %s: %v", change.Repo, err)
 	}
-	return u, commits, nil
+	return u, commits, elidedCommits, nil
 }
 
 func releaseDiffContentChanges(diff *ReleaseDiff) ([]CodeChange, []ImageChange, []string) {
@@ -2102,6 +2737,7 @@ type ChangeLogImageInfo struct {
 	Commit        string       `json:"commit,omitempty"`
 	ImageRef      string       `json:"imageRef,omitempty"`
 	Commits       []CommitInfo `json:"commits,omitempty"`
+	ElidedCommits int          `json:"elidedCommits,omitempty"`
 	FullChangeLog string       `json:"fullChangeLog,omitempty"`
 }
 

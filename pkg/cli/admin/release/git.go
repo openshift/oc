@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"os/exec"
@@ -68,7 +69,7 @@ func (g *git) ChangeContext(path string) (*git, error) {
 }
 
 func (g *git) Clone(repository string, out, errOut io.Writer) error {
-	cmd := exec.Command("git", "clone", repository, g.path)
+	cmd := exec.Command("git", "clone", "--filter=blob:none", "--bare", "--origin="+remoteNameForRepo(repository), repository, g.path)
 	cmd.Stdout = out
 	cmd.Stderr = errOut
 	return cmd.Run()
@@ -97,7 +98,13 @@ func (g *git) VerifyCommit(repo, commit string) (bool, error) {
 	return err == nil, nil
 }
 
-func (g *git) CheckoutCommit(repo, commit string) error {
+func (g *git) CheckoutCommit(repo, commit string, out, errOut io.Writer) error {
+	// to reduce size requirements, clones are normally bare; to checkout a git commit, we must convert it to a normal
+	// git directory
+	if err := g.ensureFullClone(out, errOut); err != nil {
+		return err
+	}
+
 	_, err := g.exec("checkout", commit)
 	if err == nil {
 		return nil
@@ -114,6 +121,46 @@ func (g *git) CheckoutCommit(repo, commit string) error {
 	}
 
 	return fmt.Errorf("could not locate commit %s", commit)
+}
+
+func (g *git) ensureFullClone(out, errOut io.Writer) error {
+	isBare, err := g.exec("config", "core.bare")
+	if err != nil {
+		return err
+	}
+	if isBare == "false\n" {
+		return nil
+	}
+	// move all files to a `.git` subdirectory
+	if err := os.Mkdir(filepath.Join(g.path, ".git"), 0755); err != nil {
+		return fmt.Errorf("Failed to create .git subdirectory: %v", err)
+	}
+	if err := filepath.WalkDir(g.path, func(path string, d fs.DirEntry, err error) error {
+		if path == g.path {
+			return nil
+		}
+		if d.Name() == ".git" {
+			return fs.SkipDir
+		}
+		if err := os.Rename(filepath.Join(path), filepath.Join(g.path, ".git", d.Name())); err != nil {
+			return fmt.Errorf("Failed to move bare git contents to .git subdirectory: %v", err)
+		}
+		if d.IsDir() {
+			return fs.SkipDir
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	if out, err := g.exec("config", "core.bare", "false"); err != nil {
+		return fmt.Errorf("Failed to mark git directory as not bare: %s", out)
+	}
+	out.Write([]byte(fmt.Sprintf("Converting %s to a non-bare git repo", g.path)))
+	cmd := exec.Command("git", "reset", "--hard")
+	cmd.Dir = g.path
+	cmd.Stdout = out
+	cmd.Stderr = errOut
+	return cmd.Run()
 }
 
 var reMatch = regexp.MustCompile(`^([a-zA-Z0-9\-\_]+)@([^:]+):(.+)$`)
@@ -159,7 +206,7 @@ func gitOutputToError(err error, out string) error {
 	if len(out) == 0 {
 		return err
 	}
-	return fmt.Errorf(out)
+	return errors.New(out)
 }
 
 var (
@@ -168,34 +215,35 @@ var (
 	rePrefix   = regexp.MustCompile(`^(\[[\w\.\-]+\]\s*)+`)
 )
 
-func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommit, error) {
+func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommit, int, error) {
 	if from == to {
-		return nil, nil
+		return nil, 0, nil
 	}
 
-	args := []string{"log", "--merges", "--topo-order", "-z", "--pretty=format:%H %P%x1E%ct%x1E%s%x1E%b", fmt.Sprintf("%s..%s", from, to)}
+	args := []string{"log", "--merges", "--topo-order", "--first-parent", "-z", "--pretty=format:%H %P%x1E%ct%x1E%s%x1E%b", fmt.Sprintf("%s..%s", from, to)}
 	out, err := g.exec(args...)
 	if err != nil {
 		// retry once if there's a chance we haven't fetched the latest commits
 		if !strings.Contains(out, "Invalid revision range") {
-			return nil, gitOutputToError(err, out)
+			return nil, 0, gitOutputToError(err, out)
 		}
 		if _, err := g.exec("fetch", "--all"); err != nil {
-			return nil, gitOutputToError(err, out)
+			return nil, 0, gitOutputToError(err, out)
 		}
 		if _, err := g.exec("cat-file", "-e", from+"^{commit}"); err != nil {
-			return nil, fmt.Errorf("from commit %s does not exist", from)
+			return nil, 0, fmt.Errorf("from commit %s does not exist", from)
 		}
 		if _, err := g.exec("cat-file", "-e", to+"^{commit}"); err != nil {
-			return nil, fmt.Errorf("to commit %s does not exist", to)
+			return nil, 0, fmt.Errorf("to commit %s does not exist", to)
 		}
 		out, err = g.exec(args...)
 		if err != nil {
-			return nil, gitOutputToError(err, out)
+			return nil, 0, gitOutputToError(err, out)
 		}
 	}
 
 	squash := false
+	elidedCommits := 0
 	if out == "" {
 		// some repositories use squash merging(like insights-operator) and
 		// out which is populated by --merges flag is empty. Thereby,
@@ -204,9 +252,21 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		args = []string{"log", "--no-merges", "--topo-order", "-z", "--pretty=format:%H %P%x1E%ct%x1E%s%x1E%b", fmt.Sprintf("%s..%s", from, to)}
 		out, err = g.exec(args...)
 		if err != nil {
-			return nil, gitOutputToError(err, out)
+			return nil, 0, gitOutputToError(err, out)
 		}
 		squash = true
+	} else {
+		// some repositories use both real merges and squash or rebase merging.
+		// Don't flood the output with single-commit noise, which might be poorly curated,
+		// but do at least mention the fact that there are non-merge commits in the
+		// first-parent line, so folks who are curious can click through to GitHub for
+		// details.
+		args := []string{"log", "--no-merges", "--first-parent", "-z", "--format=%H", fmt.Sprintf("%s..%s", from, to)}
+		out, err := g.exec(args...)
+		if err != nil {
+			return nil, 0, gitOutputToError(err, out)
+		}
+		elidedCommits = strings.Count(out, "\x00")
 	}
 
 	if klog.V(5).Enabled() {
@@ -215,16 +275,16 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 
 	var commits []MergeCommit
 	if len(out) == 0 {
-		return nil, nil
+		return nil, elidedCommits, nil
 	}
 	for _, entry := range strings.Split(out, "\x00") {
 		records := strings.Split(entry, "\x1e")
 		if len(records) != 4 {
-			return nil, fmt.Errorf("unexpected git log output width %d columns", len(records))
+			return nil, elidedCommits, fmt.Errorf("unexpected git log output width %d columns", len(records))
 		}
 		unixTS, err := strconv.ParseInt(records[1], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("unexpected timestamp: %v", err)
+			return nil, elidedCommits, fmt.Errorf("unexpected timestamp: %v", err)
 		}
 		commitValues := strings.Split(records[0], " ")
 
@@ -257,7 +317,7 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		}
 		mergeCommit.PullRequest, err = strconv.Atoi(m[1])
 		if err != nil {
-			return nil, fmt.Errorf("could not extract PR number from %q: %v", mergeMsg, err)
+			return nil, elidedCommits, fmt.Errorf("could not extract PR number from %q: %v", mergeMsg, err)
 		}
 		if len(msg) == 0 {
 			msg = "Merge"
@@ -267,7 +327,7 @@ func mergeLogForRepo(g gitInterface, repo string, from, to string) ([]MergeCommi
 		commits = append(commits, mergeCommit)
 	}
 
-	return commits, nil
+	return commits, elidedCommits, nil
 }
 
 // ensureCloneForRepo ensures that the repo exists on disk, is cloned, and has remotes for
@@ -303,7 +363,7 @@ func ensureCloneForRepo(dir string, repo string, alternateRepos []string, out, e
 			return nil, err
 		}
 	} else {
-		if err := ensureRemoteForRepo(extractedRepo, repo); err != nil {
+		if err := ensureFetchedRemoteForRepo(extractedRepo, repo); err != nil {
 			return nil, err
 		}
 	}
@@ -312,7 +372,7 @@ func ensureCloneForRepo(dir string, repo string, alternateRepos []string, out, e
 		if altRepo == repo {
 			continue
 		}
-		if err := ensureRemoteForRepo(extractedRepo, altRepo); err != nil {
+		if err := ensureFetchedRemoteForRepo(extractedRepo, altRepo); err != nil {
 			return nil, err
 		}
 	}
@@ -326,21 +386,16 @@ func remoteNameForRepo(repo string) string {
 	return repoName
 }
 
-func ensureRemoteForRepo(g *git, repo string) error {
-	repoName := remoteNameForRepo(repo)
-	if out, err := g.exec("remote", "add", repoName, repo); err != nil && !strings.Contains(out, "already exists") {
-		return gitOutputToError(err, out)
-	}
-	return nil
-}
-
 func ensureFetchedRemoteForRepo(g *git, repo string) error {
 	repoName := remoteNameForRepo(repo)
-	if out, err := g.exec("remote", "add", repoName, repo); err != nil && !strings.Contains(out, "already exists") {
-		return gitOutputToError(err, out)
-	}
-	if out, err := g.exec("fetch", repoName); err != nil {
-		return gitOutputToError(err, out)
+	remoteOut, err := g.exec("remote", "add", repoName, repo)
+	if !strings.Contains(remoteOut, "already exists") {
+		if err != nil {
+			return gitOutputToError(err, remoteOut)
+		}
+		if out, err := g.exec("fetch", "--filter=blob:none", repoName); err != nil {
+			return gitOutputToError(err, out)
+		}
 	}
 	return nil
 }

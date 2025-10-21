@@ -18,13 +18,13 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	buildv1 "github.com/openshift/api/build/v1"
@@ -113,13 +113,13 @@ type EnvOptions struct {
 	Namespace              string
 	ExplicitNamespace      bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 	resource.FilenameOptions
 }
 
-func NewEnvOptions(streams genericclioptions.IOStreams) *EnvOptions {
+func NewEnvOptions(streams genericiooptions.IOStreams) *EnvOptions {
 	return &EnvOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 
 		ContainerSelector: "*",
@@ -128,7 +128,7 @@ func NewEnvOptions(streams genericclioptions.IOStreams) *EnvOptions {
 }
 
 // NewCmdEnv implements the OpenShift cli env command
-func NewCmdEnv(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdEnv(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewEnvOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "env RESOURCE/NAME KEY_1=VAL_1 ... KEY_N=VAL_N",
@@ -250,7 +250,7 @@ func (o *EnvOptions) RunEnv() error {
 
 	if len(o.From) != 0 {
 		b := o.Builder().
-			WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+			WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 			LocalParam(o.Local).
 			ContinueOnError().
 			NamespaceParam(o.Namespace).DefaultNamespace().
@@ -315,7 +315,7 @@ func (o *EnvOptions) RunEnv() error {
 	}
 
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().

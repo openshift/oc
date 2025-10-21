@@ -7,7 +7,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -29,7 +29,7 @@ type RemoveUsersOptions struct {
 	GroupModificationOptions *GroupModificationOptions
 }
 
-func NewCmdRemoveUsers(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveUsers(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &RemoveUsersOptions{
 		GroupModificationOptions: NewGroupModificationOptions(streams),
 	}

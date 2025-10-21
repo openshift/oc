@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	fakekubeclient "k8s.io/client-go/kubernetes/fake"
 	fakerbacv1 "k8s.io/client-go/kubernetes/typed/rbac/v1/fake"
@@ -227,7 +228,7 @@ func TestModifySCC(t *testing.T) {
 			DefaultSubjectNamespace: "",
 			Subjects:                tc.subjects,
 
-			IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
+			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
 		}
 
 		var err error

@@ -7,10 +7,11 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/completion"
@@ -68,7 +69,7 @@ type BuildChainOptions struct {
 }
 
 // NewCmdBuildChain implements the OpenShift experimental build-chain command
-func NewCmdBuildChain(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdBuildChain(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	options := &BuildChainOptions{
 		namespaces: sets.NewString(),
 	}

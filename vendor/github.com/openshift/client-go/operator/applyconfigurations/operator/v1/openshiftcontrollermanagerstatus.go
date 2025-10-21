@@ -2,13 +2,13 @@
 
 package v1
 
-// OpenShiftControllerManagerStatusApplyConfiguration represents an declarative configuration of the OpenShiftControllerManagerStatus type for use
+// OpenShiftControllerManagerStatusApplyConfiguration represents a declarative configuration of the OpenShiftControllerManagerStatus type for use
 // with apply.
 type OpenShiftControllerManagerStatusApplyConfiguration struct {
 	OperatorStatusApplyConfiguration `json:",inline"`
 }
 
-// OpenShiftControllerManagerStatusApplyConfiguration constructs an declarative configuration of the OpenShiftControllerManagerStatus type for use with
+// OpenShiftControllerManagerStatusApplyConfiguration constructs a declarative configuration of the OpenShiftControllerManagerStatus type for use with
 // apply.
 func OpenShiftControllerManagerStatus() *OpenShiftControllerManagerStatusApplyConfiguration {
 	return &OpenShiftControllerManagerStatusApplyConfiguration{}
@@ -18,7 +18,7 @@ func OpenShiftControllerManagerStatus() *OpenShiftControllerManagerStatusApplyCo
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ObservedGeneration field is set to the value of the last call.
 func (b *OpenShiftControllerManagerStatusApplyConfiguration) WithObservedGeneration(value int64) *OpenShiftControllerManagerStatusApplyConfiguration {
-	b.ObservedGeneration = &value
+	b.OperatorStatusApplyConfiguration.ObservedGeneration = &value
 	return b
 }
 
@@ -30,7 +30,7 @@ func (b *OpenShiftControllerManagerStatusApplyConfiguration) WithConditions(valu
 		if values[i] == nil {
 			panic("nil value passed to WithConditions")
 		}
-		b.Conditions = append(b.Conditions, *values[i])
+		b.OperatorStatusApplyConfiguration.Conditions = append(b.OperatorStatusApplyConfiguration.Conditions, *values[i])
 	}
 	return b
 }
@@ -39,7 +39,7 @@ func (b *OpenShiftControllerManagerStatusApplyConfiguration) WithConditions(valu
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Version field is set to the value of the last call.
 func (b *OpenShiftControllerManagerStatusApplyConfiguration) WithVersion(value string) *OpenShiftControllerManagerStatusApplyConfiguration {
-	b.Version = &value
+	b.OperatorStatusApplyConfiguration.Version = &value
 	return b
 }
 
@@ -47,7 +47,15 @@ func (b *OpenShiftControllerManagerStatusApplyConfiguration) WithVersion(value s
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ReadyReplicas field is set to the value of the last call.
 func (b *OpenShiftControllerManagerStatusApplyConfiguration) WithReadyReplicas(value int32) *OpenShiftControllerManagerStatusApplyConfiguration {
-	b.ReadyReplicas = &value
+	b.OperatorStatusApplyConfiguration.ReadyReplicas = &value
+	return b
+}
+
+// WithLatestAvailableRevision sets the LatestAvailableRevision field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the LatestAvailableRevision field is set to the value of the last call.
+func (b *OpenShiftControllerManagerStatusApplyConfiguration) WithLatestAvailableRevision(value int32) *OpenShiftControllerManagerStatusApplyConfiguration {
+	b.OperatorStatusApplyConfiguration.LatestAvailableRevision = &value
 	return b
 }
 
@@ -59,7 +67,7 @@ func (b *OpenShiftControllerManagerStatusApplyConfiguration) WithGenerations(val
 		if values[i] == nil {
 			panic("nil value passed to WithGenerations")
 		}
-		b.Generations = append(b.Generations, *values[i])
+		b.OperatorStatusApplyConfiguration.Generations = append(b.OperatorStatusApplyConfiguration.Generations, *values[i])
 	}
 	return b
 }

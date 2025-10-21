@@ -13,7 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -53,17 +53,17 @@ type TopImagesOptions struct {
 	Streams *imagev1.ImageStreamList
 	Pods    *corev1.PodList
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewTopImagesOptions(streams genericclioptions.IOStreams) *TopImagesOptions {
+func NewTopImagesOptions(streams genericiooptions.IOStreams) *TopImagesOptions {
 	return &TopImagesOptions{
 		IOStreams: streams,
 	}
 }
 
 // NewCmdTopImages implements the OpenShift cli top images command.
-func NewCmdTopImages(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdTopImages(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewTopImagesOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "images",

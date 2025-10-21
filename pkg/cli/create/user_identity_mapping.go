@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -39,16 +41,17 @@ type CreateUserIdentityMappingOptions struct {
 	Identity string
 
 	UserIdentityMappingClient userv1client.UserIdentityMappingsGetter
+	DiscoveryClient           discovery.DiscoveryInterface
 }
 
-func NewCreateUserIdentityMappingOptions(streams genericclioptions.IOStreams) *CreateUserIdentityMappingOptions {
+func NewCreateUserIdentityMappingOptions(streams genericiooptions.IOStreams) *CreateUserIdentityMappingOptions {
 	return &CreateUserIdentityMappingOptions{
 		CreateSubcommandOptions: NewCreateSubcommandOptions(streams),
 	}
 }
 
 // NewCmdCreateUserIdentityMapping is a macro command to create a new identity
-func NewCmdCreateUserIdentityMapping(f genericclioptions.RESTClientGetter, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateUserIdentityMapping(f genericclioptions.RESTClientGetter, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewCreateUserIdentityMappingOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "useridentitymapping <IDENTITY_NAME> <USER_NAME>",
@@ -57,7 +60,7 @@ func NewCmdCreateUserIdentityMapping(f genericclioptions.RESTClientGetter, strea
 		Example: userIdentityMappingExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd, f, args))
-			cmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 
@@ -85,6 +88,10 @@ func (o *CreateUserIdentityMappingOptions) Complete(cmd *cobra.Command, f generi
 		return err
 	}
 	o.UserIdentityMappingClient, err = userv1client.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
 	if err != nil {
 		return err
 	}
@@ -118,7 +125,7 @@ func (o *CreateUserIdentityMappingOptions) Run() error {
 		User:     corev1.ObjectReference{Name: o.User},
 	}
 
-	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, mapping, scheme.DefaultJSONEncoder()); err != nil {
+	if err := util.CreateOrUpdateAnnotation(o.CreateSubcommandOptions.CreateAnnotation, mapping, createCmdJSONEncoder()); err != nil {
 		return err
 	}
 

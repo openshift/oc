@@ -15,8 +15,8 @@ import (
 	"k8s.io/klog/v2"
 
 	man "github.com/containers/image/v5/manifest"
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/reference"
 	"github.com/opencontainers/go-digest"
 	godigest "github.com/opencontainers/go-digest"
 )
@@ -101,7 +101,7 @@ func (s *fileTagStore) Get(ctx context.Context, tag string) (distribution.Descri
 		return distribution.Descriptor{}, err
 	}
 	return distribution.Descriptor{
-		Digest: godigest.Digest(filepath.Base(target)),
+		Digest: godigest.Digest(reconstructDigest(filepath.Base(target))),
 		Size:   fi.Size(),
 	}, nil
 }
@@ -278,7 +278,7 @@ func (s *fileBlobStore) Get(ctx context.Context, dgst godigest.Digest) ([]byte, 
 	return ioutil.ReadFile(path)
 }
 
-func (s *fileBlobStore) Open(ctx context.Context, dgst godigest.Digest) (distribution.ReadSeekCloser, error) {
+func (s *fileBlobStore) Open(ctx context.Context, dgst godigest.Digest) (io.ReadSeekCloser, error) {
 	path := generateDigestPath(dgst.String(), s.r.basePath, "v2", s.r.repoPath, "blobs")
 	return os.Open(path)
 }

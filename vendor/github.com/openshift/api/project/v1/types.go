@@ -13,9 +13,12 @@ import (
 // +openshift:compatibility-gen:level=1
 type ProjectList struct {
 	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard list's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	// Items is the list of projects
+	// items is the list of projects
 	Items []Project `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
@@ -33,13 +36,13 @@ const (
 
 // ProjectSpec describes the attributes on a Project
 type ProjectSpec struct {
-	// Finalizers is an opaque list of values that must be empty to permanently remove object from storage
+	// finalizers is an opaque list of values that must be empty to permanently remove object from storage
 	Finalizers []corev1.FinalizerName `json:"finalizers,omitempty" protobuf:"bytes,1,rep,name=finalizers,casttype=k8s.io/api/core/v1.FinalizerName"`
 }
 
 // ProjectStatus is information about the current status of a Project
 type ProjectStatus struct {
-	// Phase is the current lifecycle phase of the project
+	// phase is the current lifecycle phase of the project
 	// +optional
 	Phase corev1.NamespacePhase `json:"phase,omitempty" protobuf:"bytes,1,opt,name=phase,casttype=k8s.io/api/core/v1.NamespacePhase"`
 
@@ -70,13 +73,16 @@ type ProjectStatus struct {
 // Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
 // +openshift:compatibility-gen:level=1
 type Project struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	// Spec defines the behavior of the Namespace.
+	// spec defines the behavior of the Namespace.
 	Spec ProjectSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 
-	// Status describes the current status of a Namespace
+	// status describes the current status of a Namespace
 	// +optional
 	Status ProjectStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
@@ -92,11 +98,14 @@ type Project struct {
 // Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
 // +openshift:compatibility-gen:level=1
 type ProjectRequest struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	// DisplayName is the display name to apply to a project
+	// displayName is the display name to apply to a project
 	DisplayName string `json:"displayName,omitempty" protobuf:"bytes,2,opt,name=displayName"`
-	// Description is the description to apply to a project
+	// description is the description to apply to a project
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 }

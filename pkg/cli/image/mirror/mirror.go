@@ -5,28 +5,26 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/manifestlist"
-	"github.com/docker/distribution/manifest/ocischema"
-	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/client"
-
+	"github.com/distribution/distribution/v3"
+	"github.com/distribution/distribution/v3/manifest/manifestlist"
+	"github.com/distribution/distribution/v3/manifest/ocischema"
+	"github.com/distribution/distribution/v3/manifest/schema1"
+	"github.com/distribution/distribution/v3/manifest/schema2"
+	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/distribution/v3/registry/client"
 	units "github.com/docker/go-units"
 	godigest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
+
 	"k8s.io/apimachinery/pkg/util/sets"
+	apirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-
-	apirequest "k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -99,8 +97,7 @@ var (
 
 		# Copy specific os/arch manifest of a multi-architecture image
 		# Run 'oc image info myregistry.com/myimage:latest' to see available os/arch for multi-arch images
-		# Note that with multi-arch images, this results in a new manifest list digest that includes only
-		# the filtered manifests
+		# Note that with multi-arch images, this results in a new manifest list digest that includes only the filtered manifests
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--filter-by-os=os/arch
 
@@ -112,6 +109,14 @@ var (
 		# Note the above command is equivalent to
 		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
 			--filter-by-os=.*
+
+		# Copy specific os/arch manifest of a multi-architecture image
+		# Run 'oc image info myregistry.com/myimage:latest' to see available os/arch for multi-arch images
+		# Note that the target registry may reject a manifest list if the platform specific images do not all exist
+		# You must use a registry with sparse registry support enabled
+		oc image mirror myregistry.com/myimage:latest=myregistry.com/other:test \
+			--filter-by-os=linux/386 \
+			--keep-manifest-list=true
 	`)
 )
 
@@ -140,10 +145,10 @@ type MirrorImageOptions struct {
 
 	ManifestUpdateCallback func(registry string, manifests map[godigest.Digest]godigest.Digest) error
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewMirrorImageOptions(streams genericclioptions.IOStreams) *MirrorImageOptions {
+func NewMirrorImageOptions(streams genericiooptions.IOStreams) *MirrorImageOptions {
 	return &MirrorImageOptions{
 		IOStreams:       streams,
 		ParallelOptions: imagemanifest.ParallelOptions{MaxPerRegistry: 6},
@@ -152,7 +157,7 @@ func NewMirrorImageOptions(streams genericclioptions.IOStreams) *MirrorImageOpti
 }
 
 // NewCommandMirrorImage copies images from one location to another.
-func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdMirrorImage(streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMirrorImageOptions(streams)
 
 	cmd := &cobra.Command{
@@ -178,7 +183,7 @@ func NewCmdMirrorImage(streams genericclioptions.IOStreams) *cobra.Command {
 	flag.BoolVar(&o.SkipMount, "skip-mount", o.SkipMount, "Always push layers instead of cross-mounting them")
 	flag.BoolVar(&o.SkipMultipleScopes, "skip-multiple-scopes", o.SkipMultipleScopes, "Some registries do not support multiple scopes passed to the registry login.")
 	flag.BoolVar(&o.Force, "force", o.Force, "Attempt to write all layers and manifests even if they exist in the remote repository.")
-	flag.BoolVar(&o.KeepManifestList, "keep-manifest-list", o.KeepManifestList, "If an image is part of a manifest list, always mirror the list even if only one image is found. The default is to mirror the specific image unless unless --filter-by-os is passed. This flag is equivalent to setting --filter-by-os to '.*' since you cannot preserve the manifest list digest while filtering out any of the manifests included in the list.")
+	flag.BoolVar(&o.KeepManifestList, "keep-manifest-list", o.KeepManifestList, "Always mirror the manifest list. The default is to mirror the architecture specific image of the platform you are performing the mirror on unless --filter-by-os is passed.")
 	flag.IntVar(&o.MaxRegistry, "max-registry", o.MaxRegistry, "Number of concurrent registries to connect to at any one time.")
 	flag.StringSliceVar(&o.AttemptS3BucketCopy, "s3-source-bucket", o.AttemptS3BucketCopy, "A list of bucket/path locations on S3 that may contain already uploaded blobs. Add [store] to the end to use the container image registry path convention.")
 	flag.StringSliceVarP(&o.Filenames, "filename", "f", o.Filenames, "One or more files to read SRC=DST or SRC DST [DST ...] mappings from.")
@@ -260,9 +265,6 @@ func (o *MirrorImageOptions) Repository(ctx context.Context, context *registrycl
 }
 
 func (o *MirrorImageOptions) Validate() error {
-	if o.KeepManifestList && len(o.FilterOptions.FilterByOS) > 0 && !o.FilterOptions.IsWildcardFilter() {
-		return fmt.Errorf("--keep-manifest-list=true cannot be passed with --filter-by-os, unless --filter-by-os=.*")
-	}
 	return o.FilterOptions.Validate()
 }
 
@@ -401,7 +403,7 @@ func (o *MirrorImageOptions) Run() error {
 							}
 						})
 						if len(op.prerequisites) > 0 && uploaded == 0 {
-							phase.ExecutionFailure(fmt.Errorf("circular dependency in manifest lists, unable to upload all: %#v", dependencies))
+							phase.ExecutionFailure(fmt.Errorf("unable to upload all manifests, some dependencies not uploaded: %#v", dependencies))
 							break
 						}
 						if waiting.Len() == 0 {
@@ -538,12 +540,12 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 
 						// filter or load manifest list as appropriate
 						originalSrcDigest := srcDigest
-						srcManifests, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll, o.KeepManifestList)
+						srcChildren, srcManifest, srcDigest, err := imagemanifest.ProcessManifestList(ctx, srcDigest, srcManifest, manifests, src.ref.Ref, o.FilterOptions.IncludeAll, o.KeepManifestList)
 						if err != nil {
 							plan.AddError(retrieverError{src: src.ref, err: err})
 							return
 						}
-						if len(srcManifests) == 0 {
+						if srcManifest == nil {
 							fmt.Fprintf(o.ErrOut, "info: Filtered all images from %s, skipping\n", src.ref)
 							return
 						}
@@ -586,6 +588,9 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 								mustCopyLayers = true
 							case src.ref.EqualRegistry(dst.ref) && canonicalFrom.String() == canonicalTo.String():
 								// if the source and destination repos are the same, we don't need to copy layers unless forced
+							case dst.ref.Type != imagesource.DestinationRegistry:
+								// If we're not copying to a registry, the destination doesn't guarantee the blobs exist for the manifest
+								mustCopyLayers = true
 							default:
 								if _, err := toManifests.Get(ctx, srcDigest); err != nil {
 									mustCopyLayers = true
@@ -601,18 +606,17 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 								// upload all the blobs
 								srcBlobs := srcRepo.Blobs(ctx)
 
-								// upload each manifest
-								for _, srcManifest := range srcManifests {
+								addBlobsForManifest := func(srcManifest distribution.Manifest) {
 									switch srcManifest.(type) {
 									case *schema2.DeserializedManifest:
 									case *schema1.SignedManifest:
 									case *ocischema.DeserializedManifest:
 									case *manifestlist.DeserializedManifestList:
 										// we do not need to upload layers in a manifestlist
-										continue
+										return
 									default:
 										repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("the manifest type %T is not supported", srcManifest)})
-										continue
+										return
 									}
 									for _, blob := range srcManifest.References() {
 										if src.ref.EqualRegistry(dst.ref) {
@@ -621,20 +625,28 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 										blobPlan.Copy(blob, srcBlobs, toBlobs)
 									}
 								}
-							}
 
-							if len(srcManifests) > 1 {
-								for _, srcManifest := range srcManifests {
-									manifestDigest, err := registryclient.ContentDigestForManifest(srcManifest, srcDigest.Algorithm())
-									if err != nil {
-										repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("could not create manifesnt for %T", srcManifest)})
-										continue
-									}
-									repoPlan.Manifests().Copy(manifestDigest, srcManifest, nil, toManifests, toBlobs)
+								// upload each manifest
+								addBlobsForManifest(srcManifest)
+								for _, childManifest := range srcChildren {
+									addBlobsForManifest(childManifest)
 								}
 							}
 
-							repoPlan.Manifests().Copy(srcDigest, srcManifest, dst.tags, toManifests, toBlobs)
+							prerequisites := make([]godigest.Digest, 0, len(srcChildren))
+							if len(srcChildren) > 0 {
+								for _, srcChildManifest := range srcChildren {
+									childManifestDigest, err := registryclient.ContentDigestForManifest(srcChildManifest, srcDigest.Algorithm())
+									if err != nil {
+										repoPlan.AddError(retrieverError{src: src.ref, dst: dst.ref, err: fmt.Errorf("could not create digest for %T", srcChildManifest)})
+										continue
+									}
+									prerequisites = append(prerequisites, childManifestDigest)
+									repoPlan.Manifests().Copy(childManifestDigest, srcChildManifest, nil, nil, toManifests, toBlobs)
+								}
+							}
+
+							repoPlan.Manifests().Copy(srcDigest, srcManifest, prerequisites, dst.tags, toManifests, toBlobs)
 						}
 					})
 				}
@@ -797,7 +809,7 @@ func (s *descriptorBlobSource) Get(ctx context.Context, desc distribution.Descri
 		}
 		data, err = func() ([]byte, error) {
 			defer resp.Body.Close()
-			return ioutil.ReadAll(resp.Body)
+			return io.ReadAll(resp.Body)
 		}()
 		if err != nil {
 			continue

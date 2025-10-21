@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/tools/clientcmd"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
@@ -31,7 +32,7 @@ import (
 )
 
 // NewCmdConfig creates a command object for the "config" action, and adds all child commands to it.
-func NewCmdConfig(pathOptions *clientcmd.PathOptions, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdConfig(restClientGetter genericclioptions.RESTClientGetter, pathOptions *clientcmd.PathOptions, streams genericiooptions.IOStreams) *cobra.Command {
 	if len(pathOptions.ExplicitFileFlag) == 0 {
 		pathOptions.ExplicitFileFlag = clientcmd.RecommendedConfigPathFlag
 	}
@@ -41,7 +42,7 @@ func NewCmdConfig(pathOptions *clientcmd.PathOptions, streams genericclioptions.
 		DisableFlagsInUseLine: true,
 		Short:                 i18n.T("Modify kubeconfig files"),
 		Long: templates.LongDesc(i18n.T(`
-			Modify kubeconfig files using subcommands like "kubectl config set current-context my-context"
+			Modify kubeconfig files using subcommands like "kubectl config set current-context my-context".
 
 			The loading order follows these rules:
 
@@ -54,11 +55,11 @@ func NewCmdConfig(pathOptions *clientcmd.PathOptions, streams genericclioptions.
 	// file paths are common to all sub commands
 	cmd.PersistentFlags().StringVar(&pathOptions.LoadingRules.ExplicitPath, pathOptions.ExplicitFileFlag, pathOptions.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 
-	// TODO(juanvallejo): update all subcommands to work with genericclioptions.IOStreams
+	// TODO(juanvallejo): update all subcommands to work with genericiooptions.IOStreams
 	cmd.AddCommand(NewCmdConfigView(streams, pathOptions))
 	cmd.AddCommand(NewCmdConfigSetCluster(streams.Out, pathOptions))
 	cmd.AddCommand(NewCmdConfigSetCredentials(streams.Out, pathOptions))
-	cmd.AddCommand(NewCmdConfigSetContext(streams.Out, pathOptions))
+	cmd.AddCommand(NewCmdConfigSetContext(restClientGetter, streams.Out, pathOptions))
 	cmd.AddCommand(NewCmdConfigSet(streams.Out, pathOptions))
 	cmd.AddCommand(NewCmdConfigUnset(streams.Out, pathOptions))
 	cmd.AddCommand(NewCmdConfigCurrentContext(streams.Out, pathOptions))

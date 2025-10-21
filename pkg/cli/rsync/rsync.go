@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -100,17 +100,17 @@ type RsyncOptions struct {
 
 	Config *rest.Config
 	Client kubernetes.Interface
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRsyncOptions(streams genericclioptions.IOStreams) *RsyncOptions {
+func NewRsyncOptions(streams genericiooptions.IOStreams) *RsyncOptions {
 	return &RsyncOptions{
 		IOStreams: streams,
 	}
 }
 
 // NewCmdRsync creates a new sync command
-func NewCmdRsync(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRsync(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRsyncOptions(streams)
 
 	cmd := &cobra.Command{

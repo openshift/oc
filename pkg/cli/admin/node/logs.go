@@ -13,13 +13,12 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -35,7 +34,7 @@ var (
 		This command retrieves logs for the node. The default mode is to query the
 		systemd journal on supported operating systems, which allows searching, time
 		based filtering, and unit based filtering. You may also use the --path argument
-		to see a list of log files available under /var/logs/ and view those contents
+		to see a list of log files available under /var/log/ and view those contents
 		directly.
 
 		Node logs may contain sensitive output and so are limited to privileged node
@@ -46,13 +45,13 @@ var (
 	`)
 
 	logsExample = templates.Examples(`
-		# Show kubelet logs from all masters
+		# Show kubelet logs from all control plane nodes
 		oc adm node-logs --role master -u kubelet
 
-		# See what logs are available in masters in /var/logs
+		# See what logs are available in control plane nodes in /var/log
 		oc adm node-logs --role master --path=/
 
-		# Display cron log file from all masters
+		# Display cron log file from all control plane nodes
 		oc adm node-logs --role master --path=cron
 	`)
 )
@@ -72,8 +71,8 @@ type LogsOptions struct {
 	Boot              int
 	BootChanaged      bool
 	Units             []string
-	SinceTime         string
-	UntilTime         string
+	Since             string
+	Until             string
 	Tail              int
 	Output            string
 
@@ -84,10 +83,10 @@ type LogsOptions struct {
 	RESTClientGetter func(mapping *meta.RESTMapping) (resource.RESTClient, error)
 	Builder          *resource.Builder
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewLogsOptions(streams genericclioptions.IOStreams) *LogsOptions {
+func NewLogsOptions(streams genericiooptions.IOStreams) *LogsOptions {
 	return &LogsOptions{
 		Path:              "journal",
 		IOStreams:         streams,
@@ -96,7 +95,7 @@ func NewLogsOptions(streams genericclioptions.IOStreams) *LogsOptions {
 }
 
 // NewCmdLogs creates a new logs command that supports OpenShift resources.
-func NewCmdLogs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdLogs(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewLogsOptions(streams)
 	cmd := &cobra.Command{
 		Use:                   "node-logs [-l LABELS] [NODE...]",
@@ -112,21 +111,19 @@ func NewCmdLogs(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		},
 	}
 
-	cmd.Flags().StringVar(&o.Path, "path", o.Path, "Retrieve the specified path within the node's /var/logs/ folder. The 'journal' value will allow querying the journal on supported operating systems.")
-
-	cmd.Flags().StringSliceVarP(&o.Units, "unit", "u", o.Units, "Return log entries from the specified unit(s). Only applies to node journal logs.")
-	cmd.Flags().StringVarP(&o.Grep, "grep", "g", o.Grep, "Filter log entries by the provided regex pattern. Only applies to node journal logs.")
+	cmd.Flags().StringVar(&o.Path, "path", o.Path, "Retrieve the specified path within the node's /var/log/ folder. The 'journal' value will allow querying the services on supported operating systems.")
+	cmd.Flags().StringSliceVarP(&o.Units, "unit", "u", o.Units, "Return log entries from the specified services(s) Only applies to node service logs.")
+	cmd.Flags().StringVarP(&o.Grep, "grep", "g", o.Grep, "Filter log entries by the provided regex pattern. Only applies to node service logs.")
 	cmd.Flags().BoolVar(&o.GrepCaseSensitive, "case-sensitive", o.GrepCaseSensitive, "Filters are case sensitive by default. Pass --case-sensitive=false to do a case insensitive filter.")
-	cmd.Flags().StringVar(&o.SinceTime, "since", o.SinceTime, "Return logs after a specific ISO timestamp or relative date. Only applies to node journal logs.")
-	cmd.Flags().StringVar(&o.UntilTime, "until", o.UntilTime, "Return logs before a specific ISO timestamp or relative date. Only applies to node journal logs.")
-	cmd.Flags().IntVar(&o.Boot, "boot", o.Boot, " Show messages from a specific boot. Use negative numbers, allowed [-100, 0], passing invalid boot offset will fail retrieving logs. Only applies to node journal logs.")
-	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "Display journal logs in an alternate format (short, cat, json, short-unix). Only applies to node journal logs.")
-	cmd.Flags().IntVar(&o.Tail, "tail", o.Tail, "Return up to this many lines (not more than 100k) from the end of the log. Only applies to node journal logs.")
-
+	cmd.Flags().StringVar(&o.Since, "since", o.Since, "Return logs after a specific ISO timestamp or relative date. Only applies to node service logs.")
+	cmd.Flags().StringVar(&o.Until, "until", o.Until, "Return logs before a specific ISO timestamp or relative date. Only applies to node service logs.")
+	cmd.Flags().IntVar(&o.Boot, "boot", o.Boot, " Show messages from a specific boot. Use negative numbers, allowed [-100, 0], passing invalid boot offset will fail retrieving logs. Only applies to node service logs.")
+	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "Display service logs in an alternate format (short, cat, json, short-unix). Only applies to node service logs.")
+	cmd.Flags().IntVar(&o.Tail, "tail", o.Tail, "Return up to this many lines (not more than 100k) from the end of the log. Only applies to node service logs.")
 	cmd.Flags().StringVar(&o.Role, "role", o.Role, "Set a label selector by node role.")
 	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "Selector (label query) to filter on.")
 	cmd.Flags().BoolVar(&o.Raw, "raw", o.Raw, "Perform no transformation of the returned data.")
-	cmd.Flags().BoolVar(&o.Unify, "unify", o.Unify, "Interleave logs by sorting the output. Defaults on when viewing node journal logs.")
+	cmd.Flags().BoolVar(&o.Unify, "unify", o.Unify, "Interleave logs by sorting the output. Defaults on when viewing node service logs.")
 
 	return cmd
 }
@@ -192,7 +189,7 @@ type logRequest struct {
 	skipPrefix bool
 }
 
-// WriteTo prefixes the error message with the current node if necessary
+// WriteRequest prefixes the error message with the current node if necessary
 func (req *logRequest) WriteRequest(out io.Writer) error {
 	if req.err != nil {
 		return req.err
@@ -259,11 +256,11 @@ func (o LogsOptions) RunLogs() error {
 			SetHeader("Accept", "text/plain, */*").
 			SetHeader("Accept-Encoding", "gzip")
 		if o.Path == "journal" {
-			if len(o.UntilTime) > 0 {
-				req.Param("until", o.UntilTime)
+			if len(o.Until) > 0 {
+				req.Param("until", o.Until)
 			}
-			if len(o.SinceTime) > 0 {
-				req.Param("since", o.SinceTime)
+			if len(o.Since) > 0 {
+				req.Param("since", o.Since)
 			}
 			if len(o.Output) > 0 {
 				req.Param("output", o.Output)
@@ -273,15 +270,21 @@ func (o LogsOptions) RunLogs() error {
 			}
 			if len(o.Units) > 0 {
 				for _, unit := range o.Units {
+					// Needed to allow working with kubelet that does not support query
 					req.Param("unit", unit)
+					req.Param("query", unit)
 				}
 			}
 			if len(o.Grep) > 0 {
+				// Needed to allow working with kubelet that does not support query
 				req.Param("grep", o.Grep)
+				req.Param("pattern", o.Grep)
 				req.Param("case-sensitive", fmt.Sprintf("%t", o.GrepCaseSensitive))
 			}
 			if o.Tail > 0 {
+				// Needed to allow working with kubelet that does not support query
 				req.Param("tail", strconv.Itoa(o.Tail))
+				req.Param("tailLines", strconv.Itoa(o.Tail))
 			}
 		}
 
@@ -380,7 +383,9 @@ func outputDirectoryEntriesOrContent(out io.Writer, in io.Reader, prefix []byte)
 
 	// turn href links into lines of output
 	content, _ := buf.Peek(bufferSize)
-	if bytes.HasPrefix(content, []byte("<pre>")) {
+	// Until Go 1.23, kubelet returned with the prefix <pre>, but now
+	// it returns with standard html prefix. We need to support both of them.
+	if bytes.HasPrefix(content, []byte("<pre>")) || bytes.HasPrefix(content, []byte("<!doctype html>")) {
 		reLink := regexp.MustCompile(`href="([^"]+)"`)
 		s := bufio.NewScanner(buf)
 		s.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {

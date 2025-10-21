@@ -17,10 +17,19 @@ option go_package = "github.com/openshift/api/samples/v1";
 //
 // Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
 // +openshift:compatibility-gen:level=1
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=configs,scope=Cluster
+// +openshift:api-approved.openshift.io=https://github.com/openshift/api/pull/513
+// +openshift:file-pattern=operatorOrdering=00
+// +kubebuilder:metadata:annotations="description=Extension for configuring openshift samples operator."
+// +kubebuilder:metadata:annotations="displayName=ConfigsSamples"
 message Config {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  // metadata is the standard object's metadata.
+  // More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  // +kubebuilder:validation:Required
   // +required
   optional ConfigSpec spec = 2;
 
@@ -38,10 +47,10 @@ message ConfigCondition {
   optional string status = 2;
 
   // lastUpdateTime is the last time this condition was updated.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastUpdateTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastUpdateTime = 3;
 
   // lastTransitionTime is the last time the condition transitioned from one status to another.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 4;
 
   // reason is what caused the condition's last transition.
   optional string reason = 5;
@@ -53,7 +62,9 @@ message ConfigCondition {
 // Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
 // +openshift:compatibility-gen:level=1
 message ConfigList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  // metadata is the standard list's metadata.
+  // More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Config items = 2;
 }
@@ -94,6 +105,24 @@ message ConfigSpec {
   // content but the operator will not recreate(or update) anything
   // listed here.
   repeated string skippedTemplates = 6;
+
+  // skippedHelmCharts specifies names of helm charts that should NOT be
+  // managed. Admins can use this to allow them to delete content
+  // they don’t want. They will still have to MANUALLY DELETE the
+  // content but the operator will not recreate(or update) anything
+  // listed here. Few examples of the name of helmcharts which can be skipped are
+  // 'redhat-redhat-perl-imagestreams','redhat-redhat-nodejs-imagestreams','redhat-nginx-imagestreams',
+  // 'redhat-redhat-ruby-imagestreams','redhat-redhat-python-imagestreams','redhat-redhat-php-imagestreams',
+  // 'redhat-httpd-imagestreams','redhat-redhat-dotnet-imagestreams'. Rest of the names can be obtained from
+  // openshift console --> helmcharts -->installed helmcharts. This will display the list of all the
+  // 12 helmcharts(of imagestreams)being installed by Samples Operator. The skippedHelmCharts must be a
+  // valid Kubernetes resource name. May contain only lowercase alphanumeric characters, hyphens and periods,
+  // and each period separated segment must begin and end with an alphanumeric character. It must be non-empty
+  // and at most 253 characters in length
+  // +listType=set
+  // +kubebuilder:validation:MaxItems=16
+  // +kubebuilder:validation:XValidation:rule="self.all(x, x.matches('^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$'))",message="skippedHelmCharts must be a valid Kubernetes resource name. May contain only lowercase alphanumeric characters, hyphens and periods, and each period separated segment must begin and end with an alphanumeric character"
+  repeated string skippedhelmCharts = 7;
 }
 
 // ConfigStatus contains the actual configuration in effect, as well as various details
@@ -104,12 +133,14 @@ message ConfigStatus {
   // the operator back on (i.e. "Managed") when it was previously "Unmanaged".
   // +patchMergeKey=type
   // +patchStrategy=merge
+  // +optional
   optional string managementState = 1;
 
   // conditions represents the available maintenance status of the sample
   // imagestreams and templates.
   // +patchMergeKey=type
   // +patchStrategy=merge
+  // +optional
   repeated ConfigCondition conditions = 2;
 
   // samplesRegistry allows for the specification of which registry is accessed
@@ -118,12 +149,14 @@ message ConfigStatus {
   // defaults to registry.redhat.io.
   // +patchMergeKey=type
   // +patchStrategy=merge
+  // +optional
   optional string samplesRegistry = 3;
 
   // architectures determine which hardware architecture(s) to install, where x86_64 and ppc64le are the
   // supported choices.
   // +patchMergeKey=type
   // +patchStrategy=merge
+  // +optional
   repeated string architectures = 5;
 
   // skippedImagestreams specifies names of image streams that should NOT be
@@ -133,6 +166,7 @@ message ConfigStatus {
   // listed here.
   // +patchMergeKey=type
   // +patchStrategy=merge
+  // +optional
   repeated string skippedImagestreams = 6;
 
   // skippedTemplates specifies names of templates that should NOT be
@@ -142,11 +176,13 @@ message ConfigStatus {
   // listed here.
   // +patchMergeKey=type
   // +patchStrategy=merge
+  // +optional
   repeated string skippedTemplates = 7;
 
   // version is the value of the operator's payload based version indicator when it was last successfully processed
   // +patchMergeKey=type
   // +patchStrategy=merge
+  // +optional
   optional string version = 8;
 }
 

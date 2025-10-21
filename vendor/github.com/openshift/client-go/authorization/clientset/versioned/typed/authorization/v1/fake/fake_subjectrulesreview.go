@@ -3,31 +3,26 @@
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/openshift/api/authorization/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	testing "k8s.io/client-go/testing"
+	authorizationv1 "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeSubjectRulesReviews implements SubjectRulesReviewInterface
-type FakeSubjectRulesReviews struct {
+// fakeSubjectRulesReviews implements SubjectRulesReviewInterface
+type fakeSubjectRulesReviews struct {
+	*gentype.FakeClient[*v1.SubjectRulesReview]
 	Fake *FakeAuthorizationV1
-	ns   string
 }
 
-var subjectrulesreviewsResource = schema.GroupVersionResource{Group: "authorization.openshift.io", Version: "v1", Resource: "subjectrulesreviews"}
-
-var subjectrulesreviewsKind = schema.GroupVersionKind{Group: "authorization.openshift.io", Version: "v1", Kind: "SubjectRulesReview"}
-
-// Create takes the representation of a subjectRulesReview and creates it.  Returns the server's representation of the subjectRulesReview, and an error, if there is any.
-func (c *FakeSubjectRulesReviews) Create(ctx context.Context, subjectRulesReview *v1.SubjectRulesReview, opts metav1.CreateOptions) (result *v1.SubjectRulesReview, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(subjectrulesreviewsResource, c.ns, subjectRulesReview), &v1.SubjectRulesReview{})
-
-	if obj == nil {
-		return nil, err
+func newFakeSubjectRulesReviews(fake *FakeAuthorizationV1, namespace string) authorizationv1.SubjectRulesReviewInterface {
+	return &fakeSubjectRulesReviews{
+		gentype.NewFakeClient[*v1.SubjectRulesReview](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("subjectrulesreviews"),
+			v1.SchemeGroupVersion.WithKind("SubjectRulesReview"),
+			func() *v1.SubjectRulesReview { return &v1.SubjectRulesReview{} },
+		),
+		fake,
 	}
-	return obj.(*v1.SubjectRulesReview), err
 }

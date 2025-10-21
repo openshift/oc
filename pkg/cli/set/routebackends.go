@@ -15,10 +15,10 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -88,18 +88,18 @@ type BackendsOptions struct {
 	Resources         []string
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewBackendsOptions(streams genericclioptions.IOStreams) *BackendsOptions {
+func NewBackendsOptions(streams genericiooptions.IOStreams) *BackendsOptions {
 	return &BackendsOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("backends updated").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("backends updated").WithTypeSetter(setCmdScheme),
 		IOStreams:  streams,
 	}
 }
 
 // NewCmdRouteBackends implements the set route-backends command
-func NewCmdRouteBackends(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRouteBackends(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewBackendsOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "route-backends ROUTENAME [--zero|--equal] [--adjust] SERVICE=WEIGHT[%] [...]",
@@ -177,7 +177,7 @@ func (o *BackendsOptions) Validate() error {
 // Run executes the BackendOptions or returns an error.
 func (o *BackendsOptions) Run() error {
 	b := o.Builder().
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		WithScheme(setCmdScheme, setCmdScheme.PrioritizedVersionsAllGroups()...).
 		LocalParam(o.Local).
 		ContinueOnError().
 		NamespaceParam(o.Namespace).DefaultNamespace().
@@ -204,7 +204,7 @@ func (o *BackendsOptions) Run() error {
 		return o.printBackends(infos)
 	}
 
-	patches := CalculatePatchesExternal(infos, func(info *resource.Info) (bool, error) {
+	patches := CalculatePatchesExternal(setCmdJSONEncoder(), infos, func(info *resource.Info) (bool, error) {
 		return UpdateBackendsForObject(info.Object, o.Transform.Apply)
 	})
 	if singleItemImplied && len(patches) == 0 {

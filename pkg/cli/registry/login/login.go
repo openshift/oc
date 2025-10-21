@@ -17,7 +17,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/homedir"
@@ -55,8 +55,7 @@ var (
 		custom DNS name, or to an external registry. Note that in absence of --auth-basic=USER:PASSWORD,
 		the authentication token from the connected kubeconfig file will be recorded as the auth entry
 		in the credentials file (defaults to Docker config.json) for the passed registry value.
-
-		Experimental: This command is under active development and may change without notice.`)
+	`)
 
 	example = templates.Examples(`
 		# Log in to the integrated registry
@@ -95,17 +94,17 @@ type LoginOptions struct {
 	AuthBasic      string
 	ServiceAccount string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRegistryLoginOptions(streams genericclioptions.IOStreams) *LoginOptions {
+func NewRegistryLoginOptions(streams genericiooptions.IOStreams) *LoginOptions {
 	return &LoginOptions{
 		IOStreams: streams,
 	}
 }
 
 // New logs you in to a container image registry locally.
-func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRegistryLoginOptions(streams)
 
 	cmd := &cobra.Command{
@@ -122,9 +121,10 @@ func NewRegistryLoginCmd(f kcmdutil.Factory, streams genericclioptions.IOStreams
 
 	flag := cmd.Flags()
 	flag.StringVar(&o.AuthBasic, "auth-basic", o.AuthBasic, "Provide credentials in the form 'user:password' to authenticate (advanced)")
-	// TODO: fix priority and deprecation notice in 4.13
-	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Defaults to ~/.docker/config.json. Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker (current default - deprecated) or podman (prioritizes podman credentials over docker).")
-	flag.StringVar(&o.ConfigFile, "to", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Default is Docker config.json (deprecated). Default can be changed via REGISTRY_AUTH_PREFERENCE env variable to docker or podman.")
+	// TODO: remove REGISTRY_AUTH_PREFERENCE env variable support and support only podman in 4.15
+	flag.StringVarP(&o.ConfigFile, "registry-config", "a", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Defaults to ${XDG_RUNTIME_DIR}/containers/auth.json or /run/containers/${UID}/auth.json. Default can be changed via the REGISTRY_AUTH_PREFERENCE env variable (deprecated) to a \"docker\" value to prioritizes Docker credentials over Podman's.")
+	// TODO: remove REGISTRY_AUTH_PREFERENCE env variable support and support only podman in 4.15
+	flag.StringVar(&o.ConfigFile, "to", o.ConfigFile, "The location of the file your credentials will be stored in. Alternatively REGISTRY_AUTH_FILE env variable can be also specified. Defaults to ${XDG_RUNTIME_DIR}/containers/auth.json or /run/containers/${UID}/auth.json. Default can be changed via the REGISTRY_AUTH_PREFERENCE env variable (deprecated) to a \"docker\" value to prioritizes Docker credentials over Podman's.")
 	flag.StringVarP(&o.ServiceAccount, "service-account", "z", o.ServiceAccount, "Log in as the specified service account name in the specified namespace.")
 	flag.MarkDeprecated("service-account", "and will be removed in the future version. Use oc create token instead.")
 	flag.StringVar(&o.HostPort, "registry", o.HostPort, "An alternate domain name and port to use for the registry, defaults to the cluster's configured external hostname.")
@@ -236,12 +236,16 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, args []string) error {
 	if len(o.ConfigFile) == 0 {
 		if authFile := os.Getenv("REGISTRY_AUTH_FILE"); authFile != "" {
 			o.ConfigFile = authFile
-		} else if pref, warn := image.GetRegistryAuthConfigPreference(); pref == image.DockerPreference {
+		} else {
+			// TODO: remove REGISTRY_AUTH_PREFERENCE env variable support and support only podman in 4.15
+			pref, warn := image.GetRegistryAuthConfigPreference()
 			if len(warn) > 0 {
 				fmt.Fprint(o.IOStreams.ErrOut, warn)
 			}
-			home := homedir.HomeDir()
-			o.ConfigFile = filepath.Join(home, ".docker", "config.json")
+			if pref == image.DockerPreference {
+				home := homedir.HomeDir()
+				o.ConfigFile = filepath.Join(home, ".docker", "config.json")
+			}
 		}
 	}
 
@@ -293,10 +297,11 @@ func (o *LoginOptions) Run() error {
 	}
 
 	ctx := &containertypes.SystemContext{AuthFilePath: o.ConfigFile}
-	if err := dockerconfig.SetAuthentication(ctx, o.HostPort, o.Credentials.Username, o.Credentials.Password); err != nil {
+	credentialLocation, err := dockerconfig.SetCredentials(ctx, o.HostPort, o.Credentials.Username, o.Credentials.Password)
+	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(o.Out, "Saved credentials for %s\n", o.HostPort)
+	fmt.Fprintf(o.Out, "Saved credentials for %s into %s\n", o.HostPort, credentialLocation)
 	return nil
 }

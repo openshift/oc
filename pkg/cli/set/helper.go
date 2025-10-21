@@ -9,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/kubectl/pkg/scheme"
 )
 
 func selectContainers(containers []corev1.Container, spec string) ([]*corev1.Container, []*corev1.Container) {
@@ -109,12 +108,12 @@ type Patch struct {
 // CalculatePatchesExternal calls the mutation function on each provided info object, and generates a strategic merge patch for
 // the changes in the object. Encoder must be able to encode the info into the appropriate destination type. If mutateFn
 // returns false, the object is not included in the final list of patches.
-func CalculatePatchesExternal(infos []*resource.Info, mutateFn func(*resource.Info) (bool, error)) []*Patch {
+func CalculatePatchesExternal(encoder runtime.Encoder, infos []*resource.Info, mutateFn func(*resource.Info) (bool, error)) []*Patch {
 	var patches []*Patch
 	for _, info := range infos {
 		patch := &Patch{Info: info}
 
-		patch.Before, patch.Err = runtime.Encode(scheme.DefaultJSONEncoder(), info.Object)
+		patch.Before, patch.Err = runtime.Encode(encoder, info.Object)
 
 		ok, err := mutateFn(info)
 		if !ok {
@@ -128,7 +127,7 @@ func CalculatePatchesExternal(infos []*resource.Info, mutateFn func(*resource.In
 			continue
 		}
 
-		patch.After, patch.Err = runtime.Encode(scheme.DefaultJSONEncoder(), info.Object)
+		patch.After, patch.Err = runtime.Encode(encoder, info.Object)
 		if patch.Err != nil {
 			continue
 		}

@@ -19,7 +19,6 @@ package plugin
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -27,7 +26,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -40,15 +40,19 @@ var (
 		Plugins provide extended functionality that is not part of the major command-line distribution.
 		Please refer to the documentation and examples for more information about how write your own plugins.
 
-		The easiest way to discover and install plugins is via the kubernetes sub-project krew.
-		To install krew, visit [krew.sigs.k8s.io](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)`))
+		The easiest way to discover and install plugins is via the kubernetes sub-project krew: [krew.sigs.k8s.io].
+		To install krew, visit https://krew.sigs.k8s.io/docs/user-guide/setup/install`))
 
 	pluginExample = templates.Examples(i18n.T(`
 		# List all available plugins
-		kubectl plugin list`))
+		kubectl plugin list
+		
+		# List only binary names of available plugins without paths
+		kubectl plugin list --name-only`))
 
 	pluginListLong = templates.LongDesc(i18n.T(`
 		List all available plugin files on a user's PATH.
+		To see plugins binary names without the full path use --name-only flag.
 
 		Available plugin files are those that are:
 		- executable
@@ -59,12 +63,13 @@ var (
 	ValidPluginFilenamePrefixes = []string{"kubectl"}
 )
 
-func NewCmdPlugin(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPlugin(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                   "plugin [flags]",
 		DisableFlagsInUseLine: true,
 		Short:                 i18n.T("Provides utilities for interacting with plugins"),
 		Long:                  pluginLong,
+		Example:               pluginExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.DefaultSubCommandRun(streams.ErrOut)(cmd, args)
 		},
@@ -80,11 +85,11 @@ type PluginListOptions struct {
 
 	PluginPaths []string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 // NewCmdPluginList provides a way to list all plugin executables visible to kubectl
-func NewCmdPluginList(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdPluginList(streams genericiooptions.IOStreams) *cobra.Command {
 	o := &PluginListOptions{
 		IOStreams: streams,
 	}
@@ -166,7 +171,7 @@ func (o *PluginListOptions) ListPlugins() ([]string, []error) {
 			continue
 		}
 
-		files, err := ioutil.ReadDir(dir)
+		files, err := os.ReadDir(dir)
 		if err != nil {
 			if _, ok := err.(*os.PathError); ok {
 				fmt.Fprintf(o.ErrOut, "Unable to read directory %q from your PATH: %v. Skipping...\n", dir, err)

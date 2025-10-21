@@ -6,23 +6,25 @@ import (
 	"fmt"
 	"strings"
 
-	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/spf13/cobra"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
+
+	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 )
 
-func NewOptions(streams genericclioptions.IOStreams) *Options {
+func NewOptions(streams genericiooptions.IOStreams) *Options {
 	return &Options{
 		IOStreams: streams,
 	}
 }
 
-func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "channel CHANNEL",
@@ -52,7 +54,7 @@ func New(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command
 }
 
 type Options struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	Channel string
 

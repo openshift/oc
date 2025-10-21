@@ -7,27 +7,25 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 )
 
-var (
-	routeLong = templates.LongDesc(`
+var routeLong = templates.LongDesc(`
 		Expose containers externally via secured routes.
 
 		Three types of secured routes are supported: edge, passthrough, and reencrypt.
 		If you want to create unsecured routes, see "oc expose -h".
 	`)
-)
 
 // NewCmdCreateRoute is a macro command to create a secured route.
-func NewCmdCreateRoute(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateRoute(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "route",
 		Short: "Expose containers externally via secured routes",
@@ -63,12 +61,12 @@ type CreateRouteSubcommandOptions struct {
 	Client     routev1client.RoutesGetter
 	CoreClient corev1client.CoreV1Interface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewCreateRouteSubcommandOptions(ioStreams genericclioptions.IOStreams) *CreateRouteSubcommandOptions {
+func NewCreateRouteSubcommandOptions(ioStreams genericiooptions.IOStreams) *CreateRouteSubcommandOptions {
 	return &CreateRouteSubcommandOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("created").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("created").WithTypeSetter(createCmdScheme),
 		IOStreams:  ioStreams,
 	}
 }

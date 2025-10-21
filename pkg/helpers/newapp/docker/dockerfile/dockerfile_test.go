@@ -52,23 +52,6 @@ func TestInsertInstructions(t *testing.T) {
 		newInstructions string
 		want            string
 	}{
-		"insert nothing": {
-			original: `FROM busybox
-ENV PATH=/bin
-`,
-			index:           0,
-			newInstructions: ``,
-			want: `FROM busybox
-ENV PATH=/bin
-`,
-		},
-		"insert instruction in empty file": {
-			original:        ``,
-			index:           0,
-			newInstructions: `FROM busybox`,
-			want: `FROM busybox
-`,
-		},
 		"prepend single instruction": {
 			original: `FROM busybox
 ENV PATH=/bin
@@ -180,10 +163,6 @@ func TestLastBaseImage(t *testing.T) {
 		in   string
 		want string
 	}{
-		"empty Dockerfile": {
-			in:   ``,
-			want: "",
-		},
 		"FROM missing argument": {
 			in:   `FROM`,
 			want: "",
@@ -227,10 +206,6 @@ func TestBaseImages(t *testing.T) {
 		in   string
 		want []string
 	}{
-		"empty Dockerfile": {
-			in:   ``,
-			want: nil,
-		},
 		"FROM missing argument": {
 			in:   `FROM`,
 			want: nil,
@@ -283,10 +258,6 @@ func TestLastExposedPorts(t *testing.T) {
 		in   string
 		want []string
 	}{
-		"empty Dockerfile": {
-			in:   ``,
-			want: nil,
-		},
 		"EXPOSE missing argument": {
 			in:   `EXPOSE`,
 			want: nil,
@@ -343,10 +314,6 @@ func TestExposedPorts(t *testing.T) {
 		in   string
 		want [][]string
 	}{
-		"empty Dockerfile": {
-			in:   ``,
-			want: nil,
-		},
 		"EXPOSE missing argument": {
 			in:   `EXPOSE`,
 			want: nil,

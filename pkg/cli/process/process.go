@@ -2,6 +2,7 @@ package process
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -12,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -20,6 +21,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -105,10 +107,10 @@ type ProcessOptions struct {
 
 	mapper meta.RESTMapper
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewProcessOptions(streams genericclioptions.IOStreams) *ProcessOptions {
+func NewProcessOptions(streams genericiooptions.IOStreams) *ProcessOptions {
 	printFlags := genericclioptions.NewPrintFlags("processed").WithTypeSetter(scheme.Scheme).WithDefaultOutput("json")
 	// disable binding the --template flag so that we can bind our own --template flag with a shorthand (until the shorthand is deprecated)
 	printFlags.TemplatePrinterFlags.TemplateArgument = nil
@@ -120,7 +122,7 @@ func NewProcessOptions(streams genericclioptions.IOStreams) *ProcessOptions {
 }
 
 // NewCmdProcess implements the OpenShift cli process command
-func NewCmdProcess(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdProcess(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewProcessOptions(streams)
 
 	cmd := &cobra.Command{
@@ -185,7 +187,7 @@ func (p *processPrinter) PrintObj(obj runtime.Object, out io.Writer) error {
 			return fmt.Errorf("error describing %q: %v\n", templateObj.Name, err)
 		}
 
-		fmt.Fprintf(out, s)
+		fmt.Fprint(out, s)
 		return nil
 	}
 
@@ -257,7 +259,7 @@ func (o *ProcessOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 		o.templateProcessor = func(template *templatev1.Template) (*templatev1.Template, error) {
 			t, err := templateProcessorClient.Process(template)
 			if err != nil {
-				if err, ok := err.(*errors.StatusError); ok && err.ErrStatus.Details != nil {
+				if err, ok := err.(*kapierrors.StatusError); ok && err.ErrStatus.Details != nil {
 					errstr := "unable to process template\n"
 					for _, cause := range err.ErrStatus.Details.Causes {
 						errstr += fmt.Sprintf("  %s\n", cause.Message)
@@ -269,7 +271,7 @@ func (o *ProcessOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 						errstr += fmt.Sprintf("  %v\n", err)
 					}
 
-					return nil, fmt.Errorf(errstr)
+					return nil, errors.New(errstr)
 				}
 
 				return nil, fmt.Errorf("unable to process template: %v\n", err)
@@ -344,16 +346,12 @@ func (o *ProcessOptions) RunProcess() error {
 
 		templateObj, err := o.templateClient.Templates(sourceNamespace).Get(context.TODO(), storedTemplate, metav1.GetOptions{})
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if kapierrors.IsNotFound(err) {
 				return fmt.Errorf("template %q could not be found", storedTemplate)
 			}
 			return err
 		}
 		templateObj.CreationTimestamp = metav1.Now()
-		if len(templateObj.Namespace) > 0 && templateObj.Namespace != o.namespace {
-			// if set, template namespace must match the namespace it will be processed in.
-			templateObj.Namespace = o.namespace
-		}
 		infos = append(infos, &resource.Info{Object: templateObj})
 	} else {
 		var err error
@@ -384,6 +382,11 @@ func (o *ProcessOptions) RunProcess() error {
 			sourceName = o.namespace + "/" + o.templateName
 		}
 		return fmt.Errorf("unable to parse %q, not a valid Template but %s\n", sourceName, reflect.TypeOf(infos[0].Object))
+	}
+
+	if len(obj.Namespace) > 0 && obj.Namespace != o.namespace {
+		// if set, template namespace must match the namespace it will be processed in.
+		obj.Namespace = o.namespace
 	}
 
 	// If 'parameters' flag is set it does not do processing but only print
@@ -474,7 +477,7 @@ func processTemplateLocally(tpl *templatev1.Template) (*templatev1.Template, err
 		"expression": generator.NewExpressionValueGenerator(rand.New(rand.NewSource(time.Now().UnixNano()))),
 	})
 	if errs := processor.Process(tpl); len(errs) > 0 {
-		return nil, errors.NewInvalid(octemplateapi.Kind("Template"), tpl.Name, errs)
+		return nil, kapierrors.NewInvalid(octemplateapi.Kind("Template"), tpl.Name, errs)
 	}
 
 	return tpl, nil

@@ -23,7 +23,6 @@ import (
 	osgraph "github.com/openshift/oc/pkg/helpers/graph/genericgraph"
 	imagegraph "github.com/openshift/oc/pkg/helpers/graph/imagegraph/nodes"
 	kubegraph "github.com/openshift/oc/pkg/helpers/graph/kubegraph/nodes"
-	"github.com/openshift/oc/pkg/helpers/legacy"
 )
 
 const (
@@ -160,7 +159,7 @@ func AddAllManagedByControllerPodEdges(g osgraph.MutableUniqueGraph) {
 }
 
 func AddMountedSecretEdges(g osgraph.Graph, podSpec *kubegraph.PodSpecNode) {
-	//pod specs are always contained.  We'll get the toplevel container so that we can pull a namespace from it
+	// pod specs are always contained.  We'll get the toplevel container so that we can pull a namespace from it
 	containerNode := osgraph.GetTopLevelContainerNode(g, podSpec)
 	containerObj := g.GraphDescriber.Object(containerNode)
 
@@ -214,7 +213,7 @@ func AddAllMountableSecretEdges(g osgraph.Graph) {
 }
 
 func AddRequestedServiceAccountEdges(g osgraph.Graph, podSpecNode *kubegraph.PodSpecNode) {
-	//pod specs are always contained.  We'll get the toplevel container so that we can pull a namespace from it
+	// pod specs are always contained.  We'll get the toplevel container so that we can pull a namespace from it
 	containerNode := osgraph.GetTopLevelContainerNode(g, podSpecNode)
 	containerObj := g.GraphDescriber.Object(containerNode)
 
@@ -272,9 +271,7 @@ func AddHPAScaleRefEdges(g osgraph.Graph, restMapper meta.RESTMapper) {
 		switch r {
 		case corev1.Resource("replicationcontrollers"):
 			syntheticNode = kubegraph.FindOrCreateSyntheticReplicationControllerNode(g, &corev1.ReplicationController{ObjectMeta: syntheticMeta})
-		case oapps.Resource("deploymentconfigs"),
-			// we need the legacy resource until we stop supporting HPA having old refs
-			legacy.Resource("deploymentconfigs"):
+		case oapps.Resource("deploymentconfigs"):
 			syntheticNode = appsnodes.FindOrCreateSyntheticDeploymentConfigNode(g, &appsv1.DeploymentConfig{ObjectMeta: syntheticMeta})
 		case kappsv1.Resource("deployments"):
 			syntheticNode = kubegraph.FindOrCreateSyntheticDeploymentNode(g, &kappsv1.Deployment{ObjectMeta: syntheticMeta})

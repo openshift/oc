@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -92,7 +91,7 @@ func ReadDockercfgFile(searchPaths []string) (cfg DockerConfig, err error) {
 			continue
 		}
 		klog.V(4).Infof("looking for .dockercfg at %s", absDockerConfigFileLocation)
-		contents, err := ioutil.ReadFile(absDockerConfigFileLocation)
+		contents, err := os.ReadFile(absDockerConfigFileLocation)
 		if os.IsNotExist(err) {
 			continue
 		}
@@ -144,7 +143,7 @@ func ReadDockerConfigJSONFile(searchPaths []string) (cfg DockerConfig, err error
 func ReadSpecificDockerConfigJSONFile(filePath string) (cfg DockerConfig, err error) {
 	var contents []byte
 
-	if contents, err = ioutil.ReadFile(filePath); err != nil {
+	if contents, err = os.ReadFile(filePath); err != nil {
 		return nil, err
 	}
 
@@ -200,7 +199,7 @@ func ReadURL(url string, client *http.Client, header *http.Header) (body []byte,
 	}
 
 	limitedReader := &io.LimitedReader{R: resp.Body, N: maxReadLength}
-	contents, err := ioutil.ReadAll(limitedReader)
+	contents, err := io.ReadAll(limitedReader)
 	if err != nil {
 		return nil, err
 	}

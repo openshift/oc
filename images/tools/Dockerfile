@@ -1,4 +1,12 @@
-FROM registry.ci.openshift.org/ocp/4.13:cli
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.24-openshift-4.21 AS builder
+WORKDIR /go/src/github.com/openshift/oc
+COPY . .
+RUN make build --warn-undefined-variables
+
+FROM registry.ci.openshift.org/ocp/4.21:base-rhel9
+COPY --from=builder /go/src/github.com/openshift/oc/oc /usr/bin/
+COPY --from=builder /go/src/github.com/openshift/oc/images/tools/sos.conf /etc/sos/
+RUN for i in kubectl openshift-deploy openshift-docker-build openshift-sti-build openshift-git-clone openshift-manage-dockerfile openshift-extract-image-content openshift-recycle; do ln -sf /usr/bin/oc /usr/bin/$i; done
 RUN INSTALL_PKGS="\
   bash-completion \
   bc \
@@ -8,6 +16,7 @@ RUN INSTALL_PKGS="\
   e2fsprogs \
   ethtool \
   file \
+  fio \
   git \
   glibc-utils \
   gzip \
@@ -18,7 +27,6 @@ RUN INSTALL_PKGS="\
   jq \
   less \
   ltrace \
-  mailx \
   net-tools \
   nmap-ncat \
   parted \
@@ -26,7 +34,11 @@ RUN INSTALL_PKGS="\
   procps-ng \
   psmisc \
   perf \
+  python3 \
+  sos \
+  s-nail \
   strace \
+  stress-ng \
   sysstat \
   tcpdump \
   tmux \
@@ -34,8 +46,6 @@ RUN INSTALL_PKGS="\
   vim-enhanced \
   wget \
   xfsprogs \
-  fio \
-  stress-ng \
   " && \
   yum -y install $INSTALL_PKGS && rpm -V --nosize --nofiledigest --nomtime --nomode $INSTALL_PKGS && yum clean all && rm -rf /var/cache/*
   # Disabled until they are buildable on s390x
@@ -45,4 +55,5 @@ RUN INSTALL_PKGS="\
 CMD ["/usr/bin/bash"]
 LABEL io.k8s.display-name="OpenShift Tools" \
       io.k8s.description="Contains debugging and diagnostic tools for use with an OpenShift cluster." \
+      io.openshift.build.versions="kubectl=1.33.3" \
       io.openshift.tags="openshift,tools"

@@ -2,7 +2,7 @@ package syncerror
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"testing"
 
@@ -43,7 +43,7 @@ func TestSuppressMemberLookupErrorOutOfBounds(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		handler := NewMemberLookupOutOfBoundsSuppressor(ioutil.Discard)
+		handler := NewMemberLookupOutOfBoundsSuppressor(io.Discard)
 
 		actualHandled, actualFatalErr := handler.HandleError(testCase.err)
 		if actualHandled != testCase.expectedHandled {
@@ -96,7 +96,7 @@ func TestSuppressMemberLookupErrorMemberNotFound(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		handler := NewMemberLookupMemberNotFoundSuppressor(ioutil.Discard)
+		handler := NewMemberLookupMemberNotFoundSuppressor(io.Discard)
 
 		actualHandled, actualFatalErr := handler.HandleError(testCase.err)
 		if actualHandled != testCase.expectedHandled {

@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kexternalclientset "k8s.io/client-go/kubernetes"
@@ -40,7 +41,7 @@ type RetryOptions struct {
 	ToPrinter func(string) (printers.ResourcePrinter, error)
 
 	resource.FilenameOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var (
@@ -60,14 +61,14 @@ var (
 `)
 )
 
-func NewRolloutRetryOptions(streams genericclioptions.IOStreams) *RetryOptions {
+func NewRolloutRetryOptions(streams genericiooptions.IOStreams) *RetryOptions {
 	return &RetryOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("already retried").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
 	}
 }
 
-func NewCmdRolloutRetry(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRolloutRetry(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRolloutRetryOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "retry (TYPE NAME | TYPE/NAME) [flags]",
@@ -90,7 +91,7 @@ func NewCmdRolloutRetry(f kcmdutil.Factory, streams genericclioptions.IOStreams)
 func (o *RetryOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	var err error
 	if len(args) == 0 && len(o.FilenameOptions.Filenames) == 0 {
-		return kcmdutil.UsageErrorf(cmd, cmd.Use)
+		return kcmdutil.UsageErrorf(cmd, "%s", cmd.Use)
 	}
 
 	o.Resources = args
@@ -208,7 +209,7 @@ func (o RetryOptions) Run() error {
 			continue
 		}
 
-		patches := set.CalculatePatchesExternal([]*resource.Info{{Object: rc, Mapping: mapping}}, func(info *resource.Info) (bool, error) {
+		patches := set.CalculatePatchesExternal(scheme.DefaultJSONEncoder(), []*resource.Info{{Object: rc, Mapping: mapping}}, func(info *resource.Info) (bool, error) {
 			rc.Annotations[appsv1.DeploymentStatusAnnotation] = string(appsv1.DeploymentStatusNew)
 			delete(rc.Annotations, appsv1.DeploymentStatusReasonAnnotation)
 			delete(rc.Annotations, appsv1.DeploymentCancelledAnnotation)

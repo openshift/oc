@@ -2,14 +2,14 @@
 
 package v1
 
-// SignatureSubjectApplyConfiguration represents an declarative configuration of the SignatureSubject type for use
+// SignatureSubjectApplyConfiguration represents a declarative configuration of the SignatureSubject type for use
 // with apply.
 type SignatureSubjectApplyConfiguration struct {
 	SignatureGenericEntityApplyConfiguration `json:",inline"`
 	PublicKeyID                              *string `json:"publicKeyID,omitempty"`
 }
 
-// SignatureSubjectApplyConfiguration constructs an declarative configuration of the SignatureSubject type for use with
+// SignatureSubjectApplyConfiguration constructs a declarative configuration of the SignatureSubject type for use with
 // apply.
 func SignatureSubject() *SignatureSubjectApplyConfiguration {
 	return &SignatureSubjectApplyConfiguration{}
@@ -19,7 +19,7 @@ func SignatureSubject() *SignatureSubjectApplyConfiguration {
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Organization field is set to the value of the last call.
 func (b *SignatureSubjectApplyConfiguration) WithOrganization(value string) *SignatureSubjectApplyConfiguration {
-	b.Organization = &value
+	b.SignatureGenericEntityApplyConfiguration.Organization = &value
 	return b
 }
 
@@ -27,7 +27,7 @@ func (b *SignatureSubjectApplyConfiguration) WithOrganization(value string) *Sig
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the CommonName field is set to the value of the last call.
 func (b *SignatureSubjectApplyConfiguration) WithCommonName(value string) *SignatureSubjectApplyConfiguration {
-	b.CommonName = &value
+	b.SignatureGenericEntityApplyConfiguration.CommonName = &value
 	return b
 }
 

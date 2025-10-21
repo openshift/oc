@@ -2,7 +2,7 @@ package newbuild
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -59,6 +60,9 @@ var (
 		# Create a build config from a remote private repository and specify which existing secret to use
 		oc new-build https://github.com/youruser/yourgitrepo --source-secret=yoursecret
 
+		# Create a build config using  an image with the full manifest list to create an app and override application artifacts' names
+		oc new-build --image=myregistry.com/mycompany/image --name=private --import-mode=PreserveOriginal
+
 		# Create a build config from a remote repository and inject the npmrc into a build
 		oc new-build https://github.com/openshift/ruby-hello-world --build-secret npmrc:.npmrc
 
@@ -89,10 +93,10 @@ on the configured container registries.
 
 type BuildOptions struct {
 	*ocnewapp.ObjectGeneratorOptions
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewBuildOptions(streams genericclioptions.IOStreams) *BuildOptions {
+func NewBuildOptions(streams genericiooptions.IOStreams) *BuildOptions {
 	config := newcmd.NewAppConfig()
 	config.ExpectToBuild = true
 
@@ -107,7 +111,7 @@ func NewBuildOptions(streams genericclioptions.IOStreams) *BuildOptions {
 }
 
 // NewCmdNewBuild implements the OpenShift cli new-build command
-func NewCmdNewBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdNewBuild(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewBuildOptions(streams)
 
 	cmd := &cobra.Command{
@@ -154,6 +158,7 @@ func NewCmdNewBuild(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 	cmd.Flags().BoolVar(&o.Config.NoOutput, "no-output", o.Config.NoOutput, "If true, the build output will not be pushed anywhere.")
 	cmd.Flags().StringVar(&o.Config.SourceImage, "source-image", o.Config.SourceImage, "Specify an image to use as source for the build.  You must also specify --source-image-path.")
 	cmd.Flags().StringVar(&o.Config.SourceImagePath, "source-image-path", o.Config.SourceImagePath, "Specify the file or directory to copy from the source image and its destination in the build directory. Format: [source]:[destination-dir].")
+	cmd.Flags().StringVar(&o.Config.ImportMode, "import-mode", o.Config.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
 
 	o.Action.BindForOutput(cmd.Flags(), "output", "template", "sort-by")
 	cmd.Flags().String("output-version", "", "The preferred API versions of the output objects")
@@ -170,7 +175,7 @@ func (o *BuildOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 	}
 
 	if o.ObjectGeneratorOptions.Config.Dockerfile == "-" {
-		data, err := ioutil.ReadAll(o.In)
+		data, err := io.ReadAll(o.In)
 		if err != nil {
 			return err
 		}
@@ -274,7 +279,7 @@ func transformBuildError(err error, commandPath string, groups ocnewapp.ErrorGro
 	}
 	switch err {
 	case newcmd.ErrNoInputs:
-		groups.Add("", "", "", ocnewapp.UsageError(commandPath, newBuildNoInput))
+		groups.Add("", "", "", ocnewapp.UsageError(commandPath, "%s", newBuildNoInput))
 		return
 	}
 	ocnewapp.TransformRunError(err, commandPath, groups, config)

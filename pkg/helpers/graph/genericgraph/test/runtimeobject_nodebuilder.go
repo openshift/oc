@@ -2,7 +2,7 @@ package test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -23,7 +23,6 @@ import (
 	imagegraph "github.com/openshift/oc/pkg/helpers/graph/imagegraph/nodes"
 	kubegraph "github.com/openshift/oc/pkg/helpers/graph/kubegraph/nodes"
 	routegraph "github.com/openshift/oc/pkg/helpers/graph/routegraph/nodes"
-	"github.com/openshift/oc/pkg/helpers/legacy"
 )
 
 // typeToEnsureMethod stores types to Ensure*Node methods
@@ -126,14 +125,13 @@ func BuildGraph(path string) (osgraph.Graph, []runtime.Object, error) {
 	g := osgraph.New()
 	objs := []runtime.Object{}
 
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return g, objs, err
 	}
 	scheme := runtime.NewScheme()
 	kubernetesscheme.AddToScheme(scheme)
 	api.Install(scheme)
-	legacy.InstallExternalLegacyAll(scheme)
 	codecs := serializer.NewCodecFactory(scheme)
 	decoder := codecs.UniversalDeserializer()
 	obj, err := runtime.Decode(decoder, data)

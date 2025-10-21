@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	restclient "k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -32,7 +33,6 @@ import (
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 
-	ct "github.com/daviddengcn/go-colortext"
 	"github.com/spf13/cobra"
 )
 
@@ -47,7 +47,7 @@ var (
 )
 
 type ClusterInfoOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	Namespace string
 
@@ -55,7 +55,7 @@ type ClusterInfoOptions struct {
 	Client  *restclient.Config
 }
 
-func NewCmdClusterInfo(restClientGetter genericclioptions.RESTClientGetter, ioStreams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdClusterInfo(restClientGetter genericclioptions.RESTClientGetter, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	o := &ClusterInfoOptions{
 		IOStreams: ioStreams,
 	}
@@ -155,12 +155,8 @@ func (o *ClusterInfoOptions) Run() error {
 }
 
 func printService(out io.Writer, name, link string) {
-	ct.ChangeColor(ct.Green, false, ct.None, false)
 	fmt.Fprint(out, name)
-	ct.ResetColor()
 	fmt.Fprint(out, " is running at ")
-	ct.ChangeColor(ct.Yellow, false, ct.None, false)
 	fmt.Fprint(out, link)
-	ct.ResetColor()
 	fmt.Fprintln(out, "")
 }

@@ -6,14 +6,14 @@ import (
 	operatorv1 "github.com/openshift/api/operator/v1"
 )
 
-// IngressControllerCaptureHTTPCookieApplyConfiguration represents an declarative configuration of the IngressControllerCaptureHTTPCookie type for use
+// IngressControllerCaptureHTTPCookieApplyConfiguration represents a declarative configuration of the IngressControllerCaptureHTTPCookie type for use
 // with apply.
 type IngressControllerCaptureHTTPCookieApplyConfiguration struct {
 	IngressControllerCaptureHTTPCookieUnionApplyConfiguration `json:",inline"`
 	MaxLength                                                 *int `json:"maxLength,omitempty"`
 }
 
-// IngressControllerCaptureHTTPCookieApplyConfiguration constructs an declarative configuration of the IngressControllerCaptureHTTPCookie type for use with
+// IngressControllerCaptureHTTPCookieApplyConfiguration constructs a declarative configuration of the IngressControllerCaptureHTTPCookie type for use with
 // apply.
 func IngressControllerCaptureHTTPCookie() *IngressControllerCaptureHTTPCookieApplyConfiguration {
 	return &IngressControllerCaptureHTTPCookieApplyConfiguration{}
@@ -23,7 +23,7 @@ func IngressControllerCaptureHTTPCookie() *IngressControllerCaptureHTTPCookieApp
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the MatchType field is set to the value of the last call.
 func (b *IngressControllerCaptureHTTPCookieApplyConfiguration) WithMatchType(value operatorv1.CookieMatchType) *IngressControllerCaptureHTTPCookieApplyConfiguration {
-	b.MatchType = &value
+	b.IngressControllerCaptureHTTPCookieUnionApplyConfiguration.MatchType = &value
 	return b
 }
 
@@ -31,7 +31,7 @@ func (b *IngressControllerCaptureHTTPCookieApplyConfiguration) WithMatchType(val
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Name field is set to the value of the last call.
 func (b *IngressControllerCaptureHTTPCookieApplyConfiguration) WithName(value string) *IngressControllerCaptureHTTPCookieApplyConfiguration {
-	b.Name = &value
+	b.IngressControllerCaptureHTTPCookieUnionApplyConfiguration.Name = &value
 	return b
 }
 
@@ -39,7 +39,7 @@ func (b *IngressControllerCaptureHTTPCookieApplyConfiguration) WithName(value st
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the NamePrefix field is set to the value of the last call.
 func (b *IngressControllerCaptureHTTPCookieApplyConfiguration) WithNamePrefix(value string) *IngressControllerCaptureHTTPCookieApplyConfiguration {
-	b.NamePrefix = &value
+	b.IngressControllerCaptureHTTPCookieUnionApplyConfiguration.NamePrefix = &value
 	return b
 }
 

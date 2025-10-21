@@ -1,0 +1,106 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2024-08-05T15:10:47Z"
+  generation: 4
+  name: version
+  resourceVersion: "24514"
+  uid: f395cd93-6f5c-4148-bc7e-1ec78ba57912
+spec:
+  channel: candidate-4.16
+  clusterID: 57b7123d-1155-4d85-ad39-6d17dd3e3e59
+  desiredUpdate:
+    architecture: ""
+    force: false
+    image: quay.io/openshift-release-dev/ocp-release@sha256:1995202f11dc5a4763cdc44ff30d4d4d6560b3a6e29873b51af2992bd8e33109
+    version: ""
+status:
+  availableUpdates: null
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2024-08-05T15:11:20Z"
+    message: 'Unable to retrieve available updates: currently reconciling cluster
+      version 4.17.0-ec.0 not found in the "candidate-4.16" channel'
+    reason: VersionNotFound
+    status: "False"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2024-08-05T15:11:20Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2024-08-05T15:11:20Z"
+    message: Payload loaded version="4.17.0-ec.0" image="quay.io/openshift-release-dev/ocp-release@sha256:1995202f11dc5a4763cdc44ff30d4d4d6560b3a6e29873b51af2992bd8e33109"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2024-08-05T15:34:43Z"
+    message: Done applying 4.16.0-0.nightly-2024-08-01-082745
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2024-08-05T15:57:47Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2024-08-05T15:57:32Z"
+    message: 'Working towards 4.17.0-ec.0: 110 of 892 done (12% complete), waiting
+      on etcd, kube-apiserver'
+    reason: ClusterOperatorsUpdating
+    status: "True"
+    type: Progressing
+  desired:
+    image: quay.io/openshift-release-dev/ocp-release@sha256:1995202f11dc5a4763cdc44ff30d4d4d6560b3a6e29873b51af2992bd8e33109
+    version: 4.17.0-ec.0
+  history:
+  - acceptedRisks: 'Precondition "ClusterVersionRecommendedUpdate" failed because
+      of "UnknownUpdate": RetrievedUpdates=False (VersionNotFound), so the recommended
+      status of updating from 4.16.0-0.nightly-2024-08-01-082745 to 4.17.0-ec.0 is
+      unknown.'
+    completionTime: null
+    image: quay.io/openshift-release-dev/ocp-release@sha256:1995202f11dc5a4763cdc44ff30d4d4d6560b3a6e29873b51af2992bd8e33109
+    startedTime: "2024-08-05T15:57:32Z"
+    state: Partial
+    verified: true
+    version: 4.17.0-ec.0
+  - completionTime: "2024-08-05T15:34:43Z"
+    image: registry.build05.ci.openshift.org/ci-ln-hrmq6qk/release@sha256:ed7463845e9df0c56c091ed278b25368f52f8b75cc2e94b0bf70e33252aeeb6e
+    startedTime: "2024-08-05T15:11:20Z"
+    state: Completed
+    verified: false
+    version: 4.16.0-0.nightly-2024-08-01-082745
+  observedGeneration: 4
+  versionHash: 4CmmZGDQ8-8=

@@ -13,21 +13,22 @@ package v1
 // AUTO-GENERATED FUNCTIONS START HERE
 var map_AlibabaCloudMachineProviderConfig = map[string]string{
 	"":                  "AlibabaCloudMachineProviderConfig is the Schema for the alibabacloudmachineproviderconfig API Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata":          "metadata is the standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
 	"instanceType":      "The instance type of the instance.",
 	"vpcId":             "The ID of the vpc",
 	"regionId":          "The ID of the region in which to create the instance. You can call the DescribeRegions operation to query the most recent region list.",
 	"zoneId":            "The ID of the zone in which to create the instance. You can call the DescribeZones operation to query the most recent region list.",
 	"imageId":           "The ID of the image used to create the instance.",
 	"dataDisk":          "DataDisks holds information regarding the extra disks attached to the instance",
-	"securityGroups":    "SecurityGroups is a list of security group references to assign to the instance. A reference holds either the security group ID, the resource name, or the required tags to search. When more than one security group is returned for a tag search, all the groups are associated with the instance up to the maximum number of security groups to which an instance can belong. For more information, see the \"Security group limits\" section in Limits. https://www.alibabacloud.com/help/en/doc-detail/25412.htm",
-	"bandwidth":         "Bandwidth describes the internet bandwidth strategy for the instance",
-	"systemDisk":        "SystemDisk holds the properties regarding the system disk for the instance",
-	"vSwitch":           "VSwitch is a reference to the vswitch to use for this instance. A reference holds either the vSwitch ID, the resource name, or the required tags to search. When more than one vSwitch is returned for a tag search, only the first vSwitch returned will be used. This parameter is required when you create an instance of the VPC type. You can call the DescribeVSwitches operation to query the created vSwitches.",
-	"ramRoleName":       "RAMRoleName is the name of the instance Resource Access Management (RAM) role. This allows the instance to perform API calls as this specified RAM role.",
-	"resourceGroup":     "ResourceGroup references the resource group to which to assign the instance. A reference holds either the resource group ID, the resource name, or the required tags to search. When more than one resource group are returned for a search, an error will be produced and the Machine will not be created. Resource Groups do not support searching by tags.",
-	"tenancy":           "Tenancy specifies whether to create the instance on a dedicated host. Valid values:\n\ndefault: creates the instance on a non-dedicated host. host: creates the instance on a dedicated host. If you do not specify the DedicatedHostID parameter, Alibaba Cloud automatically selects a dedicated host for the instance. Empty value means no opinion and the platform chooses the a default, which is subject to change over time. Currently the default is `default`.",
-	"userDataSecret":    "UserDataSecret contains a local reference to a secret that contains the UserData to apply to the instance",
-	"credentialsSecret": "CredentialsSecret is a reference to the secret with alibabacloud credentials. Otherwise, defaults to permissions provided by attached RAM role where the actuator is running.",
+	"securityGroups":    "securityGroups is a list of security group references to assign to the instance. A reference holds either the security group ID, the resource name, or the required tags to search. When more than one security group is returned for a tag search, all the groups are associated with the instance up to the maximum number of security groups to which an instance can belong. For more information, see the \"Security group limits\" section in Limits. https://www.alibabacloud.com/help/en/doc-detail/25412.htm",
+	"bandwidth":         "bandwidth describes the internet bandwidth strategy for the instance",
+	"systemDisk":        "systemDisk holds the properties regarding the system disk for the instance",
+	"vSwitch":           "vSwitch is a reference to the vswitch to use for this instance. A reference holds either the vSwitch ID, the resource name, or the required tags to search. When more than one vSwitch is returned for a tag search, only the first vSwitch returned will be used. This parameter is required when you create an instance of the VPC type. You can call the DescribeVSwitches operation to query the created vSwitches.",
+	"ramRoleName":       "ramRoleName is the name of the instance Resource Access Management (RAM) role. This allows the instance to perform API calls as this specified RAM role.",
+	"resourceGroup":     "resourceGroup references the resource group to which to assign the instance. A reference holds either the resource group ID, the resource name, or the required tags to search. When more than one resource group are returned for a search, an error will be produced and the Machine will not be created. Resource Groups do not support searching by tags.",
+	"tenancy":           "tenancy specifies whether to create the instance on a dedicated host. Valid values:\n\ndefault: creates the instance on a non-dedicated host. host: creates the instance on a dedicated host. If you do not specify the DedicatedHostID parameter, Alibaba Cloud automatically selects a dedicated host for the instance. Empty value means no opinion and the platform chooses the a default, which is subject to change over time. Currently the default is `default`.",
+	"userDataSecret":    "userDataSecret contains a local reference to a secret that contains the UserData to apply to the instance",
+	"credentialsSecret": "credentialsSecret is a reference to the secret with alibabacloud credentials. Otherwise, defaults to permissions provided by attached RAM role where the actuator is running.",
 	"tag":               "Tags are the set of metadata to add to an instance.",
 }
 
@@ -36,7 +37,8 @@ func (AlibabaCloudMachineProviderConfig) SwaggerDoc() map[string]string {
 }
 
 var map_AlibabaCloudMachineProviderConfigList = map[string]string{
-	"": "AlibabaCloudMachineProviderConfigList contains a list of AlibabaCloudMachineProviderConfig Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"":         "AlibabaCloudMachineProviderConfigList contains a list of AlibabaCloudMachineProviderConfig Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata": "metadata is the standard list's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
 }
 
 func (AlibabaCloudMachineProviderConfigList) SwaggerDoc() map[string]string {
@@ -45,9 +47,10 @@ func (AlibabaCloudMachineProviderConfigList) SwaggerDoc() map[string]string {
 
 var map_AlibabaCloudMachineProviderStatus = map[string]string{
 	"":              "AlibabaCloudMachineProviderStatus is the Schema for the alibabacloudmachineproviderconfig API Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
-	"instanceId":    "InstanceID is the instance ID of the machine created in alibabacloud",
-	"instanceState": "InstanceState is the state of the alibabacloud instance for this machine",
-	"conditions":    "Conditions is a set of conditions associated with the Machine to indicate errors or other status",
+	"metadata":      "metadata is the standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+	"instanceId":    "instanceId is the instance ID of the machine created in alibabacloud",
+	"instanceState": "instanceState is the state of the alibabacloud instance for this machine",
+	"conditions":    "conditions is a set of conditions associated with the Machine to indicate errors or other status",
 }
 
 func (AlibabaCloudMachineProviderStatus) SwaggerDoc() map[string]string {
@@ -57,9 +60,9 @@ func (AlibabaCloudMachineProviderStatus) SwaggerDoc() map[string]string {
 var map_AlibabaResourceReference = map[string]string{
 	"":     "ResourceTagReference is a reference to a specific AlibabaCloud resource by ID, or tags. Only one of ID or Tags may be specified. Specifying more than one will result in a validation error.",
 	"type": "type identifies the resource reference type for this entry.",
-	"id":   "ID of resource",
-	"name": "Name of the resource",
-	"tags": "Tags is a set of metadata based upon ECS object tags used to identify a resource. For details about usage when multiple resources are found, please see the owning parent field documentation.",
+	"id":   "id of resource",
+	"name": "name of the resource",
+	"tags": "tags is a set of metadata based upon ECS object tags used to identify a resource. For details about usage when multiple resources are found, please see the owning parent field documentation.",
 }
 
 func (AlibabaResourceReference) SwaggerDoc() map[string]string {
@@ -68,8 +71,8 @@ func (AlibabaResourceReference) SwaggerDoc() map[string]string {
 
 var map_BandwidthProperties = map[string]string{
 	"":                        "Bandwidth describes the bandwidth strategy for the network of the instance",
-	"internetMaxBandwidthIn":  "InternetMaxBandwidthIn is the maximum inbound public bandwidth. Unit: Mbit/s. Valid values: When the purchased outbound public bandwidth is less than or equal to 10 Mbit/s, the valid values of this parameter are 1 to 10. Currently the default is `10` when outbound bandwidth is less than or equal to 10 Mbit/s. When the purchased outbound public bandwidth is greater than 10, the valid values are 1 to the InternetMaxBandwidthOut value. Currently the default is the value used for `InternetMaxBandwidthOut` when outbound public bandwidth is greater than 10.",
-	"internetMaxBandwidthOut": "InternetMaxBandwidthOut is the maximum outbound public bandwidth. Unit: Mbit/s. Valid values: 0 to 100. When a value greater than 0 is used then a public IP address is assigned to the instance. Empty value means no opinion and the platform chooses the a default, which is subject to change over time. Currently the default is `0`",
+	"internetMaxBandwidthIn":  "internetMaxBandwidthIn is the maximum inbound public bandwidth. Unit: Mbit/s. Valid values: When the purchased outbound public bandwidth is less than or equal to 10 Mbit/s, the valid values of this parameter are 1 to 10. Currently the default is `10` when outbound bandwidth is less than or equal to 10 Mbit/s. When the purchased outbound public bandwidth is greater than 10, the valid values are 1 to the InternetMaxBandwidthOut value. Currently the default is the value used for `InternetMaxBandwidthOut` when outbound public bandwidth is greater than 10.",
+	"internetMaxBandwidthOut": "internetMaxBandwidthOut is the maximum outbound public bandwidth. Unit: Mbit/s. Valid values: 0 to 100. When a value greater than 0 is used then a public IP address is assigned to the instance. Empty value means no opinion and the platform chooses the a default, which is subject to change over time. Currently the default is `0`",
 }
 
 func (BandwidthProperties) SwaggerDoc() map[string]string {
@@ -94,10 +97,10 @@ func (DataDiskProperties) SwaggerDoc() map[string]string {
 
 var map_SystemDiskProperties = map[string]string{
 	"":                 "SystemDiskProperties contains the information regarding the system disk including performance, size, name, and category",
-	"category":         "Category is the category of the system disk. Valid values: cloud_essd: ESSD. When the parameter is set to this value, you can use the SystemDisk.PerformanceLevel parameter to specify the performance level of the disk. cloud_efficiency: ultra disk. cloud_ssd: standard SSD. cloud: basic disk. Empty value means no opinion and the platform chooses the a default, which is subject to change over time. Currently for non-I/O optimized instances of retired instance types, the default is `cloud`. Currently for other instances, the default is `cloud_efficiency`.",
-	"performanceLevel": "PerformanceLevel is the performance level of the ESSD used as the system disk. Valid values:\n\nPL0: A single ESSD can deliver up to 10,000 random read/write IOPS. PL1: A single ESSD can deliver up to 50,000 random read/write IOPS. PL2: A single ESSD can deliver up to 100,000 random read/write IOPS. PL3: A single ESSD can deliver up to 1,000,000 random read/write IOPS. Empty value means no opinion and the platform chooses a default, which is subject to change over time. Currently the default is `PL1`. For more information about ESSD performance levels, see ESSDs.",
-	"name":             "Name is the name of the system disk. If the name is specified the name must be 2 to 128 characters in length. It must start with a letter and cannot start with http:// or https://. It can contain letters, digits, colons (:), underscores (_), and hyphens (-). Empty value means the platform chooses a default, which is subject to change over time. Currently the default is `\"\"`.",
-	"size":             "Size is the size of the system disk. Unit: GiB. Valid values: 20 to 500. The value must be at least 20 and greater than or equal to the size of the image. Empty value means the platform chooses a default, which is subject to change over time. Currently the default is `40` or the size of the image depending on whichever is greater.",
+	"category":         "category is the category of the system disk. Valid values: cloud_essd: ESSD. When the parameter is set to this value, you can use the SystemDisk.PerformanceLevel parameter to specify the performance level of the disk. cloud_efficiency: ultra disk. cloud_ssd: standard SSD. cloud: basic disk. Empty value means no opinion and the platform chooses the a default, which is subject to change over time. Currently for non-I/O optimized instances of retired instance types, the default is `cloud`. Currently for other instances, the default is `cloud_efficiency`.",
+	"performanceLevel": "performanceLevel is the performance level of the ESSD used as the system disk. Valid values:\n\nPL0: A single ESSD can deliver up to 10,000 random read/write IOPS. PL1: A single ESSD can deliver up to 50,000 random read/write IOPS. PL2: A single ESSD can deliver up to 100,000 random read/write IOPS. PL3: A single ESSD can deliver up to 1,000,000 random read/write IOPS. Empty value means no opinion and the platform chooses a default, which is subject to change over time. Currently the default is `PL1`. For more information about ESSD performance levels, see ESSDs.",
+	"name":             "name is the name of the system disk. If the name is specified the name must be 2 to 128 characters in length. It must start with a letter and cannot start with http:// or https://. It can contain letters, digits, colons (:), underscores (_), and hyphens (-). Empty value means the platform chooses a default, which is subject to change over time. Currently the default is `\"\"`.",
+	"size":             "size is the size of the system disk. Unit: GiB. Valid values: 20 to 500. The value must be at least 20 and greater than or equal to the size of the image. Empty value means the platform chooses a default, which is subject to change over time. Currently the default is `40` or the size of the image depending on whichever is greater.",
 }
 
 func (SystemDiskProperties) SwaggerDoc() map[string]string {
@@ -116,8 +119,8 @@ func (Tag) SwaggerDoc() map[string]string {
 
 var map_AWSResourceFilter = map[string]string{
 	"":       "AWSResourceFilter is a filter used to identify an AWS resource",
-	"name":   "Name of the filter. Filter names are case-sensitive.",
-	"values": "Values includes one or more filter values. Filter values are case-sensitive.",
+	"name":   "name of the filter. Filter names are case-sensitive.",
+	"values": "values includes one or more filter values. Filter values are case-sensitive.",
 }
 
 func (AWSResourceFilter) SwaggerDoc() map[string]string {
@@ -126,10 +129,10 @@ func (AWSResourceFilter) SwaggerDoc() map[string]string {
 
 var map_AWSResourceReference = map[string]string{
 	"":        "AWSResourceReference is a reference to a specific AWS resource by ID, ARN, or filters. Only one of ID, ARN or Filters may be specified. Specifying more than one will result in a validation error.",
-	"type":    "Type determines how the reference will fetch the AWS resource.",
-	"id":      "ID of resource.",
-	"arn":     "ARN of resource.",
-	"filters": "Filters is a set of filters used to identify a resource.",
+	"type":    "type determines how the reference will fetch the AWS resource.",
+	"id":      "id of resource.",
+	"arn":     "arn of resource.",
+	"filters": "filters is a set of filters used to identify a resource.",
 }
 
 func (AWSResourceReference) SwaggerDoc() map[string]string {
@@ -138,8 +141,8 @@ func (AWSResourceReference) SwaggerDoc() map[string]string {
 
 var map_AWSFailureDomain = map[string]string{
 	"":          "AWSFailureDomain configures failure domain information for the AWS platform.",
-	"subnet":    "Subnet is a reference to the subnet to use for this instance.",
-	"placement": "Placement configures the placement information for this instance.",
+	"subnet":    "subnet is a reference to the subnet to use for this instance.",
+	"placement": "placement configures the placement information for this instance.",
 }
 
 func (AWSFailureDomain) SwaggerDoc() map[string]string {
@@ -148,7 +151,7 @@ func (AWSFailureDomain) SwaggerDoc() map[string]string {
 
 var map_AWSFailureDomainPlacement = map[string]string{
 	"":                 "AWSFailureDomainPlacement configures the placement information for the AWSFailureDomain.",
-	"availabilityZone": "AvailabilityZone is the availability zone of the instance.",
+	"availabilityZone": "availabilityZone is the availability zone of the instance.",
 }
 
 func (AWSFailureDomainPlacement) SwaggerDoc() map[string]string {
@@ -156,8 +159,9 @@ func (AWSFailureDomainPlacement) SwaggerDoc() map[string]string {
 }
 
 var map_AzureFailureDomain = map[string]string{
-	"":     "AzureFailureDomain configures failure domain information for the Azure platform.",
-	"zone": "Availability Zone for the virtual machine. If nil, the virtual machine should be deployed to no zone.",
+	"":       "AzureFailureDomain configures failure domain information for the Azure platform.",
+	"zone":   "Availability Zone for the virtual machine. If nil, the virtual machine should be deployed to no zone.",
+	"subnet": "subnet is the name of the network subnet in which the VM will be created. When omitted, the subnet value from the machine providerSpec template will be used.",
 }
 
 func (AzureFailureDomain) SwaggerDoc() map[string]string {
@@ -165,7 +169,8 @@ func (AzureFailureDomain) SwaggerDoc() map[string]string {
 }
 
 var map_ControlPlaneMachineSet = map[string]string{
-	"": "ControlPlaneMachineSet ensures that a specified number of control plane machine replicas are running at any given time. Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"":         "ControlPlaneMachineSet ensures that a specified number of control plane machine replicas are running at any given time. Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata": "metadata is the standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
 }
 
 func (ControlPlaneMachineSet) SwaggerDoc() map[string]string {
@@ -173,7 +178,8 @@ func (ControlPlaneMachineSet) SwaggerDoc() map[string]string {
 }
 
 var map_ControlPlaneMachineSetList = map[string]string{
-	"": "ControlPlaneMachineSetList contains a list of ControlPlaneMachineSet Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"":         "ControlPlaneMachineSetList contains a list of ControlPlaneMachineSet Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata": "metadata is the standard list's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
 }
 
 func (ControlPlaneMachineSetList) SwaggerDoc() map[string]string {
@@ -181,12 +187,13 @@ func (ControlPlaneMachineSetList) SwaggerDoc() map[string]string {
 }
 
 var map_ControlPlaneMachineSetSpec = map[string]string{
-	"":         "ControlPlaneMachineSet represents the configuration of the ControlPlaneMachineSet.",
-	"state":    "State defines whether the ControlPlaneMachineSet is Active or Inactive. When Inactive, the ControlPlaneMachineSet will not take any action on the state of the Machines within the cluster. When Active, the ControlPlaneMachineSet will reconcile the Machines and will update the Machines as necessary. Once Active, a ControlPlaneMachineSet cannot be made Inactive. To prevent further action please remove the ControlPlaneMachineSet.",
-	"replicas": "Replicas defines how many Control Plane Machines should be created by this ControlPlaneMachineSet. This field is immutable and cannot be changed after cluster installation. The ControlPlaneMachineSet only operates with 3 or 5 node control planes, 3 and 5 are the only valid values for this field.",
-	"strategy": "Strategy defines how the ControlPlaneMachineSet will update Machines when it detects a change to the ProviderSpec.",
-	"selector": "Label selector for Machines. Existing Machines selected by this selector will be the ones affected by this ControlPlaneMachineSet. It must match the template's labels. This field is considered immutable after creation of the resource.",
-	"template": "Template describes the Control Plane Machines that will be created by this ControlPlaneMachineSet.",
+	"":                  "ControlPlaneMachineSet represents the configuration of the ControlPlaneMachineSet.",
+	"machineNamePrefix": "machineNamePrefix is the prefix used when creating machine names. Each machine name will consist of this prefix, followed by a randomly generated string of 5 characters, and the index of the machine. It must be a lowercase RFC 1123 subdomain, consisting of lowercase alphanumeric characters, hyphens ('-'), and periods ('.'). Each block, separated by periods, must start and end with an alphanumeric character. Hyphens are not allowed at the start or end of a block, and consecutive periods are not permitted. The prefix must be between 1 and 245 characters in length. For example, if machineNamePrefix is set to 'control-plane', and three machines are created, their names might be: control-plane-abcde-0, control-plane-fghij-1, control-plane-klmno-2",
+	"state":             "state defines whether the ControlPlaneMachineSet is Active or Inactive. When Inactive, the ControlPlaneMachineSet will not take any action on the state of the Machines within the cluster. When Active, the ControlPlaneMachineSet will reconcile the Machines and will update the Machines as necessary. Once Active, a ControlPlaneMachineSet cannot be made Inactive. To prevent further action please remove the ControlPlaneMachineSet.",
+	"replicas":          "replicas defines how many Control Plane Machines should be created by this ControlPlaneMachineSet. This field is immutable and cannot be changed after cluster installation. The ControlPlaneMachineSet only operates with 3 or 5 node control planes, 3 and 5 are the only valid values for this field.",
+	"strategy":          "strategy defines how the ControlPlaneMachineSet will update Machines when it detects a change to the ProviderSpec.",
+	"selector":          "Label selector for Machines. Existing Machines selected by this selector will be the ones affected by this ControlPlaneMachineSet. It must match the template's labels. This field is considered immutable after creation of the resource.",
+	"template":          "template describes the Control Plane Machines that will be created by this ControlPlaneMachineSet.",
 }
 
 func (ControlPlaneMachineSetSpec) SwaggerDoc() map[string]string {
@@ -195,12 +202,12 @@ func (ControlPlaneMachineSetSpec) SwaggerDoc() map[string]string {
 
 var map_ControlPlaneMachineSetStatus = map[string]string{
 	"":                    "ControlPlaneMachineSetStatus represents the status of the ControlPlaneMachineSet CRD.",
-	"conditions":          "Conditions represents the observations of the ControlPlaneMachineSet's current state. Known .status.conditions.type are: Available, Degraded and Progressing.",
-	"observedGeneration":  "ObservedGeneration is the most recent generation observed for this ControlPlaneMachineSet. It corresponds to the ControlPlaneMachineSets's generation, which is updated on mutation by the API Server.",
-	"replicas":            "Replicas is the number of Control Plane Machines created by the ControlPlaneMachineSet controller. Note that during update operations this value may differ from the desired replica count.",
-	"readyReplicas":       "ReadyReplicas is the number of Control Plane Machines created by the ControlPlaneMachineSet controller which are ready. Note that this value may be higher than the desired number of replicas while rolling updates are in-progress.",
-	"updatedReplicas":     "UpdatedReplicas is the number of non-terminated Control Plane Machines created by the ControlPlaneMachineSet controller that have the desired provider spec and are ready. This value is set to 0 when a change is detected to the desired spec. When the update strategy is RollingUpdate, this will also coincide with starting the process of updating the Machines. When the update strategy is OnDelete, this value will remain at 0 until a user deletes an existing replica and its replacement has become ready.",
-	"unavailableReplicas": "UnavailableReplicas is the number of Control Plane Machines that are still required before the ControlPlaneMachineSet reaches the desired available capacity. When this value is non-zero, the number of ReadyReplicas is less than the desired Replicas.",
+	"conditions":          "conditions represents the observations of the ControlPlaneMachineSet's current state. Known .status.conditions.type are: Available, Degraded and Progressing.",
+	"observedGeneration":  "observedGeneration is the most recent generation observed for this ControlPlaneMachineSet. It corresponds to the ControlPlaneMachineSets's generation, which is updated on mutation by the API Server.",
+	"replicas":            "replicas is the number of Control Plane Machines created by the ControlPlaneMachineSet controller. Note that during update operations this value may differ from the desired replica count.",
+	"readyReplicas":       "readyReplicas is the number of Control Plane Machines created by the ControlPlaneMachineSet controller which are ready. Note that this value may be higher than the desired number of replicas while rolling updates are in-progress.",
+	"updatedReplicas":     "updatedReplicas is the number of non-terminated Control Plane Machines created by the ControlPlaneMachineSet controller that have the desired provider spec and are ready. This value is set to 0 when a change is detected to the desired spec. When the update strategy is RollingUpdate, this will also coincide with starting the process of updating the Machines. When the update strategy is OnDelete, this value will remain at 0 until a user deletes an existing replica and its replacement has become ready.",
+	"unavailableReplicas": "unavailableReplicas is the number of Control Plane Machines that are still required before the ControlPlaneMachineSet reaches the desired available capacity. When this value is non-zero, the number of ReadyReplicas is less than the desired Replicas.",
 }
 
 func (ControlPlaneMachineSetStatus) SwaggerDoc() map[string]string {
@@ -209,7 +216,7 @@ func (ControlPlaneMachineSetStatus) SwaggerDoc() map[string]string {
 
 var map_ControlPlaneMachineSetStrategy = map[string]string{
 	"":     "ControlPlaneMachineSetStrategy defines the strategy for applying updates to the Control Plane Machines managed by the ControlPlaneMachineSet.",
-	"type": "Type defines the type of update strategy that should be used when updating Machines owned by the ControlPlaneMachineSet. Valid values are \"RollingUpdate\" and \"OnDelete\". The current default value is \"RollingUpdate\".",
+	"type": "type defines the type of update strategy that should be used when updating Machines owned by the ControlPlaneMachineSet. Valid values are \"RollingUpdate\" and \"OnDelete\". The current default value is \"RollingUpdate\".",
 }
 
 func (ControlPlaneMachineSetStrategy) SwaggerDoc() map[string]string {
@@ -218,7 +225,7 @@ func (ControlPlaneMachineSetStrategy) SwaggerDoc() map[string]string {
 
 var map_ControlPlaneMachineSetTemplate = map[string]string{
 	"":                                      "ControlPlaneMachineSetTemplate is a template used by the ControlPlaneMachineSet to create the Machines that it will manage in the future. ",
-	"machineType":                           "MachineType determines the type of Machines that should be managed by the ControlPlaneMachineSet. Currently, the only valid value is machines_v1beta1_machine_openshift_io.",
+	"machineType":                           "machineType determines the type of Machines that should be managed by the ControlPlaneMachineSet. Currently, the only valid value is machines_v1beta1_machine_openshift_io.",
 	"machines_v1beta1_machine_openshift_io": "OpenShiftMachineV1Beta1Machine defines the template for creating Machines from the v1beta1.machine.openshift.io API group.",
 }
 
@@ -229,7 +236,7 @@ func (ControlPlaneMachineSetTemplate) SwaggerDoc() map[string]string {
 var map_ControlPlaneMachineSetTemplateObjectMeta = map[string]string{
 	"":            "ControlPlaneMachineSetTemplateObjectMeta is a subset of the metav1.ObjectMeta struct. It allows users to specify labels and annotations that will be copied onto Machines created from this template.",
 	"labels":      "Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: http://kubernetes.io/docs/user-guide/labels. This field must contain both the 'machine.openshift.io/cluster-api-machine-role' and 'machine.openshift.io/cluster-api-machine-type' labels, both with a value of 'master'. It must also contain a label with the key 'machine.openshift.io/cluster-api-cluster'.",
-	"annotations": "Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: http://kubernetes.io/docs/user-guide/annotations",
+	"annotations": "annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: http://kubernetes.io/docs/user-guide/annotations",
 }
 
 func (ControlPlaneMachineSetTemplateObjectMeta) SwaggerDoc() map[string]string {
@@ -237,11 +244,14 @@ func (ControlPlaneMachineSetTemplateObjectMeta) SwaggerDoc() map[string]string {
 }
 
 var map_FailureDomains = map[string]string{
-	"":         "FailureDomain represents the different configurations required to spread Machines across failure domains on different platforms.",
-	"platform": "Platform identifies the platform for which the FailureDomain represents. Currently supported values are AWS, Azure, and GCP.",
-	"aws":      "AWS configures failure domain information for the AWS platform.",
-	"azure":    "Azure configures failure domain information for the Azure platform.",
-	"gcp":      "GCP configures failure domain information for the GCP platform.",
+	"":          "FailureDomain represents the different configurations required to spread Machines across failure domains on different platforms.",
+	"platform":  "platform identifies the platform for which the FailureDomain represents. Currently supported values are AWS, Azure, GCP, OpenStack, VSphere and Nutanix.",
+	"aws":       "aws configures failure domain information for the AWS platform.",
+	"azure":     "azure configures failure domain information for the Azure platform.",
+	"gcp":       "gcp configures failure domain information for the GCP platform.",
+	"vsphere":   "vsphere configures failure domain information for the VSphere platform.",
+	"openstack": "openstack configures failure domain information for the OpenStack platform.",
+	"nutanix":   "nutanix configures failure domain information for the Nutanix platform.",
 }
 
 func (FailureDomains) SwaggerDoc() map[string]string {
@@ -250,26 +260,86 @@ func (FailureDomains) SwaggerDoc() map[string]string {
 
 var map_GCPFailureDomain = map[string]string{
 	"":     "GCPFailureDomain configures failure domain information for the GCP platform",
-	"zone": "Zone is the zone in which the GCP machine provider will create the VM.",
+	"zone": "zone is the zone in which the GCP machine provider will create the VM.",
 }
 
 func (GCPFailureDomain) SwaggerDoc() map[string]string {
 	return map_GCPFailureDomain
 }
 
+var map_NutanixFailureDomainReference = map[string]string{
+	"":     "NutanixFailureDomainReference refers to the failure domain of the Nutanix platform.",
+	"name": "name of the failure domain in which the nutanix machine provider will create the VM. Failure domains are defined in a cluster's config.openshift.io/Infrastructure resource.",
+}
+
+func (NutanixFailureDomainReference) SwaggerDoc() map[string]string {
+	return map_NutanixFailureDomainReference
+}
+
 var map_OpenShiftMachineV1Beta1MachineTemplate = map[string]string{
 	"":               "OpenShiftMachineV1Beta1MachineTemplate is a template for the ControlPlaneMachineSet to create Machines from the v1beta1.machine.openshift.io API group.",
-	"failureDomains": "FailureDomains is the list of failure domains (sometimes called availability zones) in which the ControlPlaneMachineSet should balance the Control Plane Machines. This will be merged into the ProviderSpec given in the template. This field is optional on platforms that do not require placement information.",
+	"failureDomains": "failureDomains is the list of failure domains (sometimes called availability zones) in which the ControlPlaneMachineSet should balance the Control Plane Machines. This will be merged into the ProviderSpec given in the template. This field is optional on platforms that do not require placement information.",
 	"metadata":       "ObjectMeta is the standard object metadata More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata Labels are required to match the ControlPlaneMachineSet selector.",
-	"spec":           "Spec contains the desired configuration of the Control Plane Machines. The ProviderSpec within contains platform specific details for creating the Control Plane Machines. The ProviderSe should be complete apart from the platform specific failure domain field. This will be overriden when the Machines are created based on the FailureDomains field.",
+	"spec":           "spec contains the desired configuration of the Control Plane Machines. The ProviderSpec within contains platform specific details for creating the Control Plane Machines. The ProviderSe should be complete apart from the platform specific failure domain field. This will be overriden when the Machines are created based on the FailureDomains field.",
 }
 
 func (OpenShiftMachineV1Beta1MachineTemplate) SwaggerDoc() map[string]string {
 	return map_OpenShiftMachineV1Beta1MachineTemplate
 }
 
+var map_OpenStackFailureDomain = map[string]string{
+	"":                 "OpenStackFailureDomain configures failure domain information for the OpenStack platform.",
+	"availabilityZone": "availabilityZone is the nova availability zone in which the OpenStack machine provider will create the VM. If not specified, the VM will be created in the default availability zone specified in the nova configuration. Availability zone names must NOT contain : since it is used by admin users to specify hosts where instances are launched in server creation. Also, it must not contain spaces otherwise it will lead to node that belongs to this availability zone register failure, see kubernetes/cloud-provider-openstack#1379 for further information. The maximum length of availability zone name is 63 as per labels limits.",
+	"rootVolume":       "rootVolume contains settings that will be used by the OpenStack machine provider to create the root volume attached to the VM. If not specified, no root volume will be created.",
+}
+
+func (OpenStackFailureDomain) SwaggerDoc() map[string]string {
+	return map_OpenStackFailureDomain
+}
+
+var map_RootVolume = map[string]string{
+	"":                 "RootVolume represents the volume metadata to boot from. The original RootVolume struct is defined in the v1alpha1 but it's not best practice to use it directly here so we define a new one that should stay in sync with the original one.",
+	"availabilityZone": "availabilityZone specifies the Cinder availability zone where the root volume will be created. If not specifified, the root volume will be created in the availability zone specified by the volume type in the cinder configuration. If the volume type (configured in the OpenStack cluster) does not specify an availability zone, the root volume will be created in the default availability zone specified in the cinder configuration. See https://docs.openstack.org/cinder/latest/admin/availability-zone-type.html for more details. If the OpenStack cluster is deployed with the cross_az_attach configuration option set to false, the root volume will have to be in the same availability zone as the VM (defined by OpenStackFailureDomain.AvailabilityZone). Availability zone names must NOT contain spaces otherwise it will lead to volume that belongs to this availability zone register failure, see kubernetes/cloud-provider-openstack#1379 for further information. The maximum length of availability zone name is 63 as per labels limits.",
+	"volumeType":       "volumeType specifies the type of the root volume that will be provisioned. The maximum length of a volume type name is 255 characters, as per the OpenStack limit. ",
+}
+
+func (RootVolume) SwaggerDoc() map[string]string {
+	return map_RootVolume
+}
+
+var map_VSphereFailureDomain = map[string]string{
+	"":     "VSphereFailureDomain configures failure domain information for the vSphere platform",
+	"name": "name of the failure domain in which the vSphere machine provider will create the VM. Failure domains are defined in a cluster's config.openshift.io/Infrastructure resource. When balancing machines across failure domains, the control plane machine set will inject configuration from the Infrastructure resource into the machine providerSpec to allocate the machine to a failure domain.",
+}
+
+func (VSphereFailureDomain) SwaggerDoc() map[string]string {
+	return map_VSphereFailureDomain
+}
+
+var map_NutanixCategory = map[string]string{
+	"":      "NutanixCategory identifies a pair of prism category key and value",
+	"key":   "key is the prism category key name",
+	"value": "value is the prism category value associated with the key",
+}
+
+func (NutanixCategory) SwaggerDoc() map[string]string {
+	return map_NutanixCategory
+}
+
+var map_NutanixGPU = map[string]string{
+	"":         "NutanixGPU holds the identity of a Nutanix GPU resource in the Prism Central",
+	"type":     "type is the identifier type of the GPU device. Valid values are Name and DeviceID.",
+	"deviceID": "deviceID is the GPU device ID with the integer value.",
+	"name":     "name is the GPU device name",
+}
+
+func (NutanixGPU) SwaggerDoc() map[string]string {
+	return map_NutanixGPU
+}
+
 var map_NutanixMachineProviderConfig = map[string]string{
 	"":                  "NutanixMachineProviderConfig is the Schema for the nutanixmachineproviderconfigs API Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata":          "metadata is the standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
 	"cluster":           "cluster is to identify the cluster (the Prism Element under management of the Prism Central), in which the Machine's VM will be created. The cluster identifier (uuid or name) can be obtained from the Prism Central console or using the prism_central API.",
 	"image":             "image is to identify the rhcos image uploaded to the Prism Central (PC) The image identifier (uuid or name) can be obtained from the Prism Central console or using the prism_central API.",
 	"subnets":           "subnets holds a list of identifiers (one or more) of the cluster's network subnets for the Machine's VM to connect to. The subnet identifiers (uuid or name) can be obtained from the Prism Central console or using the prism_central API.",
@@ -277,8 +347,14 @@ var map_NutanixMachineProviderConfig = map[string]string{
 	"vcpuSockets":       "vcpuSockets is the number of vCPU sockets of the VM",
 	"memorySize":        "memorySize is the memory size (in Quantity format) of the VM The minimum memorySize is 2Gi bytes",
 	"systemDiskSize":    "systemDiskSize is size (in Quantity format) of the system disk of the VM The minimum systemDiskSize is 20Gi bytes",
+	"bootType":          "bootType indicates the boot type (Legacy, UEFI or SecureBoot) the Machine's VM uses to boot. If this field is empty or omitted, the VM will use the default boot type \"Legacy\" to boot. \"SecureBoot\" depends on \"UEFI\" boot, i.e., enabling \"SecureBoot\" means that \"UEFI\" boot is also enabled.",
+	"project":           "project optionally identifies a Prism project for the Machine's VM to associate with.",
+	"categories":        "categories optionally adds one or more prism categories (each with key and value) for the Machine's VM to associate with. All the category key and value pairs specified must already exist in the prism central.",
+	"gpus":              "gpus is a list of GPU devices to attach to the machine's VM. The GPU devices should already exist in Prism Central and associated with one of the Prism Element's hosts and available for the VM to attach (in \"UNUSED\" status).",
+	"dataDisks":         "dataDisks holds information of the data disks to attach to the Machine's VM",
 	"userDataSecret":    "userDataSecret is a local reference to a secret that contains the UserData to apply to the VM",
 	"credentialsSecret": "credentialsSecret is a local reference to a secret that contains the credentials data to access Nutanix PC client",
+	"failureDomain":     "failureDomain refers to the name of the FailureDomain with which this Machine is associated. If this is configured, the Nutanix machine controller will use the prism_central endpoint and credentials defined in the referenced FailureDomain to communicate to the prism_central. It will also verify that the 'cluster' and subnets' configuration in the NutanixMachineProviderConfig is consistent with that in the referenced failureDomain.",
 }
 
 func (NutanixMachineProviderConfig) SwaggerDoc() map[string]string {
@@ -297,13 +373,66 @@ func (NutanixMachineProviderStatus) SwaggerDoc() map[string]string {
 
 var map_NutanixResourceIdentifier = map[string]string{
 	"":     "NutanixResourceIdentifier holds the identity of a Nutanix PC resource (cluster, image, subnet, etc.)",
-	"type": "Type is the identifier type to use for this resource.",
+	"type": "type is the identifier type to use for this resource.",
 	"uuid": "uuid is the UUID of the resource in the PC.",
 	"name": "name is the resource name in the PC",
 }
 
 func (NutanixResourceIdentifier) SwaggerDoc() map[string]string {
 	return map_NutanixResourceIdentifier
+}
+
+var map_NutanixStorageResourceIdentifier = map[string]string{
+	"":     "NutanixStorageResourceIdentifier holds the identity of a Nutanix storage resource (storage_container, etc.)",
+	"type": "type is the identifier type to use for this resource. The valid value is \"uuid\".",
+	"uuid": "uuid is the UUID of the storage resource in the PC.",
+}
+
+func (NutanixStorageResourceIdentifier) SwaggerDoc() map[string]string {
+	return map_NutanixStorageResourceIdentifier
+}
+
+var map_NutanixVMDisk = map[string]string{
+	"":                 "NutanixDataDisk specifies the VM data disk configuration parameters.",
+	"diskSize":         "diskSize is size (in Quantity format) of the disk attached to the VM. See https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Format for the Quantity format and example documentation. The minimum diskSize is 1GB.",
+	"deviceProperties": "deviceProperties are the properties of the disk device.",
+	"storageConfig":    "storageConfig are the storage configuration parameters of the VM disks.",
+	"dataSource":       "dataSource refers to a data source image for the VM disk.",
+}
+
+func (NutanixVMDisk) SwaggerDoc() map[string]string {
+	return map_NutanixVMDisk
+}
+
+var map_NutanixVMDiskDeviceProperties = map[string]string{
+	"":            "NutanixVMDiskDeviceProperties specifies the disk device properties.",
+	"deviceType":  "deviceType specifies the disk device type. The valid values are \"Disk\" and \"CDRom\", and the default is \"Disk\".",
+	"adapterType": "adapterType is the adapter type of the disk address. If the deviceType is \"Disk\", the valid adapterType can be \"SCSI\", \"IDE\", \"PCI\", \"SATA\" or \"SPAPR\". If the deviceType is \"CDRom\", the valid adapterType can be \"IDE\" or \"SATA\".",
+	"deviceIndex": "deviceIndex is the index of the disk address. The valid values are non-negative integers, with the default value 0. For a Machine VM, the deviceIndex for the disks with the same deviceType.adapterType combination should start from 0 and increase consecutively afterwards. Note that for each Machine VM, the Disk.SCSI.0 and CDRom.IDE.0 are reserved to be used by the VM's system. So for dataDisks of Disk.SCSI and CDRom.IDE, the deviceIndex should start from 1.",
+}
+
+func (NutanixVMDiskDeviceProperties) SwaggerDoc() map[string]string {
+	return map_NutanixVMDiskDeviceProperties
+}
+
+var map_NutanixVMStorageConfig = map[string]string{
+	"":                 "NutanixVMStorageConfig specifies the storage configuration parameters for VM disks.",
+	"diskMode":         "diskMode specifies the disk mode. The valid values are Standard and Flash, and the default is Standard.",
+	"storageContainer": "storageContainer refers to the storage_container used by the VM disk.",
+}
+
+func (NutanixVMStorageConfig) SwaggerDoc() map[string]string {
+	return map_NutanixVMStorageConfig
+}
+
+var map_LoadBalancerReference = map[string]string{
+	"":     "LoadBalancerReference is a reference to a load balancer on IBM Cloud virtual private cloud(VPC).",
+	"name": "name of the LoadBalancer in IBM Cloud VPC. The name should be between 1 and 63 characters long and may consist of lowercase alphanumeric characters and hyphens only. The value must not end with a hyphen. It is a reference to existing LoadBalancer created by openshift installer component.",
+	"type": "type of the LoadBalancer service supported by IBM Cloud VPC. Currently, only Application LoadBalancer is supported. More details about Application LoadBalancer https://cloud.ibm.com/docs/vpc?topic=vpc-load-balancers-about&interface=ui Supported values are Application.",
+}
+
+func (LoadBalancerReference) SwaggerDoc() map[string]string {
+	return map_LoadBalancerReference
 }
 
 var map_PowerVSMachineProviderConfig = map[string]string{
@@ -318,6 +447,7 @@ var map_PowerVSMachineProviderConfig = map[string]string{
 	"processorType":     "processorType is the VM instance processor type. It must be set to one of the following values: Dedicated, Capped or Shared. Dedicated: resources are allocated for a specific client, The hypervisor makes a 1:1 binding of a partition’s processor to a physical processor core. Shared: Shared among other clients. Capped: Shared, but resources do not expand beyond those that are requested, the amount of CPU time is Capped to the value specified for the entitlement. if the processorType is selected as Dedicated, then processors value cannot be fractional. When omitted, this means that the user has no opinion and the platform is left to choose a reasonable default, which is subject to change over time. The current default is Shared.",
 	"processors":        "processors is the number of virtual processors in a virtual machine. when the processorType is selected as Dedicated the processors value cannot be fractional. maximum value for the Processors depends on the selected SystemType. when SystemType is set to e880 or e980 maximum Processors value is 143. when SystemType is set to s922 maximum Processors value is 15. minimum value for Processors depends on the selected ProcessorType. when ProcessorType is set as Shared or Capped, The minimum processors is 0.5. when ProcessorType is set as Dedicated, The minimum processors is 1. When omitted, this means that the user has no opinion and the platform is left to choose a reasonable default, which is subject to change over time. The default is set based on the selected ProcessorType. when ProcessorType selected as Dedicated, the default is set to 1. when ProcessorType selected as Shared or Capped, the default is set to 0.5.",
 	"memoryGiB":         "memoryGiB is the size of a virtual machine's memory, in GiB. maximum value for the MemoryGiB depends on the selected SystemType. when SystemType is set to e880 maximum MemoryGiB value is 7463 GiB. when SystemType is set to e980 maximum MemoryGiB value is 15307 GiB. when SystemType is set to s922 maximum MemoryGiB value is 942 GiB. The minimum memory is 32 GiB. When omitted, this means the user has no opinion and the platform is left to choose a reasonable default, which is subject to change over time. The current default is 32.",
+	"loadBalancers":     "loadBalancers is the set of load balancers to which the new control plane instance should be added once it is created.",
 }
 
 func (PowerVSMachineProviderConfig) SwaggerDoc() map[string]string {
@@ -338,10 +468,10 @@ func (PowerVSMachineProviderStatus) SwaggerDoc() map[string]string {
 
 var map_PowerVSResource = map[string]string{
 	"":      "PowerVSResource is a reference to a specific PowerVS resource by ID, Name or RegEx Only one of ID, Name or RegEx may be specified. Specifying more than one will result in a validation error.",
-	"type":  "Type identifies the resource type for this entry. Valid values are ID, Name and RegEx",
-	"id":    "ID of resource",
-	"name":  "Name of resource",
-	"regex": "Regex to find resource Regex contains the pattern to match to find a resource",
+	"type":  "type identifies the resource type for this entry. Valid values are ID, Name and RegEx",
+	"id":    "id of resource",
+	"name":  "name of resource",
+	"regex": "regex to find resource Regex contains the pattern to match to find a resource",
 }
 
 func (PowerVSResource) SwaggerDoc() map[string]string {
@@ -350,7 +480,7 @@ func (PowerVSResource) SwaggerDoc() map[string]string {
 
 var map_PowerVSSecretReference = map[string]string{
 	"":     "PowerVSSecretReference contains enough information to locate the referenced secret inside the same namespace.",
-	"name": "Name of the secret.",
+	"name": "name of the secret.",
 }
 
 func (PowerVSSecretReference) SwaggerDoc() map[string]string {

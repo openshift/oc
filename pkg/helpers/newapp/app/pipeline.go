@@ -31,7 +31,6 @@ import (
 	imagev1 "github.com/openshift/api/image/v1"
 	imagev1typedclient "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/library-go/pkg/image/reference"
-	"github.com/openshift/oc/pkg/helpers/legacy"
 	"github.com/openshift/oc/pkg/helpers/newapp"
 	"github.com/openshift/oc/pkg/helpers/newapp/docker/dockerfile"
 )
@@ -123,6 +122,11 @@ func (pb *pipelineBuilder) NewBuildPipeline(from string, input *ImageRef, source
 					Config: &dockerv10.DockerConfig{},
 				}
 			}
+			input.ImportMode = imagev1.ImportModeType(input.ImportMode)
+			// If there is no DockerConfig, otherwise a panic results
+			if input.Info.Config == nil {
+				input.Info.Config = &dockerv10.DockerConfig{}
+			}
 			input.Info.Config.ExposedPorts = map[string]struct{}{}
 			for _, p := range ports {
 				input.Info.Config.ExposedPorts[p] = struct{}{}
@@ -134,6 +138,7 @@ func (pb *pipelineBuilder) NewBuildPipeline(from string, input *ImageRef, source
 		// TODO: assumes that build doesn't change the image metadata. In the future
 		// we could get away with deferred generation possibly.
 		output.Info = input.Info
+		output.ImportMode = imagev1.ImportModeType(input.ImportMode)
 	}
 
 	build := &BuildRef{
@@ -145,7 +150,6 @@ func (pb *pipelineBuilder) NewBuildPipeline(from string, input *ImageRef, source
 		DockerStrategyOptions: pb.dockerStrategyOptions,
 		Binary:                binary,
 	}
-
 	return &Pipeline{
 		Name:       name,
 		From:       from,
@@ -546,7 +550,7 @@ func (a *acceptNonExistentImageStream) Accept(from interface{}) bool {
 		return false
 	}
 	gk := gvk[0].GroupKind()
-	if !(image.Kind("ImageStream") == gk || legacy.Kind("ImageStream") == gk) {
+	if !(image.Kind("ImageStream") == gk) {
 		return true
 	}
 	is, ok := from.(*imagev1.ImageStream)
@@ -595,7 +599,7 @@ func (a *acceptNonExistentImageStreamTag) Accept(from interface{}) bool {
 		return false
 	}
 	gk := gvk[0].GroupKind()
-	if !(image.Kind("ImageStreamTag") == gk || legacy.Kind("ImageStreamTag") == gk) {
+	if !(image.Kind("ImageStreamTag") == gk) {
 		return true
 	}
 	ist, ok := from.(*imagev1.ImageStreamTag)

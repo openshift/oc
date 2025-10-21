@@ -4,14 +4,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 )
 
 // CreateSubcommandOptions is an options struct to support create subcommands
 type CreateSubcommandOptions struct {
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 
 	// PrintFlags holds options necessary for obtaining a printer
 	PrintFlags *genericclioptions.PrintFlags
@@ -26,9 +26,9 @@ type CreateSubcommandOptions struct {
 	Printer printers.ResourcePrinter
 }
 
-func NewCreateSubcommandOptions(ioStreams genericclioptions.IOStreams) *CreateSubcommandOptions {
+func NewCreateSubcommandOptions(ioStreams genericiooptions.IOStreams) *CreateSubcommandOptions {
 	return &CreateSubcommandOptions{
-		PrintFlags: genericclioptions.NewPrintFlags("created").WithTypeSetter(scheme.Scheme),
+		PrintFlags: genericclioptions.NewPrintFlags("created").WithTypeSetter(createCmdScheme),
 		IOStreams:  ioStreams,
 	}
 }
@@ -75,5 +75,4 @@ func NameFromCommandArgs(cmd *cobra.Command, args []string) (string, error) {
 		return "", cmdutil.UsageErrorf(cmd, "exactly one NAME is required, got %d", argsLen)
 	}
 	return args[0], nil
-
 }

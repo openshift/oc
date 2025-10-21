@@ -5,14 +5,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdtesting "k8s.io/kubectl/pkg/cmd/testing"
 )
 
 func TestLocalAndDryRunFlags(t *testing.T) {
 	tf := kcmdtesting.NewTestFactory().WithNamespace("test")
 	defer tf.Cleanup()
-	setCmd := NewCmdSet(tf, genericclioptions.NewTestIOStreamsDiscard())
+	setCmd := NewCmdSet(tf, genericiooptions.NewTestIOStreamsDiscard())
 	ensureLocalAndDryRunFlagsOnChildren(t, setCmd, "")
 }
 

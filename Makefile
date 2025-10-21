@@ -13,8 +13,8 @@ include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 	targets/openshift/deps-gomod.mk \
 )
 
-KUBE_GIT_MINOR_VERSION := "26"
-KUBE_GIT_VERSION := "v1.26.1"
+KUBE_GIT_MINOR_VERSION := "33"
+KUBE_GIT_VERSION := "v1.33.3"
 
 GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
                    -X k8s.io/component-base/version.gitMinor=$(KUBE_GIT_MINOR_VERSION) \
@@ -44,7 +44,6 @@ RPM_EXTRAFLAGS := \
 	--define 'local_build true' \
 	--define 'os_git_vars ignore' \
 	--define 'version $(RPM_VERSION)' \
-	--define 'dist .el7' \
 	--define 'release 1'
 
 IMAGE_REGISTRY :=registry.ci.openshift.org

@@ -1,0 +1,27 @@
+Failing=True:
+
+  Reason: ClusterOperatorNotAvailable
+  Message: Cluster operator monitoring is not available
+
+The following conditions found no cause for concern in updating this cluster to later releases: recommended/NodeAlerts (AsExpected), recommended/PodImagePullAlerts (AsExpected)
+
+The following conditions found cause for concern in updating this cluster to later releases: recommended/CriticalAlerts/ClusterOperatorDown/0, recommended/PodDisruptionBudgetAlerts/PodDisruptionBudgetAtLimit/1
+
+recommended/CriticalAlerts/ClusterOperatorDown/0=False:
+
+  Reason: Alert:firing
+  Message: critical alert ClusterOperatorDown firing, suggesting significant cluster issues worth investigating. Cluster operator has not been available for 10 minutes. The alert description is: The monitoring operator may be down or disabled because UpdatingPrometheusFailed, and the components it manages may be unavailable or degraded.  Cluster upgrades may not complete. For more information refer to 'oc get -o yaml clusteroperator monitoring' or https://console-openshift-console.apps.ci-ln-4xlhr32-72292.origin-ci-int-gce.dev.rhcloud.com/settings/cluster/. https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/ClusterOperatorDown.md
+
+recommended/PodDisruptionBudgetAlerts/PodDisruptionBudgetAtLimit/1=False:
+
+  Reason: Alert:firing
+  Message: warning alert PodDisruptionBudgetAtLimit firing, which might slow node drains. Namespace=openshift-monitoring, PodDisruptionBudget=prometheus-k8s. The pod disruption budget is preventing further disruption to pods. The alert description is: The pod disruption budget is at the minimum disruptions allowed level. The number of current healthy pods is equal to the desired healthy pods. https://github.com/openshift/runbooks/blob/master/alerts/cluster-kube-controller-manager-operator/PodDisruptionBudgetAtLimit.md
+
+Upstream update service: https://api.integration.openshift.com/api/upgrades_info/graph
+Channel: candidate-4.16 (available channels: candidate-4.16, candidate-4.17, candidate-4.18, eus-4.16, fast-4.16, fast-4.17, stable-4.16, stable-4.17)
+
+Update to 4.16.32 has no known issues relevant to this cluster.
+Image: quay.io/openshift-release-dev/ocp-release@sha256:0e71cb61694473b40e8d95f530eaf250a62616debb98199f31b4034808687dae
+Release URL: https://access.redhat.com/errata/RHSA-2025:0650
+
+error: issues that apply to this cluster but which were not included in --accept: ClusterOperatorDown,Failing,PodDisruptionBudgetAtLimit

@@ -36,6 +36,8 @@ const (
 	// This LABEL is the git clone location that an image was built with. Copied
 	// unmodified to the image-references file.
 	annotationBuildSourceLocation = "io.openshift.build.source-location"
+	// This LABEL indicates that an image is capped by a metadata layer.
+	annotationMetalayer = "io.openshift.metalayer"
 
 	urlGithubPrefix = "https://github.com/"
 )

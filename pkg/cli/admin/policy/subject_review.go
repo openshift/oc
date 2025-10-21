@@ -16,6 +16,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -61,17 +62,17 @@ type SCCSubjectReviewOptions struct {
 	noHeaders              bool
 	serviceAccount         string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewSCCSubjectReviewOptions(streams genericclioptions.IOStreams) *SCCSubjectReviewOptions {
+func NewSCCSubjectReviewOptions(streams genericiooptions.IOStreams) *SCCSubjectReviewOptions {
 	return &SCCSubjectReviewOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
 	}
 }
 
-func NewCmdSccSubjectReview(f kcmdutil.Factory, streams genericclioptions.IOStreams, admin bool) *cobra.Command {
+func NewCmdSccSubjectReview(f kcmdutil.Factory, streams genericiooptions.IOStreams, admin bool) *cobra.Command {
 	o := NewSCCSubjectReviewOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "scc-subject-review",

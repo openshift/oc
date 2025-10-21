@@ -2,7 +2,6 @@ package file
 
 import (
 	"bufio"
-	"io/ioutil"
 	"os"
 )
 
@@ -28,7 +27,7 @@ func LoadData(file string) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	bytes, err := ioutil.ReadFile(file)
+	bytes, err := os.ReadFile(file)
 	if err != nil {
 		return []byte{}, err
 	}

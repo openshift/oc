@@ -3,7 +3,7 @@ package deployments
 import (
 	"testing"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	fakecorev1client "k8s.io/client-go/kubernetes/typed/core/v1/fake"
 	clienttesting "k8s.io/client-go/testing"
 
@@ -18,7 +18,7 @@ func TestDeploymentPruneNamespaced(t *testing.T) {
 
 		AppsClient: osFake,
 		KubeClient: coreFake,
-		IOStreams:  genericclioptions.NewTestIOStreamsDiscard(),
+		IOStreams:  genericiooptions.NewTestIOStreamsDiscard(),
 	}
 
 	if err := opts.Run(); err != nil {

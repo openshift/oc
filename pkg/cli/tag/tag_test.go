@@ -8,7 +8,7 @@ import (
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	clientgotesting "k8s.io/client-go/testing"
 
 	"github.com/openshift/api/image"
@@ -70,6 +70,22 @@ func testData() []*imagev1.ImageStream {
 						Name: "tip",
 						From: &corev1.ObjectReference{
 							Name:      "python",
+							Namespace: "openshift",
+							Kind:      "ImageStreamTag",
+						},
+					},
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "rails", Namespace: "myproject", ResourceVersion: "10", CreationTimestamp: metav1.Now()},
+			Spec: imagev1.ImageStreamSpec{
+				DockerImageRepository: "",
+				Tags: []imagev1.TagReference{
+					{
+						Name: "invalid-tagname-test#123",
+						From: &corev1.ObjectReference{
+							Name:      "ruby",
 							Namespace: "openshift",
 							Kind:      "ImageStreamTag",
 						},
@@ -165,43 +181,78 @@ func TestTag(t *testing.T) {
 				{verb: "update", resource: "imagestreams"},
 			},
 		},
+		"tag using invalid tag name": {
+			data: []runtime.Object{streams[3], streams[0]},
+			opts: &TagOptions{
+				ref: imagev1.DockerImageReference{
+					Namespace: "openshift",
+					Name:      "ruby",
+					Tag:       "latest",
+				},
+				referencePolicy: SourceReferencePolicy,
+				namespace:       "myproject2",
+				sourceKind:      "ImageStreamTag",
+				destNamespace:   []string{"yourproject"},
+				destNameAndTag:  []string{"rails:invalid-tagname-test#123"},
+			},
+			runErr: "invalid tag \"invalid-tagname-test#123\" format, tags must start with an alphanumeric character followed by alphanumeric, '.' or '-' characters, and have a maximum of 128 characters",
+		},
+		"can delete tag with invalid name": {
+			data: []runtime.Object{streams[4]},
+			opts: &TagOptions{
+				deleteTag:       true,
+				referencePolicy: SourceReferencePolicy,
+				destNamespace:   []string{"myproject"},
+				destNameAndTag:  []string{"rails:invalid-tagname-test#123"},
+			},
+			expectedActions: []testAction{
+				{verb: "delete", resource: "imagestreamtags"},
+				{verb: "get", resource: "imagestreams"},
+				{verb: "update", resource: "imagestreams"},
+			},
+		},
 	}
 
 	for name, test := range testCases {
-		client := fakeimagev1client.NewSimpleClientset(test.data...)
-		client.PrependReactor("create", "imagestreamtags", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
-			return true, nil, kapierrors.NewMethodNotSupported(image.Resource("imagestreamtags"), "create")
-		})
-		client.PrependReactor("update", "imagestreamtags", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
-			return true, nil, kapierrors.NewMethodNotSupported(image.Resource("imagestreamtags"), "update")
-		})
+		t.Run(name, func(t *testing.T) {
+			client := fakeimagev1client.NewSimpleClientset(test.data...)
+			client.PrependReactor("create", "imagestreamtags", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, nil, kapierrors.NewMethodNotSupported(image.Resource("imagestreamtags"), "create")
+			})
+			client.PrependReactor("update", "imagestreamtags", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, nil, kapierrors.NewMethodNotSupported(image.Resource("imagestreamtags"), "update")
+			})
+			client.PrependReactor("delete", "imagestreamtags", func(action clientgotesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, nil, kapierrors.NewForbidden(image.Resource("imagestreamtags"), "rails:tip", fmt.Errorf("dne"))
+			})
 
-		test.opts.IOStreams = genericclioptions.NewTestIOStreamsDiscard()
-		test.opts.client = client.ImageV1()
+			test.opts.IOStreams = genericiooptions.NewTestIOStreamsDiscard()
+			test.opts.client = client.ImageV1()
 
-		err := test.opts.Validate()
-		if (err == nil && len(test.validateErr) != 0) || (err != nil && err.Error() != test.validateErr) {
-			t.Errorf("%s: validation error mismatch: expected %v, got %v", name, test.validateErr, err)
-		}
-		if err != nil {
-			continue
-		}
-
-		err = test.opts.Run()
-		if (err == nil && len(test.runErr) != 0) || (err != nil && err.Error() != test.runErr) {
-			t.Errorf("%s: run error mismatch: expected %v, got %v", name, test.runErr, err)
-		}
-
-		got := client.Actions()
-		if len(test.expectedActions) != len(got) {
-			t.Fatalf("%s: action length mismatch: expected %d, got %d", name, len(test.expectedActions), len(got))
-		}
-		for i, action := range test.expectedActions {
-			if !got[i].Matches(action.verb, action.resource) {
-				t.Errorf("%s: [%o] action mismatch: expected %s %s, got %s %s",
-					name, i, action.verb, action.resource, got[i].GetVerb(), got[i].GetResource())
+			err := test.opts.Validate()
+			if (err == nil && len(test.validateErr) != 0) || (err != nil && err.Error() != test.validateErr) {
+				t.Errorf("%s: validation error mismatch: expected %v, got %v", name, test.validateErr, err)
 			}
-		}
+			if err != nil {
+				return
+			}
+
+			err = test.opts.Run()
+			if (err == nil && len(test.runErr) != 0) || (err != nil && err.Error() != test.runErr) {
+				t.Errorf("%s: run error mismatch: expected %v, got %v", name, test.runErr, err)
+			}
+
+			got := client.Actions()
+			if len(test.expectedActions) != len(got) {
+				t.Fatalf("%s: action length mismatch: expected %d, got %d", name, len(test.expectedActions), len(got))
+			}
+			for i, action := range test.expectedActions {
+				if !got[i].Matches(action.verb, action.resource) {
+					t.Errorf("%s: [%o] action mismatch: expected %s %s, got %s %s",
+						name, i, action.verb, action.resource, got[i].GetVerb(), got[i].GetResource())
+				}
+			}
+		})
 	}
 }
 
@@ -224,7 +275,7 @@ func TestRunTag_DeleteOld(t *testing.T) {
 		expectedErr     error
 	}{
 		opts: &TagOptions{
-			IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
+			IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 			client:         client.ImageV1(),
 			deleteTag:      true,
 			destNamespace:  []string{"yourproject"},
@@ -267,7 +318,7 @@ func TestRunTag_AddNew(t *testing.T) {
 		expectedErr     error
 	}{
 		opts: &TagOptions{
-			IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
+			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
 			client:    client.ImageV1(),
 			ref: imagev1.DockerImageReference{
 				Namespace: "openshift",
@@ -315,7 +366,7 @@ func TestRunTag_AddRestricted(t *testing.T) {
 		expectedErr     error
 	}{
 		opts: &TagOptions{
-			IOStreams: genericclioptions.NewTestIOStreamsDiscard(),
+			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
 			client:    client.ImageV1(),
 			ref: imagev1.DockerImageReference{
 				Namespace: "openshift",
@@ -448,7 +499,7 @@ func TestRunTag_AddImportMode(t *testing.T) {
 	for name, test := range testCases {
 		client := fakeimagev1client.NewSimpleClientset(test.data...)
 
-		test.opts.IOStreams = genericclioptions.NewTestIOStreamsDiscard()
+		test.opts.IOStreams = genericiooptions.NewTestIOStreamsDiscard()
 		test.opts.client = client.ImageV1()
 
 		err := test.opts.Validate()
@@ -501,7 +552,7 @@ func TestRunTag_DeleteNew(t *testing.T) {
 		expectedErr     error
 	}{
 		opts: &TagOptions{
-			IOStreams:      genericclioptions.NewTestIOStreamsDiscard(),
+			IOStreams:      genericiooptions.NewTestIOStreamsDiscard(),
 			client:         client.ImageV1(),
 			deleteTag:      true,
 			destNamespace:  []string{"yourproject"},

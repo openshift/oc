@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -30,7 +30,7 @@ type RequestProjectOptions struct {
 	Client         projectv1client.ProjectV1Interface
 	ProjectOptions *ocproject.ProjectOptions
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 // RequestProject command description.
@@ -71,14 +71,14 @@ To switch to this project and start adding applications, use:
 `
 )
 
-func NewRequestProjectOptions(streams genericclioptions.IOStreams) *RequestProjectOptions {
+func NewRequestProjectOptions(streams genericiooptions.IOStreams) *RequestProjectOptions {
 	return &RequestProjectOptions{
 		IOStreams: streams,
 	}
 }
 
 // NewCmdRequestProject implement the OpenShift cli RequestProject command.
-func NewCmdRequestProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRequestProject(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRequestProjectOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "new-project NAME [--display-name=DISPLAYNAME] [--description=DESCRIPTION]",

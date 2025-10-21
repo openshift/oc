@@ -7,7 +7,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -35,13 +35,13 @@ type IsolateOptions struct {
 	Options *ProjectOptions
 }
 
-func NewIsolateOptions(streams genericclioptions.IOStreams) *IsolateOptions {
+func NewIsolateOptions(streams genericiooptions.IOStreams) *IsolateOptions {
 	return &IsolateOptions{
 		Options: NewProjectOptions(streams),
 	}
 }
 
-func NewCmdIsolateProjectsNetwork(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdIsolateProjectsNetwork(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewIsolateOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "isolate-projects",

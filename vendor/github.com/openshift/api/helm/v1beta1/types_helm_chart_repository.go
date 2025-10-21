@@ -14,12 +14,19 @@ import (
 //
 // Compatibility level 2: Stable within a major release for a minimum of 9 months or 3 minor releases (whichever is longer).
 // +openshift:compatibility-gen:level=2
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:path=helmchartrepositories,scope=Cluster
+// +kubebuilder:subresource:status
+// +openshift:api-approved.openshift.io=https://github.com/openshift/api/pull/598
+// +openshift:file-pattern=operatorOrdering=00
 type HelmChartRepository struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// spec holds user settable values for configuration
-	// +kubebuilder:validation:Required
 	// +required
 	Spec HelmChartRepositorySpec `json:"spec"`
 
@@ -33,6 +40,9 @@ type HelmChartRepository struct {
 // +openshift:compatibility-gen:level=2
 type HelmChartRepositoryList struct {
 	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard list's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ListMeta `json:"metadata"`
 
 	Items []HelmChartRepository `json:"items"`
@@ -89,5 +99,7 @@ type HelmChartRepositoryStatus struct {
 
 	// conditions is a list of conditions and their statuses
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }

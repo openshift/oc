@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"strconv"
@@ -178,7 +177,7 @@ func (s *rsyncDaemonStrategy) startRemoteDaemon() error {
 			return fmt.Errorf("timed out waiting for rsync daemon to start")
 		}
 		checkScript.Reset()
-		err = s.RemoteExecutor.Execute([]string{"sh"}, checkScript, ioutil.Discard, ioutil.Discard)
+		err = s.RemoteExecutor.Execute([]string{"sh"}, checkScript, io.Discard, io.Discard)
 		if err == nil {
 			break
 		}

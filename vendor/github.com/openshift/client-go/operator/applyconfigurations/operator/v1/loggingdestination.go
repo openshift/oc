@@ -3,18 +3,18 @@
 package v1
 
 import (
-	v1 "github.com/openshift/api/operator/v1"
+	operatorv1 "github.com/openshift/api/operator/v1"
 )
 
-// LoggingDestinationApplyConfiguration represents an declarative configuration of the LoggingDestination type for use
+// LoggingDestinationApplyConfiguration represents a declarative configuration of the LoggingDestination type for use
 // with apply.
 type LoggingDestinationApplyConfiguration struct {
-	Type      *v1.LoggingDestinationType                            `json:"type,omitempty"`
-	Syslog    *SyslogLoggingDestinationParametersApplyConfiguration `json:"syslog,omitempty"`
-	Container *v1.ContainerLoggingDestinationParameters             `json:"container,omitempty"`
+	Type      *operatorv1.LoggingDestinationType                       `json:"type,omitempty"`
+	Syslog    *SyslogLoggingDestinationParametersApplyConfiguration    `json:"syslog,omitempty"`
+	Container *ContainerLoggingDestinationParametersApplyConfiguration `json:"container,omitempty"`
 }
 
-// LoggingDestinationApplyConfiguration constructs an declarative configuration of the LoggingDestination type for use with
+// LoggingDestinationApplyConfiguration constructs a declarative configuration of the LoggingDestination type for use with
 // apply.
 func LoggingDestination() *LoggingDestinationApplyConfiguration {
 	return &LoggingDestinationApplyConfiguration{}
@@ -23,7 +23,7 @@ func LoggingDestination() *LoggingDestinationApplyConfiguration {
 // WithType sets the Type field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Type field is set to the value of the last call.
-func (b *LoggingDestinationApplyConfiguration) WithType(value v1.LoggingDestinationType) *LoggingDestinationApplyConfiguration {
+func (b *LoggingDestinationApplyConfiguration) WithType(value operatorv1.LoggingDestinationType) *LoggingDestinationApplyConfiguration {
 	b.Type = &value
 	return b
 }
@@ -39,7 +39,7 @@ func (b *LoggingDestinationApplyConfiguration) WithSyslog(value *SyslogLoggingDe
 // WithContainer sets the Container field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Container field is set to the value of the last call.
-func (b *LoggingDestinationApplyConfiguration) WithContainer(value v1.ContainerLoggingDestinationParameters) *LoggingDestinationApplyConfiguration {
-	b.Container = &value
+func (b *LoggingDestinationApplyConfiguration) WithContainer(value *ContainerLoggingDestinationParametersApplyConfiguration) *LoggingDestinationApplyConfiguration {
+	b.Container = value
 	return b
 }

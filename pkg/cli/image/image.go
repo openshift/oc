@@ -3,7 +3,7 @@ package image
 import (
 	"github.com/spf13/cobra"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ktemplates "k8s.io/kubectl/pkg/util/templates"
 
@@ -11,7 +11,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/image/extract"
 	"github.com/openshift/oc/pkg/cli/image/info"
 	"github.com/openshift/oc/pkg/cli/image/mirror"
-	"github.com/openshift/oc/pkg/cli/image/serve"
 )
 
 var (
@@ -22,7 +21,7 @@ var (
 )
 
 // NewCmdImage exposes commands for modifying images.
-func NewCmdImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdImage(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	image := &cobra.Command{
 		Use:   "image COMMAND",
 		Short: "Useful commands for managing images",
@@ -41,7 +40,6 @@ func NewCmdImage(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra
 		{
 			Message: "Advanced commands:",
 			Commands: []*cobra.Command{
-				serve.NewServe(streams),
 				append.NewCmdAppendImage(streams),
 				extract.NewExtract(streams),
 			},

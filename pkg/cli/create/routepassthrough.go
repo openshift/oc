@@ -6,9 +6,8 @@ import (
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -45,7 +44,7 @@ type CreatePassthroughRouteOptions struct {
 }
 
 // NewCmdCreatePassthroughRoute is a macro command to create a passthrough route.
-func NewCmdCreatePassthroughRoute(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreatePassthroughRoute(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CreatePassthroughRouteOptions{
 		CreateRouteSubcommandOptions: NewCreateRouteSubcommandOptions(streams),
 	}
@@ -99,7 +98,7 @@ func (o *CreatePassthroughRouteOptions) Run() error {
 		route.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyType(o.InsecurePolicy)
 	}
 
-	if err := util.CreateOrUpdateAnnotation(o.CreateRouteSubcommandOptions.CreateAnnotation, route, scheme.DefaultJSONEncoder()); err != nil {
+	if err := util.CreateOrUpdateAnnotation(o.CreateRouteSubcommandOptions.CreateAnnotation, route, createCmdJSONEncoder()); err != nil {
 		return err
 	}
 

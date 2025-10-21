@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
-	"github.com/openshift/library-go/pkg/config/helpers"
-
 	"github.com/go-ldap/ldap/v3"
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -25,6 +26,7 @@ import (
 
 	legacyconfigv1 "github.com/openshift/api/legacyconfig/v1"
 	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
+	"github.com/openshift/library-go/pkg/config/helpers"
 	"github.com/openshift/library-go/pkg/security/ldapclient"
 	syncgroups "github.com/openshift/oc/pkg/helpers/groupsync"
 	"github.com/openshift/oc/pkg/helpers/groupsync/interfaces"
@@ -54,8 +56,8 @@ var (
 		# Sync all groups except the ones from the blacklist file with an LDAP server
 		oc adm groups sync --blacklist=/path/to/blacklist.txt --sync-config=/path/to/ldap-sync-config.yaml --confirm
 
-		# Sync specific groups specified in a whitelist file with an LDAP server
-		oc adm groups sync --whitelist=/path/to/whitelist.txt --sync-config=/path/to/sync-config.yaml --confirm
+		# Sync specific groups specified in an allowlist file with an LDAP server
+		oc adm groups sync --whitelist=/path/to/allowlist.txt --sync-config=/path/to/sync-config.yaml --confirm
 
 		# Sync all OpenShift groups that have been synced previously with an LDAP server
 		oc adm groups sync --type=openshift --sync-config=/path/to/ldap-sync-config.yaml --confirm
@@ -102,12 +104,13 @@ type SyncOptions struct {
 	Confirm bool
 
 	// GroupClient is the interface used to interact with OpenShift Group objects
-	GroupClient userv1typedclient.GroupsGetter
+	GroupClient     userv1typedclient.GroupsGetter
+	DiscoveryClient discovery.DiscoveryInterface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewSyncOptions(streams genericclioptions.IOStreams) *SyncOptions {
+func NewSyncOptions(streams genericiooptions.IOStreams) *SyncOptions {
 	return &SyncOptions{
 		Whitelist:  []string{},
 		Type:       string(GroupSyncSourceLDAP),
@@ -116,7 +119,7 @@ func NewSyncOptions(streams genericclioptions.IOStreams) *SyncOptions {
 	}
 }
 
-func NewCmdSync(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdSync(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewSyncOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "sync [--type=TYPE] [WHITELIST] [--whitelist=WHITELIST-FILE] --sync-config=CONFIG-FILE [--confirm]",
@@ -126,7 +129,7 @@ func NewCmdSync(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, args))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			ocmdhelpers.CheckOAuthDisabledErr(o.Run(), o.DiscoveryClient)
 		},
 	}
 
@@ -190,6 +193,10 @@ func (o *SyncOptions) Complete(f kcmdutil.Factory, args []string) error {
 	if err != nil {
 		return err
 	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
+	if err != nil {
+		return err
+	}
 	if !o.Confirm {
 		o.PrintFlags.Complete("%s (dry run)")
 	}
@@ -246,7 +253,7 @@ func buildNameList(args []string, file string) ([]string, error) {
 }
 
 func decodeSyncConfigFromFile(configFile string) (*legacyconfigv1.LDAPSyncConfig, error) {
-	yamlConfig, err := ioutil.ReadFile(configFile)
+	yamlConfig, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not read file %s: %v", configFile, err)
 	}
@@ -294,7 +301,7 @@ func openshiftGroupNamesOnlyList(list []string) ([]string, error) {
 
 // readLines interprets a file as plaintext and returns a string array of the lines of text in the file
 func readLines(path string) ([]string, error) {
-	bytes, err := ioutil.ReadFile(path)
+	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not open file %s: %v", path, err)
 	}
@@ -359,7 +366,13 @@ func (o *SyncOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	defer ldapClient.Close()
+	defer func() {
+		// Unbind does polite quit and closes the connection.
+		// But when it fails, we need to ensure the connection is closed for sure.
+		if err := ldapClient.Unbind(); err != nil {
+			_ = ldapClient.Close()
+		}
+	}()
 
 	errorHandler := o.CreateErrorHandler()
 

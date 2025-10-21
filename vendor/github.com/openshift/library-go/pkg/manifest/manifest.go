@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	configv1 "github.com/openshift/api/config/v1"
+	features "github.com/openshift/api/features"
+
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -26,16 +28,19 @@ const (
 	featureSetAnnotation  = "release.openshift.io/feature-set"
 )
 
-var knownFeatureSets = sets.String{}
+var knownFeatureSets = sets.Set[string]{}
 
 func init() {
-	for featureSet := range configv1.FeatureSets {
-		if len(featureSet) == 0 {
-			knownFeatureSets.Insert("Default")
-			continue
+	for _, featureSets := range features.AllFeatureSets() {
+		for featureSet := range featureSets {
+			if len(featureSet) == 0 {
+				knownFeatureSets.Insert("Default")
+				continue
+			}
+			knownFeatureSets.Insert(string(featureSet))
 		}
-		knownFeatureSets.Insert(string(featureSet))
 	}
+	knownFeatureSets.Insert(string(configv1.CustomNoUpgrade))
 }
 
 // resourceId uniquely identifies a Kubernetes resource.
@@ -88,6 +93,18 @@ func (r resourceId) String() string {
 	}
 }
 
+func (m *Manifest) String() string {
+	if m == nil {
+		return "nil pointer manifest"
+	}
+
+	if m.OriginalFilename != "" {
+		return fmt.Sprintf("Filename: %q %s", m.OriginalFilename, m.id.String())
+	}
+
+	return m.id.String()
+}
+
 func (m Manifest) SameResourceID(manifest Manifest) bool {
 	return m.id.equal(manifest.id)
 }
@@ -118,8 +135,12 @@ func (m *Manifest) UnmarshalJSON(in []byte) error {
 	if !ok {
 		return fmt.Errorf("expected manifest to decode into *unstructured.Unstructured, got %T", ud)
 	}
-	m.GVK = ud.GroupVersionKind()
 	m.Obj = ud
+	return m.populateFromObj()
+}
+
+func (m *Manifest) populateFromObj() error {
+	m.GVK = m.Obj.GroupVersionKind()
 	m.id = resourceId{
 		Group:     m.GVK.Group,
 		Kind:      m.GVK.Kind,
@@ -129,8 +150,8 @@ func (m *Manifest) UnmarshalJSON(in []byte) error {
 	return validateResourceId(m.id)
 }
 
-func getFeatureSets(annotations map[string]string) (sets.String, bool, error) {
-	ret := sets.String{}
+func getFeatureSets(annotations map[string]string) (sets.Set[string], bool, error) {
+	ret := sets.Set[string]{}
 	specified := false
 	for _, featureSetAnnotation := range []string{featureSetAnnotation} {
 		featureSetAnnotationValue, featureSetAnnotationExists := annotations[featureSetAnnotation]
@@ -140,7 +161,7 @@ func getFeatureSets(annotations map[string]string) (sets.String, bool, error) {
 			for _, manifestFeatureSet := range featureSetAnnotationValues {
 				if !knownFeatureSets.Has(manifestFeatureSet) {
 					// never include the manifest if the feature-set annotation is outside of known values
-					return nil, specified, fmt.Errorf("unrecognized value %q in %s=%s; known values are: %v", manifestFeatureSet, featureSetAnnotation, featureSetAnnotationValue, strings.Join(knownFeatureSets.List(), ","))
+					return nil, specified, fmt.Errorf("unrecognized value %q in %s=%s; known values are: %v", manifestFeatureSet, featureSetAnnotation, featureSetAnnotationValue, strings.Join(sets.List(knownFeatureSets), ","))
 				}
 			}
 			ret.Insert(featureSetAnnotationValues...)
@@ -160,7 +181,7 @@ func checkFeatureSets(requiredFeatureSet string, annotations map[string]string) 
 		return err
 	}
 	if manifestSpecifiesFeatureSets && !manifestFeatureSets.Has(requiredAnnotationValue) {
-		return fmt.Errorf("%q is required, and %s=%s", requiredAnnotationValue, featureSetAnnotation, strings.Join(manifestFeatureSets.List(), ","))
+		return fmt.Errorf("%q is required, and %s=%s", requiredAnnotationValue, featureSetAnnotation, strings.Join(sets.List(manifestFeatureSets), ","))
 	}
 
 	return nil
@@ -170,8 +191,8 @@ func checkFeatureSets(requiredFeatureSet string, annotations map[string]string) 
 // processing by cluster version operator. Pointer arguments can be set nil to avoid excluding based on that
 // filter. For example, setting profile non-nil and capabilities nil will return an error if the manifest's
 // profile does not match, but will never return an error about capability issues.
-func (m *Manifest) Include(excludeIdentifier *string, requiredFeatureSet *string, profile *string, capabilities *configv1.ClusterVersionCapabilitiesStatus) error {
-	return m.IncludeAllowUnknownCapabilities(excludeIdentifier, requiredFeatureSet, profile, capabilities, false)
+func (m *Manifest) Include(excludeIdentifier *string, requiredFeatureSet *string, profile *string, capabilities *configv1.ClusterVersionCapabilitiesStatus, overrides []configv1.ComponentOverride) error {
+	return m.IncludeAllowUnknownCapabilities(excludeIdentifier, requiredFeatureSet, profile, capabilities, overrides, false)
 }
 
 // IncludeAllowUnknownCapabilities returns an error if the manifest fails an inclusion filter and should be excluded from
@@ -181,7 +202,7 @@ func (m *Manifest) Include(excludeIdentifier *string, requiredFeatureSet *string
 // to capabilities filtering. When set to true a manifest will not be excluded simply because it contains an unknown
 // capability. This is necessary to allow updates to an OCP version containing newly defined capabilities.
 func (m *Manifest) IncludeAllowUnknownCapabilities(excludeIdentifier *string, requiredFeatureSet *string, profile *string,
-	capabilities *configv1.ClusterVersionCapabilitiesStatus, allowUnknownCapabilities bool) error {
+	capabilities *configv1.ClusterVersionCapabilitiesStatus, overrides []configv1.ComponentOverride, allowUnknownCapabilities bool) error {
 
 	annotations := m.Obj.GetAnnotations()
 	if annotations == nil {
@@ -213,7 +234,34 @@ func (m *Manifest) IncludeAllowUnknownCapabilities(excludeIdentifier *string, re
 
 	// If there is no capabilities defined in a release then we do not need to check presence of capabilities in the manifest
 	if capabilities != nil {
-		return checkResourceEnablement(annotations, capabilities, allowUnknownCapabilities)
+		err := checkResourceEnablement(annotations, capabilities, allowUnknownCapabilities)
+		if err != nil {
+			return err
+		}
+	}
+
+	if override := m.getOverrideForManifest(overrides); override != nil && override.Unmanaged {
+		return fmt.Errorf("overridden")
+	}
+
+	return nil
+}
+
+// getOverrideForManifest returns the override when override exists and nil otherwise.
+func (m *Manifest) getOverrideForManifest(overrides []configv1.ComponentOverride) *configv1.ComponentOverride {
+	for _, override := range overrides {
+		namespace := override.Namespace
+		if m.id.Namespace == "" {
+			namespace = "" // cluster-scoped objects don't have namespace.
+		}
+		if m.id.equal(resourceId{
+			Group:     override.Group,
+			Kind:      override.Kind,
+			Name:      override.Name,
+			Namespace: namespace,
+		}) {
+			return &override
+		}
 	}
 	return nil
 }
@@ -313,8 +361,9 @@ func ManifestsFromFiles(files []string) ([]Manifest, error) {
 			errs = append(errs, errors.Wrapf(err, "error parsing %s", file.Name()))
 			continue
 		}
-		for _, m := range ms {
-			m.OriginalFilename = filepath.Base(file.Name())
+		filename := filepath.Base(file.Name())
+		for i, m := range ms {
+			ms[i].OriginalFilename = filename
 			err = addIfNotDuplicateResource(m, ids)
 			if err != nil {
 				errs = append(errs, errors.Wrapf(err, "File %s contains", file.Name()))

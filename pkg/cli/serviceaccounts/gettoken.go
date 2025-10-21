@@ -9,7 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -43,16 +43,16 @@ type GetServiceAccountTokenOptions struct {
 	SAClient      corev1client.ServiceAccountInterface
 	SecretsClient corev1client.SecretInterface
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewGetServiceAccountTokenOptions(streams genericclioptions.IOStreams) *GetServiceAccountTokenOptions {
+func NewGetServiceAccountTokenOptions(streams genericiooptions.IOStreams) *GetServiceAccountTokenOptions {
 	return &GetServiceAccountTokenOptions{
 		IOStreams: streams,
 	}
 }
 
-func NewCommandGetServiceAccountToken(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCommandGetServiceAccountToken(f cmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	options := NewGetServiceAccountTokenOptions(streams)
 
 	getServiceAccountTokenCommand := &cobra.Command{
@@ -74,7 +74,7 @@ func NewCommandGetServiceAccountToken(f cmdutil.Factory, streams genericclioptio
 
 func (o *GetServiceAccountTokenOptions) Complete(args []string, f cmdutil.Factory, cmd *cobra.Command) error {
 	if len(args) != 1 {
-		return cmdutil.UsageErrorf(cmd, fmt.Sprintf("expected one service account name as an argument, got %q", args))
+		return cmdutil.UsageErrorf(cmd, "expected one service account name as an argument, got %q", args)
 	}
 
 	o.SAName = args[0]
@@ -131,7 +131,7 @@ func (o *GetServiceAccountTokenOptions) Run() error {
 				return fmt.Errorf("service account token %q for service account %q did not contain token data", secret.Name, serviceAccount.Name)
 			}
 
-			fmt.Fprintf(o.Out, string(token))
+			fmt.Fprint(o.Out, string(token))
 			if term.IsTerminalWriter(o.Out) {
 				// pretty-print for a TTY
 				fmt.Fprintf(o.Out, "\n")

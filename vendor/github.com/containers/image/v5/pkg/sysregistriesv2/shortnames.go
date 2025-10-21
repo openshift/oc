@@ -2,6 +2,7 @@ package sysregistriesv2
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/internal/multierr"
 	"github.com/containers/image/v5/internal/rootless"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/homedir"
@@ -296,11 +298,7 @@ func newShortNameAliasCache(path string, conf *shortNameAliasConf) (*shortNameAl
 		}
 	}
 	if len(errs) > 0 {
-		err := errs[0]
-		for i := 1; i < len(errs); i++ {
-			err = fmt.Errorf("%v\n: %w", errs[i], err)
-		}
-		return nil, err
+		return nil, multierr.Format("", "\n", "", errs)
 	}
 	return &res, nil
 }
@@ -308,9 +306,7 @@ func newShortNameAliasCache(path string, conf *shortNameAliasConf) (*shortNameAl
 // updateWithConfigurationFrom updates c with configuration from updates.
 // In case of conflict, updates is preferred.
 func (c *shortNameAliasCache) updateWithConfigurationFrom(updates *shortNameAliasCache) {
-	for name, value := range updates.namedAliases {
-		c.namedAliases[name] = value
-	}
+	maps.Copy(c.namedAliases, updates.namedAliases)
 }
 
 func loadShortNameAliasConf(confPath string) (*shortNameAliasConf, *shortNameAliasCache, error) {
@@ -335,7 +331,7 @@ func loadShortNameAliasConf(confPath string) (*shortNameAliasConf, *shortNameAli
 	return &conf, cache, nil
 }
 
-func shortNameAliasesConfPathAndLock(ctx *types.SystemContext) (string, lockfile.Locker, error) {
+func shortNameAliasesConfPathAndLock(ctx *types.SystemContext) (string, *lockfile.LockFile, error) {
 	shortNameAliasesConfPath, err := shortNameAliasesConfPath(ctx)
 	if err != nil {
 		return "", nil, err
@@ -346,6 +342,6 @@ func shortNameAliasesConfPathAndLock(ctx *types.SystemContext) (string, lockfile
 	}
 
 	lockPath := shortNameAliasesConfPath + ".lock"
-	locker, err := lockfile.GetLockfile(lockPath)
+	locker, err := lockfile.GetLockFile(lockPath)
 	return shortNameAliasesConfPath, locker, err
 }

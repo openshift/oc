@@ -3,22 +3,22 @@
 package v1
 
 import (
-	v1 "github.com/openshift/api/template/v1"
+	templatev1 "github.com/openshift/api/template/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// TemplateInstanceConditionApplyConfiguration represents an declarative configuration of the TemplateInstanceCondition type for use
+// TemplateInstanceConditionApplyConfiguration represents a declarative configuration of the TemplateInstanceCondition type for use
 // with apply.
 type TemplateInstanceConditionApplyConfiguration struct {
-	Type               *v1.TemplateInstanceConditionType `json:"type,omitempty"`
-	Status             *corev1.ConditionStatus           `json:"status,omitempty"`
-	LastTransitionTime *metav1.Time                      `json:"lastTransitionTime,omitempty"`
-	Reason             *string                           `json:"reason,omitempty"`
-	Message            *string                           `json:"message,omitempty"`
+	Type               *templatev1.TemplateInstanceConditionType `json:"type,omitempty"`
+	Status             *corev1.ConditionStatus                   `json:"status,omitempty"`
+	LastTransitionTime *metav1.Time                              `json:"lastTransitionTime,omitempty"`
+	Reason             *string                                   `json:"reason,omitempty"`
+	Message            *string                                   `json:"message,omitempty"`
 }
 
-// TemplateInstanceConditionApplyConfiguration constructs an declarative configuration of the TemplateInstanceCondition type for use with
+// TemplateInstanceConditionApplyConfiguration constructs a declarative configuration of the TemplateInstanceCondition type for use with
 // apply.
 func TemplateInstanceCondition() *TemplateInstanceConditionApplyConfiguration {
 	return &TemplateInstanceConditionApplyConfiguration{}
@@ -27,7 +27,7 @@ func TemplateInstanceCondition() *TemplateInstanceConditionApplyConfiguration {
 // WithType sets the Type field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Type field is set to the value of the last call.
-func (b *TemplateInstanceConditionApplyConfiguration) WithType(value v1.TemplateInstanceConditionType) *TemplateInstanceConditionApplyConfiguration {
+func (b *TemplateInstanceConditionApplyConfiguration) WithType(value templatev1.TemplateInstanceConditionType) *TemplateInstanceConditionApplyConfiguration {
 	b.Type = &value
 	return b
 }

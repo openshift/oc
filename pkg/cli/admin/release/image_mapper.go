@@ -3,6 +3,7 @@ package release
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,11 +11,13 @@ import (
 	"sort"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
+
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	imageapi "github.com/openshift/api/image/v1"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
-	"k8s.io/klog/v2"
 )
 
 type Payload struct {
@@ -63,19 +66,17 @@ func (p *Payload) Rewrite(allowTags bool, fn func(component string) imagereferen
 			continue
 		}
 		path := filepath.Join(p.path, file.Name())
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		out, err := mapper(data)
-		if err != nil {
-			return fmt.Errorf("unable to rewrite the contents of %s: %v", path, err)
-		}
+		out := mapper(data)
+
 		if bytes.Equal(data, out) {
 			continue
 		}
 		klog.V(6).Infof("Rewrote\n%s\n\nto\n\n%s\n", string(data), string(out))
-		if err := ioutil.WriteFile(path, out, file.Mode()); err != nil {
+		if err := os.WriteFile(path, out, file.Mode()); err != nil {
 			return err
 		}
 	}
@@ -96,7 +97,7 @@ func (p *Payload) References() (*imageapi.ImageStream, error) {
 }
 
 func parseImageStream(path string) (*imageapi.ImageStream, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return nil, err
 	}
@@ -117,15 +118,17 @@ func readReleaseImageReferences(data []byte) (*imageapi.ImageStream, error) {
 	return is, nil
 }
 
+type SafeManifestMapper func(data []byte) []byte
+
 type ManifestMapper func(data []byte) ([]byte, error)
 
-func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, allowMissingImages bool) (ManifestMapper, error) {
+func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, allowMissingImages bool, errOut io.Writer) (ManifestMapper, error) {
 	is, err := parseImageStream(path)
 	if err != nil {
 		return nil, err
 	}
 
-	versions, tagsByName, references, err := loadImageStreamTransforms(input, is, allowMissingImages, path)
+	versions, tagsByName, references, err := loadImageStreamTransforms(input, is, allowMissingImages, path, errOut)
 	if err != nil {
 		return nil, err
 	}
@@ -137,15 +140,11 @@ func NewTransformFromImageStreamFile(path string, input *imageapi.ImageStream, a
 
 	versionMapper := NewComponentVersionsMapper(input.Name, versions, tagsByName)
 	return func(data []byte) ([]byte, error) {
-		data, err := imageMapper(data)
-		if err != nil {
-			return nil, err
-		}
-		return versionMapper(data)
+		return versionMapper(imageMapper(data))
 	}, nil
 }
 
-func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingImages bool, src string) (ComponentVersions, map[string][]string, map[string]ImageReference, error) {
+func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingImages bool, src string, errOut io.Writer) (ComponentVersions, map[string][]string, map[string]ImageReference, error) {
 	references := make(map[string]ImageReference)
 	for _, tag := range local.Spec.Tags {
 		if tag.From == nil || tag.From.Kind != "DockerImage" {
@@ -174,6 +173,7 @@ func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingI
 	// load all version values from the input stream, including any defaults, to perform
 	// version substitution in the returned manifests.
 	versions := make(ComponentVersions)
+	kubectlVersions := sets.New[string]()
 	tagsByName := make(map[string][]string)
 	for _, tag := range input.Spec.Tags {
 		if _, ok := references[tag.Name]; !ok {
@@ -190,6 +190,12 @@ func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingI
 			return nil, nil, nil, fmt.Errorf("input image stream has an invalid version annotation for tag %q: %v", tag.Name, value)
 		}
 		for k, v := range items {
+			if k == "kubectl" {
+				kubectlVersions.Insert(v.Version)
+				if tag.Name != "cli" && tag.Name != "cli-artifacts" {
+					continue
+				}
+			}
 			existing, ok := versions[k]
 			if ok {
 				if existing.Version != v.Version {
@@ -201,6 +207,10 @@ func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingI
 			}
 			tagsByName[k] = append(tagsByName[k], tag.Name)
 		}
+	}
+
+	if kubectlVersions.Len() > 2 {
+		fmt.Fprintf(errOut, "warning: input image stream has multiple versions defined for version kubectl for all the tags %s\n", strings.Join(kubectlVersions.UnsortedList(), ","))
 	}
 
 	defaults, err := parseComponentVersionsLabel(input.Annotations[annotationBuildVersions], input.Annotations[annotationBuildVersionsDisplayNames])
@@ -220,8 +230,8 @@ type ImageReference struct {
 	TargetPullSpec   string
 }
 
-func NopManifestMapper(data []byte) ([]byte, error) {
-	return data, nil
+func NopManifestMapper(data []byte) []byte {
+	return data
 }
 
 // patternImageFormat attempts to match a docker pull spec by prefix (%s) and capture the
@@ -229,7 +239,7 @@ func NopManifestMapper(data []byte) ([]byte, error) {
 // end of file.
 const patternImageFormat = `([\W]|^)(%s)(:[\w][\w.-]{0,127}|@[A-Za-z][A-Za-z0-9]*(?:[-_+.][A-Za-z][A-Za-z0-9]*)*[:][[:xdigit:]]{2,})?([\s"']|$)`
 
-func NewImageMapper(images map[string]ImageReference) (ManifestMapper, error) {
+func NewImageMapper(images map[string]ImageReference) (SafeManifestMapper, error) {
 	repositories := make([]string, 0, len(images))
 	bySource := make(map[string]string)
 	for name, ref := range images {
@@ -249,7 +259,7 @@ func NewImageMapper(images map[string]ImageReference) (ManifestMapper, error) {
 	pattern := fmt.Sprintf(patternImageFormat, strings.Join(repositories, "|"))
 	re := regexp.MustCompile(pattern)
 
-	return func(data []byte) ([]byte, error) {
+	return func(data []byte) []byte {
 		out := re.ReplaceAllFunc(data, func(in []byte) []byte {
 			parts := re.FindSubmatch(in)
 			repository := string(parts[2])
@@ -261,7 +271,7 @@ func NewImageMapper(images map[string]ImageReference) (ManifestMapper, error) {
 			ref := images[name]
 
 			suffix := parts[3]
-			klog.V(2).Infof("found repository %q with locator %q in the input, switching to %q (from pattern %s)", string(repository), string(suffix), ref.TargetPullSpec, pattern)
+			klog.V(2).Infof("found repository %q with locator %q in the input, switching to %q (from pattern %s)", repository, string(suffix), ref.TargetPullSpec, pattern)
 			switch {
 			case len(suffix) == 0:
 				// we found a repository, but no tag or digest (implied latest), or we got an exact match
@@ -274,14 +284,14 @@ func NewImageMapper(images map[string]ImageReference) (ManifestMapper, error) {
 				return []byte(string(parts[1]) + ref.TargetPullSpec + string(parts[4]))
 			}
 		})
-		return out, nil
+		return out
 	}, nil
 }
 
 // exactImageFormat attempts to match a string on word boundaries
 const exactImageFormat = `\b%s\b`
 
-func NewExactMapper(mappings map[string]string) (ManifestMapper, error) {
+func NewExactMapper(mappings map[string]string) (SafeManifestMapper, error) {
 	patterns := make(map[string]*regexp.Regexp)
 	for from, to := range mappings {
 		pattern := fmt.Sprintf(exactImageFormat, regexp.QuoteMeta(from))
@@ -292,11 +302,11 @@ func NewExactMapper(mappings map[string]string) (ManifestMapper, error) {
 		patterns[to] = re
 	}
 
-	return func(data []byte) ([]byte, error) {
+	return func(data []byte) []byte {
 		for to, pattern := range patterns {
 			data = pattern.ReplaceAll(data, []byte(to))
 		}
-		return data, nil
+		return data
 	}, nil
 }
 
@@ -321,9 +331,15 @@ func ComponentReferencesForImageStream(is *imageapi.ImageStream) (func(string) i
 	}, nil
 }
 
-const (
-	componentVersionFormat = `([\W]|^)0\.0\.1-snapshot([a-z0-9\-]*)`
-)
+// NewSimpleVersionsMapper substitutes strings of the form 0.0.1-snapshot with releaseName, and
+// errors out if the manifest contains any other version references.
+//
+// If the input release name is not a semver, a request for `0.0.1-snapshot` will be left unmodified.
+func NewSimpleVersionsMapper(releaseName string) ManifestMapper {
+	return NewComponentVersionsMapper(releaseName, nil, nil)
+}
+
+var componentVersionRe = regexp.MustCompile(`(\W|^)0\.0\.1-snapshot([a-z0-9\-]*)`)
 
 // NewComponentVersionsMapper substitutes strings of the form 0.0.1-snapshot with releaseName and strings
 // of the form 0.0.1-snapshot-[component] with the version value located in versions, or returns an error.
@@ -338,17 +354,12 @@ func NewComponentVersionsMapper(releaseName string, versions ComponentVersions, 
 	} else {
 		releaseName = ""
 	}
-	re, err := regexp.Compile(componentVersionFormat)
-	if err != nil {
-		return func([]byte) ([]byte, error) {
-			return nil, fmt.Errorf("component versions mapper regex: %v", err)
-		}
-	}
+
 	return func(data []byte) ([]byte, error) {
 		var missing []string
 		var conflicts []string
-		data = re.ReplaceAllFunc(data, func(part []byte) []byte {
-			matches := re.FindSubmatch(part)
+		data = componentVersionRe.ReplaceAllFunc(data, func(part []byte) []byte {
+			matches := componentVersionRe.FindSubmatch(part)
 			if matches == nil {
 				return part
 			}
@@ -401,7 +412,7 @@ var (
 	// reAllowedVersionKey limits the allowed component name to a strict subset
 	reAllowedVersionKey = regexp.MustCompile(`^[a-z0-9]+[\-a-z0-9]*[a-z0-9]+$`)
 	// reAllowedDisplayNameKey limits the allowed component name to a strict subset
-	reAllowedDisplayNameKey = regexp.MustCompile(`^[a-zA-Z0-9\-\:\s\(\)]+$`)
+	reAllowedDisplayNameKey = regexp.MustCompile(`^[a-zA-Z0-9\-:\s()]+$`)
 )
 
 // ComponentVersion includes the version and optional display name.
@@ -420,7 +431,7 @@ func (v ComponentVersion) String() string {
 // labels removed, but prerelease segments are preserved.
 type ComponentVersions map[string]ComponentVersion
 
-// OrderedKeys returns the keys in this map in lexigraphic order.
+// OrderedKeys returns the keys in this map in lexicographic order.
 func (v ComponentVersions) OrderedKeys() []string {
 	keys := make([]string, 0, len(v))
 	for k := range v {

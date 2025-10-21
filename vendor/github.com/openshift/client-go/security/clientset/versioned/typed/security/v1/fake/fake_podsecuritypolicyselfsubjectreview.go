@@ -3,31 +3,26 @@
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/openshift/api/security/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	testing "k8s.io/client-go/testing"
+	securityv1 "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakePodSecurityPolicySelfSubjectReviews implements PodSecurityPolicySelfSubjectReviewInterface
-type FakePodSecurityPolicySelfSubjectReviews struct {
+// fakePodSecurityPolicySelfSubjectReviews implements PodSecurityPolicySelfSubjectReviewInterface
+type fakePodSecurityPolicySelfSubjectReviews struct {
+	*gentype.FakeClient[*v1.PodSecurityPolicySelfSubjectReview]
 	Fake *FakeSecurityV1
-	ns   string
 }
 
-var podsecuritypolicyselfsubjectreviewsResource = schema.GroupVersionResource{Group: "security.openshift.io", Version: "v1", Resource: "podsecuritypolicyselfsubjectreviews"}
-
-var podsecuritypolicyselfsubjectreviewsKind = schema.GroupVersionKind{Group: "security.openshift.io", Version: "v1", Kind: "PodSecurityPolicySelfSubjectReview"}
-
-// Create takes the representation of a podSecurityPolicySelfSubjectReview and creates it.  Returns the server's representation of the podSecurityPolicySelfSubjectReview, and an error, if there is any.
-func (c *FakePodSecurityPolicySelfSubjectReviews) Create(ctx context.Context, podSecurityPolicySelfSubjectReview *v1.PodSecurityPolicySelfSubjectReview, opts metav1.CreateOptions) (result *v1.PodSecurityPolicySelfSubjectReview, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(podsecuritypolicyselfsubjectreviewsResource, c.ns, podSecurityPolicySelfSubjectReview), &v1.PodSecurityPolicySelfSubjectReview{})
-
-	if obj == nil {
-		return nil, err
+func newFakePodSecurityPolicySelfSubjectReviews(fake *FakeSecurityV1, namespace string) securityv1.PodSecurityPolicySelfSubjectReviewInterface {
+	return &fakePodSecurityPolicySelfSubjectReviews{
+		gentype.NewFakeClient[*v1.PodSecurityPolicySelfSubjectReview](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("podsecuritypolicyselfsubjectreviews"),
+			v1.SchemeGroupVersion.WithKind("PodSecurityPolicySelfSubjectReview"),
+			func() *v1.PodSecurityPolicySelfSubjectReview { return &v1.PodSecurityPolicySelfSubjectReview{} },
+		),
+		fake,
 	}
-	return obj.(*v1.PodSecurityPolicySelfSubjectReview), err
 }

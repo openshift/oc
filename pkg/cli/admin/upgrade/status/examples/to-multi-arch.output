@@ -1,0 +1,28 @@
+= Control Plane =
+Assessment:      Progressing
+Target Version:  4.18.0-ec.3 to Multi-Architecture
+Updating:        machine-config
+Completion:      97% (32 operators updated, 1 updating, 0 waiting)
+Duration:        6m55s (Est. Time Remaining: N/A for Multi-Architecture Migration)
+Operator Health: 33 Healthy
+
+Control Plane Nodes
+NAME                                        ASSESSMENT    PHASE      VERSION       EST   MESSAGE
+ip-10-0-33-81.us-east-2.compute.internal    Progressing   Updating   4.18.0-ec.3   +5m   
+ip-10-0-45-170.us-east-2.compute.internal   Outdated      Pending    4.18.0-ec.3   ?     
+ip-10-0-95-224.us-east-2.compute.internal   Outdated      Pending    4.18.0-ec.3   ?     
+
+= Worker Upgrade =
+
+WORKER POOL   ASSESSMENT    COMPLETION   STATUS
+worker        Progressing   33% (1/3)    2 Available, 1 Progressing, 1 Draining
+
+Worker Pool Nodes: worker
+NAME                                        ASSESSMENT    PHASE      VERSION       EST    MESSAGE
+ip-10-0-22-179.us-east-2.compute.internal   Progressing   Draining   4.18.0-ec.3   +10m   
+ip-10-0-72-40.us-east-2.compute.internal    Outdated      Pending    4.18.0-ec.3   ?      
+ip-10-0-17-117.us-east-2.compute.internal   Completed     Updated    4.18.0-ec.3   -      
+
+= Update Health =
+SINCE   LEVEL   IMPACT   MESSAGE
+6m55s   Info    None     Update is proceeding well

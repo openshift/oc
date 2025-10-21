@@ -16,7 +16,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -42,10 +42,10 @@ type ProjectOptions struct {
 	Selector      string
 	CheckSelector bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewProjectOptions(streams genericclioptions.IOStreams) *ProjectOptions {
+func NewProjectOptions(streams genericiooptions.IOStreams) *ProjectOptions {
 	return &ProjectOptions{
 		IOStreams: streams,
 	}

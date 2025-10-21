@@ -9,6 +9,7 @@ import (
 	"github.com/docker/go-units"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers"
+	"github.com/openshift/oc/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -24,24 +25,30 @@ import (
 // to one of those three spots.  Doing so improves the self-diagnosis capabilities of our platform and lets *every*
 // client benefit.
 func (o *MustGatherOptions) PrintBasicClusterState(ctx context.Context) {
-	fmt.Fprintf(o.RawOut, "When opening a support case, bugzilla, or issue please include the following summary data along with any other requested information:\n")
+	fmt.Fprint(o.RawOut, "When opening a support case, bugzilla, or issue please include the following summary data along with any other requested information:\n")
 
 	clusterVersion, err := o.ConfigClient.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
 	if err != nil {
 		fmt.Fprintf(o.RawOut, "error getting cluster version: %v\n", err)
 	}
 	fmt.Fprintf(o.RawOut, "ClusterID: %v\n", clusterVersion.Spec.ClusterID)
+
+	clientVersion, err := humanSummaryForClientVersion()
+	if err != nil {
+		fmt.Fprintf(o.RawOut, "error getting client version: %v\n", err)
+	}
+	fmt.Fprintf(o.RawOut, "ClientVersion: %v\n", clientVersion)
 	fmt.Fprintf(o.RawOut, "ClusterVersion: %v\n", humanSummaryForClusterVersion(clusterVersion))
 
 	clusterOperators, err := o.ConfigClient.ConfigV1().ClusterOperators().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		fmt.Fprintf(o.RawOut, "error getting cluster operators: %v\n", err)
 	}
-	fmt.Fprintf(o.RawOut, "ClusterOperators:\n")
-	fmt.Fprintf(o.RawOut, humanSummaryForInterestingClusterOperators(clusterOperators)+"\n")
+	fmt.Fprint(o.RawOut, "ClusterOperators:\n")
+	fmt.Fprint(o.RawOut, humanSummaryForInterestingClusterOperators(clusterOperators)+"\n")
 
 	// TODO gather and display firing alerts
-	fmt.Fprintf(o.RawOut, "\n\n")
+	fmt.Fprint(o.RawOut, "\n\n")
 }
 
 // longExistingOperators is a list of operators that should be present on every variant of every platform and have
@@ -177,4 +184,15 @@ func humanSummaryForClusterVersion(clusterVersion *configv1.ClusterVersion) stri
 	default:
 		return fmt.Sprintf("Unknown state")
 	}
+}
+
+func humanSummaryForClientVersion() (string, error) {
+	clientVersion, reportedVersion, err := version.ExtractVersion()
+	if err != nil {
+		return "", err
+	}
+	if len(reportedVersion) != 0 {
+		return reportedVersion, nil
+	}
+	return clientVersion.GitVersion, nil
 }

@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -78,17 +79,17 @@ type IdleOptions struct {
 	Namespace string
 	nowTime   time.Time
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewIdleOptions(streams genericclioptions.IOStreams) *IdleOptions {
+func NewIdleOptions(streams genericiooptions.IOStreams) *IdleOptions {
 	return &IdleOptions{
 		IOStreams: streams,
 	}
 }
 
 // NewCmdIdle implements the OpenShift cli idle command
-func NewCmdIdle(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdIdle(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewIdleOptions(streams)
 
 	validArgs := []string{"deploymentconfig", "replicationcontroller"}
@@ -232,7 +233,6 @@ func scanLinesFromFile(filename string) ([]string, error) {
 // idleUpdateInfo contains the required info to annotate an endpoints object
 // with the scalable resources that it should unidle
 type idleUpdateInfo struct {
-	obj       *corev1.Endpoints
 	service   *corev1.Service
 	scaleRefs map[unidlingapi.CrossGroupObjectReference]struct{}
 }
@@ -339,7 +339,6 @@ func (o *IdleOptions) calculateIdlableAnnotationsByService(infoVisitor func(reso
 		}
 
 		idleInfo := idleUpdateInfo{
-			obj:       endpoints,
 			service:   svc,
 			scaleRefs: nonNamespacedScaleRefs,
 		}
@@ -644,6 +643,11 @@ func (o *IdleOptions) RunIdle() error {
 			hadError = true
 			continue
 		}
+		// this CLI command is "do the thing" and doesn't provide a sensible input object for a starting ResourceVersion
+		// the command is an imperative, "do this now" without a precondition, so the desired behavior is deconflicting.
+		// we can do this by having an unconditional scale instance for writing.
+		scale.ResourceVersion = ""
+
 		replicas[scaleRef] = scale.Spec.Replicas
 		toScale[scaleRef] = scaleInfo{scale: scale, obj: obj, namespace: svcName.Namespace}
 	}
@@ -691,14 +695,11 @@ func (o *IdleOptions) RunIdle() error {
 
 	// annotate the endpoints objects to indicate which scalable resources need to be unidled on traffic
 	for serviceName, info := range byService {
-		if info.obj.Annotations == nil {
-			info.obj.Annotations = make(map[string]string)
-		}
 		if info.service.Annotations == nil {
 			info.service.Annotations = make(map[string]string)
 		}
 
-		refsWithScale, err := pairScalesWithScaleRefs(serviceName, info.obj.Annotations, info.scaleRefs, replicas)
+		refsWithScale, err := pairScalesWithScaleRefs(serviceName, info.service.Annotations, info.scaleRefs, replicas)
 		if err != nil {
 			fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
 			continue
@@ -714,12 +715,6 @@ func (o *IdleOptions) RunIdle() error {
 			}
 
 			if err := patchObjWithIdleAnnotations(info.service, refsWithScale, nowTime); err != nil {
-				fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
-				hadError = true
-				continue
-			}
-
-			if err := patchObjWithIdleAnnotations(info.obj, refsWithScale, nowTime); err != nil {
 				fmt.Fprintf(o.ErrOut, "error: unable to mark service %q as idled: %v", serviceName.String(), err)
 				hadError = true
 				continue

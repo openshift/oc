@@ -14,11 +14,21 @@ import (
 //
 // Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
 // +openshift:compatibility-gen:level=1
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=configs,scope=Cluster
+// +openshift:api-approved.openshift.io=https://github.com/openshift/api/pull/513
+// +openshift:file-pattern=operatorOrdering=00
+// +kubebuilder:metadata:annotations="description=Extension for configuring openshift samples operator."
+// +kubebuilder:metadata:annotations="displayName=ConfigsSamples"
 type Config struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 
-	// +kubebuilder:validation:Required
 	// +required
 	Spec ConfigSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 	// +optional
@@ -61,7 +71,30 @@ type ConfigSpec struct {
 	// content but the operator will not recreate(or update) anything
 	// listed here.
 	SkippedTemplates []string `json:"skippedTemplates,omitempty" protobuf:"bytes,6,opt,name=skippedTemplates"`
+
+	// skippedHelmCharts specifies names of helm charts that should NOT be
+	// managed. Admins can use this to allow them to delete content
+	// they don’t want. They will still have to MANUALLY DELETE the
+	// content but the operator will not recreate(or update) anything
+	// listed here. Few examples of the name of helmcharts which can be skipped are
+	// 'redhat-redhat-perl-imagestreams','redhat-redhat-nodejs-imagestreams','redhat-nginx-imagestreams',
+	// 'redhat-redhat-ruby-imagestreams','redhat-redhat-python-imagestreams','redhat-redhat-php-imagestreams',
+	// 'redhat-httpd-imagestreams','redhat-redhat-dotnet-imagestreams'. Rest of the names can be obtained from
+	// openshift console --> helmcharts -->installed helmcharts. This will display the list of all the
+	// 12 helmcharts(of imagestreams)being installed by Samples Operator. The skippedHelmCharts must be a
+	// valid Kubernetes resource name. May contain only lowercase alphanumeric characters, hyphens and periods,
+	// and each period separated segment must begin and end with an alphanumeric character. It must be non-empty
+	// and at most 253 characters in length
+	// +listType=set
+	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:XValidation:rule="self.all(x, x.matches('^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$'))",message="skippedHelmCharts must be a valid Kubernetes resource name. May contain only lowercase alphanumeric characters, hyphens and periods, and each period separated segment must begin and end with an alphanumeric character"
+	SkippedHelmCharts []HelmChartName `json:"skippedHelmCharts,omitempty" protobuf:"bytes,7,opt,name=skippedhelmCharts"`
 }
+
+// HelmChartName is a string alias that is used to represent the name of a helm chart.
+// +kubebuilder:validation:MinLength=1
+// +kubebuilder:validation:MaxLength=253
+type HelmChartName string
 
 // ConfigStatus contains the actual configuration in effect, as well as various details
 // that describe the state of the Samples Operator.
@@ -71,11 +104,13 @@ type ConfigStatus struct {
 	// the operator back on (i.e. "Managed") when it was previously "Unmanaged".
 	// +patchMergeKey=type
 	// +patchStrategy=merge
+	// +optional
 	ManagementState operatorv1.ManagementState `json:"managementState,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=managementState"`
 	// conditions represents the available maintenance status of the sample
 	// imagestreams and templates.
 	// +patchMergeKey=type
 	// +patchStrategy=merge
+	// +optional
 	Conditions []ConfigCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,2,rep,name=conditions"`
 
 	// samplesRegistry allows for the specification of which registry is accessed
@@ -84,12 +119,14 @@ type ConfigStatus struct {
 	// defaults to registry.redhat.io.
 	// +patchMergeKey=type
 	// +patchStrategy=merge
+	// +optional
 	SamplesRegistry string `json:"samplesRegistry,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,3,rep,name=samplesRegistry"`
 
 	// architectures determine which hardware architecture(s) to install, where x86_64 and ppc64le are the
 	// supported choices.
 	// +patchMergeKey=type
 	// +patchStrategy=merge
+	// +optional
 	Architectures []string `json:"architectures,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,5,rep,name=architectures"`
 
 	// skippedImagestreams specifies names of image streams that should NOT be
@@ -99,6 +136,7 @@ type ConfigStatus struct {
 	// listed here.
 	// +patchMergeKey=type
 	// +patchStrategy=merge
+	// +optional
 	SkippedImagestreams []string `json:"skippedImagestreams,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,6,rep,name=skippedImagestreams"`
 
 	// skippedTemplates specifies names of templates that should NOT be
@@ -108,11 +146,13 @@ type ConfigStatus struct {
 	// listed here.
 	// +patchMergeKey=type
 	// +patchStrategy=merge
+	// +optional
 	SkippedTemplates []string `json:"skippedTemplates,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,7,rep,name=skippedTemplates"`
 
 	// version is the value of the operator's payload based version indicator when it was last successfully processed
 	// +patchMergeKey=type
 	// +patchStrategy=merge
+	// +optional
 	Version string `json:"version,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,8,rep,name=version"`
 }
 
@@ -122,6 +162,9 @@ type ConfigStatus struct {
 // +openshift:compatibility-gen:level=1
 type ConfigList struct {
 	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard list's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Config `json:"items" protobuf:"bytes,2,rep,name=items"`
 }

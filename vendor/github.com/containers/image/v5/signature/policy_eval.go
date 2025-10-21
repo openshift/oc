@@ -46,7 +46,7 @@ type PolicyRequirement interface {
 	// - sarRejected if the signature has not been verified;
 	//   in that case error must be non-nil, and should be an PolicyRequirementError if evaluation
 	//   succeeded but the result was rejection.
-	// - sarUnknown if if this PolicyRequirement does not deal with signatures.
+	// - sarUnknown if this PolicyRequirement does not deal with signatures.
 	//   NOTE: sarUnknown should not be returned if this PolicyRequirement should make a decision but something failed.
 	//   Returning sarUnknown and a non-nil error value is invalid.
 	// WARNING: This makes the signature contents acceptable for further processing,
@@ -94,10 +94,10 @@ const (
 	pcDestroyed    policyContextState = "Destroyed"
 )
 
-// changeContextState changes pc.state, or fails if the state is unexpected
+// changeState changes pc.state, or fails if the state is unexpected
 func (pc *PolicyContext) changeState(expected, new policyContextState) error {
 	if pc.state != expected {
-		return fmt.Errorf(`Invalid PolicyContext state, expected "%s", found "%s"`, expected, pc.state)
+		return fmt.Errorf(`Invalid PolicyContext state, expected %q, found %q`, expected, pc.state)
 	}
 	pc.state = new
 	return nil
@@ -140,21 +140,21 @@ func (pc *PolicyContext) requirementsForImageRef(ref types.ImageReference) Polic
 		// Look for a full match.
 		identity := ref.PolicyConfigurationIdentity()
 		if req, ok := transportScopes[identity]; ok {
-			logrus.Debugf(` Using transport "%s" policy section %s`, transportName, identity)
+			logrus.Debugf(` Using transport %q policy section %q`, transportName, identity)
 			return req
 		}
 
 		// Look for a match of the possible parent namespaces.
 		for _, name := range ref.PolicyConfigurationNamespaces() {
 			if req, ok := transportScopes[name]; ok {
-				logrus.Debugf(` Using transport "%s" specific policy section %s`, transportName, name)
+				logrus.Debugf(` Using transport %q specific policy section %q`, transportName, name)
 				return req
 			}
 		}
 
 		// Look for a default match for the transport.
 		if req, ok := transportScopes[""]; ok {
-			logrus.Debugf(` Using transport "%s" policy section ""`, transportName)
+			logrus.Debugf(` Using transport %q policy section ""`, transportName)
 			return req
 		}
 	}
@@ -172,10 +172,10 @@ func (pc *PolicyContext) requirementsForImageRef(ref types.ImageReference) Polic
 // but it does not necessarily mean that the contents of the signature are
 // consistent with local policy.
 // For example:
-// - Do not use a an existence of an accepted signature to determine whether to run
-//   a container based on this image; use IsRunningImageAllowed instead.
-// - Just because a signature is accepted does not automatically mean the contents of the
-//   signature are authorized to run code as root, or to affect system or cluster configuration.
+//   - Do not use a an existence of an accepted signature to determine whether to run
+//     a container based on this image; use IsRunningImageAllowed instead.
+//   - Just because a signature is accepted does not automatically mean the contents of the
+//     signature are authorized to run code as root, or to affect system or cluster configuration.
 func (pc *PolicyContext) GetSignaturesWithAcceptedAuthor(ctx context.Context, publicImage types.UnparsedImage) (sigs []*Signature, finalErr error) {
 	if err := pc.changeState(pcReady, pcInUse); err != nil {
 		return nil, err

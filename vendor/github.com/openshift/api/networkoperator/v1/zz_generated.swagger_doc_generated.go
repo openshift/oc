@@ -12,9 +12,10 @@ package v1
 
 // AUTO-GENERATED FUNCTIONS START HERE
 var map_EgressRouter = map[string]string{
-	"":       "EgressRouter is a feature allowing the user to define an egress router that acts as a bridge between pods and external systems. The egress router runs a service that redirects egress traffic originating from a pod or a group of pods to a remote external system or multiple destinations as per configuration.\n\nIt is consumed by the cluster-network-operator. More specifically, given an EgressRouter CR with <name>, the CNO will create and manage: - A service called <name> - An egress pod called <name> - A NAD called <name>\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).\n\nEgressRouter is a single egressrouter pod configuration object.",
-	"spec":   "Specification of the desired egress router.",
-	"status": "Observed status of EgressRouter.",
+	"":         "EgressRouter is a feature allowing the user to define an egress router that acts as a bridge between pods and external systems. The egress router runs a service that redirects egress traffic originating from a pod or a group of pods to a remote external system or multiple destinations as per configuration.\n\nIt is consumed by the cluster-network-operator. More specifically, given an EgressRouter CR with <name>, the CNO will create and manage: - A service called <name> - An egress pod called <name> - A NAD called <name>\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).\n\nEgressRouter is a single egressrouter pod configuration object.",
+	"metadata": "metadata is the standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+	"spec":     "Specification of the desired egress router.",
+	"status":   "Observed status of EgressRouter.",
 }
 
 func (EgressRouter) SwaggerDoc() map[string]string {
@@ -23,7 +24,7 @@ func (EgressRouter) SwaggerDoc() map[string]string {
 
 var map_EgressRouterAddress = map[string]string{
 	"":        "EgressRouterAddress contains a pair of IP CIDR and gateway to be configured on the router's interface",
-	"ip":      "IP is the address to configure on the router's interface. Can be IPv4 or IPv6.",
+	"ip":      "ip is the address to configure on the router's interface. Can be IPv4 or IPv6.",
 	"gateway": "IP address of the next-hop gateway, if it cannot be automatically determined. Can be IPv4 or IPv6.",
 }
 
@@ -41,7 +42,8 @@ func (EgressRouterInterface) SwaggerDoc() map[string]string {
 }
 
 var map_EgressRouterList = map[string]string{
-	"": "EgressRouterList is the list of egress router pods requested.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"":         "EgressRouterList is the list of egress router pods requested.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata": "metadata is the standard list's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
 }
 
 func (EgressRouterList) SwaggerDoc() map[string]string {
@@ -50,8 +52,8 @@ func (EgressRouterList) SwaggerDoc() map[string]string {
 
 var map_EgressRouterSpec = map[string]string{
 	"":                 "EgressRouterSpec contains the configuration for an egress router. Mode, networkInterface and addresses fields must be specified along with exactly one \"Config\" that matches the mode. Each config consists of parameters specific to that mode.",
-	"mode":             "Mode depicts the mode that is used for the egress router. The default mode is \"Redirect\" and is the only supported mode currently.",
-	"redirect":         "Redirect represents the configuration parameters specific to redirect mode.",
+	"mode":             "mode depicts the mode that is used for the egress router. The default mode is \"Redirect\" and is the only supported mode currently.",
+	"redirect":         "redirect represents the configuration parameters specific to redirect mode.",
 	"networkInterface": "Specification of interface to create/use. The default is macvlan. Currently only macvlan is supported.",
 	"addresses":        "List of IP addresses to configure on the pod's secondary interface.",
 }
@@ -71,11 +73,11 @@ func (EgressRouterStatus) SwaggerDoc() map[string]string {
 
 var map_EgressRouterStatusCondition = map[string]string{
 	"":                   "EgressRouterStatusCondition represents the state of the egress router's managed and monitored components.",
-	"type":               "Type specifies the aspect reported by this condition; one of Available, Progressing, Degraded",
-	"status":             "Status of the condition, one of True, False, Unknown.",
-	"lastTransitionTime": "LastTransitionTime is the time of the last update to the current status property.",
-	"reason":             "Reason is the CamelCase reason for the condition's current status.",
-	"message":            "Message provides additional information about the current condition. This is only to be consumed by humans.  It may contain Line Feed characters (U+000A), which should be rendered as new lines.",
+	"type":               "type specifies the aspect reported by this condition; one of Available, Progressing, Degraded",
+	"status":             "status of the condition, one of True, False, Unknown.",
+	"lastTransitionTime": "lastTransitionTime is the time of the last update to the current status property.",
+	"reason":             "reason is the CamelCase reason for the condition's current status.",
+	"message":            "message provides additional information about the current condition. This is only to be consumed by humans.  It may contain Line Feed characters (U+000A), which should be rendered as new lines.",
 }
 
 func (EgressRouterStatusCondition) SwaggerDoc() map[string]string {
@@ -85,9 +87,9 @@ func (EgressRouterStatusCondition) SwaggerDoc() map[string]string {
 var map_L4RedirectRule = map[string]string{
 	"":              "L4RedirectRule defines a DNAT redirection from a given port to a destination IP and port.",
 	"destinationIP": "IP specifies the remote destination's IP address. Can be IPv4 or IPv6.",
-	"port":          "Port is the port number to which clients should send traffic to be redirected.",
-	"protocol":      "Protocol can be TCP, SCTP or UDP.",
-	"targetPort":    "TargetPort allows specifying the port number on the remote destination to which the traffic gets redirected to. If unspecified, the value from \"Port\" is used.",
+	"port":          "port is the port number to which clients should send traffic to be redirected.",
+	"protocol":      "protocol can be TCP, SCTP or UDP.",
+	"targetPort":    "targetPort allows specifying the port number on the remote destination to which the traffic gets redirected to. If unspecified, the value from \"Port\" is used.",
 }
 
 func (L4RedirectRule) SwaggerDoc() map[string]string {
@@ -96,7 +98,7 @@ func (L4RedirectRule) SwaggerDoc() map[string]string {
 
 var map_MacvlanConfig = map[string]string{
 	"":       "MacvlanConfig consists of arguments specific to the macvlan EgressRouterInterfaceType",
-	"mode":   "Mode depicts the mode that is used for the macvlan interface; one of Bridge|Private|VEPA|Passthru. The default mode is \"Bridge\".",
+	"mode":   "mode depicts the mode that is used for the macvlan interface; one of Bridge|Private|VEPA|Passthru. The default mode is \"Bridge\".",
 	"master": "Name of the master interface. Need not be specified if it can be inferred from the IP address.",
 }
 
@@ -107,7 +109,7 @@ func (MacvlanConfig) SwaggerDoc() map[string]string {
 var map_RedirectConfig = map[string]string{
 	"":              "RedirectConfig represents the configuration parameters specific to redirect mode.",
 	"redirectRules": "List of L4RedirectRules that define the DNAT redirection from the pod to the destination in redirect mode.",
-	"fallbackIP":    "FallbackIP specifies the remote destination's IP address. Can be IPv4 or IPv6. If no redirect rules are specified, all traffic from the router are redirected to this IP. If redirect rules are specified, then any connections on any other port (undefined in the rules) on the router will be redirected to this IP. If redirect rules are specified and no fallback IP is provided, connections on other ports will simply be rejected.",
+	"fallbackIP":    "fallbackIP specifies the remote destination's IP address. Can be IPv4 or IPv6. If no redirect rules are specified, all traffic from the router are redirected to this IP. If redirect rules are specified, then any connections on any other port (undefined in the rules) on the router will be redirected to this IP. If redirect rules are specified and no fallback IP is provided, connections on other ports will simply be rejected.",
 }
 
 func (RedirectConfig) SwaggerDoc() map[string]string {

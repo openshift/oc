@@ -7,12 +7,15 @@ import (
 
 	"github.com/spf13/cobra"
 
+	v1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/kubernetes"
+	authenticationv1client "k8s.io/client-go/kubernetes/typed/authentication/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -40,6 +43,7 @@ var whoamiExample = templates.Examples(`
 
 type WhoAmIOptions struct {
 	UserInterface userv1typedclient.UserV1Interface
+	AuthV1Client  authenticationv1client.AuthenticationV1Interface
 
 	ClientConfig *rest.Config
 	KubeClient   kubernetes.Interface
@@ -52,16 +56,16 @@ type WhoAmIOptions struct {
 	ShowGroups     bool
 	Output         string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewWhoAmIOptions(streams genericclioptions.IOStreams) *WhoAmIOptions {
+func NewWhoAmIOptions(streams genericiooptions.IOStreams) *WhoAmIOptions {
 	return &WhoAmIOptions{
 		IOStreams: streams,
 	}
 }
 
-func NewCmdWhoAmI(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewWhoAmIOptions(streams)
 
 	cmd := &cobra.Command{
@@ -86,6 +90,20 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 }
 
 func (o WhoAmIOptions) WhoAmI() (*userv1.User, error) {
+	res, err := o.AuthV1Client.SelfSubjectReviews().Create(context.TODO(), &v1.SelfSubjectReview{}, metav1.CreateOptions{})
+	if err == nil {
+		me := &userv1.User{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: res.Status.UserInfo.Username,
+			},
+			Groups: res.Status.UserInfo.Groups,
+		}
+		fmt.Fprintf(o.Out, "%s\n", me.Name)
+		return me, nil
+	} else {
+		klog.V(2).Infof("selfsubjectreview request error %v, falling back to user object", err)
+	}
+
 	me, err := o.UserInterface.Users().Get(context.TODO(), "~", metav1.GetOptions{})
 	if err == nil {
 		fmt.Fprintf(o.Out, "%s\n", me.Name)
@@ -189,6 +207,11 @@ func (o *WhoAmIOptions) Run() error {
 		}
 		fmt.Fprintf(o.Out, "%s\n", string(j))
 		return nil
+	}
+
+	o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
+	if err != nil {
+		return err
 	}
 
 	_, err = o.WhoAmI()

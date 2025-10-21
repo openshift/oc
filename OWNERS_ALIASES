@@ -3,15 +3,25 @@
 aliases:
   root-approvers:
     - ardaguclu
-    - deads2k
-    - mfojtik
-    - smarterclayton
-    - soltysh
+    - atiratree
+    - ingvagabund
+  root-reviewers:
+    - ardaguclu
+    - atiratree
+    - ingvagabund
+    - tchap
+  monitoring-approvers:
+    - danielmellado
+    - jan--f
+    - machine424
+    - marioferh
+    - rexagod
+    - simonpasquier
+    - slashpai
   update-approvers:
-    - Davoska
-    - LalatenduMohanty
-    - petr-muller
+    - DavidHurta
     - wking
+    - hongkailiu
   catalog-approvers:
     - awgreene
     - perdasilva
@@ -25,3 +35,21 @@ aliases:
     - coreydaley
   build-approvers:
     - coreydaley
+  storage-reviewers:
+    - jsafrane
+    - tsmetana
+    - gnufied
+    - dobsonj
+    - RomanBednar
+    - mpatlasov
+    - rhrmo
+    - dfajmon
+  storage-approvers: 
+    - jsafrane
+    - tsmetana
+    - gnufied
+    - dobsonj
+    - RomanBednar
+    - mpatlasov
+    - rhrmo
+    - dfajmon

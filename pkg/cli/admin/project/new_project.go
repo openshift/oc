@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	errorsutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -42,7 +42,7 @@ type NewProjectOptions struct {
 	AdminRole string
 	AdminUser string
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
 var newProjectLong = templates.LongDesc(`
@@ -57,7 +57,7 @@ var newProjectExample = templates.Examples(`
 	oc adm new-project myproject --node-selector='type=user-node,region=east'
 `)
 
-func NewNewProjectOptions(streams genericclioptions.IOStreams) *NewProjectOptions {
+func NewNewProjectOptions(streams genericiooptions.IOStreams) *NewProjectOptions {
 	return &NewProjectOptions{
 		AdminRole: "admin",
 		IOStreams: streams,
@@ -65,7 +65,7 @@ func NewNewProjectOptions(streams genericclioptions.IOStreams) *NewProjectOption
 }
 
 // NewCmdNewProject implements the OpenShift cli new-project command
-func NewCmdNewProject(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdNewProject(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewNewProjectOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "new-project NAME [--display-name=DISPLAYNAME] [--description=DESCRIPTION]",
@@ -157,7 +157,7 @@ func (o *NewProjectOptions) Run() error {
 			fmt.Fprintf(o.Out, "%v could not be added to the %v role: %v\n", o.AdminUser, o.AdminRole, err)
 			errs = append(errs, err)
 		} else {
-			if err := wait.PollImmediate(time.Second, time.Minute, func() (bool, error) {
+			if err := wait.PollUntilContextTimeout(context.TODO(), time.Second, time.Minute, true, func(ctx context.Context) (bool, error) {
 				resp, err := o.SARClient.Create(context.TODO(), &authorizationv1.SubjectAccessReview{
 					Action: authorizationv1.Action{
 						Namespace: o.ProjectName,

@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/distribution/distribution/v3/registry/api/errcode"
 	"k8s.io/klog/v2"
 
 	kerrors "k8s.io/apimachinery/pkg/util/errors"

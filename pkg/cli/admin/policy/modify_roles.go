@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"strings"
 
+	userv1 "github.com/openshift/api/user/v1"
+	ocmdhelpers "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -15,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
@@ -72,6 +76,26 @@ var (
 
 		If the --rolebinding-name argument is supplied, it will look for an existing cluster role binding with that name. The role on the matching cluster role binding MUST match the role name supplied to the command. If no rolebinding name is given, a default name will be used.
 	`)
+
+	addClusterRoleToUserExample = templates.Examples(`
+		# Add the 'system:build-strategy-docker' cluster role to the 'devuser' user
+		oc adm policy add-cluster-role-to-user system:build-strategy-docker devuser
+	`)
+
+	addClusterRoleToGroupExample = templates.Examples(`
+		# Add the 'cluster-admin' cluster role to the 'cluster-admins' group
+		oc adm policy add-cluster-role-to-group cluster-admin cluster-admins
+	`)
+
+	removeClusterRoleFromUserExample = templates.Examples(`
+		# Remove the 'system:build-strategy-docker' cluster role from the 'devuser' user
+		oc adm policy remove-cluster-role-from-user system:build-strategy-docker devuser
+	`)
+
+	removeClusterRoleFromGroupExample = templates.Examples(`
+		# Remove the 'cluster-admin' cluster role from the 'cluster-admins' group
+		oc adm policy remove-cluster-role-from-group cluster-admin cluster-admins
+	`)
 )
 
 type RoleModificationOptions struct {
@@ -89,6 +113,7 @@ type RoleModificationOptions struct {
 
 	UserClient           userv1client.UserV1Interface
 	ServiceAccountClient corev1client.ServiceAccountsGetter
+	DiscoveryClient      discovery.DiscoveryInterface
 
 	Targets  []string
 	Users    []string
@@ -99,10 +124,10 @@ type RoleModificationOptions struct {
 
 	PrintErrf func(format string, args ...interface{})
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 }
 
-func NewRoleModificationOptions(streams genericclioptions.IOStreams) *RoleModificationOptions {
+func NewRoleModificationOptions(streams genericiooptions.IOStreams) *RoleModificationOptions {
 	return &RoleModificationOptions{
 		PrintFlags: genericclioptions.NewPrintFlags("added").WithTypeSetter(scheme.Scheme),
 		IOStreams:  streams,
@@ -110,7 +135,7 @@ func NewRoleModificationOptions(streams genericclioptions.IOStreams) *RoleModifi
 }
 
 // NewCmdAddRoleToGroup implements the OpenShift cli add-role-to-group command
-func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "add-role-to-group ROLE GROUP [GROUP ...]",
@@ -119,7 +144,7 @@ func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStream
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
-			kcmdutil.CheckErr(o.AddRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.AddRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -132,7 +157,7 @@ func NewCmdAddRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStream
 }
 
 // NewCmdAddRoleToUser implements the OpenShift cli add-role-to-user command
-func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams, admin bool) *cobra.Command {
+func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericiooptions.IOStreams, admin bool) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
@@ -143,7 +168,7 @@ func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
-			kcmdutil.CheckErr(o.AddRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.AddRole(), o.DiscoveryClient)
 		},
 	}
 	if admin {
@@ -161,7 +186,7 @@ func NewCmdAddRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams
 }
 
 // NewCmdRemoveRoleFromGroup implements the OpenShift cli remove-role-from-group command
-func NewCmdRemoveRoleFromGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveRoleFromGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	cmd := &cobra.Command{
 		Use:   "remove-role-from-group ROLE GROUP [GROUP ...]",
@@ -170,7 +195,7 @@ func NewCmdRemoveRoleFromGroup(f kcmdutil.Factory, streams genericclioptions.IOS
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
-			kcmdutil.CheckErr(o.RemoveRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.RemoveRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -183,7 +208,7 @@ func NewCmdRemoveRoleFromGroup(f kcmdutil.Factory, streams genericclioptions.IOS
 }
 
 // NewCmdRemoveRoleFromUser implements the OpenShift cli remove-role-from-user command
-func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.SANames = []string{}
 	cmd := &cobra.Command{
@@ -193,7 +218,7 @@ func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericclioptions.IOSt
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
 			kcmdutil.CheckErr(o.checkRoleBindingNamespace(f))
-			kcmdutil.CheckErr(o.RemoveRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.RemoveRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -207,16 +232,17 @@ func NewCmdRemoveRoleFromUser(f kcmdutil.Factory, streams genericclioptions.IOSt
 }
 
 // NewCmdAddClusterRoleToGroup implements the OpenShift cli add-cluster-role-to-group command
-func NewCmdAddClusterRoleToGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddClusterRoleToGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	cmd := &cobra.Command{
-		Use:   "add-cluster-role-to-group ROLE GROUP [GROUP...]",
-		Short: "Add a role to groups for all projects in the cluster",
-		Long:  addClusterRoleToGroupLongDesc,
+		Use:     "add-cluster-role-to-group ROLE GROUP [GROUP...]",
+		Short:   "Add a role to groups for all projects in the cluster",
+		Long:    addClusterRoleToGroupLongDesc,
+		Example: addClusterRoleToGroupExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
-			kcmdutil.CheckErr(o.AddRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.AddRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -228,17 +254,18 @@ func NewCmdAddClusterRoleToGroup(f kcmdutil.Factory, streams genericclioptions.I
 }
 
 // NewCmdAddClusterRoleToUser implements the OpenShift cli add-cluster-role-to-user command
-func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	o.SANames = []string{}
 	cmd := &cobra.Command{
-		Use:   "add-cluster-role-to-user ROLE (USER | -z serviceaccount) [user]...",
-		Short: "Add a role to users for all projects in the cluster",
-		Long:  addClusterRoleToUserLongDesc,
+		Use:     "add-cluster-role-to-user ROLE (USER | -z serviceaccount) [user]...",
+		Short:   "Add a role to users for all projects in the cluster",
+		Long:    addClusterRoleToUserLongDesc,
+		Example: addClusterRoleToUserExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
-			kcmdutil.CheckErr(o.AddRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.AddRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -251,16 +278,17 @@ func NewCmdAddClusterRoleToUser(f kcmdutil.Factory, streams genericclioptions.IO
 }
 
 // NewCmdRemoveClusterRoleFromGroup implements the OpenShift cli remove-cluster-role-from-group command
-func NewCmdRemoveClusterRoleFromGroup(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveClusterRoleFromGroup(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	cmd := &cobra.Command{
-		Use:   "remove-cluster-role-from-group ROLE GROUP [GROUP...]",
-		Short: "Remove a role from groups for all projects in the cluster",
-		Long:  `Remove a role from groups for all projects in the cluster`,
+		Use:     "remove-cluster-role-from-group ROLE GROUP [GROUP...]",
+		Short:   "Remove a role from groups for all projects in the cluster",
+		Long:    `Remove a role from groups for all projects in the cluster`,
+		Example: removeClusterRoleFromGroupExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args, &o.Groups, "group"))
-			kcmdutil.CheckErr(o.RemoveRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.RemoveRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -272,17 +300,18 @@ func NewCmdRemoveClusterRoleFromGroup(f kcmdutil.Factory, streams genericcliopti
 }
 
 // NewCmdRemoveClusterRoleFromUser implements the OpenShift cli remove-cluster-role-from-user command
-func NewCmdRemoveClusterRoleFromUser(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdRemoveClusterRoleFromUser(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewRoleModificationOptions(streams)
 	o.RoleKind = "ClusterRole"
 	o.SANames = []string{}
 	cmd := &cobra.Command{
-		Use:   "remove-cluster-role-from-user ROLE USER [USER...]",
-		Short: "Remove a role from users for all projects in the cluster",
-		Long:  `Remove a role from users for all projects in the cluster`,
+		Use:     "remove-cluster-role-from-user ROLE USER [USER...]",
+		Short:   "Remove a role from users for all projects in the cluster",
+		Long:    `Remove a role from users for all projects in the cluster`,
+		Example: removeClusterRoleFromUserExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.CompleteUserWithSA(f, cmd, args))
-			kcmdutil.CheckErr(o.RemoveRole())
+			ocmdhelpers.CheckOAuthDisabledErr(o.RemoveRole(), o.DiscoveryClient)
 		},
 	}
 
@@ -317,13 +346,38 @@ func (o *RoleModificationOptions) innerComplete(f kcmdutil.Factory, cmd *cobra.C
 	if err != nil {
 		return err
 	}
+	o.DiscoveryClient, err = f.ToDiscoveryClient()
+	if err != nil {
+		return err
+	}
 	o.RbacClient, err = rbacv1client.NewForConfig(clientConfig)
 	if err != nil {
 		return err
 	}
-	o.UserClient, err = userv1client.NewForConfig(clientConfig)
+
+	userAPIAvailable := false
+	groupList, err := o.DiscoveryClient.ServerGroups()
+	if discovery.IsGroupDiscoveryFailedError(err) {
+		// proceed with partial results; treat missing groups as "not found"
+		err = nil
+	}
 	if err != nil {
 		return err
+	}
+	for _, group := range groupList.Groups {
+		// We try to determine that built-in OAuth is enabled or not to initialize UserClient.
+		// Because we don't need UserClient, if external OIDC is used.
+		// Simply checking the existence of userv1 in the discovery can signal us whether built-in OAuth is functioning or not.
+		if group.PreferredVersion.GroupVersion == userv1.GroupVersion.String() {
+			userAPIAvailable = true
+			break
+		}
+	}
+	if userAPIAvailable {
+		o.UserClient, err = userv1client.NewForConfig(clientConfig)
+		if err != nil {
+			return err
+		}
 	}
 	o.ServiceAccountClient, err = corev1client.NewForConfig(clientConfig)
 	if err != nil {
