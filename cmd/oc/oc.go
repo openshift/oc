@@ -48,6 +48,7 @@ func main() {
 	command := cli.CommandFor(basename)
 	logs.AddFlags(command.PersistentFlags())
 	injectLoglevelFlag(command.PersistentFlags())
+
 	if err := kcli.RunNoErrOutput(command); err != nil {
 		// Pretty-print the error and exit with an error.
 		kcmdutil.CheckErr(err)

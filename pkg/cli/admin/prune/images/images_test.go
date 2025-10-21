@@ -166,7 +166,7 @@ func TestImagePruneErrOnBadReference(t *testing.T) {
 			`deployment/dep1 namespace=foo: container app: invalid image reference "do not blame me": invalid reference format`)
 
 		if a, e := badRefErrors, expBadRefErrors; !a.Equal(e) {
-			t.Fatalf("got unexpected invalid reference errors: %s", diff.ObjectDiff(a, e))
+			t.Fatalf("got unexpected invalid reference errors: %s", diff.ObjectGoPrintSideBySide(a, e))
 		}
 
 		if expectClientVersionMismatch {
