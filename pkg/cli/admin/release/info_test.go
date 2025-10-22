@@ -529,13 +529,13 @@ func Test_readComponentVersions(t *testing.T) {
 			ioStreams := genericiooptions.NewTestIOStreamsDiscard()
 			got, got1, got2 := readComponentVersions(tt.is, ioStreams.ErrOut)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("%s", diff.ObjectReflectDiff(got, tt.want))
+				t.Errorf("%s", diff.ObjectGoPrintSideBySide(got, tt.want))
 			}
 			if !reflect.DeepEqual(got1, tt.wantTags) {
-				t.Errorf("%s", diff.ObjectReflectDiff(got1, tt.wantTags))
+				t.Errorf("%s", diff.ObjectGoPrintSideBySide(got1, tt.wantTags))
 			}
 			if a, b := asStrings(got2), asStrings(tt.wantErr); !reflect.DeepEqual(a, b) {
-				t.Errorf("%s", diff.ObjectReflectDiff(a, b))
+				t.Errorf("%s", diff.ObjectGoPrintSideBySide(a, b))
 			}
 		})
 	}

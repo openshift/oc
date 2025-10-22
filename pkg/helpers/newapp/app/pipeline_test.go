@@ -230,7 +230,7 @@ func TestAddServices(t *testing.T) {
 		services := getServices(output)
 		if !reflect.DeepEqual(services, test.expectedServices) {
 			t.Errorf("%s: did not get expected output: %s",
-				test.name, diff.ObjectGoPrintDiff(test.expectedServices, services))
+				test.name, diff.ObjectGoPrintSideBySide(test.expectedServices, services))
 		}
 	}
 }

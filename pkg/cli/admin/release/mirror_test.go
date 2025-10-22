@@ -114,7 +114,7 @@ func Test_dedupeSortSources(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			uniqueSources := dedupeSortSources(tt.sources)
 			if !reflect.DeepEqual(uniqueSources, tt.expectedSources) {
-				t.Errorf("%s", diff.ObjectReflectDiff(uniqueSources, tt.expectedSources))
+				t.Errorf("%s", diff.ObjectGoPrintSideBySide(uniqueSources, tt.expectedSources))
 			}
 		})
 	}
@@ -240,7 +240,7 @@ func Test_convertMirrorSetToImageDigestMirrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			idmsSources := convertMirrorSetToImageDigestMirrors(tt.sources)
 			if !reflect.DeepEqual(idmsSources, tt.expectedSources) {
-				t.Errorf("%s", diff.ObjectReflectDiff(idmsSources, tt.expectedSources))
+				t.Errorf("%s", diff.ObjectGoPrintSideBySide(idmsSources, tt.expectedSources))
 			}
 		})
 	}
@@ -301,7 +301,7 @@ spec:
 			}
 			got := buf.Bytes()
 			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("%s", diff.ObjectReflectDiff(got, tc.want))
+				t.Errorf("%s", diff.ObjectGoPrintSideBySide(got, tc.want))
 			}
 		})
 	}
@@ -362,7 +362,7 @@ spec:
 			}
 			got := buf.Bytes()
 			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("%s", diff.ObjectReflectDiff(got, tc.want))
+				t.Errorf("%s", diff.ObjectGoPrintSideBySide(got, tc.want))
 			}
 		})
 	}

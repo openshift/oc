@@ -210,7 +210,7 @@ func TestDefaultImagePinger(t *testing.T) {
 				ers = []string{}
 			}
 			if a := rs.getRequests(); !reflect.DeepEqual(a, ers) {
-				t.Errorf("[%s] got unexpected requests: %s", tc.name, diff.ObjectDiff(a, ers))
+				t.Errorf("[%s] got unexpected requests: %s", tc.name, diff.ObjectGoPrintSideBySide(a, ers))
 			}
 		})
 	}

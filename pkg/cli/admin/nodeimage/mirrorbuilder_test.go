@@ -41,7 +41,6 @@ var defaultIdmsSetList = ocpv1.ImageDigestMirrorSetList{
 var defaultIdms = `apiVersion: config.openshift.io/v1
 kind: ImageDigestMirrorSet
 metadata:
-  creationTimestamp: null
   name: image-digest
 spec:
   imageDigestMirrors:
@@ -115,7 +114,6 @@ var icspListDifferentThanIdms = operatorv1alpha1.ImageContentSourcePolicyList{
 var icspPlusIdms = `apiVersion: config.openshift.io/v1
 kind: ImageDigestMirrorSet
 metadata:
-  creationTimestamp: null
   name: image-digest
 spec:
   imageDigestMirrors:

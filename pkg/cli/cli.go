@@ -141,25 +141,23 @@ func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 			}
 		}
 	} else if err == nil {
-		if !kcmdutil.CmdPluginAsSubcommand.IsDisabled() {
-			// Command exists(e.g. kubectl create), but it is not certain that
-			// subcommand also exists (e.g. kubectl create networkpolicy)
-			// we also have to eliminate kubectl create -f
-			if kubecmd.IsSubcommandPluginAllowed(foundCmd.Name()) && len(foundArgs) >= 1 && !strings.HasPrefix(foundArgs[0], "-") {
-				subcommand := foundArgs[0]
-				builtinSubcmdExist := false
-				for _, subcmd := range foundCmd.Commands() {
-					if subcmd.Name() == subcommand {
-						builtinSubcmdExist = true
-						break
-					}
+		// Command exists(e.g. kubectl create), but it is not certain that
+		// subcommand also exists (e.g. kubectl create networkpolicy)
+		// we also have to eliminate kubectl create -f
+		if kubecmd.IsSubcommandPluginAllowed(foundCmd.Name()) && len(foundArgs) >= 1 && !strings.HasPrefix(foundArgs[0], "-") {
+			subcommand := foundArgs[0]
+			builtinSubcmdExist := false
+			for _, subcmd := range foundCmd.Commands() {
+				if subcmd.Name() == subcommand {
+					builtinSubcmdExist = true
+					break
 				}
+			}
 
-				if !builtinSubcmdExist {
-					if err := kubecmd.HandlePluginCommand(o.PluginHandler, cmdPathPieces, len(cmdPathPieces)-len(foundArgs)+1); err != nil {
-						fmt.Fprintf(o.IOStreams.ErrOut, "Error: %v\n", err)
-						os.Exit(1)
-					}
+			if !builtinSubcmdExist {
+				if err := kubecmd.HandlePluginCommand(o.PluginHandler, cmdPathPieces, len(cmdPathPieces)-len(foundArgs)+1); err != nil {
+					fmt.Fprintf(o.IOStreams.ErrOut, "Error: %v\n", err)
+					os.Exit(1)
 				}
 			}
 		}
@@ -214,7 +212,7 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 	flags.BoolVar(&warningsAsErrors, "warnings-as-errors", warningsAsErrors, "Treat warnings received from the server as errors and exit with a non-zero exit code")
 
 	pref := kuberc.NewPreferences()
-	if kcmdutil.KubeRC.IsEnabled() {
+	if !kcmdutil.KubeRC.IsDisabled() {
 		pref.AddFlags(flags)
 	}
 
@@ -341,7 +339,7 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 
 	registerCompletionFuncForGlobalFlags(cmds, f)
 
-	if kcmdutil.KubeRC.IsEnabled() {
+	if !kcmdutil.KubeRC.IsDisabled() {
 		_, err := pref.Apply(cmds, o.Arguments, o.IOStreams.ErrOut)
 		if err != nil {
 			fmt.Fprintf(o.IOStreams.ErrOut, "error occurred while applying preferences %v\n", err)

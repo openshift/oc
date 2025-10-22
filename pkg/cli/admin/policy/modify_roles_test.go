@@ -1372,7 +1372,7 @@ func TestModifyRoleBindingWarnings(t *testing.T) {
 func compareResources(t *testing.T, expected, actual interface{}) {
 	if eq := equality.Semantic.DeepEqual(expected, actual); !eq {
 		t.Errorf("Resource does not match expected value: %s",
-			diffutil.ObjectDiff(expected, actual))
+			diffutil.ObjectGoPrintSideBySide(expected, actual))
 	}
 }
 func getRoleBindingAbstractionsList(rbacClient rbacv1client.RbacV1Interface, namespace string) ([]*roleBindingAbstraction, error) {
