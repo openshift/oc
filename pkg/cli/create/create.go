@@ -3,6 +3,7 @@ package create
 import (
 	"github.com/spf13/cobra"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -62,6 +63,15 @@ func (o *CreateSubcommandOptions) Complete(f genericclioptions.RESTClientGetter,
 	}
 
 	return nil
+}
+
+func (o *CreateSubcommandOptions) toCreateOptions() metav1.CreateOptions {
+	createOptions := metav1.CreateOptions{}
+	if o.DryRunStrategy == cmdutil.DryRunServer {
+		createOptions.DryRun = []string{metav1.DryRunAll}
+	}
+
+	return createOptions
 }
 
 // NameFromCommandArgs is a utility function for commands that assume the first argument is a resource name
