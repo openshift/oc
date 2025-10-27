@@ -35,6 +35,7 @@ const (
 	nodeJoinerConfigurationFile       = "nodes-config.yaml"
 	nodeJoinerContainer               = "node-joiner"
 	nodeJoinerMinimumSupportedVersion = "4.17"
+	nodeJoinerPollTimeout             = time.Minute * 30
 )
 
 const (
@@ -450,7 +451,7 @@ func (o *CreateOptions) nodeJoinerPodExec(ctx context.Context, command ...string
 	err := wait.PollUntilContextTimeout(
 		ctx,
 		time.Second*5,
-		time.Minute*15,
+		nodeJoinerPollTimeout,
 		true,
 		func(ctx context.Context) (done bool, err error) {
 			execOptions := &exec.ExecOptions{
@@ -574,7 +575,7 @@ func (o *CreateOptions) monitorWorkflowReport(ctx context.Context) error {
 	err := wait.PollUntilContextTimeout(
 		ctx,
 		time.Second*5,
-		time.Minute*15,
+		nodeJoinerPollTimeout,
 		true,
 		func(ctx context.Context) (done bool, err error) {
 			cmdOutput, err := o.nodeJoinerPodExec(ctx, "cat", "/assets/report.json")
