@@ -64,30 +64,15 @@ func deleteContents(dir string) error {
 		return err
 	}
 	for _, f := range files {
-		// Sanitize the filename to prevent path traversal attacks
-		fileName := f.Name()
-		if strings.Contains(fileName, "..") || strings.Contains(fileName, "/") || strings.Contains(fileName, "\\") {
-			klog.V(4).Infof("Skipping potentially malicious filename: %s", fileName)
-			continue
-		}
-		
-		// Ensure the resolved path is still within the target directory
-		targetPath := filepath.Join(dir, fileName)
-		cleanPath := filepath.Clean(targetPath)
-		if !strings.HasPrefix(cleanPath, filepath.Clean(dir)+string(filepath.Separator)) && cleanPath != filepath.Clean(dir) {
-			klog.V(4).Infof("Skipping path traversal attempt: %s", fileName)
-			continue
-		}
-		
 		if f.IsDir() {
-			klog.V(5).Infof("Deleting directory: %s", fileName)
-			err = os.RemoveAll(cleanPath)
+			klog.V(5).Infof("Deleting directory: %s", f.Name())
+			err = os.RemoveAll(filepath.Clean(filepath.Join(dir, f.Name())))
 		} else {
-			klog.V(5).Infof("Deleting file: %s", fileName)
-			err = os.Remove(cleanPath)
+			klog.V(5).Infof("Deleting file: %s", f.Name())
+			err = os.Remove(filepath.Clean(filepath.Join(dir, f.Name())))
 		}
 		if err != nil {
-			klog.V(4).Infof("Error deleting file or directory: %s: %v", fileName, err)
+			klog.V(4).Infof("Error deleting file or directory: %s: %v", f.Name(), err)
 			return err
 		}
 	}
