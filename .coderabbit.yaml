@@ -1,0 +1,4 @@
+remote_config:
+  url: "https://raw.githubusercontent.com/openshift-eng/ai-helpers/main/.coderabbit.yaml"
+path_filters:
+  - "!vendor/**"
