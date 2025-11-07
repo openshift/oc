@@ -56,6 +56,10 @@ const (
 	unreachableTaintKey       = "node.kubernetes.io/unreachable"
 	notReadyTaintKey          = "node.kubernetes.io/not-ready"
 	controlPlaneNodeRoleLabel = "node-role.kubernetes.io/control-plane"
+	masterNodeRoleLabel       = "node-role.kubernetes.io/master"
+	defaultMustGatherCommand  = "/usr/bin/gather"
+	defaultVolumePercentage   = 30
+	defaultSourceDir          = "/must-gather/"
 )
 
 var (
@@ -169,10 +173,10 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 
 func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions {
 	opts := &MustGatherOptions{
-		SourceDir:        "/must-gather/",
+		SourceDir:        defaultSourceDir,
 		IOStreams:        streams,
 		Timeout:          10 * time.Minute,
-		VolumePercentage: 30,
+		VolumePercentage: defaultVolumePercentage,
 	}
 	opts.LogOut = opts.newPrefixWriter(streams.Out, "[must-gather      ] OUT", false, true)
 	opts.RawOut = opts.newPrefixWriter(streams.Out, "", false, false)
@@ -617,7 +621,7 @@ func (o *MustGatherOptions) Run() error {
 	}
 	var hasMaster bool
 	for _, node := range nodes.Items {
-		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
+		if _, ok := node.Labels[masterNodeRoleLabel]; ok {
 			hasMaster = true
 			break
 		}
@@ -1071,29 +1075,13 @@ func newClusterRoleBinding(ns *corev1.Namespace) *rbacv1.ClusterRoleBinding {
 	}
 }
 
-// newPod creates a pod with 2 containers with a shared volume mount:
-// - gather: init containers that run gather command
-// - copy: no-op container we can exec into
-func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity *corev1.Affinity) *corev1.Pod {
-
+func defaultMustGatherPod(image string) *corev1.Pod {
 	zero := int64(0)
 
-	nodeSelector := map[string]string{
-		corev1.LabelOSStable: "linux",
-	}
-	if node == "" && hasMaster {
-		nodeSelector["node-role.kubernetes.io/master"] = ""
-	}
+	cleanedSourceDir := path.Clean(defaultSourceDir)
+	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, defaultVolumePercentage, defaultVolumePercentage, defaultMustGatherCommand)
 
-	executedCommand := "/usr/bin/gather"
-	if len(o.Command) > 0 {
-		executedCommand = strings.Join(o.Command, " ")
-	}
-
-	cleanedSourceDir := path.Clean(o.SourceDir)
-	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
-
-	ret := &corev1.Pod{
+	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "must-gather-",
 			Labels: map[string]string{
@@ -1101,7 +1089,6 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 			},
 		},
 		Spec: corev1.PodSpec{
-			NodeName: node,
 			// This pod is ok to be OOMKilled but not preempted. Following the conventions mentioned at:
 			// https://github.com/openshift/enhancements/blob/master/CONVENTIONS.md#priority-classes
 			// so setting priority class to system-cluster-critical
@@ -1121,7 +1108,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 					Image:           image,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					// always force disk flush to ensure that all data gathered is accessible in the copy container
-					Command: []string{"/bin/bash", "-c", fmt.Sprintf("%s & %s; sync", volumeUsageChecker, executedCommand)},
+					Command: []string{"/bin/bash", "-c", fmt.Sprintf("%s & %s; sync", volumeUsageChecker, defaultMustGatherCommand)},
 					Env: []corev1.EnvVar{
 						{
 							Name: "NODE_NAME",
@@ -1164,8 +1151,9 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 					},
 				},
 			},
-			HostNetwork:                   o.HostNetwork,
-			NodeSelector:                  nodeSelector,
+			NodeSelector: map[string]string{
+				corev1.LabelOSStable: "linux",
+			},
 			TerminationGracePeriodSeconds: &zero,
 			Tolerations: []corev1.Toleration{
 				{
@@ -1175,9 +1163,50 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 					Operator: "Exists",
 				},
 			},
-			Affinity: affinity,
 		},
 	}
+}
+
+// newPod creates a pod with 2 containers with a shared volume mount:
+// - gather: init containers that run gather command
+// - copy: no-op container we can exec into
+func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity *corev1.Affinity) *corev1.Pod {
+	executedCommand := defaultMustGatherCommand
+	if len(o.Command) > 0 {
+		executedCommand = strings.Join(o.Command, " ")
+	}
+
+	cleanedSourceDir := path.Clean(o.SourceDir)
+	volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanedSourceDir, cleanedSourceDir, o.VolumePercentage, o.VolumePercentage, executedCommand)
+
+	ret := defaultMustGatherPod(image)
+	ret.Spec.Containers[0].Command = []string{"/bin/bash", "-c", fmt.Sprintf("%s & %s; sync", volumeUsageChecker, executedCommand)}
+	ret.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{
+		Name:      "must-gather-output",
+		MountPath: cleanedSourceDir,
+		ReadOnly:  false,
+	}}
+	ret.Spec.Containers[1].VolumeMounts = []corev1.VolumeMount{{
+		Name:      "must-gather-output",
+		MountPath: cleanedSourceDir,
+		ReadOnly:  false,
+	}}
+	ret.Spec.HostNetwork = o.HostNetwork
+	if node == "" && hasMaster {
+		ret.Spec.NodeSelector[masterNodeRoleLabel] = ""
+	}
+
+	if node != "" {
+		ret.Spec.NodeName = node
+	} else {
+		// Set affinity towards the most suitable nodes. E.g. to exclude
+		// nodes that if unreachable could cause the must-gather pod to stay
+		// in Pending state indefinitely. Please check getCandidateNodeNames
+		// function for more details about how the selection of the most
+		// suitable nodes is performed.
+		ret.Spec.Affinity = affinity
+	}
+
 	if o.HostNetwork {
 		// If a user specified hostNetwork he might have intended to perform
 		// packet captures on the host, for that we need to set the correct
