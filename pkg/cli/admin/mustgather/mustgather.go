@@ -92,9 +92,7 @@ echo "[disk usage checker] Started"
 target_dir="%s"
 usage_percentage_limit="%d"
 while true; do
-disk_usage=$(du -s "$target_dir" | awk '{print $1}')
-disk_space=$(df -P "$target_dir" | awk 'NR==2 {print $2}')
-usage_percentage=$(( (disk_usage * 100) / disk_space ))
+usage_percentage=$(df -P "$target_dir" | awk 'NR==2 {print $5}' | sed 's/%%//')
 echo "[disk usage checker] Volume usage percentage: current = ${usage_percentage} ; allowed = ${usage_percentage_limit}"
 if [ "$usage_percentage" -gt "$usage_percentage_limit" ]; then
 	echo "[disk usage checker] Disk usage exceeds the volume percentage of ${usage_percentage_limit} for mounted directory, terminating..."
@@ -177,7 +175,7 @@ func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions
 		SourceDir:        "/must-gather/",
 		IOStreams:        streams,
 		Timeout:          10 * time.Minute,
-		VolumePercentage: 30,
+		VolumePercentage: 70,
 	}
 	opts.LogOut = opts.newPrefixWriter(streams.Out, "[must-gather      ] OUT", false, true)
 	opts.RawOut = opts.newPrefixWriter(streams.Out, "", false, false)
@@ -420,8 +418,8 @@ func (o *MustGatherOptions) Validate() error {
 	if o.VolumePercentage <= 0 || o.VolumePercentage > 100 {
 		return fmt.Errorf("invalid volume usage percentage, please specify a value between 0 and 100")
 	}
-	if o.VolumePercentage >= 80 {
-		klog.Warningf("volume percentage greater than or equal to 80 might cause filling up the disk space and have an impact on other components running on master")
+	if o.VolumePercentage >= 90 {
+		klog.Warningf("volume percentage greater than or equal to 90 might cause filling up the disk space and have an impact on other components running on master")
 	}
 
 	if len(o.SinceTime) > 0 && o.Since != 0 {
@@ -621,7 +619,7 @@ func (o *MustGatherOptions) Run() error {
 	}
 	var hasMaster bool
 	for _, node := range nodes.Items {
-		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
+		if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
 			hasMaster = true
 			break
 		}
@@ -1086,7 +1084,7 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 		corev1.LabelOSStable: "linux",
 	}
 	if node == "" && hasMaster {
-		nodeSelector["node-role.kubernetes.io/master"] = ""
+		nodeSelector["node-role.kubernetes.io/control-plane"] = ""
 	}
 
 	executedCommand := "/usr/bin/gather"
