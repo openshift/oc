@@ -9,7 +9,8 @@ import (
 	v1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes"
 	authenticationv1client "k8s.io/client-go/kubernetes/typed/authentication/v1"
 	"k8s.io/client-go/rest"
@@ -47,21 +48,24 @@ type WhoAmIOptions struct {
 	KubeClient   kubernetes.Interface
 	RawConfig    api.Config
 
-	ShowToken      bool
-	ShowContext    bool
-	ShowServer     bool
-	ShowConsoleUrl bool
+	ShowToken           bool
+	ShowContext         bool
+	ShowServer          bool
+	ShowConsoleUrl      bool
+	PrintFlags          *genericclioptions.PrintFlags
+	resourcePrinterFunc printers.ResourcePrinterFunc
 
-	genericiooptions.IOStreams
+	genericclioptions.IOStreams
 }
 
-func NewWhoAmIOptions(streams genericiooptions.IOStreams) *WhoAmIOptions {
+func NewWhoAmIOptions(streams genericclioptions.IOStreams) *WhoAmIOptions {
 	return &WhoAmIOptions{
-		IOStreams: streams,
+		PrintFlags: genericclioptions.NewPrintFlags("").WithDefaultOutput(""),
+		IOStreams:  streams,
 	}
 }
 
-func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
+func NewCmdWhoAmI(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewWhoAmIOptions(streams)
 
 	cmd := &cobra.Command{
@@ -80,6 +84,7 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra
 	cmd.Flags().BoolVarP(&o.ShowContext, "show-context", "c", o.ShowContext, "Print the current user context name")
 	cmd.Flags().BoolVar(&o.ShowServer, "show-server", o.ShowServer, "If true, print the current server's REST API URL")
 	cmd.Flags().BoolVar(&o.ShowConsoleUrl, "show-console", o.ShowConsoleUrl, "If true, print the current server's web console URL")
+	o.PrintFlags.AddFlags(cmd)
 
 	return cmd
 }
@@ -122,10 +127,28 @@ func (o *WhoAmIOptions) Complete(f kcmdutil.Factory) error {
 	o.KubeClient = kubeClient
 
 	o.RawConfig, err = f.ToRawKubeConfigLoader().RawConfig()
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Setup printer function
+	if o.PrintFlags.OutputFlagSpecified() {
+		printer, err := o.PrintFlags.ToPrinter()
+		if err != nil {
+			return err
+		}
+		o.resourcePrinterFunc = printer.PrintObj
+	}
+
+	return nil
 }
 
 func (o *WhoAmIOptions) Validate() error {
+	// Check if output flag is used with other show flags
+	if o.PrintFlags.OutputFlagSpecified() && (o.ShowToken || o.ShowContext || o.ShowServer || o.ShowConsoleUrl) {
+		return fmt.Errorf("--output cannot be used with --show-token, --show-context, --show-server, or --show-console")
+	}
+
 	if o.ShowToken && len(o.ClientConfig.BearerToken) == 0 {
 		return fmt.Errorf("no token is currently in use for this session")
 	}
@@ -154,6 +177,17 @@ func (o *WhoAmIOptions) getWebConsoleUrl() (string, error) {
 }
 
 func (o *WhoAmIOptions) Run() error {
+	var err error
+	o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
+	if err != nil {
+		return err
+	}
+
+	o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
+	if err != nil {
+		return err
+	}
+
 	switch {
 	case o.ShowToken:
 		fmt.Fprintf(o.Out, "%s\n", o.ClientConfig.BearerToken)
@@ -171,19 +205,18 @@ func (o *WhoAmIOptions) Run() error {
 		}
 		fmt.Fprintf(o.Out, "%s\n", consoleUrl)
 		return nil
+	case o.resourcePrinterFunc != nil:
+		// If output format is specified, get the user info and print it in the requested format
+		me, err := o.WhoAmI()
+		if err != nil {
+			return err
+		}
+		// Set GroupVersionKind so it's properly displayed
+		me.SetGroupVersionKind(userv1.GroupVersion.WithKind("User"))
+		return o.resourcePrinterFunc(me, o.Out)
 	}
 
-	var err error
-	o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
-	if err != nil {
-		return err
-	}
-
-	o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
-	if err != nil {
-		return err
-	}
-
+	// Default behavior: just print the username
 	_, err = o.WhoAmI()
 	return err
 }
