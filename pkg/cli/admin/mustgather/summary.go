@@ -45,7 +45,7 @@ func (o *MustGatherOptions) PrintBasicClusterState(ctx context.Context) {
 		fmt.Fprintf(o.RawOut, "error getting cluster operators: %v\n", err)
 	}
 	fmt.Fprintf(o.RawOut, "ClusterOperators:\n")
-	fmt.Fprintf(o.RawOut, humanSummaryForInterestingClusterOperators(clusterOperators)+"\n")
+	fmt.Fprintf(o.RawOut, "%s", humanSummaryForInterestingClusterOperators(clusterOperators)+"\n")
 
 	// TODO gather and display firing alerts
 	fmt.Fprintf(o.RawOut, "\n\n")

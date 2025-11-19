@@ -1476,7 +1476,7 @@ func describeChangelog(out, errOut io.Writer, diff *ReleaseDiff, dir string) err
 		return fmt.Errorf("releases are identical")
 	}
 
-	fmt.Fprintf(out, heredoc.Docf(`
+	fmt.Fprintf(out, "%s", heredoc.Docf(`
 		# %s
 
 		Created: %s

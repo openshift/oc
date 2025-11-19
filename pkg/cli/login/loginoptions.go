@@ -103,8 +103,7 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 		if kterm.IsTerminal(o.In) {
 			for !o.serverProvided() {
 				defaultServer := defaultClusterURL
-				promptMsg := fmt.Sprintf("Server [%s]: ", defaultServer)
-				o.Server = term.PromptForStringWithDefault(o.In, o.Out, defaultServer, promptMsg)
+				o.Server = term.PromptForStringWithDefault(o.In, o.Out, defaultServer, "Server [%s]: ", defaultServer)
 			}
 		}
 	}
@@ -306,7 +305,7 @@ func (o *LoginOptions) gatherProjectInfo() error {
 			return err
 		}
 		msg := errors.NoProjectsExistMessage(canRequest)
-		fmt.Fprintf(o.Out, msg)
+		fmt.Fprintf(o.Out, "%s", msg)
 		o.Project = ""
 
 	case 1:
@@ -408,7 +407,7 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 		}
 
 		out := &bytes.Buffer{}
-		fmt.Fprintf(out, errors.ErrKubeConfigNotWriteable(o.PathOptions.GetDefaultFilename(), o.PathOptions.IsExplicitFile(), err).Error())
+		fmt.Fprintf(out, "%s", errors.ErrKubeConfigNotWriteable(o.PathOptions.GetDefaultFilename(), o.PathOptions.IsExplicitFile(), err).Error())
 		return false, fmt.Errorf("%v", out)
 	}
 

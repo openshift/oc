@@ -334,7 +334,7 @@ func (c *AppConfig) tryToAddSourceArguments(s string) bool {
 	}
 	c.SourceClassificationErrors[s] = ArgumentClassificationError{
 		Key:   "is not a Git repository",
-		Value: fmt.Errorf(errStr),
+		Value: fmt.Errorf("%s", errStr),
 	}
 
 	return false

@@ -103,7 +103,7 @@ func TestTLSWithCertificateNotMatchingHostname(t *testing.T) {
 
 	server, err := newTLSServer(invalidHostCert, invalidHostKey)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 	server.StartTLS()
 	defer server.Close()
@@ -182,7 +182,7 @@ func TestTLSWithExpiredCertificate(t *testing.T) {
 
 	server, err := newTLSServer(expiredCert, expiredKey)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 	server.StartTLS()
 	defer server.Close()

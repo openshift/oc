@@ -185,7 +185,7 @@ func (p *processPrinter) PrintObj(obj runtime.Object, out io.Writer) error {
 			return fmt.Errorf("error describing %q: %v\n", templateObj.Name, err)
 		}
 
-		fmt.Fprintf(out, s)
+		fmt.Fprintf(out, "%s", s)
 		return nil
 	}
 
@@ -269,7 +269,7 @@ func (o *ProcessOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args [
 						errstr += fmt.Sprintf("  %v\n", err)
 					}
 
-					return nil, fmt.Errorf(errstr)
+					return nil, fmt.Errorf("%s", errstr)
 				}
 
 				return nil, fmt.Errorf("unable to process template: %v\n", err)

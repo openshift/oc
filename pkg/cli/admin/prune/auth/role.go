@@ -24,7 +24,7 @@ func reapForRole(bindingClient rbacv1client.RoleBindingsGetter, namespace, name 
 			if err := bindingClient.RoleBindings(namespace).Delete(context.TODO(), binding.Name, metav1.DeleteOptions{PropagationPolicy: &foreground}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
-				fmt.Fprintf(out, "rolebinding.rbac.authorization.k8s.io/"+binding.Name+" deleted\n")
+				fmt.Fprintf(out, "%s", "rolebinding.rbac.authorization.k8s.io/"+binding.Name+" deleted\n")
 			}
 		}
 	}

@@ -228,6 +228,6 @@ func (o StatusOptions) RunStatus() error {
 		return fmt.Errorf("invalid output format provided: %s", o.outputFormat)
 	}
 
-	fmt.Fprintf(o.Out, s)
+	fmt.Fprintf(o.Out, "%s", s)
 	return nil
 }

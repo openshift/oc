@@ -74,7 +74,7 @@ func NewCommandGetServiceAccountToken(f cmdutil.Factory, streams genericclioptio
 
 func (o *GetServiceAccountTokenOptions) Complete(args []string, f cmdutil.Factory, cmd *cobra.Command) error {
 	if len(args) != 1 {
-		return cmdutil.UsageErrorf(cmd, fmt.Sprintf("expected one service account name as an argument, got %q", args))
+		return cmdutil.UsageErrorf(cmd, "expected one service account name as an argument, got %q", args)
 	}
 
 	o.SAName = args[0]
@@ -131,7 +131,7 @@ func (o *GetServiceAccountTokenOptions) Run() error {
 				return fmt.Errorf("service account token %q for service account %q did not contain token data", secret.Name, serviceAccount.Name)
 			}
 
-			fmt.Fprintf(o.Out, string(token))
+			fmt.Fprintf(o.Out, "%s", string(token))
 			if term.IsTerminalWriter(o.Out) {
 				// pretty-print for a TTY
 				fmt.Fprintf(o.Out, "\n")

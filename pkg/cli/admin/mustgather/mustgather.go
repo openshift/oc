@@ -335,7 +335,7 @@ func (o *MustGatherOptions) Run() error {
 			line := fmt.Sprintf("unable to parse image reference %s: %v", image, err)
 			o.log(line)
 			// ensure the errors bubble up to BackupGathering method for display
-			errs = []error{fmt.Errorf(line)}
+			errs = []error{fmt.Errorf("%s", line)}
 			return err
 		}
 		if o.NodeSelector != "" {

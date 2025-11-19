@@ -48,7 +48,7 @@ func reapForUser(
 			if _, err := securityClient.Update(context.TODO(), &updatedSCC, metav1.UpdateOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
-				fmt.Fprintf(out, "securitycontextconstraints.security.openshift.io/"+updatedSCC.Name+" updated\n")
+				fmt.Fprintf(out, "%s", "securitycontextconstraints.security.openshift.io/"+updatedSCC.Name+" updated\n")
 			}
 		}
 	}
@@ -71,7 +71,7 @@ func reapForUser(
 			if _, err := userClient.Groups().Update(context.TODO(), &updatedGroup, metav1.UpdateOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
-				fmt.Fprintf(out, "group.user.openshift.io/"+updatedGroup.Name+" updated\n")
+				fmt.Fprintf(out, "%s", "group.user.openshift.io/"+updatedGroup.Name+" updated\n")
 			}
 		}
 	}
@@ -88,7 +88,7 @@ func reapForUser(
 			if err := oauthClient.OAuthClientAuthorizations().Delete(context.TODO(), authorization.Name, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
 				errors = append(errors, err)
 			} else {
-				fmt.Fprintf(out, "oauthclientauthorization.oauth.openshift.io/"+authorization.Name+" updated\n")
+				fmt.Fprintf(out, "%s", "oauthclientauthorization.oauth.openshift.io/"+authorization.Name+" updated\n")
 			}
 		}
 	}

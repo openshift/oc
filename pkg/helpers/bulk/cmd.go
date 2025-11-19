@@ -119,7 +119,7 @@ func (b *Bulk) Run(list *metainternalversion.List, namespace string) []error {
 func NewPrintNameOrErrorAfterIndent(short bool, operation string, out, errs io.Writer, dryRun bool, indent string, prefixForError PrefixForError) AfterFunc {
 	return func(obj *unstructured.Unstructured, err error) bool {
 		if err == nil {
-			fmt.Fprintf(out, indent)
+			fmt.Fprintf(out, "%s", indent)
 			printSuccess(short, out, obj.GroupVersionKind(), obj.GetName(), dryRun, operation)
 		} else {
 			fmt.Fprintf(errs, "%s%s: %v\n", indent, prefixForError(err), err)

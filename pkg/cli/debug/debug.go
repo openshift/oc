@@ -591,7 +591,7 @@ func (o *DebugOptions) RunDebug() error {
 			if len(o.NodeName) > 0 {
 				msg += fmt.Sprintf(" on node %q", o.NodeName)
 			}
-			return fmt.Errorf(msg)
+			return fmt.Errorf("%s", msg)
 			// switch to logging output
 		case err == krun.ErrPodCompleted, err == conditions.ErrContainerTerminated:
 			resultPod, ok := containerRunningEvent.Object.(*corev1.Pod)

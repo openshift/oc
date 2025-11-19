@@ -1,8 +1,6 @@
 package ocpcertificates
 
 import (
-	"fmt"
-
 	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/monitorregeneration"
 
 	"github.com/openshift/oc/pkg/cli/admin/ocpcertificates/certregen"
@@ -25,7 +23,7 @@ func NewCommandOCPCertificates(f kcmdutil.Factory, streams genericclioptions.IOS
 	cmds := &cobra.Command{
 		Use:   "ocp-certificates",
 		Short: "Tools for managing a cluster's certificates",
-		Long:  fmt.Sprintf(ocpCertificatesLong),
+		Long:  ocpCertificatesLong,
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 

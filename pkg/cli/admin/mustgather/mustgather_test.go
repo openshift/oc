@@ -104,7 +104,7 @@ func withTag(tag, reference string) func(*imagev1.ImageStream) *imagev1.ImageStr
 	return func(imageStream *imagev1.ImageStream) *imagev1.ImageStream {
 		imageStream.Status.Tags = append(imageStream.Status.Tags, imagev1.NamedTagEventList{
 			Tag:   tag,
-			Items: append([]imagev1.TagEvent{{DockerImageReference: reference}}),
+			Items: []imagev1.TagEvent{{DockerImageReference: reference}},
 		})
 		return imageStream
 	}

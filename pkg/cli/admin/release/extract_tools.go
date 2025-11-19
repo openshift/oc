@@ -540,7 +540,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 					if err != nil {
 						return false, err
 					}
-					if _, err := fmt.Fprintf(fw, text); err != nil {
+					if _, err := fmt.Fprintf(fw, "%s", text); err != nil {
 						return false, err
 					}
 				}
@@ -579,7 +579,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 					}); err != nil {
 						return false, err
 					}
-					if _, err := fmt.Fprintf(tw, text); err != nil {
+					if _, err := fmt.Fprintf(tw, "%s", text); err != nil {
 						return false, err
 					}
 				}
@@ -677,7 +677,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 	if willArchive {
 		buf := &bytes.Buffer{}
-		fmt.Fprintf(buf, heredoc.Doc(`
+		fmt.Fprintf(buf, "%s", heredoc.Doc(`
 			Client tools for OpenShift
 			--------------------------
 

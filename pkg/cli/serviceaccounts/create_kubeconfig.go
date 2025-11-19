@@ -79,7 +79,7 @@ func NewCommandCreateKubeconfig(f cmdutil.Factory, streams genericclioptions.IOS
 
 func (o *CreateKubeconfigOptions) Complete(args []string, f cmdutil.Factory, cmd *cobra.Command) error {
 	if len(args) != 1 {
-		return cmdutil.UsageErrorf(cmd, fmt.Sprintf("expected one service account name as an argument, got %q", args))
+		return cmdutil.UsageErrorf(cmd, "expected one service account name as an argument, got %q", args)
 	}
 	context, err := cmd.Flags().GetString("context")
 	if err != nil {
@@ -182,7 +182,7 @@ func (o *CreateKubeconfigOptions) Run() error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(o.Out, string(out))
+			fmt.Fprintf(o.Out, "%s", string(out))
 			return nil
 		}
 	}

@@ -263,9 +263,9 @@ func (d *ProjectStatusDescriber) Describe(namespace, name string) (string, error
 	return tabbedString(func(out *tabwriter.Writer) error {
 		indent := "  "
 		if allNamespaces {
-			fmt.Fprintf(out, describeAllProjectsOnServer(f, d.Server))
+			fmt.Fprintf(out, "%s", describeAllProjectsOnServer(f, d.Server))
 		} else {
-			fmt.Fprintf(out, describeProjectAndServer(f, project, d.Server))
+			fmt.Fprintf(out, "%s", describeProjectAndServer(f, project, d.Server))
 		}
 
 		for _, service := range services {
@@ -639,7 +639,7 @@ func getMarkerScanners(logsCommandName, securityPolicyCommandFormat, setProbeCom
 
 func printLines(out io.Writer, indent string, depth int, lines ...string) {
 	for i, s := range lines {
-		fmt.Fprintf(out, strings.Repeat(indent, depth))
+		fmt.Fprintf(out, "%s", strings.Repeat(indent, depth))
 		if i != 0 {
 			fmt.Fprint(out, indent)
 		}

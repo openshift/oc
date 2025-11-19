@@ -897,7 +897,7 @@ func printImageContentInstructions(out io.Writer, from string, toList []string, 
 		return fmt.Errorf("Unable to marshal install-config.yaml example yaml: %v", err)
 	}
 	fmt.Fprintf(out, "\nTo use the new mirrored repository to install, add the following section to the install-config.yaml:\n\n")
-	fmt.Fprintf(out, string(installConfigExample))
+	fmt.Fprintf(out, "%s", string(installConfigExample))
 
 	// Create and display ImageContentSourcePolicy example
 	icsp := operatorv1alpha1.ImageContentSourcePolicy{
@@ -925,7 +925,7 @@ func printImageContentInstructions(out io.Writer, from string, toList []string, 
 		return fmt.Errorf("Unable to marshal ImageContentSourcePolicy example yaml: %v", err)
 	}
 	fmt.Fprintf(out, "\n\nTo use the new mirrored repository for upgrades, use the following to create an ImageContentSourcePolicy:\n\n")
-	fmt.Fprintf(out, string(icspExample))
+	fmt.Fprintf(out, "%s", string(icspExample))
 
 	if len(signatureToDir) != 0 {
 		fmt.Fprintf(out, "\n\nTo apply signature configmaps use 'oc apply' on files found in %s\n\n", signatureToDir)

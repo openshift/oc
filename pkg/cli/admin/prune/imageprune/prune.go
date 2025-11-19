@@ -1368,7 +1368,7 @@ func deleteFromRegistry(registryClient *http.Client, url string) error {
 	// non-2xx/3xx response doesn't cause an error, so we need to check for it
 	// manually and return it to caller
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf(resp.Status)
+		return fmt.Errorf("%s", resp.Status)
 	}
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusAccepted {

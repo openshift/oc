@@ -720,23 +720,23 @@ func CompleteAppConfig(config *newcmd.AppConfig, f kcmdutil.Factory, c *cobra.Co
 			fmt.Fprintf(buf, "%s:\n", argName)
 			for _, classErr := range config.EnvironmentClassificationErrors {
 				if classErr.Value != nil {
-					fmt.Fprintf(buf, fmt.Sprintf("%s:  %v\n", classErr.Key, classErr.Value))
+					fmt.Fprintf(buf, "%s:  %v\n", classErr.Key, classErr.Value)
 				} else {
-					fmt.Fprintf(buf, fmt.Sprintf("%s\n", classErr.Key))
+					fmt.Fprintf(buf, "%s\n", classErr.Key)
 				}
 			}
 			for _, classErr := range config.SourceClassificationErrors {
-				fmt.Fprintf(buf, fmt.Sprintf("%s:  %v\n", classErr.Key, classErr.Value))
+				fmt.Fprintf(buf, "%s:  %v\n", classErr.Key, classErr.Value)
 			}
 			for _, classErr := range config.TemplateClassificationErrors {
-				fmt.Fprintf(buf, fmt.Sprintf("%s:  %v\n", classErr.Key, classErr.Value))
+				fmt.Fprintf(buf, "%s:  %v\n", classErr.Key, classErr.Value)
 			}
 			for _, classErr := range config.ComponentClassificationErrors {
-				fmt.Fprintf(buf, fmt.Sprintf("%s:  %v\n", classErr.Key, classErr.Value))
+				fmt.Fprintf(buf, "%s:  %v\n", classErr.Key, classErr.Value)
 			}
 			fmt.Fprintln(buf)
 		}
-		return kcmdutil.UsageErrorf(c, heredoc.Docf(buf.String()))
+		return kcmdutil.UsageErrorf(c, "%s", heredoc.Doc(buf.String()))
 	}
 
 	if config.AllowMissingImages && config.AsSearch {
@@ -900,7 +900,7 @@ func HandleError(err error, commandPath string, config *newcmd.AppConfig, transf
 		if len(group.classification) > 0 {
 			fmt.Fprintln(buf)
 		}
-		fmt.Fprintf(buf, group.classification)
+		fmt.Fprintf(buf, "%s", group.classification)
 		if len(group.suggestion) > 0 {
 			if len(group.classification) > 0 {
 				fmt.Fprintln(buf)
@@ -909,7 +909,7 @@ func HandleError(err error, commandPath string, config *newcmd.AppConfig, transf
 		}
 		fmt.Fprint(buf, group.suggestion)
 	}
-	return fmt.Errorf(buf.String())
+	return fmt.Errorf("%s", buf.String())
 }
 
 type ErrorGroup struct {
@@ -1067,10 +1067,10 @@ func TransformRunError(err error, commandPath string, groups ErrorGroups, config
 		groups.Add("", "", "", fmt.Errorf("to install components you must be logged in with an OAuth token (instead of only a certificate)"))
 	case newcmd.ErrNoInputs:
 		// TODO: suggest things to the user
-		groups.Add("", "", "", UsageError(commandPath, newAppNoInput))
+		groups.Add("", "", "", UsageError(commandPath, "%s", newAppNoInput))
 	default:
 		if runtime.IsNotRegisteredError(err) {
-			groups.Add("", "", "", fmt.Errorf(fmt.Sprintf("The template contained an object type unknown to `oc new-app`.  Use `oc process -f <template> | oc create -f -` instead.  Error details: %v", err)))
+			groups.Add("", "", "", fmt.Errorf("The template contained an object type unknown to `oc new-app`.  Use `oc process -f <template> | oc create -f -` instead.  Error details: %v", err))
 		} else {
 			groups.Add("", "", "", err)
 		}

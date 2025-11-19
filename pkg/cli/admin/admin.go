@@ -1,8 +1,6 @@
 package admin
 
 import (
-	"fmt"
-
 	"github.com/openshift/oc/pkg/cli/admin/buildchain"
 	"github.com/openshift/oc/pkg/cli/admin/catalog"
 	"github.com/openshift/oc/pkg/cli/admin/copytonode"
@@ -50,7 +48,7 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericclioptions.IOStreams) *c
 	cmds := &cobra.Command{
 		Use:   "adm",
 		Short: "Tools for managing a cluster",
-		Long:  fmt.Sprintf(adminLong),
+		Long:  adminLong,
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 
