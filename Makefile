@@ -16,16 +16,16 @@ include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 KUBE_GIT_MINOR_VERSION := "34"
 KUBE_GIT_VERSION := "v1.34.1"
 
-GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
-                   -X k8s.io/component-base/version.gitMinor=$(KUBE_GIT_MINOR_VERSION) \
-                   -X k8s.io/component-base/version.gitVersion=$(KUBE_GIT_VERSION) \
-                   -X k8s.io/component-base/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
-                   -X k8s.io/component-base/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-                   -X k8s.io/component-base/version.gitTreeState="clean" \
-                   -X k8s.io/client-go/pkg/version.gitVersion="$(SOURCE_GIT_TAG)" \
-                   -X k8s.io/client-go/pkg/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
-                   -X k8s.io/client-go/pkg/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-                   -X k8s.io/client-go/pkg/version.gitTreeState="$(SOURCE_GIT_TREE_STATE)"
+GO_LD_EXTRAFLAGS := -X k8s.io/component-base/version.gitMajor="1" \
+					-X k8s.io/component-base/version.gitMinor=$(KUBE_GIT_MINOR_VERSION) \
+					-X k8s.io/component-base/version.gitVersion=$(KUBE_GIT_VERSION) \
+					-X k8s.io/component-base/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
+					-X k8s.io/component-base/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+					-X k8s.io/component-base/version.gitTreeState="clean" \
+					-X k8s.io/client-go/pkg/version.gitVersion="$(SOURCE_GIT_TAG)" \
+					-X k8s.io/client-go/pkg/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
+					-X k8s.io/client-go/pkg/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+					-X k8s.io/client-go/pkg/version.gitTreeState="$(SOURCE_GIT_TREE_STATE)"
 
 GO_BUILD_PACKAGES :=$(strip \
 	./cmd/... \
@@ -36,6 +36,16 @@ GO_BUILD_FLAGS :=-tags 'include_gcs include_oss containers_image_openpgp gssapi'
 GO_BUILD_FLAGS_DARWIN :=-tags 'include_gcs include_oss containers_image_openpgp'
 GO_BUILD_FLAGS_WINDOWS :=-tags 'include_gcs include_oss containers_image_openpgp'
 GO_BUILD_FLAGS_LINUX_CROSS :=-tags 'include_gcs include_oss containers_image_openpgp'
+
+# Fix for macOS GSSAPI compatibility when gssapi tag is used
+# macOS system headers lack RFC 5587 support. Use Homebrew's heimdal for proper headers.
+# See vendor/github.com/apcera/gssapi/name.go for details.
+ifeq ($(shell uname),Darwin)
+ifneq (,$(findstring gssapi,$(GO_BUILD_FLAGS)))
+HOMEBREW_PREFIX := $(shell brew --prefix)
+export CGO_CFLAGS := -I$(HOMEBREW_PREFIX)/opt/heimdal/include
+endif
+endif
 
 OUTPUT_DIR :=_output
 CROSS_BUILD_BINDIR :=$(OUTPUT_DIR)/bin
