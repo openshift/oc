@@ -160,9 +160,9 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	}
 	o.Server = serverNormalized
 	clientConfig.Host = o.Server
-	clientConfig.Insecure = o.InsecureTLS
+	clientConfig.Insecure = o.InsecureTLS || hasExistingInsecureCluster(*clientConfig, *o.StartingKubeConfig)
 
-	if !o.InsecureTLS {
+	if !clientConfig.Insecure {
 		// use specified CA or find existing CA
 		if len(o.CAFile) > 0 {
 			clientConfig.CAFile = o.CAFile
@@ -188,9 +188,7 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 		// connection or if we already have a cluster stanza that tells us to
 		// connect to this particular server insecurely
 		case x509.UnknownAuthorityError, x509.HostnameError, x509.CertificateInvalidError:
-			if o.InsecureTLS ||
-				hasExistingInsecureCluster(*clientConfig, *o.StartingKubeConfig) ||
-				promptForInsecureTLS(o.In, o.Out, err) {
+			if clientConfig.Insecure || promptForInsecureTLS(o.In, o.Out, err) {
 				clientConfig.Insecure = true
 				clientConfig.CAFile = ""
 				clientConfig.CAData = nil
