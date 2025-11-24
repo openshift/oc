@@ -98,7 +98,7 @@ while true; do
 usage_percentage=$(df -P "$target_dir" | awk 'NR==2 {print $5}' | sed 's/%%//')
 echo "[disk usage checker] Volume usage percentage: current = ${usage_percentage} ; allowed = ${usage_percentage_limit}"
 if [ "$usage_percentage" -gt "$usage_percentage_limit" ]; then
-	echo "[disk usage checker] Disk usage exceeds the volume percentage of ${usage_percentage_limit} for mounted directory, terminating..."
+	echo "[disk usage checker] Disk usage exceeds the volume percentage of ${usage_percentage_limit} for mounted directory, terminating..." >&2
 	ps -o sess --no-headers | sort -u | while read sid; do
 		[[ "$sid" -eq "${$}" ]] && continue
 		pkill --signal SIGKILL --session "$sid"
