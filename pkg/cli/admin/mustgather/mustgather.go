@@ -99,10 +99,14 @@ usage_percentage=$(df -P "$target_dir" | awk 'NR==2 {print $5}' | sed 's/%%//')
 echo "[disk usage checker] Volume usage percentage: current = ${usage_percentage} ; allowed = ${usage_percentage_limit}"
 if [ "$usage_percentage" -gt "$usage_percentage_limit" ]; then
 	echo "[disk usage checker] Disk usage exceeds the volume percentage of ${usage_percentage_limit} for mounted directory, terminating..."
-	ps -o sess --no-headers | sort -u | while read sid; do
-		[[ "$sid" -eq "${$}" ]] && continue
-		pkill --signal SIGKILL --session "$sid"
-	done
+	if [ "$HAVE_SESSION_TOOLS" = "true" ]; then
+		ps -o sess --no-headers | sort -u | while read sid; do
+			[[ "$sid" -eq "${$}" ]] && continue
+			pkill --signal SIGKILL --session "$sid"
+		done
+	else
+		kill 0
+	fi
 	exit 1
 fi
 sleep 5
@@ -1321,16 +1325,30 @@ func buildPodCommand(
 ) string {
 	var cmd strings.Builder
 
+	// Check if session management tools are available once and store in a variable.
+	cmd.WriteString("if command -v setsid >/dev/null 2>&1 && command -v ps >/dev/null 2>&1 && command -v pkill >/dev/null 2>&1; then\n")
+	cmd.WriteString("  HAVE_SESSION_TOOLS=true\n")
+	cmd.WriteString("else\n")
+	cmd.WriteString("  HAVE_SESSION_TOOLS=false\n")
+	cmd.WriteString("fi\n\n")
+
 	// Start the checker in the background.
 	cmd.WriteString(volumeCheckerScript)
 	cmd.WriteString(` & `)
 
-	// Start the gather command in a separate session.
-	cmd.WriteString("setsid -w bash <<-MUSTGATHER_EOF\n")
+	// Start the gather command in a separate session if setsid, ps, and pkill are available.
+	// Fall back to simpler approach if any of these tools are not present (minimal images).
+	cmd.WriteString(`if [ "$HAVE_SESSION_TOOLS" = "true" ]; then`)
+	cmd.WriteString("\n  setsid -w bash <<-MUSTGATHER_EOF\n")
 	cmd.WriteString(gatherCommand)
 	cmd.WriteString("\nMUSTGATHER_EOF\n")
+	cmd.WriteString("else\n")
+	cmd.WriteString("  ")
+	cmd.WriteString(gatherCommand)
+	cmd.WriteString("\nfi; ")
 
 	// Make sure all changes are written to disk.
 	cmd.WriteString(`sync && echo 'Caches written to disk'`)
+
 	return cmd.String()
 }
