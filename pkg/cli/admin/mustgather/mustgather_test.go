@@ -2,8 +2,11 @@ package mustgather
 
 import (
 	"context"
+	"fmt"
+	"path"
 	"reflect"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -16,6 +19,8 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/diff"
+
+	"github.com/google/go-cmp/cmp"
 
 	configv1 "github.com/openshift/api/config/v1"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -235,6 +240,353 @@ func TestGetNamespace(t *testing.T) {
 				} else if tc.ShouldBeRetained {
 					t.Error("namespace should still exist")
 				}
+			}
+		})
+	}
+}
+
+func buildTestNode(name string, apply func(*corev1.Node)) *corev1.Node {
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:     name,
+			SelfLink: fmt.Sprintf("/api/v1/nodes/%s", name),
+			Labels:   map[string]string{},
+		},
+		Status: corev1.NodeStatus{
+			Conditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+			},
+		},
+	}
+	if apply != nil {
+		apply(node)
+	}
+	return node
+}
+
+func buildTestControlPlaneNode(name string, apply func(*corev1.Node)) *corev1.Node {
+	node := buildTestNode(name, apply)
+	node.ObjectMeta.Labels[controlPlaneNodeRoleLabel] = ""
+	return node
+}
+
+func TestGetCandidateNodeNames(t *testing.T) {
+	tests := []struct {
+		description string
+		nodeList    *corev1.NodeList
+		hasMaster   bool
+		nodeNames   []string
+	}{
+		{
+			description: "No nodes are ready and reacheable (hasMaster=true)",
+			nodeList:    &corev1.NodeList{},
+			hasMaster:   true,
+			nodeNames:   []string{},
+		},
+		{
+			description: "No nodes are ready and reacheable (hasMaster=false)",
+			nodeList:    &corev1.NodeList{},
+			hasMaster:   false,
+			nodeNames:   []string{},
+		},
+		{
+			description: "Control plane nodes are ready and reacheable",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", nil),
+					*buildTestControlPlaneNode("controlplane2", nil),
+				},
+			},
+			hasMaster: true,
+			nodeNames: []string{"controlplane2", "controlplane1"},
+		},
+		{
+			description: "Some control plane nodes are not ready or reacheable",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane2", nil),
+					*buildTestControlPlaneNode("controlplane3", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: unreachableTaintKey,
+							},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane4", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: notReadyTaintKey,
+							},
+						}
+					}),
+				},
+			},
+			hasMaster: true,
+			nodeNames: []string{"controlplane2"},
+		},
+		{
+			description: "Mix of control plane and worker nodes (at least one reachable and ready control plane node)",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane2", nil),
+					*buildTestNode("controlplane3", nil),
+				},
+			},
+			hasMaster: true,
+			nodeNames: []string{"controlplane2"},
+		},
+		{
+			description: "Mix of control plane and worker nodes (no ready and reachable control plane node)",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane2", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: unreachableTaintKey,
+							},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane3", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: notReadyTaintKey,
+							},
+						}
+					}),
+					*buildTestControlPlaneNode("worker1", nil),
+				},
+			},
+			hasMaster: true,
+			nodeNames: []string{"worker1"},
+		},
+		{
+			description: "Mix of control plane and worker nodes (no ready and not reachable nodes with unschedulable)",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane2", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: unreachableTaintKey,
+							},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane3", func(node *corev1.Node) {
+						node.Spec.Taints = []corev1.Taint{
+							{
+								Key: notReadyTaintKey,
+							},
+						}
+					}),
+					*buildTestControlPlaneNode("worker1", func(node *corev1.Node) {
+						node.Spec.Unschedulable = true
+					}),
+				},
+			},
+			nodeNames: []string{"worker1"},
+		},
+		{
+			description: "No ready and reachable nodes (nodes with the recent teartbeat time are sorted left)",
+			nodeList: &corev1.NodeList{
+				Items: []corev1.Node{
+					*buildTestControlPlaneNode("controlplane1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse},
+						}
+					}),
+					*buildTestControlPlaneNode("controlplane2", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{}
+					}),
+					*buildTestNode("worker1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse, LastHeartbeatTime: metav1.Time{Time: time.Date(2025, time.July, 10, 10, 20, 0, 0, time.UTC)}},
+						}
+					}),
+					*buildTestNode("other1", func(node *corev1.Node) {
+						node.Status.Conditions = []corev1.NodeCondition{
+							{Type: corev1.NodeReady, Status: corev1.ConditionFalse, LastHeartbeatTime: metav1.Time{Time: time.Date(2025, time.July, 10, 10, 30, 0, 0, time.UTC)}},
+						}
+					}),
+				},
+			},
+			hasMaster: false,
+			nodeNames: []string{"other1", "worker1", "controlplane2", "controlplane1"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			names := getCandidateNodeNames(test.nodeList, test.hasMaster)
+			if !reflect.DeepEqual(test.nodeNames, names) {
+				t.Fatalf("Expected and computed list of node names differ. Expected %#v. Got %#v.", test.nodeNames, names)
+			}
+		})
+	}
+}
+
+func TestNewPod(t *testing.T) {
+	generateMustGatherPod := func(image string, update func(pod *corev1.Pod)) *corev1.Pod {
+		pod := defaultMustGatherPod(image)
+		update(pod)
+		return pod
+	}
+
+	tests := []struct {
+		name        string
+		options     *MustGatherOptions
+		hasMasters  bool
+		node        string
+		affinity    *corev1.Affinity
+		expectedPod *corev1.Pod
+	}{
+		{
+			name: "node set, affinity provided, affinity not set",
+			options: &MustGatherOptions{
+				VolumePercentage: defaultVolumePercentage,
+				SourceDir:        defaultSourceDir,
+			},
+			node:     "node1",
+			affinity: buildNodeAffinity([]string{"node2"}),
+			expectedPod: generateMustGatherPod("image", func(pod *corev1.Pod) {
+				pod.Spec.NodeName = "node1"
+			}),
+		},
+		{
+			name: "node not set, affinity provided, affinity set",
+			options: &MustGatherOptions{
+				VolumePercentage: defaultVolumePercentage,
+				SourceDir:        defaultSourceDir,
+			},
+			affinity: buildNodeAffinity([]string{"node2"}),
+			expectedPod: generateMustGatherPod("image", func(pod *corev1.Pod) {
+				pod.Spec.Affinity = buildNodeAffinity([]string{"node2"})
+			}),
+		},
+		{
+			name: "custom source dir",
+			options: &MustGatherOptions{
+				VolumePercentage: defaultVolumePercentage,
+				SourceDir:        "custom-source-dir",
+			},
+			expectedPod: generateMustGatherPod("image", func(pod *corev1.Pod) {
+				volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, "custom-source-dir", "custom-source-dir", defaultVolumePercentage, defaultVolumePercentage, defaultMustGatherCommand)
+				podCmd := fmt.Sprintf("%s & %s; sync", volumeUsageChecker, defaultMustGatherCommand)
+				pod.Spec.Containers[0].Command = []string{"/bin/bash", "-c", podCmd}
+				pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{
+					Name:      "must-gather-output",
+					MountPath: "custom-source-dir",
+				}}
+				pod.Spec.Containers[1].VolumeMounts = []corev1.VolumeMount{{
+					Name:      "must-gather-output",
+					MountPath: "custom-source-dir",
+				}}
+			}),
+		},
+		{
+			name: "host network",
+			options: &MustGatherOptions{
+				VolumePercentage: defaultVolumePercentage,
+				SourceDir:        defaultSourceDir,
+				HostNetwork:      true,
+			},
+			expectedPod: generateMustGatherPod("image", func(pod *corev1.Pod) {
+				pod.Spec.HostNetwork = true
+				pod.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+					Capabilities: &corev1.Capabilities{
+						Add: []corev1.Capability{
+							corev1.Capability("CAP_NET_RAW"),
+						},
+					},
+				}
+			}),
+		},
+		{
+			name: "with control plane nodes",
+			options: &MustGatherOptions{
+				VolumePercentage: defaultVolumePercentage,
+				SourceDir:        defaultSourceDir,
+			},
+			hasMasters: true,
+			expectedPod: generateMustGatherPod("image", func(pod *corev1.Pod) {
+				pod.Spec.NodeSelector[masterNodeRoleLabel] = ""
+			}),
+		},
+		{
+			name: "with custom command",
+			options: &MustGatherOptions{
+				VolumePercentage: defaultVolumePercentage,
+				SourceDir:        defaultSourceDir,
+				Command:          []string{"custom_command", "with_params"},
+			},
+			expectedPod: generateMustGatherPod("image", func(pod *corev1.Pod) {
+				cleanSourceDir := path.Clean(defaultSourceDir)
+				volumeUsageChecker := fmt.Sprintf(volumeUsageCheckerScript, cleanSourceDir, cleanSourceDir, defaultVolumePercentage, defaultVolumePercentage, "custom_command with_params")
+				podCmd := fmt.Sprintf("%s & %s; sync", volumeUsageChecker, "custom_command with_params")
+				pod.Spec.Containers[0].Command = []string{"/bin/bash", "-c", podCmd}
+				pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{
+					Name:      "must-gather-output",
+					MountPath: cleanSourceDir,
+				}}
+				pod.Spec.Containers[1].VolumeMounts = []corev1.VolumeMount{{
+					Name:      "must-gather-output",
+					MountPath: cleanSourceDir,
+				}}
+			}),
+		},
+		{
+			name: "with since",
+			options: &MustGatherOptions{
+				VolumePercentage: defaultVolumePercentage,
+				SourceDir:        defaultSourceDir,
+				Since:            2 * time.Minute,
+			},
+			expectedPod: generateMustGatherPod("image", func(pod *corev1.Pod) {
+				pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
+					Name:  "MUST_GATHER_SINCE",
+					Value: "2m0s",
+				})
+			}),
+		},
+		{
+			name: "with sincetime",
+			options: &MustGatherOptions{
+				VolumePercentage: defaultVolumePercentage,
+				SourceDir:        defaultSourceDir,
+				SinceTime:        "2023-09-24T15:30:00Z",
+			},
+			expectedPod: generateMustGatherPod("image", func(pod *corev1.Pod) {
+				pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
+					Name:  "MUST_GATHER_SINCE_TIME",
+					Value: "2023-09-24T15:30:00Z",
+				})
+			}),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tPod := test.options.newPod(test.node, "image", test.hasMasters, test.affinity)
+			if !cmp.Equal(test.expectedPod, tPod) {
+				t.Errorf("Unexpected pod command was generated: \n%s\n", cmp.Diff(test.expectedPod, tPod))
 			}
 		})
 	}
