@@ -516,7 +516,7 @@ func TestHookExecutor_makeHookPod(t *testing.T) {
 		// Copy the ActiveDeadlineSeconds the deployer pod is running for 5 seconds already
 		test.expected.Spec.ActiveDeadlineSeconds = pod.Spec.ActiveDeadlineSeconds
 		if !apiequality.Semantic.DeepEqual(pod, test.expected) {
-			t.Errorf("unexpected pod diff: %v", diff.ObjectReflectDiff(pod, test.expected))
+			t.Errorf("unexpected pod diff: %v", diff.ObjectGoPrintSideBySide(pod, test.expected))
 		}
 	}
 }

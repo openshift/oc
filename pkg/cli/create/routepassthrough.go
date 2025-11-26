@@ -5,7 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util"
@@ -103,7 +102,7 @@ func (o *CreatePassthroughRouteOptions) Run() error {
 	}
 
 	if o.CreateRouteSubcommandOptions.DryRunStrategy != kcmdutil.DryRunClient {
-		route, err = o.CreateRouteSubcommandOptions.Client.Routes(o.CreateRouteSubcommandOptions.Namespace).Create(context.TODO(), route, metav1.CreateOptions{})
+		route, err = o.CreateRouteSubcommandOptions.Client.Routes(o.CreateRouteSubcommandOptions.Namespace).Create(context.TODO(), route, o.CreateRouteSubcommandOptions.toCreateOptions())
 		if err != nil {
 			return err
 		}

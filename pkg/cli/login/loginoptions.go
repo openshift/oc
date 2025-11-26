@@ -317,8 +317,14 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	if o.WebLogin {
 		loginURLHandler := func(u *url.URL) error {
 			loginURL := u.String()
-			fmt.Fprintf(o.Out, "Opening login URL in the default browser: %s\n", loginURL)
-			return browser.OpenURL(loginURL)
+			if !o.OIDCAutoOpenBrowser {
+				fmt.Fprintf(o.Out, "Please visit the following URL in your browser: %s\n", loginURL)
+				fmt.Fprintf(o.Out, "The callback server is listening and will receive the authentication response.\n")
+				return nil
+			} else {
+				fmt.Fprintf(o.Out, "Opening login URL in the default browser: %s\n", loginURL)
+				return browser.OpenURL(loginURL)
+			}
 		}
 		token, err = tokenrequest.RequestTokenWithLocalCallback(o.Config, loginURLHandler, int(o.CallbackPort))
 	} else {

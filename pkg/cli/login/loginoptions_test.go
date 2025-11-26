@@ -485,6 +485,90 @@ func TestPreserveExecProviderOnUsernameLogin(t *testing.T) {
 	}
 }
 
+func TestValidateAutoOpenBrowser(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		webLogin               bool
+		execPlugin             string
+		oidcIssuerURL          string
+		oidcClientID           string
+		autoOpenBrowser        bool
+		setAutoOpenBrowserFlag bool
+		expectedError          string
+	}{
+		{
+			name:                   "valid: --web with --auto-open-browser",
+			webLogin:               true,
+			autoOpenBrowser:        true,
+			setAutoOpenBrowserFlag: true,
+			expectedError:          "",
+		},
+		{
+			name:                   "valid: --web with --auto-open-browser=false",
+			webLogin:               true,
+			autoOpenBrowser:        false,
+			setAutoOpenBrowserFlag: true,
+			expectedError:          "",
+		},
+		{
+			name:                   "valid: --exec-plugin with --auto-open-browser",
+			execPlugin:             "oc-oidc",
+			oidcIssuerURL:          "https://example.com",
+			oidcClientID:           "test-client",
+			autoOpenBrowser:        true,
+			setAutoOpenBrowserFlag: true,
+			expectedError:          "",
+		},
+		{
+			name:                   "valid: neither --web nor --auto-open-browser",
+			webLogin:               false,
+			autoOpenBrowser:        false,
+			setAutoOpenBrowserFlag: false,
+			expectedError:          "",
+		},
+		{
+			name:                   "invalid: --auto-open-browser without --web or --exec-plugin",
+			webLogin:               false,
+			autoOpenBrowser:        true,
+			setAutoOpenBrowserFlag: true,
+			expectedError:          "--auto-open-browser can only be specified along with --web or --exec-plugin",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a mock cobra command to track flag changes
+			cmd := NewCmdLogin(nil, genericiooptions.NewTestIOStreamsDiscard())
+			if tc.setAutoOpenBrowserFlag {
+				cmd.Flags().Set("auto-open-browser", fmt.Sprintf("%t", tc.autoOpenBrowser))
+			}
+
+			options := &LoginOptions{
+				Server:              "https://api.test.devcluster.openshift.com:6443",
+				WebLogin:            tc.webLogin,
+				OIDCExecPluginType:  tc.execPlugin,
+				OIDCIssuerURL:       tc.oidcIssuerURL,
+				OIDCClientID:        tc.oidcClientID,
+				OIDCAutoOpenBrowser: tc.autoOpenBrowser,
+				StartingKubeConfig:  &kclientcmdapi.Config{},
+			}
+
+			err := options.Validate(cmd, "", []string{})
+			if tc.expectedError == "" {
+				if err != nil {
+					t.Errorf("expected no error, but got: %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("expected error '%s', but got no error", tc.expectedError)
+				} else if err.Error() != tc.expectedError {
+					t.Errorf("expected error '%s', but got: %v", tc.expectedError, err)
+				}
+			}
+		})
+	}
+}
+
 func newTLSServer(certString, keyString string) (*httptest.Server, error) {
 	invoked := make(chan struct{}, 1)
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

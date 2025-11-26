@@ -35,7 +35,7 @@ func namespaceResourcesToCollect() []schema.GroupResource {
 	}
 }
 
-func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
+func (o *InspectOptions) gatherNamespaceData(ctx context.Context, baseDir, namespace string) error {
 	fmt.Fprintf(o.Out, "Gathering data for ns/%s...\n", namespace)
 
 	destDir := path.Join(baseDir, namespaceResourcesDirname, namespace)
@@ -45,7 +45,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 		return err
 	}
 
-	ns, err := o.kubeClient.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+	ns, err := o.kubeClient.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil { // If we can't get the namespace we need to exit out
 		return err
 	}
@@ -54,7 +54,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 	errs := []error{}
 	// write namespace.yaml file
 	filename := fmt.Sprintf("%s.yaml", namespace)
-	if err := o.fileWriter.WriteFromResource(path.Join(destDir, "/"+filename), ns); err != nil {
+	if err := o.fileWriter.WriteFromResource(ctx, path.Join(destDir, "/"+filename), ns); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -67,7 +67,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 
 	// collect specific resource information for namespace
 	for gvr := range resourcesTypesToStore {
-		list, err := o.dynamicClient.Resource(gvr).Namespace(namespace).List(context.TODO(), metav1.ListOptions{})
+		list, err := o.dynamicClient.Resource(gvr).Namespace(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -81,7 +81,7 @@ func (o *InspectOptions) gatherNamespaceData(baseDir, namespace string) error {
 			klog.V(1).Infof("        Gathering data for pod %q\n", pod.GetName())
 			structuredPod := &corev1.Pod{}
 			runtime.DefaultUnstructuredConverter.FromUnstructured(pod.Object, structuredPod)
-			if err := o.gatherPodData(path.Join(destDir, "/pods/"+pod.GetName()), namespace, structuredPod); err != nil {
+			if err := o.gatherPodData(ctx, path.Join(destDir, "/pods/"+pod.GetName()), namespace, structuredPod); err != nil {
 				errs = append(errs, err)
 				continue
 			}

@@ -124,11 +124,11 @@ func TestRolling_deployRolling(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(latest, rollingConfig.OldRc) {
-		t.Errorf("unexpected rollingConfig.OldRc:%s\n", diff.ObjectGoPrintDiff(latest, rollingConfig.OldRc))
+		t.Errorf("unexpected rollingConfig.OldRc:%s\n", diff.ObjectGoPrintSideBySide(latest, rollingConfig.OldRc))
 	}
 
 	if !reflect.DeepEqual(deployment, rollingConfig.NewRc) {
-		t.Errorf("unexpected rollingConfig.NewRc:%s\n", diff.ObjectGoPrintDiff(latest, rollingConfig.OldRc))
+		t.Errorf("unexpected rollingConfig.NewRc:%s\n", diff.ObjectGoPrintSideBySide(latest, rollingConfig.OldRc))
 	}
 
 	if e, a := 1*time.Second, rollingConfig.Interval; e != a {

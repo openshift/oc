@@ -1,0 +1,233 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2025-08-19T18:46:31Z"
+  generation: 3
+  managedFields:
+  - apiVersion: config.openshift.io/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        .: {}
+        f:clusterID: {}
+    manager: cluster-bootstrap
+    operation: Update
+    time: "2025-08-19T18:46:31Z"
+  - apiVersion: config.openshift.io/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:desiredUpdate:
+          .: {}
+          f:architecture: {}
+          f:force: {}
+          f:image: {}
+          f:version: {}
+    manager: openshift-tests
+    operation: Update
+    time: "2025-08-19T19:32:58Z"
+  - apiVersion: config.openshift.io/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:status:
+        .: {}
+        f:availableUpdates: {}
+        f:capabilities:
+          .: {}
+          f:enabledCapabilities: {}
+          f:knownCapabilities: {}
+        f:conditions:
+          .: {}
+          k:{"type":"Available"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:message: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"Failing"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"ImplicitlyEnabledCapabilities"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"Progressing"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"ReleaseAccepted"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"RetrievedUpdates"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"Upgradeable"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"UpgradeableClusterOperators"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"UpgradeableUpgradeInProgress"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+        f:desired:
+          .: {}
+          f:image: {}
+          f:version: {}
+        f:history: {}
+        f:observedGeneration: {}
+        f:versionHash: {}
+    manager: cluster-version-operator
+    operation: Update
+    subresource: status
+    time: "2025-08-19T21:36:53Z"
+  name: version
+  resourceVersion: "95936"
+  uid: e4a44894-5254-44a3-8c43-f56281b509eb
+spec:
+  clusterID: faf5ca13-bbd4-42f4-956c-5e62afe7be1f
+  desiredUpdate:
+    architecture: ""
+    force: true
+    image: registry.build11.ci.openshift.org/ci-op-pw3ghqzh/release@sha256:6ef995f80511e6edb232430e2a28edcbc5dd32dd124c0c81d79cd78da6e2ddf6
+    version: ""
+status:
+  availableUpdates: null
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2025-08-19T18:46:56Z"
+    message: The update channel has not been configured.
+    reason: NoChannel
+    status: "False"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2025-08-19T18:46:56Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2025-08-19T18:46:56Z"
+    message: Payload loaded version="4.20.0-0.nightly-2025-08-19-180353" image="registry.build11.ci.openshift.org/ci-op-pw3ghqzh/release@sha256:6ef995f80511e6edb232430e2a28edcbc5dd32dd124c0c81d79cd78da6e2ddf6"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2025-08-19T19:17:40Z"
+    message: Done applying 4.20.0-0.nightly-2025-08-12-153542
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2025-08-19T21:06:23Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2025-08-19T19:33:11Z"
+    message: 'Working towards 4.20.0-0.nightly-2025-08-19-180353: 747 of 957 done
+      (78% complete), waiting up to 40 minutes on authentication, openshift-apiserver'
+    reason: ClusterOperatorsDegraded
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2025-08-19T19:33:15Z"
+    message: |-
+      Cluster should not be upgraded between minor versions for multiple reasons: DegradedPool,UpdateInProgress
+      * Cluster operator machine-config should not be upgraded between minor versions: One or more machine config pools are degraded, please see `oc get mcp` for further details and resolve before upgrading
+      * An update is already in progress and the details are in the Progressing condition
+    reason: MultipleReasons
+    status: "False"
+    type: Upgradeable
+  - lastTransitionTime: "2025-08-19T21:16:26Z"
+    message: 'Cluster operator machine-config should not be upgraded between minor
+      versions: One or more machine config pools are degraded, please see `oc get
+      mcp` for further details and resolve before upgrading'
+    reason: DegradedPool
+    status: "False"
+    type: UpgradeableClusterOperators
+  - lastTransitionTime: "2025-08-19T21:16:26Z"
+    message: An update is already in progress and the details are in the Progressing
+      condition
+    reason: UpdateInProgress
+    status: "True"
+    type: UpgradeableUpgradeInProgress
+  desired:
+    image: registry.build11.ci.openshift.org/ci-op-pw3ghqzh/release@sha256:6ef995f80511e6edb232430e2a28edcbc5dd32dd124c0c81d79cd78da6e2ddf6
+    version: 4.20.0-0.nightly-2025-08-19-180353
+  history:
+  - acceptedRisks: |-
+      Target release version="" image="registry.build11.ci.openshift.org/ci-op-pw3ghqzh/release@sha256:6ef995f80511e6edb232430e2a28edcbc5dd32dd124c0c81d79cd78da6e2ddf6" cannot be verified, but continuing anyway because the update was forced: unable to verify sha256:6ef995f80511e6edb232430e2a28edcbc5dd32dd124c0c81d79cd78da6e2ddf6 against keyrings: verifier-public-key-redhat
+      [2025-08-19T19:32:58Z: prefix sha256-6ef995f80511e6edb232430e2a28edcbc5dd32dd124c0c81d79cd78da6e2ddf6 in config map signatures-managed: no more signatures to check, 2025-08-19T19:32:59Z: unable to retrieve signature from https://storage.googleapis.com/openshift-release/official/signatures/openshift/release/sha256=6ef995f80511e6edb232430e2a28edcbc5dd32dd124c0c81d79cd78da6e2ddf6/signature-1: no more signatures to check, 2025-08-19T19:32:59Z: unable to retrieve signature from https://mirror.openshift.com/pub/openshift-v4/signatures/openshift/release/sha256=6ef995f80511e6edb232430e2a28edcbc5dd32dd124c0c81d79cd78da6e2ddf6/signature-1: no more signatures to check, 2025-08-19T19:32:59Z: parallel signature store wrapping containers/image signature store under https://storage.googleapis.com/openshift-release/official/signatures/openshift/release, containers/image signature store under https://mirror.openshift.com/pub/openshift-v4/signatures/openshift/release: no more signatures to check, 2025-08-19T19:32:59Z: serial signature store wrapping ClusterVersion signatureStores unset, falling back to default stores, parallel signature store wrapping containers/image signature store under https://storage.googleapis.com/openshift-release/official/signatures/openshift/release, containers/image signature store under https://mirror.openshift.com/pub/openshift-v4/signatures/openshift/release: no more signatures to check, 2025-08-19T19:32:59Z: serial signature store wrapping config maps in openshift-config-managed with label "release.openshift.io/verification-signatures", serial signature store wrapping ClusterVersion signatureStores unset, falling back to default stores, parallel signature store wrapping containers/image signature store under https://storage.googleapis.com/openshift-release/official/signatures/openshift/release, containers/image signature store under https://mirror.openshift.com/pub/openshift-v4/signatures/openshift/release: no more signatures to check]
+      Precondition "ClusterVersionRecommendedUpdate" failed because of "NoChannel": Configured channel is unset, so the recommended status of updating from 4.20.0-0.nightly-2025-08-12-153542 to 4.20.0-0.nightly-2025-08-19-180353 is unknown.
+    completionTime: null
+    image: registry.build11.ci.openshift.org/ci-op-pw3ghqzh/release@sha256:6ef995f80511e6edb232430e2a28edcbc5dd32dd124c0c81d79cd78da6e2ddf6
+    startedTime: "2025-08-19T19:33:11Z"
+    state: Partial
+    verified: false
+    version: 4.20.0-0.nightly-2025-08-19-180353
+  - completionTime: "2025-08-19T19:17:40Z"
+    image: registry.build11.ci.openshift.org/ci-op-pw3ghqzh/release@sha256:c63aa3fb2e82efdbd450c69eae7458d9e412eeaa7ff211c68bdf729d19bed89c
+    startedTime: "2025-08-19T18:46:56Z"
+    state: Completed
+    verified: false
+    version: 4.20.0-0.nightly-2025-08-12-153542
+  observedGeneration: 3
+  versionHash: wC9npWuRNGA=
