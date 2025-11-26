@@ -162,7 +162,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().BoolVar(&o.AllImages, "all-images", o.AllImages, `Collect must-gather using the default image for all Operators on the cluster annotated with `+mgAnnotation)
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
-	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
+	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to wait for data gathering to complete, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes. NOTE: This timeout only applies to the data gathering phase. After gathering completes, copying to the local destination will continue until finished.")
 	cmd.Flags().StringVar(&o.RunNamespace, "run-namespace", o.RunNamespace, "An existing privileged namespace where must-gather pods should run. If not specified a temporary namespace will be generated.")
 	cmd.Flags().Uint8Var(&o.VolumePercentage, "volume-percentage", o.VolumePercentage, "Specify maximum percentage of must-gather pod's allocated volume that can be used. If this limit is exceeded, must-gather will stop gathering, but still copy gathered data.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
