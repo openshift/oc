@@ -454,19 +454,37 @@ func TestBuildPodCommand(t *testing.T) {
 			name:                     "default gather command",
 			volumeUsageCheckerScript: "sleep infinity",
 			gatherCommand:            "/usr/bin/gather",
-			expectedCommand: `sleep infinity & setsid -w bash <<-MUSTGATHER_EOF
+			expectedCommand: `if command -v setsid >/dev/null 2>&1 && command -v ps >/dev/null 2>&1 && command -v pkill >/dev/null 2>&1; then
+  HAVE_SESSION_TOOLS=true
+else
+  HAVE_SESSION_TOOLS=false
+fi
+
+sleep infinity & if [ "$HAVE_SESSION_TOOLS" = "true" ]; then
+  setsid -w bash <<-MUSTGATHER_EOF
 /usr/bin/gather
 MUSTGATHER_EOF
-sync && echo 'Caches written to disk'`,
+else
+  /usr/bin/gather
+fi; sync && echo 'Caches written to disk'`,
 		},
 		{
 			name:                     "custom gather command",
 			volumeUsageCheckerScript: "sleep infinity",
 			gatherCommand:            "sed -i 's#--rotated-pod-logs# #g' /usr/bin/*gather* && /usr/bin/gather",
-			expectedCommand: `sleep infinity & setsid -w bash <<-MUSTGATHER_EOF
+			expectedCommand: `if command -v setsid >/dev/null 2>&1 && command -v ps >/dev/null 2>&1 && command -v pkill >/dev/null 2>&1; then
+  HAVE_SESSION_TOOLS=true
+else
+  HAVE_SESSION_TOOLS=false
+fi
+
+sleep infinity & if [ "$HAVE_SESSION_TOOLS" = "true" ]; then
+  setsid -w bash <<-MUSTGATHER_EOF
 sed -i 's#--rotated-pod-logs# #g' /usr/bin/*gather* && /usr/bin/gather
 MUSTGATHER_EOF
-sync && echo 'Caches written to disk'`,
+else
+  sed -i 's#--rotated-pod-logs# #g' /usr/bin/*gather* && /usr/bin/gather
+fi; sync && echo 'Caches written to disk'`,
 		},
 	}
 
