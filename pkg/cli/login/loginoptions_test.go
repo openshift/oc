@@ -377,6 +377,79 @@ func TestDialToHTTPSServer(t *testing.T) {
 	}
 }
 
+func TestGetClientConfig_InsecureSkipTLSVerify(t *testing.T) {
+	// Test that insecure-skip-tls-verify setting from kubeconfig is respected
+	// when logging in without the --insecure-skip-tls-verify flag.
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	testCases := map[string]struct {
+		insecureFlag                 bool
+		insecureKubeconfig           bool
+		expectedInsecureClientConfig bool
+	}{
+		"command flag set": {
+			insecureFlag:                 true,
+			expectedInsecureClientConfig: true,
+		},
+		"kubeconfig flag set": {
+			insecureKubeconfig:           true,
+			expectedInsecureClientConfig: true,
+		},
+		"no flag set": {
+			insecureFlag:                 false,
+			insecureKubeconfig:           false,
+			expectedInsecureClientConfig: false,
+		},
+		"both command and kubeconfig flag set": {
+			insecureFlag:                 true,
+			insecureKubeconfig:           true,
+			expectedInsecureClientConfig: true,
+		},
+	}
+
+	for name, test := range testCases {
+		t.Run(name, func(t *testing.T) {
+			startingConfig := &kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{},
+			}
+			if test.insecureKubeconfig {
+				startingConfig.Clusters["test-cluster"] = &kclientcmdapi.Cluster{
+					Server:                server.URL,
+					InsecureSkipTLSVerify: true,
+				}
+			}
+
+			options := &LoginOptions{
+				Server:             server.URL,
+				InsecureTLS:        test.insecureFlag,
+				StartingKubeConfig: startingConfig,
+			}
+
+			clientConfig, err := options.getClientConfig()
+			if err != nil {
+				if test.expectedInsecureClientConfig {
+					t.Fatalf("Expected to succeed with insecure connection, but got error: %v", err)
+				} else {
+					// If we expect secure connection and get a TLS error, that's expected
+					// since we're using a test server with a self-signed cert.
+					if err.Error() != certificateAuthorityUnknownMsg {
+						t.Fatalf("Expected to fail with insecure connection, but got another error: %v", err)
+					}
+					return
+				}
+			}
+
+			if clientConfig.Insecure != test.expectedInsecureClientConfig {
+				t.Errorf("expected Insecure=%v, got %v", test.expectedInsecureClientConfig, clientConfig.Insecure)
+			}
+		})
+	}
+}
+
 func TestPreserveExecProviderOnUsernameLogin(t *testing.T) {
 	// Test that when using -u flag with existing OIDC credentials,
 	// the ExecProvider configuration is preserved
