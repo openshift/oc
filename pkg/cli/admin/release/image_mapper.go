@@ -198,7 +198,8 @@ func loadImageStreamTransforms(input, local *imageapi.ImageStream, allowMissingI
 			}
 			existing, ok := versions[k]
 			if ok {
-				if existing.Version != v.Version {
+				// we allow multiple machine-os versions due to dual stream efforts
+				if existing.Version != v.Version && k != "machine-os" {
 					return nil, nil, nil, fmt.Errorf("input image stream has multiple versions defined for version %s: %s defines %s but was already set to %s on %s", k, tag.Name, v, existing, strings.Join(tagsByName[k], ", "))
 				}
 			} else {
