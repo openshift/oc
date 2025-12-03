@@ -1058,7 +1058,8 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 	sort.Strings(keys)
 	for _, k := range keys {
 		v := combined[k]
-		if v.Len() > 1 {
+		// we allow multiple machine-os versions due to dual stream efforts
+		if v.Len() > 1 && k != "machine-os" {
 			multiples = multiples.Insert(k)
 		}
 		if _, ok := out[k]; ok {
@@ -1075,7 +1076,8 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 		if !ok {
 			continue
 		}
-		if v.Len() > 1 {
+		// we allow multiple machine-os versions due to dual stream efforts
+		if v.Len() > 1 && k != "machine-os" {
 			multiples = multiples.Insert(k)
 		}
 		version, ok := out[k]
