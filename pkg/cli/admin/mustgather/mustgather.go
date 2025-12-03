@@ -18,6 +18,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	authv1client "k8s.io/client-go/kubernetes/typed/authentication/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -60,6 +62,9 @@ const (
 	defaultMustGatherCommand  = "/usr/bin/gather"
 	defaultVolumePercentage   = 70
 	defaultSourceDir          = "/must-gather/"
+
+	DefaultHeartbeatInterval = 3 * time.Minute
+	DefaultHeartbeatTimeout  = 10 * time.Second
 )
 
 var (
@@ -179,10 +184,12 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 
 func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions {
 	opts := &MustGatherOptions{
-		SourceDir:        defaultSourceDir,
-		IOStreams:        streams,
-		Timeout:          10 * time.Minute,
-		VolumePercentage: defaultVolumePercentage,
+		HeartbeatInterval: DefaultHeartbeatInterval,
+		HeartbeatTimeout:  DefaultHeartbeatTimeout,
+		SourceDir:         defaultSourceDir,
+		IOStreams:         streams,
+		Timeout:           10 * time.Minute,
+		VolumePercentage:  defaultVolumePercentage,
 	}
 	opts.LogOut = opts.newPrefixWriter(streams.Out, "[must-gather      ] OUT", false, true)
 	opts.RawOut = opts.newPrefixWriter(streams.Out, "", false, false)
@@ -378,6 +385,9 @@ type MustGatherOptions struct {
 	ImageClient      imagev1client.ImageV1Interface
 	RESTClientGetter genericclioptions.RESTClientGetter
 
+	HeartbeatInterval time.Duration
+	HeartbeatTimeout  time.Duration
+
 	NodeName         string
 	NodeSelector     string
 	HostNetwork      bool
@@ -568,6 +578,12 @@ func (o *MustGatherOptions) Run() error {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 
+	if /* o.Config.BearerToken != "" && */ o.HeartbeatInterval > 0 {
+		if err := o.startHeartbeat(ctx); err != nil {
+			return fmt.Errorf("failed to start server heartbeat: %w", err)
+		}
+	}
+
 	if err := os.MkdirAll(o.DestDir, os.ModePerm); err != nil {
 		// ensure the errors bubble up to BackupGathering method for display
 		errs = []error{err}
@@ -750,6 +766,41 @@ func (o *MustGatherOptions) Run() error {
 	}
 
 	return kutilerrors.NewAggregate(errs)
+}
+
+// startHeartbeat starts sending regular server heartbeats.
+func (o *MustGatherOptions) startHeartbeat(ctx context.Context) error {
+	if o.HeartbeatInterval == 0 {
+		panic("must-gather heartbeat interval must be set")
+	}
+
+	timeout := o.HeartbeatTimeout
+	if timeout == 0 {
+		timeout = DefaultHeartbeatTimeout
+	}
+
+	authClient, err := authv1client.NewForConfig(o.Config)
+	if err != nil {
+		return fmt.Errorf("failed to get authentication/v1 client: %w", err)
+	}
+
+	klog.V(2).InfoS("Starting server heartbeat", "interval", o.HeartbeatInterval, "timeout", timeout)
+
+	go wait.PollUntilContextCancel(ctx, o.HeartbeatInterval, false, func(ctx context.Context) (bool, error) { //nolint:errcheck
+		timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+
+		_, err := authClient.SelfSubjectReviews().Create(timeoutCtx, &authv1.SelfSubjectReview{}, metav1.CreateOptions{})
+		if err != nil {
+			if ctx.Err() == nil {
+				klog.V(1).ErrorS(err, "Failed to send server heartbeat")
+			}
+		} else {
+			klog.V(3).Info("Server heartbeat sent successfully")
+		}
+		return false, nil
+	})
+	return nil
 }
 
 // processNextWorkItem creates & processes the must-gather pod and returns error if any
