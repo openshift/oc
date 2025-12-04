@@ -61,6 +61,37 @@ If you've found a security issue that you'd like to disclose confidentially
 please contact Red Hat's Product Security team. Details at
 https://access.redhat.com/security/team/contact
 
+## Tests
+
+This repository is compatible with the "OpenShift Tests Extension (OTE)" framework.
+
+### Building the test binary
+```bash
+make oc-tests-ext
+```
+
+### Running test suites and tests
+```bash
+# Run a specific test suite or test
+./oc-tests-ext run-suite openshift/oc/all
+./oc-tests-ext run-test "test-name"
+
+# Run with JUnit output
+./oc-tests-ext run-suite openshift/oc/all --junit-path=/tmp/junit-results/junit.xml
+./oc-tests-ext run-test "test-name" --junit-path=/tmp/junit-results/junit.xml
+```
+
+### Listing available tests and suites
+```bash
+# List all test suites
+./oc-tests-ext list-suites
+
+# List tests in a specific suite
+./oc-tests-ext list-tests openshift/oc/all
+```
+
+The test extension binary is included in the production image for CI/CD integration.
+
 # License
 
 oc is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/).
