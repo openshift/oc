@@ -377,6 +377,91 @@ func TestDialToHTTPSServer(t *testing.T) {
 	}
 }
 
+func TestGetClientConfig_InsecureSkipTLSVerify(t *testing.T) {
+	// Test that insecure-skip-tls-verify setting from kubeconfig is respected
+	// when logging in without the --insecure-skip-tls-verify flag.
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	testCases := map[string]struct {
+		insecureFlag                 bool
+		kubeconfigInsecure           bool
+		kubeconfigCAData             []byte
+		kubeconfigCAFile             string
+		expectedInsecureClientConfig bool
+		expectedErrMsg               string
+	}{
+		"command flag set": {
+			insecureFlag:                 true,
+			expectedInsecureClientConfig: true,
+		},
+		"kubeconfig flag set": {
+			kubeconfigInsecure:           true,
+			expectedInsecureClientConfig: true,
+		},
+		"no flag set": {
+			insecureFlag:       false,
+			kubeconfigInsecure: false,
+			expectedErrMsg:     certificateAuthorityUnknownMsg,
+		},
+		"both command and kubeconfig flag set": {
+			insecureFlag:                 true,
+			kubeconfigInsecure:           true,
+			expectedInsecureClientConfig: true,
+		},
+		"conflict error on certificate authority data set": {
+			kubeconfigInsecure: true,
+			kubeconfigCAData:   []byte("whatever"),
+			expectedErrMsg:     insecureTransportCertificateAuthorityConflictMsg,
+		},
+		"conflict error on certificate authority file set": {
+			kubeconfigInsecure: true,
+			kubeconfigCAFile:   "/whatever.crt",
+			expectedErrMsg:     insecureTransportCertificateAuthorityConflictMsg,
+		},
+	}
+
+	for name, test := range testCases {
+		t.Run(name, func(t *testing.T) {
+			startingConfig := &kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{},
+			}
+			if test.kubeconfigInsecure {
+				startingConfig.Clusters["test-cluster"] = &kclientcmdapi.Cluster{
+					Server:                   server.URL,
+					CertificateAuthority:     test.kubeconfigCAFile,
+					CertificateAuthorityData: test.kubeconfigCAData,
+					InsecureSkipTLSVerify:    true,
+				}
+			}
+
+			options := &LoginOptions{
+				Server:             server.URL,
+				InsecureTLS:        test.insecureFlag,
+				StartingKubeConfig: startingConfig,
+			}
+
+			clientConfig, err := options.getClientConfig()
+			if err != nil {
+				if test.expectedInsecureClientConfig {
+					t.Fatalf("Expected to succeed with insecure connection, but got error: %v", err)
+				}
+				if test.expectedErrMsg != err.Error() {
+					t.Fatalf("Unexpected error received:\n  expected %q\n  got %q", test.expectedErrMsg, err.Error())
+				}
+				return
+			}
+
+			if clientConfig.Insecure != test.expectedInsecureClientConfig {
+				t.Errorf("expected Insecure=%v, got %v", test.expectedInsecureClientConfig, clientConfig.Insecure)
+			}
+		})
+	}
+}
+
 func TestPreserveExecProviderOnUsernameLogin(t *testing.T) {
 	// Test that when using -u flag with existing OIDC credentials,
 	// the ExecProvider configuration is preserved

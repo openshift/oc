@@ -30,20 +30,14 @@ func getMatchingClusters(clientConfig restclient.Config, kubeconfig clientcmdapi
 	return ret
 }
 
-// findExistingClientCA returns *either* the existing client CA file name as a string,
-// *or* data in a []byte for a given host, and true if it exists in the given config
-func findExistingClientCA(host string, kubeconfig clientcmdapi.Config) (string, []byte, bool) {
+// findClusters returns the first cluster matching the host.
+func findCluster(host string, kubeconfig clientcmdapi.Config) *clientcmdapi.Cluster {
 	for _, cluster := range kubeconfig.Clusters {
 		if cluster.Server == host {
-			if len(cluster.CertificateAuthority) > 0 {
-				return cluster.CertificateAuthority, nil, true
-			}
-			if len(cluster.CertificateAuthorityData) > 0 {
-				return "", cluster.CertificateAuthorityData, true
-			}
+			return cluster
 		}
 	}
-	return "", nil, false
+	return nil
 }
 
 // dialToServer takes the Server URL from the given clientConfig and dials to
