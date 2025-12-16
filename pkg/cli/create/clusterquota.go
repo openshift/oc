@@ -137,7 +137,7 @@ func (o *CreateClusterQuotaOptions) Run() error {
 
 	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
 		var err error
-		clusterQuota, err = o.Client.ClusterResourceQuotas().Create(context.TODO(), clusterQuota, metav1.CreateOptions{})
+		clusterQuota, err = o.Client.ClusterResourceQuotas().Create(context.TODO(), clusterQuota, o.CreateSubcommandOptions.toCreateOptions())
 		if err != nil {
 			return err
 		}
