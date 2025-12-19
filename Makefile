@@ -71,6 +71,11 @@ oc: GO_BUILD_PACKAGES :=./cmd/oc
 oc: build
 .PHONY: oc
 
+oc-tests-ext: GO_BUILD_PACKAGES :=./cmd/oc-tests-ext
+oc-tests-ext: GO_BUILD_FLAGS :=-tags 'include_gcs include_oss containers_image_openpgp'
+oc-tests-ext: build
+.PHONY: oc-tests-ext
+
 update: update-generated-completions
 .PHONY: update
 
