@@ -93,9 +93,15 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 			regardless of these concerns, use --allow-upgrade-with-warnings.
 
 			Cluster-side guards include checks for release verification and upgradeable conditions.
-			Again, it is usually best to give these conditions time to resolve, or to actively work to
-			resolve them.  But if you decide to trigger the update regardless of these concerns,
-			use --force, which is passed through to ClusterVersion's spec.desiredUpdate.force.
+			You can push through them with --force, which is passed through to ClusterVersion's
+			spec.desiredUpdate.force, but only do that if:
+
+			* you are testing unsigned release images in short-lived test clusters or
+			* you are working around a known bug in the cluster-version operator and you have verified
+			  the authenticity of the provided image yourself.
+
+			The provided image will run with full administrative access to the cluster. Do not use
+			--force with images that come from unknown or potentially malicious sources.
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
@@ -108,7 +114,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	flags.BoolVar(&o.ToLatestAvailable, "to-latest", o.ToLatestAvailable, "Use the latest (highest Semantic Version) available version.")
 	flags.BoolVar(&o.ToMultiArch, "to-multi-arch", o.ToMultiArch, "Upgrade current version to multi architecture.")
 	flags.BoolVar(&o.Clear, "clear", o.Clear, "If an upgrade has been requested but not yet downloaded, cancel the update. This has no effect once the update has started.")
-	flags.BoolVar(&o.Force, "force", o.Force, "Upgrade regardless of cluster-side guard failures, such as release verification or upgradeable conditions.")
+	flags.BoolVar(&o.Force, "force", o.Force, "Upgrade regardless of cluster-side guard failures, such as release verification or upgradeable conditions. Only use this if you are testing unsigned release images or you are working around a known bug in the cluster-version operator and you have verified the authenticity of the provided image yourself.")
 	flags.BoolVar(&o.AllowExplicitUpgrade, "allow-explicit-upgrade", o.AllowExplicitUpgrade, "Upgrade even if the upgrade target is not listed in the available versions list.")
 	flags.BoolVar(&o.AllowUpgradeWithWarnings, "allow-upgrade-with-warnings", o.AllowUpgradeWithWarnings, "Upgrade regardless of client-side guard failures, such as upgrades in progress or failing clusters.")
 	flags.BoolVar(&o.IncludeNotRecommended, "include-not-recommended", o.IncludeNotRecommended, "Display additional updates which are not recommended based on your cluster configuration.")
@@ -247,7 +253,7 @@ func (o *Options) Run() error {
 
 		if o.Force {
 			update.Force = true
-			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
+			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures. Only use this if you are testing unsigned release images or you are working around a known bug in the cluster-version operator and you have verified the authenticity of the provided image yourself.")
 		}
 
 		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
@@ -379,7 +385,7 @@ func (o *Options) Run() error {
 
 		if o.Force {
 			update.Force = true
-			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures.")
+			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures. Only use this if you are testing unsigned release images or you are working around a known bug in the cluster-version operator and you have verified the authenticity of the provided image yourself.")
 		}
 
 		if err := checkForUpgrade(cv); err != nil {
