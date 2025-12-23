@@ -25,6 +25,7 @@ import (
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/accept"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/recommend"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/rollback"
@@ -125,6 +126,9 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 
 	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_ROLLBACK").IsEnabled() {
 		cmd.AddCommand(rollback.New(f, streams))
+	}
+	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_ACCEPT_RISKS").IsEnabled() {
+		cmd.AddCommand(accept.New(f, streams))
 	}
 	cmd.AddCommand(recommend.New(f, streams))
 
