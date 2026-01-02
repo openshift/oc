@@ -15,7 +15,6 @@ import (
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	"github.com/distribution/distribution/v3/manifest/ocischema"
-	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	"github.com/distribution/distribution/v3/reference"
 	"github.com/distribution/distribution/v3/registry/api/errcode"
@@ -27,9 +26,11 @@ import (
 	"k8s.io/klog/v2"
 
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/openshift/library-go/pkg/image/distribution/manifest/schema1"
 	"github.com/openshift/library-go/pkg/image/dockerv1client"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/image/registryclient"
+
 	"github.com/openshift/oc/pkg/cli/image/manifest/dockercredentials"
 	"github.com/openshift/oc/pkg/helpers/image/dockerlayer/add"
 )

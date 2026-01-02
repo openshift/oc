@@ -18,7 +18,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/reference"
 	"github.com/distribution/distribution/v3/registry/api/errcode"
 	registryclient "github.com/distribution/distribution/v3/registry/client"
@@ -27,6 +26,7 @@ import (
 	"github.com/distribution/distribution/v3/registry/client/transport"
 	"github.com/opencontainers/go-digest"
 
+	"github.com/openshift/library-go/pkg/image/distribution/manifest/schema1"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 )
 
