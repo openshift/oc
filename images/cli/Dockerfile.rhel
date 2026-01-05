@@ -1,13 +1,10 @@
 FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.24-openshift-4.22 AS builder
 WORKDIR /go/src/github.com/openshift/oc
 COPY . .
-RUN make build --warn-undefined-variables \
-      && make oc-tests-ext \
-      && gzip oc-tests-ext
+RUN make build --warn-undefined-variables
 
 FROM registry.ci.openshift.org/ocp/4.22:base-rhel9
 COPY --from=builder /go/src/github.com/openshift/oc/oc /usr/bin/
-COPY --from=builder /go/src/github.com/openshift/oc/oc-tests-ext.gz /usr/bin/
 RUN for i in kubectl openshift-deploy openshift-docker-build openshift-sti-build openshift-git-clone openshift-manage-dockerfile openshift-extract-image-content openshift-recycle; do ln -sf /usr/bin/oc /usr/bin/$i; done
 LABEL io.k8s.display-name="OpenShift Client" \
       io.k8s.description="OpenShift is a platform for developing, building, and deploying containerized applications." \
