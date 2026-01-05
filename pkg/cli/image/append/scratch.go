@@ -7,8 +7,9 @@ import (
 	"net/http"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 	digest "github.com/opencontainers/go-digest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/openshift/oc/pkg/helpers/image/dockerlayer"
 )
@@ -28,11 +29,11 @@ func (_ scratchRepo) Manifests(ctx context.Context, options ...distribution.Mani
 
 func (r scratchRepo) Blobs(ctx context.Context) distribution.BlobStore { return r }
 
-func (_ scratchRepo) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+func (_ scratchRepo) Stat(ctx context.Context, dgst digest.Digest) (v1.Descriptor, error) {
 	if dgst != dockerlayer.GzippedEmptyLayerDigest {
-		return distribution.Descriptor{}, distribution.ErrBlobUnknown
+		return v1.Descriptor{}, distribution.ErrBlobUnknown
 	}
-	return distribution.Descriptor{
+	return v1.Descriptor{
 		MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 		Digest:    digest.Digest(dockerlayer.GzippedEmptyLayerDigest),
 		Size:      int64(len(dockerlayer.GzippedEmptyLayer)),

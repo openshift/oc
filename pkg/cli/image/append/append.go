@@ -10,14 +10,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/openshift/library-go/pkg/image/distribution/client"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	"github.com/distribution/distribution/v3/manifest/schema2"
-	"github.com/distribution/distribution/v3/reference"
-	"github.com/distribution/distribution/v3/registry/client"
+	"github.com/distribution/reference"
 	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 

@@ -10,9 +10,10 @@ import (
 
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest"
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type diffID digest.Digest
@@ -28,9 +29,9 @@ var gzippedEmptyTar = []byte{
 // gzippedEmptyTar
 const digestSHA256GzippedEmptyTar = digest.Digest("sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4")
 
-// configManifestBuilder is a type for constructing manifests from an image
+// ConfigManifestBuilder is a type for constructing manifests from an image
 // configuration and generic descriptors.
-type configManifestBuilder struct {
+type ConfigManifestBuilder struct {
 	// bs is a BlobService used to create empty layer tars in the
 	// blob store if necessary.
 	bs distribution.BlobService
@@ -42,7 +43,7 @@ type configManifestBuilder struct {
 	// ref contains the name and optional tag provided to NewConfigManifestBuilder.
 	ref reference.Named
 	// descriptors is the set of descriptors referencing the layers.
-	descriptors []distribution.Descriptor
+	descriptors []v1.Descriptor
 	// emptyTarDigest is set to a valid digest if an empty tar has been
 	// put in the blob store; otherwise it is empty.
 	emptyTarDigest digest.Digest
@@ -56,8 +57,8 @@ type configManifestBuilder struct {
 // Deprecated: Docker Image Manifest v2, Schema 1 is deprecated since 2015,
 // use Docker Image Manifest v2, Schema 2, or the OCI Image Specification v1.
 // This package should not be used for purposes other than backward compatibility.
-func NewConfigManifestBuilder(bs distribution.BlobService, pk libtrust.PrivateKey, ref reference.Named, configJSON []byte) distribution.ManifestBuilder {
-	return &configManifestBuilder{
+func NewConfigManifestBuilder(bs distribution.BlobService, pk libtrust.PrivateKey, ref reference.Named, configJSON []byte) *ConfigManifestBuilder {
+	return &ConfigManifestBuilder{
 		bs:         bs,
 		pk:         pk,
 		configJSON: configJSON,
@@ -69,7 +70,7 @@ func NewConfigManifestBuilder(bs distribution.BlobService, pk libtrust.PrivateKe
 //
 // Deprecated: Docker Image Manifest v2, Schema 1 is deprecated since 2015.
 // Use Docker Image Manifest v2, Schema 2, or the OCI Image Specification.
-func (mb *configManifestBuilder) Build(ctx context.Context) (m distribution.Manifest, err error) {
+func (mb *ConfigManifestBuilder) Build(ctx context.Context) (m distribution.Manifest, err error) {
 	type imageRootFS struct {
 		Type      string   `json:"type"`
 		DiffIDs   []diffID `json:"diff_ids,omitempty"`
@@ -217,7 +218,7 @@ func (mb *configManifestBuilder) Build(ctx context.Context) (m distribution.Mani
 
 // emptyTar pushes a compressed empty tar to the blob store if one doesn't
 // already exist, and returns its blobsum.
-func (mb *configManifestBuilder) emptyTar(ctx context.Context) (digest.Digest, error) {
+func (mb *ConfigManifestBuilder) emptyTar(ctx context.Context) (digest.Digest, error) {
 	if mb.emptyTarDigest != "" {
 		// Already put an empty tar
 		return mb.emptyTarDigest, nil
@@ -249,14 +250,8 @@ func (mb *configManifestBuilder) emptyTar(ctx context.Context) (digest.Digest, e
 //
 // Deprecated: Docker Image Manifest v2, Schema 1 is deprecated since 2015.
 // Use Docker Image Manifest v2, Schema 2, or the OCI Image Specification.
-func (mb *configManifestBuilder) AppendReference(d distribution.Describable) error {
-	descriptor := d.Descriptor()
-
-	if err := descriptor.Digest.Validate(); err != nil {
-		return err
-	}
-
-	mb.descriptors = append(mb.descriptors, descriptor)
+func (mb *ConfigManifestBuilder) AppendReference(d v1.Descriptor) error {
+	mb.descriptors = append(mb.descriptors, d)
 	return nil
 }
 
@@ -264,7 +259,7 @@ func (mb *configManifestBuilder) AppendReference(d distribution.Describable) err
 //
 // Deprecated: Docker Image Manifest v2, Schema 1 is deprecated since 2015.
 // Use Docker Image Manifest v2, Schema 2, or the OCI Image Specification.
-func (mb *configManifestBuilder) References() []distribution.Descriptor {
+func (mb *ConfigManifestBuilder) References() []v1.Descriptor {
 	return mb.descriptors
 }
 

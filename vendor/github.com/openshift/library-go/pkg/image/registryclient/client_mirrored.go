@@ -12,12 +12,13 @@ import (
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/registry/api/errcode"
 	"github.com/opencontainers/go-digest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/library-go/pkg/image/distribution/client"
 	"github.com/openshift/library-go/pkg/image/distribution/client/auth"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"k8s.io/klog/v2"
 
-	distributionreference "github.com/distribution/distribution/v3/reference"
+	distributionreference "github.com/distribution/reference"
 )
 
 // AlternateBlobSourceStrategy is consulted when a repository cannot be reached to find alternate
@@ -449,8 +450,8 @@ func (f blobMirroredBlobstore) Get(ctx context.Context, dgst digest.Digest) ([]b
 	return data, err
 }
 
-func (f blobMirroredBlobstore) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
-	var desc distribution.Descriptor
+func (f blobMirroredBlobstore) Stat(ctx context.Context, dgst digest.Digest) (v1.Descriptor, error) {
+	var desc v1.Descriptor
 	err := f.repo.alternates(ctx, func(r RepositoryWithLocation) error {
 		var err error
 		desc, err = r.Blobs(ctx).Stat(ctx, dgst)
@@ -499,8 +500,8 @@ func (f blobMirroredBlobstore) Create(ctx context.Context, options ...distributi
 	return bw, err
 }
 
-func (f blobMirroredBlobstore) Put(ctx context.Context, mediaType string, p []byte) (distribution.Descriptor, error) {
-	var desc distribution.Descriptor
+func (f blobMirroredBlobstore) Put(ctx context.Context, mediaType string, p []byte) (v1.Descriptor, error) {
+	var desc v1.Descriptor
 	err := f.repo.source(ctx, func(r distribution.Repository) error {
 		var err error
 		desc, err = r.Blobs(ctx).Put(ctx, mediaType, p)
@@ -532,8 +533,8 @@ type blobMirroredTags struct {
 
 var _ distribution.TagService = blobMirroredTags{}
 
-func (f blobMirroredTags) Get(ctx context.Context, tag string) (distribution.Descriptor, error) {
-	var desc distribution.Descriptor
+func (f blobMirroredTags) Get(ctx context.Context, tag string) (v1.Descriptor, error) {
+	var desc v1.Descriptor
 	err := f.repo.source(ctx, func(r distribution.Repository) error {
 		var err error
 		desc, err = r.Tags(ctx).Get(ctx, tag)
@@ -552,7 +553,7 @@ func (f blobMirroredTags) All(ctx context.Context) ([]string, error) {
 	return tags, err
 }
 
-func (f blobMirroredTags) Lookup(ctx context.Context, digest distribution.Descriptor) ([]string, error) {
+func (f blobMirroredTags) Lookup(ctx context.Context, digest v1.Descriptor) ([]string, error) {
 	var tags []string
 	err := f.repo.source(ctx, func(r distribution.Repository) error {
 		var err error
@@ -562,7 +563,7 @@ func (f blobMirroredTags) Lookup(ctx context.Context, digest distribution.Descri
 	return tags, err
 }
 
-func (f blobMirroredTags) Tag(ctx context.Context, tag string, desc distribution.Descriptor) error {
+func (f blobMirroredTags) Tag(ctx context.Context, tag string, desc v1.Descriptor) error {
 	return f.repo.source(ctx, func(r distribution.Repository) error {
 		return r.Tags(ctx).Tag(ctx, tag, desc)
 	})

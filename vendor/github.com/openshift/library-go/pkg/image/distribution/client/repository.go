@@ -15,11 +15,12 @@ import (
 	"time"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/reference"
 	v2 "github.com/distribution/distribution/v3/registry/api/v2"
 	"github.com/distribution/distribution/v3/registry/storage/cache"
 	"github.com/distribution/distribution/v3/registry/storage/cache/memory"
+	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/library-go/pkg/image/distribution/client/transport"
 )
 
@@ -89,8 +90,6 @@ type registry struct {
 // of the slice, starting at the value provided in 'last'.  The number of entries will be returned along with io.EOF if there
 // are no more entries
 func (r *registry) Repositories(ctx context.Context, entries []string, last string) (int, error) {
-	var numFilled int
-	var returnErr error
 
 	values := buildCatalogValues(len(entries), last)
 	u, err := r.ub.BuildCatalogURL(values)
@@ -108,28 +107,27 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 	}
 	defer resp.Body.Close()
 
-	if SuccessStatus(resp.StatusCode) {
-		var ctlg struct {
-			Repositories []string `json:"repositories"`
-		}
-		decoder := json.NewDecoder(resp.Body)
-
-		if err := decoder.Decode(&ctlg); err != nil {
-			return 0, err
-		}
-
-		copy(entries, ctlg.Repositories)
-		numFilled = len(ctlg.Repositories)
-
-		link := resp.Header.Get("Link")
-		if link == "" {
-			returnErr = io.EOF
-		}
-	} else {
-		return 0, HandleErrorResponse(resp)
+	if err := HandleHTTPResponseError(resp); err != nil {
+		return 0, err
 	}
 
-	return numFilled, returnErr
+	var ctlg struct {
+		Repositories []string `json:"repositories"`
+	}
+	decoder := json.NewDecoder(resp.Body)
+
+	if err := decoder.Decode(&ctlg); err != nil {
+		return 0, err
+	}
+
+	copy(entries, ctlg.Repositories)
+	numFilled := len(ctlg.Repositories)
+
+	if resp.Header.Get("Link") == "" {
+		return numFilled, io.EOF
+	}
+
+	return numFilled, nil
 }
 
 // NewRepository creates a new Repository for the given repository name and base URL.
@@ -200,18 +198,17 @@ type tags struct {
 
 // All returns all tags
 func (t *tags) All(ctx context.Context) ([]string, error) {
-	var tags []string
-
 	listURLStr, err := t.ub.BuildTagsURL(t.name)
 	if err != nil {
-		return tags, err
+		return nil, err
 	}
 
 	listURL, err := url.Parse(listURLStr)
 	if err != nil {
-		return tags, err
+		return nil, err
 	}
 
+	var allTags []string
 	for {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, listURL.String(), nil)
 		if err != nil {
@@ -219,47 +216,47 @@ func (t *tags) All(ctx context.Context) ([]string, error) {
 		}
 		resp, err := t.client.Do(req)
 		if err != nil {
-			return tags, err
+			return allTags, err
 		}
 		defer resp.Body.Close()
 
-		if SuccessStatus(resp.StatusCode) {
-			b, err := io.ReadAll(resp.Body)
+		if err := HandleHTTPResponseError(resp); err != nil {
+			return allTags, err
+		}
+
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return allTags, err
+		}
+
+		tagsResponse := struct {
+			Tags []string `json:"tags"`
+		}{}
+		if err := json.Unmarshal(b, &tagsResponse); err != nil {
+			return allTags, err
+		}
+		allTags = append(allTags, tagsResponse.Tags...)
+		if link := resp.Header.Get("Link"); link != "" {
+			firsLink, _, _ := strings.Cut(link, ";")
+			linkURL, err := url.Parse(strings.Trim(firsLink, "<>"))
 			if err != nil {
-				return tags, err
+				return allTags, err
 			}
 
-			tagsResponse := struct {
-				Tags []string `json:"tags"`
-			}{}
-			if err := json.Unmarshal(b, &tagsResponse); err != nil {
-				return tags, err
-			}
-			tags = append(tags, tagsResponse.Tags...)
-			if link := resp.Header.Get("Link"); link != "" {
-				firsLink, _, _ := strings.Cut(link, ";")
-				linkURL, err := url.Parse(strings.Trim(firsLink, "<>"))
-				if err != nil {
-					return tags, err
-				}
-
-				listURL = listURL.ResolveReference(linkURL)
-			} else {
-				return tags, nil
-			}
+			listURL = listURL.ResolveReference(linkURL)
 		} else {
-			return tags, HandleErrorResponse(resp)
+			return allTags, nil
 		}
 	}
 }
 
-func descriptorFromResponse(response *http.Response) (distribution.Descriptor, error) {
-	desc := distribution.Descriptor{}
+func descriptorFromResponse(response *http.Response) (v1.Descriptor, error) {
+	desc := v1.Descriptor{}
 	headers := response.Header
 
 	ctHeader := headers.Get("Content-Type")
 	if ctHeader == "" {
-		return distribution.Descriptor{}, errors.New("missing or empty Content-Type header")
+		return v1.Descriptor{}, errors.New("missing or empty Content-Type header")
 	}
 	desc.MediaType = ctHeader
 
@@ -267,28 +264,28 @@ func descriptorFromResponse(response *http.Response) (distribution.Descriptor, e
 	if digestHeader == "" {
 		data, err := io.ReadAll(response.Body)
 		if err != nil {
-			return distribution.Descriptor{}, err
+			return v1.Descriptor{}, err
 		}
 		_, desc, err := distribution.UnmarshalManifest(ctHeader, data)
 		if err != nil {
-			return distribution.Descriptor{}, err
+			return v1.Descriptor{}, err
 		}
 		return desc, nil
 	}
 
 	dgst, err := digest.Parse(digestHeader)
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 	desc.Digest = dgst
 
 	lengthHeader := headers.Get("Content-Length")
 	if lengthHeader == "" {
-		return distribution.Descriptor{}, errors.New("missing or empty Content-Length header")
+		return v1.Descriptor{}, errors.New("missing or empty Content-Length header")
 	}
 	length, err := strconv.ParseInt(lengthHeader, 10, 64)
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 	desc.Size = length
 
@@ -298,14 +295,14 @@ func descriptorFromResponse(response *http.Response) (distribution.Descriptor, e
 // Get issues a HEAD request for a Manifest against its named endpoint in order
 // to construct a descriptor for the tag.  If the registry doesn't support HEADing
 // a manifest, fallback to GET.
-func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, error) {
+func (t *tags) Get(ctx context.Context, tag string) (v1.Descriptor, error) {
 	ref, err := reference.WithTag(t.name, tag)
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 	u, err := t.ub.BuildManifestURL(ref)
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 
 	newRequest := func(method string) (*http.Response, error) {
@@ -323,7 +320,7 @@ func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, er
 
 	resp, err := newRequest(http.MethodHead)
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 	defer resp.Body.Close()
 
@@ -338,22 +335,22 @@ func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, er
 		//   - to get error details in case of a failure
 		resp, err = newRequest(http.MethodGet)
 		if err != nil {
-			return distribution.Descriptor{}, err
+			return v1.Descriptor{}, err
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 			return descriptorFromResponse(resp)
 		}
-		return distribution.Descriptor{}, HandleErrorResponse(resp)
+		return v1.Descriptor{}, HandleHTTPResponseError(resp)
 	}
 }
 
-func (t *tags) Lookup(ctx context.Context, digest distribution.Descriptor) ([]string, error) {
+func (t *tags) Lookup(ctx context.Context, digest v1.Descriptor) ([]string, error) {
 	panic("not implemented")
 }
 
-func (t *tags) Tag(ctx context.Context, tag string, desc distribution.Descriptor) error {
+func (t *tags) Tag(ctx context.Context, tag string, desc v1.Descriptor) error {
 	panic("not implemented")
 }
 
@@ -378,10 +375,7 @@ func (t *tags) Untag(ctx context.Context, tag string) error {
 	}
 	defer resp.Body.Close()
 
-	if SuccessStatus(resp.StatusCode) {
-		return nil
-	}
-	return HandleErrorResponse(resp)
+	return HandleHTTPResponseError(resp)
 }
 
 type manifests struct {
@@ -405,17 +399,26 @@ func (ms *manifests) Exists(ctx context.Context, dgst digest.Digest) (bool, erro
 	if err != nil {
 		return false, err
 	}
+
+	mediaTypes := distribution.ManifestMediaTypes()
+	for _, t := range mediaTypes {
+		req.Header.Add("Accept", t)
+	}
+
 	resp, err := ms.client.Do(req)
 	if err != nil {
 		return false, err
 	}
+	defer resp.Body.Close()
 
-	if SuccessStatus(resp.StatusCode) {
-		return true, nil
-	} else if resp.StatusCode == http.StatusNotFound {
+	if resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
-	return false, HandleErrorResponse(resp)
+
+	if err := HandleHTTPResponseError(resp); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // AddEtagToTag allows a client to supply an eTag to Get which will be
@@ -516,25 +519,27 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotModified {
 		return nil, distribution.ErrManifestNotModified
-	} else if SuccessStatus(resp.StatusCode) {
-		if contentDgst != nil {
-			dgst, err := digest.Parse(resp.Header.Get("Docker-Content-Digest"))
-			if err == nil {
-				*contentDgst = dgst
-			}
-		}
-		mt := resp.Header.Get("Content-Type")
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		m, _, err := distribution.UnmarshalManifest(mt, body)
-		if err != nil {
-			return nil, err
-		}
-		return m, nil
 	}
-	return nil, HandleErrorResponse(resp)
+	if err := HandleHTTPResponseError(resp); err != nil {
+		return nil, err
+	}
+
+	if contentDgst != nil {
+		dgst, err := digest.Parse(resp.Header.Get("Docker-Content-Digest"))
+		if err == nil {
+			*contentDgst = dgst
+		}
+	}
+	mt := resp.Header.Get("Content-Type")
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	m, _, err := distribution.UnmarshalManifest(mt, body)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // Put puts a manifest.  A tag can be specified using an options parameter which uses some shared state to hold the
@@ -593,17 +598,16 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 	}
 	defer resp.Body.Close()
 
-	if SuccessStatus(resp.StatusCode) {
-		dgstHeader := resp.Header.Get("Docker-Content-Digest")
-		dgst, err := digest.Parse(dgstHeader)
-		if err != nil {
-			return "", err
-		}
-
-		return dgst, nil
+	if err := HandleHTTPResponseError(resp); err != nil {
+		return "", err
 	}
 
-	return "", HandleErrorResponse(resp)
+	dgst, err := digest.Parse(resp.Header.Get("Docker-Content-Digest"))
+	if err != nil {
+		return "", err
+	}
+
+	return dgst, nil
 }
 
 func (ms *manifests) Delete(ctx context.Context, dgst digest.Digest) error {
@@ -626,10 +630,7 @@ func (ms *manifests) Delete(ctx context.Context, dgst digest.Digest) error {
 	}
 	defer resp.Body.Close()
 
-	if SuccessStatus(resp.StatusCode) {
-		return nil
-	}
-	return HandleErrorResponse(resp)
+	return HandleHTTPResponseError(resp)
 }
 
 // todo(richardscothern): Restore interface and implementation with merge of #1050
@@ -660,7 +661,7 @@ func sanitizeLocation(location, base string) (string, error) {
 	return baseURL.ResolveReference(locationURL).String(), nil
 }
 
-func (bs *blobs) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+func (bs *blobs) Stat(ctx context.Context, dgst digest.Digest) (v1.Descriptor, error) {
 	return bs.statter.Stat(ctx, dgst)
 }
 
@@ -688,7 +689,7 @@ func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (io.ReadSeekClose
 		if resp.StatusCode == http.StatusNotFound {
 			return distribution.ErrBlobUnknown
 		}
-		return HandleErrorResponse(resp)
+		return HandleHTTPResponseError(resp)
 	}), nil
 }
 
@@ -717,27 +718,25 @@ func (bs *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.R
 	return err
 }
 
-func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribution.Descriptor, error) {
+func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (v1.Descriptor, error) {
 	writer, err := bs.Create(ctx)
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 	dgstr := digest.Canonical.Digester()
 	n, err := io.Copy(writer, io.TeeReader(bytes.NewReader(p), dgstr.Hash()))
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 	if n < int64(len(p)) {
-		return distribution.Descriptor{}, fmt.Errorf("short copy: wrote %d of %d", n, len(p))
+		return v1.Descriptor{}, fmt.Errorf("short copy: wrote %d of %d", n, len(p))
 	}
 
-	desc := distribution.Descriptor{
+	return writer.Commit(ctx, v1.Descriptor{
 		MediaType: mediaType,
 		Size:      int64(len(p)),
 		Digest:    dgstr.Digest(),
-	}
-
-	return writer.Commit(ctx, desc)
+	})
 }
 
 type optionFunc func(interface{}) error
@@ -826,7 +825,7 @@ func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateO
 			location:  location,
 		}, nil
 	default:
-		return nil, HandleErrorResponse(resp)
+		return nil, HandleHTTPResponseError(resp)
 	}
 }
 
@@ -856,46 +855,49 @@ type blobStatter struct {
 	client *http.Client
 }
 
-func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (v1.Descriptor, error) {
 	ref, err := reference.WithDigest(bs.name, dgst)
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 	u, err := bs.ub.BuildBlobURL(ref)
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, u, nil)
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 	resp, err := bs.client.Do(req)
 	if err != nil {
-		return distribution.Descriptor{}, err
+		return v1.Descriptor{}, err
 	}
 	defer resp.Body.Close()
 
-	if SuccessStatus(resp.StatusCode) {
-		lengthHeader := resp.Header.Get("Content-Length")
-		if lengthHeader == "" {
-			return distribution.Descriptor{}, fmt.Errorf("missing content-length header for request: %s", u)
-		}
-
-		length, err := strconv.ParseInt(lengthHeader, 10, 64)
-		if err != nil {
-			return distribution.Descriptor{}, fmt.Errorf("error parsing content-length: %v", err)
-		}
-
-		return distribution.Descriptor{
-			MediaType: resp.Header.Get("Content-Type"),
-			Size:      length,
-			Digest:    dgst,
-		}, nil
-	} else if resp.StatusCode == http.StatusNotFound {
-		return distribution.Descriptor{}, distribution.ErrBlobUnknown
+	if resp.StatusCode == http.StatusNotFound {
+		return v1.Descriptor{}, distribution.ErrBlobUnknown
 	}
-	return distribution.Descriptor{}, HandleErrorResponse(resp)
+
+	if err := HandleHTTPResponseError(resp); err != nil {
+		return v1.Descriptor{}, err
+	}
+
+	lengthHeader := resp.Header.Get("Content-Length")
+	if lengthHeader == "" {
+		return v1.Descriptor{}, fmt.Errorf("missing content-length header for request: %s", u)
+	}
+
+	length, err := strconv.ParseInt(lengthHeader, 10, 64)
+	if err != nil {
+		return v1.Descriptor{}, fmt.Errorf("error parsing content-length: %v", err)
+	}
+
+	return v1.Descriptor{
+		MediaType: resp.Header.Get("Content-Type"),
+		Size:      length,
+		Digest:    dgst,
+	}, nil
 }
 
 func buildCatalogValues(maxEntries int, last string) url.Values {
@@ -933,12 +935,9 @@ func (bs *blobStatter) Clear(ctx context.Context, dgst digest.Digest) error {
 	}
 	defer resp.Body.Close()
 
-	if SuccessStatus(resp.StatusCode) {
-		return nil
-	}
-	return HandleErrorResponse(resp)
+	return HandleHTTPResponseError(resp)
 }
 
-func (bs *blobStatter) SetDescriptor(ctx context.Context, dgst digest.Digest, desc distribution.Descriptor) error {
+func (bs *blobStatter) SetDescriptor(ctx context.Context, dgst digest.Digest, desc v1.Descriptor) error {
 	return nil
 }

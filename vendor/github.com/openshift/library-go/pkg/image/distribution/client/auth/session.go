@@ -29,9 +29,9 @@ var (
 const defaultClientID = "registry-client"
 
 // AuthenticationHandler is an interface for authorizing a request from
-// params from a "WWW-Authenicate" header for a single scheme.
+// params from a "WWW-Authenticate" header for a single scheme.
 type AuthenticationHandler interface {
-	// Scheme returns the scheme as expected from the "WWW-Authenicate" header.
+	// Scheme returns the scheme as expected from the "WWW-Authenticate" header.
 	Scheme() string
 
 	// AuthorizeRequest adds the authorization header to a request (if needed)
@@ -360,8 +360,7 @@ func (th *tokenHandler) fetchTokenWithOAuth(ctx context.Context, realm *url.URL,
 	}
 	defer resp.Body.Close()
 
-	if !client.SuccessStatus(resp.StatusCode) {
-		err := client.HandleErrorResponse(resp)
+	if err := client.HandleHTTPResponseError(resp); err != nil {
 		return "", time.Time{}, err
 	}
 
@@ -443,8 +442,7 @@ func (th *tokenHandler) fetchTokenWithBasicAuth(ctx context.Context, realm *url.
 	}
 	defer resp.Body.Close()
 
-	if !client.SuccessStatus(resp.StatusCode) {
-		err := client.HandleErrorResponse(resp)
+	if err := client.HandleHTTPResponseError(resp); err != nil {
 		return "", time.Time{}, err
 	}
 

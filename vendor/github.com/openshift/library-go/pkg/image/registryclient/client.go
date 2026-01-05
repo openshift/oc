@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	registryclient "github.com/openshift/library-go/pkg/image/distribution/client"
 	"github.com/openshift/library-go/pkg/image/distribution/client/auth"
 	"github.com/openshift/library-go/pkg/image/distribution/client/auth/challenge"
@@ -22,7 +23,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 	"github.com/distribution/distribution/v3/registry/api/errcode"
 	"github.com/opencontainers/go-digest"
 
@@ -569,10 +570,10 @@ type retryBlobStore struct {
 	repo *retryRepository
 }
 
-func (c retryBlobStore) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+func (c retryBlobStore) Stat(ctx context.Context, dgst digest.Digest) (v1.Descriptor, error) {
 	for i := 0; ; i++ {
 		if err := c.repo.limiter.Wait(ctx); err != nil {
-			return distribution.Descriptor{}, err
+			return v1.Descriptor{}, err
 		}
 		d, err := c.BlobStore.Stat(ctx, dgst)
 		if c.repo.shouldRetry(i, err) {
@@ -613,10 +614,10 @@ type retryTags struct {
 	repo *retryRepository
 }
 
-func (c *retryTags) Get(ctx context.Context, tag string) (distribution.Descriptor, error) {
+func (c *retryTags) Get(ctx context.Context, tag string) (v1.Descriptor, error) {
 	for i := 0; ; i++ {
 		if err := c.repo.limiter.Wait(ctx); err != nil {
-			return distribution.Descriptor{}, err
+			return v1.Descriptor{}, err
 		}
 		t, err := c.TagService.Get(ctx, tag)
 		if c.repo.shouldRetry(i, err) {
@@ -639,7 +640,7 @@ func (c *retryTags) All(ctx context.Context) ([]string, error) {
 	}
 }
 
-func (c *retryTags) Lookup(ctx context.Context, digest distribution.Descriptor) ([]string, error) {
+func (c *retryTags) Lookup(ctx context.Context, digest v1.Descriptor) ([]string, error) {
 	for i := 0; ; i++ {
 		if err := c.repo.limiter.Wait(ctx); err != nil {
 			return nil, err

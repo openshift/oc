@@ -1,13 +1,20 @@
 package transport
 
 import (
+	"compress/flate"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
+	"unicode"
+
+	"github.com/klauspost/compress/zstd"
 )
 
 var (
@@ -18,11 +25,6 @@ var (
 	// than 206 Partial Content.
 	ErrWrongCodeForByteRange = errors.New("expected HTTP 206 from byte range request")
 )
-
-// ReadSeekCloser combines io.ReadSeeker with io.Closer.
-//
-// Deprecated: use [io.ReadSeekCloser].
-type ReadSeekCloser = io.ReadSeekCloser
 
 // NewHTTPReadSeeker handles reading from an HTTP endpoint using a GET
 // request. When seeking and starting a read from a non-zero offset
@@ -163,7 +165,7 @@ func (hrs *HTTPReadSeeker) reset() {
 	}
 }
 
-func (hrs *HTTPReadSeeker) reader() (io.Reader, error) {
+func (hrs *HTTPReadSeeker) reader() (_ io.Reader, retErr error) {
 	if hrs.err != nil {
 		return nil, hrs.err
 	}
@@ -184,10 +186,16 @@ func (hrs *HTTPReadSeeker) reader() (io.Reader, error) {
 		// context.GetLogger(hrs.context).Infof("Range: %s", req.Header.Get("Range"))
 	}
 
+	req.Header.Add("Accept-Encoding", "zstd, gzip, deflate")
 	resp, err := hrs.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = resp.Body.Close()
+		}
+	}()
 
 	// Normally would use client.SuccessStatus, but that would be a cyclic
 	// import
@@ -233,6 +241,9 @@ func (hrs *HTTPReadSeeker) reader() (io.Reader, error) {
 					return nil, fmt.Errorf("range in Content-Range stops before the end of the content: %s", contentRange)
 				}
 
+				if size > math.MaxInt64 {
+					return nil, fmt.Errorf("Content-Range size: %d exceeds max allowed size", size)
+				}
 				hrs.size = int64(size)
 			}
 		} else if resp.StatusCode == http.StatusOK {
@@ -240,10 +251,41 @@ func (hrs *HTTPReadSeeker) reader() (io.Reader, error) {
 		} else {
 			hrs.size = -1
 		}
-		hrs.rc = resp.Body
+
+		body := resp.Body
+		encoding := strings.FieldsFunc(resp.Header.Get("Content-Encoding"), func(r rune) bool {
+			return unicode.IsSpace(r) || r == ','
+		})
+		for i := len(encoding) - 1; i >= 0; i-- {
+			algorithm := strings.ToLower(encoding[i])
+			switch algorithm {
+			case "zstd":
+				r, err := zstd.NewReader(body)
+				if err != nil {
+					return nil, err
+				}
+				body = r.IOReadCloser()
+			case "gzip":
+				body, err = gzip.NewReader(body)
+				if err != nil {
+					return nil, err
+				}
+			case "deflate":
+				body = flate.NewReader(body)
+			case "":
+				// no content-encoding applied, use raw body
+			default:
+				return nil, errors.New("unsupported Content-Encoding algorithm: " + algorithm)
+			}
+		}
+
+		hrs.rc = body
 	} else {
-		defer resp.Body.Close()
 		if hrs.errorHandler != nil {
+			// Closing the body should be handled by the existing defer,
+			// but in case a custom "errHandler" is used that doesn't return
+			// an error, we close the body regardless.
+			defer resp.Body.Close()
 			return nil, hrs.errorHandler(resp)
 		}
 		return nil, fmt.Errorf("unexpected status resolving reader: %v", resp.Status)

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/distribution/distribution/v3/registry/client/transport"
+	"github.com/openshift/library-go/pkg/image/distribution/client/transport"
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

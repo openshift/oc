@@ -24,7 +24,7 @@ import (
 	"github.com/aws/smithy-go"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 	godigest "github.com/opencontainers/go-digest"
 )
 
