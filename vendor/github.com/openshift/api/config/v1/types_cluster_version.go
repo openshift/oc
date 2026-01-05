@@ -727,7 +727,7 @@ type Update struct {
 	//   operator and you have verified the authenticity of the provided
 	//   image yourself.
 	// The provided image will run with full administrative access
-	// to the cluster. Do not use this flag with images that comes from unknown
+	// to the cluster. Do not use this flag with images that come from unknown
 	// or potentially malicious sources.
 	//
 	// +optional
