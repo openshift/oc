@@ -221,3 +221,5 @@ require (
 )
 
 replace github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
+
+replace github.com/openshift/library-go => github.com/ardaguclu/library-go v0.0.0-20260105092109-3fc6249cdc6d

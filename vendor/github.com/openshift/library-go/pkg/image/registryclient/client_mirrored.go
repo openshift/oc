@@ -11,9 +11,9 @@ import (
 
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/registry/api/errcode"
-	"github.com/distribution/distribution/v3/registry/client"
-	"github.com/distribution/distribution/v3/registry/client/auth"
 	"github.com/opencontainers/go-digest"
+	"github.com/openshift/library-go/pkg/image/distribution/client"
+	"github.com/openshift/library-go/pkg/image/distribution/client/auth"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"k8s.io/klog/v2"
 

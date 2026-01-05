@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/openshift/library-go/pkg/image/distribution/client/auth"
 	"k8s.io/klog/v2"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/reference"
-	"github.com/distribution/distribution/v3/registry/client/auth"
 	godigest "github.com/opencontainers/go-digest"
 )
 

@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/distribution/distribution/v3/registry/client"
-	"github.com/distribution/distribution/v3/registry/client/auth/challenge"
-	"github.com/distribution/distribution/v3/registry/client/transport"
+	"github.com/openshift/library-go/pkg/image/distribution/client"
+	"github.com/openshift/library-go/pkg/image/distribution/client/auth/challenge"
+	"github.com/openshift/library-go/pkg/image/distribution/client/transport"
 )
 
 var (

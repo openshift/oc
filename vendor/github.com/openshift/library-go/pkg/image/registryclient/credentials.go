@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/distribution/distribution/v3/registry/client/auth"
+	"github.com/openshift/library-go/pkg/image/distribution/client/auth"
 )
 
 var (

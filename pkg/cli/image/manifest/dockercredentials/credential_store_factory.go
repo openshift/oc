@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/containers/image/v5/docker/reference"
-	"github.com/distribution/distribution/v3/registry/client/auth"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/openshift/library-go/pkg/image/distribution/client/auth"
 	"github.com/openshift/library-go/pkg/image/registryclient"
 )
 
