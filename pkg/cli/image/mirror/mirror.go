@@ -12,12 +12,12 @@ import (
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest/manifestlist"
 	"github.com/distribution/distribution/v3/manifest/ocischema"
-	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	"github.com/distribution/distribution/v3/reference"
 	"github.com/distribution/distribution/v3/registry/client"
 	units "github.com/docker/go-units"
 	godigest "github.com/opencontainers/go-digest"
+	"github.com/openshift/library-go/pkg/image/distribution/manifest/schema1"
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/util/sets"

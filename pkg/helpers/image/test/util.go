@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/distribution/distribution/v3/manifest/schema1"
 	"github.com/distribution/distribution/v3/manifest/schema2"
 	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/openshift/library-go/pkg/image/distribution/manifest/schema1"
 
 	kappsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
