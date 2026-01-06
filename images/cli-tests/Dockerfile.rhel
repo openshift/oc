@@ -1,0 +1,12 @@
+# This Dockerfile builds an image containing oc-tests-ext binary for CI testing
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.24-openshift-4.22 AS builder
+WORKDIR /go/src/github.com/openshift/oc
+COPY . .
+RUN make oc-tests-ext --warn-undefined-variables \
+      && gzip oc-tests-ext
+
+FROM registry.ci.openshift.org/ocp/4.22:cli
+COPY --from=builder /go/src/github.com/openshift/oc/oc-tests-ext.gz /usr/bin/
+LABEL io.k8s.display-name="OpenShift Test Extensions" \
+      io.k8s.description="Test extensions for OpenShift CLI testing in CI." \
+      io.openshift.tags="openshift,cli,tests"
