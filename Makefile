@@ -28,7 +28,7 @@ GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
                    -X k8s.io/client-go/pkg/version.gitTreeState="$(SOURCE_GIT_TREE_STATE)"
 
 GO_BUILD_PACKAGES :=$(strip \
-	./cmd/oc/... \
+	./cmd/... \
 	$(wildcard ./tools/*) \
 )
 # These tags make sure we can statically link and avoid shared dependencies
@@ -57,12 +57,9 @@ $(call build-image,ocp-cli,$(IMAGE_REGISTRY)/ocp/4.2:cli,./images/cli/Dockerfile
 
 $(call build-image,ocp-cli-artifacts,$(IMAGE_REGISTRY)/ocp/4.2:cli-artifacts,./images/cli-artifacts/Dockerfile.rhel,.)
 
-$(call build-image,ocp-cli-tests,$(IMAGE_REGISTRY)/ocp/4.2:cli-tests,./images/cli-tests/Dockerfile.rhel,.)
-
 $(call verify-golang-versions,images/cli/Dockerfile.rhel)
 
 image-ocp-cli-artifacts: image-ocp-cli
-image-ocp-cli-tests: image-ocp-cli
 
 $(call build-image,ocp-deployer,$(IMAGE_REGISTRY)/ocp/4.2:deployer,./images/deployer/Dockerfile.rhel,.)
 image-ocp-deployer: image-ocp-cli
@@ -73,10 +70,6 @@ image-ocp-recycler: image-ocp-cli
 oc: GO_BUILD_PACKAGES :=./cmd/oc
 oc: build
 .PHONY: oc
-
-oc-tests-ext: GO_BUILD_PACKAGES :=./cmd/oc-tests-ext
-oc-tests-ext: build
-.PHONY: oc-tests-ext
 
 update: update-generated-completions
 .PHONY: update
