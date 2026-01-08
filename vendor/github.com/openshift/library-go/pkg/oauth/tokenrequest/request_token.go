@@ -21,6 +21,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	"github.com/openshift/library-go/pkg/crypto"
 	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
 	"github.com/openshift/library-go/pkg/oauth/tokenrequest/challengehandlers"
 )
@@ -551,7 +552,7 @@ func transportWithSystemRoots(issuer string, clientConfig *restclient.Config) (h
 	resp.Body.Close()
 
 	_, err = verifyServerCertChain(issuerURL.Hostname(), resp.TLS.PeerCertificates)
-	switch err.(type) {
+	switch err := err.(type) {
 	case nil:
 		// copy the config so we can freely mutate it
 		configWithSystemRoots := restclient.CopyConfig(clientConfig)
@@ -571,7 +572,11 @@ func transportWithSystemRoots(issuer string, clientConfig *restclient.Config) (h
 			return nil, err
 		}
 		return systemRootsRT, nil
-	case x509.UnknownAuthorityError, x509.HostnameError, x509.CertificateInvalidError, x509.SystemRootsError,
+	case x509.HostnameError:
+		// fallback to the CA in the kubeconfig since the system roots did not work
+		klog.V(4).Infof("falling back to kubeconfig CA due to possible x509 error: %s", crypto.FormatHostnameError(err))
+		return restclient.TransportFor(clientConfig)
+	case x509.UnknownAuthorityError, x509.CertificateInvalidError, x509.SystemRootsError,
 		tls.RecordHeaderError, *net.OpError:
 		// fallback to the CA in the kubeconfig since the system roots did not work
 		// we are very broad on the errors here to avoid failing when we should fallback
