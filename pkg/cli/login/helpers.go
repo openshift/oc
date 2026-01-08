@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/openshift/library-go/pkg/crypto"
 	"github.com/openshift/oc/pkg/helpers/term"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -87,11 +88,12 @@ func dialToServer(clientConfig restclient.Config) error {
 func promptForInsecureTLS(reader io.Reader, out io.Writer, reason error) bool {
 	var insecureTLSRequestReason string
 	if reason != nil {
-		switch reason.(type) {
+		switch reason := reason.(type) {
 		case x509.UnknownAuthorityError:
 			insecureTLSRequestReason = "The server uses a certificate signed by an unknown authority."
 		case x509.HostnameError:
-			insecureTLSRequestReason = fmt.Sprintf("The server is using a certificate that does not match its hostname: %s", reason.Error())
+			// Use FormatHostnameError to mitigate CVE-2025-61729.q
+			insecureTLSRequestReason = fmt.Sprintf("The server is using a certificate that does not match its hostname: %s", crypto.FormatHostnameError(reason))
 		case x509.CertificateInvalidError:
 			insecureTLSRequestReason = fmt.Sprintf("The server is using an invalid certificate: %s", reason.Error())
 		}
