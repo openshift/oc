@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/openshift/library-go/pkg/crypto"
 )
 
 const (
@@ -54,6 +56,11 @@ func getPrettyMessageForServer(err error, serverName string) string {
 		return fmt.Sprintf(tlsOversizedRecordMsg, err, serverName)
 
 	case certificateHostnameErrorReason:
+		// Use FormatHostnameError to mitigate CVE-2025-61729.
+		var hostnameErr x509.HostnameError
+		if errors.As(err, &hostnameErr) {
+			return fmt.Sprintf("The server is using a certificate that does not match its hostname: %s", crypto.FormatHostnameError(hostnameErr))
+		}
 		return fmt.Sprintf("The server is using a certificate that does not match its hostname: %s", err)
 
 	case certificateInvalidReason:
@@ -71,12 +78,21 @@ func getPrettyErrorForServer(err error, serverName string) error {
 
 func detectReason(err error) int {
 	if err != nil {
+		// Use FormatHostnameError to mitigate CVE-2025-61729.
+		var errMsg string
+		var hostnameErr x509.HostnameError
+		if errors.As(err, &hostnameErr) {
+			errMsg = crypto.FormatHostnameError(hostnameErr)
+		} else {
+			errMsg = err.Error()
+		}
+
 		switch {
-		case strings.Contains(err.Error(), "certificate signed by unknown authority"):
+		case strings.Contains(errMsg, "certificate signed by unknown authority"):
 			return certificateAuthorityUnknownReason
-		case strings.Contains(err.Error(), "no server defined"):
+		case strings.Contains(errMsg, "no server defined"):
 			return noServerFoundReason
-		case strings.Contains(err.Error(), "tls: oversized record received"):
+		case strings.Contains(errMsg, "tls: oversized record received"):
 			return tlsOversizedRecordReason
 		}
 		switch err.(type) {
