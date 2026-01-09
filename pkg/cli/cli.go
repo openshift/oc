@@ -340,7 +340,7 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 	registerCompletionFuncForGlobalFlags(cmds, f)
 
 	if !kcmdutil.KubeRC.IsDisabled() {
-		_, err := pref.Apply(cmds, o.Arguments, o.IOStreams.ErrOut)
+		_, err := pref.Apply(cmds, kubeConfigFlags, o.Arguments, o.IOStreams.ErrOut)
 		if err != nil {
 			fmt.Fprintf(o.IOStreams.ErrOut, "error occurred while applying preferences %v\n", err)
 			os.Exit(1)
