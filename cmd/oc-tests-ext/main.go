@@ -1,7 +1,14 @@
+/*
+This command is used to run the oc tests extension for OpenShift.
+It registers the oc tests with the OpenShift Tests Extension framework
+and provides a command-line interface to execute them.
+For further information, please refer to the documentation at:
+https://github.com/openshift-eng/openshift-tests-extension/blob/main/cmd/example-tests/main.go
+*/
 package main
 
 import (
-	"context"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -9,19 +16,27 @@ import (
 
 	otecmd "github.com/openshift-eng/openshift-tests-extension/pkg/cmd"
 	oteextension "github.com/openshift-eng/openshift-tests-extension/pkg/extension"
+	oteginkgo "github.com/openshift-eng/openshift-tests-extension/pkg/ginkgo"
 	"github.com/openshift/oc/pkg/version"
 
 	"k8s.io/klog/v2"
 )
 
 func main() {
-	command := newOperatorTestCommand(context.Background())
-	code := cli.Run(command)
+	cmd, err := newOperatorTestCommand()
+	if err != nil {
+		klog.Fatal(err)
+	}
+
+	code := cli.Run(cmd)
 	os.Exit(code)
 }
 
-func newOperatorTestCommand(ctx context.Context) *cobra.Command {
-	registry := prepareOperatorTestsRegistry()
+func newOperatorTestCommand() (*cobra.Command, error) {
+	registry, err := prepareOperatorTestsRegistry()
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare test registry: %w", err)
+	}
 
 	cmd := &cobra.Command{
 		Use:   "oc-tests-ext",
@@ -41,13 +56,44 @@ func newOperatorTestCommand(ctx context.Context) *cobra.Command {
 
 	cmd.AddCommand(otecmd.DefaultExtensionCommands(registry)...)
 
-	return cmd
+	return cmd, nil
 }
 
-func prepareOperatorTestsRegistry() *oteextension.Registry {
+func prepareOperatorTestsRegistry() (*oteextension.Registry, error) {
 	registry := oteextension.NewRegistry()
 	extension := oteextension.NewExtension("openshift", "payload", "oc")
 
+	// The following suite runs tests that verify the oc's behaviour.
+	// This suite is executed only on pull requests targeting this repository.
+	// Tests tagged with [Serial] are included in this suite.
+	extension.AddSuite(oteextension.Suite{
+		Name:        "openshift/oc/conformance/serial",
+		Parents:     []string{"openshift/conformance/serial"},
+		Parallelism: 1,
+		Qualifiers: []string{
+			`name.contains("[Serial]")`,
+		},
+	})
+
+	// The following suite runs tests that verify the oc's behaviour.
+	// This suite is executed only on pull requests targeting this repository.
+	// Parallel tests are included in this suite.
+	extension.AddSuite(oteextension.Suite{
+		Name:        "openshift/oc/conformance/parallel",
+		Parents:     []string{"openshift/conformance/parallel"},
+		Parallelism: 1,
+		Qualifiers: []string{
+			`!name.contains("[Serial]")`,
+		},
+	})
+
+	// Build OTE specs from Ginkgo tests
+	specs, err := oteginkgo.BuildExtensionTestSpecsFromOpenShiftGinkgoSuite()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't build extension test specs from ginkgo: %w", err)
+	}
+
+	extension.AddSpecs(specs)
 	registry.Register(extension)
-	return registry
+	return registry, nil
 }
