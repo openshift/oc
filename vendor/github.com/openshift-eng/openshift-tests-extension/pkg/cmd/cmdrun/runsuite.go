@@ -2,11 +2,9 @@ package cmdrun
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -104,14 +102,7 @@ func NewRunSuiteCommand(registry *extension.Registry) *cobra.Command {
 				return errors.Wrap(err, "couldn't filter specs")
 			}
 
-			results, runErr := specs.Run(ctx, compositeWriter, opts.concurrencyFlags.MaxConcurency)
-			if opts.junitPath != "" {
-				// we want to commit the results to disk regardless of the success or failure of the specs
-				if err := writeResults(opts.junitPath, results); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to write test results to disk: %v\n", err)
-				}
-			}
-			return runErr
+			return specs.Run(ctx, compositeWriter, opts.concurrencyFlags.MaxConcurency)
 		},
 	}
 	opts.componentFlags.BindFlags(cmd.Flags())
@@ -120,19 +111,4 @@ func NewRunSuiteCommand(registry *extension.Registry) *cobra.Command {
 	cmd.Flags().StringVarP(&opts.junitPath, "junit-path", "j", opts.junitPath, "write results to junit XML")
 
 	return cmd
-}
-
-func writeResults(jUnitPath string, results []*extensiontests.ExtensionTestResult) error {
-	jUnitDir := filepath.Dir(jUnitPath)
-	if err := os.MkdirAll(jUnitDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %v", err)
-	}
-
-	encodedResults, err := json.MarshalIndent(results, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal results: %v", err)
-	}
-
-	outputPath := filepath.Join(jUnitDir, fmt.Sprintf("extension_test_result_e2e_%s.json", time.Now().UTC().Format("20060102-150405")))
-	return os.WriteFile(outputPath, encodedResults, 0644)
 }

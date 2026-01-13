@@ -19,9 +19,6 @@ import (
 	oteginkgo "github.com/openshift-eng/openshift-tests-extension/pkg/ginkgo"
 	"github.com/openshift/oc/pkg/version"
 
-	// Import test packages to register Ginkgo tests
-	_ "github.com/openshift/oc/test/e2e"
-
 	"k8s.io/klog/v2"
 )
 
