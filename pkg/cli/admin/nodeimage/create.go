@@ -746,6 +746,13 @@ func (o *CreateOptions) createPod(ctx context.Context) error {
 					Name:            nodeJoinerContainer,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					Image:           o.nodeJoinerImage,
+					SecurityContext: &corev1.SecurityContext{
+						AllowPrivilegeEscalation: &[]bool{false}[0],
+						RunAsNonRoot:             &[]bool{true}[0],
+						Capabilities: &corev1.Capabilities{
+							Drop: []corev1.Capability{"ALL"},
+						},
+					},
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "nodes-config",
