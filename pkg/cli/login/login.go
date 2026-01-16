@@ -95,6 +95,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().BoolVarP(&o.WebLogin, "web", "w", o.WebLogin, "Login with web browser. Starts a local HTTP callback server to perform the OAuth2 Authorization Code Grant flow. Use with caution on multi-user systems, as the server's port will be open to all users.")
 	cmds.Flags().Int32VarP(&o.CallbackPort, "callback-port", "c", o.CallbackPort, "Port for the callback server when using --web. Defaults to a random open port")
 
+	cmds.Flags().BoolVar(&o.KeepCtxName, "no-clobber", o.KeepCtxName, "Experimental: Keep the current context name in the kubeconfig file.")
 	cmds.Flags().StringVar(&o.OIDCExecPluginType, "exec-plugin", o.OIDCExecPluginType, "Experimental: Specify credentials exec plugin type to be used to authenticate external OIDC issuer. Currently only 'oc-oidc' is supported")
 	cmds.Flags().StringVar(&o.OIDCClientID, "client-id", o.OIDCClientID, "Experimental: Client ID for external OIDC issuer. Only supports Auth Code + PKCE. Required.")
 	cmds.Flags().StringVar(&o.OIDCClientSecret, "client-secret", o.OIDCClientSecret, "Experimental: Client secret for external OIDC issuer. Optional.")

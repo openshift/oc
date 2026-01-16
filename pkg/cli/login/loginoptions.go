@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/pkg/apis/clientauthentication"
 	restclient "k8s.io/client-go/rest"
 	kclientcmd "k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
 
@@ -70,6 +71,7 @@ type LoginOptions struct {
 	Project      string
 	WebLogin     bool
 	CallbackPort int32
+	KeepCtxName  bool
 
 	// infra
 	StartingKubeConfig *kclientcmdapi.Config
@@ -556,6 +558,11 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 	newConfig, err := cliconfig.CreateConfig(o.Project, o.Username, o.Config)
 	if err != nil {
 		return false, err
+	}
+	if o.KeepCtxName {
+		newContext := newConfig.Contexts[newConfig.CurrentContext]
+		newConfig.Contexts = map[string]*api.Context{o.StartingKubeConfig.CurrentContext: newContext}
+		newConfig.CurrentContext = o.StartingKubeConfig.CurrentContext
 	}
 
 	cwd, err := os.Getwd()
