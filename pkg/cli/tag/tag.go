@@ -116,7 +116,7 @@ func NewCmdTag(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Co
 	cmd.Flags().BoolVar(&o.scheduleTag, "scheduled", o.scheduleTag, "Set a container image to be periodically imported from a remote repository. Defaults to false.")
 	cmd.Flags().BoolVar(&o.insecureTag, "insecure", o.insecureTag, "Set to true if importing the specified container image requires HTTP or has a self-signed certificate. Defaults to false.")
 	cmd.Flags().StringVar(&o.referencePolicy, "reference-policy", SourceReferencePolicy, "Allow to request pullthrough for external image when set to 'local'. Defaults to 'source'.")
-	cmd.Flags().StringVar(&o.importMode, "import-mode", o.importMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
+	cmd.Flags().StringVar(&o.importMode, "import-mode", o.importMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. When set to 'Legacy', imports a single sub-manifest. When unspecified, the cluster determines the import mode.")
 
 	return cmd
 }
@@ -367,7 +367,8 @@ func (o *TagOptions) Validate() error {
 	case string(imagev1.ImportModeLegacy):
 	case string(imagev1.ImportModePreserveOriginal):
 	case "":
-		o.importMode = string(imagev1.ImportModeLegacy)
+		// Leave empty and let it be decided based on the ClusterVersion's "desired.architecture" value. If the value is "Multi",
+		// the import mode is set to "PreserveOriginal", if not it is set to "Legacy"
 	default:
 		return fmt.Errorf("valid ImportMode values are %s or %s", imagev1.ImportModeLegacy, imagev1.ImportModePreserveOriginal)
 	}
