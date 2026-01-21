@@ -1,137 +1,108 @@
-//go:generate sh -c "command -v go-bindata >/dev/null 2>&1 || go install github.com/go-bindata/go-bindata/v3/go-bindata@latest"
-//go:generate go-bindata -nocompress -nometadata -pkg testdata -o bindata.go -prefix ../.. ../../testdata/...
-
 package testdata
 
 import (
+	"embed"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
+//go:embed oc_cli
+var embeddedFixtures embed.FS
+
 var fixtureDir string
 
 func init() {
 	var err error
-	fixtureDir, err = ioutil.TempDir("", "oc-testdata-fixtures-")
+	// Create a temporary directory for extracted fixtures
+	fixtureDir, err = os.MkdirTemp("", "oc-testdata-fixtures-")
 	if err != nil {
 		panic(fmt.Sprintf("failed to create fixture directory: %v", err))
 	}
 }
 
-// FixturePath returns the filesystem path to a fixture file, extracting it from
-// embedded bindata if necessary. The relativePath should be like "testdata/oc_cli/file.yaml" or "oc_cli/file.yaml"
+// FixturePath returns the filesystem path to a fixture file or directory, extracting it from
+// embedded files if necessary. The relativePath should be like "testdata/oc_cli/file.yaml" or "oc_cli/file.yaml"
 func FixturePath(elem ...string) string {
 	relativePath := filepath.Join(elem...)
 
-	// bindata prefixes paths with "testdata/", so we need to handle that
-	bindataPath := relativePath
-	if !strings.HasPrefix(bindataPath, "testdata/") {
-		bindataPath = "testdata/" + bindataPath
-	}
+	// Normalize the path for embed.FS (always use forward slashes, remove testdata/ prefix)
+	embedPath := strings.ReplaceAll(relativePath, string(filepath.Separator), "/")
+	embedPath = strings.TrimPrefix(embedPath, "testdata/")
 
-	// The target path includes the full path as stored in bindata
-	// For example: "testdata/oc_cli/file.yaml" -> "testdata/oc_cli/file.yaml" in temp dir
-	targetPath := filepath.Join(fixtureDir, bindataPath)
+	// Target path in temp directory
+	targetPath := filepath.Join(fixtureDir, relativePath)
 
 	// Check if already extracted
-	if _, err := os.Stat(targetPath); err != nil {
-		// File doesn't exist, need to extract it
+	if _, err := os.Stat(targetPath); err == nil {
+		return targetPath
+	}
 
+	// Check if this is a directory or file in embed.FS
+	info, err := fs.Stat(embeddedFixtures, embedPath)
+	if err != nil {
+		panic(fmt.Sprintf("failed to stat embedded path %s: %v", embedPath, err))
+	}
+
+	if info.IsDir() {
+		// It's a directory - extract all files recursively
+		err := fs.WalkDir(embeddedFixtures, embedPath, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Calculate target path
+			relPath := strings.TrimPrefix(path, embedPath)
+			relPath = strings.TrimPrefix(relPath, "/")
+			target := filepath.Join(targetPath, relPath)
+
+			if d.IsDir() {
+				// Create directory
+				return os.MkdirAll(target, 0700)
+			}
+
+			// Create parent directory
+			if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
+				return err
+			}
+
+			// Read and write file
+			data, err := embeddedFixtures.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(target, data, 0644)
+		})
+		if err != nil {
+			panic(fmt.Sprintf("failed to extract directory %s: %v", embedPath, err))
+		}
+	} else {
+		// It's a file
 		// Create parent directory
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0700); err != nil {
 			panic(fmt.Sprintf("failed to create directory for %s: %v", relativePath, err))
 		}
 
-		// Try to restore the single asset using RestoreAsset
-		err := RestoreAsset(fixtureDir, bindataPath)
+		// Read from embedded FS
+		data, err := embeddedFixtures.ReadFile(embedPath)
 		if err != nil {
-			// If single file fails, try as directory
-			err = RestoreAssets(fixtureDir, bindataPath)
-			if err != nil {
-				panic(fmt.Sprintf("failed to restore asset %s: %v", bindataPath, err))
-			}
+			panic(fmt.Sprintf("failed to read embedded file %s: %v", embedPath, err))
 		}
-	}
 
-	// ALWAYS fix permissions, even if file already existed
-	// go-bindata creates files with 0000 permissions which are unreadable
-
-	// Fix permissions on all parent directories
-	dir := filepath.Dir(targetPath)
-	for dir != fixtureDir && len(dir) > len(fixtureDir) {
-		os.Chmod(dir, 0755)
-		dir = filepath.Dir(dir)
-	}
-
-	// Fix the target file/directory permissions
-	if info, err := os.Stat(targetPath); err == nil {
-		if !info.IsDir() {
-			// It's a file, set to 0644 (rw-r--r--)
-			if chmodErr := os.Chmod(targetPath, 0644); chmodErr != nil {
-				panic(fmt.Sprintf("failed to chmod file %s: %v", targetPath, chmodErr))
-			}
-		} else {
-			// It's a directory, set to 0755 (rwxr-xr-x) and recursively fix all files inside
-			if chmodErr := os.Chmod(targetPath, 0755); chmodErr != nil {
-				panic(fmt.Sprintf("failed to chmod directory %s: %v", targetPath, chmodErr))
-			}
-			// Recursively fix permissions for all files and subdirectories
-			filepath.Walk(targetPath, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-				if info.IsDir() {
-					return os.Chmod(path, 0755)
-				}
-				return os.Chmod(path, 0644)
-			})
+		// Write to temp directory
+		if err := os.WriteFile(targetPath, data, 0644); err != nil {
+			panic(fmt.Sprintf("failed to write fixture file %s: %v", targetPath, err))
 		}
-	} else {
-		panic(fmt.Sprintf("file %s does not exist after extraction: %v", targetPath, err))
-	}
-
-	// Double-check the file is now readable
-	if _, err := os.Open(targetPath); err != nil {
-		panic(fmt.Sprintf("file %s exists but cannot be opened: %v", targetPath, err))
 	}
 
 	return targetPath
 }
 
-// GetFixtureData returns the raw bytes of a fixture without writing to disk
-func GetFixtureData(relativePath string) ([]byte, error) {
-	bindataPath := relativePath
-	if !strings.HasPrefix(bindataPath, "testdata/") {
-		bindataPath = "testdata/" + bindataPath
-	}
-	return Asset(bindataPath)
-}
-
-// MustGetFixtureData is like GetFixtureData but panics on error
-func MustGetFixtureData(relativePath string) []byte {
-	data, err := GetFixtureData(relativePath)
-	if err != nil {
-		panic(fmt.Sprintf("failed to get fixture data for %s: %v", relativePath, err))
-	}
-	return data
-}
-
-// FixtureExists checks if a fixture is available in bindata
-func FixtureExists(relativePath string) bool {
-	bindataPath := relativePath
-	if !strings.HasPrefix(bindataPath, "testdata/") {
-		bindataPath = "testdata/" + bindataPath
-	}
-	_, err := AssetInfo(bindataPath)
-	return err == nil
-}
-
-// ListFixtures returns all available fixture paths
-func ListFixtures() []string {
-	return AssetNames()
+// GetFixtureDir returns the temporary directory where fixtures are extracted
+func GetFixtureDir() string {
+	return fixtureDir
 }
 
 // CleanupFixtures removes the temporary fixture directory
@@ -142,7 +113,17 @@ func CleanupFixtures() error {
 	return nil
 }
 
-// GetFixtureDir returns the temporary directory where fixtures are extracted
-func GetFixtureDir() string {
-	return fixtureDir
+// ListFixtures returns all available fixture paths
+func ListFixtures() []string {
+	var fixtures []string
+	fs.WalkDir(embeddedFixtures, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			fixtures = append(fixtures, path)
+		}
+		return nil
+	})
+	return fixtures
 }

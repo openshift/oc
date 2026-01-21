@@ -26,7 +26,6 @@ import (
 	"time"
 
 	g "github.com/onsi/ginkgo/v2"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -688,16 +687,6 @@ func (pod *podMirror) createPodMirror(oc *CLI) {
 	AssertWaitPollNoErr(err, fmt.Sprintf("pod %s with %s is not created successfully", pod.name, pod.cliImageID))
 }
 
-func createPullSecret(oc *CLI, namespace string) {
-	e2e.Logf("Creating pull secret in namespace %s", namespace)
-	err := oc.AsAdmin().WithoutNamespace().Run("extract").Args("secret/pull-secret", "-n", "openshift-config", "--to=/tmp", "--confirm").Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-
-	err = oc.WithoutNamespace().Run("create").Args("secret", "generic", "my-secret", "--from-file="+"/tmp/.dockerconfigjson", "-n", namespace).Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	e2e.Logf("Pull secret created successfully in namespace %s", namespace)
-}
-
 func getCliImage(oc *CLI) string {
 	e2e.Logf("Getting CLI image from openshift namespace")
 	cliImage, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("imagestreams", "cli", "-n", "openshift", "-o=jsonpath={.spec.tags[0].from.name}").Output()
@@ -897,32 +886,6 @@ func getRemainingRs(oc *CLI, namespace string, deployname string) []string {
 	return remainRsList
 }
 
-func locatePodmanCred(oc *CLI, dst string) error {
-	err := oc.AsAdmin().WithoutNamespace().Run("extract").Args("secret/pull-secret", "-n", "openshift-config", "--to="+dst, "--confirm").Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-
-	key := "XDG_RUNTIME_DIR"
-	currentRuntime, ex := os.LookupEnv(key)
-	if !ex {
-		err = os.MkdirAll("/tmp/configocmirror/containers", 0700)
-		o.Expect(err).NotTo(o.HaveOccurred())
-		os.Setenv(key, "/tmp/configocmirror")
-		copyFile(dst+"/"+".dockerconfigjson", "/tmp/configocmirror/containers/auth.json")
-		return nil
-	}
-	_, err = os.Stat(currentRuntime + "/containers/auth.json")
-	if os.IsNotExist(err) {
-		err1 := os.MkdirAll(currentRuntime+"/containers", 0700)
-		o.Expect(err1).NotTo(o.HaveOccurred())
-		copyFile(dst+"/"+".dockerconfigjson", currentRuntime+"/containers/auth.json")
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func checkPodStatus(oc *CLI, podLabel string, namespace string, expected string) {
 	err := wait.Poll(20*time.Second, 300*time.Second, func() (bool, error) {
 		output, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("pod", "-n", namespace, "-l", podLabel, "-o=jsonpath={.items[*].status.phase}").Output()
@@ -945,100 +908,6 @@ func checkNetworkType(oc *CLI) string {
 	networkType := strings.ToLower(output)
 	e2e.Logf("Cluster network type: %s", networkType)
 	return networkType
-}
-
-func checkDockerCred() bool {
-	homePath := os.Getenv("HOME")
-	_, err := os.Stat(homePath + "/.docker/config.json")
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
-func checkPodmanCred() bool {
-	currentRuntime := os.Getenv("XDG_RUNTIME_DIR")
-	_, err := os.Stat(currentRuntime + "containers/auth.json")
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
-func getPullSecret(oc *CLI) (string, error) {
-	return oc.AsAdmin().WithoutNamespace().Run("get").Args("secret/pull-secret", "-n", "openshift-config", `--template={{index .data ".dockerconfigjson" | base64decode}}`).OutputToFile("auth.dockerconfigjson")
-}
-
-func getHostFromRoute(oc *CLI, routeName string, routeNamespace string) string {
-	e2e.Logf("Getting host from route %s in namespace %s", routeName, routeNamespace)
-	stdout, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("route", routeName, "-n", routeNamespace, "-o", "jsonpath='{.spec.host}'").Output()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	e2e.Logf("Route %s host: %s", routeName, stdout)
-	return stdout
-}
-func createEdgeRoute(oc *CLI, serviceName string, namespace string, routeName string) {
-	e2e.Logf("Creating edge route %s for service %s in namespace %s", routeName, serviceName, namespace)
-	err := oc.WithoutNamespace().Run("create").Args("route", "edge", routeName, "--service", serviceName, "-n", namespace).Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	e2e.Logf("Edge route %s created successfully", routeName)
-}
-
-func createDir(dirname string) {
-	err := os.MkdirAll(dirname, 0755)
-	o.Expect(err).NotTo(o.HaveOccurred())
-}
-
-func createSpecialRegistry(oc *CLI, namespace string, ssldir string, dockerConfig string) string {
-	err := oc.AsAdmin().WithoutNamespace().Run("create").Args("deploy", "mydauth", "-n", namespace, "--image=quay.io/openshifttest/registry-auth-server@sha256:f56cb68a6353a27dc08cef5d33a283875808def0e80fdda2e3c2d5ddb557c703", "--port=5001").Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-
-	err = oc.AsAdmin().WithoutNamespace().Run("expose").Args("deploy", "mydauth", "-n", namespace).Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	err = oc.AsAdmin().WithoutNamespace().Run("create").Args("route", "passthrough", "r1", "--service=mydauth", "-n", namespace).Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-
-	hostD, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("route", "r1", "-n", namespace, "-o=jsonpath={.spec.host}").Output()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	caSubj := "/C=GB/CN=foo  -addext \"subjectAltName = DNS:" + hostD + "\""
-	opensslCmd := fmt.Sprintf(`openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout  %s/server.key  -out  %s/server.pem -subj %s`, ssldir, ssldir, caSubj)
-	e2e.Logf("opensslcmd is :%v", opensslCmd)
-	_, err = exec.Command("bash", "-c", opensslCmd).Output()
-	o.Expect(err).NotTo(o.HaveOccurred())
-
-	err = oc.AsAdmin().WithoutNamespace().Run("create").Args("secret", "generic", "dockerauthssl", "--from-file="+ssldir, "-n", namespace).Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	err = oc.AsAdmin().WithoutNamespace().Run("set").Args("volume", "deploy", "mydauth", "--add", "--name=v2", "--type=secret", "--secret-name=dockerauthssl", "--mount-path=/ssl", "-n", namespace).Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	err = oc.AsAdmin().WithoutNamespace().Run("create").Args("secret", "generic", "dockerautoconfig", "--from-file="+dockerConfig, "-n", namespace).Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	err = oc.AsAdmin().WithoutNamespace().Run("set").Args("volume", "deploy", "mydauth", "--add", "--name=v1", "--type=secret", "--secret-name=dockerautoconfig", "--mount-path=/config", "-n", namespace).Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	e2e.Logf("Check the docker_auth pod should running")
-	if ok := waitForAvailableRsRunning(oc, "deployment", "mydauth", namespace, "1"); ok {
-		e2e.Logf("All pods are runnnig now\n")
-	} else {
-		_ = oc.AsAdmin().WithoutNamespace().Run("get").Args("deploy", "mydauth", "-o", "yaml", "-n", namespace).Execute()
-		e2e.Failf("docker_auth pod is not running even afer waiting for about 3 minutes")
-	}
-
-	registryAuthToken := "https://" + hostD + "/auth"
-	registryPara := fmt.Sprintf(`REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/tmp/registry REGISTRY_AUTH=token REGISTRY_AUTH_TOKEN_REALM=%s REGISTRY_AUTH_TOKEN_SERVICE="Docker registry" REGISTRY_AUTH_TOKEN_ISSUER="Acme auth server" REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE=/ssl/server.pem `, registryAuthToken)
-	err = oc.AsAdmin().WithoutNamespace().Run("new-app").Args("--name=myregistry", fmt.Sprintf("%s", registryPara), "-n", namespace, "--image=quay.io/openshifttest/registry@sha256:1106aedc1b2e386520bc2fb797d9a7af47d651db31d8e7ab472f2352da37d1b3", "--import-mode=PreserveOriginal").Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	err = oc.AsAdmin().WithoutNamespace().Run("set").Args("volume", "deploy", "myregistry", "--add", "--name=v2", "--type=secret", "--secret-name=dockerauthssl", "--mount-path=/ssl", "-n", namespace).Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	err = oc.AsAdmin().WithoutNamespace().Run("create").Args("route", "edge", "r2", "--service=myregistry", "-n", namespace).Execute()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	registryHost, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("route", "r2", "-n", namespace, "-o=jsonpath={.spec.host}").Output()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	e2e.Logf("Check the registry pod should running")
-	if ok := waitForAvailableRsRunning(oc, "deployment", "myregistry", namespace, "1"); ok {
-		e2e.Logf("All pods are runnnig now\n")
-	} else {
-		_ = oc.AsAdmin().WithoutNamespace().Run("get").Args("deploy", "myregistry", "-o", "yaml", "-n", namespace).Execute()
-		e2e.Failf("private registry pod is not running even afer waiting for about 3 minutes")
-	}
-	return registryHost
 }
 
 func getLatestPayload(url string) string {
@@ -1078,38 +947,9 @@ func assertPodOutput(oc *CLI, podLabel string, namespace string, expected string
 }
 
 // this function is used to check whether proxy is configured or not
-func checkProxy(oc *CLI) bool {
-	e2e.Logf("Checking if cluster is using proxy configuration")
-	httpProxy, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("proxy", "cluster", "-o=jsonpath={.status.httpProxy}").Output()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	httpsProxy, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("proxy", "cluster", "-o=jsonpath={.status.httpsProxy}").Output()
-	o.Expect(err).NotTo(o.HaveOccurred())
-	if httpProxy != "" || httpsProxy != "" {
-		e2e.Logf("Cluster is using proxy - httpProxy: %s, httpsProxy: %s", httpProxy, httpsProxy)
-		return true
-	}
-	e2e.Logf("Cluster is not using proxy")
-	return false
-}
-
 // As restart the microshift service, the debug node pod will quit with error
 
 // get cluster resource name list
-func getClusterResourceName(fileName string) ([]string, error) {
-	file, err := os.Open(fileName)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var clusterResourceNameList []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		clusterResourceNameList = append(clusterResourceNameList, strings.Split(scanner.Text(), " ")[0])
-	}
-	return clusterResourceNameList, scanner.Err()
-}
-
 // Check if BaselineCapabilities have been set to None
 func isBaselineCapsSet(oc *CLI, component string) bool {
 	baselineCapabilitySet, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("clusterversion", "version", "-o=jsonpath={.spec.capabilities.baselineCapabilitySet}").Output()
@@ -1127,89 +967,9 @@ func isEnabledCapability(oc *CLI, component string) bool {
 }
 
 // this function is used to check whether openshift-samples installed or not
-func checkOpenshiftSamples(oc *CLI) bool {
-	e2e.Logf("Checking if clusteroperator openshift-samples exists")
-	err := oc.AsAdmin().WithoutNamespace().Run("get").Args("co", "openshift-samples").Execute()
-	if err != nil {
-		e2e.Warningf("Clusteroperator openshift-samples not found or error occurred")
-		return true
-	}
-	e2e.Logf("Clusteroperator openshift-samples exists")
-	return false
-}
-
 // WaitForDeploymentPodsToBeReady waits for the specific deployment to be ready
-func waitForDeploymentPodsToBeReady(oc *CLI, namespace string, name string) {
-	e2e.Logf("Waiting for deployment %s to be ready in namespace %s", name, namespace)
-	err := wait.Poll(20*time.Second, 300*time.Second, func() (done bool, err error) {
-		deployment, err := oc.AdminKubeClient().AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				e2e.Logf("Waiting for availability of deployment/%s\n", name)
-				return false, nil
-			}
-			return false, err
-		}
-		if deployment.Status.AvailableReplicas == *deployment.Spec.Replicas && deployment.Status.UpdatedReplicas == *deployment.Spec.Replicas {
-			e2e.Logf("Deployment %s available (%d/%d)\n", name, deployment.Status.AvailableReplicas, *deployment.Spec.Replicas)
-			return true, nil
-		}
-		e2e.Logf("Waiting for full availability of %s deployment (%d/%d)\n", name, deployment.Status.AvailableReplicas, *deployment.Spec.Replicas)
-		return false, nil
-	})
-	if err != nil {
-		err = oc.AsAdmin().WithoutNamespace().Run("logs").Args("--tail", "15", "deployment/"+name, "-n", namespace).Execute()
-		o.Expect(err).NotTo(o.HaveOccurred())
-		err = oc.AsAdmin().WithoutNamespace().Run("describe").Args("deployment/"+name, "-n", namespace).Execute()
-		o.Expect(err).NotTo(o.HaveOccurred())
-		e2e.Failf("deployment %s is not availabile", name)
-	}
-}
-
 // make sure the PVC is Bound to the PV
-func waitForPvcStatus(oc *CLI, namespace string, pvcname string) {
-	e2e.Logf("Waiting for PVC %s to be Bound in namespace %s", pvcname, namespace)
-	err := wait.Poll(10*time.Second, 300*time.Second, func() (bool, error) {
-		pvStatus, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("-n", namespace, "pvc", pvcname, "-o=jsonpath='{.status.phase}'").Output()
-		if err != nil {
-			return false, err
-		}
-		if match, _ := regexp.MatchString("Bound", pvStatus); match {
-			return true, nil
-		}
-		return false, nil
-	})
-	AssertWaitPollNoErr(err, "The PVC is not Bound as expected")
-}
-
 // wait for DC to be ready
-func waitForDeploymentconfigToBeReady(oc *CLI, namespace string, name string) {
-	e2e.Logf("Waiting for deploymentconfig %s to be ready in namespace %s", name, namespace)
-	err := wait.Poll(10*time.Second, 300*time.Second, func() (done bool, err error) {
-		dcAvailableReplicas, _, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("dc/"+name, "-n", namespace, "-o=jsonpath={.status.availableReplicas}").Outputs()
-		if err != nil {
-			e2e.Logf("error: %v happen, try next", err)
-			return false, nil
-		}
-		dcReadyReplicas, _, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("dc/"+name, "-n", namespace, "-o=jsonpath={.status.readyReplicas}").Outputs()
-		if err != nil {
-			e2e.Logf("error: %v happen, try next", err)
-			return false, nil
-		}
-		dcReplicas, _, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("dc/"+name, "-n", namespace, "-o=jsonpath={.spec.replicas}").Outputs()
-		if err != nil {
-			e2e.Logf("error: %v happen, try next", err)
-			return false, nil
-		}
-		if dcAvailableReplicas == dcReadyReplicas && dcReadyReplicas == dcReplicas {
-			e2e.Logf("Deploymentconfig is ready")
-			return true, nil
-		}
-		return false, nil
-	})
-	AssertWaitPollNoErr(err, fmt.Sprintf("Deploymentconfig %s is not available", name))
-}
-
 func getClusterRegion(oc *CLI) string {
 	e2e.Logf("Getting cluster region")
 	node := getWorkersList(oc)[0]
@@ -1217,6 +977,45 @@ func getClusterRegion(oc *CLI) string {
 	o.Expect(err).NotTo(o.HaveOccurred())
 	e2e.Logf("Cluster region: %s", region)
 	return region
+}
+
+// skipIfDisconnected skips the test if the cluster is disconnected/airgapped.
+// This is useful for ConnectedOnly tests that require external network access.
+// Works across all platforms (AWS, Azure, GCP, bare metal, etc.)
+// Uses multiple detection methods:
+// 1. Quick check: AWS C2S/SC2S regions (us-iso prefix)
+// 2. Actual connectivity test: curl to quay.io from worker node
+func skipIfDisconnected(oc *CLI) {
+	e2e.Logf("Checking if cluster is disconnected")
+
+	// Fast path: Check for AWS C2S/SC2S disconnected regions
+	region := getClusterRegion(oc)
+	if strings.HasPrefix(region, "us-iso") {
+		skipMsg := fmt.Sprintf("Skipping ConnectedOnly test: AWS C2S/SC2S disconnected region (%s)", region)
+		e2e.Warningf("SKIPPING TEST: %s", skipMsg)
+		g.Skip(skipMsg)
+	}
+
+	// Actual connectivity test: Try to reach public internet from worker node
+	e2e.Logf("Testing actual connectivity to public internet")
+	workerNodes := getWorkersList(oc)
+	if len(workerNodes) == 0 {
+		e2e.Logf("Warning: No worker nodes found, assuming cluster is connected")
+		return
+	}
+	workNode := workerNodes[0]
+
+	curlCMD := "curl -I https://quay.io --connect-timeout 10"
+	output, err := DebugNodeWithOptionsAndChroot(oc, workNode, []string{}, curlCMD)
+
+	if !strings.Contains(output, "HTTP") || err != nil {
+		skipMsg := "Skipping ConnectedOnly test: cluster cannot access public internet (disconnected/airgapped)"
+		e2e.Logf("Unable to access quay.io from worker node %s. Output: %s, Error: %v", workNode, output, err)
+		e2e.Warningf("SKIPPING TEST: %s", skipMsg)
+		g.Skip(skipMsg)
+	}
+
+	e2e.Logf("Successfully verified cluster has public internet connectivity (quay.io accessible) - test will proceed")
 }
 
 func assertPullSecret(oc *CLI) bool {
