@@ -41,9 +41,9 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/openshift-eng/openshift-tests-extension v0.0.0-20250804142706-7b3ab438a292
-	github.com/openshift/api v0.0.0-20251111013132-5c461e21bdb7
+	github.com/openshift/api v0.0.0-20260109135506-3920bba77f16
 	github.com/openshift/build-machinery-go v0.0.0-20251020112516-49aa9f5db6d8
-	github.com/openshift/client-go v0.0.0-20251015124057-db0dee36e235
+	github.com/openshift/client-go v0.0.0-20260108185524-48f4ccfc4e13
 	github.com/openshift/library-go v0.0.0-20251222131241-289839b3ffe8
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.23.2
