@@ -158,7 +158,7 @@ func NewCmdNewBuild(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cob
 	cmd.Flags().BoolVar(&o.Config.NoOutput, "no-output", o.Config.NoOutput, "If true, the build output will not be pushed anywhere.")
 	cmd.Flags().StringVar(&o.Config.SourceImage, "source-image", o.Config.SourceImage, "Specify an image to use as source for the build.  You must also specify --source-image-path.")
 	cmd.Flags().StringVar(&o.Config.SourceImagePath, "source-image-path", o.Config.SourceImagePath, "Specify the file or directory to copy from the source image and its destination in the build directory. Format: [source]:[destination-dir].")
-	cmd.Flags().StringVar(&o.Config.ImportMode, "import-mode", o.Config.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
+	cmd.Flags().StringVar(&o.Config.ImportMode, "import-mode", o.Config.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. When set to 'Legacy', imports a single sub-manifest. When unspecified, the cluster determines the import mode.")
 
 	o.Action.BindForOutput(cmd.Flags(), "output", "template", "sort-by")
 	cmd.Flags().String("output-version", "", "The preferred API versions of the output objects")
