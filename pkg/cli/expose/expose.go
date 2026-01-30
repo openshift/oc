@@ -14,6 +14,7 @@ import (
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubectl/pkg/cmd/expose"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/generate"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -183,6 +184,7 @@ func (o *ExposeOptions) Run() error {
 		if len(o.ExposeServiceOptions.Type) != 0 {
 			return fmt.Errorf("cannot use --type when exposing route")
 		}
+
 		// The upstream generator will incorrectly chose service.Port instead of service.TargetPort
 		// for the route TargetPort when no port is present.  Passing forcePort=true
 		// causes UnsecuredRoute to always set a Port so the upstream default is not used.
@@ -190,9 +192,11 @@ func (o *ExposeOptions) Run() error {
 		if err != nil {
 			return err
 		}
-		route.Spec.Host = o.Hostname
-		route.Spec.Path = o.Path
-		route.Spec.WildcardPolicy = routev1.WildcardPolicyType(o.WildcardPolicy)
+
+		if err := o.finalizeRoute(route); err != nil {
+			return err
+		}
+
 		if err := util.CreateOrUpdateAnnotation(kcmdutil.GetFlagBool(o.Cmd, kcmdutil.ApplyAnnotationsFlag), route, exposeCmdJSONEncoder()); err != nil {
 			return err
 		}
@@ -213,4 +217,28 @@ func (o *ExposeOptions) Run() error {
 	}
 
 	return o.ExposeServiceOptions.RunExpose(o.Cmd, o.Args)
+}
+
+func (o *ExposeOptions) finalizeRoute(route *routev1.Route) error {
+	var labels map[string]string
+	if o.ExposeServiceOptions != nil && len(o.ExposeServiceOptions.Labels) > 0 {
+		var err error
+		labels, err = generate.ParseLabels(o.ExposeServiceOptions.Labels)
+		if err != nil {
+			return fmt.Errorf("unable to parse labels: %w", err)
+		}
+	}
+
+	if len(route.ObjectMeta.Labels) == 0 {
+		route.ObjectMeta.Labels = labels
+	} else {
+		for k, v := range labels {
+			route.ObjectMeta.Labels[k] = v
+		}
+	}
+
+	route.Spec.Host = o.Hostname
+	route.Spec.Path = o.Path
+	route.Spec.WildcardPolicy = routev1.WildcardPolicyType(o.WildcardPolicy)
+	return nil
 }
