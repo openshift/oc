@@ -74,6 +74,11 @@ func (r *PerNodePodRuntime) Run(ctx context.Context, prePodHookFn PrePodHookFunc
 	if !r.DryRun {
 		nsToCreate := namespace.DeepCopy()
 		nsToCreate.GenerateName = r.NamespacePrefix
+		// If defaultNodeSelector is configured in the cluster.
+		// We need to clear this, because this namespace can run on any node type.
+		nsToCreate.Annotations = map[string]string{
+			"openshift.io/node-selector": "",
+		}
 		actualNamespace, err := r.KubeClient.CoreV1().Namespaces().Create(ctx, nsToCreate, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create namespace: %w", err)
