@@ -93,8 +93,9 @@ func NewMirrorOptions(streams genericiooptions.IOStreams) *MirrorOptions {
 func NewMirror(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := NewMirrorOptions(streams)
 	cmd := &cobra.Command{
-		Use:   "mirror",
-		Short: "Mirror a release to a different image registry location",
+		Use:        "mirror",
+		Short:      "Mirror a release to a different image registry location",
+		Deprecated: "and will be removed in the future (6.0). Use oc-mirror instead.",
 		Long: templates.LongDesc(`
 			Mirror an OpenShift release image to another registry and produce a configuration
 			manifest containing the release image signature.
