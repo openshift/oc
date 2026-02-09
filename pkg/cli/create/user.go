@@ -107,7 +107,7 @@ func (o *CreateUserOptions) Run() error {
 
 	var err error
 	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
-		user, err = o.UserClient.Users().Create(context.TODO(), user, metav1.CreateOptions{})
+		user, err = o.UserClient.Users().Create(context.TODO(), user, o.CreateSubcommandOptions.toCreateOptions())
 		if err != nil {
 			return err
 		}
