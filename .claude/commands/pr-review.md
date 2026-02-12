@@ -1,6 +1,19 @@
 ---
 description: Review a pull request by running build, tests, verification, and applying Go style improvements
+argument-hint: [base-git-branch]
 ---
+
+## Name
+
+pr-review
+
+## Synopsis
+
+```
+/pr-review [base-git-branch]
+```
+
+## Description
 
 Activate the PR Review skill and perform a comprehensive review of the current changes.
 
@@ -12,3 +25,7 @@ This will:
 5. Provide a detailed summary of findings and any fixes applied
 
 The review process is specifically tailored for oc (OpenShift CLI), which is based on kubectl and provides both kubectl commands and OpenShift-specific functionality.
+
+## Arguments
+
+- **$1** (base-git-branch): Optional. The base branch to review PR changes against. This is `main` by default.

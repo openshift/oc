@@ -163,13 +163,20 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	clientConfig.Insecure = o.InsecureTLS
 
 	if !o.InsecureTLS {
-		// use specified CA or find existing CA
+		// Try to use the specified CA. Then fall back into searching kubeconfig.
 		if len(o.CAFile) > 0 {
 			clientConfig.CAFile = o.CAFile
 			clientConfig.CAData = nil
-		} else if caFile, caData, ok := findExistingClientCA(clientConfig.Host, *o.StartingKubeConfig); ok {
-			clientConfig.CAFile = caFile
-			clientConfig.CAData = caData
+		} else if cluster := findCluster(clientConfig.Host, *o.StartingKubeConfig); cluster != nil {
+			clientConfig.Insecure = cluster.InsecureSkipTLSVerify
+			clientConfig.CAFile = cluster.CertificateAuthority
+			clientConfig.CAData = cluster.CertificateAuthorityData
+
+			// It's not allowed to specify both the insecure flag and a CA.
+			// k8s transport init machinery returns an error in that case.
+			if clientConfig.Insecure && (clientConfig.CAFile != "" || clientConfig.CAData != nil) {
+				return nil, errors.New(insecureTransportCertificateAuthorityConflictMsg)
+			}
 		}
 	}
 
@@ -188,7 +195,7 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 		// connection or if we already have a cluster stanza that tells us to
 		// connect to this particular server insecurely
 		case x509.UnknownAuthorityError, x509.HostnameError, x509.CertificateInvalidError:
-			if o.InsecureTLS ||
+			if clientConfig.Insecure ||
 				hasExistingInsecureCluster(*clientConfig, *o.StartingKubeConfig) ||
 				promptForInsecureTLS(o.In, o.Out, err) {
 				clientConfig.Insecure = true

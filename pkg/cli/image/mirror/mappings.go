@@ -14,9 +14,6 @@ import (
 	"github.com/openshift/oc/pkg/cli/image/imagesource"
 )
 
-// ErrAlreadyExists may be returned by the blob Create function to indicate that the blob already exists.
-var ErrAlreadyExists = fmt.Errorf("blob already exists in the target location")
-
 type Mapping struct {
 	Source      imagesource.TypedImageReference
 	Destination imagesource.TypedImageReference
