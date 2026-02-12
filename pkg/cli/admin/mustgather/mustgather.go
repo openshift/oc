@@ -291,14 +291,6 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to list CSVs: %v", err)
 		}
-		for _, csv := range csvs.Items {
-			ann := csv.GetAnnotations()
-			if v, ok := ann[mgAnnotation]; ok {
-				pluginImages[v] = struct{}{}
-			} else {
-				o.log("WARNING: CSV operator %s doesn't have the must-gather-image annotation.", csv.GetName())
-			}
-		}
 
 		cos, err := o.ConfigClient.ConfigV1().ClusterOperators().List(ctx, metav1.ListOptions{})
 		if err != nil {
@@ -317,7 +309,7 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 		}
 	}
 	o.log("Using must-gather plug-in image: %s", strings.Join(o.Images, ", "))
-	
+
 	return nil
 }
 
@@ -338,6 +330,8 @@ func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struc
 		ann := item.GetAnnotations()
 		if v, ok := ann[mgAnnotation]; ok {
 			pluginImages[v] = struct{}{}
+		} else {
+			o.log("WARNING: CSV operator %s doesn't have the must-gather-image annotation.", item.GetName())
 		}
 	}
 	return pluginImages, nil
