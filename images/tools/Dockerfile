@@ -39,6 +39,7 @@ RUN INSTALL_PKGS="\
   s-nail \
   strace \
   stress-ng \
+  subscription-manager \
   sysstat \
   tcpdump \
   tmux \
