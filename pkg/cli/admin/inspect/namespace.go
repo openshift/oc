@@ -32,7 +32,7 @@ func namespaceResourcesToCollect() []schema.GroupResource {
 		{Resource: "secrets"},
 		{Resource: "servicemonitors"},
 		{Resource: "userdefinednetworks"},
-		{Resource: "ingresses.networking"},
+ {Group: "networking.k8s.io", Resource: "ingresses"}
 	}
 }
 
