@@ -99,10 +99,14 @@ usage_percentage=$(df -P "$target_dir" | awk 'NR==2 {print $5}' | sed 's/%%//')
 echo "[disk usage checker] Volume usage percentage: current = ${usage_percentage} ; allowed = ${usage_percentage_limit}"
 if [ "$usage_percentage" -gt "$usage_percentage_limit" ]; then
 	echo "[disk usage checker] Disk usage exceeds the volume percentage of ${usage_percentage_limit} for mounted directory, terminating..."
-	ps -o sess --no-headers | sort -u | while read sid; do
-		[[ "$sid" -eq "${$}" ]] && continue
-		pkill --signal SIGKILL --session "$sid"
-	done
+	if [ "$HAVE_SESSION_TOOLS" = "true" ]; then
+		ps -o sess --no-headers | sort -u | while read sid; do
+			[[ "$sid" -eq "${$}" ]] && continue
+			pkill --signal SIGKILL --session "$sid"
+		done
+	else
+		kill 0
+	fi
 	exit 1
 fi
 sleep 5
@@ -162,7 +166,7 @@ func NewMustGatherCommand(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().BoolVar(&o.AllImages, "all-images", o.AllImages, `Collect must-gather using the default image for all Operators on the cluster annotated with `+mgAnnotation)
 	cmd.Flags().StringVar(&o.DestDir, "dest-dir", o.DestDir, "Set a specific directory on the local machine to write gathered data to.")
 	cmd.Flags().StringVar(&o.SourceDir, "source-dir", o.SourceDir, "Set the specific directory on the pod copy the gathered data from.")
-	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to gather data, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes.")
+	cmd.Flags().StringVar(&o.timeoutStr, "timeout", "10m", "The length of time to wait for data gathering to complete, like 5s, 2m, or 3h, higher than zero. Defaults to 10 minutes. NOTE: This timeout only applies to the data gathering phase. After gathering completes, copying to the local destination will continue until finished.")
 	cmd.Flags().StringVar(&o.RunNamespace, "run-namespace", o.RunNamespace, "An existing privileged namespace where must-gather pods should run. If not specified a temporary namespace will be generated.")
 	cmd.Flags().Uint8Var(&o.VolumePercentage, "volume-percentage", o.VolumePercentage, "Specify maximum percentage of must-gather pod's allocated volume that can be used. If this limit is exceeded, must-gather will stop gathering, but still copy gathered data.")
 	cmd.Flags().BoolVar(&o.Keep, "keep", o.Keep, "Do not delete temporary resources when command completes.")
@@ -1321,16 +1325,30 @@ func buildPodCommand(
 ) string {
 	var cmd strings.Builder
 
+	// Check if session management tools are available once and store in a variable.
+	cmd.WriteString("if command -v setsid >/dev/null 2>&1 && command -v ps >/dev/null 2>&1 && command -v pkill >/dev/null 2>&1; then\n")
+	cmd.WriteString("  HAVE_SESSION_TOOLS=true\n")
+	cmd.WriteString("else\n")
+	cmd.WriteString("  HAVE_SESSION_TOOLS=false\n")
+	cmd.WriteString("fi\n\n")
+
 	// Start the checker in the background.
 	cmd.WriteString(volumeCheckerScript)
 	cmd.WriteString(` & `)
 
-	// Start the gather command in a separate session.
-	cmd.WriteString("setsid -w bash <<-MUSTGATHER_EOF\n")
+	// Start the gather command in a separate session if setsid, ps, and pkill are available.
+	// Fall back to simpler approach if any of these tools are not present (minimal images).
+	cmd.WriteString(`if [ "$HAVE_SESSION_TOOLS" = "true" ]; then`)
+	cmd.WriteString("\n  setsid -w bash <<-MUSTGATHER_EOF\n")
 	cmd.WriteString(gatherCommand)
 	cmd.WriteString("\nMUSTGATHER_EOF\n")
+	cmd.WriteString("else\n")
+	cmd.WriteString("  ")
+	cmd.WriteString(gatherCommand)
+	cmd.WriteString("\nfi; ")
 
 	// Make sure all changes are written to disk.
 	cmd.WriteString(`sync && echo 'Caches written to disk'`)
+
 	return cmd.String()
 }

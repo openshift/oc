@@ -18,8 +18,17 @@ Use this skill when:
 
 Follow these steps in order:
 
-### 1. Build Verification
+### 1. Dependencies Verification
+
+Ensure Go dependencies are consistent by running:
+
+- `go mod tidy -diff`
+  - This command ensures that `go.mod` and `go.sum` are consistent and match the source code in the module.
+
+### 2. Build Verification
+
 Run the build to ensure code compiles:
+
 ```bash
 make oc
 ```
@@ -28,19 +37,10 @@ make oc
 - If build succeeds, proceed to testing
 - Note: Use `make oc` instead of `make build` to avoid building for all architectures (faster)
 
-### 2. Test Execution
-Run the test suite to verify functionality:
-```bash
-make test
-```
+### 3. Code Verification
 
-- Report any test failures with details
-- If critical tests fail, flag for immediate attention
-- Proceed even if some tests fail (document them)
-- **Known Issue**: Test failure in `github.com/openshift/oc/pkg/cli` (kubeconfig error) can be ignored
-
-### 3. Verification
 Run verification checks to catch style and potential issues:
+
 ```bash
 make verify
 ```
@@ -55,9 +55,30 @@ This runs multiple verification targets including:
 - Report any verification errors or warnings
 - Note any patterns that need addressing
 
-### 4. Code Review & Go Style Application
+### 4. Test Execution
 
-After running the above checks, review the changed code and apply Go best practices:
+Run the test suite to verify functionality:
+
+```bash
+make test
+```
+
+- Report any test failures with details
+- If critical tests fail, flag for immediate attention
+- Proceed even if some tests fail (document them)
+- **Known Issue**: Test failure in `github.com/openshift/oc/pkg/cli` (kubeconfig error) can be ignored
+
+### 5. Code Review & Go Style Application
+
+After running the above checks, review the changed code and apply Go best practices.
+Start by:
+
+- Load changes against the base branch by using `git diff`.
+  The base branch is `main` by default, but it can be overwritten by `[base-git-branch]`
+  argument when this skill is invoked using `pr-review` command directly.
+- Understand the scope of the changes.
+
+Then proceed to review. Follow these steps:
 
 - **Effective Go Principles**: Apply the Effective Go skill automatically
   - Use `gofmt` for formatting
@@ -71,9 +92,20 @@ After running the above checks, review the changed code and apply Go best practi
   - Check that CLI output follows consistent formatting
   - Validate flag definitions match kubectl conventions where applicable
 
+- **Breaking Changes**:
+  - Ensure that the command line API is backwards-compatible
+    - Check for CLI flag removals or renames
+    - Check for changes in command line arguments
+
 - **Code Quality**:
   - Look for potential race conditions
-  - Check for resource leaks (unclosed files, connections)
+  - Check for resource leaks (unclosed files, connections, goroutine leaks)
+    - Goroutine leak patterns to watch:
+      - Goroutines without context cancellation handling
+      - Missing `select` with `ctx.Done()` case
+      - Unbounded channel operations without timeouts
+      - `go func()` without proper lifecycle management
+      - Use `errgroup` or `sync.WaitGroup` for coordinated goroutines
   - Verify proper context propagation
   - Ensure appropriate logging levels
 
@@ -82,7 +114,7 @@ After running the above checks, review the changed code and apply Go best practi
   - CLI command help text should be clear and complete
   - Complex logic should have explanatory comments
 
-### 5. Apply Fixes
+### 6. Apply Fixes
 
 Based on the review:
 - Fix any linting issues automatically where safe
@@ -90,7 +122,7 @@ Based on the review:
 - Suggest or implement idiomatic Go improvements
 - Document any issues that require manual review
 
-### 6. Summary
+### 7. Summary
 
 Provide a structured summary:
 - ✅ Build status

@@ -723,7 +723,7 @@ func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob d
 	copyfn := func() error {
 		w, err := c.to.Create(ctx, options...)
 		// no-op
-		if err == ErrAlreadyExists {
+		if errors.Is(err, imagesource.ErrAlreadyExists) {
 			klog.V(5).Infof("Blob already exists %#v", blob)
 			return nil
 		}

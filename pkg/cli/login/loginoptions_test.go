@@ -377,6 +377,91 @@ func TestDialToHTTPSServer(t *testing.T) {
 	}
 }
 
+func TestGetClientConfig_InsecureSkipTLSVerify(t *testing.T) {
+	// Test that insecure-skip-tls-verify setting from kubeconfig is respected
+	// when logging in without the --insecure-skip-tls-verify flag.
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	testCases := map[string]struct {
+		insecureFlag                 bool
+		kubeconfigInsecure           bool
+		kubeconfigCAData             []byte
+		kubeconfigCAFile             string
+		expectedInsecureClientConfig bool
+		expectedErrMsg               string
+	}{
+		"command flag set": {
+			insecureFlag:                 true,
+			expectedInsecureClientConfig: true,
+		},
+		"kubeconfig flag set": {
+			kubeconfigInsecure:           true,
+			expectedInsecureClientConfig: true,
+		},
+		"no flag set": {
+			insecureFlag:       false,
+			kubeconfigInsecure: false,
+			expectedErrMsg:     certificateAuthorityUnknownMsg,
+		},
+		"both command and kubeconfig flag set": {
+			insecureFlag:                 true,
+			kubeconfigInsecure:           true,
+			expectedInsecureClientConfig: true,
+		},
+		"conflict error on certificate authority data set": {
+			kubeconfigInsecure: true,
+			kubeconfigCAData:   []byte("whatever"),
+			expectedErrMsg:     insecureTransportCertificateAuthorityConflictMsg,
+		},
+		"conflict error on certificate authority file set": {
+			kubeconfigInsecure: true,
+			kubeconfigCAFile:   "/whatever.crt",
+			expectedErrMsg:     insecureTransportCertificateAuthorityConflictMsg,
+		},
+	}
+
+	for name, test := range testCases {
+		t.Run(name, func(t *testing.T) {
+			startingConfig := &kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{},
+			}
+			if test.kubeconfigInsecure {
+				startingConfig.Clusters["test-cluster"] = &kclientcmdapi.Cluster{
+					Server:                   server.URL,
+					CertificateAuthority:     test.kubeconfigCAFile,
+					CertificateAuthorityData: test.kubeconfigCAData,
+					InsecureSkipTLSVerify:    true,
+				}
+			}
+
+			options := &LoginOptions{
+				Server:             server.URL,
+				InsecureTLS:        test.insecureFlag,
+				StartingKubeConfig: startingConfig,
+			}
+
+			clientConfig, err := options.getClientConfig()
+			if err != nil {
+				if test.expectedInsecureClientConfig {
+					t.Fatalf("Expected to succeed with insecure connection, but got error: %v", err)
+				}
+				if test.expectedErrMsg != err.Error() {
+					t.Fatalf("Unexpected error received:\n  expected %q\n  got %q", test.expectedErrMsg, err.Error())
+				}
+				return
+			}
+
+			if clientConfig.Insecure != test.expectedInsecureClientConfig {
+				t.Errorf("expected Insecure=%v, got %v", test.expectedInsecureClientConfig, clientConfig.Insecure)
+			}
+		})
+	}
+}
+
 func TestPreserveExecProviderOnUsernameLogin(t *testing.T) {
 	// Test that when using -u flag with existing OIDC credentials,
 	// the ExecProvider configuration is preserved
@@ -480,6 +565,90 @@ func TestPreserveExecProviderOnUsernameLogin(t *testing.T) {
 			// Just check additionally that whoAmI has been called.
 			if !whoAmICalled {
 				t.Errorf("WhoAmI function has not been called")
+			}
+		})
+	}
+}
+
+func TestValidateAutoOpenBrowser(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		webLogin               bool
+		execPlugin             string
+		oidcIssuerURL          string
+		oidcClientID           string
+		autoOpenBrowser        bool
+		setAutoOpenBrowserFlag bool
+		expectedError          string
+	}{
+		{
+			name:                   "valid: --web with --auto-open-browser",
+			webLogin:               true,
+			autoOpenBrowser:        true,
+			setAutoOpenBrowserFlag: true,
+			expectedError:          "",
+		},
+		{
+			name:                   "valid: --web with --auto-open-browser=false",
+			webLogin:               true,
+			autoOpenBrowser:        false,
+			setAutoOpenBrowserFlag: true,
+			expectedError:          "",
+		},
+		{
+			name:                   "valid: --exec-plugin with --auto-open-browser",
+			execPlugin:             "oc-oidc",
+			oidcIssuerURL:          "https://example.com",
+			oidcClientID:           "test-client",
+			autoOpenBrowser:        true,
+			setAutoOpenBrowserFlag: true,
+			expectedError:          "",
+		},
+		{
+			name:                   "valid: neither --web nor --auto-open-browser",
+			webLogin:               false,
+			autoOpenBrowser:        false,
+			setAutoOpenBrowserFlag: false,
+			expectedError:          "",
+		},
+		{
+			name:                   "invalid: --auto-open-browser without --web or --exec-plugin",
+			webLogin:               false,
+			autoOpenBrowser:        true,
+			setAutoOpenBrowserFlag: true,
+			expectedError:          "--auto-open-browser can only be specified along with --web or --exec-plugin",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a mock cobra command to track flag changes
+			cmd := NewCmdLogin(nil, genericiooptions.NewTestIOStreamsDiscard())
+			if tc.setAutoOpenBrowserFlag {
+				cmd.Flags().Set("auto-open-browser", fmt.Sprintf("%t", tc.autoOpenBrowser))
+			}
+
+			options := &LoginOptions{
+				Server:              "https://api.test.devcluster.openshift.com:6443",
+				WebLogin:            tc.webLogin,
+				OIDCExecPluginType:  tc.execPlugin,
+				OIDCIssuerURL:       tc.oidcIssuerURL,
+				OIDCClientID:        tc.oidcClientID,
+				OIDCAutoOpenBrowser: tc.autoOpenBrowser,
+				StartingKubeConfig:  &kclientcmdapi.Config{},
+			}
+
+			err := options.Validate(cmd, "", []string{})
+			if tc.expectedError == "" {
+				if err != nil {
+					t.Errorf("expected no error, but got: %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("expected error '%s', but got no error", tc.expectedError)
+				} else if err.Error() != tc.expectedError {
+					t.Errorf("expected error '%s', but got: %v", tc.expectedError, err)
+				}
 			}
 		})
 	}

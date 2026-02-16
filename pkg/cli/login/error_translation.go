@@ -24,6 +24,8 @@ You can also run this command again providing the path to a config file directly
 Ensure the specified server supports HTTPS.`
 	invalidServerURLMsg = `Seems you passed an HTML page (console?) instead of server URL.
 Verify provided address and try again.`
+
+	insecureTransportCertificateAuthorityConflictMsg = "certificate-authority, certificate-authority-data are mutually exclusive with insecure-skip-tls-verify"
 )
 
 type errInvalidServerURL struct{}
