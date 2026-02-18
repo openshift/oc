@@ -140,7 +140,7 @@ func (o *options) Run(ctx context.Context) error {
 	cv, err := o.Client.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return fmt.Errorf("no cluster version information available - you must be connected to an OpenShift version 4 server to fetch the current version")
+			return fmt.Errorf("no cluster version information available - you must be connected to an OpenShift server to fetch the current version")
 		}
 		return err
 	}
