@@ -11,7 +11,7 @@ import (
 func Test_getAcceptRisks(t *testing.T) {
 	for _, testCase := range []struct {
 		name     string
-		existing map[string]configv1.AcceptRisk
+		existing []configv1.AcceptRisk
 		replace  bool
 		clear    bool
 		plus     sets.Set[string]
@@ -22,41 +22,32 @@ func Test_getAcceptRisks(t *testing.T) {
 			name: "all zeros",
 		},
 		{
-			name: "riskA, riskB + riskB + riskC - riskA - riskD",
-			existing: map[string]configv1.AcceptRisk{
-				"riskA": {Name: "riskA"},
-				"riskB": {Name: "riskB"},
-			},
-			plus:  sets.New[string]("riskB", "riskC"),
-			minus: sets.New[string]("riskA", "riskD"),
+			name:     "riskA, riskB + riskB + riskC - riskA - riskD",
+			existing: []configv1.AcceptRisk{{Name: "riskA"}, {Name: "riskB"}},
+			plus:     sets.New[string]("riskB", "riskC"),
+			minus:    sets.New[string]("riskA", "riskD"),
 			expected: []configv1.AcceptRisk{
 				{Name: "riskB"},
 				{Name: "riskC"},
 			},
 		},
 		{
-			name: "replace",
-			existing: map[string]configv1.AcceptRisk{
-				"riskA": {Name: "riskA"},
-				"riskB": {Name: "riskB"},
-			},
-			plus:    sets.New[string]("riskB", "riskC"),
-			minus:   sets.New[string]("does not matter"),
-			replace: true,
+			name:     "replace",
+			existing: []configv1.AcceptRisk{{Name: "riskA"}, {Name: "riskB"}},
+			plus:     sets.New[string]("riskB", "riskC"),
+			minus:    sets.New[string]("does not matter"),
+			replace:  true,
 			expected: []configv1.AcceptRisk{
 				{Name: "riskB"},
 				{Name: "riskC"},
 			},
 		},
 		{
-			name: "clear",
-			existing: map[string]configv1.AcceptRisk{
-				"riskA": {Name: "riskA"},
-				"riskB": {Name: "riskB"},
-			},
-			plus:  sets.New[string]("not important"),
-			minus: sets.New[string]("does not matter"),
-			clear: true,
+			name:     "clear",
+			existing: []configv1.AcceptRisk{{Name: "riskA"}, {Name: "riskB"}},
+			plus:     sets.New[string]("not important"),
+			minus:    sets.New[string]("does not matter"),
+			clear:    true,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
