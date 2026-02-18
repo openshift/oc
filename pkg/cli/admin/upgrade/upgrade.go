@@ -25,6 +25,7 @@ import (
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
 
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/accept"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/channel"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/recommend"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/rollback"
@@ -126,6 +127,9 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_ROLLBACK").IsEnabled() {
 		cmd.AddCommand(rollback.New(f, streams))
 	}
+	if kcmdutil.FeatureGate("OC_ENABLE_CMD_UPGRADE_ACCEPT_RISKS").IsEnabled() {
+		cmd.AddCommand(accept.New(f, streams))
+	}
 	cmd.AddCommand(recommend.New(f, streams))
 
 	return cmd
@@ -218,8 +222,18 @@ func (o *Options) Run() error {
 			return nil
 		}
 		original := cv.Spec.DesiredUpdate
-		cv.Spec.DesiredUpdate = nil
-		updated, err := o.Client.ConfigV1().ClusterVersions().Patch(context.TODO(), cv.Name, types.MergePatchType, []byte(`{"spec":{"desiredUpdate":null}}`), metav1.PatchOptions{})
+		if original != nil && original.AcceptRisks != nil {
+			cv.Spec.DesiredUpdate = &configv1.Update{
+				AcceptRisks: original.AcceptRisks,
+			}
+		} else {
+			cv.Spec.DesiredUpdate = nil
+		}
+		bytes, err := json.Marshal(cv.Spec.DesiredUpdate)
+		if err != nil {
+			return fmt.Errorf("failed to marshal update: %v", err)
+		}
+		updated, err := o.Client.ConfigV1().ClusterVersions().Patch(context.TODO(), cv.Name, types.MergePatchType, []byte(fmt.Sprintf(`{"spec":{"desiredUpdate":%s}}`, bytes)), metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Unable to cancel current rollout: %v", err)
 		}
@@ -252,6 +266,9 @@ func (o *Options) Run() error {
 			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures. Only use this if you are testing unsigned release images or you are working around a known bug in the cluster-version operator and you have verified the authenticity of the provided image yourself.")
 		}
 
+		if update != nil {
+			update.AcceptRisks = cv.Spec.DesiredUpdate.AcceptRisks
+		}
 		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
 
 			return err
@@ -391,6 +408,7 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s\n", err)
 		}
 
+		update.AcceptRisks = cv.Spec.DesiredUpdate.AcceptRisks
 		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
 			return err
 		}
