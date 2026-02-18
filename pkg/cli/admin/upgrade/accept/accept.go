@@ -2,9 +2,9 @@ package accept
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/google/go-cmp/cmp"
-	"sort"
 	"strings"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -38,15 +38,15 @@ var (
 	`)
 
 	acceptLong = templates.LongDesc(`
-		Accept risks exposed to conditional updates.
+		Manage update risk acceptance.
 
-		Multiple risks are concatenated with comma. Append the provided accepted risks into the existing
+		Multiple risks are concatenated with comma. By default, the command appends the provided accepted risks into the existing
 		list. If --replace is specified, the existing accepted risks will be replaced with the provided
-		ones instead of appending by default. Placing "-" as prefix to an accepted risk will lead to
+		ones instead of appending. Placing "-" as prefix to an accepted risk will lead to
 		removal if it exists and no-ops otherwise. If --replace is specified, the prefix "-" on the risks
 		is not allowed.
 
-		The existing accepted risks can be removed by passing --clear.
+		Passing --clear removes all existing excepted risks.
 		`)
 )
 
@@ -83,8 +83,8 @@ type options struct {
 	Client  configv1client.Interface
 	replace bool
 	clear   bool
-	plus    sets.Set[string]
-	minus   sets.Set[string]
+	add     sets.Set[string]
+	remove  sets.Set[string]
 }
 
 func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
@@ -101,26 +101,26 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 	if len(args) > 1 {
 		return kcmdutil.UsageErrorf(cmd, "multiple positional arguments given")
 	} else if len(args) == 1 {
-		o.plus = sets.New[string]()
-		o.minus = sets.New[string]()
+		o.add = sets.New[string]()
+		o.remove = sets.New[string]()
 		for _, s := range strings.Split(args[0], ",") {
 			trimmed := strings.TrimSpace(s)
 			if trimmed == "-" || trimmed == "" {
 				return kcmdutil.UsageErrorf(cmd, "illegal risk %q", trimmed)
 			}
 			if strings.HasPrefix(trimmed, "-") {
-				o.minus.Insert(trimmed[1:])
+				o.remove.Insert(trimmed[1:])
 			} else {
-				o.plus.Insert(trimmed)
+				o.add.Insert(trimmed)
 			}
 		}
 	}
 
-	if conflict := o.plus.Intersection(o.minus); conflict.Len() > 0 {
-		return kcmdutil.UsageErrorf(cmd, "found conflicting risks: %s", strings.Join(sets.List(conflict), ","))
+	if conflict := o.add.Intersection(o.remove); conflict.Len() > 0 {
+		return kcmdutil.UsageErrorf(cmd, "requested risks with both Risk and -Risk: %s", strings.Join(sets.List(conflict), ","))
 	}
 
-	if o.replace && o.minus.Len() > 0 {
+	if o.replace && o.remove.Len() > 0 {
 		return kcmdutil.UsageErrorf(cmd, "The prefix '-' on risks is not allowed if --replace is specified")
 	}
 
@@ -145,37 +145,19 @@ func (o *options) Run(ctx context.Context) error {
 		return err
 	}
 
-	existing := map[string]configv1.AcceptRisk{}
+	var existing []configv1.AcceptRisk
 	if cv.Spec.DesiredUpdate != nil {
-		for _, risk := range cv.Spec.DesiredUpdate.AcceptRisks {
-			existing[risk.Name] = risk
-		}
+		existing = cv.Spec.DesiredUpdate.AcceptRisks
 	}
-	acceptRisks := getAcceptRisks(existing, o.replace, o.clear, o.plus, o.minus)
+	acceptRisks := getAcceptRisks(existing, o.replace, o.clear, o.add, o.remove)
 
-	var update *configv1.Update
-	if cv.Spec.DesiredUpdate != nil {
-		update = cv.Spec.DesiredUpdate.DeepCopy()
-		update.AcceptRisks = acceptRisks
-	} else if len(acceptRisks) > 0 {
-		update = &configv1.Update{
-			Architecture: cv.Status.Desired.Architecture,
-			Image:        cv.Status.Desired.Image,
-			Version:      cv.Status.Desired.Version,
-			AcceptRisks:  acceptRisks,
-		}
-	}
-	if diff := cmp.Diff(update, cv.Spec.DesiredUpdate); diff != "" {
-		cv.Spec.DesiredUpdate = update
-		cv, err = o.Client.ConfigV1().ClusterVersions().Update(ctx, cv, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("unable to upgrade: %w", err)
+	if diff := cmp.Diff(acceptRisks, existing); diff != "" {
+		if err := patchDesiredUpdate(context.TODO(), acceptRisks, o.Client.ConfigV1().ClusterVersions(), "version"); err != nil {
+			return err
 		}
 		var names []string
-		if cv.Spec.DesiredUpdate != nil {
-			for _, risk := range cv.Spec.DesiredUpdate.AcceptRisks {
-				names = append(names, risk.Name)
-			}
+		for _, risk := range acceptRisks {
+			names = append(names, risk.Name)
 		}
 		_, _ = fmt.Fprintf(o.Out, "info: Accept risks are [%s]\n", strings.Join(names, ", "))
 	} else {
@@ -185,33 +167,47 @@ func (o *options) Run(ctx context.Context) error {
 	return nil
 }
 
-func getAcceptRisks(existing map[string]configv1.AcceptRisk, replace, clear bool, plus sets.Set[string], minus sets.Set[string]) []configv1.AcceptRisk {
+func getAcceptRisks(existing []configv1.AcceptRisk, replace, clear bool, plus sets.Set[string], minus sets.Set[string]) []configv1.AcceptRisk {
 	var acceptRisks []configv1.AcceptRisk
 
 	if clear {
 		return acceptRisks
 	}
 
-	for name := range plus {
-		if r, ok := existing[name]; ok {
-			acceptRisks = append(acceptRisks, r)
-		} else {
+	if !replace {
+		for _, risk := range existing {
+			if !minus.Has(risk.Name) {
+				acceptRisks = append(acceptRisks, *risk.DeepCopy())
+			}
+		}
+	}
+
+	riskNames := sets.New[string]()
+	for _, risk := range acceptRisks {
+		riskNames.Insert(risk.Name)
+	}
+
+	for _, name := range sets.List[string](plus) {
+		if !riskNames.Has(name) && !minus.Has(name) {
 			acceptRisks = append(acceptRisks, configv1.AcceptRisk{
 				Name: name,
 			})
 		}
 	}
 
-	if !replace {
-		for name, r := range existing {
-			if !plus.Has(name) && !minus.Has(name) {
-				acceptRisks = append(acceptRisks, r)
-			}
-		}
-	}
-
-	sort.Slice(acceptRisks, func(i, j int) bool {
-		return acceptRisks[i].Name < acceptRisks[j].Name
-	})
 	return acceptRisks
+}
+
+func patchDesiredUpdate(ctx context.Context, acceptRisks []configv1.AcceptRisk, client clusterVersionInterface,
+	clusterVersionName string) error {
+	acceptRisksJSON, err := json.Marshal(acceptRisks)
+	if err != nil {
+		return fmt.Errorf("marshal ClusterVersion patch: %v", err)
+	}
+	patch := []byte(fmt.Sprintf(`{"spec": {"desiredUpdate": {"acceptRisks": %s}}}`, acceptRisksJSON))
+	if _, err := client.Patch(ctx, clusterVersionName, types.MergePatchType, patch,
+		metav1.PatchOptions{}); err != nil {
+		return fmt.Errorf("unable to accept risks: %v", err)
+	}
+	return nil
 }
