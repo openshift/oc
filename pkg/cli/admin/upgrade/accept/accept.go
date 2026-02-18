@@ -167,7 +167,7 @@ func (o *options) Run(ctx context.Context) error {
 	return nil
 }
 
-func getAcceptRisks(existing []configv1.AcceptRisk, replace, clear bool, plus sets.Set[string], minus sets.Set[string]) []configv1.AcceptRisk {
+func getAcceptRisks(existing []configv1.AcceptRisk, replace, clear bool, add sets.Set[string], remove sets.Set[string]) []configv1.AcceptRisk {
 	var acceptRisks []configv1.AcceptRisk
 
 	if clear {
@@ -176,7 +176,7 @@ func getAcceptRisks(existing []configv1.AcceptRisk, replace, clear bool, plus se
 
 	if !replace {
 		for _, risk := range existing {
-			if !minus.Has(risk.Name) {
+			if !remove.Has(risk.Name) {
 				acceptRisks = append(acceptRisks, *risk.DeepCopy())
 			}
 		}
@@ -187,8 +187,8 @@ func getAcceptRisks(existing []configv1.AcceptRisk, replace, clear bool, plus se
 		riskNames.Insert(risk.Name)
 	}
 
-	for _, name := range sets.List[string](plus) {
-		if !riskNames.Has(name) && !minus.Has(name) {
+	for _, name := range sets.List[string](add) {
+		if !riskNames.Has(name) && !remove.Has(name) {
 			acceptRisks = append(acceptRisks, configv1.AcceptRisk{
 				Name: name,
 			})
