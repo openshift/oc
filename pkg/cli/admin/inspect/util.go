@@ -94,15 +94,29 @@ func groupResourceKey(ref schema.GroupResource) string {
 	return fmt.Sprintf("%s.%s", ref.Resource, ref.Group)
 }
 
-func buildServerResources(rLists []*metav1.APIResourceList) sets.Set[string] {
+func buildServerResources(rLists []*metav1.APIResourceList) (sets.Set[string], error) {
 	serverResources := sets.New[string]()
+	var invalidGVs []string
 	for _, rItem := range rLists {
+		// We need to parse APIResourceList.GroupVersion, because APIResource.Group is not always populated.
+		gv, err := schema.ParseGroupVersion(rItem.GroupVersion)
+		if err != nil {
+			invalidGVs = append(invalidGVs, rItem.GroupVersion)
+			continue
+		}
+
 		for _, item := range rItem.APIResources {
 			// The inspection checks whether a resource of the given name exist independent of version/group.
 			serverResources.Insert(item.Name)
+			// We also need to insert resources qualified by their group.
+			serverResources.Insert(groupResourceKey(schema.GroupResource{Group: gv.Group, Resource: item.Name}))
 		}
 	}
-	return serverResources
+
+	if len(invalidGVs) > 0 {
+		return serverResources, fmt.Errorf("failed to parse GroupVersions: %s", strings.Join(invalidGVs, ", "))
+	}
+	return serverResources, nil
 }
 
 func groupResourceToInfos(clientGetter genericclioptions.RESTClientGetter, ref schema.GroupResource, namespace string, serverResources sets.Set[string]) ([]*resource.Info, error) {

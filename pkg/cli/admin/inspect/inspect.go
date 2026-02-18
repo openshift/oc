@@ -253,7 +253,12 @@ func (o *InspectOptions) RunContext(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to retrieve served resources: %v", err)
 	}
-	serverResources := buildServerResources(rList)
+	// We use all the server resources we managed to parse.
+	// The error is ignored, any issue is logged in buildServerResources.
+	serverResources, err := buildServerResources(rList)
+	if err != nil {
+		klog.V(1).Infof("Some server resources skipped from the available resource list: %v", err)
+	}
 
 	// finally, gather polymorphic resources specified by the user
 	resourceCtx := NewResourceContext(serverResources)
