@@ -30,13 +30,13 @@ import (
 
 // resourceContext is used to keep track of previously seen objects
 type resourceContext struct {
-	visited         sets.String
-	serverResources sets.String
+	visited         sets.Set[string]
+	serverResources sets.Set[string]
 }
 
-func NewResourceContext(serverResources sets.String) *resourceContext {
+func NewResourceContext(serverResources sets.Set[string]) *resourceContext {
 	return &resourceContext{
-		visited:         sets.NewString(),
+		visited:         sets.New[string](),
 		serverResources: serverResources,
 	}
 }
@@ -87,11 +87,26 @@ func objectReferenceToResourceInfos(clientGetter genericclioptions.RESTClientGet
 	return infos, nil
 }
 
-func groupResourceToInfos(clientGetter genericclioptions.RESTClientGetter, ref schema.GroupResource, namespace string, serverResources sets.String) ([]*resource.Info, error) {
-	resourceString := ref.Resource
-	if len(ref.Group) > 0 {
-		resourceString = fmt.Sprintf("%s.%s", resourceString, ref.Group)
+func groupResourceKey(ref schema.GroupResource) string {
+	if len(ref.Group) == 0 {
+		return ref.Resource
 	}
+	return fmt.Sprintf("%s.%s", ref.Resource, ref.Group)
+}
+
+func buildServerResources(rLists []*metav1.APIResourceList) sets.Set[string] {
+	serverResources := sets.New[string]()
+	for _, rItem := range rLists {
+		for _, item := range rItem.APIResources {
+			// The inspection checks whether a resource of the given name exist independent of version/group.
+			serverResources.Insert(item.Name)
+		}
+	}
+	return serverResources
+}
+
+func groupResourceToInfos(clientGetter genericclioptions.RESTClientGetter, ref schema.GroupResource, namespace string, serverResources sets.Set[string]) ([]*resource.Info, error) {
+	resourceString := groupResourceKey(ref)
 
 	b := resource.NewBuilder(clientGetter).
 		Unstructured().
