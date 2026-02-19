@@ -53,3 +53,15 @@ aliases:
     - mpatlasov
     - rhrmo
     - dfajmon
+  mustgather-reviewers:
+    - Prashanth684
+    - TrilokGeer
+    - swghosh
+    - shivprakashmuley
+    - pravekum
+  mustgather-approvers:
+    - Prashanth684
+    - TrilokGeer
+    - swghosh
+    - shivprakashmuley
+    - pravekum
