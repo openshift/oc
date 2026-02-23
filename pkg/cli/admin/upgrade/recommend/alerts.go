@@ -172,6 +172,20 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 			i += 1
 			continue
 		}
+
+		if alertName == "VirtHandlerDaemonSetRolloutFailing" {
+			conditions = append(conditions, acceptableCondition{
+				Condition: metav1.Condition{
+					Type:    fmt.Sprintf("recommended/VirtAlerts/%s/%d", alertName, i),
+					Status:  metav1.ConditionFalse,
+					Reason:  fmt.Sprintf("Alert:%s", alert.State),
+					Message: fmt.Sprintf("%s alert %s %s, which may slow workload redistribution during rolling node updates. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+				},
+				acceptanceName: alertName,
+			})
+			i += 1
+			continue
+		}
 	}
 
 	if !haveCritical {
