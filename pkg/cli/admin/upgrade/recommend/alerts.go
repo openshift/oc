@@ -158,7 +158,7 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 			continue
 		}
 
-		if alertName == "KubeNodeNotReady" || alertName == "KubeNodeReadinessFlapping" || alertName == "KubeNodeUnreachable" {
+		if alertName == "KubeletHealthState" || alertName == "KubeNodeNotReady" || alertName == "KubeNodeReadinessFlapping" || alertName == "KubeNodeUnreachable" {
 			haveNodes = true
 			conditions = append(conditions, acceptableCondition{
 				Condition: metav1.Condition{
