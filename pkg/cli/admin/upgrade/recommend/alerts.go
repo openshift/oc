@@ -67,6 +67,7 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 	var conditions []acceptableCondition
 	i := 0
 	haveCritical := false
+	haveUpdatePrecheck := false
 	havePodDisruptionBudget := false
 	havePullWaiting := false
 	haveNodes := false
@@ -173,6 +174,21 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 			continue
 		}
 
+		if alert.Labels.UpdatePrecheck == "true" {
+			haveUpdatePrecheck = true
+			conditions = append(conditions, acceptableCondition{
+				Condition: metav1.Condition{
+					Type:    fmt.Sprintf("recommended/UpdatePrecheckAlerts/%s/%d", alertName, i),
+					Status:  metav1.ConditionFalse,
+					Reason:  fmt.Sprintf("Alert:%s", alert.State),
+					Message: fmt.Sprintf("%s alert %s %s, suggesting issues worth investigating before updating the cluster. %s", alert.Labels.Severity, alert.Labels.AlertName, alert.State, details),
+				},
+				acceptanceName: alertName,
+			})
+			i += 1
+			continue
+		}
+
 		if alertName == "VirtHandlerDaemonSetRolloutFailing" {
 			conditions = append(conditions, acceptableCondition{
 				Condition: metav1.Condition{
@@ -221,6 +237,15 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 			Status:  metav1.ConditionTrue,
 			Reason:  "AsExpected",
 			Message: "No Node alerts firing.",
+		}})
+	}
+
+	if !haveUpdatePrecheck {
+		conditions = append(conditions, acceptableCondition{Condition: metav1.Condition{
+			Type:    "recommended/UpdatePrecheckAlerts",
+			Status:  metav1.ConditionTrue,
+			Reason:  "AsExpected",
+			Message: "No alerts with the openShiftUpdatePrecheck label true are firing.",
 		}})
 	}
 

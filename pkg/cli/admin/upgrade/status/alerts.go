@@ -26,6 +26,7 @@ type AlertLabels struct {
 	PodDisruptionBudget string `json:"poddisruptionbudget,omitempty"`
 	Reason              string `json:"reason,omitempty"`
 	Severity            string `json:"severity,omitempty"`
+	UpdatePrecheck      string `json:"openShiftUpdatePrecheck,omitempty"`
 }
 
 type AlertAnnotations struct {
