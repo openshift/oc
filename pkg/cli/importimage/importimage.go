@@ -100,7 +100,6 @@ func NewImportImageOptions(streams genericiooptions.IOStreams) *ImportImageOptio
 		PrintFlags:      genericclioptions.NewPrintFlags("imported"),
 		IOStreams:       streams,
 		ReferencePolicy: tag.SourceReferencePolicy,
-		ImportMode:      string(imagev1.ImportModeLegacy),
 	}
 }
 
@@ -129,7 +128,7 @@ func NewCmdImportImage(f kcmdutil.Factory, streams genericiooptions.IOStreams) *
 	cmd.Flags().BoolVar(&o.Confirm, "confirm", o.Confirm, "If true, allow the image stream import location to be set or changed")
 	cmd.Flags().BoolVar(&o.All, "all", o.All, "If true, import all tags from the provided source on creation or if --from is specified")
 	cmd.Flags().StringVar(&o.ReferencePolicy, "reference-policy", o.ReferencePolicy, "Allow to request pullthrough for external image when set to 'local'. Defaults to 'source'.")
-	cmd.Flags().StringVar(&o.ImportMode, "import-mode", o.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
+	cmd.Flags().StringVar(&o.ImportMode, "import-mode", o.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. When set to 'Legacy', imports a single sub-manifest. When unspecified, the cluster determines the import mode.")
 	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Fetch information about images without creating or updating an image stream.")
 	cmd.Flags().BoolVar(&o.Scheduled, "scheduled", o.Scheduled, "Set each imported container image to be periodically imported from a remote repository. Defaults to false.")
 	cmd.Flags().BoolVar(&o.Insecure, "insecure", o.Insecure, "If true, allow importing from registries that have invalid HTTPS certificates or are hosted via HTTP. This flag will take precedence over the insecure annotation.")
@@ -218,7 +217,8 @@ func (o *ImportImageOptions) Validate() error {
 	case string(imagev1.ImportModeLegacy):
 	case string(imagev1.ImportModePreserveOriginal):
 	case "":
-		o.ImportMode = string(imagev1.ImportModeLegacy)
+		// Leave empty and let it be decided based on the ClusterVersion's "desired.architecture" value. If the value is "Multi",
+		// the import mode is set to "PreserveOriginal", if not it is set to "Legacy"
 	default:
 		return fmt.Errorf("valid ImportMode values are %s or %s", imagev1.ImportModeLegacy, imagev1.ImportModePreserveOriginal)
 	}
