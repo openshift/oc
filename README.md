@@ -19,6 +19,9 @@ and the [Kubernetes project](https://github.com/kubernetes/kubernetes).
 To build oc invoke `make oc`. At any time you can invoke `make help` and you'll
 get a list of all supported make sub-commands.
 
+By default `make oc` builds the executable without debugging symbols. To include
+debugging symbols, run `make STRIP_DEBUGGING_SYMBOLS=false oc`.
+
 In order to build `oc`, you will need the GSSAPI sources. On a Fedora/CentOS/RHEL
 workstation, install them with:
 
