@@ -97,7 +97,7 @@ func TestExamples(t *testing.T) {
 				opts.ErrOut = &stderr
 
 				if err := opts.Run(context.Background()); err != nil {
-					compareWithFixture(t, bytes.Join([][]byte{stdout.Bytes(), []byte("\nerror: "), []byte(err.Error()), []byte("\n")}, []byte{}), cv, variant.outputSuffix)
+					compareWithFixture(t, bytes.Join([][]byte{stdout.Bytes(), []byte("error: "), []byte(err.Error()), []byte("\n")}, []byte{}), cv, variant.outputSuffix)
 				} else {
 					compareWithFixture(t, stdout.Bytes(), cv, variant.outputSuffix)
 				}
