@@ -1,0 +1,15 @@
+The following conditions found no cause for concern in updating this cluster to later releases: recommended/NodeAlerts (AsExpected), recommended/PodDisruptionBudgetAlerts (AsExpected), recommended/PodImagePullAlerts (AsExpected), recommended/UpdatePrecheckAlerts (AsExpected)
+
+The following conditions found cause for concern in updating this cluster to later releases: recommended/CriticalAlerts/VirtHandlerDaemonSetRolloutFailing/0
+
+recommended/CriticalAlerts/VirtHandlerDaemonSetRolloutFailing/0=False:
+
+  Reason: Alert:firing
+  Message: critical alert VirtHandlerDaemonSetRolloutFailing firing, suggesting significant cluster issues worth investigating. Your upstream update recommendation service recommends you update your cluster. The alert description is: For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-plnvytb-76ef8.aws-2.ci.openshift.org/settings/cluster/. <alert does not have a runbook_url annotation>
+
+Upstream update service: https://amd64.origin.releases.ci.openshift.org/graph
+Channel: stable-4.22
+
+Updates to 4.22:
+  VERSION                            ISSUES
+  4.22.0-0.nightly-2026-02-26-092444 no known issues relevant to this cluster

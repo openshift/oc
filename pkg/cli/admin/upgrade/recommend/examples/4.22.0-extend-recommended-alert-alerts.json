@@ -1,0 +1,67 @@
+{
+  "status": "success",
+  "data": {
+    "alerts": [
+      {
+        "labels": {
+          "alertname": "VirtHandlerDaemonSetRolloutFailing",
+          "channel": "stable-4.22",
+          "namespace": "openshift-cluster-version",
+          "severity": "warning",
+          "upstream": "https://amd64.origin.releases.ci.openshift.org/graph",
+          "openShiftUpdatePrecheck": "true"
+        },
+        "annotations": {
+          "description": "For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-plnvytb-76ef8.aws-2.ci.openshift.org/settings/cluster/.",
+          "summary": "Your upstream update recommendation service recommends you update your cluster."
+        },
+        "state": "firing",
+        "activeAt": "2025-09-09T16:59:17.077287821Z",
+        "value": "2e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "VMCannotBeEvicted",
+          "container": "insights-operator",
+          "description": "GSS does not provide enterprise-level support for an OKD cluster",
+          "endpoint": "https",
+          "info_link": "https://console.redhat.com/openshift/insights/advisor/clusters/7a18f603-2a0c-4794-af53-85bdae9b8ea9?first=ccx_rules_ocp.external.rules.okd_cluster_unsupported%7COKD_CLUSTER_UNSUPPORTED",
+          "instance": "10.130.0.31:8443",
+          "job": "metrics",
+          "namespace": "openshift-insights",
+          "pod": "insights-operator-b8b5f97fc-kl8rr",
+          "service": "metrics",
+          "severity": "warning",
+          "total_risk": "Moderate",
+          "openShiftUpdatePrecheck": "false"
+        },
+        "annotations": {
+          "description": "Insights recommendation \"GSS does not provide enterprise-level support for an OKD cluster\" with total risk \"Moderate\" was detected on the cluster. More information is available at https://console.redhat.com/openshift/insights/advisor/clusters/7a18f603-2a0c-4794-af53-85bdae9b8ea9?first=ccx_rules_ocp.external.rules.okd_cluster_unsupported%7COKD_CLUSTER_UNSUPPORTED.",
+          "summary": "An Insights recommendation is active for this cluster."
+        },
+        "state": "firing",
+        "activeAt": "2025-09-09T16:52:41.445352906Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "TestAlert",
+          "name": "ci-ln-plnvytb-76ef8-42h8v-worker-us-east-1a-84pg2",
+          "namespace": "openshift-machine-api",
+          "severity": "warning",
+          "openShiftUpdatePrecheck": "true"
+        },
+        "annotations": {
+          "description": "The machine has been without a Running or Deleting phase for more than 60 minutes.\nThe machine may not have been provisioned properly from the infrastructure provider, or\nit might have issues with CertificateSigningRequests being approved.\n",
+          "summary": "machine ci-ln-plnvytb-76ef8-42h8v-worker-us-east-1a-84pg2 is in phase: "
+        },
+        "state": "firing",
+        "activeAt": "2025-09-09T16:49:56.763336056Z",
+        "value": "1.757435418e+09",
+        "partialResponseStrategy": "WARN"
+      }
+    ]
+  }
+}

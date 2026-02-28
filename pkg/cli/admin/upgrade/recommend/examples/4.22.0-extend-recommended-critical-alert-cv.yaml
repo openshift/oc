@@ -1,0 +1,91 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2025-09-09T16:25:09Z"
+  generation: 3
+  name: version
+  resourceVersion: "31455"
+  uid: 31502537-d38e-4652-a5a6-18b0d767b354
+spec:
+  channel: stable-4.22
+  clusterID: 7a18f603-2a0c-4794-af53-85bdae9b8ea9
+  upstream: https://amd64.origin.releases.ci.openshift.org/graph
+status:
+  availableUpdates:
+  - image: registry.ci.openshift.org/ocp/release@sha256:64db99b4f820a919ba98e077f181f6b385a6883b88984a5acbebae0aef319561
+    version: 4.22.0-0.nightly-2026-02-26-092444
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2025-09-09T16:58:30Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2025-09-09T16:25:36Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2025-09-09T16:25:36Z"
+    message: Payload loaded version="4.22.0-ec.3" image="quay.io/openshift-release-dev/ocp-release@sha256:58b98da1492b3f4af6129c4684b8e8cde4f2dc197e4b483bb6025971d59f92a5"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2025-09-09T16:55:08Z"
+    message: Done applying 4.22.0-ec.3
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2025-09-09T16:55:08Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2025-09-09T16:55:08Z"
+    message: Cluster version is 4.22.0-ec.3
+    status: "False"
+    type: Progressing
+  desired:
+    image: quay.io/openshift-release-dev/ocp-release@sha256:58b98da1492b3f4af6129c4684b8e8cde4f2dc197e4b483bb6025971d59f92a5
+    version: 4.22.0-ec.3
+  history:
+  - completionTime: "2025-09-09T16:55:08Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:58b98da1492b3f4af6129c4684b8e8cde4f2dc197e4b483bb6025971d59f92a5
+    startedTime: "2025-09-09T16:25:36Z"
+    state: Completed
+    verified: false
+    version: 4.22.0-ec.3
+  observedGeneration: 1
+  versionHash: XI4117989oE=
