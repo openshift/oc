@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -27,6 +28,9 @@ type rsyncStrategy struct {
 	LocalExecutor  executor
 	RemoteExecutor executor
 	podChecker     podChecker
+
+	Last          uint
+	fileDiscovery fileDiscoverer
 }
 
 // DefaultRsyncRemoteShellToUse generates an command to create a remote shell.
@@ -75,15 +79,45 @@ func NewRsyncStrategy(o *RsyncOptions) CopyStrategy {
 		RemoteExecutor: newRemoteExecutor(o),
 		LocalExecutor:  newLocalExecutor(),
 		podChecker:     podAPIChecker{o.Client, o.Namespace, podName, o.ContainerName, o.Quiet, o.ErrOut},
+		Last:           o.Last,
+		fileDiscovery:  o.fileDiscovery,
 	}
 }
 
 func (r *rsyncStrategy) Copy(source, destination *PathSpec, out, errOut io.Writer) error {
 	klog.V(3).Infof("Copying files with rsync")
+
+	// In case --last is specified, discover the right files and pass them to rsync as an explicit list.
+	var (
+		in  io.Reader
+		dst = destination.RsyncPath()
+	)
+	if r.Last > 0 {
+		filenames, err := r.fileDiscovery.DiscoverFiles(source.Path, r.Last)
+		if err != nil {
+			klog.Infof("Warning: failed to apply --last filtering: %v", err)
+		} else {
+			var b bytes.Buffer
+			for _, filename := range filenames {
+				b.WriteString(filename)
+				b.WriteRune('\n')
+			}
+			in = &b
+
+			// Make dst compatible with what rsync does without --last.
+			dst = filepath.Join(dst, filepath.Base(source.Path))
+
+			klog.V(3).Infof("Applied --last=%d to rsync strategy: using %d files", r.Last, len(filenames))
+		}
+	}
+
 	cmd := append([]string{"rsync"}, r.Flags...)
-	cmd = append(cmd, "-e", r.RshCommand, source.RsyncPath(), destination.RsyncPath())
+	if in != nil {
+		cmd = append(cmd, "--files-from", "-")
+	}
+	cmd = append(cmd, "-e", r.RshCommand, source.RsyncPath(), dst)
 	errBuf := &bytes.Buffer{}
-	err := r.LocalExecutor.Execute(cmd, nil, out, errBuf)
+	err := r.LocalExecutor.Execute(cmd, in, out, errBuf)
 	if isExitError(err) {
 		// Check if pod exists
 		if podCheckErr := r.podChecker.CheckPod(); podCheckErr != nil {
