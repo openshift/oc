@@ -1,0 +1,20 @@
+The following conditions found no cause for concern in updating this cluster to later releases: recommended/CriticalAlerts (AsExpected), recommended/NodeAlerts (AsExpected), recommended/PodDisruptionBudgetAlerts (AsExpected), recommended/PodImagePullAlerts (AsExpected)
+
+The following conditions found cause for concern in updating this cluster to later releases: recommended/UpdatePrecheckAlerts/TestAlert/0, recommended/UpdatePrecheckAlerts/VirtHandlerDaemonSetRolloutFailing/2, recommended/VirtAlerts/VMCannotBeEvicted/1
+
+recommended/UpdatePrecheckAlerts/TestAlert/0=False:
+
+  Reason: Alert:firing
+  Message: warning alert TestAlert firing, suggesting issues worth investigating before updating the cluster. Test summary. The alert description is: Test description. <alert does not have a runbook_url annotation>
+
+recommended/VirtAlerts/VMCannotBeEvicted/1=False:
+
+  Reason: Alert:firing
+  Message: warning alert VMCannotBeEvicted firing, which may slow workload redistribution during rolling node updates. Test summary. The alert description is: Test description. <alert does not have a runbook_url annotation>
+
+recommended/UpdatePrecheckAlerts/VirtHandlerDaemonSetRolloutFailing/2=False:
+
+  Reason: Alert:firing
+  Message: warning alert VirtHandlerDaemonSetRolloutFailing firing, suggesting issues worth investigating before updating the cluster. Test summary. The alert description is: Test description. <alert does not have a runbook_url annotation>
+
+No updates available. You may still upgrade to a specific release image with --to-image or wait for new updates to be available.
