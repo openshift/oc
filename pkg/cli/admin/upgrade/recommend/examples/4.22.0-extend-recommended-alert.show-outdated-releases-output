@@ -1,0 +1,28 @@
+The following conditions found no cause for concern in updating this cluster to later releases: recommended/CriticalAlerts (AsExpected), recommended/NodeAlerts (AsExpected), recommended/PodDisruptionBudgetAlerts (AsExpected), recommended/PodImagePullAlerts (AsExpected)
+
+The following conditions found cause for concern in updating this cluster to later releases: recommended/UpdatePrecheckAlerts/TestAlert/2, recommended/UpdatePrecheckAlerts/VirtHandlerDaemonSetRolloutFailing/0, recommended/VirtAlerts/VMCannotBeEvicted/1
+
+recommended/UpdatePrecheckAlerts/VirtHandlerDaemonSetRolloutFailing/0=False:
+
+  Reason: Alert:firing
+  Message: warning alert VirtHandlerDaemonSetRolloutFailing firing, suggesting issues worth investigating before updating the cluster. Your upstream update recommendation service recommends you update your cluster. The alert description is: For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-plnvytb-76ef8.aws-2.ci.openshift.org/settings/cluster/. <alert does not have a runbook_url annotation>
+
+recommended/VirtAlerts/VMCannotBeEvicted/1=False:
+
+  Reason: Alert:firing
+  Message: warning alert VMCannotBeEvicted firing, which may slow workload redistribution during rolling node updates. An Insights recommendation is active for this cluster. The alert description is: Insights recommendation "GSS does not provide enterprise-level support for an OKD cluster" with total risk "Moderate" was detected on the cluster. More information is available at https://console.redhat.com/openshift/insights/advisor/clusters/7a18f603-2a0c-4794-af53-85bdae9b8ea9?first=ccx_rules_ocp.external.rules.okd_cluster_unsupported%7COKD_CLUSTER_UNSUPPORTED. <alert does not have a runbook_url annotation>
+
+recommended/UpdatePrecheckAlerts/TestAlert/2=False:
+
+  Reason: Alert:firing
+  Message: warning alert TestAlert firing, suggesting issues worth investigating before updating the cluster. machine ci-ln-plnvytb-76ef8-42h8v-worker-us-east-1a-84pg2 is in phase: . The alert description is: The machine has been without a Running or Deleting phase for more than 60 minutes.
+  The machine may not have been provisioned properly from the infrastructure provider, or
+  it might have issues with CertificateSigningRequests being approved.
+   <alert does not have a runbook_url annotation>
+
+Upstream update service: https://amd64.origin.releases.ci.openshift.org/graph
+Channel: stable-4.22
+
+Updates to 4.22:
+  VERSION                            ISSUES
+  4.22.0-0.nightly-2026-02-26-092444 no known issues relevant to this cluster
