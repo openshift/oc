@@ -348,6 +348,28 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		}
 	}
 
+	// versionInImageConfig stores the version from the label of the image
+	// At the moment it is used later only for the logging purpose and thus is not blocking if failures occur upon getting its value
+	var versionInImageConfig string
+	opts.ImageConfigCallback = func(imageConfig *dockerv1client.DockerImageConfig) {
+		if imageConfig == nil {
+			// This should never happen
+			klog.Error("Cannot retrieve the version because no image configuration is provided in the image to extract")
+			return
+		}
+		if imageConfig.Config == nil {
+			klog.Error("Cannot retrieve the version from image configuration in the image to extract because it has no configuration")
+			return
+		}
+		v, ok := imageConfig.Config.Labels["io.openshift.release"]
+		if !ok {
+			klog.Error("Cannot retrieve the version from image configuration in the image to extract because it does not have the required label 'io.openshift.release'")
+			return
+		}
+		klog.V(2).Infof("Retrieved the version from image configuration in the image to extract: %s", v)
+		versionInImageConfig = v
+	}
+
 	var manifestErrs []error
 	// o.ExtractManifests implies o.File == ""
 	if o.ExtractManifests {
@@ -358,9 +380,9 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 			context := "connected cluster"
 			inclusionConfig := manifestInclusionConfiguration{}
 			if o.InstallConfig == "" {
-				inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig)
+				inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig, versionInImageConfig)
 			} else {
-				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig)
+				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig, versionInImageConfig)
 				context = o.InstallConfig
 			}
 			if err != nil {

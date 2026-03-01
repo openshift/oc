@@ -1167,16 +1167,29 @@ func copyAndReplace(errorOutput io.Writer, w io.Writer, r io.Reader, bufferSize 
 
 }
 
-func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfigPath string) (manifestInclusionConfiguration, error) {
-	config := manifestInclusionConfiguration{}
-
+// logCapabilitySetMayDiffer logs the messages if the oc-cli version is not the same as the target version
+// * the enabled capability set may differ if the baseline is vCurrent, and
+// * the known capability set may differ
+// It raises an error if it fails to determine the oc-cli version.
+func logCapabilitySetMayDiffer(capabilitiesSpec *configv1.ClusterVersionCapabilitiesSpec, targetVersion string) error {
 	clientVersion, reportedVersion, err := version.ExtractVersion()
 	if err != nil {
-		return config, err
+		return fmt.Errorf("failed to determine the version of 'oc': %w", err)
 	}
 	if reportedVersion == "" {
 		reportedVersion = clientVersion.String()
 	}
+	if reportedVersion != targetVersion {
+		if capabilitiesSpec != nil && capabilitiesSpec.BaselineCapabilitySet == configv1.ClusterVersionCapabilitySetCurrent {
+			klog.Infof("The eventual cluster %s will not be the same minor version as this %s 'oc', the actual %s capability set may differ.", targetVersion, reportedVersion, capabilitiesSpec.BaselineCapabilitySet)
+		}
+		klog.Infof("The eventual cluster %s will not be the same minor version as this %s 'oc', the known capability set may differ.", targetVersion, reportedVersion)
+	}
+	return nil
+}
+
+func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfigPath string, versionInImageConfig string) (manifestInclusionConfiguration, error) {
+	config := manifestInclusionConfiguration{}
 
 	installConfigBytes, err := os.ReadFile(installConfigPath)
 	if err != nil {
@@ -1204,21 +1217,19 @@ func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfi
 		if enabled, ok := configv1.ClusterVersionCapabilitySets[data.Capabilities.BaselineCapabilitySet]; !ok {
 			return config, fmt.Errorf("unrecognized baselineCapabilitySet %q", data.Capabilities.BaselineCapabilitySet)
 		} else {
-			if data.Capabilities.BaselineCapabilitySet == configv1.ClusterVersionCapabilitySetCurrent {
-				klog.Infof("If the eventual cluster will not be the same minor version as this %s 'oc', the actual %s capability set may differ.", reportedVersion, data.Capabilities.BaselineCapabilitySet)
+			if err := logCapabilitySetMayDiffer(data.Capabilities, versionInImageConfig); err != nil {
+				return config, err
 			}
 			config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, enabled...)
 		}
 		config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, data.Capabilities.AdditionalEnabledCapabilities...)
-
-		klog.Infof("If the eventual cluster will not be the same minor version as this %s 'oc', the known capability sets may differ.", reportedVersion)
 		config.Capabilities.KnownCapabilities = configv1.KnownClusterVersionCapabilities
 	}
 
 	return config, nil
 }
 
-func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (manifestInclusionConfiguration, error) {
+func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config, versionInImageConfig string) (manifestInclusionConfiguration, error) {
 	config := manifestInclusionConfiguration{}
 
 	client, err := configv1client.NewForConfig(restConfig)
@@ -1249,6 +1260,10 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 			imageRegistry := configv1.ClusterVersionCapability("ImageRegistry")
 			config.Capabilities.EnabledCapabilities = append(config.Capabilities.EnabledCapabilities, configv1.ClusterVersionCapabilityMachineAPI, build, deploymentConfig, imageRegistry)
 			config.Capabilities.KnownCapabilities = append(config.Capabilities.KnownCapabilities, configv1.ClusterVersionCapabilityMachineAPI, build, deploymentConfig, imageRegistry)
+		}
+
+		if err := logCapabilitySetMayDiffer(clusterVersion.Spec.Capabilities, versionInImageConfig); err != nil {
+			return config, err
 		}
 	}
 
