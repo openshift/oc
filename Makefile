@@ -16,6 +16,11 @@ include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 KUBE_GIT_MINOR_VERSION := "33"
 KUBE_GIT_VERSION := "v1.33.3"
 
+STRIP_DEBUGGING_SYMBOLS ?= true
+ifeq ($(STRIP_DEBUGGING_SYMBOLS), true)
+	STRIP_DEBUGGING_SYMBOLS_FLAGS := -s -w
+endif
+
 GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
                    -X k8s.io/component-base/version.gitMinor=$(KUBE_GIT_MINOR_VERSION) \
                    -X k8s.io/component-base/version.gitVersion=$(KUBE_GIT_VERSION) \
@@ -25,7 +30,8 @@ GO_LD_EXTRAFLAGS :=-X k8s.io/component-base/version.gitMajor="1" \
                    -X k8s.io/client-go/pkg/version.gitVersion="$(SOURCE_GIT_TAG)" \
                    -X k8s.io/client-go/pkg/version.gitCommit="$(SOURCE_GIT_COMMIT)" \
                    -X k8s.io/client-go/pkg/version.buildDate="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-                   -X k8s.io/client-go/pkg/version.gitTreeState="$(SOURCE_GIT_TREE_STATE)"
+                   -X k8s.io/client-go/pkg/version.gitTreeState="$(SOURCE_GIT_TREE_STATE)" \
+                   $(STRIP_DEBUGGING_SYMBOLS_FLAGS)
 
 GO_BUILD_PACKAGES :=$(strip \
 	./cmd/... \
