@@ -373,6 +373,7 @@ func Test_parseComponentVersionsLabel(t *testing.T) {
 		{label: "a1=1.0.0", displayNames: "a=b", wantErr: true},
 		{label: "a1=1.0.0", want: ComponentVersions{"a1": {Version: "1.0.0"}}},
 		{label: "a1=1.0.0", displayNames: "a1=b 1 c d : -", want: ComponentVersions{"a1": {Version: "1.0.0", DisplayName: "b 1 c d : -"}}},
+		{label: "a1=1.0.0", displayNames: "a1=Red Hat Enterprise Linux CoreOS 9.8", want: ComponentVersions{"a1": {Version: "1.0.0", DisplayName: "Red Hat Enterprise Linux CoreOS 9.8"}}},
 		{label: "a1=1.0.0", displayNames: "a1=!", wantErr: true},
 		{label: "a1=1.0.0", displayNames: "a1=!,a1=valid", wantErr: true},
 		{label: "a1=1.0.0", displayNames: "a1=other,a1=valid", want: ComponentVersions{"a1": {Version: "1.0.0", DisplayName: "valid"}}},
