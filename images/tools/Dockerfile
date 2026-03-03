@@ -8,7 +8,7 @@ COPY --from=builder /go/src/github.com/openshift/oc/oc /usr/bin/
 COPY --from=builder /go/src/github.com/openshift/oc/images/tools/sos.conf /etc/sos/
 RUN for i in kubectl openshift-deploy openshift-docker-build openshift-sti-build openshift-git-clone openshift-manage-dockerfile openshift-extract-image-content openshift-recycle; do ln -sf /usr/bin/oc /usr/bin/$i; done
 # iotop has been deprecated. iotop-c is used in CentOS 10 and upwards
-RUN if yum list iotop >/dev/null 2>&1; then IOTOP_PKG="iotop"; else IOTOP_PKG="iotop-c"; fi && \
+RUN if yum install -y iotop >/dev/null 2>&1; then IOTOP_PKG="iotop"; else IOTOP_PKG="iotop-c"; fi && \
   INSTALL_PKGS="\
   bash-completion \
   bc \
