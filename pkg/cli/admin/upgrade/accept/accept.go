@@ -54,7 +54,6 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	o := newOptions(streams)
 	cmd := &cobra.Command{
 		Use:     "accept",
-		Hidden:  true,
 		Short:   "Accept risks exposed to conditional updates.",
 		Long:    acceptLong,
 		Example: acceptExample,
