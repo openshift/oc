@@ -3,7 +3,7 @@ Failing=True:
   Reason: ClusterOperatorNotAvailable
   Message: Cluster operator monitoring is not available
 
-The following conditions found no cause for concern in updating this cluster to later releases: recommended/NodeAlerts (AsExpected), recommended/PodImagePullAlerts (AsExpected)
+The following conditions found no cause for concern in updating this cluster to later releases: recommended/NodeAlerts (AsExpected), recommended/PodImagePullAlerts (AsExpected), recommended/UpdatePrecheckAlerts (AsExpected)
 
 The following conditions found cause for concern in updating this cluster to later releases: recommended/CriticalAlerts/ClusterOperatorDown/0, recommended/PodDisruptionBudgetAlerts/PodDisruptionBudgetAtLimit/1
 
