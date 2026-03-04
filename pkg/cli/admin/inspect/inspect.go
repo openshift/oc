@@ -253,13 +253,11 @@ func (o *InspectOptions) RunContext(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to retrieve served resources: %v", err)
 	}
-	serverResources := sets.NewString()
-	for _, rItem := range rList {
-		for _, item := range rItem.APIResources {
-			// The inspection checks whether a resource of a given name exist
-			// independent of the version/group.
-			serverResources.Insert(item.Name)
-		}
+	// We use all the server resources we managed to parse.
+	// The error is ignored, any issue is logged in buildServerResources.
+	serverResources, err := buildServerResources(rList)
+	if err != nil {
+		klog.V(1).Infof("Some server resources skipped from the available resource list: %v", err)
 	}
 
 	// finally, gather polymorphic resources specified by the user
@@ -413,7 +411,7 @@ type supportedResourceFinder interface {
 func retrieveAPIGroupVersionResourceNames(discoveryClient supportedResourceFinder, apiGroup string) ([]schema.GroupVersionResource, error) {
 	lists, discoveryErr := discoveryClient.ServerPreferredResources()
 
-	foundResources := sets.String{}
+	foundResources := sets.Set[string]{}
 	resources := []schema.GroupVersionResource{}
 	for _, list := range lists {
 		if len(list.APIResources) == 0 {

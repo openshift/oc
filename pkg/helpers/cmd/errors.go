@@ -9,7 +9,6 @@ import (
 	userv1 "github.com/openshift/api/user/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
@@ -72,13 +71,13 @@ func CheckOAuthDisabledErr(originalError error, discoveryClient discovery.Discov
 		return
 	}
 
-	if !sets.New[string](oauthv1.GroupVersion.Group, userv1.GroupVersion.Group).Has(details.Group) {
+	if details.Group != oauthv1.GroupVersion.Group && details.Group != userv1.GroupVersion.Group {
 		// not a group we care about
 		kcmdutil.CheckErr(originalError)
 		return
 	}
 
-	// in the case of a NotFound error, either the GR is not found or the object iself
+	// in the case of a NotFound error, either the GR is not found or the object itself
 	// is not found (when the action was a mutation of existing content); make sure it's
 	// a missing GR by cross-checking discovery
 	_, resourceLists, err := discoveryClient.ServerGroupsAndResources()
@@ -101,9 +100,9 @@ func CheckOAuthDisabledErr(originalError error, discoveryClient discovery.Discov
 		return
 	}
 
-	kcmdutil.CheckErr(fmt.Errorf(`Error: %s.%s are not enabled on this cluster.
-Is the embeedded OAuth server disabled?. 
+	kcmdutil.CheckErr(fmt.Errorf(`%s.%s are not enabled on this cluster.
+Is the embedded OAuth server disabled?
 
 Original error:
-%w`, details.Kind, details.Group, err))
+%w`, details.Kind, details.Group, originalError))
 }
