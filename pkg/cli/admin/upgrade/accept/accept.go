@@ -28,7 +28,7 @@ func newOptions(streams genericiooptions.IOStreams) *options {
 var (
 	acceptExample = templates.Examples(`
 		# Accept RiskA and RiskB and stop accepting RiskC if accepted
-		oc adm upgrade accept RiskA,RiskB,-RiskC
+		oc adm upgrade accept RiskA,RiskB,RiskC-
 
 		# Accept RiskA and RiskB and nothing else
 		oc adm upgrade accept --replace RiskA,RiskB
@@ -42,8 +42,8 @@ var (
 
 		Multiple risks are concatenated with comma. By default, the command appends the provided accepted risks into the existing
 		list. If --replace is specified, the existing accepted risks will be replaced with the provided
-		ones instead of appending. Placing "-" as prefix to an accepted risk will lead to
-		removal if it exists and no-ops otherwise. If --replace is specified, the prefix "-" on the risks
+		ones instead of appending. Placing "-" as suffix to an accepted risk will lead to
+		removal if it exists and no-ops otherwise. If --replace is specified, the suffix "-" on the risks
 		is not allowed.
 
 		Passing --clear removes all existing excepted risks.
@@ -107,8 +107,8 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 			if trimmed == "-" || trimmed == "" {
 				return kcmdutil.UsageErrorf(cmd, "illegal risk %q", trimmed)
 			}
-			if strings.HasPrefix(trimmed, "-") {
-				o.remove.Insert(trimmed[1:])
+			if strings.HasSuffix(trimmed, "-") {
+				o.remove.Insert(strings.TrimSuffix(trimmed, "-"))
 			} else {
 				o.add.Insert(trimmed)
 			}
@@ -116,11 +116,11 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 	}
 
 	if conflict := o.add.Intersection(o.remove); conflict.Len() > 0 {
-		return kcmdutil.UsageErrorf(cmd, "requested risks with both Risk and -Risk: %s", strings.Join(sets.List(conflict), ","))
+		return kcmdutil.UsageErrorf(cmd, "requested risks with both Risk and Risk-: %s", strings.Join(sets.List(conflict), ","))
 	}
 
 	if o.replace && o.remove.Len() > 0 {
-		return kcmdutil.UsageErrorf(cmd, "The prefix '-' on risks is not allowed if --replace is specified")
+		return kcmdutil.UsageErrorf(cmd, "The suffix '-' on risks is not allowed if --replace is specified")
 	}
 
 	cfg, err := f.ToRESTConfig()
