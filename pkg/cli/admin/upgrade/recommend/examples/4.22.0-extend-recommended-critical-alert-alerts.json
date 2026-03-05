@@ -1,0 +1,42 @@
+{
+  "status": "success",
+  "data": {
+    "alerts": [
+      {
+        "labels": {
+          "alertname": "VirtHandlerDaemonSetRolloutFailing",
+          "channel": "stable-4.22",
+          "namespace": "openshift-cluster-version",
+          "severity": "critical",
+          "upstream": "https://amd64.origin.releases.ci.openshift.org/graph",
+          "openShiftUpdatePrecheck": "true"
+        },
+        "annotations": {
+          "description": "For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-plnvytb-76ef8.aws-2.ci.openshift.org/settings/cluster/.",
+          "summary": "Your upstream update recommendation service recommends you update your cluster."
+        },
+        "state": "firing",
+        "activeAt": "2025-09-09T16:59:17.077287821Z",
+        "value": "2e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "VMCannotBeEvicted",
+          "name": "ci-ln-plnvytb-76ef8-42h8v-worker-us-east-1a-84pg2",
+          "namespace": "openshift-machine-api",
+          "severity": "critical",
+          "openShiftUpdatePrecheck": "true"
+        },
+        "annotations": {
+          "description": "The machine has been without a Running or Deleting phase for more than 60 minutes.\nThe machine may not have been provisioned properly from the infrastructure provider, or\nit might have issues with CertificateSigningRequests being approved.\n",
+          "summary": "machine ci-ln-plnvytb-76ef8-42h8v-worker-us-east-1a-84pg2 is in phase: "
+        },
+        "state": "pending",
+        "activeAt": "2025-09-09T16:49:56.763336056Z",
+        "value": "1.757435418e+09",
+        "partialResponseStrategy": "WARN"
+      }
+    ]
+  }
+}
