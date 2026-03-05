@@ -9,26 +9,28 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"regexp"
-
-	o "github.com/onsi/gomega"
-
 	"math/rand"
 	"net/http"
-
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	g "github.com/onsi/ginkgo/v2"
+	o "github.com/onsi/gomega"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
+
+	configv1 "github.com/openshift/api/config/v1"
+	configv1client "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
 
 	"github.com/openshift/oc/test/testdata"
 )
@@ -72,6 +74,8 @@ type CLI struct {
 	namespace     string
 	asAdmin       bool
 	withNamespace bool
+
+	addEnvVars map[string]string
 }
 
 // NewCLI creates a new CLI instance
@@ -139,17 +143,19 @@ func (c *CLI) AsGuestKubeconf(path string) *CLI { return c }
 
 // CLICommand represents a command to be executed
 type CLICommand struct {
-	cli  *CLI
-	verb string
-	args []string
+	cli        *CLI
+	verb       string
+	args       []string
+	addEnvVars map[string]string
 }
 
 // Run sets the verb for the CLI command
 func (c *CLI) Run(verb string) *CLICommand {
 	return &CLICommand{
-		cli:  c,
-		verb: verb,
-		args: []string{},
+		cli:        c,
+		verb:       verb,
+		args:       []string{},
+		addEnvVars: c.addEnvVars,
 	}
 }
 
@@ -210,6 +216,9 @@ func (cmd *CLICommand) Output() (string, error) {
 	if cmd.cli.kubeconfig != "" {
 		execCmd.Env = append(os.Environ(), "KUBECONFIG="+cmd.cli.kubeconfig)
 	}
+	for k, v := range cmd.addEnvVars {
+		execCmd.Env = append(execCmd.Env, fmt.Sprintf("%s=%s", k, v))
+	}
 
 	output, err := execCmd.CombinedOutput()
 	if err != nil {
@@ -254,6 +263,9 @@ func (cmd *CLICommand) Outputs() (string, string, error) {
 	execCmd := exec.Command(cmd.cli.execPath, args...)
 	if cmd.cli.kubeconfig != "" {
 		execCmd.Env = append(os.Environ(), "KUBECONFIG="+cmd.cli.kubeconfig)
+	}
+	for k, v := range cmd.addEnvVars {
+		execCmd.Env = append(execCmd.Env, fmt.Sprintf("%s=%s", k, v))
 	}
 
 	var stdout, stderr strings.Builder
@@ -311,6 +323,9 @@ func (cmd *CLICommand) Background() (*exec.Cmd, *strings.Builder, *strings.Build
 	execCmd := exec.Command(cmd.cli.execPath, args...)
 	if cmd.cli.kubeconfig != "" {
 		execCmd.Env = append(os.Environ(), "KUBECONFIG="+cmd.cli.kubeconfig)
+	}
+	for k, v := range cmd.addEnvVars {
+		execCmd.Env = append(execCmd.Env, fmt.Sprintf("%s=%s", k, v))
 	}
 
 	var stdout, stderr strings.Builder
@@ -1461,4 +1476,33 @@ func (c *CLI) CreateSpecifiedNamespaceAsAdmin(namespace string) {
 func (c *CLI) DeleteSpecifiedNamespaceAsAdmin(namespace string) {
 	err := c.AsAdmin().WithoutNamespace().Run("delete").Args("namespace", namespace).Execute()
 	o.Expect(err).NotTo(o.HaveOccurred(), fmt.Sprintf("Failed to delete namespace/%s", namespace))
+}
+
+// EnvVar sets an environment variable for the command, appended to whatever Env is set on the CLI
+// when eventually executed.
+func (c *CLI) EnvVar(name, value string) *CLI {
+	if c.addEnvVars == nil {
+		c.addEnvVars = make(map[string]string)
+	}
+	c.addEnvVars[name] = value
+	return c
+}
+
+// IsTechPreviewNoUpgrade checks if a cluster is a TechPreviewNoUpgrade cluster
+func IsTechPreviewNoUpgrade(ctx context.Context, client *configv1client.ConfigV1Client) bool {
+	featureGate, err := client.FeatureGates().Get(ctx, "cluster", metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false
+		}
+		o.Expect(err).NotTo(o.HaveOccurred(), "could not retrieve feature-gate: %v", err)
+	}
+	return featureGate.Spec.FeatureSet == configv1.TechPreviewNoUpgrade
+}
+
+// SkipIfNotTechPreviewNoUpgrade skips the test if a cluster is not a TechPreviewNoUpgrade cluster
+func SkipIfNotTechPreviewNoUpgrade(ctx context.Context, client *configv1client.ConfigV1Client) {
+	if !IsTechPreviewNoUpgrade(ctx, client) {
+		g.Skip("This test is skipped because the Tech Preview NoUpgrade is not enabled")
+	}
 }
