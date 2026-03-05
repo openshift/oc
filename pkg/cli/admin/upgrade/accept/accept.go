@@ -46,7 +46,7 @@ var (
 		removal if it exists and no-ops otherwise. If --replace is specified, the suffix "-" on the risks
 		is not allowed.
 
-		Passing --clear removes all existing excepted risks.
+		Passing --clear removes all existing accepted risks.
 		`)
 )
 
@@ -151,7 +151,7 @@ func (o *options) Run(ctx context.Context) error {
 	acceptRisks := getAcceptRisks(existing, o.replace, o.clear, o.add, o.remove)
 
 	if diff := cmp.Diff(acceptRisks, existing); diff != "" {
-		if err := patchDesiredUpdate(context.TODO(), acceptRisks, o.Client.ConfigV1().ClusterVersions(), "version"); err != nil {
+		if err := patchDesiredUpdate(ctx, acceptRisks, o.Client.ConfigV1().ClusterVersions(), "version"); err != nil {
 			return err
 		}
 		var names []string

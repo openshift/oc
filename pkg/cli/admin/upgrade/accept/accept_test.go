@@ -52,7 +52,7 @@ func Test_getAcceptRisks(t *testing.T) {
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			actual := getAcceptRisks(testCase.existing, testCase.replace, testCase.clear, testCase.plus, testCase.minus)
-			if diff := cmp.Diff(actual, testCase.expected); diff != "" {
+			if diff := cmp.Diff(testCase.expected, actual); diff != "" {
 				t.Errorf("getAcceptRisks() mismatch (-want +got):\n%s", diff)
 			}
 		})

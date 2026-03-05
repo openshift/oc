@@ -106,7 +106,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
-			kcmdutil.CheckErr(o.Run())
+			kcmdutil.CheckErr(o.Run(cmd.Context()))
 		},
 	}
 	flags := cmd.Flags()
@@ -204,16 +204,14 @@ func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 	return nil
 }
 
-func (o *Options) Run() error {
-	cv, err := o.Client.ConfigV1().ClusterVersions().Get(context.TODO(), "version", metav1.GetOptions{})
+func (o *Options) Run(ctx context.Context) error {
+	cv, err := o.Client.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return fmt.Errorf("No cluster version information available - you must be connected to an OpenShift version 4 server to fetch the current version")
 		}
 		return err
 	}
-
-	ctx := context.TODO()
 
 	switch {
 	case o.Clear:
@@ -233,7 +231,7 @@ func (o *Options) Run() error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal update: %v", err)
 		}
-		updated, err := o.Client.ConfigV1().ClusterVersions().Patch(context.TODO(), cv.Name, types.MergePatchType, []byte(fmt.Sprintf(`{"spec":{"desiredUpdate":%s}}`, bytes)), metav1.PatchOptions{})
+		updated, err := o.Client.ConfigV1().ClusterVersions().Patch(ctx, cv.Name, types.MergePatchType, []byte(fmt.Sprintf(`{"spec":{"desiredUpdate":%s}}`, bytes)), metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Unable to cancel current rollout: %v", err)
 		}
@@ -266,7 +264,7 @@ func (o *Options) Run() error {
 			fmt.Fprintln(o.ErrOut, "warning: --force overrides cluster verification of your supplied release image and waives any update precondition failures. Only use this if you are testing unsigned release images or you are working around a known bug in the cluster-version operator and you have verified the authenticity of the provided image yourself.")
 		}
 
-		if update != nil {
+		if cv.Spec.DesiredUpdate != nil {
 			update.AcceptRisks = cv.Spec.DesiredUpdate.AcceptRisks
 		}
 		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
@@ -408,7 +406,9 @@ func (o *Options) Run() error {
 			fmt.Fprintf(o.ErrOut, "warning: --allow-upgrade-with-warnings is bypassing: %s\n", err)
 		}
 
-		update.AcceptRisks = cv.Spec.DesiredUpdate.AcceptRisks
+		if cv.Spec.DesiredUpdate != nil {
+			update.AcceptRisks = cv.Spec.DesiredUpdate.AcceptRisks
+		}
 		if err := patchDesiredUpdate(ctx, update, o.Client, cv.Name); err != nil {
 			return err
 		}
