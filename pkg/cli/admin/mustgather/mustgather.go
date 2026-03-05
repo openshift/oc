@@ -272,6 +272,7 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 			return fmt.Errorf("unable to resolve image stream '%v': %v", imageStream, err)
 		}
 	}
+	// If no images or --all flag is set, use default must-gather image
 	if len(o.Images) == 0 || o.AllImages {
 		var image string
 		var err error
@@ -288,12 +289,12 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 
 		pluginImages, err = o.annotatedCSVs(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to list CSVs: %v", err)
 		}
 
 		cos, err := o.ConfigClient.ConfigV1().ClusterOperators().List(ctx, metav1.ListOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to list ClusterOperators: %v", err)
 		}
 		for _, item := range cos.Items {
 			ann := item.GetAnnotations()
@@ -329,6 +330,8 @@ func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struc
 		ann := item.GetAnnotations()
 		if v, ok := ann[mgAnnotation]; ok {
 			pluginImages[v] = struct{}{}
+		} else {
+			o.log("WARNING: CSV operator %s doesn't have the must-gather-image annotation.", item.GetName())
 		}
 	}
 	return pluginImages, nil
