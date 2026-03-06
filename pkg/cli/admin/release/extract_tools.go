@@ -100,6 +100,12 @@ type manifestInclusionConfiguration struct {
 
 	// Platform, if non-nil, excludes CredentialsRequests manifests unless they match the infrastructure platform.
 	Platform *string
+
+	// EnabledFeatureGates, if non-nil, excludes manifests unless they match the enabled feature gates.
+	EnabledFeatureGates sets.Set[string]
+
+	// MajorVersion, if non-nil, excludes manifests unless they match the major version.
+	MajorVersion *uint64
 }
 
 type includer func(m *manifest.Manifest) error
@@ -1230,6 +1236,15 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 		return config, err
 	} else {
 		config.RequiredFeatureSet = ptr.To[string](string(featureGate.Spec.FeatureSet))
+
+		// Extract enabled feature gates
+		if len(featureGate.Status.FeatureGates) > 0 {
+			enabledGates := sets.New[string]()
+			for _, gate := range featureGate.Status.FeatureGates[0].Enabled {
+				enabledGates.Insert(string(gate.Name))
+			}
+			config.EnabledFeatureGates = enabledGates
+		}
 	}
 
 	if clusterVersion, err := client.ClusterVersions().Get(ctx, "version", metav1.GetOptions{}); err != nil {
@@ -1283,6 +1298,6 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 
 func newIncluder(config manifestInclusionConfiguration) includer {
 	return func(m *manifest.Manifest) error {
-		return m.Include(config.ExcludeIdentifier, config.RequiredFeatureSet, config.Profile, config.Capabilities, config.Overrides)
+		return m.Include(config.ExcludeIdentifier, config.RequiredFeatureSet, config.Profile, config.Capabilities, config.Overrides, config.EnabledFeatureGates, nil)
 	}
 }
