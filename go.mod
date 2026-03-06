@@ -41,10 +41,10 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/openshift-eng/openshift-tests-extension v0.0.0-20250804142706-7b3ab438a292
-	github.com/openshift/api v0.0.0-20251111013132-5c461e21bdb7
-	github.com/openshift/build-machinery-go v0.0.0-20251020112516-49aa9f5db6d8
-	github.com/openshift/client-go v0.0.0-20251015124057-db0dee36e235
-	github.com/openshift/library-go v0.0.0-20251222131241-289839b3ffe8
+	github.com/openshift/api v0.0.0-20260306002634-d3bbdada155c
+	github.com/openshift/build-machinery-go v0.0.0-20251023084048-5d77c1a5e5af
+	github.com/openshift/client-go v0.0.0-20260305174943-67b007d67537
+	github.com/openshift/library-go v0.0.0-20260303171201-5d9eb6295ff6
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.23.2
 	github.com/russross/blackfriday v1.6.0
@@ -208,7 +208,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/component-helpers v0.35.2 // indirect
-	k8s.io/kube-aggregator v0.34.1 // indirect
+	k8s.io/kube-aggregator v0.35.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	k8s.io/metrics v0.35.2 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
