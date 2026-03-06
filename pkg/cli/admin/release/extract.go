@@ -16,6 +16,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -309,44 +310,8 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	opts := extract.NewExtractOptions(genericiooptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
-	opts.ParallelOptions = o.ParallelOptions
-	opts.SecurityOptions = o.SecurityOptions
-	opts.FilterOptions = o.FilterOptions
-	opts.FileDir = o.FileDir
-	opts.OnlyFiles = true
-	opts.ICSPFile = o.ICSPFile
-	opts.IDMSFile = o.IDMSFile
-	opts.Mappings = []extract.Mapping{
-		{
-			ImageRef: ref,
 
-			From: "release-manifests/",
-		},
-	}
-
-	imageMetadataCallbacks := []extract.ImageMetadataFunc{}
-	if o.ImageMetadataCallback != nil {
-		imageMetadataCallbacks = append(imageMetadataCallbacks, o.ImageMetadataCallback)
-	}
-
-	var metadataVerifyMsg string
-
-	verifier := imagemanifest.NewVerifier()
-	imageMetadataCallbacks = append(imageMetadataCallbacks, func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
-		verifier.Verify(dgst, contentDigest)
-		if len(ref.Ref.ID) > 0 {
-			metadataVerifyMsg = fmt.Sprintf("Extracted release payload created at %s", config.Created.Format(time.RFC3339))
-		} else {
-			metadataVerifyMsg = fmt.Sprintf("Extracted release payload from digest %s created at %s", dgst, config.Created.Format(time.RFC3339))
-		}
-	})
-
-	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
-		for _, callback := range imageMetadataCallbacks {
-			callback(m, dgst, contentDigest, config, manifestListDigest)
-		}
-	}
+	opts, metadataVerifyMsg, verifier := o.newExtractOpts(ref)
 
 	var manifestErrs []error
 	// o.ExtractManifests implies o.File == ""
@@ -360,7 +325,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 			if o.InstallConfig == "" {
 				inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig)
 			} else {
-				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig)
+				inclusionConfig, err = o.findClusterIncludeConfigFromInstallConfig(o.InstallConfig, ref)
 				context = o.InstallConfig
 			}
 			if err != nil {
@@ -505,11 +470,11 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	if metadataVerifyMsg != "" {
+	if ptr.Deref(metadataVerifyMsg, "") != "" {
 		if o.File == "" && o.Out != nil {
-			fmt.Fprintf(o.Out, "%s\n", metadataVerifyMsg)
+			fmt.Fprintf(o.Out, "%s\n", *metadataVerifyMsg)
 		} else {
-			klog.V(4).Info(metadataVerifyMsg)
+			klog.V(4).Info(*metadataVerifyMsg)
 		}
 	}
 
@@ -632,4 +597,47 @@ func validCloudValues() []string {
 		values = append(values, k)
 	}
 	return values
+}
+
+func (o *ExtractOptions) newExtractOpts(ref imagesource.TypedImageReference) (*extract.ExtractOptions, *string, imagemanifest.Verifier) {
+	opts := extract.NewExtractOptions(genericiooptions.IOStreams{Out: o.Out, ErrOut: o.ErrOut})
+	opts.ParallelOptions = o.ParallelOptions
+	opts.SecurityOptions = o.SecurityOptions
+	opts.FilterOptions = o.FilterOptions
+	opts.FileDir = o.FileDir
+	opts.OnlyFiles = true
+	opts.ICSPFile = o.ICSPFile
+	opts.IDMSFile = o.IDMSFile
+	opts.Mappings = []extract.Mapping{
+		{
+			ImageRef: ref,
+
+			From: "release-manifests/",
+		},
+	}
+
+	imageMetadataCallbacks := []extract.ImageMetadataFunc{}
+	if o.ImageMetadataCallback != nil {
+		imageMetadataCallbacks = append(imageMetadataCallbacks, o.ImageMetadataCallback)
+	}
+
+	var metadataVerifyMsg *string
+
+	verifier := imagemanifest.NewVerifier()
+	imageMetadataCallbacks = append(imageMetadataCallbacks, func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
+		verifier.Verify(dgst, contentDigest)
+		if len(ref.Ref.ID) > 0 {
+			metadataVerifyMsg = ptr.To(fmt.Sprintf("Extracted release payload created at %s", config.Created.Format(time.RFC3339)))
+		} else {
+			metadataVerifyMsg = ptr.To(fmt.Sprintf("Extracted release payload from digest %s created at %s", dgst, config.Created.Format(time.RFC3339)))
+		}
+	})
+
+	opts.ImageMetadataCallback = func(m *extract.Mapping, dgst, contentDigest digest.Digest, config *dockerv1client.DockerImageConfig, manifestListDigest digest.Digest) {
+		for _, callback := range imageMetadataCallbacks {
+			callback(m, dgst, contentDigest, config, manifestListDigest)
+		}
+	}
+
+	return opts, metadataVerifyMsg, verifier
 }

@@ -9,14 +9,17 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"hash"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -29,6 +32,7 @@ import (
 	"k8s.io/klog/v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
@@ -36,6 +40,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/blang/semver"
 	configv1 "github.com/openshift/api/config/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
 	imagereference "github.com/openshift/library-go/pkg/image/reference"
@@ -88,6 +93,12 @@ type manifestInclusionConfiguration struct {
 
 	// RequiredFeatureSet, if non-nil, excludes manifests unless they match the desired feature set.
 	RequiredFeatureSet *string
+
+	// EnabledFeatureGates, if non-nil, excludes manifests unless they match the enabled feature gates.
+	EnabledFeatureGates sets.Set[string]
+
+	// RequiredMajorVersion, if non-nil, excludes manifests unless they match the required major version.
+	RequiredMajorVersion *uint64
 
 	// Profile, if non-nil, excludes manifests unless they match the cluster profile.
 	Profile *string
@@ -1167,7 +1178,7 @@ func copyAndReplace(errorOutput io.Writer, w io.Writer, r io.Reader, bufferSize 
 
 }
 
-func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfigPath string) (manifestInclusionConfiguration, error) {
+func (o *ExtractOptions) findClusterIncludeConfigFromInstallConfig(installConfigPath string, imageRef imagesource.TypedImageReference) (manifestInclusionConfiguration, error) {
 	config := manifestInclusionConfiguration{}
 
 	clientVersion, reportedVersion, err := version.ExtractVersion()
@@ -1193,10 +1204,10 @@ func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfi
 		return config, fmt.Errorf("unrecognized %s API version: %q (expected %q)", installConfigPath, data.APIVersion, "v1")
 	}
 
-	config.RequiredFeatureSet = ptr.To[string](string(data.FeatureSet))
-	config.Profile = ptr.To[string](manifest.DefaultClusterProfile) // assumption, but there's no install-config data about profile to give us more insight
+	config.RequiredFeatureSet = ptr.To(string(data.FeatureSet))
+	config.Profile = ptr.To(manifest.DefaultClusterProfile) // assumption, but there's no install-config data about profile to give us more insight
 	for key := range data.Platform {
-		config.Platform = ptr.To[string](key)
+		config.Platform = ptr.To(key)
 	}
 
 	if data.Capabilities != nil {
@@ -1215,6 +1226,17 @@ func findClusterIncludeConfigFromInstallConfig(ctx context.Context, installConfi
 		config.Capabilities.KnownCapabilities = configv1.KnownClusterVersionCapabilities
 	}
 
+	// Extract enabled feature gates from release image
+	enabledFeatureGates, releaseMajorVersion, err := o.extractFeatureGatesFromRelease(imageRef, reportedVersion, string(data.FeatureSet), *config.Profile)
+	if err != nil {
+		// Log error but don't fail
+		// In this case all manifests will be included
+		klog.Warningf("Failed to extract feature gates from release: %v", err)
+	} else {
+		config.EnabledFeatureGates = enabledFeatureGates
+		config.RequiredMajorVersion = releaseMajorVersion
+	}
+
 	return config, nil
 }
 
@@ -1226,12 +1248,7 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 		return config, err
 	}
 
-	if featureGate, err := client.FeatureGates().Get(ctx, "cluster", metav1.GetOptions{}); err != nil {
-		return config, err
-	} else {
-		config.RequiredFeatureSet = ptr.To[string](string(featureGate.Spec.FeatureSet))
-	}
-
+	var currentVersion string
 	if clusterVersion, err := client.ClusterVersions().Get(ctx, "version", metav1.GetOptions{}); err != nil {
 		return config, err
 	} else {
@@ -1239,7 +1256,7 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 		config.Capabilities = &clusterVersion.Status.Capabilities
 
 		// FIXME: eventually pull in GetImplicitlyEnabledCapabilities from https://github.com/openshift/cluster-version-operator/blob/86e24d66119a73f50282b66a8d6f2e3518aa0e15/pkg/payload/payload.go#L237-L240 for cases where a minor update would implicitly enable some additional capabilities.  For now, 4.13 to 4.14 will always enable MachineAPI, ImageRegistry, etc..
-		currentVersion := clusterVersion.Status.Desired.Version
+		currentVersion = clusterVersion.Status.Desired.Version
 		matches := regexp.MustCompile(`^(\d+[.]\d+)[.].*`).FindStringSubmatch(currentVersion)
 		if len(matches) < 2 {
 			return config, fmt.Errorf("failed to parse major.minor version from ClusterVersion status.desired.version %q", currentVersion)
@@ -1252,12 +1269,35 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 		}
 	}
 
+	if featureGate, err := client.FeatureGates().Get(ctx, "cluster", metav1.GetOptions{}); err != nil {
+		return config, err
+	} else {
+		config.RequiredFeatureSet = ptr.To(string(featureGate.Spec.FeatureSet))
+
+		featureGates := sets.Set[string]{}
+		for _, gate := range featureGate.Status.FeatureGates {
+			if gate.Version == currentVersion {
+				for _, enabled := range gate.Enabled {
+					featureGates.Insert(string(enabled.Name))
+				}
+			}
+		}
+
+		config.EnabledFeatureGates = featureGates
+	}
+
+	parsedVersion, err := semver.Parse(currentVersion)
+	if err != nil {
+		return config, err
+	}
+	config.RequiredMajorVersion = ptr.To(parsedVersion.Major)
+
 	if infrastructure, err := client.Infrastructures().Get(ctx, "cluster", metav1.GetOptions{}); err != nil {
 		return config, err
 	} else if infrastructure.Status.PlatformStatus == nil {
 		return config, fmt.Errorf("cluster infrastructure does not declare status.platformStatus: %v", infrastructure.Status)
 	} else {
-		config.Platform = ptr.To[string](strings.ToLower(string(infrastructure.Status.PlatformStatus.Type)))
+		config.Platform = ptr.To(strings.ToLower(string(infrastructure.Status.PlatformStatus.Type)))
 	}
 
 	appsClient, err := appsv1client.NewForConfig(restConfig)
@@ -1271,7 +1311,7 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 		for _, container := range deployment.Spec.Template.Spec.Containers {
 			for _, env := range container.Env {
 				if env.Name == "CLUSTER_PROFILE" {
-					config.Profile = ptr.To[string](env.Value)
+					config.Profile = ptr.To(env.Value)
 					break
 				}
 			}
@@ -1283,6 +1323,154 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 
 func newIncluder(config manifestInclusionConfiguration) includer {
 	return func(m *manifest.Manifest) error {
-		return m.Include(config.ExcludeIdentifier, config.RequiredFeatureSet, config.Profile, config.Capabilities, config.Overrides)
+		return m.Include(config.ExcludeIdentifier, config.RequiredFeatureSet, config.Profile, config.Capabilities, config.Overrides, config.EnabledFeatureGates, config.RequiredMajorVersion)
 	}
+}
+
+// extractFeatureGatesFromRelease extracts FeatureGate manifests from the release payload
+// and returns the set of enabled feature gates for the specified version
+func (o *ExtractOptions) extractFeatureGatesFromRelease(imageRef imagesource.TypedImageReference, version, featureSet, profile string) (sets.Set[string], *uint64, error) {
+	enabledFeatureGates := sets.Set[string]{}
+
+	// Validate the version
+	if version == "" {
+		return enabledFeatureGates, nil, fmt.Errorf("version cannot be empty")
+	}
+
+	opts, metadataVerifyMsg, verifier := o.newExtractOpts(imageRef)
+
+	featureGateManifests := []configv1.FeatureGate{}
+	releaseMetadata := struct {
+		Version string `json:"version"`
+	}{}
+
+	// Set up tar callback to extract FeatureGate manifests
+	opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
+		// Extract the release metadata so that we can work out the release version.
+		if hdr.Name == "release-metadata" {
+			buf := &bytes.Buffer{}
+			if _, err := io.Copy(buf, r); err != nil {
+				return false, fmt.Errorf("unable to load release metadata from release payload: %w", err)
+			}
+
+			if err := json.Unmarshal(buf.Bytes(), &releaseMetadata); err != nil {
+				return false, fmt.Errorf("unable to load release metadata from release payload: %w", err)
+			}
+
+			return true, nil
+		}
+
+		if ext := path.Ext(hdr.Name); len(ext) == 0 || !(ext == ".yaml" || ext == ".yml" || ext == ".json") {
+			return true, nil
+		}
+
+		ms, err := manifest.ParseManifests(r)
+		if err != nil {
+			klog.V(4).Infof("Failed to parse manifest %s: %v", hdr.Name, err)
+			return true, nil
+		}
+
+		// Process each manifest in the file
+		for _, m := range ms {
+			if m.GVK.Group == "config.openshift.io" && m.GVK.Version == "v1" && m.GVK.Kind == "FeatureGate" {
+				// Extract feature gate data
+				featureGate := &configv1.FeatureGate{}
+				if err := k8sruntime.DefaultUnstructuredConverter.FromUnstructured(m.Obj.Object, featureGate); err != nil {
+					klog.V(4).Infof("Failed to convert FeatureGate %s: %v", hdr.Name, err)
+					continue
+				}
+
+				featureGateManifests = append(featureGateManifests, *featureGate)
+			}
+		}
+
+		return true, nil
+	}
+
+	// Extract the manifests
+	if err := opts.Run(); err != nil {
+		klog.V(4).Infof("Failed to extract manifests, falling back to logic-based feature gates: %v", err)
+		return enabledFeatureGates, nil, fmt.Errorf("failed to extract feature gates: %w", err)
+	}
+
+	if ptr.Deref(metadataVerifyMsg, "") != "" {
+		if o.File == "" && o.Out != nil {
+			fmt.Fprintf(o.Out, "%s\n", *metadataVerifyMsg)
+		} else {
+			klog.V(4).Info(*metadataVerifyMsg)
+		}
+	}
+
+	if !verifier.Verified() {
+		err := fmt.Errorf("the release image failed content verification and may have been tampered with")
+		if !o.SecurityOptions.SkipVerification {
+			return enabledFeatureGates, nil, err
+		}
+		fmt.Fprintf(o.ErrOut, "warning: %v\n", err)
+	}
+
+	if releaseMetadata.Version == "" {
+		return enabledFeatureGates, nil, fmt.Errorf("release metadata version is empty")
+	}
+
+	parsedVersion, err := semver.Parse(releaseMetadata.Version)
+	if err != nil {
+		return enabledFeatureGates, nil, fmt.Errorf("failed to parse release metadata version %s: %w", releaseMetadata.Version, err)
+	}
+
+	for _, featureGate := range featureGateManifests {
+		if !appliesToVersion(&featureGate, parsedVersion.Major) ||
+			!appliesToClusterProfile(&featureGate, profile) ||
+			!appliesToFeatureSet(&featureGate, featureSet) {
+			continue
+		}
+
+		// There will only be a single version in the feature gate manifests.
+		for _, version := range featureGate.Status.FeatureGates {
+			for _, enabled := range version.Enabled {
+				enabledFeatureGates.Insert(string(enabled.Name))
+			}
+		}
+	}
+
+	klog.V(4).Infof("Successfully extracted %d feature gates for version %s", enabledFeatureGates.Len(), version)
+	return enabledFeatureGates, ptr.To(parsedVersion.Major), nil
+}
+
+func appliesToClusterProfile(featureGate *configv1.FeatureGate, profile string) bool {
+	annotations := featureGate.ObjectMeta.Annotations
+
+	// The feature gate manifests in the payload use a special version of the annotation
+	// with a value of "false-except-for-the-config-operator" so that CVO ignores them,
+	// but they are applied by config operator instead.
+	return annotations[fmt.Sprintf("include.release.openshift.io/%s", profile)] == "false-except-for-the-config-operator"
+}
+
+func appliesToFeatureSet(featureGate *configv1.FeatureGate, featureSet string) bool {
+	if featureSet == "" {
+		// The empty feature set means "Default".
+		featureSet = "Default"
+	}
+
+	annotations := featureGate.ObjectMeta.Annotations
+
+	return annotations["release.openshift.io/feature-set"] == featureSet
+}
+
+func appliesToVersion(featureGate *configv1.FeatureGate, major uint64) bool {
+	annotations := featureGate.ObjectMeta.Annotations
+
+	versions, ok := annotations["release.openshift.io/major-version"]
+	if !ok {
+		// No version annotation means it'll apply to all versions.
+		return true
+	}
+
+	for _, v := range strings.Split(versions, ",") {
+		if strings.TrimSpace(v) == strconv.FormatUint(major, 10) {
+			return true
+		}
+	}
+
+	return false
 }
