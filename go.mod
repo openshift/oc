@@ -41,10 +41,10 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/openshift-eng/openshift-tests-extension v0.0.0-20250804142706-7b3ab438a292
-	github.com/openshift/api v0.0.0-20251111013132-5c461e21bdb7
-	github.com/openshift/build-machinery-go v0.0.0-20251020112516-49aa9f5db6d8
-	github.com/openshift/client-go v0.0.0-20251015124057-db0dee36e235
-	github.com/openshift/library-go v0.0.0-20251222131241-289839b3ffe8
+	github.com/openshift/api v0.0.0-20260309185601-71270106f276
+	github.com/openshift/build-machinery-go v0.0.0-20251023084048-5d77c1a5e5af
+	github.com/openshift/client-go v0.0.0-20260306160707-3935d929fc7d
+	github.com/openshift/library-go v0.0.0-20260303171201-5d9eb6295ff6
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.23.2
 	github.com/russross/blackfriday v1.6.0
@@ -53,9 +53,9 @@ require (
 	github.com/vincent-petithory/dataurl v1.0.0
 	golang.org/x/crypto v0.48.0
 	golang.org/x/net v0.51.0
-	golang.org/x/oauth2 v0.35.0
-	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.41.0
+	golang.org/x/oauth2 v0.36.0
+	golang.org/x/sync v0.20.0
+	golang.org/x/sys v0.42.0
 	golang.org/x/term v0.40.0
 	k8s.io/api v0.35.2
 	k8s.io/apiextensions-apiserver v0.35.2
@@ -64,7 +64,7 @@ require (
 	k8s.io/cli-runtime v0.35.2
 	k8s.io/client-go v0.35.2
 	k8s.io/component-base v0.35.2
-	k8s.io/klog/v2 v2.130.1
+	k8s.io/klog/v2 v2.140.0
 	k8s.io/kubectl v0.35.2
 	k8s.io/pod-security-admission v0.35.2
 	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2
@@ -208,7 +208,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/component-helpers v0.35.2 // indirect
-	k8s.io/kube-aggregator v0.34.1 // indirect
+	k8s.io/kube-aggregator v0.35.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	k8s.io/metrics v0.35.2 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
