@@ -66,9 +66,6 @@ type Config struct {
 	// Default to a string of random 32 bytes.
 	State string
 
-	// DEPRECATED: Set OAuth2Config.RedirectURL instead.
-	RedirectURLHostname string
-
 	// Candidates of hostname and port which the local server binds to.
 	// You can set port number to 0 to allocate a free port.
 	// If multiple addresses are given, it will try the ports in order.
