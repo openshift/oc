@@ -1283,6 +1283,6 @@ func findClusterIncludeConfig(ctx context.Context, restConfig *rest.Config) (man
 
 func newIncluder(config manifestInclusionConfiguration) includer {
 	return func(m *manifest.Manifest) error {
-		return m.Include(config.ExcludeIdentifier, config.RequiredFeatureSet, config.Profile, config.Capabilities, config.Overrides)
+		return m.Include(config.ExcludeIdentifier, config.RequiredFeatureSet, config.Profile, config.Capabilities, config.Overrides, nil, nil)
 	}
 }
