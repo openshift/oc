@@ -112,7 +112,7 @@ func (o *CreateIdentityOptions) Run() error {
 
 	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
 		var err error
-		identity, err = o.IdentityClient.Identities().Create(context.TODO(), identity, metav1.CreateOptions{})
+		identity, err = o.IdentityClient.Identities().Create(context.TODO(), identity, o.CreateSubcommandOptions.toCreateOptions())
 		if err != nil {
 			return err
 		}

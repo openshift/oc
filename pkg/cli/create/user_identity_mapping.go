@@ -131,7 +131,7 @@ func (o *CreateUserIdentityMappingOptions) Run() error {
 
 	var err error
 	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
-		mapping, err = o.UserIdentityMappingClient.UserIdentityMappings().Create(context.TODO(), mapping, metav1.CreateOptions{})
+		mapping, err = o.UserIdentityMappingClient.UserIdentityMappings().Create(context.TODO(), mapping, o.CreateSubcommandOptions.toCreateOptions())
 		if err != nil {
 			return err
 		}

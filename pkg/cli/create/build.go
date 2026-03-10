@@ -219,7 +219,7 @@ func (o *CreateBuildOptions) Run() error {
 
 	if o.CreateSubcommandOptions.DryRunStrategy != cmdutil.DryRunClient {
 		var err error
-		build, err = o.Client.Builds(o.CreateSubcommandOptions.Namespace).Create(context.TODO(), build, metav1.CreateOptions{})
+		build, err = o.Client.Builds(o.CreateSubcommandOptions.Namespace).Create(context.TODO(), build, o.CreateSubcommandOptions.toCreateOptions())
 		if err != nil {
 			return err
 		}
