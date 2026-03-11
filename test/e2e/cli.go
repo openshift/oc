@@ -984,6 +984,13 @@ var _ = g.Describe("[sig-cli] Workloads client test", func() {
 		project76116 := oc.Namespace()
 		By("Set namespace as privileged namespace")
 		SetNamespacePrivileged(oc, project76116)
+		By("Check if fips-mode-setup command exists")
+		err = oc.AsAdmin().WithoutNamespace().Run("debug").Args("-q", "-n", project76116, "node/"+workerNodeList[0], "--", "chroot", "/host", "command", "-v", "fips-mode-setup").Execute()
+		if err != nil {
+			skipMsg := "fips-mode-setup command not available on this node, skip it."
+			e2e.Warningf("SKIPPING TEST: %s", skipMsg)
+			g.Skip(skipMsg)
+		}
 		By("Check if fips enable")
 		efips, err := oc.AsAdmin().WithoutNamespace().Run("debug").Args("-n", project76116, "node/"+workerNodeList[0], "--", "chroot", "/host", "fips-mode-setup", "--check").Output()
 		o.Expect(err).NotTo(o.HaveOccurred())
