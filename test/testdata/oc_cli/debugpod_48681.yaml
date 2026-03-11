@@ -27,10 +27,10 @@ objects:
        name: test-container
        resources:
         limits:
-          cpu: 500m
+          cpu: 50m
           memory: 128Mi
         requests:
-          cpu: 250m
+          cpu: 10m
           memory: 64Mi
 
 parameters:
