@@ -38,6 +38,21 @@ import (
 // All e2e logging methods automatically log to klog for structured logging
 type e2eCompat struct{}
 
+// JSONPatchOperation defines a json struct
+type JSONPatchOperation struct {
+	Oper  string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value,omitempty"`
+}
+
+// ClusterVersion holds parsed information about the cluster's version.
+type ClusterVersion struct {
+	FullVersion string
+	Major       string
+	Minor       string
+	Patch       string
+}
+
 var e2e = e2eCompat{}
 
 // Logf logs an info message to both klog and Ginkgo writer
@@ -151,6 +166,28 @@ func (c *CLI) Run(verb string) *CLICommand {
 		verb: verb,
 		args: []string{},
 	}
+}
+
+// Patch patch resources to cluster
+func (c *CLI) Patch(namespace string, resource string, patch []JSONPatchOperation) (output string, err error) {
+	p, err := json.Marshal(patch)
+	if err != nil {
+		e2e.Logf("Marshal json Error - json.Marshal: '%v'", err)
+		return "", err
+	}
+	e2e.Logf("will patching: %s with: %s in namespace: %s", resource, string(p), namespace)
+	if namespace == "" {
+		output, err = c.AsAdmin().Run("patch").
+			Args(resource, "--type=json", "--patch", string(p)).Output()
+	} else {
+		output, err = c.AsAdmin().Run("patch").
+			Args("-n", namespace, resource, "--type=json", "--patch", string(p)).Output()
+	}
+	if err != nil {
+		e2e.Logf("Patch Error: '%v'", err)
+		return "", err
+	}
+	return output, nil
 }
 
 // Args sets the arguments for the CLI command
@@ -368,6 +405,29 @@ func GetRandomString() string {
 		b[i] = charset[seededRand.Intn(len(charset))]
 	}
 	return string(b)
+}
+
+// GetWebResource get web resource
+func GetWebResource(url string) ([]byte, error) {
+	e2e.Logf("Getting web resource: %s", url)
+	client := http.Client{
+		Timeout: 30 * time.Second,
+	}
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Check for HTTP status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP request failed with status %d: %s", resp.StatusCode, resp.Status)
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return bodyBytes, nil
 }
 
 // By prints a test step message using Ginkgo
@@ -966,6 +1026,14 @@ func isEnabledCapability(oc *CLI, component string) bool {
 	return strings.Contains(enabledCapabilities, component)
 }
 
+// Check if this is a TechPreview cluster
+func isTechPreview(oc *CLI) bool {
+	techPreview, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("clusterversion", "version", "-o=jsonpath='{.status.conditions[?(@.type==\"Upgradeable\")].message}'").Output()
+	o.Expect(err).NotTo(o.HaveOccurred())
+	e2e.Logf("Upgradeable: %v\n", techPreview)
+	return strings.Contains(techPreview, "TechPreviewNoUpgrade")
+}
+
 // this function is used to check whether openshift-samples installed or not
 // WaitForDeploymentPodsToBeReady waits for the specific deployment to be ready
 // make sure the PVC is Bound to the PV
@@ -1222,6 +1290,21 @@ func checkOcPlatform(oc *CLI) string {
 		return "Unknown platform"
 	}
 
+}
+
+// getMajorMinorVersion returns (fullVersion, major, minor, patch, error)
+func GetVersion(oc *CLI) (*ClusterVersion, error) {
+	fullVersion, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("clusterversion", "version", "-o=jsonpath={.status.desired.version}").Output()
+	if err != nil {
+		return &ClusterVersion{FullVersion: fullVersion}, err
+	}
+
+	version := strings.Split(fullVersion, ".")
+	if len(version) < 3 {
+		return &ClusterVersion{FullVersion: fullVersion}, fmt.Errorf("unexpected version format: %s (expected Major.Minor.Patch)", fullVersion)
+	}
+
+	return &ClusterVersion{FullVersion: fullVersion, Major: version[0], Minor: version[1], Patch: version[2]}, nil
 }
 
 type AuthEntry struct {
