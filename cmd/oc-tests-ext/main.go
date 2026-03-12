@@ -66,24 +66,26 @@ func prepareOperatorTestsRegistry() (*oteextension.Registry, error) {
 	// The following suite runs tests that verify the oc's behaviour.
 	// This suite is executed only on pull requests targeting this repository.
 	// Tests tagged with [Serial] are included in this suite.
+	// Tests with Manual label will not be included in this suite.
 	extension.AddSuite(oteextension.Suite{
 		Name:        "openshift/oc/conformance/serial",
 		Parents:     []string{"openshift/conformance/serial"},
 		Parallelism: 1,
 		Qualifiers: []string{
-			`name.contains("[Serial]")`,
+			`name.contains("[Serial]") && !("Manual" in labels)`,
 		},
 	})
 
 	// The following suite runs tests that verify the oc's behaviour.
 	// This suite is executed only on pull requests targeting this repository.
 	// Parallel tests are included in this suite.
+	// Tests with Manual label will not be included in this suite.
 	extension.AddSuite(oteextension.Suite{
 		Name:        "openshift/oc/conformance/parallel",
 		Parents:     []string{"openshift/conformance/parallel"},
 		Parallelism: 1,
 		Qualifiers: []string{
-			`!name.contains("[Serial]")`,
+			`name.contains("[Serial]") && !("Manual" in labels)`,
 		},
 	})
 

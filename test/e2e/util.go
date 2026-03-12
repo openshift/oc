@@ -374,6 +374,24 @@ func AssertWaitPollNoErr(err error, message string) {
 	o.Expect(err).NotTo(o.HaveOccurred(), message)
 }
 
+// GetCurrentVersionAndImage determines and returns the cluster's current version and image by iterating
+// through the provided update history until it finds the first version with update State of Completed.
+// If a Completed version is not found the version of the oldest history entry, which is the originally
+// installed version, is returned. If history is empty the empty string is returned.
+func GetCurrentVersionAndImage(history []configv1.UpdateHistory) (string, string) {
+	for _, h := range history {
+		if h.State == configv1.CompletedUpdate {
+			klog.V(2).Infof("Cluster current version=%s", h.Version)
+			return h.Version, h.Image
+		}
+	}
+	// Empty history should only occur if method is called early in startup before history is populated.
+	if len(history) != 0 {
+		return history[len(history)-1].Version, history[len(history)-1].Image
+	}
+	return "", ""
+}
+
 // GetRandomString generates a random string for unique naming
 func GetRandomString() string {
 	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -401,13 +419,17 @@ func IsExternalOIDCCluster(c *CLI) (bool, error) {
 }
 
 // SkipIfPlatformTypeNot skips the test if platform type doesn't match
-func SkipIfPlatformTypeNot(c *CLI, platformType string) {
+// e.g.: SkipIfPlatformTypeNot(oc, []string{"aws", "azure", "gcp", "baremetal", "vSphere", "IBMCloud", "Nutanix"})
+func SkipIfPlatformTypeNot(c *CLI, platformTypes []string) {
 	platform := CheckPlatform(c)
-	if !strings.EqualFold(platform, platformType) {
-		skipMsg := fmt.Sprintf("Test requires platform type %s, but cluster is %s", platformType, platform)
-		e2e.Warningf("SKIPPING TEST: %s", skipMsg)
-		g.Skip(skipMsg)
+	for _, pt := range platformTypes {
+		if strings.EqualFold(pt, platform) { // Use strings.EqualFold for robust comparison
+			return
+		}
 	}
+	skipMsg := fmt.Sprintf("Test requires platform type %s, but cluster is %s", platformTypes, platform)
+	e2e.Warningf("SKIPPING TEST: %s", skipMsg)
+	g.Skip(skipMsg)
 }
 
 // CheckPlatform returns the infrastructure platform type
@@ -1060,6 +1082,32 @@ func skipIfMicroShift(oc *CLI) {
 	}
 }
 
+// IsHypershift checks if running on a HyperShift hosted cluster
+// Refer to https://github.com/openshift/origin/blob/31704414237b8bd5c66ad247c105c94abc9470b1/test/extended/util/framework.go#L2301
+func IsHypershift(ctx context.Context, client *configv1client.ConfigV1Client) (bool, error) {
+	infrastructure, err := client.Infrastructures().Get(ctx, "cluster", metav1.GetOptions{})
+	if err != nil {
+		// If the Infrastructure resource doesn't exist (e.g., in MicroShift),it's not a HyperShift
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return infrastructure.Status.ControlPlaneTopology == configv1.ExternalTopologyMode, nil
+}
+
+// SkipIfHypershift skips the test if running on a HyperShift hosted cluster
+func SkipIfHypershift(ctx context.Context, client *configv1client.ConfigV1Client) error {
+	isHypershift, err := IsHypershift(ctx, client)
+	if err != nil {
+		return err
+	}
+	if isHypershift {
+		g.Skip("Skipping test: running on HyperShift hosted cluster!")
+	}
+	return nil
+}
+
 // isTransientNetworkError checks if an error message indicates a transient network issue
 // that should result in skipping the test rather than failing
 func isTransientNetworkError(output string) bool {
@@ -1505,4 +1553,24 @@ func SkipIfNotTechPreviewNoUpgrade(ctx context.Context, client *configv1client.C
 	if !IsTechPreviewNoUpgrade(ctx, client) {
 		g.Skip("This test is skipped because the Tech Preview NoUpgrade is not enabled")
 	}
+}
+
+func WaitUpgradeComplete(oc *CLI, duration time.Duration, timeout time.Duration) (bool, error) {
+	e2e.Logf("Waiting for cluster upgrade to complete")
+	err := wait.Poll(duration, timeout, func() (bool, error) {
+		output, err := oc.AsAdmin().WithoutNamespace().Run("get").Args("clusterversion", "version", "-o=jsonpath={.status.conditions[?(@.type=='Progressing')].status}").Output()
+		if err != nil {
+			return false, err
+		}
+		if strings.TrimSpace(output) == "False" {
+			return true, nil
+		}
+		return false, nil
+	})
+	if err == nil {
+		e2e.Logf("Cluster upgrade completed successfully")
+		return true, nil
+	}
+	e2e.Logf("Cluster is still upgrading or upgrade failed")
+	return false, err
 }
