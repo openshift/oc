@@ -27,9 +27,8 @@ func newOptions(streams genericiooptions.IOStreams) *options {
 func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
-		Use:    "rollback",
-		Hidden: true,
-		Short:  "Rollback the cluster to the previous release.",
+		Use:   "rollback",
+		Short: "Rollback the cluster to the previous release.",
 		Long: templates.LongDesc(`
 			Rollback the cluster to the previous release.
 
