@@ -80,6 +80,10 @@ func TestExamples(t *testing.T) {
 			var version string
 			if version = variant.versions[cv]; version != "" {
 				variant.outputSuffix = fmt.Sprintf(variant.outputSuffixPattern, version)
+			} else {
+				if variant.name == "specific version" {
+					continue
+				}
 			}
 			t.Run(fmt.Sprintf("%s-%s", cv, variant.name), func(t *testing.T) {
 				t.Parallel()
