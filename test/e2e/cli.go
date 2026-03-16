@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -471,7 +472,17 @@ var _ = g.Describe("[sig-cli] Workloads test oc works well", func() {
 			return true, nil
 		})
 		AssertWaitPollNoErr(err, fmt.Sprintf("max time reached but mirror still falied"))
-		out, err := oc.WithoutNamespace().Run("image").Args("info", serInfo.serviceName+"/testimage:ppc64", "--insecure").Output()
+		var out string
+		err = wait.PollUntilContextTimeout(context.Background(), 5*time.Second, 180*time.Second, true, func(ctx context.Context) (bool, error) {
+			var infoErr error
+			out, infoErr = oc.WithoutNamespace().Run("image").Args("info", serInfo.serviceName+"/testimage:ppc64", "--insecure").Output()
+			if infoErr != nil {
+				e2e.Logf("image info failed, retrying: %v", infoErr)
+				return false, nil
+			}
+			return true, nil
+		})
+		AssertWaitPollNoErr(err, "max time reached but image info for testimage:ppc64 still failed")
 		o.Expect(err).NotTo(o.HaveOccurred())
 		o.Expect(strings.Contains(out, "ppc64le")).To(o.BeTrue())
 		err = wait.Poll(30*time.Second, 180*time.Second, func() (bool, error) {
@@ -484,35 +495,37 @@ var _ = g.Describe("[sig-cli] Workloads test oc works well", func() {
 		})
 		AssertWaitPollNoErr(err, fmt.Sprintf("max time reached but mirror still falied"))
 		o.Expect(err).NotTo(o.HaveOccurred())
-		imageInfo, err := oc.WithoutNamespace().Run("image").Args("info", serInfo.serviceName+"/testimage:default", "--insecure").Output()
+		var imageInfo string
+		err = wait.PollUntilContextTimeout(context.Background(), 5*time.Second, 180*time.Second, true, func(ctx context.Context) (bool, error) {
+			var infoErr error
+			imageInfo, infoErr = oc.WithoutNamespace().Run("image").Args("info", serInfo.serviceName+"/testimage:default", "--insecure").Output()
+			if infoErr != nil {
+				e2e.Logf("image info failed, retrying: %v", infoErr)
+				return false, nil
+			}
+			return true, nil
+		})
+		AssertWaitPollNoErr(err, "max time reached but image info for testimage:default still failed")
 		o.Expect(err).NotTo(o.HaveOccurred())
 		architecture, err := exec.Command("bash", "-c", "uname -a").Output()
 		o.Expect(err).NotTo(o.HaveOccurred())
 		architectureStr := string(architecture)
-		if o.Expect(strings.Contains(architectureStr, "x86_64")).To(o.BeTrue()) {
-			if o.Expect(strings.Contains(imageInfo, "amd64")).To(o.BeTrue()) {
-				e2e.Logf("Found the expected Arch amd64")
-			} else {
-				e2e.Failf("Failed to find the expected Arch for mirrored image")
-			}
-		} else if o.Expect(strings.Contains(architectureStr, "aarch64")).To(o.BeTrue()) {
-			if o.Expect(strings.Contains(imageInfo, "arm64")).To(o.BeTrue()) {
-				e2e.Logf("Found the expected Arch aarch64")
-			} else {
-				e2e.Failf("Failed to find the expected Arch for mirrored image")
-			}
-		} else if o.Expect(strings.Contains(architectureStr, "ppc64le")).To(o.BeTrue()) {
-			if o.Expect(strings.Contains(imageInfo, "ppc64le")).To(o.BeTrue()) {
-				e2e.Logf("Found the expected Arch ppc64le")
-			} else {
-				e2e.Failf("Failed to find the expected Arch for mirrored image")
-			}
-		} else {
-			if o.Expect(strings.Contains(imageInfo, "s390x")).To(o.BeTrue()) {
-				e2e.Logf("Found the expected Arch s390x")
-			} else {
-				e2e.Failf("Failed to find the expected Arch for mirrored image")
-			}
+		e2e.Logf("Detected architecture: %s", architectureStr)
+		switch {
+		case strings.Contains(architectureStr, "x86_64"):
+			o.Expect(strings.Contains(imageInfo, "amd64")).To(o.BeTrue(), "expected mirrored image to contain amd64 arch")
+			e2e.Logf("Found the expected Arch amd64")
+		case strings.Contains(architectureStr, "aarch64"):
+			o.Expect(strings.Contains(imageInfo, "arm64")).To(o.BeTrue(), "expected mirrored image to contain arm64 arch")
+			e2e.Logf("Found the expected Arch aarch64")
+		case strings.Contains(architectureStr, "ppc64le"):
+			o.Expect(strings.Contains(imageInfo, "ppc64le")).To(o.BeTrue(), "expected mirrored image to contain ppc64le arch")
+			e2e.Logf("Found the expected Arch ppc64le")
+		case strings.Contains(architectureStr, "s390x"):
+			o.Expect(strings.Contains(imageInfo, "s390x")).To(o.BeTrue(), "expected mirrored image to contain s390x arch")
+			e2e.Logf("Found the expected Arch s390x")
+		default:
+			e2e.Failf("Unsupported architecture: %s", architectureStr)
 		}
 
 	})
