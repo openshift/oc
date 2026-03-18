@@ -236,6 +236,18 @@ func TestRun(t *testing.T) {
 			objects:          ClusterVersion_4_17_ObjectFn,
 			remoteExecOutput: "0",
 		},
+		{
+			name:        "node-joiner pod has required-scc annotation",
+			nodesConfig: defaultNodesConfigYaml,
+			objects:     defaultClusterVersionObjectFn,
+			expectedPod: func(t *testing.T, pod *corev1.Pod) {
+				expected := "restricted-v2"
+				got := pod.Annotations["openshift.io/required-scc"]
+				if got != expected {
+					t.Errorf("annotation openshift.io/required-scc = %q, want %q", got, expected)
+				}
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

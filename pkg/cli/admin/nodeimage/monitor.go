@@ -263,6 +263,9 @@ func (o *MonitorOptions) createPod(ctx context.Context) error {
 			Labels: map[string]string{
 				"app": "node-joiner-monitor",
 			},
+			Annotations: map[string]string{
+				"openshift.io/required-scc": "restricted-v2",
+			},
 		},
 		Spec: corev1.PodSpec{
 			RestartPolicy:      corev1.RestartPolicyNever,
