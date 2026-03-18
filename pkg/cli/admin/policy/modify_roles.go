@@ -605,9 +605,9 @@ func (o *RoleModificationOptions) AddRole() error {
 	}
 
 	if isUpdate {
-		err = roleBinding.Update()
+		err = roleBinding.Update(metav1.UpdateOptions{DryRun: o.serverDryRunFlags()})
 	} else {
-		err = roleBinding.Create()
+		err = roleBinding.Create(metav1.CreateOptions{DryRun: o.serverDryRunFlags()})
 		// If the rolebinding was created in the meantime, rerun
 		if kapierrors.IsAlreadyExists(err) {
 			return o.AddRole()
@@ -757,9 +757,9 @@ func (o *RoleModificationOptions) RemoveRole() error {
 
 	for _, roleBinding := range bindingsToUpdate {
 		if len(roleBinding.Subjects()) > 0 || roleBinding.Annotation(rbacv1.AutoUpdateAnnotationKey) == "false" {
-			err = roleBinding.Update()
+			err = roleBinding.Update(metav1.UpdateOptions{DryRun: o.serverDryRunFlags()})
 		} else {
-			err = roleBinding.Delete()
+			err = roleBinding.Delete(metav1.DeleteOptions{DryRun: o.serverDryRunFlags()})
 		}
 		if err != nil {
 			return err
@@ -791,13 +791,23 @@ existingLoop:
 	return newSubjects, found
 }
 
+func (o *RoleModificationOptions) serverDryRunFlags() []string {
+	if o.DryRunStrategy == kcmdutil.DryRunServer {
+		return []string{metav1.DryRunAll}
+	}
+	return nil
+}
+
 func getRolesSuccessMessage(dryRunStrategy kcmdutil.DryRunStrategy, operation string, targets []string) string {
 	allTargets := fmt.Sprintf("%q", targets)
 	if len(targets) == 1 {
 		allTargets = fmt.Sprintf("%q", targets[0])
 	}
-	if dryRunStrategy == kcmdutil.DryRunClient {
+	switch dryRunStrategy {
+	case kcmdutil.DryRunClient:
 		return fmt.Sprintf("%s: %s (dry run)", operation, allTargets)
+	case kcmdutil.DryRunServer:
+		return fmt.Sprintf("%s: %s (server dry run)", operation, allTargets)
 	}
 	return fmt.Sprintf("%s: %s", operation, allTargets)
 }
