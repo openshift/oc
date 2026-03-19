@@ -204,6 +204,16 @@ type ExtractOptions struct {
 	ImageReferences *imagev1.ImageStream
 
 	ImageMetadataCallback extract.ImageMetadataFunc
+
+	// files holds extracted files
+	files []extractedFile
+}
+
+// extractedFile represents a file extracted from the release image
+type extractedFile struct {
+	name      string
+	manifests []manifest.Manifest
+	rawData   []byte // for non-manifest files like image-references, release-metadata
 }
 
 func (o *ExtractOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
@@ -351,33 +361,6 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 	var manifestErrs []error
 	// o.ExtractManifests implies o.File == ""
 	if o.ExtractManifests {
-		expectedProviderSpecKind := credRequestCloudProviderSpecKindMapping[o.Cloud]
-
-		include := func(m *manifest.Manifest) error { return nil } // default to including everything
-		if o.Included {
-			context := "connected cluster"
-			inclusionConfig := manifestInclusionConfiguration{}
-			if o.InstallConfig == "" {
-				inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig)
-			} else {
-				inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig)
-				context = o.InstallConfig
-			}
-			if err != nil {
-				return err
-			}
-			if inclusionConfig.Platform != nil {
-				if o.Cloud != "" && *inclusionConfig.Platform != o.Cloud {
-					return fmt.Errorf("--cloud %q set, but %s has %q", o.Cloud, context, *inclusionConfig.Platform)
-				}
-				var ok bool
-				if expectedProviderSpecKind, ok = credRequestCloudProviderSpecKindMapping[*inclusionConfig.Platform]; !ok {
-					return fmt.Errorf("unrecognized platform for CredentialsRequests: %q", *inclusionConfig.Platform)
-				}
-			}
-			include = newIncluder(inclusionConfig)
-		}
-
 		opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
 			if hdr.Name == "image-references" && !o.CredentialsRequests {
 				buf := &bytes.Buffer{}
@@ -395,30 +378,20 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 					return false, fmt.Errorf("unrecognized image-references in release payload: kind %q is not ImageStream", o.ImageReferences.Kind)
 				}
 
-				out := o.Out
-				if o.Directory != "" {
-					out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
-					if err != nil {
-						return false, err
-					}
-				}
-				if out != nil {
-					_, err := buf.WriteTo(out)
-					return true, err
-				}
+				o.files = append(o.files, extractedFile{
+					name:    hdr.Name,
+					rawData: buf.Bytes(),
+				})
 				return true, nil
 			} else if hdr.Name == "release-metadata" && !o.CredentialsRequests {
-				out := o.Out
-				if o.Directory != "" {
-					out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
-					if err != nil {
-						return false, err
-					}
+				buf := &bytes.Buffer{}
+				if _, err := io.Copy(buf, r); err != nil {
+					return false, err
 				}
-				if out != nil {
-					_, err := io.Copy(out, r)
-					return true, err
-				}
+				o.files = append(o.files, extractedFile{
+					name:    hdr.Name,
+					rawData: buf.Bytes(),
+				})
 				return true, nil
 			}
 
@@ -432,59 +405,14 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 				return true, nil
 			}
 
-			for i := len(ms) - 1; i >= 0; i-- {
-				if o.Included && o.CredentialsRequests && ms[i].GVK == credentialsRequestGVK && len(ms[i].Obj.GetAnnotations()) == 0 {
-					klog.V(4).Infof("Including %s for manual CredentialsRequests, despite lack of annotations", ms[i].String())
-				} else if err := include(&ms[i]); err != nil {
-					klog.V(4).Infof("Excluding %s: %s", ms[i].String(), err)
-					ms = append(ms[:i], ms[i+1:]...)
-				}
-			}
-
-			o.Manifests = append(o.Manifests, ms...)
-
-			manifestsToWrite := make([]manifest.Manifest, 0, len(ms))
-			for _, m := range ms {
-				if o.CredentialsRequests {
-					if m.GVK != credentialsRequestGVK {
-						continue
-					}
-					if expectedProviderSpecKind != "" {
-						kind, _, err := unstructured.NestedString(m.Obj.Object, "spec", "providerSpec", "kind")
-						if err != nil {
-							return false, fmt.Errorf("error extracting cred request kind: %w", err)
-						}
-						if kind != expectedProviderSpecKind {
-							continue
-						}
-					}
-				}
-				manifestsToWrite = append(manifestsToWrite, m)
-			}
-
-			if len(manifestsToWrite) == 0 {
+			if len(ms) == 0 {
 				return true, nil
 			}
 
-			out := o.Out
-			if o.Directory != "" {
-				out, err = os.Create(filepath.Join(o.Directory, hdr.Name))
-				if err != nil {
-					return false, fmt.Errorf("error creating manifest in %s: %w", hdr.Name, err)
-				}
-			}
-			if out != nil {
-				for _, m := range manifestsToWrite {
-					yamlBytes, err := yaml.JSONToYAML(m.Raw)
-					if err != nil {
-						return false, fmt.Errorf("error serializing manifest in %s: %w", hdr.Name, err)
-					}
-					fmt.Fprintf(out, "---\n")
-					if _, err := out.Write(yamlBytes); err != nil {
-						return false, fmt.Errorf("error writing manifest in %s: %w", hdr.Name, err)
-					}
-				}
-			}
+			o.files = append(o.files, extractedFile{
+				name:      hdr.Name,
+				manifests: ms,
+			})
 			return true, nil
 		}
 	}
@@ -529,6 +457,120 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 	// Do not return an error so current operation, e.g. mirroring, continues.
 	if o.ExtractManifests && len(manifestErrs) > 0 {
 		fmt.Fprintf(o.ErrOut, "Errors: %s\n", errorList(manifestErrs))
+	}
+
+	expectedProviderSpecKind := credRequestCloudProviderSpecKindMapping[o.Cloud]
+
+	include := func(m *manifest.Manifest) error { return nil } // default to including everything
+	if o.Included {
+		context := "connected cluster"
+		inclusionConfig := manifestInclusionConfiguration{}
+		if o.InstallConfig == "" {
+			inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig)
+		} else {
+			inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig)
+			context = o.InstallConfig
+		}
+		if err != nil {
+			return err
+		}
+		if inclusionConfig.Platform != nil {
+			if o.Cloud != "" && *inclusionConfig.Platform != o.Cloud {
+				return fmt.Errorf("--cloud %q set, but %s has %q", o.Cloud, context, *inclusionConfig.Platform)
+			}
+			var ok bool
+			if expectedProviderSpecKind, ok = credRequestCloudProviderSpecKindMapping[*inclusionConfig.Platform]; !ok {
+				return fmt.Errorf("unrecognized platform for CredentialsRequests: %q", *inclusionConfig.Platform)
+			}
+		}
+		include = newIncluder(inclusionConfig)
+	}
+
+	for _, f := range o.files {
+		var out io.Writer = o.Out
+		if len(f.rawData) > 0 {
+			if out != nil && !o.CredentialsRequests {
+				// Write raw data (image-references, release-metadata)
+				err := func() error {
+					if o.Directory != "" {
+						file, err := os.Create(filepath.Join(o.Directory, f.name))
+						if err != nil {
+							return fmt.Errorf("error creating file %s: %w", f.name, err)
+						}
+						defer file.Close()
+						out = file
+					}
+
+					if _, err := out.Write(f.rawData); err != nil {
+						return fmt.Errorf("error writing file %s: %w", f.name, err)
+					}
+					return nil
+				}()
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			for i := len(f.manifests) - 1; i >= 0; i-- {
+				if o.Included && o.CredentialsRequests && f.manifests[i].GVK == credentialsRequestGVK && len(f.manifests[i].Obj.GetAnnotations()) == 0 {
+					klog.V(4).Infof("Including %s for manual CredentialsRequests, despite lack of annotations", f.manifests[i].String())
+				} else if err := include(&f.manifests[i]); err != nil {
+					klog.V(4).Infof("Excluding %s: %s", f.manifests[i].String(), err)
+					f.manifests = append(f.manifests[:i], f.manifests[i+1:]...)
+				}
+			}
+
+			o.Manifests = append(o.Manifests, f.manifests...)
+			manifests := make([]manifest.Manifest, 0, len(f.manifests))
+			for _, m := range f.manifests {
+				if o.CredentialsRequests {
+					if m.GVK != credentialsRequestGVK {
+						continue
+					}
+					if expectedProviderSpecKind != "" {
+						kind, _, err := unstructured.NestedString(m.Obj.Object, "spec", "providerSpec", "kind")
+						if err != nil {
+							return fmt.Errorf("error extracting cred request kind: %w", err)
+						}
+						if kind != expectedProviderSpecKind {
+							continue
+						}
+					}
+				}
+				manifests = append(manifests, m)
+			}
+
+			if len(manifests) == 0 {
+				continue
+			}
+
+			err := func() error {
+				// Write manifests as YAML
+				if o.Directory != "" {
+					file, err := os.Create(filepath.Join(o.Directory, f.name))
+					if err != nil {
+						return fmt.Errorf("error creating file %s: %w", f.name, err)
+					}
+					defer file.Close()
+					out = file
+				}
+
+				for _, m := range manifests {
+					yamlBytes, err := yaml.JSONToYAML(m.Raw)
+					if err != nil {
+						return fmt.Errorf("error serializing manifest in %s: %w", f.name, err)
+					}
+					fmt.Fprintf(out, "---\n")
+					if _, err := out.Write(yamlBytes); err != nil {
+						return fmt.Errorf("error writing manifest in %s: %w", f.name, err)
+					}
+				}
+				return nil
+			}()
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
