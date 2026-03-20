@@ -500,7 +500,9 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 						defer file.Close()
 						out = file
 					}
-
+					if out == nil {
+						return nil
+					}
 					if _, err := out.Write(f.rawData); err != nil {
 						return fmt.Errorf("error writing file %s: %w", f.name, err)
 					}
@@ -554,7 +556,9 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 					defer file.Close()
 					out = file
 				}
-
+				if out == nil {
+					return nil
+				}
 				for _, m := range manifests {
 					yamlBytes, err := yaml.JSONToYAML(m.Raw)
 					if err != nil {
