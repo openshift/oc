@@ -468,7 +468,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 		if o.InstallConfig == "" {
 			inclusionConfig, err = findClusterIncludeConfig(ctx, o.RESTConfig)
 		} else {
-			inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(o.InstallConfig, o.files)
+			inclusionConfig, err = findClusterIncludeConfigFromInstallConfig(ctx, o.InstallConfig)
 			context = o.InstallConfig
 		}
 		if err != nil {
