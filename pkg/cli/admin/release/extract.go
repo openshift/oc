@@ -544,31 +544,33 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 				continue
 			}
 
-			err := func() error {
-				// Write manifests as YAML
-				if o.Directory != "" {
-					file, err := os.Create(filepath.Join(o.Directory, f.name))
-					if err != nil {
-						return fmt.Errorf("error creating file %s: %w", f.name, err)
+			if out != nil || o.Directory != "" {
+				err := func() error {
+					// Write manifests as YAML
+					if o.Directory != "" {
+						file, err := os.Create(filepath.Join(o.Directory, f.name))
+						if err != nil {
+							return fmt.Errorf("error creating file %s: %w", f.name, err)
+						}
+						defer file.Close()
+						out = file
 					}
-					defer file.Close()
-					out = file
-				}
 
-				for _, m := range manifests {
-					yamlBytes, err := yaml.JSONToYAML(m.Raw)
-					if err != nil {
-						return fmt.Errorf("error serializing manifest in %s: %w", f.name, err)
+					for _, m := range manifests {
+						yamlBytes, err := yaml.JSONToYAML(m.Raw)
+						if err != nil {
+							return fmt.Errorf("error serializing manifest in %s: %w", f.name, err)
+						}
+						fmt.Fprintf(out, "---\n")
+						if _, err := out.Write(yamlBytes); err != nil {
+							return fmt.Errorf("error writing manifest in %s: %w", f.name, err)
+						}
 					}
-					fmt.Fprintf(out, "---\n")
-					if _, err := out.Write(yamlBytes); err != nil {
-						return fmt.Errorf("error writing manifest in %s: %w", f.name, err)
-					}
+					return nil
+				}()
+				if err != nil {
+					return err
 				}
-				return nil
-			}()
-			if err != nil {
-				return err
 			}
 		}
 	}
