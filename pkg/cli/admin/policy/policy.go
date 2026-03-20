@@ -270,32 +270,32 @@ func (r roleBindingAbstraction) Object() runtime.Object {
 	}
 }
 
-func (r roleBindingAbstraction) Create() error {
+func (r roleBindingAbstraction) Create(opts metav1.CreateOptions) error {
 	var err error
 	if r.roleBinding != nil {
-		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Create(context.TODO(), r.roleBinding, metav1.CreateOptions{})
+		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Create(context.TODO(), r.roleBinding, opts)
 	} else {
-		_, err = r.rbacClient.ClusterRoleBindings().Create(context.TODO(), r.clusterRoleBinding, metav1.CreateOptions{})
+		_, err = r.rbacClient.ClusterRoleBindings().Create(context.TODO(), r.clusterRoleBinding, opts)
 	}
 	return err
 }
 
-func (r roleBindingAbstraction) Update() error {
+func (r roleBindingAbstraction) Update(opts metav1.UpdateOptions) error {
 	var err error
 	if r.roleBinding != nil {
-		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Update(context.TODO(), r.roleBinding, metav1.UpdateOptions{})
+		_, err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Update(context.TODO(), r.roleBinding, opts)
 	} else {
-		_, err = r.rbacClient.ClusterRoleBindings().Update(context.TODO(), r.clusterRoleBinding, metav1.UpdateOptions{})
+		_, err = r.rbacClient.ClusterRoleBindings().Update(context.TODO(), r.clusterRoleBinding, opts)
 	}
 	return err
 }
 
-func (r roleBindingAbstraction) Delete() error {
+func (r roleBindingAbstraction) Delete(opts metav1.DeleteOptions) error {
 	var err error
 	if r.roleBinding != nil {
-		err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Delete(context.TODO(), r.roleBinding.Name, metav1.DeleteOptions{})
+		err = r.rbacClient.RoleBindings(r.roleBinding.Namespace).Delete(context.TODO(), r.roleBinding.Name, opts)
 	} else {
-		err = r.rbacClient.ClusterRoleBindings().Delete(context.TODO(), r.clusterRoleBinding.Name, metav1.DeleteOptions{})
+		err = r.rbacClient.ClusterRoleBindings().Delete(context.TODO(), r.clusterRoleBinding.Name, opts)
 	}
 	return err
 }
