@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 
+	oteginkgo "github.com/openshift-eng/openshift-tests-extension/pkg/ginkgo"
 	configv1 "github.com/openshift/api/config/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
 )
@@ -46,7 +47,7 @@ var _ = g.Describe("[sig-cli] oc", g.Label("cluster-version-operator"), func() {
 		}
 	})
 
-	g.It("can operate accept risks [Serial]", g.Label("tech-preview"), func() {
+	g.It("can operate accept risks [Serial]", g.Label("tech-preview"), oteginkgo.Informing(), func() {
 		skipIfMicroShift(oc)
 		SkipIfNotTechPreviewNoUpgrade(ctx, configClient)
 
