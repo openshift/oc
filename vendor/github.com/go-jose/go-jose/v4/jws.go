@@ -75,14 +75,7 @@ type Signature struct {
 	original  *rawSignatureInfo
 }
 
-// ParseSigned parses a signed message in JWS Compact or JWS JSON Serialization. Validation fails if
-// the JWS is signed with an algorithm that isn't in the provided list of signature algorithms.
-// Applications should decide for themselves which signature algorithms are acceptable. If you're
-// not sure which signature algorithms your application might receive, consult the documentation of
-// the program which provides them or the protocol that you are implementing. You can also try
-// getting an example JWS and decoding it with a tool like https://jwt.io to see what its "alg"
-// header parameter indicates. The signature on the JWS does not get validated during parsing. Call
-// Verify() after parsing to validate the signature and obtain the payload.
+// ParseSigned parses a signed message in JWS Compact or JWS JSON Serialization.
 //
 // https://datatracker.ietf.org/doc/html/rfc7515#section-7
 func ParseSigned(
@@ -97,14 +90,7 @@ func ParseSigned(
 	return parseSignedCompact(signature, nil, signatureAlgorithms)
 }
 
-// ParseSignedCompact parses a message in JWS Compact Serialization. Validation fails if the JWS is
-// signed with an algorithm that isn't in the provided list of signature algorithms. Applications
-// should decide for themselves which signature algorithms are acceptable.If you're not sure which
-// signature algorithms your application might receive, consult the documentation of the program
-// which provides them or the protocol that you are implementing. You can also try getting an
-// example JWS and decoding it with a tool like https://jwt.io to see what its "alg" header
-// parameter indicates. The signature on the JWS does not get validated during parsing. Call
-// Verify() after parsing to validate the signature and obtain the payload.
+// ParseSignedCompact parses a message in JWS Compact Serialization.
 //
 // https://datatracker.ietf.org/doc/html/rfc7515#section-7.1
 func ParseSignedCompact(
@@ -115,15 +101,6 @@ func ParseSignedCompact(
 }
 
 // ParseDetached parses a signed message in compact serialization format with detached payload.
-// Validation fails if the JWS is signed with an algorithm that isn't in the provided list of
-// signature algorithms. Applications should decide for themselves which signature algorithms are
-// acceptable. If you're not sure which signature algorithms your application might receive, consult
-// the documentation of the program which provides them or the protocol that you are implementing.
-// You can also try getting an example JWS and decoding it with a tool like https://jwt.io to see
-// what its "alg" header parameter indicates. The signature on the JWS does not get validated during
-// parsing. Call Verify() after parsing to validate the signature and obtain the payload.
-//
-// https://datatracker.ietf.org/doc/html/rfc7515#appendix-F
 func ParseDetached(
 	signature string,
 	payload []byte,
@@ -204,25 +181,6 @@ func containsSignatureAlgorithm(haystack []SignatureAlgorithm, needle SignatureA
 	return false
 }
 
-// ErrUnexpectedSignatureAlgorithm is returned when the signature algorithm in
-// the JWS header does not match one of the expected algorithms.
-type ErrUnexpectedSignatureAlgorithm struct {
-	// Got is the signature algorithm found in the JWS header.
-	Got      SignatureAlgorithm
-	expected []SignatureAlgorithm
-}
-
-func (e *ErrUnexpectedSignatureAlgorithm) Error() string {
-	return fmt.Sprintf("unexpected signature algorithm %q; expected %q", e.Got, e.expected)
-}
-
-func newErrUnexpectedSignatureAlgorithm(got SignatureAlgorithm, expected []SignatureAlgorithm) error {
-	return &ErrUnexpectedSignatureAlgorithm{
-		Got:      got,
-		expected: expected,
-	}
-}
-
 // sanitized produces a cleaned-up JWS object from the raw JSON.
 func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgorithm) (*JSONWebSignature, error) {
 	if len(signatureAlgorithms) == 0 {
@@ -278,7 +236,8 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 
 		alg := SignatureAlgorithm(signature.Header.Algorithm)
 		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
-			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
+			return nil, fmt.Errorf("go-jose/go-jose: unexpected signature algorithm %q; expected %q",
+				alg, signatureAlgorithms)
 		}
 
 		if signature.header != nil {
@@ -326,7 +285,8 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 
 		alg := SignatureAlgorithm(obj.Signatures[i].Header.Algorithm)
 		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
-			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
+			return nil, fmt.Errorf("go-jose/go-jose: unexpected signature algorithm %q; expected %q",
+				alg, signatureAlgorithms)
 		}
 
 		if obj.Signatures[i].header != nil {
@@ -361,43 +321,35 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 	return obj, nil
 }
 
-const tokenDelim = "."
-
 // parseSignedCompact parses a message in compact format.
 func parseSignedCompact(
 	input string,
 	payload []byte,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
-	protected, s, ok := strings.Cut(input, tokenDelim)
-	if !ok { // no period found
+	// Three parts is two separators
+	if strings.Count(input, ".") != 2 {
 		return nil, fmt.Errorf("go-jose/go-jose: compact JWS format must have three parts")
 	}
-	claims, sig, ok := strings.Cut(s, tokenDelim)
-	if !ok { // only one period found
-		return nil, fmt.Errorf("go-jose/go-jose: compact JWS format must have three parts")
-	}
-	if strings.ContainsRune(sig, '.') { // too many periods found
-		return nil, fmt.Errorf("go-jose/go-jose: compact JWS format must have three parts")
-	}
+	parts := strings.SplitN(input, ".", 3)
 
-	if claims != "" && payload != nil {
+	if parts[1] != "" && payload != nil {
 		return nil, fmt.Errorf("go-jose/go-jose: payload is not detached")
 	}
 
-	rawProtected, err := base64.RawURLEncoding.DecodeString(protected)
+	rawProtected, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
 		return nil, err
 	}
 
 	if payload == nil {
-		payload, err = base64.RawURLEncoding.DecodeString(claims)
+		payload, err = base64.RawURLEncoding.DecodeString(parts[1])
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	signature, err := base64.RawURLEncoding.DecodeString(sig)
+	signature, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil {
 		return nil, err
 	}

@@ -4,4 +4,5 @@ test:
 
 .PHONY: lint
 lint:
-	go tool -modfile=tools/go.mod golangci-lint run
+	$(MAKE) -C tools
+	./tools/bin/golangci-lint run

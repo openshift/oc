@@ -21,7 +21,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
-	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -30,6 +29,8 @@ import (
 	"fmt"
 	"hash"
 	"io"
+
+	"golang.org/x/crypto/pbkdf2"
 
 	josecipher "github.com/go-jose/go-jose/v4/cipher"
 )
@@ -329,10 +330,7 @@ func (ctx *symmetricKeyCipher) encryptKey(cek []byte, alg KeyAlgorithm) (recipie
 
 		// derive key
 		keyLen, h := getPbkdf2Params(alg)
-		key, err := pbkdf2.Key(h, string(ctx.key), salt, ctx.p2c, keyLen)
-		if err != nil {
-			return recipientInfo{}, nil
-		}
+		key := pbkdf2.Key(ctx.key, salt, ctx.p2c, keyLen, h)
 
 		// use AES cipher with derived key
 		block, err := aes.NewCipher(key)
@@ -434,10 +432,7 @@ func (ctx *symmetricKeyCipher) decryptKey(headers rawHeader, recipient *recipien
 
 		// derive key
 		keyLen, h := getPbkdf2Params(alg)
-		key, err := pbkdf2.Key(h, string(ctx.key), salt, p2c, keyLen)
-		if err != nil {
-			return nil, err
-		}
+		key := pbkdf2.Key(ctx.key, salt, p2c, keyLen, h)
 
 		// use AES cipher with derived key
 		block, err := aes.NewCipher(key)

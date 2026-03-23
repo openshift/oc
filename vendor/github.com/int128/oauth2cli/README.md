@@ -31,33 +31,10 @@ You can make it simple by using oauth2cli as follows:
 
 oauth2cli starts the local server and initiates the flow of [OAuth 2.0 Authorization Code Grant](https://tools.ietf.org/html/rfc6749#section-4.1).
 
-### Testing OAuth 2.0 Auth Code Flow using oauth2cli
+Take a look at the sequence diagram:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant RO as Resource Owner (User)
-    participant CLI as oauth2cli
-    participant UA as User Agent (Browser)
-    participant Client as Local Server <br/> (client)
-    participant AS as Auth Server
+![diagram](docs/diagram.svg)
 
-    Note over Client,RO: (Prereq) Client registered with Authorization Server and has client_id
-
-    RO->>CLI: Command
-    CLI->>UA: Open
-    UA->>AS: Authorization Request
-    AS-->>UA: Login / Consent
-    RO->>UA: AuthN/AuthZ
-    UA->>AS: AuthN/AuthZ
-    AS-->>UA: AuthZ Response (redirect)
-    UA->>Client: Follow redirect
-    Client-->>UA: Success Response
-    UA-->>CLI: Close
-    CLI->>AS: Token Request
-    AS->>CLI: Token Response
-    CLI-->>RO: Exit
-```
 
 ## Contributions
 

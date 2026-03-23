@@ -9,14 +9,8 @@ import (
 
 // ClusterResourceQuotaStatusApplyConfiguration represents a declarative configuration of the ClusterResourceQuotaStatus type for use
 // with apply.
-//
-// ClusterResourceQuotaStatus defines the actual enforced quota and its current usage
 type ClusterResourceQuotaStatusApplyConfiguration struct {
-	// total defines the actual enforced quota and its current usage across all projects
-	Total *corev1.ResourceQuotaStatus `json:"total,omitempty"`
-	// namespaces slices the usage by project.  This division allows for quick resolution of
-	// deletion reconciliation inside of a single project without requiring a recalculation
-	// across all projects.  This can be used to pull the deltas for a given project.
+	Total      *corev1.ResourceQuotaStatus              `json:"total,omitempty"`
 	Namespaces *quotav1.ResourceQuotasStatusByNamespace `json:"namespaces,omitempty"`
 }
 

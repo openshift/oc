@@ -642,11 +642,13 @@ func (o *DiffOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []str
 
 	if !o.ServerSideApply {
 		o.OpenAPIGetter = f
-		openAPIV3Client, err := f.OpenAPIV3Client()
-		if err == nil {
-			o.OpenAPIV3Root = openapi3.NewRoot(openAPIV3Client)
-		} else {
-			klog.V(4).Infof("warning: OpenAPI V3 Patch is enabled but is unable to be loaded. Will fall back to OpenAPI V2")
+		if !cmdutil.OpenAPIV3Patch.IsDisabled() {
+			openAPIV3Client, err := f.OpenAPIV3Client()
+			if err == nil {
+				o.OpenAPIV3Root = openapi3.NewRoot(openAPIV3Client)
+			} else {
+				klog.V(4).Infof("warning: OpenAPI V3 Patch is enabled but is unable to be loaded. Will fall back to OpenAPI V2")
+			}
 		}
 	}
 

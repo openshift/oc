@@ -4,15 +4,9 @@ package v1
 
 // ServiceAccountRestrictionApplyConfiguration represents a declarative configuration of the ServiceAccountRestriction type for use
 // with apply.
-//
-// ServiceAccountRestriction matches a service account by a string match on
-// either the service-account name or the name of the service account's
-// namespace.
 type ServiceAccountRestrictionApplyConfiguration struct {
-	// serviceaccounts specifies a list of literal service-account names.
 	ServiceAccounts []ServiceAccountReferenceApplyConfiguration `json:"serviceaccounts,omitempty"`
-	// namespaces specifies a list of literal namespace names.
-	Namespaces []string `json:"namespaces,omitempty"`
+	Namespaces      []string                                    `json:"namespaces,omitempty"`
 }
 
 // ServiceAccountRestrictionApplyConfiguration constructs a declarative configuration of the ServiceAccountRestriction type for use with

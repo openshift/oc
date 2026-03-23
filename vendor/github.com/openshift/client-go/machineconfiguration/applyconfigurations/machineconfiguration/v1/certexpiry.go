@@ -8,15 +8,10 @@ import (
 
 // CertExpiryApplyConfiguration represents a declarative configuration of the CertExpiry type for use
 // with apply.
-//
-// ceryExpiry contains the bundle name and the expiry date
 type CertExpiryApplyConfiguration struct {
-	// bundle is the name of the bundle in which the subject certificate resides
-	Bundle *string `json:"bundle,omitempty"`
-	// subject is the subject of the certificate
-	Subject *string `json:"subject,omitempty"`
-	// expiry is the date after which the certificate will no longer be valid
-	Expiry *metav1.Time `json:"expiry,omitempty"`
+	Bundle  *string      `json:"bundle,omitempty"`
+	Subject *string      `json:"subject,omitempty"`
+	Expiry  *metav1.Time `json:"expiry,omitempty"`
 }
 
 // CertExpiryApplyConfiguration constructs a declarative configuration of the CertExpiry type for use with

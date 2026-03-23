@@ -65,10 +65,6 @@ type ComputeInputPayloadChecksum struct {
 	// when used with trailing checksums, and aws-chunked content-encoding.
 	EnableDecodedContentLengthHeader bool
 
-	checksum string
-
-	sha256Checksum string
-
 	useTrailer bool
 }
 
@@ -108,7 +104,13 @@ func (m *ComputeInputPayloadChecksum) HandleFinalize(
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
 	var checksum string
-	var algorithm Algorithm
+	algorithm, ok, err := getInputAlgorithm(ctx)
+	if err != nil {
+		return out, metadata, err
+	}
+	if !ok {
+		return next.HandleFinalize(ctx, in)
+	}
 
 	req, ok := in.Request.(*smithyhttp.Request)
 	if !ok {
@@ -131,19 +133,11 @@ func (m *ComputeInputPayloadChecksum) HandleFinalize(
 	// If any checksum header is already set nothing to do.
 	for header := range req.Header {
 		h := strings.ToUpper(header)
-		if after, ok0 := strings.CutPrefix(h, "X-AMZ-CHECKSUM-"); ok0 {
-			algorithm = Algorithm(after)
+		if strings.HasPrefix(h, "X-AMZ-CHECKSUM-") {
+			algorithm = Algorithm(strings.TrimPrefix(h, "X-AMZ-CHECKSUM-"))
 			checksum = req.Header.Get(header)
 			return next.HandleFinalize(ctx, in)
 		}
-	}
-
-	algorithm, ok, err = getInputAlgorithm(ctx)
-	if err != nil {
-		return out, metadata, err
-	}
-	if !ok {
-		return next.HandleFinalize(ctx, in)
 	}
 
 	computePayloadHash := m.EnableComputePayloadHash
@@ -192,27 +186,20 @@ func (m *ComputeInputPayloadChecksum) HandleFinalize(
 	}
 
 	var sha256Checksum string
-	if m.checksum != "" {
-		checksum = m.checksum
-		sha256Checksum = m.sha256Checksum
-	} else {
-		checksum, sha256Checksum, err = computeStreamChecksum(
-			algorithm, stream, computePayloadHash)
-		if err != nil {
-			return out, metadata, computeInputHeaderChecksumError{
-				Msg: "failed to compute stream checksum",
-				Err: err,
-			}
+	checksum, sha256Checksum, err = computeStreamChecksum(
+		algorithm, stream, computePayloadHash)
+	if err != nil {
+		return out, metadata, computeInputHeaderChecksumError{
+			Msg: "failed to compute stream checksum",
+			Err: err,
 		}
-		m.checksum = checksum
-		m.sha256Checksum = sha256Checksum
-		// only attempt rewind if the stream length has been determined and is non-zero
-		if streamLength > 0 {
-			if err := req.RewindStream(); err != nil {
-				return out, metadata, computeInputHeaderChecksumError{
-					Msg: "failed to rewind stream",
-					Err: err,
-				}
+	}
+	// only attempt rewind if the stream length has been determined and is non-zero
+	if streamLength > 0 {
+		if err := req.RewindStream(); err != nil {
+			return out, metadata, computeInputHeaderChecksumError{
+				Msg: "failed to rewind stream",
+				Err: err,
 			}
 		}
 	}
@@ -251,7 +238,6 @@ type AddInputChecksumTrailer struct {
 	EnableTrailingChecksum           bool
 	EnableComputePayloadHash         bool
 	EnableDecodedContentLengthHeader bool
-	checksum                         string
 }
 
 // ID identifies this middleware.
@@ -265,6 +251,16 @@ func (m *AddInputChecksumTrailer) HandleFinalize(
 ) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
+	algorithm, ok, err := getInputAlgorithm(ctx)
+	if err != nil {
+		return out, metadata, computeInputTrailingChecksumError{
+			Msg: "failed to get algorithm",
+			Err: err,
+		}
+	} else if !ok {
+		return next.HandleFinalize(ctx, in)
+	}
+
 	if enabled, _ := middleware.GetStackValue(ctx, useTrailer{}).(bool); !enabled {
 		return next.HandleFinalize(ctx, in)
 	}
@@ -287,16 +283,6 @@ func (m *AddInputChecksumTrailer) HandleFinalize(
 		if strings.HasPrefix(strings.ToLower(header), "x-amz-checksum-") {
 			return next.HandleFinalize(ctx, in)
 		}
-	}
-
-	algorithm, ok, err := getInputAlgorithm(ctx)
-	if err != nil {
-		return out, metadata, computeInputTrailingChecksumError{
-			Msg: "failed to get algorithm",
-			Err: err,
-		}
-	} else if !ok {
-		return next.HandleFinalize(ctx, in)
 	}
 
 	stream := req.GetStream()
@@ -328,12 +314,7 @@ func (m *AddInputChecksumTrailer) HandleFinalize(
 	awsChunkedReader := newUnsignedAWSChunkedEncoding(checksumReader,
 		func(o *awsChunkedEncodingOptions) {
 			o.Trailers[AlgorithmHTTPHeader(checksumReader.Algorithm())] = awsChunkedTrailerValue{
-				Get: func() (string, error) {
-					if m.checksum != "" {
-						return m.checksum, nil
-					}
-					return checksumReader.Base64Checksum()
-				},
+				Get:    checksumReader.Base64Checksum,
 				Length: checksumReader.Base64ChecksumLength(),
 			}
 			o.StreamLength = streamLength
@@ -365,27 +346,17 @@ func (m *AddInputChecksumTrailer) HandleFinalize(
 
 	out, metadata, err = next.HandleFinalize(ctx, in)
 	if err == nil {
-		checksum := m.checksum
-		var e error
-		if checksum == "" {
-			checksum, e = checksumReader.Base64Checksum()
-			if e != nil {
-				return out, metadata, fmt.Errorf("failed to get computed checksum, %w", e)
-			}
+		checksum, err := checksumReader.Base64Checksum()
+		if err != nil {
+			return out, metadata, fmt.Errorf("failed to get computed checksum, %w", err)
 		}
+
 		// Record the checksum and algorithm that was computed
 		SetComputedInputChecksums(&metadata, map[string]string{
 			string(algorithm): checksum,
 		})
 	}
-	// store the calculated checksum if there's no one cached previously and the value is available in this attempt,
-	// no matter if the request failed or not
-	if m.checksum == "" {
-		checksum, e := checksumReader.Base64Checksum()
-		if e == nil {
-			m.checksum = checksum
-		}
-	}
+
 	return out, metadata, err
 }
 

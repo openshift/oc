@@ -13,8 +13,8 @@ include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 	targets/openshift/deps-gomod.mk \
 )
 
-KUBE_GIT_MINOR_VERSION := "35"
-KUBE_GIT_VERSION := "v1.35.2"
+KUBE_GIT_MINOR_VERSION := "34"
+KUBE_GIT_VERSION := "v1.34.1"
 
 STRIP_DEBUGGING_SYMBOLS ?= true
 ifeq ($(STRIP_DEBUGGING_SYMBOLS), true)

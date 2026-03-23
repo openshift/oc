@@ -53,7 +53,7 @@ func NewPooledBufferedWriterReadFromProvider(size int) *PooledBufferedReadFromPr
 
 	return &PooledBufferedReadFromProvider{
 		pool: sync.Pool{
-			New: func() any {
+			New: func() interface{} {
 				return &bufferedReadFrom{bufferedWriter: bufio.NewWriterSize(nil, size)}
 			},
 		},

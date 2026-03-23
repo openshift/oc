@@ -7,7 +7,7 @@ type LengthError struct {
 	Part  string
 	Want  int
 	Have  int
-	Value any
+	Value interface{}
 }
 
 func (e LengthError) Error() string {

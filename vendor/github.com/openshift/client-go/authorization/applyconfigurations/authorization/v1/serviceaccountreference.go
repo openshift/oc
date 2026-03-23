@@ -4,16 +4,8 @@ package v1
 
 // ServiceAccountReferenceApplyConfiguration represents a declarative configuration of the ServiceAccountReference type for use
 // with apply.
-//
-// ServiceAccountReference specifies a service account and namespace by their
-// names.
 type ServiceAccountReferenceApplyConfiguration struct {
-	// name is the name of the service account.
-	Name *string `json:"name,omitempty"`
-	// namespace is the namespace of the service account.  Service accounts from
-	// inside the whitelisted namespaces are allowed to be bound to roles.  If
-	// Namespace is empty, then the namespace of the RoleBindingRestriction in
-	// which the ServiceAccountReference is embedded is used.
+	Name      *string `json:"name,omitempty"`
 	Namespace *string `json:"namespace,omitempty"`
 }
 

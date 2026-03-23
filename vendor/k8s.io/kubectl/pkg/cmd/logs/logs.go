@@ -356,21 +356,8 @@ func (o LogsOptions) Validate() error {
 	return nil
 }
 
-// RunLogs wraps RunLogsContext with signal handling.
-// When a signal is received, streaming is stopped, then followed by os.Exit(1).
+// RunLogs retrieves a pod log
 func (o LogsOptions) RunLogs() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	intr := interrupt.New(nil, cancel)
-	return intr.Run(func() error {
-		return o.RunLogsContext(ctx)
-	})
-}
-
-// RunLogsContext retrieves a pod log.
-//
-// This function does not handle signals. To interrupt streaming, cancel the context.
-func (o LogsOptions) RunLogsContext(ctx context.Context) error {
 	var requests map[corev1.ObjectReference]rest.ResponseWrapper
 	var err error
 	if o.AllPods {
@@ -391,10 +378,16 @@ func (o LogsOptions) RunLogsContext(ctx context.Context) error {
 		}
 	}
 
-	if o.Follow && len(requests) > 1 {
-		return o.parallelConsumeRequest(ctx, requests)
-	}
-	return o.sequentialConsumeRequest(ctx, requests)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	intr := interrupt.New(nil, cancel)
+	return intr.Run(func() error {
+		if o.Follow && len(requests) > 1 {
+			return o.parallelConsumeRequest(ctx, requests)
+		}
+
+		return o.sequentialConsumeRequest(ctx, requests)
+	})
 }
 
 func (o LogsOptions) parallelConsumeRequest(ctx context.Context, requests map[corev1.ObjectReference]rest.ResponseWrapper) error {

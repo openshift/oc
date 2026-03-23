@@ -4,15 +4,10 @@ package v1
 
 // ProxyConfigApplyConfiguration represents a declarative configuration of the ProxyConfig type for use
 // with apply.
-//
-// ProxyConfig defines what proxies to use for an operation
 type ProxyConfigApplyConfiguration struct {
-	// httpProxy is a proxy used to reach the git repository over http
-	HTTPProxy *string `json:"httpProxy,omitempty"`
-	// httpsProxy is a proxy used to reach the git repository over https
+	HTTPProxy  *string `json:"httpProxy,omitempty"`
 	HTTPSProxy *string `json:"httpsProxy,omitempty"`
-	// noProxy is the list of domains for which the proxy should not be used
-	NoProxy *string `json:"noProxy,omitempty"`
+	NoProxy    *string `json:"noProxy,omitempty"`
 }
 
 // ProxyConfigApplyConfiguration constructs a declarative configuration of the ProxyConfig type for use with

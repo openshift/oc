@@ -8,12 +8,8 @@ import (
 
 // DeploymentCauseApplyConfiguration represents a declarative configuration of the DeploymentCause type for use
 // with apply.
-//
-// DeploymentCause captures information about a particular cause of a deployment.
 type DeploymentCauseApplyConfiguration struct {
-	// type of the trigger that resulted in the creation of a new deployment
-	Type *appsv1.DeploymentTriggerType `json:"type,omitempty"`
-	// imageTrigger contains the image trigger details, if this trigger was fired based on an image change
+	Type         *appsv1.DeploymentTriggerType                  `json:"type,omitempty"`
 	ImageTrigger *DeploymentCauseImageTriggerApplyConfiguration `json:"imageTrigger,omitempty"`
 }
 

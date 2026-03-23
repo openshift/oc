@@ -4,12 +4,8 @@ package v1
 
 // ImageLabelApplyConfiguration represents a declarative configuration of the ImageLabel type for use
 // with apply.
-//
-// ImageLabel represents a label applied to the resulting image.
 type ImageLabelApplyConfiguration struct {
-	// name defines the name of the label. It must have non-zero length.
-	Name *string `json:"name,omitempty"`
-	// value defines the literal value of the label.
+	Name  *string `json:"name,omitempty"`
 	Value *string `json:"value,omitempty"`
 }
 

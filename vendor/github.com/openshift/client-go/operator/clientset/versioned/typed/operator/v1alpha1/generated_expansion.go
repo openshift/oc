@@ -2,8 +2,6 @@
 
 package v1alpha1
 
-type ClusterAPIExpansion interface{}
-
 type ClusterVersionOperatorExpansion interface{}
 
 type EtcdBackupExpansion interface{}
