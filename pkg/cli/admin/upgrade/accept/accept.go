@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/go-cmp/cmp"
 	"strings"
 
+	"github.com/google/go-cmp/cmp"
 	configv1 "github.com/openshift/api/config/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/spf13/cobra"
@@ -59,7 +59,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 		Example: acceptExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
-			kcmdutil.CheckErr(o.Run(cmd.Context()))
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 
@@ -135,7 +135,8 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 	return nil
 }
 
-func (o *options) Run(ctx context.Context) error {
+func (o *options) Run() error {
+	ctx := context.TODO()
 	cv, err := o.Client.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -158,9 +159,9 @@ func (o *options) Run(ctx context.Context) error {
 		for _, risk := range acceptRisks {
 			names = append(names, risk.Name)
 		}
-		_, _ = fmt.Fprintf(o.Out, "info: Accept risks are [%s]\n", strings.Join(names, ", "))
+		fmt.Fprintf(o.Out, "info: Accept risks are [%s]\n", strings.Join(names, ", ")) //nolint:errcheck
 	} else {
-		_, _ = fmt.Fprintf(o.Out, "info: Accept risks are not changed\n")
+		fmt.Fprintf(o.Out, "info: Accept risks are not changed\n") //nolint:errcheck
 	}
 
 	return nil

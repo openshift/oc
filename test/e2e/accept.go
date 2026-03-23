@@ -4,6 +4,7 @@ import (
 	"context"
 
 	g "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2/types"
 	o "github.com/onsi/gomega"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +15,7 @@ import (
 	configv1client "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
 )
 
-var _ = g.Describe("[sig-cli] oc", g.Label("cluster-version-operator"), func() {
+var _ = g.Describe("[sig-cli][OCPFeatureGate:ClusterUpdateAcceptRisks] oc", g.Label("cluster-version-operator"), func() {
 
 	var (
 		ctx            = context.TODO()
@@ -29,6 +30,9 @@ var _ = g.Describe("[sig-cli] oc", g.Label("cluster-version-operator"), func() {
 		configClient, err = configv1client.NewForConfig(config)
 		o.Expect(err).NotTo(o.HaveOccurred())
 
+		skipIfMicroShift(oc)
+		SkipIfNotTechPreviewNoUpgrade(ctx, configClient)
+
 		cv, err := configClient.ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
 		o.Expect(err).NotTo(o.HaveOccurred())
 		if cv.Spec.DesiredUpdate != nil {
@@ -37,6 +41,13 @@ var _ = g.Describe("[sig-cli] oc", g.Label("cluster-version-operator"), func() {
 	})
 
 	g.AfterEach(func() {
+		// No need to recover if the test is skipped.
+		// In case it is skipped up to disabled TP, we must not recover as the API might not be available.
+		// We could use patch instead but this guard should work too.
+		report := g.CurrentSpecReport()
+		if report.State.Is(types.SpecStateSkipped) {
+			return
+		}
 		cv, err := configClient.ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
 		o.Expect(err).NotTo(o.HaveOccurred())
 		if cv.Spec.DesiredUpdate != nil && len(cv.Spec.DesiredUpdate.AcceptRisks) > 0 {
@@ -48,8 +59,6 @@ var _ = g.Describe("[sig-cli] oc", g.Label("cluster-version-operator"), func() {
 	})
 
 	g.It("can operate accept risks [Serial]", g.Label("tech-preview"), oteginkgo.Informing(), func() {
-		skipIfMicroShift(oc)
-		SkipIfNotTechPreviewNoUpgrade(ctx, configClient)
 
 		g.By("accepting some risks")
 		out, err := oc.Run("adm").Args("upgrade", "accept", "RiskA,RiskB").WithoutNamespace().Output()
