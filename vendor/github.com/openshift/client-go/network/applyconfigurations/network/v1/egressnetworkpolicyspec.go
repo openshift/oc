@@ -4,10 +4,7 @@ package v1
 
 // EgressNetworkPolicySpecApplyConfiguration represents a declarative configuration of the EgressNetworkPolicySpec type for use
 // with apply.
-//
-// EgressNetworkPolicySpec provides a list of policies on outgoing network traffic
 type EgressNetworkPolicySpecApplyConfiguration struct {
-	// egress contains the list of egress policy rules
 	Egress []EgressNetworkPolicyRuleApplyConfiguration `json:"egress,omitempty"`
 }
 

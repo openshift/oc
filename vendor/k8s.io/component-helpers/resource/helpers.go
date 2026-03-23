@@ -42,11 +42,6 @@ type PodResourcesOptions struct {
 	// when evaluating the pod resources. This MUST be false if the InPlacePodVerticalScaling
 	// feature is not enabled.
 	UseStatusResources bool
-	// InPlacePodLevelResourcesVerticalScalingEnabled indicates whether resources reported by the
-	// PodStatus should be considered when evaluating the pod resources.
-	// This MUST be false if the InPlacePodLevelResourcesVerticalScaling
-	// feature is not enabled.
-	InPlacePodLevelResourcesVerticalScalingEnabled bool
 	// ExcludeOverhead controls if pod overhead is excluded from the calculation.
 	ExcludeOverhead bool
 	// ContainerFn is called with the effective resources required for each container within the pod.
@@ -153,25 +148,9 @@ func PodRequests(pod *v1.Pod, opts PodResourcesOptions) v1.ResourceList {
 	}
 
 	if !opts.SkipPodLevelResources && IsPodLevelRequestsSet(pod) {
-
-		var effectiveReqs v1.ResourceList
-		if opts.InPlacePodLevelResourcesVerticalScalingEnabled && opts.UseStatusResources {
-			if pod.Status.Resources != nil {
-				effectiveReqs = determineEffectiveRequests(pod, &ResourceState{
-					Spec:      pod.Spec.Resources.Requests,
-					Actuated:  pod.Status.Resources.Requests,
-					Allocated: pod.Status.AllocatedResources,
-				})
-			}
-		}
-
 		for resourceName, quantity := range pod.Spec.Resources.Requests {
 			if IsSupportedPodLevelResource(resourceName) {
 				reqs[resourceName] = quantity
-				if effectiveReqs != nil {
-					reqs[resourceName] = effectiveReqs[resourceName]
-				}
-
 			}
 		}
 	}
@@ -207,11 +186,7 @@ func AggregateContainerRequests(pod *v1.Pod, opts PodResourcesOptions) v1.Resour
 		if opts.UseStatusResources {
 			cs, found := containerStatuses[container.Name]
 			if found && cs.Resources != nil {
-				containerReqs = determineEffectiveRequests(pod, &ResourceState{
-					Spec:      container.Resources.Requests,
-					Actuated:  cs.Resources.Requests,
-					Allocated: cs.AllocatedResources,
-				})
+				containerReqs = determineContainerReqs(pod, &container, cs)
 			}
 		}
 
@@ -241,11 +216,7 @@ func AggregateContainerRequests(pod *v1.Pod, opts PodResourcesOptions) v1.Resour
 			if container.RestartPolicy != nil && *container.RestartPolicy == v1.ContainerRestartPolicyAlways {
 				cs, found := containerStatuses[container.Name]
 				if found && cs.Resources != nil {
-					containerReqs = determineEffectiveRequests(pod, &ResourceState{
-						Spec:      container.Resources.Requests,
-						Actuated:  cs.Resources.Requests,
-						Allocated: cs.AllocatedResources,
-					})
+					containerReqs = determineContainerReqs(pod, &container, cs)
 				}
 			}
 		}
@@ -278,24 +249,20 @@ func AggregateContainerRequests(pod *v1.Pod, opts PodResourcesOptions) v1.Resour
 	return reqs
 }
 
-type ResourceState struct {
-	Spec      v1.ResourceList
-	Actuated  v1.ResourceList
-	Allocated v1.ResourceList
+// determineContainerReqs will return a copy of the container requests based on if resizing is feasible or not.
+func determineContainerReqs(pod *v1.Pod, container *v1.Container, cs *v1.ContainerStatus) v1.ResourceList {
+	if IsPodResizeInfeasible(pod) {
+		return max(cs.Resources.Requests, cs.AllocatedResources)
+	}
+	return max(container.Resources.Requests, cs.Resources.Requests, cs.AllocatedResources)
 }
 
-func determineEffectiveRequests(pod *v1.Pod, rs *ResourceState) v1.ResourceList {
+// determineContainerLimits will return a copy of the container limits based on if resizing is feasible or not.
+func determineContainerLimits(pod *v1.Pod, container *v1.Container, cs *v1.ContainerStatus) v1.ResourceList {
 	if IsPodResizeInfeasible(pod) {
-		return max(rs.Actuated, rs.Allocated)
+		return cs.Resources.Limits.DeepCopy()
 	}
-	return max(rs.Spec, rs.Actuated, rs.Allocated)
-}
-
-func determineEffectiveLimits(pod *v1.Pod, rs *ResourceState) v1.ResourceList {
-	if IsPodResizeInfeasible(pod) {
-		return rs.Actuated.DeepCopy()
-	}
-	return max(rs.Spec, rs.Actuated)
+	return max(container.Resources.Limits, cs.Resources.Limits)
 }
 
 // IsPodResizeInfeasible returns true if the pod condition PodResizePending is set to infeasible.
@@ -342,22 +309,9 @@ func PodLimits(pod *v1.Pod, opts PodResourcesOptions) v1.ResourceList {
 	// attempt to reuse the maps if passed, or allocate otherwise
 	limits := AggregateContainerLimits(pod, opts)
 	if !opts.SkipPodLevelResources && IsPodLevelResourcesSet(pod) {
-
-		var effectiveLims v1.ResourceList
-		if opts.InPlacePodLevelResourcesVerticalScalingEnabled && opts.UseStatusResources {
-			if pod.Status.Resources != nil {
-				effectiveLims = determineEffectiveLimits(pod, &ResourceState{
-					Spec:     pod.Spec.Resources.Limits,
-					Actuated: pod.Status.Resources.Limits,
-				})
-			}
-		}
 		for resourceName, quantity := range pod.Spec.Resources.Limits {
 			if IsSupportedPodLevelResource(resourceName) {
 				limits[resourceName] = quantity
-				if effectiveLims != nil {
-					limits[resourceName] = effectiveLims[resourceName]
-				}
 			}
 		}
 	}
@@ -398,10 +352,7 @@ func AggregateContainerLimits(pod *v1.Pod, opts PodResourcesOptions) v1.Resource
 		if opts.UseStatusResources {
 			cs, found := containerStatuses[container.Name]
 			if found && cs.Resources != nil {
-				containerLimits = determineEffectiveLimits(pod, &ResourceState{
-					Spec:     containerLimits,
-					Actuated: cs.Resources.Limits,
-				})
+				containerLimits = determineContainerLimits(pod, &container, cs)
 			}
 		}
 
@@ -426,10 +377,7 @@ func AggregateContainerLimits(pod *v1.Pod, opts PodResourcesOptions) v1.Resource
 			if container.RestartPolicy != nil && *container.RestartPolicy == v1.ContainerRestartPolicyAlways {
 				cs, found := containerStatuses[container.Name]
 				if found && cs.Resources != nil {
-					containerLimits = determineEffectiveLimits(pod, &ResourceState{
-						Spec:     containerLimits,
-						Actuated: cs.Resources.Limits,
-					})
+					containerLimits = determineContainerLimits(pod, &container, cs)
 				}
 			}
 		}

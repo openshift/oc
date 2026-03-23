@@ -4,12 +4,8 @@ package v1
 
 // ScopeRestrictionApplyConfiguration represents a declarative configuration of the ScopeRestriction type for use
 // with apply.
-//
-// ScopeRestriction describe one restriction on scopes.  Exactly one option must be non-nil.
 type ScopeRestrictionApplyConfiguration struct {
-	// ExactValues means the scope has to match a particular set of strings exactly
-	ExactValues []string `json:"literals,omitempty"`
-	// clusterRole describes a set of restrictions for cluster role scoping.
+	ExactValues []string                                       `json:"literals,omitempty"`
 	ClusterRole *ClusterRoleScopeRestrictionApplyConfiguration `json:"clusterRole,omitempty"`
 }
 

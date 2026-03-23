@@ -229,9 +229,6 @@ func (o *APIResourceOptions) RunAPIResources() error {
 		allResources = append(allResources, apiList)
 	}
 
-	if len(allResources) == 0 {
-		return utilerrors.NewAggregate(errs)
-	}
 	flatList := &metav1.APIResourceList{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: allResources[0].APIVersion,

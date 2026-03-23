@@ -9,7 +9,6 @@ import (
 // ImagePolicyStatusApplyConfiguration represents a declarative configuration of the ImagePolicyStatus type for use
 // with apply.
 type ImagePolicyStatusApplyConfiguration struct {
-	// conditions provide details on the status of this API Resource.
 	Conditions []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
 }
 

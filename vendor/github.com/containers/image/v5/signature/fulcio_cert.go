@@ -1,3 +1,6 @@
+//go:build !containers_image_fulcio_stub
+// +build !containers_image_fulcio_stub
+
 package signature
 
 import (
@@ -105,10 +108,19 @@ func (f *fulcioTrustRoot) verifyFulcioCertificateAtTime(relevantTime time.Time, 
 		}
 	}
 
-	untrustedCertificate, err := parseLeafCertFromPEM(untrustedCertificateBytes)
+	untrustedLeafCerts, err := cryptoutils.UnmarshalCertificatesFromPEM(untrustedCertificateBytes)
 	if err != nil {
-		return nil, err
+		return nil, internal.NewInvalidSignatureError(fmt.Sprintf("parsing leaf certificate: %v", err))
 	}
+	switch len(untrustedLeafCerts) {
+	case 0:
+		return nil, internal.NewInvalidSignatureError("no certificate found in signature certificate data")
+	case 1:
+		break // OK
+	default:
+		return nil, internal.NewInvalidSignatureError("unexpected multiple certificates present in signature certificate data")
+	}
+	untrustedCertificate := untrustedLeafCerts[0]
 
 	// Go rejects Subject Alternative Name that has no DNSNames, EmailAddresses, IPAddresses and URIs;
 	// we match SAN ourselves, so override that.
@@ -181,21 +193,6 @@ func (f *fulcioTrustRoot) verifyFulcioCertificateAtTime(relevantTime time.Time, 
 	// issuers and/or subjects and/or combinations? Regexps? More?
 
 	return untrustedCertificate.PublicKey, nil
-}
-
-func parseLeafCertFromPEM(untrustedCertificateBytes []byte) (*x509.Certificate, error) {
-	untrustedLeafCerts, err := cryptoutils.UnmarshalCertificatesFromPEM(untrustedCertificateBytes)
-	if err != nil {
-		return nil, internal.NewInvalidSignatureError(fmt.Sprintf("parsing leaf certificate: %v", err))
-	}
-	switch len(untrustedLeafCerts) {
-	case 0:
-		return nil, internal.NewInvalidSignatureError("no certificate found in signature certificate data")
-	case 1: // OK
-		return untrustedLeafCerts[0], nil
-	default:
-		return nil, internal.NewInvalidSignatureError("unexpected multiple certificates present in signature certificate data")
-	}
 }
 
 func verifyRekorFulcio(rekorPublicKeys []*ecdsa.PublicKey, fulcioTrustRoot *fulcioTrustRoot, untrustedRekorSET []byte,

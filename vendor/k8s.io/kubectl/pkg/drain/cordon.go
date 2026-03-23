@@ -86,10 +86,9 @@ func (c *CordonHelper) PatchOrReplaceWithContext(clientCtx context.Context, clie
 		return err, nil
 	}
 
-	desiredNode := c.node.DeepCopy()
-	desiredNode.Spec.Unschedulable = c.desired
+	c.node.Spec.Unschedulable = c.desired
 
-	newData, err := json.Marshal(desiredNode)
+	newData, err := json.Marshal(c.node)
 	if err != nil {
 		return err, nil
 	}
@@ -100,21 +99,13 @@ func (c *CordonHelper) PatchOrReplaceWithContext(clientCtx context.Context, clie
 		if serverDryRun {
 			patchOptions.DryRun = []string{metav1.DryRunAll}
 		}
-		var updatedNode *corev1.Node
-		updatedNode, err = client.Patch(clientCtx, c.node.Name, types.StrategicMergePatchType, patchBytes, patchOptions)
-		if err == nil {
-			c.node.Spec.Unschedulable = updatedNode.Spec.Unschedulable
-		}
+		_, err = client.Patch(clientCtx, c.node.Name, types.StrategicMergePatchType, patchBytes, patchOptions)
 	} else {
 		updateOptions := metav1.UpdateOptions{}
 		if serverDryRun {
 			updateOptions.DryRun = []string{metav1.DryRunAll}
 		}
-		var updatedNode *corev1.Node
-		updatedNode, err = client.Update(clientCtx, desiredNode, updateOptions)
-		if err == nil {
-			c.node.Spec.Unschedulable = updatedNode.Spec.Unschedulable
-		}
+		_, err = client.Update(clientCtx, c.node, updateOptions)
 	}
 	return err, patchErr
 }

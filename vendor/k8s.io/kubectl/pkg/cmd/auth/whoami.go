@@ -159,7 +159,8 @@ func NewCmdWhoAmI(restClientGetter genericclioptions.RESTClientGetter, streams g
 
 var (
 	notEnabledErr = fmt.Errorf(
-		"the selfsubjectreviews API is not enabled in the cluster")
+		"the selfsubjectreviews API is not enabled in the cluster\n" +
+			"enable APISelfSubjectReview feature gate and authentication.k8s.io/v1alpha1 or authentication.k8s.io/v1beta1 API")
 
 	forbiddenErr = fmt.Errorf(
 		"the selfsubjectreviews API is not enabled in the cluster or you do not have permission to call it")

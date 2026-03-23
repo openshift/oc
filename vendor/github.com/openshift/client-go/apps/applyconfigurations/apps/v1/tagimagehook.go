@@ -8,14 +8,9 @@ import (
 
 // TagImageHookApplyConfiguration represents a declarative configuration of the TagImageHook type for use
 // with apply.
-//
-// TagImageHook is a request to tag the image in a particular container onto an ImageStreamTag.
 type TagImageHookApplyConfiguration struct {
-	// containerName is the name of a container in the deployment config whose image value will be used as the source of the tag. If there is only a single
-	// container this value will be defaulted to the name of that container.
-	ContainerName *string `json:"containerName,omitempty"`
-	// to is the target ImageStreamTag to set the container's image onto.
-	To *corev1.ObjectReference `json:"to,omitempty"`
+	ContainerName *string                 `json:"containerName,omitempty"`
+	To            *corev1.ObjectReference `json:"to,omitempty"`
 }
 
 // TagImageHookApplyConfiguration constructs a declarative configuration of the TagImageHook type for use with

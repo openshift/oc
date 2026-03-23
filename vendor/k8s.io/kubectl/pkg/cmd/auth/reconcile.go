@@ -22,7 +22,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -34,7 +33,6 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	rbacv1client "k8s.io/client-go/kubernetes/typed/rbac/v1"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/component-helpers/auth/rbac/reconciliation"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -199,9 +197,6 @@ func (o *ReconcileOptions) Validate() error {
 
 // RunReconcile performs the execution
 func (o *ReconcileOptions) RunReconcile() error {
-	// conflictBackoff retries up to 3 times on conflict, with no delay
-	conflictBackoff := wait.Backoff{Steps: 3}
-
 	return o.Visitor.Visit(func(info *resource.Info, err error) error {
 		if err != nil {
 			return err
@@ -218,14 +213,7 @@ func (o *ReconcileOptions) RunReconcile() error {
 					Client:          o.RBACClient,
 				},
 			}
-			var (
-				result *reconciliation.ReconcileClusterRoleResult
-				err    error
-			)
-			retry.RetryOnConflict(conflictBackoff, func() error {
-				result, err = reconcileOptions.Run()
-				return err
-			})
+			result, err := reconcileOptions.Run()
 			if err != nil {
 				return err
 			}
@@ -240,14 +228,7 @@ func (o *ReconcileOptions) RunReconcile() error {
 					Client: o.RBACClient.ClusterRoles(),
 				},
 			}
-			var (
-				result *reconciliation.ReconcileClusterRoleResult
-				err    error
-			)
-			retry.RetryOnConflict(conflictBackoff, func() error {
-				result, err = reconcileOptions.Run()
-				return err
-			})
+			result, err := reconcileOptions.Run()
 			if err != nil {
 				return err
 			}
@@ -263,14 +244,10 @@ func (o *ReconcileOptions) RunReconcile() error {
 					NamespaceClient: o.NamespaceClient.Namespaces(),
 				},
 			}
-			var (
-				result *reconciliation.ReconcileClusterRoleBindingResult
-				err    error
-			)
-			retry.RetryOnConflict(conflictBackoff, func() error {
-				result, err = reconcileOptions.Run()
+			result, err := reconcileOptions.Run()
+			if err != nil {
 				return err
-			})
+			}
 			o.printResults(result.RoleBinding.GetObject(), result.MissingSubjects, result.ExtraSubjects, nil, nil, result.Operation, result.Protected)
 
 		case *rbacv1.ClusterRoleBinding:
@@ -282,14 +259,10 @@ func (o *ReconcileOptions) RunReconcile() error {
 					Client: o.RBACClient.ClusterRoleBindings(),
 				},
 			}
-			var (
-				result *reconciliation.ReconcileClusterRoleBindingResult
-				err    error
-			)
-			retry.RetryOnConflict(conflictBackoff, func() error {
-				result, err = reconcileOptions.Run()
+			result, err := reconcileOptions.Run()
+			if err != nil {
 				return err
-			})
+			}
 			o.printResults(result.RoleBinding.GetObject(), result.MissingSubjects, result.ExtraSubjects, nil, nil, result.Operation, result.Protected)
 
 		case *rbacv1beta1.Role,

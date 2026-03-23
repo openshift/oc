@@ -42,7 +42,6 @@ import (
 	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
-	"k8s.io/kubectl/pkg/util/term"
 )
 
 var (
@@ -301,9 +300,7 @@ func (o *AttachOptions) Run() error {
 			sizePlusOne.Height++
 
 			// this call spawns a goroutine to monitor/update the terminal size
-			sizeQueue = &terminalSizeQueueAdapter{
-				delegate: t.MonitorSize(&sizePlusOne, size),
-			}
+			sizeQueue = t.MonitorSize(&sizePlusOne, size)
 		}
 
 		o.DisableStderr = true
@@ -359,19 +356,4 @@ func (o *AttachOptions) reattachMessage(containerName string, rawTTY bool) strin
 		return fmt.Sprintf("Session ended, the ephemeral container will not be restarted but may be reattached using '%s %s -c %s -i -t' if it is still running", o.CommandName, o.Pod.Name, containerName)
 	}
 	return fmt.Sprintf("Session ended, resume using '%s %s -c %s -i -t' command when the pod is running", o.CommandName, o.Pod.Name, containerName)
-}
-
-type terminalSizeQueueAdapter struct {
-	delegate term.TerminalSizeQueue
-}
-
-func (a *terminalSizeQueueAdapter) Next() *remotecommand.TerminalSize {
-	next := a.delegate.Next()
-	if next == nil {
-		return nil
-	}
-	return &remotecommand.TerminalSize{
-		Width:  next.Width,
-		Height: next.Height,
-	}
 }

@@ -8,12 +8,8 @@ import (
 
 // ProjectStatusApplyConfiguration represents a declarative configuration of the ProjectStatus type for use
 // with apply.
-//
-// ProjectStatus is information about the current status of a Project
 type ProjectStatusApplyConfiguration struct {
-	// phase is the current lifecycle phase of the project
-	Phase *corev1.NamespacePhase `json:"phase,omitempty"`
-	// Represents the latest available observations of the project current state.
+	Phase      *corev1.NamespacePhase      `json:"phase,omitempty"`
 	Conditions []corev1.NamespaceCondition `json:"conditions,omitempty"`
 }
 

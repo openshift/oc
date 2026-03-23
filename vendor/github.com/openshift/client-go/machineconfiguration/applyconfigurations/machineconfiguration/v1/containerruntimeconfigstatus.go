@@ -4,13 +4,9 @@ package v1
 
 // ContainerRuntimeConfigStatusApplyConfiguration represents a declarative configuration of the ContainerRuntimeConfigStatus type for use
 // with apply.
-//
-// ContainerRuntimeConfigStatus defines the observed state of a ContainerRuntimeConfig
 type ContainerRuntimeConfigStatusApplyConfiguration struct {
-	// observedGeneration represents the generation observed by the controller.
-	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
-	// conditions represents the latest available observations of current state.
-	Conditions []ContainerRuntimeConfigConditionApplyConfiguration `json:"conditions,omitempty"`
+	ObservedGeneration *int64                                              `json:"observedGeneration,omitempty"`
+	Conditions         []ContainerRuntimeConfigConditionApplyConfiguration `json:"conditions,omitempty"`
 }
 
 // ContainerRuntimeConfigStatusApplyConfiguration constructs a declarative configuration of the ContainerRuntimeConfigStatus type for use with

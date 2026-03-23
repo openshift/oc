@@ -13,17 +13,11 @@ import (
 
 // MachineOSConfigApplyConfiguration represents a declarative configuration of the MachineOSConfig type for use
 // with apply.
-//
-// MachineOSConfig describes the configuration for a build process managed by the MCO
-// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
 type MachineOSConfigApplyConfiguration struct {
-	metav1.TypeMetaApplyConfiguration `json:",inline"`
-	// metadata is the standard object metadata.
+	metav1.TypeMetaApplyConfiguration    `json:",inline"`
 	*metav1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	// spec describes the configuration of the machineosconfig
-	Spec *MachineOSConfigSpecApplyConfiguration `json:"spec,omitempty"`
-	// status describes the status of the machineosconfig
-	Status *MachineOSConfigStatusApplyConfiguration `json:"status,omitempty"`
+	Spec                                 *MachineOSConfigSpecApplyConfiguration   `json:"spec,omitempty"`
+	Status                               *MachineOSConfigStatusApplyConfiguration `json:"status,omitempty"`
 }
 
 // MachineOSConfig constructs a declarative configuration of the MachineOSConfig type for use with
@@ -36,14 +30,29 @@ func MachineOSConfig(name string) *MachineOSConfigApplyConfiguration {
 	return b
 }
 
-// ExtractMachineOSConfigFrom extracts the applied configuration owned by fieldManager from
-// machineOSConfig for the specified subresource. Pass an empty string for subresource to extract
-// the main resource. Common subresources include "status", "scale", etc.
+// ExtractMachineOSConfig extracts the applied configuration owned by fieldManager from
+// machineOSConfig. If no managedFields are found in machineOSConfig for fieldManager, a
+// MachineOSConfigApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
 // machineOSConfig must be a unmodified MachineOSConfig API object that was retrieved from the Kubernetes API.
-// ExtractMachineOSConfigFrom provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractMachineOSConfig provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-func ExtractMachineOSConfigFrom(machineOSConfig *machineconfigurationv1.MachineOSConfig, fieldManager string, subresource string) (*MachineOSConfigApplyConfiguration, error) {
+// Experimental!
+func ExtractMachineOSConfig(machineOSConfig *machineconfigurationv1.MachineOSConfig, fieldManager string) (*MachineOSConfigApplyConfiguration, error) {
+	return extractMachineOSConfig(machineOSConfig, fieldManager, "")
+}
+
+// ExtractMachineOSConfigStatus is the same as ExtractMachineOSConfig except
+// that it extracts the status subresource applied configuration.
+// Experimental!
+func ExtractMachineOSConfigStatus(machineOSConfig *machineconfigurationv1.MachineOSConfig, fieldManager string) (*MachineOSConfigApplyConfiguration, error) {
+	return extractMachineOSConfig(machineOSConfig, fieldManager, "status")
+}
+
+func extractMachineOSConfig(machineOSConfig *machineconfigurationv1.MachineOSConfig, fieldManager string, subresource string) (*MachineOSConfigApplyConfiguration, error) {
 	b := &MachineOSConfigApplyConfiguration{}
 	err := managedfields.ExtractInto(machineOSConfig, internal.Parser().Type("com.github.openshift.api.machineconfiguration.v1.MachineOSConfig"), fieldManager, b, subresource)
 	if err != nil {
@@ -55,27 +64,6 @@ func ExtractMachineOSConfigFrom(machineOSConfig *machineconfigurationv1.MachineO
 	b.WithAPIVersion("machineconfiguration.openshift.io/v1")
 	return b, nil
 }
-
-// ExtractMachineOSConfig extracts the applied configuration owned by fieldManager from
-// machineOSConfig. If no managedFields are found in machineOSConfig for fieldManager, a
-// MachineOSConfigApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
-// machineOSConfig must be a unmodified MachineOSConfig API object that was retrieved from the Kubernetes API.
-// ExtractMachineOSConfig provides a way to perform a extract/modify-in-place/apply workflow.
-// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
-// applied if another fieldManager has updated or force applied any of the previously applied fields.
-func ExtractMachineOSConfig(machineOSConfig *machineconfigurationv1.MachineOSConfig, fieldManager string) (*MachineOSConfigApplyConfiguration, error) {
-	return ExtractMachineOSConfigFrom(machineOSConfig, fieldManager, "")
-}
-
-// ExtractMachineOSConfigStatus extracts the applied configuration owned by fieldManager from
-// machineOSConfig for the status subresource.
-func ExtractMachineOSConfigStatus(machineOSConfig *machineconfigurationv1.MachineOSConfig, fieldManager string) (*MachineOSConfigApplyConfiguration, error) {
-	return ExtractMachineOSConfigFrom(machineOSConfig, fieldManager, "status")
-}
-
 func (b MachineOSConfigApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value

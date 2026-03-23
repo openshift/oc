@@ -108,12 +108,8 @@ func SignHost(ca tls.Certificate, hosts []string) (cert *tls.Certificate, err er
 		return nil, err
 	}
 
-	certBytes := make([][]byte, 1+len(ca.Certificate))
-	certBytes[0] = derBytes
-	for i, singleCertBytes := range ca.Certificate {
-		certBytes[i+1] = singleCertBytes
-	}
-
+	certBytes := [][]byte{derBytes}
+	certBytes = append(certBytes, ca.Certificate...)
 	return &tls.Certificate{
 		Certificate: certBytes,
 		PrivateKey:  certpriv,

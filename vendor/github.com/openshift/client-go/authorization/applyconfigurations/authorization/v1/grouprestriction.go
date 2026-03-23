@@ -8,15 +8,8 @@ import (
 
 // GroupRestrictionApplyConfiguration represents a declarative configuration of the GroupRestriction type for use
 // with apply.
-//
-// GroupRestriction matches a group either by a string match on the group name
-// or a label selector applied to group labels.
 type GroupRestrictionApplyConfiguration struct {
-	// groups is a list of groups used to match against an individual user's
-	// groups. If the user is a member of one of the whitelisted groups, the user
-	// is allowed to be bound to a role.
-	Groups []string `json:"groups,omitempty"`
-	// Selectors specifies a list of label selectors over group labels.
+	Groups    []string                                 `json:"groups,omitempty"`
 	Selectors []metav1.LabelSelectorApplyConfiguration `json:"labels,omitempty"`
 }
 

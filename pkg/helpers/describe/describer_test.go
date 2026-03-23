@@ -135,12 +135,6 @@ var MissingDescriberGroupCoverageExceptions = []schema.GroupVersion{
 	{Group: "sharedresource.openshift.io", Version: "v1alpha1"},
 }
 
-// MissingDescriberGVKExceptions lists specific GroupVersionKind that don't need describers
-var MissingDescriberGVKExceptions = []schema.GroupVersionKind{
-	{Group: "etcd.openshift.io", Version: "v1alpha1", Kind: "PacemakerCluster"},
-	{Group: "apiextensions.openshift.io", Version: "v1alpha1", Kind: "CompatibilityRequirement"},
-}
-
 func TestDescriberCoverage(t *testing.T) {
 	scheme := runtime.NewScheme()
 	kubernetesscheme.AddToScheme(scheme)
@@ -170,11 +164,6 @@ main:
 
 		_, ok := DescriberFor(gvk.GroupKind(), &rest.Config{}, fake.NewSimpleClientset(), "")
 		if !ok {
-			for _, exception := range MissingDescriberGVKExceptions {
-				if exception == gvk {
-					continue main
-				}
-			}
 			for _, exception := range MissingDescriberGroupCoverageExceptions {
 				if exception == gvk.GroupVersion() {
 					continue main

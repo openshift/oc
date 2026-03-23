@@ -129,8 +129,7 @@ func NewCmdConfigSetCredentials(out io.Writer, configAccess clientcmd.ConfigAcce
 }
 
 // NewCmdConfigSetAuthInfo returns a Command instance for 'config set-credentials' sub command
-//
-// Deprecated: Use NewCmdConfigSetCredentials instead
+// DEPRECATED: Use NewCmdConfigSetCredentials instead
 func NewCmdConfigSetAuthInfo(out io.Writer, configAccess clientcmd.ConfigAccess) *cobra.Command {
 	return NewCmdConfigSetCredentials(out, configAccess)
 }

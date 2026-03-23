@@ -213,12 +213,12 @@ type instanceCandidate struct {
 	digest           digest.Digest // Instance digest
 }
 
-func (ic instanceCandidate) isPreferredOver(other *instanceCandidate, preferGzip types.OptionalBool) bool {
+func (ic instanceCandidate) isPreferredOver(other *instanceCandidate, preferGzip bool) bool {
 	switch {
 	case ic.platformIndex != other.platformIndex:
 		return ic.platformIndex < other.platformIndex
 	case ic.isZstd != other.isZstd:
-		if preferGzip != types.OptionalBoolTrue {
+		if !preferGzip {
 			return ic.isZstd
 		} else {
 			return !ic.isZstd
@@ -232,7 +232,14 @@ func (ic instanceCandidate) isPreferredOver(other *instanceCandidate, preferGzip
 // chooseInstance is a private equivalent to ChooseInstanceByCompression,
 // shared by ChooseInstance and ChooseInstanceByCompression.
 func (index *OCI1IndexPublic) chooseInstance(ctx *types.SystemContext, preferGzip types.OptionalBool) (digest.Digest, error) {
-	wantedPlatforms := platform.WantedPlatforms(ctx)
+	didPreferGzip := false
+	if preferGzip == types.OptionalBoolTrue {
+		didPreferGzip = true
+	}
+	wantedPlatforms, err := platform.WantedPlatforms(ctx)
+	if err != nil {
+		return "", fmt.Errorf("getting platform information %#v: %w", ctx, err)
+	}
 	var bestMatch *instanceCandidate
 	bestMatch = nil
 	for manifestIndex, d := range index.Manifests {
@@ -247,7 +254,7 @@ func (index *OCI1IndexPublic) chooseInstance(ctx *types.SystemContext, preferGzi
 			}
 			candidate.platformIndex = platformIndex
 		}
-		if bestMatch == nil || candidate.isPreferredOver(bestMatch, preferGzip) {
+		if bestMatch == nil || candidate.isPreferredOver(bestMatch, didPreferGzip) {
 			bestMatch = &candidate
 		}
 	}

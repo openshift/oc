@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"strings"
 
-	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/kuberc"
 
 	"github.com/MakeNowJust/heredoc"
@@ -108,15 +107,19 @@ func defaultConfigFlags() *genericclioptions.ConfigFlags {
 func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 	cmd := NewOcCommand(o)
 
-	if o.PluginHandler == nil || len(o.Arguments) <= 1 {
+	if o.PluginHandler == nil {
+		return cmd
+	}
+
+	if len(o.Arguments) <= 1 {
 		return cmd
 	}
 
 	cmdPathPieces := o.Arguments[1:]
+
 	// only look for suitable extension executables if
 	// the specified command does not already exist
-	foundCmd, foundArgs, err := cmd.Find(cmdPathPieces)
-	if err != nil {
+	if foundCmd, foundArgs, err := cmd.Find(cmdPathPieces); err != nil {
 		// Also check the commands that will be added by Cobra.
 		// These commands are only added once rootCmd.Execute() is called, so we
 		// need to check them explicitly here.
@@ -133,28 +136,29 @@ func NewDefaultOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 			// Don't search for a plugin
 		default:
 			if err := kubecmd.HandlePluginCommand(o.PluginHandler, cmdPathPieces, 1); err != nil {
-				fmt.Fprintf(o.IOStreams.ErrOut, "Error: %v\n", err)
+				fmt.Fprintf(o.IOStreams.ErrOut, "%v\n", err)
 				os.Exit(1)
 			}
 		}
-	}
-	// Command exists(e.g. kubectl create), but it is not certain that
-	// subcommand also exists (e.g. kubectl create networkpolicy)
-	// we also have to eliminate kubectl create -f
-	if kubecmd.IsSubcommandPluginAllowed(foundCmd.Name()) && len(foundArgs) >= 1 && !strings.HasPrefix(foundArgs[0], "-") {
-		subcommand := foundArgs[0]
-		builtinSubcmdExist := false
-		for _, subcmd := range foundCmd.Commands() {
-			if subcmd.Name() == subcommand {
-				builtinSubcmdExist = true
-				break
+	} else if err == nil {
+		// Command exists(e.g. kubectl create), but it is not certain that
+		// subcommand also exists (e.g. kubectl create networkpolicy)
+		// we also have to eliminate kubectl create -f
+		if kubecmd.IsSubcommandPluginAllowed(foundCmd.Name()) && len(foundArgs) >= 1 && !strings.HasPrefix(foundArgs[0], "-") {
+			subcommand := foundArgs[0]
+			builtinSubcmdExist := false
+			for _, subcmd := range foundCmd.Commands() {
+				if subcmd.Name() == subcommand {
+					builtinSubcmdExist = true
+					break
+				}
 			}
-		}
 
-		if !builtinSubcmdExist {
-			if err := kubecmd.HandlePluginCommand(o.PluginHandler, cmdPathPieces, len(cmdPathPieces)-len(foundArgs)+1); err != nil {
-				fmt.Fprintf(o.IOStreams.ErrOut, "Error: %v\n", err)
-				os.Exit(1)
+			if !builtinSubcmdExist {
+				if err := kubecmd.HandlePluginCommand(o.PluginHandler, cmdPathPieces, len(cmdPathPieces)-len(foundArgs)+1); err != nil {
+					fmt.Fprintf(o.IOStreams.ErrOut, "Error: %v\n", err)
+					os.Exit(1)
+				}
 			}
 		}
 	}
@@ -336,15 +340,7 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 	registerCompletionFuncForGlobalFlags(cmds, f)
 
 	if !kcmdutil.KubeRC.IsDisabled() {
-		existingPreRunE := cmds.PersistentPreRunE
-		cmds.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-			if originalCommandArgs, ok := cmd.Annotations[kuberc.KubeRCOriginalCommandAnnotation]; ok {
-				originalCommand := fmt.Sprintf("%s %s", cmd.Root().Name(), originalCommandArgs)
-				klog.V(1).Info(fmt.Sprintf("original command: %q", originalCommand))
-			}
-			return existingPreRunE(cmd, args)
-		}
-		_, err := pref.Apply(cmds, kubeConfigFlags, o.Arguments, o.IOStreams.ErrOut)
+		_, err := pref.Apply(cmds, o.Arguments, o.IOStreams.ErrOut)
 		if err != nil {
 			fmt.Fprintf(o.IOStreams.ErrOut, "error occurred while applying preferences %v\n", err)
 			os.Exit(1)
@@ -356,6 +352,13 @@ func NewOcCommand(o kubecmd.KubectlOptions) *cobra.Command {
 
 func runHelp(cmd *cobra.Command, args []string) {
 	cmd.Help()
+}
+
+func moved(fullName, to string, parent, cmd *cobra.Command) string {
+	cmd.Long = fmt.Sprintf("DEPRECATED: This command has been moved to \"%s %s\"", fullName, to)
+	cmd.Short = fmt.Sprintf("DEPRECATED: %s", to)
+	parent.AddCommand(cmd)
+	return cmd.Name()
 }
 
 // changeSharedFlagDefaults changes values of shared flags that we disagree with.  This can't be done in godep code because

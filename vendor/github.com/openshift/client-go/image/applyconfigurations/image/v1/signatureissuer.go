@@ -4,8 +4,6 @@ package v1
 
 // SignatureIssuerApplyConfiguration represents a declarative configuration of the SignatureIssuer type for use
 // with apply.
-//
-// SignatureIssuer holds information about an issuer of signing certificate or key.
 type SignatureIssuerApplyConfiguration struct {
 	SignatureGenericEntityApplyConfiguration `json:",inline"`
 }

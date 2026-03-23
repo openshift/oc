@@ -4,17 +4,11 @@ package v1
 
 // GitSourceRevisionApplyConfiguration represents a declarative configuration of the GitSourceRevision type for use
 // with apply.
-//
-// GitSourceRevision is the commit information from a git source for a build
 type GitSourceRevisionApplyConfiguration struct {
-	// commit is the commit hash identifying a specific commit
-	Commit *string `json:"commit,omitempty"`
-	// author is the author of a specific commit
-	Author *SourceControlUserApplyConfiguration `json:"author,omitempty"`
-	// committer is the committer of a specific commit
+	Commit    *string                              `json:"commit,omitempty"`
+	Author    *SourceControlUserApplyConfiguration `json:"author,omitempty"`
 	Committer *SourceControlUserApplyConfiguration `json:"committer,omitempty"`
-	// message is the description of a specific commit
-	Message *string `json:"message,omitempty"`
+	Message   *string                              `json:"message,omitempty"`
 }
 
 // GitSourceRevisionApplyConfiguration constructs a declarative configuration of the GitSourceRevision type for use with

@@ -38,25 +38,6 @@ func (ArchiveStatus) Values() []ArchiveStatus {
 	}
 }
 
-type BucketAbacStatus string
-
-// Enum values for BucketAbacStatus
-const (
-	BucketAbacStatusEnabled  BucketAbacStatus = "Enabled"
-	BucketAbacStatusDisabled BucketAbacStatus = "Disabled"
-)
-
-// Values returns all known values for BucketAbacStatus. Note that this can be
-// expanded in the future, and so it is only as up to date as the client.
-//
-// The ordering of this slice is not guaranteed to be stable across updates.
-func (BucketAbacStatus) Values() []BucketAbacStatus {
-	return []BucketAbacStatus{
-		"Enabled",
-		"Disabled",
-	}
-}
-
 type BucketAccelerateStatus string
 
 // Enum values for BucketAccelerateStatus
@@ -372,25 +353,6 @@ const (
 func (EncodingType) Values() []EncodingType {
 	return []EncodingType{
 		"url",
-	}
-}
-
-type EncryptionType string
-
-// Enum values for EncryptionType
-const (
-	EncryptionTypeNone EncryptionType = "NONE"
-	EncryptionTypeSseC EncryptionType = "SSE-C"
-)
-
-// Values returns all known values for EncryptionType. Note that this can be
-// expanded in the future, and so it is only as up to date as the client.
-//
-// The ordering of this slice is not guaranteed to be stable across updates.
-func (EncryptionType) Values() []EncryptionType {
-	return []EncryptionType{
-		"NONE",
-		"SSE-C",
 	}
 }
 
@@ -715,7 +677,6 @@ const (
 	InventoryOptionalFieldChecksumAlgorithm            InventoryOptionalField = "ChecksumAlgorithm"
 	InventoryOptionalFieldObjectAccessControlList      InventoryOptionalField = "ObjectAccessControlList"
 	InventoryOptionalFieldObjectOwner                  InventoryOptionalField = "ObjectOwner"
-	InventoryOptionalFieldLifecycleExpirationDate      InventoryOptionalField = "LifecycleExpirationDate"
 )
 
 // Values returns all known values for InventoryOptionalField. Note that this can
@@ -739,7 +700,6 @@ func (InventoryOptionalField) Values() []InventoryOptionalField {
 		"ChecksumAlgorithm",
 		"ObjectAccessControlList",
 		"ObjectOwner",
-		"LifecycleExpirationDate",
 	}
 }
 
@@ -1022,7 +982,6 @@ const (
 	ObjectStorageClassSnow               ObjectStorageClass = "SNOW"
 	ObjectStorageClassExpressOnezone     ObjectStorageClass = "EXPRESS_ONEZONE"
 	ObjectStorageClassFsxOpenzfs         ObjectStorageClass = "FSX_OPENZFS"
-	ObjectStorageClassFsxOntap           ObjectStorageClass = "FSX_ONTAP"
 )
 
 // Values returns all known values for ObjectStorageClass. Note that this can be
@@ -1043,7 +1002,6 @@ func (ObjectStorageClass) Values() []ObjectStorageClass {
 		"SNOW",
 		"EXPRESS_ONEZONE",
 		"FSX_OPENZFS",
-		"FSX_ONTAP",
 	}
 }
 
@@ -1429,7 +1387,6 @@ const (
 	StorageClassSnow               StorageClass = "SNOW"
 	StorageClassExpressOnezone     StorageClass = "EXPRESS_ONEZONE"
 	StorageClassFsxOpenzfs         StorageClass = "FSX_OPENZFS"
-	StorageClassFsxOntap           StorageClass = "FSX_ONTAP"
 )
 
 // Values returns all known values for StorageClass. Note that this can be
@@ -1450,7 +1407,6 @@ func (StorageClass) Values() []StorageClass {
 		"SNOW",
 		"EXPRESS_ONEZONE",
 		"FSX_OPENZFS",
-		"FSX_ONTAP",
 	}
 }
 

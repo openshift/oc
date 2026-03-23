@@ -4,14 +4,9 @@ package v1
 
 // NamedTagEventListApplyConfiguration represents a declarative configuration of the NamedTagEventList type for use
 // with apply.
-//
-// NamedTagEventList relates a tag to its image history.
 type NamedTagEventListApplyConfiguration struct {
-	// tag is the tag for which the history is recorded
-	Tag *string `json:"tag,omitempty"`
-	// Standard object's metadata.
-	Items []TagEventApplyConfiguration `json:"items,omitempty"`
-	// conditions is an array of conditions that apply to the tag event list.
+	Tag        *string                               `json:"tag,omitempty"`
+	Items      []TagEventApplyConfiguration          `json:"items,omitempty"`
 	Conditions []TagEventConditionApplyConfiguration `json:"conditions,omitempty"`
 }
 

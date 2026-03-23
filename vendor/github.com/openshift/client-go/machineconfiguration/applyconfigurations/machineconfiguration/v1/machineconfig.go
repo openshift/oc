@@ -13,10 +13,6 @@ import (
 
 // MachineConfigApplyConfiguration represents a declarative configuration of the MachineConfig type for use
 // with apply.
-//
-// # MachineConfig defines the configuration for a machine
-//
-// Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).
 type MachineConfigApplyConfiguration struct {
 	metav1.TypeMetaApplyConfiguration    `json:",inline"`
 	*metav1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
@@ -33,14 +29,21 @@ func MachineConfig(name string) *MachineConfigApplyConfiguration {
 	return b
 }
 
-// ExtractMachineConfigFrom extracts the applied configuration owned by fieldManager from
-// machineConfig for the specified subresource. Pass an empty string for subresource to extract
-// the main resource. Common subresources include "status", "scale", etc.
+// ExtractMachineConfig extracts the applied configuration owned by fieldManager from
+// machineConfig. If no managedFields are found in machineConfig for fieldManager, a
+// MachineConfigApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
 // machineConfig must be a unmodified MachineConfig API object that was retrieved from the Kubernetes API.
-// ExtractMachineConfigFrom provides a way to perform a extract/modify-in-place/apply workflow.
+// ExtractMachineConfig provides a way to perform a extract/modify-in-place/apply workflow.
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
-func ExtractMachineConfigFrom(machineConfig *machineconfigurationv1.MachineConfig, fieldManager string, subresource string) (*MachineConfigApplyConfiguration, error) {
+// Experimental!
+func ExtractMachineConfig(machineConfig *machineconfigurationv1.MachineConfig, fieldManager string) (*MachineConfigApplyConfiguration, error) {
+	return extractMachineConfig(machineConfig, fieldManager, "")
+}
+func extractMachineConfig(machineConfig *machineconfigurationv1.MachineConfig, fieldManager string, subresource string) (*MachineConfigApplyConfiguration, error) {
 	b := &MachineConfigApplyConfiguration{}
 	err := managedfields.ExtractInto(machineConfig, internal.Parser().Type("com.github.openshift.api.machineconfiguration.v1.MachineConfig"), fieldManager, b, subresource)
 	if err != nil {
@@ -52,21 +55,6 @@ func ExtractMachineConfigFrom(machineConfig *machineconfigurationv1.MachineConfi
 	b.WithAPIVersion("machineconfiguration.openshift.io/v1")
 	return b, nil
 }
-
-// ExtractMachineConfig extracts the applied configuration owned by fieldManager from
-// machineConfig. If no managedFields are found in machineConfig for fieldManager, a
-// MachineConfigApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
-// field managers have taken ownership of all the fields previously owned by fieldManager, or because
-// the fieldManager never owned fields any fields.
-// machineConfig must be a unmodified MachineConfig API object that was retrieved from the Kubernetes API.
-// ExtractMachineConfig provides a way to perform a extract/modify-in-place/apply workflow.
-// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
-// applied if another fieldManager has updated or force applied any of the previously applied fields.
-func ExtractMachineConfig(machineConfig *machineconfigurationv1.MachineConfig, fieldManager string) (*MachineConfigApplyConfiguration, error) {
-	return ExtractMachineConfigFrom(machineConfig, fieldManager, "")
-}
-
 func (b MachineConfigApplyConfiguration) IsApplyConfiguration() {}
 
 // WithKind sets the Kind field in the declarative configuration to the given value
