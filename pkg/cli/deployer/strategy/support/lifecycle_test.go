@@ -99,7 +99,14 @@ func TestHookExecutor_executeExecNewPodSucceeded(t *testing.T) {
 		return true, createdPod, nil
 	})
 	podsWatch := watch.NewFake()
-	client.AddWatchReactor("pods", clientgotesting.DefaultWatchReactor(podsWatch, nil))
+	// The fake client doesn't properly support bookmark events, so we reject SendInitialEvents to force fallback
+	client.PrependWatchReactor("pods", func(action clientgotesting.Action) (handled bool, ret watch.Interface, err error) {
+		watchAction := action.(clientgotesting.WatchActionImpl)
+		if watchAction.ListOptions.SendInitialEvents != nil && *watchAction.ListOptions.SendInitialEvents {
+			return true, nil, errors.New("sendInitialEvents is not supported in fake client")
+		}
+		return clientgotesting.DefaultWatchReactor(podsWatch, nil)(action)
+	})
 
 	podLogs := &bytes.Buffer{}
 	// Simulate creation of the lifecycle pod
@@ -165,7 +172,14 @@ func TestHookExecutor_executeExecNewPodFailed(t *testing.T) {
 		return true, createdPod, nil
 	})
 	podsWatch := watch.NewFake()
-	client.AddWatchReactor("pods", clientgotesting.DefaultWatchReactor(podsWatch, nil))
+	// The fake client doesn't properly support bookmark events, so we reject SendInitialEvents to force fallback
+	client.PrependWatchReactor("pods", func(action clientgotesting.Action) (handled bool, ret watch.Interface, err error) {
+		watchAction := action.(clientgotesting.WatchActionImpl)
+		if watchAction.ListOptions.SendInitialEvents != nil && *watchAction.ListOptions.SendInitialEvents {
+			return true, nil, errors.New("sendInitialEvents is not supported in fake client")
+		}
+		return clientgotesting.DefaultWatchReactor(podsWatch, nil)(action)
+	})
 
 	go func() {
 		<-podCreated
