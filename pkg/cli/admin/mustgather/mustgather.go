@@ -8,12 +8,14 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"os/signal"
 	"path"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -564,9 +566,12 @@ func getCandidateNodeNames(nodes *corev1.NodeList, hasMaster bool) []string {
 func (o *MustGatherOptions) Run() error {
 	var errs []error
 
-	// The following context is being used for now until proper signal handling is implemented.
-	ctx, cancel := context.WithCancel(context.TODO())
-	defer cancel()
+	ctx, resetSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer resetSignals()
+	go func() {
+		<-ctx.Done()
+		resetSignals()
+	}()
 
 	if err := os.MkdirAll(o.DestDir, os.ModePerm); err != nil {
 		// ensure the errors bubble up to BackupGathering method for display
@@ -594,7 +599,6 @@ func (o *MustGatherOptions) Run() error {
 	defer func() {
 		// Shortcircuit this in case the context is already cancelled.
 		if ctx.Err() != nil {
-			klog.Warning("Reprinting cluster state skipped, terminating...")
 			return
 		}
 		fmt.Fprintf(o.RawOut, "\n\n")
@@ -785,7 +789,9 @@ func (o *MustGatherOptions) processNextWorkItem(ctx context.Context, ns string, 
 	}
 	// stream gather container logs
 	if err := o.getGatherContainerLogs(ctx, pod); err != nil {
-		log("gather logs unavailable: %v", err)
+		if !errors.Is(err, context.Canceled) {
+			log("gather logs unavailable: %v", err)
+		}
 	}
 
 	// wait for pod to be running (gather has completed)
@@ -915,9 +921,7 @@ func (o *MustGatherOptions) getGatherContainerLogs(ctx context.Context, pod *cor
 		// gather script might take longer than the default API server time,
 		// so we should check if the gather script still runs and re-run logs
 		// thus we run this in a loop
-		//
-		// TODO: Use opts.RunLogsContext once Kubernetes v1.35 is available.
-		if err := opts.RunLogs(); err != nil {
+		if err := opts.RunLogsContext(ctx); err != nil {
 			return err
 		}
 
