@@ -1,4 +1,13 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(make oc)",
+      "Bash(make verify)",
+      "Bash(make test)",
+      "Bash(go mod tidy -diff)",
+      "Bash(git diff:*)"
+    ]
+  },
   "extraKnownMarketplaces": {
     "openshift-ai-helpers": {
       "source": {
