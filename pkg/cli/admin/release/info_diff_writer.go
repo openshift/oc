@@ -11,7 +11,7 @@ import (
 
 func produceDiffMarkdown(testReporting *configv1.TestReporting, releaseFeatureDiffInfo *features.ReleaseFeatureDiffInfo) ([]byte, error) {
 	allFeatureSets := releaseFeatureDiffInfo.AllFeatureSets()
-	allFeatureSets.Delete("LatencySensitive") // this was a dead-end featureset we removed.
+	allFeatureSets.Delete(removedFeatureSets...)
 	allClusterProfiles := releaseFeatureDiffInfo.AllClusterProfiles()
 
 	cols := []features.ColumnTuple{}
