@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	digest "github.com/opencontainers/go-digest"
 	configv1 "github.com/openshift/api/config/v1"
 	imageapi "github.com/openshift/api/image/v1"
@@ -12,7 +13,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func featureGateManifest(clusterProfile, featureSet string, enabled, disabled []string) []byte {
+func featureGateManifest(clusterProfile string, enabled, disabled []string) []byte {
 	var enabledAttrs []configv1.FeatureGateAttributes
 	for _, fg := range enabled {
 		enabledAttrs = append(enabledAttrs, configv1.FeatureGateAttributes{Name: configv1.FeatureGateName(fg)})
@@ -30,11 +31,7 @@ func featureGateManifest(clusterProfile, featureSet string, enabled, disabled []
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "cluster",
 		},
-		Spec: configv1.FeatureGateSpec{
-			FeatureGateSelection: configv1.FeatureGateSelection{
-				FeatureSet: configv1.FeatureSet(featureSet),
-			},
-		},
+		Spec: configv1.FeatureGateSpec{},
 		Status: configv1.FeatureGateStatus{
 			FeatureGates: []configv1.FeatureGateDetails{{
 				Version:  "4.22",
@@ -60,13 +57,11 @@ func featureGateManifest(clusterProfile, featureSet string, enabled, disabled []
 func TestDescribeChangelogFeatureGatesJSON(t *testing.T) {
 	fromManifest := featureGateManifest(
 		"self-managed-high-availability",
-		"",
 		[]string{"ExistingEnabled"},
 		[]string{"ExistingDisabled", "WillBeEnabled"},
 	)
 	toManifest := featureGateManifest(
 		"self-managed-high-availability",
-		"",
 		[]string{"ExistingEnabled", "WillBeEnabled"},
 		[]string{"ExistingDisabled"},
 	)
@@ -116,34 +111,20 @@ func TestDescribeChangelogFeatureGatesJSON(t *testing.T) {
 	}
 
 	var changeLog ChangeLog
-	if err := json.Unmarshal(out.Bytes(), &changeLog); err != nil {
-		t.Fatalf("failed to unmarshal JSON output: %v\noutput: %s", err, out.String())
+	if err := json.NewDecoder(&out).Decode(&changeLog); err != nil {
+		t.Fatalf("failed to decode JSON output: %v", err)
 	}
 
-	if len(changeLog.FeatureGates) == 0 {
-		t.Fatal("expected featureGates in JSON output, got none")
-	}
-
-	// WillBeEnabled changed from Disabled to Enabled
-	found := false
-	for _, fg := range changeLog.FeatureGates {
-		if fg.Name == "WillBeEnabled" {
-			found = true
-			status, ok := fg.Status["SelfManagedHA"]
-			if !ok {
-				t.Fatalf("expected SelfManagedHA cluster profile, got: %v", fg.Status)
-			}
-			defaultStatus, ok := status["Default"]
-			if !ok {
-				t.Fatalf("expected Default feature set, got: %v", status)
-			}
-			if defaultStatus != "Enabled (Changed)" {
-				t.Errorf("expected 'Enabled (Changed)' for WillBeEnabled, got %q", defaultStatus)
-			}
-		}
-	}
-	if !found {
-		t.Errorf("expected WillBeEnabled in feature gates, got: %v", changeLog.FeatureGates)
+	expected := []ChangeLogFeatureGateInfo{{
+		Name: "WillBeEnabled",
+		Status: map[string]map[string]string{
+			"SelfManagedHA": {
+				"Default": "Enabled (Changed)",
+			},
+		},
+	}}
+	if diff := cmp.Diff(expected, changeLog.FeatureGates); diff != "" {
+		t.Errorf("unexpected featureGates (-want +got):\n%s", diff)
 	}
 }
 
@@ -189,11 +170,11 @@ func TestDescribeChangelogNoFeatureGatesJSON(t *testing.T) {
 	}
 
 	var changeLog ChangeLog
-	if err := json.Unmarshal(out.Bytes(), &changeLog); err != nil {
-		t.Fatalf("failed to unmarshal JSON output: %v", err)
+	if err := json.NewDecoder(&out).Decode(&changeLog); err != nil {
+		t.Fatalf("failed to decode JSON output: %v", err)
 	}
 
-	if len(changeLog.FeatureGates) != 0 {
-		t.Errorf("expected no featureGates when no manifests present, got %d", len(changeLog.FeatureGates))
+	if diff := cmp.Diff([]ChangeLogFeatureGateInfo(nil), changeLog.FeatureGates); diff != "" {
+		t.Errorf("unexpected featureGates (-want +got):\n%s", diff)
 	}
 }
