@@ -106,7 +106,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 		`),
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
-			kcmdutil.CheckErr(o.Run(cmd.Context()))
+			kcmdutil.CheckErr(o.Run())
 		},
 	}
 	flags := cmd.Flags()
@@ -204,14 +204,16 @@ func (o *Options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 	return nil
 }
 
-func (o *Options) Run(ctx context.Context) error {
-	cv, err := o.Client.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
+func (o *Options) Run() error {
+	cv, err := o.Client.ConfigV1().ClusterVersions().Get(context.TODO(), "version", metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return fmt.Errorf("No cluster version information available - you must be connected to an OpenShift version 4 server to fetch the current version")
 		}
 		return err
 	}
+
+	ctx := context.TODO()
 
 	switch {
 	case o.Clear:
