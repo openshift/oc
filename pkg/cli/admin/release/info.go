@@ -1786,29 +1786,28 @@ func describeChangelog(out, errOut io.Writer, releaseInfo *ReleaseInfo, diff *Re
 			hasError = true
 		} else {
 			orderedFeatureGates := featureSetDiff.GetOrderedFeatureGates()
-			allFeatureSets := featureSetDiff.AllFeatureSets()
-			allFeatureSets.Delete(removedFeatureSets...)
-			allClusterProfiles := featureSetDiff.AllClusterProfiles()
+			removedFS := sets.New(removedFeatureSets...)
+			fgStatuses := map[string]map[string]map[string]string{}
+			for _, diffInfo := range featureSetDiff.AllFeatureInfo() {
+				if removedFS.Has(diffInfo.FeatureSet) {
+					continue
+				}
+				for fg, change := range diffInfo.ChangedFeatureGates {
+					if fgStatuses[fg] == nil {
+						fgStatuses[fg] = map[string]map[string]string{}
+					}
+					if fgStatuses[fg][diffInfo.ClusterProfile] == nil {
+						fgStatuses[fg][diffInfo.ClusterProfile] = map[string]string{}
+					}
+					fgStatuses[fg][diffInfo.ClusterProfile][diffInfo.FeatureSet] = change
+				}
+			}
 			for _, fg := range orderedFeatureGates {
-				fgInfo := ChangeLogFeatureGateInfo{
-					Name:   fg,
-					Status: map[string]map[string]string{},
-				}
-				for _, cp := range sets.List(allClusterProfiles) {
-					cpStatus := map[string]string{}
-					for _, fs := range sets.List(allFeatureSets) {
-						if diffInfo := featureSetDiff.FeatureInfoFor(cp, fs); diffInfo != nil {
-							if change, ok := diffInfo.ChangedFeatureGates[fg]; ok {
-								cpStatus[fs] = change
-							}
-						}
-					}
-					if len(cpStatus) > 0 {
-						fgInfo.Status[cp] = cpStatus
-					}
-				}
-				if len(fgInfo.Status) > 0 {
-					changeLog.FeatureGates = append(changeLog.FeatureGates, fgInfo)
+				if status, ok := fgStatuses[fg]; ok {
+					changeLog.FeatureGates = append(changeLog.FeatureGates, ChangeLogFeatureGateInfo{
+						Name:   fg,
+						Status: status,
+					})
 				}
 			}
 		}

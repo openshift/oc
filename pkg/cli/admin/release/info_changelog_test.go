@@ -6,40 +6,55 @@ import (
 	"testing"
 
 	digest "github.com/opencontainers/go-digest"
+	configv1 "github.com/openshift/api/config/v1"
 	imageapi "github.com/openshift/api/image/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 func featureGateManifest(clusterProfile, featureSet string, enabled, disabled []string) []byte {
-	enabledItems := ""
+	var enabledAttrs []configv1.FeatureGateAttributes
 	for _, fg := range enabled {
-		enabledItems += `      - name: ` + fg + "\n"
+		enabledAttrs = append(enabledAttrs, configv1.FeatureGateAttributes{Name: configv1.FeatureGateName(fg)})
 	}
-	disabledItems := ""
+	var disabledAttrs []configv1.FeatureGateAttributes
 	for _, fg := range disabled {
-		disabledItems += `      - name: ` + fg + "\n"
+		disabledAttrs = append(disabledAttrs, configv1.FeatureGateAttributes{Name: configv1.FeatureGateName(fg)})
 	}
-	featureSetField := ""
-	if featureSet != "" && featureSet != "Default" {
-		featureSetField = "  featureSet: " + featureSet + "\n"
+
+	fg := configv1.FeatureGate{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "config.openshift.io/v1",
+			Kind:       "FeatureGate",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster",
+		},
+		Spec: configv1.FeatureGateSpec{
+			FeatureGateSelection: configv1.FeatureGateSelection{
+				FeatureSet: configv1.FeatureSet(featureSet),
+			},
+		},
+		Status: configv1.FeatureGateStatus{
+			FeatureGates: []configv1.FeatureGateDetails{{
+				Version:  "4.22",
+				Enabled:  enabledAttrs,
+				Disabled: disabledAttrs,
+			}},
+		},
 	}
-	annotations := ""
+
 	if clusterProfile != "" {
-		annotations = `  annotations:
-    include.release.openshift.io/` + clusterProfile + `: "true"
-`
+		fg.Annotations = map[string]string{
+			"include.release.openshift.io/" + clusterProfile: "true",
+		}
 	}
-	return []byte(`apiVersion: config.openshift.io/v1
-kind: FeatureGate
-metadata:
-  name: cluster
-` + annotations + `spec:
-` + featureSetField + `status:
-  featureGates:
-    - version: "4.22"
-      enabled:
-` + enabledItems + `      disabled:
-` + disabledItems)
+
+	data, err := yaml.Marshal(fg)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func TestDescribeChangelogFeatureGatesJSON(t *testing.T) {
@@ -94,9 +109,8 @@ func TestDescribeChangelogFeatureGatesJSON(t *testing.T) {
 		ChangedManifests: map[string]*ReleaseManifestDiff{},
 	}
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
-	err := describeChangelog(out, errOut, &ReleaseInfo{}, diff, "", "json")
+	var out, errOut bytes.Buffer
+	err := describeChangelog(&out, &errOut, &ReleaseInfo{}, diff, "", "json")
 	if err != nil {
 		t.Fatalf("unexpected error: %v\nstderr: %s", err, errOut.String())
 	}
@@ -168,9 +182,8 @@ func TestDescribeChangelogNoFeatureGatesJSON(t *testing.T) {
 		ChangedManifests: map[string]*ReleaseManifestDiff{},
 	}
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
-	err := describeChangelog(out, errOut, &ReleaseInfo{}, diff, "", "json")
+	var out, errOut bytes.Buffer
+	err := describeChangelog(&out, &errOut, &ReleaseInfo{}, diff, "", "json")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
