@@ -1282,6 +1282,10 @@ func printFeatureSetSection(diff *ReleaseDiff, w io.Writer) {
 	}
 }
 
+// removedFeatureSets contains feature sets that were dead-ends and have been removed
+// from the product. They should be excluded from all feature gate diffs.
+var removedFeatureSets = []string{"LatencySensitive"}
+
 func calculateFeatureSetDiff(diff *ReleaseDiff) (*features.ReleaseFeatureDiffInfo, error) {
 	toFiles := features.FilenameToContent{}
 	for filename, featureGateBytes := range diff.To.ManifestFiles {
@@ -1775,6 +1779,36 @@ func describeChangelog(out, errOut io.Writer, releaseInfo *ReleaseInfo, diff *Re
 					Version: version.Version,
 					From:    old.Version,
 				})
+			}
+		}
+		if featureSetDiff, err := calculateFeatureSetDiff(diff); err != nil {
+			fmt.Fprintf(errOut, "error: unable to calculate feature gate diff: %v\n", err)
+			hasError = true
+		} else {
+			orderedFeatureGates := featureSetDiff.GetOrderedFeatureGates()
+			removedFS := sets.New(removedFeatureSets...)
+			fgStatuses := map[string]map[string]map[string]string{}
+			for _, diffInfo := range featureSetDiff.AllFeatureInfo() {
+				if removedFS.Has(diffInfo.FeatureSet) {
+					continue
+				}
+				for fg, change := range diffInfo.ChangedFeatureGates {
+					if fgStatuses[fg] == nil {
+						fgStatuses[fg] = map[string]map[string]string{}
+					}
+					if fgStatuses[fg][diffInfo.ClusterProfile] == nil {
+						fgStatuses[fg][diffInfo.ClusterProfile] = map[string]string{}
+					}
+					fgStatuses[fg][diffInfo.ClusterProfile][diffInfo.FeatureSet] = change
+				}
+			}
+			for _, fg := range orderedFeatureGates {
+				if status, ok := fgStatuses[fg]; ok {
+					changeLog.FeatureGates = append(changeLog.FeatureGates, ChangeLogFeatureGateInfo{
+						Name:   fg,
+						Status: status,
+					})
+				}
 			}
 		}
 		if len(added) > 0 {
@@ -2712,11 +2746,19 @@ type ChangeLog struct {
 	From ChangeLogReleaseInfo `json:"from"`
 	To   ChangeLogReleaseInfo `json:"to"`
 
-	Components    []ChangeLogComponentInfo `json:"components,omitempty"`
-	NewImages     []ChangeLogImageInfo     `json:"newImages,omitempty"`
-	RemovedImages []ChangeLogImageInfo     `json:"removedImages,omitempty"`
-	RebuiltImages []ChangeLogImageInfo     `json:"rebuiltImages,omitempty"`
-	UpdatedImages []ChangeLogImageInfo     `json:"updatedImages,omitempty"`
+	Components    []ChangeLogComponentInfo   `json:"components,omitempty"`
+	FeatureGates  []ChangeLogFeatureGateInfo `json:"featureGates,omitempty"`
+	NewImages     []ChangeLogImageInfo       `json:"newImages,omitempty"`
+	RemovedImages []ChangeLogImageInfo       `json:"removedImages,omitempty"`
+	RebuiltImages []ChangeLogImageInfo       `json:"rebuiltImages,omitempty"`
+	UpdatedImages []ChangeLogImageInfo       `json:"updatedImages,omitempty"`
+}
+
+// ChangeLogFeatureGateInfo describes the state of a feature gate across cluster profiles and feature sets.
+type ChangeLogFeatureGateInfo struct {
+	Name string `json:"name"`
+	// Status maps clusterProfile -> featureSet -> status string (e.g. "Enabled (Changed)", "Disabled (New)")
+	Status map[string]map[string]string `json:"status"`
 }
 
 type ChangeLogReleaseInfo struct {
