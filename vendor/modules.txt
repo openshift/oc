@@ -51,7 +51,7 @@ github.com/alicebob/sqlittle/sql
 # github.com/antlr4-go/antlr/v4 v4.13.0
 ## explicit; go 1.20
 github.com/antlr4-go/antlr/v4
-# github.com/apcera/gssapi v0.0.0-00010101000000-000000000000 => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
+# github.com/apcera/gssapi v0.0.0-00010101000000-000000000000 => github.com/tchap/gssapi v0.0.0-20260403121208-047531cb33ea
 ## explicit
 github.com/apcera/gssapi
 # github.com/aws/aws-sdk-go-v2 v1.41.3
@@ -2040,5 +2040,5 @@ sigs.k8s.io/structured-merge-diff/v6/value
 sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v3
 sigs.k8s.io/yaml/kyaml
-# github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
+# github.com/apcera/gssapi => github.com/tchap/gssapi v0.0.0-20260403121208-047531cb33ea
 # github.com/onsi/ginkgo/v2 => github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20251001123353-fd5b1fb35db1
