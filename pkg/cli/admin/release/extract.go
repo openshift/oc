@@ -362,7 +362,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 	// o.ExtractManifests implies o.File == ""
 	if o.ExtractManifests {
 		opts.TarEntryCallback = func(hdr *tar.Header, _ extract.LayerInfo, r io.Reader) (bool, error) {
-			if hdr.Name == "image-references" && !o.CredentialsRequests {
+			if hdr.Name == "image-references" {
 				buf := &bytes.Buffer{}
 				if _, err := io.Copy(buf, r); err != nil {
 					return false, fmt.Errorf("unable to load image-references from release payload: %w", err)
@@ -383,7 +383,7 @@ func (o *ExtractOptions) Run(ctx context.Context) error {
 					rawData: buf.Bytes(),
 				})
 				return true, nil
-			} else if hdr.Name == "release-metadata" && !o.CredentialsRequests {
+			} else if hdr.Name == "release-metadata" {
 				buf := &bytes.Buffer{}
 				if _, err := io.Copy(buf, r); err != nil {
 					return false, err
