@@ -1226,7 +1226,7 @@ func findClusterIncludeConfigFromInstallConfig(installConfigPath string, files [
 	}
 
 	// Extract enabled feature gates from release image
-	enabledFeatureGates, releaseMajorVersion, err := extractFeatureGatesFromFiles(files, reportedVersion, string(data.FeatureSet), *config.Profile)
+	enabledFeatureGates, releaseMajorVersion, err := extractFeatureGatesFromFiles(files, string(data.FeatureSet), *config.Profile)
 	if err != nil {
 		// Log error but don't fail
 		// In this case all manifests will be included
@@ -1328,13 +1328,8 @@ func newIncluder(config manifestInclusionConfiguration) includer {
 
 // extractFeatureGatesFromFiles extracts FeatureGate manifests from the release payload
 // cached files and returns the set of enabled feature gates for the specified version and profile.
-func extractFeatureGatesFromFiles(files []extractedFile, version, featureSet, profile string) (sets.Set[string], *uint64, error) {
+func extractFeatureGatesFromFiles(files []extractedFile, featureSet, profile string) (sets.Set[string], *uint64, error) {
 	enabledFeatureGates := sets.Set[string]{}
-
-	// Validate the version
-	if version == "" {
-		return enabledFeatureGates, nil, fmt.Errorf("version cannot be empty")
-	}
 
 	featureGateManifests := []configv1.FeatureGate{}
 	releaseMetadata := struct {
@@ -1390,7 +1385,7 @@ func extractFeatureGatesFromFiles(files []extractedFile, version, featureSet, pr
 		}
 	}
 
-	klog.V(4).Infof("Successfully extracted %d feature gates for version %s", enabledFeatureGates.Len(), version)
+	klog.V(4).Infof("Successfully extracted %d feature gates for version %s", enabledFeatureGates.Len(), releaseMetadata.Version)
 	return enabledFeatureGates, ptr.To(parsedVersion.Major), nil
 }
 
