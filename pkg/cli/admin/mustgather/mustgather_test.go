@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +28,80 @@ import (
 	configv1fake "github.com/openshift/client-go/config/clientset/versioned/fake"
 	imageclient "github.com/openshift/client-go/image/clientset/versioned/fake"
 )
+
+// fakeClock implements clock.PassiveClock for deterministic tests.
+type fakeClock struct {
+	t time.Time
+}
+
+func (f fakeClock) Now() time.Time                  { return f.t }
+func (f fakeClock) Since(ts time.Time) time.Duration { return f.t.Sub(ts) }
+
+func TestGenerateDestDir(t *testing.T) {
+	fixedTime := time.Date(2026, 4, 14, 12, 0, 0, 0, time.UTC)
+	fc := fakeClock{t: fixedTime}
+
+	tests := []struct {
+		name           string
+		clusterID      string
+		expectedPrefix string
+	}{
+		{
+			name:           "with full cluster ID includes last 12 chars",
+			clusterID:      "0194fffc-f70a-4776-b00d-76708af6b91c",
+			expectedPrefix: "must-gather.local.76708af6b91c.20260414T120000Z.",
+		},
+		{
+			name:           "with short cluster ID uses full ID",
+			clusterID:      "abcdef",
+			expectedPrefix: "must-gather.local.abcdef.20260414T120000Z.",
+		},
+		{
+			name:           "without cluster ID falls back gracefully",
+			expectedPrefix: "must-gather.local.20260414T120000Z.",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var configObjects []runtime.Object
+			if tc.clusterID != "" {
+				configObjects = []runtime.Object{
+					&configv1.ClusterVersion{
+						ObjectMeta: metav1.ObjectMeta{Name: "version"},
+						Spec: configv1.ClusterVersionSpec{
+							ClusterID: configv1.ClusterID(tc.clusterID),
+						},
+					},
+				}
+			}
+			options := MustGatherOptions{
+				IOStreams:     genericiooptions.NewTestIOStreamsDiscard(),
+				ConfigClient: configv1fake.NewSimpleClientset(configObjects...),
+				Clock:        fc,
+			}
+			destDir := options.generateDestDir(context.TODO())
+			if !strings.HasPrefix(destDir, tc.expectedPrefix) {
+				t.Errorf("expected prefix %q, got %q", tc.expectedPrefix, destDir)
+			}
+		})
+	}
+}
+
+func TestGenerateDestDirNoConfigClient(t *testing.T) {
+	fixedTime := time.Date(2026, 4, 14, 12, 0, 0, 0, time.UTC)
+	fc := fakeClock{t: fixedTime}
+
+	options := MustGatherOptions{
+		IOStreams:     genericiooptions.NewTestIOStreamsDiscard(),
+		ConfigClient: nil,
+		Clock:        fc,
+	}
+	destDir := options.generateDestDir(context.TODO())
+	if !strings.HasPrefix(destDir, "must-gather.local.20260414T120000Z.") {
+		t.Errorf("expected prefix 'must-gather.local.20260414T120000Z.', got %q", destDir)
+	}
+}
 
 func TestImagesAndImageStreams(t *testing.T) {
 
