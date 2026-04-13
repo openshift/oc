@@ -24,10 +24,10 @@ kubectl is a subset of oc — every kubectl command is available in oc. The rela
 ## Build and Test
 
 ```bash
-make oc                              # Fast build (strips debug symbols by default)
-make build                           # Full build (includes oc-tests-ext)
-make test                            # Unit tests
-make verify                          # Formatting, linting, CLI convention checks
+make oc                              # Fast build, ~5-10s (strips debug symbols by default)
+make build                           # Full build (includes oc-tests-ext, tools)
+make test                            # Unit tests (~2-5 min for full suite)
+make verify                          # Formatting, linting, CLI convention checks (~30-60s)
 make verify-cli-conventions          # CLI structure validation via tools/clicheck
 make update-generated-completions    # Regenerate shell completions
 make verify-generated-completions    # Verify completions are up-to-date
@@ -35,7 +35,15 @@ make verify-generated-completions    # Verify completions are up-to-date
 
 Go version: see `go.mod` for the required version.
 
-Build tags (Linux): `include_gcs include_oss containers_image_openpgp gssapi`. macOS and Windows omit `gssapi`.
+### Running Tests for a Single Package
+
+```bash
+# Linux
+go test -tags 'include_gcs include_oss containers_image_openpgp gssapi' ./pkg/cli/admin/policy/...
+
+# macOS / Windows (omit gssapi)
+go test -tags 'include_gcs include_oss containers_image_openpgp' ./pkg/cli/admin/policy/...
+```
 
 System dependencies for building:
 - Fedora/CentOS/RHEL: `krb5-devel` (GSSAPI/Kerberos), `gpgme-devel`, `libassuan-devel`
@@ -123,6 +131,8 @@ Key dependencies: `spf13/cobra`, `k8s.io/client-go`, `k8s.io/kubectl`, `openshif
 
 - **Unit tests:** co-located `*_test.go` files, table-driven tests, standard `testing.T`
 - **E2E tests:** `test/e2e/` using Ginkgo v2 + Gomega
-- **Assertions:** `google/go-cmp` for comparisons
+- **Assertions:** assemble the expected object and compare with the actual using `google/go-cmp`, rather than checking individual fields with if statements
+- **Test fixtures:** use typed API struct builders (e.g. `rbacv1.ClusterRole{...}`), not raw YAML strings
+- **Fake clients:** use `fake.NewClientset()` with action recording to verify API call options
 - **OTE framework:** `oc-tests-ext` binary for test suite execution (`make build` then `./oc-tests-ext run-suite openshift/oc/all`)
 - **CLI conventions:** `make verify-cli-conventions` validates command structure via `tools/clicheck`
