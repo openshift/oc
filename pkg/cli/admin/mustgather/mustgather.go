@@ -74,7 +74,9 @@ var (
 	`)
 
 	mustGatherExample = templates.Examples(`
-		# Gather information using the default plug-in image and command, writing into ./must-gather.local.<cluster-id-suffix>.<timestamp>.<rand>
+		# Gather information using the default plug-in image and command, writing into
+		# ./must-gather.local.<cluster-id-suffix>.<timestamp>.<rand>
+		# or ./must-gather.local.<timestamp>.<rand> if the cluster ID is unavailable
 		  oc adm must-gather
 
 		# Gather information with a specific local folder to copy to
