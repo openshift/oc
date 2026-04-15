@@ -13,8 +13,12 @@ import (
 
 	g "github.com/onsi/ginkgo/v2"
 	o "github.com/onsi/gomega"
+
 	oteginkgo "github.com/openshift-eng/openshift-tests-extension/pkg/ginkgo"
+	userv1 "github.com/openshift/api/user/v1"
+
 	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/yaml"
 )
 
 var _ = g.Describe("[sig-cli] Workloads test oc works well", func() {
@@ -740,6 +744,57 @@ var _ = g.Describe("[sig-cli] Workloads client test", func() {
 			return false, nil
 		})
 		AssertWaitPollNoErr(errPod, fmt.Sprintf("Pod not running :: %v", poderr))
+	})
+
+	// author: yshanmug@redhat.com
+	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yshanmug-Medium-oc whoami should support JSON output format", oteginkgo.Informing(), func() {
+		By("Run oc whoami with JSON output format")
+		output, err := oc.AsAdmin().Run("whoami").Args("-o", "json").Output()
+		o.Expect(err).NotTo(o.HaveOccurred())
+
+		By("Verify JSON output structure and data")
+		actualUser := &userv1.User{}
+		err = json.Unmarshal([]byte(output), actualUser)
+		o.Expect(err).NotTo(o.HaveOccurred(), "Output should be valid JSON matching the User schema")
+		o.Expect(actualUser.Kind).To(o.Equal("User"))
+		o.Expect(actualUser.APIVersion).To(o.Equal("user.openshift.io/v1"))
+		o.Expect(actualUser.Name).NotTo(o.BeEmpty(), "User name should be populated in metadata")
+		o.Expect(actualUser.Groups).NotTo(o.BeEmpty(), "Groups field should exist in the output and not be empty")
+	})
+
+	// author: yshanmug@redhat.com
+	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yshanmug-Medium-oc whoami should support YAML output format", oteginkgo.Informing(), func() {
+		By("Run oc whoami with YAML output format")
+		output, err := oc.AsAdmin().Run("whoami").Args("-o", "yaml").Output()
+		o.Expect(err).NotTo(o.HaveOccurred())
+		By("Verify YAML output structure and data")
+		actualUser := &userv1.User{}
+		err = yaml.Unmarshal([]byte(output), actualUser)
+		o.Expect(err).NotTo(o.HaveOccurred(), "Output should be valid YAML matching the User schema")
+		o.Expect(actualUser.Kind).To(o.Equal("User"))
+		o.Expect(actualUser.APIVersion).To(o.Equal("user.openshift.io/v1"))
+		o.Expect(actualUser.Name).NotTo(o.BeEmpty(), "User name should be populated")
+		o.Expect(actualUser.Groups).NotTo(o.BeEmpty(), "Groups field should exist in the output and not be empty")
+	})
+
+	// author: yshanmug@redhat.com
+	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yshanmug-oc whoami output format should be mutually exclusive with show flags", oteginkgo.Informing(), func() {
+		expectedErr := "--output cannot be used with --show-token, --show-context, --show-server, or --show-console"
+		cases := []struct {
+			output string
+			flag   string
+		}{
+			{"json", "--show-token"},
+			{"yaml", "--show-context"},
+			{"json", "--show-server"},
+			{"yaml", "--show-console"},
+		}
+		for _, c := range cases {
+			By(fmt.Sprintf("Verify -o %s cannot be used with %s", c.output, c.flag))
+			out, err := oc.AsAdmin().Run("whoami").Args("-o", c.output, c.flag).Output()
+			o.Expect(err).To(o.HaveOccurred())
+			o.Expect(out).To(o.ContainSubstring(expectedErr))
+		}
 	})
 
 	// author: yinzhou@redhat.com
