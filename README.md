@@ -95,6 +95,23 @@ make build
 
 The test extension binary is included in the production image for CI/CD integration.
 
+
+# Claude Code
+
+This repository is set up for use with [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+Project-specific instructions live in `AGENTS.md`. When making changes, keep Claude's knowledge up to date —
+update `AGENTS.md` or the relevant agent definition in `.claude/agents/` if you discover conventions, patterns,
+or gotchas that would save time in future sessions. Keep these changes in a separate commit.
+
+Available agents in `.claude/agents/`:
+
+| Agent | Purpose |
+|-------|---------|
+| `code-reviewer` | PR code review — builds, verifies, reviews for Go style, breaking changes, and oc-specific concerns |
+| `tester` | Build, lint, and test runner — validates changes compile and pass tests |
+| `learn-session` | End-of-session knowledge extraction — reviews the conversation and proposes updates to docs |
+| `learn-history` | One-shot analysis of all past sessions to extract recurring patterns worth documenting |
+
 # License
 
 oc is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/).
