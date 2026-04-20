@@ -41,8 +41,8 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 	admissionapi "k8s.io/pod-security-admission/api"
-	"k8s.io/utils/exec"
 	"k8s.io/utils/clock"
+	"k8s.io/utils/exec"
 	utilptr "k8s.io/utils/ptr"
 
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
