@@ -109,8 +109,13 @@ Available agents in `.claude/agents/`:
 |-------|---------|
 | `code-reviewer` | PR code review — builds, verifies, reviews for Go style, breaking changes, and oc-specific concerns |
 | `tester` | Build, lint, and test runner — validates changes compile and pass tests |
+
+Available skills in `.claude/skills/`:
+
+| Skill | Purpose |
+|-------|---------|
 | `learn-session` | End-of-session knowledge extraction — reviews the conversation and proposes updates to docs |
-| `learn-history` | One-shot analysis of all past sessions to extract recurring patterns worth documenting |
+| `learn-history` | Deep analysis of all past sessions to extract recurring patterns worth documenting |
 
 # License
 

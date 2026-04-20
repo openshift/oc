@@ -1,12 +1,9 @@
 ---
 name: learn-history
-description: "Analyze all past sessions for this project and extract knowledge worth persisting to AGENTS.md or .claude/agents/. One-shot deep analysis of full session history."
-tools: Read, Grep, Glob, Bash
-model: opus
-maxTurns: 30
+description: "Analyze all past sessions for this project and extract knowledge worth persisting to AGENTS.md, .claude/agents/, or memory. Deep analysis of full session history."
 ---
 
-You are analyzing the full session history for this project to extract knowledge worth persisting.
+Analyze the full session history for this project to extract knowledge worth persisting.
 
 ## Session logs location
 

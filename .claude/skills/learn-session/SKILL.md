@@ -1,12 +1,9 @@
 ---
 name: learn-session
-description: "Review the current session and extract knowledge worth persisting to AGENTS.md or .claude/agents/. Use at the end of a session to capture what was learned."
-tools: Read, Grep, Glob, Bash
-model: opus
-maxTurns: 15
+description: "Review the current session and extract knowledge worth persisting to AGENTS.md, .claude/agents/, or memory. Use at the end of a session to capture what was learned."
 ---
 
-You are reviewing a session transcript to extract knowledge worth persisting for future sessions.
+Review the current conversation to extract knowledge worth persisting for future sessions.
 
 ## What to look for
 
@@ -25,7 +22,7 @@ You are reviewing a session transcript to extract knowledge worth persisting for
 
 1. Read the current state of AGENTS.md and .claude/agents/*.md
 2. Read the memory index for this project at `~/.claude/projects/$(echo "$PWD" | tr '/' '-')/memory/MEMORY.md` (skip if absent)
-3. Summarize the session: what was the task, what was learned, what corrections were made
+3. Review the conversation so far: what was the task, what was learned, what corrections were made
 4. For each finding, determine where it belongs:
    - **AGENTS.md** — brief convention or rule that applies to all sessions (1-2 lines max)
    - **.claude/agents/*.md** — specific to the tester or code-reviewer agent
