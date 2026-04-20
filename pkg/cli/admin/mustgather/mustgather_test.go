@@ -34,7 +34,7 @@ type fakeClock struct {
 	t time.Time
 }
 
-func (f fakeClock) Now() time.Time                  { return f.t }
+func (f fakeClock) Now() time.Time                   { return f.t }
 func (f fakeClock) Since(ts time.Time) time.Duration { return f.t.Sub(ts) }
 
 func TestGenerateDestDir(t *testing.T) {
@@ -76,7 +76,7 @@ func TestGenerateDestDir(t *testing.T) {
 				}
 			}
 			options := MustGatherOptions{
-				IOStreams:     genericiooptions.NewTestIOStreamsDiscard(),
+				IOStreams:    genericiooptions.NewTestIOStreamsDiscard(),
 				ConfigClient: configv1fake.NewSimpleClientset(configObjects...),
 				clock:        fc,
 			}
@@ -93,7 +93,7 @@ func TestGenerateDestDirNoConfigClient(t *testing.T) {
 	fc := fakeClock{t: fixedTime}
 
 	options := MustGatherOptions{
-		IOStreams:     genericiooptions.NewTestIOStreamsDiscard(),
+		IOStreams:    genericiooptions.NewTestIOStreamsDiscard(),
 		ConfigClient: nil,
 		clock:        fc,
 	}
