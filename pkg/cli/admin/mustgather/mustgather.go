@@ -188,7 +188,6 @@ func NewMustGatherOptions(streams genericiooptions.IOStreams) *MustGatherOptions
 		IOStreams:        streams,
 		Timeout:          10 * time.Minute,
 		VolumePercentage: defaultVolumePercentage,
-		Clock:            clock.RealClock{},
 	}
 	opts.LogOut = opts.newPrefixWriter(streams.Out, "[must-gather      ] OUT", false, true)
 	opts.RawOut = opts.newPrefixWriter(streams.Out, "", false, false)
@@ -275,6 +274,13 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 // random ID to help distinguish must-gather archives from different clusters and collection
 // times. If the cluster ID cannot be retrieved (e.g. cluster is unreachable), it falls back
 // to the timestamp and random ID only.
+func (o *MustGatherOptions) getClock() clock.PassiveClock {
+	if o.clock != nil {
+		return o.clock
+	}
+	return clock.RealClock{}
+}
+
 // See: https://issues.redhat.com/browse/RFE-5434
 func (o *MustGatherOptions) generateDestDir(ctx context.Context) string {
 	clusterIDSuffix := ""
@@ -294,7 +300,7 @@ func (o *MustGatherOptions) generateDestDir(ctx context.Context) string {
 		}
 	}
 
-	timestamp := o.Clock.Now().UTC().Format("20060102T150405Z")
+	timestamp := o.getClock().Now().UTC().Format("20060102T150405Z")
 	randID := rand.Int63()
 
 	if clusterIDSuffix != "" {
@@ -435,7 +441,7 @@ type MustGatherOptions struct {
 	SinceTime        string
 
 	RsyncRshCmd string
-	Clock       clock.PassiveClock
+	clock       clock.PassiveClock
 
 	PrinterCreated printers.ResourcePrinter
 	PrinterDeleted printers.ResourcePrinter

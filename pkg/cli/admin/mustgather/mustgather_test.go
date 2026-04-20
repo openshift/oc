@@ -78,7 +78,7 @@ func TestGenerateDestDir(t *testing.T) {
 			options := MustGatherOptions{
 				IOStreams:     genericiooptions.NewTestIOStreamsDiscard(),
 				ConfigClient: configv1fake.NewSimpleClientset(configObjects...),
-				Clock:        fc,
+				clock:        fc,
 			}
 			destDir := options.generateDestDir(context.TODO())
 			if !strings.HasPrefix(destDir, tc.expectedPrefix) {
@@ -95,7 +95,7 @@ func TestGenerateDestDirNoConfigClient(t *testing.T) {
 	options := MustGatherOptions{
 		IOStreams:     genericiooptions.NewTestIOStreamsDiscard(),
 		ConfigClient: nil,
-		Clock:        fc,
+		clock:        fc,
 	}
 	destDir := options.generateDestDir(context.TODO())
 	if !strings.HasPrefix(destDir, "must-gather.local.20260414T120000Z.") {
