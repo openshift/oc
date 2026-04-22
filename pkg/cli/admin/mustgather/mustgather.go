@@ -41,6 +41,7 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 	admissionapi "k8s.io/pod-security-admission/api"
+	"k8s.io/utils/clock"
 	"k8s.io/utils/exec"
 	utilptr "k8s.io/utils/ptr"
 
@@ -73,7 +74,9 @@ var (
 	`)
 
 	mustGatherExample = templates.Examples(`
-		# Gather information using the default plug-in image and command, writing into ./must-gather.local.<rand>
+		# Gather information using the default plug-in image and command, writing into
+		# ./must-gather.local.<cluster-id-suffix>.<timestamp>.<rand>
+		# or ./must-gather.local.<timestamp>.<rand> if the cluster ID is unavailable
 		  oc adm must-gather
 
 		# Gather information with a specific local folder to copy to
@@ -230,7 +233,7 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 		}
 	}
 	if len(o.DestDir) == 0 {
-		o.DestDir = fmt.Sprintf("must-gather.local.%06d", rand.Int63())
+		o.DestDir = o.generateDestDir(context.TODO())
 	}
 	// TODO: this should be in Validate() method, but added here because of the call to o.completeImages() below
 	if o.AllImages {
@@ -264,6 +267,46 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	}
 	o.RsyncRshCmd = rsync.DefaultRsyncRemoteShellToUse(cmd)
 	return nil
+}
+
+// generateDestDir builds the default destination directory name for must-gather output.
+// The format includes a partial cluster ID (last 12 characters), a UTC timestamp, and a
+// random ID to help distinguish must-gather archives from different clusters and collection
+// times. If the cluster ID cannot be retrieved (e.g. cluster is unreachable), it falls back
+// to the timestamp and random ID only.
+func (o *MustGatherOptions) getClock() clock.PassiveClock {
+	if o.clock != nil {
+		return o.clock
+	}
+	return clock.RealClock{}
+}
+
+// See: https://issues.redhat.com/browse/RFE-5434
+func (o *MustGatherOptions) generateDestDir(ctx context.Context) string {
+	clusterIDSuffix := ""
+	if o.ConfigClient != nil {
+		lookupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		cv, err := o.ConfigClient.ConfigV1().ClusterVersions().Get(lookupCtx, "version", metav1.GetOptions{})
+		if err == nil {
+			id := string(cv.Spec.ClusterID)
+			if len(id) >= 12 {
+				clusterIDSuffix = id[len(id)-12:]
+			} else if len(id) > 0 {
+				clusterIDSuffix = id
+			}
+		} else {
+			klog.V(4).Infof("unable to retrieve cluster ID for directory name: %v", err)
+		}
+	}
+
+	timestamp := o.getClock().Now().UTC().Format("20060102T150405Z")
+	randID := rand.Int63()
+
+	if clusterIDSuffix != "" {
+		return fmt.Sprintf("must-gather.local.%s.%s.%06d", clusterIDSuffix, timestamp, randID)
+	}
+	return fmt.Sprintf("must-gather.local.%s.%06d", timestamp, randID)
 }
 
 func (o *MustGatherOptions) completeImages(ctx context.Context) error {
@@ -398,6 +441,7 @@ type MustGatherOptions struct {
 	SinceTime        string
 
 	RsyncRshCmd string
+	clock       clock.PassiveClock
 
 	PrinterCreated printers.ResourcePrinter
 	PrinterDeleted printers.ResourcePrinter
