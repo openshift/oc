@@ -165,7 +165,8 @@ func ValidateLDAPClientConfig(url, bindDN, bindPassword, CA string, insecure boo
 func ValidateRFC2307Config(config *legacyconfigv1.RFC2307Config) validation.ValidationResults {
 	validationResults := validation.ValidationResults{}
 
-	validationResults.Append(ValidateLDAPQuery(config.AllGroupsQuery, field.NewPath("groupsQuery")))
+	isGroupDNQuery := strings.TrimSpace(strings.ToLower(config.GroupUIDAttribute)) == "dn"
+	validationResults.Append(validateLDAPQuery(config.AllGroupsQuery, field.NewPath("groupsQuery"), isGroupDNQuery))
 	if len(config.GroupUIDAttribute) == 0 {
 		validationResults.AddErrors(field.Required(field.NewPath("groupUIDAttribute"), ""))
 	}
@@ -255,10 +256,7 @@ func validateLDAPQuery(query legacyconfigv1.LDAPQuery, fldPath *field.Path, isDN
 			"timeout must be equal to or greater than zero"))
 	}
 
-	if isDNOnly {
-		if len(query.Filter) != 0 {
-			validationResults.AddErrors(field.Invalid(fldPath.Child("filter"), query.Filter, `cannot specify a filter when using "dn" as the UID attribute`))
-		}
+	if isDNOnly && len(query.Filter) == 0 {
 		return validationResults
 	}
 
