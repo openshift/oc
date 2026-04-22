@@ -39,6 +39,7 @@ RUN INSTALL_PKGS="\
   s-nail \
   strace \
   stress-ng \
+  subscription-manager \
   sysstat \
   tcpdump \
   tmux \
@@ -47,7 +48,7 @@ RUN INSTALL_PKGS="\
   wget \
   xfsprogs \
   " && \
-  yum -y install $INSTALL_PKGS && rpm -V --nosize --nofiledigest --nomtime --nomode $INSTALL_PKGS && yum clean all && rm -rf /var/cache/*
+  yum -y install $INSTALL_PKGS && rpm -V --nogroup --nosize --nofiledigest --nomtime --nomode $INSTALL_PKGS && yum clean all && rm -rf /var/cache/*
   # Disabled until they are buildable on s390x
   # numactl \
   # numactl-devel \
