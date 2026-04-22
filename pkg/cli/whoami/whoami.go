@@ -6,20 +6,23 @@ import (
 
 	"github.com/spf13/cobra"
 
+	userv1 "github.com/openshift/api/user/v1"
+	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
+
 	v1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes"
 	authenticationv1client "k8s.io/client-go/kubernetes/typed/authentication/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
-
-	userv1 "github.com/openshift/api/user/v1"
-	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 )
 
 const (
@@ -52,12 +55,16 @@ type WhoAmIOptions struct {
 	ShowServer     bool
 	ShowConsoleUrl bool
 
+	PrintFlags          *genericclioptions.PrintFlags
+	resourcePrinterFunc printers.ResourcePrinterFunc
+
 	genericiooptions.IOStreams
 }
 
 func NewWhoAmIOptions(streams genericiooptions.IOStreams) *WhoAmIOptions {
 	return &WhoAmIOptions{
-		IOStreams: streams,
+		PrintFlags: genericclioptions.NewPrintFlags("").WithTypeSetter(scheme.Scheme),
+		IOStreams:  streams,
 	}
 }
 
@@ -80,6 +87,7 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra
 	cmd.Flags().BoolVarP(&o.ShowContext, "show-context", "c", o.ShowContext, "Print the current user context name")
 	cmd.Flags().BoolVar(&o.ShowServer, "show-server", o.ShowServer, "If true, print the current server's REST API URL")
 	cmd.Flags().BoolVar(&o.ShowConsoleUrl, "show-console", o.ShowConsoleUrl, "If true, print the current server's web console URL")
+	o.PrintFlags.AddFlags(cmd)
 
 	return cmd
 }
@@ -93,14 +101,19 @@ func (o WhoAmIOptions) WhoAmI() (*userv1.User, error) {
 			},
 			Groups: res.Status.UserInfo.Groups,
 		}
+		if o.resourcePrinterFunc != nil {
+			return me, o.resourcePrinterFunc(me, o.Out)
+		}
 		fmt.Fprintf(o.Out, "%s\n", me.Name)
 		return me, nil
 	} else {
 		klog.V(2).Infof("selfsubjectreview request error %v, falling back to user object", err)
 	}
-
 	me, err := o.UserInterface.Users().Get(context.TODO(), "~", metav1.GetOptions{})
 	if err == nil {
+		if o.resourcePrinterFunc != nil {
+			return me, o.resourcePrinterFunc(me, o.Out)
+		}
 		fmt.Fprintf(o.Out, "%s\n", me.Name)
 	}
 
@@ -122,17 +135,29 @@ func (o *WhoAmIOptions) Complete(f kcmdutil.Factory) error {
 	o.KubeClient = kubeClient
 
 	o.RawConfig, err = f.ToRawKubeConfigLoader().RawConfig()
-	return err
+	if err != nil {
+		return err
+	}
+	if o.PrintFlags.OutputFlagSpecified() {
+		printer, err := o.PrintFlags.ToPrinter()
+		if err != nil {
+			return err
+		}
+		o.resourcePrinterFunc = printer.PrintObj
+	}
+	return nil
 }
 
 func (o *WhoAmIOptions) Validate() error {
+	if o.PrintFlags.OutputFlagSpecified() && (o.ShowToken || o.ShowContext || o.ShowServer || o.ShowConsoleUrl) {
+		return fmt.Errorf("--output cannot be used with --show-token, --show-context, --show-server, or --show-console")
+	}
 	if o.ShowToken && len(o.ClientConfig.BearerToken) == 0 {
 		return fmt.Errorf("no token is currently in use for this session")
 	}
 	if o.ShowContext && len(o.RawConfig.CurrentContext) == 0 {
 		return fmt.Errorf("no context has been set")
 	}
-
 	return nil
 }
 
