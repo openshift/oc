@@ -75,6 +75,7 @@ type LoginOptions struct {
 	StartingKubeConfig *kclientcmdapi.Config
 	DefaultNamespace   string
 	Config             *restclient.Config
+	Context            string
 
 	// cert data to be used when authenticating
 	CertFile string
@@ -570,7 +571,7 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 		return false, err
 	}
 
-	configToWrite, err := cliconfig.MergeConfig(*o.StartingKubeConfig, *newConfig)
+	configToWrite, err := o.mergeConfig(*newConfig)
 	if err != nil {
 		return false, err
 	}
@@ -591,6 +592,46 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 	}
 
 	return created, nil
+}
+
+// mergeConfig merges StartingKubeConfig with additionalConfig,
+// which must contain just a single context, cluster and authInfo.
+func (o *LoginOptions) mergeConfig(additionalConfig kclientcmdapi.Config) (*kclientcmdapi.Config, error) {
+	if o.Context == "" {
+		return cliconfig.MergeConfig(*o.StartingKubeConfig, additionalConfig)
+	}
+
+	// Set the custom context name in additionalConfig. This needs to happen in any case.
+	var newContext *kclientcmdapi.Context
+	for _, v := range additionalConfig.Contexts {
+		newContext = v
+		additionalConfig.Contexts = map[string]*kclientcmdapi.Context{
+			o.Context: v,
+		}
+	}
+	if newContext == nil {
+		panic(errors.New("no context found in additionalConfig"))
+	}
+
+	// If there is a matching context, replace the linked cluster and authInfo.
+	existingContext, ok := o.StartingKubeConfig.Contexts[o.Context]
+	if ok {
+		for _, v := range additionalConfig.Clusters {
+			additionalConfig.Clusters = map[string]*kclientcmdapi.Cluster{
+				existingContext.Cluster: v,
+			}
+			newContext.Cluster = existingContext.Cluster
+		}
+		for _, v := range additionalConfig.AuthInfos {
+			additionalConfig.AuthInfos = map[string]*kclientcmdapi.AuthInfo{
+				existingContext.AuthInfo: v,
+			}
+			newContext.AuthInfo = existingContext.AuthInfo
+		}
+	}
+
+	additionalConfig.CurrentContext = o.Context
+	return cliconfig.MergeConfig(*o.StartingKubeConfig, additionalConfig)
 }
 
 func (o *LoginOptions) whoAmI(clientConfig *restclient.Config) (*userv1.User, error) {
