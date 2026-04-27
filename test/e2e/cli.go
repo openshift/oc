@@ -13,8 +13,8 @@ import (
 
 	g "github.com/onsi/ginkgo/v2"
 	o "github.com/onsi/gomega"
-
 	oteginkgo "github.com/openshift-eng/openshift-tests-extension/pkg/ginkgo"
+
 	userv1 "github.com/openshift/api/user/v1"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -543,7 +543,7 @@ var _ = g.Describe("[sig-cli] oc CLI additional tests", func() {
 	)
 
 	// author: yinzhou@redhat.com
-	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yinzhou-High-43030-oc get events always show the timestamp as LAST SEEN", oteginkgo.Informing(), func() {
+	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yinzhou-High-43030-oc get events always show the timestamp as LAST SEEN", func() {
 		By("Get all the namespaces")
 		var output string
 		var err error
@@ -572,14 +572,14 @@ var _ = g.Describe("[sig-cli] oc CLI additional tests", func() {
 	})
 
 	// author: yinzhou@redhat.com
-	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yinzhou-Medium-34155-oc get events sorted by lastTimestamp", oteginkgo.Informing(), func() {
+	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yinzhou-Medium-34155-oc get events sorted by lastTimestamp", func() {
 		g.By("Get events sorted by lastTimestamp")
 		err := oc.AsAdmin().WithoutNamespace().Run("get").Args("events", "-n", "openshift-operator-lifecycle-manager", "--sort-by="+".lastTimestamp").Execute()
 		o.Expect(err).NotTo(o.HaveOccurred())
 	})
 
 	// author: yinzhou@redhat.com
-	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yinzhou-Medium-47555-Should not update data when use oc set data with dry-run as server", oteginkgo.Informing(), func() {
+	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yinzhou-Medium-47555-Should not update data when use oc set data with dry-run as server", func() {
 		project47555 := "project47555"
 		if isMicroShiftCluster(oc) {
 			defer oc.AsAdmin().WithoutNamespace().Run("delete").Args("ns", project47555).Execute()
@@ -622,7 +622,7 @@ var _ = g.Describe("[sig-cli] oc CLI additional tests", func() {
 	})
 
 	// author: yinzhou@redhat.com
-	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yinzhou-Medium-49116-oc debug should remove startupProbe when create debug pod", oteginkgo.Informing(), func() {
+	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yinzhou-Medium-49116-oc debug should remove startupProbe when create debug pod", func() {
 		project49116 := "project49116"
 		if isMicroShiftCluster(oc) {
 			defer oc.AsAdmin().WithoutNamespace().Run("delete").Args("ns", project49116).Execute()
