@@ -16,9 +16,10 @@ package gssapi
 //
 // Using "MacPorts" on MacOS gives us: -I/opt/local/include
 // Using "brew" on MacOS gives us: -I/usr/local/opt/heimdal/include
+// Using "brew" on MacOS (Apple Silicon) gives us: -I/opt/homebrew/opt/heimdal/include
 
 /*
-#cgo darwin CFLAGS: -I/opt/local/include -I/usr/local/opt/heimdal/include
+#cgo darwin CFLAGS: -I/opt/local/include -I/usr/local/opt/heimdal/include -I/opt/homebrew/opt/heimdal/include
 #include <stdio.h>
 
 #include <gssapi/gssapi.h>

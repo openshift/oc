@@ -220,6 +220,7 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 )
 
-replace github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
+// branch: extend-include-path-apple-silicon
+replace github.com/apcera/gssapi => github.com/tchap/gssapi v0.0.0-20260403121208-047531cb33ea
 
 replace github.com/onsi/ginkgo/v2 => github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20251001123353-fd5b1fb35db1
