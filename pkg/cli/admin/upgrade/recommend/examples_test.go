@@ -63,11 +63,13 @@ func TestExamples(t *testing.T) {
 		{
 			name: "specific version",
 			versions: map[string]string{
-				"examples/4.12.16-longest-not-recommended-cv.yaml": "4.12.51",
-				"examples/4.12.16-longest-recommended-cv.yaml":     "4.12.51",
-				"examples/4.14.1-all-recommended-cv.yaml":          "4.12.51",
-				"examples/4.16.27-degraded-monitoring-cv.yaml":     "4.16.32",
-				"examples/4.19.0-okd-scos.16-cv.yaml":              "4.19.0-okd-scos.17",
+				"examples/4.12.16-longest-not-recommended-cv.yaml":          "4.12.51",
+				"examples/4.12.16-longest-recommended-cv.yaml":              "4.12.51",
+				"examples/4.14.1-all-recommended-cv.yaml":                   "4.12.51",
+				"examples/4.16.27-degraded-monitoring-cv.yaml":              "4.16.32",
+				"examples/4.19.0-okd-scos.16-cv.yaml":                       "4.19.0-okd-scos.17",
+				"examples/4.22.0-extend-recommended-alert-cv.yaml":          "1.2.3-not-important",
+				"examples/4.22.0-extend-recommended-critical-alert-cv.yaml": "1.2.3-not-important",
 			},
 			outputSuffixPattern: ".version-%s-output",
 		},

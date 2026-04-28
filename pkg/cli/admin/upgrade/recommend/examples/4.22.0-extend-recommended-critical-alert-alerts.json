@@ -1,0 +1,101 @@
+{
+  "status": "success",
+  "data": {
+    "alerts": [
+      {
+        "labels": {
+          "alertname": "ClusterNotUpgradeable",
+          "condition": "Upgradeable",
+          "endpoint": "metrics",
+          "name": "version",
+          "namespace": "openshift-cluster-version",
+          "severity": "info"
+        },
+        "annotations": {
+          "description": "In most cases, you will still be able to apply patch releases. Reason ClusterVersionOverridesSet. For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-j6jzqdt-76ef8.aws-4.ci.openshift.org/settings/cluster/.",
+          "summary": "One or more cluster operators have been blocking minor or major version cluster updates for at least an hour."
+        },
+        "state": "firing",
+        "activeAt": "2026-03-11T06:13:57.769131832Z",
+        "value": "0e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "VMCannotBeEvicted",
+          "container": "cluster-version-operator",
+          "endpoint": "metrics",
+          "instance": "10.0.50.249:9099",
+          "job": "cluster-version-operator",
+          "namespace": "openshift-cluster-version",
+          "openShiftUpdatePrecheck": "true",
+          "pod": "cluster-version-operator-678868c58f-llmd9",
+          "reason": "UpdatingPrometheusFailed",
+          "service": "cluster-version-operator",
+          "severity": "critical"
+        },
+        "annotations": {
+          "description": "Test description.",
+          "summary": "Test summary."
+        },
+        "state": "pending",
+        "activeAt": "2026-03-11T07:26:40.359329532Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "VirtHandlerDaemonSetRolloutFailing",
+          "container": "cluster-version-operator",
+          "endpoint": "metrics",
+          "instance": "10.0.50.249:9099",
+          "job": "cluster-version-operator",
+          "namespace": "openshift-cluster-version",
+          "openShiftUpdatePrecheck": "true",
+          "pod": "cluster-version-operator-678868c58f-llmd9",
+          "reason": "UpdatingPrometheusFailed",
+          "service": "cluster-version-operator",
+          "severity": "critical"
+        },
+        "annotations": {
+          "description": "Test description.",
+          "summary": "Test summary."
+        },
+        "state": "firing",
+        "activeAt": "2026-03-11T07:26:13.424841002Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "Watchdog",
+          "namespace": "openshift-monitoring",
+          "severity": "none"
+        },
+        "annotations": {
+          "description": "This is an alert meant to ensure that the entire alerting pipeline is functional.\nThis alert is always firing, therefore it should always be firing in Alertmanager\nand always fire against a receiver. There are integrations with various notification\nmechanisms that send a notification when this alert is not firing. For example the\n\"DeadMansSnitch\" integration in PagerDuty.\n",
+          "summary": "An alert that should always be firing to certify that Alertmanager is working properly."
+        },
+        "state": "firing",
+        "activeAt": "2026-03-11T06:14:54.219018244Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "AlertmanagerReceiversNotConfigured",
+          "namespace": "openshift-monitoring",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "Alerts are not configured to be sent to a notification system, meaning that you may not be notified in a timely fashion when important failures occur. Check the OpenShift documentation to learn how to configure notifications with Alertmanager.",
+          "summary": "Receivers (notification integrations) are not configured on Alertmanager"
+        },
+        "state": "firing",
+        "activeAt": "2026-03-11T06:14:06.604561468Z",
+        "value": "0e+00",
+        "partialResponseStrategy": "WARN"
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+The following conditions found no cause for concern in updating this cluster to later releases: recommended/NodeAlerts (AsExpected), recommended/PodDisruptionBudgetAlerts (AsExpected), recommended/PodImagePullAlerts (AsExpected), recommended/UpdatePrecheckAlerts (AsExpected)
+
+The following conditions found cause for concern in updating this cluster to later releases: recommended/CriticalAlerts/VirtHandlerDaemonSetRolloutFailing/0
+
+recommended/CriticalAlerts/VirtHandlerDaemonSetRolloutFailing/0=False:
+
+  Reason: Alert:firing
+  Message: critical alert VirtHandlerDaemonSetRolloutFailing firing, suggesting significant cluster issues worth investigating. Test summary. The alert description is: Test description. <alert does not have a runbook_url annotation>
+
+No updates available. You may still upgrade to a specific release image with --to-image or wait for new updates to be available.
