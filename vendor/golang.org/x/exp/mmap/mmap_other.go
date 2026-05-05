@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !linux,!windows,!darwin
+//go:build !linux && !windows && !darwin
 
 // Package mmap provides a way to memory-map a file.
 package mmap
