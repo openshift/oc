@@ -122,6 +122,29 @@ func TestAPIGroupVersionRetrieval(t *testing.T) {
 			expectedResources: []schema.GroupVersionResource{{Group: "foo.group.io", Version: "v1", Resource: "foos"}},
 		},
 		{
+			name: "ensure etcd apiGroup returns expected pacemaker resource",
+			resourceFinder: &fakeSupportedResourceFinder{
+				supportedResources: []*metav1.APIResourceList{
+					{
+						TypeMeta:     metav1.TypeMeta{Kind: "PacemakerCluster", APIVersion: "v1alpha1"},
+						GroupVersion: schema.GroupVersion{Group: "etcd.openshift.io", Version: "v1alpha1"}.String(),
+						APIResources: []metav1.APIResource{
+							{
+								Name:         "pacemakerclusters",
+								SingularName: "pacemakercluster",
+								Group:        "etcd.openshift.io",
+								Version:      "v1",
+								Kind:         "PacemakerCluster",
+								Verbs:        []string{"get", "list"},
+							},
+						},
+					},
+				},
+			},
+			apiGroup:          "etcd.openshift.io",
+			expectedResources: []schema.GroupVersionResource{{Group: "etcd.openshift.io", Version: "v1alpha1", Resource: "pacemakerclusters"}},
+		},
+		{
 			name: "ensure known apiGroup with NO `list` verb is omitted from results",
 			resourceFinder: &fakeSupportedResourceFinder{
 				supportedResources: []*metav1.APIResourceList{

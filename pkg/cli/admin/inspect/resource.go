@@ -22,8 +22,9 @@ const (
 	clusterScopedResourcesDirname = "cluster-scoped-resources"
 	namespaceResourcesDirname     = "namespaces"
 
-	configResourceDataKey   = "/cluster-scoped-resources/config.openshift.io"
-	operatorResourceDataKey = "/cluster-scoped-resources/operator.openshift.io"
+	configResourceDataKey     = "/cluster-scoped-resources/config.openshift.io"
+	operatorResourceDataKey   = "/cluster-scoped-resources/operator.openshift.io"
+	etcdConfigResourceDataKey = "/cluster-scoped-resources/etcd.openshift.io"
 )
 
 // InspectResource receives an object to gather debugging data for, and a context to keep track of
@@ -50,6 +51,11 @@ func InspectResource(ctx context.Context, info *resource.Info, resourceCtx *reso
 
 		// then, gather operator.openshift.io resource data
 		if err := o.gatherOperatorResourceData(ctx, path.Join(o.DestDir, "/cluster-scoped-resources/operator.openshift.io"), resourceCtx); err != nil {
+			errs = append(errs, err)
+		}
+
+		// then, gather etcd.openshift.io resource data
+		if err := o.gatherEtcdConfigResourceData(ctx, path.Join(o.DestDir, "/cluster-scoped-resources/etcd.openshift.io"), resourceCtx); err != nil {
 			errs = append(errs, err)
 		}
 

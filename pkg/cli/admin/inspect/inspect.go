@@ -366,6 +366,56 @@ func (o *InspectOptions) gatherOperatorResourceData(ctx context.Context, destDir
 	return nil
 }
 
+// gatherEtcdConfigResourceData gathers all etcd.openshift.io resources.
+func (o *InspectOptions) gatherEtcdConfigResourceData(ctx context.Context, destDir string, resourceCtx *resourceContext) error {
+	// determine if we've already collected etcdConfigResourceData
+	if resourceCtx.visited.Has(etcdConfigResourceDataKey) {
+		klog.V(1).Infof("Skipping previously-collected etcd.openshift.io resource data")
+		return nil
+	}
+	resourceCtx.visited.Insert(etcdConfigResourceDataKey)
+
+	// ensure destination path exists
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	resources, err := retrieveAPIGroupVersionResourceNames(o.discoveryClient, "etcd.openshift.io")
+	if err != nil {
+		return err
+	}
+
+	errs := []error{}
+	for _, resource := range resources {
+		resourceList, err := o.dynamicClient.Resource(resource).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		objToPrint := runtime.Object(resourceList)
+		filename := fmt.Sprintf("%s.yaml", resource.Resource)
+		if err := o.fileWriter.WriteFromResource(ctx, path.Join(destDir, "/"+filename), objToPrint); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+	}
+
+	// if no etcd.openshift.io resources found, remove the directory, to avoid empty directory being created
+	if len(resources) == 0 {
+		err := os.Remove(destDir)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("no etcd.openshift.io resources found, failed to remove directory (%s): %w", destDir, err))
+		}
+		klog.V(1).Infof("no etcd.openshift.io resources found")
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("one or more errors occurred while gathering etcd.openshift.io resource data:\n\n    %v", errors.NewAggregate(errs))
+	}
+	return nil
+}
+
 // ensureDirectoryViable returns an error if DestDir:
 // 1. already exists AND is a file (not a directory)
 // 2. already exists AND is NOT empty, unless overwrite was passed
