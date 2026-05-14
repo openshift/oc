@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
+	clocktesting "k8s.io/utils/clock/testing"
 	"k8s.io/utils/diff"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -27,6 +29,57 @@ import (
 	configv1fake "github.com/openshift/client-go/config/clientset/versioned/fake"
 	imageclient "github.com/openshift/client-go/image/clientset/versioned/fake"
 )
+
+func TestGenerateDestDir(t *testing.T) {
+	fixedTime := time.Date(2026, 4, 14, 12, 0, 0, 0, time.UTC)
+	fc := clocktesting.NewFakePassiveClock(fixedTime)
+
+	tests := []struct {
+		name           string
+		clusterID      string
+		expectedPrefix string
+	}{
+		{
+			name:           "with full cluster ID includes last 12 chars",
+			clusterID:      "0194fffc-f70a-4776-b00d-76708af6b91c",
+			expectedPrefix: "must-gather.local.76708af6b91c.20260414T120000Z.",
+		},
+		{
+			name:           "with short cluster ID uses full ID",
+			clusterID:      "abcdef",
+			expectedPrefix: "must-gather.local.abcdef.20260414T120000Z.",
+		},
+		{
+			name:           "without cluster ID falls back gracefully",
+			expectedPrefix: "must-gather.local.20260414T120000Z.",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var configObjects []runtime.Object
+			if tc.clusterID != "" {
+				configObjects = []runtime.Object{
+					&configv1.ClusterVersion{
+						ObjectMeta: metav1.ObjectMeta{Name: "version"},
+						Spec: configv1.ClusterVersionSpec{
+							ClusterID: configv1.ClusterID(tc.clusterID),
+						},
+					},
+				}
+			}
+			options := MustGatherOptions{
+				IOStreams:    genericiooptions.NewTestIOStreamsDiscard(),
+				ConfigClient: configv1fake.NewSimpleClientset(configObjects...),
+				clock:        fc,
+			}
+			destDir := options.generateDestDir()
+			if !strings.HasPrefix(destDir, tc.expectedPrefix) {
+				t.Errorf("expected prefix %q, got %q", tc.expectedPrefix, destDir)
+			}
+		})
+	}
+}
 
 func TestImagesAndImageStreams(t *testing.T) {
 

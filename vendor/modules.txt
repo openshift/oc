@@ -1922,10 +1922,11 @@ k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1
 # k8s.io/pod-security-admission v0.35.2
 ## explicit; go 1.25.0
 k8s.io/pod-security-admission/api
-# k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2
+# k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
 ## explicit; go 1.23
 k8s.io/utils/buffer
 k8s.io/utils/clock
+k8s.io/utils/clock/testing
 k8s.io/utils/diff
 k8s.io/utils/exec
 k8s.io/utils/field
