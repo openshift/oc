@@ -3,6 +3,7 @@ package nodeimage
 import (
 	"bytes"
 	fakeoperatorconfig "github.com/openshift/client-go/operator/clientset/versioned/fake"
+	corev1 "k8s.io/api/core/v1"
 	"strings"
 	"testing"
 
@@ -73,6 +74,7 @@ func TestMonitorRun(t *testing.T) {
 		remoteExecOutput string
 
 		expectedError string
+		expectedPod   func(t *testing.T, pod *corev1.Pod)
 	}{
 		{
 			name:    "default",
@@ -81,6 +83,17 @@ func TestMonitorRun(t *testing.T) {
 		{
 			name:          "missing cluster connection",
 			expectedError: `command expects a connection to an OpenShift 4.x server`,
+		},
+		{
+			name:    "node-joiner monitor pod has required-scc annotation",
+			objects: defaultClusterVersionObjectFn,
+			expectedPod: func(t *testing.T, pod *corev1.Pod) {
+				expected := "restricted-v2"
+				got := pod.Annotations["openshift.io/required-scc"]
+				if got != expected {
+					t.Errorf("annotation openshift.io/required-scc = %q, want %q", got, expected)
+				}
+			},
 		},
 	}
 	for _, tc := range testCases {
@@ -133,6 +146,10 @@ func TestMonitorRun(t *testing.T) {
 				if fakeLogContent != logContents.String() {
 					t.Errorf("expected %v, actual %v", fakeLogContent, logContents.String())
 				}
+			}
+			if tc.expectedPod != nil {
+				pod := getTestPod(fakeClient, nodeJoinerMonitorContainer)
+				tc.expectedPod(t, pod)
 			}
 		})
 	}
