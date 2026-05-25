@@ -34,21 +34,25 @@ var (
 		# Create an edge route that exposes the frontend service and specify a path
 		# If the route name is omitted, the service name will be used
 		oc create route edge --service=frontend --path /assets
+
+		# Create an edge route that uses an external certificate from a secret
+		oc create route edge --service=frontend --external-certificate=my-cert-secret
 	`)
 )
 
 type CreateEdgeRouteOptions struct {
 	CreateRouteSubcommandOptions *CreateRouteSubcommandOptions
 
-	Hostname       string
-	Port           string
-	InsecurePolicy string
-	Service        string
-	Path           string
-	Cert           string
-	Key            string
-	CACert         string
-	WildcardPolicy string
+	Hostname            string
+	Port                string
+	InsecurePolicy      string
+	Service             string
+	Path                string
+	Cert                string
+	Key                 string
+	CACert              string
+	ExternalCertificate string
+	WildcardPolicy      string
 }
 
 // NewCmdCreateEdgeRoute is a macro command to create an edge route.
@@ -63,6 +67,7 @@ func NewCmdCreateEdgeRoute(f kcmdutil.Factory, streams genericiooptions.IOStream
 		Example: edgeRouteExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
@@ -79,6 +84,7 @@ func NewCmdCreateEdgeRoute(f kcmdutil.Factory, streams genericiooptions.IOStream
 	cmd.MarkFlagFilename("key")
 	cmd.Flags().StringVar(&o.CACert, "ca-cert", o.CACert, "Path to a CA certificate file.")
 	cmd.MarkFlagFilename("ca-cert")
+	cmd.Flags().StringVar(&o.ExternalCertificate, "external-certificate", o.ExternalCertificate, "Name of a kubernetes.io/tls secret in the route's namespace that provides the certificate and key. Mutually exclusive with --cert and --key.")
 	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WildcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
 	kcmdutil.AddValidateFlags(cmd)
@@ -90,6 +96,16 @@ func NewCmdCreateEdgeRoute(f kcmdutil.Factory, streams genericiooptions.IOStream
 
 func (o *CreateEdgeRouteOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	return o.CreateRouteSubcommandOptions.Complete(f, cmd, args)
+}
+
+func (o *CreateEdgeRouteOptions) Validate() error {
+	if len(o.Cert) > 0 && len(o.ExternalCertificate) > 0 {
+		return fmt.Errorf("--cert and --external-certificate are mutually exclusive")
+	}
+	if len(o.Key) > 0 && len(o.ExternalCertificate) > 0 {
+		return fmt.Errorf("--key and --external-certificate are mutually exclusive")
+	}
+	return nil
 }
 
 func (o *CreateEdgeRouteOptions) Run() error {
@@ -121,6 +137,9 @@ func (o *CreateEdgeRouteOptions) Run() error {
 		return err
 	}
 	route.Spec.TLS.Key = string(key)
+	if len(o.ExternalCertificate) > 0 {
+		route.Spec.TLS.ExternalCertificate = &routev1.LocalObjectReference{Name: o.ExternalCertificate}
+	}
 	caCert, err := fileutil.LoadData(o.CACert)
 	if err != nil {
 		return err
