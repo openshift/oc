@@ -192,3 +192,9 @@ require (
 replace github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 
 replace google.golang.org/grpc => github.com/openshift-sustaining/grpc-go v1.64.1-sec.1
+
+replace google.golang.org/x/crypto => google.golang.org/x/crypto v0.16.0
+
+replace google.golang.org/x/net => google.golang.org/x/net v0.19.0
+
+replace google.golang.org/x/sys => google.golang.org/x/sys v0.15.0
