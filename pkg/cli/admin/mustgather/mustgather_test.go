@@ -712,9 +712,9 @@ func TestStartClientKeepAlive(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		stopKeepAlive := o.startClientKeepAlive(ctx)
+		o.startClientKeepAlive(ctx)
 		time.Sleep(200 * time.Millisecond)
-		stopKeepAlive()
+		cancel()
 
 		actions := fakeClient.Actions()
 		var probeCalls int
@@ -728,7 +728,7 @@ func TestStartClientKeepAlive(t *testing.T) {
 		}
 	})
 
-	t.Run("stops when cancel is called", func(t *testing.T) {
+	t.Run("stops when context is cancelled", func(t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
 		o := &MustGatherOptions{
 			IOStreams:          genericiooptions.NewTestIOStreamsDiscard(),
@@ -736,11 +736,12 @@ func TestStartClientKeepAlive(t *testing.T) {
 			keepAliveInterval: 50 * time.Millisecond,
 		}
 
-		ctx := context.Background()
-		stopKeepAlive := o.startClientKeepAlive(ctx)
+		ctx, cancel := context.WithCancel(context.Background())
+		o.startClientKeepAlive(ctx)
 		time.Sleep(150 * time.Millisecond)
-		stopKeepAlive()
+		cancel()
 
+		time.Sleep(50 * time.Millisecond)
 		before := len(fakeClient.Actions())
 		time.Sleep(200 * time.Millisecond)
 		after := len(fakeClient.Actions())

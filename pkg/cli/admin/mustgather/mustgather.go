@@ -822,10 +822,8 @@ func (o *MustGatherOptions) Run() error {
 // can expire on clusters with short inactivity windows (e.g. 5-10 minutes in
 // banking/government/PCI-DSS environments).
 //
-// Returns a cancel function that stops the goroutine. The caller must invoke it
-// when the keep-alive is no longer needed.
-func (o *MustGatherOptions) startClientKeepAlive(ctx context.Context) context.CancelFunc {
-	ctx, cancel := context.WithCancel(ctx)
+// The goroutine runs until ctx is cancelled.
+func (o *MustGatherOptions) startClientKeepAlive(ctx context.Context) {
 	interval := o.keepAliveInterval
 	if interval == 0 {
 		interval = defaultKeepAliveInterval
@@ -838,16 +836,12 @@ func (o *MustGatherOptions) startClientKeepAlive(ctx context.Context) context.Ca
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if ctx.Err() != nil {
-					return
-				}
 				if _, err := o.Client.Discovery().ServerVersion(); err != nil && !errors.Is(err, context.Canceled) {
-					klog.V(5).Infof("keep-alive probe failed (non-fatal): %v", err)
+					klog.V(2).Infof("keep-alive probe failed (non-fatal): %v", err)
 				}
 			}
 		}
 	}()
-	return cancel
 }
 
 // processNextWorkItem creates & processes the must-gather pod and returns error if any
@@ -879,8 +873,9 @@ func (o *MustGatherOptions) processNextWorkItem(ctx context.Context, ns string, 
 	// Prevent the user's OAuth token from expiring due to
 	// accessTokenInactivityTimeout while we hold long-lived log-follow
 	// connections. The probes run until the gather output has been copied.
-	stopKeepAlive := o.startClientKeepAlive(ctx)
+	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
 	defer stopKeepAlive()
+	o.startClientKeepAlive(keepAliveCtx)
 
 	// wait for gather container to be running (gather is running)
 	if err := o.waitForGatherContainerRunning(ctx, pod); err != nil {
