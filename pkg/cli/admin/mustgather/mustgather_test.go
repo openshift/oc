@@ -704,46 +704,45 @@ func TestStartClientKeepAlive(t *testing.T) {
 	t.Run("makes periodic authenticated API calls", func(t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
 		o := &MustGatherOptions{
-			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
-			Client:   fakeClient,
+			IOStreams:          genericiooptions.NewTestIOStreamsDiscard(),
+			Client:            fakeClient,
+			keepAliveInterval: 50 * time.Millisecond,
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		stopKeepAlive := o.startClientKeepAlive(ctx)
-		// Let it run for enough time to fire at least 2 probes.
-		// defaultKeepAliveInterval is 30s, so use a shorter context for the test.
-		// Instead, we directly test that at least one call was made quickly by
-		// checking the fake client's action log after a brief sleep.
-		time.Sleep(35 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 		stopKeepAlive()
 
 		actions := fakeClient.Actions()
-		var versionCalls int
+		var probeCalls int
 		for _, a := range actions {
-			if a.GetVerb() == "get" && a.GetResource().Resource == "version" {
-				versionCalls++
+			if a.GetVerb() == "get" {
+				probeCalls++
 			}
 		}
-		if versionCalls == 0 {
-			t.Errorf("expected at least one Discovery().ServerVersion() call, got %d actions: %v", len(actions), actions)
+		if probeCalls < 2 {
+			t.Errorf("expected at least 2 keep-alive probes, got %d actions: %v", probeCalls, actions)
 		}
 	})
 
 	t.Run("stops when cancel is called", func(t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
 		o := &MustGatherOptions{
-			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
-			Client:   fakeClient,
+			IOStreams:          genericiooptions.NewTestIOStreamsDiscard(),
+			Client:            fakeClient,
+			keepAliveInterval: 50 * time.Millisecond,
 		}
 
 		ctx := context.Background()
 		stopKeepAlive := o.startClientKeepAlive(ctx)
+		time.Sleep(150 * time.Millisecond)
 		stopKeepAlive()
 
 		before := len(fakeClient.Actions())
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 		after := len(fakeClient.Actions())
 
 		if after != before {

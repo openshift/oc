@@ -453,8 +453,9 @@ type MustGatherOptions struct {
 	Since            time.Duration
 	SinceTime        string
 
-	RsyncRshCmd string
-	clock       clock.PassiveClock
+	RsyncRshCmd        string
+	keepAliveInterval  time.Duration
+	clock              clock.PassiveClock
 
 	PrinterCreated printers.ResourcePrinter
 	PrinterDeleted printers.ResourcePrinter
@@ -825,18 +826,22 @@ func (o *MustGatherOptions) Run() error {
 // when the keep-alive is no longer needed.
 func (o *MustGatherOptions) startClientKeepAlive(ctx context.Context) context.CancelFunc {
 	ctx, cancel := context.WithCancel(ctx)
+	interval := o.keepAliveInterval
+	if interval == 0 {
+		interval = defaultKeepAliveInterval
+	}
 	go func() {
-		ticker := time.NewTicker(defaultKeepAliveInterval)
+		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				// A lightweight authenticated GET that resets the OAuth
-				// inactivity timer. Errors are expected if the cluster is
-				// temporarily unreachable and are not actionable here.
-				if _, err := o.Client.Discovery().ServerVersion(); err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				if _, err := o.Client.Discovery().ServerVersion(); err != nil && !errors.Is(err, context.Canceled) {
 					klog.V(5).Infof("keep-alive probe failed (non-fatal): %v", err)
 				}
 			}
