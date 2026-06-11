@@ -699,3 +699,55 @@ func TestNewPod(t *testing.T) {
 		})
 	}
 }
+
+func TestStartClientKeepAlive(t *testing.T) {
+	t.Run("makes periodic authenticated API calls", func(t *testing.T) {
+		fakeClient := fake.NewSimpleClientset()
+		o := &MustGatherOptions{
+			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
+			Client:   fakeClient,
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		stopKeepAlive := o.startClientKeepAlive(ctx)
+		// Let it run for enough time to fire at least 2 probes.
+		// defaultKeepAliveInterval is 30s, so use a shorter context for the test.
+		// Instead, we directly test that at least one call was made quickly by
+		// checking the fake client's action log after a brief sleep.
+		time.Sleep(35 * time.Second)
+		stopKeepAlive()
+
+		actions := fakeClient.Actions()
+		var versionCalls int
+		for _, a := range actions {
+			if a.GetVerb() == "get" && a.GetResource().Resource == "version" {
+				versionCalls++
+			}
+		}
+		if versionCalls == 0 {
+			t.Errorf("expected at least one Discovery().ServerVersion() call, got %d actions: %v", len(actions), actions)
+		}
+	})
+
+	t.Run("stops when cancel is called", func(t *testing.T) {
+		fakeClient := fake.NewSimpleClientset()
+		o := &MustGatherOptions{
+			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
+			Client:   fakeClient,
+		}
+
+		ctx := context.Background()
+		stopKeepAlive := o.startClientKeepAlive(ctx)
+		stopKeepAlive()
+
+		before := len(fakeClient.Actions())
+		time.Sleep(100 * time.Millisecond)
+		after := len(fakeClient.Actions())
+
+		if after != before {
+			t.Errorf("keep-alive goroutine continued after cancel: actions before=%d, after=%d", before, after)
+		}
+	})
+}

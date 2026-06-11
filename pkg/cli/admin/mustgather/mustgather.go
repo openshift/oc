@@ -63,6 +63,14 @@ const (
 	defaultMustGatherCommand  = "/usr/bin/gather"
 	defaultVolumePercentage   = 70
 	defaultSourceDir          = "/must-gather/"
+
+	// defaultKeepAliveInterval is the default interval for client-side
+	// authenticated API probes that reset the OAuth access-token inactivity
+	// timer. Clusters with accessTokenInactivityTimeout (common in regulated
+	// environments) will revoke idle tokens; periodic probes prevent that
+	// during long-running log-follow connections that the API server does
+	// not count as activity.
+	defaultKeepAliveInterval = 30 * time.Second
 )
 
 var (
@@ -805,6 +813,38 @@ func (o *MustGatherOptions) Run() error {
 	return kutilerrors.NewAggregate(errs)
 }
 
+// startClientKeepAlive spawns a background goroutine that periodically makes
+// an authenticated API call to prevent the user's OAuth access token from being
+// revoked due to accessTokenInactivityTimeout. The log-follow connection held
+// by getGatherContainerLogs is a single long-lived HTTP stream that the API
+// server does not count as discrete activity, so without these probes the token
+// can expire on clusters with short inactivity windows (e.g. 5-10 minutes in
+// banking/government/PCI-DSS environments).
+//
+// Returns a cancel function that stops the goroutine. The caller must invoke it
+// when the keep-alive is no longer needed.
+func (o *MustGatherOptions) startClientKeepAlive(ctx context.Context) context.CancelFunc {
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		ticker := time.NewTicker(defaultKeepAliveInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// A lightweight authenticated GET that resets the OAuth
+				// inactivity timer. Errors are expected if the cluster is
+				// temporarily unreachable and are not actionable here.
+				if _, err := o.Client.Discovery().ServerVersion(); err != nil {
+					klog.V(5).Infof("keep-alive probe failed (non-fatal): %v", err)
+				}
+			}
+		}
+	}()
+	return cancel
+}
+
 // processNextWorkItem creates & processes the must-gather pod and returns error if any
 func (o *MustGatherOptions) processNextWorkItem(ctx context.Context, ns string, pod *corev1.Pod) error {
 	var err error
@@ -830,6 +870,12 @@ func (o *MustGatherOptions) processNextWorkItem(ctx context.Context, ns string, 
 	}
 
 	log := o.newPodOutLogger(o.Out, pod.Name)
+
+	// Prevent the user's OAuth token from expiring due to
+	// accessTokenInactivityTimeout while we hold long-lived log-follow
+	// connections. The probes run until the gather output has been copied.
+	stopKeepAlive := o.startClientKeepAlive(ctx)
+	defer stopKeepAlive()
 
 	// wait for gather container to be running (gather is running)
 	if err := o.waitForGatherContainerRunning(ctx, pod); err != nil {
