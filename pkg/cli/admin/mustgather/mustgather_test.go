@@ -704,7 +704,7 @@ func TestStartClientKeepAlive(t *testing.T) {
 	t.Run("makes periodic authenticated API calls", func(t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
 		o := &MustGatherOptions{
-			IOStreams:          genericiooptions.NewTestIOStreamsDiscard(),
+			IOStreams:         genericiooptions.NewTestIOStreamsDiscard(),
 			Client:            fakeClient,
 			keepAliveInterval: 50 * time.Millisecond,
 		}
@@ -731,7 +731,7 @@ func TestStartClientKeepAlive(t *testing.T) {
 	t.Run("stops when context is cancelled", func(t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
 		o := &MustGatherOptions{
-			IOStreams:          genericiooptions.NewTestIOStreamsDiscard(),
+			IOStreams:         genericiooptions.NewTestIOStreamsDiscard(),
 			Client:            fakeClient,
 			keepAliveInterval: 50 * time.Millisecond,
 		}

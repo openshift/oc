@@ -453,9 +453,9 @@ type MustGatherOptions struct {
 	Since            time.Duration
 	SinceTime        string
 
-	RsyncRshCmd        string
-	keepAliveInterval  time.Duration
-	clock              clock.PassiveClock
+	RsyncRshCmd       string
+	keepAliveInterval time.Duration
+	clock             clock.PassiveClock
 
 	PrinterCreated printers.ResourcePrinter
 	PrinterDeleted printers.ResourcePrinter
