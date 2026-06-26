@@ -1,6 +1,6 @@
 module github.com/openshift/oc
 
-go 1.25.6
+go 1.26.0
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
