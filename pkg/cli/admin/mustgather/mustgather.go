@@ -833,9 +833,10 @@ func (o *MustGatherOptions) processNextWorkItem(ctx context.Context, ns string, 
 		log("gather did not start: %s", err)
 		return fmt.Errorf("gather did not start for pod %s: %w", pod.Name, err)
 	}
+
 	// stream gather container logs
 	if err := o.getGatherContainerLogs(ctx, pod); err != nil {
-		if !errors.Is(err, context.Canceled) {
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			log("gather logs unavailable: %v", err)
 		}
 	}
@@ -947,6 +948,12 @@ func (o *MustGatherOptions) copyFilesFromPod(ctx context.Context, pod *corev1.Po
 }
 
 func (o *MustGatherOptions) getGatherContainerLogs(ctx context.Context, pod *corev1.Pod) error {
+	// Create a timeout context covering the entire gather lifecycle (waiting for
+	// container start, streaming logs, waiting for completion). Copying is
+	// intentionally excluded — per flag docs, it continues until finished.
+	gatherCtx, gatherCancel := context.WithTimeout(ctx, o.Timeout)
+	defer gatherCancel()
+
 	since2s := int64(2)
 	opts := &logs.LogsOptions{
 		Namespace:   pod.Namespace,
@@ -967,13 +974,13 @@ func (o *MustGatherOptions) getGatherContainerLogs(ctx context.Context, pod *cor
 		// gather script might take longer than the default API server time,
 		// so we should check if the gather script still runs and re-run logs
 		// thus we run this in a loop
-		if err := opts.RunLogsContext(ctx); err != nil {
+		if err := opts.RunLogsContext(gatherCtx); err != nil {
 			return err
 		}
 
 		// to ensure we don't print all of history set since to past 2 seconds
 		opts.Options.(*corev1.PodLogOptions).SinceSeconds = &since2s
-		if done, _ := o.isGatherDone(ctx, pod); done {
+		if done, _ := o.isGatherDone(gatherCtx, pod); done {
 			return nil
 		}
 		klog.V(4).Infof("lost logs, re-trying...")
