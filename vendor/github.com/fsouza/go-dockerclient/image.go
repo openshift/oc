@@ -20,10 +20,11 @@ import (
 
 // APIImages represent an image returned in the ListImages call.
 type APIImages struct {
-	ID          string            `json:"Id" yaml:"Id" toml:"Id"`
-	RepoTags    []string          `json:"RepoTags,omitempty" yaml:"RepoTags,omitempty" toml:"RepoTags,omitempty"`
-	Created     int64             `json:"Created,omitempty" yaml:"Created,omitempty" toml:"Created,omitempty"`
-	Size        int64             `json:"Size,omitempty" yaml:"Size,omitempty" toml:"Size,omitempty"`
+	ID       string   `json:"Id" yaml:"Id" toml:"Id"`
+	RepoTags []string `json:"RepoTags,omitempty" yaml:"RepoTags,omitempty" toml:"RepoTags,omitempty"`
+	Created  int64    `json:"Created,omitempty" yaml:"Created,omitempty" toml:"Created,omitempty"`
+	Size     int64    `json:"Size,omitempty" yaml:"Size,omitempty" toml:"Size,omitempty"`
+	// Deprecated: VirtualSize is deprecated as of API 1.44. Use Size instead.
 	VirtualSize int64             `json:"VirtualSize,omitempty" yaml:"VirtualSize,omitempty" toml:"VirtualSize,omitempty"`
 	ParentID    string            `json:"ParentId,omitempty" yaml:"ParentId,omitempty" toml:"ParentId,omitempty"`
 	RepoDigests []string          `json:"RepoDigests,omitempty" yaml:"RepoDigests,omitempty" toml:"RepoDigests,omitempty"`
@@ -42,18 +43,19 @@ type Image struct {
 	RepoTags        []string  `json:"RepoTags,omitempty" yaml:"RepoTags,omitempty" toml:"RepoTags,omitempty"`
 	Parent          string    `json:"Parent,omitempty" yaml:"Parent,omitempty" toml:"Parent,omitempty"`
 	Comment         string    `json:"Comment,omitempty" yaml:"Comment,omitempty" toml:"Comment,omitempty"`
-	Created         time.Time `json:"Created,omitempty" yaml:"Created,omitempty" toml:"Created,omitempty"`
+	Created         time.Time `json:"Created" yaml:"Created,omitempty" toml:"Created,omitempty"`
 	Container       string    `json:"Container,omitempty" yaml:"Container,omitempty" toml:"Container,omitempty"`
-	ContainerConfig Config    `json:"ContainerConfig,omitempty" yaml:"ContainerConfig,omitempty" toml:"ContainerConfig,omitempty"`
+	ContainerConfig Config    `json:"ContainerConfig" yaml:"ContainerConfig,omitempty" toml:"ContainerConfig,omitempty"`
 	DockerVersion   string    `json:"DockerVersion,omitempty" yaml:"DockerVersion,omitempty" toml:"DockerVersion,omitempty"`
 	Author          string    `json:"Author,omitempty" yaml:"Author,omitempty" toml:"Author,omitempty"`
 	Config          *Config   `json:"Config,omitempty" yaml:"Config,omitempty" toml:"Config,omitempty"`
 	Architecture    string    `json:"Architecture,omitempty" yaml:"Architecture,omitempty"`
 	Size            int64     `json:"Size,omitempty" yaml:"Size,omitempty" toml:"Size,omitempty"`
-	VirtualSize     int64     `json:"VirtualSize,omitempty" yaml:"VirtualSize,omitempty" toml:"VirtualSize,omitempty"`
-	RepoDigests     []string  `json:"RepoDigests,omitempty" yaml:"RepoDigests,omitempty" toml:"RepoDigests,omitempty"`
-	RootFS          *RootFS   `json:"RootFS,omitempty" yaml:"RootFS,omitempty" toml:"RootFS,omitempty"`
-	OS              string    `json:"Os,omitempty" yaml:"Os,omitempty" toml:"Os,omitempty"`
+	// Deprecated: VirtualSize is deprecated as of API 1.44. Use Size instead.
+	VirtualSize int64    `json:"VirtualSize,omitempty" yaml:"VirtualSize,omitempty" toml:"VirtualSize,omitempty"`
+	RepoDigests []string `json:"RepoDigests,omitempty" yaml:"RepoDigests,omitempty" toml:"RepoDigests,omitempty"`
+	RootFS      *RootFS  `json:"RootFS,omitempty" yaml:"RootFS,omitempty" toml:"RootFS,omitempty"`
+	OS          string   `json:"Os,omitempty" yaml:"Os,omitempty" toml:"Os,omitempty"`
 }
 
 // ImagePre012 serves the same purpose as the Image type except that it is for
@@ -64,7 +66,7 @@ type ImagePre012 struct {
 	Comment         string    `json:"comment,omitempty"`
 	Created         time.Time `json:"created"`
 	Container       string    `json:"container,omitempty"`
-	ContainerConfig Config    `json:"container_config,omitempty"`
+	ContainerConfig Config    `json:"container_config"`
 	DockerVersion   string    `json:"docker_version,omitempty"`
 	Author          string    `json:"author,omitempty"`
 	Config          *Config   `json:"config,omitempty"`
@@ -401,7 +403,7 @@ type ExportImagesOptions struct {
 //
 // See https://goo.gl/N9XlDn for more details.
 func (c *Client) ExportImages(opts ExportImagesOptions) error {
-	if opts.Names == nil || len(opts.Names) == 0 {
+	if len(opts.Names) == 0 {
 		return ErrMustSpecifyNames
 	}
 	// API < 1.25 allows multiple name values
@@ -409,12 +411,13 @@ func (c *Client) ExportImages(opts ExportImagesOptions) error {
 	var err error
 	var exporturl string
 	if c.requestedAPIVersion.GreaterThanOrEqualTo(apiVersion125) {
-		str := opts.Names[0]
+		var str strings.Builder
+		str.WriteString(opts.Names[0])
 		for _, val := range opts.Names[1:] {
-			str += "," + val
+			str.WriteString("," + val)
 		}
 		exporturl, err = c.getPath("/images/get", ExportImagesOptions{
-			Names:             []string{str},
+			Names:             []string{str.String()},
 			OutputStream:      opts.OutputStream,
 			InactivityTimeout: opts.InactivityTimeout,
 			Context:           opts.Context,
@@ -440,6 +443,7 @@ type ImportImageOptions struct {
 	Repository string `qs:"repo"`
 	Source     string `qs:"fromSrc"`
 	Tag        string `qs:"tag"`
+	Platform   string `qs:"platform" ver:"1.32"`
 
 	InputStream       io.Reader     `qs:"-"`
 	OutputStream      io.Writer     `qs:"-"`

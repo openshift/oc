@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -65,7 +66,7 @@ type APIEvents struct {
 	// New API Fields in 1.22
 	Action string   `json:"action,omitempty"`
 	Type   string   `json:"type,omitempty"`
-	Actor  APIActor `json:"actor,omitempty"`
+	Actor  APIActor `json:"actor"`
 
 	// Old API fields for < 1.22
 	Status string `json:"status,omitempty"`
@@ -197,12 +198,7 @@ func (eventState *eventMonitoringState) listernersCount() int {
 }
 
 func listenerExists(a chan<- *APIEvents, list *[]chan<- *APIEvents) bool {
-	for _, b := range *list {
-		if b == a {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(*list, a)
 }
 
 func (eventState *eventMonitoringState) enableEventMonitoring(c *Client, opts EventsOptions) error {
@@ -271,11 +267,13 @@ func (eventState *eventMonitoringState) monitorEvents(c *Client, opts EventsOpti
 				return
 			}
 			if ev == EOFEvent {
-				eventState.disableEventMonitoring()
+				go eventState.disableEventMonitoring()
 				return
 			}
-			eventState.updateLastSeen(ev)
-			eventState.sendEvent(ev)
+			go func(ev *APIEvents) {
+				eventState.updateLastSeen(ev)
+				eventState.sendEvent(ev)
+			}(ev)
 		case err = <-eventState.errC:
 			if errors.Is(err, ErrNoListeners) {
 				eventState.disableEventMonitoring()
