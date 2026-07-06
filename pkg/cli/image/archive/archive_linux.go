@@ -2,14 +2,53 @@ package archive
 
 import (
 	"archive/tar"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/moby/go-archive"
-	"github.com/docker/docker/pkg/system"
 	"golang.org/x/sys/unix"
 )
+
+var errNotSupportedPlatform = errors.New("platform and architecture is not supported")
+
+func lgetxattr(path, attr string) ([]byte, error) {
+	dest := make([]byte, 128)
+	sz, errno := unix.Lgetxattr(path, attr, dest)
+	for errors.Is(errno, unix.ERANGE) {
+		sz, errno = unix.Lgetxattr(path, attr, []byte{})
+		if errno != nil {
+			return nil, errno
+		}
+		dest = make([]byte, sz)
+		sz, errno = unix.Lgetxattr(path, attr, dest)
+	}
+	if errors.Is(errno, unix.ENODATA) {
+		return nil, nil
+	}
+	if errno != nil {
+		return nil, errno
+	}
+	return dest[:sz], nil
+}
+
+func lsetxattr(path, attr string, data []byte, flags int) error {
+	return unix.Lsetxattr(path, attr, data, flags)
+}
+
+func lutimesNano(path string, ts []syscall.Timespec) error {
+	uts := []unix.Timespec{
+		unix.NsecToTimespec(syscall.TimespecToNsec(ts[0])),
+		unix.NsecToTimespec(syscall.TimespecToNsec(ts[1])),
+	}
+	err := unix.UtimesNanoAt(unix.AT_FDCWD, path, uts, unix.AT_SYMLINK_NOFOLLOW)
+	if err != nil && !errors.Is(err, unix.ENOSYS) {
+		return err
+	}
+	return nil
+}
 
 func getWhiteoutConverter(format archive.WhiteoutFormat) tarWhiteoutConverter {
 	if format == archive.OverlayWhiteoutFormat {
@@ -33,7 +72,7 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 
 	if fi.Mode()&os.ModeDir != 0 {
 		// convert opaque dirs to AUFS format by writing an empty file with the prefix
-		opaque, err := system.Lgetxattr(path, "trusted.overlay.opaque")
+		opaque, err := lgetxattr(path, "trusted.overlay.opaque")
 		if err != nil {
 			return nil, err
 		}

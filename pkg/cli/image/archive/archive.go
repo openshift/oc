@@ -2,6 +2,7 @@ package archive
 
 import (
 	"archive/tar"
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -9,14 +10,19 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/moby/go-archive"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/go-archive/compression"
 	"github.com/moby/sys/sequential"
+	moby_user "github.com/moby/sys/user"
 )
+
+var bufioReader32KPool = sync.Pool{
+	New: func() any { return bufio.NewReaderSize(nil, 32*1024) },
+}
 
 type (
 	// Compression is the state represents if compressed or not.
@@ -26,14 +32,11 @@ type (
 
 	// TarOptions wraps the tar options.
 	TarOptions struct {
-		IncludeFiles    []string
-		ExcludePatterns []string
-		Compression     Compression
-		NoLchown        bool
-		// REMOVED: use remap instead
-		//UIDMaps          []idtools.IDMap
-		//GIDMaps          []idtools.IDMap
-		ChownOpts        *idtools.Identity
+		IncludeFiles     []string
+		ExcludePatterns  []string
+		Compression      Compression
+		NoLchown         bool
+		ChownOpts        *Identity
 		IncludeSourceDir bool
 		// WhiteoutFormat is the expected on disk format for whiteout files.
 		// This format will be converted to the standard format on pack
@@ -69,13 +72,19 @@ type AlterHeader interface {
 	Alter(*tar.Header) (bool, error)
 }
 
+// Identity holds a UID and GID pair.
+type Identity struct {
+	UID int
+	GID int
+}
+
 type RemapIDs struct {
-	mappings *idtools.IdentityMapping
+	mappings *moby_user.IdentityMapping
 }
 
 func (r RemapIDs) Alter(hdr *tar.Header) (bool, error) {
-	ids, err := r.mappings.ToHost(idtools.Identity{UID: hdr.Uid, GID: hdr.Gid})
-	hdr.Uid, hdr.Gid = ids.UID, ids.GID
+	uid, gid, err := r.mappings.ToHost(hdr.Uid, hdr.Gid)
+	hdr.Uid, hdr.Gid = uid, gid
 	return true, err
 }
 
@@ -83,7 +92,7 @@ func (r RemapIDs) Alter(hdr *tar.Header) (bool, error) {
 func ApplyLayer(dest string, layer io.Reader, options *TarOptions) (int64, error) {
 	dest = filepath.Clean(dest)
 	var err error
-	layer, err = archive.DecompressStream(layer)
+	layer, err = compression.DecompressStream(layer)
 	if err != nil {
 		return 0, err
 	}
@@ -96,8 +105,12 @@ func ApplyLayer(dest string, layer io.Reader, options *TarOptions) (int64, error
 // Returns the size in bytes of the contents of the layer.
 func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64, err error) {
 	tr := tar.NewReader(layer)
-	trBuf := pools.BufioReader32KPool.Get(tr)
-	defer pools.BufioReader32KPool.Put(trBuf)
+	trBuf := bufioReader32KPool.Get().(*bufio.Reader)
+	trBuf.Reset(tr)
+	defer func() {
+		trBuf.Reset(nil)
+		bufioReader32KPool.Put(trBuf)
+	}()
 
 	var dirs []*tar.Header
 	unpackedPaths := make(map[string]struct{})
@@ -183,7 +196,7 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 			parentPath := filepath.Join(dest, parent)
 
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = system.MkdirAll(parentPath, 0600)
+				err = os.MkdirAll(parentPath, 0600)
 				if err != nil {
 					return 0, err
 				}
@@ -301,7 +314,7 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 
 	for _, hdr := range dirs {
 		path := filepath.Join(dest, hdr.Name)
-		if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
+		if err := chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
 			return 0, err
 		}
 	}
@@ -309,7 +322,7 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 	return size, nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.Identity, inUserns bool, currentUser *user.User) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *Identity, inUserns bool, currentUser *user.User) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -388,7 +401,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	// Lchown is not supported on Windows.
 	if Lchown && runtime.GOOS != "windows" {
 		if chownOpts == nil {
-			chownOpts = &idtools.Identity{UID: hdr.Uid, GID: hdr.Gid}
+			chownOpts = &Identity{UID: hdr.Uid, GID: hdr.Gid}
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
 			return err
@@ -401,8 +414,8 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		if key == "security.capability" && currentUser != nil && currentUser.Username != "root" {
 			continue
 		}
-		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
-			if err == system.ErrNotSupportedPlatform {
+		if err := lsetxattr(path, key, []byte(value), 0); err != nil {
+			if err == errNotSupportedPlatform {
 				// we ignore not supported platform errors
 				// to proceed archiving on platforms like darwin.
 				continue
@@ -434,19 +447,37 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	// system.Chtimes doesn't support a NOFOLLOW flag atm
 	if hdr.Typeflag == tar.TypeLink {
 		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			if err := system.Chtimes(path, aTime, hdr.ModTime); err != nil {
+			if err := chtimes(path, aTime, hdr.ModTime); err != nil {
 				return err
 			}
 		}
 	} else if hdr.Typeflag != tar.TypeSymlink {
-		if err := system.Chtimes(path, aTime, hdr.ModTime); err != nil {
+		if err := chtimes(path, aTime, hdr.ModTime); err != nil {
 			return err
 		}
 	} else {
 		ts := []syscall.Timespec{timeToTimespec(aTime), timeToTimespec(hdr.ModTime)}
-		if err := system.LUtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
+		if err := lutimesNano(path, ts); err != nil && err != errNotSupportedPlatform {
 			return err
 		}
 	}
 	return nil
+}
+
+var (
+	unixEpoch   = time.Unix(0, 0)
+	unixMaxTime = time.Unix(0, 1<<63-1)
+)
+
+// chtimes clamps atime/mtime to a valid Unix range before calling os.Chtimes.
+// os.Chtimes has undefined behavior for times outside [epoch, max], so we
+// default out-of-range values to the epoch.
+func chtimes(name string, atime, mtime time.Time) error {
+	if atime.Before(unixEpoch) || atime.After(unixMaxTime) {
+		atime = unixEpoch
+	}
+	if mtime.Before(unixEpoch) || mtime.After(unixMaxTime) {
+		mtime = unixEpoch
+	}
+	return os.Chtimes(name, atime, mtime)
 }

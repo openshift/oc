@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/distribution/distribution/v3"
-	dockerarchive "github.com/moby/go-archive"
+	dockerarchive "github.com/moby/go-archive/compression"
 	digest "github.com/opencontainers/go-digest"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
