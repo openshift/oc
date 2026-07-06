@@ -32,6 +32,7 @@ require (
 	github.com/int128/oauth2cli v1.18.0
 	github.com/joelanford/ignore v0.1.2
 	github.com/moby/buildkit v0.12.5
+	github.com/moby/go-archive v0.1.0
 	github.com/moby/sys/sequential v0.6.0
 	github.com/moby/term v0.5.2
 	github.com/onsi/ginkgo/v2 v2.27.2
@@ -154,7 +155,6 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/go-archive v0.1.0 // indirect
 	github.com/moby/moby/client v0.4.1 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
 	github.com/moby/spdystream v0.5.0 // indirect

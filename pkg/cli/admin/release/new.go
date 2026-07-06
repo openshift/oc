@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/go-archive"
 	"github.com/ghodss/yaml"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
