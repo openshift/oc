@@ -16,7 +16,7 @@ import (
 	"github.com/openshift/oc/test/e2e"
 )
 
-var _ = g.Describe("[sig-cli][OCPFeatureGate:ClusterUpdateAcceptRisks] oc", g.Label("cluster-version-operator"), func() {
+var _ = g.Describe("[sig-cli] oc", g.Label("cluster-version-operator"), func() {
 
 	var (
 		ctx            = context.TODO()
