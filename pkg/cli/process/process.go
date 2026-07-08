@@ -312,7 +312,7 @@ func (o *ProcessOptions) RunProcess() error {
 		return nil
 	})
 	if len(duplicatedKeys) != 0 {
-		return o.usageErrorFn(fmt.Sprintf("The following parameters were provided more than once: %s", strings.Join(duplicatedKeys.List(), ", ")))
+		return o.usageErrorFn("The following parameters were provided more than once: %s", strings.Join(duplicatedKeys.List(), ", "))
 	}
 
 	if len(o.templateName) == 0 && len(o.filename) == 0 {
