@@ -17,7 +17,7 @@ import (
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/compression"
 	"github.com/moby/sys/sequential"
-	moby_user "github.com/moby/sys/user"
+	mobyuser "github.com/moby/sys/user"
 )
 
 var bufioReader32KPool = sync.Pool{
@@ -79,7 +79,7 @@ type Identity struct {
 }
 
 type RemapIDs struct {
-	mappings *moby_user.IdentityMapping
+	mappings *mobyuser.IdentityMapping
 }
 
 func (r RemapIDs) Alter(hdr *tar.Header) (bool, error) {
