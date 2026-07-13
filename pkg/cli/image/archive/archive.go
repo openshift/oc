@@ -2,7 +2,6 @@ package archive
 
 import (
 	"archive/tar"
-	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -19,10 +17,6 @@ import (
 	"github.com/moby/sys/sequential"
 	mobyuser "github.com/moby/sys/user"
 )
-
-var bufioReader32KPool = sync.Pool{
-	New: func() any { return bufio.NewReaderSize(nil, 32*1024) },
-}
 
 type (
 	// Compression is the state represents if compressed or not.
@@ -105,12 +99,6 @@ func ApplyLayer(dest string, layer io.Reader, options *TarOptions) (int64, error
 // Returns the size in bytes of the contents of the layer.
 func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64, err error) {
 	tr := tar.NewReader(layer)
-	trBuf := bufioReader32KPool.Get().(*bufio.Reader)
-	trBuf.Reset(tr)
-	defer func() {
-		trBuf.Reset(nil)
-		bufioReader32KPool.Put(trBuf)
-	}()
 
 	var dirs []*tar.Header
 	unpackedPaths := make(map[string]struct{})
@@ -275,8 +263,7 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 				}
 			}
 
-			trBuf.Reset(tr)
-			srcData := io.Reader(trBuf)
+			srcData := io.Reader(tr)
 			srcHdr := hdr
 
 			// Hard links into /.wh..wh.plnk don't work, as we don't extract that directory, so
