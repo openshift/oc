@@ -456,6 +456,7 @@ var (
 	unixMaxTime = time.Unix(0, 1<<63-1)
 )
 
+// chtimes is derived from github.com/moby/moby daemon/internal/system/chtimes.go
 // chtimes clamps atime/mtime to a valid Unix range before calling os.Chtimes.
 // os.Chtimes has undefined behavior for times outside [epoch, max], so we
 // default out-of-range values to the epoch.

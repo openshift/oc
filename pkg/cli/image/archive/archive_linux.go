@@ -14,30 +14,73 @@ import (
 
 var errNotSupportedPlatform = errors.New("platform and architecture is not supported")
 
+// xattrError is copied from github.com/moby/moby daemon/internal/system/xattrs_linux.go
+type xattrError struct {
+	Op   string
+	Attr string
+	Path string
+	Err  error
+}
+
+func (e *xattrError) Error() string {
+	return e.Op + " " + e.Attr + " " + e.Path + ": " + e.Err.Error()
+}
+
+func (e *xattrError) Unwrap() error { return e.Err }
+
+// Timeout reports whether this error represents a timeout.
+func (e *xattrError) Timeout() bool {
+	t, ok := e.Err.(interface{ Timeout() bool })
+	return ok && t.Timeout()
+}
+
+// lgetxattr is copied from github.com/moby/moby daemon/internal/system/xattrs_linux.go
+// lgetxattr retrieves the value of the extended attribute identified by attr
+// and associated with the given path in the file system.
+// It returns a nil slice and nil error if the xattr is not set.
 func lgetxattr(path, attr string) ([]byte, error) {
+	sysErr := func(err error) ([]byte, error) {
+		return nil, &xattrError{Op: "lgetxattr", Attr: attr, Path: path, Err: err}
+	}
+
+	// Start with a 128 length byte array
 	dest := make([]byte, 128)
 	sz, errno := unix.Lgetxattr(path, attr, dest)
+
 	for errors.Is(errno, unix.ERANGE) {
+		// Buffer too small, use zero-sized buffer to get the actual size
 		sz, errno = unix.Lgetxattr(path, attr, []byte{})
 		if errno != nil {
-			return nil, errno
+			return sysErr(errno)
 		}
 		dest = make([]byte, sz)
 		sz, errno = unix.Lgetxattr(path, attr, dest)
 	}
-	if errors.Is(errno, unix.ENODATA) {
+
+	switch {
+	case errors.Is(errno, unix.ENODATA):
 		return nil, nil
+	case errno != nil:
+		return sysErr(errno)
 	}
-	if errno != nil {
-		return nil, errno
-	}
+
 	return dest[:sz], nil
 }
 
+// lsetxattr is copied from github.com/moby/moby daemon/internal/system/xattrs_linux.go
+// lsetxattr sets the value of the extended attribute identified by attr
+// and associated with the given path in the file system.
 func lsetxattr(path, attr string, data []byte, flags int) error {
-	return unix.Lsetxattr(path, attr, data, flags)
+	err := unix.Lsetxattr(path, attr, data, flags)
+	if err != nil {
+		return &xattrError{Op: "lsetxattr", Attr: attr, Path: path, Err: err}
+	}
+	return nil
 }
 
+// lutimesNano is copied from github.com/moby/moby daemon/internal/system/utimes_unix.go
+// LUtimesNano is used to change access and modification time of the specified path.
+// It's used for symbol link file because unix.UtimesNano doesn't support a NOFOLLOW flag atm.
 func lutimesNano(path string, ts []syscall.Timespec) error {
 	uts := []unix.Timespec{
 		unix.NsecToTimespec(syscall.TimespecToNsec(ts[0])),
@@ -47,6 +90,7 @@ func lutimesNano(path string, ts []syscall.Timespec) error {
 	if err != nil && !errors.Is(err, unix.ENOSYS) {
 		return err
 	}
+
 	return nil
 }
 
