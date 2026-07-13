@@ -1,24 +1,21 @@
 # Examples for `oc adm upgrade recommend`
 
-Each testcase is anchored by an `xxx-cv.yaml`, where `xxx` is a common substring that identifies the testcase. The `-cv.yaml` file describes the ClusterVersion object essential to the functionality of `oc adm upgrade recommend`
+Each testcase is anchored by a `<test-case>-cv.yaml` file that describes the ClusterVersion object and is essential to the testing of `oc adm upgrade recommend`
 
-**INPUTS**
----
+## Inputs
 * `TESTCASE-cv.yaml`: ClusterVersion object (required, created by `oc get clusterversion version -o yaml`).  Lists are also supported.
 * `TESTCASE-featuregate.yaml`: FeatureGate object (optional, created by `oc get featuregate cluster -o yaml`). Lists are NOT supported.
 * `TESTCASE-infrastructure.yaml`: Infrastructure object (optional, created by `oc get infrastructure cluster -o yaml`). Lists are NOT supported
-* `TESTCASE-alerts.json`: Alerts currently present in the cluster (optional, created by `OC_ENABLE_CMD_INSPECT_ALERTS=true oc adm inspect-alerts`)
+* `TESTCASE-alerts.json`: Running alerts in the cluster (optional, expected output of `OC_ENABLE_CMD_INSPECT_ALERTS=true oc adm inspect-alerts`)
 
-**OUTPUTS**
----
+## Outputs
 * `TESTCASE.output`: expected output of `oc adm upgrade recommend`.
 * `TESTCASE.show-outdated-releases-output`: expected output of `oc adm upgrade recommend --show-outdated-releases`.
 * `TESTCASE.version-<VERSION>-output`: expected output of `oc adm upgrade recommend --to <VERSION>`.
 
 The `TestExamples` test in [`examples_test.go`](../examples_test.go) file above validates all examples.
 
-**TESTING**
----
+## Testing
 * When the testcase is executed with a non-empty `UPDATE` environmental variable, it will update the `TESTCASE.out` fixture:
 ```console
 $ UPDATE=yes go test -v ./pkg/cli/admin/upgrade/recommend/...
