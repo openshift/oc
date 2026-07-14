@@ -450,4 +450,3 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	}
 	return nil
 }
-
