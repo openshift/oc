@@ -137,6 +137,7 @@ var MissingDescriberGroupCoverageExceptions = []schema.GroupVersion{
 
 // MissingDescriberGVKExceptions lists specific GroupVersionKind that don't need describers
 var MissingDescriberGVKExceptions = []schema.GroupVersionKind{
+	{Group: "etcd.openshift.io", Version: "v1", Kind: "PacemakerCluster"},
 	{Group: "etcd.openshift.io", Version: "v1alpha1", Kind: "PacemakerCluster"},
 	{Group: "etcd.openshift.io", Version: "v1", Kind: "PacemakerCluster"},
 	{Group: "apiextensions.openshift.io", Version: "v1alpha1", Kind: "CompatibilityRequirement"},
