@@ -10,12 +10,12 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/compression"
 	"github.com/moby/sys/sequential"
 	mobyuser "github.com/moby/sys/user"
+	"go.podman.io/storage/pkg/system"
 )
 
 type (
@@ -301,7 +301,7 @@ func unpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 
 	for _, hdr := range dirs {
 		path := filepath.Join(dest, hdr.Name)
-		if err := chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
+		if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
 			return 0, err
 		}
 	}
@@ -401,8 +401,8 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		if key == "security.capability" && currentUser != nil && currentUser.Username != "root" {
 			continue
 		}
-		if err := lsetxattr(path, key, []byte(value), 0); err != nil {
-			if err == errNotSupportedPlatform {
+		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
+			if err == system.ErrNotSupportedPlatform {
 				// we ignore not supported platform errors
 				// to proceed archiving on platforms like darwin.
 				continue
@@ -434,38 +434,20 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	// system.Chtimes doesn't support a NOFOLLOW flag atm
 	if hdr.Typeflag == tar.TypeLink {
 		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			if err := chtimes(path, aTime, hdr.ModTime); err != nil {
+			if err := system.Chtimes(path, aTime, hdr.ModTime); err != nil {
 				return err
 			}
 		}
 	} else if hdr.Typeflag != tar.TypeSymlink {
-		if err := chtimes(path, aTime, hdr.ModTime); err != nil {
+		if err := system.Chtimes(path, aTime, hdr.ModTime); err != nil {
 			return err
 		}
 	} else {
 		ts := []syscall.Timespec{timeToTimespec(aTime), timeToTimespec(hdr.ModTime)}
-		if err := lutimesNano(path, ts); err != nil && err != errNotSupportedPlatform {
+		if err := system.LUtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
 			return err
 		}
 	}
 	return nil
 }
 
-var (
-	unixEpoch   = time.Unix(0, 0)
-	unixMaxTime = time.Unix(0, 1<<63-1)
-)
-
-// chtimes is derived from github.com/moby/moby daemon/internal/system/chtimes.go
-// chtimes clamps atime/mtime to a valid Unix range before calling os.Chtimes.
-// os.Chtimes has undefined behavior for times outside [epoch, max], so we
-// default out-of-range values to the epoch.
-func chtimes(name string, atime, mtime time.Time) error {
-	if atime.Before(unixEpoch) || atime.After(unixMaxTime) {
-		atime = unixEpoch
-	}
-	if mtime.Before(unixEpoch) || mtime.After(unixMaxTime) {
-		mtime = unixEpoch
-	}
-	return os.Chtimes(name, atime, mtime)
-}
