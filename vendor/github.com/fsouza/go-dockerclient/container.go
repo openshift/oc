@@ -47,7 +47,7 @@ type APIContainers struct {
 	SizeRootFs int64             `json:"SizeRootFs,omitempty" yaml:"SizeRootFs,omitempty" toml:"SizeRootFs,omitempty"`
 	Names      []string          `json:"Names,omitempty" yaml:"Names,omitempty" toml:"Names,omitempty"`
 	Labels     map[string]string `json:"Labels,omitempty" yaml:"Labels,omitempty" toml:"Labels,omitempty"`
-	Networks   NetworkList       `json:"NetworkSettings,omitempty" yaml:"NetworkSettings,omitempty" toml:"NetworkSettings,omitempty"`
+	Networks   NetworkList       `json:"NetworkSettings" yaml:"NetworkSettings,omitempty" toml:"NetworkSettings,omitempty"`
 	Mounts     []APIMount        `json:"Mounts,omitempty" yaml:"Mounts,omitempty" toml:"Mounts,omitempty"`
 }
 
@@ -77,8 +77,8 @@ func (p Port) Proto() string {
 
 // HealthCheck represents one check of health.
 type HealthCheck struct {
-	Start    time.Time `json:"Start,omitempty" yaml:"Start,omitempty" toml:"Start,omitempty"`
-	End      time.Time `json:"End,omitempty" yaml:"End,omitempty" toml:"End,omitempty"`
+	Start    time.Time `json:"Start" yaml:"Start,omitempty" toml:"Start,omitempty"`
+	End      time.Time `json:"End" yaml:"End,omitempty" toml:"End,omitempty"`
 	ExitCode int       `json:"ExitCode,omitempty" yaml:"ExitCode,omitempty" toml:"ExitCode,omitempty"`
 	Output   string    `json:"Output,omitempty" yaml:"Output,omitempty" toml:"Output,omitempty"`
 }
@@ -102,9 +102,9 @@ type State struct {
 	Pid               int       `json:"Pid,omitempty" yaml:"Pid,omitempty" toml:"Pid,omitempty"`
 	ExitCode          int       `json:"ExitCode,omitempty" yaml:"ExitCode,omitempty" toml:"ExitCode,omitempty"`
 	Error             string    `json:"Error,omitempty" yaml:"Error,omitempty" toml:"Error,omitempty"`
-	StartedAt         time.Time `json:"StartedAt,omitempty" yaml:"StartedAt,omitempty" toml:"StartedAt,omitempty"`
-	FinishedAt        time.Time `json:"FinishedAt,omitempty" yaml:"FinishedAt,omitempty" toml:"FinishedAt,omitempty"`
-	Health            Health    `json:"Health,omitempty" yaml:"Health,omitempty" toml:"Health,omitempty"`
+	StartedAt         time.Time `json:"StartedAt" yaml:"StartedAt,omitempty" toml:"StartedAt,omitempty"`
+	FinishedAt        time.Time `json:"FinishedAt" yaml:"FinishedAt,omitempty" toml:"FinishedAt,omitempty"`
+	Health            Health    `json:"Health" yaml:"Health,omitempty" toml:"Health,omitempty"`
 }
 
 // String returns a human-readable description of the state
@@ -185,6 +185,7 @@ type ContainerNetwork struct {
 	Gateway             string   `json:"Gateway,omitempty" yaml:"Gateway,omitempty" toml:"Gateway,omitempty"`
 	EndpointID          string   `json:"EndpointID,omitempty" yaml:"EndpointID,omitempty" toml:"EndpointID,omitempty"`
 	NetworkID           string   `json:"NetworkID,omitempty" yaml:"NetworkID,omitempty" toml:"NetworkID,omitempty"`
+	DNSNames            []string `json:"DNSNames,omitempty" yaml:"DNSNames,omitempty" toml:"DNSNames,omitempty"`
 }
 
 // NetworkSettings contains network-related information about a container
@@ -313,13 +314,14 @@ type BindOptions struct {
 type VolumeOptions struct {
 	NoCopy       bool               `json:"NoCopy,omitempty" yaml:"NoCopy,omitempty" toml:"NoCopy,omitempty"`
 	Labels       map[string]string  `json:"Labels,omitempty" yaml:"Labels,omitempty" toml:"Labels,omitempty"`
-	DriverConfig VolumeDriverConfig `json:"DriverConfig,omitempty" yaml:"DriverConfig,omitempty" toml:"DriverConfig,omitempty"`
+	DriverConfig VolumeDriverConfig `json:"DriverConfig" yaml:"DriverConfig,omitempty" toml:"DriverConfig,omitempty"`
 }
 
 // TempfsOptions contains optional configuration for the tempfs type
 type TempfsOptions struct {
-	SizeBytes int64 `json:"SizeBytes,omitempty" yaml:"SizeBytes,omitempty" toml:"SizeBytes,omitempty"`
-	Mode      int   `json:"Mode,omitempty" yaml:"Mode,omitempty" toml:"Mode,omitempty"`
+	SizeBytes int64      `json:"SizeBytes,omitempty" yaml:"SizeBytes,omitempty" toml:"SizeBytes,omitempty"`
+	Mode      int        `json:"Mode,omitempty" yaml:"Mode,omitempty" toml:"Mode,omitempty"`
+	Options   [][]string `json:"Options,omitempty" yaml:"Options,omitempty" toml:"Options,omitempty"`
 }
 
 // VolumeDriverConfig holds a map of volume driver specific options
@@ -389,9 +391,10 @@ type HealthConfig struct {
 	Test []string `json:"Test,omitempty" yaml:"Test,omitempty" toml:"Test,omitempty"`
 
 	// Zero means to inherit. Durations are expressed as integer nanoseconds.
-	Interval    time.Duration `json:"Interval,omitempty" yaml:"Interval,omitempty" toml:"Interval,omitempty"`          // Interval is the time to wait between checks.
-	Timeout     time.Duration `json:"Timeout,omitempty" yaml:"Timeout,omitempty" toml:"Timeout,omitempty"`             // Timeout is the time to wait before considering the check to have hung.
-	StartPeriod time.Duration `json:"StartPeriod,omitempty" yaml:"StartPeriod,omitempty" toml:"StartPeriod,omitempty"` // The start period for the container to initialize before the retries starts to count down.
+	Interval      time.Duration `json:"Interval,omitempty" yaml:"Interval,omitempty" toml:"Interval,omitempty"`                // Interval is the time to wait between checks.
+	Timeout       time.Duration `json:"Timeout,omitempty" yaml:"Timeout,omitempty" toml:"Timeout,omitempty"`                   // Timeout is the time to wait before considering the check to have hung.
+	StartPeriod   time.Duration `json:"StartPeriod,omitempty" yaml:"StartPeriod,omitempty" toml:"StartPeriod,omitempty"`       // The start period for the container to initialize before the retries starts to count down.
+	StartInterval time.Duration `json:"StartInterval,omitempty" yaml:"StartInterval,omitempty" toml:"StartInterval,omitempty"` // The start interval is the time to wait between checks during the start period.
 
 	// Retries is the number of consecutive failures needed to consider a container as unhealthy.
 	// Zero means inherit.
@@ -403,13 +406,13 @@ type HealthConfig struct {
 type Container struct {
 	ID string `json:"Id" yaml:"Id" toml:"Id"`
 
-	Created time.Time `json:"Created,omitempty" yaml:"Created,omitempty" toml:"Created,omitempty"`
+	Created time.Time `json:"Created" yaml:"Created,omitempty" toml:"Created,omitempty"`
 
 	Path string   `json:"Path,omitempty" yaml:"Path,omitempty" toml:"Path,omitempty"`
 	Args []string `json:"Args,omitempty" yaml:"Args,omitempty" toml:"Args,omitempty"`
 
 	Config *Config `json:"Config,omitempty" yaml:"Config,omitempty" toml:"Config,omitempty"`
-	State  State   `json:"State,omitempty" yaml:"State,omitempty" toml:"State,omitempty"`
+	State  State   `json:"State" yaml:"State,omitempty" toml:"State,omitempty"`
 	Image  string  `json:"Image,omitempty" yaml:"Image,omitempty" toml:"Image,omitempty"`
 
 	Node *SwarmNode `json:"Node,omitempty" yaml:"Node,omitempty" toml:"Node,omitempty"`
@@ -483,78 +486,80 @@ type BlockLimit struct {
 // HostConfig contains the container options related to starting a container on
 // a given host
 type HostConfig struct {
-	Binds                []string               `json:"Binds,omitempty" yaml:"Binds,omitempty" toml:"Binds,omitempty"`
-	CapAdd               []string               `json:"CapAdd,omitempty" yaml:"CapAdd,omitempty" toml:"CapAdd,omitempty"`
-	CapDrop              []string               `json:"CapDrop,omitempty" yaml:"CapDrop,omitempty" toml:"CapDrop,omitempty"`
-	Capabilities         []string               `json:"Capabilities,omitempty" yaml:"Capabilities,omitempty" toml:"Capabilities,omitempty"` // Mutually exclusive w.r.t. CapAdd and CapDrop API v1.40
-	GroupAdd             []string               `json:"GroupAdd,omitempty" yaml:"GroupAdd,omitempty" toml:"GroupAdd,omitempty"`
-	ContainerIDFile      string                 `json:"ContainerIDFile,omitempty" yaml:"ContainerIDFile,omitempty" toml:"ContainerIDFile,omitempty"`
-	LxcConf              []KeyValuePair         `json:"LxcConf,omitempty" yaml:"LxcConf,omitempty" toml:"LxcConf,omitempty"`
-	PortBindings         map[Port][]PortBinding `json:"PortBindings,omitempty" yaml:"PortBindings,omitempty" toml:"PortBindings,omitempty"`
-	Links                []string               `json:"Links,omitempty" yaml:"Links,omitempty" toml:"Links,omitempty"`
-	DNS                  []string               `json:"Dns,omitempty" yaml:"Dns,omitempty" toml:"Dns,omitempty"` // For Docker API v1.10 and above only
-	DNSOptions           []string               `json:"DnsOptions,omitempty" yaml:"DnsOptions,omitempty" toml:"DnsOptions,omitempty"`
-	DNSSearch            []string               `json:"DnsSearch,omitempty" yaml:"DnsSearch,omitempty" toml:"DnsSearch,omitempty"`
-	ExtraHosts           []string               `json:"ExtraHosts,omitempty" yaml:"ExtraHosts,omitempty" toml:"ExtraHosts,omitempty"`
-	VolumesFrom          []string               `json:"VolumesFrom,omitempty" yaml:"VolumesFrom,omitempty" toml:"VolumesFrom,omitempty"`
-	UsernsMode           string                 `json:"UsernsMode,omitempty" yaml:"UsernsMode,omitempty" toml:"UsernsMode,omitempty"`
-	NetworkMode          string                 `json:"NetworkMode,omitempty" yaml:"NetworkMode,omitempty" toml:"NetworkMode,omitempty"`
-	IpcMode              string                 `json:"IpcMode,omitempty" yaml:"IpcMode,omitempty" toml:"IpcMode,omitempty"`
-	Isolation            string                 `json:"Isolation,omitempty" yaml:"Isolation,omitempty" toml:"Isolation,omitempty"`       // Windows only
-	ConsoleSize          [2]int                 `json:"ConsoleSize,omitempty" yaml:"ConsoleSize,omitempty" toml:"ConsoleSize,omitempty"` // Windows only height x width
-	PidMode              string                 `json:"PidMode,omitempty" yaml:"PidMode,omitempty" toml:"PidMode,omitempty"`
-	UTSMode              string                 `json:"UTSMode,omitempty" yaml:"UTSMode,omitempty" toml:"UTSMode,omitempty"`
-	RestartPolicy        RestartPolicy          `json:"RestartPolicy,omitempty" yaml:"RestartPolicy,omitempty" toml:"RestartPolicy,omitempty"`
-	Devices              []Device               `json:"Devices,omitempty" yaml:"Devices,omitempty" toml:"Devices,omitempty"`
-	DeviceCgroupRules    []string               `json:"DeviceCgroupRules,omitempty" yaml:"DeviceCgroupRules,omitempty" toml:"DeviceCgroupRules,omitempty"`
-	DeviceRequests       []DeviceRequest        `json:"DeviceRequests,omitempty" yaml:"DeviceRequests,omitempty" toml:"DeviceRequests,omitempty"`
-	LogConfig            LogConfig              `json:"LogConfig,omitempty" yaml:"LogConfig,omitempty" toml:"LogConfig,omitempty"`
-	SecurityOpt          []string               `json:"SecurityOpt,omitempty" yaml:"SecurityOpt,omitempty" toml:"SecurityOpt,omitempty"`
-	CgroupnsMode         string                 `json:"CgroupnsMode,omitempty" yaml:"CgroupnsMode,omitempty" toml:"CgroupnsMode,omitempty"` // v1.40+
-	Cgroup               string                 `json:"Cgroup,omitempty" yaml:"Cgroup,omitempty" toml:"Cgroup,omitempty"`
-	CgroupParent         string                 `json:"CgroupParent,omitempty" yaml:"CgroupParent,omitempty" toml:"CgroupParent,omitempty"`
-	Memory               int64                  `json:"Memory,omitempty" yaml:"Memory,omitempty" toml:"Memory,omitempty"`
-	MemoryReservation    int64                  `json:"MemoryReservation,omitempty" yaml:"MemoryReservation,omitempty" toml:"MemoryReservation,omitempty"`
-	KernelMemory         int64                  `json:"KernelMemory,omitempty" yaml:"KernelMemory,omitempty" toml:"KernelMemory,omitempty"`
-	MemorySwap           int64                  `json:"MemorySwap,omitempty" yaml:"MemorySwap,omitempty" toml:"MemorySwap,omitempty"`
-	CPUShares            int64                  `json:"CpuShares,omitempty" yaml:"CpuShares,omitempty" toml:"CpuShares,omitempty"`
-	CPUSet               string                 `json:"Cpuset,omitempty" yaml:"Cpuset,omitempty" toml:"Cpuset,omitempty"`
-	CPUSetCPUs           string                 `json:"CpusetCpus,omitempty" yaml:"CpusetCpus,omitempty" toml:"CpusetCpus,omitempty"`
-	CPUSetMEMs           string                 `json:"CpusetMems,omitempty" yaml:"CpusetMems,omitempty" toml:"CpusetMems,omitempty"`
-	CPUQuota             int64                  `json:"CpuQuota,omitempty" yaml:"CpuQuota,omitempty" toml:"CpuQuota,omitempty"`
-	CPUPeriod            int64                  `json:"CpuPeriod,omitempty" yaml:"CpuPeriod,omitempty" toml:"CpuPeriod,omitempty"`
-	CPURealtimePeriod    int64                  `json:"CpuRealtimePeriod,omitempty" yaml:"CpuRealtimePeriod,omitempty" toml:"CpuRealtimePeriod,omitempty"`
-	CPURealtimeRuntime   int64                  `json:"CpuRealtimeRuntime,omitempty" yaml:"CpuRealtimeRuntime,omitempty" toml:"CpuRealtimeRuntime,omitempty"`
-	NanoCPUs             int64                  `json:"NanoCpus,omitempty" yaml:"NanoCpus,omitempty" toml:"NanoCpus,omitempty"`
-	BlkioWeight          int64                  `json:"BlkioWeight,omitempty" yaml:"BlkioWeight,omitempty" toml:"BlkioWeight,omitempty"`
-	BlkioWeightDevice    []BlockWeight          `json:"BlkioWeightDevice,omitempty" yaml:"BlkioWeightDevice,omitempty" toml:"BlkioWeightDevice,omitempty"`
-	BlkioDeviceReadBps   []BlockLimit           `json:"BlkioDeviceReadBps,omitempty" yaml:"BlkioDeviceReadBps,omitempty" toml:"BlkioDeviceReadBps,omitempty"`
-	BlkioDeviceReadIOps  []BlockLimit           `json:"BlkioDeviceReadIOps,omitempty" yaml:"BlkioDeviceReadIOps,omitempty" toml:"BlkioDeviceReadIOps,omitempty"`
-	BlkioDeviceWriteBps  []BlockLimit           `json:"BlkioDeviceWriteBps,omitempty" yaml:"BlkioDeviceWriteBps,omitempty" toml:"BlkioDeviceWriteBps,omitempty"`
-	BlkioDeviceWriteIOps []BlockLimit           `json:"BlkioDeviceWriteIOps,omitempty" yaml:"BlkioDeviceWriteIOps,omitempty" toml:"BlkioDeviceWriteIOps,omitempty"`
-	Ulimits              []ULimit               `json:"Ulimits,omitempty" yaml:"Ulimits,omitempty" toml:"Ulimits,omitempty"`
-	VolumeDriver         string                 `json:"VolumeDriver,omitempty" yaml:"VolumeDriver,omitempty" toml:"VolumeDriver,omitempty"`
-	OomScoreAdj          int                    `json:"OomScoreAdj,omitempty" yaml:"OomScoreAdj,omitempty" toml:"OomScoreAdj,omitempty"`
-	MemorySwappiness     *int64                 `json:"MemorySwappiness,omitempty" yaml:"MemorySwappiness,omitempty" toml:"MemorySwappiness,omitempty"`
-	PidsLimit            *int64                 `json:"PidsLimit,omitempty" yaml:"PidsLimit,omitempty" toml:"PidsLimit,omitempty"`
-	OOMKillDisable       *bool                  `json:"OomKillDisable,omitempty" yaml:"OomKillDisable,omitempty" toml:"OomKillDisable,omitempty"`
-	ShmSize              int64                  `json:"ShmSize,omitempty" yaml:"ShmSize,omitempty" toml:"ShmSize,omitempty"`
-	Tmpfs                map[string]string      `json:"Tmpfs,omitempty" yaml:"Tmpfs,omitempty" toml:"Tmpfs,omitempty"`
-	StorageOpt           map[string]string      `json:"StorageOpt,omitempty" yaml:"StorageOpt,omitempty" toml:"StorageOpt,omitempty"`
-	Sysctls              map[string]string      `json:"Sysctls,omitempty" yaml:"Sysctls,omitempty" toml:"Sysctls,omitempty"`
-	CPUCount             int64                  `json:"CpuCount,omitempty" yaml:"CpuCount,omitempty"`
-	CPUPercent           int64                  `json:"CpuPercent,omitempty" yaml:"CpuPercent,omitempty"`
-	IOMaximumBandwidth   int64                  `json:"IOMaximumBandwidth,omitempty" yaml:"IOMaximumBandwidth,omitempty"`
-	IOMaximumIOps        int64                  `json:"IOMaximumIOps,omitempty" yaml:"IOMaximumIOps,omitempty"`
-	Mounts               []HostMount            `json:"Mounts,omitempty" yaml:"Mounts,omitempty" toml:"Mounts,omitempty"`
-	MaskedPaths          []string               `json:"MaskedPaths,omitempty" yaml:"MaskedPaths,omitempty" toml:"MaskedPaths,omitempty"`
-	ReadonlyPaths        []string               `json:"ReadonlyPaths,omitempty" yaml:"ReadonlyPaths,omitempty" toml:"ReadonlyPaths,omitempty"`
-	Runtime              string                 `json:"Runtime,omitempty" yaml:"Runtime,omitempty" toml:"Runtime,omitempty"`
-	Init                 bool                   `json:",omitempty" yaml:",omitempty"`
-	Privileged           bool                   `json:"Privileged,omitempty" yaml:"Privileged,omitempty" toml:"Privileged,omitempty"`
-	PublishAllPorts      bool                   `json:"PublishAllPorts,omitempty" yaml:"PublishAllPorts,omitempty" toml:"PublishAllPorts,omitempty"`
-	ReadonlyRootfs       bool                   `json:"ReadonlyRootfs,omitempty" yaml:"ReadonlyRootfs,omitempty" toml:"ReadonlyRootfs,omitempty"`
-	AutoRemove           bool                   `json:"AutoRemove,omitempty" yaml:"AutoRemove,omitempty" toml:"AutoRemove,omitempty"`
+	Binds             []string               `json:"Binds,omitempty" yaml:"Binds,omitempty" toml:"Binds,omitempty"`
+	CapAdd            []string               `json:"CapAdd,omitempty" yaml:"CapAdd,omitempty" toml:"CapAdd,omitempty"`
+	CapDrop           []string               `json:"CapDrop,omitempty" yaml:"CapDrop,omitempty" toml:"CapDrop,omitempty"`
+	Capabilities      []string               `json:"Capabilities,omitempty" yaml:"Capabilities,omitempty" toml:"Capabilities,omitempty"` // Mutually exclusive w.r.t. CapAdd and CapDrop API v1.40
+	GroupAdd          []string               `json:"GroupAdd,omitempty" yaml:"GroupAdd,omitempty" toml:"GroupAdd,omitempty"`
+	ContainerIDFile   string                 `json:"ContainerIDFile,omitempty" yaml:"ContainerIDFile,omitempty" toml:"ContainerIDFile,omitempty"`
+	LxcConf           []KeyValuePair         `json:"LxcConf,omitempty" yaml:"LxcConf,omitempty" toml:"LxcConf,omitempty"`
+	PortBindings      map[Port][]PortBinding `json:"PortBindings,omitempty" yaml:"PortBindings,omitempty" toml:"PortBindings,omitempty"`
+	Links             []string               `json:"Links,omitempty" yaml:"Links,omitempty" toml:"Links,omitempty"`
+	DNS               []string               `json:"Dns,omitempty" yaml:"Dns,omitempty" toml:"Dns,omitempty"` // For Docker API v1.10 and above only
+	DNSOptions        []string               `json:"DnsOptions,omitempty" yaml:"DnsOptions,omitempty" toml:"DnsOptions,omitempty"`
+	DNSSearch         []string               `json:"DnsSearch,omitempty" yaml:"DnsSearch,omitempty" toml:"DnsSearch,omitempty"`
+	ExtraHosts        []string               `json:"ExtraHosts,omitempty" yaml:"ExtraHosts,omitempty" toml:"ExtraHosts,omitempty"`
+	VolumesFrom       []string               `json:"VolumesFrom,omitempty" yaml:"VolumesFrom,omitempty" toml:"VolumesFrom,omitempty"`
+	UsernsMode        string                 `json:"UsernsMode,omitempty" yaml:"UsernsMode,omitempty" toml:"UsernsMode,omitempty"`
+	NetworkMode       string                 `json:"NetworkMode,omitempty" yaml:"NetworkMode,omitempty" toml:"NetworkMode,omitempty"`
+	IpcMode           string                 `json:"IpcMode,omitempty" yaml:"IpcMode,omitempty" toml:"IpcMode,omitempty"`
+	Isolation         string                 `json:"Isolation,omitempty" yaml:"Isolation,omitempty" toml:"Isolation,omitempty"`       // Windows only
+	ConsoleSize       [2]int                 `json:"ConsoleSize,omitempty" yaml:"ConsoleSize,omitempty" toml:"ConsoleSize,omitempty"` // Windows only height x width
+	PidMode           string                 `json:"PidMode,omitempty" yaml:"PidMode,omitempty" toml:"PidMode,omitempty"`
+	UTSMode           string                 `json:"UTSMode,omitempty" yaml:"UTSMode,omitempty" toml:"UTSMode,omitempty"`
+	RestartPolicy     RestartPolicy          `json:"RestartPolicy" yaml:"RestartPolicy,omitempty" toml:"RestartPolicy,omitempty"`
+	Devices           []Device               `json:"Devices,omitempty" yaml:"Devices,omitempty" toml:"Devices,omitempty"`
+	DeviceCgroupRules []string               `json:"DeviceCgroupRules,omitempty" yaml:"DeviceCgroupRules,omitempty" toml:"DeviceCgroupRules,omitempty"`
+	DeviceRequests    []DeviceRequest        `json:"DeviceRequests,omitempty" yaml:"DeviceRequests,omitempty" toml:"DeviceRequests,omitempty"`
+	LogConfig         LogConfig              `json:"LogConfig" yaml:"LogConfig,omitempty" toml:"LogConfig,omitempty"`
+	SecurityOpt       []string               `json:"SecurityOpt,omitempty" yaml:"SecurityOpt,omitempty" toml:"SecurityOpt,omitempty"`
+	CgroupnsMode      string                 `json:"CgroupnsMode,omitempty" yaml:"CgroupnsMode,omitempty" toml:"CgroupnsMode,omitempty"` // v1.40+
+	Cgroup            string                 `json:"Cgroup,omitempty" yaml:"Cgroup,omitempty" toml:"Cgroup,omitempty"`
+	CgroupParent      string                 `json:"CgroupParent,omitempty" yaml:"CgroupParent,omitempty" toml:"CgroupParent,omitempty"`
+	Memory            int64                  `json:"Memory,omitempty" yaml:"Memory,omitempty" toml:"Memory,omitempty"`
+	MemoryReservation int64                  `json:"MemoryReservation,omitempty" yaml:"MemoryReservation,omitempty" toml:"MemoryReservation,omitempty"`
+	// Deprecated: KernelMemory is deprecated as of API 1.42 and removed in API 1.52.
+	KernelMemory         int64             `json:"KernelMemory,omitempty" yaml:"KernelMemory,omitempty" toml:"KernelMemory,omitempty"`
+	MemorySwap           int64             `json:"MemorySwap,omitempty" yaml:"MemorySwap,omitempty" toml:"MemorySwap,omitempty"`
+	CPUShares            int64             `json:"CpuShares,omitempty" yaml:"CpuShares,omitempty" toml:"CpuShares,omitempty"`
+	CPUSet               string            `json:"Cpuset,omitempty" yaml:"Cpuset,omitempty" toml:"Cpuset,omitempty"`
+	CPUSetCPUs           string            `json:"CpusetCpus,omitempty" yaml:"CpusetCpus,omitempty" toml:"CpusetCpus,omitempty"`
+	CPUSetMEMs           string            `json:"CpusetMems,omitempty" yaml:"CpusetMems,omitempty" toml:"CpusetMems,omitempty"`
+	CPUQuota             int64             `json:"CpuQuota,omitempty" yaml:"CpuQuota,omitempty" toml:"CpuQuota,omitempty"`
+	CPUPeriod            int64             `json:"CpuPeriod,omitempty" yaml:"CpuPeriod,omitempty" toml:"CpuPeriod,omitempty"`
+	CPURealtimePeriod    int64             `json:"CpuRealtimePeriod,omitempty" yaml:"CpuRealtimePeriod,omitempty" toml:"CpuRealtimePeriod,omitempty"`
+	CPURealtimeRuntime   int64             `json:"CpuRealtimeRuntime,omitempty" yaml:"CpuRealtimeRuntime,omitempty" toml:"CpuRealtimeRuntime,omitempty"`
+	NanoCPUs             int64             `json:"NanoCpus,omitempty" yaml:"NanoCpus,omitempty" toml:"NanoCpus,omitempty"`
+	BlkioWeight          int64             `json:"BlkioWeight,omitempty" yaml:"BlkioWeight,omitempty" toml:"BlkioWeight,omitempty"`
+	BlkioWeightDevice    []BlockWeight     `json:"BlkioWeightDevice,omitempty" yaml:"BlkioWeightDevice,omitempty" toml:"BlkioWeightDevice,omitempty"`
+	BlkioDeviceReadBps   []BlockLimit      `json:"BlkioDeviceReadBps,omitempty" yaml:"BlkioDeviceReadBps,omitempty" toml:"BlkioDeviceReadBps,omitempty"`
+	BlkioDeviceReadIOps  []BlockLimit      `json:"BlkioDeviceReadIOps,omitempty" yaml:"BlkioDeviceReadIOps,omitempty" toml:"BlkioDeviceReadIOps,omitempty"`
+	BlkioDeviceWriteBps  []BlockLimit      `json:"BlkioDeviceWriteBps,omitempty" yaml:"BlkioDeviceWriteBps,omitempty" toml:"BlkioDeviceWriteBps,omitempty"`
+	BlkioDeviceWriteIOps []BlockLimit      `json:"BlkioDeviceWriteIOps,omitempty" yaml:"BlkioDeviceWriteIOps,omitempty" toml:"BlkioDeviceWriteIOps,omitempty"`
+	Ulimits              []ULimit          `json:"Ulimits,omitempty" yaml:"Ulimits,omitempty" toml:"Ulimits,omitempty"`
+	VolumeDriver         string            `json:"VolumeDriver,omitempty" yaml:"VolumeDriver,omitempty" toml:"VolumeDriver,omitempty"`
+	OomScoreAdj          int               `json:"OomScoreAdj,omitempty" yaml:"OomScoreAdj,omitempty" toml:"OomScoreAdj,omitempty"`
+	MemorySwappiness     *int64            `json:"MemorySwappiness,omitempty" yaml:"MemorySwappiness,omitempty" toml:"MemorySwappiness,omitempty"`
+	PidsLimit            *int64            `json:"PidsLimit,omitempty" yaml:"PidsLimit,omitempty" toml:"PidsLimit,omitempty"`
+	OOMKillDisable       *bool             `json:"OomKillDisable,omitempty" yaml:"OomKillDisable,omitempty" toml:"OomKillDisable,omitempty"`
+	ShmSize              int64             `json:"ShmSize,omitempty" yaml:"ShmSize,omitempty" toml:"ShmSize,omitempty"`
+	Tmpfs                map[string]string `json:"Tmpfs,omitempty" yaml:"Tmpfs,omitempty" toml:"Tmpfs,omitempty"`
+	StorageOpt           map[string]string `json:"StorageOpt,omitempty" yaml:"StorageOpt,omitempty" toml:"StorageOpt,omitempty"`
+	Sysctls              map[string]string `json:"Sysctls,omitempty" yaml:"Sysctls,omitempty" toml:"Sysctls,omitempty"`
+	CPUCount             int64             `json:"CpuCount,omitempty" yaml:"CpuCount,omitempty"`
+	CPUPercent           int64             `json:"CpuPercent,omitempty" yaml:"CpuPercent,omitempty"`
+	IOMaximumBandwidth   int64             `json:"IOMaximumBandwidth,omitempty" yaml:"IOMaximumBandwidth,omitempty"`
+	IOMaximumIOps        int64             `json:"IOMaximumIOps,omitempty" yaml:"IOMaximumIOps,omitempty"`
+	Mounts               []HostMount       `json:"Mounts,omitempty" yaml:"Mounts,omitempty" toml:"Mounts,omitempty"`
+	MaskedPaths          []string          `json:"MaskedPaths,omitempty" yaml:"MaskedPaths,omitempty" toml:"MaskedPaths,omitempty"`
+	ReadonlyPaths        []string          `json:"ReadonlyPaths,omitempty" yaml:"ReadonlyPaths,omitempty" toml:"ReadonlyPaths,omitempty"`
+	Runtime              string            `json:"Runtime,omitempty" yaml:"Runtime,omitempty" toml:"Runtime,omitempty"`
+	Init                 bool              `json:",omitempty" yaml:",omitempty"`
+	Privileged           bool              `json:"Privileged,omitempty" yaml:"Privileged,omitempty" toml:"Privileged,omitempty"`
+	PublishAllPorts      bool              `json:"PublishAllPorts,omitempty" yaml:"PublishAllPorts,omitempty" toml:"PublishAllPorts,omitempty"`
+	ReadonlyRootfs       bool              `json:"ReadonlyRootfs,omitempty" yaml:"ReadonlyRootfs,omitempty" toml:"ReadonlyRootfs,omitempty"`
+	AutoRemove           bool              `json:"AutoRemove,omitempty" yaml:"AutoRemove,omitempty" toml:"AutoRemove,omitempty"`
+	Annotations          map[string]string `json:"Annotations,omitempty" yaml:"Annotations,omitempty" toml:"Annotations,omitempty"`
 }
 
 // NetworkingConfig represents the container's networking configuration for each of its interfaces

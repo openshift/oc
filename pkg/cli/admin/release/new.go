@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/ghodss/yaml"
+	"github.com/moby/go-archive/compression"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
@@ -1142,7 +1142,7 @@ func (o *NewOptions) write(r io.Reader, is *imageapi.ImageStream, now time.Time)
 		if err := os.MkdirAll(o.ToDir, 0777); err != nil {
 			return err
 		}
-		r, err := archive.DecompressStream(r)
+		r, err := compression.DecompressStream(r)
 		if err != nil {
 			return err
 		}
