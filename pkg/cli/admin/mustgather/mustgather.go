@@ -948,9 +948,7 @@ func (o *MustGatherOptions) copyFilesFromPod(ctx context.Context, pod *corev1.Po
 }
 
 func (o *MustGatherOptions) getGatherContainerLogs(ctx context.Context, pod *corev1.Pod) error {
-	// Create a timeout context covering the entire gather lifecycle (waiting for
-	// container start, streaming logs, waiting for completion). Copying is
-	// intentionally excluded — per flag docs, it continues until finished.
+	// Use a timeout context to prevent RunLogsContext or isGatherDone from waiting indefinitely
 	gatherCtx, gatherCancel := context.WithTimeout(ctx, o.Timeout)
 	defer gatherCancel()
 
