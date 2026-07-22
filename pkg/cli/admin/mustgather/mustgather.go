@@ -770,6 +770,14 @@ func (o *MustGatherOptions) Run() error {
 		queue.ShutDown()
 	}()
 
+	// Prevent the user's OAuth token from expiring due to
+	// accessTokenInactivityTimeout while we hold long-lived log-follow
+	// connections. A single keep-alive goroutine is sufficient because we
+	// always talk to the same cluster regardless of how many gather pods run.
+	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
+	defer stopKeepAlive()
+	o.startClientKeepAlive(keepAliveCtx)
+
 	wg.Add(concurrentMG)
 	for i := 0; i < concurrentMG; i++ {
 		go func() {
@@ -791,6 +799,7 @@ func (o *MustGatherOptions) Run() error {
 		}()
 	}
 	wg.Wait()
+	stopKeepAlive()
 	close(errCh)
 
 	for i := range errCh {
@@ -864,13 +873,6 @@ func (o *MustGatherOptions) processNextWorkItem(ctx context.Context, ns string, 
 	}
 
 	log := o.newPodOutLogger(o.Out, pod.Name)
-
-	// Prevent the user's OAuth token from expiring due to
-	// accessTokenInactivityTimeout while we hold long-lived log-follow
-	// connections. The probes run until the gather output has been copied.
-	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
-	defer stopKeepAlive()
-	o.startClientKeepAlive(keepAliveCtx)
 
 	// wait for gather container to be running (gather is running)
 	if err := o.waitForGatherContainerRunning(ctx, pod); err != nil {
