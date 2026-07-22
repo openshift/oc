@@ -688,6 +688,28 @@ func TestNewPod(t *testing.T) {
 				})
 			}),
 		},
+		{
+			name: "with CPU partitioning enabled",
+			options: &MustGatherOptions{
+				VolumePercentage:       defaultVolumePercentage,
+				SourceDir:              defaultSourceDir,
+				cpuPartitioningEnabled: true,
+			},
+			expectedPod: generateMustGatherPod("image", func(pod *corev1.Pod) {
+				pod.Annotations = map[string]string{
+					workloadAnnotationKey: workloadAnnotationValue,
+				}
+			}),
+		},
+		{
+			name: "without CPU partitioning",
+			options: &MustGatherOptions{
+				VolumePercentage:       defaultVolumePercentage,
+				SourceDir:              defaultSourceDir,
+				cpuPartitioningEnabled: false,
+			},
+			expectedPod: generateMustGatherPod("image", func(pod *corev1.Pod) {}),
+		},
 	}
 
 	for _, test := range tests {
@@ -695,6 +717,88 @@ func TestNewPod(t *testing.T) {
 			tPod := test.options.newPod(test.node, "image", test.hasMasters, test.affinity)
 			if !cmp.Equal(test.expectedPod, tPod) {
 				t.Errorf("Unexpected pod command was generated: \n%s\n", cmp.Diff(test.expectedPod, tPod))
+			}
+		})
+	}
+}
+
+func TestIsCPUPartitioningEnabled(t *testing.T) {
+	tests := []struct {
+		name     string
+		infra    *configv1.Infrastructure
+		expected bool
+	}{
+		{
+			name: "AllNodes mode returns true",
+			infra: &configv1.Infrastructure{
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+				Status: configv1.InfrastructureStatus{
+					CPUPartitioning: configv1.CPUPartitioningAllNodes,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "None mode returns false",
+			infra: &configv1.Infrastructure{
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+				Status: configv1.InfrastructureStatus{
+					CPUPartitioning: configv1.CPUPartitioningNone,
+				},
+			},
+			expected: false,
+		},
+		{
+			name:     "missing Infrastructure resource returns false",
+			expected: false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var objs []runtime.Object
+			if tc.infra != nil {
+				objs = append(objs, tc.infra)
+			}
+			o := &MustGatherOptions{
+				ConfigClient: configv1fake.NewSimpleClientset(objs...),
+			}
+			got := o.isCPUPartitioningEnabled(context.TODO())
+			if got != tc.expected {
+				t.Errorf("expected %v, got %v", tc.expected, got)
+			}
+		})
+	}
+}
+
+func TestNewNamespaceWorkloadAnnotation(t *testing.T) {
+	tests := []struct {
+		name             string
+		cpuPartitioning  bool
+		expectAnnotation bool
+	}{
+		{
+			name:             "with CPU partitioning adds workload annotation",
+			cpuPartitioning:  true,
+			expectAnnotation: true,
+		},
+		{
+			name:             "without CPU partitioning omits workload annotation",
+			cpuPartitioning:  false,
+			expectAnnotation: false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ns := newNamespace(tc.cpuPartitioning)
+			_, exists := ns.Annotations[namespaceWorkloadAllowedAnnotation]
+			if tc.expectAnnotation && !exists {
+				t.Errorf("expected %s annotation, got annotations: %v", namespaceWorkloadAllowedAnnotation, ns.Annotations)
+			}
+			if !tc.expectAnnotation && exists {
+				t.Errorf("did not expect %s annotation when partitioning is disabled", namespaceWorkloadAllowedAnnotation)
+			}
+			if tc.expectAnnotation && ns.Annotations[namespaceWorkloadAllowedAnnotation] != "management" {
+				t.Errorf("expected annotation value %q, got %q", "management", ns.Annotations[namespaceWorkloadAllowedAnnotation])
 			}
 		})
 	}

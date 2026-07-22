@@ -45,6 +45,7 @@ import (
 	"k8s.io/utils/exec"
 	utilptr "k8s.io/utils/ptr"
 
+	configv1 "github.com/openshift/api/config/v1"
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	imagev1client "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	"github.com/openshift/library-go/pkg/image/imageutil"
@@ -63,6 +64,10 @@ const (
 	defaultMustGatherCommand  = "/usr/bin/gather"
 	defaultVolumePercentage   = 70
 	defaultSourceDir          = "/must-gather/"
+
+	workloadAnnotationKey              = "target.workload.openshift.io/management"
+	workloadAnnotationValue            = `{"effect": "PreferredDuringScheduling"}`
+	namespaceWorkloadAllowedAnnotation = "workload.openshift.io/allowed"
 )
 
 var (
@@ -314,6 +319,15 @@ func (o *MustGatherOptions) getClusterIDSuffix() string {
 	return id
 }
 
+func (o *MustGatherOptions) isCPUPartitioningEnabled(ctx context.Context) bool {
+	infra, err := o.ConfigClient.ConfigV1().Infrastructures().Get(ctx, "cluster", metav1.GetOptions{})
+	if err != nil {
+		klog.V(4).Infof("unable to determine CPU partitioning mode, proceeding without workload annotations: %v", err)
+		return false
+	}
+	return infra.Status.CPUPartitioning == configv1.CPUPartitioningAllNodes
+}
+
 func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 	for _, imageStream := range o.ImageStreams {
 		if image, err := o.resolveImageStreamTagString(ctx, imageStream); err == nil {
@@ -453,6 +467,8 @@ type MustGatherOptions struct {
 
 	LogWriter    *os.File
 	LogWriterMux sync.Mutex
+
+	cpuPartitioningEnabled bool
 }
 
 func (o *MustGatherOptions) Validate() error {
@@ -673,6 +689,8 @@ func (o *MustGatherOptions) Run() error {
 		}
 		o.BackupGathering(ctx, errs)
 	}()
+
+	o.cpuPartitioningEnabled = o.isCPUPartitioningEnabled(ctx)
 
 	// Get or create "working" namespace ...
 	var ns *corev1.Namespace
@@ -1083,7 +1101,7 @@ func (o *MustGatherOptions) getNamespace(ctx context.Context) (*corev1.Namespace
 }
 
 func (o *MustGatherOptions) createTempNamespace(ctx context.Context) (*corev1.Namespace, func(), error) {
-	ns, err := o.Client.CoreV1().Namespaces().Create(ctx, newNamespace(), metav1.CreateOptions{})
+	ns, err := o.Client.CoreV1().Namespaces().Create(ctx, newNamespace(o.cpuPartitioningEnabled), metav1.CreateOptions{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating temp namespace: %w", err)
 	}
@@ -1106,8 +1124,8 @@ func (o *MustGatherOptions) createTempNamespace(ctx context.Context) (*corev1.Na
 	return ns, cleanup, nil
 }
 
-func newNamespace() *corev1.Namespace {
-	return &corev1.Namespace{
+func newNamespace(cpuPartitioning bool) *corev1.Namespace {
+	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "openshift-must-gather-",
 			Labels: map[string]string{
@@ -1123,6 +1141,10 @@ func newNamespace() *corev1.Namespace {
 			},
 		},
 	}
+	if cpuPartitioning {
+		ns.Annotations[namespaceWorkloadAllowedAnnotation] = "management"
+	}
+	return ns
 }
 
 func newClusterRoleBinding(ns *corev1.Namespace) *rbacv1.ClusterRoleBinding {
@@ -1262,6 +1284,12 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 	podCmd := buildPodCommand(volumeUsageChecker, executedCommand)
 
 	ret := defaultMustGatherPod(image)
+	if o.cpuPartitioningEnabled {
+		if ret.Annotations == nil {
+			ret.Annotations = make(map[string]string)
+		}
+		ret.Annotations[workloadAnnotationKey] = workloadAnnotationValue
+	}
 	ret.Spec.Containers[0].Command = []string{"/bin/bash", "-c", podCmd}
 	ret.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{
 		Name:      "must-gather-output",
