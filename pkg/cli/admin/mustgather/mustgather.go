@@ -453,9 +453,8 @@ type MustGatherOptions struct {
 	Since            time.Duration
 	SinceTime        string
 
-	RsyncRshCmd       string
-	keepAliveInterval time.Duration
-	clock             clock.PassiveClock
+	RsyncRshCmd string
+	clock       clock.PassiveClock
 
 	PrinterCreated printers.ResourcePrinter
 	PrinterDeleted printers.ResourcePrinter
@@ -824,12 +823,8 @@ func (o *MustGatherOptions) Run() error {
 //
 // The goroutine runs until ctx is cancelled.
 func (o *MustGatherOptions) startClientKeepAlive(ctx context.Context) {
-	interval := o.keepAliveInterval
-	if interval == 0 {
-		interval = defaultKeepAliveInterval
-	}
 	go func() {
-		ticker := time.NewTicker(interval)
+		ticker := time.NewTicker(defaultKeepAliveInterval)
 		defer ticker.Stop()
 		for {
 			select {

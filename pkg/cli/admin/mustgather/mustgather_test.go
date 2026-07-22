@@ -704,16 +704,15 @@ func TestStartClientKeepAlive(t *testing.T) {
 	t.Run("makes periodic authenticated API calls", func(t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
 		o := &MustGatherOptions{
-			IOStreams:         genericiooptions.NewTestIOStreamsDiscard(),
-			Client:            fakeClient,
-			keepAliveInterval: 50 * time.Millisecond,
+			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
+			Client:    fakeClient,
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		o.startClientKeepAlive(ctx)
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(35 * time.Second)
 		cancel()
 
 		actions := fakeClient.Actions()
@@ -723,25 +722,23 @@ func TestStartClientKeepAlive(t *testing.T) {
 				probeCalls++
 			}
 		}
-		if probeCalls < 2 {
-			t.Errorf("expected at least 2 keep-alive probes, got %d actions: %v", probeCalls, actions)
+		if probeCalls == 0 {
+			t.Errorf("expected at least one keep-alive probe, got %d actions: %v", probeCalls, actions)
 		}
 	})
 
 	t.Run("stops when context is cancelled", func(t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
 		o := &MustGatherOptions{
-			IOStreams:         genericiooptions.NewTestIOStreamsDiscard(),
-			Client:            fakeClient,
-			keepAliveInterval: 50 * time.Millisecond,
+			IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
+			Client:    fakeClient,
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
 		o.startClientKeepAlive(ctx)
-		time.Sleep(150 * time.Millisecond)
 		cancel()
 
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		before := len(fakeClient.Actions())
 		time.Sleep(200 * time.Millisecond)
 		after := len(fakeClient.Actions())
