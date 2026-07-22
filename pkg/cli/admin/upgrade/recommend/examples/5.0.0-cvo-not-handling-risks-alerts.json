@@ -1,0 +1,152 @@
+{
+    "status": "success",
+    "data": {
+        "alerts": [
+            {
+                "labels": {
+                    "alertname": "ClusterNotUpgradeable",
+                    "condition": "Upgradeable",
+                    "endpoint": "metrics",
+                    "name": "version",
+                    "namespace": "openshift-cluster-version",
+                    "severity": "info"
+                },
+                "annotations": {
+                    "description": "In most cases, you will still be able to apply patch releases. Reason MultipleReasons. For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-h13idik-72292.gcp-2.ci.openshift.org/settings/cluster/.",
+                    "summary": "One or more cluster operators have been blocking minor or major version cluster updates for at least an hour."
+                },
+                "state": "firing",
+                "activeAt": "2026-07-13T18:15:08.114207953Z",
+                "value": "0e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "OpenShiftUpdateRiskMightApply",
+                    "namespace": "openshift-cluster-version",
+                    "reason": "Alert:firing",
+                    "risk": "TestAlert",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "The conditional update risk TestAlert might apply to the cluster because of Alert:firing, and the cluster update to a version exposed to the risk is not recommended. For more information refer to 'oc adm upgrade'.",
+                    "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-version-operator/OpenShiftUpdateRiskMightApply.md",
+                    "summary": "The cluster might have been exposed to the conditional update risk for 15 minutes."
+                },
+                "state": "pending",
+                "activeAt": "2026-07-13T20:02:36.835802807Z",
+                "value": "1e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "InsightsRecommendationActive",
+                    "container": "insights-operator",
+                    "description": "Enabling the **TechPreviewNoUpgrade** feature set on your cluster\ncan not be undone and prevents minor version updates. Please do\nnot enable this feature set on production clusters.\n",
+                    "endpoint": "https",
+                    "info_link": "https://console.redhat.com/openshift/insights/advisor/clusters/82c88454-3cfc-4233-8e10-34f5c3ff67c0?first=ccx_rules_ocp.external.rules.upgrade_is_blocked_due_to_tpfg%7CTECH_PREVIEW_NO_UPGRADE_FEATURE_SET_IS_ENABLED",
+                    "instance": "10.130.0.27:8443",
+                    "job": "metrics",
+                    "namespace": "openshift-insights",
+                    "pod": "insights-operator-584747df49-5x462",
+                    "service": "metrics",
+                    "severity": "info",
+                    "total_risk": "Important"
+                },
+                "annotations": {
+                    "description": "Insights recommendation \"Enabling the **TechPreviewNoUpgrade** feature set on your cluster\ncan not be undone and prevents minor version updates. Please do\nnot enable this feature set on production clusters.\n\" with total risk \"Important\" was detected on the cluster. More information is available at https://console.redhat.com/openshift/insights/advisor/clusters/82c88454-3cfc-4233-8e10-34f5c3ff67c0?first=ccx_rules_ocp.external.rules.upgrade_is_blocked_due_to_tpfg%7CTECH_PREVIEW_NO_UPGRADE_FEATURE_SET_IS_ENABLED.",
+                    "summary": "An Insights recommendation is active for this cluster."
+                },
+                "state": "firing",
+                "activeAt": "2026-07-13T18:17:18.129623987Z",
+                "value": "1e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "TechPreviewNoUpgrade",
+                    "container": "kube-apiserver-operator",
+                    "endpoint": "https",
+                    "instance": "10.130.0.42:8443",
+                    "job": "kube-apiserver-operator",
+                    "name": "TechPreviewNoUpgrade",
+                    "namespace": "openshift-kube-apiserver-operator",
+                    "pod": "kube-apiserver-operator-7d998989dd-gscdp",
+                    "service": "metrics",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "Cluster has enabled Technology Preview features that cannot be undone and will prevent upgrades. The TechPreviewNoUpgrade feature set is not recommended on production clusters.",
+                    "summary": "Cluster has enabled tech preview features that will prevent upgrades."
+                },
+                "state": "firing",
+                "activeAt": "2026-07-13T18:17:52.119686422Z",
+                "value": "0e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "Watchdog",
+                    "namespace": "openshift-monitoring",
+                    "severity": "none"
+                },
+                "annotations": {
+                    "description": "This is an alert meant to ensure that the entire alerting pipeline is functional.\nThis alert is always firing, therefore it should always be firing in Alertmanager\nand always fire against a receiver. There are integrations with various notification\nmechanisms that send a notification when this alert is not firing. For example the\n\"DeadMansSnitch\" integration in PagerDuty.\n",
+                    "summary": "An alert that should always be firing to certify that Alertmanager is working properly."
+                },
+                "state": "firing",
+                "activeAt": "2026-07-13T18:14:54.631104668Z",
+                "value": "1e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "TargetDown",
+                    "job": "check-endpoints",
+                    "namespace": "openshift-apiserver",
+                    "service": "check-endpoints",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "100% of the check-endpoints/check-endpoints targets in openshift-apiserver namespace have been unreachable for more than 15 minutes. This may be a symptom of network connectivity issues, down nodes, or failures within these components. Assess the health of the infrastructure and nodes running these targets and then contact support.",
+                    "runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-monitoring-operator/TargetDown.md",
+                    "summary": "Some targets were not reachable from the monitoring server for an extended period of time."
+                },
+                "state": "firing",
+                "activeAt": "2026-07-13T18:15:42.660370292Z",
+                "value": "1e+02",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "AlertmanagerReceiversNotConfigured",
+                    "namespace": "openshift-monitoring",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "Alerts are not configured to be sent to a notification system, meaning that you may not be notified in a timely fashion when important failures occur. Check the OpenShift documentation to learn how to configure notifications with Alertmanager.",
+                    "summary": "Receivers (notification integrations) are not configured on Alertmanager"
+                },
+                "state": "firing",
+                "activeAt": "2026-07-13T18:17:24.167429387Z",
+                "value": "0e+00",
+                "partialResponseStrategy": "WARN"
+            },
+            {
+                "labels": {
+                    "alertname": "TestAlert",
+                    "openShiftUpdatePrecheck": "true",
+                    "severity": "warning"
+                },
+                "annotations": {
+                    "description": "Test alert for updates",
+                    "summary": "Test alert for updates"
+                },
+                "state": "firing",
+                "activeAt": "2026-07-13T19:05:17.879901206Z",
+                "value": "1e+00",
+                "partialResponseStrategy": "WARN"
+            }
+        ]
+    }
+}

@@ -1,0 +1,11 @@
+Upstream update service is unset, so the cluster will use an appropriate default.
+Channel: candidate-5.0 (available channels: candidate-5.0)
+
+Update to 5.0.0-ec.3 Recommended=False:
+Image: quay.io/openshift-release-dev/ocp-release@sha256:b5ad6b4bb5efbd9b9d88bd42182e85388742b4441a2ff4301c4f5aa8176d5d29
+Release URL: 
+Reason: TestAlert
+Message: Test alert for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+
+error: There are issues that apply to this cluster and have not been accepted. `oc adm upgrade accept` can be used to accept them: ConditionalUpdateRisk
+

@@ -1,0 +1,19 @@
+The following conditions found no cause for concern in updating this cluster to later releases: recommended/CriticalAlerts (AsExpected), recommended/NodeAlerts (AsExpected), recommended/PodDisruptionBudgetAlerts (AsExpected), recommended/PodImagePullAlerts (AsExpected)
+
+The following conditions found cause for concern in updating this cluster to later releases: recommended/UpdatePrecheckAlerts/TestAlert/0
+
+recommended/UpdatePrecheckAlerts/TestAlert/0=False:
+
+  Reason: Alert:firing
+  Message: warning alert TestAlert firing, suggesting issues worth investigating before updating the cluster. Test alert for updates. The alert description is: Test alert for updates <alert does not have a runbook_url annotation>
+
+Upstream update service is unset, so the cluster will use an appropriate default.
+Channel: candidate-5.0 (available channels: candidate-5.0)
+
+Update to 5.0.0-ec.3 Recommended=False:
+Image: quay.io/openshift-release-dev/ocp-release@sha256:b5ad6b4bb5efbd9b9d88bd42182e85388742b4441a2ff4301c4f5aa8176d5d29
+Release URL: 
+Reason: TestAlert
+Message: Test alert for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+
+error: issues that apply to this cluster but which were not included in --accept: ConditionalUpdateRisk,TestAlert

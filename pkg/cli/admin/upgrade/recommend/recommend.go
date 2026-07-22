@@ -111,6 +111,8 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 	} else {
 		cvSuffix := "-cv.yaml"
 		o.mockData.alertsPath = strings.Replace(o.mockData.cvPath, cvSuffix, "-alerts.json", 1)
+		o.mockData.featureGatePath = strings.Replace(o.mockData.cvPath, cvSuffix, "-featuregate.yaml", 1)
+		o.mockData.infrastructurePath = strings.Replace(o.mockData.cvPath, cvSuffix, "-infrastructure.yaml", 1)
 		err := o.mockData.load()
 		if err != nil {
 			return err
@@ -132,7 +134,6 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 			o.version = &version
 		}
 	}
-
 	return nil
 }
 
@@ -337,7 +338,14 @@ func (o *options) Run(ctx context.Context) error {
 					}
 					unaccepted := issues.Difference(accept)
 					if unaccepted.Len() > 0 {
-						return fmt.Errorf("issues that apply to this cluster but which were not included in --accept: %s", strings.Join(sets.List(unaccepted), ","))
+						if cvoChecking, err := o.alertsEvaluatedByCVO(ctx); cvoChecking {
+							if err != nil {
+								return fmt.Errorf("failed to determine if CVO is checking alerts: %v", err)
+							}
+							return fmt.Errorf("There are issues that apply to this cluster and have not been accepted. `oc adm upgrade accept` can be used to accept them: %s\n", strings.Join(sets.List(unaccepted), ","))
+						} else {
+							return fmt.Errorf("issues that apply to this cluster but which were not included in --accept: %s", strings.Join(sets.List(unaccepted), ","))
+						}
 					} else if issues.Len() > 0 && !o.quiet {
 						fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster other than the accepted %s.\n", update.Release.Version, strings.Join(sets.List(issues), ","))
 					}

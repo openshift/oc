@@ -1,0 +1,14 @@
+Upstream update service is unset, so the cluster will use an appropriate default.
+Channel: candidate-5.0 (available channels: candidate-5.0)
+
+Updates to 5.0:
+
+  Version: 5.0.0-ec.4
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:a6ba861642370e1f5499794c391bce148d18333244a1e92e4cb307cbab01035e
+  Reason: TestAlert
+  Message: Test alert for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+
+  Version: 5.0.0-ec.3
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:b5ad6b4bb5efbd9b9d88bd42182e85388742b4441a2ff4301c4f5aa8176d5d29
+  Reason: TestAlert
+  Message: Test alert for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
