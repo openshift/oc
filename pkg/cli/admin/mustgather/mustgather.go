@@ -350,11 +350,17 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		var missingAnnotation []string
 		for _, item := range cos.Items {
 			ann := item.GetAnnotations()
 			if v, ok := ann[mgAnnotation]; ok {
 				pluginImages[v] = struct{}{}
+			} else {
+				missingAnnotation = append(missingAnnotation, item.GetName())
 			}
+		}
+		if len(missingAnnotation) > 0 {
+			o.log("WARNING: ClusterOperators without %s annotation: %s", mgAnnotation, strings.Join(missingAnnotation, ", "))
 		}
 		// delete the default image to avoid duplication in case an Operator had it in its annotation
 		delete(pluginImages, o.Images[0])
@@ -380,11 +386,17 @@ func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struc
 		return nil, err
 	}
 
+	var missingAnnotation []string
 	for _, item := range csvs.Items {
 		ann := item.GetAnnotations()
 		if v, ok := ann[mgAnnotation]; ok {
 			pluginImages[v] = struct{}{}
+		} else {
+			missingAnnotation = append(missingAnnotation, item.GetName())
 		}
+	}
+	if len(missingAnnotation) > 0 {
+		o.log("WARNING: CSVs without %s annotation: %s", mgAnnotation, strings.Join(missingAnnotation, ", "))
 	}
 	return pluginImages, nil
 }
