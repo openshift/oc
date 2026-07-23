@@ -63,6 +63,14 @@ const (
 	defaultMustGatherCommand  = "/usr/bin/gather"
 	defaultVolumePercentage   = 70
 	defaultSourceDir          = "/must-gather/"
+
+	// defaultKeepAliveInterval is the default interval for client-side
+	// authenticated API probes that reset the OAuth access-token inactivity
+	// timer. Clusters with accessTokenInactivityTimeout (common in regulated
+	// environments) will revoke idle tokens; periodic probes prevent that
+	// during long-running log-follow connections that the API server does
+	// not count as activity.
+	defaultKeepAliveInterval = 30 * time.Second
 )
 
 var (
@@ -759,6 +767,14 @@ func (o *MustGatherOptions) Run() error {
 		queue.ShutDown()
 	}()
 
+	// Prevent the user's OAuth token from expiring due to
+	// accessTokenInactivityTimeout while we hold long-lived log-follow
+	// connections. A single keep-alive goroutine is sufficient because we
+	// always talk to the same cluster regardless of how many gather pods run.
+	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
+	defer stopKeepAlive()
+	o.startClientKeepAlive(keepAliveCtx)
+
 	wg.Add(concurrentMG)
 	for i := 0; i < concurrentMG; i++ {
 		go func() {
@@ -800,6 +816,32 @@ func (o *MustGatherOptions) Run() error {
 	}
 
 	return kutilerrors.NewAggregate(errs)
+}
+
+// startClientKeepAlive spawns a background goroutine that periodically makes
+// an authenticated API call to prevent the user's OAuth access token from being
+// revoked due to accessTokenInactivityTimeout. The log-follow connection held
+// by getGatherContainerLogs is a single long-lived HTTP stream that the API
+// server does not count as discrete activity, so without these probes the token
+// can expire on clusters with short inactivity windows (e.g. 5-10 minutes in
+// banking/government/PCI-DSS environments).
+//
+// The goroutine runs until ctx is cancelled.
+func (o *MustGatherOptions) startClientKeepAlive(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(defaultKeepAliveInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if _, err := o.Client.Discovery().ServerVersion(); err != nil && !errors.Is(err, context.Canceled) {
+					klog.V(2).Infof("keep-alive probe failed (non-fatal): %v", err)
+				}
+			}
+		}
+	}()
 }
 
 // processNextWorkItem creates & processes the must-gather pod and returns error if any
