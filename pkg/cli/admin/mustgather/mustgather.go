@@ -799,7 +799,6 @@ func (o *MustGatherOptions) Run() error {
 		}()
 	}
 	wg.Wait()
-	stopKeepAlive()
 	close(errCh)
 
 	for i := range errCh {
