@@ -346,16 +346,17 @@ func (o *options) Run(ctx context.Context) error {
 							for _, condition := range risk.Conditions {
 								if condition.Status == metav1.ConditionTrue {
 									unaccepted.Insert(risk.Name)
+									issues.Insert(risk.Name)
 								}
 							}
 						}
-					}
-					if cv.Spec.DesiredUpdate != nil {
-						for _, risk := range cv.Spec.DesiredUpdate.AcceptRisks {
-							unaccepted.Delete(risk.Name)
+						if cv.Spec.DesiredUpdate != nil {
+							for _, risk := range cv.Spec.DesiredUpdate.AcceptRisks {
+								unaccepted.Delete(risk.Name)
+							}
 						}
 					} else {
-						unaccepted.Difference(accept)
+						unaccepted = unaccepted.Difference(accept)
 					}
 					if unaccepted.Len() > 0 {
 						if cvoChecking {
