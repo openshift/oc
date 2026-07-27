@@ -1,0 +1,7 @@
+Upstream update service is unset, so the cluster will use an appropriate default.
+Channel: candidate-5.0 (available channels: candidate-5.0)
+
+Updates to 5.0:
+  VERSION     ISSUES
+  5.0.0-ec.4  TestAlert
+  5.0.0-ec.3  TestAlert
