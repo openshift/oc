@@ -144,8 +144,9 @@ func (o *GetTokenOptions) Validate() error {
 // external OIDC issuer. If not, it forces user to log in.
 func (o *GetTokenOptions) Run() error {
 	tokenCacheKey := tokencache.Key{
-		IssuerURL: o.IssuerURL,
-		ClientID:  o.ClientID,
+		IssuerURL:   o.IssuerURL,
+		ClientID:    o.ClientID,
+		ExtraScopes: o.ExtraScopes,
 	}
 
 	// Ignoring the error because if there is any error occurred
