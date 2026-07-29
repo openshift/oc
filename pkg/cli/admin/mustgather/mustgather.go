@@ -341,7 +341,7 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 	}
 	if o.AllImages {
 		// find all csvs and clusteroperators with the annotation "operators.openshift.io/must-gather-image"
-		pluginImages, err := o.annotatedCSVs(ctx)
+		pluginImages, missingCSVs, err := o.annotatedCSVs(ctx)
 		if err != nil {
 			return err
 		}
@@ -350,17 +350,20 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		var missingAnnotation []string
+		var missingCOs []string
 		for _, item := range cos.Items {
 			ann := item.GetAnnotations()
 			if v, ok := ann[mgAnnotation]; ok {
 				pluginImages[v] = struct{}{}
 			} else {
-				missingAnnotation = append(missingAnnotation, item.GetName())
+				missingCOs = append(missingCOs, item.GetName())
 			}
 		}
-		if len(missingAnnotation) > 0 {
-			o.log("WARNING: ClusterOperators without %s annotation: %s", mgAnnotation, strings.Join(missingAnnotation, ", "))
+		if len(missingCOs) > 0 {
+			o.log("ClusterOperators without %s annotation: %s", mgAnnotation, strings.Join(missingCOs, ", "))
+		}
+		if len(missingCSVs) > 0 {
+			o.log("CSVs without %s annotation: %s", mgAnnotation, strings.Join(missingCSVs, ", "))
 		}
 		// delete the default image to avoid duplication in case an Operator had it in its annotation
 		delete(pluginImages, o.Images[0])
@@ -373,7 +376,7 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 	return nil
 }
 
-func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struct{}, error) {
+func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struct{}, []string, error) {
 	csvGVR := schema.GroupVersionResource{
 		Group:    "operators.coreos.com",
 		Version:  "v1alpha1",
@@ -383,7 +386,7 @@ func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struc
 
 	csvs, err := o.DynamicClient.Resource(csvGVR).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var missingAnnotation []string
@@ -395,10 +398,7 @@ func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struc
 			missingAnnotation = append(missingAnnotation, item.GetName())
 		}
 	}
-	if len(missingAnnotation) > 0 {
-		o.log("WARNING: CSVs without %s annotation: %s", mgAnnotation, strings.Join(missingAnnotation, ", "))
-	}
-	return pluginImages, nil
+	return pluginImages, missingAnnotation, nil
 }
 
 func (o *MustGatherOptions) resolveImageStreamTagString(ctx context.Context, s string) (string, error) {
