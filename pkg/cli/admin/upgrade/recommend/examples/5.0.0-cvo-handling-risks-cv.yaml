@@ -1,0 +1,187 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2026-07-13T17:53:53Z"
+  generation: 3
+  name: version
+  resourceVersion: "64217"
+  uid: db211ad3-be4f-41d5-8415-8e600be2584f
+spec:
+  channel: candidate-5.0
+  clusterID: 82c88454-3cfc-4233-8e10-34f5c3ff67c0
+  overrides:
+  - group: config.openshift.io
+    kind: ClusterImagePolicy
+    name: openshift
+    namespace: ""
+    unmanaged: true
+status:
+  availableUpdates: null
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditionalUpdateRisks:
+  - conditions:
+    - lastTransitionTime: "2026-07-13T19:05:47Z"
+      message: 'warning alert TestAlert firing, suggesting issues worth investigating
+        before updating the cluster. Test alert for updates. The alert description
+        is: Test alert for updates <alert does not have a runbook_url annotation>'
+      reason: Alert:firing
+      status: "True"
+      type: Applies
+    matchingRules:
+    - type: Always
+    message: Test alert for updates.
+    name: TestAlert
+    url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+  conditionalUpdates:
+  - conditions:
+    - lastTransitionTime: "2026-07-13T20:01:41Z"
+      message: Test alert for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+      reason: TestAlert
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-5.0
+      image: quay.io/openshift-release-dev/ocp-release@sha256:a6ba861642370e1f5499794c391bce148d18333244a1e92e4cb307cbab01035e
+      version: 5.0.0-ec.4
+    riskNames:
+    - TestAlert
+    risks:
+    - conditions:
+      - lastTransitionTime: "2026-07-13T19:05:47Z"
+        message: 'warning alert TestAlert firing, suggesting issues worth investigating
+          before updating the cluster. Test alert for updates. The alert description
+          is: Test alert for updates <alert does not have a runbook_url annotation>'
+        reason: Alert:firing
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: Test alert for updates.
+      name: TestAlert
+      url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+  - conditions:
+    - lastTransitionTime: "2026-07-13T20:01:41Z"
+      message: Test alert for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+      reason: TestAlert
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - candidate-5.0
+      image: quay.io/openshift-release-dev/ocp-release@sha256:b5ad6b4bb5efbd9b9d88bd42182e85388742b4441a2ff4301c4f5aa8176d5d29
+      version: 5.0.0-ec.3
+    riskNames:
+    - TestAlert
+    risks:
+    - conditions:
+      - lastTransitionTime: "2026-07-13T19:05:47Z"
+        message: 'warning alert TestAlert firing, suggesting issues worth investigating
+          before updating the cluster. Test alert for updates. The alert description
+          is: Test alert for updates <alert does not have a runbook_url annotation>'
+        reason: Alert:firing
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: Test alert for updates.
+      name: TestAlert
+      url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+  conditions:
+  - lastTransitionTime: "2026-07-13T20:01:41Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2026-07-13T17:54:39Z"
+    message: |-
+      Cluster should not be upgraded between minor or major versions for multiple reasons: ClusterVersionOverridesSet,FeatureGates_RestrictedFeatureGates_TechPreviewNoUpgrade
+      * Disabling ownership via cluster version overrides prevents upgrades between minor or major versions. Please remove overrides before requesting a minor or major version update.
+      * Cluster operator config-operator should not be upgraded between minor or major versions: FeatureGatesUpgradeable: "TechPreviewNoUpgrade" does not allow updates
+    reason: MultipleReasons
+    status: "False"
+    type: Upgradeable
+  - lastTransitionTime: "2026-07-13T17:54:39Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2026-07-13T17:54:39Z"
+    message: Payload loaded version="5.0.0-ec.2" image="registry.build12.ci.openshift.org/ci-ln-h13idik/release@sha256:e8f74fa0423f416cdcd6b35a0769765118c0f8ba9d7e0e25517e41c59483c6af"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2026-07-13T18:26:15Z"
+    message: Done applying 5.0.0-ec.2
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2026-07-13T18:26:15Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2026-07-13T18:26:15Z"
+    message: Cluster version is 5.0.0-ec.2
+    status: "False"
+    type: Progressing
+  - lastTransitionTime: "2026-07-13T17:55:24Z"
+    message: Disabling ownership via cluster version overrides prevents upgrades between
+      minor or major versions. Please remove overrides before requesting a minor or
+      major version update.
+    reason: ClusterVersionOverridesSet
+    status: "False"
+    type: UpgradeableClusterVersionOverrides
+  - lastTransitionTime: "2026-07-13T18:00:39Z"
+    message: 'Cluster operator config-operator should not be upgraded between minor
+      or major versions: FeatureGatesUpgradeable: "TechPreviewNoUpgrade" does not
+      allow updates'
+    reason: FeatureGates_RestrictedFeatureGates_TechPreviewNoUpgrade
+    status: "False"
+    type: UpgradeableClusterOperators
+  desired:
+    channels:
+    - candidate-5.0
+    image: registry.build12.ci.openshift.org/ci-ln-h13idik/release@sha256:e8f74fa0423f416cdcd6b35a0769765118c0f8ba9d7e0e25517e41c59483c6af
+    version: 5.0.0-ec.2
+  history:
+  - completionTime: "2026-07-13T18:26:15Z"
+    image: registry.build12.ci.openshift.org/ci-ln-h13idik/release@sha256:e8f74fa0423f416cdcd6b35a0769765118c0f8ba9d7e0e25517e41c59483c6af
+    startedTime: "2026-07-13T17:54:39Z"
+    state: Completed
+    verified: false
+    version: 5.0.0-ec.2
+  observedGeneration: 2
+  versionHash: dEAm0Qo6hGo=

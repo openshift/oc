@@ -13,12 +13,16 @@ import (
 
 type mockData struct {
 	// inputs
-	cvPath     string
-	alertsPath string
+	cvPath             string
+	alertsPath         string
+	featureGatePath    string
+	infrastructurePath string
 
 	// outputs
 	clusterVersion *configv1.ClusterVersion
 	alerts         []byte
+	featureGate    *configv1.FeatureGate
+	infrastructure *configv1.Infrastructure
 }
 
 func asResourceList[T any](objects *corev1.List, decoder runtime.Decoder) ([]T, error) {
@@ -75,6 +79,42 @@ func (o *mockData) load() error {
 		o.alerts, err = os.ReadFile(o.alertsPath)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
+		}
+	}
+
+	if o.featureGatePath != "" {
+		fgBytes, err := os.ReadFile(o.featureGatePath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if fgBytes != nil {
+			fgObj, err := runtime.Decode(decoder, fgBytes)
+			if err != nil {
+				return fmt.Errorf("error while parsing file %s: %w", o.featureGatePath, err)
+			}
+			fg, ok := fgObj.(*configv1.FeatureGate)
+			if !ok {
+				return fmt.Errorf("unexpected object type %T in %s content", fgObj, o.featureGatePath)
+			}
+			o.featureGate = fg
+		}
+	}
+
+	if o.infrastructurePath != "" {
+		infraBytes, err := os.ReadFile(o.infrastructurePath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if infraBytes != nil {
+			infraObj, err := runtime.Decode(decoder, infraBytes)
+			if err != nil {
+				return fmt.Errorf("error while parsing file %s: %w", o.infrastructurePath, err)
+			}
+			infra, ok := infraObj.(*configv1.Infrastructure)
+			if !ok {
+				return fmt.Errorf("unexpected object type %T in %s content", infraObj, o.infrastructurePath)
+			}
+			o.infrastructure = infra
 		}
 	}
 

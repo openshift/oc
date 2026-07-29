@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"strings"
 
+	configv1 "github.com/openshift/api/config/v1"
+	"github.com/openshift/api/features"
 	routev1 "github.com/openshift/api/route/v1"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
 
 	"github.com/openshift/oc/pkg/cli/admin/inspectalerts"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/status"
@@ -20,6 +23,12 @@ import (
 // and Unknown when we do not have enough information to make a
 // happy-or-sad determination.
 func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
+	if skip, err := o.alertsEvaluatedByCVO(ctx); err != nil {
+		klog.Warningf("An error occured while determining if the CVO is evaluating alerts, so the client will check. %v", err)
+	} else if skip {
+		return nil, nil
+	}
+
 	var alertsBytes []byte
 	if o.mockData.alertsPath != "" {
 		if len(o.mockData.alerts) == 0 {
@@ -250,4 +259,55 @@ func (o *options) alerts(ctx context.Context) ([]acceptableCondition, error) {
 	}
 
 	return conditions, nil
+}
+
+// alertsEvaluatedByCVO makes API calls to determine if we need to do client-side alert checking
+func (o *options) alertsEvaluatedByCVO(ctx context.Context) (bool, error) {
+	featureGates := o.mockData.featureGate
+	infrastructure := o.mockData.infrastructure
+	cv := o.mockData.clusterVersion
+	if cv == nil {
+		var err error
+		featureGates, err = o.Client.ConfigV1().FeatureGates().Get(ctx, "cluster", metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		infrastructure, err = o.Client.ConfigV1().Infrastructures().Get(ctx, "cluster", metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		cv, err = o.Client.ConfigV1().ClusterVersions().Get(ctx, "version", metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+	}
+
+	// if the AcceptRisks feature gate is enabled AND oc is not running against a hosted cluster,
+	// the CVO is handling alerts and will generate the Recommended condition if needed
+	return isAcceptRisksEnabled(featureGates, cv.Status.Desired.Version) && !isHostedCluster(infrastructure), nil
+}
+
+// isAcceptRisksEnabled checks to see if the 'ClusterUpdateAcceptRisks' feature gate is enabled
+// if so, return true to skip client-side alert checking
+func isAcceptRisksEnabled(featureGate *configv1.FeatureGate, clusterVersion string) bool {
+	if featureGate == nil {
+		return false
+	}
+
+	for _, versionedGates := range featureGate.Status.FeatureGates {
+		if versionedGates.Version == clusterVersion {
+			for _, enabledGate := range versionedGates.Enabled {
+				if enabledGate.Name == features.FeatureGateClusterUpdateAcceptRisks {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func isHostedCluster(i *configv1.Infrastructure) bool {
+	return i != nil && i.Status.ControlPlaneTopology == configv1.ExternalTopologyMode
 }
