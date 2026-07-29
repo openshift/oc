@@ -389,16 +389,16 @@ func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struc
 		return nil, nil, err
 	}
 
-	var missingAnnotation []string
+	var annotationMissingImages []string
 	for _, item := range csvs.Items {
 		ann := item.GetAnnotations()
 		if v, ok := ann[mgAnnotation]; ok {
 			pluginImages[v] = struct{}{}
 		} else {
-			missingAnnotation = append(missingAnnotation, item.GetName())
+			annotationMissingImages = append(annotationMissingImages, item.GetName())
 		}
 	}
-	return pluginImages, missingAnnotation, nil
+	return pluginImages, annotationMissingImages, nil
 }
 
 func (o *MustGatherOptions) resolveImageStreamTagString(ctx context.Context, s string) (string, error) {
