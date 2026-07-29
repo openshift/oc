@@ -341,7 +341,7 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 	}
 	if o.AllImages {
 		// find all csvs and clusteroperators with the annotation "operators.openshift.io/must-gather-image"
-		pluginImages, missingCSVs, err := o.annotatedCSVs(ctx)
+		pluginImages, annotationMissingCSVs, err := o.annotatedCSVs(ctx)
 		if err != nil {
 			return err
 		}
@@ -350,20 +350,20 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		var missingCOs []string
+		var annotationMissingCOs []string
 		for _, item := range cos.Items {
 			ann := item.GetAnnotations()
 			if v, ok := ann[mgAnnotation]; ok {
 				pluginImages[v] = struct{}{}
 			} else {
-				missingCOs = append(missingCOs, item.GetName())
+				annotationMissingCOs = append(annotationMissingCOs, item.GetName())
 			}
 		}
-		if len(missingCOs) > 0 {
-			o.log("ClusterOperators without %s annotation: %s", mgAnnotation, strings.Join(missingCOs, ", "))
+		if len(annotationMissingCOs) > 0 {
+			o.log("ClusterOperators without %s annotation: %s", mgAnnotation, strings.Join(annotationMissingCOs, ", "))
 		}
-		if len(missingCSVs) > 0 {
-			o.log("CSVs without %s annotation: %s", mgAnnotation, strings.Join(missingCSVs, ", "))
+		if len(annotationMissingCSVs) > 0 {
+			o.log("CSVs without %s annotation: %s", mgAnnotation, strings.Join(annotationMissingCSVs, ", "))
 		}
 		// delete the default image to avoid duplication in case an Operator had it in its annotation
 		delete(pluginImages, o.Images[0])
