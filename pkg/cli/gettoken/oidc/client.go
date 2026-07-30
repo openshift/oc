@@ -174,11 +174,16 @@ func NewAuthenticator(ctx context.Context, p *Provider, cacertdata string, cacer
 			}
 		}
 	}
+	endpoint := provider.Endpoint()
+	if p.ClientSecret == "" {
+		endpoint.AuthStyle = oauth2.AuthStyleInParams
+	}
+
 	return &client{
 		httpClient: httpClient,
 		provider:   provider,
 		oauth2Config: oauth2.Config{
-			Endpoint:     provider.Endpoint(),
+			Endpoint:     endpoint,
 			ClientID:     p.ClientID,
 			ClientSecret: p.ClientSecret,
 			Scopes:       append(p.ExtraScopes, gooidc.ScopeOpenID),
