@@ -6,13 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"math/rand"
 	"os"
 	"os/signal"
 	"path"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -385,16 +384,16 @@ func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struc
 		return nil, nil, err
 	}
 
-	annotationMissingImages := make(map[string]struct{})
+	annotationMissingImages := sets.New[string]()
 	for _, item := range csvs.Items {
 		ann := item.GetAnnotations()
 		if v, ok := ann[mgAnnotation]; ok {
 			pluginImages[v] = struct{}{}
 		} else {
-			annotationMissingImages[item.GetName()] = struct{}{}
+			annotationMissingImages.Insert(item.GetName())
 		}
 	}
-	return pluginImages, slices.Sorted(maps.Keys(annotationMissingImages)), nil
+	return pluginImages, sets.List(annotationMissingImages), nil
 }
 
 func (o *MustGatherOptions) resolveImageStreamTagString(ctx context.Context, s string) (string, error) {
