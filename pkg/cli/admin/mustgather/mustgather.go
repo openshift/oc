@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math/rand"
 	"os"
 	"os/signal"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -350,17 +352,11 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		var annotationMissingCOs []string
 		for _, item := range cos.Items {
 			ann := item.GetAnnotations()
 			if v, ok := ann[mgAnnotation]; ok {
 				pluginImages[v] = struct{}{}
-			} else {
-				annotationMissingCOs = append(annotationMissingCOs, item.GetName())
 			}
-		}
-		if len(annotationMissingCOs) > 0 {
-			o.log("ClusterOperators without %s annotation: %s", mgAnnotation, strings.Join(annotationMissingCOs, ", "))
 		}
 		if len(annotationMissingCSVs) > 0 {
 			o.log("CSVs without %s annotation: %s", mgAnnotation, strings.Join(annotationMissingCSVs, ", "))
@@ -389,16 +385,16 @@ func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struc
 		return nil, nil, err
 	}
 
-	var annotationMissingImages []string
+	annotationMissingImages := make(map[string]struct{})
 	for _, item := range csvs.Items {
 		ann := item.GetAnnotations()
 		if v, ok := ann[mgAnnotation]; ok {
 			pluginImages[v] = struct{}{}
 		} else {
-			annotationMissingImages = append(annotationMissingImages, item.GetName())
+			annotationMissingImages[item.GetName()] = struct{}{}
 		}
 	}
-	return pluginImages, annotationMissingImages, nil
+	return pluginImages, slices.Sorted(maps.Keys(annotationMissingImages)), nil
 }
 
 func (o *MustGatherOptions) resolveImageStreamTagString(ctx context.Context, s string) (string, error) {
