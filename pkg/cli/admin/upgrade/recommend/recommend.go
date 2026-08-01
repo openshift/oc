@@ -21,6 +21,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/openshift/api/features"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 )
 
@@ -139,7 +140,7 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 
 func (o *options) Run(ctx context.Context) error {
 	issues := sets.New[string]()
-	accept := sets.New[string](o.accept...)
+	accept := sets.New[string]()
 
 	var cv *configv1.ClusterVersion
 	if cv = o.mockData.clusterVersion; cv == nil {
@@ -151,6 +152,31 @@ func (o *options) Run(ctx context.Context) error {
 			}
 			return err
 		}
+	}
+
+	cvoChecking, err := o.alertsEvaluatedByCVO(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to determine if the Cluster Version Operator is checking alerts: %w", err)
+	}
+	if cvoChecking && len(o.accept) > 0 {
+		return fmt.Errorf("`oc adm upgrade accept` is used to accept when the feature gate %s is enabled", features.FeatureGateClusterUpdateAcceptRisks)
+	}
+
+	if cvoChecking {
+		for _, risk := range cv.Status.ConditionalUpdateRisks {
+			for _, condition := range risk.Conditions {
+				if condition.Type == "Applies" && condition.Status != metav1.ConditionFalse {
+					issues.Insert(risk.Name)
+				}
+			}
+		}
+		if cv.Spec.DesiredUpdate != nil {
+			for _, risk := range cv.Spec.DesiredUpdate.AcceptRisks {
+				accept.Insert(risk.Name)
+			}
+		}
+	} else {
+		accept = accept.Insert(o.accept...)
 	}
 
 	if c := findClusterOperatorStatusCondition(cv.Status.Conditions, clusterStatusFailing); c != nil {
@@ -329,23 +355,21 @@ func (o *options) Run(ctx context.Context) error {
 					} else {
 						if !o.quiet {
 							reason := c.Reason
-							if accept.Has("ConditionalUpdateRisk") {
+							if !cvoChecking && accept.Has("ConditionalUpdateRisk") {
 								reason = fmt.Sprintf("accepted %s via ConditionalUpdateRisk", c.Reason)
 							}
 							fmt.Fprintf(o.Out, "Update to %s %s=%s:\nImage: %s\nRelease URL: %s\nReason: %s\nMessage: %s\n", update.Release.Version, c.Type, c.Status, update.Release.Image, update.Release.URL, reason, strings.ReplaceAll(c.Message, "\n", "\n  "))
 						}
-						issues.Insert("ConditionalUpdateRisk")
+						if !cvoChecking {
+							issues.Insert("ConditionalUpdateRisk")
+						}
 					}
 					unaccepted := issues.Difference(accept)
 					if unaccepted.Len() > 0 {
-						if cvoChecking, err := o.alertsEvaluatedByCVO(ctx); cvoChecking {
-							if err != nil {
-								return fmt.Errorf("failed to determine if CVO is checking alerts: %v", err)
-							}
+						if cvoChecking {
 							return fmt.Errorf("There are issues that apply to this cluster and have not been accepted. `oc adm upgrade accept` can be used to accept them: %s\n", strings.Join(sets.List(unaccepted), ","))
-						} else {
-							return fmt.Errorf("issues that apply to this cluster but which were not included in --accept: %s", strings.Join(sets.List(unaccepted), ","))
 						}
+						return fmt.Errorf("issues that apply to this cluster but which were not included in --accept: %s", strings.Join(sets.List(unaccepted), ","))
 					} else if issues.Len() > 0 && !o.quiet {
 						fmt.Fprintf(o.Out, "Update to %s has no known issues relevant to this cluster other than the accepted %s.\n", update.Release.Version, strings.Join(sets.List(issues), ","))
 					}
