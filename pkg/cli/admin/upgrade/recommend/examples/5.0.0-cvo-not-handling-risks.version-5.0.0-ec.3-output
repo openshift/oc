@@ -16,4 +16,5 @@ Release URL:
 Reason: TestAlert
 Message: Test alert for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
 
+
 error: issues that apply to this cluster but which were not included in --accept: ConditionalUpdateRisk,TestAlert
