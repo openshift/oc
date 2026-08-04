@@ -176,7 +176,7 @@ var _ = g.Describe("[sig-cli] Workloads test oc works well", func() {
 		patchPath := fmt.Sprintf("-p=[{\"op\": \"replace\", \"path\": \"/spec/selector/annotations\", \"value\":{ \"openshift.io/requester\": \"%s\" }}]", userName)
 		err = oc.AsAdmin().WithoutNamespace().Run("patch").Args("clusterresourcequota", "for-user42982", "--type=json", patchPath).Execute()
 		o.Expect(err).NotTo(o.HaveOccurred())
-		err = oc.WithoutNamespace().Run("new-project").Args("p42982-1").Execute()
+		err = oc.WithoutNamespace().Run("new-project").Args("p42982-1", "--skip-config-write").Execute()
 		o.Expect(err).NotTo(o.HaveOccurred())
 		defer oc.AsAdmin().WithoutNamespace().Run("delete").Args("project", "p42982-1").Execute()
 		err = oc.WithoutNamespace().Run("create").Args("-f", deploymentconfigF, "-n", "p42982-1").Execute()
