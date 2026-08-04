@@ -72,6 +72,7 @@ func TestExamples(t *testing.T) {
 				"examples/4.22.0-extend-recommended-critical-alert-cv.yaml": "1.2.3-not-important",
 				"examples/5.0.0-cvo-handling-risks-cv.yaml":                 "5.0.0-ec.3",
 				"examples/5.0.0-cvo-not-handling-risks-cv.yaml":             "5.0.0-ec.3",
+				"examples/5.0.0-includes-graph-and-alert-risks-cv.yaml":     "5.0.0-ec.5",
 			},
 			outputSuffixPattern: ".version-%s-output",
 		},

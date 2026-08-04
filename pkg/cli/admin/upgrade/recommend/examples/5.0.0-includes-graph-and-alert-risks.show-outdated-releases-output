@@ -1,0 +1,10 @@
+Upstream update service: https://fauxinnati-fauxinnati.apps.ota-stage.q2z4.p1.openshiftapps.com/api/upgrades_info/graph?channel=risks-always&version=5.0.0-ec.2&arch=amd64
+Channel: risks-always (available channels: channel-head, risks-always, risks-matching, risks-nonmatching, simple, smoke-test)
+
+Updates to 5.1:
+  VERSION     ISSUES
+  5.1.0       MultipleReasons
+
+Updates to 5.0:
+  VERSION     ISSUES
+  5.0.0-ec.5  MultipleReasons
