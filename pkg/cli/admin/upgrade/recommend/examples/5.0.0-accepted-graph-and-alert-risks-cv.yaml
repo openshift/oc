@@ -1,0 +1,295 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2026-08-05T15:28:19Z"
+  generation: 8
+  name: version
+  resourceVersion: "46866"
+  uid: 03e8b1df-210a-4911-ae7e-8e28489db8c5
+spec:
+  channel: risks-always
+  clusterID: d275ee16-3918-407d-8d56-981eb2ce7ae2
+  desiredUpdate:
+    acceptRisks:
+    - name: TestAlert
+    - name: SyntheticRiskA
+    - name: SyntheticRiskB
+    - name: SyntheticRiskC
+  overrides:
+  - group: config.openshift.io
+    kind: ClusterImagePolicy
+    name: openshift
+    namespace: ""
+    unmanaged: true
+  upstream: https://fauxinnati-fauxinnati.apps.ota-stage.q2z4.p1.openshiftapps.com/api/upgrades_info/graph?channel=risks-always&version=5.0.0-ec.2&arch=amd64
+status:
+  availableUpdates:
+  - channels:
+    - risks-always
+    image: quay.io/openshift-release-dev/ocp-release@sha256:00000000000000000000000000000000000000000000000000000000004c4f28
+    url: https://access.redhat.com/errata/RHSA-2024:05100
+    version: 5.1.0
+  - channels:
+    - risks-always
+    image: quay.io/openshift-release-dev/ocp-release@sha256:cc0eae9544d40aadbac7e0ce1a9beb23056faf5e022620a03eaf50a41b118e61
+    url: https://access.redhat.com/errata/RHSA-2024:05000
+    version: 5.0.0-ec.5
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditionalUpdateRisks:
+  - conditions:
+    - lastTransitionTime: "2026-08-05T16:40:28Z"
+      message: ""
+      reason: Match
+      status: "True"
+      type: Applies
+    matchingRules:
+    - type: Always
+    message: This is a synthetic risk A that always applies for testing purposes
+    name: SyntheticRiskA
+    url: https://docs.openshift.com/synthetic-risk-a
+  - conditions:
+    - lastTransitionTime: "2026-08-05T16:40:28Z"
+      message: ""
+      reason: Match
+      status: "True"
+      type: Applies
+    matchingRules:
+    - type: Always
+    message: This is a synthetic risk B that always applies for testing purposes
+    name: SyntheticRiskB
+    url: https://docs.openshift.com/synthetic-risk-b
+  - conditions:
+    - lastTransitionTime: "2026-08-05T16:40:28Z"
+      message: ""
+      reason: Match
+      status: "True"
+      type: Applies
+    matchingRules:
+    - type: Always
+    message: This is a synthetic risk C that always applies for testing purposes
+    name: SyntheticRiskC
+    url: https://docs.openshift.com/synthetic-risk-c
+  - conditions:
+    - lastTransitionTime: "2026-08-05T16:35:19Z"
+      message: 'warning alert TestAlert firing, suggesting issues worth investigating
+        before updating the cluster. Test alert for updates. The alert description
+        is: Test alert for updates <alert does not have a runbook_url annotation>'
+      reason: Alert:firing
+      status: "True"
+      type: Applies
+    matchingRules:
+    - type: Always
+    message: Test alert for updates.
+    name: TestAlert
+    url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+  conditionalUpdates:
+  - conditions:
+    - lastTransitionTime: "2026-08-05T16:39:34Z"
+      message: The update is recommended, because either risk does not apply to this
+        cluster or it is accepted by cluster admins.
+      reason: AllExposedRisksAccepted
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - risks-always
+      image: quay.io/openshift-release-dev/ocp-release@sha256:00000000000000000000000000000000000000000000000000000000004c4f28
+      url: https://access.redhat.com/errata/RHSA-2024:05100
+      version: 5.1.0
+    riskNames:
+    - SyntheticRiskA
+    - SyntheticRiskC
+    - TestAlert
+    risks:
+    - conditions:
+      - lastTransitionTime: "2026-08-05T16:40:28Z"
+        message: ""
+        reason: Match
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: This is a synthetic risk A that always applies for testing purposes
+      name: SyntheticRiskA
+      url: https://docs.openshift.com/synthetic-risk-a
+    - conditions:
+      - lastTransitionTime: "2026-08-05T16:40:28Z"
+        message: ""
+        reason: Match
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: This is a synthetic risk C that always applies for testing purposes
+      name: SyntheticRiskC
+      url: https://docs.openshift.com/synthetic-risk-c
+    - conditions:
+      - lastTransitionTime: "2026-08-05T16:35:19Z"
+        message: 'warning alert TestAlert firing, suggesting issues worth investigating
+          before updating the cluster. Test alert for updates. The alert description
+          is: Test alert for updates <alert does not have a runbook_url annotation>'
+        reason: Alert:firing
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: Test alert for updates.
+      name: TestAlert
+      url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+  - conditions:
+    - lastTransitionTime: "2026-08-05T16:39:34Z"
+      message: The update is recommended, because either risk does not apply to this
+        cluster or it is accepted by cluster admins.
+      reason: AllExposedRisksAccepted
+      status: "True"
+      type: Recommended
+    release:
+      channels:
+      - risks-always
+      image: quay.io/openshift-release-dev/ocp-release@sha256:cc0eae9544d40aadbac7e0ce1a9beb23056faf5e022620a03eaf50a41b118e61
+      url: https://access.redhat.com/errata/RHSA-2024:05000
+      version: 5.0.0-ec.5
+    riskNames:
+    - SyntheticRiskA
+    - SyntheticRiskB
+    - TestAlert
+    risks:
+    - conditions:
+      - lastTransitionTime: "2026-08-05T16:40:28Z"
+        message: ""
+        reason: Match
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: This is a synthetic risk A that always applies for testing purposes
+      name: SyntheticRiskA
+      url: https://docs.openshift.com/synthetic-risk-a
+    - conditions:
+      - lastTransitionTime: "2026-08-05T16:40:28Z"
+        message: ""
+        reason: Match
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: This is a synthetic risk B that always applies for testing purposes
+      name: SyntheticRiskB
+      url: https://docs.openshift.com/synthetic-risk-b
+    - conditions:
+      - lastTransitionTime: "2026-08-05T16:35:19Z"
+        message: 'warning alert TestAlert firing, suggesting issues worth investigating
+          before updating the cluster. Test alert for updates. The alert description
+          is: Test alert for updates <alert does not have a runbook_url annotation>'
+        reason: Alert:firing
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: Test alert for updates.
+      name: TestAlert
+      url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+  conditions:
+  - lastTransitionTime: "2026-08-05T16:33:53Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2026-08-05T15:29:10Z"
+    message: |-
+      Cluster should not be upgraded between minor or major versions for multiple reasons: ClusterVersionOverridesSet,FeatureGates_RestrictedFeatureGates_TechPreviewNoUpgrade
+      * Disabling ownership via cluster version overrides prevents upgrades between minor or major versions. Please remove overrides before requesting a minor or major version update.
+      * Cluster operator config-operator should not be upgraded between minor or major versions: FeatureGatesUpgradeable: "TechPreviewNoUpgrade" does not allow updates
+    reason: MultipleReasons
+    status: "False"
+    type: Upgradeable
+  - lastTransitionTime: "2026-08-05T15:29:10Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2026-08-05T15:29:10Z"
+    message: Payload loaded version="5.0.0-ec.2" image="registry.build12.ci.openshift.org/ci-ln-6tjdy82/release@sha256:e8f74fa0423f416cdcd6b35a0769765118c0f8ba9d7e0e25517e41c59483c6af"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2026-08-05T16:01:24Z"
+    message: Done applying 5.0.0-ec.2
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2026-08-05T16:01:24Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2026-08-05T16:01:24Z"
+    message: Cluster version is 5.0.0-ec.2
+    status: "False"
+    type: Progressing
+  - lastTransitionTime: "2026-08-05T15:29:55Z"
+    message: Disabling ownership via cluster version overrides prevents upgrades between
+      minor or major versions. Please remove overrides before requesting a minor or
+      major version update.
+    reason: ClusterVersionOverridesSet
+    status: "False"
+    type: UpgradeableClusterVersionOverrides
+  - lastTransitionTime: "2026-08-05T15:34:55Z"
+    message: 'Cluster operator config-operator should not be upgraded between minor
+      or major versions: FeatureGatesUpgradeable: "TechPreviewNoUpgrade" does not
+      allow updates'
+    reason: FeatureGates_RestrictedFeatureGates_TechPreviewNoUpgrade
+    status: "False"
+    type: UpgradeableClusterOperators
+  desired:
+    channels:
+    - channel-head
+    - risks-always
+    - risks-matching
+    - risks-nonmatching
+    - simple
+    - smoke-test
+    image: registry.build12.ci.openshift.org/ci-ln-6tjdy82/release@sha256:e8f74fa0423f416cdcd6b35a0769765118c0f8ba9d7e0e25517e41c59483c6af
+    url: https://access.redhat.com/errata/RHSA-2024:05000
+    version: 5.0.0-ec.2
+  history:
+  - completionTime: "2026-08-05T16:01:24Z"
+    image: registry.build12.ci.openshift.org/ci-ln-6tjdy82/release@sha256:e8f74fa0423f416cdcd6b35a0769765118c0f8ba9d7e0e25517e41c59483c6af
+    startedTime: "2026-08-05T15:29:10Z"
+    state: Completed
+    verified: false
+    version: 5.0.0-ec.2
+  observedGeneration: 6
+  versionHash: mjEGHy29YZ4=

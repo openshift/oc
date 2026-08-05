@@ -1,0 +1,30 @@
+apiVersion: config.openshift.io/v1
+kind: Infrastructure
+metadata:
+  creationTimestamp: "2026-08-05T15:28:11Z"
+  generation: 1
+  name: cluster
+  resourceVersion: "582"
+  uid: b10bdc47-ca7a-4ec8-8daf-4c75a54a11b3
+spec:
+  cloudConfig:
+    key: config
+    name: cloud-provider-config
+  platformSpec:
+    type: GCP
+status:
+  apiServerInternalURI: https://api-int.ci-ln-6tjdy82-72292.gcp-2.ci.openshift.org:6443
+  apiServerURL: https://api.ci-ln-6tjdy82-72292.gcp-2.ci.openshift.org:6443
+  controlPlaneTopology: HighlyAvailable
+  cpuPartitioning: None
+  etcdDiscoveryDomain: ""
+  infrastructureName: ci-ln-6tjdy82-72292-8nrkr
+  infrastructureTopology: HighlyAvailable
+  platform: GCP
+  platformStatus:
+    gcp:
+      cloudLoadBalancerConfig:
+        dnsType: PlatformDefault
+      projectID: openshift-gce-devel-ci-2
+      region: us-central1
+    type: GCP

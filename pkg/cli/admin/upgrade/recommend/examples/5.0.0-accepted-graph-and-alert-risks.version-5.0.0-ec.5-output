@@ -1,0 +1,7 @@
+Upstream update service: https://fauxinnati-fauxinnati.apps.ota-stage.q2z4.p1.openshiftapps.com/api/upgrades_info/graph?channel=risks-always&version=5.0.0-ec.2&arch=amd64
+Channel: risks-always (available channels: channel-head, risks-always, risks-matching, risks-nonmatching, simple, smoke-test)
+
+Update to 5.0.0-ec.5 has no known issues relevant to this cluster.
+Image: quay.io/openshift-release-dev/ocp-release@sha256:cc0eae9544d40aadbac7e0ce1a9beb23056faf5e022620a03eaf50a41b118e61
+Release URL: https://access.redhat.com/errata/RHSA-2024:05000
+Update to 5.0.0-ec.5 has no known issues relevant to this cluster other than the accepted SyntheticRiskA,SyntheticRiskB,SyntheticRiskC,TestAlert.
