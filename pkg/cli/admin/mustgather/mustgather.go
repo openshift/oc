@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kutilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -341,7 +342,7 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 	}
 	if o.AllImages {
 		// find all csvs and clusteroperators with the annotation "operators.openshift.io/must-gather-image"
-		pluginImages, err := o.annotatedCSVs(ctx)
+		pluginImages, annotationMissingCSVs, err := o.annotatedCSVs(ctx)
 		if err != nil {
 			return err
 		}
@@ -356,6 +357,9 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 				pluginImages[v] = struct{}{}
 			}
 		}
+		if len(annotationMissingCSVs) > 0 {
+			o.log("CSVs without %s annotation: %s", mgAnnotation, strings.Join(annotationMissingCSVs, ", "))
+		}
 		// delete the default image to avoid duplication in case an Operator had it in its annotation
 		delete(pluginImages, o.Images[0])
 		for i := range pluginImages {
@@ -367,7 +371,7 @@ func (o *MustGatherOptions) completeImages(ctx context.Context) error {
 	return nil
 }
 
-func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struct{}, error) {
+func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struct{}, []string, error) {
 	csvGVR := schema.GroupVersionResource{
 		Group:    "operators.coreos.com",
 		Version:  "v1alpha1",
@@ -377,16 +381,19 @@ func (o *MustGatherOptions) annotatedCSVs(ctx context.Context) (map[string]struc
 
 	csvs, err := o.DynamicClient.Resource(csvGVR).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	annotationMissingImages := sets.New[string]()
 	for _, item := range csvs.Items {
 		ann := item.GetAnnotations()
 		if v, ok := ann[mgAnnotation]; ok {
 			pluginImages[v] = struct{}{}
+		} else {
+			annotationMissingImages.Insert(item.GetName())
 		}
 	}
-	return pluginImages, nil
+	return pluginImages, sets.List(annotationMissingImages), nil
 }
 
 func (o *MustGatherOptions) resolveImageStreamTagString(ctx context.Context, s string) (string, error) {
