@@ -207,6 +207,16 @@ func (o *options) Run(ctx context.Context) error {
 		return fmt.Errorf("no cluster operator information available - you must be connected to an OpenShift version 4 server")
 	}
 
+	if o.mockData.cvPath == "" {
+		infra, err := o.ConfigClient.ConfigV1().Infrastructures().Get(ctx, "cluster", metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if infra.Status.ControlPlaneTopology == configv1.ExternalTopologyMode {
+			return fmt.Errorf("upgrade status is not supported on Hosted Control Plane (HyperShift) clusters")
+		}
+	}
+
 	progressing := findClusterOperatorStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing)
 	if progressing == nil {
 		return fmt.Errorf("no current %s info, see `oc describe clusterversion` for more details.\n", configv1.OperatorProgressing)
