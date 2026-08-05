@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build go1.10
+
 // Package idna implements IDNA2008 using the compatibility processing
 // defined by UTS (Unicode Technical Standard) #46, which defines a standard to
 // deal with the transition from IDNA2003.
@@ -18,15 +20,12 @@ package idna // import "golang.org/x/net/idna"
 import (
 	"fmt"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/text/secure/bidirule"
 	"golang.org/x/text/unicode/bidi"
 	"golang.org/x/text/unicode/norm"
 )
-
-const unicode16 = unicode.Version >= "16.0.0"
 
 // NOTE: Unlike common practice in Go APIs, the functions will return a
 // sanitized domain name in case of errors. Browsers sometimes use a partially
@@ -100,11 +99,6 @@ func ValidateLabels(enable bool) Option {
 			o.fromPuny = nil
 		}
 	}
-}
-
-// validateLabels reports whether the ValidateLabels option is enabled.
-func (p *Profile) validateLabels() bool {
-	return p.fromPuny != nil
 }
 
 // CheckHyphens sets whether to check for correct use of hyphens ('-') in
@@ -269,10 +263,6 @@ func (p *Profile) String() string {
 	return s
 }
 
-// Transitional processing is disabled by default as of Go 1.18.
-// https://golang.org/issue/47510
-const transitionalLookup = false
-
 var (
 	// Punycode is a Profile that does raw punycode processing with a minimum
 	// of validation.
@@ -334,30 +324,15 @@ func (e labelError) Error() string {
 	return fmt.Sprintf("idna: invalid label %q", e.label)
 }
 
-type runeError struct {
-	r     rune
-	code_ string
-}
+type runeError rune
 
-func (e runeError) code() string { return e.code_ }
+func (e runeError) code() string { return "P1" }
 func (e runeError) Error() string {
-	return fmt.Sprintf("idna: disallowed rune %U", e.r)
+	return fmt.Sprintf("idna: disallowed rune %U", e)
 }
 
-// code16 returns old for Unicode < 16, new for Unicode >= 16.
-func code16(old, new string) string {
-	if unicode16 {
-		return new
-	}
-	return old
-}
-
-// process10 implements the algorithm described in section 4 of UTS #46.
-// It implements both the Unicode 10 algorithm
-// (https://www.unicode.org/reports/tr46/tr46-19.html)
-// and the Unicode 16 algorithm
-// (https://www.unicode.org/reports/tr46/tr46-35.html)
-// depending on unicode16, which in turn depends on unicode.Version.
+// process implements the algorithm described in section 4 of UTS #46,
+// see https://www.unicode.org/reports/tr46.
 func (p *Profile) process(s string, toASCII bool) (string, error) {
 	var err error
 	var isBidi bool
@@ -372,12 +347,8 @@ func (p *Profile) process(s string, toASCII bool) (string, error) {
 	// TODO: allow for a quick check of the tables data.
 	// It seems like we should only create this error on ToASCII, but the
 	// UTS 46 conformance tests suggests we should always check this.
-	labelCode := "X4_2"
-	if !unicode16 || toASCII {
-		labelCode = "A4"
-	}
 	if err == nil && p.verifyDNSLength && s == "" {
-		err = labelError{s, labelCode}
+		err = &labelError{s, "A4"}
 	}
 	labels := labelIter{orig: s}
 	for ; !labels.done(); labels.next() {
@@ -386,22 +357,18 @@ func (p *Profile) process(s string, toASCII bool) (string, error) {
 			// Empty labels are not okay. The label iterator skips the last
 			// label if it is empty.
 			if err == nil && p.verifyDNSLength {
-				err = labelError{s, labelCode}
+				err = &labelError{s, "A4"}
 			}
 			continue
 		}
 		if strings.HasPrefix(label, acePrefix) {
-			enc := label[len(acePrefix):]
-			u, err2 := decode(enc)
+			u, err2 := decode(label[len(acePrefix):])
 			if err2 != nil {
 				if err == nil {
 					err = err2
 				}
 				// Spec says keep the old label.
 				continue
-			}
-			if unicode16 && err == nil && len(u) > 0 && isASCII(u) {
-				err = punyError(enc)
 			}
 			isBidi = isBidi || bidirule.DirectionString(u) != bidi.LeftToRight
 			labels.set(u)
@@ -412,16 +379,16 @@ func (p *Profile) process(s string, toASCII bool) (string, error) {
 				// This should be called on NonTransitional, according to the
 				// spec, but that currently does not have any effect. Use the
 				// original profile to preserve options.
-				err = p.validateLabel(u, labelCode)
+				err = p.validateLabel(u)
 			}
 		} else if err == nil {
-			err = p.validateLabel(label, labelCode)
+			err = p.validateLabel(label)
 		}
 	}
 	if isBidi && p.bidirule != nil && err == nil {
 		for labels.reset(); !labels.done(); labels.next() {
 			if !p.bidirule(labels.label()) {
-				err = labelError{s, "B"}
+				err = &labelError{s, "B"}
 				break
 			}
 		}
@@ -439,34 +406,22 @@ func (p *Profile) process(s string, toASCII bool) (string, error) {
 			}
 			n := len(label)
 			if p.verifyDNSLength && err == nil && (n == 0 || n > 63) {
-				err = labelError{label, labelCode}
+				err = &labelError{label, "A4"}
 			}
 		}
 	}
 	s = labels.result()
 	if toASCII && p.verifyDNSLength && err == nil {
-		if unicode16 && strings.HasSuffix(s, ".") {
-			err = labelError{s, labelCode}
-		}
 		// Compute the length of the domain name minus the root label and its dot.
 		n := len(s)
 		if n > 0 && s[n-1] == '.' {
 			n--
 		}
 		if len(s) < 1 || n > 253 {
-			err = labelError{s, labelCode}
+			err = &labelError{s, "A4"}
 		}
 	}
 	return s, err
-}
-
-func isASCII(s string) bool {
-	for _, c := range []byte(s) {
-		if c >= 0x80 {
-			return false
-		}
-	}
-	return true
 }
 
 func normalize(p *Profile, s string) (mapped string, isBidi bool, err error) {
@@ -481,12 +436,12 @@ func normalize(p *Profile, s string) (mapped string, isBidi bool, err error) {
 func validateRegistration(p *Profile, s string) (idem string, bidi bool, err error) {
 	// TODO: filter need for normalization in loop below.
 	if !norm.NFC.IsNormalString(s) {
-		return s, false, labelError{s, "V1"}
+		return s, false, &labelError{s, "V1"}
 	}
 	for i := 0; i < len(s); {
 		v, sz := trie.lookupString(s[i:])
 		if sz == 0 {
-			return s, bidi, runeError{utf8.RuneError, "P1"}
+			return s, bidi, runeError(utf8.RuneError)
 		}
 		bidi = bidi || info(v).isBidi(s[i:])
 		// Copy bytes not copied so far.
@@ -494,12 +449,9 @@ func validateRegistration(p *Profile, s string) (idem string, bidi bool, err err
 		// TODO: handle the NV8 defined in the Unicode idna data set to allow
 		// for strict conformance to IDNA2008.
 		case valid, deviation:
-			if sz == 1 && p.useSTD3Rules && !allowedSTD3(rune(s[i])) {
-				return s, bidi, runeError{rune(s[i]), "P1"}
-			}
 		case disallowed, mapped, unknown, ignored:
 			r, _ := utf8.DecodeRuneInString(s[i:])
-			return s, bidi, runeError{r, "P1"}
+			return s, bidi, runeError(r)
 		}
 		i += sz
 	}
@@ -537,7 +489,7 @@ func validateAndMap(p *Profile, s string) (vm string, bidi bool, err error) {
 			b = append(b, "\ufffd"...)
 			k = len(s)
 			if err == nil {
-				err = runeError{utf8.RuneError, "P1"}
+				err = runeError(utf8.RuneError)
 			}
 			break
 		}
@@ -550,26 +502,14 @@ func validateAndMap(p *Profile, s string) (vm string, bidi bool, err error) {
 		case valid:
 			continue
 		case disallowed:
-			// Unicode 16 delays the error until validateLabels.
-			// Unicode 10 gave an error now.
-			if !unicode16 && err == nil {
+			if err == nil {
 				r, _ := utf8.DecodeRuneInString(s[start:])
-				err = runeError{r, "P1"}
+				err = runeError(r)
 			}
 			continue
-		case deviation:
-			if unicode16 && !p.transitional {
-				break
-			}
-			fallthrough
-		case mapped:
+		case mapped, deviation:
 			b = append(b, s[k:start]...)
-			// Unicode 16 requires a special case to handle ẞ -> ss in transitional mode.
-			if unicode16 && p.transitional && s[start:start+sz] == "ẞ" {
-				b = append(b, "ss"...)
-			} else {
-				b = info(v).appendMapping(b, s[start:i])
-			}
+			b = info(v).appendMapping(b, s[start:i])
 		case ignored:
 			b = append(b, s[k:start]...)
 			// drop the rune
@@ -660,13 +600,13 @@ const acePrefix = "xn--"
 
 func (p *Profile) simplify(cat category) category {
 	switch cat {
-	case disallowedSTD3Mapped: // only happens for pre-Unicode 16
+	case disallowedSTD3Mapped:
 		if p.useSTD3Rules {
 			cat = disallowed
 		} else {
 			cat = mapped
 		}
-	case disallowedSTD3Valid: // only happens for pre-Unicode 16
+	case disallowedSTD3Valid:
 		if p.useSTD3Rules {
 			cat = disallowed
 		} else {
@@ -685,18 +625,17 @@ func (p *Profile) simplify(cat category) category {
 
 func validateFromPunycode(p *Profile, s string) error {
 	if !norm.NFC.IsNormalString(s) {
-		return labelError{s, "V1"}
+		return &labelError{s, "V1"}
 	}
 	// TODO: detect whether string may have to be normalized in the following
 	// loop.
 	for i := 0; i < len(s); {
 		v, sz := trie.lookupString(s[i:])
 		if sz == 0 {
-			return runeError{utf8.RuneError, "P1"}
+			return runeError(utf8.RuneError)
 		}
-		cat := info(v).category()
-		if c := p.simplify(cat); c != valid && c != deviation {
-			return labelError{s, code16("V6", "V7")}
+		if c := p.simplify(info(v).category()); c != valid && c != deviation {
+			return &labelError{s, "V6"}
 		}
 		i += sz
 	}
@@ -765,51 +704,23 @@ var joinStates = [][numJoinTypes]joinState{
 	},
 }
 
-// allowedSTD3 reports whether r is a rune that can appear in a domain name
-// according to STD3. We allow all non-ASCII runes and then letters, digits, hyphens.
-// We also add dot so that this can be run against the whole name and not just
-// a single name element (label). The surrounding code checks dots well enough.
-func allowedSTD3(r rune) bool {
-	return r >= 0x80 || 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '-' || r == '.'
-}
-
 // validateLabel validates the criteria from Section 4.1. Item 1, 4, and 6 are
 // already implicitly satisfied by the overall implementation.
-func (p *Profile) validateLabel(s string, labelCode string) (err error) {
+func (p *Profile) validateLabel(s string) (err error) {
 	if s == "" {
 		if p.verifyDNSLength {
-			return labelError{s, labelCode}
+			return &labelError{s, "A4"}
 		}
 		return nil
 	}
 	if p.checkHyphens {
 		if len(s) > 4 && s[2] == '-' && s[3] == '-' {
-			return labelError{s, "V2"}
+			return &labelError{s, "V2"}
 		}
 		if s[0] == '-' || s[len(s)-1] == '-' {
-			return labelError{s, "V3"}
+			return &labelError{s, "V3"}
 		}
 	}
-
-	// Unicode 16's TR 46 delays the rune validity checks until after the label is decoded.
-	// (validateAndMap did not reject them earlier.)
-	if unicode16 && p.validateLabels() {
-		for i := 0; i < len(s); {
-			v, sz := trie.lookupString(s[i:])
-			if sz == 0 {
-				return runeError{utf8.RuneError, "P1"}
-			}
-			cat := info(v).category()
-			if c := p.simplify(cat); c != valid && (!p.transitional || c != deviation) {
-				return labelError{s, "V7"}
-			}
-			if sz == 1 && p.useSTD3Rules && !allowedSTD3(rune(s[i])) {
-				return runeError{rune(s[i]), "U1"}
-			}
-			i += sz
-		}
-	}
-
 	if !p.checkJoiners {
 		return nil
 	}
@@ -818,7 +729,7 @@ func (p *Profile) validateLabel(s string, labelCode string) (err error) {
 	v, sz := trie.lookupString(s)
 	x := info(v)
 	if x.isModifier() {
-		return labelError{s, code16("V5", "V6")}
+		return &labelError{s, "V5"}
 	}
 	// Quickly return in the absence of zero-width (non) joiners.
 	if strings.Index(s, zwj) == -1 && strings.Index(s, zwnj) == -1 {
@@ -843,9 +754,8 @@ func (p *Profile) validateLabel(s string, labelCode string) (err error) {
 		x = info(v)
 	}
 	if st == stateFAIL || st == stateAfter {
-		return labelError{s, "C"}
+		return &labelError{s, "C"}
 	}
-
 	return nil
 }
 
@@ -856,25 +766,4 @@ func ascii(s string) bool {
 		}
 	}
 	return true
-}
-
-// appendMapping appends the mapping for the respective rune. isMapped must be
-// true. A mapping is a categorization of a rune as defined in UTS #46.
-func (c info) appendMapping(b []byte, s string) []byte {
-	index := int(c >> indexShift)
-	if c&xorBit == 0 {
-		p := index
-		return append(b, mappings[mappingIndex[p]:mappingIndex[p+1]]...)
-	}
-	b = append(b, s...)
-	if c&inlineXOR == inlineXOR {
-		// TODO: support and handle two-byte inline masks
-		b[len(b)-1] ^= byte(index)
-	} else {
-		for p := len(b) - int(xorData[index]); p < len(b); p++ {
-			index++
-			b[p] ^= xorData[index]
-		}
-	}
-	return b
 }
