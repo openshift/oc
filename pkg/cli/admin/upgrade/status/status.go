@@ -210,7 +210,7 @@ func (o *options) Run(ctx context.Context) error {
 	if o.mockData.cvPath == "" {
 		infra, err := o.ConfigClient.ConfigV1().Infrastructures().Get(ctx, "cluster", metav1.GetOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get cluster infrastructure: %w", err)
 		}
 		if infra.Status.ControlPlaneTopology == configv1.ExternalTopologyMode {
 			return fmt.Errorf("upgrade status is not supported on Hosted Control Plane (HyperShift) clusters")
