@@ -1,0 +1,16 @@
+apiVersion: oauth.openshift.io/v1
+kind: OAuthClientList
+metadata: {}
+items:
+- apiVersion: oauth.openshift.io/v1
+  kind: OAuthClient
+  metadata:
+    name: console
+  secret: 11 bytes long
+  additionalSecrets:
+    - 9 bytes long
+- apiVersion: oauth.openshift.io/v1
+  kind: OAuthClient
+  metadata:
+    name: another
+  secret: 13 bytes long

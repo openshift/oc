@@ -1,0 +1,7 @@
+apiVersion: oauth.openshift.io/v1
+kind: OAuthClient
+metadata:
+  name: console
+secret: 11 bytes long
+additionalSecrets:
+  - 9 bytes long
