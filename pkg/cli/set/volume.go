@@ -65,7 +65,7 @@ var (
 		* secret (mounted secret): Secret volumes mount a named secret to the provided
 		  directory.
 
-		For descriptions on other volume types, see https://docs.openshift.com`)
+		For descriptions on other volume types, see https://docs.redhat.com/en/documentation/openshift_container_platform/`)
 
 	volumeExample = templates.Examples(`
 		# List volumes defined on all deployment configs in the current project

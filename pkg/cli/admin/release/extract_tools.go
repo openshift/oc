@@ -126,7 +126,7 @@ var (
 	The OpenShift installer \u0060openshift-install\u0060 makes it easy to get a cluster
 	running on the public cloud or your local infrastructure.
 
-	To learn more about installing OpenShift, visit [docs.openshift.com](https://docs.openshift.com)
+	To learn more about installing OpenShift, visit [docs.redhat.com](https://docs.redhat.com/en/documentation/openshift_container_platform/)
 	and select the version of OpenShift you are using.
 
 	## Installing the tools
@@ -149,7 +149,7 @@ var (
 	kube config file management, and access to developer tools. The \u0060kubectl\u0060
 	binary is included alongside for when strict Kubernetes compliance is necessary.
 
-	To learn more about OpenShift, visit [docs.openshift.com](https://docs.openshift.com)
+	To learn more about OpenShift, visit [docs.redhat.com](https://docs.redhat.com/en/documentation/openshift_container_platform/)
 	and select the version of OpenShift you are using.
 
 	## Installing the tools
@@ -175,7 +175,7 @@ var (
 	clusters, offering a number of advantages over \u0060kubectl.exe\u0060 such as easy login,
 	kube config file management, and access to developer tools.
 
-	To learn more about OpenShift, visit [docs.openshift.com](https://docs.openshift.com)
+	To learn more about OpenShift, visit [docs.redhat.com](https://docs.redhat.com/en/documentation/openshift_container_platform/)
 	and select the version of OpenShift you are using.
 
 	## Installing the tools
@@ -204,7 +204,7 @@ var (
 	The ccoctl tool provides various commands to assist with the creating and maintenance of
 	cloud credentials from outside the cluster (necessary when CCO is put in "Manual" mode).
 
-	To learn more about OpenShift, visit [docs.openshift.com](https://docs.openshift.com)
+	To learn more about OpenShift, visit [docs.redhat.com](https://docs.redhat.com/en/documentation/openshift_container_platform/)
 	and select the version of OpenShift you are using.
 
 	## Installing the tools
@@ -978,7 +978,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			Client tools for OpenShift
 			--------------------------
 
-			These archives contain the client tooling for [OpenShift](https://docs.openshift.com).
+			These archives contain the client tooling for [OpenShift](https://docs.redhat.com/en/documentation/openshift_container_platform/).
 
 			To verify the contents of this directory, use the 'gpg' and 'shasum' tools to
 			ensure the archives you have downloaded match those published from this location.

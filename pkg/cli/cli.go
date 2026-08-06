@@ -96,7 +96,7 @@ var (
     allowing you to quickly switch between development and debugging. You can also run kubectl directly
     against any OpenShift cluster using the kubeconfig file created by 'oc login'.
 
-    For more on OpenShift, see the documentation at https://docs.openshift.com.
+    For more on OpenShift, see the documentation at https://docs.redhat.com/en/documentation/openshift_container_platform/.
 
     To see the full list of commands supported, run 'oc --help'.`)
 )
