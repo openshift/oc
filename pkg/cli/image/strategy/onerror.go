@@ -95,6 +95,10 @@ func alternativeImageSourcesICSP(imageRef reference.DockerImageReference, icspLi
 	for _, icsp := range icspList {
 		repoDigestMirrors := icsp.Spec.RepositoryDigestMirrors
 		for _, rdm := range repoDigestMirrors {
+			if strings.HasPrefix(rdm.Source, "*.") {
+				klog.V(5).Infof("Skipping wildcard ICSP source %q", rdm.Source)
+				continue
+			}
 			var suffix string
 			var err error
 			rdmSourceRef, err := reference.Parse(rdm.Source)
@@ -229,6 +233,10 @@ func alternativeImageSourcesIDMS(imageRef reference.DockerImageReference, idmsLi
 	for _, idms := range idmsList {
 		repoDigestMirrors := idms.Spec.ImageDigestMirrors
 		for _, rdm := range repoDigestMirrors {
+			if strings.HasPrefix(rdm.Source, "*.") {
+				klog.V(5).Infof("Skipping wildcard IDMS source %q", rdm.Source)
+				continue
+			}
 			var suffix string
 			var err error
 			rdmSourceRef, err := reference.Parse(rdm.Source)
