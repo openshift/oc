@@ -166,10 +166,12 @@ func (o *options) Run(ctx context.Context) error {
 		v := o.version.String()
 		for _, cu := range cv.Status.ConditionalUpdates {
 			if cu.Release.Version == v {
-				for _, risk := range cu.Risks {
-					for _, condition := range risk.Conditions {
-						if condition.Type == "Applies" && condition.Status != metav1.ConditionFalse {
-							issues.Insert(risk.Name)
+				for _, riskName := range cu.RiskNames {
+					if risk := findRiskByName(cv.Status.ConditionalUpdateRisks, riskName); risk != nil {
+						for _, condition := range risk.Conditions {
+							if condition.Type == "Applies" && condition.Status != metav1.ConditionFalse {
+								issues.Insert(risk.Name)
+							}
 						}
 					}
 				}
@@ -453,6 +455,15 @@ func (o *options) Run(ctx context.Context) error {
 		}
 	}
 
+	return nil
+}
+
+func findRiskByName(risks []configv1.ConditionalUpdateRisk, name string) *configv1.ConditionalUpdateRisk {
+	for _, risk := range risks {
+		if risk.Name == name {
+			return &risk
+		}
+	}
 	return nil
 }
 
