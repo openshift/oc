@@ -7,6 +7,7 @@ import (
 	"path"
 
 	configv1 "github.com/openshift/api/config/v1"
+	oauthv1 "github.com/openshift/api/oauth/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -108,6 +109,12 @@ func InspectResource(ctx context.Context, info *resource.Info, resourceCtx *reso
 		}
 		return nil
 
+	case oauthv1.GroupVersion.WithResource("oauthclients").GroupResource():
+		if err := inspectOAuthClientInfo(ctx, info, o); err != nil {
+			return err
+		}
+		return nil
+
 	case admissionregistrationv1.SchemeGroupVersion.WithResource("mutatingwebhookconfigurations").GroupResource():
 		if err := gatherMutatingAdmissionWebhook(ctx, resourceCtx, info, o); err != nil {
 			return err
@@ -151,6 +158,9 @@ func newListAccessor(structuredList interface{}) (listAccessor, error) {
 
 	case *configv1.ProxyList:
 		return &proxyList{castObj}, nil
+
+	case *oauthv1.OAuthClientList:
+		return &oauthClientList{castObj}, nil
 
 	default:
 		return nil, fmt.Errorf("unhandledStructuredListType: %T", castObj)
