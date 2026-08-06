@@ -162,12 +162,18 @@ func (o *options) Run(ctx context.Context) error {
 		return fmt.Errorf("`oc adm upgrade accept` is used to accept when the feature gate %s is enabled", features.FeatureGateClusterUpdateAcceptRisks)
 	}
 
-	if cvoChecking {
-		for _, risk := range cv.Status.ConditionalUpdateRisks {
-			for _, condition := range risk.Conditions {
-				if condition.Type == "Applies" && condition.Status != metav1.ConditionFalse {
-					issues.Insert(risk.Name)
+	if cvoChecking && o.version != nil {
+		v := o.version.String()
+		for _, cu := range cv.Status.ConditionalUpdates {
+			if cu.Release.Version == v {
+				for _, risk := range cu.Risks {
+					for _, condition := range risk.Conditions {
+						if condition.Type == "Applies" && condition.Status != metav1.ConditionFalse {
+							issues.Insert(risk.Name)
+						}
+					}
 				}
+				break
 			}
 		}
 		if cv.Spec.DesiredUpdate != nil {
