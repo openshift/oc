@@ -273,7 +273,7 @@ func (o *Options) Run() error {
 
 			return err
 		}
-		fmt.Fprintln(o.Out, "Requested update to multi-architecture")
+		fmt.Fprintln(o.Out, "Requested update to multi-architecture cluster")
 		return nil
 
 	case o.ToLatestAvailable, len(o.To) > 0, len(o.ToImage) > 0:
