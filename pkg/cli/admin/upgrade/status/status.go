@@ -212,7 +212,7 @@ func (o *options) Run(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to get cluster infrastructure: %w", err)
 		}
-		if infra.Status.ControlPlaneTopology == configv1.ExternalTopologyMode {
+		if IsHostedCluster(infra) {
 			return fmt.Errorf("upgrade status is not supported on Hosted Control Plane (HyperShift) clusters")
 		}
 	}
@@ -392,6 +392,11 @@ func findClusterOperatorStatusCondition(conditions []configv1.ClusterOperatorSta
 		}
 	}
 	return nil
+}
+
+// IsHostedCluster returns true if the cluster is a Hosted Control Plane (HyperShift) cluster.
+func IsHostedCluster(i *configv1.Infrastructure) bool {
+	return i != nil && i.Status.ControlPlaneTopology == configv1.ExternalTopologyMode
 }
 
 func getMCOImagePullSpec(deployment *appsv1.Deployment) string {
