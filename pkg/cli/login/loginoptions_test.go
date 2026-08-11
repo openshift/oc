@@ -747,9 +747,10 @@ func TestGetClientConfigUsesProxyURL(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	var proxiedURL atomic.Value
+	var proxiedURL atomic.Pointer[string]
 	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		proxiedURL.Store(r.URL.String())
+		u := r.URL.String()
+		proxiedURL.Store(&u)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer proxyServer.Close()
@@ -781,12 +782,12 @@ func TestGetClientConfigUsesProxyURL(t *testing.T) {
 	}
 
 	// dialToServer requests the API root; absolute form may include a trailing slash.
-	u, _ := proxiedURL.Load().(string)
-	if u == "" {
+	u := proxiedURL.Load()
+	if u == nil {
 		t.Fatal("expected dialToServer to use the configured proxy")
 	}
-	if !strings.HasPrefix(u, apiServer.URL) {
-		t.Fatalf("proxy saw unexpected URL %q", u)
+	if !strings.HasPrefix(*u, apiServer.URL) {
+		t.Fatalf("proxy saw unexpected URL %q", *u)
 	}
 	if apiHit.Load() {
 		t.Fatal("api server should not have been reached directly when proxy is configured")
