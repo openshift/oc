@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/MakeNowJust/heredoc"
@@ -739,16 +740,16 @@ func TestValidateProxyURL(t *testing.T) {
 }
 
 func TestGetClientConfigUsesProxyURL(t *testing.T) {
-	apiHit := make(chan struct{}, 1)
+	var apiHit atomic.Bool
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		apiHit <- struct{}{}
+		apiHit.Store(true)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer apiServer.Close()
 
-	proxied := make(chan string, 1)
+	var proxiedURL atomic.Value
 	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		proxied <- r.URL.String()
+		proxiedURL.Store(r.URL.String())
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer proxyServer.Close()
@@ -779,20 +780,16 @@ func TestGetClientConfigUsesProxyURL(t *testing.T) {
 		t.Fatalf("expected proxy %q, got %v", proxyServer.URL, got)
 	}
 
-	select {
-	case u := <-proxied:
-		// dialToServer requests the API root; absolute form may include a trailing slash.
-		if !strings.HasPrefix(u, apiServer.URL) {
-			t.Fatalf("proxy saw unexpected URL %q", u)
-		}
-	default:
+	// dialToServer requests the API root; absolute form may include a trailing slash.
+	u, _ := proxiedURL.Load().(string)
+	if u == "" {
 		t.Fatal("expected dialToServer to use the configured proxy")
 	}
-
-	select {
-	case <-apiHit:
+	if !strings.HasPrefix(u, apiServer.URL) {
+		t.Fatalf("proxy saw unexpected URL %q", u)
+	}
+	if apiHit.Load() {
 		t.Fatal("api server should not have been reached directly when proxy is configured")
-	default:
 	}
 }
 
@@ -909,9 +906,9 @@ func TestGetClientConfigProxyURLFlagOverridesExisting(t *testing.T) {
 	}))
 	defer oldProxy.Close()
 
-	newProxyHit := make(chan struct{}, 1)
+	var newProxyHit atomic.Bool
 	newProxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		newProxyHit <- struct{}{}
+		newProxyHit.Store(true)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer newProxy.Close()
@@ -944,9 +941,7 @@ func TestGetClientConfigProxyURLFlagOverridesExisting(t *testing.T) {
 	if got == nil || got.String() != newProxy.URL {
 		t.Fatalf("expected --proxy-url %q to override existing, got %v", newProxy.URL, got)
 	}
-	select {
-	case <-newProxyHit:
-	default:
+	if !newProxyHit.Load() {
 		t.Fatal("expected dial to use the --proxy-url proxy")
 	}
 }
