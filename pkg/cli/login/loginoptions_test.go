@@ -701,6 +701,16 @@ func TestValidateProxyURL(t *testing.T) {
 			proxyURL:        "squid.example.com:3128",
 			expectErrSubstr: "invalid --proxy-url",
 		},
+		{
+			name:            "scheme only",
+			proxyURL:        "http://",
+			expectErrSubstr: "invalid --proxy-url",
+		},
+		{
+			name:            "missing host",
+			proxyURL:        "http:/proxy",
+			expectErrSubstr: "invalid --proxy-url",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -783,6 +793,61 @@ func TestGetClientConfigUsesProxyURL(t *testing.T) {
 	case <-apiHit:
 		t.Fatal("api server should not have been reached directly when proxy is configured")
 	default:
+	}
+}
+
+func TestGetClientConfigPrefersCanonicalClusterProxyURL(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	otherProxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("non-canonical cluster proxy should not be selected when canonical entry exists")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer otherProxy.Close()
+
+	canonicalProxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer canonicalProxy.Close()
+
+	canonicalNick, err := cliconfig.GetClusterNicknameFromURL(apiServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	options := &LoginOptions{
+		Server: apiServer.URL,
+		StartingKubeConfig: &kclientcmdapi.Config{
+			Clusters: map[string]*kclientcmdapi.Cluster{
+				"alias": {
+					Server:   apiServer.URL,
+					ProxyURL: otherProxy.URL,
+				},
+				canonicalNick: {
+					Server:   apiServer.URL,
+					ProxyURL: canonicalProxy.URL,
+				},
+			},
+		},
+	}
+
+	clientConfig, err := options.getClientConfig()
+	if err != nil {
+		t.Fatalf("getClientConfig failed: %v", err)
+	}
+	req, err := http.NewRequest(http.MethodHead, apiServer.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := clientConfig.Proxy(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || got.String() != canonicalProxy.URL {
+		t.Fatalf("expected canonical cluster proxy %q, got %v", canonicalProxy.URL, got)
 	}
 }
 
