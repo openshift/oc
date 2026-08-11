@@ -71,6 +71,12 @@ type LoginOptions struct {
 	WebLogin     bool
 	CallbackPort int32
 
+	// ProxyURL, when set, is used for the login HTTP client and persisted to the
+	// kubeconfig cluster's proxy-url field. When empty, an existing cluster
+	// proxy-url is preserved; otherwise HTTPS_PROXY/HTTP_PROXY may still apply
+	// via the default transport when rest.Config.Proxy is nil.
+	ProxyURL string
+
 	// infra
 	StartingKubeConfig *kclientcmdapi.Config
 	DefaultNamespace   string
@@ -162,15 +168,31 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	clientConfig.Host = o.Server
 	clientConfig.Insecure = o.InsecureTLS
 
+	existingCluster := findCluster(clientConfig.Host, *o.StartingKubeConfig)
+
+	// Prefer an explicitly provided --proxy-url. Otherwise reuse an existing
+	// cluster proxy-url so login uses it and CreateConfig does not drop it.
+	// Leave Proxy unset when neither is present so HTTPS_PROXY/HTTP_PROXY still
+	// apply via the default transport without being written into kubeconfig.
+	proxyURL := o.ProxyURL
+	if len(proxyURL) == 0 && existingCluster != nil {
+		proxyURL = existingCluster.ProxyURL
+	}
+	if len(proxyURL) > 0 {
+		if err := setClientConfigProxy(clientConfig, proxyURL); err != nil {
+			return nil, fmt.Errorf("invalid proxy-url %q: %w", proxyURL, err)
+		}
+	}
+
 	if !o.InsecureTLS {
 		// Try to use the specified CA. Then fall back into searching kubeconfig.
 		if len(o.CAFile) > 0 {
 			clientConfig.CAFile = o.CAFile
 			clientConfig.CAData = nil
-		} else if cluster := findCluster(clientConfig.Host, *o.StartingKubeConfig); cluster != nil {
-			clientConfig.Insecure = cluster.InsecureSkipTLSVerify
-			clientConfig.CAFile = cluster.CertificateAuthority
-			clientConfig.CAData = cluster.CertificateAuthorityData
+		} else if existingCluster != nil {
+			clientConfig.Insecure = existingCluster.InsecureSkipTLSVerify
+			clientConfig.CAFile = existingCluster.CertificateAuthority
+			clientConfig.CAData = existingCluster.CertificateAuthorityData
 
 			// It's not allowed to specify both the insecure flag and a CA.
 			// k8s transport init machinery returns an error in that case.

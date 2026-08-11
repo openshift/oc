@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/MakeNowJust/heredoc"
@@ -17,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	restclient "k8s.io/client-go/rest"
+	kclientcmd "k8s.io/client-go/tools/clientcmd"
 	kclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	userv1 "github.com/openshift/api/user/v1"
@@ -651,6 +655,372 @@ func TestValidateAutoOpenBrowser(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLoginProxyURLFlagAccepted(t *testing.T) {
+	cmd := NewCmdLogin(nil, genericiooptions.NewTestIOStreamsDiscard())
+	flag := cmd.Flags().Lookup("proxy-url")
+	if flag == nil {
+		t.Fatal("expected oc login to define --proxy-url")
+	}
+	if err := cmd.Flags().Set("proxy-url", "http://squid.example.com:3128"); err != nil {
+		t.Fatalf("expected --proxy-url to accept a value: %v", err)
+	}
+}
+
+func TestValidateProxyURL(t *testing.T) {
+	testCases := []struct {
+		name            string
+		proxyURL        string
+		expectErrSubstr string
+	}{
+		{
+			name:     "valid http proxy",
+			proxyURL: "http://squid.example.com:3128",
+		},
+		{
+			name:     "valid https proxy",
+			proxyURL: "https://squid.example.com:3128",
+		},
+		{
+			name:     "valid socks5 proxy",
+			proxyURL: "socks5://127.0.0.1:1080",
+		},
+		{
+			name:     "empty proxy is allowed",
+			proxyURL: "",
+		},
+		{
+			name:            "invalid scheme",
+			proxyURL:        "ftp://squid.example.com:3128",
+			expectErrSubstr: "invalid --proxy-url",
+		},
+		{
+			name:            "missing scheme",
+			proxyURL:        "squid.example.com:3128",
+			expectErrSubstr: "invalid --proxy-url",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := NewCmdLogin(nil, genericiooptions.NewTestIOStreamsDiscard())
+			options := &LoginOptions{
+				Server:             "https://api.example.com:6443",
+				ProxyURL:           tc.proxyURL,
+				StartingKubeConfig: &kclientcmdapi.Config{},
+			}
+			err := options.Validate(cmd, "", []string{})
+			if tc.expectErrSubstr == "" {
+				if err != nil {
+					t.Fatalf("expected no error, got: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tc.expectErrSubstr)
+			}
+			if !strings.Contains(err.Error(), tc.expectErrSubstr) {
+				t.Fatalf("expected error containing %q, got: %v", tc.expectErrSubstr, err)
+			}
+		})
+	}
+}
+
+func TestGetClientConfigUsesProxyURL(t *testing.T) {
+	apiHit := make(chan struct{}, 1)
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiHit <- struct{}{}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	proxied := make(chan string, 1)
+	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxied <- r.URL.String()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer proxyServer.Close()
+
+	options := &LoginOptions{
+		Server:             apiServer.URL,
+		ProxyURL:           proxyServer.URL,
+		StartingKubeConfig: &kclientcmdapi.Config{},
+	}
+
+	clientConfig, err := options.getClientConfig()
+	if err != nil {
+		t.Fatalf("getClientConfig failed: %v", err)
+	}
+	if clientConfig.Proxy == nil {
+		t.Fatal("expected rest.Config.Proxy to be set from --proxy-url")
+	}
+
+	req, err := http.NewRequest(http.MethodHead, apiServer.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := clientConfig.Proxy(req)
+	if err != nil {
+		t.Fatalf("Proxy func failed: %v", err)
+	}
+	if got == nil || got.String() != proxyServer.URL {
+		t.Fatalf("expected proxy %q, got %v", proxyServer.URL, got)
+	}
+
+	select {
+	case u := <-proxied:
+		// dialToServer requests the API root; absolute form may include a trailing slash.
+		if !strings.HasPrefix(u, apiServer.URL) {
+			t.Fatalf("proxy saw unexpected URL %q", u)
+		}
+	default:
+		t.Fatal("expected dialToServer to use the configured proxy")
+	}
+
+	select {
+	case <-apiHit:
+		t.Fatal("api server should not have been reached directly when proxy is configured")
+	default:
+	}
+}
+
+func TestGetClientConfigPreservesExistingClusterProxyURL(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer proxyServer.Close()
+
+	startingConfig := &kclientcmdapi.Config{
+		Clusters: map[string]*kclientcmdapi.Cluster{
+			"existing": {
+				Server:   apiServer.URL,
+				ProxyURL: proxyServer.URL,
+			},
+		},
+	}
+
+	options := &LoginOptions{
+		Server:             apiServer.URL,
+		StartingKubeConfig: startingConfig,
+	}
+
+	clientConfig, err := options.getClientConfig()
+	if err != nil {
+		t.Fatalf("getClientConfig failed: %v", err)
+	}
+	if clientConfig.Proxy == nil {
+		t.Fatal("expected existing cluster proxy-url to be applied to rest.Config.Proxy")
+	}
+
+	req, err := http.NewRequest(http.MethodHead, apiServer.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := clientConfig.Proxy(req)
+	if err != nil {
+		t.Fatalf("Proxy func failed: %v", err)
+	}
+	if got == nil || got.String() != proxyServer.URL {
+		t.Fatalf("expected preserved proxy %q, got %v", proxyServer.URL, got)
+	}
+}
+
+func TestGetClientConfigProxyURLFlagOverridesExisting(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	oldProxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("old proxy should not be used when --proxy-url is set")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer oldProxy.Close()
+
+	newProxyHit := make(chan struct{}, 1)
+	newProxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		newProxyHit <- struct{}{}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer newProxy.Close()
+
+	options := &LoginOptions{
+		Server:   apiServer.URL,
+		ProxyURL: newProxy.URL,
+		StartingKubeConfig: &kclientcmdapi.Config{
+			Clusters: map[string]*kclientcmdapi.Cluster{
+				"existing": {
+					Server:   apiServer.URL,
+					ProxyURL: oldProxy.URL,
+				},
+			},
+		},
+	}
+
+	clientConfig, err := options.getClientConfig()
+	if err != nil {
+		t.Fatalf("getClientConfig failed: %v", err)
+	}
+	req, err := http.NewRequest(http.MethodHead, apiServer.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := clientConfig.Proxy(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || got.String() != newProxy.URL {
+		t.Fatalf("expected --proxy-url %q to override existing, got %v", newProxy.URL, got)
+	}
+	select {
+	case <-newProxyHit:
+	default:
+		t.Fatal("expected dial to use the --proxy-url proxy")
+	}
+}
+
+func TestGetClientConfigLeavesProxyNilWithoutFlagOrClusterProxy(t *testing.T) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	options := &LoginOptions{
+		Server:             apiServer.URL,
+		StartingKubeConfig: &kclientcmdapi.Config{},
+	}
+
+	clientConfig, err := options.getClientConfig()
+	if err != nil {
+		t.Fatalf("getClientConfig failed: %v", err)
+	}
+	if clientConfig.Proxy != nil {
+		t.Fatal("expected rest.Config.Proxy to remain nil so HTTPS_PROXY/HTTP_PROXY can still apply")
+	}
+}
+
+func TestSaveConfigPersistsAndPreservesProxyURL(t *testing.T) {
+	dir := t.TempDir()
+	kubeconfigPath := filepath.Join(dir, "config")
+
+	proxyA := "http://proxy-a.example.com:3128"
+	proxyB := "http://proxy-b.example.com:3128"
+	proxyURLA, err := url.Parse(proxyA)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	starting := kclientcmdapi.NewConfig()
+	starting.Clusters["api-cluster-a-example-com:6443"] = &kclientcmdapi.Cluster{
+		Server:   "https://api.cluster-a.example.com:6443",
+		ProxyURL: proxyA,
+	}
+	starting.Clusters["api-cluster-b-example-com:6443"] = &kclientcmdapi.Cluster{
+		Server:   "https://api.cluster-b.example.com:6443",
+		ProxyURL: proxyB,
+	}
+
+	pathOptions := &kclientcmd.PathOptions{
+		GlobalFile: kubeconfigPath,
+		EnvVar:     "",
+		LoadingRules: &kclientcmd.ClientConfigLoadingRules{
+			ExplicitPath: kubeconfigPath,
+		},
+	}
+
+	// Re-login to cluster A without changing Proxy on rest.Config beyond the
+	// preserved value. This mirrors getClientConfig applying existing proxy-url.
+	options := &LoginOptions{
+		Username:           "alice",
+		Project:            "default",
+		StartingKubeConfig: starting,
+		PathOptions:        pathOptions,
+		Config: &restclient.Config{
+			Host:        "https://api.cluster-a.example.com:6443",
+			BearerToken: "token-a",
+			Proxy:       http.ProxyURL(proxyURLA),
+		},
+		IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
+	}
+
+	if _, err := options.SaveConfig(); err != nil {
+		t.Fatalf("SaveConfig failed: %v", err)
+	}
+
+	result, err := kclientcmd.LoadFromFile(kubeconfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clusterA, ok := result.Clusters["api-cluster-a-example-com:6443"]
+	if !ok {
+		t.Fatal("missing cluster A after login")
+	}
+	if clusterA.ProxyURL != proxyA {
+		t.Fatalf("cluster A proxy-url = %q, want %q", clusterA.ProxyURL, proxyA)
+	}
+
+	// Cluster B was only in StartingKubeConfig; MergeConfig keeps unrelated
+	// clusters, so its distinct proxy-url must remain.
+	clusterB, ok := result.Clusters["api-cluster-b-example-com:6443"]
+	if !ok {
+		t.Fatal("missing unrelated cluster B after login")
+	}
+	if clusterB.ProxyURL != proxyB {
+		t.Fatalf("cluster B proxy-url = %q, want %q (clusters must keep distinct proxies)", clusterB.ProxyURL, proxyB)
+	}
+}
+
+func TestSaveConfigDoesNotPersistEnvProxyWhenUnset(t *testing.T) {
+	dir := t.TempDir()
+	kubeconfigPath := filepath.Join(dir, "config")
+
+	pathOptions := &kclientcmd.PathOptions{
+		GlobalFile: kubeconfigPath,
+		EnvVar:     "",
+		LoadingRules: &kclientcmd.ClientConfigLoadingRules{
+			ExplicitPath: kubeconfigPath,
+		},
+	}
+
+	options := &LoginOptions{
+		Username:           "alice",
+		Project:            "default",
+		StartingKubeConfig: kclientcmdapi.NewConfig(),
+		PathOptions:        pathOptions,
+		Config: &restclient.Config{
+			Host:        "https://api.example.com:6443",
+			BearerToken: "token",
+			// Proxy intentionally nil: HTTPS_PROXY may still work at transport
+			// time, but must not be written into kubeconfig.
+		},
+		IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
+	}
+
+	t.Setenv("HTTPS_PROXY", "http://env-proxy.example.com:3128")
+	t.Setenv("HTTP_PROXY", "http://env-proxy.example.com:3128")
+
+	if _, err := options.SaveConfig(); err != nil {
+		t.Fatalf("SaveConfig failed: %v", err)
+	}
+
+	result, err := kclientcmd.LoadFromFile(kubeconfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, ok := result.Clusters["api-example-com:6443"]
+	if !ok {
+		t.Fatal("missing cluster after login")
+	}
+	if cluster.ProxyURL != "" {
+		t.Fatalf("expected no kubeconfig proxy-url when only HTTPS_PROXY is set, got %q", cluster.ProxyURL)
 	}
 }
 

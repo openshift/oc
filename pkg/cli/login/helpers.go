@@ -17,6 +17,34 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
+// parseProxyURL validates a kubeconfig-style proxy URL.
+// Schemes match client-go's kubeconfig proxy-url validation.
+func parseProxyURL(proxyURL string) (*url.URL, error) {
+	u, err := url.Parse(proxyURL)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse: %v", proxyURL)
+	}
+
+	switch u.Scheme {
+	case "http", "https", "socks5":
+	default:
+		return nil, fmt.Errorf("unsupported scheme %q, must be http, https, or socks5", u.Scheme)
+	}
+	return u, nil
+}
+
+// setClientConfigProxy configures rest.Config.Proxy from a proxy URL string.
+// When set, client-go uses this instead of HTTPS_PROXY/HTTP_PROXY, and
+// CreateConfig persists it to the kubeconfig cluster's proxy-url field.
+func setClientConfigProxy(clientConfig *restclient.Config, proxyURL string) error {
+	u, err := parseProxyURL(proxyURL)
+	if err != nil {
+		return err
+	}
+	clientConfig.Proxy = http.ProxyURL(u)
+	return nil
+}
+
 // getMatchingClusters examines the kubeconfig for all clusters that point to the same server
 func getMatchingClusters(clientConfig restclient.Config, kubeconfig clientcmdapi.Config) sets.String {
 	ret := sets.String{}
