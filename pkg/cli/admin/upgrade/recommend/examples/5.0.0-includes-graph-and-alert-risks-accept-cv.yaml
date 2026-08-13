@@ -1,0 +1,330 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2026-08-11T15:31:38Z"
+  generation: 15
+  name: version
+  resourceVersion: "95222"
+  uid: da4068ea-3c69-48d3-8203-c10d094fb478
+spec:
+  channel: risks-always
+  clusterID: 616592bf-3a39-4a5a-9eb6-38ce1165d0f9
+  desiredUpdate:
+    acceptRisks:
+    - name: SyntheticRiskB
+    - name: TestAlertB
+  overrides:
+  - group: config.openshift.io
+    kind: ClusterImagePolicy
+    name: openshift
+    namespace: ""
+    unmanaged: true
+  upstream: https://fauxinnati-fauxinnati.apps.ota-stage.q2z4.p1.openshiftapps.com/api/upgrades_info/graph
+status:
+  availableUpdates: null
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditionalUpdateRisks:
+  - conditions:
+    - lastTransitionTime: "2026-08-11T19:00:41Z"
+      message: ""
+      reason: Match
+      status: "True"
+      type: Applies
+    matchingRules:
+    - type: Always
+    message: This is a synthetic risk A that always applies for testing purposes
+    name: SyntheticRiskA
+    url: https://docs.openshift.com/synthetic-risk-a
+  - conditions:
+    - lastTransitionTime: "2026-08-11T19:00:41Z"
+      message: ""
+      reason: Match
+      status: "True"
+      type: Applies
+    matchingRules:
+    - type: Always
+    message: This is a synthetic risk B that always applies for testing purposes
+    name: SyntheticRiskB
+    url: https://docs.openshift.com/synthetic-risk-b
+  - conditions:
+    - lastTransitionTime: "2026-08-11T19:00:41Z"
+      message: ""
+      reason: Match
+      status: "True"
+      type: Applies
+    matchingRules:
+    - type: Always
+    message: This is a synthetic risk C that always applies for testing purposes
+    name: SyntheticRiskC
+    url: https://docs.openshift.com/synthetic-risk-c
+  - conditions:
+    - lastTransitionTime: "2026-08-11T18:17:37Z"
+      message: 'warning alert TestAlertA firing, suggesting issues worth investigating
+        before updating the cluster. Test alert aaa for updates. The alert description
+        is: Test alert aaa for updates <alert does not have a runbook_url annotation>'
+      reason: Alert:firing
+      status: "True"
+      type: Applies
+    matchingRules:
+    - type: Always
+    message: Test alert aaa for updates.
+    name: TestAlertA
+    url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+  - conditions:
+    - lastTransitionTime: "2026-08-11T18:17:16Z"
+      message: 'warning alert TestAlertB firing, suggesting issues worth investigating
+        before updating the cluster. Test alert bbb for updates. The alert description
+        is: Test alert bbb for updates <alert does not have a runbook_url annotation>'
+      reason: Alert:firing
+      status: "True"
+      type: Applies
+    matchingRules:
+    - type: Always
+    message: Test alert bbb for updates.
+    name: TestAlertB
+    url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+  conditionalUpdates:
+  - conditions:
+    - lastTransitionTime: "2026-08-11T18:45:35Z"
+      message: |-
+        This is a synthetic risk A that always applies for testing purposes https://docs.openshift.com/synthetic-risk-a
+
+        This is a synthetic risk C that always applies for testing purposes https://docs.openshift.com/synthetic-risk-c
+
+        Test alert aaa for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+      reason: MultipleReasons
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - risks-always
+      image: quay.io/openshift-release-dev/ocp-release@sha256:00000000000000000000000000000000000000000000000000000000004c4f28
+      url: https://access.redhat.com/errata/RHSA-2024:05100
+      version: 5.1.0
+    riskNames:
+    - SyntheticRiskA
+    - SyntheticRiskC
+    - TestAlertA
+    - TestAlertB
+    risks:
+    - conditions:
+      - lastTransitionTime: "2026-08-11T19:00:41Z"
+        message: ""
+        reason: Match
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: This is a synthetic risk A that always applies for testing purposes
+      name: SyntheticRiskA
+      url: https://docs.openshift.com/synthetic-risk-a
+    - conditions:
+      - lastTransitionTime: "2026-08-11T19:00:41Z"
+        message: ""
+        reason: Match
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: This is a synthetic risk C that always applies for testing purposes
+      name: SyntheticRiskC
+      url: https://docs.openshift.com/synthetic-risk-c
+    - conditions:
+      - lastTransitionTime: "2026-08-11T18:17:37Z"
+        message: 'warning alert TestAlertA firing, suggesting issues worth investigating
+          before updating the cluster. Test alert aaa for updates. The alert description
+          is: Test alert aaa for updates <alert does not have a runbook_url annotation>'
+        reason: Alert:firing
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: Test alert aaa for updates.
+      name: TestAlertA
+      url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+    - conditions:
+      - lastTransitionTime: "2026-08-11T18:17:16Z"
+        message: 'warning alert TestAlertB firing, suggesting issues worth investigating
+          before updating the cluster. Test alert bbb for updates. The alert description
+          is: Test alert bbb for updates <alert does not have a runbook_url annotation>'
+        reason: Alert:firing
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: Test alert bbb for updates.
+      name: TestAlertB
+      url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+  - conditions:
+    - lastTransitionTime: "2026-08-11T18:45:35Z"
+      message: |-
+        This is a synthetic risk A that always applies for testing purposes https://docs.openshift.com/synthetic-risk-a
+
+        Test alert aaa for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+      reason: MultipleReasons
+      status: "False"
+      type: Recommended
+    release:
+      channels:
+      - risks-always
+      image: quay.io/openshift-release-dev/ocp-release@sha256:cc0eae9544d40aadbac7e0ce1a9beb23056faf5e022620a03eaf50a41b118e61
+      url: https://access.redhat.com/errata/RHSA-2024:05000
+      version: 5.0.0-ec.5
+    riskNames:
+    - SyntheticRiskA
+    - SyntheticRiskB
+    - TestAlertA
+    - TestAlertB
+    risks:
+    - conditions:
+      - lastTransitionTime: "2026-08-11T19:00:41Z"
+        message: ""
+        reason: Match
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: This is a synthetic risk A that always applies for testing purposes
+      name: SyntheticRiskA
+      url: https://docs.openshift.com/synthetic-risk-a
+    - conditions:
+      - lastTransitionTime: "2026-08-11T19:00:41Z"
+        message: ""
+        reason: Match
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: This is a synthetic risk B that always applies for testing purposes
+      name: SyntheticRiskB
+      url: https://docs.openshift.com/synthetic-risk-b
+    - conditions:
+      - lastTransitionTime: "2026-08-11T18:17:37Z"
+        message: 'warning alert TestAlertA firing, suggesting issues worth investigating
+          before updating the cluster. Test alert aaa for updates. The alert description
+          is: Test alert aaa for updates <alert does not have a runbook_url annotation>'
+        reason: Alert:firing
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: Test alert aaa for updates.
+      name: TestAlertA
+      url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+    - conditions:
+      - lastTransitionTime: "2026-08-11T18:17:16Z"
+        message: 'warning alert TestAlertB firing, suggesting issues worth investigating
+          before updating the cluster. Test alert bbb for updates. The alert description
+          is: Test alert bbb for updates <alert does not have a runbook_url annotation>'
+        reason: Alert:firing
+        status: "True"
+        type: Applies
+      matchingRules:
+      - type: Always
+      message: Test alert bbb for updates.
+      name: TestAlertB
+      url: https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+  conditions:
+  - lastTransitionTime: "2026-08-11T18:12:42Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2026-08-11T15:32:23Z"
+    message: |-
+      Cluster should not be upgraded between minor or major versions for multiple reasons: ClusterVersionOverridesSet,FeatureGates_RestrictedFeatureGates_TechPreviewNoUpgrade
+      * Disabling ownership via cluster version overrides prevents upgrades between minor or major versions. Please remove overrides before requesting a minor or major version update.
+      * Cluster operator config-operator should not be upgraded between minor or major versions: FeatureGatesUpgradeable: "TechPreviewNoUpgrade" does not allow updates
+    reason: MultipleReasons
+    status: "False"
+    type: Upgradeable
+  - lastTransitionTime: "2026-08-11T15:32:23Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2026-08-11T15:32:23Z"
+    message: Payload loaded version="5.0.0-ec.2" image="registry.build12.ci.openshift.org/ci-ln-bnrthzt/release@sha256:e8f74fa0423f416cdcd6b35a0769765118c0f8ba9d7e0e25517e41c59483c6af"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2026-08-11T16:05:41Z"
+    message: Done applying 5.0.0-ec.2
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2026-08-11T16:05:41Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2026-08-11T16:05:41Z"
+    message: Cluster version is 5.0.0-ec.2
+    status: "False"
+    type: Progressing
+  - lastTransitionTime: "2026-08-11T15:33:08Z"
+    message: Disabling ownership via cluster version overrides prevents upgrades between
+      minor or major versions. Please remove overrides before requesting a minor or
+      major version update.
+    reason: ClusterVersionOverridesSet
+    status: "False"
+    type: UpgradeableClusterVersionOverrides
+  - lastTransitionTime: "2026-08-11T15:37:45Z"
+    message: 'Cluster operator config-operator should not be upgraded between minor
+      or major versions: FeatureGatesUpgradeable: "TechPreviewNoUpgrade" does not
+      allow updates'
+    reason: FeatureGates_RestrictedFeatureGates_TechPreviewNoUpgrade
+    status: "False"
+    type: UpgradeableClusterOperators
+  desired:
+    channels:
+    - channel-head
+    - risks-always
+    - risks-matching
+    - risks-nonmatching
+    - simple
+    - smoke-test
+    image: registry.build12.ci.openshift.org/ci-ln-bnrthzt/release@sha256:e8f74fa0423f416cdcd6b35a0769765118c0f8ba9d7e0e25517e41c59483c6af
+    url: https://access.redhat.com/errata/RHSA-2024:05000
+    version: 5.0.0-ec.2
+  history:
+  - completionTime: "2026-08-11T16:05:41Z"
+    image: registry.build12.ci.openshift.org/ci-ln-bnrthzt/release@sha256:e8f74fa0423f416cdcd6b35a0769765118c0f8ba9d7e0e25517e41c59483c6af
+    startedTime: "2026-08-11T15:32:23Z"
+    state: Completed
+    verified: false
+    version: 5.0.0-ec.2
+  observedGeneration: 15
+  versionHash: dUNhDi1TDGI=
