@@ -238,7 +238,7 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 
 	if len(o.ProxyURL) > 0 {
 		if _, err := parseProxyURL(o.ProxyURL); err != nil {
-			return fmt.Errorf("invalid --proxy-url %q: %w", o.ProxyURL, err)
+			return err
 		}
 	}
 

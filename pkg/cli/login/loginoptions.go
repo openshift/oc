@@ -180,7 +180,7 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	}
 	if len(proxyURL) > 0 {
 		if err := setClientConfigProxy(clientConfig, proxyURL); err != nil {
-			return nil, fmt.Errorf("invalid proxy-url %q: %w", proxyURL, err)
+			return nil, err
 		}
 	}
 

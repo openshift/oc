@@ -3,6 +3,7 @@ package login
 import (
 	"bytes"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,20 +20,21 @@ import (
 )
 
 // parseProxyURL validates a kubeconfig-style proxy URL.
-// Schemes match client-go's kubeconfig proxy-url validation.
+// Supported schemes match client-go's kubeconfig proxy-url validation.
+// Errors never include the raw URL, which may contain credentials.
 func parseProxyURL(proxyURL string) (*url.URL, error) {
 	u, err := url.Parse(proxyURL)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse: %v", proxyURL)
+		return nil, errors.New("invalid --proxy-url: could not parse")
 	}
 
 	switch u.Scheme {
 	case "http", "https", "socks5":
 	default:
-		return nil, fmt.Errorf("unsupported scheme %q, must be http, https, or socks5", u.Scheme)
+		return nil, fmt.Errorf("invalid --proxy-url: unsupported scheme %q, must be http, https, or socks5", u.Scheme)
 	}
-	if len(u.Host) == 0 {
-		return nil, fmt.Errorf("host must be specified")
+	if u.Hostname() == "" {
+		return nil, errors.New("invalid --proxy-url: host must be specified")
 	}
 	return u, nil
 }
