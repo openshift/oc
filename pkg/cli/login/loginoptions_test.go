@@ -669,10 +669,9 @@ func TestProxyURL(t *testing.T) {
 
 	t.Run("validation", func(t *testing.T) {
 		cases := []struct {
-			name        string
-			proxyURL    string
-			wantErr     bool
-			errContains string
+			name           string
+			proxyURL       string
+			expectedErrMsg string
 			// secret must never appear in an error message.
 			secret string
 		}{
@@ -682,13 +681,42 @@ func TestProxyURL(t *testing.T) {
 			{name: "ipv6", proxyURL: "http://[::1]:3128"},
 			{name: "with credentials", proxyURL: "http://user:s3cret@squid.example.com:3128", secret: "s3cret"},
 			{name: "empty allowed on Validate", proxyURL: ""},
-			{name: "unsupported scheme", proxyURL: "ftp://squid.example.com:3128", wantErr: true, errContains: "unsupported scheme"},
-			{name: "missing scheme", proxyURL: "squid.example.com:3128", wantErr: true, errContains: "unsupported scheme"},
-			{name: "scheme only", proxyURL: "http://", wantErr: true, errContains: "host must be specified"},
-			{name: "port without host", proxyURL: "http://:8080", wantErr: true, errContains: "host must be specified"},
-			{name: "socks5 port without host", proxyURL: "socks5://:1080", wantErr: true, errContains: "host must be specified"},
-			{name: "path-style missing host", proxyURL: "http:/proxy", wantErr: true, errContains: "host must be specified"},
-			{name: "unsupported scheme with credentials", proxyURL: "ftp://user:s3cret@squid.example.com:3128", wantErr: true, errContains: "unsupported scheme", secret: "s3cret"},
+			{
+				name:           "unsupported scheme",
+				proxyURL:       "ftp://squid.example.com:3128",
+				expectedErrMsg: `invalid --proxy-url: unsupported scheme "ftp", must be http, https, or socks5`,
+			},
+			{
+				name:           "missing scheme",
+				proxyURL:       "squid.example.com:3128",
+				expectedErrMsg: `invalid --proxy-url: unsupported scheme "squid.example.com", must be http, https, or socks5`,
+			},
+			{
+				name:           "scheme only",
+				proxyURL:       "http://",
+				expectedErrMsg: "invalid --proxy-url: host must be specified",
+			},
+			{
+				name:           "port without host",
+				proxyURL:       "http://:8080",
+				expectedErrMsg: "invalid --proxy-url: host must be specified",
+			},
+			{
+				name:           "socks5 port without host",
+				proxyURL:       "socks5://:1080",
+				expectedErrMsg: "invalid --proxy-url: host must be specified",
+			},
+			{
+				name:           "path-style missing host",
+				proxyURL:       "http:/proxy",
+				expectedErrMsg: "invalid --proxy-url: host must be specified",
+			},
+			{
+				name:           "unsupported scheme with credentials",
+				proxyURL:       "ftp://user:s3cret@squid.example.com:3128",
+				expectedErrMsg: `invalid --proxy-url: unsupported scheme "ftp", must be http, https, or socks5`,
+				secret:         "s3cret",
+			},
 		}
 
 		cmd := NewCmdLogin(nil, genericiooptions.NewTestIOStreamsDiscard())
@@ -699,18 +727,15 @@ func TestProxyURL(t *testing.T) {
 					ProxyURL:           tc.proxyURL,
 					StartingKubeConfig: &kclientcmdapi.Config{},
 				}).Validate(cmd, "", []string{})
-				if tc.wantErr {
+				if tc.expectedErrMsg != "" {
 					if err == nil {
 						t.Fatal("expected error")
 					}
-					if !strings.Contains(err.Error(), tc.errContains) {
-						t.Fatalf("error %q does not contain %q", err.Error(), tc.errContains)
+					if err.Error() != tc.expectedErrMsg {
+						t.Fatalf("error = %q, want %q", err.Error(), tc.expectedErrMsg)
 					}
 					if tc.secret != "" && strings.Contains(err.Error(), tc.secret) {
 						t.Fatalf("error leaked proxy credentials: %q", err.Error())
-					}
-					if strings.Contains(err.Error(), tc.proxyURL) {
-						t.Fatalf("error must not include raw proxy URL: %q", err.Error())
 					}
 					return
 				}
@@ -721,6 +746,8 @@ func TestProxyURL(t *testing.T) {
 		}
 	})
 
+	// getClientConfig dials the server (via dialToServer); handlers record which
+	// endpoint was contacted so we assert proxy selection without calling Proxy().
 	t.Run("explicit flag is used for dial", func(t *testing.T) {
 		contacted := ""
 		apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -747,6 +774,8 @@ func TestProxyURL(t *testing.T) {
 		}
 	})
 
+	// Re-login without --proxy-url must still dial through the existing
+	// kubeconfig cluster proxy-url (getClientConfig performs the real request).
 	t.Run("existing cluster proxy is preserved", func(t *testing.T) {
 		contacted := ""
 		apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -776,6 +805,7 @@ func TestProxyURL(t *testing.T) {
 		}
 	})
 
+	// --proxy-url must win over an existing cluster proxy-url on the real dial.
 	t.Run("explicit flag overrides existing cluster proxy", func(t *testing.T) {
 		contacted := ""
 		apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -811,6 +841,8 @@ func TestProxyURL(t *testing.T) {
 		}
 	})
 
+	// When two clusters share a server URL, prefer CreateConfig's canonical
+	// nickname so selection is deterministic (not map-iteration order).
 	t.Run("prefers canonical cluster nickname over duplicate server entry", func(t *testing.T) {
 		server := "https://api.example.com:6443"
 		canonicalNick, err := cliconfig.GetClusterNicknameFromURL(server)
@@ -834,6 +866,8 @@ func TestProxyURL(t *testing.T) {
 		}
 	})
 
+	// Leaving Proxy nil preserves normal client-go HTTPS_PROXY/HTTP_PROXY
+	// behavior on the default transport.
 	t.Run("leaves Proxy nil without flag or cluster proxy", func(t *testing.T) {
 		apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)

@@ -71,10 +71,12 @@ type LoginOptions struct {
 	WebLogin     bool
 	CallbackPort int32
 
-	// ProxyURL, when set, is used for the login HTTP client and persisted to the
-	// kubeconfig cluster's proxy-url field. When empty, an existing cluster
-	// proxy-url is preserved; otherwise HTTPS_PROXY/HTTP_PROXY may still apply
-	// via the default transport when rest.Config.Proxy is nil.
+	// ProxyURL comes from --proxy-url. When set, it is used for the login HTTP
+	// client and persisted as the kubeconfig cluster's proxy-url. When empty,
+	// an existing kubeconfig cluster proxy-url is reused. When neither is set,
+	// rest.Config.Proxy is left nil so client-go's default transport still
+	// honors HTTPS_PROXY/HTTP_PROXY; those environment proxies are not written
+	// into kubeconfig.
 	ProxyURL string
 
 	// infra
@@ -172,8 +174,9 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 
 	// Prefer an explicitly provided --proxy-url. Otherwise reuse an existing
 	// cluster proxy-url so login uses it and CreateConfig does not drop it.
-	// Leave Proxy unset when neither is present so HTTPS_PROXY/HTTP_PROXY still
-	// apply via the default transport without being written into kubeconfig.
+	// Leave Proxy unset when neither is present so client-go still honors
+	// HTTPS_PROXY/HTTP_PROXY via the default transport without writing those
+	// environment proxies into kubeconfig.
 	proxyURL := o.ProxyURL
 	if len(proxyURL) == 0 && existingCluster != nil {
 		proxyURL = existingCluster.ProxyURL
