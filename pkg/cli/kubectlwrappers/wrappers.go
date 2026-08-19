@@ -17,7 +17,6 @@ import (
 	"k8s.io/kubectl/pkg/cmd/completion"
 	"k8s.io/kubectl/pkg/cmd/cp"
 	kcreate "k8s.io/kubectl/pkg/cmd/create"
-	"k8s.io/kubectl/pkg/cmd/delete"
 	"k8s.io/kubectl/pkg/cmd/describe"
 	"k8s.io/kubectl/pkg/cmd/diff"
 	"k8s.io/kubectl/pkg/cmd/edit"
@@ -77,11 +76,6 @@ func NewCmdClusterInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *
 // NewCmdPatch is a wrapper for the Kubernetes cli patch command
 func NewCmdPatch(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(patch.NewCmdPatch(f, streams)))
-}
-
-// NewCmdDelete is a wrapper for the Kubernetes cli delete command
-func NewCmdDelete(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
-	return cmdutil.ReplaceCommandName("kubectl", "oc", templates.Normalize(delete.NewCmdDelete(f, streams)))
 }
 
 // NewCmdCreate is a wrapper for the Kubernetes cli create command

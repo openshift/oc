@@ -98,7 +98,7 @@ func (o *ExampleOptions) Run() error { ... }
 ## Contributing Rules
 
 - **Do not modify `pkg/cli/cli.go`** unless it is part of a kubectl rebase process (to reflect changes from `kubectl/cmd.go`).
-- **Do not diverge from wrapped kubectl commands.** If a command is a pure kubectl wrapper, behavioral changes belong upstream in `k8s.io/kubectl`.
+- **Do not diverge from wrapped kubectl commands.** If a command is a pure kubectl wrapper, behavioral changes belong upstream in `k8s.io/kubectl`. `oc delete` is an exception: it adds an OpenShift-specific confirmation prompt for persistent volumes and claims (see `pkg/cli/kubectlwrappers/delete.go`).
 - **Do not modify files under `vendor/`.** Regenerate via `go mod tidy && go mod vendor`.
 - **Do not edit generated files.** `contrib/completions/` and `docs/generated/` are generated — use `make update-generated-completions` to regenerate.
 - **Write unit tests for every change.** Some commands do not easily support unit tests without dramatic refactoring — those may be excluded, but test coverage is expected by default. Test fixtures go in `testdata/` subdirectories co-located with tests.

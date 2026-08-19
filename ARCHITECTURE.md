@@ -8,7 +8,7 @@ Every kubectl command is available in oc. The relationship falls into five categ
 
 **Pure kubectl wrappers** — Commands in `pkg/cli/kubectlwrappers/wrappers.go` that call kubectl's constructor and wrap with `cmdutil.ReplaceCommandName("kubectl", "oc", ...)`. The wrapping is cosmetic — command name substitution in help text. Behavioral changes to these commands belong upstream in `k8s.io/kubectl`.
 
-**Kubectl wrappers with OCP extensions** — Commands that start from kubectl's implementation but add OCP subcommands or resource types. For example, `create` wraps kubectl create then adds OCP subcommands (route, deployment-config, etc.); `scale`/`autoscale` add `deploymentconfig` to ValidArgs. Under `oc adm`: drain, cordon, uncordon, taint, certificates are also kubectl wrappers.
+**Kubectl wrappers with OCP extensions** — Commands that start from kubectl's implementation but add OCP subcommands, resource types, or safety checks. For example, `create` wraps kubectl create then adds OCP subcommands (route, deployment-config, etc.); `scale`/`autoscale` add `deploymentconfig` to ValidArgs; `delete` prompts before removing persistent volumes or claims from a terminal (RFE-8872). Under `oc adm`: drain, cordon, uncordon, taint, certificates are also kubectl wrappers.
 
 **Commands that extend kubectl** — These embed kubectl's implementation struct and add OCP-specific logic. `logs` embeds kubectl's `logs.LogsOptions` and adds Build/DeploymentConfig support. `expose` adds Route creation. `rollout`/`rollback` add DeploymentConfig support. These live in their own packages under `pkg/cli/`, not in `kubectlwrappers/`.
 
