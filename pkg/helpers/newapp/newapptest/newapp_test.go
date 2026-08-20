@@ -530,7 +530,7 @@ func TestNewAppRunAll(t *testing.T) {
 					SourceRepositories: []string{"https://github.com/openshift/sti-ruby"},
 				},
 				GenerationInputs: cmd.GenerationInputs{
-					ContextDir: "3.1/test/rack-test-app",
+					ContextDir: "3.3/test/rack-test-app",
 				},
 
 				Resolvers: cmd.Resolvers{
