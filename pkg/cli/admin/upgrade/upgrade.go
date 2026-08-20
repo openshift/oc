@@ -245,8 +245,11 @@ func (o *Options) Run() error {
 		return nil
 
 	case o.ToMultiArch:
+		if cv.Status.Desired.Architecture == configv1.ClusterVersionArchitectureMulti {
+			return errors.New("the cluster already targets a multi-architecture release")
+		}
 		if cv.Spec.DesiredUpdate != nil && cv.Spec.DesiredUpdate.Architecture == configv1.ClusterVersionArchitectureMulti {
-			return fmt.Errorf("info: Update to multi cluster architecture has already been requested")
+			return errors.New("a multi-architecture release has already been requested")
 		}
 
 		if err := checkForUpgrade(cv); err != nil {
