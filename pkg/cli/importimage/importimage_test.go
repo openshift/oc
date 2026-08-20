@@ -40,7 +40,7 @@ func TestCreateImageImport(t *testing.T) {
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "nonexisting"},
 				To:              &corev1.LocalObjectReference{Name: "latest"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			}},
 		},
 		"confirmed import all from non-existing": {
@@ -50,7 +50,7 @@ func TestCreateImageImport(t *testing.T) {
 			expectedRepository: &imagev1.RepositoryImportSpec{
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "nonexisting"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			},
 		},
 		"import from .spec.dockerImageRepository": {
@@ -66,7 +66,7 @@ func TestCreateImageImport(t *testing.T) {
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage"},
 				To:              &corev1.LocalObjectReference{Name: "latest"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			}},
 		},
 		"import from .spec.dockerImageRepository non-existing tag": {
@@ -93,7 +93,7 @@ func TestCreateImageImport(t *testing.T) {
 			expectedRepository: &imagev1.RepositoryImportSpec{
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			},
 		},
 		"import all from .spec.dockerImageRepository with different from": {
@@ -124,7 +124,7 @@ func TestCreateImageImport(t *testing.T) {
 			expectedRepository: &imagev1.RepositoryImportSpec{
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "totally/different/spec"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			},
 		},
 		"import all from .spec.tags": {
@@ -144,13 +144,13 @@ func TestCreateImageImport(t *testing.T) {
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:latest"},
 					To:              &corev1.LocalObjectReference{Name: "latest"},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-					ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{},
 				},
 				{
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:other"},
 					To:              &corev1.LocalObjectReference{Name: "other"},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-					ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{},
 				},
 			},
 		},
@@ -174,13 +174,13 @@ func TestCreateImageImport(t *testing.T) {
 				{
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:latest"},
 					To:              &corev1.LocalObjectReference{Name: "latest"},
-					ImportPolicy:    imagev1.TagImportPolicy{Insecure: true, ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{Insecure: true},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 				},
 				{
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:other"},
 					To:              &corev1.LocalObjectReference{Name: "other"},
-					ImportPolicy:    imagev1.TagImportPolicy{Insecure: true, ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{Insecure: true},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 				},
 			},
@@ -202,13 +202,13 @@ func TestCreateImageImport(t *testing.T) {
 				{
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:latest"},
 					To:              &corev1.LocalObjectReference{Name: "latest"},
-					ImportPolicy:    imagev1.TagImportPolicy{Insecure: true, ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{Insecure: true},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 				},
 				{
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:other"},
 					To:              &corev1.LocalObjectReference{Name: "other"},
-					ImportPolicy:    imagev1.TagImportPolicy{Insecure: true, ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{Insecure: true},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 				},
 			},
@@ -250,7 +250,7 @@ func TestCreateImageImport(t *testing.T) {
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:latest"},
 				To:              &corev1.LocalObjectReference{Name: "latest"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			}},
 		},
 		"import existing tag": {
@@ -270,7 +270,7 @@ func TestCreateImageImport(t *testing.T) {
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:latest"},
 				To:              &corev1.LocalObjectReference{Name: "existing"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			}},
 		},
 		"import non-existing tag": {
@@ -308,7 +308,7 @@ func TestCreateImageImport(t *testing.T) {
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:mytag"},
 				To:              &corev1.LocalObjectReference{Name: "mytag"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			}},
 		},
 		"use tag aliases": {
@@ -330,7 +330,7 @@ func TestCreateImageImport(t *testing.T) {
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:mytag"},
 				To:              &corev1.LocalObjectReference{Name: "mytag"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			}},
 		},
 		"import tag from alias of cross-image-stream": {
@@ -403,7 +403,7 @@ func TestCreateImageImport(t *testing.T) {
 			expectedImages: []imagev1.ImageImportSpec{{
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage"},
 				To:              &corev1.LocalObjectReference{Name: "latest"},
-				ImportPolicy:    imagev1.TagImportPolicy{Insecure: true, ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{Insecure: true},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 			}},
 		},
@@ -424,7 +424,7 @@ func TestCreateImageImport(t *testing.T) {
 			expectedImages: []imagev1.ImageImportSpec{{
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage"},
 				To:              &corev1.LocalObjectReference{Name: "latest"},
-				ImportPolicy:    imagev1.TagImportPolicy{Insecure: false, ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{Insecure: false},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 			}},
 		},
@@ -446,7 +446,7 @@ func TestCreateImageImport(t *testing.T) {
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:mytag"},
 				To:              &corev1.LocalObjectReference{Name: "mytag"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.LocalTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			}},
 		},
 		"import all from .spec.tags setting referencePolicy": {
@@ -467,13 +467,13 @@ func TestCreateImageImport(t *testing.T) {
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:mytag"},
 					To:              &corev1.LocalObjectReference{Name: "mytag"},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.LocalTagReferencePolicy},
-					ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{},
 				},
 				{
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:other"},
 					To:              &corev1.LocalObjectReference{Name: "other"},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.LocalTagReferencePolicy},
-					ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{},
 				},
 			},
 		},
@@ -491,7 +491,7 @@ func TestCreateImageImport(t *testing.T) {
 			expectedRepository: &imagev1.RepositoryImportSpec{
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage"},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.LocalTagReferencePolicy},
-				ImportPolicy:    imagev1.TagImportPolicy{ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{},
 			},
 		},
 		"import tag setting scheduled": {
@@ -511,7 +511,7 @@ func TestCreateImageImport(t *testing.T) {
 			expectedImages: []imagev1.ImageImportSpec{{
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:mytag"},
 				To:              &corev1.LocalObjectReference{Name: "mytag"},
-				ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true, ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 			}},
 		},
@@ -533,7 +533,7 @@ func TestCreateImageImport(t *testing.T) {
 			expectedImages: []imagev1.ImageImportSpec{{
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:mytag"},
 				To:              &corev1.LocalObjectReference{Name: "mytag"},
-				ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true, ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 			}},
 		},
@@ -554,13 +554,13 @@ func TestCreateImageImport(t *testing.T) {
 				{
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:mytag"},
 					To:              &corev1.LocalObjectReference{Name: "mytag"},
-					ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true, ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 				},
 				{
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:other"},
 					To:              &corev1.LocalObjectReference{Name: "other"},
-					ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true, ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 				},
 			},
@@ -586,13 +586,13 @@ func TestCreateImageImport(t *testing.T) {
 				{
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:mytag"},
 					To:              &corev1.LocalObjectReference{Name: "mytag"},
-					ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true, ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 				},
 				{
 					From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage:other"},
 					To:              &corev1.LocalObjectReference{Name: "other"},
-					ImportPolicy:    imagev1.TagImportPolicy{Scheduled: false, ImportMode: imagev1.ImportModeLegacy},
+					ImportPolicy:    imagev1.TagImportPolicy{Scheduled: false},
 					ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 				},
 			},
@@ -610,7 +610,7 @@ func TestCreateImageImport(t *testing.T) {
 			},
 			expectedRepository: &imagev1.RepositoryImportSpec{
 				From:            corev1.ObjectReference{Kind: "DockerImage", Name: "repo.com/somens/someimage"},
-				ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true, ImportMode: imagev1.ImportModeLegacy},
+				ImportPolicy:    imagev1.TagImportPolicy{Scheduled: true},
 				ReferencePolicy: imagev1.TagReferencePolicy{Type: imagev1.SourceTagReferencePolicy},
 			},
 		},
