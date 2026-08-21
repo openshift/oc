@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -66,6 +67,9 @@ type rsyncDaemonStrategy struct {
 	RemoteExecutor executor
 	PortForwarder  forwarder
 	LocalExecutor  executor
+
+	Last          uint
+	fileDiscovery fileDiscoverer
 
 	daemonPIDFile   string
 	daemonPort      int
@@ -220,7 +224,41 @@ func (s *rsyncDaemonStrategy) stopPortForward() {
 
 func (s *rsyncDaemonStrategy) copyUsingDaemon(source, destination *PathSpec, out, errOut io.Writer) error {
 	klog.V(3).Infof("Copying files with rsync daemon")
+
+	// In case --last is specified, discover the right files and pass them to rsync as an explicit list.
+	var (
+		in  io.Reader
+		dst string
+	)
+	if destination.Local() {
+		dst = destination.RsyncPath()
+	} else {
+		dst = destination.Path
+	}
+	if s.Last > 0 {
+		filenames, err := s.fileDiscovery.DiscoverFiles(source.Path, s.Last)
+		if err != nil {
+			klog.Infof("Warning: failed to apply --last filtering: %v", err)
+		} else {
+			var b bytes.Buffer
+			for _, filename := range filenames {
+				b.WriteString(filename)
+				b.WriteRune('\n')
+			}
+			in = &b
+
+			// Make dst compatible with what rsync does without --last.
+			dst = filepath.Join(dst, filepath.Base(source.Path))
+
+			klog.V(3).Infof("Applied --last=%d to rsync-daemon strategy: using %d files", s.Last, len(filenames))
+		}
+	}
+
 	cmd := append([]string{"rsync"}, s.Flags...)
+	if in != nil {
+		cmd = append(cmd, "--files-from", "-")
+	}
+
 	var sourceArg, destinationArg string
 	if source.Local() {
 		sourceArg = source.RsyncPath()
@@ -228,12 +266,12 @@ func (s *rsyncDaemonStrategy) copyUsingDaemon(source, destination *PathSpec, out
 		sourceArg = localRsyncURL(s.localPort, remoteLabel, source.Path)
 	}
 	if destination.Local() {
-		destinationArg = destination.RsyncPath()
+		destinationArg = dst
 	} else {
-		destinationArg = localRsyncURL(s.localPort, remoteLabel, destination.Path)
+		destinationArg = localRsyncURL(s.localPort, remoteLabel, dst)
 	}
 	cmd = append(cmd, sourceArg, destinationArg)
-	err := s.LocalExecutor.Execute(cmd, nil, out, errOut)
+	err := s.LocalExecutor.Execute(cmd, in, out, errOut)
 	if err != nil {
 		// Determine whether rsync is present in the pod container
 		testRsyncErr := executeWithLogging(s.RemoteExecutor, testRsyncCommand)
@@ -297,6 +335,8 @@ func NewRsyncDaemonStrategy(o *RsyncOptions) CopyStrategy {
 		RemoteExecutor: remoteExec,
 		LocalExecutor:  newLocalExecutor(),
 		PortForwarder:  forwarder,
+		Last:           o.Last,
+		fileDiscovery:  o.fileDiscovery,
 	}
 }
 

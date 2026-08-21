@@ -30,6 +30,7 @@ type tarStrategy struct {
 	RemoteExecutor executor
 	Includes       []string
 	Excludes       []string
+	NoRecursion    bool
 	IgnoredFlags   []string
 	Flags          []string
 }
@@ -44,15 +45,37 @@ func NewTarStrategy(o *RsyncOptions) CopyStrategy {
 
 	remoteExec := newRemoteExecutor(o)
 
+	// Handle --last option by discovering N most recently modified files.
+	includes := append([]string(nil), o.RsyncInclude...)
+	noRecursion := false
+	if o.Last > 0 {
+		if o.Source.Local() {
+			klog.Info("Warning: --last flag is ignored when creating a local tar file")
+		} else {
+			filenames, err := o.fileDiscovery.DiscoverFiles(o.Source.Path, o.Last)
+			if err != nil {
+				klog.Infof("Warning: failed to apply --last filtering: %v", err)
+			} else {
+				// Replace any existing includes with our filtered list.
+				if len(filenames) > 0 {
+					includes = filenames
+					noRecursion = true
+					klog.V(3).Infof("Applied --last=%d to tar strategy: using %d files", o.Last, len(filenames))
+				}
+			}
+		}
+	}
+
 	return &tarStrategy{
 		Quiet:          o.Quiet,
 		Delete:         o.Delete,
-		Includes:       o.RsyncInclude,
+		Includes:       includes,
 		Excludes:       o.RsyncExclude,
 		Tar:            tarHelper,
 		RemoteExecutor: remoteExec,
 		IgnoredFlags:   ignoredFlags,
 		Flags:          tarFlagsFromOptions(o),
+		NoRecursion:    noRecursion,
 	}
 }
 
@@ -145,7 +168,7 @@ func (r *tarStrategy) Copy(source, destination *PathSpec, out, errOut io.Writer)
 	} else {
 		klog.V(4).Infof("Creating local tar file %s from remote path %s", tmp.Name(), source.Path)
 		errBuf := &bytes.Buffer{}
-		err = tarRemote(r.RemoteExecutor, source.Path, r.Includes, r.Excludes, tmp, errBuf)
+		err = tarRemote(r.RemoteExecutor, source.Path, r.Includes, r.Excludes, r.NoRecursion, tmp, errBuf)
 		if err != nil {
 			if checkTar(r.RemoteExecutor) != nil {
 				return strategySetupError("tar not available in container")
@@ -198,7 +221,7 @@ func (r *tarStrategy) String() string {
 	return "tar"
 }
 
-func tarRemote(exec executor, sourceDir string, includes, excludes []string, out, errOut io.Writer) error {
+func tarRemote(exec executor, sourceDir string, includes, excludes []string, noRecursion bool, out, errOut io.Writer) error {
 	klog.V(4).Infof("Tarring %s remotely", sourceDir)
 
 	exclude := []string{}
@@ -220,7 +243,11 @@ func tarRemote(exec executor, sourceDir string, includes, excludes []string, out
 			include = append(include, path.Join(path.Base(sourceDir), pattern))
 		}
 
-		cmd = []string{"tar", "-C", path.Dir(sourceDir), "-c", path.Base(sourceDir)}
+		cmd = []string{"tar", "-C", path.Dir(sourceDir)}
+		if noRecursion {
+			cmd = append(cmd, "--no-recursion")
+		}
+		cmd = append(cmd, "-c", path.Base(sourceDir))
 		cmd = append(cmd, append(include, exclude...)...)
 	}
 	klog.V(4).Infof("Remote tar command: %s", strings.Join(cmd, " "))
