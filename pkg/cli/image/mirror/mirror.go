@@ -664,6 +664,15 @@ func (o *MirrorImageOptions) plan() (*plan, error) {
 	return plan, nil
 }
 
+type readerWithContentLength struct {
+	io.Reader
+	contentLength int64
+}
+
+func (sr readerWithContentLength) ContentLength() int64 {
+	return sr.contentLength
+}
+
 func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob distribution.Descriptor, referentialClient *http.Client, force, skipMount bool, errOut io.Writer) error {
 	// if we aren't forcing upload, check to see if the blob aleady exists
 	if !force {
@@ -755,7 +764,7 @@ func copyBlob(ctx context.Context, plan *workPlan, c *repositoryBlobCopy, blob d
 
 		fmt.Fprintf(errOut, "uploading: %s %s %s\n", c.toRef, blob.Digest, units.BytesSize(float64(blob.Size)))
 
-		n, err := w.ReadFrom(r)
+		n, err := w.ReadFrom(readerWithContentLength{Reader: r, contentLength: blob.Size})
 		if err != nil {
 			klog.V(6).Infof("unable to copy layer %s to %s: %v", blob.Digest, c.toRef, err)
 			return fmt.Errorf("unable to copy layer %s to %s: %v", blob.Digest, c.toRef, err)
