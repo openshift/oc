@@ -25,6 +25,10 @@ type httpBlobUpload struct {
 	closed   bool
 }
 
+type ContentLengthResolver interface {
+	ContentLength() int64
+}
+
 func (hbu *httpBlobUpload) Reader() (io.ReadCloser, error) {
 	panic("Not implemented")
 }
@@ -42,6 +46,12 @@ func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
 		return 0, err
 	}
 	defer req.Body.Close()
+
+	req.Header.Set("Content-Type", "application/octet-stream")
+	if clr, ok := r.(ContentLengthResolver); ok {
+		req.ContentLength = clr.ContentLength()
+		req.Header.Set("Content-Range", fmt.Sprintf("%d-%d", hbu.offset, hbu.offset+req.ContentLength-1))
+	}
 
 	resp, err := hbu.client.Do(req)
 	if err != nil {

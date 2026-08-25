@@ -1,0 +1,13 @@
+diff --no-dereference -N -r current/vendor/github.com/distribution/distribution/v3/registry/client/blob_writer.go updated/vendor/github.com/distribution/distribution/v3/registry/client/blob_writer.go
+28,31d27
+< type ContentLengthResolver interface {
+< 	ContentLength() int64
+< }
+< 
+49,54d44
+< 
+< 	req.Header.Set("Content-Type", "application/octet-stream")
+< 	if clr, ok := r.(ContentLengthResolver); ok {
+< 		req.ContentLength = clr.ContentLength()
+< 		req.Header.Set("Content-Range", fmt.Sprintf("%d-%d", hbu.offset, hbu.offset+req.ContentLength-1))
+< 	}
