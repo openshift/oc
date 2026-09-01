@@ -55,7 +55,7 @@ function os::build::generate_windows_versioninfo() {
        }
 }
 EOF
-  goversioninfo -o ${OS_ROOT}/cmd/oc/oc.syso ${windows_versioninfo_file}
+  goversioninfo -64 -o ${OS_ROOT}/cmd/oc/oc.syso ${windows_versioninfo_file}
 }
 readonly -f os::build::generate_windows_versioninfo
 
