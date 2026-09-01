@@ -35,9 +35,6 @@ github.com/Microsoft/go-winio/internal/fs
 github.com/Microsoft/go-winio/internal/socket
 github.com/Microsoft/go-winio/internal/stringbuffer
 github.com/Microsoft/go-winio/pkg/guid
-# github.com/RangelReale/osincli v0.0.0-20160924135400-fababb0555f2
-## explicit
-github.com/RangelReale/osincli
 # github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e
 ## explicit; go 1.13
 github.com/alexbrainman/sspi
@@ -693,7 +690,7 @@ github.com/openshift-eng/openshift-tests-extension/pkg/ginkgo
 github.com/openshift-eng/openshift-tests-extension/pkg/junit
 github.com/openshift-eng/openshift-tests-extension/pkg/util/sets
 github.com/openshift-eng/openshift-tests-extension/pkg/version
-# github.com/openshift/api v0.0.0-20260715165912-72066cc9718b
+# github.com/openshift/api v0.0.0-20260805215214-cfb63858e9d7
 ## explicit; go 1.26.0
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -784,7 +781,7 @@ github.com/openshift/build-machinery-go/make/targets/golang
 github.com/openshift/build-machinery-go/make/targets/openshift
 github.com/openshift/build-machinery-go/make/targets/openshift/operator
 github.com/openshift/build-machinery-go/scripts
-# github.com/openshift/client-go v0.0.0-20260715172546-dac61734e0ec
+# github.com/openshift/client-go v0.0.0-20260806041845-b74fb348f1e7
 ## explicit; go 1.26.0
 github.com/openshift/client-go/apps/applyconfigurations
 github.com/openshift/client-go/apps/applyconfigurations/apps/v1
@@ -903,7 +900,7 @@ github.com/openshift/client-go/user/clientset/versioned/fake
 github.com/openshift/client-go/user/clientset/versioned/scheme
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
-# github.com/openshift/library-go v0.0.0-20260720123941-85336565c3c7
+# github.com/openshift/library-go v0.0.0-20260901055840-8c76f7d75dd6
 ## explicit; go 1.26.0
 github.com/openshift/library-go/pkg/apiserver/jsonpatch
 github.com/openshift/library-go/pkg/apps/appsserialization
@@ -964,6 +961,9 @@ github.com/openshift/library-go/pkg/verify/store/parallel
 github.com/openshift/library-go/pkg/verify/store/serial
 github.com/openshift/library-go/pkg/verify/store/sigstore
 github.com/openshift/library-go/pkg/verify/util
+# github.com/openshift/osincli v0.0.0-20160924135400-fababb0555f2
+## explicit
+github.com/openshift/osincli
 # github.com/peterbourgon/diskv v2.0.1+incompatible
 ## explicit
 github.com/peterbourgon/diskv

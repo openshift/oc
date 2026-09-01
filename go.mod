@@ -6,7 +6,6 @@ require (
 	al.essio.dev/pkg/shellescape v1.6.0
 	github.com/AaronO/go-git-http v0.0.0-20161214145340-1d9485b3a98f
 	github.com/MakeNowJust/heredoc v1.0.0
-	github.com/RangelReale/osincli v0.0.0-20160924135400-fababb0555f2
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e
 	github.com/alicebob/sqlittle v1.4.0
 	github.com/apcera/gssapi v0.0.0-00010101000000-000000000000
@@ -39,10 +38,11 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/openshift-eng/openshift-tests-extension v0.0.0-20250804142706-7b3ab438a292
-	github.com/openshift/api v0.0.0-20260715165912-72066cc9718b
+	github.com/openshift/api v0.0.0-20260805215214-cfb63858e9d7
 	github.com/openshift/build-machinery-go v0.0.0-20260629141115-154a2b810491
-	github.com/openshift/client-go v0.0.0-20260715172546-dac61734e0ec
-	github.com/openshift/library-go v0.0.0-20260720123941-85336565c3c7
+	github.com/openshift/client-go v0.0.0-20260806041845-b74fb348f1e7
+	github.com/openshift/library-go v0.0.0-20260901055840-8c76f7d75dd6
+	github.com/openshift/osincli v0.0.0-20160924135400-fababb0555f2
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.23.2
 	github.com/russross/blackfriday v1.6.0
