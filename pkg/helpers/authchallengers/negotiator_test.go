@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/RangelReale/osincli"
+	"github.com/openshift/osincli"
 
 	"k8s.io/apimachinery/pkg/util/diff"
 	restclient "k8s.io/client-go/rest"
