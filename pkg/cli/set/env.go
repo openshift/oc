@@ -64,8 +64,11 @@ var (
 		# Update all containers in all replication controllers in the project to have ENV=prod
 		oc set env rc --all ENV=prod
 
-		# Import environment from a secret
+		# Import environment from a secret to deployment config
 		oc set env --from=secret/mysecret dc/myapp
+
+		# Import environment from a secret to deployment
+        oc set env --from=secret/mysecret deployment/myapp
 
 		# Import environment from a config map with a prefix
 		oc set env --from=configmap/myconfigmap --prefix=MYSQL_ dc/myapp
