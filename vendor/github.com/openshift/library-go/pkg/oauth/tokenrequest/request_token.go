@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -602,8 +603,23 @@ func verifyServerCertChain(dnsName string, chain []*x509.Certificate) ([][]*x509
 		intermediates.AddCert(c)
 	}
 
-	return chain[0].Verify(x509.VerifyOptions{
+	certChainList, err := chain[0].Verify(x509.VerifyOptions{
 		Intermediates: intermediates,
 		DNSName:       dnsName,
 	})
+
+	if runtime.GOOS == "darwin" && strings.HasPrefix(err.Error(), "x509:") {
+		// this check fills in the gap where root_darwin.go has insufficient
+		// typed errors for macOS platform, leading to a generic string based
+		// x509 error. This will return a proper x509 error which can be used
+		// to return kubeconfig CA client. x509.UnknownAuthorityError was
+		// chosen because this is the fall back also used on Linux/Windows,
+		// keeping the approach consistent across platforms.
+		// https://github.com/golang/go/blob/5a6340ff28c87e099f33c941e3d73e50d715ddf7/src/crypto/x509/root_darwin.go#L74
+		return nil, x509.UnknownAuthorityError{
+			Cert: chain[0],
+		}
+	}
+
+	return certChainList, err
 }
