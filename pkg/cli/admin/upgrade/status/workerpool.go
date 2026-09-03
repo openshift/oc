@@ -557,7 +557,14 @@ func (pool *poolDisplayData) WriteNodes(w io.Writer, detailed bool) {
 		_, _ = tabw.Write([]byte(node.Phase.String() + "\t"))
 		_, _ = tabw.Write([]byte(version + "\t"))
 		_, _ = tabw.Write([]byte(node.Estimate + "\t"))
-		_, _ = tabw.Write([]byte(node.Message + "\n"))
+		lines := strings.Split(node.Message, "\n")
+		for i, line := range lines {
+			if i == 0 {
+				_, _ = tabw.Write([]byte(line + "\n"))
+			} else {
+				_, _ = tabw.Write([]byte("\t\t\t\t\t" + line + "\n"))
+			}
+		}
 	}
 	tabw.Flush()
 	if total > 0 {
