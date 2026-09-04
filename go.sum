@@ -137,6 +137,8 @@ github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4
 github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
 github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 h1:UhxFibDNY/bfvqU5CAUmr9zpesgbU6SWc8/B4mflAE4=
 github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7/go.mod h1:cyGadeNEkKy96OOhEzfZl+yxihPEzKnqJwvfuSUqbZE=
+github.com/ehearne-redhat/library-go v0.0.0-20260904080202-7c6f8070cb12 h1:pqgNk0pKduZJ0D+tBaLcU0WnaI9qktVGabBcmU1fEos=
+github.com/ehearne-redhat/library-go v0.0.0-20260904080202-7c6f8070cb12/go.mod h1:pH7rnNOj3dJpdpBtE32LB2pAg0AYDIaaBJJrFxX2pPY=
 github.com/elazarl/goproxy v1.8.2 h1:keGt9KHFAnrXFEctQuOF9NRxKFCXtd5cQg5PrBdeVW4=
 github.com/elazarl/goproxy v1.8.2/go.mod h1:b5xm6W48AUHNpRTCvlnd0YVh+JafCCtsLsJZvvNTz+E=
 github.com/emicklei/go-restful/v3 v3.13.0 h1:C4Bl2xDndpU6nJ4bc1jXd+uTmYPVUwkD6bFY/oTyCes=
@@ -385,8 +387,6 @@ github.com/openshift/client-go v0.0.0-20260806041845-b74fb348f1e7 h1:Lphm0uMAyM2
 github.com/openshift/client-go v0.0.0-20260806041845-b74fb348f1e7/go.mod h1:u08LcpI8Hq3IpelQLbciGRa/P158cE/O3uQe2Bt3Roo=
 github.com/openshift/gssapi v0.0.0-20260819120910-d6b72669a11e h1:UCxtFDw0ObWGm4bmaAhFZ1hEwZPZnwiSONKj7G6WBr0=
 github.com/openshift/gssapi v0.0.0-20260819120910-d6b72669a11e/go.mod h1:tNrEB5k8SI+g5kOlsCmL2ELASfpqEofI0+FLBgBdN08=
-github.com/openshift/library-go v0.0.0-20260902200604-6de66ffc2023 h1:Em0zfVCYoLmxk/LnftWd/PDV7VpY5qdes3dpzanNFdI=
-github.com/openshift/library-go v0.0.0-20260902200604-6de66ffc2023/go.mod h1:pH7rnNOj3dJpdpBtE32LB2pAg0AYDIaaBJJrFxX2pPY=
 github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20251001123353-fd5b1fb35db1 h1:PMTgifBcBRLJJiM+LgSzPDTk9/Rx4qS09OUrfpY6GBQ=
 github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20251001123353-fd5b1fb35db1/go.mod h1:7Du3c42kxCUegi0IImZ1wUQzMBVecgIHjR1C+NkhLQo=
 github.com/openshift/osincli v0.0.0-20160924135400-fababb0555f2 h1:9oADVMmPa4G60MQtoSjD26aD/vZreqbIAfiUiO220eY=

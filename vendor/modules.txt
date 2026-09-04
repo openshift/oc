@@ -900,7 +900,7 @@ github.com/openshift/client-go/user/clientset/versioned/fake
 github.com/openshift/client-go/user/clientset/versioned/scheme
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
-# github.com/openshift/library-go v0.0.0-20260902200604-6de66ffc2023
+# github.com/openshift/library-go v0.0.0-20260902200604-6de66ffc2023 => github.com/ehearne-redhat/library-go v0.0.0-20260904080202-7c6f8070cb12
 ## explicit; go 1.26.0
 github.com/openshift/library-go/pkg/apiserver/jsonpatch
 github.com/openshift/library-go/pkg/apps/appsserialization
@@ -2062,3 +2062,4 @@ sigs.k8s.io/yaml/goyaml.v3
 sigs.k8s.io/yaml/kyaml
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20260819120910-d6b72669a11e
 # github.com/onsi/ginkgo/v2 => github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20251001123353-fd5b1fb35db1
+# github.com/openshift/library-go => github.com/ehearne-redhat/library-go v0.0.0-20260904080202-7c6f8070cb12
