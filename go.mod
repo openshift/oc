@@ -41,7 +41,7 @@ require (
 	github.com/openshift/api v0.0.0-20260805215214-cfb63858e9d7
 	github.com/openshift/build-machinery-go v0.0.0-20260629141115-154a2b810491
 	github.com/openshift/client-go v0.0.0-20260806041845-b74fb348f1e7
-	github.com/openshift/library-go v0.0.0-20260901055840-8c76f7d75dd6
+	github.com/openshift/library-go v0.0.0-20260902200604-6de66ffc2023
 	github.com/openshift/osincli v0.0.0-20160924135400-fababb0555f2
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.23.2
@@ -231,3 +231,5 @@ require (
 replace github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20260819120910-d6b72669a11e
 
 replace github.com/onsi/ginkgo/v2 => github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20251001123353-fd5b1fb35db1
+
+replace github.com/openshift/library-go => github.com/ehearne-redhat/library-go v0.0.0-20260904080202-7c6f8070cb12

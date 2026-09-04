@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -551,6 +552,8 @@ func transportWithSystemRoots(issuer string, clientConfig *restclient.Config) (h
 	resp.Body.Close()
 
 	_, err = verifyServerCertChain(issuerURL.Hostname(), resp.TLS.PeerCertificates)
+
+	err = convertErrorIfUnknownX509(runtime.GOOS, err)
 	switch err.(type) {
 	case nil:
 		// copy the config so we can freely mutate it
@@ -572,7 +575,7 @@ func transportWithSystemRoots(issuer string, clientConfig *restclient.Config) (h
 		}
 		return systemRootsRT, nil
 	case x509.UnknownAuthorityError, x509.HostnameError, x509.CertificateInvalidError, x509.SystemRootsError,
-		tls.RecordHeaderError, *net.OpError:
+		tls.RecordHeaderError, *net.OpError, unknownX509VerificationError:
 		// fallback to the CA in the kubeconfig since the system roots did not work
 		// we are very broad on the errors here to avoid failing when we should fallback
 		klog.V(4).Infof("falling back to kubeconfig CA due to possible x509 error: %v", err)
@@ -607,3 +610,28 @@ func verifyServerCertChain(dnsName string, chain []*x509.Certificate) ([][]*x509
 		DNSName:       dnsName,
 	})
 }
+
+// convertErrorIfUnknownX509 normalizes certificate verification errors on macOS.
+// root_darwin.go in the Go standard library has insufficient typed errors for the
+// macOS platform, leading to a generic string based "x509:" error rather than a
+// typed one. This wraps such an error in an unknownX509VerificationError so callers
+// can react to it the same way they do on Linux/Windows (e.g. falling back to the
+// kubeconfig CA), keeping the approach consistent across platforms. The original
+// error is preserved and remains recoverable via errors.Unwrap/errors.Is.
+//
+// goos is passed in (rather than read from runtime.GOOS) so the darwin branch can
+// be exercised in tests regardless of the platform they run on.
+// https://github.com/golang/go/blob/5a6340ff28c87e099f33c941e3d73e50d715ddf7/src/crypto/x509/root_darwin.go#L74
+func convertErrorIfUnknownX509(goos string, err error) error {
+	if goos == "darwin" && err != nil && strings.HasPrefix(err.Error(), "x509:") {
+		return unknownX509VerificationError{err}
+	}
+	return err
+}
+
+// unknownX509VerificationError wraps an opaque, string based x509 verification
+// error (see convertErrorIfUnknownX509) so it can be matched by type while still
+// preserving the underlying error.
+type unknownX509VerificationError struct{ error }
+
+func (e unknownX509VerificationError) Unwrap() error { return e.error }
