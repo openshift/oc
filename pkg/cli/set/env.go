@@ -67,8 +67,11 @@ var (
 		# Import environment from a secret
 		oc set env --from=secret/mysecret dc/myapp
 
-		# Import environment from a config map with a prefix
+		# Import environment from a config map with a prefix to deployment config
 		oc set env --from=configmap/myconfigmap --prefix=MYSQL_ dc/myapp
+
+		#Import environment from a config map with a prefix to deployment
+		oc set env --from=configmap/myconfigmap --prefix=MYSQL_ deployment/myapp
 
 		# Remove the environment variable ENV from container 'c1' in all deployment configs
 		oc set env dc --all --containers="c1" ENV-
