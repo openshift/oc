@@ -42,7 +42,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/openshift-eng/openshift-tests-extension v0.0.0-20250804142706-7b3ab438a292
 	github.com/openshift/api v0.0.0-20260309185601-71270106f276
-	github.com/openshift/build-machinery-go v0.0.0-20251023084048-5d77c1a5e5af
+	github.com/openshift/build-machinery-go v0.0.0-20260902143904-520f675c892b
 	github.com/openshift/client-go v0.0.0-20260306160707-3935d929fc7d
 	github.com/openshift/library-go v0.0.0-20260303171201-5d9eb6295ff6
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
