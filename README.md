@@ -20,11 +20,11 @@ get a list of all supported make sub-commands.
 By default `make oc` builds the executable without debugging symbols. To include
 debugging symbols, run `make STRIP_DEBUGGING_SYMBOLS=false oc`.
 
-In order to build `oc`, you will need the GSSAPI sources. On a Fedora/CentOS/RHEL
-workstation, install them with:
+In order to build `oc`, you will need the GSSAPI sources and also a C compiler.
+On a Fedora/CentOS/RHEL workstation, install them with:
 
 ```bash
-dnf install krb5-devel gpgme-devel libassuan-devel
+dnf install krb5-devel gpgme-devel libassuan-devel gcc
 ```
 
 For macOS, install build dependencies with:
