@@ -170,7 +170,7 @@ func (v *ClientSideValidator) validateSupportedTransition(ctx context.Context, c
 	if !cpTransitioning {
 		// Infrastructure is transitioning but control plane is not
 		return checkFailed(CheckNameSupportedTransition, CheckSeverityError,
-			fmt.Sprintf("control plane must transition to HighlyAvailable (infrastructure cannot transition alone)"))
+			"control plane must transition to HighlyAvailable (infrastructure cannot transition alone)")
 	}
 
 	if target.ControlPlane != configv1.HighlyAvailableTopologyMode {
@@ -369,7 +369,7 @@ func (v *ClientSideValidator) validateExactInfrastructureNodeCount(ctx context.C
 }
 
 // validateControlPlaneNodesSchedulable checks that the required number of control plane nodes are schedulable.
-// Schedulable means the node does not have spec.Unschedulable=true and no NoSchedule taints.
+// Schedulable means the node does not have spec.Unschedulable=true or a taint that prevents scheduling.
 func (v *ClientSideValidator) validateControlPlaneNodesSchedulable(ctx context.Context, required int) CheckResult {
 	nodes, checkResult := v.listNodes(ctx, CheckNameControlPlaneNodesSchedulable, CheckSeverityWarning)
 	if checkResult != nil {
@@ -381,7 +381,7 @@ func (v *ClientSideValidator) validateControlPlaneNodesSchedulable(ctx context.C
 		if !isControlPlaneNode(&node) {
 			continue
 		}
-		if !node.Spec.Unschedulable && !hasNoScheduleTaint(&node) {
+		if !node.Spec.Unschedulable && !hasSchedulingBlockingTaint(&node) {
 			schedulable++
 		}
 	}
@@ -524,10 +524,10 @@ func isControlPlaneNode(node *corev1.Node) bool {
 	return hasControlPlane || hasMaster
 }
 
-// hasNoScheduleTaint returns true if the node has a NoSchedule taint.
-func hasNoScheduleTaint(node *corev1.Node) bool {
+// hasSchedulingBlockingTaint returns true if the node has a taint that prevents new pods from scheduling.
+func hasSchedulingBlockingTaint(node *corev1.Node) bool {
 	for _, taint := range node.Spec.Taints {
-		if taint.Effect == corev1.TaintEffectNoSchedule {
+		if taint.Effect == corev1.TaintEffectNoSchedule || taint.Effect == corev1.TaintEffectNoExecute {
 			return true
 		}
 	}

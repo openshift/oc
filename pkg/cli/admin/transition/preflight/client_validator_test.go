@@ -705,7 +705,7 @@ func TestValidate_AllWarningChecksFail(t *testing.T) {
 // When Feature Gate check returns Unknown (API error), validation stops before Warning checks.
 func TestValidate_AllAPICallsFail(t *testing.T) {
 	// Create fake clients with reactors that return errors for all API calls
-	kubeClient := fake.NewSimpleClientset()
+	kubeClient := fake.NewClientset()
 
 	// Inject error for Node List calls (used by 4 node validators)
 	kubeClient.PrependReactor("list", "nodes", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
