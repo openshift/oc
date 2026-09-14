@@ -20,37 +20,9 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/transition/preflight"
 )
 
-// Kubernetes and OpenShift resource names
 const (
-	// infrastructureResourceName is the name of the cluster-scoped Infrastructure resource
+	apiRequestTimeout          = 2 * time.Minute
 	infrastructureResourceName = "cluster"
-
-	// etcdOperatorResourceName is the name of the cluster-scoped Etcd operator resource
-	etcdOperatorResourceName = "cluster"
-
-	// etcdNamespace is the namespace where etcd resources are located
-	etcdNamespace = "openshift-etcd"
-
-	// etcdEndpointsConfigMapName is the name of the ConfigMap containing etcd endpoints
-	etcdEndpointsConfigMapName = "etcd-endpoints"
-)
-
-// ClusterOperator condition types
-const (
-	// clusterOperatorAvailable indicates the operand is available
-	clusterOperatorAvailable configv1.ClusterStatusConditionType = configv1.OperatorAvailable
-
-	// clusterOperatorProgressing indicates the operand is being updated
-	clusterOperatorProgressing configv1.ClusterStatusConditionType = configv1.OperatorProgressing
-
-	// clusterOperatorDegraded indicates the operand is degraded
-	clusterOperatorDegraded configv1.ClusterStatusConditionType = configv1.OperatorDegraded
-)
-
-// Etcd operator condition types
-const (
-	// etcdMembersAvailableCondition indicates etcd has quorum
-	etcdMembersAvailableCondition = "EtcdMembersAvailable"
 )
 
 // Cluster-config-operator (CCO) resource and condition types
@@ -109,17 +81,17 @@ var (
 // transitionOptions holds all options for the topology transition command
 type transitionOptions struct {
 	// Target control plane topology (--control-plane flag)
-	ControlPlane string
+	controlPlane string
 
 	// Target infrastructure topology (--infrastructure flag)
-	Infrastructure string
+	infrastructure string
 
 	// Confirm actually applies the transition (--confirm flag)
 	// Without this flag, the command runs in dry-run mode
-	Confirm bool
+	confirm bool
 
 	// AllowTransitionWithWarnings bypasses Warning-severity check failures (--allow-transition-with-warnings flag)
-	AllowTransitionWithWarnings bool
+	allowTransitionWithWarnings bool
 
 	kubeClient     kubernetes.Interface
 	configClient   configv1client.Interface
@@ -168,14 +140,14 @@ func newCmdTopology(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.complete(f, cmd, args))
 			kcmdutil.CheckErr(o.validate())
-			kcmdutil.CheckErr(o.run())
+			kcmdutil.CheckErr(o.run(cmd.Context()))
 		},
 	}
 
-	cmd.Flags().StringVar(&o.ControlPlane, "control-plane", o.ControlPlane, "Target control plane topology (HighlyAvailable or SingleReplica)")
-	cmd.Flags().StringVar(&o.Infrastructure, "infrastructure", o.Infrastructure, "Target infrastructure topology (HighlyAvailable or SingleReplica)")
-	cmd.Flags().BoolVar(&o.Confirm, "confirm", false, "Apply the transition (default is dry-run)")
-	cmd.Flags().BoolVar(&o.AllowTransitionWithWarnings, "allow-transition-with-warnings", false, "Bypass warning-severity preflight check failures (requires --confirm)")
+	cmd.Flags().StringVar(&o.controlPlane, "control-plane", o.controlPlane, "Target control plane topology (HighlyAvailable or SingleReplica)")
+	cmd.Flags().StringVar(&o.infrastructure, "infrastructure", o.infrastructure, "Target infrastructure topology (HighlyAvailable or SingleReplica)")
+	cmd.Flags().BoolVar(&o.confirm, "confirm", o.confirm, "Apply the transition (default is dry-run)")
+	cmd.Flags().BoolVar(&o.allowTransitionWithWarnings, "allow-transition-with-warnings", o.allowTransitionWithWarnings, "Bypass warning-severity preflight check failures (requires --confirm)")
 
 	return cmd
 }
@@ -222,22 +194,22 @@ func (o *transitionOptions) validate() error {
 	}
 
 	// Validate control plane topology if specified
-	if o.ControlPlane != "" && !validTopologies[o.ControlPlane] {
-		return fmt.Errorf("invalid control plane topology %q, must be 'HighlyAvailable' or 'SingleReplica'", o.ControlPlane)
+	if o.controlPlane != "" && !validTopologies[o.controlPlane] {
+		return fmt.Errorf("invalid control plane topology %q, must be 'HighlyAvailable' or 'SingleReplica'", o.controlPlane)
 	}
 
 	// Validate infrastructure topology if specified
-	if o.Infrastructure != "" && !validTopologies[o.Infrastructure] {
-		return fmt.Errorf("invalid infrastructure topology %q, must be 'HighlyAvailable' or 'SingleReplica'", o.Infrastructure)
+	if o.infrastructure != "" && !validTopologies[o.infrastructure] {
+		return fmt.Errorf("invalid infrastructure topology %q, must be 'HighlyAvailable' or 'SingleReplica'", o.infrastructure)
 	}
 
 	// --confirm requires at least one of --control-plane or --infrastructure
-	if o.Confirm && o.ControlPlane == "" && o.Infrastructure == "" {
+	if o.confirm && o.controlPlane == "" && o.infrastructure == "" {
 		return fmt.Errorf("--confirm requires at least one of --control-plane or --infrastructure")
 	}
 
 	// --allow-transition-with-warnings requires --confirm flag
-	if o.AllowTransitionWithWarnings && !o.Confirm {
+	if o.allowTransitionWithWarnings && !o.confirm {
 		return fmt.Errorf("--allow-transition-with-warnings requires --confirm flag")
 	}
 
@@ -245,14 +217,12 @@ func (o *transitionOptions) validate() error {
 }
 
 // run executes the topology transition command
-func (o *transitionOptions) run() error {
-	// Create a timeout-scoped context for initial API calls (2 minutes)
-	// This prevents unbounded waits on cluster API calls during validation
-	apiCtx, apiCancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer apiCancel()
+func (o *transitionOptions) run(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, apiRequestTimeout)
+	defer cancel()
 
 	// Get current topologies from Infrastructure resource
-	infra, err := o.configClient.ConfigV1().Infrastructures().Get(apiCtx, infrastructureResourceName, metav1.GetOptions{})
+	infra, err := o.configClient.ConfigV1().Infrastructures().Get(ctx, infrastructureResourceName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get Infrastructure resource: %w", err)
 	}
@@ -261,36 +231,27 @@ func (o *transitionOptions) run() error {
 	currentInfra := infra.Status.InfrastructureTopology
 
 	// Mode 1: Discovery mode (no topology flags)
-	if o.ControlPlane == "" && o.Infrastructure == "" {
+	if o.controlPlane == "" && o.infrastructure == "" {
 		return o.runDiscoveryMode(currentCP, currentInfra)
 	}
 
 	// Mode 2: Initiate mode (at least one topology flag provided)
-	return o.runInitiateMode(apiCtx, currentCP, currentInfra)
+	return o.runInitiateMode(ctx, currentCP, currentInfra)
 }
 
 // runDiscoveryMode displays current topology and available transitions
 func (o *transitionOptions) runDiscoveryMode(currentCP, currentInfra configv1.TopologyMode) error {
-	fmt.Fprintf(o.Out, "Current Topology:\n")
-	fmt.Fprintf(o.Out, "  Control Plane:    %s\n", currentCP)
-	fmt.Fprintf(o.Out, "  Infrastructure:   %s\n\n", currentInfra)
-
-	if currentCP == configv1.SingleReplicaTopologyMode && currentInfra == configv1.SingleReplicaTopologyMode {
-		fmt.Fprintf(o.Out, "Available Transition:\n")
-		fmt.Fprintf(o.Out, "  Control Plane:    SingleReplica -> HighlyAvailable\n")
-		fmt.Fprintf(o.Out, "  (Infrastructure also transitions to HighlyAvailable)\n\n")
-		fmt.Fprintf(o.Out, "To validate transition readiness:\n")
-		fmt.Fprintf(o.Out, "  oc adm transition topology --control-plane=HighlyAvailable\n\n")
-		fmt.Fprintf(o.Out, "To initiate transition:\n")
-		fmt.Fprintf(o.Out, "  oc adm transition topology --control-plane=HighlyAvailable --confirm\n")
-	} else {
-		fmt.Fprintf(o.Out, "Available Transitions:\n")
-		fmt.Fprintf(o.Out, "  (none)\n\n")
-		fmt.Fprintf(o.Out, "Note: Only SingleReplica -> HighlyAvailable transitions are currently supported.\n")
-		fmt.Fprintf(o.Out, "      Both control plane and infrastructure must be SingleReplica to transition.\n")
+	if _, err := fmt.Fprintf(o.Out, "Current Topology:\n  Control Plane:    %s\n  Infrastructure:   %s\n\n", currentCP, currentInfra); err != nil {
+		return err
 	}
 
-	return nil
+	if currentCP == configv1.SingleReplicaTopologyMode && currentInfra == configv1.SingleReplicaTopologyMode {
+		_, err := fmt.Fprintf(o.Out, "Available Transition:\n  Control Plane:    SingleReplica -> HighlyAvailable\n  (Infrastructure also transitions to HighlyAvailable)\n\nTo validate transition readiness:\n  oc adm transition topology --control-plane=HighlyAvailable\n\nTo initiate transition:\n  oc adm transition topology --control-plane=HighlyAvailable --confirm\n")
+		return err
+	} else {
+		_, err := fmt.Fprintf(o.Out, "Available Transitions:\n  (none)\n\nNote: Only SingleReplica -> HighlyAvailable transitions are currently supported.\n      Both control plane and infrastructure must be SingleReplica to transition.\n")
+		return err
+	}
 }
 
 // runInitiateMode validates cluster readiness and initiates topology transition
@@ -303,8 +264,8 @@ func (o *transitionOptions) runInitiateMode(ctx context.Context, currentCP, curr
 
 	// Determine target topologies
 	targetCP := currentCP
-	if o.ControlPlane != "" {
-		targetCP = configv1.TopologyMode(o.ControlPlane)
+	if o.controlPlane != "" {
+		targetCP = configv1.TopologyMode(o.controlPlane)
 	}
 
 	// Derive target infrastructure topology
@@ -313,8 +274,8 @@ func (o *transitionOptions) runInitiateMode(ctx context.Context, currentCP, curr
 	// - SNO -> HA: infrastructure becomes HighlyAvailable (managed by controller)
 	// - Future transitions (e.g., HA -> HAA): infrastructure stays HighlyAvailable
 	targetInfra := currentInfra
-	if o.Infrastructure != "" {
-		targetInfra = configv1.TopologyMode(o.Infrastructure)
+	if o.infrastructure != "" {
+		targetInfra = configv1.TopologyMode(o.infrastructure)
 	} else if targetCP == configv1.HighlyAvailableTopologyMode {
 		// For transitions to HighlyAvailable control plane, infrastructure also becomes HighlyAvailable
 		targetInfra = configv1.HighlyAvailableTopologyMode
@@ -327,15 +288,14 @@ func (o *transitionOptions) runInitiateMode(ctx context.Context, currentCP, curr
 
 	// Check if cluster is already at target topology (no transition needed)
 	if current.ControlPlane == target.ControlPlane && current.Infrastructure == target.Infrastructure {
-		fmt.Fprintf(o.Out, "Cluster is already at target topology:\n")
-		fmt.Fprintf(o.Out, "  Control Plane:    %s\n", current.ControlPlane)
-		fmt.Fprintf(o.Out, "  Infrastructure:   %s\n\n", current.Infrastructure)
-		fmt.Fprintf(o.Out, "No transition needed.\n")
-		return nil
+		_, err := fmt.Fprintf(o.Out, "Cluster is already at target topology:\n  Control Plane:    %s\n  Infrastructure:   %s\n\nNo transition needed.\n", current.ControlPlane, current.Infrastructure)
+		return err
 	}
 
 	// Step 1: Run preflight validation
-	fmt.Fprintf(o.Out, "Running preflight validation...\n\n")
+	if _, err := fmt.Fprintf(o.Out, "Running preflight validation...\n\n"); err != nil {
+		return err
+	}
 
 	result, err := o.validator.Validate(ctx, current, target)
 	if err != nil {
@@ -343,17 +303,19 @@ func (o *transitionOptions) runInitiateMode(ctx context.Context, currentCP, curr
 	}
 
 	// Step 2: Display validation results
-	fmt.Fprintf(o.Out, "Topology Transition:\n")
-	fmt.Fprintf(o.Out, "  Control Plane:    %s -> %s\n", current.ControlPlane, target.ControlPlane)
-	fmt.Fprintf(o.Out, "  Infrastructure:   %s -> %s", current.Infrastructure, target.Infrastructure)
+	if _, err := fmt.Fprintf(o.Out, "Topology Transition:\n  Control Plane:    %s -> %s\n  Infrastructure:   %s -> %s", current.ControlPlane, target.ControlPlane, current.Infrastructure, target.Infrastructure); err != nil {
+		return err
+	}
 
 	// Note if infrastructure topology is derived (not explicitly specified by user)
-	if o.Infrastructure == "" && current.Infrastructure != target.Infrastructure {
-		fmt.Fprintf(o.Out, " (managed by controller)")
+	if o.infrastructure == "" && current.Infrastructure != target.Infrastructure {
+		if _, err := fmt.Fprintf(o.Out, " (managed by controller)"); err != nil {
+			return err
+		}
 	}
-	fmt.Fprintf(o.Out, "\n")
-
-	fmt.Fprintf(o.Out, "Status: %s\n\n", result.Status)
+	if _, err := fmt.Fprintf(o.Out, "\nStatus: %s\n\n", result.Status); err != nil {
+		return err
+	}
 
 	// Group checks by severity
 	var errorChecks, warningChecks []preflight.CheckResult
@@ -367,20 +329,32 @@ func (o *transitionOptions) runInitiateMode(ctx context.Context, currentCP, curr
 
 	// Display Error-severity checks first
 	if len(errorChecks) > 0 {
-		fmt.Fprintf(o.Out, "BLOCKING CHECKS (cannot be bypassed):\n")
-		for _, check := range errorChecks {
-			fmt.Fprintf(o.Out, "  %s\n", check.String())
+		if _, err := fmt.Fprintf(o.Out, "BLOCKING CHECKS (cannot be bypassed):\n"); err != nil {
+			return err
 		}
-		fmt.Fprintf(o.Out, "\n")
+		for _, check := range errorChecks {
+			if _, err := fmt.Fprintf(o.Out, "  %s\n", check.String()); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(o.Out, "\n"); err != nil {
+			return err
+		}
 	}
 
 	// Display Warning-severity checks
 	if len(warningChecks) > 0 {
-		fmt.Fprintf(o.Out, "READINESS CHECKS (can be bypassed with --allow-transition-with-warnings):\n")
-		for _, check := range warningChecks {
-			fmt.Fprintf(o.Out, "  %s\n", check.String())
+		if _, err := fmt.Fprintf(o.Out, "READINESS CHECKS (can be bypassed with --allow-transition-with-warnings):\n"); err != nil {
+			return err
 		}
-		fmt.Fprintf(o.Out, "\n")
+		for _, check := range warningChecks {
+			if _, err := fmt.Fprintf(o.Out, "  %s\n", check.String()); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(o.Out, "\n"); err != nil {
+			return err
+		}
 	}
 
 	// Step 3: Check for Error-severity failures (blocking - cannot proceed)
@@ -389,24 +363,21 @@ func (o *transitionOptions) runInitiateMode(ctx context.Context, currentCP, curr
 	}
 
 	// Step 4: Check for Warning-severity failures
-	if result.HasWarningCheckFailures() && !o.AllowTransitionWithWarnings {
+	if result.HasWarningCheckFailures() && !o.allowTransitionWithWarnings {
 		return fmt.Errorf("cluster not ready for transition - use --allow-transition-with-warnings with --confirm to bypass (not recommended)")
 	}
 
 	// Step 5: If warnings bypassed, show warning message
-	if result.HasWarningCheckFailures() && o.AllowTransitionWithWarnings {
-		fmt.Fprintf(o.Out, "warning: Proceeding despite failed preflight checks (--allow-transition-with-warnings)\n")
-		fmt.Fprintf(o.Out, "warning: This may result in cluster instability or transition failure\n\n")
+	if result.HasWarningCheckFailures() && o.allowTransitionWithWarnings {
+		if _, err := fmt.Fprintf(o.Out, "warning: Proceeding despite failed preflight checks (--allow-transition-with-warnings)\nwarning: This may result in cluster instability or transition failure\n\n"); err != nil {
+			return err
+		}
 	}
 
 	// Step 6: If no --confirm, show dry-run message
-	if !o.Confirm {
-		fmt.Fprintf(o.Out, "\nDry run: Would patch Infrastructure spec:\n")
-		fmt.Fprintf(o.Out, "  spec.controlPlaneTopology:    %s\n\n", target.ControlPlane)
-		fmt.Fprintf(o.Out, "Note: The cluster-config-operator will update both status.controlPlaneTopology\n")
-		fmt.Fprintf(o.Out, "      and status.infrastructureTopology to %s based on this change.\n\n", target.ControlPlane)
-		fmt.Fprintf(o.Out, "Add --confirm to apply this transition\n")
-		return nil
+	if !o.confirm {
+		_, err := fmt.Fprintf(o.Out, "\nDry run: Would patch Infrastructure spec:\n  spec.controlPlaneTopology:    %s\n\nNote: The cluster-config-operator will update both status.controlPlaneTopology\n      and status.infrastructureTopology to %s based on this change.\n\nAdd --confirm to apply this transition\n", target.ControlPlane, target.ControlPlane)
+		return err
 	}
 
 	// Step 7: Apply transition
@@ -415,7 +386,9 @@ func (o *transitionOptions) runInitiateMode(ctx context.Context, currentCP, curr
 
 // applyTransition patches the Infrastructure resource to initiate the transition
 func (o *transitionOptions) applyTransition(ctx context.Context, targetCP, targetInfra configv1.TopologyMode) error {
-	fmt.Fprintf(o.Out, "Initiating topology transition...\n")
+	if _, err := fmt.Fprintf(o.Out, "Initiating topology transition...\n"); err != nil {
+		return err
+	}
 
 	// Update Infrastructure resource with retry on conflict
 	// Use RetryOnConflict to handle resourceVersion conflicts with other controllers
@@ -439,13 +412,6 @@ func (o *transitionOptions) applyTransition(ctx context.Context, targetCP, targe
 		return fmt.Errorf("failed to update Infrastructure resource: %w", err)
 	}
 
-	fmt.Fprintf(o.Out, "\nInfrastructure spec patched:\n")
-	fmt.Fprintf(o.Out, "  spec.controlPlaneTopology:    %s\n\n", targetCP)
-	fmt.Fprintf(o.Out, "Note: The cluster-config-operator will update status.controlPlaneTopology\n")
-	fmt.Fprintf(o.Out, "      and status.infrastructureTopology based on this change.\n\n")
-	fmt.Fprintf(o.Out, "Transition initiated. Operators will reconfigure to the new topology.\n\n")
-	fmt.Fprintf(o.Out, "Monitor transition progress with:\n")
-	fmt.Fprintf(o.Out, "  oc adm transition status\n")
-
-	return nil
+	_, err = fmt.Fprintf(o.Out, "\nInfrastructure spec patched:\n  spec.controlPlaneTopology:    %s\n\nNote: The cluster-config-operator will update status.controlPlaneTopology\n      and status.infrastructureTopology based on this change.\n\nTransition initiated. Operators will reconfigure to the new topology.\n\nMonitor transition progress with:\n  oc adm transition status\n", targetCP)
+	return err
 }

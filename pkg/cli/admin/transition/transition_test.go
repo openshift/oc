@@ -1,6 +1,8 @@
 package transition
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	fake "k8s.io/client-go/kubernetes/fake"
@@ -18,6 +21,22 @@ import (
 
 	"github.com/openshift/oc/pkg/cli/admin/transition/preflight"
 )
+
+type validatorFunc func(context.Context, preflight.TopologyState, preflight.TopologyState) (*preflight.ValidationResult, error)
+
+func (f validatorFunc) Validate(ctx context.Context, current, target preflight.TopologyState) (*preflight.ValidationResult, error) {
+	return f(ctx, current, target)
+}
+
+type failingWriter struct {
+	err error
+}
+
+type contextKey struct{}
+
+func (w failingWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
 
 /*
 ================================================================================
@@ -162,8 +181,8 @@ func TestValidate_TopologyFlags(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			streams := genericclioptions.NewTestIOStreamsDiscard()
 			o := newTransitionOptions(streams)
-			o.ControlPlane = tc.controlPlane
-			o.Infrastructure = tc.infrastructure
+			o.controlPlane = tc.controlPlane
+			o.infrastructure = tc.infrastructure
 
 			err := o.validate()
 
@@ -243,10 +262,10 @@ func TestValidate_FlagDependencies(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			streams := genericclioptions.NewTestIOStreamsDiscard()
 			o := newTransitionOptions(streams)
-			o.ControlPlane = tc.controlPlane
-			o.Infrastructure = tc.infrastructure
-			o.Confirm = tc.confirm
-			o.AllowTransitionWithWarnings = tc.allowTransitionWithWarnings
+			o.controlPlane = tc.controlPlane
+			o.infrastructure = tc.infrastructure
+			o.confirm = tc.confirm
+			o.allowTransitionWithWarnings = tc.allowTransitionWithWarnings
 
 			err := o.validate()
 
@@ -329,6 +348,15 @@ func TestRunDiscoveryMode_HighlyAvailable(t *testing.T) {
 	// Should mention what transitions are supported
 	if !strings.Contains(output, "Only SingleReplica -> HighlyAvailable") {
 		t.Errorf("expected note about supported transition types in output, got:\n%s", output)
+	}
+}
+
+func TestRunDiscoveryModeReturnsWriteError(t *testing.T) {
+	wantErr := errors.New("write failed")
+	o := newTransitionOptions(genericclioptions.IOStreams{Out: failingWriter{err: wantErr}})
+
+	if err := o.runDiscoveryMode(configv1.SingleReplicaTopologyMode, configv1.SingleReplicaTopologyMode); !errors.Is(err, wantErr) {
+		t.Fatalf("runDiscoveryMode() error = %v, want %v", err, wantErr)
 	}
 }
 
@@ -493,9 +521,9 @@ func TestRunInitiateMode_PatchesInfrastructure(t *testing.T) {
 	)
 
 	o := &transitionOptions{
-		ControlPlane:   "HighlyAvailable",
-		Infrastructure: "HighlyAvailable",
-		Confirm:        true, // Apply the transition
+		controlPlane:   "HighlyAvailable",
+		infrastructure: "HighlyAvailable",
+		confirm:        true, // Apply the transition
 		IOStreams:      streams,
 		kubeClient:     kubeClient,
 		configClient:   configClient,
@@ -504,7 +532,7 @@ func TestRunInitiateMode_PatchesInfrastructure(t *testing.T) {
 	}
 
 	// Run the command
-	err := o.run()
+	err := o.run(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -584,8 +612,8 @@ func TestRunInitiateMode_DefaultDryRun(t *testing.T) {
 	)
 
 	o := &transitionOptions{
-		ControlPlane:   "HighlyAvailable",
-		Infrastructure: "HighlyAvailable",
+		controlPlane:   "HighlyAvailable",
+		infrastructure: "HighlyAvailable",
 		// No --confirm flag, so defaults to dry-run
 		IOStreams:      streams,
 		kubeClient:     kubeClient,
@@ -595,7 +623,7 @@ func TestRunInitiateMode_DefaultDryRun(t *testing.T) {
 	}
 
 	// Run the command
-	err := o.run()
+	err := o.run(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -639,8 +667,8 @@ func TestRunInitiateMode_AlreadyAtTarget(t *testing.T) {
 	operatorClient := fakeoperatorclient.NewSimpleClientset()
 
 	o := &transitionOptions{
-		ControlPlane:   "SingleReplica",
-		Infrastructure: "SingleReplica",
+		controlPlane:   "SingleReplica",
+		infrastructure: "SingleReplica",
 		IOStreams:      streams,
 		kubeClient:     kubeClient,
 		configClient:   configClient,
@@ -649,7 +677,7 @@ func TestRunInitiateMode_AlreadyAtTarget(t *testing.T) {
 	}
 
 	// Run the command
-	err := o.run()
+	err := o.run(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -675,6 +703,157 @@ func TestRunInitiateMode_AlreadyAtTarget(t *testing.T) {
 	// Verify validation was NOT run
 	if strings.Contains(output, "Running preflight validation") {
 		t.Error("expected validation to be skipped when already at target")
+	}
+}
+
+func TestRunInitiateModePreflightFailures(t *testing.T) {
+	current := preflight.TopologyState{
+		ControlPlane:   configv1.SingleReplicaTopologyMode,
+		Infrastructure: configv1.SingleReplicaTopologyMode,
+	}
+	target := preflight.TopologyState{
+		ControlPlane:   configv1.HighlyAvailableTopologyMode,
+		Infrastructure: configv1.HighlyAvailableTopologyMode,
+	}
+
+	tests := []struct {
+		name          string
+		check         preflight.CheckResult
+		allowWarnings bool
+		wantErr       string
+		wantUpdate    bool
+		wantOutput    string
+	}{
+		{
+			name: "blocking error cannot be bypassed",
+			check: preflight.CheckResult{
+				Name: preflight.CheckNameFeatureGateEnabled, Severity: preflight.CheckSeverityError, Status: preflight.CheckStatusFailed,
+			},
+			allowWarnings: true,
+			wantErr:       "cannot proceed with transition",
+		},
+		{
+			name: "warning blocks transition",
+			check: preflight.CheckResult{
+				Name: preflight.CheckNameClusterOperatorsStable, Severity: preflight.CheckSeverityWarning, Status: preflight.CheckStatusFailed,
+			},
+			wantErr: "cluster not ready for transition",
+		},
+		{
+			name: "warning can be bypassed",
+			check: preflight.CheckResult{
+				Name: preflight.CheckNameClusterOperatorsStable, Severity: preflight.CheckSeverityWarning, Status: preflight.CheckStatusFailed,
+			},
+			allowWarnings: true,
+			wantUpdate:    true,
+			wantOutput:    "Proceeding despite failed preflight checks",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			streams, _, out, _ := genericclioptions.NewTestIOStreams()
+			infra := &configv1.Infrastructure{
+				ObjectMeta: metav1.ObjectMeta{Name: infrastructureResourceName},
+				Status: configv1.InfrastructureStatus{
+					ControlPlaneTopology:   current.ControlPlane,
+					InfrastructureTopology: current.Infrastructure,
+				},
+			}
+			configClient := fakeconfigclient.NewSimpleClientset(infra)
+			result := preflight.NewValidationResult(current, target)
+			result.AddCheck(tc.check)
+
+			o := &transitionOptions{
+				controlPlane:                string(target.ControlPlane),
+				infrastructure:              string(target.Infrastructure),
+				confirm:                     true,
+				allowTransitionWithWarnings: tc.allowWarnings,
+				IOStreams:                   streams,
+				configClient:                configClient,
+				validator: validatorFunc(func(context.Context, preflight.TopologyState, preflight.TopologyState) (*preflight.ValidationResult, error) {
+					return result, nil
+				}),
+			}
+
+			err := o.runInitiateMode(context.Background(), current.ControlPlane, current.Infrastructure)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("runInitiateMode() error = %v, want error containing %q", err, tc.wantErr)
+				}
+			} else if err != nil {
+				t.Fatalf("runInitiateMode() error = %v", err)
+			}
+
+			updated := false
+			for _, action := range configClient.Actions() {
+				updated = updated || action.GetVerb() == "update"
+			}
+			if updated != tc.wantUpdate {
+				t.Errorf("Infrastructure updated = %t, want %t", updated, tc.wantUpdate)
+			}
+			if tc.wantOutput != "" && !strings.Contains(out.String(), tc.wantOutput) {
+				t.Errorf("output = %q, want it to contain %q", out.String(), tc.wantOutput)
+			}
+		})
+	}
+}
+
+func TestRunInitiateModeReturnsWriteError(t *testing.T) {
+	wantErr := errors.New("write failed")
+	o := &transitionOptions{
+		controlPlane: "HighlyAvailable",
+		IOStreams: genericclioptions.IOStreams{
+			Out: failingWriter{err: wantErr},
+		},
+	}
+
+	if err := o.runInitiateMode(context.Background(), configv1.SingleReplicaTopologyMode, configv1.SingleReplicaTopologyMode); !errors.Is(err, wantErr) {
+		t.Fatalf("runInitiateMode() error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestRunUsesCommandContextAndDeadline(t *testing.T) {
+	streams := genericclioptions.NewTestIOStreamsDiscard()
+	configClient := fakeconfigclient.NewSimpleClientset(&configv1.Infrastructure{
+		ObjectMeta: metav1.ObjectMeta{Name: infrastructureResourceName},
+		Status: configv1.InfrastructureStatus{
+			ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+		},
+	})
+
+	o := &transitionOptions{
+		controlPlane: "HighlyAvailable",
+		IOStreams:    streams,
+		configClient: configClient,
+		validator: validatorFunc(func(ctx context.Context, current, target preflight.TopologyState) (*preflight.ValidationResult, error) {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			if got := ctx.Value(contextKey{}); got != "command value" {
+				t.Errorf("context value = %v, want command value", got)
+			}
+			if _, ok := ctx.Deadline(); !ok {
+				t.Error("context has no deadline")
+			}
+			result := preflight.NewValidationResult(current, target)
+			result.AddCheck(preflight.CheckResult{
+				Name: preflight.CheckNameSupportedTransition, Severity: preflight.CheckSeverityError, Status: preflight.CheckStatusPassed,
+			})
+			return result, nil
+		}),
+	}
+
+	ctx := context.WithValue(context.Background(), contextKey{}, "command value")
+	if err := o.run(ctx); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := o.run(canceled); !errors.Is(err, context.Canceled) {
+		t.Fatalf("run() with canceled context error = %v, want %v", err, context.Canceled)
 	}
 }
 
@@ -851,7 +1030,7 @@ func TestStatusCommand(t *testing.T) {
 			}
 
 			// Run status command
-			err := o.run()
+			err := o.run(context.Background())
 			if tc.expectError {
 				if err == nil {
 					t.Fatalf("expected error, got nil")
@@ -868,6 +1047,51 @@ func TestStatusCommand(t *testing.T) {
 				if !strings.Contains(output, expected) {
 					t.Errorf("expected output to contain %q, got:\n%s", expected, output)
 				}
+			}
+		})
+	}
+}
+
+func TestStatusCommandErrors(t *testing.T) {
+	tests := []struct {
+		name           string
+		failResource   string
+		out            failingWriter
+		wantWriteError bool
+	}{
+		{name: "Infrastructure read", failResource: "infrastructures"},
+		{name: "operator Config read", failResource: "configs"},
+		{name: "output write", out: failingWriter{err: errors.New("write failed")}, wantWriteError: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			streams := genericclioptions.NewTestIOStreamsDiscard()
+			if tc.wantWriteError {
+				streams.Out = tc.out
+			}
+			configClient := fakeconfigclient.NewSimpleClientset(&configv1.Infrastructure{
+				ObjectMeta: metav1.ObjectMeta{Name: infrastructureResourceName},
+			})
+			operatorClient := fakeoperatorclient.NewSimpleClientset()
+			if tc.failResource == "infrastructures" {
+				configClient.PrependReactor("get", tc.failResource, func(ktesting.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("read failed")
+				})
+			}
+			if tc.failResource == "configs" {
+				operatorClient.PrependReactor("get", tc.failResource, func(ktesting.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("read failed")
+				})
+			}
+
+			o := &statusOptions{IOStreams: streams, configClient: configClient, operatorClient: operatorClient}
+			err := o.run(context.Background())
+			if err == nil {
+				t.Fatal("run() error = nil, want error")
+			}
+			if tc.wantWriteError && !errors.Is(err, tc.out.err) {
+				t.Fatalf("run() error = %v, want %v", err, tc.out.err)
 			}
 		})
 	}
