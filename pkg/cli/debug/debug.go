@@ -298,6 +298,7 @@ func (o *DebugOptions) Complete(cmd *cobra.Command, f kcmdutil.Factory, args []s
 		o.Attach.TTY = false
 	case o.DisableTTY:
 		o.Attach.TTY = false
+		o.Attach.Stdin = false
 	// don't default TTY to true if a command is passed
 	case len(o.Command) > 0:
 		o.Attach.TTY = false
