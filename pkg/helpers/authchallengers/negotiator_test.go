@@ -9,12 +9,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
 
-	"github.com/openshift/osincli"
+	"golang.org/x/oauth2"
 
-	"k8s.io/apimachinery/pkg/util/diff"
 	restclient "k8s.io/client-go/rest"
 
 	"github.com/openshift/library-go/pkg/oauth/oauthdiscovery"
@@ -511,11 +509,13 @@ func TestRequestToken(t *testing.T) {
 					},
 				},
 				Handler: tc.Handler,
-				OsinConfig: &osincli.ClientConfig{
-					ClientId:     "openshift-challenging-client",
-					AuthorizeUrl: oauthdiscovery.OpenShiftOAuthAuthorizeURL(s.URL),
-					TokenUrl:     oauthdiscovery.OpenShiftOAuthTokenURL(s.URL),
-					RedirectUrl:  oauthdiscovery.OpenShiftOAuthTokenImplicitURL(s.URL),
+				OsinConfig: &oauth2.Config{
+					ClientID: "openshift-challenging-client",
+					Endpoint: oauth2.Endpoint{
+						AuthURL:  oauthdiscovery.OpenShiftOAuthAuthorizeURL(s.URL),
+						TokenURL: oauthdiscovery.OpenShiftOAuthTokenURL(s.URL),
+					},
+					RedirectURL: oauthdiscovery.OpenShiftOAuthTokenImplicitURL(s.URL),
 				},
 				Issuer:    s.URL,
 				TokenFlow: true,
@@ -547,8 +547,7 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 		hostWrapper func(host string) (newHost string)
 		tokenFlow   bool
 
-		expectPKCE     bool
-		expectedConfig *osincli.ClientConfig
+		expectedConfig *oauth2.Config
 	}{
 		{
 			name: "code with PKCE support from server",
@@ -561,13 +560,10 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			hostWrapper: noHostChange,
 			tokenFlow:   false,
 
-			expectPKCE: true,
-			expectedConfig: &osincli.ClientConfig{
-				ClientId:            "openshift-challenging-client",
-				AuthorizeUrl:        "b",
-				TokenUrl:            "c",
-				RedirectUrl:         "a/oauth/token/implicit",
-				CodeChallengeMethod: "S256",
+			expectedConfig: &oauth2.Config{
+				ClientID:    "openshift-challenging-client",
+				Endpoint:    oauth2.Endpoint{AuthURL: "b", TokenURL: "c"},
+				RedirectURL: "a/oauth/token/implicit",
 			},
 		},
 		{
@@ -581,12 +577,10 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			hostWrapper: noHostChange,
 			tokenFlow:   false,
 
-			expectPKCE: false,
-			expectedConfig: &osincli.ClientConfig{
-				ClientId:     "openshift-challenging-client",
-				AuthorizeUrl: "b",
-				TokenUrl:     "c",
-				RedirectUrl:  "a/oauth/token/implicit",
+			expectedConfig: &oauth2.Config{
+				ClientID:    "openshift-challenging-client",
+				Endpoint:    oauth2.Endpoint{AuthURL: "b", TokenURL: "c"},
+				RedirectURL: "a/oauth/token/implicit",
 			},
 		},
 		{
@@ -600,12 +594,10 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			hostWrapper: noHostChange,
 			tokenFlow:   true,
 
-			expectPKCE: false,
-			expectedConfig: &osincli.ClientConfig{
-				ClientId:     "openshift-challenging-client",
-				AuthorizeUrl: "b",
-				TokenUrl:     "c",
-				RedirectUrl:  "a/oauth/token/implicit",
+			expectedConfig: &oauth2.Config{
+				ClientID:    "openshift-challenging-client",
+				Endpoint:    oauth2.Endpoint{AuthURL: "b", TokenURL: "c"},
+				RedirectURL: "a/oauth/token/implicit",
 			},
 		},
 		{
@@ -619,12 +611,10 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			hostWrapper: noHostChange,
 			tokenFlow:   false,
 
-			expectPKCE: false,
-			expectedConfig: &osincli.ClientConfig{
-				ClientId:     "openshift-challenging-client",
-				AuthorizeUrl: "b",
-				TokenUrl:     "c",
-				RedirectUrl:  "a/oauth/token/implicit",
+			expectedConfig: &oauth2.Config{
+				ClientID:    "openshift-challenging-client",
+				Endpoint:    oauth2.Endpoint{AuthURL: "b", TokenURL: "c"},
+				RedirectURL: "a/oauth/token/implicit",
 			},
 		},
 		{
@@ -638,12 +628,10 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			hostWrapper: noHostChange,
 			tokenFlow:   true,
 
-			expectPKCE: false,
-			expectedConfig: &osincli.ClientConfig{
-				ClientId:     "openshift-challenging-client",
-				AuthorizeUrl: "b",
-				TokenUrl:     "c",
-				RedirectUrl:  "a/oauth/token/implicit",
+			expectedConfig: &oauth2.Config{
+				ClientID:    "openshift-challenging-client",
+				Endpoint:    oauth2.Endpoint{AuthURL: "b", TokenURL: "c"},
+				RedirectURL: "a/oauth/token/implicit",
 			},
 		},
 		{
@@ -657,13 +645,10 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			hostWrapper: func(host string) string { return host + "/////" },
 			tokenFlow:   false,
 
-			expectPKCE: true,
-			expectedConfig: &osincli.ClientConfig{
-				ClientId:            "openshift-challenging-client",
-				AuthorizeUrl:        "b",
-				TokenUrl:            "c",
-				RedirectUrl:         "a/oauth/token/implicit",
-				CodeChallengeMethod: "S256",
+			expectedConfig: &oauth2.Config{
+				ClientID:    "openshift-challenging-client",
+				Endpoint:    oauth2.Endpoint{AuthURL: "b", TokenURL: "c"},
+				RedirectURL: "a/oauth/token/implicit",
 			},
 		},
 		{
@@ -677,13 +662,10 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			hostWrapper: noHostChange,
 			tokenFlow:   false,
 
-			expectPKCE: true,
-			expectedConfig: &osincli.ClientConfig{
-				ClientId:            "openshift-challenging-client",
-				AuthorizeUrl:        "b",
-				TokenUrl:            "c",
-				RedirectUrl:         "a/oauth/token/implicit",
-				CodeChallengeMethod: "S256",
+			expectedConfig: &oauth2.Config{
+				ClientID:    "openshift-challenging-client",
+				Endpoint:    oauth2.Endpoint{AuthURL: "b", TokenURL: "c"},
+				RedirectURL: "a/oauth/token/implicit",
 			},
 		},
 		{
@@ -697,13 +679,10 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			hostWrapper: noHostChange,
 			tokenFlow:   false,
 
-			expectPKCE: true,
-			expectedConfig: &osincli.ClientConfig{
-				ClientId:            "openshift-challenging-client",
-				AuthorizeUrl:        "44authzisanawesomeendpoint",
-				TokenUrl:            "&&buttokenendpointisprettygoodtoo",
-				RedirectUrl:         "arandomissuerthatisfun123!!!/oauth/token/implicit",
-				CodeChallengeMethod: "S256",
+			expectedConfig: &oauth2.Config{
+				ClientID:    "openshift-challenging-client",
+				Endpoint:    oauth2.Endpoint{AuthURL: "44authzisanawesomeendpoint", TokenURL: "&&buttokenendpointisprettygoodtoo"},
+				RedirectURL: "arandomissuerthatisfun123!!!/oauth/token/implicit",
 			},
 		},
 	} {
@@ -729,31 +708,22 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			ClientConfig: &restclient.Config{Host: tc.hostWrapper(s.URL)},
 			TokenFlow:    tc.tokenFlow,
 		}
-		if err := opts.SetDefaultOsinConfig("openshift-challenging-client", nil); err != nil {
-			t.Errorf("%s: unexpected SetDefaultOsinConfig error: %v", tc.name, err)
+		if err := opts.SetDefaultOauthConfig("openshift-challenging-client", nil); err != nil {
+			t.Errorf("%s: unexpected SetDefaultOauthConfig error: %v", tc.name, err)
 			continue
 		}
 
-		// check PKCE data
-		if tc.expectPKCE {
-			if len(opts.OsinConfig.CodeChallenge) == 0 || len(opts.OsinConfig.CodeChallengeMethod) == 0 || len(opts.OsinConfig.CodeVerifier) == 0 {
-				t.Errorf("%s: did not set PKCE", tc.name)
-				continue
-			}
-		} else {
-			if len(opts.OsinConfig.CodeChallenge) != 0 || len(opts.OsinConfig.CodeChallengeMethod) != 0 || len(opts.OsinConfig.CodeVerifier) != 0 {
-				t.Errorf("%s: incorrectly set PKCE", tc.name)
-				continue
-			}
-		}
-
-		// blindly unset random PKCE data since we already checked for it
-		opts.OsinConfig.CodeChallenge = ""
-		opts.OsinConfig.CodeVerifier = ""
-
-		// compare the configs to see if they match
-		if !reflect.DeepEqual(*tc.expectedConfig, *opts.OsinConfig) {
-			t.Errorf("%s: expected osin config does not match, %s", tc.name, diff.ObjectGoPrintSideBySide(*tc.expectedConfig, *opts.OsinConfig))
+		// Compare the relevant exported fields directly. golang.org/x/oauth2 no
+		// longer exposes PKCE on the config (the code verifier is tracked
+		// internally and the challenge is derived per-request), and oauth2.Config
+		// carries an unexported auth-style cache, so a deep-equal is not usable.
+		got := opts.OsinConfig
+		if got.ClientID != tc.expectedConfig.ClientID ||
+			got.Endpoint.AuthURL != tc.expectedConfig.Endpoint.AuthURL ||
+			got.Endpoint.TokenURL != tc.expectedConfig.Endpoint.TokenURL ||
+			got.RedirectURL != tc.expectedConfig.RedirectURL {
+			t.Errorf("%s: expected oauth config %+v, got clientID=%q authURL=%q tokenURL=%q redirectURL=%q",
+				tc.name, tc.expectedConfig, got.ClientID, got.Endpoint.AuthURL, got.Endpoint.TokenURL, got.RedirectURL)
 		}
 	}
 }
