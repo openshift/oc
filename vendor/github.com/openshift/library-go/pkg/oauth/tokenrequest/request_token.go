@@ -15,7 +15,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/openshift/osincli"
+	"golang.org/x/oauth2"
 
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,11 +45,12 @@ const (
 	// openShiftCLIBrowserClientID the name of the CLI client for logging in through a browser
 	openShiftCLIBrowserClientID = "openshift-cli-client"
 
-	// pkce_s256 is sha256 hash per RFC7636, copied from github.com/openshift/osincli/pkce.go
+	// pkce_s256 is the S256 PKCE code challenge method per RFC7636
 	pkce_s256 = "S256"
 
-	// token fakes the missing osin.TOKEN const
-	token osincli.AuthorizeRequestType = "token"
+	// tokenResponseType is the implicit ("token") OAuth response type. It is not
+	// supported directly by golang.org/x/oauth2, so it is set explicitly when needed.
+	tokenResponseType = "token"
 
 	// BasicAuthNoUsernameMessage will differentiate unauthorized errors from basic login with no username
 	BasicAuthNoUsernameMessage = "BasicChallengeNoUsername"
@@ -58,9 +59,14 @@ const (
 type RequestTokenOptions struct {
 	ClientConfig *restclient.Config
 	Handler      challengehandlers.ChallengeHandler
-	OsinConfig   *osincli.ClientConfig
+	OsinConfig   *oauth2.Config // TODO rename to OauthConfig?
 	Issuer       string
 	TokenFlow    bool
+
+	// codeVerifier holds the PKCE code verifier for the OAuth code flow.
+	// It is empty when PKCE is not used (token flow, or a server that does
+	// not advertise S256 support).
+	codeVerifier string
 
 	// AuthorizationURLHandler defines how the authorization URL of the OAuth Code Grant flow
 	// should be handled; for example use this function to take the URL and open it in a browser
@@ -111,8 +117,8 @@ func NewRequestTokenOptions(
 
 // WithChallengeHandlers sets up the RequestTokenOptions with the provided challengeHandlers to be
 // used in the OAuth code flow.
-// If RequestTokenOptions.OsinConfig is nil, it will be defaulted using SetDefaultOsinConfig.
-// The caller is responsible for setting up the entire OsinConfig if the value is not nil.
+// If RequestTokenOptions.OAuthConfig is nil, it will be defaulted using SetDefaultOsinConfig.
+// The caller is responsible for setting up the entire OAuthConfig if the value is not nil.
 func (o *RequestTokenOptions) WithChallengeHandlers(challengeHandlers ...challengehandlers.ChallengeHandler) (*RequestTokenOptions, error) {
 	var handler challengehandlers.ChallengeHandler
 	if len(challengeHandlers) == 1 {
@@ -123,7 +129,7 @@ func (o *RequestTokenOptions) WithChallengeHandlers(challengeHandlers ...challen
 	o.Handler = handler
 
 	if o.OsinConfig == nil {
-		if err := o.SetDefaultOsinConfig(openShiftCLIClientID, nil); err != nil {
+		if err := o.SetDefaultOauthConfig(openShiftCLIClientID, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -133,8 +139,8 @@ func (o *RequestTokenOptions) WithChallengeHandlers(challengeHandlers ...challen
 
 // WithLocalCallback sets up the RequestTokenOptions with an AuthorizationURLHanderFunc and an
 // unstarted local callback server on the specified port.
-// If RequestTokenOptions.OsinConfig is nil, it will be defaulted using SetDefaultOsinConfig.
-// The caller is responsible for setting up the entire OsinConfig if the value is not nil.
+// If RequestTokenOptions.OAuthConfig is nil, it will be defaulted using SetDefaultOsinConfig.
+// The caller is responsible for setting up the entire OAuthConfig if the value is not nil.
 func (o *RequestTokenOptions) WithLocalCallback(handleAuthzURL AuthorizationURLHandlerFunc, localCallbackPort int) (*RequestTokenOptions, error) {
 	var err error
 	o.AuthorizationURLHandler = handleAuthzURL
@@ -145,7 +151,7 @@ func (o *RequestTokenOptions) WithLocalCallback(handleAuthzURL AuthorizationURLH
 
 	if o.OsinConfig == nil {
 		redirectUrl := fmt.Sprintf("http://%s/callback", o.LocalCallbackServer.ListenAddr())
-		if err := o.SetDefaultOsinConfig(openShiftCLIBrowserClientID, &redirectUrl); err != nil {
+		if err := o.SetDefaultOauthConfig(openShiftCLIBrowserClientID, &redirectUrl); err != nil {
 			return nil, err
 		}
 	}
@@ -153,11 +159,19 @@ func (o *RequestTokenOptions) WithLocalCallback(handleAuthzURL AuthorizationURLH
 	return o, nil
 }
 
-// SetDefaultOsinConfig overwrites RequestTokenOptions.OsinConfig with the default CLI
+// SetDefaultOsinConfig overwrites RequestTokenOptions.OAuthConfig with the default CLI
 // OAuth client and PKCE support if the server supports S256 / a code flow is being used
+//
+// Deprecated: Use RequestTokenOptions.SetDefaultOauthConfig
 func (o *RequestTokenOptions) SetDefaultOsinConfig(clientID string, redirectURL *string) error {
+	return o.SetDefaultOauthConfig(clientID, redirectURL)
+}
+
+// SetDefaultOauthConfig overwrites RequestTokenOptions.OAuthConfig with the default CLI
+// OAuth client and PKCE support if the server supports S256 / a code flow is being used
+func (o *RequestTokenOptions) SetDefaultOauthConfig(clientID string, redirectURL *string) error {
 	if o.OsinConfig != nil {
-		return fmt.Errorf("osin config is already set to: %#v", *o.OsinConfig)
+		return fmt.Errorf("oauth config is already set to: %#v", *o.OsinConfig)
 	}
 
 	// get the OAuth metadata directly from the api server
@@ -183,22 +197,26 @@ func (o *RequestTokenOptions) SetDefaultOsinConfig(clientID string, redirectURL 
 		return err
 	}
 
-	// use the metadata to build the osin config
-	config := &osincli.ClientConfig{
-		ClientId:     clientID,
-		AuthorizeUrl: metadata.AuthorizationEndpoint,
-		TokenUrl:     metadata.TokenEndpoint,
-		RedirectUrl:  oauthdiscovery.OpenShiftOAuthTokenImplicitURL(metadata.Issuer),
+	// use the metadata to build the oauth2 config.
+	// AuthStyleInHeader sends the client id via HTTP Basic auth (with an empty
+	// secret), matching the historical osincli behavior and avoiding the extra
+	// token request that oauth2's auth-style auto-detection would otherwise make.
+	config := &oauth2.Config{
+		ClientID: clientID,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:   metadata.AuthorizationEndpoint,
+			TokenURL:  metadata.TokenEndpoint,
+			AuthStyle: oauth2.AuthStyleInHeader,
+		},
+		RedirectURL: oauthdiscovery.OpenShiftOAuthTokenImplicitURL(metadata.Issuer),
 	}
 
 	if redirectURL != nil {
-		config.RedirectUrl = *redirectURL
+		config.RedirectURL = *redirectURL
 	}
 
 	if !o.TokenFlow && slices.Contains(metadata.CodeChallengeMethodsSupported, pkce_s256) {
-		if err := osincli.PopulatePKCE(config); err != nil {
-			return err
-		}
+		o.codeVerifier = oauth2.GenerateVerifier()
 	}
 
 	o.OsinConfig = config
@@ -237,7 +255,7 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 		}
 	}()
 
-	client, authorizeRequest, err := o.newOsinClient()
+	rt, ctx, authorizeURL, err := o.newOauthClient()
 	if err != nil {
 		return "", err
 	}
@@ -245,17 +263,16 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 	var oauthTokenFunc func(redirectURL string) (accessToken string, oauthError error)
 	if o.TokenFlow {
 		// access_token in fragment or error parameter
-		authorizeRequest.Type = token // manually override to token flow if necessary
 		oauthTokenFunc = oauthTokenFlow
 	} else {
 		// code or error parameter
 		oauthTokenFunc = func(redirectURL string) (accessToken string, oauthError error) {
-			return oauthCodeFlow(client, authorizeRequest, redirectURL)
+			return o.oauthCodeFlow(ctx, redirectURL)
 		}
 	}
 
 	// requestURL holds the current URL to make requests to. This can change if the server responds with a redirect
-	requestURL := authorizeRequest.GetAuthorizeUrl().String()
+	requestURL := authorizeURL.String()
 	// requestHeaders holds additional headers to add to the request. This can be changed by o.Handlers
 	requestHeaders := http.Header{}
 	// requestedURLSet/requestedURLList hold the URLs we have requested, to prevent redirect loops. Gets reset when a challenge is handled.
@@ -265,7 +282,7 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 
 	for {
 		// Make the request
-		resp, err := request(client.Transport, requestURL, requestHeaders)
+		resp, err := request(rt, requestURL, requestHeaders)
 		if err != nil {
 			return "", err
 		}
@@ -286,7 +303,7 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 							Causes: []metav1.StatusCause{
 								{Message: fmt.Sprintf(
 									"You must obtain an API token by visiting %s/request\n\n%s",
-									o.OsinConfig.TokenUrl,
+									o.OsinConfig.Endpoint.TokenURL,
 									`Alternatively, use "oc login --web" to login via your browser. See "oc login --help" for more information.`,
 								)},
 							},
@@ -367,7 +384,7 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 // It returns the access token if it gets one, or an error if it does not.
 func (o *RequestTokenOptions) requestTokenWithLocalCallback() (string, error) {
 
-	client, authorizeRequest, err := o.newOsinClient()
+	_, ctx, authorizeURL, err := o.newOauthClient()
 	if err != nil {
 		return "", err
 	}
@@ -375,13 +392,13 @@ func (o *RequestTokenOptions) requestTokenWithLocalCallback() (string, error) {
 	o.LocalCallbackServer.SetCallbackHandler(func(callback *http.Request) (string, error) {
 		// once the redirect callback is received, use it to request an access token
 		// from the oauth server
-		return requestAccessToken(client, authorizeRequest, callback)
+		return o.requestAccessToken(ctx, callback)
 	})
 
 	go func() { o.LocalCallbackServer.Start() }()
 	defer func() { o.LocalCallbackServer.Shutdown(context.Background()) }()
 
-	if err := o.AuthorizationURLHandler(authorizeRequest.GetAuthorizeUrl()); err != nil {
+	if err := o.AuthorizationURLHandler(authorizeURL); err != nil {
 		return "", err
 	}
 
@@ -393,8 +410,12 @@ func (o *RequestTokenOptions) requestTokenWithLocalCallback() (string, error) {
 	return result.token, nil
 }
 
-func (o *RequestTokenOptions) newOsinClient() (*osincli.Client, *osincli.AuthorizeRequest, error) {
-
+// newOauthClient assembles the pieces shared by both token-request flows: a
+// transport that trusts the system roots (so we can talk to an external OAuth
+// server whose cert isn't in the kubeconfig CA bundle), a context carrying that
+// transport for golang.org/x/oauth2's token exchange, and the authorization URL
+// for the configured flow.
+func (o *RequestTokenOptions) newOauthClient() (http.RoundTripper, context.Context, *url.URL, error) {
 	// we are going to use this transport to talk
 	// with a server that may not be the api server
 	// thus we need to include the system roots
@@ -403,18 +424,39 @@ func (o *RequestTokenOptions) newOsinClient() (*osincli.Client, *osincli.Authori
 	// error: x509: certificate signed by unknown authority
 	rt, err := transportWithSystemRoots(o.Issuer, o.ClientConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	client, err := osincli.NewClient(o.OsinConfig)
+	authorizeURL, err := o.authorizeURL()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	client.Transport = rt
 
-	authorizeRequest := client.NewAuthorizeRequest(osincli.CODE) // assume code flow to start with
+	return rt, oauthHTTPContext(rt), authorizeURL, nil
+}
 
-	return client, authorizeRequest, nil
+// authorizeURL builds the OAuth authorization URL for the configured flow.
+func (o *RequestTokenOptions) authorizeURL() (*url.URL, error) {
+	var opts []oauth2.AuthCodeOption
+	switch {
+	case o.TokenFlow:
+		// the implicit "token" flow is not directly supported by
+		// golang.org/x/oauth2 (Config.AuthCodeURL hardcodes response_type=code),
+		// so override the response type explicitly.
+		opts = append(opts, oauth2.SetAuthURLParam("response_type", tokenResponseType))
+	case o.codeVerifier != "":
+		// add the PKCE code challenge derived from the verifier
+		opts = append(opts, oauth2.S256ChallengeOption(o.codeVerifier))
+	}
+
+	// an empty state preserves the historical behavior of not sending a state parameter
+	return url.Parse(o.OsinConfig.AuthCodeURL("", opts...))
+}
+
+// oauthHTTPContext returns a context carrying the HTTP client that
+// golang.org/x/oauth2 should use for the token exchange.
+func oauthHTTPContext(rt http.RoundTripper) context.Context {
+	return context.WithValue(context.Background(), oauth2.HTTPClient, &http.Client{Transport: rt})
 }
 
 // oauthTokenFlow attempts to extract an OAuth token from location's fragment's access_token value.
@@ -450,14 +492,16 @@ func oauthTokenFlow(location string) (string, error) {
 // or a definite OAuth error is encountered during the code flow.  Other errors are assumed to be caused
 // by location not being part of the OAuth flow; it was a redirect that the client needs to follow as part
 // of the challenge flow (an authenticating proxy for example) and not a redirect step in the OAuth flow.
-func oauthCodeFlow(client *osincli.Client, authorizeRequest *osincli.AuthorizeRequest, location string) (string, error) {
-	// Make a request out of the URL since that is what AuthorizeRequest.HandleRequest expects to extract data from
+func (o *RequestTokenOptions) oauthCodeFlow(ctx context.Context, location string) (string, error) {
+	// Make a request out of the URL so we can extract data from its query parameters
 	req, err := http.NewRequest(http.MethodGet, location, nil)
 	if err != nil {
 		return "", err
 	}
 
-	req.ParseForm()
+	if err := req.ParseForm(); err != nil {
+		return "", err
+	}
 	if oauthErr := oauthErrFromValues(req.Form); oauthErr != nil {
 		return "", oauthErr
 	}
@@ -465,30 +509,52 @@ func oauthCodeFlow(client *osincli.Client, authorizeRequest *osincli.AuthorizeRe
 		return "", nil // no code parameter so this is not part of the OAuth flow
 	}
 
-	return requestAccessToken(client, authorizeRequest, req)
+	return o.exchangeCode(ctx, req.Form.Get("code"))
 }
 
-func requestAccessToken(client *osincli.Client, authorizeRequest *osincli.AuthorizeRequest, req *http.Request) (string, error) {
-
-	// any errors after this are fatal because we are committed to an OAuth flow now
-	authorizeData, err := authorizeRequest.HandleRequest(req)
-	if err != nil {
-		return "", osinToOAuthError(err)
+// requestAccessToken extracts the authorization code from the callback request and
+// exchanges it for an access token. Unlike oauthCodeFlow, a missing code is treated as
+// an error since the request is known to be the OAuth redirect callback.
+func (o *RequestTokenOptions) requestAccessToken(ctx context.Context, req *http.Request) (string, error) {
+	if err := req.ParseForm(); err != nil {
+		return "", err
+	}
+	if oauthErr := oauthErrFromValues(req.Form); oauthErr != nil {
+		return "", oauthErr
+	}
+	code := req.Form.Get("code")
+	if len(code) == 0 {
+		return "", errors.New("Requested parameter not sent")
 	}
 
-	accessRequest := client.NewAccessRequest(osincli.AUTHORIZATION_CODE, authorizeData)
-	accessData, err := accessRequest.GetToken()
-	if err != nil {
-		return "", osinToOAuthError(err)
-	}
-
-	return accessData.AccessToken, nil
+	return o.exchangeCode(ctx, code)
 }
 
-// osinToOAuthError creates a better error message for osincli.Error
-func osinToOAuthError(err error) error {
-	if osinErr, ok := err.(*osincli.Error); ok {
-		return createOAuthError(osinErr.Id, osinErr.Description)
+// exchangeCode exchanges an authorization code for an access token, including the PKCE
+// code verifier when one was generated.
+func (o *RequestTokenOptions) exchangeCode(ctx context.Context, code string) (string, error) {
+	var opts []oauth2.AuthCodeOption
+	if o.codeVerifier != "" {
+		opts = append(opts, oauth2.VerifierOption(o.codeVerifier))
+	}
+
+	token, err := o.OsinConfig.Exchange(ctx, code, opts...)
+	if err != nil {
+		return "", oauth2ToError(err)
+	}
+
+	return token.AccessToken, nil
+}
+
+// oauth2ToError creates a better error message for *oauth2.RetrieveError
+func oauth2ToError(err error) error {
+	var retrieveErr *oauth2.RetrieveError
+	// Only rewrite the error when the server returned a structured OAuth error.
+	// A RetrieveError with an empty ErrorCode means the token endpoint failed
+	// without an OAuth error body (e.g. a 5xx or proxy error); returning it
+	// unchanged preserves its status and response details for troubleshooting.
+	if errors.As(err, &retrieveErr) && retrieveErr.ErrorCode != "" {
+		return createOAuthError(retrieveErr.ErrorCode, retrieveErr.ErrorDescription)
 	}
 	return err
 }

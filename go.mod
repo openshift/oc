@@ -2,6 +2,8 @@ module github.com/openshift/oc
 
 go 1.26.0
 
+replace github.com/openshift/library-go => github.com/dusk125/library-go v0.0.0-20260915143008-8983a61e7adc
+
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
 	github.com/AaronO/go-git-http v0.0.0-20161214145340-1d9485b3a98f
