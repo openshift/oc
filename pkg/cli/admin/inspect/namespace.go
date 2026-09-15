@@ -82,7 +82,7 @@ func (o *InspectOptions) gatherNamespaceData(ctx context.Context, baseDir, names
 			klog.V(1).Infof("        Gathering data for pod %q\n", pod.GetName())
 			structuredPod := &corev1.Pod{}
 			runtime.DefaultUnstructuredConverter.FromUnstructured(pod.Object, structuredPod)
-			if err := o.gatherPodData(ctx, path.Join(destDir, "/pods/"+pod.GetName()), namespace, structuredPod); err != nil {
+			if err := o.GatherPodData(ctx, path.Join(destDir, "/pods/"+pod.GetName()), namespace, structuredPod); err != nil {
 				errs = append(errs, err)
 				continue
 			}
