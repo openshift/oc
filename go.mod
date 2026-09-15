@@ -44,7 +44,6 @@ require (
 	github.com/openshift/build-machinery-go v0.0.0-20260629141115-154a2b810491
 	github.com/openshift/client-go v0.0.0-20260806041845-b74fb348f1e7
 	github.com/openshift/library-go v0.0.0-20260901055840-8c76f7d75dd6
-	github.com/openshift/osincli v0.0.0-20160924135400-fababb0555f2
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.23.2
 	github.com/russross/blackfriday v1.6.0
