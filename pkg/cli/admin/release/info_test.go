@@ -252,7 +252,7 @@ func Test_readComponentVersions(t *testing.T) {
 				},
 			},
 			want: ComponentVersions{
-				"a1": {Version: "1.0.0"},
+				"a1": {Version: "1.0.0, 1.0.1"},
 			},
 			wantTags: map[string]string{
 				"a1": "test2",
@@ -280,7 +280,7 @@ func Test_readComponentVersions(t *testing.T) {
 				},
 			},
 			want: ComponentVersions{
-				"a1": {Version: "1.0.0", DisplayName: ""},
+				"a1": {Version: "1.0.0, 1.0.1", DisplayName: ", Test Name"},
 			},
 			wantTags: map[string]string{
 				"a1": "test2",
@@ -337,7 +337,7 @@ func Test_readComponentVersions(t *testing.T) {
 				},
 			},
 			want: ComponentVersions{
-				"a1": {Version: "1.0.0", DisplayName: "Test Name"},
+				"a1": {Version: "1.0.0", DisplayName: "Test Name, Test Name 2"},
 			},
 			wantTags: map[string]string{
 				"a1": "test2",
@@ -402,7 +402,7 @@ func Test_readComponentVersions(t *testing.T) {
 				},
 			},
 			want: ComponentVersions{
-				"kubectl": {Version: "1.0.0"},
+				"kubectl": {Version: "1.0.0, 1.1.0"},
 			},
 			wantTags: map[string]string{
 				"kubectl": "test3",
@@ -595,7 +595,7 @@ func Test_readComponentVersions(t *testing.T) {
 				},
 			},
 			want: ComponentVersions{
-				"some-component": {Version: "1.0.0"},
+				"some-component": {Version: "1.0.0, 2.0.0"},
 			},
 			wantTags: map[string]string{
 				"some-component": "test2",
