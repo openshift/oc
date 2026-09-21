@@ -43,11 +43,11 @@ COMMAND STRUCTURE
 
 VALIDATION
   - Topology flag validation                - Valid/invalid control-plane/infrastructure values
-  - Flag dependencies                       - --confirm/--allow-* require correct flags
+  - Flag dependencies                       - --confirm requires a target topology
 
 DISCOVERY MODE
   - Discovery mode from SingleReplica       - Shows available transition
-  - Discovery mode from HighlyAvailable     - Shows no transitions, not supported note
+  - Discovery mode from HighlyAvailable     - Shows available transitions
 
 INITIATE MODE
   - Patches Infrastructure with --confirm   - Verifies Update action with correct topology
@@ -169,10 +169,10 @@ func TestValidate_TopologyFlags(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			streams := genericclioptions.NewTestIOStreamsDiscard()
 			o := newTransitionOptions(streams)
-			o.controlPlane = tc.controlPlane
-			o.infrastructure = tc.infrastructure
+			o.args.targetControlPlaneTopology = tc.controlPlane
+			o.args.targetInfrastructureTopology = tc.infrastructure
 
-			err := o.validate()
+			err := o.validateCommand()
 
 			if tc.expectErr && err == nil {
 				t.Error("expected error, got nil")
@@ -235,11 +235,11 @@ func TestValidate_FlagDependencies(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			streams := genericclioptions.NewTestIOStreamsDiscard()
 			o := newTransitionOptions(streams)
-			o.controlPlane = tc.controlPlane
-			o.infrastructure = tc.infrastructure
-			o.confirm = tc.confirm
+			o.args.targetControlPlaneTopology = tc.controlPlane
+			o.args.targetInfrastructureTopology = tc.infrastructure
+			o.args.confirm = tc.confirm
 
-			err := o.validate()
+			err := o.validateCommand()
 
 			if tc.expectErr {
 				if err == nil {
@@ -260,8 +260,13 @@ func TestValidate_FlagDependencies(t *testing.T) {
 func TestRunDiscoveryMode_SingleReplica(t *testing.T) {
 	streams, _, out, _ := genericclioptions.NewTestIOStreams()
 	o := newTransitionOptions(streams)
+	o.current = TopologyState{
+		ControlPlane:   configv1.SingleReplicaTopologyMode,
+		Infrastructure: configv1.SingleReplicaTopologyMode,
+	}
+	o.validator.Current = o.current
 
-	err := o.runDiscoveryMode(configv1.SingleReplicaTopologyMode, configv1.SingleReplicaTopologyMode)
+	err := o.runDiscoveryMode(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -269,7 +274,7 @@ func TestRunDiscoveryMode_SingleReplica(t *testing.T) {
 	output := out.String()
 
 	// Should show current topology for both control plane and infrastructure
-	if !strings.Contains(output, "Current Topology:") {
+	if !strings.Contains(output, "Current Topology Configuration:") {
 		t.Errorf("expected current topology header in output, got:\n%s", output)
 	}
 	if !strings.Contains(output, "Control Plane:") {
@@ -280,17 +285,15 @@ func TestRunDiscoveryMode_SingleReplica(t *testing.T) {
 	}
 
 	// Should show available transition for control plane
-	if !strings.Contains(output, "Control Plane:    SingleReplica -> HighlyAvailable") {
+	if !strings.Contains(output, `Control Plane:  SingleReplica\t->\tHighlyAvailable`) {
 		t.Errorf("expected available control plane transition in output, got:\n%s", output)
 	}
 
-	// Should indicate infrastructure also transitions
-	if !strings.Contains(output, "Infrastructure also transitions") {
-		t.Errorf("expected note about infrastructure transition in output, got:\n%s", output)
+	if !strings.Contains(output, `Infrastructure: SingleReplica\t->\tHighlyAvailable`) {
+		t.Errorf("expected available infrastructure transition in output, got:\n%s", output)
 	}
 
-	// Should show command to initiate with just --control-plane flag
-	if !strings.Contains(output, "--control-plane=HighlyAvailable --confirm") {
+	if !strings.Contains(output, "--control-plane={target} --confirm") {
 		t.Errorf("expected initiate command with --control-plane flag in output, got:\n%s", output)
 	}
 }
@@ -299,8 +302,13 @@ func TestRunDiscoveryMode_SingleReplica(t *testing.T) {
 func TestRunDiscoveryMode_HighlyAvailable(t *testing.T) {
 	streams, _, out, _ := genericclioptions.NewTestIOStreams()
 	o := newTransitionOptions(streams)
+	o.current = TopologyState{
+		ControlPlane:   configv1.HighlyAvailableTopologyMode,
+		Infrastructure: configv1.HighlyAvailableTopologyMode,
+	}
+	o.validator.Current = o.current
 
-	err := o.runDiscoveryMode(configv1.HighlyAvailableTopologyMode, configv1.HighlyAvailableTopologyMode)
+	err := o.runDiscoveryMode(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -308,26 +316,25 @@ func TestRunDiscoveryMode_HighlyAvailable(t *testing.T) {
 	output := out.String()
 
 	// Should show current topology for both control plane and infrastructure
-	if !strings.Contains(output, "Current Topology:") {
+	if !strings.Contains(output, "Current Topology Configuration:") {
 		t.Errorf("expected current topology header in output, got:\n%s", output)
 	}
 
-	// Should show no available transitions
-	if !strings.Contains(output, "(none") {
-		t.Errorf("expected no available transitions in output, got:\n%s", output)
-	}
-
-	// Should mention what transitions are supported
-	if !strings.Contains(output, "Only SingleReplica -> HighlyAvailable") {
-		t.Errorf("expected note about supported transition types in output, got:\n%s", output)
+	if !strings.Contains(output, `Control Plane:  HighlyAvailable\t->\tHighlyAvailable`) {
+		t.Errorf("expected current topology as a valid no-op transition, got:\n%s", output)
 	}
 }
 
 func TestRunDiscoveryModeReturnsWriteError(t *testing.T) {
 	wantErr := errors.New("write failed")
 	o := newTransitionOptions(genericclioptions.IOStreams{Out: failingWriter{err: wantErr}})
+	o.current = TopologyState{
+		ControlPlane:   configv1.SingleReplicaTopologyMode,
+		Infrastructure: configv1.SingleReplicaTopologyMode,
+	}
+	o.validator.Current = o.current
 
-	if err := o.runDiscoveryMode(configv1.SingleReplicaTopologyMode, configv1.SingleReplicaTopologyMode); !errors.Is(err, wantErr) {
+	if err := o.runDiscoveryMode(context.Background()); !errors.Is(err, wantErr) {
 		t.Fatalf("runDiscoveryMode() error = %v, want %v", err, wantErr)
 	}
 }
@@ -360,13 +367,13 @@ func TestRunInitiateMode_PatchesInfrastructure(t *testing.T) {
 
 	configClient := fakeconfigclient.NewSimpleClientset(infra)
 
-	o := &transitionOptions{
-		controlPlane:   "HighlyAvailable",
-		infrastructure: "HighlyAvailable",
-		confirm:        true, // Apply the transition
-		IOStreams:      streams,
-		configClient:   configClient,
+	o := newTransitionOptions(streams)
+	o.target = TopologyState{
+		ControlPlane:   configv1.HighlyAvailableTopologyMode,
+		Infrastructure: configv1.HighlyAvailableTopologyMode,
 	}
+	o.args.confirm = true
+	o.configClient = configClient
 
 	// Run the command
 	err := o.run(context.Background())
@@ -418,13 +425,12 @@ func TestRunInitiateMode_DefaultDryRun(t *testing.T) {
 
 	configClient := fakeconfigclient.NewSimpleClientset(infra)
 
-	o := &transitionOptions{
-		controlPlane:   "HighlyAvailable",
-		infrastructure: "HighlyAvailable",
-		// No --confirm flag, so defaults to dry-run
-		IOStreams:    streams,
-		configClient: configClient,
+	o := newTransitionOptions(streams)
+	o.target = TopologyState{
+		ControlPlane:   configv1.HighlyAvailableTopologyMode,
+		Infrastructure: configv1.HighlyAvailableTopologyMode,
 	}
+	o.configClient = configClient
 
 	// Run the command
 	err := o.run(context.Background())
@@ -468,12 +474,12 @@ func TestRunInitiateMode_AlreadyAtTarget(t *testing.T) {
 
 	configClient := fakeconfigclient.NewSimpleClientset(infra)
 
-	o := &transitionOptions{
-		controlPlane:   "SingleReplica",
-		infrastructure: "SingleReplica",
-		IOStreams:      streams,
-		configClient:   configClient,
+	o := newTransitionOptions(streams)
+	o.target = TopologyState{
+		ControlPlane:   configv1.SingleReplicaTopologyMode,
+		Infrastructure: configv1.SingleReplicaTopologyMode,
 	}
+	o.configClient = configClient
 
 	// Run the command
 	err := o.run(context.Background())
@@ -495,8 +501,8 @@ func TestRunInitiateMode_AlreadyAtTarget(t *testing.T) {
 	if !strings.Contains(output, "Cluster is already at target topology") {
 		t.Error("expected output to indicate cluster is already at target")
 	}
-	if !strings.Contains(output, "No transition needed") {
-		t.Error("expected output to indicate no transition needed")
+	if !strings.Contains(output, "No transition initiated") {
+		t.Error("expected output to indicate no transition was initiated")
 	}
 
 	// Verify validation was NOT run
@@ -507,14 +513,15 @@ func TestRunInitiateMode_AlreadyAtTarget(t *testing.T) {
 
 func TestRunInitiateModeReturnsWriteError(t *testing.T) {
 	wantErr := errors.New("write failed")
-	o := &transitionOptions{
-		controlPlane: "HighlyAvailable",
-		IOStreams: genericclioptions.IOStreams{
-			Out: failingWriter{err: wantErr},
-		},
+	o := newTransitionOptions(genericclioptions.IOStreams{Out: failingWriter{err: wantErr}})
+	o.current = TopologyState{
+		ControlPlane:   configv1.SingleReplicaTopologyMode,
+		Infrastructure: configv1.SingleReplicaTopologyMode,
 	}
+	o.target = TopologyState{ControlPlane: configv1.HighlyAvailableTopologyMode}
+	o.validator.Current = o.current
 
-	if err := o.runInitiateMode(context.Background(), configv1.SingleReplicaTopologyMode, configv1.SingleReplicaTopologyMode); !errors.Is(err, wantErr) {
+	if err := o.runInitiateMode(context.Background()); !errors.Is(err, wantErr) {
 		t.Fatalf("runInitiateMode() error = %v, want %v", err, wantErr)
 	}
 }
@@ -551,9 +558,9 @@ func TestStatusCommand(t *testing.T) {
 				"Spec (desired):   HighlyAvailable",
 				"Status (current): SingleReplica",
 				"Infrastructure Topology:",
-				"Transitioning control plane topology from SingleReplica to HighlyAvailable",
-				"Progressing: True",
-				"Upgradeable: False",
+				"Transition Status",
+				"  Progressing\n    Status: True\n    Reason: TopologyTransitionInProgress\n    Condition: Transitioning control plane topology from SingleReplica to HighlyAvailable",
+				"  Upgradeable\n    Status: False\n    Reason: TopologyTransitionInProgress\n    Condition: Cluster upgrade is not allowed during topology transition",
 			},
 		},
 		{
@@ -570,8 +577,8 @@ func TestStatusCommand(t *testing.T) {
 				"Status (current): HighlyAvailable",
 				"Infrastructure Topology:",
 				"Status (current): HighlyAvailable",
-				"No transition in progress",
-				"Upgradeable: True",
+				"  Progressing: Condition not available",
+				"  Upgradeable\n    Status: True\n    Reason: AsExpected\n    Condition: No topology transition in progress",
 			},
 		},
 		{
@@ -586,9 +593,8 @@ func TestStatusCommand(t *testing.T) {
 			upgradeableReason:  topologyTransitionPreflightCheckFailedReason,
 			upgradeableMessage: "Cluster upgrade is not allowed while a topology transition is pending",
 			expectedOutputContains: []string{
-				"Preflight checks failed",
-				"Progressing: False",
-				"Reason: PreflightCheckFailed",
+				"  Progressing\n    Status: False\n    Reason: PreflightCheckFailed\n    Condition: Cluster operators are not stable",
+				"  Upgradeable\n    Status: False\n    Reason: PreflightCheckFailed\n    Condition: Cluster upgrade is not allowed while a topology transition is pending",
 			},
 		},
 		{
@@ -603,9 +609,8 @@ func TestStatusCommand(t *testing.T) {
 			upgradeableReason:  topologyTransitionUnsupportedTransitionReason,
 			upgradeableMessage: "Cluster upgrade is not allowed while a topology transition is requested",
 			expectedOutputContains: []string{
-				"Unsupported transition",
-				"Progressing: False",
-				"Reason: UnsupportedTransition",
+				"  Progressing\n    Status: False\n    Reason: UnsupportedTransition\n    Condition: Transition from HighlyAvailable to SingleReplica is not supported",
+				"  Upgradeable\n    Status: False\n    Reason: UnsupportedTransition\n    Condition: Cluster upgrade is not allowed while a topology transition is requested",
 			},
 		},
 		{
@@ -620,6 +625,7 @@ func TestStatusCommand(t *testing.T) {
 				"Control Plane Topology:",
 				"Infrastructure Topology:",
 				"Status (current): (not set)",
+				"  Progressing: Condition not available",
 			},
 		},
 	}
@@ -709,6 +715,39 @@ func TestStatusCommand(t *testing.T) {
 				if !strings.Contains(output, expected) {
 					t.Errorf("expected output to contain %q, got:\n%s", expected, output)
 				}
+			}
+		})
+	}
+}
+
+func TestFormatTopologyConditionStatus(t *testing.T) {
+	tests := []struct {
+		name      string
+		label     string
+		condition *operatorv1.OperatorCondition
+		want      string
+	}{
+		{
+			name:  "missing condition",
+			label: "Progressing",
+			want:  "  Progressing: Condition not available\n",
+		},
+		{
+			name:  "available condition",
+			label: "Upgradeable",
+			condition: &operatorv1.OperatorCondition{
+				Status:  operatorv1.ConditionFalse,
+				Reason:  "TopologyTransitionInProgress",
+				Message: "Cluster upgrade is not allowed during topology transition",
+			},
+			want: "  Upgradeable\n    Status: False\n    Reason: TopologyTransitionInProgress\n    Condition: Cluster upgrade is not allowed during topology transition\n",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := formatTopologyConditionStatus(tc.label, tc.condition); got != tc.want {
+				t.Errorf("formatTopologyConditionStatus() = %q, want %q", got, tc.want)
 			}
 		})
 	}

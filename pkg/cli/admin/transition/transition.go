@@ -3,6 +3,9 @@ package transition
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -73,19 +76,19 @@ var (
 
 // transitionOptions holds all options for the topology transition command
 type transitionOptions struct {
-	// Target control plane topology (--control-plane flag)
-	controlPlane string
+	current, target TopologyState
+	validator       TransitionValidator
 
-	// Target infrastructure topology (--infrastructure flag)
-	infrastructure string
+	args struct {
+		targetControlPlaneTopology   string
+		targetInfrastructureTopology string
 
-	// Confirm actually applies the transition (--confirm flag)
-	// Without this flag, the command runs in dry-run mode
-	confirm bool
+		// Confirm actually applies the transition (--confirm flag)
+		// Without this flag, the command runs in dry-run mode
+		confirm bool
+	}
 
 	configClient configv1client.Interface
-
-	validator topologyValidator
 
 	genericclioptions.IOStreams
 }
@@ -126,14 +129,14 @@ func newCmdTopology(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 		Args:    cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.complete(f, cmd, args))
-			kcmdutil.CheckErr(o.validate())
+			kcmdutil.CheckErr(o.validateCommand())
 			kcmdutil.CheckErr(o.run(cmd.Context()))
 		},
 	}
 
-	cmd.Flags().StringVar(&o.controlPlane, "control-plane", o.controlPlane, "Target control plane topology (HighlyAvailable or SingleReplica)")
-	cmd.Flags().StringVar(&o.infrastructure, "infrastructure", o.infrastructure, "Target infrastructure topology (HighlyAvailable or SingleReplica)")
-	cmd.Flags().BoolVar(&o.confirm, "confirm", o.confirm, "Apply the transition (default is dry-run)")
+	cmd.Flags().StringVar(&o.args.targetControlPlaneTopology, "control-plane", "", "Target control plane topology (HighlyAvailable or SingleReplica)")
+	cmd.Flags().StringVar(&o.args.targetInfrastructureTopology, "infrastructure", "", "Target infrastructure topology (HighlyAvailable or SingleReplica)")
+	cmd.Flags().BoolVar(&o.args.confirm, "confirm", false, "Apply the transition (default is dry-run)")
 
 	return cmd
 }
@@ -151,31 +154,54 @@ func (o *transitionOptions) complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 		return fmt.Errorf("failed to create config client: %w", err)
 	}
 
-	o.validator = noopValidator{}
+	o.validator = TransitionValidator{}
 
 	return nil
 }
 
-// validate validates the command options
-func (o *transitionOptions) validate() error {
-	validTopologies := map[string]bool{
+// validateCommand validates the command options
+func (o *transitionOptions) validateCommand() error {
+	validControlPlaneTopologies := map[string]bool{
 		string(configv1.HighlyAvailableTopologyMode): true,
 		string(configv1.SingleReplicaTopologyMode):   true,
 	}
 
-	// Validate control plane topology if specified
-	if o.controlPlane != "" && !validTopologies[o.controlPlane] {
-		return fmt.Errorf("invalid control plane topology %q, must be 'HighlyAvailable' or 'SingleReplica'", o.controlPlane)
+	validInfrastructureTopologies := map[string]bool{
+		string(configv1.HighlyAvailableTopologyMode): true,
+		string(configv1.SingleReplicaTopologyMode):   true,
 	}
 
-	// Validate infrastructure topology if specified
-	if o.infrastructure != "" && !validTopologies[o.infrastructure] {
-		return fmt.Errorf("invalid infrastructure topology %q, must be 'HighlyAvailable' or 'SingleReplica'", o.infrastructure)
+	// Control Plane Topology Arg
+	err := o.validateTopologyCommand(o.args.targetControlPlaneTopology, validControlPlaneTopologies)
+	if err != nil {
+		return fmt.Errorf("invalid control plane topology '%s': %w", o.args.targetControlPlaneTopology, err)
 	}
+	o.target.ControlPlane = configv1.TopologyMode(o.args.targetControlPlaneTopology)
+
+	// Infrastructure Topology Arg
+	err = o.validateTopologyCommand(o.args.targetInfrastructureTopology, validInfrastructureTopologies)
+	if err != nil {
+		return fmt.Errorf("invalid infrastructure topology '%s': %w", o.args.targetInfrastructureTopology, err)
+	}
+	o.target.Infrastructure = configv1.TopologyMode(o.args.targetInfrastructureTopology)
 
 	// --confirm requires at least one of --control-plane or --infrastructure
-	if o.confirm && o.controlPlane == "" && o.infrastructure == "" {
+	if o.args.confirm &&
+		o.args.targetControlPlaneTopology == "" &&
+		o.args.targetInfrastructureTopology == "" {
 		return fmt.Errorf("--confirm requires at least one of --control-plane or --infrastructure")
+	}
+
+	return nil
+}
+
+func (o *transitionOptions) validateTopologyCommand(value string, validTopologies map[string]bool) error {
+	if value == "" {
+		return nil // Handle the empty arg passed through
+	}
+
+	if !validTopologies[value] {
+		return fmt.Errorf("must be one of: %s", strings.Join(slices.Collect(maps.Keys(validTopologies)), " "))
 	}
 
 	return nil
@@ -192,89 +218,117 @@ func (o *transitionOptions) run(ctx context.Context) error {
 		return fmt.Errorf("failed to get Infrastructure resource: %w", err)
 	}
 
-	currentCP := infra.Status.ControlPlaneTopology
-	currentInfra := infra.Status.InfrastructureTopology
+	o.current = TopologyState{
+		ControlPlane:   infra.Status.ControlPlaneTopology,
+		Infrastructure: infra.Status.InfrastructureTopology,
+	}
+	o.validator.Current = o.current
 
 	// Mode 1: Discovery mode (no topology flags)
-	if o.controlPlane == "" && o.infrastructure == "" {
-		return o.runDiscoveryMode(currentCP, currentInfra)
+	if o.target.ControlPlane == "" && o.target.Infrastructure == "" {
+		return o.runDiscoveryMode(ctx)
 	}
 
 	// Mode 2: Initiate mode (at least one topology flag provided)
-	return o.runInitiateMode(ctx, currentCP, currentInfra)
+	return o.runInitiateMode(ctx)
 }
 
 // runDiscoveryMode displays current topology and available transitions
-func (o *transitionOptions) runDiscoveryMode(currentCP, currentInfra configv1.TopologyMode) error {
-	if _, err := fmt.Fprintf(o.Out, "Current Topology:\n  Control Plane:    %s\n  Infrastructure:   %s\n\n", currentCP, currentInfra); err != nil {
+func (o *transitionOptions) runDiscoveryMode(ctx context.Context) error {
+	if _, err := fmt.Fprintf(o.Out, `
+  Current Topology Configuration:
+    Control Plane:\t%s
+    Infrastructure:\t%s\n`,
+		o.current.ControlPlane, o.current.Infrastructure); err != nil {
 		return err
 	}
 
-	if currentCP == configv1.SingleReplicaTopologyMode && currentInfra == configv1.SingleReplicaTopologyMode {
-		_, err := fmt.Fprintf(o.Out, "Available Transition:\n  Control Plane:    SingleReplica -> HighlyAvailable\n  (Infrastructure also transitions to HighlyAvailable)\n\nTo validate transition readiness:\n  oc adm transition topology --control-plane=HighlyAvailable\n\nTo initiate transition:\n  oc adm transition topology --control-plane=HighlyAvailable --confirm\n")
-		return err
-	} else {
-		_, err := fmt.Fprintf(o.Out, "Available Transitions:\n  (none)\n\nNote: Only SingleReplica -> HighlyAvailable transitions are currently supported.\n      Both control plane and infrastructure must be SingleReplica to transition.\n")
+	var output strings.Builder
+
+	validTransitions, err := o.validator.GetValidTransitions(ctx)
+	if err != nil {
+		return fmt.Errorf("Unable to get the list of valid transitions: %w", err)
+	}
+
+	fmt.Fprintln(&output, "Available Transitions:")
+
+	if len(validTransitions) == 0 {
+		fmt.Fprintln(&output, "  No available transitions")
+
+		_, err := fmt.Fprint(o.Out, output.String())
 		return err
 	}
+
+	transitionFormat := `
+  - Control Plane:  %s\t->\t%s
+    Infrastructure: %s\t->\t%s`
+
+	for _, transition := range validTransitions {
+		fmt.Fprintf(&output, transitionFormat,
+			o.current.ControlPlane, transition.ControlPlane,
+			o.current.Infrastructure, transition.Infrastructure)
+	}
+
+	// Append the help text
+	fmt.Fprintf(&output, `
+
+  To validate transition readiness specify the target topology:
+    oc adm transition topology --control-plane={target}
+
+  To initiate transition provide the confirm flag:
+    oc adm transition topology --control-plane={target} --confirm`)
+
+	_, err = fmt.Fprintln(o.Out, output.String())
+	return err
 }
 
 // runInitiateMode previews or initiates a topology transition.
-func (o *transitionOptions) runInitiateMode(ctx context.Context, currentCP, currentInfra configv1.TopologyMode) error {
-	// Prepare topology states for the validator.
-	current := topologyState{
-		controlPlane:   currentCP,
-		infrastructure: currentInfra,
-	}
-
-	// Determine target topologies
-	targetCP := currentCP
-	if o.controlPlane != "" {
-		targetCP = configv1.TopologyMode(o.controlPlane)
-	}
-
-	// Derive target infrastructure topology
-	// If user specified --infrastructure, use that (for future flexibility)
-	// Otherwise, derive based on control plane transition:
-	// - SNO -> HA: infrastructure becomes HighlyAvailable (managed by controller)
-	// - Future transitions (e.g., HA -> HAA): infrastructure stays HighlyAvailable
-	targetInfra := currentInfra
-	if o.infrastructure != "" {
-		targetInfra = configv1.TopologyMode(o.infrastructure)
-	} else if targetCP == configv1.HighlyAvailableTopologyMode {
-		// For transitions to HighlyAvailable control plane, infrastructure also becomes HighlyAvailable
-		targetInfra = configv1.HighlyAvailableTopologyMode
-	}
-
-	target := topologyState{
-		controlPlane:   targetCP,
-		infrastructure: targetInfra,
+func (o *transitionOptions) runInitiateMode(ctx context.Context) error {
+	// Handle HA Compact if going from CP SNO -> HA and no infra target was specified
+	if o.current.ControlPlane == configv1.SingleReplicaTopologyMode &&
+		o.target.ControlPlane == configv1.HighlyAvailableTopologyMode &&
+		o.current.Infrastructure == configv1.SingleReplicaTopologyMode &&
+		o.target.Infrastructure == "" {
+		o.target.Infrastructure = configv1.HighlyAvailableTopologyMode
 	}
 
 	// Check if cluster is already at target topology (no transition needed)
-	if current.controlPlane == target.controlPlane && current.infrastructure == target.infrastructure {
-		_, err := fmt.Fprintf(o.Out, "Cluster is already at target topology:\n  Control Plane:    %s\n  Infrastructure:   %s\n\nNo transition needed.\n", current.controlPlane, current.infrastructure)
+	if o.current.ControlPlane == o.target.ControlPlane && o.current.Infrastructure == o.target.Infrastructure {
+		_, err := fmt.Fprintf(o.Out, `Cluster is already at target topology:
+  Control Plane:   %s
+  Infrastructure:  %s
+
+  No transition initiated.
+`, o.current.ControlPlane, o.current.Infrastructure)
 		return err
 	}
 
-	if o.validator != nil {
-		if err := o.validator.Validate(ctx, current, target); err != nil {
-			return fmt.Errorf("topology validation failed: %w", err)
-		}
+	if err := o.validator.Validate(ctx, o.target); err != nil {
+		return fmt.Errorf("topology validation failed: %w", err)
 	}
 
-	// If no --confirm, show dry-run message.
-	if !o.confirm {
-		_, err := fmt.Fprintf(o.Out, "\nDry run: Would patch Infrastructure spec:\n  spec.controlPlaneTopology:    %s\n\nNote: The cluster-config-operator will update both status.controlPlaneTopology\n      and status.infrastructureTopology to %s based on this change.\n\nAdd --confirm to apply this transition\n", target.controlPlane, target.controlPlane)
+	// If no --confirm, show dry-run message
+	if !o.args.confirm {
+		_, err := fmt.Fprintf(o.Out, `
+Dry run: Would patch Infrastructure spec:
+  spec.controlPlaneTopology:
+    %s
+
+Note: The cluster-config-operator will update both status.controlPlaneTopology
+    and status.infrastructureTopology to %s based on this change.
+
+Add --confirm to apply this transition
+`,
+			string(o.target.ControlPlane), string(o.target.ControlPlane))
 		return err
 	}
 
-	// Apply transition.
-	return o.applyTransition(ctx, target.controlPlane, target.infrastructure)
+	// Apply transition
+	return o.applyTransition(ctx)
 }
 
 // applyTransition patches the Infrastructure resource to initiate the transition
-func (o *transitionOptions) applyTransition(ctx context.Context, targetCP, targetInfra configv1.TopologyMode) error {
+func (o *transitionOptions) applyTransition(ctx context.Context) error {
 	if _, err := fmt.Fprintf(o.Out, "Initiating topology transition...\n"); err != nil {
 		return err
 	}
@@ -289,10 +343,10 @@ func (o *transitionOptions) applyTransition(ctx context.Context, targetCP, targe
 		}
 
 		// Patch control plane topology (spec only supports controlPlaneTopology)
-		// NOTE: InfrastructureTopology only exists in status, not spec.
+		// NOTE: InfrastructureTopology only exists in status currently, not spec.
 		// For SNO->HA transition, the cluster-config-operator will update both
 		// controlPlaneTopology and infrastructureTopology in status.
-		infra.Spec.ControlPlaneTopology = targetCP
+		infra.Spec.ControlPlaneTopology = o.target.ControlPlane
 
 		_, err = o.configClient.ConfigV1().Infrastructures().Update(ctx, infra, metav1.UpdateOptions{})
 		return err
@@ -301,6 +355,19 @@ func (o *transitionOptions) applyTransition(ctx context.Context, targetCP, targe
 		return fmt.Errorf("failed to update Infrastructure resource: %w", err)
 	}
 
-	_, err = fmt.Fprintf(o.Out, "\nInfrastructure spec patched:\n  spec.controlPlaneTopology:    %s\n\nNote: The cluster-config-operator will update status.controlPlaneTopology\n      and status.infrastructureTopology based on this change.\n\nTransition initiated. Operators will reconfigure to the new topology.\n\nMonitor transition progress with:\n  oc adm transition status\n", targetCP)
+	_, err = fmt.Fprintf(o.Out, `
+Infrastructure spec patched:
+  spec.controlPlaneTopology:
+    %s
+
+Note: The cluster-config-operator will update status.controlPlaneTopology
+  and status.infrastructureTopology based on this change.
+
+Transition initiated. Operators will reconfigure to the new topology.
+
+Monitor transition progress with:
+  oc adm transition status
+`,
+		string(o.target.ControlPlane))
 	return err
 }
