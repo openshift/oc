@@ -79,7 +79,7 @@ func NewCmdCreateEdgeRoute(f kcmdutil.Factory, streams genericiooptions.IOStream
 	cmd.MarkFlagFilename("key")
 	cmd.Flags().StringVar(&o.CACert, "ca-cert", o.CACert, "Path to a CA certificate file.")
 	cmd.MarkFlagFilename("ca-cert")
-	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WilcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
+	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WildcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
 	kcmdutil.AddValidateFlags(cmd)
 	o.CreateRouteSubcommandOptions.AddFlags(cmd)
