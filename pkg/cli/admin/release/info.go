@@ -1066,7 +1066,7 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 			continue
 		}
 		var version string
-		if k == "machine-os" && v.Len() > 1 {
+		if k == "machine-os" {
 			version = strings.Join(v.List(), ", ")
 		} else {
 			version = v.List()[0]
@@ -1090,7 +1090,7 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 			continue
 		}
 		if len(version.DisplayName) == 0 {
-			if k == "machine-os" && v.Len() > 1 {
+			if k == "machine-os" {
 				version.DisplayName = strings.Join(v.List(), ", ")
 			} else {
 				version.DisplayName = v.List()[0]
