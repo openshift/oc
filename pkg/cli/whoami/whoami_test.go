@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/spf13/cobra"
 
 	userv1 "github.com/openshift/api/user/v1"
 	userv1fake "github.com/openshift/client-go/user/clientset/versioned/fake"
@@ -20,7 +22,9 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	authfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	core "k8s.io/client-go/testing"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/yaml"
 )
@@ -480,5 +484,57 @@ func TestWhoAmIOutputJSONFallbackToUserAPI(t *testing.T) {
 
 	if diff := cmp.Diff(expectedUser, actualUser); diff != "" {
 		t.Errorf("User mismatch (-expected +actual):\n%s", diff)
+	}
+}
+
+func TestWhoAmIShowTokenWithExecCredential(t *testing.T) {
+	if os.Getenv("OC_TEST_EXEC_CREDENTIAL") == "1" {
+		fmt.Fprint(os.Stdout, `{
+			"apiVersion": "client.authentication.k8s.io/v1",
+			"kind": "ExecCredential",
+			"status": {
+				"token": "test-exec-token"
+			}
+		}`)
+		os.Exit(0)
+	}
+
+	var b bytes.Buffer
+
+	opts := &WhoAmIOptions{
+		ShowToken: true,
+		ClientConfig: &rest.Config{
+			ExecProvider: &clientcmdapi.ExecConfig{
+				Command:         os.Args[0],
+				Args:            []string{"-test.run=^TestWhoAmIShowTokenWithExecCredential$"},
+				APIVersion:      "client.authentication.k8s.io/v1",
+				InteractiveMode: clientcmdapi.NeverExecInteractiveMode,
+				Env: []clientcmdapi.ExecEnvVar{
+					{
+						Name:  "OC_TEST_EXEC_CREDENTIAL",
+						Value: "1",
+					},
+				},
+			},
+		},
+		PrintFlags: genericclioptions.NewPrintFlags(""),
+		IOStreams: genericiooptions.IOStreams{
+			Out:    &b,
+			ErrOut: io.Discard,
+		},
+	}
+
+	opts.PrintFlags.AddFlags(&cobra.Command{})
+
+	if err := opts.Validate(); err != nil {
+		t.Fatalf("unexpected validation error: %v", err)
+	}
+
+	if err := opts.Run(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if expected := "test-exec-token\n"; b.String() != expected {
+		t.Errorf("expected %q, got %q", expected, b.String())
 	}
 }

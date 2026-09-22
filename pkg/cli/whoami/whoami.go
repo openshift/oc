@@ -3,6 +3,8 @@ package whoami
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -152,7 +154,7 @@ func (o *WhoAmIOptions) Validate() error {
 	if o.PrintFlags.OutputFlagSpecified() && (o.ShowToken || o.ShowContext || o.ShowServer || o.ShowConsoleUrl) {
 		return fmt.Errorf("--output cannot be used with --show-token, --show-context, --show-server, or --show-console")
 	}
-	if o.ShowToken && len(o.ClientConfig.BearerToken) == 0 {
+	if o.ShowToken && len(o.ClientConfig.BearerToken) == 0 && o.ClientConfig.ExecProvider == nil {
 		return fmt.Errorf("no token is currently in use for this session")
 	}
 	if o.ShowContext && len(o.RawConfig.CurrentContext) == 0 {
@@ -178,10 +180,65 @@ func (o *WhoAmIOptions) getWebConsoleUrl() (string, error) {
 	return consoleUrl, nil
 }
 
+type tokenRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f tokenRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+// getExecToken retrieves the bearer token through client-go's
+// authentication transport without sending an HTTP request.
+func getExecToken(config *rest.Config) (string, error) {
+	var token string
+
+	rt, err := rest.HTTPWrappersForConfig(config, tokenRoundTripper(
+		func(req *http.Request) (*http.Response, error) {
+			var ok bool
+			token, ok = strings.CutPrefix(req.Header.Get("Authorization"), "Bearer ")
+			if !ok {
+				token = ""
+			}
+
+			return &http.Response{
+				StatusCode: http.StatusNoContent,
+				Body:       http.NoBody,
+			}, nil
+		},
+	))
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, "https://localhost/", nil)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := rt.RoundTrip(req); err != nil {
+		return "", err
+	}
+
+	if token == "" {
+		return "", fmt.Errorf("no token is currently in use for this session")
+	}
+
+	return token, nil
+}
+
 func (o *WhoAmIOptions) Run() error {
 	switch {
 	case o.ShowToken:
-		fmt.Fprintf(o.Out, "%s\n", o.ClientConfig.BearerToken)
+		token := o.ClientConfig.BearerToken
+
+		if token == "" && o.ClientConfig.ExecProvider != nil {
+			var err error
+			token, err = getExecToken(o.ClientConfig)
+			if err != nil {
+				return err
+			}
+		}
+
+		fmt.Fprintf(o.Out, "%s\n", token)
 		return nil
 	case o.ShowContext:
 		fmt.Fprintf(o.Out, "%s\n", o.RawConfig.CurrentContext)
