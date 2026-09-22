@@ -81,7 +81,7 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f))
 			kcmdutil.CheckErr(o.Validate())
-			kcmdutil.CheckErr(o.Run())
+			kcmdutil.CheckErr(o.Run(cmd.Context()))
 		},
 	}
 
@@ -225,7 +225,7 @@ func getExecToken(config *rest.Config) (string, error) {
 	return token, nil
 }
 
-func (o *WhoAmIOptions) Run() error {
+func (o *WhoAmIOptions) Run(ctx context.Context) error {
 	switch {
 	case o.ShowToken:
 		token := o.ClientConfig.BearerToken

@@ -2,6 +2,7 @@ package whoami
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -530,7 +531,7 @@ func TestWhoAmIShowTokenWithExecCredential(t *testing.T) {
 		t.Fatalf("unexpected validation error: %v", err)
 	}
 
-	if err := opts.Run(); err != nil {
+	if err := opts.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
