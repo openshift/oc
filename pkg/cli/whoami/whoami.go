@@ -188,7 +188,7 @@ func (f tokenRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 
 // getExecToken retrieves the bearer token through client-go's
 // authentication transport without sending an HTTP request.
-func getExecToken(config *rest.Config) (string, error) {
+func getExecToken(ctx context.Context, config *rest.Config) (string, error) {
 	var token string
 
 	rt, err := rest.HTTPWrappersForConfig(config, tokenRoundTripper(
@@ -209,7 +209,12 @@ func getExecToken(config *rest.Config) (string, error) {
 		return "", err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "https://localhost/", nil)
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		"https://localhost/",
+		nil,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -232,14 +237,14 @@ func (o *WhoAmIOptions) Run(ctx context.Context) error {
 
 		if token == "" && o.ClientConfig.ExecProvider != nil {
 			var err error
-			token, err = getExecToken(o.ClientConfig)
+			token, err = getExecToken(ctx, o.ClientConfig)
 			if err != nil {
 				return err
 			}
 		}
 
-		fmt.Fprintf(o.Out, "%s\n", token)
-		return nil
+		_, err := fmt.Fprintln(o.Out, token)
+		return err
 	case o.ShowContext:
 		fmt.Fprintf(o.Out, "%s\n", o.RawConfig.CurrentContext)
 		return nil
