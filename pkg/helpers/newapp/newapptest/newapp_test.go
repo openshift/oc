@@ -531,7 +531,7 @@ func TestNewAppRunAll(t *testing.T) {
 					SourceRepositories: []string{"https://github.com/openshift/sti-ruby"},
 				},
 				GenerationInputs: cmd.GenerationInputs{
-					ContextDir: "3.1/test/rack-test-app",
+					ContextDir: "3.3/test/rack-test-app",
 				},
 
 				Resolvers: cmd.Resolvers{
@@ -572,7 +572,7 @@ func TestNewAppRunAll(t *testing.T) {
 					SourceRepositories: []string{"https://github.com/openshift/sti-ruby"},
 				},
 				GenerationInputs: cmd.GenerationInputs{
-					ContextDir: "3.1/test/missing-dir",
+					ContextDir: "3.3/test/missing-dir",
 				},
 
 				Resolvers: cmd.Resolvers{
@@ -605,7 +605,7 @@ func TestNewAppRunAll(t *testing.T) {
 			expectedName:    "sti-ruby",
 			expectedVolumes: nil,
 			errFn: func(err error) bool {
-				return err.Error() == "supplied context directory '3.1/test/missing-dir' does not exist in 'https://github.com/openshift/sti-ruby'"
+				return err.Error() == "supplied context directory '3.3/test/missing-dir' does not exist in 'https://github.com/openshift/sti-ruby'"
 			},
 		},
 
@@ -1030,13 +1030,13 @@ func TestNewAppRunBuilds(t *testing.T) {
 			name: "successful build with no output",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM centos",
+					Dockerfile: "FROM registry.access.redhat.com/ubi8/ubi",
 					NoOutput:   true,
 				},
 			},
 			expected: map[string][]string{
-				"buildConfig": {"centos"},
-				"imageStream": {"centos"},
+				"buildConfig": {"ubi"},
+				"imageStream": {"ubi"},
 			},
 			checkResult: func(res *cmd.AppResult) error {
 				for _, item := range res.List.Items {
@@ -1318,20 +1318,20 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 			name: "successful build from dockerfile with identical input and output image references with warning(1)",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM centos\nRUN yum install -y httpd",
-					To:         "centos",
+					Dockerfile: "FROM registry.access.redhat.com/ubi8/ubi\nRUN yum install -y httpd",
+					To:         "registry.access.redhat.com/ubi8/ubi",
 				},
 			},
 			expected: map[string][]string{
-				"buildConfig": {"centos"},
-				"imageStream": {"centos"},
+				"buildConfig": {"ubi"},
+				"imageStream": {"ubi"},
 			},
 			checkOutput: func(stdout, stderr io.Reader) error {
 				got, err := ioutil.ReadAll(stderr)
 				if err != nil {
 					return err
 				}
-				want := "--> WARNING: output image of \"centos:latest\" should be different than input\n"
+				want := "--> WARNING: output image of \"registry.access.redhat.com/ubi8/ubi:latest\" should be different than input\n"
 				if string(got) != want {
 					return fmt.Errorf("stderr: got %q; want %q", got, want)
 				}
@@ -1342,12 +1342,12 @@ func TestNewAppBuildOutputCycleDetection(t *testing.T) {
 			name: "unsuccessful build from dockerfile due to identical input and output image references(1)",
 			config: &cmd.AppConfig{
 				GenerationInputs: cmd.GenerationInputs{
-					Dockerfile: "FROM centos\nRUN yum install -y httpd",
+					Dockerfile: "FROM registry.access.redhat.com/ubi8/ubi\nRUN yum install -y httpd",
 				},
 			},
 			expectedErr: func(err error) bool {
 				e := app.CircularOutputReferenceError{
-					Reference: "centos:latest",
+					Reference: "registry.access.redhat.com/ubi8/ubi:latest",
 				}
 				return err.Error() == fmt.Errorf("%v, set a different tag with --to", e).Error()
 			},
