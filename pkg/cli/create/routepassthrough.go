@@ -62,7 +62,7 @@ func NewCmdCreatePassthroughRoute(f kcmdutil.Factory, streams genericiooptions.I
 	cmd.Flags().StringVar(&o.InsecurePolicy, "insecure-policy", o.InsecurePolicy, "Set an insecure policy for the new route")
 	cmd.Flags().StringVar(&o.Service, "service", o.Service, "Name of the service that the new route is exposing")
 	cmd.MarkFlagRequired("service")
-	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WilcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
+	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WildcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
 	kcmdutil.AddValidateFlags(cmd)
 	o.CreateRouteSubcommandOptions.AddFlags(cmd)
