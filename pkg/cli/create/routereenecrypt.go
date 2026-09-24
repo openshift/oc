@@ -82,7 +82,7 @@ func NewCmdCreateReencryptRoute(f kcmdutil.Factory, streams genericiooptions.IOS
 	cmd.MarkFlagFilename("ca-cert")
 	cmd.Flags().StringVar(&o.DestCACert, "dest-ca-cert", o.DestCACert, "Path to a CA certificate file, used for securing the connection from the router to the destination. Defaults to the Service CA.")
 	cmd.MarkFlagFilename("dest-ca-cert")
-	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WilcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
+	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WildcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
 	kcmdutil.AddValidateFlags(cmd)
 	o.CreateRouteSubcommandOptions.AddFlags(cmd)
