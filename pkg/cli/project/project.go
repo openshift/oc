@@ -276,19 +276,47 @@ func (o ProjectOptions) Run() error {
 			userNameInUse = user.Name
 		}
 
-		kubeconfig, err := cliconfig.CreateConfig(projectName, userNameInUse, o.RESTConfig)
-		if err != nil {
-			return err
+		// Check if the current context has a custom name (doesn't match the auto-generated pattern).
+		// If so, and the server matches, just update its namespace instead of creating a new context.
+		// This preserves custom context names set via "oc login --context=<name>".
+		contextUpdated := false
+		if currentContext != nil {
+			defaultContextName := cliconfig.GetContextNickname(currentContext.Namespace, currentContext.Cluster, currentContext.AuthInfo)
+			if config.CurrentContext != defaultContextName {
+				if cluster := config.Clusters[currentContext.Cluster]; cluster != nil {
+					currentServer, err := cliconfig.NormalizeServerURL(cluster.Server)
+					if err != nil {
+						return fmt.Errorf("invalid server URL %q in kubeconfig: %v", cluster.Server, err)
+					}
+					targetServer, err := cliconfig.NormalizeServerURL(clientCfg.Host)
+					if err != nil {
+						return fmt.Errorf("invalid server URL %q: %v", clientCfg.Host, err)
+					}
+					if currentServer == targetServer {
+						currentContext.Namespace = projectName
+						namespaceInUse = projectName
+						contextInUse = config.CurrentContext
+						contextUpdated = true
+					}
+				}
+			}
 		}
 
-		merged, err := cliconfig.MergeConfig(config, *kubeconfig)
-		if err != nil {
-			return err
-		}
-		config = *merged
+		if !contextUpdated {
+			kubeconfig, err := cliconfig.CreateConfig(projectName, userNameInUse, o.RESTConfig)
+			if err != nil {
+				return err
+			}
 
-		namespaceInUse = projectName
-		contextInUse = merged.CurrentContext
+			merged, err := cliconfig.MergeConfig(config, *kubeconfig)
+			if err != nil {
+				return err
+			}
+			config = *merged
+
+			namespaceInUse = projectName
+			contextInUse = merged.CurrentContext
+		}
 	}
 
 	if err := kclientcmd.ModifyConfig(o.PathOptions, config, true); err != nil {
