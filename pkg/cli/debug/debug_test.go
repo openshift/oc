@@ -1,6 +1,7 @@
 package debug
 
 import (
+	"errors"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -10,6 +11,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/attach"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	"k8s.io/pod-security-admission/api"
+	utilexec "k8s.io/utils/exec"
 
 	fakekubeclient "k8s.io/client-go/kubernetes/fake"
 	fakecorev1client "k8s.io/client-go/kubernetes/typed/core/v1/fake"
@@ -262,6 +264,212 @@ func TestCreateLabelMap(t *testing.T) {
 				if _, expected := test.expectedLabels[key]; !expected {
 					t.Errorf("unexpected label %s=%s", key, result[key])
 				}
+			}
+		})
+	}
+}
+
+func TestContainerExitCode(t *testing.T) {
+	tests := []struct {
+		name             string
+		pod              *corev1.Pod
+		containerName    string
+		expectedExitCode int32
+	}{
+		{
+			name: "terminated with non-zero exit code",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "debug",
+							State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 42}},
+						},
+					},
+				},
+			},
+			containerName:    "debug",
+			expectedExitCode: 42,
+		},
+		{
+			name: "terminated with exit code 0",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "debug",
+							State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 0}},
+						},
+					},
+				},
+			},
+			containerName:    "debug",
+			expectedExitCode: 0,
+		},
+		{
+			name: "container still running",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "debug",
+							State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+						},
+					},
+				},
+			},
+			containerName:    "debug",
+			expectedExitCode: -1,
+		},
+		{
+			name: "container not found",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "other",
+							State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}},
+						},
+					},
+				},
+			},
+			containerName:    "debug",
+			expectedExitCode: -1,
+		},
+		{
+			name: "init container terminated with non-zero exit code",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					InitContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "init",
+							State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 137}},
+						},
+					},
+				},
+			},
+			containerName:    "init",
+			expectedExitCode: 137,
+		},
+		{
+			name:             "empty pod status",
+			pod:              &corev1.Pod{},
+			containerName:    "debug",
+			expectedExitCode: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := containerExitCode(tt.pod, tt.containerName)
+			if got != tt.expectedExitCode {
+				t.Errorf("containerExitCode() = %d, want %d", got, tt.expectedExitCode)
+			}
+		})
+	}
+}
+
+func TestExitCodeError(t *testing.T) {
+	tests := []struct {
+		name          string
+		pod           *corev1.Pod
+		containerName string
+		// expectedExitCode 0 is used to expect exitCodeError to return nil.
+		expectedExitCode int
+	}{
+		{
+			name: "non-zero exit code returns CodeExitError",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "debug",
+							State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 42}},
+						},
+					},
+				},
+			},
+			containerName:    "debug",
+			expectedExitCode: 42,
+		},
+		{
+			name: "exit code 0 returns nil",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "debug",
+							State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 0}},
+						},
+					},
+				},
+			},
+			containerName:    "debug",
+			expectedExitCode: 0,
+		},
+		{
+			name: "container not terminated returns nil",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "debug",
+							State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+						},
+					},
+				},
+			},
+			containerName:    "debug",
+			expectedExitCode: 0,
+		},
+		{
+			name: "container not found returns nil",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "other",
+							State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}},
+						},
+					},
+				},
+			},
+			containerName:    "debug",
+			expectedExitCode: 0,
+		},
+		{
+			name: "exit code 127 returns correct code",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:  "debug",
+							State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 127}},
+						},
+					},
+				},
+			},
+			containerName:    "debug",
+			expectedExitCode: 127,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := exitCodeError(tt.pod, tt.containerName)
+			if tt.expectedExitCode == 0 {
+				if err != nil {
+					t.Errorf("expected nil, got %v", err)
+				}
+				return
+			}
+
+			var exitErr utilexec.CodeExitError
+			if !errors.As(err, &exitErr) {
+				t.Fatalf("expected utilexec.CodeExitError, got %T: %v", err, err)
+			}
+			if exitErr.ExitStatus() != tt.expectedExitCode {
+				t.Errorf("ExitStatus() = %d, want %d", exitErr.ExitStatus(), tt.expectedExitCode)
 			}
 		})
 	}
