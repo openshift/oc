@@ -41,6 +41,9 @@ var (
 		If no container is specified, the first container of the pod is used
 		for the copy.
 
+		The --last flag can be used to limit the number of files copied based
+		on modification time, copying only the N most recently modified files.
+
 		The following flags are passed to rsync by default:
 		--archive --no-owner --no-group --omit-dir-times --numeric-ids
 	`)
@@ -51,6 +54,9 @@ var (
 
 		# Synchronize a pod directory with a local directory
 		oc rsync POD:/remote/dir/ ./local/dir
+
+		# Copy only the 10 most recently modified files from a pod directory
+		oc rsync --last=10 POD:/remote/dir/ ./local/dir
 	`)
 
 	rsyncDefaultFlags = []string{"--archive", "--no-owner", "--no-group", "--omit-dir-times", "--numeric-ids"}
@@ -86,6 +92,7 @@ type RsyncOptions struct {
 	Destination             *PathSpec
 	Strategy                CopyStrategy
 	StrategyName            string
+	Last                    uint
 	Quiet                   bool
 	Delete                  bool
 	Watch                   bool
@@ -101,6 +108,10 @@ type RsyncOptions struct {
 	Config *rest.Config
 	Client kubernetes.Interface
 	genericiooptions.IOStreams
+
+	// fileDiscovery is used when --last is specified.
+	// It is present in RsyncOptions so that it can be mocked for tests easily.
+	fileDiscovery fileDiscoverer
 }
 
 func NewRsyncOptions(streams genericiooptions.IOStreams) *RsyncOptions {
@@ -127,6 +138,8 @@ func NewCmdRsync(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 
 	cmd.Flags().StringVarP(&o.ContainerName, "container", "c", "", "Container within the pod")
 	cmd.Flags().StringVar(&o.StrategyName, "strategy", "", "Specify which strategy to use for copy: rsync, rsync-daemon, or tar")
+
+	cmd.Flags().UintVar(&o.Last, "last", 0, "Copy only N most recently modified files")
 
 	// Flags for rsync options, Must match rsync flag names
 	cmd.Flags().BoolVarP(&o.Quiet, "quiet", "q", false, "Suppress non-error messages")
@@ -221,11 +234,20 @@ func (o *RsyncOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 	o.EnableSuggestedCmdUsage = len(fullCmdName) > 0 && kcmdutil.IsSiblingCommandExists(cmd, "describe")
 	o.RshCmd = DefaultRsyncRemoteShellToUse(cmd)
 
+	// Set up file discovery in case --last is specified.
+	// This must happen before the strategy is initialized.
+	if o.Last > 0 {
+		if o.Source.Local() {
+			o.fileDiscovery = newLocalFileDiscoverer()
+		} else {
+			o.fileDiscovery = newRemoteFileDiscoverer(newRemoteExecutor(o))
+		}
+	}
+
 	o.Strategy, err = o.GetCopyStrategy(o.StrategyName)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -250,6 +272,18 @@ func (o *RsyncOptions) Validate() error {
 	}
 	if o.Destination.Local() && o.Watch {
 		return errors.New("\"--watch\" can only be used with a local source directory")
+	}
+	if o.Last > 0 {
+		switch {
+		case o.Watch:
+			return errors.New("\"--last\" cannot be used with \"--watch\"")
+		case len(o.RsyncInclude) > 0:
+			return errors.New("\"--include\" cannot be used with \"--last\"")
+		case len(o.RsyncExclude) > 0:
+			return errors.New("\"--exclude\" cannot be used with \"--last\"")
+		case o.Delete:
+			return errors.New("\"--delete\" cannot be used with \"--last\"")
+		}
 	}
 	if err := o.Strategy.Validate(); err != nil {
 		return err
