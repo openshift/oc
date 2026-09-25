@@ -3,6 +3,8 @@ package release
 import (
 	"bytes"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func Test_copyAndReplace(t *testing.T) {
@@ -231,5 +233,116 @@ func Test_copyAndReplace(t *testing.T) {
 				t.Fatalf("unexpected response body: %q != %q", actual, tt.expected)
 			}
 		})
+	}
+}
+
+func TestSelectExtractTargets(t *testing.T) {
+	available := []extractTarget{
+		{Command: "oc"},
+		{Command: "openshift-install"},
+		{Command: "openshift-install-fips"},
+		{Command: "openshift-baremetal-install", Optional: true},
+		{Command: "ccoctl"},
+	}
+
+	commandNames := func(targets []extractTarget) []string {
+		names := make([]string, 0, len(targets))
+		for _, target := range targets {
+			names = append(names, target.Command)
+		}
+		return names
+	}
+
+	tests := []struct {
+		name     string
+		command  string
+		expected []string
+	}{
+		{
+			name:     "tools includes non-optional commands",
+			command:  "",
+			expected: []string{"oc", "openshift-install", "openshift-install-fips", "ccoctl"},
+		},
+		{
+			name:     "command selects matching targets including optional ones",
+			command:  "openshift-baremetal-install",
+			expected: []string{"openshift-baremetal-install"},
+		},
+		{
+			name:     "command selects install fips",
+			command:  "openshift-install-fips",
+			expected: []string{"openshift-install-fips"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := commandNames(selectExtractTargets(available, tt.command))
+			if diff := cmp.Diff(tt.expected, got); diff != "" {
+				t.Fatalf("selectExtractTargets() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestDefaultExtractTargetsIncludeInstallFipsInTools(t *testing.T) {
+	type fipsTarget struct {
+		OS, Arch, Command, Image, From, ArchiveFormat string
+		Optional                                      bool
+		InjectReleaseImage                            bool
+		InjectReleaseVersion                          bool
+		InjectReleaseArchitecture                     bool
+	}
+
+	var got *fipsTarget
+	for _, target := range defaultExtractTargets() {
+		if target.Command == "openshift-install-fips" {
+			got = &fipsTarget{
+				OS:                        target.OS,
+				Arch:                      target.Arch,
+				Command:                   target.Command,
+				Image:                     target.Mapping.Image,
+				From:                      target.Mapping.From,
+				ArchiveFormat:             target.ArchiveFormat,
+				Optional:                  target.Optional,
+				InjectReleaseImage:        target.InjectReleaseImage,
+				InjectReleaseVersion:      target.InjectReleaseVersion,
+				InjectReleaseArchitecture: target.InjectReleaseArchitecture,
+			}
+			break
+		}
+	}
+	if got == nil {
+		t.Fatal("expected openshift-install-fips extract target")
+	}
+
+	want := &fipsTarget{
+		OS:                        "linux",
+		Arch:                      targetReleaseArch,
+		Command:                   "openshift-install-fips",
+		Image:                     "baremetal-installer",
+		From:                      "usr/bin/openshift-install",
+		ArchiveFormat:             "openshift-install-fips-%s.tar.gz",
+		InjectReleaseImage:        true,
+		InjectReleaseVersion:      true,
+		InjectReleaseArchitecture: true,
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("openshift-install-fips target mismatch (-want +got):\n%s", diff)
+	}
+
+	toolsCommands := make([]string, 0)
+	for _, target := range selectExtractTargets(defaultExtractTargets(), "") {
+		toolsCommands = append(toolsCommands, target.Command)
+	}
+	found := false
+	for _, command := range toolsCommands {
+		if command == "openshift-install-fips" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected --tools to include openshift-install-fips, got %v", toolsCommands)
 	}
 }
