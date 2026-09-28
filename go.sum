@@ -277,6 +277,8 @@ github.com/int128/listener v1.3.0 h1:ZFePbpzFUt1i6hBSY15rzqo8tHZHJPPQkqCtgOAwS8g
 github.com/int128/listener v1.3.0/go.mod h1:zF9mx2wn+2J/7Idmxi5kgqrGgERr6vr8fK8KqENrRZ0=
 github.com/int128/oauth2cli v1.18.0 h1:ECW600WoYKh5Z4gv92yNVsJ22iqzPW7u7z0dfWxMzkU=
 github.com/int128/oauth2cli v1.18.0/go.mod h1:8wWAPwFYS91aX3KKACFP//v2oLdqnugK/ndfJ6oH3xE=
+github.com/int128/oauth2dev v1.1.0 h1:6maJmtYFuc7Ga2XflFDNiZU2aY3fx8x5CDcbB2wXJUU=
+github.com/int128/oauth2dev v1.1.0/go.mod h1:sEmpj0+i7uHg+NG/XdQ7O03p1ob7UmT+f26NHwsPHvk=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 h1:BQSFePA1RWJOlocH6Fxy8MmwDt+yVQYULKfN0RoTN8A=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99/go.mod h1:1lJo3i6rXxKeerYnT8Nvf0QmHCRC1n8sfWVwXF2Frvo=
 github.com/jcmturner/aescts/v2 v2.0.0 h1:9YKLH6ey7H4eDBXW8khjYslgyqG2xZikXP0EQFKrle8=

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -30,11 +31,12 @@ var (
 	Experimental: This command is under development and may change without notice.
 	Built-in Credential Exec plugin of the oc.
 
-	It supports Auth Code, Auth Code + PKCE in addition to refresh token.
-	get-token caches the ID token and Refresh token after the auth code flow is
-	successfully completed and once ID token expires, command tries to get the
-	new token by using the refresh token flow. Although it is optional, command
-	also supports getting client secret to behave as an confidential client.
+	It supports Auth Code, Auth Code + PKCE, and Device Code grant types
+	in addition to refresh token. get-token caches the ID token and Refresh token
+	after the initial auth flow is successfully completed and once ID token expires,
+	command tries to get the new token by using the refresh token flow. Although it
+	is optional, command also supports getting client secret to behave as a
+	confidential client.
 `)
 	getTokenExample = templates.Examples(`
 	# Starts an auth code flow to the issuer URL with the client ID and the given extra scopes
@@ -42,6 +44,9 @@ var (
 
 	# Starts an auth code flow to the issuer URL with a different callback address
 	oc get-token --client-id=client-id --issuer-url=test.issuer.url --callback-address=127.0.0.1:8343
+
+	# Starts a device code flow to the issuer URL
+	oc get-token --client-id=client-id --issuer-url=test.issuer.url --grant-type=device-code
 `)
 )
 
@@ -56,6 +61,7 @@ type GetTokenOptions struct {
 	CACertFilename  string
 	InsecureTLS     bool
 	AutoOpenBrowser bool
+	GrantType       string
 
 	authenticator         oidc.Authenticator
 	tokenCache            *tokencache.Repository
@@ -95,6 +101,7 @@ func NewCmdGetToken(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cob
 	cmd.Flags().StringSliceVar(&o.ExtraScopes, "extra-scopes", o.ExtraScopes, "Extra scopes for the auth request to the external OIDC provider. Optional.")
 	cmd.Flags().StringVar(&o.CallbackAdress, "callback-address", o.CallbackAdress, "Callback address where external OIDC issuer redirects to after flow is completed. Defaults to 127.0.0.1:0 to pick a random port.")
 	cmd.Flags().BoolVar(&o.AutoOpenBrowser, "auto-open-browser", o.AutoOpenBrowser, "Specify browser is automatically opened or not.")
+	cmd.Flags().StringVar(&o.GrantType, "grant-type", o.GrantType, "Grant type for OIDC authentication. Supported values: 'authcode' (default), 'device-code'.")
 
 	return cmd
 }
@@ -108,7 +115,7 @@ func (o *GetTokenOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args 
 		ClientID:     o.ClientID,
 		ClientSecret: o.ClientSecret,
 		ExtraScopes:  o.ExtraScopes,
-		UsePKCE:      true,
+		UsePKCE:      o.GrantType != "device-code",
 	}
 
 	authenticator, err := oidc.NewAuthenticator(context.Background(), provider, "", o.CACertFilename, o.InsecureTLS)
@@ -134,6 +141,9 @@ func (o *GetTokenOptions) Validate() error {
 	}
 	if o.ClientID == "" {
 		return fmt.Errorf("--client-id is required")
+	}
+	if o.GrantType != "" && o.GrantType != "authcode" && o.GrantType != "device-code" {
+		return fmt.Errorf("unsupported --grant-type %q, supported values are %q and %q", o.GrantType, "authcode", "device-code")
 	}
 
 	return nil
@@ -188,7 +198,7 @@ func (o *GetTokenOptions) Run() error {
 // token process.
 func (o *GetTokenOptions) getToken(ctx context.Context, cache *tokencache.Set) (bool, string, string, time.Time, error) {
 	if cache == nil {
-		idToken, refreshToken, expiry, err := o.doAuthCode(ctx)
+		idToken, refreshToken, expiry, err := o.doInitialAuth(ctx)
 		return false, idToken, refreshToken, expiry, err
 	}
 
@@ -210,14 +220,31 @@ func (o *GetTokenOptions) getToken(ctx context.Context, cache *tokencache.Set) (
 	if cache.RefreshToken != "" {
 		idToken, refreshToken, expiry, err := o.authenticator.Refresh(ctx, cache.RefreshToken)
 		if err != nil {
-			klog.V(2).Infof("refreshing token failed: %v, we'll attempt to do the auth code grant flow", err)
+			klog.V(2).Infof("refreshing token failed: %v, we'll attempt to do the %s grant flow", err, o.effectiveGrantType())
 		} else {
 			return false, idToken, refreshToken, expiry, nil
 		}
 	}
 
-	idToken, refreshToken, expiry, err := o.doAuthCode(ctx)
+	idToken, refreshToken, expiry, err := o.doInitialAuth(ctx)
 	return false, idToken, refreshToken, expiry, err
+}
+
+// effectiveGrantType returns the grant type to use for logging purposes,
+// defaulting to "authcode" when no explicit grant type is set.
+func (o *GetTokenOptions) effectiveGrantType() string {
+	if o.GrantType == "device-code" {
+		return "device-code"
+	}
+	return "authcode"
+}
+
+// doInitialAuth dispatches to the appropriate grant flow based on GrantType.
+func (o *GetTokenOptions) doInitialAuth(ctx context.Context) (string, string, time.Time, error) {
+	if o.GrantType == "device-code" {
+		return o.doDeviceCode(ctx)
+	}
+	return o.doAuthCode(ctx)
 }
 
 // doAuthCode does the auth code flow with PKCE(if the issuer supports it).
@@ -264,4 +291,55 @@ func (o *GetTokenOptions) doAuthCode(ctx context.Context) (string, string, time.
 		return "", "", time.Time{}, fmt.Errorf("authentication error: %w", err)
 	}
 	return idToken, refreshToken, expiry, nil
+}
+
+// doDeviceCode does the device code flow (RFC 8628).
+func (o *GetTokenOptions) doDeviceCode(ctx context.Context) (string, string, time.Time, error) {
+	ctx, cancel := context.WithTimeout(ctx, o.authenticationTimeout)
+	defer cancel()
+
+	klog.V(1).Infof("starting the oauth2 device code flow")
+	authResponse, err := o.authenticator.GetDeviceAuthorization(ctx)
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("authorization error: %w", err)
+	}
+
+	// We are writing these to ErrOut instead of Out because Out is listened by client-go to get token.
+	if authResponse.VerificationURIComplete != "" {
+		fmt.Fprintf(o.IOStreams.ErrOut, "Please enter the following code when asked in your browser: %s\n", authResponse.UserCode)
+		o.openURL(authResponse.VerificationURIComplete)
+	} else if authResponse.VerificationURI != "" {
+		fmt.Fprintf(o.IOStreams.ErrOut, "Please enter the following code when asked in your browser: %s\n", authResponse.UserCode)
+		o.openURL(authResponse.VerificationURI)
+	} else if authResponse.VerificationURL != "" {
+		fmt.Fprintf(o.IOStreams.ErrOut, "Please enter the following code when asked in your browser: %s\n", authResponse.UserCode)
+		o.openURL(authResponse.VerificationURL)
+	} else {
+		return "", "", time.Time{}, fmt.Errorf("no verification URI in the authorization response")
+	}
+
+	idToken, refreshToken, expiry, err := o.authenticator.ExchangeDeviceCode(ctx, authResponse)
+	klog.V(1).Infof("finished the oauth2 device code flow")
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("unable to exchange device code: %w", err)
+	}
+	return idToken, refreshToken, expiry, nil
+}
+
+func (o *GetTokenOptions) openURL(rawURL string) {
+	if !o.AutoOpenBrowser {
+		fmt.Fprintf(o.IOStreams.ErrOut, "Please visit the following URL in your browser: %s\n", rawURL)
+		return
+	}
+
+	// The verification URI is supplied by the provider, so only hand web URLs to the OS launcher.
+	if u, err := url.Parse(rawURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		fmt.Fprintf(o.IOStreams.ErrOut, "error: refusing to open a non-HTTP(S) URL in the browser\n\nPlease visit the following URL in your browser manually: %s\n", rawURL)
+		return
+	}
+
+	klog.V(1).Infof("opening %s in the browser", rawURL)
+	if err := browser.OpenURL(rawURL); err != nil {
+		fmt.Fprintf(o.IOStreams.ErrOut, "error: could not open the browser: %s\n\nPlease visit the following URL in your browser manually: %s\n", err, rawURL)
+	}
 }
