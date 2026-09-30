@@ -123,7 +123,17 @@ linters:
         text: "conditions: Conditions field in (PacemakerClusterStatus|PacemakerClusterNodeStatus|PacemakerClusterFencingAgentStatus|PacemakerClusterResourceStatus) is missing the following markers: optional"
       - linters:
         - kubeapilinter
-        path: features|payload-command/*.go
+        # Empty lists are meaningful: no reported transition evaluations or top-level conditions yet.
+        path: config/v1/types_infrastructure_transitions.go
+        text: 'minlength: field TopologyTransitionStatus\.(Transitions|Conditions) must have a minimum items'
+      - linters:
+        - kubeapilinter
+        # Keep the pointer so Go callers can distinguish absent transition status from a populated status.
+        path: config/v1/types_infrastructure.go
+        text: 'optionalfields: field InfrastructureStatus\.TopologyTransitionStatus does not allow the zero value'
+      - linters:
+        - kubeapilinter
+        path: features|payload-command/
 issues:
   # We have a lot of existing issues.
   # Want to make sure that those adding new fields have an
