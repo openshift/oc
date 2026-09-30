@@ -690,7 +690,7 @@ github.com/openshift-eng/openshift-tests-extension/pkg/ginkgo
 github.com/openshift-eng/openshift-tests-extension/pkg/junit
 github.com/openshift-eng/openshift-tests-extension/pkg/util/sets
 github.com/openshift-eng/openshift-tests-extension/pkg/version
-# github.com/openshift/api v0.0.0-20260805215214-cfb63858e9d7
+# github.com/openshift/api v0.0.0-20260805215214-cfb63858e9d7 => github.com/jeff-roche/api v0.0.0-20260929204754-616569fc417b
 ## explicit; go 1.26.0
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -2062,3 +2062,4 @@ sigs.k8s.io/yaml/goyaml.v3
 sigs.k8s.io/yaml/kyaml
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20260819120910-d6b72669a11e
 # github.com/onsi/ginkgo/v2 => github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20251001123353-fd5b1fb35db1
+# github.com/openshift/api => github.com/jeff-roche/api v0.0.0-20260929204754-616569fc417b

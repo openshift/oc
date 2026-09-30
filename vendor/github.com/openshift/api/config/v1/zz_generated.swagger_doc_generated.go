@@ -1818,7 +1818,7 @@ func (GCPResourceTag) SwaggerDoc() map[string]string {
 
 var map_IBMCloudPlatformSpec = map[string]string{
 	"":                 "IBMCloudPlatformSpec holds the desired state of the IBMCloud infrastructure provider. This only includes fields that can be modified in the cluster.",
-	"serviceEndpoints": "serviceEndpoints is a list of custom endpoints which will override the default service endpoints of an IBM service. These endpoints are used by components within the cluster when trying to reach the IBM Cloud Services that have been overridden. The CCCMO reads in the IBMCloudPlatformSpec and validates each endpoint is resolvable. Once validated, the cloud config and IBMCloudPlatformStatus are updated to reflect the same custom endpoints. A maximum of 13 service endpoints overrides are supported.",
+	"serviceEndpoints": "serviceEndpoints is a list of custom endpoints which will override the default service endpoints of an IBM service. These endpoints are used by components within the cluster when trying to reach the IBM Cloud Services that have been overridden. The CCCMO reads in the IBMCloudPlatformSpec and validates each endpoint is resolvable. Once validated, the cloud config and IBMCloudPlatformStatus are updated to reflect the same custom endpoints. A maximum of 15 service endpoints overrides are supported.",
 }
 
 func (IBMCloudPlatformSpec) SwaggerDoc() map[string]string {
@@ -1841,7 +1841,7 @@ func (IBMCloudPlatformStatus) SwaggerDoc() map[string]string {
 
 var map_IBMCloudServiceEndpoint = map[string]string{
 	"":     "IBMCloudServiceEndpoint stores the configuration of a custom url to override existing defaults of IBM Cloud Services.",
-	"name": "name is the name of the IBM Cloud service. Possible values are: CIS, COS, COSConfig, DNSServices, GlobalCatalog, GlobalSearch, GlobalTagging, HyperProtect, IAM, KeyProtect, ResourceController, ResourceManager, or VPC. For example, the IBM Cloud Private IAM service could be configured with the service `name` of `IAM` and `url` of `https://private.iam.cloud.ibm.com` Whereas the IBM Cloud Private VPC service for US South (Dallas) could be configured with the service `name` of `VPC` and `url` of `https://us.south.private.iaas.cloud.ibm.com`",
+	"name": "name is the name of the IBM Cloud service. Possible values are: CIS, COS, COSConfig, DNSServices, GlobalCatalog, GlobalSearch, GlobalTagging, HyperProtect, IAM, KeyProtect, ResourceController, ResourceManager, VPC, TransitGateway, or PowerVS. For example, the IBM Cloud Private IAM service could be configured with the service `name` of `IAM` and `url` of `https://private.iam.cloud.ibm.com` Whereas the IBM Cloud Private VPC service for US South (Dallas) could be configured with the service `name` of `VPC` and `url` of `https://us.south.private.iaas.cloud.ibm.com`",
 	"url":  "url is fully qualified URI with scheme https, that overrides the default generated endpoint for a client. This must be provided and cannot be empty. The path must follow the pattern /v[0,9]+ or /api/v[0,9]+",
 }
 
@@ -1881,16 +1881,17 @@ func (InfrastructureSpec) SwaggerDoc() map[string]string {
 }
 
 var map_InfrastructureStatus = map[string]string{
-	"":                       "InfrastructureStatus describes the infrastructure the cluster is leveraging.",
-	"infrastructureName":     "infrastructureName uniquely identifies a cluster with a human friendly name. Once set it should not be changed. Must be of max length 27 and must have only alphanumeric or hyphen characters.",
-	"platform":               "platform is the underlying infrastructure provider for the cluster.\n\nDeprecated: Use platformStatus.type instead.",
-	"platformStatus":         "platformStatus holds status information specific to the underlying infrastructure provider.",
-	"etcdDiscoveryDomain":    "etcdDiscoveryDomain is the domain used to fetch the SRV records for discovering etcd servers and clients. For more info: https://github.com/etcd-io/etcd/blob/329be66e8b3f9e2e6af83c123ff89297e49ebd15/Documentation/op-guide/clustering.md#dns-discovery deprecated: as of 4.7, this field is no longer set or honored.  It will be removed in a future release.",
-	"apiServerURL":           "apiServerURL is a valid URI with scheme 'https', address and optionally a port (defaulting to 443).  apiServerURL can be used by components like the web console to tell users where to find the Kubernetes API.",
-	"apiServerInternalURI":   "apiServerInternalURL is a valid URI with scheme 'https', address and optionally a port (defaulting to 443).  apiServerInternalURL can be used by components like kubelets, to contact the Kubernetes API server using the infrastructure provider rather than Kubernetes networking.",
-	"controlPlaneTopology":   "controlPlaneTopology expresses the expectations for operands that normally run on control nodes. The default is 'HighlyAvailable', which represents the behavior operators have in a \"normal\" cluster. The 'SingleReplica' mode will be used in single-node deployments and the operators should not configure the operand for highly-available operation The 'External' mode indicates that the control plane is hosted externally to the cluster and that its components are not visible within the cluster. The 'HighlyAvailableArbiter' mode indicates that the control plane will consist of 2 control-plane nodes that run conventional services and 1 smaller sized arbiter node that runs a bare minimum of services to maintain quorum.",
-	"infrastructureTopology": "infrastructureTopology expresses the expectations for infrastructure services that do not run on control plane nodes, usually indicated by a node selector for a `role` value other than `master`. The default is 'HighlyAvailable', which represents the behavior operators have in a \"normal\" cluster. The 'SingleReplica' mode will be used in single-node deployments and the operators should not configure the operand for highly-available operation NOTE: External topology mode is not applicable for this field.",
-	"cpuPartitioning":        "cpuPartitioning expresses if CPU partitioning is a currently enabled feature in the cluster. CPU Partitioning means that this cluster can support partitioning workloads to specific CPU Sets. Valid values are \"None\" and \"AllNodes\". When omitted, the default value is \"None\". The default value of \"None\" indicates that no nodes will be setup with CPU partitioning. The \"AllNodes\" value indicates that all nodes have been setup with CPU partitioning, and can then be further configured via the PerformanceProfile API.",
+	"":                         "InfrastructureStatus describes the infrastructure the cluster is leveraging.",
+	"infrastructureName":       "infrastructureName uniquely identifies a cluster with a human friendly name. Once set it should not be changed. Must be of max length 27 and must have only alphanumeric or hyphen characters.",
+	"platform":                 "platform is the underlying infrastructure provider for the cluster.\n\nDeprecated: Use platformStatus.type instead.",
+	"platformStatus":           "platformStatus holds status information specific to the underlying infrastructure provider.",
+	"etcdDiscoveryDomain":      "etcdDiscoveryDomain is the domain used to fetch the SRV records for discovering etcd servers and clients. For more info: https://github.com/etcd-io/etcd/blob/329be66e8b3f9e2e6af83c123ff89297e49ebd15/Documentation/op-guide/clustering.md#dns-discovery deprecated: as of 4.7, this field is no longer set or honored.  It will be removed in a future release.",
+	"apiServerURL":             "apiServerURL is a valid URI with scheme 'https', address and optionally a port (defaulting to 443).  apiServerURL can be used by components like the web console to tell users where to find the Kubernetes API.",
+	"apiServerInternalURI":     "apiServerInternalURL is a valid URI with scheme 'https', address and optionally a port (defaulting to 443).  apiServerInternalURL can be used by components like kubelets, to contact the Kubernetes API server using the infrastructure provider rather than Kubernetes networking.",
+	"controlPlaneTopology":     "controlPlaneTopology expresses the expectations for operands that normally run on control nodes. The default is 'HighlyAvailable', which represents the behavior operators have in a \"normal\" cluster. The 'SingleReplica' mode will be used in single-node deployments and the operators should not configure the operand for highly-available operation The 'External' mode indicates that the control plane is hosted externally to the cluster and that its components are not visible within the cluster. The 'HighlyAvailableArbiter' mode indicates that the control plane will consist of 2 control-plane nodes that run conventional services and 1 smaller sized arbiter node that runs a bare minimum of services to maintain quorum.",
+	"infrastructureTopology":   "infrastructureTopology expresses the expectations for infrastructure services that do not run on control plane nodes, usually indicated by a node selector for a `role` value other than `master`. The default is 'HighlyAvailable', which represents the behavior operators have in a \"normal\" cluster. The 'SingleReplica' mode will be used in single-node deployments and the operators should not configure the operand for highly-available operation NOTE: External topology mode is not applicable for this field.",
+	"topologyTransitionStatus": "topologyTransitionStatus reports evaluations of supported topology transitions and the status of a requested transition, if any. It is omitted until the topology controller reports transition status.",
+	"cpuPartitioning":          "cpuPartitioning expresses if CPU partitioning is a currently enabled feature in the cluster. CPU Partitioning means that this cluster can support partitioning workloads to specific CPU Sets. Valid values are \"None\" and \"AllNodes\". When omitted, the default value is \"None\". The default value of \"None\" indicates that no nodes will be setup with CPU partitioning. The \"AllNodes\" value indicates that all nodes have been setup with CPU partitioning, and can then be further configured via the PerformanceProfile API.",
 }
 
 func (InfrastructureStatus) SwaggerDoc() map[string]string {
@@ -2216,7 +2217,7 @@ func (VSpherePlatformNodeNetworkingSpec) SwaggerDoc() map[string]string {
 
 var map_VSpherePlatformSpec = map[string]string{
 	"":                     "VSpherePlatformSpec holds the desired state of the vSphere infrastructure provider. In the future the cloud provider operator, storage operator and machine operator will use these fields for configuration.",
-	"vcenters":             "vcenters holds the connection details for services to communicate with vCenter. Up to 3 vCenters are supported. Once the cluster has been installed, you are unable to change the current number of defined vCenters except when 1.) the cluster has been upgraded from a version of OpenShift where the vsphere platform spec was not present or 2.) in TechPreview you are able to add and remove vCenters but may not remove all vCenters.  You may make modifications to the existing vCenters that are defined in the vcenters list in order to match with any added or modified failure domains.",
+	"vcenters":             "vcenters holds the connection details for services to communicate with vCenter. Up to 3 vCenters are supported. After installation, you can add or change vCenters, or remove some of them, but you must keep at least one and may not add and remove vCenters during the same update.  You may make modifications to the existing vCenters that are defined in the vcenters list in order to match with any added or modified failure domains.",
 	"failureDomains":       "failureDomains contains the definition of region, zone and the vCenter topology. If this is omitted failure domains (regions and zones) will not be used. Each failure domain's server must match the server field of an entry in the vcenters list.",
 	"nodeNetworking":       "nodeNetworking contains the definition of internal and external network constraints for assigning the node's networking. If this field is omitted, networking defaults to the legacy address selection behavior which is to only support a single address and return the first one found.",
 	"apiServerInternalIPs": "apiServerInternalIPs are the IP addresses to contact the Kubernetes API server that can be used by components inside the cluster, like kubelets using the infrastructure rather than Kubernetes networking. These are the IPs for a self-hosted load balancer in front of the API servers. In dual stack clusters this list contains two IP addresses, one from IPv4 family and one from IPv6. In single stack clusters a single IP address is expected. When omitted, values from the status.apiServerInternalIPs will be used. Once set, the list cannot be completely removed (but its second entry can).",
@@ -2248,7 +2249,7 @@ var map_VSpherePlatformTopology = map[string]string{
 	"":               "VSpherePlatformTopology holds the required and optional vCenter objects - datacenter, computeCluster, networks, datastore and resourcePool - to provision virtual machines.",
 	"datacenter":     "datacenter is the name of vCenter datacenter in which virtual machines will be located. The maximum length of the datacenter name is 80 characters.",
 	"computeCluster": "computeCluster the absolute path of the vCenter cluster in which virtual machine will be located. The absolute path is of the form /<datacenter>/host/<cluster>. The maximum length of the path is 2048 characters.",
-	"networks":       "networks is the list of port group network names within this failure domain. If feature gate VSphereMultiNetworks is enabled, up to 10 network adapters may be defined. 10 is the maximum number of virtual network devices which may be attached to a VM as defined by: https://configmax.esp.vmware.com/guest?vmwareproduct=vSphere&release=vSphere%208.0&categories=1-0 The available networks (port groups) can be listed using `govc ls 'network/*'` Networks should be in the form of an absolute path: /<datacenter>/network/<portgroup>.",
+	"networks":       "networks is the list of port group network names within this failure domain. Up to 10 network adapters may be defined. 10 is the maximum number of virtual network devices which may be attached to a VM as defined by: https://configmax.esp.vmware.com/guest?vmwareproduct=vSphere&release=vSphere%208.0&categories=1-0 The available networks (port groups) can be listed using `govc ls 'network/*'` Networks should be in the form of an absolute path: /<datacenter>/network/<portgroup>.",
 	"datastore":      "datastore is the absolute path of the datastore in which the virtual machine is located. The absolute path is of the form /<datacenter>/datastore/<datastore> The maximum length of the path is 2048 characters.",
 	"resourcePool":   "resourcePool is the absolute path of the resource pool where virtual machines will be created. The absolute path is of the form /<datacenter>/host/<cluster>/Resources/<resourcepool>. The maximum length of the path is 2048 characters.",
 	"folder":         "folder is the absolute path of the folder where virtual machines are located. The absolute path is of the form /<datacenter>/vm/<folder>. The maximum length of the path is 2048 characters.",
@@ -2268,6 +2269,36 @@ var map_VSpherePlatformVCenterSpec = map[string]string{
 
 func (VSpherePlatformVCenterSpec) SwaggerDoc() map[string]string {
 	return map_VSpherePlatformVCenterSpec
+}
+
+var map_TopologyState = map[string]string{
+	"":                       "TopologyState describes the control-plane and infrastructure topology at one end of a topology transition.",
+	"controlPlaneTopology":   "controlPlaneTopology is the topology of the control-plane nodes. Valid values are SingleReplica and HighlyAvailable. When set to SingleReplica, operators avoid spending resources for high availability. When set to HighlyAvailable, operators configure high availability as much as possible. controlPlaneTopology is required.",
+	"infrastructureTopology": "infrastructureTopology is the topology of infrastructure services. Valid values are SingleReplica and HighlyAvailable. When set to SingleReplica, operators avoid spending resources for high availability. When set to HighlyAvailable, operators configure high availability as much as possible. infrastructureTopology is required.",
+}
+
+func (TopologyState) SwaggerDoc() map[string]string {
+	return map_TopologyState
+}
+
+var map_TopologyTransition = map[string]string{
+	"source":      "source is the control-plane and infrastructure topology this transition was evaluated from. It may differ from the current topology while status is being refreshed. source is required.",
+	"target":      "target is the control-plane and infrastructure topology this transition would move to. target is required.",
+	"evaluations": "evaluations contains the availability condition for this transition and conditions for the checks run against the cluster to determine availability.\n\nTopologyTransitionAvailableConditionType is required; other condition types report individual checks. Between one and 32 conditions must be present.",
+}
+
+func (TopologyTransition) SwaggerDoc() map[string]string {
+	return map_TopologyTransition
+}
+
+var map_TopologyTransitionStatus = map[string]string{
+	"":            "TopologyTransitionStatus reports availability of each type of topology transition and contains the status of any initiated transition. When present, it must include conditions or transitions; either list may be empty.",
+	"conditions":  "conditions provides information on topology transition progress and the evaluation of supported transition types. When omitted, or when the TopologyTransitionsEvaluated condition is absent, transitions is stale.\n\nTopologyTransitionsEvaluatedConditionType and TopologyTransitionCompletedConditionType are the only valid conditions at this scope. At most two conditions can be present.",
+	"transitions": "transitions contains each supported transition type and its availability. An empty or omitted list means no transition evaluations have been reported. Entries are stale when the TopologyTransitionsEvaluated condition is absent.\n\nAt most one transition is supported currently (SNO to HA Compact)",
+}
+
+func (TopologyTransitionStatus) SwaggerDoc() map[string]string {
+	return map_TopologyTransitionStatus
 }
 
 var map_AWSIngressSpec = map[string]string{
