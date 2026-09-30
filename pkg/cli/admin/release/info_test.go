@@ -523,6 +523,85 @@ func Test_readComponentVersions(t *testing.T) {
 				"kubectl": "test4",
 			},
 		},
+		{
+			name: "single machine-os version works as before",
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "machine-os-content",
+							Annotations: map[string]string{
+								annotationBuildVersions:             "machine-os=412.92.202301011200-0",
+								annotationBuildVersionsDisplayNames: "machine-os=Red Hat Enterprise Linux CoreOS",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"machine-os": {Version: "412.92.202301011200-0", DisplayName: "Red Hat Enterprise Linux CoreOS"},
+			},
+			wantTags: map[string]string{
+				"machine-os": "machine-os-content",
+			},
+		},
+		{
+			name: "multiple machine-os versions are all included",
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "machine-os-content",
+							Annotations: map[string]string{
+								annotationBuildVersions:             "machine-os=412.92.202301011200-0",
+								annotationBuildVersionsDisplayNames: "machine-os=Red Hat Enterprise Linux CoreOS",
+							},
+						},
+						{
+							Name: "machine-os-content-10",
+							Annotations: map[string]string{
+								annotationBuildVersions:             "machine-os=10.92.202301011200-0",
+								annotationBuildVersionsDisplayNames: "machine-os=Red Hat Enterprise Linux CoreOS 10",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"machine-os": {Version: "10.92.202301011200-0, 412.92.202301011200-0", DisplayName: "Red Hat Enterprise Linux CoreOS, Red Hat Enterprise Linux CoreOS 10"},
+			},
+			wantTags: map[string]string{
+				"machine-os": "machine-os-content-10",
+			},
+		},
+		{
+			name: "multiple versions of non-machine-os component still triggers error",
+			is: &imageapi.ImageStream{
+				Spec: imageapi.ImageStreamSpec{
+					Tags: []imageapi.TagReference{
+						{
+							Name: "test1",
+							Annotations: map[string]string{
+								annotationBuildVersions: "some-component=1.0.0",
+							},
+						},
+						{
+							Name: "test2",
+							Annotations: map[string]string{
+								annotationBuildVersions: "some-component=2.0.0",
+							},
+						},
+					},
+				},
+			},
+			want: ComponentVersions{
+				"some-component": {Version: "1.0.0"},
+			},
+			wantTags: map[string]string{
+				"some-component": "test2",
+			},
+			wantErr: []error{fmt.Errorf("multiple versions or display names reported for the following component(s): some-component")},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
