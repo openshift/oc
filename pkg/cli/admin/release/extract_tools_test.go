@@ -13,6 +13,7 @@ func Test_copyAndReplace(t *testing.T) {
 		replacements []replacement
 		expected     string
 		error        string
+		warning      string
 	}{
 		{
 			name:  "buffer too small",
@@ -217,18 +218,57 @@ func Test_copyAndReplace(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "unmatched marker returns error",
+			input: "1234",
+			// The bytes are still streamed to w, but the caller discards the
+			// partial file because copyAndReplace returns an error.
+			expected: "1234",
+			replacements: []replacement{
+				{
+					name:   "rep-A",
+					marker: []byte("aa"),
+					value:  "A",
+				},
+			},
+			error:   "unable to make all expected replacements in test; remaining: rep-A",
+			warning: "warning: Unable to make all expected replacements in test.  Remaining: rep-A\n",
+		},
+		{
+			name:     "partially unmatched marker returns error",
+			input:    "1234bb",
+			expected: "1234B\x00",
+			replacements: []replacement{
+				{
+					name:   "rep-A",
+					marker: []byte("aa"),
+					value:  "A",
+				},
+				{
+					name:   "rep-B",
+					marker: []byte("bb"),
+					value:  "B",
+				},
+			},
+			error:   "unable to make all expected replacements in test; remaining: rep-A",
+			warning: "warning: Unable to make all expected replacements in test.  Remaining: rep-A\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := bytes.NewReader([]byte(tt.input))
 			w := &bytes.Buffer{}
-			err := copyAndReplace(nil, w, r, buffer, tt.replacements, "test")
+			errOut := &bytes.Buffer{}
+			err := copyAndReplace(errOut, w, r, buffer, tt.replacements, "test")
 			if (err == nil && tt.error != "") || (err != nil && err.Error() != tt.error) {
 				t.Fatalf("unexpected error: %v != %v", err, tt.error)
 			}
 			actual := w.String()
 			if actual != tt.expected {
 				t.Fatalf("unexpected response body: %q != %q", actual, tt.expected)
+			}
+			if errOut.String() != tt.warning {
+				t.Fatalf("unexpected warning: %q != %q", errOut.String(), tt.warning)
 			}
 		})
 	}
