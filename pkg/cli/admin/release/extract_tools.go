@@ -913,7 +913,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 				value:  releaseArchitecture,
 			})
 		}
-		err = copyAndReplace(o.ErrOut, w, r, 4*1024, replacements, target.Command)
+		err = copyAndReplace(w, r, 4*1024, replacements, target.Command)
 		if err != nil {
 			closeFn()
 			f.Close()
@@ -1079,9 +1079,10 @@ type replacement struct {
 
 // copyAndReplace performs a targeted replacement for binaries that
 // contain special marker strings, replacing the first occurrence of each
-// marker with a new string and a NUL terminating byte.  It logs a warning
-// if any replacements are not performed.
-func copyAndReplace(errorOutput io.Writer, w io.Writer, r io.Reader, bufferSize int, replacements []replacement, name string) error {
+// marker with a new string and a NUL terminating byte.  It returns an error
+// if any replacement is not performed, since the resulting binary would still
+// contain the raw placeholder and be unusable.
+func copyAndReplace(w io.Writer, r io.Reader, bufferSize int, replacements []replacement, name string) error {
 	if len(replacements) == 0 {
 		_, err := io.Copy(w, r)
 		return err
@@ -1156,7 +1157,12 @@ func copyAndReplace(errorOutput io.Writer, w io.Writer, r io.Reader, bufferSize 
 				}
 				sort.Strings(remainingNames)
 				if len(remainingNames) > 0 {
-					fmt.Fprintf(errorOutput, "warning: Unable to make all expected replacements in %s.  Remaining: %s", name, strings.Join(remainingNames, ", "))
+					// A required marker was not found and replaced. Returning the
+					// partially-written binary would leave the raw placeholder in
+					// place (e.g. the release version/image/architecture), which
+					// makes the extracted binary crash when run. Fail loudly so the
+					// caller does not hand back a corrupt binary. See OCPBUGS-120725.
+					return fmt.Errorf("unable to make all expected replacements in %s; remaining: %s", name, strings.Join(remainingNames, ", "))
 				}
 				return nil
 			}
