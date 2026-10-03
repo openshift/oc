@@ -433,8 +433,9 @@ func TestRunTag_AddImportMode(t *testing.T) {
 				destNameAndTag:  []string{"rails:tip"},
 			},
 			expectedActions: []testActionWithImportMode{
-				{verb: "update", resource: "imagestreamtags", importMode: string(imagev1.ImportModeLegacy)},
-				{verb: "create", resource: "imagestreamtags", importMode: string(imagev1.ImportModeLegacy)},
+				// Empty import mode - let the cluster decide based on its configuration
+				{verb: "update", resource: "imagestreamtags", importMode: ""},
+				{verb: "create", resource: "imagestreamtags", importMode: ""},
 			},
 		},
 		"valid tag with import mode PreserveOriginal": {
