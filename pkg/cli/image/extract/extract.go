@@ -356,10 +356,10 @@ func (o *ExtractOptions) Run() error {
 		return err
 	}
 	if len(o.ICSPFile) > 0 {
-		fromContext = fromContext.WithAlternateBlobSourceStrategy(strategy.NewICSPOnErrorStrategy(o.ICSPFile))
+		fromContext = fromContext.WithAlternateBlobSourceStrategy(strategy.NewICSPExplicitStrategy(o.ICSPFile))
 	}
 	if len(o.IDMSFile) > 0 {
-		fromContext = fromContext.WithAlternateBlobSourceStrategy(strategy.NewIDMSOnErrorStrategy(o.IDMSFile))
+		fromContext = fromContext.WithAlternateBlobSourceStrategy(strategy.NewIDMSExplicitStrategy(o.IDMSFile))
 	}
 	fromOptions := &imagesource.Options{
 		FileDir:         o.FileDir,
