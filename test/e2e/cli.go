@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -1139,6 +1140,60 @@ var _ = g.Describe("[sig-cli] Workloads client test", func() {
 		By("Run debug node with sos command")
 		err = oc.AsAdmin().WithoutNamespace().Run("debug").Args("node/"+nodeList[0], "-n", project76287, "--", "sos", "help").Execute()
 		o.Expect(err).NotTo(o.HaveOccurred())
+	})
+
+	g.It("Author:okupka-ROSA-OSD_CCS-ARO-ConnectedOnly-High-debug-exit-code-oc debug should propagate container exit code", oteginkgo.Informing(), func() {
+		skipIfMicroShift(oc)
+		skipIfDisconnected(oc)
+
+		g.By("Create new namespace")
+		oc.SetupProject()
+		ns := oc.Namespace()
+
+		// oc debug creates pods without restricted-compatible security context,
+		// so the namespace must allow privileged pods.
+		g.By("Set namespace as privileged namespace")
+		SetNamespacePrivileged(oc, ns)
+
+		// The hello-openshift image is a minimal scratch-based image without
+		// standard POSIX utilities. Use --image to override with base-alpine
+		// which has /bin/true, /bin/false, and /bin/sh.
+		debugImage := "quay.io/openshifttest/base-alpine@sha256:3126e4eed4a3ebd8bf972b2453fa838200988ee07c01b2251e3ea47e4b1f245c"
+
+		g.By("Create a simple deployment to debug")
+		err := oc.Run("create").Args("deploy", "exit-code-test", "--image", "quay.io/openshifttest/hello-openshift@sha256:4200f438cf2e9446f6bcff9d67ceea1f69ed07a2f83363b7fb52529f7ddd8a83", "-n", ns).Execute()
+		o.Expect(err).NotTo(o.HaveOccurred())
+		if ok := waitForAvailableRsRunning(oc, "deployment", "exit-code-test", ns, "1"); !ok {
+			e2e.Failf("deployment exit-code-test did not become ready")
+		}
+
+		runDebug := func(command ...string) error {
+			args := append([]string{"deploy/exit-code-test", "--image", debugImage, "--"}, command...)
+			return oc.Run("debug").Args(args...).Execute()
+		}
+
+		g.By("Verify oc debug exits 0 when command succeeds")
+		runErr := runDebug("/bin/true")
+		o.Expect(runErr).NotTo(o.HaveOccurred(), "oc debug with /bin/true should exit 0")
+
+		g.By("Verify oc debug exits non-zero when command fails")
+		runErr = runDebug("/bin/false")
+		o.Expect(runErr).To(o.HaveOccurred(), "oc debug with /bin/false should exit non-zero")
+		var exitErr *exec.ExitError
+		o.Expect(errors.As(runErr, &exitErr)).To(o.BeTrue(), "error should be an ExitError")
+		o.Expect(exitErr.ExitCode()).To(o.Equal(1), "exit code should be 1 for /bin/false")
+
+		g.By("Verify oc debug propagates the actual exit code")
+		runErr = runDebug("/bin/sh", "-c", "exit 42")
+		o.Expect(runErr).To(o.HaveOccurred(), "oc debug with exit 42 should exit non-zero")
+		o.Expect(errors.As(runErr, &exitErr)).To(o.BeTrue(), "error should be an ExitError")
+		o.Expect(exitErr.ExitCode()).To(o.Equal(42), "exit code should be 42")
+
+		g.By("Verify oc debug exits non-zero for non-existent command")
+		runErr = runDebug("/nonexistent-command")
+		o.Expect(runErr).To(o.HaveOccurred(), "oc debug with non-existent command should exit non-zero")
+		o.Expect(errors.As(runErr, &exitErr)).To(o.BeTrue(), "error should be an ExitError")
+		o.Expect(exitErr.ExitCode()).NotTo(o.Equal(0), "exit code should be non-zero for non-existent command")
 	})
 })
 

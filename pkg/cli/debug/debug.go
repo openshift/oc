@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -43,6 +44,7 @@ import (
 	"k8s.io/kubectl/pkg/util/interrupt"
 	"k8s.io/kubectl/pkg/util/templates"
 	"k8s.io/pod-security-admission/api"
+	utilexec "k8s.io/utils/exec"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	dockerv10 "github.com/openshift/api/image/docker10"
@@ -614,7 +616,7 @@ func (o *DebugOptions) RunDebug() error {
 			}
 			return errors.New(msg)
 			// switch to logging output
-		case err == krun.ErrPodCompleted, err == conditions.ErrContainerTerminated:
+		case errors.Is(err, krun.ErrPodCompleted), errors.Is(err, conditions.ErrContainerTerminated):
 			resultPod, ok := containerRunningEvent.Object.(*corev1.Pod)
 			if ok {
 				if resultPod.Status.Reason == "NodeAffinity" && len(resultPod.Spec.NodeSelector) != 0 {
@@ -630,12 +632,34 @@ func (o *DebugOptions) RunDebug() error {
 					}
 				}
 			}
-			return o.getLogs(pod)
-		case err == conditions.ErrNonZeroExitCode:
+
+			if err := o.getLogs(pod); err != nil {
+				return err
+			}
+
+			// The watch event contains the terminal pod state from the API server.
+			// Use it directly to extract the exit code.
+			if ok {
+				return exitCodeError(resultPod, o.ContainerName)
+			}
+			return nil
+		case errors.Is(err, conditions.ErrNonZeroExitCode):
 			if err = o.getLogs(pod); err != nil {
 				return err
 			}
-			return conditions.ErrNonZeroExitCode
+
+			// The watch event contains the terminal pod state from the API server.
+			// Use it directly to extract the exit code.
+			if resultPod, ok := containerRunningEvent.Object.(*corev1.Pod); ok {
+				if exitErr := exitCodeError(resultPod, o.ContainerName); exitErr != nil {
+					return exitErr
+				}
+			}
+			// We know the exit code was non-zero but couldn't determine the actual value.
+			return utilexec.CodeExitError{
+				Err:  fmt.Errorf("the debug container terminated with a non-zero exit code"),
+				Code: 1,
+			}
 		case err != nil:
 			return err
 		case !o.Attach.Stdin:
@@ -645,20 +669,14 @@ func (o *DebugOptions) RunDebug() error {
 			lastWatchEvent, err := watchtools.UntilWithSync(ctx, lw, &corev1.Pod{}, preconditionFunc, conditions.PodDone)
 			if err != nil {
 				if kapierrors.IsNotFound(err) {
-					return nil
+					return fmt.Errorf("the debug pod %q was deleted before completion", pod.Name)
 				}
 				return err
 			}
 
-			resultPod, ok := lastWatchEvent.Object.(*corev1.Pod)
-			if ok {
-				for _, s := range append(append([]corev1.ContainerStatus{}, resultPod.Status.InitContainerStatuses...), resultPod.Status.ContainerStatuses...) {
-					if s.Name != o.ContainerName {
-						continue
-					}
-					if s.State.Terminated != nil && s.State.Terminated.ExitCode != 0 {
-						return conditions.ErrNonZeroExitCode
-					}
+			if resultPod, ok := lastWatchEvent.Object.(*corev1.Pod); ok {
+				if exitErr := exitCodeError(resultPod, o.ContainerName); exitErr != nil {
+					return exitErr
 				}
 			}
 			return nil
@@ -673,7 +691,17 @@ func (o *DebugOptions) RunDebug() error {
 
 			// TODO: attach can race with pod completion, allow attach to switch to logs
 			o.Attach.ContainerName = o.ContainerName
-			return o.Attach.Run()
+			if err := o.Attach.Run(); err != nil {
+				return err
+			}
+
+			// After the attach session ends, check the container exit code.
+			resultPod, err := o.CoreClient.Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+			if err != nil {
+				klog.V(4).Infof("Unable to re-fetch pod %s/%s after attach: %v", pod.Namespace, pod.Name, err)
+				return nil
+			}
+			return exitCodeError(resultPod, o.ContainerName)
 		}
 	})
 }
@@ -1236,6 +1264,35 @@ func (o *DebugOptions) approximatePodTemplateForObject(object runtime.Object) (*
 	}
 
 	return nil, fmt.Errorf("%v is not supported by debug", reflect.TypeOf(object))
+}
+
+// containerExitCode returns the exit code of the named container from the pod status.
+// It returns -1 if the container is not found or has not terminated.
+func containerExitCode(pod *corev1.Pod, containerName string) int32 {
+	for _, s := range slices.Concat(pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses) {
+		if s.Name != containerName {
+			continue
+		}
+		if s.State.Terminated != nil {
+			return s.State.Terminated.ExitCode
+		}
+		return -1
+	}
+	return -1
+}
+
+// exitCodeError returns a CodeExitError with the container's actual exit code if it
+// terminated with a non-zero exit code. It returns nil if the container exited
+// successfully or if exit code information is not available.
+func exitCodeError(pod *corev1.Pod, containerName string) error {
+	code := containerExitCode(pod, containerName)
+	if code <= 0 {
+		return nil
+	}
+	return utilexec.CodeExitError{
+		Err:  fmt.Errorf("the debug container terminated with exit code %d", code),
+		Code: int(code),
+	}
 }
 
 func (o *DebugOptions) getLogs(pod *corev1.Pod) error {
