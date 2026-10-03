@@ -71,6 +71,14 @@ type LoginOptions struct {
 	WebLogin     bool
 	CallbackPort int32
 
+	// ProxyURL comes from --proxy-url. When set, it is used for the login HTTP
+	// client and persisted as the kubeconfig cluster's proxy-url. When empty,
+	// an existing kubeconfig cluster proxy-url is reused. When neither is set,
+	// rest.Config.Proxy is left nil so client-go's default transport still
+	// honors HTTPS_PROXY/HTTP_PROXY; those environment proxies are not written
+	// into kubeconfig.
+	ProxyURL string
+
 	// infra
 	StartingKubeConfig *kclientcmdapi.Config
 	DefaultNamespace   string
@@ -162,15 +170,32 @@ func (o *LoginOptions) getClientConfig() (*restclient.Config, error) {
 	clientConfig.Host = o.Server
 	clientConfig.Insecure = o.InsecureTLS
 
+	existingCluster := findCluster(clientConfig.Host, *o.StartingKubeConfig)
+
+	// Prefer an explicitly provided --proxy-url. Otherwise reuse an existing
+	// cluster proxy-url so login uses it and CreateConfig does not drop it.
+	// Leave Proxy unset when neither is present so client-go still honors
+	// HTTPS_PROXY/HTTP_PROXY via the default transport without writing those
+	// environment proxies into kubeconfig.
+	proxyURL := o.ProxyURL
+	if len(proxyURL) == 0 && existingCluster != nil {
+		proxyURL = existingCluster.ProxyURL
+	}
+	if len(proxyURL) > 0 {
+		if err := setClientConfigProxy(clientConfig, proxyURL); err != nil {
+			return nil, err
+		}
+	}
+
 	if !o.InsecureTLS {
 		// Try to use the specified CA. Then fall back into searching kubeconfig.
 		if len(o.CAFile) > 0 {
 			clientConfig.CAFile = o.CAFile
 			clientConfig.CAData = nil
-		} else if cluster := findCluster(clientConfig.Host, *o.StartingKubeConfig); cluster != nil {
-			clientConfig.Insecure = cluster.InsecureSkipTLSVerify
-			clientConfig.CAFile = cluster.CertificateAuthority
-			clientConfig.CAData = cluster.CertificateAuthorityData
+		} else if existingCluster != nil {
+			clientConfig.Insecure = existingCluster.InsecureSkipTLSVerify
+			clientConfig.CAFile = existingCluster.CertificateAuthority
+			clientConfig.CAData = existingCluster.CertificateAuthorityData
 
 			// It's not allowed to specify both the insecure flag and a CA.
 			// k8s transport init machinery returns an error in that case.
