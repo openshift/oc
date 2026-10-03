@@ -99,7 +99,7 @@ func (o *options) Run(ctx context.Context) error {
 // other forms of authentication.
 func ValidateRESTConfig(restConfig *rest.Config) error {
 	if restConfig.BearerToken == "" && restConfig.BearerTokenFile == "" {
-		return fmt.Errorf("no token is currently in use for this session")
+		return fmt.Errorf("no bearer token available for this session; the monitoring API requires token-based authentication, use 'oc login'")
 	}
 	return nil
 }
