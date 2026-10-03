@@ -44,6 +44,9 @@ var (
 		# Log in to the given server with the given credentials (will not prompt interactively)
 		oc login localhost:8443 --username=myuser --password=mypass
 
+		# Log in to the given server as myuser and use a custom kubeconfig context name. 
+		oc login localhost:8443 --username=myuser --context=local
+
 		# Log in to the given server through a browser
 		oc login localhost:8443 --web --callback-port 8280
 
@@ -162,6 +165,7 @@ func (o *LoginOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []s
 	o.Token = kcmdutil.GetFlagString(cmd, "token")
 
 	o.DefaultNamespace, _, _ = f.ToRawKubeConfigLoader().Namespace()
+	o.Context = kcmdutil.GetFlagString(cmd, "context")
 
 	o.PathOptions = kclientcmd.NewDefaultPathOptions()
 	// we need to set explicit path if one was specified, since NewDefaultPathOptions doesn't do it for us
