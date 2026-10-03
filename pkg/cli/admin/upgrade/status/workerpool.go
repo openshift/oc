@@ -1,7 +1,6 @@
 package status
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"sort"
@@ -10,12 +9,10 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
 	configv1 "github.com/openshift/api/config/v1"
 	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
-	mcfgv1client "github.com/openshift/client-go/machineconfiguration/clientset/versioned"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade/status/mco"
 )
 
@@ -114,15 +111,6 @@ type poolDisplayData struct {
 	Nodes         []nodeDisplayData
 }
 
-func getMachineConfig(ctx context.Context, client mcfgv1client.Interface, machineConfigs []mcfgv1.MachineConfig, machineConfigName string) (*mcfgv1.MachineConfig, error) {
-	for _, mc := range machineConfigs {
-		if mc.Name == machineConfigName {
-			return nil, nil
-		}
-	}
-	return client.MachineconfigurationV1().MachineConfigs().Get(ctx, machineConfigName, v1.GetOptions{})
-}
-
 func whichPool(master, worker labels.Selector, custom map[string]labels.Selector, node corev1.Node) string {
 	if master.Matches(labels.Set(node.Labels)) {
 		return "master"
@@ -146,13 +134,13 @@ func ellipsizeNames(message string, name string) string {
 	return strings.Replace(message, name, "<node>", -1)
 }
 
-func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPool, nodes []corev1.Node, machineConfigs []mcfgv1.MachineConfig, multiArchMigrationInProgress bool) ([]nodeDisplayData, []updateInsight) {
+func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPool, nodes []corev1.Node, machineConfigVersionMap map[string]string, multiArchMigrationInProgress bool) ([]nodeDisplayData, []updateInsight) {
 	var nodesStatusData []nodeDisplayData
 	var insights []updateInsight
 	for _, node := range nodes {
 		desiredConfig, ok := node.Annotations[mco.DesiredMachineConfigAnnotationKey]
-		currentVersion, foundCurrent := getOpenShiftVersionOfMachineConfig(machineConfigs, node.Annotations[mco.CurrentMachineConfigAnnotationKey])
-		desiredVersion, foundDesired := getOpenShiftVersionOfMachineConfig(machineConfigs, desiredConfig)
+		currentVersion, foundCurrent := getOpenShiftVersionOfMachineConfig(machineConfigVersionMap, node.Annotations[mco.CurrentMachineConfigAnnotationKey])
+		desiredVersion, foundDesired := getOpenShiftVersionOfMachineConfig(machineConfigVersionMap, desiredConfig)
 
 		lns := mco.NewLayeredNodeState(&node)
 		isUnavailable := lns.IsUnavailable(&pool)
@@ -245,14 +233,19 @@ func assessNodesStatus(cv *configv1.ClusterVersion, pool mcfgv1.MachineConfigPoo
 	return nodesStatusData, insights
 }
 
-func getOpenShiftVersionOfMachineConfig(machineConfigs []mcfgv1.MachineConfig, name string) (string, bool) {
+func buildMachineConfigVersionMap(machineConfigs []mcfgv1.MachineConfig) map[string]string {
+	versionMap := make(map[string]string, len(machineConfigs))
 	for _, mc := range machineConfigs {
-		if mc.Name == name {
-			openshiftVersion := mc.Annotations[mco.ReleaseImageVersionAnnotationKey]
-			return openshiftVersion, openshiftVersion != ""
+		if version := mc.Annotations[mco.ReleaseImageVersionAnnotationKey]; version != "" {
+			versionMap[mc.Name] = version
 		}
 	}
-	return "", false
+	return versionMap
+}
+
+func getOpenShiftVersionOfMachineConfig(versionMap map[string]string, name string) (string, bool) {
+	version, found := versionMap[name]
+	return version, found
 }
 
 func isNodeDraining(node corev1.Node, isUpdating bool) bool {
