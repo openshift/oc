@@ -5,6 +5,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/api/features"
+	"github.com/openshift/oc/pkg/cli/admin/upgrade/status"
 )
 
 func TestIsAcceptRisksEnabled(t *testing.T) {
@@ -122,7 +123,7 @@ func TestIsHypershiftEnabled(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			actual := isHostedCluster(testCase.infrastructure)
+			actual := status.IsHostedCluster(testCase.infrastructure)
 
 			if actual != testCase.expected {
 				t.Errorf("%v != %v", actual, testCase.expected)
