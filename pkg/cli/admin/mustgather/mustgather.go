@@ -244,6 +244,9 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	if len(o.DestDir) == 0 {
 		o.DestDir = o.generateDestDir()
 	}
+	if cmd.Flags().Changed("image") || cmd.Flags().Changed("image-stream") || o.AllImages {
+		o.pluginImagesRequested = true
+	}
 	// TODO: this should be in Validate() method, but added here because of the call to o.completeImages() below
 	if o.AllImages {
 		errStr := "and --all-images are mutually exclusive: please specify one or the other"
@@ -440,22 +443,26 @@ type MustGatherOptions struct {
 	ImageClient      imagev1client.ImageV1Interface
 	RESTClientGetter genericclioptions.RESTClientGetter
 
-	NodeName         string
-	NodeSelector     string
-	HostNetwork      bool
-	DestDir          string
-	SourceDir        string
-	Images           []string
-	AllImages        bool
-	ImageStreams     []string
-	Command          []string
-	Timeout          time.Duration
-	timeoutStr       string
-	RunNamespace     string
-	VolumePercentage uint8
-	Keep             bool
-	Since            time.Duration
-	SinceTime        string
+	NodeName     string
+	NodeSelector string
+	HostNetwork  bool
+	DestDir      string
+	SourceDir    string
+	Images       []string
+	AllImages    bool
+	ImageStreams []string
+	// pluginImagesRequested is true when the user asked for a plugin image
+	// (--image, --image-stream, or --all-images) rather than the default
+	// must-gather image.
+	pluginImagesRequested bool
+	Command               []string
+	Timeout               time.Duration
+	timeoutStr            string
+	RunNamespace          string
+	VolumePercentage      uint8
+	Keep                  bool
+	Since                 time.Duration
+	SinceTime             string
 
 	RsyncRshCmd string
 	clock       clock.PassiveClock
@@ -808,12 +815,7 @@ func (o *MustGatherOptions) Run() error {
 	for i := range errCh {
 		errs = append(errs, i)
 	}
-	if len(errs) == 0 {
-		// If we didn't have an error during collection, then we don't need to do our backup collection.
-		runBackCollection = false
-	} else if len(o.Command) > 0 {
-		// If we had errors, but the user specified a command, he probably just typoed the command.
-		// If the command was specified, don't run the backup collection.
+	if !shouldRunBackupCollection(o.pluginImagesRequested, o.Command, errs) {
 		runBackCollection = false
 	}
 
@@ -1368,6 +1370,39 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 	}
 
 	return ret
+}
+
+// shouldRunBackupCollection reports whether inspect fallback should run after
+// gather errors. Skip it when collection succeeded, when the user passed a
+// custom command (likely a typo), or when a user-specified plugin image could
+// not be pulled (OCPBUGS-122050) — fallback inspect output looks like a
+// successful must-gather and is uploaded to support by mistake.
+func shouldRunBackupCollection(pluginImagesRequested bool, command []string, errs []error) bool {
+	if len(errs) == 0 {
+		return false
+	}
+	if len(command) > 0 {
+		return false
+	}
+	if pluginImagesRequested {
+		for _, err := range errs {
+			if isImagePullFailure(err) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func isImagePullFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "unable to pull image") ||
+		strings.Contains(msg, "ErrImagePull") ||
+		strings.Contains(msg, "ImagePullBackOff") ||
+		strings.Contains(msg, "InvalidImageName")
 }
 
 // BackupGathering is called if the full must-gather has an error.  This is useful for making sure we get *something*
