@@ -140,9 +140,9 @@ func (o *statusOptions) printTopologyTransitionStatus(ctx context.Context) error
 		return err
 	}
 
-	// Pull out the relevant conditions from CCO
-	evaluatedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionCompletedConditionType)
-	completedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionsEvaluatedConditionType)
+	// Pull out the relevant conditions from infrastructure API.
+	evaluatedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionsEvaluatedConditionType)
+	completedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionCompletedConditionType)
 
 	var output strings.Builder
 	fmt.Fprintln(&output, "\nTransition Status")
