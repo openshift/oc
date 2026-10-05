@@ -232,4 +232,4 @@ replace github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-202608191
 
 replace github.com/onsi/ginkgo/v2 => github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20251001123353-fd5b1fb35db1
 
-replace github.com/openshift/api => github.com/jeff-roche/api v0.0.0-20260929204754-616569fc417b
+replace github.com/openshift/api => github.com/jeff-roche/api v0.0.0-20261002194413-1d16a278c5c9

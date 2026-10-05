@@ -289,8 +289,8 @@ github.com/jcmturner/gokrb5/v8 v8.4.4 h1:x1Sv4HaTpepFkXbt2IkL29DXRf8sOfZXo8eRKh6
 github.com/jcmturner/gokrb5/v8 v8.4.4/go.mod h1:1btQEpgT6k+unzCwX1KdWMEwPPkkgBtP+F6aCACiMrs=
 github.com/jcmturner/rpc/v2 v2.0.3 h1:7FXXj8Ti1IaVFpSAziCZWNzbNuZmnvw/i6CqLNdWfZY=
 github.com/jcmturner/rpc/v2 v2.0.3/go.mod h1:VUJYCIDm3PVOEHw8sgt091/20OJjskO/YJki3ELg/Hc=
-github.com/jeff-roche/api v0.0.0-20260929204754-616569fc417b h1:Lptc0Mz7qWeFBCUbBIp8wDJarzoDGmOBD/dELtOzuSY=
-github.com/jeff-roche/api v0.0.0-20260929204754-616569fc417b/go.mod h1:k6qH5QOVa5GDln2VVm8Jz4NV3Z7R2SATHFLwGS6Wh3M=
+github.com/jeff-roche/api v0.0.0-20261002194413-1d16a278c5c9 h1:gsY7+dW/jVe8ywUoipZsI/VpWKSYqqyXP7CxNXa9QkA=
+github.com/jeff-roche/api v0.0.0-20261002194413-1d16a278c5c9/go.mod h1:k6qH5QOVa5GDln2VVm8Jz4NV3Z7R2SATHFLwGS6Wh3M=
 github.com/joelanford/ignore v0.1.2 h1:n/9VnxthX0NVx8VOdB6quLFOV4AcAGqaZOonrXt55HU=
 github.com/joelanford/ignore v0.1.2/go.mod h1:45jOCHVmjfCK/1ZhM05iog2HRkmfv22VqBUgPl+e2iA=
 github.com/jonboulle/clockwork v0.5.0 h1:Hyh9A8u51kptdkR+cqRpT1EebBwTn1oK9YfGYbdFz6I=
