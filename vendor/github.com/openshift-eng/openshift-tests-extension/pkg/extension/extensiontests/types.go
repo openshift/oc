@@ -2,6 +2,7 @@ package extensiontests
 
 import (
 	"context"
+	"time"
 
 	"github.com/openshift-eng/openshift-tests-extension/pkg/dbtime"
 	"github.com/openshift-eng/openshift-tests-extension/pkg/util/sets"
@@ -11,6 +12,12 @@ type Lifecycle string
 
 var LifecycleInforming Lifecycle = "informing"
 var LifecycleBlocking Lifecycle = "blocking"
+
+// IsTerminal returns true if failures in tests with this lifecycle should cause
+// the test run to exit with a non-zero exit code.
+func (l Lifecycle) IsTerminal() bool {
+	return l != LifecycleInforming
+}
 
 type ExtensionTestSpecs []*ExtensionTestSpec
 
@@ -53,6 +60,10 @@ type ExtensionTestSpec struct {
 	// to the `ote-binary run-test "test name"` commmand and interpretting the result.
 	RunParallel func(ctx context.Context) *ExtensionTestResult `json:"-"`
 
+	// Timeout is the maximum duration for this test. If set, it overrides the default 90-minute
+	// timeout used by SpawnProcessToRunTest. This is typically populated from Suite.TestTimeout.
+	Timeout time.Duration `json:"-"`
+
 	// Hook functions
 	afterAll   []*OneTimeTask
 	beforeAll  []*OneTimeTask
@@ -61,15 +72,18 @@ type ExtensionTestSpec struct {
 }
 
 type Resources struct {
-	Isolation Isolation `json:"isolation"`
-	Memory    string    `json:"memory,omitempty"`
-	Duration  string    `json:"duration,omitempty"`
-	Timeout   string    `json:"timeout,omitempty"`
+	Isolation Isolation      `json:"isolation"`
+	ResourcePools map[string]int `json:"resourcePools,omitempty"`
+	Memory    string         `json:"memory,omitempty"`
+	Duration  string         `json:"duration,omitempty"`
+	Timeout   string         `json:"timeout,omitempty"`
 }
 
 type Isolation struct {
-	Mode     string   `json:"mode,omitempty"`
-	Conflict []string `json:"conflict,omitempty"`
+	Mode       string   `json:"mode,omitempty"`
+	Conflict   []string `json:"conflict,omitempty"`
+	Taint      []string `json:"taint,omitempty"`
+	Toleration []string `json:"toleration,omitempty"`
 }
 
 type EnvironmentSelector struct {
