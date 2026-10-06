@@ -1,15 +1,15 @@
-FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.26-openshift-5.0 AS builder
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.26-openshift-5.1 AS builder
 WORKDIR /go/src/github.com/openshift/oc
 COPY . .
 RUN make build --warn-undefined-variables \
       && gzip oc-tests-ext
 
-FROM registry.ci.openshift.org/ocp/5.0:base-rhel9
+FROM registry.ci.openshift.org/ocp/5.1:base-rhel9
 COPY --from=builder /go/src/github.com/openshift/oc/oc /usr/bin/
 COPY --from=builder /go/src/github.com/openshift/oc/oc-tests-ext.gz /usr/bin/oc-tests-ext.gz
 RUN dnf install -y subscription-manager && dnf clean all && rm -rf /var/cache/dnf/*
 RUN for i in kubectl openshift-deploy openshift-docker-build openshift-sti-build openshift-git-clone openshift-manage-dockerfile openshift-extract-image-content openshift-recycle; do ln -sf /usr/bin/oc /usr/bin/$i; done
 LABEL io.k8s.display-name="OpenShift Client" \
       io.k8s.description="OpenShift is a platform for developing, building, and deploying containerized applications." \
-      io.openshift.build.versions="kubectl=1.36.2" \
+      io.openshift.build.versions="kubectl=1.37.1" \
       io.openshift.tags="openshift,cli"
