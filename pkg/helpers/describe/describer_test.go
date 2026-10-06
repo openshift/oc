@@ -16,6 +16,7 @@ import (
 
 	"github.com/openshift/api"
 	appsv1 "github.com/openshift/api/apps/v1"
+	authenticationv1alpha1 "github.com/openshift/api/authentication/v1alpha1"
 	authorizationv1 "github.com/openshift/api/authorization/v1"
 	buildv1 "github.com/openshift/api/build/v1"
 	consolev1 "github.com/openshift/api/console/v1"
@@ -71,6 +72,9 @@ var DescriberCoverageExceptions = []reflect.Type{
 	reflect.TypeOf(&imagev1.ImageSignature{}),
 	// we might want to add this in the future
 	reflect.TypeOf(&imagev1.ImageStreamLayers{}),
+
+	// Generated configuration file read by the oauth-apiserver, not a cluster resource.
+	reflect.TypeOf(&authenticationv1alpha1.AuthenticationConfiguration{}),
 
 	// these resources are descrbied with custom resource definitions
 	reflect.TypeOf(&consolev1.ConsoleCLIDownload{}),
