@@ -43,7 +43,7 @@ func (c RespConditionFunc) HandleResp(resp *http.Response, ctx *ProxyCtx) bool {
 	return c(resp, ctx)
 }
 
-// UrlHasPrefix returns a ReqCondition checking wether the destination URL the proxy client has requested
+// UrlHasPrefix returns a ReqCondition checking whether the destination URL the proxy client has requested
 // has the given prefix, with or without the host.
 // For example UrlHasPrefix("host/x") will match requests of the form 'GET host/x', and will match
 // requests to url 'http://host/x'
@@ -132,7 +132,7 @@ func UrlMatches(re *regexp.Regexp) ReqConditionFunc {
 	}
 }
 
-// DstHostIs returns a ReqCondition testing wether the host in the request url is the given string.
+// DstHostIs returns a ReqCondition testing whether the host in the request url is the given string.
 func DstHostIs(host string) ReqConditionFunc {
 	// Make sure to perform a case-insensitive host check
 	host = strings.ToLower(host)
@@ -294,6 +294,11 @@ func (pcond *ReqProxyConds) HandleConnectFunc(f func(host string, ctx *ProxyCtx)
 	pcond.HandleConnect(FuncHttpsHandler(f))
 }
 
+// HijackConnect registers a handler that takes full control of the raw net.Conn
+// for CONNECT requests that match the aggregated conditions.
+// The handler receives the original HTTP request, the raw client connection, and the proxy context.
+// It is the handler's responsibility to write an HTTP response (e.g. "HTTP/1.1 200 OK\r\n\r\n")
+// and close the connection when done.
 func (pcond *ReqProxyConds) HijackConnect(f func(req *http.Request, client net.Conn, ctx *ProxyCtx)) {
 	pcond.proxy.httpsHandlers = append(pcond.proxy.httpsHandlers,
 		FuncHttpsHandler(func(host string, ctx *ProxyCtx) (*ConnectAction, string) {

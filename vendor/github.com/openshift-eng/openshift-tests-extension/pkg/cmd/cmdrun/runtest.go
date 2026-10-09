@@ -3,9 +3,9 @@ package cmdrun
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
-	"errors"
 	"os/signal"
 	"syscall"
 	"time"
@@ -23,6 +23,7 @@ func NewRunTestCommand(registry *extension.Registry) *cobra.Command {
 		concurrencyFlags *flags.ConcurrencyFlags
 		nameFlags        *flags.NamesFlags
 		outputFlags      *flags.OutputFlags
+		timeout          time.Duration
 	}{
 		componentFlags:   flags.NewComponentFlags(),
 		nameFlags:        flags.NewNamesFlags(),
@@ -37,6 +38,11 @@ func NewRunTestCommand(registry *extension.Registry) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancelCause := context.WithCancelCause(context.Background())
 			defer cancelCause(errors.New("exiting"))
+			if opts.timeout > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, opts.timeout)
+				defer cancel()
+			}
 
 			abortCh := make(chan os.Signal, 2)
 			go func() {
@@ -100,9 +106,11 @@ func NewRunTestCommand(registry *extension.Registry) *cobra.Command {
 			}
 			defer w.Flush()
 
-			return specs.Run(ctx, w, opts.concurrencyFlags.MaxConcurency)
+			_, err = specs.Run(ctx, w, opts.concurrencyFlags.MaxConcurency)
+			return err
 		},
 	}
+	cmd.Flags().DurationVar(&opts.timeout, "timeout", 0, "Maximum duration for the test. When set, the test context will have a deadline, causing blocking operations like PollUntilDone to fail cleanly instead of hanging until the parent kills the process.")
 	opts.componentFlags.BindFlags(cmd.Flags())
 	opts.nameFlags.BindFlags(cmd.Flags())
 	opts.outputFlags.BindFlags(cmd.Flags())
