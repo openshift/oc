@@ -22,9 +22,9 @@ var (
 	statusLong = templates.LongDesc(`
 		Monitor topology transition progress.
 
-		Displays the current control plane and infrastructure topology status,
-		and shows the cluster-config-operator transition conditions to monitor
-		transition progress.
+		Displays the current control plane and infrastructure topology status
+		(both spec and status), the topology transition lifecycle conditions,
+		and CCO operator conditions for transition progress.
 	`)
 
 	statusExample = templates.Examples(`
@@ -37,6 +37,7 @@ var (
 type statusOptions struct {
 	configClient   configv1client.Interface
 	operatorClient operatorv1client.Interface
+	topologyClient topologyTransitionClient
 
 	genericclioptions.IOStreams
 }
@@ -78,6 +79,8 @@ func (o *statusOptions) complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 		return fmt.Errorf("failed to create operator client: %w", err)
 	}
 
+	o.topologyClient = newRESTTopologyClient(o.configClient.ConfigV1().RESTClient())
+
 	return nil
 }
 
@@ -90,42 +93,41 @@ func (o *statusOptions) run(ctx context.Context) error {
 		return err
 	}
 
+	if err := o.printTopologyTransitionLifecycle(ctx); err != nil {
+		return err
+	}
+
 	return o.printTopologyTransitionStatus(ctx)
 }
 
-// printTopologyStatus will output the Control Plane and Infrastructure topologies from spec and status
+// printTopologyStatus outputs the Control Plane and Infrastructure topologies from spec and status
 func (o *statusOptions) printTopologyStatus(ctx context.Context) error {
 	infra, err := o.configClient.ConfigV1().Infrastructures().Get(ctx, infrastructureResourceName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get Infrastructure resource: %w", err)
 	}
 
-	notSet := "(not set)"
-	cpSpecTopology := string(infra.Spec.ControlPlaneTopology)
-	if cpSpecTopology == "" {
-		cpSpecTopology = notSet
+	// Read spec.infrastructureTopology from unstructured (not yet in vendored types)
+	infraSpec, err := o.topologyClient.getInfrastructureTopologySpec(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read infrastructure topology spec: %w", err)
 	}
 
-	cpStatusTopology := string(infra.Status.ControlPlaneTopology)
-	if cpStatusTopology == "" {
-		cpStatusTopology = notSet
-	}
-
-	infraStatusTopology := string(infra.Status.InfrastructureTopology)
-	if infraStatusTopology == "" {
-		infraStatusTopology = notSet
-	}
+	cpSpecTopology := formatTopologyValue(string(infra.Spec.ControlPlaneTopology))
+	cpStatusTopology := formatTopologyValue(string(infra.Status.ControlPlaneTopology))
+	infraSpecTopology := formatTopologyValue(string(infraSpec))
+	infraStatusTopology := formatTopologyValue(string(infra.Status.InfrastructureTopology))
 
 	var output strings.Builder
-	statusOutput := `
+	fmt.Fprintf(&output, `
 Control Plane Topology:
   Spec (desired):   %s
   Status (current): %s
 
 Infrastructure Topology:
+  Spec (desired):   %s
   Status (current): %s
-`
-	fmt.Fprintf(&output, statusOutput, cpSpecTopology, cpStatusTopology, infraStatusTopology)
+`, cpSpecTopology, cpStatusTopology, infraSpecTopology, infraStatusTopology)
 
 	if _, err := io.WriteString(o.Out, output.String()); err != nil {
 		return err
@@ -134,18 +136,59 @@ Infrastructure Topology:
 	return nil
 }
 
+// printTopologyTransitionLifecycle displays the topology transition lifecycle from
+// status.topologyTransitionStatus.conditions on the Infrastructure resource.
+func (o *statusOptions) printTopologyTransitionLifecycle(ctx context.Context) error {
+	transitionStatus, err := o.topologyClient.getTopologyTransitionStatus(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read topology transition status: %w", err)
+	}
+
+	var output strings.Builder
+	fmt.Fprintln(&output, "\nTopology Transition Lifecycle:")
+
+	if transitionStatus == nil || len(transitionStatus.Conditions) == 0 {
+		fmt.Fprintln(&output, "  No topology transition status available")
+		_, err := io.WriteString(o.Out, output.String())
+		return err
+	}
+
+	for _, cond := range transitionStatus.Conditions {
+		fmt.Fprintf(&output, "  %s\n    Status:  %s\n    Reason:  %s\n    Message: %s\n",
+			cond.Type, cond.Status, cond.Reason, cond.Message)
+	}
+
+	// Display per-transition evaluations if transitions are present
+	if len(transitionStatus.Transitions) > 0 {
+		fmt.Fprintln(&output, "\n  Transition Evaluations:")
+		for _, t := range transitionStatus.Transitions {
+			fmt.Fprintf(&output, "    %s\n", describeTransition(&t))
+			for _, eval := range t.Evaluations {
+				marker := "+"
+				if eval.Status == metav1.ConditionFalse {
+					marker = "-"
+				}
+				fmt.Fprintf(&output, "      %s %s: %s\n", marker, eval.Type, eval.Message)
+			}
+		}
+	}
+
+	_, err = io.WriteString(o.Out, output.String())
+	return err
+}
+
+// printTopologyTransitionStatus displays CCO operator conditions for upgrade gating.
 func (o *statusOptions) printTopologyTransitionStatus(ctx context.Context) error {
 	operatorConfig, err := o.operatorClient.OperatorV1().Configs().Get(ctx, clusterConfigOperatorResourceName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get configs.operator.openshift.io/cluster: %w", err)
 	}
 
-	// Pull out the relevant conditions from CCO
 	progressingCond := v1helpers.FindOperatorCondition(operatorConfig.Status.Conditions, topologyTransitionControllerProgressingCondition)
 	upgradeableCond := v1helpers.FindOperatorCondition(operatorConfig.Status.Conditions, topologyTransitionControllerUpgradeableCondition)
 
 	var output strings.Builder
-	fmt.Fprintln(&output, "\nTransition Status")
+	fmt.Fprintln(&output, "\nCCO Transition Conditions:")
 	fmt.Fprintln(&output, formatTopologyConditionStatus("Progressing", progressingCond))
 	fmt.Fprintln(&output, formatTopologyConditionStatus("Upgradeable", upgradeableCond))
 
@@ -153,7 +196,7 @@ func (o *statusOptions) printTopologyTransitionStatus(ctx context.Context) error
 	return err
 }
 
-// formatTopologyConditionStatus formats the provided topology transition condition status under a 'label' heading
+// formatTopologyConditionStatus formats a CCO operator condition for display.
 func formatTopologyConditionStatus(label string, cond *operatorv1.OperatorCondition) string {
 	if cond == nil {
 		return fmt.Sprintf("  %s: Condition not available\n", label)
