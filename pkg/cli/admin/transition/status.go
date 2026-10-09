@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	operatorv1 "github.com/openshift/api/operator/v1"
+	configv1 "github.com/openshift/api/config/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	operatorv1client "github.com/openshift/client-go/operator/clientset/versioned"
-	v1helpers "github.com/openshift/library-go/pkg/operator/v1helpers"
+	metav1helpers "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -135,26 +135,26 @@ Infrastructure Topology:
 }
 
 func (o *statusOptions) printTopologyTransitionStatus(ctx context.Context) error {
-	operatorConfig, err := o.operatorClient.OperatorV1().Configs().Get(ctx, clusterConfigOperatorResourceName, metav1.GetOptions{})
+	infra, err := o.configClient.ConfigV1().Infrastructures().Get(ctx, "cluster", metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get configs.operator.openshift.io/cluster: %w", err)
+		return err
 	}
 
-	// Pull out the relevant conditions from CCO
-	progressingCond := v1helpers.FindOperatorCondition(operatorConfig.Status.Conditions, topologyTransitionControllerProgressingCondition)
-	upgradeableCond := v1helpers.FindOperatorCondition(operatorConfig.Status.Conditions, topologyTransitionControllerUpgradeableCondition)
+	// Pull out the relevant conditions from infrastructure API.
+	evaluatedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionsEvaluatedConditionType)
+	completedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionCompletedConditionType)
 
 	var output strings.Builder
 	fmt.Fprintln(&output, "\nTransition Status")
-	fmt.Fprintln(&output, formatTopologyConditionStatus("Progressing", progressingCond))
-	fmt.Fprintln(&output, formatTopologyConditionStatus("Upgradeable", upgradeableCond))
+	fmt.Fprintln(&output, formatTopologyConditionStatus("Evaluated", evaluatedCond))
+	fmt.Fprintln(&output, formatTopologyConditionStatus("Completed", completedCond))
 
 	_, err = io.WriteString(o.Out, output.String())
 	return err
 }
 
 // formatTopologyConditionStatus formats the provided topology transition condition status under a 'label' heading
-func formatTopologyConditionStatus(label string, cond *operatorv1.OperatorCondition) string {
+func formatTopologyConditionStatus(label string, cond *metav1.Condition) string {
 	if cond == nil {
 		return fmt.Sprintf("  %s: Condition not available\n", label)
 	}
