@@ -222,6 +222,50 @@ func TestOnErrorICSPStrategy(t *testing.T) {
 			image:                "quay.io/ocp-test/release:4.5",
 			imageSourcesExpected: []string{"quay.io/ocp-test/release"},
 		},
+		{
+			name: "wildcard source is skipped",
+			icspList: []operatorv1alpha1.ImageContentSourcePolicy{
+				{
+					Spec: operatorv1alpha1.ImageContentSourcePolicySpec{
+						RepositoryDigestMirrors: []operatorv1alpha1.RepositoryDigestMirrors{
+							{
+								Source: "*.redhat.com",
+								Mirrors: []string{
+									"mirror.internal/redhat",
+								},
+							},
+							{
+								Source: "quay.io/ocp-test/release",
+								Mirrors: []string{
+									"someregistry/mirrors/match",
+								},
+							},
+						},
+					},
+				},
+			},
+			image:                "quay.io/ocp-test/release:4.5",
+			imageSourcesExpected: []string{"quay.io/ocp-test/release", "someregistry/mirrors/match"},
+		},
+		{
+			name: "all wildcard sources skipped returns only original",
+			icspList: []operatorv1alpha1.ImageContentSourcePolicy{
+				{
+					Spec: operatorv1alpha1.ImageContentSourcePolicySpec{
+						RepositoryDigestMirrors: []operatorv1alpha1.RepositoryDigestMirrors{
+							{
+								Source: "*.redhat.com",
+								Mirrors: []string{
+									"mirror.internal/redhat",
+								},
+							},
+						},
+					},
+				},
+			},
+			image:                "quay.io/ocp-test/release:4.5",
+			imageSourcesExpected: []string{"quay.io/ocp-test/release"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -465,6 +509,50 @@ func TestOnErrorIDMSStrategy(t *testing.T) {
 		},
 		{
 			name:                 "no IDMS",
+			image:                "quay.io/ocp-test/release:4.5",
+			imageSourcesExpected: []string{"quay.io/ocp-test/release"},
+		},
+		{
+			name: "wildcard source is skipped",
+			idmsList: []apicfgv1.ImageDigestMirrorSet{
+				{
+					Spec: apicfgv1.ImageDigestMirrorSetSpec{
+						ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{
+							{
+								Source: "*.redhat.com",
+								Mirrors: []apicfgv1.ImageMirror{
+									"mirror.internal/redhat",
+								},
+							},
+							{
+								Source: "quay.io/ocp-test/release",
+								Mirrors: []apicfgv1.ImageMirror{
+									"someregistry/mirrors/match",
+								},
+							},
+						},
+					},
+				},
+			},
+			image:                "quay.io/ocp-test/release:4.5",
+			imageSourcesExpected: []string{"quay.io/ocp-test/release", "someregistry/mirrors/match"},
+		},
+		{
+			name: "all wildcard sources skipped returns only original",
+			idmsList: []apicfgv1.ImageDigestMirrorSet{
+				{
+					Spec: apicfgv1.ImageDigestMirrorSetSpec{
+						ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{
+							{
+								Source: "*.redhat.com",
+								Mirrors: []apicfgv1.ImageMirror{
+									"mirror.internal/redhat",
+								},
+							},
+						},
+					},
+				},
+			},
 			image:                "quay.io/ocp-test/release:4.5",
 			imageSourcesExpected: []string{"quay.io/ocp-test/release"},
 		},
