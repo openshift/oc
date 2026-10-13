@@ -1065,7 +1065,7 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 		if _, ok := out[k]; ok {
 			continue
 		}
-		version := v.List()[0]
+		version := strings.Join(v.List(), ", ")
 		if out == nil {
 			out = make(ComponentVersions)
 		}
@@ -1085,7 +1085,7 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 			continue
 		}
 		if len(version.DisplayName) == 0 {
-			version.DisplayName = v.List()[0]
+			version.DisplayName = strings.Join(v.List(), ", ")
 		}
 		out[k] = version
 	}
