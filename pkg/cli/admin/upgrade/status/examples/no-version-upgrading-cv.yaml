@@ -1,0 +1,118 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2024-12-10T17:46:47Z"
+  generation: 3
+  name: version
+  resourceVersion: "61415"
+  uid: 278e159b-02b8-4f2e-a073-afc658fc9097
+spec:
+  channel: candidate-4.18
+  clusterID: c2602815-2ff1-4587-9960-bf7655398bfc
+  desiredUpdate:
+    architecture: Multi
+    force: false
+    image: ""
+    version: 4.18.0-ec.3
+  upstream: https://api.integration.openshift.com/api/upgrades_info/graph
+status:
+  availableUpdates:
+  - channels:
+    - candidate-4.18
+    - candidate-4.19
+    image: quay.io/openshift-release-dev/ocp-release@sha256:5011ea2439701102c69b934230c167931c41bceb4f360f6fefc8e9812cadb010
+    url: https://access.redhat.com/errata/RHEA-2024:6122
+    version: 4.18.0-rc.1
+  - channels:
+    - candidate-4.18
+    - candidate-4.19
+    image: quay.io/openshift-release-dev/ocp-release@sha256:411c06c5d4dff602e651eb79e2917bdef575c56f050b587fac8fb16acf3ddb1c
+    url: https://access.redhat.com/errata/RHEA-2024:6122
+    version: 4.18.0-rc.0
+  - channels:
+    - candidate-4.18
+    - candidate-4.19
+    image: quay.io/openshift-release-dev/ocp-release@sha256:4c8d8518d1f65a69bcda98bb10e8724bd9f7d4316144a92f448bbc17ff7d9003
+    version: 4.18.0-ec.4
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2024-12-10T17:47:22Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2024-12-10T17:47:22Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2024-12-10T17:47:22Z"
+    message: Payload loaded version="4.18.0-ec.3" image="quay.io/openshift-release-dev/ocp-release@sha256:79347bc3313a05e374a40fe47de804e23cc14f795ee51699721e459706cfe2c0"
+      architecture="Multi"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2024-12-10T18:12:00Z"
+    message: Done applying 4.18.0-ec.3
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2024-12-10T18:12:00Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2024-12-10T18:43:54Z"
+    message: Cluster version is 4.18.0-ec.3
+    status: "False"
+    type: Progressing
+  desired:
+    channels:
+    - candidate-4.18
+    - candidate-4.19
+    image: quay.io/openshift-release-dev/ocp-release@sha256:79347bc3313a05e374a40fe47de804e23cc14f795ee51699721e459706cfe2c0
+    version: 4.18.0-ec.3
+  history:
+  - completionTime: "2024-12-10T18:43:54Z"
+    image: quay.io/openshift-release-dev/ocp-release@sha256:79347bc3313a05e374a40fe47de804e23cc14f795ee51699721e459706cfe2c0
+    startedTime: "2024-12-10T18:19:30Z"
+    state: Completed
+    verified: true
+    version: 4.18.0-ec.3
+  - completionTime: "2024-12-10T18:12:00Z"
+    image: registry.build09.ci.openshift.org/ci-ln-tidizct/release@sha256:d2d34aafe0adda79953dd928b946ecbda34673180ee9a80d2ee37c123a0f510c
+    startedTime: "2024-12-10T17:47:22Z"
+    state: Completed
+    verified: false
+    version: 4.18.0-ec.3
+  observedGeneration: 3
+  versionHash: jHUy9-YG7Pw=

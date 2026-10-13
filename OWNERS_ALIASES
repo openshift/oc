@@ -1,0 +1,55 @@
+# See the OWNERS_ALIASES docs: https://git.k8s.io/community/contributors/guide/owners.md#OWNERS_ALIASES
+
+aliases:
+  root-approvers:
+    - ardaguclu
+    - atiratree
+    - ingvagabund
+  root-reviewers:
+    - ardaguclu
+    - atiratree
+    - ingvagabund
+    - tchap
+  monitoring-approvers:
+    - danielmellado
+    - jan--f
+    - machine424
+    - marioferh
+    - rexagod
+    - simonpasquier
+    - slashpai
+  update-approvers:
+    - DavidHurta
+    - wking
+    - hongkailiu
+  catalog-approvers:
+    - awgreene
+    - perdasilva
+  catalog-reviewers:
+    - awgreene
+    - perdasilva
+    - tylerslaton
+  build-reviewers:
+    - adambkaplan
+    - gabemontero
+    - coreydaley
+  build-approvers:
+    - coreydaley
+  storage-reviewers:
+    - jsafrane
+    - tsmetana
+    - gnufied
+    - dobsonj
+    - RomanBednar
+    - mpatlasov
+    - rhrmo
+    - dfajmon
+  storage-approvers: 
+    - jsafrane
+    - tsmetana
+    - gnufied
+    - dobsonj
+    - RomanBednar
+    - mpatlasov
+    - rhrmo
+    - dfajmon

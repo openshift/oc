@@ -1,0 +1,35 @@
+= Control Plane =
+Assessment:      Progressing - Slow
+Target Version:  4.20.0-0.nightly-2025-08-19-180353 (from 4.20.0-0.nightly-2025-08-12-153542)
+Updating:        machine-config
+Completion:      97% (33 operators updated, 1 updating, 0 waiting)
+Duration:        2h3m (Est. Time Remaining: <10m)
+Operator Health: 31 Healthy, 3 Available but degraded
+
+Control Plane Nodes
+NAME                                  ASSESSMENT   PHASE      VERSION                              EST   MESSAGE
+ci-op-pw3ghqzh-bb5c4-pdhfc-master-1   Degraded     Updating   4.20.0-0.nightly-2025-08-12-153542   ?     failed to run command nice (6 tries): [timed out waiting for the condition, running nice -- ionice -c 3 podman pull -q --authfile /var/lib/kubelet/config.json quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0 failed: time="2025-08-19T22:13:54Z" level=warning msg="Failed, retrying in 1s ... (1/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \"https://quay.io/v2/\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:40349->168.63.129.16:53: i/o timeout"
+time="2025-08-19T22:14:05Z" level=warning msg="Failed, retrying in 1s ... (2/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \"https://quay.io/v2/\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:36467->168.63.129.16:53: i/o timeout"
+time="2025-08-19T22:14:16Z" level=warning msg="Failed, retrying in 1s ... (3/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \"https://quay.io/v2/\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:44244->168.63.129.16:53: i/o timeout"
+Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get "https://quay.io/v2/": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:48400->168.63.129.16:53: i/o timeout
+: exit status 125]
+ci-op-pw3ghqzh-bb5c4-pdhfc-master-0   Outdated    Pending   4.20.0-0.nightly-2025-08-12-153542   ?   
+ci-op-pw3ghqzh-bb5c4-pdhfc-master-2   Completed   Updated   4.20.0-0.nightly-2025-08-19-180353   -   
+
+= Worker Upgrade =
+
+WORKER POOL   ASSESSMENT   COMPLETION   STATUS
+worker        Completed    100% (3/3)   3 Available, 0 Progressing, 0 Draining
+
+Worker Pool Nodes: worker
+NAME                                                 ASSESSMENT   PHASE     VERSION                              EST   MESSAGE
+ci-op-pw3ghqzh-bb5c4-pdhfc-worker-centralus1-dlxfb   Completed    Updated   4.20.0-0.nightly-2025-08-19-180353   -     
+ci-op-pw3ghqzh-bb5c4-pdhfc-worker-centralus2-84x5p   Completed    Updated   4.20.0-0.nightly-2025-08-19-180353   -     
+ci-op-pw3ghqzh-bb5c4-pdhfc-worker-centralus3-rc5fl   Completed    Updated   4.20.0-0.nightly-2025-08-19-180353   -     
+
+= Update Health =
+SINCE   LEVEL     IMPACT             MESSAGE
+-       Error     Update Stalled     Node ci-op-pw3ghqzh-bb5c4-pdhfc-master-1 is degraded
+8m55s   Warning   API Availability   Cluster Operator machine-config is degraded (RequiredPoolsFailed)
+
+Run with --details=health for additional description and links to related online documentation

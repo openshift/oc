@@ -1,0 +1,6 @@
+reviewers:
+  - root-reviewers
+approvers:
+  - root-approvers
+component: "oc"
+subcomponent: "oc"

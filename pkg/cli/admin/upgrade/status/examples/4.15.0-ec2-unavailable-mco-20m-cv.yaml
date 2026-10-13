@@ -1,0 +1,110 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2023-11-24T13:41:02Z"
+  generation: 8
+  name: version
+  resourceVersion: "90404"
+  uid: 464bf0eb-d862-49c3-bda3-e62e5112a676
+spec:
+  channel: test
+  clusterID: e2ac3f7e-bfb1-4fd1-86e4-b8a171babe7e
+  desiredUpdate:
+    architecture: ""
+    force: true
+    image: quay.io/openshift-release-dev/ocp-release:4.15.0-ec.2-x86_64
+    version: ""
+  upstream: https://gist.githubusercontent.com/petr-muller/900d7aca629e5627abab695941b00a36/raw/cluster-bot-4.14.0-rc.3.json?cachebust=9322
+status:
+  availableUpdates: null
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2023-11-24T14:49:43Z"
+    message: 'Unable to retrieve available updates: currently reconciling cluster
+      version 4.15.0-ec.2 not found in the "test" channel'
+    reason: VersionNotFound
+    status: "False"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2023-11-24T14:49:43Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2023-11-24T13:41:05Z"
+    message: Payload loaded version="4.15.0-ec.2" image="quay.io/openshift-release-dev/ocp-release:4.15.0-ec.2-x86_64"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2023-11-24T13:58:50Z"
+    message: Done applying 4.14.0-rc.3
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2023-11-24T15:48:28Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2023-11-24T14:49:35Z"
+    message: 'Working towards 4.15.0-ec.2: 110 of 863 done (12% complete), waiting
+      up to 40 minutes on etcd'
+    reason: ClusterOperatorDegraded
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2023-11-24T15:29:11Z"
+    message: |-
+      Multiple cluster operators should not be upgraded between minor versions:
+      * Cluster operator control-plane-machine-set should not be upgraded between minor versions: AsExpected: cluster operator is not upgradable
+      * Cluster operator machine-config should not be upgraded between minor versions: PoolUpdating: One or more machine config pools are updating, please see `oc get mcp` for further details
+    reason: ClusterOperatorsNotUpgradeable
+    status: "False"
+    type: Upgradeable
+  desired:
+    image: quay.io/openshift-release-dev/ocp-release:4.15.0-ec.2-x86_64
+    version: 4.15.0-ec.2
+  history:
+  - acceptedRisks: |-
+      Target release version="" image="quay.io/openshift-release-dev/ocp-release:4.15.0-ec.2-x86_64" cannot be verified, but continuing anyway because the update was forced: release images that are not accessed via digest cannot be verified
+      Forced through blocking failures: Multiple precondition checks failed:
+      * Precondition "EtcdRecentBackup" failed because of "ControllerStarted": RecentBackup: The etcd backup controller is starting, and will decide if recent backups are available or if a backup is required
+      * Precondition "ClusterVersionRecommendedUpdate" failed because of "UnknownUpdate": RetrievedUpdates=True (), so the update from 4.14.0-rc.3 to 4.15.0-ec.2 is probably neither recommended nor supported.
+    completionTime: null
+    image: quay.io/openshift-release-dev/ocp-release:4.15.0-ec.2-x86_64
+    startedTime: "2023-11-24T14:49:35Z"
+    state: Partial
+    verified: false
+    version: 4.15.0-ec.2
+  - completionTime: "2023-11-24T13:58:50Z"
+    image: registry.build05.ci.openshift.org/ci-ln-lqpmcqt/release@sha256:a4cb1959bcfbc92571ffdd1ad5873107e32972be4dbd5c4ee4c9221bc907a216
+    startedTime: "2023-11-24T13:41:05Z"
+    state: Completed
+    verified: false
+    version: 4.14.0-rc.3
+  observedGeneration: 8
+  versionHash: GrngLsimoZQ=

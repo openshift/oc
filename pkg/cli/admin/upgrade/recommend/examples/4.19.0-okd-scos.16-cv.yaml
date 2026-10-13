@@ -1,0 +1,93 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  creationTimestamp: "2025-09-09T16:25:09Z"
+  generation: 3
+  name: version
+  resourceVersion: "31455"
+  uid: 31502537-d38e-4652-a5a6-18b0d767b354
+spec:
+  channel: stable-scos-4
+  clusterID: 7a18f603-2a0c-4794-af53-85bdae9b8ea9
+  upstream: https://amd64.origin.releases.ci.openshift.org/graph
+status:
+  availableUpdates:
+  - image: registry.ci.openshift.org/origin/release-scos-next@sha256:b6430869aa840778c75602ab4a5bf7230c090dfabb645a2a768a521bcb658bef
+    version: 4.20.0-okd-scos.ec.14
+  - image: registry.ci.openshift.org/origin/release-scos@sha256:2e3cb282ddd10ee85fa36ce08b515c48ca1ae6735d7d17d114f228de06be3c87
+    version: 4.19.0-okd-scos.17
+  capabilities:
+    enabledCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+    knownCapabilities:
+    - Build
+    - CSISnapshot
+    - CloudControllerManager
+    - CloudCredential
+    - Console
+    - DeploymentConfig
+    - ImageRegistry
+    - Ingress
+    - Insights
+    - MachineAPI
+    - NodeTuning
+    - OperatorLifecycleManager
+    - OperatorLifecycleManagerV1
+    - Storage
+    - baremetal
+    - marketplace
+    - openshift-samples
+  conditions:
+  - lastTransitionTime: "2025-09-09T16:58:30Z"
+    status: "True"
+    type: RetrievedUpdates
+  - lastTransitionTime: "2025-09-09T16:25:36Z"
+    message: Capabilities match configured spec
+    reason: AsExpected
+    status: "False"
+    type: ImplicitlyEnabledCapabilities
+  - lastTransitionTime: "2025-09-09T16:25:36Z"
+    message: Payload loaded version="4.19.0-okd-scos.16" image="registry.build10.ci.openshift.org/ci-ln-plnvytb/release@sha256:247510938f0d61afa2daaa4fc73b81b54c3e78935550cf2233dac9d68c0095bf"
+      architecture="amd64"
+    reason: PayloadLoaded
+    status: "True"
+    type: ReleaseAccepted
+  - lastTransitionTime: "2025-09-09T16:55:08Z"
+    message: Done applying 4.19.0-okd-scos.16
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2025-09-09T16:55:08Z"
+    status: "False"
+    type: Failing
+  - lastTransitionTime: "2025-09-09T16:55:08Z"
+    message: Cluster version is 4.19.0-okd-scos.16
+    status: "False"
+    type: Progressing
+  desired:
+    image: registry.build10.ci.openshift.org/ci-ln-plnvytb/release@sha256:247510938f0d61afa2daaa4fc73b81b54c3e78935550cf2233dac9d68c0095bf
+    version: 4.19.0-okd-scos.16
+  history:
+  - completionTime: "2025-09-09T16:55:08Z"
+    image: registry.build10.ci.openshift.org/ci-ln-plnvytb/release@sha256:247510938f0d61afa2daaa4fc73b81b54c3e78935550cf2233dac9d68c0095bf
+    startedTime: "2025-09-09T16:25:36Z"
+    state: Completed
+    verified: false
+    version: 4.19.0-okd-scos.16
+  observedGeneration: 2
+  versionHash: XI4117989oE=

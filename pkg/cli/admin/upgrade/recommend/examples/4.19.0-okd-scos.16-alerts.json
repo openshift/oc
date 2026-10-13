@@ -1,0 +1,110 @@
+{
+  "status": "success",
+  "data": {
+    "alerts": [
+      {
+        "labels": {
+          "alertname": "UpdateAvailable",
+          "channel": "stable-scos-4",
+          "namespace": "openshift-cluster-version",
+          "severity": "info",
+          "upstream": "https://amd64.origin.releases.ci.openshift.org/graph"
+        },
+        "annotations": {
+          "description": "For more information refer to 'oc adm upgrade' or https://console-openshift-console.apps.ci-ln-plnvytb-76ef8.aws-2.ci.openshift.org/settings/cluster/.",
+          "summary": "Your upstream update recommendation service recommends you update your cluster."
+        },
+        "state": "firing",
+        "activeAt": "2025-09-09T16:59:17.077287821Z",
+        "value": "2e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "InsightsRecommendationActive",
+          "container": "insights-operator",
+          "description": "GSS does not provide enterprise-level support for an OKD cluster",
+          "endpoint": "https",
+          "info_link": "https://console.redhat.com/openshift/insights/advisor/clusters/7a18f603-2a0c-4794-af53-85bdae9b8ea9?first=ccx_rules_ocp.external.rules.okd_cluster_unsupported%7COKD_CLUSTER_UNSUPPORTED",
+          "instance": "10.130.0.31:8443",
+          "job": "metrics",
+          "namespace": "openshift-insights",
+          "pod": "insights-operator-b8b5f97fc-kl8rr",
+          "service": "metrics",
+          "severity": "info",
+          "total_risk": "Moderate"
+        },
+        "annotations": {
+          "description": "Insights recommendation \"GSS does not provide enterprise-level support for an OKD cluster\" with total risk \"Moderate\" was detected on the cluster. More information is available at https://console.redhat.com/openshift/insights/advisor/clusters/7a18f603-2a0c-4794-af53-85bdae9b8ea9?first=ccx_rules_ocp.external.rules.okd_cluster_unsupported%7COKD_CLUSTER_UNSUPPORTED.",
+          "summary": "An Insights recommendation is active for this cluster."
+        },
+        "state": "firing",
+        "activeAt": "2025-09-09T16:52:41.445352906Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "MachineWithNoRunningPhase",
+          "name": "ci-ln-plnvytb-76ef8-42h8v-worker-us-east-1a-84pg2",
+          "namespace": "openshift-machine-api",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "The machine has been without a Running or Deleting phase for more than 60 minutes.\nThe machine may not have been provisioned properly from the infrastructure provider, or\nit might have issues with CertificateSigningRequests being approved.\n",
+          "summary": "machine ci-ln-plnvytb-76ef8-42h8v-worker-us-east-1a-84pg2 is in phase: "
+        },
+        "state": "pending",
+        "activeAt": "2025-09-09T16:49:56.763336056Z",
+        "value": "1.757435418e+09",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "MachineWithoutValidNode",
+          "name": "ci-ln-plnvytb-76ef8-42h8v-worker-us-east-1a-84pg2",
+          "namespace": "openshift-machine-api",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "If the machine never became a node, you should diagnose the machine related failures.\nIf the node was deleted from the API, you may delete the machine if appropriate.\n",
+          "summary": "machine ci-ln-plnvytb-76ef8-42h8v-worker-us-east-1a-84pg2 does not have valid node reference"
+        },
+        "state": "pending",
+        "activeAt": "2025-09-09T16:50:09.495523066Z",
+        "value": "1.757435418e+09",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "Watchdog",
+          "namespace": "openshift-monitoring",
+          "severity": "none"
+        },
+        "annotations": {
+          "description": "This is an alert meant to ensure that the entire alerting pipeline is functional.\nThis alert is always firing, therefore it should always be firing in Alertmanager\nand always fire against a receiver. There are integrations with various notification\nmechanisms that send a notification when this alert is not firing. For example the\n\"DeadMansSnitch\" integration in PagerDuty.\n",
+          "summary": "An alert that should always be firing to certify that Alertmanager is working properly."
+        },
+        "state": "firing",
+        "activeAt": "2025-09-09T16:49:43.072462926Z",
+        "value": "1e+00",
+        "partialResponseStrategy": "WARN"
+      },
+      {
+        "labels": {
+          "alertname": "AlertmanagerReceiversNotConfigured",
+          "namespace": "openshift-monitoring",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "Alerts are not configured to be sent to a notification system, meaning that you may not be notified in a timely fashion when important failures occur. Check the OpenShift documentation to learn how to configure notifications with Alertmanager.",
+          "summary": "Receivers (notification integrations) are not configured on Alertmanager"
+        },
+        "state": "firing",
+        "activeAt": "2025-09-09T16:49:57.248935554Z",
+        "value": "0e+00",
+        "partialResponseStrategy": "WARN"
+      }
+    ]
+  }
+}

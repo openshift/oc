@@ -1,0 +1,30 @@
+{
+  "apiVersion": "machineconfiguration.openshift.io/v1",
+  "kind": "MachineConfig",
+  "metadata": {
+    "labels": null
+  },
+  "spec": {
+    "config": {
+      "ignition": {
+        "config": {},
+        "security": {
+          "tls": {}
+        },
+        "timeouts": {},
+        "version": "3.1.0"
+      },
+      "storage": {
+        "files": [
+          {
+            "contents": {
+              "source": "data:,1%0A"
+            },
+            "mode": 420,
+            "path": "/etc/kubernetes/machine-config-operator-oc-initiated-reboot-number"
+          }
+        ]
+      }
+    }
+  }
+}

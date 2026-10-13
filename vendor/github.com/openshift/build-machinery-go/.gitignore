@@ -1,0 +1,2 @@
+*.log.raw
+make/examples/golang-versions-check/_output/

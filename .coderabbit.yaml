@@ -1,0 +1,14 @@
+inheritance: true
+reviews:
+  path_filters:
+  - "!docs/generated/**"
+  - "!contrib/completions/**"
+  - "!vendor/**"
+  - "!testdata/**"
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+    - AGENTS.md
+  learnings:
+    scope: local

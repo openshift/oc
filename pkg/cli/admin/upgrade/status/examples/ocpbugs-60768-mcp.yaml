@@ -1,0 +1,434 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "machineconfiguration.openshift.io/v1",
+            "kind": "MachineConfigPool",
+            "metadata": {
+                "creationTimestamp": "2025-08-19T18:55:10Z",
+                "generation": 3,
+                "labels": {
+                    "machineconfiguration.openshift.io/mco-built-in": "",
+                    "operator.machineconfiguration.openshift.io/required-for-upgrade": "",
+                    "pools.operator.machineconfiguration.openshift.io/master": ""
+                },
+                "name": "master",
+                "resourceVersion": "108518",
+                "uid": "8bcdea4d-5638-4bd5-9ff2-b0d669977136"
+            },
+            "spec": {
+                "configuration": {
+                    "name": "rendered-master-505a1e08a37430cbe1ee421928f810ec",
+                    "source": [
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "00-master"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "01-master-container-runtime"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "01-master-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "97-master-generated-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "98-master-generated-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "99-installer-ignition-master"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "99-master-generated-registries"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "99-master-ssh"
+                        }
+                    ]
+                },
+                "machineConfigSelector": {
+                    "matchLabels": {
+                        "machineconfiguration.openshift.io/role": "master"
+                    }
+                },
+                "nodeSelector": {
+                    "matchLabels": {
+                        "node-role.kubernetes.io/master": ""
+                    }
+                },
+                "paused": false
+            },
+            "status": {
+                "certExpirys": [
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2035-08-17T18:12:00Z",
+                        "subject": "CN=admin-kubeconfig-signer,OU=openshift"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2025-08-20T18:12:04Z",
+                        "subject": "CN=kube-csr-signer_@1755629664"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2025-08-20T18:12:04Z",
+                        "subject": "CN=kubelet-signer,OU=openshift"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2026-08-19T18:12:04Z",
+                        "subject": "CN=kube-apiserver-to-kubelet-signer,OU=openshift"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2026-08-19T18:12:04Z",
+                        "subject": "CN=kube-control-plane-signer,OU=openshift"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2035-08-17T18:12:01Z",
+                        "subject": "CN=kubelet-bootstrap-kubeconfig-signer,OU=openshift"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2028-08-18T18:54:23Z",
+                        "subject": "CN=openshift-kube-apiserver-operator_node-system-admin-signer@1755629662"
+                    }
+                ],
+                "conditions": [
+                    {
+                        "lastTransitionTime": "2025-08-19T18:55:59Z",
+                        "message": "",
+                        "reason": "",
+                        "status": "False",
+                        "type": "PinnedImageSetsDegraded"
+                    },
+                    {
+                        "lastTransitionTime": "2025-08-19T18:56:00Z",
+                        "message": "",
+                        "reason": "",
+                        "status": "False",
+                        "type": "RenderDegraded"
+                    },
+                    {
+                        "lastTransitionTime": "2025-08-19T20:57:36Z",
+                        "message": "",
+                        "reason": "",
+                        "status": "False",
+                        "type": "Updated"
+                    },
+                    {
+                        "lastTransitionTime": "2025-08-19T20:57:36Z",
+                        "message": "All nodes are updating to MachineConfig rendered-master-505a1e08a37430cbe1ee421928f810ec",
+                        "reason": "",
+                        "status": "True",
+                        "type": "Updating"
+                    },
+                    {
+                        "lastTransitionTime": "2025-08-19T21:16:02Z",
+                        "message": "Node ci-op-pw3ghqzh-bb5c4-pdhfc-master-1 is reporting: \"Node ci-op-pw3ghqzh-bb5c4-pdhfc-master-1 upgrade failure. failed to run command nice (6 tries): [timed out waiting for the condition, running nice -- ionice -c 3 podman pull -q --authfile /var/lib/kubelet/config.json quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0 failed: time=\\\"2025-08-19T22:13:54Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (1/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:40349-\u003e168.63.129.16:53: i/o timeout\\\"\\ntime=\\\"2025-08-19T22:14:05Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (2/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:36467-\u003e168.63.129.16:53: i/o timeout\\\"\\ntime=\\\"2025-08-19T22:14:16Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (3/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:44244-\u003e168.63.129.16:53: i/o timeout\\\"\\nError: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\"https://quay.io/v2/\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:48400-\u003e168.63.129.16:53: i/o timeout\\n: exit status 125]\", Node ci-op-pw3ghqzh-bb5c4-pdhfc-master-1 is reporting: \"failed to run command nice (6 tries): [timed out waiting for the condition, running nice -- ionice -c 3 podman pull -q --authfile /var/lib/kubelet/config.json quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0 failed: time=\\\"2025-08-19T22:13:54Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (1/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:40349-\u003e168.63.129.16:53: i/o timeout\\\"\\ntime=\\\"2025-08-19T22:14:05Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (2/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:36467-\u003e168.63.129.16:53: i/o timeout\\\"\\ntime=\\\"2025-08-19T22:14:16Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (3/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:44244-\u003e168.63.129.16:53: i/o timeout\\\"\\nError: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\"https://quay.io/v2/\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:48400-\u003e168.63.129.16:53: i/o timeout\\n: exit status 125]\"",
+                        "reason": "1 nodes are reporting degraded status on sync",
+                        "status": "True",
+                        "type": "NodeDegraded"
+                    },
+                    {
+                        "lastTransitionTime": "2025-08-19T21:16:02Z",
+                        "message": "Node ci-op-pw3ghqzh-bb5c4-pdhfc-master-1 is reporting: \"Node ci-op-pw3ghqzh-bb5c4-pdhfc-master-1 upgrade failure. failed to run command nice (6 tries): [timed out waiting for the condition, running nice -- ionice -c 3 podman pull -q --authfile /var/lib/kubelet/config.json quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0 failed: time=\\\"2025-08-19T22:13:54Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (1/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:40349-\u003e168.63.129.16:53: i/o timeout\\\"\\ntime=\\\"2025-08-19T22:14:05Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (2/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:36467-\u003e168.63.129.16:53: i/o timeout\\\"\\ntime=\\\"2025-08-19T22:14:16Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (3/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:44244-\u003e168.63.129.16:53: i/o timeout\\\"\\nError: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\"https://quay.io/v2/\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:48400-\u003e168.63.129.16:53: i/o timeout\\n: exit status 125]\", Node ci-op-pw3ghqzh-bb5c4-pdhfc-master-1 is reporting: \"failed to run command nice (6 tries): [timed out waiting for the condition, running nice -- ionice -c 3 podman pull -q --authfile /var/lib/kubelet/config.json quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0 failed: time=\\\"2025-08-19T22:13:54Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (1/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:40349-\u003e168.63.129.16:53: i/o timeout\\\"\\ntime=\\\"2025-08-19T22:14:05Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (2/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:36467-\u003e168.63.129.16:53: i/o timeout\\\"\\ntime=\\\"2025-08-19T22:14:16Z\\\" level=warning msg=\\\"Failed, retrying in 1s ... (3/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\\\\\"https://quay.io/v2/\\\\\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:44244-\u003e168.63.129.16:53: i/o timeout\\\"\\nError: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:56bab0cd6a692bb7021640889ca69a11d6fc6df1af210c4e24d4feef81c6d7b0: pinging container registry quay.io: Get \\\"https://quay.io/v2/\\\": dial tcp: lookup quay.io on 168.63.129.16:53: read udp 10.0.0.6:48400-\u003e168.63.129.16:53: i/o timeout\\n: exit status 125]\"",
+                        "reason": "",
+                        "status": "True",
+                        "type": "Degraded"
+                    }
+                ],
+                "configuration": {
+                    "name": "rendered-master-51b9bd96466b1461e8a9b84416e4405b",
+                    "source": [
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "00-master"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "01-master-container-runtime"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "01-master-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "97-master-generated-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "98-master-generated-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "99-installer-ignition-master"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "99-master-generated-registries"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "99-master-ssh"
+                        }
+                    ]
+                },
+                "degradedMachineCount": 1,
+                "machineCount": 3,
+                "observedGeneration": 3,
+                "poolSynchronizersStatus": [
+                    {
+                        "availableMachineCount": 2,
+                        "machineCount": 3,
+                        "poolSynchronizerType": "PinnedImageSets",
+                        "readyMachineCount": 1,
+                        "unavailableMachineCount": 1,
+                        "updatedMachineCount": 3
+                    }
+                ],
+                "readyMachineCount": 1,
+                "unavailableMachineCount": 1,
+                "updatedMachineCount": 1
+            }
+        },
+        {
+            "apiVersion": "machineconfiguration.openshift.io/v1",
+            "kind": "MachineConfigPool",
+            "metadata": {
+                "creationTimestamp": "2025-08-19T18:55:10Z",
+                "generation": 3,
+                "labels": {
+                    "machineconfiguration.openshift.io/mco-built-in": "",
+                    "pools.operator.machineconfiguration.openshift.io/worker": ""
+                },
+                "name": "worker",
+                "resourceVersion": "89942",
+                "uid": "19c9702b-1ecf-4c47-ab1e-0bf44aeb0869"
+            },
+            "spec": {
+                "configuration": {
+                    "name": "rendered-worker-2b807ab49e9d8a7040a5bcc4085e31c1",
+                    "source": [
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "00-worker"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "01-worker-container-runtime"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "01-worker-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "97-worker-generated-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "98-worker-generated-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "99-worker-generated-registries"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "99-worker-ssh"
+                        }
+                    ]
+                },
+                "machineConfigSelector": {
+                    "matchLabels": {
+                        "machineconfiguration.openshift.io/role": "worker"
+                    }
+                },
+                "nodeSelector": {
+                    "matchLabels": {
+                        "node-role.kubernetes.io/worker": ""
+                    }
+                },
+                "paused": false
+            },
+            "status": {
+                "certExpirys": [
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2035-08-17T18:12:00Z",
+                        "subject": "CN=admin-kubeconfig-signer,OU=openshift"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2025-08-20T18:12:04Z",
+                        "subject": "CN=kube-csr-signer_@1755629664"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2025-08-20T18:12:04Z",
+                        "subject": "CN=kubelet-signer,OU=openshift"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2026-08-19T18:12:04Z",
+                        "subject": "CN=kube-apiserver-to-kubelet-signer,OU=openshift"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2026-08-19T18:12:04Z",
+                        "subject": "CN=kube-control-plane-signer,OU=openshift"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2035-08-17T18:12:01Z",
+                        "subject": "CN=kubelet-bootstrap-kubeconfig-signer,OU=openshift"
+                    },
+                    {
+                        "bundle": "KubeAPIServerServingCAData",
+                        "expiry": "2028-08-18T18:54:23Z",
+                        "subject": "CN=openshift-kube-apiserver-operator_node-system-admin-signer@1755629662"
+                    }
+                ],
+                "conditions": [
+                    {
+                        "lastTransitionTime": "2025-08-19T18:55:59Z",
+                        "message": "",
+                        "reason": "",
+                        "status": "False",
+                        "type": "PinnedImageSetsDegraded"
+                    },
+                    {
+                        "lastTransitionTime": "2025-08-19T18:56:00Z",
+                        "message": "",
+                        "reason": "",
+                        "status": "False",
+                        "type": "RenderDegraded"
+                    },
+                    {
+                        "lastTransitionTime": "2025-08-19T18:56:04Z",
+                        "message": "",
+                        "reason": "",
+                        "status": "False",
+                        "type": "NodeDegraded"
+                    },
+                    {
+                        "lastTransitionTime": "2025-08-19T18:56:04Z",
+                        "message": "",
+                        "reason": "",
+                        "status": "False",
+                        "type": "Degraded"
+                    },
+                    {
+                        "lastTransitionTime": "2025-08-19T21:15:50Z",
+                        "message": "All nodes are updated with MachineConfig rendered-worker-2b807ab49e9d8a7040a5bcc4085e31c1",
+                        "reason": "",
+                        "status": "True",
+                        "type": "Updated"
+                    },
+                    {
+                        "lastTransitionTime": "2025-08-19T21:15:50Z",
+                        "message": "",
+                        "reason": "",
+                        "status": "False",
+                        "type": "Updating"
+                    }
+                ],
+                "configuration": {
+                    "name": "rendered-worker-2b807ab49e9d8a7040a5bcc4085e31c1",
+                    "source": [
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "00-worker"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "01-worker-container-runtime"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "01-worker-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "97-worker-generated-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "98-worker-generated-kubelet"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "99-worker-generated-registries"
+                        },
+                        {
+                            "apiVersion": "machineconfiguration.openshift.io/v1",
+                            "kind": "MachineConfig",
+                            "name": "99-worker-ssh"
+                        }
+                    ]
+                },
+                "degradedMachineCount": 0,
+                "machineCount": 3,
+                "observedGeneration": 3,
+                "poolSynchronizersStatus": [
+                    {
+                        "availableMachineCount": 3,
+                        "machineCount": 3,
+                        "poolSynchronizerType": "PinnedImageSets",
+                        "readyMachineCount": 3,
+                        "unavailableMachineCount": 0,
+                        "updatedMachineCount": 3
+                    }
+                ],
+                "readyMachineCount": 3,
+                "unavailableMachineCount": 0,
+                "updatedMachineCount": 3
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

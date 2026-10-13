@@ -1,0 +1,62 @@
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.26-openshift-4.22 AS builder
+WORKDIR /go/src/github.com/openshift/oc
+COPY . .
+RUN make build --warn-undefined-variables
+
+FROM registry.ci.openshift.org/ocp/4.22:base-rhel9
+COPY --from=builder /go/src/github.com/openshift/oc/oc /usr/bin/
+COPY --from=builder /go/src/github.com/openshift/oc/images/tools/sos.conf /etc/sos/
+RUN for i in kubectl openshift-deploy openshift-docker-build openshift-sti-build openshift-git-clone openshift-manage-dockerfile openshift-extract-image-content openshift-recycle; do ln -sf /usr/bin/oc /usr/bin/$i; done
+# iotop has been deprecated. iotop-c is used in CentOS 10 and upwards
+RUN if yum install -y iotop >/dev/null 2>&1; then IOTOP_PKG="iotop"; else IOTOP_PKG="iotop-c"; fi && \
+  INSTALL_PKGS="\
+  bash-completion \
+  bc \
+  bind-utils \
+  blktrace \
+  crash \
+  e2fsprogs \
+  ethtool \
+  file \
+  fio \
+  git \
+  glibc-utils \
+  gzip \
+  hwloc \
+  $IOTOP_PKG \
+  iproute \
+  iputils \
+  jq \
+  less \
+  ltrace \
+  net-tools \
+  nmap-ncat \
+  parted \
+  pciutils \
+  procps-ng \
+  psmisc \
+  perf \
+  python3 \
+  sos \
+  s-nail \
+  strace \
+  stress-ng \
+  subscription-manager \
+  sysstat \
+  tcpdump \
+  tmux \
+  util-linux \
+  vim-enhanced \
+  wget \
+  xfsprogs \
+  " && \
+  yum -y install $INSTALL_PKGS && rpm -V --nogroup --nosize --nofiledigest --nomtime --nomode $INSTALL_PKGS && yum clean all && rm -rf /var/cache/*
+  # Disabled until they are buildable on s390x
+  # numactl \
+  # numactl-devel \
+
+CMD ["/usr/bin/bash"]
+LABEL io.k8s.display-name="OpenShift Tools" \
+      io.k8s.description="Contains debugging and diagnostic tools for use with an OpenShift cluster." \
+      io.openshift.build.versions="kubectl=1.35.2" \
+      io.openshift.tags="openshift,tools"

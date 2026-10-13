@@ -1,0 +1,10 @@
+/oc
+/oc-tests-ext
+/clicheck
+/gendocs
+/gendocs-admin
+/genman
+/_output
+.idea/
+_tmp/
+.vscode
