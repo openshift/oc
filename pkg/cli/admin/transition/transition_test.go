@@ -724,7 +724,7 @@ func TestFormatTopologyConditionStatus(t *testing.T) {
 	tests := []struct {
 		name      string
 		label     string
-		condition *operatorv1.OperatorCondition
+		condition *metav1.Condition
 		want      string
 	}{
 		{
@@ -735,8 +735,8 @@ func TestFormatTopologyConditionStatus(t *testing.T) {
 		{
 			name:  "available condition",
 			label: "Upgradeable",
-			condition: &operatorv1.OperatorCondition{
-				Status:  operatorv1.ConditionFalse,
+			condition: &metav1.Condition{
+				Status:  metav1.ConditionFalse,
 				Reason:  "TopologyTransitionInProgress",
 				Message: "Cluster upgrade is not allowed during topology transition",
 			},
