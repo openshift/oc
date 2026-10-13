@@ -1375,8 +1375,8 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 // shouldRunBackupCollection reports whether inspect fallback should run after
 // gather errors. Skip it when collection succeeded, when the user passed a
 // custom command (likely a typo), or when a user-specified plugin image could
-// not be pulled (OCPBUGS-122050) — fallback inspect output looks like a
-// successful must-gather and is uploaded to support by mistake.
+// not be pulled — fallback inspect output looks like a successful must-gather
+// and is uploaded to support by mistake.
 func shouldRunBackupCollection(pluginImagesRequested bool, command []string, errs []error) bool {
 	if len(errs) == 0 {
 		return false
