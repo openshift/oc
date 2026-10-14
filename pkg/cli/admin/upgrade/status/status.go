@@ -55,7 +55,9 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 		Short: "Display the status of the current cluster version update or multi-arch migration",
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
-			kcmdutil.CheckErr(o.Run(cmd.Context()))
+			ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Minute)
+			defer cancel()
+			kcmdutil.CheckErr(o.Run(ctx))
 		},
 	}
 
@@ -109,6 +111,7 @@ func (o *options) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string
 			return err
 		}
 		cfg.UserAgent = rest.DefaultKubernetesUserAgent() + "(upgrade-status)"
+		cfg.Timeout = 60 * time.Second
 
 		roundTripper, err := rest.TransportFor(cfg)
 		if err != nil {
@@ -230,23 +233,13 @@ func (o *options) Run(ctx context.Context) error {
 	}
 	var machineConfigs *machineconfigv1.MachineConfigList
 	if machineConfigs = o.mockData.machineConfigs; machineConfigs == nil {
-		machineConfigs = &machineconfigv1.MachineConfigList{}
-		for _, node := range allNodes.Items {
-			for _, key := range []string{mco.CurrentMachineConfigAnnotationKey, mco.DesiredMachineConfigAnnotationKey} {
-				machineConfigName, ok := node.Annotations[key]
-				if !ok || machineConfigName == "" {
-					continue
-				}
-				mc, err := getMachineConfig(ctx, o.MachineConfigClient, machineConfigs.Items, machineConfigName)
-				if err != nil {
-					return err
-				}
-				if mc != nil {
-					machineConfigs.Items = append(machineConfigs.Items, *mc)
-				}
-			}
+		var err error
+		machineConfigs, err = o.MachineConfigClient.MachineconfigurationV1().MachineConfigs().List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return fmt.Errorf("listing MachineConfigs: %w", err)
 		}
 	}
+	machineConfigVersionMap := buildMachineConfigVersionMap(machineConfigs.Items)
 
 	// The cluster stays within the same version number when it is migrated to multi-arch
 	// and thus the comparison of version numbers in a normal cluster upgrade does not work.
@@ -298,7 +291,7 @@ func (o *options) Run(ctx context.Context) error {
 	// but it cannot be opted out at the moment.
 	multiArchMigrationInProgress := multiArchMigration(cv.Status.History) && progressing.Status == configv1.ConditionTrue
 	for _, pool := range pools.Items {
-		nodesStatusData, insights := assessNodesStatus(cv, pool, nodesPerPool[pool.Name], machineConfigs.Items, multiArchMigrationInProgress)
+		nodesStatusData, insights := assessNodesStatus(cv, pool, nodesPerPool[pool.Name], machineConfigVersionMap, multiArchMigrationInProgress)
 		updateInsights = append(updateInsights, insights...)
 		poolStatus, insights := assessMachineConfigPool(pool, nodesStatusData)
 		updateInsights = append(updateInsights, insights...)
