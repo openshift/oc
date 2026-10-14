@@ -888,7 +888,8 @@ func (c *AppConfig) Run() (*AppResult, error) {
 	case string(imagev1.ImportModeLegacy):
 	case string(imagev1.ImportModePreserveOriginal):
 	case "":
-		c.ImportMode = string(imagev1.ImportModeLegacy)
+		// Leave empty and let it be decided based on the ClusterVersion's "desired.architecture" value. If the value is "Multi",
+		// the import mode is set to "PreserveOriginal", if not it is set to "Legacy"
 	default:
 		return nil, fmt.Errorf("valid ImportMode values are %s or %s", imagev1.ImportModeLegacy, imagev1.ImportModePreserveOriginal)
 	}
