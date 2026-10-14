@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -20,7 +23,9 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	authfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	core "k8s.io/client-go/testing"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/yaml"
 )
@@ -481,4 +486,125 @@ func TestWhoAmIOutputJSONFallbackToUserAPI(t *testing.T) {
 	if diff := cmp.Diff(expectedUser, actualUser); diff != "" {
 		t.Errorf("User mismatch (-expected +actual):\n%s", diff)
 	}
+}
+
+const whoamiTestExecPluginEnv = "WHOAMI_TEST_EXEC_PLUGIN"
+
+func TestMain(m *testing.M) {
+	if pluginMode := os.Getenv(whoamiTestExecPluginEnv); pluginMode != "" {
+		runWhoamiTestExecPlugin(pluginMode)
+	}
+	os.Exit(m.Run())
+}
+
+func TestCurrentBearerToken(t *testing.T) {
+	tokenFile := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(tokenFile, []byte("file-token\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name    string
+		config  *rest.Config
+		want    string
+		wantErr string
+	}{
+		{
+			name:   "static bearer token",
+			config: &rest.Config{BearerToken: "static-token"},
+			want:   "static-token",
+		},
+		{
+			name:   "bearer token file",
+			config: &rest.Config{BearerTokenFile: tokenFile},
+			want:   "file-token",
+		},
+		{
+			name:   "static token preferred over exec plugin",
+			config: execPluginConfig(t, "plugin-token", "static-preferred"),
+			want:   "static-preferred",
+		},
+		{
+			name:   "exec plugin token",
+			config: execPluginConfig(t, "exec-plugin-token", ""),
+			want:   "exec-plugin-token",
+		},
+		{
+			name:    "no token",
+			config:  &rest.Config{},
+			wantErr: "no token is currently in use for this session",
+		},
+		{
+			name:    "nil config",
+			wantErr: "no token is currently in use for this session",
+		},
+		{
+			name:    "exec plugin failure",
+			config:  execPluginConfig(t, "FAIL", ""),
+			wantErr: "unable to get token for this session",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			opts := &WhoAmIOptions{
+				ClientConfig: tt.config,
+				ShowToken:    true,
+				PrintFlags:   genericclioptions.NewPrintFlags("").WithTypeSetter(scheme.Scheme),
+				IOStreams: genericiooptions.IOStreams{
+					Out:    &buf,
+					ErrOut: io.Discard,
+				},
+			}
+
+			err := opts.Run()
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+				}
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got := buf.String(); got != tt.want+"\n" {
+				t.Fatalf("got %q, want %q", got, tt.want+"\n")
+			}
+		})
+	}
+}
+
+func execPluginConfig(t *testing.T, pluginToken, staticToken string) *rest.Config {
+	t.Helper()
+	return &rest.Config{
+		Host:        "https://example.invalid",
+		BearerToken: staticToken,
+		ExecProvider: &clientcmdapi.ExecConfig{
+			APIVersion: "client.authentication.k8s.io/v1",
+			Command:    os.Args[0],
+			Args:       []string{"-test.run=^TestCurrentBearerToken$"},
+			Env: []clientcmdapi.ExecEnvVar{
+				{Name: whoamiTestExecPluginEnv, Value: pluginToken},
+			},
+			InteractiveMode: clientcmdapi.NeverExecInteractiveMode,
+		},
+	}
+}
+
+func runWhoamiTestExecPlugin(pluginMode string) {
+	if pluginMode == "FAIL" {
+		os.Exit(1)
+	}
+	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{
+		"apiVersion": "client.authentication.k8s.io/v1",
+		"kind":       "ExecCredential",
+		"status": map[string]any{
+			"token": pluginMode,
+		},
+	})
+	os.Exit(0)
 }

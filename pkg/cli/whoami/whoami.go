@@ -3,6 +3,8 @@ package whoami
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -40,6 +42,9 @@ var whoamiLong = templates.LongDesc(`
 var whoamiExample = templates.Examples(`
 	# Display the currently authenticated user
 	oc whoami
+
+	# Display the token for this session
+	oc whoami --show-token
 `)
 
 type WhoAmIOptions struct {
@@ -83,7 +88,7 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra
 		},
 	}
 
-	cmd.Flags().BoolVarP(&o.ShowToken, "show-token", "t", o.ShowToken, "Print the token the current session is using. This will return an error if you are using a different form of authentication.")
+	cmd.Flags().BoolVarP(&o.ShowToken, "show-token", "t", o.ShowToken, "Print the token the current session is using, including tokens from exec credential plugins. This will return an error if you are using a different form of authentication.")
 	cmd.Flags().BoolVarP(&o.ShowContext, "show-context", "c", o.ShowContext, "Print the current user context name")
 	cmd.Flags().BoolVar(&o.ShowServer, "show-server", o.ShowServer, "If true, print the current server's REST API URL")
 	cmd.Flags().BoolVar(&o.ShowConsoleUrl, "show-console", o.ShowConsoleUrl, "If true, print the current server's web console URL")
@@ -152,9 +157,6 @@ func (o *WhoAmIOptions) Validate() error {
 	if o.PrintFlags.OutputFlagSpecified() && (o.ShowToken || o.ShowContext || o.ShowServer || o.ShowConsoleUrl) {
 		return fmt.Errorf("--output cannot be used with --show-token, --show-context, --show-server, or --show-console")
 	}
-	if o.ShowToken && len(o.ClientConfig.BearerToken) == 0 {
-		return fmt.Errorf("no token is currently in use for this session")
-	}
 	if o.ShowContext && len(o.RawConfig.CurrentContext) == 0 {
 		return fmt.Errorf("no context has been set")
 	}
@@ -181,7 +183,14 @@ func (o *WhoAmIOptions) getWebConsoleUrl() (string, error) {
 func (o *WhoAmIOptions) Run() error {
 	switch {
 	case o.ShowToken:
-		fmt.Fprintf(o.Out, "%s\n", o.ClientConfig.BearerToken)
+		token, err := currentBearerToken(o.ClientConfig)
+		if err != nil {
+			return err
+		}
+		if len(token) == 0 {
+			return fmt.Errorf("no token is currently in use for this session")
+		}
+		fmt.Fprintf(o.Out, "%s\n", token)
 		return nil
 	case o.ShowContext:
 		fmt.Fprintf(o.Out, "%s\n", o.RawConfig.CurrentContext)
@@ -211,4 +220,56 @@ func (o *WhoAmIOptions) Run() error {
 
 	_, err = o.WhoAmI()
 	return err
+}
+
+// currentBearerToken returns the bearer token used by the current session.
+// Static kubeconfig tokens and token files are returned directly. Exec
+// credential plugins (ExecCredential) and auth providers are resolved through
+// the same client-go transport stack used for API requests, including plugin
+// caching and TTL.
+func currentBearerToken(config *rest.Config) (string, error) {
+	if config == nil {
+		return "", nil
+	}
+	if len(config.BearerToken) > 0 {
+		return config.BearerToken, nil
+	}
+
+	cfg := rest.CopyConfig(config)
+	capture := &bearerCapturingRoundTripper{}
+	rt, err := rest.HTTPWrappersForConfig(cfg, capture)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, "https://kubernetes.default.svc", nil)
+	if err != nil {
+		return "", err
+	}
+	if _, err := rt.RoundTrip(req); err != nil {
+		return "", fmt.Errorf("unable to get token for this session: %w", err)
+	}
+	return capture.token, nil
+}
+
+type bearerCapturingRoundTripper struct {
+	token string
+}
+
+func (rt *bearerCapturingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.token = tokenFromAuthorizationHeader(req.Header.Get("Authorization"))
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       http.NoBody,
+		Header:     make(http.Header),
+		Request:    req,
+	}, nil
+}
+
+func tokenFromAuthorizationHeader(header string) string {
+	const prefix = "Bearer "
+	if len(header) < len(prefix) || !strings.EqualFold(header[:len(prefix)], prefix) {
+		return ""
+	}
+	return header[len(prefix):]
 }
