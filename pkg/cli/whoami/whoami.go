@@ -205,14 +205,18 @@ func (o *WhoAmIOptions) Run() error {
 	}
 
 	var err error
-	o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
-	if err != nil {
-		return err
+	if o.UserInterface == nil {
+		o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
+		if err != nil {
+			return err
+		}
 	}
 
-	o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
-	if err != nil {
-		return err
+	if o.AuthV1Client == nil {
+		o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = o.WhoAmI()
@@ -221,13 +225,17 @@ func (o *WhoAmIOptions) Run() error {
 
 func (o *WhoAmIOptions) runAll() error {
 	var err error
-	o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
-	if err != nil {
-		return err
+	if o.UserInterface == nil {
+		o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
+		if err != nil {
+			return err
+		}
 	}
-	o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
-	if err != nil {
-		return err
+	if o.AuthV1Client == nil {
+		o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Fetch user details
