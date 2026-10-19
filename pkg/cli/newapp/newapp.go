@@ -36,7 +36,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/generate"
+	"github.com/openshift/oc/pkg/helpers"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -642,7 +642,7 @@ func setAppConfigLabels(c *cobra.Command, config *newcmd.AppConfig) error {
 	labelStr := kcmdutil.GetFlagString(c, "labels")
 	if len(labelStr) != 0 {
 		var err error
-		config.Labels, err = generate.ParseLabels(labelStr)
+		config.Labels, err = helpers.ParseLabels(labelStr)
 		if err != nil {
 			return err
 		}

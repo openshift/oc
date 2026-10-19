@@ -98,6 +98,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &operatorv1.ConsoleConfigRouteApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("ConsoleCustomization"):
 		return &operatorv1.ConsoleCustomizationApplyConfiguration{}
+	case v1.SchemeGroupVersion.WithKind("ConsoleIngress"):
+		return &operatorv1.ConsoleIngressApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("ConsoleProviders"):
 		return &operatorv1.ConsoleProvidersApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("ConsoleSpec"):
@@ -158,6 +160,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &operatorv1.FileReferenceSourceApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("ForwardPlugin"):
 		return &operatorv1.ForwardPluginApplyConfiguration{}
+	case v1.SchemeGroupVersion.WithKind("GatewayAPIIngressConfig"):
+		return &operatorv1.GatewayAPIIngressConfigApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("GatewayConfig"):
 		return &operatorv1.GatewayConfigApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("GathererStatus"):
@@ -216,6 +220,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &operatorv1.IngressControllerStatusApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("IngressControllerTuningOptions"):
 		return &operatorv1.IngressControllerTuningOptionsApplyConfiguration{}
+	case v1.SchemeGroupVersion.WithKind("IngressSpec"):
+		return &operatorv1.IngressSpecApplyConfiguration{}
+	case v1.SchemeGroupVersion.WithKind("IngressStatus"):
+		return &operatorv1.IngressStatusApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("InsightsOperator"):
 		return &operatorv1.InsightsOperatorApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("InsightsOperatorSpec"):
@@ -494,10 +502,18 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &operatorv1alpha1.EtcdBackupSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("EtcdBackupStatus"):
 		return &operatorv1alpha1.EtcdBackupStatusApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("GatewayAPIIngressConfig"):
+		return &operatorv1alpha1.GatewayAPIIngressConfigApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ImageContentSourcePolicy"):
 		return &operatorv1alpha1.ImageContentSourcePolicyApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ImageContentSourcePolicySpec"):
 		return &operatorv1alpha1.ImageContentSourcePolicySpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("Ingress"):
+		return &operatorv1alpha1.IngressApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("IngressSpec"):
+		return &operatorv1alpha1.IngressSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("IngressStatus"):
+		return &operatorv1alpha1.IngressStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("OLM"):
 		return &operatorv1alpha1.OLMApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("OLMSpec"):

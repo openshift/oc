@@ -14,7 +14,7 @@ import (
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubectl/pkg/cmd/expose"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/generate"
+	"github.com/openshift/oc/pkg/helpers"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/completion"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -223,7 +223,7 @@ func (o *ExposeOptions) finalizeRoute(route *routev1.Route) error {
 	var labels map[string]string
 	if o.ExposeServiceOptions != nil && len(o.ExposeServiceOptions.Labels) > 0 {
 		var err error
-		labels, err = generate.ParseLabels(o.ExposeServiceOptions.Labels)
+		labels, err = helpers.ParseLabels(o.ExposeServiceOptions.Labels)
 		if err != nil {
 			return fmt.Errorf("unable to parse labels: %w", err)
 		}

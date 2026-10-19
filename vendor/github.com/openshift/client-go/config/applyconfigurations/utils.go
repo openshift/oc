@@ -286,6 +286,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1.KeystoneIdentityProviderApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("KMSPluginConfig"):
 		return &configv1.KMSPluginConfigApplyConfiguration{}
+	case v1.SchemeGroupVersion.WithKind("KMSPluginConfigReference"):
+		return &configv1.KMSPluginConfigReferenceApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("KubevirtPlatformStatus"):
 		return &configv1.KubevirtPlatformStatusApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("LDAPAttributeMapping"):
@@ -476,18 +478,6 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1.UsernameClaimMappingApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("UsernamePrefix"):
 		return &configv1.UsernamePrefixApplyConfiguration{}
-	case v1.SchemeGroupVersion.WithKind("VaultAppRoleAuthentication"):
-		return &configv1.VaultAppRoleAuthenticationApplyConfiguration{}
-	case v1.SchemeGroupVersion.WithKind("VaultAuthentication"):
-		return &configv1.VaultAuthenticationApplyConfiguration{}
-	case v1.SchemeGroupVersion.WithKind("VaultConfigMapReference"):
-		return &configv1.VaultConfigMapReferenceApplyConfiguration{}
-	case v1.SchemeGroupVersion.WithKind("VaultKMSPluginConfig"):
-		return &configv1.VaultKMSPluginConfigApplyConfiguration{}
-	case v1.SchemeGroupVersion.WithKind("VaultSecretReference"):
-		return &configv1.VaultSecretReferenceApplyConfiguration{}
-	case v1.SchemeGroupVersion.WithKind("VaultTLSConfig"):
-		return &configv1.VaultTLSConfigApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("VSphereFailureDomainHostGroup"):
 		return &configv1.VSphereFailureDomainHostGroupApplyConfiguration{}
 	case v1.SchemeGroupVersion.WithKind("VSphereFailureDomainRegionAffinity"):
@@ -538,6 +528,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.ClusterMonitoringSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ContainerResource"):
 		return &configv1alpha1.ContainerResourceApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ControllerManager"):
+		return &configv1alpha1.ControllerManagerApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ControllerManagerSpec"):
+		return &configv1alpha1.ControllerManagerSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("CRIOCredentialProviderConfig"):
 		return &configv1alpha1.CRIOCredentialProviderConfigApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("CRIOCredentialProviderConfigSpec"):
@@ -594,6 +588,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.NodeExporterCollectorDeviceMapperMultipathConfigApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("NodeExporterCollectorEthtoolConfig"):
 		return &configv1alpha1.NodeExporterCollectorEthtoolConfigApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("NodeExporterCollectorInterruptsCollectConfig"):
+		return &configv1alpha1.NodeExporterCollectorInterruptsCollectConfigApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("NodeExporterCollectorInterruptsConfig"):
+		return &configv1alpha1.NodeExporterCollectorInterruptsConfigApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("NodeExporterCollectorKSMDConfig"):
 		return &configv1alpha1.NodeExporterCollectorKSMDConfigApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("NodeExporterCollectorMountStatsConfig"):
@@ -604,6 +602,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.NodeExporterCollectorNetClassConfigApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("NodeExporterCollectorNetDevConfig"):
 		return &configv1alpha1.NodeExporterCollectorNetDevConfigApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("NodeExporterCollectorNVMExpressSubsystemConfig"):
+		return &configv1alpha1.NodeExporterCollectorNVMExpressSubsystemConfigApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("NodeExporterCollectorProcessesConfig"):
 		return &configv1alpha1.NodeExporterCollectorProcessesConfigApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("NodeExporterCollectorSoftirqsConfig"):

@@ -17,7 +17,7 @@ import (
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	watchtools "k8s.io/client-go/tools/watch"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/generate"
+	"github.com/openshift/oc/pkg/helpers"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/openshift/oc/pkg/helpers/term"
@@ -102,7 +102,7 @@ func (o *ServiceAccountTokenOptions) Complete(args []string, requestedLabels str
 	o.SAName = args[0]
 
 	if len(requestedLabels) > 0 {
-		labels, err := generate.ParseLabels(requestedLabels)
+		labels, err := helpers.ParseLabels(requestedLabels)
 		if err != nil {
 			return cmdutil.UsageErrorf(cmd, "%s", err.Error())
 		}

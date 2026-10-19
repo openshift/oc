@@ -25,7 +25,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/generate"
+	"github.com/openshift/oc/pkg/helpers"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -396,7 +396,7 @@ func (o *ProcessOptions) RunProcess() error {
 	}
 
 	if label := o.labels; len(label) > 0 {
-		lbl, err := generate.ParseLabels(label)
+		lbl, err := helpers.ParseLabels(label)
 		if err != nil {
 			return fmt.Errorf("error parsing labels: %v\n", err)
 		}
