@@ -134,11 +134,8 @@ func (o *statusOptions) printTopologyTransitionStatus(ctx context.Context) error
 	}
 
 	// Pull out the relevant conditions from infrastructure API.
-	var evaluatedCond, completedCond *metav1.Condition
-	if status := infra.Status.TopologyTransitionStatus; status != nil {
-		evaluatedCond = metav1helpers.FindStatusCondition(status.Conditions, configv1.TopologyTransitionsEvaluatedConditionType)
-		completedCond = metav1helpers.FindStatusCondition(status.Conditions, configv1.TopologyTransitionCompletedConditionType)
-	}
+	evaluatedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionsEvaluatedConditionType)
+	completedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionCompletedConditionType)
 
 	var output strings.Builder
 	fmt.Fprintln(&output, "\nTransition Status")
@@ -158,7 +155,7 @@ func (o *statusOptions) printTopologyTransitionStatus(ctx context.Context) error
 			fmt.Fprintf(&output, "      Infrastructure Topology:  %s\n", transition.Target.InfrastructureTopology)
 			fmt.Fprintln(&output, "    Evaluations:")
 			for _, eval := range transition.Evaluations {
-				fmt.Fprintln(&output, "  %s", formatTopologyConditionStatus(eval.Type, &eval))
+				fmt.Fprintln(&output, "      ", formatTopologyConditionStatus(eval.Type, &eval))
 			}
 		}
 	}
