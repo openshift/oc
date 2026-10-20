@@ -7,13 +7,10 @@ import (
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
-	operatorv1 "github.com/openshift/api/operator/v1"
 	fakeconfigclient "github.com/openshift/client-go/config/clientset/versioned/fake"
-	fakeoperatorclient "github.com/openshift/client-go/operator/clientset/versioned/fake"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	ktesting "k8s.io/client-go/testing"
 )
@@ -533,99 +530,105 @@ func TestStatusCommand(t *testing.T) {
 		infraSpec              configv1.TopologyMode
 		infraStatus            configv1.TopologyMode
 		infraTopology          configv1.TopologyMode
-		progressingStatus      configv1.ConditionStatus
-		progressingReason      string
-		progressingMessage     string
-		upgradeableStatus      configv1.ConditionStatus
-		upgradeableReason      string
-		upgradeableMessage     string
+		evaluatedStatus        metav1.ConditionStatus
+		evaluatedReason        string
+		evaluatedMessage       string
+		completedStatus        metav1.ConditionStatus
+		completedReason        string
+		completedMessage       string
 		expectedOutputContains []string
 		expectError            bool
 	}{
 		{
-			name:               "transition in progress",
-			infraSpec:          configv1.HighlyAvailableTopologyMode,
-			infraStatus:        configv1.SingleReplicaTopologyMode,
-			infraTopology:      configv1.SingleReplicaTopologyMode,
-			progressingStatus:  configv1.ConditionTrue,
-			progressingReason:  "TopologyTransitionInProgress",
-			progressingMessage: "Transitioning control plane topology from SingleReplica to HighlyAvailable",
-			upgradeableStatus:  configv1.ConditionFalse,
-			upgradeableReason:  "TopologyTransitionInProgress",
-			upgradeableMessage: "Cluster upgrade is not allowed during topology transition",
+			name:             "transition in progress",
+			infraSpec:        configv1.HighlyAvailableTopologyMode,
+			infraStatus:      configv1.SingleReplicaTopologyMode,
+			infraTopology:    configv1.SingleReplicaTopologyMode,
+			evaluatedStatus:  metav1.ConditionTrue,
+			evaluatedReason:  "TransitionAvailable",
+			evaluatedMessage: "Topology transition evaluations completed successfully",
+			completedStatus:  metav1.ConditionFalse,
+			completedReason:  "TopologyTransitionInProgress",
+			completedMessage: "Transitioning control plane topology from SingleReplica to HighlyAvailable",
 			expectedOutputContains: []string{
 				"Control Plane Topology:",
 				"Spec (desired):   HighlyAvailable",
 				"Status (current): SingleReplica",
 				"Infrastructure Topology:",
 				"Transition Status",
-				"  Progressing\n    Status: True\n    Reason: TopologyTransitionInProgress\n    Condition: Transitioning control plane topology from SingleReplica to HighlyAvailable",
-				"  Upgradeable\n    Status: False\n    Reason: TopologyTransitionInProgress\n    Condition: Cluster upgrade is not allowed during topology transition",
+				"  Evaluated\n    Status: True\n    Reason: TransitionAvailable\n    Message: Topology transition evaluations completed successfully",
+				"  Completed\n    Status: False\n    Reason: TopologyTransitionInProgress\n    Message: Transitioning control plane topology from SingleReplica to HighlyAvailable",
 			},
 		},
 		{
-			name:               "no transition",
-			infraSpec:          configv1.HighlyAvailableTopologyMode,
-			infraStatus:        configv1.HighlyAvailableTopologyMode,
-			infraTopology:      configv1.HighlyAvailableTopologyMode,
-			upgradeableStatus:  configv1.ConditionTrue,
-			upgradeableReason:  "AsExpected",
-			upgradeableMessage: "No topology transition in progress",
+			name:             "no transition",
+			infraSpec:        configv1.HighlyAvailableTopologyMode,
+			infraStatus:      configv1.HighlyAvailableTopologyMode,
+			infraTopology:    configv1.HighlyAvailableTopologyMode,
+			evaluatedStatus:  metav1.ConditionTrue,
+			evaluatedReason:  "EvaluationComplete",
+			evaluatedMessage: "Topology transition evaluations completed successfully",
+			completedStatus:  metav1.ConditionTrue,
+			completedReason:  "AsExpected",
+			completedMessage: "No topology transition in progress",
 			expectedOutputContains: []string{
 				"Control Plane Topology:",
 				"Spec (desired):   HighlyAvailable",
 				"Status (current): HighlyAvailable",
 				"Infrastructure Topology:",
 				"Status (current): HighlyAvailable",
-				"  Progressing: Condition not available",
-				"  Upgradeable\n    Status: True\n    Reason: AsExpected\n    Condition: No topology transition in progress",
+				"  Evaluated\n    Status: True\n    Reason: EvaluationComplete\n    Message: Topology transition evaluations completed successfully",
+				"  Completed\n    Status: True\n    Reason: AsExpected\n    Message: No topology transition in progress",
 			},
 		},
 		{
-			name:               "preflight failed",
-			infraSpec:          configv1.HighlyAvailableTopologyMode,
-			infraStatus:        configv1.SingleReplicaTopologyMode,
-			infraTopology:      configv1.SingleReplicaTopologyMode,
-			progressingStatus:  configv1.ConditionFalse,
-			progressingReason:  topologyTransitionPreflightCheckFailedReason,
-			progressingMessage: "Cluster operators are not stable",
-			upgradeableStatus:  configv1.ConditionFalse,
-			upgradeableReason:  topologyTransitionPreflightCheckFailedReason,
-			upgradeableMessage: "Cluster upgrade is not allowed while a topology transition is pending",
+			name:             "preflight failed",
+			infraSpec:        configv1.HighlyAvailableTopologyMode,
+			infraStatus:      configv1.SingleReplicaTopologyMode,
+			infraTopology:    configv1.SingleReplicaTopologyMode,
+			evaluatedStatus:  metav1.ConditionTrue,
+			evaluatedReason:  "EvaluationComplete",
+			evaluatedMessage: "Topology transition evaluations completed successfully",
+			completedStatus:  metav1.ConditionFalse,
+			completedReason:  topologyTransitionPreflightCheckFailedReason,
+			completedMessage: "Cluster operators are not stable",
 			expectedOutputContains: []string{
-				"  Progressing\n    Status: False\n    Reason: PreflightCheckFailed\n    Condition: Cluster operators are not stable",
-				"  Upgradeable\n    Status: False\n    Reason: PreflightCheckFailed\n    Condition: Cluster upgrade is not allowed while a topology transition is pending",
+				"  Evaluated\n    Status: True\n    Reason: EvaluationComplete\n    Message: Topology transition evaluations completed successfully",
+				"  Completed\n    Status: False\n    Reason: PreflightCheckFailed\n    Message: Cluster operators are not stable",
 			},
 		},
 		{
-			name:               "unsupported transition",
-			infraSpec:          configv1.SingleReplicaTopologyMode,
-			infraStatus:        configv1.HighlyAvailableTopologyMode,
-			infraTopology:      configv1.HighlyAvailableTopologyMode,
-			progressingStatus:  configv1.ConditionFalse,
-			progressingReason:  topologyTransitionUnsupportedTransitionReason,
-			progressingMessage: "Transition from HighlyAvailable to SingleReplica is not supported",
-			upgradeableStatus:  configv1.ConditionFalse,
-			upgradeableReason:  topologyTransitionUnsupportedTransitionReason,
-			upgradeableMessage: "Cluster upgrade is not allowed while a topology transition is requested",
+			name:             "unsupported transition",
+			infraSpec:        configv1.SingleReplicaTopologyMode,
+			infraStatus:      configv1.HighlyAvailableTopologyMode,
+			infraTopology:    configv1.HighlyAvailableTopologyMode,
+			evaluatedStatus:  metav1.ConditionTrue,
+			evaluatedReason:  "EvaluationComplete",
+			evaluatedMessage: "Topology transition evaluations completed successfully",
+			completedStatus:  metav1.ConditionFalse,
+			completedReason:  topologyTransitionUnsupportedTransitionReason,
+			completedMessage: "Transition from HighlyAvailable to SingleReplica is not supported",
 			expectedOutputContains: []string{
-				"  Progressing\n    Status: False\n    Reason: UnsupportedTransition\n    Condition: Transition from HighlyAvailable to SingleReplica is not supported",
-				"  Upgradeable\n    Status: False\n    Reason: UnsupportedTransition\n    Condition: Cluster upgrade is not allowed while a topology transition is requested",
+				"  Evaluated\n    Status: True\n    Reason: EvaluationComplete\n    Message: Topology transition evaluations completed successfully",
+				"  Completed\n    Status: False\n    Reason: UnsupportedTransition\n    Message: Transition from HighlyAvailable to SingleReplica is not supported",
 			},
 		},
 		{
-			name:               "empty infrastructure topology",
-			infraSpec:          configv1.HighlyAvailableTopologyMode,
-			infraStatus:        configv1.HighlyAvailableTopologyMode,
-			infraTopology:      "", // Empty infrastructure topology
-			upgradeableStatus:  configv1.ConditionTrue,
-			upgradeableReason:  "AsExpected",
-			upgradeableMessage: "No topology transition in progress",
+			name:             "empty infrastructure topology",
+			infraSpec:        configv1.HighlyAvailableTopologyMode,
+			infraStatus:      configv1.HighlyAvailableTopologyMode,
+			infraTopology:    "", // Empty infrastructure topology
+			evaluatedStatus:  metav1.ConditionTrue,
+			evaluatedReason:  "EvaluationComplete",
+			evaluatedMessage: "Topology transition evaluations completed successfully",
+			completedStatus:  metav1.ConditionTrue,
+			completedReason:  "AsExpected",
+			completedMessage: "No topology transition in progress",
 			expectedOutputContains: []string{
 				"Control Plane Topology:",
 				"Infrastructure Topology:",
 				"Status (current): (not set)",
-				"  Progressing: Condition not available",
+				"  Evaluated\n    Status: True\n    Reason: EvaluationComplete\n    Message: Topology transition evaluations completed successfully",
 			},
 		},
 	}
@@ -634,7 +637,7 @@ func TestStatusCommand(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			streams, _, out, _ := genericclioptions.NewTestIOStreams()
 
-			// Create fake infrastructure
+			// Create fake infrastructure with TopologyTransitionStatus
 			infra := &configv1.Infrastructure{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 				Spec: configv1.InfrastructureSpec{
@@ -646,55 +649,39 @@ func TestStatusCommand(t *testing.T) {
 				},
 			}
 
-			// Create cluster-config-operator Config resource with conditions
-			operatorConfig := &operatorv1.Config{
-				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
-				Status:     operatorv1.ConfigStatus{},
-			}
+			// Add TopologyTransitionStatus conditions
+			if tc.evaluatedStatus != "" || tc.completedStatus != "" {
+				conditions := []metav1.Condition{}
 
-			if tc.progressingStatus != "" {
-				operatorConfig.Status.Conditions = append(operatorConfig.Status.Conditions,
-					operatorv1.OperatorCondition{
-						Type:    topologyTransitionControllerProgressingCondition,
-						Status:  operatorv1.ConditionStatus(tc.progressingStatus),
-						Reason:  tc.progressingReason,
-						Message: tc.progressingMessage,
-					},
-				)
-			}
+				if tc.evaluatedStatus != "" {
+					conditions = append(conditions, metav1.Condition{
+						Type:    configv1.TopologyTransitionsEvaluatedConditionType,
+						Status:  tc.evaluatedStatus,
+						Reason:  tc.evaluatedReason,
+						Message: tc.evaluatedMessage,
+					})
+				}
 
-			if tc.upgradeableStatus != "" {
-				operatorConfig.Status.Conditions = append(operatorConfig.Status.Conditions,
-					operatorv1.OperatorCondition{
-						Type:    topologyTransitionControllerUpgradeableCondition,
-						Status:  operatorv1.ConditionStatus(tc.upgradeableStatus),
-						Reason:  tc.upgradeableReason,
-						Message: tc.upgradeableMessage,
-					},
-				)
+				if tc.completedStatus != "" {
+					conditions = append(conditions, metav1.Condition{
+						Type:    configv1.TopologyTransitionCompletedConditionType,
+						Status:  tc.completedStatus,
+						Reason:  tc.completedReason,
+						Message: tc.completedMessage,
+					})
+				}
+
+				infra.Status.TopologyTransitionStatus = configv1.TopologyTransitionStatus{
+					Conditions: conditions,
+				}
 			}
 
 			configClient := fakeconfigclient.NewSimpleClientset(infra)
 
-			// Manually add Config to tracker since it's not yet registered in the scheme
-			operatorClient := fakeoperatorclient.NewSimpleClientset()
-			gvr := schema.GroupVersionResource{
-				Group:    "operator.openshift.io",
-				Version:  "v1",
-				Resource: "configs",
-			}
-			if err := operatorClient.Tracker().Add(operatorConfig); err != nil {
-				// If add fails due to scheme issue, try creating via GVR
-				if err := operatorClient.Tracker().Create(gvr, operatorConfig, ""); err != nil {
-					t.Fatalf("failed to add operatorConfig to tracker: %v", err)
-				}
-			}
-
 			// Create statusOptions
 			o := &statusOptions{
-				IOStreams:      streams,
-				configClient:   configClient,
-				operatorClient: operatorClient,
+				IOStreams:    streams,
+				configClient: configClient,
 			}
 
 			// Run status command
@@ -720,6 +707,186 @@ func TestStatusCommand(t *testing.T) {
 	}
 }
 
+// TestStatusCommand_WithTransitions tests the transitions array display functionality
+func TestStatusCommand_WithTransitions(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		transitions            []configv1.TopologyTransition
+		expectedOutputContains []string
+		expectedOutputMissing  []string
+	}{
+		{
+			name:        "nil transitions array",
+			transitions: nil,
+			expectedOutputMissing: []string{
+				"Available Transitions:",
+			},
+		},
+		{
+			name:        "empty transitions array",
+			transitions: []configv1.TopologyTransition{},
+			expectedOutputMissing: []string{
+				"Available Transitions:",
+			},
+		},
+		{
+			name: "single transition with evaluations",
+			transitions: []configv1.TopologyTransition{
+				{
+					Source: configv1.TopologyState{
+						ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+						InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+					},
+					Target: configv1.TopologyState{
+						ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+						InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+					},
+					Evaluations: []metav1.Condition{
+						{
+							Type:    configv1.TopologyTransitionAvailableConditionType,
+							Status:  metav1.ConditionTrue,
+							Reason:  "TransitionSupported",
+							Message: "Transition from SingleReplica to HighlyAvailable is supported",
+						},
+						{
+							Type:    "ClusterOperatorsStable",
+							Status:  metav1.ConditionTrue,
+							Reason:  "AllStable",
+							Message: "All cluster operators are stable",
+						},
+					},
+				},
+			},
+			expectedOutputContains: []string{
+				"Available Transitions:",
+				"Transition 1:",
+				"Source:",
+				"Control Plane Topology:    SingleReplica",
+				"Infrastructure Topology:  SingleReplica",
+				"Target:",
+				"Control Plane Topology:    HighlyAvailable",
+				"Infrastructure Topology:  HighlyAvailable",
+				"Evaluations:",
+				"TopologyTransitionAvailable\n    Status: True\n    Reason: TransitionSupported\n    Message: Transition from SingleReplica to HighlyAvailable is supported",
+				"ClusterOperatorsStable\n    Status: True\n    Reason: AllStable\n    Message: All cluster operators are stable",
+			},
+		},
+		{
+			name: "multiple transitions",
+			transitions: []configv1.TopologyTransition{
+				{
+					Source: configv1.TopologyState{
+						ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+						InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+					},
+					Target: configv1.TopologyState{
+						ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+						InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+					},
+					Evaluations: []metav1.Condition{
+						{
+							Type:    configv1.TopologyTransitionAvailableConditionType,
+							Status:  metav1.ConditionTrue,
+							Reason:  "TransitionSupported",
+							Message: "Transition is supported",
+						},
+					},
+				},
+				{
+					Source: configv1.TopologyState{
+						ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+						InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+					},
+					Target: configv1.TopologyState{
+						ControlPlaneTopology:   configv1.HighlyAvailableArbiterMode,
+						InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+					},
+					Evaluations: []metav1.Condition{
+						{
+							Type:    configv1.TopologyTransitionAvailableConditionType,
+							Status:  metav1.ConditionFalse,
+							Reason:  "InsufficientNodes",
+							Message: "Not enough worker nodes for HighlyAvailableArbiter topology",
+						},
+					},
+				},
+			},
+			expectedOutputContains: []string{
+				"Available Transitions:",
+				"Transition 1:",
+				"HighlyAvailable",
+				"Transition 2:",
+				"HighlyAvailableArbiter",
+				"InsufficientNodes",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			streams, _, out, _ := genericclioptions.NewTestIOStreams()
+
+			// Create fake infrastructure with basic topology and transitions
+			infra := &configv1.Infrastructure{
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+				Spec: configv1.InfrastructureSpec{
+					ControlPlaneTopology: configv1.HighlyAvailableTopologyMode,
+				},
+				Status: configv1.InfrastructureStatus{
+					ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+					InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+					TopologyTransitionStatus: configv1.TopologyTransitionStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:    configv1.TopologyTransitionsEvaluatedConditionType,
+								Status:  metav1.ConditionTrue,
+								Reason:  "EvaluationComplete",
+								Message: "Topology transition evaluations completed successfully",
+							},
+							{
+								Type:    configv1.TopologyTransitionCompletedConditionType,
+								Status:  metav1.ConditionTrue,
+								Reason:  "AsExpected",
+								Message: "No topology transition in progress",
+							},
+						},
+						Transitions: tc.transitions,
+					},
+				},
+			}
+
+			configClient := fakeconfigclient.NewSimpleClientset(infra)
+
+			// Create statusOptions
+			o := &statusOptions{
+				IOStreams:    streams,
+				configClient: configClient,
+			}
+
+			// Run status command
+			err := o.run(context.Background())
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Verify expected output
+			output := out.String()
+			for _, expected := range tc.expectedOutputContains {
+				if !strings.Contains(output, expected) {
+					t.Errorf("expected output to contain %q, got:\n%s", expected, output)
+				}
+			}
+
+			// Verify missing output
+			for _, missing := range tc.expectedOutputMissing {
+				if strings.Contains(output, missing) {
+					t.Errorf("expected output to NOT contain %q, got:\n%s", missing, output)
+				}
+			}
+		})
+	}
+}
+
 func TestFormatTopologyConditionStatus(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -729,18 +896,18 @@ func TestFormatTopologyConditionStatus(t *testing.T) {
 	}{
 		{
 			name:  "missing condition",
-			label: "Progressing",
-			want:  "  Progressing: Condition not available\n",
+			label: "Evaluated",
+			want:  "  Evaluated: Condition not available\n",
 		},
 		{
 			name:  "available condition",
-			label: "Upgradeable",
+			label: "Completed",
 			condition: &metav1.Condition{
 				Status:  metav1.ConditionFalse,
 				Reason:  "TopologyTransitionInProgress",
 				Message: "Cluster upgrade is not allowed during topology transition",
 			},
-			want: "  Upgradeable\n    Status: False\n    Reason: TopologyTransitionInProgress\n    Condition: Cluster upgrade is not allowed during topology transition\n",
+			want: "  Completed\n    Status: False\n    Reason: TopologyTransitionInProgress\n    Message: Cluster upgrade is not allowed during topology transition\n",
 		},
 	}
 
@@ -761,7 +928,6 @@ func TestStatusCommandErrors(t *testing.T) {
 		wantWriteError bool
 	}{
 		{name: "Infrastructure read", failResource: "infrastructures"},
-		{name: "operator Config read", failResource: "configs"},
 		{name: "output write", out: failingWriter{err: errors.New("write failed")}, wantWriteError: true},
 	}
 
@@ -774,19 +940,13 @@ func TestStatusCommandErrors(t *testing.T) {
 			configClient := fakeconfigclient.NewSimpleClientset(&configv1.Infrastructure{
 				ObjectMeta: metav1.ObjectMeta{Name: infrastructureResourceName},
 			})
-			operatorClient := fakeoperatorclient.NewSimpleClientset()
 			if tc.failResource == "infrastructures" {
 				configClient.PrependReactor("get", tc.failResource, func(ktesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("read failed")
 				})
 			}
-			if tc.failResource == "configs" {
-				operatorClient.PrependReactor("get", tc.failResource, func(ktesting.Action) (bool, runtime.Object, error) {
-					return true, nil, errors.New("read failed")
-				})
-			}
 
-			o := &statusOptions{IOStreams: streams, configClient: configClient, operatorClient: operatorClient}
+			o := &statusOptions{IOStreams: streams, configClient: configClient}
 			err := o.run(context.Background())
 			if err == nil {
 				t.Fatal("run() error = nil, want error")

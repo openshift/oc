@@ -10,7 +10,6 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
-	operatorv1client "github.com/openshift/client-go/operator/clientset/versioned"
 	metav1helpers "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -35,8 +34,7 @@ var (
 
 // statusOptions holds options for the status subcommand
 type statusOptions struct {
-	configClient   configv1client.Interface
-	operatorClient operatorv1client.Interface
+	configClient configv1client.Interface
 
 	genericclioptions.IOStreams
 }
@@ -71,11 +69,6 @@ func (o *statusOptions) complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	o.configClient, err = configv1client.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create config client: %w", err)
-	}
-
-	o.operatorClient, err = operatorv1client.NewForConfig(restConfig)
-	if err != nil {
-		return fmt.Errorf("failed to create operator client: %w", err)
 	}
 
 	return nil
@@ -149,6 +142,24 @@ func (o *statusOptions) printTopologyTransitionStatus(ctx context.Context) error
 	fmt.Fprintln(&output, formatTopologyConditionStatus("Evaluated", evaluatedCond))
 	fmt.Fprintln(&output, formatTopologyConditionStatus("Completed", completedCond))
 
+	// Display available transitions and their evaluations
+	if len(infra.Status.TopologyTransitionStatus.Transitions) > 0 {
+		fmt.Fprintln(&output, "\nAvailable Transitions:")
+		for i, transition := range infra.Status.TopologyTransitionStatus.Transitions {
+			fmt.Fprintf(&output, "\n  Transition %d:\n", i+1)
+			fmt.Fprintf(&output, "    Source:\n")
+			fmt.Fprintf(&output, "      Control Plane Topology:    %s\n", transition.Source.ControlPlaneTopology)
+			fmt.Fprintf(&output, "      Infrastructure Topology:  %s\n", transition.Source.InfrastructureTopology)
+			fmt.Fprintf(&output, "    Target:\n")
+			fmt.Fprintf(&output, "      Control Plane Topology:    %s\n", transition.Target.ControlPlaneTopology)
+			fmt.Fprintf(&output, "      Infrastructure Topology:  %s\n", transition.Target.InfrastructureTopology)
+			fmt.Fprintln(&output, "    Evaluations:")
+			for _, eval := range transition.Evaluations {
+				fmt.Fprintln(&output, formatTopologyConditionStatus(eval.Type, &eval))
+			}
+		}
+	}
+
 	_, err = io.WriteString(o.Out, output.String())
 	return err
 }
@@ -159,5 +170,5 @@ func formatTopologyConditionStatus(label string, cond *metav1.Condition) string 
 		return fmt.Sprintf("  %s: Condition not available\n", label)
 	}
 
-	return fmt.Sprintf("  %s\n    Status: %s\n    Reason: %s\n    Condition: %s\n", label, cond.Status, cond.Reason, cond.Message)
+	return fmt.Sprintf("  %s\n    Status: %s\n    Reason: %s\n    Message: %s\n", label, cond.Status, cond.Reason, cond.Message)
 }
