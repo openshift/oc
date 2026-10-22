@@ -99,7 +99,9 @@ clusterimagepolicies.config.openshift.io:
   CRDName: clusterimagepolicies.config.openshift.io
   Capability: ""
   Category: ""
-  FeatureGates: []
+  FeatureGates:
+  - SigstoreImageVerification
+  - SigstoreImageVerificationPKI
   FilenameOperatorName: config-operator
   FilenameOperatorOrdering: "01"
   FilenameRunLevel: "0000_10"
@@ -111,7 +113,8 @@ clusterimagepolicies.config.openshift.io:
   PrinterColumns: []
   Scope: Cluster
   ShortNames: null
-  TopLevelFeatureGates: []
+  TopLevelFeatureGates:
+  - SigstoreImageVerification
   Version: v1
 
 clusteroperators.config.openshift.io:
@@ -342,7 +345,9 @@ imagepolicies.config.openshift.io:
   CRDName: imagepolicies.config.openshift.io
   Capability: ""
   Category: ""
-  FeatureGates: []
+  FeatureGates:
+  - SigstoreImageVerification
+  - SigstoreImageVerificationPKI
   FilenameOperatorName: config-operator
   FilenameOperatorOrdering: "01"
   FilenameRunLevel: "0000_10"
@@ -354,7 +359,8 @@ imagepolicies.config.openshift.io:
   PrinterColumns: []
   Scope: Namespaced
   ShortNames: null
-  TopLevelFeatureGates: []
+  TopLevelFeatureGates:
+  - SigstoreImageVerification
   Version: v1
 
 imagetagmirrorsets.config.openshift.io:
@@ -399,6 +405,7 @@ infrastructures.config.openshift.io:
   - NutanixMultiSubnets
   - OnPremDNSRecords
   - VSphereHostVMGroupZonal
+  - VSphereMultiNetworks
   - VSphereMultiVCenterDay2
   FilenameOperatorName: config-operator
   FilenameOperatorOrdering: "01"

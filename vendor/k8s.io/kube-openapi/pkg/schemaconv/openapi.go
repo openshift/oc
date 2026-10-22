@@ -147,13 +147,11 @@ func (c *convert) makeOpenAPIRef(specSchema *spec.Schema) schema.TypeRef {
 			return schema.TypeRef{
 				NamedType:           &n,
 				ElementRelationship: &mapRelationship,
-				Nullable:            specSchema.Nullable,
 			}
 		}
 
 		return schema.TypeRef{
 			NamedType: &n,
-			Nullable:  specSchema.Nullable,
 		}
 
 	}
@@ -166,8 +164,7 @@ func (c *convert) makeOpenAPIRef(specSchema *spec.Schema) schema.TypeRef {
 	c.pop(c2)
 
 	return schema.TypeRef{
-		Inlined:  inlined,
-		Nullable: specSchema.Nullable,
+		Inlined: inlined,
 	}
 }
 

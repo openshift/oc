@@ -47,7 +47,6 @@ import (
 	"github.com/openshift/api/apiextensions"
 	"github.com/openshift/api/apiserver"
 	"github.com/openshift/api/apps"
-	"github.com/openshift/api/authentication"
 	"github.com/openshift/api/authorization"
 	"github.com/openshift/api/build"
 	"github.com/openshift/api/cloudnetwork"
@@ -86,7 +85,6 @@ var (
 		apiextensions.Install,
 		apiserver.Install,
 		apps.Install,
-		authentication.Install,
 		authorization.Install,
 		build.Install,
 		config.Install,
