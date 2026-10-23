@@ -35,12 +35,17 @@ func (v TransitionValidator) GetAvailableTransitions() []TopologyTransition {
 	return available
 }
 
-// FindTransition finds the transition entry matching the requested target.
-// It matches on the target topology state, ignoring fields that are empty
-// (unspecified by the user).
+// FindTransition finds the transition entry whose source matches the current
+// cluster state and whose target matches the requested topology. Target fields
+// that are empty (unspecified by the user) are treated as wildcards.
 func (v TransitionValidator) FindTransition(target TopologyState) *TopologyTransition {
 	for i := range v.Transitions {
 		t := &v.Transitions[i]
+		sourceMatch := t.Source.ControlPlaneTopology == v.Current.ControlPlane &&
+			t.Source.InfrastructureTopology == v.Current.Infrastructure
+		if !sourceMatch {
+			continue
+		}
 		cpMatch := target.ControlPlane == "" || t.Target.ControlPlaneTopology == target.ControlPlane
 		infraMatch := target.Infrastructure == "" || t.Target.InfrastructureTopology == target.Infrastructure
 		if cpMatch && infraMatch {

@@ -1130,9 +1130,14 @@ func TestValidator_FindTransition(t *testing.T) {
 		},
 	}
 
-	v := TransitionValidator{Transitions: transitions}
+	v := TransitionValidator{
+		Current: TopologyState{
+			ControlPlane:   configv1.HighlyAvailableTopologyMode,
+			Infrastructure: configv1.SingleReplicaTopologyMode,
+		},
+		Transitions: transitions,
+	}
 
-	// Match by infra only (CP empty)
 	t.Run("match by infra only", func(t *testing.T) {
 		found := v.FindTransition(TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode})
 		if found == nil {
@@ -1140,7 +1145,6 @@ func TestValidator_FindTransition(t *testing.T) {
 		}
 	})
 
-	// Match by both
 	t.Run("match by both", func(t *testing.T) {
 		found := v.FindTransition(TopologyState{
 			ControlPlane:   configv1.HighlyAvailableTopologyMode,
@@ -1151,13 +1155,78 @@ func TestValidator_FindTransition(t *testing.T) {
 		}
 	})
 
-	// No match
-	t.Run("no match", func(t *testing.T) {
+	t.Run("no match on target", func(t *testing.T) {
 		found := v.FindTransition(TopologyState{Infrastructure: configv1.SingleReplicaTopologyMode})
 		if found != nil {
 			t.Error("expected no match")
 		}
 	})
+
+	t.Run("no match when source does not match current", func(t *testing.T) {
+		v2 := TransitionValidator{
+			Current: TopologyState{
+				ControlPlane:   configv1.SingleReplicaTopologyMode,
+				Infrastructure: configv1.SingleReplicaTopologyMode,
+			},
+			Transitions: transitions,
+		}
+		found := v2.FindTransition(TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode})
+		if found != nil {
+			t.Error("expected no match when source doesn't match current state")
+		}
+	})
+}
+
+func TestValidator_FindTransition_PicksCorrectSourceAmongSameTarget(t *testing.T) {
+	snoToHA := TopologyTransition{
+		Source: APITopologyState{
+			ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+		},
+		Target: APITopologyState{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+		},
+		Evaluations: []metav1.Condition{
+			{Type: TopologyTransitionAvailableConditionType, Status: metav1.ConditionFalse, Message: "Source mismatch"},
+		},
+	}
+	infraSRToHA := TopologyTransition{
+		Source: APITopologyState{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+		},
+		Target: APITopologyState{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+		},
+		Evaluations: []metav1.Condition{
+			{Type: TopologyTransitionAvailableConditionType, Status: metav1.ConditionTrue, Message: "All checks passed"},
+		},
+	}
+
+	v := TransitionValidator{
+		Current: TopologyState{
+			ControlPlane:   configv1.HighlyAvailableTopologyMode,
+			Infrastructure: configv1.SingleReplicaTopologyMode,
+		},
+		Transitions: []TopologyTransition{snoToHA, infraSRToHA},
+	}
+
+	found := v.FindTransition(TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode})
+	if found == nil {
+		t.Fatal("expected to find transition")
+	}
+
+	if found.Source.ControlPlaneTopology != configv1.HighlyAvailableTopologyMode {
+		t.Errorf("expected to match infra-only transition (source CP=HA), got source CP=%s",
+			found.Source.ControlPlaneTopology)
+	}
+
+	avail, _ := IsTransitionAvailable(found)
+	if !avail {
+		t.Error("expected the matched transition to be available")
+	}
 }
 
 func TestValidator_Validate(t *testing.T) {
