@@ -184,6 +184,6 @@ require (
 
 replace github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
 
-replace golang.org/x/crypto => golang.org/x/crypto v0.23.0
+replace golang.org/x/crypto => github.com/openshift-sustaining/crypto v0.24.0-sec.4.1
 
 replace golang.org/x/net => github.com/openshift-sustaining/net v0.35.0-sec.4
