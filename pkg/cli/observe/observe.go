@@ -730,7 +730,7 @@ func (o *ObserveOptions) dumpMetrics() {
 		return
 	}
 	w := httptest.NewRecorder()
-	promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{}).ServeHTTP(w, &http.Request{})
+	promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{}).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
 	if w.Code == http.StatusOK {
 		fmt.Fprint(o.Out, w.Body.String())
 	}
