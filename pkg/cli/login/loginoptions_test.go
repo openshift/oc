@@ -669,3 +669,187 @@ func newTLSServer(certString, keyString string) (*httptest.Server, error) {
 	}
 	return server, nil
 }
+
+func TestMergeConfig(t *testing.T) {
+	testCases := []struct {
+		name             string
+		startingConfig   *kclientcmdapi.Config
+		additionalConfig kclientcmdapi.Config
+		contextFlag      string
+		expectedConfig   *kclientcmdapi.Config
+	}{
+		{
+			name: "context name unspecified",
+			startingConfig: &kclientcmdapi.Config{
+				Clusters:  map[string]*kclientcmdapi.Cluster{},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{},
+				Contexts:  map[string]*kclientcmdapi.Context{},
+			},
+			additionalConfig: kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					"new-cluster": {Server: "https://new-server:6443"},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					"new-user": {Token: "token"},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					"new-context": {Cluster: "new-cluster", AuthInfo: "new-user", Namespace: "default"},
+				},
+				CurrentContext: "new-context",
+			},
+			expectedConfig: &kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					"new-cluster": {Server: "https://new-server:6443"},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					"new-user": {Token: "token"},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					"new-context": {Cluster: "new-cluster", AuthInfo: "new-user", Namespace: "default"},
+				},
+				CurrentContext: "new-context",
+			},
+		},
+		{
+			name: "custom context name without matching existing context",
+			startingConfig: &kclientcmdapi.Config{
+				Clusters:  map[string]*kclientcmdapi.Cluster{},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{},
+				Contexts:  map[string]*kclientcmdapi.Context{},
+			},
+			additionalConfig: kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					"new-cluster": {Server: "https://new-server:6443"},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					"new-user": {Token: "token"},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					"auto-generated-context": {Cluster: "new-cluster", AuthInfo: "new-user", Namespace: "default"},
+				},
+				CurrentContext: "auto-generated-context",
+			},
+			contextFlag: "my-custom-context",
+			expectedConfig: &kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					"new-cluster": {Server: "https://new-server:6443"},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					"new-user": {Token: "token"},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					"my-custom-context": {Cluster: "new-cluster", AuthInfo: "new-user", Namespace: "default"},
+				},
+				CurrentContext: "my-custom-context",
+			},
+		},
+		{
+			name: "custom context name matches existing context",
+			startingConfig: &kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					"existing-cluster": {Server: "https://old-server:6443"},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					"existing-user": {Token: "old-token"},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					"my-custom-context": {Cluster: "existing-cluster", AuthInfo: "existing-user", Namespace: "old-namespace"},
+				},
+			},
+			additionalConfig: kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					"new-cluster": {Server: "https://new-server:6443"},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					"new-user": {Token: "new-token"},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					"auto-generated-context": {Cluster: "new-cluster", AuthInfo: "new-user", Namespace: "default"},
+				},
+				CurrentContext: "auto-generated-context",
+			},
+			contextFlag: "my-custom-context",
+			expectedConfig: &kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					"existing-cluster": {Server: "https://new-server:6443"},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					"existing-user": {Token: "new-token"},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					"my-custom-context": {Cluster: "existing-cluster", AuthInfo: "existing-user", Namespace: "default"},
+				},
+				CurrentContext: "my-custom-context",
+			},
+		},
+		{
+			name: "custom context name replaces matching context but keeps other contexts",
+			startingConfig: &kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					"cluster-a":        {Server: "https://server-a:6443"},
+					"cluster-b":        {Server: "https://server-b:6443"},
+					"existing-cluster": {Server: "https://old-server:6443"},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					"user-a":        {Token: "token-a"},
+					"user-b":        {Token: "token-b"},
+					"existing-user": {Token: "old-token"},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					"context-a":         {Cluster: "cluster-a", AuthInfo: "user-a", Namespace: "ns-a"},
+					"context-b":         {Cluster: "cluster-b", AuthInfo: "user-b", Namespace: "ns-b"},
+					"my-custom-context": {Cluster: "existing-cluster", AuthInfo: "existing-user", Namespace: "old-namespace"},
+				},
+				CurrentContext: "context-a",
+			},
+			additionalConfig: kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					"new-cluster": {Server: "https://new-server:6443"},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					"new-user": {Token: "new-token"},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					"auto-generated-context": {Cluster: "new-cluster", AuthInfo: "new-user", Namespace: "default"},
+				},
+				CurrentContext: "auto-generated-context",
+			},
+			contextFlag: "my-custom-context",
+			expectedConfig: &kclientcmdapi.Config{
+				Clusters: map[string]*kclientcmdapi.Cluster{
+					"cluster-a":        {Server: "https://server-a:6443"},
+					"cluster-b":        {Server: "https://server-b:6443"},
+					"existing-cluster": {Server: "https://new-server:6443"},
+				},
+				AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+					"user-a":        {Token: "token-a"},
+					"user-b":        {Token: "token-b"},
+					"existing-user": {Token: "new-token"},
+				},
+				Contexts: map[string]*kclientcmdapi.Context{
+					"context-a":         {Cluster: "cluster-a", AuthInfo: "user-a", Namespace: "ns-a"},
+					"context-b":         {Cluster: "cluster-b", AuthInfo: "user-b", Namespace: "ns-b"},
+					"my-custom-context": {Cluster: "existing-cluster", AuthInfo: "existing-user", Namespace: "default"},
+				},
+				CurrentContext: "my-custom-context",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			options := &LoginOptions{
+				StartingKubeConfig: tc.startingConfig,
+				Context:            tc.contextFlag,
+			}
+
+			result, err := options.mergeConfig(tc.additionalConfig)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if !cmp.Equal(result, tc.expectedConfig) {
+				t.Errorf("Unexpected merged config:\n%s", cmp.Diff(tc.expectedConfig, result))
+			}
+		})
+	}
+}
