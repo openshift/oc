@@ -3,6 +3,7 @@ package whoami
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -54,6 +55,7 @@ type WhoAmIOptions struct {
 	ShowContext    bool
 	ShowServer     bool
 	ShowConsoleUrl bool
+	ShowAll        bool
 
 	PrintFlags          *genericclioptions.PrintFlags
 	resourcePrinterFunc printers.ResourcePrinterFunc
@@ -87,37 +89,36 @@ func NewCmdWhoAmI(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra
 	cmd.Flags().BoolVarP(&o.ShowContext, "show-context", "c", o.ShowContext, "Print the current user context name")
 	cmd.Flags().BoolVar(&o.ShowServer, "show-server", o.ShowServer, "If true, print the current server's REST API URL")
 	cmd.Flags().BoolVar(&o.ShowConsoleUrl, "show-console", o.ShowConsoleUrl, "If true, print the current server's web console URL")
+	cmd.Flags().BoolVarP(&o.ShowAll, "show-all", "a", o.ShowAll, "If true, print all session details (user, groups, context, server, and console URL)")
 	o.PrintFlags.AddFlags(cmd)
 
 	return cmd
 }
 
-func (o WhoAmIOptions) WhoAmI() (*userv1.User, error) {
+func (o WhoAmIOptions) fetchUser() (*userv1.User, error) {
 	res, err := o.AuthV1Client.SelfSubjectReviews().Create(context.TODO(), &v1.SelfSubjectReview{}, metav1.CreateOptions{})
 	if err == nil {
-		me := &userv1.User{
+		return &userv1.User{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: res.Status.UserInfo.Username,
 			},
 			Groups: res.Status.UserInfo.Groups,
-		}
-		if o.resourcePrinterFunc != nil {
-			return me, o.resourcePrinterFunc(me, o.Out)
-		}
-		fmt.Fprintf(o.Out, "%s\n", me.Name)
-		return me, nil
-	} else {
-		klog.V(2).Infof("selfsubjectreview request error %v, falling back to user object", err)
+		}, nil
 	}
-	me, err := o.UserInterface.Users().Get(context.TODO(), "~", metav1.GetOptions{})
-	if err == nil {
-		if o.resourcePrinterFunc != nil {
-			return me, o.resourcePrinterFunc(me, o.Out)
-		}
-		fmt.Fprintf(o.Out, "%s\n", me.Name)
-	}
+	klog.V(2).Infof("selfsubjectreview request error %v, falling back to user object", err)
+	return o.UserInterface.Users().Get(context.TODO(), "~", metav1.GetOptions{})
+}
 
-	return me, err
+func (o WhoAmIOptions) WhoAmI() (*userv1.User, error) {
+	me, err := o.fetchUser()
+	if err != nil {
+		return me, err
+	}
+	if o.resourcePrinterFunc != nil {
+		return me, o.resourcePrinterFunc(me, o.Out)
+	}
+	fmt.Fprintf(o.Out, "%s\n", me.Name)
+	return me, nil
 }
 
 func (o *WhoAmIOptions) Complete(f kcmdutil.Factory) error {
@@ -149,8 +150,11 @@ func (o *WhoAmIOptions) Complete(f kcmdutil.Factory) error {
 }
 
 func (o *WhoAmIOptions) Validate() error {
-	if o.PrintFlags.OutputFlagSpecified() && (o.ShowToken || o.ShowContext || o.ShowServer || o.ShowConsoleUrl) {
-		return fmt.Errorf("--output cannot be used with --show-token, --show-context, --show-server, or --show-console")
+	if o.PrintFlags.OutputFlagSpecified() && (o.ShowToken || o.ShowContext || o.ShowServer || o.ShowConsoleUrl || o.ShowAll) {
+		return fmt.Errorf("--output cannot be used with --show-token, --show-context, --show-server, --show-console, or --show-all")
+	}
+	if o.ShowAll && (o.ShowToken || o.ShowContext || o.ShowServer || o.ShowConsoleUrl) {
+		return fmt.Errorf("--show-all should not be used together with individual --show-* flags")
 	}
 	if o.ShowToken && len(o.ClientConfig.BearerToken) == 0 {
 		return fmt.Errorf("no token is currently in use for this session")
@@ -196,19 +200,67 @@ func (o *WhoAmIOptions) Run() error {
 		}
 		fmt.Fprintf(o.Out, "%s\n", consoleUrl)
 		return nil
+	case o.ShowAll:
+		return o.runAll()
 	}
 
 	var err error
-	o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
-	if err != nil {
-		return err
+	if o.UserInterface == nil {
+		o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
+		if err != nil {
+			return err
+		}
 	}
 
-	o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
-	if err != nil {
-		return err
+	if o.AuthV1Client == nil {
+		o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = o.WhoAmI()
 	return err
+}
+
+func (o *WhoAmIOptions) runAll() error {
+	var err error
+	if o.UserInterface == nil {
+		o.UserInterface, err = userv1typedclient.NewForConfig(o.ClientConfig)
+		if err != nil {
+			return err
+		}
+	}
+	if o.AuthV1Client == nil {
+		o.AuthV1Client, err = authenticationv1client.NewForConfig(o.ClientConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Fetch user details
+	user, err := o.fetchUser()
+	if err != nil {
+		return err
+	}
+
+	// Fetch console URL (non-fatal if unavailable)
+	consoleURL, err := o.getWebConsoleUrl()
+	if err != nil {
+		consoleURL = "<unavailable>"
+	}
+
+	// Format output
+	fmt.Fprintf(o.Out, "User:            %s\n", user.Name)
+	if len(user.Groups) > 0 {
+		fmt.Fprintf(o.Out, "Groups:          %s\n", strings.Join(user.Groups, ", "))
+	}
+	fmt.Fprintf(o.Out, "Current Context: %s\n", o.RawConfig.CurrentContext)
+	fmt.Fprintf(o.Out, "Server URL:      %s\n", o.ClientConfig.Host)
+	fmt.Fprintf(o.Out, "Console URL:     %s\n", consoleURL)
+	if len(o.ClientConfig.BearerToken) > 0 {
+		fmt.Fprintf(o.Out, "Token:           <present>\n")
+	}
+
+	return nil
 }
