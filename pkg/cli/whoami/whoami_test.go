@@ -520,6 +520,29 @@ func TestCurrentBearerToken(t *testing.T) {
 			want:   "file-token",
 		},
 		{
+			name: "token file preferred over static bearer token",
+			config: &rest.Config{
+				BearerToken:     "static-token",
+				BearerTokenFile: tokenFile,
+			},
+			want: "file-token",
+		},
+		{
+			name: "client certificate is not a bearer token",
+			config: &rest.Config{
+				TLSClientConfig: rest.TLSClientConfig{
+					CertData: []byte("cert"),
+					KeyData:  []byte("key"),
+				},
+			},
+			wantErr: "no token is currently in use for this session",
+		},
+		{
+			name:    "basic auth is not a bearer token",
+			config:  &rest.Config{Username: "user", Password: "password"},
+			wantErr: "no token is currently in use for this session",
+		},
+		{
 			name:   "static token preferred over exec plugin",
 			config: execPluginConfig(t, "plugin-token", "static-preferred"),
 			want:   "static-preferred",
@@ -595,16 +618,22 @@ func execPluginConfig(t *testing.T, pluginToken, staticToken string) *rest.Confi
 	}
 }
 
+// runWhoamiTestExecPlugin writes an ExecCredential for the whoami unit test
+// and exits. pluginMode "FAIL" simulates a plugin error.
 func runWhoamiTestExecPlugin(pluginMode string) {
 	if pluginMode == "FAIL" {
 		os.Exit(1)
 	}
-	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{
+	err := json.NewEncoder(os.Stdout).Encode(map[string]any{
 		"apiVersion": "client.authentication.k8s.io/v1",
 		"kind":       "ExecCredential",
 		"status": map[string]any{
 			"token": pluginMode,
 		},
 	})
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "encode exec credential: %v\n", err)
+		os.Exit(1)
+	}
 	os.Exit(0)
 }

@@ -190,7 +190,9 @@ func (o *WhoAmIOptions) Run() error {
 		if len(token) == 0 {
 			return fmt.Errorf("no token is currently in use for this session")
 		}
-		fmt.Fprintf(o.Out, "%s\n", token)
+		if _, err := fmt.Fprintf(o.Out, "%s\n", token); err != nil {
+			return fmt.Errorf("unable to write token: %w", err)
+		}
 		return nil
 	case o.ShowContext:
 		fmt.Fprintf(o.Out, "%s\n", o.RawConfig.CurrentContext)
@@ -222,40 +224,46 @@ func (o *WhoAmIOptions) Run() error {
 	return err
 }
 
-// currentBearerToken returns the bearer token used by the current session.
-// Static kubeconfig tokens and token files are returned directly. Exec
-// credential plugins (ExecCredential) and auth providers are resolved through
-// the same client-go transport stack used for API requests, including plugin
-// caching and TTL.
+// currentBearerToken returns the bearer token the current session would send
+// on an API request. Static tokens, token files, exec credential plugins, and
+// auth providers are resolved through the client-go transport stack, including
+// plugin caching and TTL. The probe request is not sent to a server.
 func currentBearerToken(config *rest.Config) (string, error) {
 	if config == nil {
 		return "", nil
-	}
-	if len(config.BearerToken) > 0 {
-		return config.BearerToken, nil
 	}
 
 	cfg := rest.CopyConfig(config)
 	capture := &bearerCapturingRoundTripper{}
 	rt, err := rest.HTTPWrappersForConfig(cfg, capture)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to get token for this session: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "https://kubernetes.default.svc", nil)
+	// The URL is never contacted. bearerCapturingRoundTripper stops the request
+	// after authentication wrappers have set the Authorization header.
+	req, err := http.NewRequest(http.MethodGet, "https://example.invalid", nil)
 	if err != nil {
 		return "", err
 	}
-	if _, err := rt.RoundTrip(req); err != nil {
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
 		return "", fmt.Errorf("unable to get token for this session: %w", err)
+	}
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
 	}
 	return capture.token, nil
 }
 
+// bearerCapturingRoundTripper records a bearer token from the Authorization
+// header and does not forward the request.
 type bearerCapturingRoundTripper struct {
 	token string
 }
 
+// RoundTrip stores the bearer token attached by client-go and returns an
+// empty success response so credential plugins are not asked to refresh.
 func (rt *bearerCapturingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	rt.token = tokenFromAuthorizationHeader(req.Header.Get("Authorization"))
 	return &http.Response{
@@ -266,6 +274,9 @@ func (rt *bearerCapturingRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 	}, nil
 }
 
+// tokenFromAuthorizationHeader returns the token from a Bearer authorization
+// header. It returns an empty string when the header is missing or is not a
+// bearer token.
 func tokenFromAuthorizationHeader(header string) string {
 	const prefix = "Bearer "
 	if len(header) < len(prefix) || !strings.EqualFold(header[:len(prefix)], prefix) {
