@@ -113,7 +113,7 @@ func New(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command 
 	flags.StringVar(&o.To, "to", o.To, "Specify the version to upgrade to. The version must be on the list of available updates.")
 	flags.StringVar(&o.ToImage, "to-image", o.ToImage, "Provide a release image to upgrade to.")
 	flags.BoolVar(&o.ToLatestAvailable, "to-latest", o.ToLatestAvailable, "Use the latest (highest Semantic Version) available version.")
-	flags.BoolVar(&o.ToMultiArch, "to-multi-arch", o.ToMultiArch, "Upgrade current version to multi architecture.")
+	flags.BoolVar(&o.ToMultiArch, "to-multi-arch", o.ToMultiArch, "Upgrade current version to multi-architecture.")
 	flags.BoolVar(&o.Clear, "clear", o.Clear, "If an upgrade has been requested but not yet downloaded, cancel the update. This has no effect once the update has started.")
 	flags.BoolVar(&o.Force, "force", o.Force, "Upgrade regardless of cluster-side guard failures, such as release verification or upgradeable conditions. Only use this if you are testing unsigned release images or you are working around a known bug in the cluster-version operator and you have verified the authenticity of the provided image yourself.")
 	flags.BoolVar(&o.AllowExplicitUpgrade, "allow-explicit-upgrade", o.AllowExplicitUpgrade, "Upgrade even if the upgrade target is not listed in the available versions list.")
@@ -246,7 +246,7 @@ func (o *Options) Run() error {
 
 	case o.ToMultiArch:
 		if cv.Spec.DesiredUpdate != nil && cv.Spec.DesiredUpdate.Architecture == configv1.ClusterVersionArchitectureMulti {
-			return fmt.Errorf("info: Update to multi cluster architecture has already been requested")
+			return fmt.Errorf("Cluster has already been requested to update to multi-architecture")
 		}
 
 		if err := checkForUpgrade(cv); err != nil {
@@ -273,7 +273,7 @@ func (o *Options) Run() error {
 
 			return err
 		}
-		fmt.Fprintln(o.Out, "Requested update to multi cluster architecture")
+		fmt.Fprintln(o.Out, "Requested update to multi-architecture cluster")
 		return nil
 
 	case o.ToLatestAvailable, len(o.To) > 0, len(o.ToImage) > 0:
