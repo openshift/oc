@@ -302,7 +302,7 @@ func NewCmdNewApplication(f kcmdutil.Factory, streams genericiooptions.IOStreams
 	cmd.Flags().StringVar(&o.Config.SourceSecret, "source-secret", o.Config.SourceSecret, "The name of an existing secret that should be used for cloning a private git repository.")
 	cmd.Flags().BoolVar(&o.Config.SkipGeneration, "no-install", o.Config.SkipGeneration, "Do not attempt to run images that describe themselves as being installable")
 	cmd.Flags().BoolVar(&o.Config.BinaryBuild, "binary", o.Config.BinaryBuild, "Instead of expecting a source URL, set the build to expect binary contents. Will disable triggers.")
-	cmd.Flags().StringVar(&o.Config.ImportMode, "import-mode", o.Config.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. Defaults to 'Legacy'.")
+	cmd.Flags().StringVar(&o.Config.ImportMode, "import-mode", o.Config.ImportMode, "Imports the full manifest list of a tag when set to 'PreserveOriginal'. When set to 'Legacy', imports a single sub-manifest. When unspecified, the cluster determines the import mode.")
 
 	o.Action.BindForOutput(cmd.Flags(), "output", "template")
 	cmd.Flags().String("output-version", "", "The preferred API versions of the output objects")
