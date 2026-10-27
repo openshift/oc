@@ -53,6 +53,12 @@ const (
 	OCOIDC ExecPluginType = "oc-oidc"
 )
 
+// Supported OIDC grant types for the --grant-type flag.
+const (
+	GrantTypeAuthorizationCode = "authorization-code"
+	GrantTypeDeviceCode        = "device-code"
+)
+
 // LoginOptions is a helper for the login and setup process, gathers all information required for a
 // successful login and eventual update of config files.
 // Depending on the Reader present it can be interactive, asking for terminal input in
@@ -87,6 +93,7 @@ type LoginOptions struct {
 	OIDCIssuerURL       string
 	OIDCCAFile          string
 	OIDCAutoOpenBrowser bool
+	OIDCGrantType       string
 
 	Token string
 
@@ -296,6 +303,10 @@ func (o *LoginOptions) gatherAuthInfo() error {
 	}
 
 	if o.OIDCExecPluginType == string(OCOIDC) {
+		if o.OIDCGrantType == GrantTypeDeviceCode && o.CallbackPort != 0 {
+			fmt.Fprintf(o.Out, "WARNING: --callback-port is ignored when using --grant-type=device-code\n\n")
+		}
+
 		execProvider, err := o.prepareBuiltinExecPlugin()
 		if err != nil {
 			return err
@@ -364,10 +375,15 @@ func (o *LoginOptions) prepareBuiltinExecPlugin() (*kclientcmdapi.ExecConfig, er
 			"get-token",
 			fmt.Sprintf("--issuer-url=%s", o.OIDCIssuerURL),
 			fmt.Sprintf("--client-id=%s", o.OIDCClientID),
-			fmt.Sprintf("--callback-address=127.0.0.1:%d", o.CallbackPort),
 		},
 		InstallHint:     "Please be sure that oc is defined in $PATH to be executed as credentials exec plugin",
 		InteractiveMode: kclientcmdapi.IfAvailableExecInteractiveMode,
+	}
+
+	if o.OIDCGrantType == GrantTypeDeviceCode {
+		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--grant-type=%s", GrantTypeDeviceCode))
+	} else {
+		execProvider.Args = append(execProvider.Args, fmt.Sprintf("--callback-address=127.0.0.1:%d", o.CallbackPort))
 	}
 
 	if len(o.OIDCExtraScopes) > 0 {

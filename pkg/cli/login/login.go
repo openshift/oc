@@ -52,6 +52,9 @@ var (
 
 		# Log in to the external OIDC issuer through Auth Code + PKCE by starting a local server listening on port 8080
 		oc login localhost:8443 --exec-plugin=oc-oidc --client-id=client-id --extra-scopes=email,profile --callback-port=8080
+
+		# Log in to the external OIDC issuer through device code flow
+		oc login localhost:8443 --exec-plugin=oc-oidc --client-id=device-client-id --issuer-url=https://issuer.example.com --grant-type=device-code
 	`)
 )
 
@@ -102,6 +105,7 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().StringVar(&o.OIDCIssuerURL, "issuer-url", o.OIDCIssuerURL, "Experimental: Issuer url for external issuer. Required.")
 	cmds.Flags().StringVar(&o.OIDCCAFile, "oidc-certificate-authority", o.OIDCCAFile, "Experimental: The path to a certificate authority bundle to use when communicating with external OIDC issuer.")
 	cmds.Flags().BoolVar(&o.OIDCAutoOpenBrowser, "auto-open-browser", o.OIDCAutoOpenBrowser, "Experimental: Automatically open browser for login. When used with --web, defaults to true. When used with --exec-plugin for external OIDC, defaults to false.")
+	cmds.Flags().StringVar(&o.OIDCGrantType, "grant-type", o.OIDCGrantType, "Experimental: Grant type for OIDC authentication. Supported values: 'authorization-code' (default), 'device-code'. Only used with --exec-plugin.")
 	return cmds
 }
 
@@ -211,6 +215,14 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 
 	if o.OIDCExecPluginType == string(OCOIDC) && (o.OIDCIssuerURL == "" || o.OIDCClientID == "") {
 		return fmt.Errorf("--issuer-url and --client-id are required fields for oc-oidc type")
+	}
+
+	if o.OIDCGrantType != "" && o.OIDCExecPluginType == "" {
+		return errors.New("--grant-type can only be specified along with --exec-plugin")
+	}
+
+	if o.OIDCGrantType != "" && o.OIDCGrantType != GrantTypeAuthorizationCode && o.OIDCGrantType != GrantTypeDeviceCode {
+		return fmt.Errorf("unsupported --grant-type %q, supported values are %q and %q", o.OIDCGrantType, GrantTypeAuthorizationCode, GrantTypeDeviceCode)
 	}
 
 	if o.OIDCIssuerURL != "" {
