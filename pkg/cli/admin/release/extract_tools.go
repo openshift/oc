@@ -223,14 +223,10 @@ var (
 	targetReleaseArch = "release-arch"
 )
 
-// extractTools extracts specific commands out of images referenced by the release image.
-// TODO: in the future the metadata this command contains might be loaded from the release
-//
-//	image, but we must maintain compatibility with older payloads if so
-func (o *ExtractOptions) extractCommand(command string) error {
-	// Available targets is treated as a GA API and may not be changed without backwards
-	// compatibility of at least N-2 releases.
-	availableTargets := []extractTarget{
+// defaultExtractTargets is treated as a GA API and may not be changed without backwards
+// compatibility of at least N-2 releases.
+func defaultExtractTargets() []extractTarget {
+	return []extractTarget{
 		{
 			OS:      "darwin",
 			Arch:    "amd64",
@@ -491,18 +487,19 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			InjectReleaseArchitecture: true,
 			ArchiveFormat:             "openshift-baremetal-install-linux-%s.tar.gz",
 		},
+		// openshift-install-fips is the RHEL 9 FIPS-capable installer (same binary as
+		// openshift-baremetal-install). It is not Optional so --tools extracts it.
 		{
-			OS:       "linux",
-			Arch:     targetReleaseArch,
-			Command:  "openshift-install-fips",
-			Optional: true,
-			Mapping:  extract.Mapping{Image: "baremetal-installer", From: "usr/bin/openshift-install"},
+			OS:      "linux",
+			Arch:    targetReleaseArch,
+			Command: "openshift-install-fips",
+			Mapping: extract.Mapping{Image: "baremetal-installer", From: "usr/bin/openshift-install"},
 
 			Readme:                    readmeInstallUnix,
 			InjectReleaseImage:        true,
 			InjectReleaseVersion:      true,
 			InjectReleaseArchitecture: true,
-			ArchiveFormat:             "openshift-install-rhel-%s.tar.gz",
+			ArchiveFormat:             "openshift-install-fips-%s.tar.gz",
 		},
 		{
 			OS:      "linux",
@@ -537,6 +534,34 @@ func (o *ExtractOptions) extractCommand(command string) error {
 			TargetCommandName: "ccoctl",
 		},
 	}
+}
+
+// selectExtractTargets returns the targets for --command, or all non-optional
+// targets when command is empty (--tools).
+func selectExtractTargets(available []extractTarget, command string) []extractTarget {
+	var targets []extractTarget
+	if len(command) > 0 {
+		for _, target := range available {
+			if target.Command == command {
+				targets = append(targets, target)
+			}
+		}
+		return targets
+	}
+	for _, target := range available {
+		if !target.Optional {
+			targets = append(targets, target)
+		}
+	}
+	return targets
+}
+
+// extractCommand extracts specific commands out of images referenced by the release image.
+// TODO: in the future the metadata this command contains might be loaded from the release
+//
+//	image, but we must maintain compatibility with older payloads if so
+func (o *ExtractOptions) extractCommand(command string) error {
+	availableTargets := defaultExtractTargets()
 
 	currentArch := runtime.GOARCH
 	currentOS := runtime.GOOS
@@ -566,22 +591,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 
 	// Select the subset of targets based on command line input
 	var willArchive bool
-	var targets []extractTarget
-
-	// Filter by command, or gather all non-optional targets
-	if len(command) > 0 {
-		for _, target := range availableTargets {
-			if target.Command == command {
-				targets = append(targets, target)
-			}
-		}
-	} else {
-		for _, target := range availableTargets {
-			if !target.Optional {
-				targets = append(targets, target)
-			}
-		}
-	}
+	targets := selectExtractTargets(availableTargets, command)
 
 	// If the user didn't specify a command, or the operating system is set
 	// to '*', we'll produce an archive
@@ -597,7 +607,7 @@ func (o *ExtractOptions) extractCommand(command string) error {
 		case len(command) > 0 && currentOS != "*":
 			return fmt.Errorf("command %q does not exist in targets or does not support the operating system %q", o.Command, currentOS)
 		case len(command) > 0:
-			return fmt.Errorf("the supported commands are 'oc', 'openshift-install', `openshift-baremetal-install` and 'ccoctl'")
+			return fmt.Errorf("the supported commands are 'oc', 'openshift-install', 'openshift-install-fips', 'openshift-baremetal-install' and 'ccoctl'")
 		default:
 			return fmt.Errorf("no available commands")
 		}
